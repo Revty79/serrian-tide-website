@@ -1,26 +1,90 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Evanescent";
+  src: url("/evanescent.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Portcullion";
+  src: url("/Portcullion.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --st-deep: #06080f;
+  --st-top: #0a0f1e;
+  --st-foreground: #e2e8f0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--st-deep);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  min-height: 100vh;
+  color: var(--st-foreground);
   font-family: Arial, Helvetica, sans-serif;
+
+  background-image:
+    linear-gradient(rgba(3, 6, 14, 0.55), rgba(3, 6, 14, 0.55)),
+    url("/nebula.png"),
+    linear-gradient(to bottom, var(--st-top), var(--st-deep));
+
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  margin: auto;
+
+  width: min(90vw, 90vh, 1300px);
+  height: min(90vw, 90vh, 1300px);
+
+  background: url("/alchemy.png") center / contain no-repeat;
+  opacity: 0.26;
+
+  pointer-events: none;
+  animation: st-spin 120s linear infinite;
+}
+
+@keyframes st-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+.font-evanescent {
+  font-family: "Evanescent", Georgia, serif;
+}
+
+.font-portcullion {
+  font-family: "Portcullion", Georgia, serif;
 }
