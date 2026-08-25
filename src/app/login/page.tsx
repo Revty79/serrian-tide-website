@@ -2,16 +2,44 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    // Authentication will be connected in the next phase.
-    console.log("Login submitted", { username });
+    setError("");
+    setSuccess("");
+    setIsSubmitting(true);
+
+    try {
+      const result = username.includes("@")
+        ? await authClient.signIn.email({
+            email: username,
+            password,
+          })
+        : await authClient.signIn.username({
+            username,
+            password,
+          });
+
+      if (result.error) {
+        setError(result.error.message || "Unable to sign in.");
+        return;
+      }
+
+      setSuccess("Login successful.");
+    } catch {
+      setError("Unable to sign in.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -132,8 +160,21 @@ export default function LoginPage() {
               />
             </div>
 
+            {error && (
+              <p className="text-center text-sm text-red-300">
+                {error}
+              </p>
+            )}
+
+            {success && (
+              <p className="text-center text-sm text-emerald-300">
+                {success}
+              </p>
+            )}
+
             <button
               type="submit"
+              disabled={isSubmitting}
               className="
                 inline-flex
                 w-full
@@ -152,9 +193,11 @@ export default function LoginPage() {
                 hover:border-amber-300/80
                 hover:bg-amber-300/20
                 hover:shadow-[0_0_35px_rgba(251,191,36,0.18)]
+                disabled:cursor-not-allowed
+                disabled:opacity-50
               "
             >
-              Enter
+              {isSubmitting ? "Entering..." : "Enter"}
             </button>
           </form>
 
