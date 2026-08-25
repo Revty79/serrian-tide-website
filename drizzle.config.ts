@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit";
+
 import dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
@@ -8,7 +9,10 @@ if (!process.env.DATABASE_URL) {
 }
 
 export default defineConfig({
-  schema: "./src/db/auth-schema.ts",
+  schema: [
+    "./src/db/auth-schema.ts",
+    "./src/db/authorization-schema.ts",
+  ],
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {

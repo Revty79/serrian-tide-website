@@ -8,6 +8,13 @@
       "when": 1787623156344,
       "tag": "0000_dapper_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787670952534,
+      "tag": "0001_lethal_stingray",
+      "breakpoints": true
     }
   ]
 }

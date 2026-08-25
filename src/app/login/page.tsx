@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+
 import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
-    setSuccess("");
     setIsSubmitting(true);
 
     try {
@@ -34,7 +36,8 @@ export default function LoginPage() {
         return;
       }
 
-      setSuccess("Login successful.");
+      router.replace("/access");
+      router.refresh();
     } catch {
       setError("Unable to sign in.");
     } finally {
@@ -163,12 +166,6 @@ export default function LoginPage() {
             {error && (
               <p className="text-center text-sm text-red-300">
                 {error}
-              </p>
-            )}
-
-            {success && (
-              <p className="text-center text-sm text-emerald-300">
-                {success}
               </p>
             )}
 
