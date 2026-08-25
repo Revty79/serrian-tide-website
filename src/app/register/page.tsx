@@ -4,9 +4,13 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,27 +20,35 @@ export default function LoginPage() {
 
     setError("");
     setSuccess("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const result = username.includes("@")
-        ? await authClient.signIn.email({
-            email: username,
-            password,
-          })
-        : await authClient.signIn.username({
-            username,
-            password,
-          });
+      const result = await authClient.signUp.email({
+        name: name.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      });
 
       if (result.error) {
-        setError(result.error.message || "Unable to sign in.");
+        setError(result.error.message || "Unable to create account.");
         return;
       }
 
-      setSuccess("Login successful.");
+      setSuccess("Account created successfully. You can now sign in.");
     } catch {
-      setError("Unable to sign in.");
+      setError("Unable to create account.");
     } finally {
       setIsSubmitting(false);
     }
@@ -79,21 +91,57 @@ export default function LoginPage() {
             </Link>
 
             <h2 className="font-portcullion mt-7 text-2xl text-slate-100">
-              Enter the Realms
+              Create Your Account
             </h2>
 
             <p className="mt-2 text-sm text-slate-400">
-              Sign in to continue your journey.
+              Begin your journey into the Realms.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <div>
+              <label
+                htmlFor="name"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Display Name
+              </label>
+
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-white/10
+                  bg-black/35
+                  px-4
+                  py-3
+                  text-slate-100
+                  outline-none
+                  transition
+                  placeholder:text-slate-600
+                  focus:border-amber-300/60
+                  focus:ring-2
+                  focus:ring-amber-300/10
+                "
+                placeholder="Enter your display name"
+                required
+              />
+            </div>
+
             <div>
               <label
                 htmlFor="username"
                 className="mb-2 block text-sm font-medium text-slate-300"
               >
-                Username or Email
+                Username
               </label>
 
               <input
@@ -119,7 +167,43 @@ export default function LoginPage() {
                   focus:ring-2
                   focus:ring-amber-300/10
                 "
-                placeholder="Enter your username or email"
+                placeholder="Choose a permanent username"
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Email
+              </label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-white/10
+                  bg-black/35
+                  px-4
+                  py-3
+                  text-slate-100
+                  outline-none
+                  transition
+                  placeholder:text-slate-600
+                  focus:border-amber-300/60
+                  focus:ring-2
+                  focus:ring-amber-300/10
+                "
+                placeholder="Enter your email"
                 required
               />
             </div>
@@ -136,7 +220,7 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 className="
@@ -155,7 +239,45 @@ export default function LoginPage() {
                   focus:ring-2
                   focus:ring-amber-300/10
                 "
-                placeholder="Enter your password"
+                placeholder="Create a password"
+                minLength={8}
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Confirm Password
+              </label>
+
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-white/10
+                  bg-black/35
+                  px-4
+                  py-3
+                  text-slate-100
+                  outline-none
+                  transition
+                  placeholder:text-slate-600
+                  focus:border-amber-300/60
+                  focus:ring-2
+                  focus:ring-amber-300/10
+                "
+                placeholder="Confirm your password"
+                minLength={8}
                 required
               />
             </div>
@@ -197,32 +319,17 @@ export default function LoginPage() {
                 disabled:opacity-50
               "
             >
-              {isSubmitting ? "Entering..." : "Enter"}
+              {isSubmitting ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 
-          <div className="mt-7 space-y-3 text-center">
-            <div>
-              <span className="text-sm text-slate-400">
-                New to Serrian Tide?{" "}
-              </span>
-
-              <Link
-                href="/register"
-                className="text-sm text-amber-200 transition hover:text-amber-100"
-              >
-                Create Account
-              </Link>
-            </div>
-
-            <div>
-              <Link
-                href="/"
-                className="text-sm text-slate-400 transition hover:text-amber-200"
-              >
-                ← Return to the beginning
-              </Link>
-            </div>
+          <div className="mt-7 text-center">
+            <Link
+              href="/login"
+              className="text-sm text-slate-400 transition hover:text-amber-200"
+            >
+              Already have an account? Sign in
+            </Link>
           </div>
         </div>
       </section>
