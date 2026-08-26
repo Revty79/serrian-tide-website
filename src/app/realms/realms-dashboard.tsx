@@ -10,6 +10,7 @@ import {
   type CharacterSummary,
   type PlayerCampaignSummary,
 } from "@/app/characters/actions";
+import { generateCompleteRandomCharacter } from "@/app/realms/characters/random-actions";
 
 export function RealmsDashboard({
   initialCampaigns,
@@ -24,6 +25,8 @@ export function RealmsDashboard({
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [loadingCharacters, setLoadingCharacters] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [randomizing, setRandomizing] = useState(false);
+  const [randomChoiceOpen, setRandomChoiceOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
 
   const selectedCharacter = characters.find((entry) => String(entry.id) === characterId) ?? null;
@@ -33,6 +36,7 @@ export function RealmsDashboard({
     setCharacterId("");
     setCharacters([]);
     setFeedback("");
+    setRandomChoiceOpen(false);
     if (!campaignId) return () => { active = false; };
     setLoadingCharacters(true);
     listCharactersForCampaign(Number(campaignId))
@@ -53,6 +57,25 @@ export function RealmsDashboard({
       setFeedback(error instanceof Error ? error.message : "The Character could not be created.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function createCompletelyRandomCharacter() {
+    if (!selectedCharacter || selectedCharacter.creationCompletedAt || randomizing) return;
+    setRandomizing(true);
+    setFeedback("");
+    try {
+      const result = await generateCompleteRandomCharacter(selectedCharacter.id);
+      if (result.warnings.length) {
+        setFeedback(`Random draft created with ${result.warnings.length} review ${result.warnings.length === 1 ? "note" : "notes"}.`);
+      }
+      setRandomChoiceOpen(false);
+      router.push(`/realms/characters/${result.characterId}`);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "The random Character could not be generated.");
+      setRandomChoiceOpen(false);
+    } finally {
+      setRandomizing(false);
     }
   }
 
@@ -108,11 +131,20 @@ export function RealmsDashboard({
           </div>
           <div className="realms-control-grid">
             <label><span>Campaign</span><select value={campaignId} onChange={(event) => setCampaignId(event.target.value)}><option value="">{initialCampaigns.length ? "No Campaign Selected" : "No Campaign Memberships"}</option>{initialCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
-            <label><span>Character</span><select value={characterId} disabled={!campaignId || loadingCharacters} onChange={(event) => setCharacterId(event.target.value)}><option value="">{!campaignId ? "Select a Campaign First" : loadingCharacters ? "Reading Characters…" : "No Character Selected"}</option>{characters.map((character) => <option key={character.id} value={character.id}>{character.name}{character.creationCompletedAt ? "" : " · Creation Incomplete"}</option>)}</select></label>
+            <label><span>Character</span><select value={characterId} disabled={!campaignId || loadingCharacters} onChange={(event) => { setCharacterId(event.target.value); setRandomChoiceOpen(false); }}><option value="">{!campaignId ? "Select a Campaign First" : loadingCharacters ? "Reading Characters…" : "No Character Selected"}</option>{characters.map((character) => <option key={character.id} value={character.id}>{character.name}{character.creationCompletedAt ? "" : " · Creation Incomplete"}</option>)}</select></label>
           </div>
           <div className="realms-character-create">
-            <button type="button" disabled={!campaignId || creating} onClick={() => void createNewCharacter()}>{creating ? "Creating…" : "Create New Character"}</button>
-            <span>Creates a fresh Character draft using the selected Campaign rules.</span>
+            <div className="realms-character-create__buttons">
+              <button type="button" disabled={!campaignId || creating} onClick={() => void createNewCharacter()}>{creating ? "Creating…" : "Create New Character"}</button>
+              <button
+                type="button"
+                disabled={!selectedCharacter || Boolean(selectedCharacter.creationCompletedAt) || randomizing}
+                onClick={() => setRandomChoiceOpen(true)}
+              >
+                Random Character
+              </button>
+            </div>
+            <span>Create a fresh draft, or select an unfinished Character and let the generator build it.</span>
           </div>
           {feedback ? <p className="realms-feedback">{feedback}</p> : null}
         </section>
@@ -130,6 +162,27 @@ export function RealmsDashboard({
 
         <footer className="realms-footer"><Link href="/access">← Return to Paths</Link><span>SERRIAN TIDE</span></footer>
       </div>
+
+      {randomChoiceOpen && selectedCharacter ? (
+        <div className="realms-random-modal" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="random-character-title">
+            <p>RANDOM CHARACTER</p>
+            <h2 id="random-character-title" className="font-portcullion">How should {selectedCharacter.name} be created?</h2>
+            <span>Both paths overwrite this unfinished Character's creation draft and leave the permanent completion lock untouched so you can review the result.</span>
+            <div className="realms-random-modal__choices">
+              <button type="button" onClick={() => router.push(`/realms/characters/${selectedCharacter.id}/random/guided`)}>
+                <strong>Guided Random</strong>
+                <small>Choose Race, focus, magic preference, equipment style, and temperament. The engine handles the legal point spending.</small>
+              </button>
+              <button type="button" disabled={randomizing} onClick={() => void createCompletelyRandomCharacter()}>
+                <strong>{randomizing ? "Generating…" : "Completely Random"}</strong>
+                <small>Let Serrian Tide choose every safe option and open the resulting draft for review.</small>
+              </button>
+            </div>
+            <button className="realms-random-modal__cancel" type="button" disabled={randomizing} onClick={() => setRandomChoiceOpen(false)}>Cancel</button>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
