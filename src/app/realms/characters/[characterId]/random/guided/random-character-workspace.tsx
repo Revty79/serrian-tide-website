@@ -191,7 +191,7 @@ function ChoiceGroup({
   title: string;
   description: string;
   value: string;
-  options: readonly Array<{ value: string; label: string; description: string }>;
+  options: ReadonlyArray<{ value: string; label: string; description: string }>;
   onChange: (value: string) => void;
 }) {
   return (
