@@ -35,39 +35,66 @@ export type CharacterAttributeKey = (typeof CHARACTER_ATTRIBUTE_KEYS)[number];
 export const campaignAllowedRace = pgTable(
   "campaign_allowed_race",
   {
-    campaignId: integer("campaign_id").notNull().references(() => campaign.id, { onDelete: "cascade" }),
-    raceId: integer("race_id").notNull().references(() => race.id, { onDelete: "restrict" }),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    raceId: integer("race_id")
+      .notNull()
+      .references(() => race.id, { onDelete: "restrict" }),
     sortOrder: integer("sort_order").default(0).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.campaignId, table.raceId] }),
-    uniqueIndex("campaign_allowed_race_order_uq").on(table.campaignId, table.sortOrder),
+    uniqueIndex("campaign_allowed_race_order_uq").on(
+      table.campaignId,
+      table.sortOrder,
+    ),
+    index("campaign_allowed_race_race_idx").on(table.raceId, table.campaignId),
+    check("campaign_allowed_race_order_valid", sql`${table.sortOrder} >= 0`),
   ],
 );
 
 export const campaignInventoryItem = pgTable(
   "campaign_inventory_item",
   {
-    campaignId: integer("campaign_id").notNull().references(() => campaign.id, { onDelete: "cascade" }),
-    itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "restrict" }),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "restrict" }),
     sortOrder: integer("sort_order").default(0).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.campaignId, table.itemId] }),
-    uniqueIndex("campaign_inventory_item_order_uq").on(table.campaignId, table.sortOrder),
+    uniqueIndex("campaign_inventory_item_order_uq").on(
+      table.campaignId,
+      table.sortOrder,
+    ),
+    index("campaign_inventory_item_item_idx").on(table.itemId, table.campaignId),
+    check("campaign_inventory_item_order_valid", sql`${table.sortOrder} >= 0`),
   ],
 );
 
 export const campaignInventoryTag = pgTable(
   "campaign_inventory_tag",
   {
-    campaignId: integer("campaign_id").notNull().references(() => campaign.id, { onDelete: "cascade" }),
-    tagId: integer("tag_id").notNull().references(() => itemTagCatalog.id, { onDelete: "restrict" }),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => itemTagCatalog.id, { onDelete: "restrict" }),
     sortOrder: integer("sort_order").default(0).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.campaignId, table.tagId] }),
-    uniqueIndex("campaign_inventory_tag_order_uq").on(table.campaignId, table.sortOrder),
+    uniqueIndex("campaign_inventory_tag_order_uq").on(
+      table.campaignId,
+      table.sortOrder,
+    ),
+    index("campaign_inventory_tag_tag_idx").on(table.tagId, table.campaignId),
+    check("campaign_inventory_tag_order_valid", sql`${table.sortOrder} >= 0`),
   ],
 );
 
@@ -75,8 +102,12 @@ export const campaignCharacter = pgTable(
   "campaign_character",
   {
     id: serial("id").primaryKey(),
-    campaignId: integer("campaign_id").notNull().references(() => campaign.id, { onDelete: "cascade" }),
-    playerUserId: text("player_user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    playerUserId: text("player_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     name: text("name").default("New Character").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -86,18 +117,34 @@ export const campaignCharacter = pgTable(
   (table) => [
     index("campaign_character_campaign_id_idx").on(table.campaignId),
     index("campaign_character_player_user_id_idx").on(table.playerUserId),
-    check("campaign_character_name_nonblank", sql`length(trim(${table.name})) > 0`),
-    check("campaign_character_npc_kind_valid", sql`${table.npcKind} IN ('race', 'creature')`),
+    index("campaign_character_player_campaign_idx").on(
+      table.playerUserId,
+      table.campaignId,
+      table.isNpc,
+    ),
+    check(
+      "campaign_character_name_nonblank",
+      sql`length(trim(${table.name})) > 0`,
+    ),
+    check(
+      "campaign_character_npc_kind_valid",
+      sql`${table.npcKind} IN ('race', 'creature')`,
+    ),
   ],
 );
 
 export const campaignCharacterProfile = pgTable(
   "campaign_character_profile",
   {
-    characterId: integer("character_id").primaryKey().references(() => campaignCharacter.id, { onDelete: "cascade" }),
-    raceId: integer("race_id").references(() => race.id, { onDelete: "restrict" }),
+    characterId: integer("character_id")
+      .primaryKey()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    raceId: integer("race_id").references(() => race.id, {
+      onDelete: "restrict",
+    }),
     age: integer("age"),
     sex: text("sex").default("").notNull(),
+    // Preserved for compatibility with the pre-0020 archive. New UI uses feet/inches.
     height: doublePrecision("height"),
     weight: doublePrecision("weight"),
     skinColor: text("skin_color").default("").notNull(),
@@ -124,25 +171,61 @@ export const campaignCharacterProfile = pgTable(
     fatePoints: integer("fate_points"),
   },
   (table) => [
-    check("campaign_character_profile_age_valid", sql`${table.age} IS NULL OR ${table.age} >= 0`),
-    check("campaign_character_profile_height_valid", sql`${table.height} IS NULL OR ${table.height} >= 0`),
-    check("campaign_character_profile_weight_valid", sql`${table.weight} IS NULL OR ${table.weight} >= 0`),
-    check("campaign_character_profile_credits_valid", sql`${table.creditsRemaining} >= 0`),
-    check("campaign_character_profile_fate_valid", sql`${table.fatePoints} IS NULL OR ${table.fatePoints} >= 0`),
+    index("campaign_character_profile_race_idx").on(table.raceId, table.characterId),
+    check(
+      "campaign_character_profile_age_valid",
+      sql`${table.age} IS NULL OR ${table.age} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_height_valid",
+      sql`${table.height} IS NULL OR ${table.height} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_height_feet_valid",
+      sql`${table.heightFeet} IS NULL OR ${table.heightFeet} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_height_inches_valid",
+      sql`${table.heightInches} IS NULL OR (${table.heightInches} >= 0 AND ${table.heightInches} <= 11)`,
+    ),
+    check(
+      "campaign_character_profile_weight_valid",
+      sql`${table.weight} IS NULL OR ${table.weight} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_progress_valid",
+      sql`${table.fame} >= 0 AND ${table.experience} >= 0 AND ${table.totalExperience} >= 0 AND ${table.quintessence} >= 0 AND ${table.totalQuintessence} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_credits_valid",
+      sql`${table.creditsRemaining} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_fate_valid",
+      sql`${table.fatePoints} IS NULL OR ${table.fatePoints} >= 0`,
+    ),
   ],
 );
 
 export const campaignCharacterAttribute = pgTable(
   "campaign_character_attribute",
   {
-    characterId: integer("character_id").notNull().references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
     attributeKey: text("attribute_key").notNull(),
     value: doublePrecision("value").default(25).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.characterId, table.attributeKey] }),
-    check("campaign_character_attribute_key_valid", sql`${table.attributeKey} IN ('STR','DEX','CON','INT','WIS','CHR')`),
-    check("campaign_character_attribute_value_valid", sql`${table.value} >= 0`),
+    check(
+      "campaign_character_attribute_key_valid",
+      sql`${table.attributeKey} IN ('STR','DEX','CON','INT','WIS','CHR')`,
+    ),
+    check(
+      "campaign_character_attribute_value_valid",
+      sql`${table.value} >= 0`,
+    ),
   ],
 );
 
@@ -150,51 +233,98 @@ export const campaignCharacterSkillAllocation = pgTable(
   "campaign_character_skill_allocation",
   {
     id: serial("id").primaryKey(),
-    characterId: integer("character_id").notNull().references(() => campaignCharacter.id, { onDelete: "cascade" }),
-    skillId: integer("skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    skillId: integer("skill_id")
+      .notNull()
+      .references(() => skill.id, { onDelete: "restrict" }),
     parentAllocationId: integer("parent_allocation_id").references(
       (): AnyPgColumn => campaignCharacterSkillAllocation.id,
       { onDelete: "cascade" },
     ),
+    // Zero is intentionally valid: racial grants can require structural parent anchors.
     points: doublePrecision("points").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("campaign_character_skill_allocation_character_idx").on(table.characterId),
-    index("campaign_character_skill_allocation_skill_idx").on(table.skillId),
-    check("campaign_character_skill_allocation_points_valid", sql`${table.points} >= 0`),
+    uniqueIndex("campaign_character_skill_root_uq")
+      .on(table.characterId, table.skillId)
+      .where(sql`${table.parentAllocationId} IS NULL`),
+    uniqueIndex("campaign_character_skill_branch_uq")
+      .on(table.characterId, table.skillId, table.parentAllocationId)
+      .where(sql`${table.parentAllocationId} IS NOT NULL`),
+    index("campaign_character_skill_allocation_character_idx").on(
+      table.characterId,
+      table.parentAllocationId,
+      table.skillId,
+    ),
+    index("campaign_character_skill_allocation_skill_idx").on(
+      table.skillId,
+      table.characterId,
+    ),
+    check(
+      "campaign_character_skill_allocation_points_valid",
+      sql`${table.points} >= 0`,
+    ),
+    check(
+      "campaign_character_skill_allocation_not_self",
+      sql`${table.parentAllocationId} IS NULL OR ${table.parentAllocationId} <> ${table.id}`,
+    ),
   ],
 );
 
 export const campaignCharacterCurrencyHolding = pgTable(
   "campaign_character_currency_holding",
   {
-    characterId: integer("character_id").notNull().references(() => campaignCharacter.id, { onDelete: "cascade" }),
-    currencyId: integer("currency_id").notNull().references(() => campaignDerivedCurrency.id, { onDelete: "restrict" }),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    currencyId: integer("currency_id")
+      .notNull()
+      .references(() => campaignDerivedCurrency.id, { onDelete: "restrict" }),
     quantity: integer("quantity").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.characterId, table.currencyId] }),
-    check("campaign_character_currency_quantity_valid", sql`${table.quantity} >= 0`),
+    index("campaign_character_currency_currency_idx").on(
+      table.currencyId,
+      table.characterId,
+    ),
+    check(
+      "campaign_character_currency_quantity_valid",
+      sql`${table.quantity} >= 0`,
+    ),
   ],
 );
 
 export const campaignCharacterItem = pgTable(
   "campaign_character_item",
   {
-    characterId: integer("character_id").notNull().references(() => campaignCharacter.id, { onDelete: "cascade" }),
-    itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "restrict" }),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "restrict" }),
     quantity: integer("quantity").notNull(),
     unitCostCredits: doublePrecision("unit_cost_credits").notNull(),
     acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.characterId, table.itemId] }),
-    check("campaign_character_item_quantity_valid", sql`${table.quantity} > 0`),
-    check("campaign_character_item_cost_valid", sql`${table.unitCostCredits} >= 0`),
+    index("campaign_character_item_catalog_idx").on(table.itemId, table.characterId),
+    check(
+      "campaign_character_item_quantity_valid",
+      sql`${table.quantity} > 0`,
+    ),
+    check(
+      "campaign_character_item_cost_valid",
+      sql`${table.unitCostCredits} >= 0`,
+    ),
   ],
 );
 
@@ -202,7 +332,9 @@ export const campaignCharacterSpellDocument = pgTable(
   "campaign_character_spell_document",
   {
     id: serial("id").primaryKey(),
-    characterId: integer("character_id").notNull().references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
     documentId: text("document_id").notNull(),
     name: text("name").default("").notNull(),
     tradition: text("tradition").notNull(),
@@ -212,17 +344,35 @@ export const campaignCharacterSpellDocument = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("campaign_character_spell_document_identity_uq").on(table.characterId, table.documentId),
+    uniqueIndex("campaign_character_spell_document_identity_uq").on(
+      table.characterId,
+      table.documentId,
+    ),
     index("campaign_character_spell_document_character_idx").on(table.characterId),
-    check("campaign_character_spell_document_id_nonblank", sql`length(trim(${table.documentId})) > 0`),
+    check(
+      "campaign_character_spell_document_id_nonblank",
+      sql`length(trim(${table.documentId})) > 0`,
+    ),
+    check(
+      "campaign_character_spell_document_tradition_nonblank",
+      sql`length(trim(${table.tradition})) > 0`,
+    ),
+    check(
+      "campaign_character_spell_document_json_nonblank",
+      sql`length(trim(${table.documentJson})) > 0`,
+    ),
   ],
 );
 
 export const campaignCreatureNpcProfile = pgTable(
   "campaign_creature_npc_profile",
   {
-    characterId: integer("character_id").primaryKey().references(() => campaignCharacter.id, { onDelete: "cascade" }),
-    creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "restrict" }),
+    characterId: integer("character_id")
+      .primaryKey()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    creatureId: integer("creature_id")
+      .notNull()
+      .references(() => creature.id, { onDelete: "restrict" }),
     personality: text("personality").default("").notNull(),
     instanceNotes: text("instance_notes").default("").notNull(),
     hpAdjustment: doublePrecision("hp_adjustment").default(0).notNull(),
@@ -233,5 +383,13 @@ export const campaignCreatureNpcProfile = pgTable(
   },
   (table) => [
     index("campaign_creature_npc_profile_creature_idx").on(table.creatureId),
+    check(
+      "campaign_creature_npc_baseline_nonblank",
+      sql`length(trim(${table.baselineSnapshotJson})) > 0`,
+    ),
+    check(
+      "campaign_creature_npc_current_nonblank",
+      sql`length(trim(${table.currentSnapshotJson})) > 0`,
+    ),
   ],
 );
