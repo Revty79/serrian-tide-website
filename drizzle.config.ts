@@ -13,6 +13,8 @@ export default defineConfig({
     "./src/db/auth-schema.ts",
     "./src/db/authorization-schema.ts",
     "./src/db/campaign-schema.ts",
+    "./src/db/skill-schema.ts",
+
 
   ],
   out: "./drizzle",
