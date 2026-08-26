@@ -27,9 +27,10 @@ import {
 } from "@/features/spell-construction/models/spell";
 import { withCalculationSnapshot } from "@/features/spell-construction/utilities/spellFactory";
 import { auth } from "@/lib/auth";
-
-export const SPELL_CONSTRUCTION_EXTENSION = "spell-construction";
-export const SPECIAL_ABILITY_CLASSIFICATION = "special ability";
+import {
+  SPECIAL_ABILITY_CLASSIFICATION,
+  SPELL_CONSTRUCTION_EXTENSION,
+} from "./constants";
 
 export type SkillLibraryFilters = {
   search?: string;
