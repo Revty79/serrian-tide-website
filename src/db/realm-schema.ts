@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
-  type AnyPgColumn,
   boolean,
   check,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -11,11 +11,12 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
-import { campaign, campaignDerivedCurrency } from "./campaign-schema";
+import { campaign, campaignDerivedCurrency, campaignPlayer } from "./campaign-schema";
 import { creature } from "./creature-schema";
 import { item, itemTagCatalog } from "./item-schema";
 import { race } from "./race-schema";
@@ -115,6 +116,11 @@ export const campaignCharacter = pgTable(
     npcKind: text("npc_kind").default("race").notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.campaignId, table.playerUserId],
+      foreignColumns: [campaignPlayer.campaignId, campaignPlayer.userId],
+      name: "campaign_character_campaign_player_fk",
+    }).onDelete("cascade"),
     index("campaign_character_campaign_id_idx").on(table.campaignId),
     index("campaign_character_player_user_id_idx").on(table.playerUserId),
     index("campaign_character_player_campaign_idx").on(
@@ -239,16 +245,22 @@ export const campaignCharacterSkillAllocation = pgTable(
     skillId: integer("skill_id")
       .notNull()
       .references(() => skill.id, { onDelete: "restrict" }),
-    parentAllocationId: integer("parent_allocation_id").references(
-      (): AnyPgColumn => campaignCharacterSkillAllocation.id,
-      { onDelete: "cascade" },
-    ),
+    parentAllocationId: integer("parent_allocation_id"),
     // Zero is intentionally valid: racial grants can require structural parent anchors.
     points: doublePrecision("points").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    unique("campaign_character_skill_allocation_character_uq").on(
+      table.id,
+      table.characterId,
+    ),
+    foreignKey({
+      columns: [table.parentAllocationId, table.characterId],
+      foreignColumns: [table.id, table.characterId],
+      name: "campaign_character_skill_allocation_parent_fk",
+    }).onDelete("cascade"),
     uniqueIndex("campaign_character_skill_root_uq")
       .on(table.characterId, table.skillId)
       .where(sql`${table.parentAllocationId} IS NULL`),
@@ -354,12 +366,16 @@ export const campaignCharacterSpellDocument = pgTable(
       sql`length(trim(${table.documentId})) > 0`,
     ),
     check(
-      "campaign_character_spell_document_tradition_nonblank",
-      sql`length(trim(${table.tradition})) > 0`,
+      "campaign_character_spell_document_tradition_valid",
+      sql`${table.tradition} IN ('Spellcraft/Talismanism/Faith', 'Psionics', 'Bardic Resonance')`,
     ),
     check(
       "campaign_character_spell_document_json_nonblank",
       sql`length(trim(${table.documentJson})) > 0`,
+    ),
+    check(
+      "campaign_character_spell_document_json_valid",
+      sql`${table.documentJson}::jsonb IS NOT NULL`,
     ),
   ],
 );
@@ -390,6 +406,14 @@ export const campaignCreatureNpcProfile = pgTable(
     check(
       "campaign_creature_npc_current_nonblank",
       sql`length(trim(${table.currentSnapshotJson})) > 0`,
+    ),
+    check(
+      "campaign_creature_npc_baseline_json_valid",
+      sql`${table.baselineSnapshotJson}::jsonb IS NOT NULL`,
+    ),
+    check(
+      "campaign_creature_npc_current_json_valid",
+      sql`${table.currentSnapshotJson}::jsonb IS NOT NULL`,
     ),
   ],
 );

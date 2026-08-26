@@ -6,8 +6,21 @@ import { listCampaignsForGod } from "./actions";
 import "./campaigns.css";
 import { CampaignWorkspace } from "./campaign-workspace";
 
-export default async function CampaignsPage() {
+export default async function CampaignsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ campaign?: string }>;
+}) {
   await requireGod().catch(() => redirect("/access"));
+  const requestedCampaignId = Number((await searchParams).campaign);
+  const initialCampaignId = Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
+    ? requestedCampaignId
+    : null;
   const campaigns = await listCampaignsForGod();
-  return <CampaignWorkspace initialCampaigns={campaigns} />;
+  return (
+    <CampaignWorkspace
+      initialCampaigns={campaigns}
+      initialCampaignId={initialCampaignId}
+    />
+  );
 }

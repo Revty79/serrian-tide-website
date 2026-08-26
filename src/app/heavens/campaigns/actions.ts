@@ -187,6 +187,15 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
 
 export async function getCampaignReferenceData(campaignId: number): Promise<CampaignReferenceData> {
   await requireOwner(campaignId);
+  return readCampaignReferenceData();
+}
+
+export async function getCampaignCreationReferenceData(): Promise<CampaignReferenceData> {
+  await requireGod();
+  return readCampaignReferenceData();
+}
+
+async function readCampaignReferenceData(): Promise<CampaignReferenceData> {
   const [races, tags, items] = await Promise.all([
     db.select({ id: race.id, name: race.name, size: race.size }).from(race).orderBy(asc(race.name), asc(race.id)),
     db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),

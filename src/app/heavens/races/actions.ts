@@ -370,6 +370,21 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
         .returning({ id: race.id });
       id = created.id;
     } else {
+      const [stored] = await tx
+        .select({
+          sourceSystem: race.sourceSystem,
+          sourceExternalId: race.sourceExternalId,
+        })
+        .from(race)
+        .where(eq(race.id, id))
+        .limit(1);
+      if (!stored) throw new Error("That Race no longer exists.");
+      if (
+        stored.sourceSystem !== normalized.core.sourceSystem ||
+        stored.sourceExternalId !== normalized.core.sourceExternalId
+      ) {
+        throw new Error("Canonical Race source identity cannot be changed.");
+      }
       const updated = await tx
         .update(race)
         .set({ ...normalized.core, updatedAt: new Date() })

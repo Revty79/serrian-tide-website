@@ -3,12 +3,14 @@ import {
   type AnyPgColumn,
   check,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   pgTable,
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -62,7 +64,9 @@ export const creature = pgTable(
   "creatures",
   {
     id: serial("id").primaryKey(),
-    canonicalId: text("canonical_id").notNull(),
+    canonicalId: text("canonical_id")
+      .notNull()
+      .unique("creatures_canonical_id_uq"),
     canonicalName: text("canonical_name").notNull(),
     family: text("family").default("").notNull(),
     creatureType: text("creature_type").default("").notNull(),
@@ -90,13 +94,15 @@ export const creature = pgTable(
     challengeRatingAdjustmentReason: text("challenge_rating_adjustment_reason").default("").notNull(),
   },
   (table) => [
-    uniqueIndex("creatures_canonical_id_uq").on(table.canonicalId),
     index("creatures_name_idx").on(table.canonicalName),
     index("creatures_family_idx").on(table.family),
     index("creatures_type_idx").on(table.creatureType),
     index("creatures_size_idx").on(table.size),
     check("creatures_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
+    check("creatures_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
     check("creatures_name_nonblank", sql`length(trim(${table.canonicalName})) > 0`),
+    check("creatures_size_valid", sql`${table.size} IN ('Minuscule','Tiny','Small','Medium','Large','Huge','Gargantuan','Colossal')`),
+    check("creatures_parent_not_self", sql`${table.parentCreatureId} IS NULL OR ${table.parentCreatureId} <> ${table.id}`),
     check("creatures_cr_valid", sql`${table.challengeRating} IS NULL OR ${table.challengeRating} BETWEEN 1 AND 50`),
     check("creatures_calculated_cr_valid", sql`${table.calculatedChallengeRating} IS NULL OR ${table.calculatedChallengeRating} BETWEEN 1 AND 50`),
     check("creatures_xp_valid", sql`${table.killXp} IS NULL OR ${table.killXp} >= 0`),
@@ -126,10 +132,15 @@ export const creatureVariant = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("creature_variants_canonical_id_uq").on(table.canonicalId),
+    unique("creature_variants_canonical_id_uq").on(table.canonicalId),
+    unique("creature_variants_id_creature_uq").on(table.id, table.creatureId),
     uniqueIndex("creature_variants_name_uq").on(table.creatureId, table.variantName),
     index("creature_variants_creature_id_idx").on(table.creatureId),
+    check("creature_variants_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
+    check("creature_variants_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("creature_variants_name_nonblank", sql`length(trim(${table.variantName})) > 0`),
+    check("creature_variants_size_valid", sql`${table.sizeOverride} IS NULL OR ${table.sizeOverride} IN ('Minuscule','Tiny','Small','Medium','Large','Huge','Gargantuan','Colossal')`),
+    check("creature_variants_cr_valid", sql`${table.challengeRatingOverride} IS NULL OR ${table.challengeRatingOverride} BETWEEN 1 AND 50`),
     check("creature_variants_xp_valid", sql`${table.killXpOverride} IS NULL OR ${table.killXpOverride} >= 0`),
   ],
 );
@@ -139,7 +150,7 @@ export const creatureAttribute = pgTable(
   {
     id: serial("id").primaryKey(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     attributeKey: text("attribute_key").notNull(),
     value: doublePrecision("value"),
     notes: text("notes").default("").notNull(),
@@ -148,7 +159,19 @@ export const creatureAttribute = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_attributes_variant_owner_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("creature_attributes_base_uq")
+      .on(table.creatureId, table.attributeKey)
+      .where(sql`${table.variantId} IS NULL`),
+    uniqueIndex("creature_attributes_variant_uq")
+      .on(table.variantId, table.attributeKey)
+      .where(sql`${table.variantId} IS NOT NULL`),
     index("creature_attributes_creature_id_idx").on(table.creatureId),
+    check("creature_attributes_key_valid", sql`${table.attributeKey} IN ('Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma')`),
   ],
 );
 
@@ -157,7 +180,7 @@ export const creatureMovement = pgTable(
   {
     id: serial("id").primaryKey(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     movementMode: text("movement_mode").notNull(),
     movementValue: doublePrecision("movement_value"),
     initiative: doublePrecision("initiative"),
@@ -168,6 +191,17 @@ export const creatureMovement = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_movement_variant_owner_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("creature_movement_base_uq")
+      .on(table.creatureId, table.movementMode)
+      .where(sql`${table.variantId} IS NULL`),
+    uniqueIndex("creature_movement_variant_uq")
+      .on(table.variantId, table.movementMode)
+      .where(sql`${table.variantId} IS NOT NULL`),
     index("creature_movement_creature_id_idx").on(table.creatureId),
     check("creature_movement_mode_nonblank", sql`length(trim(${table.movementMode})) > 0`),
   ],
@@ -179,7 +213,7 @@ export const creatureHpPool = pgTable(
     id: serial("id").primaryKey(),
     canonicalId: text("canonical_id").notNull(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     poolName: text("pool_name").notNull(),
     hpPercentage: doublePrecision("hp_percentage"),
     notes: text("notes").default("").notNull(),
@@ -188,8 +222,18 @@ export const creatureHpPool = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("creature_hp_pools_canonical_id_uq").on(table.canonicalId),
+    unique("creature_hp_pools_canonical_id_uq").on(table.canonicalId),
+    unique("creature_hp_pools_id_creature_uq").on(table.id, table.creatureId),
+    unique("creature_hp_pools_id_variant_uq").on(table.id, table.variantId),
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_hp_pools_variant_owner_fk",
+    }).onDelete("cascade"),
     index("creature_hp_pools_creature_id_idx").on(table.creatureId),
+    check("creature_hp_pools_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
+    check("creature_hp_pools_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
+    check("creature_hp_pools_name_nonblank", sql`length(trim(${table.poolName})) > 0`),
   ],
 );
 
@@ -198,11 +242,11 @@ export const creatureHitLocation = pgTable(
   {
     id: serial("id").primaryKey(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     hitLocationNumber: integer("hit_location_number").notNull(),
     locationName: text("location_name").default("").notNull(),
     bodyPartsIncluded: text("body_parts_included").default("").notNull(),
-    hpPoolId: integer("hp_pool_id").references(() => creatureHpPool.id, { onDelete: "restrict" }),
+    hpPoolId: integer("hp_pool_id"),
     naturalArmor: doublePrecision("natural_armor"),
     soak: doublePrecision("soak"),
     locationEffect: text("location_effect").default("").notNull(),
@@ -212,6 +256,27 @@ export const creatureHitLocation = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_hit_locations_variant_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.hpPoolId, table.creatureId],
+      foreignColumns: [creatureHpPool.id, creatureHpPool.creatureId],
+      name: "creature_hit_locations_hp_pool_owner_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("creature_hit_locations_base_uq")
+      .on(table.creatureId, table.hitLocationNumber)
+      .where(sql`${table.variantId} IS NULL`),
+    uniqueIndex("creature_hit_locations_variant_uq")
+      .on(table.variantId, table.hitLocationNumber)
+      .where(sql`${table.variantId} IS NOT NULL`),
+    foreignKey({
+      columns: [table.hpPoolId, table.variantId],
+      foreignColumns: [creatureHpPool.id, creatureHpPool.variantId],
+      name: "creature_hit_locations_hp_pool_variant_fk",
+    }).onDelete("restrict"),
     index("creature_hit_locations_creature_id_idx").on(table.creatureId),
     check("creature_hit_locations_number_valid", sql`${table.hitLocationNumber} BETWEEN 0 AND 9`),
   ],
@@ -223,7 +288,7 @@ export const creatureAttack = pgTable(
     id: serial("id").primaryKey(),
     canonicalId: text("canonical_id").notNull(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     attackName: text("attack_name").notNull(),
     attackPercentage: doublePrecision("attack_percentage"),
     damage: text("damage"),
@@ -239,8 +304,15 @@ export const creatureAttack = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("creature_attacks_canonical_id_uq").on(table.canonicalId),
+    unique("creature_attacks_canonical_id_uq").on(table.canonicalId),
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_attacks_variant_owner_fk",
+    }).onDelete("cascade"),
     index("creature_attacks_creature_id_idx").on(table.creatureId),
+    check("creature_attacks_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
+    check("creature_attacks_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("creature_attacks_name_nonblank", sql`length(trim(${table.attackName})) > 0`),
   ],
 );
@@ -250,7 +322,7 @@ export const creatureSkillLink = pgTable(
   {
     id: serial("id").primaryKey(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     skillId: integer("skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
     rank: text("rank"),
     notes: text("notes").default("").notNull(),
@@ -259,6 +331,17 @@ export const creatureSkillLink = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_skill_links_variant_owner_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("creature_skill_links_base_uq")
+      .on(table.creatureId, table.skillId)
+      .where(sql`${table.variantId} IS NULL`),
+    uniqueIndex("creature_skill_links_variant_uq")
+      .on(table.variantId, table.skillId)
+      .where(sql`${table.variantId} IS NOT NULL`),
     index("creature_skill_links_creature_id_idx").on(table.creatureId),
     index("creature_skill_links_skill_id_idx").on(table.skillId),
   ],
@@ -270,7 +353,7 @@ export const creatureAbility = pgTable(
     id: serial("id").primaryKey(),
     canonicalId: text("canonical_id").notNull(),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     abilityName: text("ability_name").notNull(),
     abilityType: text("ability_type").default("").notNull(),
     activation: text("activation").default("").notNull(),
@@ -285,8 +368,17 @@ export const creatureAbility = pgTable(
     crImpact: text("cr_impact").default("None").notNull(),
   },
   (table) => [
-    uniqueIndex("creature_abilities_canonical_id_uq").on(table.canonicalId),
+    unique("creature_abilities_canonical_id_uq").on(table.canonicalId),
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_abilities_variant_owner_fk",
+    }).onDelete("cascade"),
     index("creature_abilities_creature_id_idx").on(table.creatureId),
+    check("creature_abilities_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
+    check("creature_abilities_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
+    check("creature_abilities_name_nonblank", sql`length(trim(${table.abilityName})) > 0`),
+    check("creature_abilities_cr_impact_valid", sql`${table.crImpact} IN ('None','Minor','Moderate','Major','Extreme')`),
   ],
 );
 
@@ -296,7 +388,7 @@ export const creatureDefense = pgTable(
     id: serial("id").primaryKey(),
     seedIdentity: text("seed_identity"),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     defenseType: text("defense_type").notNull(),
     against: text("against").default("").notNull(),
     value: text("value"),
@@ -307,8 +399,15 @@ export const creatureDefense = pgTable(
     crImpact: text("cr_impact").default("None").notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_defenses_variant_owner_fk",
+    }).onDelete("cascade"),
     uniqueIndex("creature_defenses_seed_identity_uq").on(table.seedIdentity).where(sql`${table.seedIdentity} IS NOT NULL`),
     index("creature_defenses_creature_id_idx").on(table.creatureId),
+    check("creature_defenses_type_nonblank", sql`length(trim(${table.defenseType})) > 0`),
+    check("creature_defenses_cr_impact_valid", sql`${table.crImpact} IN ('None','Minor','Moderate','Major','Extreme')`),
   ],
 );
 
@@ -318,7 +417,7 @@ export const creatureUse = pgTable(
     id: serial("id").primaryKey(),
     seedIdentity: text("seed_identity"),
     creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
-    variantId: integer("variant_id").references(() => creatureVariant.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id"),
     useName: text("use_name").notNull(),
     notes: text("notes").default("").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
@@ -326,7 +425,13 @@ export const creatureUse = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.variantId, table.creatureId],
+      foreignColumns: [creatureVariant.id, creatureVariant.creatureId],
+      name: "creature_uses_variant_owner_fk",
+    }).onDelete("cascade"),
     uniqueIndex("creature_uses_seed_identity_uq").on(table.seedIdentity).where(sql`${table.seedIdentity} IS NOT NULL`),
     index("creature_uses_creature_id_idx").on(table.creatureId),
+    check("creature_uses_name_nonblank", sql`length(trim(${table.useName})) > 0`),
   ],
 );

@@ -274,7 +274,7 @@ function Overview({ draft, onChange }: { draft: CreatureDraft; onChange: (draft:
       const shouldGenerate = !draft.id && (!core.canonicalId || core.canonicalId.startsWith("CREATURE-"));
       setCore({ canonicalName: name, ...(shouldGenerate && slug(name) ? { canonicalId: `CREATURE-${slug(name).toUpperCase()}` } : {}) });
     }} /></Field>
-    <Field label="Canonical ID"><input value={core.canonicalId} onChange={(e) => setCore({ canonicalId: e.target.value })} /></Field>
+    <Field label="Canonical ID"><input value={core.canonicalId} disabled={Boolean(draft.id)} onChange={(e) => setCore({ canonicalId: e.target.value })} /></Field>
     <Field label="Size"><select value={core.size} onChange={(e) => setCore({ size: e.target.value })}>{CREATURE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field>
     <Field label="Family"><input value={core.family} onChange={(e) => setCore({ family: e.target.value })} /></Field>
     <Field label="Creature Type"><input value={core.creatureType} onChange={(e) => setCore({ creatureType: e.target.value })} /></Field>

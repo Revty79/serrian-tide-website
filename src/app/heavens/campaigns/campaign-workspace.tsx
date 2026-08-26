@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { createCharacter } from "@/app/characters/actions";
@@ -25,21 +25,58 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
   return <label className={wide ? "campaign-field campaign-field--wide" : "campaign-field"}><span>{label}</span>{children}</label>;
 }
 
-export function CampaignWorkspace({ initialCampaigns }: { initialCampaigns: CampaignAdminSummary[] }) {
+export function CampaignWorkspace({
+  initialCampaigns,
+  initialCampaignId,
+}: {
+  initialCampaigns: CampaignAdminSummary[];
+  initialCampaignId: number | null;
+}) {
   const router = useRouter();
   const [campaigns] = useState(initialCampaigns);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialCampaignId);
   const [draft, setDraft] = useState<CampaignAdminDraft | null>(null);
   const [references, setReferences] = useState<CampaignReferenceData | null>(null);
   const [members, setMembers] = useState<CampaignMemberData | null>(null);
   const [tab, setTab] = useState<Tab>("rules");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(initialCampaignId));
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [raceSearch, setRaceSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [playerCandidate, setPlayerCandidate] = useState("");
+
+  useEffect(() => {
+    if (!initialCampaignId) return;
+    let active = true;
+    Promise.all([
+      getCampaignAdmin(initialCampaignId),
+      getCampaignReferenceData(initialCampaignId),
+      getCampaignMembers(initialCampaignId),
+    ])
+      .then(([nextDraft, nextRefs, nextMembers]) => {
+        if (!active) return;
+        setDraft(nextDraft);
+        setReferences(nextRefs);
+        setMembers(nextMembers);
+        setDirty(false);
+        setTab("rules");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setFeedback({
+          kind: "error",
+          message: error instanceof Error ? error.message : "Campaign could not be loaded.",
+        });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialCampaignId]);
 
   async function openCampaign(id: number) {
     if (dirty && !window.confirm("Discard unsaved Campaign changes?")) return;

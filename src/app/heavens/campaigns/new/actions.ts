@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -15,6 +15,13 @@ import {
   campaignFatePointMethod,
   campaignSystem,
 } from "@/db/campaign-schema";
+import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
+import { race } from "@/db/race-schema";
+import {
+  campaignAllowedRace,
+  campaignInventoryItem,
+  campaignInventoryTag,
+} from "@/db/realm-schema";
 import { auth } from "@/lib/auth";
 
 function readText(formData: FormData, name: string) {
@@ -40,6 +47,22 @@ function readNonNegativeNumber(
   }
 
   return value;
+}
+
+function readPositiveIntegerList(formData: FormData, name: string) {
+  return [
+    ...new Set(
+      formData.getAll(name).map((rawValue) => {
+        const value = typeof rawValue === "string" ? Number(rawValue) : Number.NaN;
+
+        if (!Number.isInteger(value) || value <= 0) {
+          throw new Error(`${name} contains an invalid record.`);
+        }
+
+        return value;
+      }),
+    ),
+  ];
 }
 
 export async function createCampaign(formData: FormData) {
@@ -202,6 +225,56 @@ export async function createCampaign(formData: FormData) {
       (typeof campaignSystem.enumValues)[number];
   });
 
+  const allowedRaceIds = readPositiveIntegerList(formData, "allowedRaceIds");
+  const inventoryTagIds = readPositiveIntegerList(formData, "inventoryTagIds");
+  const explicitInventoryItemIds = readPositiveIntegerList(
+    formData,
+    "inventoryItemIds",
+  );
+
+  const [validRaces, validTags, validItems, taggedItems] = await Promise.all([
+    allowedRaceIds.length
+      ? db.select({ id: race.id }).from(race).where(inArray(race.id, allowedRaceIds))
+      : [],
+    inventoryTagIds.length
+      ? db
+          .select({ id: itemTagCatalog.id })
+          .from(itemTagCatalog)
+          .where(inArray(itemTagCatalog.id, inventoryTagIds))
+      : [],
+    explicitInventoryItemIds.length
+      ? db
+          .select({ id: item.id })
+          .from(item)
+          .where(inArray(item.id, explicitInventoryItemIds))
+      : [],
+    inventoryTagIds.length
+      ? db
+          .select({ itemId: itemTagLink.itemId })
+          .from(itemTagLink)
+          .where(inArray(itemTagLink.tagId, inventoryTagIds))
+      : [],
+  ]);
+
+  if (validRaces.length !== allowedRaceIds.length) {
+    throw new Error("An Allowed Race is no longer available.");
+  }
+
+  if (validTags.length !== inventoryTagIds.length) {
+    throw new Error("An Inventory Tag is no longer available.");
+  }
+
+  if (validItems.length !== explicitInventoryItemIds.length) {
+    throw new Error("An Equipment or Inventory record is no longer available.");
+  }
+
+  const authorizedItemIds = [
+    ...new Set([
+      ...explicitInventoryItemIds,
+      ...taggedItems.map(({ itemId }) => itemId),
+    ]),
+  ];
+
   /*
    * Derived Currencies
    */
@@ -307,7 +380,7 @@ export async function createCampaign(formData: FormData) {
     }
   }
 
-  await db.transaction(async (tx) => {
+  const createdCampaignId = await db.transaction(async (tx) => {
     const [createdCampaign] = await tx
       .insert(campaign)
       .values({
@@ -371,9 +444,43 @@ export async function createCampaign(formData: FormData) {
           ),
         );
     }
+
+    if (allowedRaceIds.length > 0) {
+      await tx.insert(campaignAllowedRace).values(
+        allowedRaceIds.map((raceId, sortOrder) => ({
+          campaignId: createdCampaign.id,
+          raceId,
+          sortOrder,
+        })),
+      );
+    }
+
+    if (inventoryTagIds.length > 0) {
+      await tx.insert(campaignInventoryTag).values(
+        inventoryTagIds.map((tagId, sortOrder) => ({
+          campaignId: createdCampaign.id,
+          tagId,
+          sortOrder,
+        })),
+      );
+    }
+
+    if (authorizedItemIds.length > 0) {
+      await tx.insert(campaignInventoryItem).values(
+        authorizedItemIds.map((itemId, sortOrder) => ({
+          campaignId: createdCampaign.id,
+          itemId,
+          sortOrder,
+        })),
+      );
+    }
+
+    return createdCampaign.id;
   });
 
   revalidatePath("/heavens");
+  revalidatePath("/heavens/campaigns");
+  revalidatePath("/realms");
 
-  redirect("/heavens");
+  redirect(`/heavens/campaigns?campaign=${createdCampaignId}`);
 }

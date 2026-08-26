@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { auth } from "@/lib/auth";
 
+import { getCampaignCreationReferenceData } from "../actions";
 import { CampaignCreateForm } from "./campaign-create-form";
 
 export default async function NewCampaignPage() {
@@ -34,6 +35,8 @@ export default async function NewCampaignPage() {
   if (godAccess.length === 0) {
     redirect("/access");
   }
+
+  const references = await getCampaignCreationReferenceData();
 
   return (
     <main className="relative z-10 min-h-screen px-5 py-8 sm:px-8 sm:py-10">
@@ -109,7 +112,7 @@ export default async function NewCampaignPage() {
           </p>
         </section>
 
-        <CampaignCreateForm />
+        <CampaignCreateForm references={references} />
       </div>
     </main>
   );

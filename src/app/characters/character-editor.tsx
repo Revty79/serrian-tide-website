@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import "./character-sheet.css";
+
 import {
   getCharacter,
   saveCharacter,
 } from "./actions";
+import { CharacterSheet } from "./character-sheet";
 import {
   CHARACTER_ATTRIBUTE_KEYS,
   CHARACTER_ATTRIBUTE_LABELS,
@@ -30,8 +33,12 @@ import {
   getStartingFundsSpent,
   normalizeSkillAttributeKey,
 } from "@/features/characters/character-rules";
+import {
+  getCanonicalCreditsFromHoldings,
+  getStoredCampaignMoneyBreakdown,
+} from "@/features/characters/currency-rules";
 
-type Tab = "identity" | "race" | "attributes" | "skills" | "story" | "equipment" | "review";
+type Tab = "identity" | "race" | "attributes" | "skills" | "story" | "equipment" | "god" | "review" | "sheet";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "identity", label: "Identity" },
@@ -40,7 +47,9 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "skills", label: "Skills" },
   { id: "story", label: "Story & Personality" },
   { id: "equipment", label: "Equipment & Inventory" },
+  { id: "god", label: "G.O.D. Controls" },
   { id: "review", label: "Review" },
+  { id: "sheet", label: "Character Sheet" },
 ];
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -70,6 +79,15 @@ export function CharacterEditor({
   const readiness = useMemo(
     () => evaluateCharacterReadiness(draft, aggregate, selectedRace),
     [aggregate, draft, selectedRace],
+  );
+  const displayedBalance = godMode
+    ? draft.profile.creditsRemaining
+    : readiness.fundsRemaining;
+  const displayedPurse = getStoredCampaignMoneyBreakdown(
+    displayedBalance,
+    aggregate.campaign.currencySystem,
+    aggregate.campaign.derivedCurrencies,
+    godMode ? draft.currencyHoldings : [],
   );
 
   function change(next: CharacterDraft) {
@@ -125,7 +143,7 @@ export function CharacterEditor({
       <section className="character-status-strip">
         <div><span>Attributes</span><strong>{readiness.attributesUsed} / {aggregate.campaign.attributePoints}</strong></div>
         <div><span>Skills</span><strong>{readiness.skillPointsUsed} / {aggregate.campaign.skillPoints}</strong></div>
-        <div><span>Funds</span><strong>{readiness.fundsRemaining.toLocaleString()} cr</strong></div>
+        <div><span>{godMode ? "Current Funds" : "Funds"}</span><strong>{displayedPurse.formatted}</strong></div>
         <div><span>Experience</span><strong>{draft.profile.experience}</strong></div>
         <div><span>Quintessence</span><strong>{draft.profile.quintessence}</strong></div>
         <div><span>Status</span><strong>{aggregate.profile.creationCompletedAt ? "Complete" : "Creation"}</strong></div>
@@ -134,7 +152,7 @@ export function CharacterEditor({
       {feedback ? <p className={`character-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
       <div className="character-workspace">
-        <nav className="character-tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}><span>{tab.label}</span>{tabStatus(tab.id, readiness) ? <i>✓</i> : null}</button>)}</nav>
+        <nav className="character-tabs">{TABS.filter((tab) => godMode || tab.id !== "god").map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}><span>{tab.label}</span>{tabStatus(tab.id, readiness) ? <i>✓</i> : null}</button>)}</nav>
         <section className="character-editor">
           {activeTab === "identity" ? <IdentityTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} onChange={change} /> : null}
           {activeTab === "race" ? <RaceTab draft={draft} aggregate={aggregate} disabled={playerLocked} onChange={change} /> : null}
@@ -142,7 +160,9 @@ export function CharacterEditor({
           {activeTab === "skills" ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked} onChange={change} /> : null}
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked} onChange={change} /> : null}
           {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} onChange={change} /> : null}
+          {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} onChange={change} /> : null}
           {activeTab === "review" ? <ReviewTab draft={draft} aggregate={aggregate} readiness={readiness} selectedRace={selectedRace} godMode={godMode} playerLocked={playerLocked} saving={saving} onSave={() => void persist(false)} onComplete={() => void persist(true)} /> : null}
+          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} /> : null}
         </section>
       </div>
     </main>
@@ -156,6 +176,7 @@ function tabStatus(tab: Tab, readiness: ReturnType<typeof evaluateCharacterReadi
   if (tab === "skills") return readiness.skillsComplete;
   if (tab === "story") return readiness.storyComplete;
   if (tab === "equipment") return readiness.equipmentComplete;
+  if (tab === "god") return true;
   return readiness.ready;
 }
 
@@ -271,6 +292,58 @@ function EquipmentTab({ draft, aggregate, disabled, onChange }: { draft: Charact
     {!disabled ? <div className="character-item-add"><Field label="Search"><input value={search} onChange={(e) => setSearch(e.target.value)} /></Field><Field label="Authorized Item"><select value={itemId} onChange={(e) => setItemId(e.target.value)}><option value="">Choose Item</option>{authorized.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {entry.catalogScope}{entry.equipmentGroup ? `/${entry.equipmentGroup}` : ""} · {entry.credits} cr</option>)}</select></Field><button type="button" disabled={!itemId} onClick={addItem}>Add Item</button></div> : null}
     <div className="character-item-list">{draft.items.map((owned) => { const source = sourceMap.get(owned.itemId); if (!source) return null; return <article key={owned.itemId}><div><p>{source.catalogScope}{source.equipmentGroup ? ` / ${source.equipmentGroup}` : ""}</p><h3>{source.name}</h3><span>{source.recordType} · {source.category}</span></div><div className="character-item-price"><strong>{source.credits ?? owned.unitCostCredits} cr</strong><small>{source.priceBasis}</small></div><label><span>Qty</span><input disabled={disabled} type="number" min={1} step={1} value={owned.quantity} onChange={(e) => onChange({ ...draft, items: draft.items.map((entry) => entry.itemId === owned.itemId ? { ...entry, quantity: Math.max(1, Math.trunc(Number(e.target.value))) } : entry) })} /></label>{!disabled ? <button type="button" onClick={() => onChange({ ...draft, items: draft.items.filter((entry) => entry.itemId !== owned.itemId) })}>Remove</button> : null}</article>; })}</div>
     {!aggregate.authorizedItems.length ? <p className="character-notice">This Campaign has not authorized any Equipment or Inventory records yet. The G.O.D. must configure Campaign inventory before creation can be completed.</p> : null}
+  </div>;
+}
+
+function GodControlsTab({ draft, aggregate, onChange }: { draft: CharacterDraft; aggregate: CharacterAggregate; onChange: (draft: CharacterDraft) => void }) {
+  const purse = getStoredCampaignMoneyBreakdown(
+    draft.profile.creditsRemaining,
+    aggregate.campaign.currencySystem,
+    aggregate.campaign.derivedCurrencies,
+    draft.currencyHoldings,
+  );
+  const setProfile = (update: Partial<CharacterDraft["profile"]>) =>
+    onChange({ ...draft, profile: { ...draft.profile, ...update } });
+  const numericFields = [
+    ["fame", "Fame"],
+    ["experience", "Available Experience"],
+    ["totalExperience", "Lifetime Experience"],
+    ["quintessence", "Available Quintessence"],
+    ["totalQuintessence", "Lifetime Quintessence"],
+  ] as const;
+
+  function changeCurrency(currencyId: number, requested: number) {
+    const currencyHoldings = purse.entries
+      .map((entry) => ({
+        currencyId: entry.id,
+        quantity:
+          entry.id === currencyId
+            ? Math.max(0, Math.trunc(requested))
+            : entry.quantity,
+      }))
+      .filter((entry) => entry.quantity > 0);
+    const creditsRemaining = getCanonicalCreditsFromHoldings(
+      aggregate.campaign.derivedCurrencies,
+      currencyHoldings,
+    );
+    onChange({
+      ...draft,
+      profile: { ...draft.profile, creditsRemaining },
+      currencyHoldings,
+    });
+  }
+
+  return <div className="character-section character-god-controls">
+    <SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" />
+    <p className="character-notice">Identity, Attributes, Skills, Story, and Equipment remain editable in their normal tabs even after completion. These controls manage the permanent advancement and currency record.</p>
+    <div className="character-form-grid character-god-controls__grid">
+      {numericFields.map(([field, label]) => <Field key={field} label={label}><input type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => setProfile({ [field]: Math.max(0, Number(event.target.value) || 0) })} /></Field>)}
+    </div>
+    <section className="character-god-currency">
+      <header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>
+      {aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => setProfile({ creditsRemaining: Math.max(0, Number(event.target.value) || 0) })} /></Field> : purse.entries.length ? <div className="character-god-currency__denominations">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input aria-label={`${currency.name} held`} type="number" min={0} step={1} value={currency.quantity} onChange={(event) => changeCurrency(currency.id, Number(event.target.value) || 0)} /><small>{currency.description || `${currency.creditsPerUnit} Credits per unit`}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}
+      {!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}
+    </section>
   </div>;
 }
 

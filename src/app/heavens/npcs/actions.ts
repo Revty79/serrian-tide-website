@@ -4,7 +4,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { campaign } from "@/db/campaign-schema";
+import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { item } from "@/db/item-schema";
 import {
   campaignCharacter,
@@ -98,6 +98,10 @@ export async function createCreatureNpc(
   if (!campaignRow) throw new Error("Campaign not found.");
 
   const characterId = await db.transaction(async (tx) => {
+    await tx
+      .insert(campaignPlayer)
+      .values({ campaignId, userId: session.user.id, isNpcController: true })
+      .onConflictDoNothing();
     const [created] = await tx.insert(campaignCharacter).values({
       campaignId,
       playerUserId: session.user.id,

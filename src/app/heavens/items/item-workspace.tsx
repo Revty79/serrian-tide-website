@@ -277,7 +277,7 @@ function Overview({ draft, onChange }: { draft: ItemDraft; onChange: (draft: Ite
   const setCore = (update: Partial<ItemDraft["core"]>) => onChange({ ...draft, core: { ...core, ...update } });
   return <div className="item-section item-form-grid">
     <Field label="Name" wide><input value={core.name} onChange={(e) => setCore({ name: e.target.value })} /></Field>
-    <Field label="Canonical ID"><input value={core.canonicalId} disabled={!draft.id} placeholder={draft.id ? "" : "Assigned on first save"} onChange={(e) => setCore({ canonicalId: e.target.value })} /></Field>
+    <Field label="Canonical ID"><input value={core.canonicalId} disabled placeholder={draft.id ? "" : "Assigned on first save"} /></Field>
     {core.catalogScope === "equipment" ? <Field label="Equipment Group"><select value={core.equipmentGroup ?? "general"} onChange={(e) => setCore({ equipmentGroup: e.target.value as EquipmentCatalogGroup })}>{EQUIPMENT_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}</select></Field> : null}
     <Field label="Record Type"><input value={core.recordType} onChange={(e) => setCore({ recordType: e.target.value })} /></Field>
     <Field label="Family"><input value={core.family} onChange={(e) => setCore({ family: e.target.value })} /></Field>

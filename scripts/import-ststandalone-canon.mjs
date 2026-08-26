@@ -10,8 +10,9 @@ dotenv.config();
 
 const { Pool } = pg;
 
+const VALIDATE_ONLY = process.argv.includes("--validate-only");
 const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
+if (!connectionString && !VALIDATE_ONLY) {
   throw new Error("DATABASE_URL is not configured. Run this from the website project root after .env.local is present.");
 }
 
@@ -23,7 +24,7 @@ const SOURCE_FILES = {
   items: "serrian-tide-item-seed.json",
 };
 
-const pool = new Pool({ connectionString });
+const pool = connectionString ? new Pool({ connectionString }) : null;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -66,7 +67,6 @@ async function requireTables(client) {
     "creature_abilities",
     "creature_defenses",
     "creature_uses",
-    "creature_ip_provenance",
     "items",
     "weapon_profiles",
     "armor_profiles",
@@ -109,10 +109,196 @@ function validateSeeds(raceSeed, creatureSeed, itemSeed) {
   assert(creatureSeed?.counts?.creatures === 87, `Creature seed expected 87 Creatures; found ${creatureSeed?.counts?.creatures ?? "unknown"}.`);
   assert(creatureSeed?.counts?.challengeRatings === 50, "Creature seed must contain all 50 CR references.");
   assert(Array.isArray(creatureSeed.creatures) && creatureSeed.creatures.length === 87, "Creature seed record count does not match its manifest.");
+  const legacyVariants = creatureSeed.creatures.flatMap((record) =>
+    (record.variants ?? []).map((variant) => ({
+      parentCanonicalId: record.core.canonicalId,
+      canonicalId: variant.canonicalId,
+      name: variant.variantName,
+    })),
+  );
+  const expectedLegacyVariants = new Map([
+    ["VAR-HORSE-DRAFT", "Draft Horse"],
+    ["VAR-HORSE-LIGHT", "Light Horse"],
+    ["VAR-HORSE-PONY", "Pony"],
+  ]);
+  assert(legacyVariants.length === expectedLegacyVariants.size, `Creature seed expected ${expectedLegacyVariants.size} legacy Horse Variants; found ${legacyVariants.length}.`);
+  for (const variant of legacyVariants) {
+    assert(variant.parentCanonicalId === "CR-HORSE", `${variant.canonicalId} must be a legacy Horse Variant.`);
+    assert(expectedLegacyVariants.get(variant.canonicalId) === variant.name, `Unexpected legacy Creature Variant ${variant.canonicalId}.`);
+  }
 
   assert(itemSeed?.schemaVersion === 1, "Unsupported Item seed schema.");
   assert(itemSeed?.counts?.items === 1007, `Item seed expected 1007 Items; found ${itemSeed?.counts?.items ?? "unknown"}.`);
   assert(Array.isArray(itemSeed.items) && itemSeed.items.length === 1007, "Item seed record count does not match its manifest.");
+}
+
+function withoutVariantIdentity(row) {
+  const copy = { ...row };
+  delete copy.variantCanonicalId;
+  return copy;
+}
+
+function selectVariantOverrides(rows, variantCanonicalId, key) {
+  const base = rows.filter((row) => !row.variantCanonicalId);
+  const overrides = rows.filter((row) => row.variantCanonicalId === variantCanonicalId);
+  const overridden = new Set(overrides.map((row) => String(row[key]).toLocaleLowerCase("en-US")));
+  return [
+    ...base.filter((row) => !overridden.has(String(row[key]).toLocaleLowerCase("en-US"))),
+    ...overrides,
+  ].map(withoutVariantIdentity);
+}
+
+function selectVariantChart(rows, variantCanonicalId) {
+  const overrides = rows.filter((row) => row.variantCanonicalId === variantCanonicalId);
+  return (overrides.length ? overrides : rows.filter((row) => !row.variantCanonicalId))
+    .map(withoutVariantIdentity);
+}
+
+function selectVariantAdditive(rows, variantCanonicalId) {
+  return rows
+    .filter((row) => !row.variantCanonicalId || row.variantCanonicalId === variantCanonicalId)
+    .map(withoutVariantIdentity);
+}
+
+function materializeFinalCreatureRecords(seed) {
+  const killXpByCr = new Map(
+    seed.challengeReference.map((row) => [row.challengeRating, row.killXp ?? null]),
+  );
+  const records = [];
+
+  for (const source of seed.creatures) {
+    const baseRecord = {
+      ...source,
+      variants: [],
+      attributes: (source.attributes ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      movement: (source.movement ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      hpPools: (source.hpPools ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      hitLocations: (source.hitLocations ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      attacks: (source.attacks ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      skillLinks: (source.skillLinks ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      abilities: (source.abilities ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      defenses: (source.defenses ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+      uses: (source.uses ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
+    };
+    records.push(baseRecord);
+
+    for (const variant of source.variants ?? []) {
+      const childToken = variant.canonicalId
+        .replace(/^(CR|VAR)-/i, "")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-|-$/g, "")
+        .toLocaleUpperCase("en-US");
+      const challengeRating = variant.challengeRatingOverride ?? source.core.challengeRating ?? 1;
+      const selectedHpPools = selectVariantChart(source.hpPools ?? [], variant.canonicalId);
+      const hpPoolIdMap = new Map();
+      const hpPools = selectedHpPools.map((row, index) => {
+        const canonicalId = `HP-${childToken}-${String(index + 1).padStart(4, "0")}`;
+        hpPoolIdMap.set(row.canonicalId, canonicalId);
+        return { ...row, canonicalId };
+      });
+      const hitLocations = selectVariantChart(source.hitLocations ?? [], variant.canonicalId)
+        .map((row) => ({
+          ...row,
+          hpPoolCanonicalId: row.hpPoolCanonicalId
+            ? hpPoolIdMap.get(row.hpPoolCanonicalId) ?? null
+            : null,
+        }));
+      const attacks = selectVariantAdditive(source.attacks ?? [], variant.canonicalId)
+        .map((row, index) => ({
+          ...row,
+          canonicalId: `ATK-${childToken}-${String(index + 1).padStart(4, "0")}`,
+        }));
+      const abilities = selectVariantAdditive(source.abilities ?? [], variant.canonicalId)
+        .map((row, index) => ({
+          ...row,
+          canonicalId: `ABL-${childToken}-${String(index + 1).padStart(4, "0")}`,
+        }));
+
+      records.push({
+        core: {
+          ...source.core,
+          canonicalId: variant.canonicalId.toLocaleUpperCase("en-US"),
+          canonicalName: variant.variantName,
+          size: variant.sizeOverride ?? source.core.size,
+          challengeRating,
+          killXp: variant.killXpOverride ?? killXpByCr.get(challengeRating) ?? source.core.killXp ?? null,
+          description: variant.description?.trim() ? variant.description : source.core.description,
+          notes: variant.notes ?? "",
+          parentCanonicalId: source.core.canonicalId,
+        },
+        variants: [],
+        attributes: selectVariantOverrides(source.attributes ?? [], variant.canonicalId, "attributeKey"),
+        movement: selectVariantOverrides(source.movement ?? [], variant.canonicalId, "movementMode"),
+        hpPools,
+        hitLocations,
+        attacks,
+        skillLinks: selectVariantOverrides(source.skillLinks ?? [], variant.canonicalId, "skillExternalId"),
+        abilities,
+        defenses: selectVariantAdditive(source.defenses ?? [], variant.canonicalId)
+          .map((row) => ({ ...row, seedIdentity: null })),
+        uses: selectVariantAdditive(source.uses ?? [], variant.canonicalId)
+          .map((row) => ({ ...row, seedIdentity: null })),
+        provenance: null,
+      });
+    }
+  }
+
+  assert(records.length === 90, `Final Creature library expected 90 complete Creatures; found ${records.length}.`);
+  return records;
+}
+
+function validateFinalCanon(raceSeed, creatureSeed, itemSeed) {
+  const finalCreatureRecords = materializeFinalCreatureRecords(creatureSeed);
+  const assertUppercaseUnique = (values, label) => {
+    const normalized = values.map((value) => String(value).toLocaleUpperCase("en-US"));
+    assert(values.every((value, index) => value === normalized[index]), `${label} identities must be uppercase.`);
+    assert(new Set(normalized).size === normalized.length, `${label} identities must be case-insensitively unique.`);
+  };
+
+  assertUppercaseUnique(finalCreatureRecords.map((record) => record.core.canonicalId), "Creature");
+  assertUppercaseUnique(finalCreatureRecords.flatMap((record) => (record.hpPools ?? []).map((row) => row.canonicalId)), "Creature HP Pool");
+  assertUppercaseUnique(finalCreatureRecords.flatMap((record) => (record.attacks ?? []).map((row) => row.canonicalId)), "Creature Attack");
+  assertUppercaseUnique(finalCreatureRecords.flatMap((record) => (record.abilities ?? []).map((row) => row.canonicalId)), "Creature Ability");
+  assertUppercaseUnique(itemSeed.items.map((record) => record.core.canonicalId), "Item");
+  assertUppercaseUnique((itemSeed.tags ?? []).map((row) => row.canonicalId), "Item Tag");
+  assertUppercaseUnique((itemSeed.rules ?? []).map((row) => row.ruleId), "Item Rule");
+
+  const creatureIds = new Set(finalCreatureRecords.map((record) => record.core.canonicalId));
+  const itemIds = new Set(itemSeed.items.map((record) => record.core.canonicalId));
+  for (const record of finalCreatureRecords) {
+    assert(record.variants.length === 0, `${record.core.canonicalId} retained a residual Creature Variant row.`);
+    assert(!record.core.parentCanonicalId || creatureIds.has(record.core.parentCanonicalId), `${record.core.canonicalId} has a missing parent Creature.`);
+    const hpPoolIds = new Set((record.hpPools ?? []).map((row) => row.canonicalId));
+    for (const location of record.hitLocations ?? []) {
+      assert(!location.hpPoolCanonicalId || hpPoolIds.has(location.hpPoolCanonicalId), `${record.core.canonicalId} has a hit location linked to another Creature's HP pool.`);
+    }
+  }
+  for (const canonicalId of ["VAR-HORSE-DRAFT", "VAR-HORSE-LIGHT", "VAR-HORSE-PONY"]) {
+    const record = finalCreatureRecords.find((candidate) => candidate.core.canonicalId === canonicalId);
+    assert(record?.core.parentCanonicalId === "CR-HORSE", `${canonicalId} must retain Horse lineage.`);
+    assert(record.attributes.length === 6, `${canonicalId} must have all six Attributes.`);
+    assert(record.movement.length > 0, `${canonicalId} must have Movement data.`);
+    assert(record.hpPools.length === 7, `${canonicalId} must have seven HP pools.`);
+    assert(record.hitLocations.length === 10, `${canonicalId} must have all ten hit locations.`);
+    assert(record.attacks.length === 3, `${canonicalId} must have all three Horse attacks.`);
+    assert(record.abilities.length === 1, `${canonicalId} must have its Horse ability.`);
+    assert(record.uses.length === 3, `${canonicalId} must have all three Horse uses.`);
+  }
+  for (const record of itemSeed.items) {
+    const core = record.core;
+    assert(!core.parentCanonicalId || itemIds.has(core.parentCanonicalId), `Item ${core.canonicalId} has a missing parent Item.`);
+    assert(!record.weapon?.ammunitionCanonicalId || itemIds.has(record.weapon.ammunitionCanonicalId), `Item ${core.canonicalId} has missing ammunition.`);
+    for (const property of record.properties ?? []) {
+      assert(!property.relatedItemCanonicalId || itemIds.has(property.relatedItemCanonicalId), `Item ${core.canonicalId} has a missing related Item.`);
+      assert(!property.relatedCreatureCanonicalId || creatureIds.has(property.relatedCreatureCanonicalId), `Item ${core.canonicalId} has a missing related Creature.`);
+    }
+  }
+
+  return {
+    races: raceSeed.records.length,
+    creatures: finalCreatureRecords.length,
+    items: itemSeed.items.length,
+  };
 }
 
 function validateSkillReferences(raceSeed, creatureSeed, skillMap) {
@@ -231,6 +417,7 @@ async function importRaces(client, seed, skillMap) {
 }
 
 async function importCreatures(client, seed, skillMap) {
+  const finalRecords = materializeFinalCreatureRecords(seed);
   for (const row of seed.challengeReference) {
     await client.query(
       `INSERT INTO challenge_rating_reference (
@@ -265,15 +452,16 @@ async function importCreatures(client, seed, skillMap) {
   }
 
   const creatureIds = new Map();
-  for (const record of seed.creatures) {
+  for (const record of finalRecords) {
     const core = record.core;
     const row = await queryOne(
       client,
-      `INSERT INTO creatures (
+       `INSERT INTO creatures (
          canonical_id, canonical_name, family, creature_type, size, challenge_rating,
          kill_xp, description, typical_behavior, habitat_ecology, notes, source_system,
-         updated_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now())
+         calculated_challenge_rating, challenge_rating_adjustment,
+         challenge_rating_adjustment_reason, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,now())
        ON CONFLICT (canonical_id) DO UPDATE SET
          canonical_name=EXCLUDED.canonical_name,
          family=EXCLUDED.family,
@@ -286,6 +474,9 @@ async function importCreatures(client, seed, skillMap) {
          habitat_ecology=EXCLUDED.habitat_ecology,
          notes=EXCLUDED.notes,
          source_system=EXCLUDED.source_system,
+         calculated_challenge_rating=EXCLUDED.calculated_challenge_rating,
+         challenge_rating_adjustment=EXCLUDED.challenge_rating_adjustment,
+         challenge_rating_adjustment_reason=EXCLUDED.challenge_rating_adjustment_reason,
          updated_at=now()
        RETURNING id`,
       [
@@ -301,15 +492,29 @@ async function importCreatures(client, seed, skillMap) {
         core.habitatEcology ?? "",
         core.notes ?? "",
         seed.sourceSystem || "serrian-tide-creature-canon",
+        core.calculatedChallengeRating ?? core.challengeRating ?? 1,
+        core.challengeRatingAdjustment ?? 0,
+        core.challengeRatingAdjustmentReason ?? "",
       ],
     );
     creatureIds.set(core.canonicalId, Number(row.id));
   }
 
-  for (const record of seed.creatures) {
+  for (const record of finalRecords) {
+    await client.query(
+      "UPDATE creatures SET parent_creature_id=$2 WHERE id=$1",
+      [
+        creatureIds.get(record.core.canonicalId),
+        record.core.parentCanonicalId
+          ? creatureIds.get(record.core.parentCanonicalId) ?? null
+          : null,
+      ],
+    );
+  }
+
+  for (const record of finalRecords) {
     const creatureId = creatureIds.get(record.core.canonicalId);
 
-    await client.query("DELETE FROM creature_ip_provenance WHERE creature_id=$1", [creatureId]);
     await client.query("DELETE FROM creature_hit_locations WHERE creature_id=$1", [creatureId]);
     await client.query("DELETE FROM creature_skill_links WHERE creature_id=$1", [creatureId]);
     await client.query("DELETE FROM creature_abilities WHERE creature_id=$1", [creatureId]);
@@ -321,45 +526,18 @@ async function importCreatures(client, seed, skillMap) {
     await client.query("DELETE FROM creature_attributes WHERE creature_id=$1", [creatureId]);
     await client.query("DELETE FROM creature_variants WHERE creature_id=$1", [creatureId]);
 
-    const variantIds = new Map();
-    for (const variant of record.variants ?? []) {
-      const inserted = await queryOne(
-        client,
-        `INSERT INTO creature_variants (
-           canonical_id, creature_id, variant_name, variant_type, size_override,
-           challenge_rating_override, kill_xp_override, description, notes, sort_order
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-         RETURNING id`,
-        [
-          variant.canonicalId,
-          creatureId,
-          variant.variantName,
-          variant.variantType ?? "",
-          variant.sizeOverride ?? null,
-          variant.challengeRatingOverride ?? null,
-          variant.killXpOverride ?? null,
-          variant.description ?? "",
-          variant.notes ?? "",
-          variant.sortOrder ?? 0,
-        ],
-      );
-      variantIds.set(variant.canonicalId, Number(inserted.id));
-    }
-
-    const variantId = (canonicalId) => canonicalId ? variantIds.get(canonicalId) ?? null : null;
-
     for (const row of record.attributes ?? []) {
       await client.query(
         `INSERT INTO creature_attributes (creature_id, variant_id, attribute_key, value, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6)`,
-        [creatureId, variantId(row.variantCanonicalId), row.attributeKey, row.value ?? null, row.notes ?? "", row.sortOrder ?? 0],
+        [creatureId, null, row.attributeKey, row.value ?? null, row.notes ?? "", row.sortOrder ?? 0],
       );
     }
     for (const row of record.movement ?? []) {
       await client.query(
         `INSERT INTO creature_movement (creature_id, variant_id, movement_mode, movement_value, initiative, requirements, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [creatureId, variantId(row.variantCanonicalId), row.movementMode, row.movementValue ?? null, row.initiative ?? null, row.requirements ?? "", row.notes ?? "", row.sortOrder ?? 0],
+        [creatureId, null, row.movementMode, row.movementValue ?? null, row.initiative ?? null, row.requirements ?? "", row.notes ?? "", row.sortOrder ?? 0],
       );
     }
 
@@ -370,7 +548,7 @@ async function importCreatures(client, seed, skillMap) {
         `INSERT INTO creature_hp_pools (canonical_id, creature_id, variant_id, pool_name, hp_percentage, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING id`,
-        [row.canonicalId, creatureId, variantId(row.variantCanonicalId), row.poolName, row.hpPercentage ?? null, row.notes ?? "", row.sortOrder ?? 0],
+        [row.canonicalId, creatureId, null, row.poolName, row.hpPercentage ?? null, row.notes ?? "", row.sortOrder ?? 0],
       );
       hpPoolIds.set(row.canonicalId, Number(inserted.id));
     }
@@ -383,7 +561,7 @@ async function importCreatures(client, seed, skillMap) {
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
         [
           creatureId,
-          variantId(row.variantCanonicalId),
+          null,
           row.hitLocationNumber,
           row.locationName ?? "",
           row.bodyPartsIncluded ?? "",
@@ -406,7 +584,7 @@ async function importCreatures(client, seed, skillMap) {
         [
           row.canonicalId,
           creatureId,
-          variantId(row.variantCanonicalId),
+          null,
           row.attackName,
           row.attackPercentage ?? null,
           row.damage ?? null,
@@ -425,7 +603,7 @@ async function importCreatures(client, seed, skillMap) {
       await client.query(
         `INSERT INTO creature_skill_links (creature_id, variant_id, skill_id, rank, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6)`,
-        [creatureId, variantId(row.variantCanonicalId), skillMap.get(row.skillExternalId), row.rank ?? null, row.notes ?? "", row.sortOrder ?? 0],
+        [creatureId, null, skillMap.get(row.skillExternalId), row.rank ?? null, row.notes ?? "", row.sortOrder ?? 0],
       );
     }
     for (const row of record.abilities ?? []) {
@@ -437,7 +615,7 @@ async function importCreatures(client, seed, skillMap) {
         [
           row.canonicalId,
           creatureId,
-          variantId(row.variantCanonicalId),
+          null,
           row.abilityName,
           row.abilityType ?? "",
           row.activation ?? "",
@@ -455,40 +633,23 @@ async function importCreatures(client, seed, skillMap) {
         `INSERT INTO creature_defenses (
            seed_identity, creature_id, variant_id, defense_type, against, value, notes, sort_order
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [row.seedIdentity ?? null, creatureId, variantId(row.variantCanonicalId), row.defenseType, row.against ?? "", row.value ?? null, row.notes ?? "", row.sortOrder ?? 0],
+        [row.seedIdentity ?? null, creatureId, null, row.defenseType, row.against ?? "", row.value ?? null, row.notes ?? "", row.sortOrder ?? 0],
       );
     }
     for (const row of record.uses ?? []) {
       await client.query(
         `INSERT INTO creature_uses (seed_identity, creature_id, variant_id, use_name, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6)`,
-        [row.seedIdentity ?? null, creatureId, variantId(row.variantCanonicalId), row.useName, row.notes ?? "", row.sortOrder ?? 0],
-      );
-    }
-
-    if (record.provenance) {
-      await client.query(
-        `INSERT INTO creature_ip_provenance (
-           creature_id, canonical_name, basis_category, source_tradition,
-           copyright_ip_note, review_status
-         ) VALUES ($1,$2,$3,$4,$5,$6)`,
-        [
-          creatureId,
-          record.provenance.canonicalName ?? record.core.canonicalName,
-          record.provenance.basisCategory ?? "",
-          record.provenance.sourceTradition ?? "",
-          record.provenance.copyrightIpNote ?? "",
-          record.provenance.reviewStatus ?? "",
-        ],
+        [row.seedIdentity ?? null, creatureId, null, row.useName, row.notes ?? "", row.sortOrder ?? 0],
       );
     }
   }
 
   return {
-    creatures: seed.creatures.length,
+    creatures: finalRecords.length,
     challengeRatings: seed.challengeReference.length,
-    attacks: seed.creatures.reduce((sum, record) => sum + (record.attacks?.length ?? 0), 0),
-    hitLocations: seed.creatures.reduce((sum, record) => sum + (record.hitLocations?.length ?? 0), 0),
+    attacks: finalRecords.reduce((sum, record) => sum + (record.attacks?.length ?? 0), 0),
+    hitLocations: finalRecords.reduce((sum, record) => sum + (record.hitLocations?.length ?? 0), 0),
   };
 }
 
@@ -709,7 +870,15 @@ async function main() {
     loadJson(SOURCE_FILES.items),
   ]);
   validateSeeds(raceSeed, creatureSeed, itemSeed);
+  const validatedCounts = validateFinalCanon(raceSeed, creatureSeed, itemSeed);
+  if (VALIDATE_ONLY) {
+    console.log("STSTandAlone final canon validation complete.");
+    console.log(`Races: ${validatedCounts.races} | Creatures: ${validatedCounts.creatures} | Items: ${validatedCounts.items}`);
+    if (pool) await pool.end();
+    return;
+  }
 
+  if (!pool) throw new Error("DATABASE_URL is required for import.");
   const client = await pool.connect();
   try {
     await requireTables(client);

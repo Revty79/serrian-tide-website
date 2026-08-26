@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import type { CampaignReferenceData } from "../actions";
 import { createCampaign } from "./actions";
 
 const CAMPAIGN_SYSTEM_OPTIONS = [
@@ -22,7 +23,11 @@ type CurrencyRow = {
   creditsPerUnit: string;
 };
 
-export function CampaignCreateForm() {
+export function CampaignCreateForm({
+  references,
+}: {
+  references: CampaignReferenceData;
+}) {
   const [currencySystem, setCurrencySystem] =
     useState<"Credits" | "Derived Currency">(
       "Credits",
@@ -41,6 +46,46 @@ export function CampaignCreateForm() {
         creditsPerUnit: "",
       },
     ]);
+
+  const [raceSearch, setRaceSearch] = useState("");
+  const [equipmentSearch, setEquipmentSearch] = useState("");
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [selectedRaceIds, setSelectedRaceIds] = useState<number[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
+
+  const filteredRaces = useMemo(() => {
+    const search = raceSearch.trim().toLocaleLowerCase();
+    return search
+      ? references.races.filter((entry) =>
+          [entry.name, entry.size].some((value) =>
+            value.toLocaleLowerCase().includes(search),
+          ),
+        )
+      : references.races;
+  }, [raceSearch, references.races]);
+
+  const equipment = useMemo(
+    () => filterCampaignItems(references.items, "equipment", equipmentSearch),
+    [equipmentSearch, references.items],
+  );
+
+  const inventory = useMemo(
+    () => filterCampaignItems(references.items, "inventory", inventorySearch),
+    [inventorySearch, references.items],
+  );
+
+  function toggleId(
+    id: number,
+    selectedIds: number[],
+    setSelectedIds: (ids: number[]) => void,
+  ) {
+    setSelectedIds(
+      selectedIds.includes(id)
+        ? selectedIds.filter((candidate) => candidate !== id)
+        : [...selectedIds, id],
+    );
+  }
 
   function addCurrency() {
     setCurrencies((current) => [
@@ -84,6 +129,16 @@ export function CampaignCreateForm() {
       action={createCampaign}
       className="space-y-7"
     >
+      {selectedRaceIds.map((id) => (
+        <input key={`race-${id}`} type="hidden" name="allowedRaceIds" value={id} />
+      ))}
+      {selectedTagIds.map((id) => (
+        <input key={`tag-${id}`} type="hidden" name="inventoryTagIds" value={id} />
+      ))}
+      {selectedItemIds.map((id) => (
+        <input key={`item-${id}`} type="hidden" name="inventoryItemIds" value={id} />
+      ))}
+
       {/* CAMPAIGN BASICS */}
       <section
         className="
@@ -483,6 +538,128 @@ export function CampaignCreateForm() {
         </div>
       </section>
 
+      {/* ALLOWED RACES */}
+      <section className={sectionClass}>
+        <SelectionHeading
+          eyebrow="Character Creation"
+          title="Allowed Races"
+          count={`${selectedRaceIds.length} selected`}
+          onSelectAll={() => setSelectedRaceIds(references.races.map(({ id }) => id))}
+          onClear={() => setSelectedRaceIds([])}
+          disableSelectAll={references.races.length === 0}
+          disableClear={selectedRaceIds.length === 0}
+        />
+
+        <p className="mt-3 text-sm leading-6 text-slate-400">
+          Players can only choose Races authorized here when creating a Character.
+        </p>
+
+        <SearchField
+          label="Search the Race catalog"
+          value={raceSearch}
+          placeholder="Name or size"
+          onChange={setRaceSearch}
+        />
+
+        <div className="mt-5 grid max-h-[32rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredRaces.map((entry) => {
+            const selected = selectedRaceIds.includes(entry.id);
+            return (
+              <label key={entry.id} className={selectionClass(selected)}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() =>
+                    toggleId(entry.id, selectedRaceIds, setSelectedRaceIds)
+                  }
+                  className="h-4 w-4 accent-amber-300"
+                />
+                <span>
+                  <strong className="block text-sm text-slate-100">{entry.name}</strong>
+                  <small className="mt-1 block text-xs text-slate-500">
+                    {entry.size || "Size not recorded"}
+                  </small>
+                </span>
+              </label>
+            );
+          })}
+          {filteredRaces.length === 0 ? (
+            <p className="text-sm text-slate-500">No Races match that search.</p>
+          ) : null}
+        </div>
+      </section>
+
+      {/* INVENTORY TAGS */}
+      <section className={sectionClass}>
+        <SelectionHeading
+          eyebrow="Campaign Catalog"
+          title="Inventory Tags"
+          count={`${selectedTagIds.length} selected`}
+          onSelectAll={() => setSelectedTagIds(references.tags.map(({ id }) => id))}
+          onClear={() => setSelectedTagIds([])}
+          disableSelectAll={references.tags.length === 0}
+          disableClear={selectedTagIds.length === 0}
+        />
+
+        <p className="mt-3 text-sm leading-6 text-slate-400">
+          A selected tag authorizes every current Equipment or Inventory record carrying that tag.
+          You can add individual records below as well.
+        </p>
+
+        <div className="mt-5 grid max-h-[24rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+          {references.tags.map((entry) => {
+            const selected = selectedTagIds.includes(entry.id);
+            return (
+              <label key={entry.id} className={selectionClass(selected)}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() =>
+                    toggleId(entry.id, selectedTagIds, setSelectedTagIds)
+                  }
+                  className="h-4 w-4 accent-amber-300"
+                />
+                <span>
+                  <strong className="block text-sm text-slate-100">{entry.name}</strong>
+                  <small className="mt-1 block text-xs leading-5 text-slate-500">
+                    {entry.tagGroup} · {entry.description}
+                  </small>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </section>
+
+      <ItemSelectionSection
+        eyebrow="Equipment Access"
+        title="Allowed Equipment"
+        help="Choose Weapons, Armor, and General Equipment available in this Campaign."
+        items={equipment}
+        search={equipmentSearch}
+        onSearch={setEquipmentSearch}
+        selectedIds={selectedItemIds}
+        onChange={setSelectedItemIds}
+      />
+
+      <ItemSelectionSection
+        eyebrow="Inventory Access"
+        title="Allowed Inventory"
+        help="Choose consumables, supplies, services, and other Inventory records available in this Campaign."
+        items={inventory}
+        search={inventorySearch}
+        onSearch={setInventorySearch}
+        selectedIds={selectedItemIds}
+        onChange={setSelectedItemIds}
+      />
+
+      <section className="rounded-3xl border border-purple-300/15 bg-purple-950/10 p-6 text-sm leading-6 text-slate-400">
+        <strong className="block text-slate-200">Players and Characters</strong>
+        The Campaign must have a permanent identity before accounts and Characters can be linked.
+        After creation, Campaign Control will open this Campaign directly so you can add Players,
+        create Characters, and open the NPC workshop.
+      </section>
+
       {/* SAVE */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <a
@@ -580,5 +757,201 @@ function Field({
         className={inputClass}
       />
     </label>
+  );
+}
+
+const sectionClass = `
+  rounded-3xl
+  border
+  border-white/10
+  bg-black/35
+  p-6
+  shadow-2xl
+  backdrop-blur-md
+  sm:p-8
+`;
+
+function selectionClass(selected: boolean) {
+  return `flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+    selected
+      ? "border-amber-300/35 bg-amber-300/10"
+      : "border-white/10 bg-black/30 hover:border-amber-300/25"
+  }`;
+}
+
+function SelectionHeading({
+  eyebrow,
+  title,
+  count,
+  onSelectAll,
+  onClear,
+  disableSelectAll,
+  disableClear,
+}: {
+  eyebrow: string;
+  title: string;
+  count: string;
+  onSelectAll: () => void;
+  onClear: () => void;
+  disableSelectAll: boolean;
+  disableClear: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-purple-200">{eyebrow}</p>
+        <h2 className="font-portcullion mt-2 text-3xl text-slate-100">{title}</h2>
+        <span className="mt-2 block text-xs text-slate-500">{count}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={disableSelectAll}
+          onClick={onSelectAll}
+          className="rounded-full border border-amber-300/30 px-4 py-2 text-xs text-amber-100 disabled:opacity-40"
+        >
+          Select All
+        </button>
+        <button
+          type="button"
+          disabled={disableClear}
+          onClick={onClear}
+          className="rounded-full border border-white/15 px-4 py-2 text-xs text-slate-300 disabled:opacity-40"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SearchField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="mt-5 block max-w-xl">
+      <span className="text-sm text-slate-300">{label}</span>
+      <input
+        type="search"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass}
+      />
+    </label>
+  );
+}
+
+function filterCampaignItems(
+  items: CampaignReferenceData["items"],
+  catalogScope: "equipment" | "inventory",
+  searchText: string,
+) {
+  const search = searchText.trim().toLocaleLowerCase();
+  return items.filter((entry) => {
+    if (entry.catalogScope !== catalogScope) return false;
+    if (!search) return true;
+    return [
+      entry.name,
+      entry.canonicalId,
+      entry.recordType,
+      entry.family,
+      entry.category,
+      entry.equipmentGroup ?? "",
+    ].some((value) => value.toLocaleLowerCase().includes(search));
+  });
+}
+
+function ItemSelectionSection({
+  eyebrow,
+  title,
+  help,
+  items,
+  search,
+  onSearch,
+  selectedIds,
+  onChange,
+}: {
+  eyebrow: string;
+  title: string;
+  help: string;
+  items: CampaignReferenceData["items"];
+  search: string;
+  onSearch: (value: string) => void;
+  selectedIds: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const shownIds = items.map(({ id }) => id);
+  const selectedShown = shownIds.filter((id) => selectedIds.includes(id)).length;
+
+  function selectShown() {
+    onChange([...new Set([...selectedIds, ...shownIds])]);
+  }
+
+  function clearShown() {
+    const shown = new Set(shownIds);
+    onChange(selectedIds.filter((id) => !shown.has(id)));
+  }
+
+  return (
+    <section className={sectionClass}>
+      <SelectionHeading
+        eyebrow={eyebrow}
+        title={title}
+        count={`${selectedShown} of ${items.length} shown selected`}
+        onSelectAll={selectShown}
+        onClear={clearShown}
+        disableSelectAll={items.length === 0}
+        disableClear={selectedShown === 0}
+      />
+      <p className="mt-3 text-sm leading-6 text-slate-400">{help}</p>
+      <SearchField
+        label={`Search ${title}`}
+        value={search}
+        placeholder="Name, ID, type, family, or category"
+        onChange={onSearch}
+      />
+      <div className="mt-5 grid max-h-[34rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((entry) => {
+          const selected = selectedIds.includes(entry.id);
+          return (
+            <label key={entry.id} className={selectionClass(selected)}>
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() =>
+                  onChange(
+                    selected
+                      ? selectedIds.filter((id) => id !== entry.id)
+                      : [...selectedIds, entry.id],
+                  )
+                }
+                className="h-4 w-4 accent-amber-300"
+              />
+              <span className="min-w-0">
+                <strong className="block text-sm text-slate-100">{entry.name}</strong>
+                <small className="mt-1 block text-xs leading-5 text-slate-500">
+                  {entry.canonicalId} · {entry.equipmentGroup ?? entry.recordType} · {entry.category}
+                </small>
+                <small className="block text-xs text-slate-600">
+                  {entry.credits === null ? "Unpriced" : `${entry.credits} cr`}
+                </small>
+              </span>
+            </label>
+          );
+        })}
+        {items.length === 0 ? (
+          <p className="text-sm text-slate-500">No records match that search.</p>
+        ) : null}
+      </div>
+    </section>
   );
 }

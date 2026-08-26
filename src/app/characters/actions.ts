@@ -49,12 +49,19 @@ import {
 } from "@/features/characters/models";
 import {
   evaluateCharacterReadiness,
+  getAttributePointsUsed,
   getCreationPurchasedSkillMaximum,
   getEffectiveSkillPoints,
+  getRaceAttributeCap,
   getRacialSkillGrant,
+  getSkillPointsUsed,
   getSkillUnlockThreshold,
   isSkillAllowedByCampaign,
 } from "@/features/characters/character-rules";
+import {
+  getCampaignMoneyBreakdown,
+  getCanonicalCreditsFromHoldings,
+} from "@/features/characters/currency-rules";
 import {
   getExperienceFromQuintessence,
   getQuintessenceCost,
@@ -643,13 +650,15 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
   });
 
   const currenciesSeen = new Set<number>();
-  const currencyHoldings = draft.currencyHoldings.map((holding) => {
-    if (!aggregate.campaign.derivedCurrencies.some(({ id }) => id === holding.currencyId)) throw new Error("Currency must belong to this Campaign.");
-    if (currenciesSeen.has(holding.currencyId)) throw new Error("A Campaign Currency can only appear once in a purse.");
-    currenciesSeen.add(holding.currencyId);
-    if (!Number.isInteger(holding.quantity) || holding.quantity < 0) throw new Error("Currency quantity must be a whole number zero or greater.");
-    return holding;
-  });
+  const currencyHoldings = godMode
+    ? draft.currencyHoldings.map((holding) => {
+        if (!aggregate.campaign.derivedCurrencies.some(({ id }) => id === holding.currencyId)) throw new Error("Currency must belong to this Campaign.");
+        if (currenciesSeen.has(holding.currencyId)) throw new Error("A Campaign Currency can only appear once in a purse.");
+        currenciesSeen.add(holding.currencyId);
+        if (!Number.isInteger(holding.quantity) || holding.quantity < 0) throw new Error("Currency quantity must be a whole number zero or greater.");
+        return holding;
+      })
+    : [];
 
   const name = required(draft.name, "Character Name");
   const profile = {
@@ -697,18 +706,69 @@ export async function saveCharacter(
 
   const normalized = normalizeDraft(aggregate, draft, godMode);
   const selectedRace = draft.profile.raceId === null ? null : await readRaceAggregate(draft.profile.raceId);
-  if (completeCreation && !godMode) {
-    const readiness = evaluateCharacterReadiness(draft, aggregate, selectedRace);
-    if (!readiness.ready) throw new Error(readiness.issues.join(" "));
+  const readiness = evaluateCharacterReadiness(draft, aggregate, selectedRace);
+  if (!godMode) {
+    if (getAttributePointsUsed(draft) > aggregate.campaign.attributePoints + 0.000001) {
+      throw new Error("Character Attributes exceed the Campaign Attribute Point budget.");
+    }
+    for (const key of CHARACTER_ATTRIBUTE_KEYS) {
+      const cap = getRaceAttributeCap(selectedRace, key);
+      if (cap !== null && draft.attributes[key] > cap + 0.000001) {
+        throw new Error(`${key} exceeds the selected Race maximum.`);
+      }
+    }
+    if (getSkillPointsUsed(draft) > aggregate.campaign.skillPoints + 0.000001) {
+      throw new Error("Character Skill allocations exceed the Campaign Skill Point budget.");
+    }
+    if (readiness.issues.includes("One or more Skill allocations violate Campaign rules.")) {
+      throw new Error("One or more Skill allocations violate Campaign rules.");
+    }
+  }
+  if (completeCreation && !readiness.ready) {
+    throw new Error(readiness.issues.join(" "));
+  }
+
+  let creditsRemaining = godMode
+    ? normalized.profile.creditsRemaining
+    : Math.max(
+        0,
+        aggregate.campaign.startingCreditAmount -
+          normalized.items.reduce(
+            (sum, entry) => sum + entry.quantity * entry.unitCostCredits,
+            0,
+          ),
+      );
+  let currencyHoldings = normalized.currencyHoldings;
+  if (aggregate.campaign.currencySystem === "Credits") {
+    if (godMode && currencyHoldings.length) {
+      throw new Error("A Credits Campaign cannot store derived Currency holdings.");
+    }
+    currencyHoldings = [];
+  } else {
+    if (!aggregate.campaign.derivedCurrencies.length) {
+      throw new Error("Derived Currency requires at least one saved denomination.");
+    }
+    if (godMode) {
+      creditsRemaining = getCanonicalCreditsFromHoldings(
+        aggregate.campaign.derivedCurrencies,
+        currencyHoldings,
+      );
+    } else {
+      currencyHoldings = getCampaignMoneyBreakdown(
+        creditsRemaining,
+        aggregate.campaign.currencySystem,
+        aggregate.campaign.derivedCurrencies,
+      ).entries
+        .filter((entry) => entry.quantity > 0)
+        .map((entry) => ({ currencyId: entry.id, quantity: entry.quantity }));
+    }
   }
 
   await db.transaction(async (tx) => {
     await tx.update(campaignCharacter).set({ name: normalized.name, updatedAt: new Date() }).where(eq(campaignCharacter.id, characterId));
     await tx.update(campaignCharacterProfile).set({
       ...normalized.profile,
-      creditsRemaining: godMode
-        ? normalized.profile.creditsRemaining
-        : Math.max(0, aggregate.campaign.startingCreditAmount - normalized.items.reduce((sum, entry) => sum + entry.quantity * entry.unitCostCredits, 0)),
+      creditsRemaining,
       creationCompletedAt: completeCreation ? new Date() : aggregate.profile.creationCompletedAt ? new Date(aggregate.profile.creationCompletedAt) : null,
       updatedAt: new Date(),
     }).where(eq(campaignCharacterProfile.characterId, characterId));
@@ -744,7 +804,7 @@ export async function saveCharacter(
     if (normalized.items.length) await tx.insert(campaignCharacterItem).values(normalized.items.map((entry) => ({ characterId, ...entry })));
 
     await tx.delete(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId));
-    if (normalized.currencyHoldings.length) await tx.insert(campaignCharacterCurrencyHolding).values(normalized.currencyHoldings.map((entry) => ({ characterId, ...entry })));
+    if (currencyHoldings.length) await tx.insert(campaignCharacterCurrencyHolding).values(currencyHoldings.map((entry) => ({ characterId, ...entry })));
   });
 
   revalidatePath("/realms");

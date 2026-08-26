@@ -8,6 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "validate:canon": "node scripts/import-ststandalone-canon.mjs --validate-only",
+    "validate:random": "tsx --test src/features/characters/random-character.test.ts",
+    "validate:realms": "tsx --test src/features/characters/*.test.ts",
+    "validate:spell": "tsx --test src/features/spell-construction/spell-integration.test.ts",
     "db:import:canon": "node scripts/import-ststandalone-skills.mjs && node scripts/import-ststandalone-canon.mjs"
   },
   "dependencies": {

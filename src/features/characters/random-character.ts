@@ -10,21 +10,19 @@ import {
   type CharacterSkillReference,
 } from "./models";
 import {
-  CHARACTER_SPELL_ACCESS_LEVELS,
-  canAccessSpellAtLevel,
+  canAccessSupernaturalSkillAtLevel,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
   getCreationPurchasedSkillMaximum,
   getEffectiveSkillPoints,
   getRaceAttributeCap,
   getRacialSkillGrant,
-  getRecordedSpellLevel,
   getSkillUnlockThreshold,
   isSkillAllowedByCampaign,
-  isSpellSkill,
   normalizeSkillAttributeKey,
+  reconcileRacialSkillAnchors,
+  requiresCastingLevel,
   type CharacterMagicSystem,
-  type CharacterSpellAccessLevel,
 } from "./character-rules";
 
 export type CharacterGenerationMode = "guided" | "complete";
@@ -166,77 +164,6 @@ export function createCompletelyRandomAnswers(
 function generatedName(requested: string, random: () => number): string {
   const name = requested.trim();
   return name || `${pick(NAMES, random)} ${pick(FAMILY_NAMES, random)}`;
-}
-
-function reconcileRacialSkillAnchors(
-  allocations: readonly CharacterSkillAllocationDraft[],
-  race: CharacterRaceAggregate | null,
-  relationships: CharacterAggregate["skillRelationships"],
-  createDraftId: () => number,
-): CharacterSkillAllocationDraft[] {
-  let result = allocations.map((allocation) => ({ ...allocation }));
-  const required = new Set<number>();
-  const parentsBySkill = new Map<number, number[]>();
-  for (const relationship of relationships) {
-    if (relationship.relationshipType.trim().toLowerCase() !== "parent") continue;
-    const parents = parentsBySkill.get(relationship.skillId) ?? [];
-    if (!parents.includes(relationship.relatedSkillId)) parents.push(relationship.relatedSkillId);
-    parentsBySkill.set(relationship.skillId, parents);
-  }
-
-  function ensurePath(skillId: number, visiting = new Set<number>()): CharacterSkillAllocationDraft | null {
-    if (visiting.has(skillId)) return null;
-    const parents = parentsBySkill.get(skillId) ?? [];
-    if (parents.length > 1) return null;
-    const nextVisiting = new Set(visiting).add(skillId);
-    const parent = parents.length === 1 ? ensurePath(parents[0]!, nextVisiting) : null;
-    const parentDraftId = parent?.draftId ?? null;
-    let allocation = result.find((candidate) =>
-      candidate.skillId === skillId && candidate.parentDraftId === parentDraftId);
-    if (!allocation) {
-      allocation = { draftId: createDraftId(), skillId, parentDraftId, points: 0 };
-      result.push(allocation);
-    }
-    required.add(allocation.draftId);
-    return allocation;
-  }
-
-  for (const link of race?.skillLinks ?? []) {
-    if ((link.value ?? 0) > 0) ensurePath(link.skillId);
-  }
-
-  let removed = true;
-  while (removed) {
-    removed = false;
-    const parentIds = new Set(result.map((allocation) => allocation.parentDraftId));
-    const filtered = result.filter((allocation) => {
-      const removable = allocation.points === 0
-        && !required.has(allocation.draftId)
-        && !parentIds.has(allocation.draftId);
-      if (removable) removed = true;
-      return !removable;
-    });
-    result = filtered;
-  }
-  return result;
-}
-
-function requiresCastingLevel(skill: CharacterSkillReference, rootSkill: CharacterSkillReference): boolean {
-  return isSpellSkill(skill) || (skill.tier === 3 && getCharacterMagicSystem(rootSkill) !== null);
-}
-
-function canAccessSupernaturalSkillAtLevel(
-  skill: CharacterSkillReference,
-  rootSkill: CharacterSkillReference,
-  spellAccessLevel: CharacterSpellAccessLevel | null,
-): boolean {
-  if (!requiresCastingLevel(skill, rootSkill)) return true;
-  if (isSpellSkill(skill)) return canAccessSpellAtLevel(skill, spellAccessLevel);
-  const requiredLevel = getRecordedSpellLevel(skill);
-  if (!requiredLevel || !spellAccessLevel) return false;
-  const requiredIndex = CHARACTER_SPELL_ACCESS_LEVELS.findIndex((level) => level.name === requiredLevel);
-  const accessIndex = CHARACTER_SPELL_ACCESS_LEVELS.findIndex((level) => level.name === spellAccessLevel);
-  return requiredIndex >= 0 && accessIndex >= requiredIndex;
 }
 
 function generateAttributes(

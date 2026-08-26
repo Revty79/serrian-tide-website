@@ -10,6 +10,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -26,7 +27,9 @@ export const item = pgTable(
   "items",
   {
     id: serial("id").primaryKey(),
-    canonicalId: text("canonical_id").notNull(),
+    canonicalId: text("canonical_id")
+      .notNull()
+      .unique("items_canonical_id_uq"),
     name: text("name").notNull(),
     catalogScope: text("catalog_scope").notNull(),
     equipmentGroup: text("equipment_group"),
@@ -54,7 +57,6 @@ export const item = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("items_canonical_id_uq").on(table.canonicalId),
     uniqueIndex("items_source_identity_uq")
       .on(table.sourceSystem, table.sourceExternalId)
       .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),
@@ -64,13 +66,16 @@ export const item = pgTable(
     index("items_record_type_idx").on(table.recordType),
     index("items_category_idx").on(table.category),
     check("items_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
+    check("items_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
     check("items_name_nonblank", sql`length(trim(${table.name})) > 0`),
     check("items_scope_valid", sql`${table.catalogScope} IN ('equipment', 'inventory')`),
     check("items_equipment_group_valid", sql`${table.equipmentGroup} IS NULL OR ${table.equipmentGroup} IN ('weapon', 'armor', 'general')`),
     check("items_scope_group_valid", sql`(${table.catalogScope} = 'inventory' AND ${table.equipmentGroup} IS NULL) OR (${table.catalogScope} = 'equipment' AND ${table.equipmentGroup} IN ('weapon', 'armor', 'general'))`),
     check("items_weight_valid", sql`${table.weight} IS NULL OR ${table.weight} >= 0`),
+    check("items_weight_unit_valid", sql`(${table.weight} IS NULL AND length(trim(${table.weightUnit})) = 0) OR (${table.weight} IS NOT NULL AND length(trim(${table.weightUnit})) > 0)`),
     check("items_durability_valid", sql`${table.durability} IS NULL OR ${table.durability} >= 0`),
     check("items_credits_valid", sql`${table.credits} IS NULL OR ${table.credits} >= 0`),
+    check("items_parent_not_self", sql`${table.parentItemId} IS NULL OR ${table.parentItemId} <> ${table.id}`),
   ],
 );
 
@@ -100,6 +105,7 @@ export const weaponProfile = pgTable(
   (table) => [
     uniqueIndex("weapon_profiles_item_id_uq").on(table.itemId),
     index("weapon_profiles_ammunition_item_id_idx").on(table.ammunitionItemId),
+    check("weapon_profiles_fire_modes_json_valid", sql`${table.fireModes}::jsonb IS NOT NULL AND jsonb_typeof(${table.fireModes}::jsonb) = 'array'`),
     check("weapon_profiles_ammo_not_self", sql`${table.ammunitionItemId} IS NULL OR ${table.ammunitionItemId} <> ${table.itemId}`),
   ],
 );
@@ -139,6 +145,8 @@ export const itemArmorDamageModifier = pgTable(
   (table) => [
     uniqueIndex("item_armor_damage_modifiers_order_uq").on(table.itemId, table.sortOrder),
     index("item_armor_damage_modifiers_item_id_idx").on(table.itemId),
+    check("item_armor_damage_modifiers_type_nonblank", sql`length(trim(${table.damageType})) > 0`),
+    check("item_armor_damage_modifiers_modifier_nonblank", sql`length(trim(${table.modifier})) > 0`),
   ],
 );
 
@@ -191,6 +199,7 @@ export const itemProperty = pgTable(
     check("item_properties_name_nonblank", sql`length(trim(${table.propertyName})) > 0`),
     check("item_properties_quantity_valid", sql`${table.quantity} IS NULL OR ${table.quantity} > 0`),
     check("item_properties_one_relation", sql`${table.relatedItemId} IS NULL OR ${table.relatedCreatureCanonicalId} IS NULL`),
+    check("item_properties_creature_id_uppercase", sql`${table.relatedCreatureCanonicalId} IS NULL OR ${table.relatedCreatureCanonicalId} = upper(${table.relatedCreatureCanonicalId})`),
   ],
 );
 
@@ -204,8 +213,13 @@ export const itemTagCatalog = pgTable(
     description: text("description").notNull(),
   },
   (table) => [
-    uniqueIndex("item_tags_catalog_canonical_id_uq").on(table.canonicalId),
+    unique("item_tags_catalog_canonical_id_uq").on(table.canonicalId),
     uniqueIndex("item_tags_catalog_name_uq").on(table.name),
+    check("item_tags_catalog_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
+    check("item_tags_catalog_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
+    check("item_tags_catalog_name_nonblank", sql`length(trim(${table.name})) > 0`),
+    check("item_tags_catalog_group_nonblank", sql`length(trim(${table.tagGroup})) > 0`),
+    check("item_tags_catalog_description_nonblank", sql`length(trim(${table.description})) > 0`),
   ],
 );
 
@@ -232,6 +246,12 @@ export const itemRule = pgTable(
     status: text("status").notNull(),
   },
   (table) => [
-    uniqueIndex("item_rules_rule_id_uq").on(table.ruleId),
+    unique("item_rules_rule_id_uq").on(table.ruleId),
+    check("item_rules_rule_id_uppercase", sql`${table.ruleId} = upper(${table.ruleId})`),
+    check("item_rules_rule_id_nonblank", sql`length(trim(${table.ruleId})) > 0`),
+    check("item_rules_name_nonblank", sql`length(trim(${table.ruleName})) > 0`),
+    check("item_rules_text_nonblank", sql`length(trim(${table.ruleText})) > 0`),
+    check("item_rules_guidance_nonblank", sql`length(trim(${table.implementationGuidance})) > 0`),
+    check("item_rules_status_nonblank", sql`length(trim(${table.status})) > 0`),
   ],
 );

@@ -1360,6 +1360,37 @@ export async function saveSkill(
 
           id = created.id;
         } else {
+          const [stored] =
+            await tx
+              .select({
+                sourceSystem:
+                  skill.sourceSystem,
+                sourceExternalId:
+                  skill.sourceExternalId,
+              })
+              .from(skill)
+              .where(
+                eq(skill.id, id),
+              )
+              .limit(1);
+
+          if (!stored) {
+            throw new Error(
+              "That Skill no longer exists.",
+            );
+          }
+
+          if (
+            stored.sourceSystem !==
+              core.sourceSystem ||
+            stored.sourceExternalId !==
+              core.sourceExternalId
+          ) {
+            throw new Error(
+              "Canonical Skill source identity cannot be changed.",
+            );
+          }
+
           const updated =
             await tx
               .update(skill)

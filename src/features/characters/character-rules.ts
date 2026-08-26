@@ -1,5 +1,7 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
 
+import { getCampaignMoneyBreakdown } from "./currency-rules";
+
 import {
   CHARACTER_ATTRIBUTE_KEYS,
   type CharacterAggregate,
@@ -396,6 +398,79 @@ export function canAccessSupernaturalSkillAtLevel(
   return requiredIndex >= 0 && accessIndex >= requiredIndex;
 }
 
+export function reconcileRacialSkillAnchors(
+  allocations: readonly CharacterSkillAllocationDraft[],
+  race: CharacterRaceAggregate | null,
+  relationships: ReadonlyArray<CharacterAggregate["skillRelationships"][number]>,
+  createDraftId: () => number,
+): CharacterSkillAllocationDraft[] {
+  let result = allocations.map((allocation) => ({ ...allocation }));
+  const required = new Set<number>();
+  const parentsBySkill = new Map<number, number[]>();
+  for (const relationship of relationships) {
+    if (relationship.relationshipType.trim().toLocaleLowerCase() !== "parent") {
+      continue;
+    }
+    const parents = parentsBySkill.get(relationship.skillId) ?? [];
+    if (!parents.includes(relationship.relatedSkillId)) {
+      parents.push(relationship.relatedSkillId);
+    }
+    parentsBySkill.set(relationship.skillId, parents);
+  }
+
+  function ensurePath(
+    skillId: number,
+    visiting = new Set<number>(),
+  ): CharacterSkillAllocationDraft | null {
+    if (visiting.has(skillId)) return null;
+    const parents = parentsBySkill.get(skillId) ?? [];
+    if (parents.length > 1) return null;
+    const nextVisiting = new Set(visiting).add(skillId);
+    const parent =
+      parents.length === 1 ? ensurePath(parents[0], nextVisiting) : null;
+    if (parents.length === 1 && !parent) return null;
+    const parentDraftId = parent?.draftId ?? null;
+    let allocation = result.find(
+      (candidate) =>
+        candidate.skillId === skillId &&
+        candidate.parentDraftId === parentDraftId,
+    );
+    if (!allocation) {
+      allocation = {
+        draftId: createDraftId(),
+        skillId,
+        parentDraftId,
+        points: 0,
+      };
+      result.push(allocation);
+    }
+    required.add(allocation.draftId);
+    return allocation;
+  }
+
+  for (const link of race?.skillLinks ?? []) {
+    if ((link.value ?? 0) > 0) ensurePath(link.skillId);
+  }
+
+  let removed = true;
+  while (removed) {
+    removed = false;
+    const parentIds = new Set(
+      result.map((allocation) => allocation.parentDraftId),
+    );
+    const filtered = result.filter((allocation) => {
+      const removable =
+        allocation.points === 0 &&
+        !required.has(allocation.draftId) &&
+        !parentIds.has(allocation.draftId);
+      if (removable) removed = true;
+      return !removable;
+    });
+    result = filtered;
+  }
+  return result;
+}
+
 export function getCharacterManaProfiles(
   draft: Pick<CharacterDraft, "skillAllocations">,
   skillCatalog: readonly CharacterSkillReference[],
@@ -486,6 +561,21 @@ export function characterAggregateToDraft(
     creditsRemaining: aggregate.profile.creditsRemaining,
   };
 
+  const currencyHoldings = aggregate.currencyHoldings.length
+    ? aggregate.currencyHoldings.map((holding) => ({
+        currencyId: holding.currencyId,
+        quantity: holding.quantity,
+      }))
+    : aggregate.campaign.currencySystem === "Derived Currency"
+      ? getCampaignMoneyBreakdown(
+          aggregate.profile.creditsRemaining,
+          aggregate.campaign.currencySystem,
+          aggregate.campaign.derivedCurrencies,
+        ).entries
+          .filter((entry) => entry.quantity > 0)
+          .map((entry) => ({ currencyId: entry.id, quantity: entry.quantity }))
+      : [];
+
   return {
     name: aggregate.character.name,
     profile,
@@ -501,10 +591,7 @@ export function characterAggregateToDraft(
       quantity: entry.quantity,
       unitCostCredits: entry.unitCostCredits,
     })),
-    currencyHoldings: aggregate.currencyHoldings.map((holding) => ({
-      currencyId: holding.currencyId,
-      quantity: holding.quantity,
-    })),
+    currencyHoldings,
   };
 }
 
