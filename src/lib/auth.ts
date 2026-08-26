@@ -4,6 +4,7 @@ import { username } from "better-auth/plugins";
 
 import { db } from "@/db";
 import * as schema from "@/db/auth-schema";
+import { userRole } from "@/db/authorization-schema";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -13,6 +14,22 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+  },
+
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          await db
+            .insert(userRole)
+            .values({
+              userId: user.id,
+              role: "player",
+            })
+            .onConflictDoNothing();
+        },
+      },
+    },
   },
 
   plugins: [
