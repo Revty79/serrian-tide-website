@@ -10,6 +10,8 @@ import {
   getSkillFilterOptions,
   listSkills,
 } from "./actions";
+import "./skills.css";
+import { SkillsWorkspace } from "./skills-workspace";
 
 export default async function SkillsPage() {
   const session = await auth.api.getSession({
@@ -21,9 +23,7 @@ export default async function SkillsPage() {
   }
 
   const godAccess = await db
-    .select({
-      role: userRole.role,
-    })
+    .select({ role: userRole.role })
     .from(userRole)
     .where(
       and(
@@ -37,51 +37,16 @@ export default async function SkillsPage() {
     redirect("/access");
   }
 
-  const [library, filterOptions] =
-    await Promise.all([
-      listSkills({
-        page: 1,
-        pageSize: 40,
-      }),
-
-      getSkillFilterOptions(),
-    ]);
+  const [initialLibrary, initialFilterOptions] = await Promise.all([
+    listSkills({ page: 1, pageSize: 40 }),
+    getSkillFilterOptions(),
+  ]);
 
   return (
-    <main className="relative z-10 min-h-screen px-5 py-8 sm:px-8">
-      <div className="mx-auto max-w-7xl">
-        <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
-          The Heavens / Master Content
-        </p>
-
-        <h1 className="font-portcullion mt-2 text-4xl text-slate-100">
-          Skills
-        </h1>
-
-        <p className="mt-3 text-slate-400">
-          {library.total.toLocaleString()} shared
-          Serrian Tide Skills
-        </p>
-
-        <div className="mt-8 rounded-3xl border border-white/10 bg-black/35 p-6 shadow-2xl backdrop-blur-md">
-          <p className="text-sm text-slate-400">
-            Database connection verified.
-          </p>
-
-          <p className="mt-2 text-2xl text-amber-200">
-            {library.items.length} of{" "}
-            {library.total.toLocaleString()} Skills
-            loaded.
-          </p>
-
-          <p className="mt-4 text-sm text-slate-500">
-            Classifications:{" "}
-            {filterOptions.classifications.length}
-            {" · "}
-            Tiers: {filterOptions.tiers.join(", ")}
-          </p>
-        </div>
-      </div>
-    </main>
+    <SkillsWorkspace
+      initialLibrary={initialLibrary}
+      initialFilterOptions={initialFilterOptions}
+      username={session.user.username ?? session.user.name ?? "G.O.D."}
+    />
   );
 }
