@@ -106,7 +106,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
         <Link href="/realms" className="font-evanescent character-logo">SERRIAN<br />TIDE</Link>
         <div className="character-header__identity">
           <p>THE REALMS / ADVANCEMENT</p>
-          <h1 className="font-portcullion">{aggregate.character.name}</h1>
+          <h1 className="font-sans">{aggregate.character.name}</h1>
           <span>{aggregate.campaign.name} · Experience and Quintessence</span>
         </div>
         <div className="character-header__actions"><Link href={`/realms/characters/${aggregate.character.id}`}>← Character Sheet</Link></div>
@@ -122,7 +122,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
 
       <div className="advance-grid">
         <section className="character-editor advance-panel">
-          <header className="character-section-heading"><p>EXPERIENCE</p><h2 className="font-portcullion">Advance Skills</h2></header>
+          <header className="character-section-heading"><p>EXPERIENCE</p><h2 className="font-sans">Advance Skills</h2></header>
           <p className="advance-help">Each point added to a Skill costs 1 Experience. Tier paths and Campaign restrictions are enforced by the server.</p>
 
           <div className="advance-skill-add">
@@ -140,7 +140,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
         </section>
 
         <section className="character-editor advance-panel">
-          <header className="character-section-heading"><p>QUINTESSENCE</p><h2 className="font-portcullion">Permanent Growth</h2></header>
+          <header className="character-section-heading"><p>QUINTESSENCE</p><h2 className="font-sans">Permanent Growth</h2></header>
           <p className="advance-help">Serrian Tide conversion rates are preserved exactly from STSTandAlone.</p>
           <Field label="Purchase Quantity"><input type="number" min={1} step={1} value={quintQuantity} onChange={(event) => setQuintQuantity(Math.max(1, Math.trunc(Number(event.target.value))))} /></Field>
 

@@ -123,14 +123,14 @@ export function RealmsDashboard({
           <Link href="/access" className="font-evanescent realms-logo">SERRIAN<br />TIDE</Link>
           <div>
             <p>PLAYER PORTAL</p>
-            <h1 className="font-portcullion">The Realms</h1>
+            <h1 className="font-sans">The Realms</h1>
             <span>Welcome, {username}</span>
           </div>
         </header>
 
         <section className="realms-control">
           <div className="realms-section-heading">
-            <div><p>ADVENTURING CONTEXT</p><h2 className="font-portcullion">Your Realm</h2></div>
+            <div><p>ADVENTURING CONTEXT</p><h2 className="font-sans">Your Realm</h2></div>
             <span>Select the Campaign and Character whose story you want to continue.</span>
           </div>
           <div className="realms-control-grid">
@@ -154,12 +154,12 @@ export function RealmsDashboard({
         </section>
 
         <section className="realms-actions">
-          <div className="realms-section-heading"><div><p>CHARACTER ACTIONS</p><h2 className="font-portcullion">Your Character</h2></div><span>{selectedCharacter ? selectedCharacter.name : "Choose a Character above."}</span></div>
+          <div className="realms-section-heading"><div><p>CHARACTER ACTIONS</p><h2 className="font-sans">Your Character</h2></div><span>{selectedCharacter ? selectedCharacter.name : "Choose a Character above."}</span></div>
           <div className="realms-action-grid">
             {actions.map((action) => action.enabled && action.href ? (
-              <Link key={action.title} href={action.href} className="realms-action-card"><span>{action.subtitle}</span><h3 className="font-portcullion">{action.title}</h3><p>{action.description}</p><strong>Enter →</strong></Link>
+              <Link key={action.title} href={action.href} className="realms-action-card"><span>{action.subtitle}</span><h3 className="font-sans">{action.title}</h3><p>{action.description}</p><strong>Enter →</strong></Link>
             ) : (
-              <article key={action.title} className="realms-action-card is-disabled"><span>{action.subtitle}</span><h3 className="font-portcullion">{action.title}</h3><p>{action.description}</p><strong>{action.title === "ADVANCE CHARACTER" && selectedCharacter ? "Complete creation first" : "Select a Character"}</strong></article>
+              <article key={action.title} className="realms-action-card is-disabled"><span>{action.subtitle}</span><h3 className="font-sans">{action.title}</h3><p>{action.description}</p><strong>{action.title === "ADVANCE CHARACTER" && selectedCharacter ? "Complete creation first" : "Select a Character"}</strong></article>
             ))}
           </div>
         </section>
@@ -171,7 +171,7 @@ export function RealmsDashboard({
         <div className="realms-random-modal" role="presentation">
           <section role="dialog" aria-modal="true" aria-labelledby="random-character-title">
             <p>RANDOM CHARACTER</p>
-            <h2 id="random-character-title" className="font-portcullion">How should {selectedCharacter.name} be created?</h2>
+            <h2 id="random-character-title" className="font-sans">How should {selectedCharacter.name} be created?</h2>
             <span>Both paths overwrite this unfinished Character&apos;s creation draft and leave the permanent completion lock untouched so you can review the result.</span>
             <div className="realms-random-modal__choices">
               <button type="button" onClick={() => router.push(`/realms/characters/${selectedCharacter.id}/random/guided`)}>

@@ -116,7 +116,7 @@ export default async function AdminUsersPage() {
                 </h1>
               </Link>
 
-              <p className="mt-3 text-xs uppercase tracking-[0.3em] text-purple-200">
+              <p className="mt-3 text-xs uppercase tracking-[0.14em] text-purple-200">
                 Administration
               </p>
             </div>
@@ -139,7 +139,7 @@ export default async function AdminUsersPage() {
 
         <section className="mt-8">
           <div>
-            <h2 className="font-portcullion text-3xl text-slate-100 sm:text-4xl">
+            <h2 className="font-sans text-3xl text-slate-100 sm:text-4xl">
               User Management
             </h2>
 
@@ -171,7 +171,7 @@ export default async function AdminUsersPage() {
                   <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="font-portcullion text-2xl text-slate-100">
+                        <h3 className="font-sans text-2xl text-slate-100">
                           {account.name}
                         </h3>
 
@@ -196,7 +196,7 @@ export default async function AdminUsersPage() {
 
                       <div className="mt-3 space-y-1 text-sm text-slate-400">
                         <p>
-                          <span className="text-slate-500">
+                          <span className="text-slate-300">
                             Username:
                           </span>{" "}
                           {account.displayUsername ??
@@ -205,14 +205,14 @@ export default async function AdminUsersPage() {
                         </p>
 
                         <p>
-                          <span className="text-slate-500">
+                          <span className="text-slate-300">
                             Email:
                           </span>{" "}
                           {account.email}
                         </p>
 
                         <p>
-                          <span className="text-slate-500">
+                          <span className="text-slate-300">
                             Joined:
                           </span>{" "}
                           {account.createdAt.toLocaleDateString()}
@@ -221,7 +221,7 @@ export default async function AdminUsersPage() {
                     </div>
 
                     <div className="lg:min-w-[370px] lg:text-right">
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-300">
                         Access Permissions
                       </p>
 
@@ -310,7 +310,7 @@ export default async function AdminUsersPage() {
                                       text-xs
                                       font-medium
                                       tracking-[0.15em]
-                                      text-slate-500
+                                      text-slate-300
                                       transition
                                       hover:border-amber-300/40
                                       hover:bg-amber-300/10
@@ -332,7 +332,7 @@ export default async function AdminUsersPage() {
                       </div>
 
                       {roles.length === 0 && (
-                        <p className="mt-3 text-sm text-slate-500">
+                        <p className="mt-3 text-sm text-slate-300">
                           This account currently has no Serrian Tide access.
                         </p>
                       )}

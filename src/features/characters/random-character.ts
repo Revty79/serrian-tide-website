@@ -161,6 +161,19 @@ export function createCompletelyRandomAnswers(
   };
 }
 
+export function resolveRandomCharacterRaceId(
+  allowedRaces: readonly CharacterAggregate["allowedRaces"][number][],
+  requestedRaceId: number | null,
+  random: () => number = Math.random,
+): number | null {
+  if (requestedRaceId !== null) {
+    return allowedRaces.some((race) => race.id === requestedRaceId)
+      ? requestedRaceId
+      : null;
+  }
+  return allowedRaces.length > 0 ? pick(allowedRaces, random).id : null;
+}
+
 function generatedName(requested: string, random: () => number): string {
   const name = requested.trim();
   return name || `${pick(NAMES, random)} ${pick(FAMILY_NAMES, random)}`;
@@ -254,7 +267,7 @@ function generateSkills(
       const allocation = allocations.find(({ skillId, parentDraftId }) =>
         skillId === skill.id && parentDraftId === null);
       const racial = getRacialSkillGrant(race, skill.id);
-      if (!isSkillAllowedByCampaign(skill, skill, aggregate.campaign.allowedSystems, racial.granted)) continue;
+      if (!isSkillAllowedByCampaign(skill, skill, aggregate.campaign.allowedSystems, true, racial.granted)) continue;
       const maximum = getCreationPurchasedSkillMaximum(
         skill,
         aggregate.campaign.maxStartingSkill,
@@ -279,7 +292,7 @@ function generateSkills(
           && getEffectiveSkillPoints(parent.points, race, parent.skillId) + 0.000001 < threshold) {
           continue;
         }
-        if (!isSkillAllowedByCampaign(skill, rootSkill, aggregate.campaign.allowedSystems, racial.granted)) continue;
+        if (!isSkillAllowedByCampaign(skill, rootSkill, aggregate.campaign.allowedSystems, true, racial.granted)) continue;
         if (requiresCastingLevel(skill, rootSkill)) {
           const magicSystem = getCharacterMagicSystem(rootSkill);
           const accessLevel = magicSystem

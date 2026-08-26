@@ -57,7 +57,7 @@ export default async function NewCampaignPage() {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Link
-                href="/heavens/campaigns"
+                href="/heavens"
                 className="inline-block"
               >
                 <h1
@@ -79,7 +79,7 @@ export default async function NewCampaignPage() {
                 </h1>
               </Link>
 
-              <p className="mt-3 text-xs uppercase tracking-[0.3em] text-purple-200">
+              <p className="mt-3 text-xs uppercase tracking-[0.14em] text-purple-200">
                 The Heavens
               </p>
             </div>
@@ -97,11 +97,11 @@ export default async function NewCampaignPage() {
         </header>
 
         <section className="mb-7 mt-8">
-          <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
-            Campaign Control
+          <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
+            Campaign Creation
           </p>
 
-          <h2 className="font-portcullion mt-2 text-4xl text-slate-100">
+          <h2 className="font-sans mt-2 text-4xl text-slate-100">
             Create Campaign
           </h2>
 

@@ -87,9 +87,9 @@ export function CampaignPlayerPanel({
         <section className="mt-4 rounded-2xl border border-purple-300/20 bg-purple-950/10 p-4 shadow-xl sm:p-5" aria-label="Add Campaign Player">
           <header className="flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-purple-200">Campaign Membership</p>
-              <h3 className="font-portcullion mt-1 text-2xl text-slate-100">Add Player</h3>
-              <span className="mt-1 block text-sm text-slate-500">
+              <p className="text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Membership</p>
+              <h3 className="font-sans mt-1 text-2xl text-slate-100">Add Player</h3>
+              <span className="mt-1 block text-sm text-slate-300">
                 Registered accounts with Player permission are eligible, including multi-role G.O.D.s and Admins.
               </span>
             </div>
@@ -138,15 +138,15 @@ export function CampaignPlayerPanel({
                     <div className="flex flex-wrap items-center gap-2">
                       <strong className="text-sm text-slate-100">{candidate.username}</strong>
                       {candidate.isCampaignCreator ? (
-                        <span className="rounded-full border border-amber-300/25 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-amber-200">
+                        <span className="rounded-full border border-amber-300/25 px-2 py-0.5 text-xs uppercase tracking-wide text-amber-200">
                           Campaign Creator
                         </span>
                       ) : null}
                     </div>
-                    <span className="mt-1 block text-xs text-slate-500">{candidate.displayName}</span>
+                    <span className="mt-1 block text-xs text-slate-300">{candidate.displayName}</span>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {candidate.roles.map((role) => (
-                        <span key={role} className="rounded-full border border-purple-300/15 bg-purple-300/5 px-2 py-1 text-[0.65rem] text-purple-100">
+                        <span key={role} className="rounded-full border border-purple-300/15 bg-purple-300/5 px-2 py-1 text-xs text-purple-100">
                           {roleLabels[role]}
                         </span>
                       ))}

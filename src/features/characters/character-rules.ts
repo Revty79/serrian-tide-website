@@ -17,11 +17,11 @@ const EPSILON = 0.000001;
 export const SPECIAL_ABILITY_EFFECTIVE_MAXIMUM = 100;
 
 export const CHARACTER_SPELL_ACCESS_LEVELS = [
-  { name: "Apprentice", minimumMana: 1 },
-  { name: "Novice", minimumMana: 12 },
-  { name: "Master", minimumMana: 32 },
-  { name: "High Master", minimumMana: 72 },
-  { name: "Grand Master", minimumMana: 142 },
+  { name: "Apprentice", minimumMana: 1, midpointMana: 6, twoSpellUnlockMana: 12 },
+  { name: "Novice", minimumMana: 12, midpointMana: 16, twoSpellUnlockMana: 32 },
+  { name: "Master", minimumMana: 32, midpointMana: 36, twoSpellUnlockMana: 72 },
+  { name: "High Master", minimumMana: 72, midpointMana: 71, twoSpellUnlockMana: 142 },
+  { name: "Grand Master", minimumMana: 142, midpointMana: null, twoSpellUnlockMana: null },
 ] as const;
 
 export type CharacterSpellAccessLevel =
@@ -33,6 +33,17 @@ export type CharacterMagicSystem =
   | "Faith"
   | "Psyonics"
   | "Bardic Resonance";
+
+export type CharacterManaProfile = {
+  system: CharacterMagicSystem;
+  sourceSkillName: string;
+  sourceSkillPoints: number;
+  baseMagic: number;
+  manaPool: number;
+  spellAccessLevel: CharacterSpellAccessLevel | null;
+  nextLevel: CharacterSpellAccessLevel | null;
+  nextRequiredMana: number | null;
+};
 
 const MAGIC_SYSTEM_MANA_SKILLS: Record<CharacterMagicSystem, string> = {
   Spellcraft: "Channeling",
@@ -131,6 +142,31 @@ export function isSpecialAbilitySkill(skill: CharacterSkillReference): boolean {
   return classification === "special ability" || classification === "special abilities";
 }
 
+export type CharacterSkillGroupKey = CharacterAttributeKey | "SPECIAL" | "OTHER";
+
+export function getCharacterSkillGroupKey(
+  skill: CharacterSkillReference,
+): CharacterSkillGroupKey {
+  if (isSpecialAbilitySkill(skill)) return "SPECIAL";
+  return normalizeSkillAttributeKey(skill.primaryAttribute) ?? "OTHER";
+}
+
+function titleCaseSkillClassification(value: string): string {
+  return value.trim().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function getSkillTierLabel(skill: CharacterSkillReference): string {
+  const classification = titleCaseSkillClassification(skill.classification);
+  const spellLevel = getRecordedSpellLevel(skill);
+  if (spellLevel) {
+    return `${spellLevel} ${classification || "Spell"} · Tier ${skill.tier ?? "—"}`;
+  }
+  if (skill.tier === null) return classification || "Unclassified Skill";
+  return skill.classification.trim().toLowerCase() === "standard"
+    ? `Tier ${skill.tier}`
+    : `${classification || "Skill"} · Tier ${skill.tier}`;
+}
+
 export function isSpellSkill(skill: CharacterSkillReference): boolean {
   const classification = skill.classification.trim().toLowerCase();
   return (
@@ -200,10 +236,14 @@ export function getSkillRank(
   parentRank: number | null,
   tier: number | null,
 ): number {
-  if (!Number.isFinite(pointsInvested) || pointsInvested <= EPSILON) return 0;
+  if (!hasSkillPoints(pointsInvested)) return 0;
   return tier !== null && tier > 1
     ? (parentRank ?? 0) + pointsInvested
     : pointsInvested + attributeModifier;
+}
+
+export function hasSkillPoints(points: number): boolean {
+  return Number.isFinite(points) && points > EPSILON;
 }
 
 export function getSkillRollTarget(
@@ -211,6 +251,10 @@ export function getSkillRollTarget(
   skillRank: number,
 ) {
   return 100 - (attributeScore + skillRank);
+}
+
+export function getSpecialAbilityRollTarget(rank: number): number {
+  return 100 - rank;
 }
 
 export function getAttributePointsUsed(draft: CharacterDraft) {
@@ -338,10 +382,12 @@ export function isSkillAllowedByCampaign(
   skill: CharacterSkillReference,
   rootSkill: CharacterSkillReference,
   allowedSystems: readonly CampaignSystem[],
+  enforceCampaignTierLimits = true,
   raciallyGranted = false,
 ) {
   if (raciallyGranted) return true;
   if (
+    enforceCampaignTierLimits &&
     skill.tier !== null &&
     !allowedSystems.includes(`Tier ${skill.tier}` as CampaignSystem)
   ) {
@@ -471,11 +517,34 @@ export function reconcileRacialSkillAnchors(
   return result;
 }
 
+export function removeSkillAllocationDescendants(
+  allocations: readonly CharacterSkillAllocationDraft[],
+  parentDraftId: number,
+): CharacterSkillAllocationDraft[] {
+  const removeIds = new Set<number>([parentDraftId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const allocation of allocations) {
+      if (
+        allocation.parentDraftId !== null &&
+        removeIds.has(allocation.parentDraftId) &&
+        !removeIds.has(allocation.draftId)
+      ) {
+        removeIds.add(allocation.draftId);
+        changed = true;
+      }
+    }
+  }
+  removeIds.delete(parentDraftId);
+  return allocations.filter((allocation) => !removeIds.has(allocation.draftId));
+}
+
 export function getCharacterManaProfiles(
   draft: Pick<CharacterDraft, "skillAllocations">,
   skillCatalog: readonly CharacterSkillReference[],
   race: CharacterRaceAggregate | null,
-) {
+): CharacterManaProfile[] {
   const baseMagic = Math.max(0, race?.race.baseMagic ?? 0);
   const effectivePoints = (skill: CharacterSkillReference) =>
     draft.skillAllocations
@@ -821,6 +890,7 @@ export function evaluateCharacterReadiness(
         skill,
         rootSkill,
         aggregate.campaign.allowedSystems,
+        true,
         racial.granted,
       )
     ) {

@@ -92,7 +92,7 @@ export default async function AccessPage() {
             </h1>
           </Link>
 
-          <h2 className="font-portcullion mt-8 text-3xl text-slate-100 sm:text-4xl">
+          <h2 className="font-sans mt-8 text-3xl text-slate-100 sm:text-4xl">
             Choose Your Path
           </h2>
 
@@ -151,7 +151,7 @@ export default async function AccessPage() {
                       px-3
                       py-1
                       text-xs
-                      tracking-[0.2em]
+                      tracking-[0.14em]
                       text-purple-200
                     "
                   >
@@ -160,7 +160,7 @@ export default async function AccessPage() {
 
                   <h3
                     className="
-                      font-portcullion
+                      font-sans
                       text-3xl
                       text-slate-100
                       transition
@@ -210,7 +210,7 @@ export default async function AccessPage() {
               backdrop-blur-md
             "
           >
-            <h3 className="font-portcullion text-2xl text-slate-100">
+            <h3 className="font-sans text-2xl text-slate-100">
               No Access Assigned
             </h3>
 

@@ -22,6 +22,7 @@ import {
   availableRandomMagicSystems,
   createCompletelyRandomAnswers,
   generateRandomCharacterDraft,
+  resolveRandomCharacterRaceId,
   type GuidedRandomCharacterAnswers,
   type RandomCharacterEquipment,
   type RandomCharacterFocus,
@@ -114,13 +115,16 @@ async function generateAndSave(
     throw new Error("This Campaign has no allowed Races, so a legal random Character cannot be generated.");
   }
 
-  const resolvedAnswers = answers ?? createCompletelyRandomAnswers(aggregate);
-  if (!resolvedAnswers.raceId) {
-    throw new Error("Choose a Race before generating the Character.");
+  const requestedAnswers = answers ?? createCompletelyRandomAnswers(aggregate);
+  const raceId = resolveRandomCharacterRaceId(
+    aggregate.allowedRaces,
+    requestedAnswers.raceId,
+  );
+  if (requestedAnswers.raceId !== null && raceId === null) {
+    throw new Error("That Race is not allowed in this Campaign.");
   }
-  if (!aggregate.allowedRaces.some((entry) => entry.id === resolvedAnswers.raceId)) {
-    throw new Error("That Race is not allowed by this Campaign.");
-  }
+  if (!raceId) throw new Error("This Campaign has no allowed Race available for Character generation.");
+  const resolvedAnswers = { ...requestedAnswers, raceId };
 
   const permittedMagic = new Set<RandomCharacterMagic>([
     "none",

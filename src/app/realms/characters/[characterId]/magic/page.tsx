@@ -5,7 +5,7 @@ import { listCharacterSpells } from "@/app/characters/spell-actions";
 import "@/app/heavens/skills/skills.css";
 import { requirePlayer } from "@/lib/server-access";
 
-import "./magic.css";
+import "../../spell-player.css";
 import { MagicWorkspace } from "./magic-workspace";
 
 export default async function MagicCalculatorPage({

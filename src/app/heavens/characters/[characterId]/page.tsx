@@ -21,9 +21,7 @@ export default async function GodCharacterPage({
   const aggregate = await getCharacter(id, true).catch(() => null);
   if (!aggregate) redirect("/heavens");
   const sourceValue = (await searchParams).source;
-  const source = sourceValue === "campaigns" || sourceValue === "npcs"
-    ? sourceValue
-    : "heavens";
+  const source = sourceValue === "npcs" ? "npcs" : "heavens";
   const backHref = getGodCharacterReturnHref({
     source,
     campaignId: aggregate.campaign.id,
@@ -35,7 +33,7 @@ export default async function GodCharacterPage({
       initialAggregate={aggregate}
       godMode
       backHref={backHref}
-      backLabel={source === "npcs" ? "NPCs" : source === "campaigns" ? "Campaign Control" : "Heavens"}
+      backLabel={source === "npcs" ? "NPCs" : "Campaign Control"}
     />
   );
 }

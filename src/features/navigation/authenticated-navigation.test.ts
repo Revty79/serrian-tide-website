@@ -15,7 +15,7 @@ test("Heavens exposes one consistent set of major destinations", () => {
     getContextNavigationItems("heavens").map(({ label }) => label),
     [
       "Heavens Dashboard",
-      "Campaign Control",
+      "Campaign Settings",
       "Races",
       "Skills",
       "Creatures",
@@ -27,10 +27,11 @@ test("Heavens exposes one consistent set of major destinations", () => {
 });
 
 test("active destination identifies both libraries and their nested editors", () => {
-  const campaigns = { label: "Campaign Control", href: "/heavens/campaigns" };
+  const campaigns = { label: "Campaign Settings", href: "/heavens/campaigns" };
   const dashboard = { label: "Heavens Dashboard", href: "/heavens" };
   assert.equal(isNavigationItemActive("/heavens/campaigns/new", campaigns), true);
-  assert.equal(isNavigationItemActive("/heavens/characters/42", campaigns), true);
+  assert.equal(isNavigationItemActive("/heavens/characters/42", campaigns), false);
+  assert.equal(isNavigationItemActive("/heavens/characters/42", dashboard), true);
   assert.equal(isNavigationItemActive("/heavens/characters/42", campaigns, "npcs"), false);
   assert.equal(
     isNavigationItemActive(
@@ -56,17 +57,27 @@ test("NPC Character editing identifies and breadcrumbs back to the NPC workshop"
 test("Campaign creation and Character editing retain logical return context", () => {
   assert.equal(
     getGodCharacterReturnHref({
-      source: "campaigns",
+      source: "heavens",
       campaignId: 12,
       playerUserId: "user-2",
     }),
-    "/heavens/campaigns?campaign=12&player=user-2&tab=players",
+    "/heavens?campaign=12&player=user-2",
   );
   assert.deepEqual(
     getNavigationBreadcrumbs("/heavens/campaigns/new", "heavens").map(
       ({ label }) => label,
     ),
-    ["Heavens Dashboard", "Campaign Control", "Create Campaign"],
+    ["Heavens Dashboard", "Campaign Settings", "Create Campaign"],
+  );
+  assert.equal(
+    getNavigationBreadcrumbs(
+      "/heavens/characters/42",
+      "heavens",
+      "heavens",
+      12,
+      "user-2",
+    )[1]?.href,
+    "/heavens?campaign=12&player=user-2",
   );
 });
 

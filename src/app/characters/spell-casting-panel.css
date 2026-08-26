@@ -21,19 +21,19 @@
 
 .spell-casting-panel > header p {
   color: #cbb9f2;
-  font-size: 0.56rem;
-  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
 }
 
 .spell-casting-panel > header h3 {
   margin-top: 3px;
   color: #eee7da;
-  font: 400 1rem "Palatino Linotype", Georgia, serif;
+  font: 400 1rem Arial, Helvetica, sans-serif;
 }
 
 .spell-casting-panel > header > span {
-  color: #778390;
-  font-size: 0.62rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
   text-align: right;
 }
 
@@ -66,8 +66,8 @@
 
 .spell-casting-panel__base span,
 .spell-casting-panel__results span {
-  color: #66727f;
-  font-size: 0.56rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
 }
 
 .spell-casting-panel__base strong,
@@ -78,8 +78,8 @@
 
 .spell-casting-panel__results small {
   margin-top: 3px;
-  color: #7d8995;
-  font-size: 0.58rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
 }
 
 .spell-casting-panel__note {
@@ -88,12 +88,12 @@
   border-left: 2px solid rgb(94 234 212 / 35%);
   background: rgb(20 83 75 / 10%);
   color: #a9b7b6;
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
 .spell-casting-panel__note.is-error {
-  border-left-color: rgb(248 113 113 / 45%);
+  border-left-color: rgb(248 113 113 / 72%);
   background: rgb(127 29 29 / 12%);
   color: #efb2b2;
 }
@@ -114,7 +114,7 @@
 .spell-casting-panel__controls legend {
   padding: 0 5px;
   color: #8b96a3;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
 }
 
 .spell-casting-panel__choices {
@@ -129,12 +129,12 @@
   background: rgb(255 255 255 / 3%);
   padding: 6px 9px;
   color: #aab2bb;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
 .spell-casting-panel__choices button.is-active {
-  border-color: rgb(245 202 115 / 35%);
+  border-color: rgb(245 202 115 / 72%);
   background: rgb(245 202 115 / 10%);
   color: #efd99f;
 }

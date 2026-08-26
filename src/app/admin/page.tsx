@@ -95,7 +95,7 @@ export default async function AdminPage() {
                 </h1>
               </Link>
 
-              <p className="mt-3 text-xs uppercase tracking-[0.3em] text-purple-200">
+              <p className="mt-3 text-xs uppercase tracking-[0.14em] text-purple-200">
                 Administration
               </p>
             </div>
@@ -119,7 +119,7 @@ export default async function AdminPage() {
 
         <section className="mt-8">
           <div>
-            <h2 className="font-portcullion text-3xl text-slate-100 sm:text-4xl">
+            <h2 className="font-sans text-3xl text-slate-100 sm:text-4xl">
               Admin Dashboard
             </h2>
 
@@ -167,7 +167,7 @@ export default async function AdminPage() {
                         px-3
                         py-1
                         text-xs
-                        tracking-[0.2em]
+                        tracking-[0.14em]
                         text-purple-200
                       "
                     >
@@ -176,7 +176,7 @@ export default async function AdminPage() {
 
                     <h3
                       className="
-                        font-portcullion
+                        font-sans
                         mt-6
                         text-2xl
                         text-slate-100
@@ -224,14 +224,14 @@ export default async function AdminPage() {
                         px-3
                         py-1
                         text-xs
-                        tracking-[0.2em]
+                        tracking-[0.14em]
                         text-purple-200
                       "
                     >
                       {section.subtitle}
                     </span>
 
-                    <h3 className="font-portcullion mt-6 text-2xl text-slate-100">
+                    <h3 className="font-sans mt-6 text-2xl text-slate-100">
                       {section.title}
                     </h3>
 
@@ -240,7 +240,7 @@ export default async function AdminPage() {
                     </p>
                   </div>
 
-                  <p className="mt-8 text-sm text-slate-600">
+                  <p className="mt-8 text-sm text-slate-400">
                     Management tools will appear here.
                   </p>
                 </article>

@@ -3,21 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  RAW_CASTING_CIRCUMSTANCES,
-  getRawCastingCircumstanceLabels,
-  type RawCastingCircumstanceId,
-} from "@/features/spell-construction/data/rawCastingRules";
-import {
   SPELL_IDENTITY_BY_TRADITION,
-  getMagicType,
 } from "@/features/spell-construction/data/spellIdentity";
 import { serrianTideRules } from "@/features/spell-construction/data/spellRules";
-import { calculateCastingCircumstance } from "@/features/spell-construction/engine/calculateCastingCircumstance";
-import { calculatePractitioner } from "@/features/spell-construction/engine/calculatePractitioner";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
 import { hasProgressiveSpellModifier } from "@/features/spell-construction/engine/progressiveSpell";
 import { validateSpell } from "@/features/spell-construction/engine/validateSpell";
-import { PRACTITIONER_LEVELS } from "@/features/spell-construction/models/rules";
 import {
   TRADITIONS,
   type SpellDocument,
@@ -47,9 +38,6 @@ export function SpellConstructionEditor({
     options: SpellFrameworkSkill[];
     state: "ready" | "error";
   }>({ tradition: null, options: [], state: "ready" });
-  const [rawCircumstance, setRawCircumstance] =
-    useState<RawCastingCircumstanceId>("have-spell");
-
   const baseCalculation = useMemo(() => calculateSpell(document), [document]);
   const progressiveEnabled = hasProgressiveSpellModifier(document);
   const activeValidation = useMemo(
@@ -62,25 +50,6 @@ export function SpellConstructionEditor({
     [baseCalculation, document],
   );
 
-  const practitionerLevel = document.practitionerLevel ?? "Apprentice";
-  const practitioner = useMemo(
-    () =>
-      calculatePractitioner(
-        {
-          baseSpellManaCost: baseCalculation.baseSpellManaCost,
-          baseSpellMastery: baseCalculation.baseSpellMastery,
-          castingTimeAdjustment: baseCalculation.castingTimeAdjustment,
-        },
-        practitionerLevel,
-      ).calculation,
-    [baseCalculation, practitionerLevel],
-  );
-
-  const finalCasting = useMemo(
-    () => calculateCastingCircumstance(practitioner, rawCircumstance),
-    [practitioner, rawCircumstance],
-  );
-
   const frameworkIsCurrent = frameworkResult.tradition === document.tradition;
   const frameworkOptions = frameworkIsCurrent ? frameworkResult.options : [];
   const frameworkState = frameworkIsCurrent ? frameworkResult.state : "loading";
@@ -89,8 +58,6 @@ export function SpellConstructionEditor({
   const selectedFrameworkAvailable = frameworkOptions.some(
     ({ id }) => id === document.frameworkSkillId,
   );
-  const magicType = getMagicType(document.tradition);
-
   useEffect(() => {
     let active = true;
 
@@ -248,58 +215,6 @@ export function SpellConstructionEditor({
         <div><span>Spell Mastery</span><strong>{baseCalculation.baseSpellMastery}</strong></div>
         <div><span>Base Combat Time</span><strong>{baseCalculation.baseCombatCastingTime} Initiative</strong></div>
         <div><span>Out of Combat</span><strong>{baseCalculation.baseOutOfCombatCastingTimeSeconds}s</strong></div>
-      </section>
-
-      <section className="spell-builder__section">
-        <div className="spell-builder__section-heading">
-          <div>
-            <p>CASTING CALCULATOR</p>
-            <h4>Practitioner &amp; Raw Casting</h4>
-          </div>
-          <span>Final casting minimums applied automatically</span>
-        </div>
-
-        <div className="spell-builder__inline-fields">
-          <label>
-            <span>Practitioner Rank</span>
-            <select
-              value={practitionerLevel}
-              onChange={(event) =>
-                update({
-                  practitionerLevel: event.target.value as SpellDocument["practitionerLevel"],
-                })
-              }
-            >
-              {PRACTITIONER_LEVELS.map((level) => (
-                <option key={level} value={level}>{level}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Casting Circumstance</span>
-            <select
-              value={rawCircumstance}
-              onChange={(event) =>
-                setRawCircumstance(event.target.value as RawCastingCircumstanceId)
-              }
-            >
-              {RAW_CASTING_CIRCUMSTANCES.map(({ id }) => {
-                const labels = getRawCastingCircumstanceLabels(id, magicType);
-                return <option key={id} value={id}>{labels.fullLabel}</option>;
-              })}
-            </select>
-          </label>
-        </div>
-
-        <div className="spell-builder__summary spell-builder__summary--compact">
-          <div><span>Practitioner Multiplier</span><strong>{practitioner.multiplier}×</strong></div>
-          <div><span>Practitioner Mana</span><strong>{practitioner.adjustedManaCost}</strong></div>
-          <div><span>Raw Adjustment</span><strong>+{finalCasting.circumstance.adjustmentPercent}%</strong></div>
-          <div><span>Final Mana</span><strong>{finalCasting.finalCastingMana}</strong></div>
-          <div><span>Combat Time</span><strong>{finalCasting.finalCombatCastingTime} Initiative</strong></div>
-          <div><span>Out of Combat</span><strong>{finalCasting.finalOutOfCombatCastingTimeSeconds}s</strong></div>
-        </div>
       </section>
 
       <section className="spell-builder__section">

@@ -623,6 +623,31 @@ export async function getCharacter(characterId: number, godMode = false): Promis
   return aggregate;
 }
 
+export async function getAllowedRaceForCharacter(
+  characterId: number,
+  raceId: number,
+  godMode = false,
+): Promise<CharacterRaceAggregate> {
+  if (!Number.isInteger(raceId) || raceId <= 0) {
+    throw new Error("Choose a saved Race.");
+  }
+  const { row } = await requireCharacterAccess(characterId, godMode);
+  const [allowed] = await db
+    .select({ raceId: campaignAllowedRace.raceId })
+    .from(campaignAllowedRace)
+    .where(
+      and(
+        eq(campaignAllowedRace.campaignId, row.campaignId),
+        eq(campaignAllowedRace.raceId, raceId),
+      ),
+    )
+    .limit(1);
+  if (!allowed) throw new Error("That Race is not allowed by this Campaign.");
+  const selectedRace = await readRaceAggregate(raceId);
+  if (!selectedRace) throw new Error("The selected Race could not be loaded.");
+  return selectedRace;
+}
+
 function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, godMode: boolean) {
   const heightFeet = optionalWholeNonNegative(draft.profile.heightFeet, "Height feet");
   const heightInches = optionalWholeNonNegative(draft.profile.heightInches, "Height inches");
@@ -857,7 +882,7 @@ export async function advanceCharacterSkill(
       cursor = cursor.parentAllocationId === null ? null : aggregate.skillAllocations.find(({ id }) => id === cursor!.parentAllocationId) ?? null;
     }
   }
-  if (!isSkillAllowedByCampaign(target, root, aggregate.campaign.allowedSystems, racial.granted)) {
+  if (!isSkillAllowedByCampaign(target, root, aggregate.campaign.allowedSystems, true, racial.granted)) {
     throw new Error("That Skill is not allowed by this Campaign.");
   }
 

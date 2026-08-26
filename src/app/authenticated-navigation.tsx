@@ -36,7 +36,17 @@ export function AuthenticatedNavigation({
   const navigationItems = getContextNavigationItems(context);
   const roleDestinations = getRoleDestinations(roles);
   const characterSource = searchParams.get("source");
-  const breadcrumbs = getNavigationBreadcrumbs(pathname, context, characterSource);
+  const requestedCampaignId = Number(searchParams.get("campaign"));
+  const campaignId = Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
+    ? requestedCampaignId
+    : null;
+  const breadcrumbs = getNavigationBreadcrumbs(
+    pathname,
+    context,
+    characterSource,
+    campaignId,
+    searchParams.get("player"),
+  );
 
   async function signOut() {
     setSigningOut(true);
@@ -74,7 +84,7 @@ export function AuthenticatedNavigation({
           <strong className="font-evanescent block bg-gradient-to-r from-purple-400 via-amber-200 to-purple-400 bg-clip-text text-lg text-transparent">
             SERRIAN TIDE
           </strong>
-          <span className="mt-0.5 block text-[0.62rem] uppercase tracking-[0.22em] text-purple-200/70">
+          <span className="mt-0.5 block text-xs uppercase tracking-[0.14em] text-purple-200/85">
             {contextNames[context]}
           </span>
         </Link>
@@ -89,7 +99,7 @@ export function AuthenticatedNavigation({
           </summary>
           <nav className="absolute right-0 top-12 grid w-[min(88vw,22rem)] gap-1 rounded-2xl border border-white/15 bg-[#080b15] p-3 shadow-2xl" aria-label={`${contextNames[context]} mobile navigation`}>
             {links}
-            <span className="mt-2 border-t border-white/10 px-3 pt-3 text-[0.65rem] uppercase tracking-[0.2em] text-purple-200/60">
+            <span className="mt-2 border-t border-white/10 px-3 pt-3 text-xs uppercase tracking-[0.14em] text-purple-200/85">
               Switch Path
             </span>
             <Link href="/access" className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">Paths</Link>
@@ -115,7 +125,7 @@ export function AuthenticatedNavigation({
               ))}
             </div>
           </details>
-          <span className="max-w-28 truncate text-xs text-slate-500" title={username}>{username}</span>
+          <span className="max-w-28 truncate text-xs text-slate-300" title={username}>{username}</span>
           <button
             type="button"
             disabled={signingOut}
@@ -134,13 +144,13 @@ export function AuthenticatedNavigation({
             {breadcrumb.current ? (
               <span className="text-amber-200" aria-current="page">{breadcrumb.label}</span>
             ) : (
-              <Link href={breadcrumb.href} className="text-slate-500 transition hover:text-slate-200">{breadcrumb.label}</Link>
+              <Link href={breadcrumb.href} className="text-slate-300 transition hover:text-slate-200">{breadcrumb.label}</Link>
             )}
           </span>
         ))}
         <div className="ml-auto flex items-center gap-2 md:hidden">
           <Link href="/access" className="text-purple-200">Paths</Link>
-          <button type="button" disabled={signingOut} onClick={() => void signOut()} className="text-slate-500 hover:text-red-200">
+          <button type="button" disabled={signingOut} onClick={() => void signOut()} className="text-slate-300 hover:text-red-200">
             {signingOut ? "Signing out…" : "Log Out"}
           </button>
         </div>

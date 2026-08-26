@@ -90,7 +90,7 @@ export default function RegisterPage() {
               </h1>
             </Link>
 
-            <h2 className="font-portcullion mt-7 text-2xl text-slate-100">
+            <h2 className="font-sans mt-7 text-2xl text-slate-100">
               Create Your Account
             </h2>
 
@@ -126,7 +126,7 @@ export default function RegisterPage() {
                   text-slate-100
                   outline-none
                   transition
-                  placeholder:text-slate-600
+                  placeholder:text-slate-400
                   focus:border-amber-300/60
                   focus:ring-2
                   focus:ring-amber-300/10
@@ -162,7 +162,7 @@ export default function RegisterPage() {
                   text-slate-100
                   outline-none
                   transition
-                  placeholder:text-slate-600
+                  placeholder:text-slate-400
                   focus:border-amber-300/60
                   focus:ring-2
                   focus:ring-amber-300/10
@@ -198,7 +198,7 @@ export default function RegisterPage() {
                   text-slate-100
                   outline-none
                   transition
-                  placeholder:text-slate-600
+                  placeholder:text-slate-400
                   focus:border-amber-300/60
                   focus:ring-2
                   focus:ring-amber-300/10
@@ -234,7 +234,7 @@ export default function RegisterPage() {
                   text-slate-100
                   outline-none
                   transition
-                  placeholder:text-slate-600
+                  placeholder:text-slate-400
                   focus:border-amber-300/60
                   focus:ring-2
                   focus:ring-amber-300/10
@@ -271,7 +271,7 @@ export default function RegisterPage() {
                   text-slate-100
                   outline-none
                   transition
-                  placeholder:text-slate-600
+                  placeholder:text-slate-400
                   focus:border-amber-300/60
                   focus:ring-2
                   focus:ring-amber-300/10

@@ -212,15 +212,23 @@ export async function duplicateCharacterSpell(
   const spells = await listCharacterSpells(characterId);
   const source = spells.find(({ id }) => id === savedSpellId);
   if (!source) throw new Error("Saved Spell not found.");
+  return duplicateCharacterSpellDocument(characterId, source.document);
+}
+
+export async function duplicateCharacterSpellDocument(
+  characterId: number,
+  source: SpellDocument,
+): Promise<CharacterSavedSpell> {
+  await getCharacter(characterId, false);
   const idMap = new Map<string, string>();
   const now = new Date().toISOString();
   const duplicate: SpellDocument = {
-    ...source.document,
+    ...parseSpellDocument(source),
     id: createStableId("spell"),
-    name: `${source.document.name.trim() || "Untitled Spell"} (Copy)`,
-    containers: source.document.containers.map((container) => cloneContainerWithNewIds(container, idMap)),
-    modifiers: source.document.modifiers.map((modifier) => cloneModifierWithNewId(modifier, idMap)),
-    progressive: cloneProgressiveDataWithNewIds(source.document.progressive, idMap),
+    name: `${source.name.trim() || "Untitled Spell"} (Copy)`,
+    containers: source.containers.map((container) => cloneContainerWithNewIds(container, idMap)),
+    modifiers: source.modifiers.map((modifier) => cloneModifierWithNewId(modifier, idMap)),
+    progressive: cloneProgressiveDataWithNewIds(source.progressive, idMap),
     calculation: undefined,
     createdAt: now,
     modifiedAt: now,

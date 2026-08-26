@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 
 import { getCharacter } from "@/app/characters/actions";
 import { listCharacterSpells } from "@/app/characters/spell-actions";
+import "@/app/heavens/skills/skills.css";
 import { requirePlayer } from "@/lib/server-access";
 
-import "./spellbook.css";
+import "../../spell-player.css";
 import { SpellbookWorkspace } from "./spellbook-workspace";
 
 export default async function SpellbookPage({

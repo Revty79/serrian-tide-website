@@ -1,3 +1,5 @@
+import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
+
 export type SerrianAppRole = "admin" | "god" | "player";
 export type AuthenticatedContext = "admin" | "heavens" | "realms";
 
@@ -17,7 +19,7 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
   ],
   heavens: [
     { label: "Heavens Dashboard", href: "/heavens" },
-    { label: "Campaign Control", href: "/heavens/campaigns" },
+    { label: "Campaign Settings", href: "/heavens/campaigns" },
     { label: "Races", href: "/heavens/races" },
     { label: "Skills", href: "/heavens/skills" },
     { label: "Creatures", href: "/heavens/creatures" },
@@ -61,7 +63,7 @@ export function isNavigationItemActive(
     return true;
   }
   if (
-    item.href === "/heavens/campaigns" &&
+    item.href === "/heavens" &&
     pathname.startsWith("/heavens/characters/") &&
     characterSource !== "npcs"
   ) {
@@ -77,13 +79,15 @@ export function getNavigationBreadcrumbs(
   pathname: string,
   context: AuthenticatedContext,
   characterSource?: string | null,
+  campaignId?: number | null,
+  playerUserId?: string | null,
 ): NavigationBreadcrumb[] {
   const contextRoot = CONTEXT_ITEMS[context][0]!;
   const breadcrumbs: AuthenticatedNavigationItem[] = [contextRoot];
 
   if (context === "heavens") {
     if (pathname.startsWith("/heavens/campaigns")) {
-      breadcrumbs.push({ label: "Campaign Control", href: "/heavens/campaigns" });
+      breadcrumbs.push({ label: "Campaign Settings", href: "/heavens/campaigns" });
       if (pathname === "/heavens/campaigns/new") {
         breadcrumbs.push({ label: "Create Campaign", href: pathname });
       }
@@ -91,7 +95,10 @@ export function getNavigationBreadcrumbs(
       breadcrumbs.push(
         characterSource === "npcs"
           ? { label: "NPCs", href: "/heavens/npcs" }
-          : { label: "Campaign Control", href: "/heavens/campaigns" },
+          : {
+              label: "Campaign Control",
+              href: getCampaignControlHref({ campaignId, playerUserId }),
+            },
       );
       breadcrumbs.push({ label: "Character", href: pathname });
     } else if (pathname.startsWith("/heavens/npcs/")) {
@@ -128,7 +135,7 @@ export function getNavigationBreadcrumbs(
 }
 
 export function getGodCharacterReturnHref(input: {
-  source: "heavens" | "campaigns" | "npcs";
+  source: "heavens" | "npcs";
   campaignId?: number | null;
   playerUserId?: string | null;
 }) {
@@ -138,13 +145,13 @@ export function getGodCharacterReturnHref(input: {
   }
   if (input.playerUserId) params.set("player", input.playerUserId);
 
-  const base =
-    input.source === "campaigns"
-      ? "/heavens/campaigns"
-      : input.source === "npcs"
-        ? "/heavens/npcs"
-        : "/heavens";
-  if (input.source === "campaigns") params.set("tab", "players");
+  if (input.source === "heavens") {
+    return getCampaignControlHref({
+      campaignId: input.campaignId,
+      playerUserId: input.playerUserId,
+    });
+  }
+  const base = "/heavens/npcs";
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }

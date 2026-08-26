@@ -63,9 +63,9 @@
 .skill-preview__spell-heading p {
   margin: 0 0 6px;
   color: #ddd6fe;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -76,7 +76,7 @@
 .skill-construction__identity h3,
 .skill-preview > header h3 {
   margin: 0;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-weight: 400;
 }
 
@@ -92,7 +92,7 @@
 .skill-construction__identity span {
   display: block;
   margin-top: 7px;
-  color: rgb(226 232 240 / 58%);
+  color: rgb(226 232 240 / 72%);
   font-size: 0.85rem;
 }
 
@@ -117,7 +117,7 @@
 
 .skills-page button:hover:not(:disabled),
 .skills-page__navigation a:hover {
-  border-color: rgb(251 191 36 / 48%);
+  border-color: rgb(251 191 36 / 72%);
   color: #fff7d6;
   background: rgb(30 41 59 / 76%);
 }
@@ -137,7 +137,7 @@
 }
 
 .skills-page .skills-primary-button {
-  border-color: rgb(251 191 36 / 46%);
+  border-color: rgb(251 191 36 / 72%);
   color: #fff1b8;
   background: rgb(251 191 36 / 10%);
 }
@@ -145,7 +145,7 @@
 .skills-page .skills-danger-button,
 .skills-page button.is-danger,
 .spell-builder__remove {
-  border-color: rgb(248 113 113 / 32%);
+  border-color: rgb(248 113 113 / 72%);
   color: #fecaca;
 }
 
@@ -203,7 +203,7 @@
   display: block;
   margin-bottom: 6px;
   color: rgb(226 232 240 / 68%);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 650;
   letter-spacing: 0.07em;
 }
@@ -238,7 +238,7 @@
 .skills-page input:focus,
 .skills-page select:focus,
 .skills-page textarea:focus {
-  border-color: rgb(251 191 36 / 45%);
+  border-color: rgb(251 191 36 / 72%);
   box-shadow: 0 0 0 2px rgb(139 92 246 / 12%);
 }
 
@@ -262,8 +262,8 @@
 
 .skill-library__toolbar > span,
 .skill-library__pagination span {
-  color: rgb(226 232 240 / 48%);
-  font-size: 0.7rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
@@ -275,7 +275,7 @@
 .skill-editor__tabs button {
   padding: 7px 10px;
   border-radius: 0;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .skill-library__view-toggle button:first-child,
@@ -296,7 +296,7 @@
 .skill-library__view-toggle button.is-active,
 .skill-editor__tabs button.is-active,
 .progressive-editor__levels button.is-active {
-  border-color: rgb(251 191 36 / 48%);
+  border-color: rgb(251 191 36 / 72%);
   color: #fff2bc;
   background: rgb(251 191 36 / 12%);
 }
@@ -341,7 +341,7 @@
 .skill-library__row-name {
   overflow: hidden;
   color: inherit;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 0.98rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -355,8 +355,8 @@
 .skill-library__row-meta {
   margin-top: 4px;
   overflow: hidden;
-  color: rgb(226 232 240 / 44%);
-  font-size: 0.64rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   text-transform: capitalize;
   white-space: nowrap;
@@ -365,14 +365,14 @@
 .skill-library__row-parents {
   margin-top: 3px;
   overflow: hidden;
-  color: rgb(167 243 208 / 55%);
-  font-size: 0.62rem;
+  color: rgb(167 243 208 / 72%);
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .skill-library__row-parents.is-root {
-  color: rgb(253 230 138 / 45%);
+  color: rgb(253 230 138 / 72%);
 }
 
 .skill-library__pagination {
@@ -386,7 +386,7 @@
 
 .skill-library__pagination button {
   padding: 6px 10px;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .skill-editor {
@@ -407,18 +407,18 @@
 .skill-editor--empty > p {
   margin: 0;
   color: #ddd6fe;
-  font-size: 0.65rem;
-  letter-spacing: 0.24em;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
 }
 
 .skill-editor--empty h2 {
   margin: 11px 0 5px;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 1.8rem;
 }
 
 .skill-editor--empty span {
-  color: rgb(226 232 240 / 46%);
+  color: rgb(226 232 240 / 72%);
   font-size: 0.8rem;
 }
 
@@ -468,8 +468,8 @@
 .skill-editor__delete-confirm span {
   display: block;
   margin-top: 3px;
-  color: rgb(226 232 240 / 50%);
-  font-size: 0.72rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
 }
 
 .skill-editor__feedback {
@@ -497,7 +497,7 @@
   margin-bottom: 18px;
   padding: 11px 13px;
   border-left: 2px solid rgb(167 139 250 / 58%);
-  color: rgb(226 232 240 / 58%);
+  color: rgb(226 232 240 / 72%);
   background: rgb(139 92 246 / 7%);
   font-size: 0.8rem;
 }
@@ -598,15 +598,15 @@
 .spell-builder__selection-heading strong {
   margin: 0;
   color: #f8fafc;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-weight: 400;
 }
 
 .spell-builder__section-heading > span,
 .spell-builder__subheading > span,
 .spell-builder__selection-heading span {
-  color: rgb(226 232 240 / 45%);
-  font-size: 0.68rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
 }
 
 .spell-builder__inline-fields {
@@ -627,8 +627,8 @@
 .spell-builder__field-note {
   display: block;
   margin-top: 5px;
-  color: rgb(226 232 240 / 48%);
-  font-size: 0.67rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -655,8 +655,8 @@
 .spell-builder__summary span,
 .progressive-editor__summary span {
   display: block;
-  color: rgb(226 232 240 / 48%);
-  font-size: 0.61rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -666,7 +666,7 @@
   display: block;
   margin-top: 3px;
   color: #fff7d6;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 1rem;
   text-transform: none;
 }
@@ -740,13 +740,13 @@
 .spell-container__header span {
   display: block;
   margin-bottom: 3px;
-  color: rgb(226 232 240 / 40%);
-  font-size: 0.62rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
 }
 
 .spell-container__header strong {
   color: #f8fafc;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 1rem;
 }
 
@@ -770,7 +770,7 @@
   margin: 10px 0 0;
   padding: 10px 12px;
   border-left: 2px solid #8b5cf6;
-  color: rgb(226 232 240 / 62%);
+  color: rgb(226 232 240 / 72%);
   background: rgb(139 92 246 / 7%);
   font-size: 0.78rem;
   line-height: 1.5;
@@ -798,7 +798,7 @@
 .progressive-editor__levels button {
   min-width: max-content;
   padding: 7px 9px;
-  font-size: 0.69rem;
+  font-size: 0.75rem;
 }
 
 .progressive-editor__summary { margin-top: 13px; }
@@ -826,13 +826,13 @@
 .spell-builder__validation li span,
 .skill-preview__validation li span {
   display: block;
-  color: rgb(226 232 240 / 43%);
+  color: rgb(226 232 240 / 72%);
 }
 
 .spell-builder__breakdown summary {
   cursor: pointer;
   color: #fde68a;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .spell-builder__breakdown table,
@@ -840,7 +840,7 @@
   width: 100%;
   margin-top: 12px;
   border-collapse: collapse;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
 }
 
 .spell-builder__breakdown th,
@@ -857,7 +857,7 @@
 .skill-preview td span,
 .skill-preview td small {
   display: block;
-  color: rgb(226 232 240 / 43%);
+  color: rgb(226 232 240 / 72%);
 }
 
 .skill-preview > header {
@@ -884,8 +884,8 @@
 
 .skill-preview dt,
 .skill-preview__text-grid span {
-  color: rgb(226 232 240 / 45%);
-  font-size: 0.62rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -902,7 +902,7 @@
 .skill-preview h4,
 .skill-preview h5 {
   color: #fde68a;
-  font-family: "Portcullion", Georgia, serif;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .skill-preview ol li {
@@ -911,8 +911,8 @@
 
 .skill-preview ol li span {
   margin-left: 8px;
-  color: rgb(226 232 240 / 45%);
-  font-size: 0.7rem;
+  color: rgb(226 232 240 / 72%);
+  font-size: 0.75rem;
 }
 
 .skill-preview__spell {
@@ -924,7 +924,7 @@
   padding: 6px 9px;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .skill-preview__spell-heading > strong.is-valid { color: #a7f3d0; }
@@ -963,7 +963,7 @@
 }
 
 .skills-page__discard-confirm span {
-  color: rgb(226 232 240 / 58%);
+  color: rgb(226 232 240 / 72%);
   font-size: 0.76rem;
 }
 
@@ -1018,3 +1018,61 @@
     flex-direction: column;
   }
 }
+
+/* Full construction preview shared by G.O.D. Skills and the Realms Spellbook. */
+.skill-preview__detail-group { min-width: 0; margin-top: 18px; padding-top: 17px; border-top: 1px solid rgb(135 157 151 / 22%); }
+.skill-preview__detail-group > h5,
+.skill-preview__container h6 { margin: 0; color: #e8decb; font: 600 .95rem Arial, Helvetica, sans-serif; letter-spacing: .01em; }
+.skill-preview__text-facts { display: grid; margin: 10px 0 0; gap: 10px; }
+.skill-preview__text-facts > div { min-width: 0; padding: 11px 12px; border-left: 2px solid rgb(216 189 131 / 45%); background: rgb(4 10 14 / 38%); }
+.skill-preview__text-facts dd { white-space: pre-wrap; }
+.skill-preview__containers,
+.skill-preview__milestones { display: grid; margin-top: 10px; gap: 10px; }
+.skill-preview__container { min-width: 0; padding: 12px; border: 1px solid rgb(145 185 183 / 28%); border-left: 2px solid rgb(216 189 131 / 44%); border-radius: 4px; background: rgb(5 13 17 / 52%); }
+.skill-preview__container > header,
+.skill-preview__milestones article > header { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.skill-preview__container > header span,
+.skill-preview__milestones article > header span,
+.skill-preview__changes > span { display: block; margin: 0 0 3px; color: #c8b78f; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+.skill-preview__container > header b,
+.skill-preview__component-list > li > b { flex: 0 0 auto; color: #e0c98f; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.skill-preview__component-list,
+.skill-preview__issues,
+.skill-preview__changes ul { display: grid; margin: 9px 0 0; padding: 0; list-style: none; gap: 6px; }
+.skill-preview__component-list > li { display: flex; min-width: 0; padding: 9px 10px; border: 1px solid rgb(145 185 183 / 20%); align-items: flex-start; justify-content: space-between; gap: 10px; }
+.skill-preview__component-list > li > div { min-width: 0; }
+.skill-preview__component-list strong { display: block; color: #ebe5d9; font-weight: 600; }
+.skill-preview__component-list li span { display: block; margin: 2px 0 0; }
+.skill-preview__component-list p { margin: 5px 0 0; color: #c7c3ba; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.skill-preview__component-list > li > b.is-negative { color: #a9cac5; }
+.skill-preview__container-modifiers,
+.skill-preview__container .skill-preview__container { margin-top: 10px; }
+.skill-preview__container-modifiers > h6 { color: #d0c09d; font-size: .78rem; }
+.skill-preview__empty,
+.skill-preview__policy,
+.skill-preview__changes p { margin: 8px 0 0; color: #c7c3ba; font: 400 .8rem/1.55 Arial, Helvetica, sans-serif; }
+.skill-preview__milestones { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.skill-preview__milestones > article { min-width: 0; padding: 11px; border: 1px solid rgb(145 185 183 / 24%); background: rgb(4 10 14 / 38%); }
+.skill-preview__milestones article > header strong { color: #e9e1d2; font: 600 .88rem Arial, Helvetica, sans-serif; overflow-wrap: anywhere; }
+.skill-preview__milestones dl { display: grid; margin: 9px 0 0; gap: 7px; }
+.skill-preview__milestones dl > div { min-width: 0; }
+.skill-preview__milestones dd { font-size: .78rem; line-height: 1.5; white-space: pre-wrap; }
+.skill-preview__changes { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgb(145 185 183 / 22%); }
+.skill-preview__changes li { padding-left: 9px; border-left: 1px solid rgb(216 189 131 / 38%); font-size: .78rem; }
+.skill-preview__issues li { display: grid; padding: 9px 10px; border-left: 2px solid #b99b62; background: rgb(4 10 14 / 38%); gap: 3px; }
+.skill-preview__issues strong { color: #e7d8ba; font-weight: 600; }
+.skill-preview__issues li span,
+.skill-preview__issues small { margin: 0; color: #c7c3ba; font-size: .78rem; line-height: 1.5; text-transform: none; }
+.skill-preview__issues small { color: #a9cac5; }
+.skill-preview__table-wrap { min-width: 0; margin-top: 10px; overflow-x: auto; }
+.skill-preview__table-wrap table { width: 100%; min-width: 470px; border-collapse: collapse; color: #d6d1c7; font-size: .78rem; }
+.skill-preview__table-wrap th,
+.skill-preview__table-wrap td { padding: 8px; border-bottom: 1px solid rgb(145 185 183 / 22%); text-align: left; vertical-align: top; }
+.skill-preview__table-wrap th:last-child,
+.skill-preview__table-wrap td:last-child { text-align: right; white-space: nowrap; }
+.skill-preview__table-wrap td strong,
+.skill-preview__table-wrap td span,
+.skill-preview__table-wrap td small { display: block; }
+.skill-preview__table-wrap td strong { color: #ebe5d9; font-weight: 600; }
+.skill-preview__table-wrap td span,
+.skill-preview__table-wrap td small { margin-top: 2px; color: #bdb9b0; line-height: 1.4; overflow-wrap: anywhere; }

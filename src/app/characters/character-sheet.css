@@ -31,20 +31,20 @@
 .character-god-currency > header p {
   margin: 0;
   color: #bda978;
-  font-size: 0.55rem;
+  font-size: 0.75rem;
   letter-spacing: 0.14em;
 }
 
 .character-god-currency > header h3 {
   margin: 4px 0 0;
   color: #eee4d2;
-  font: 400 1.1rem "Palatino Linotype", Georgia, serif;
+  font: 400 1.1rem Arial, Helvetica, sans-serif;
 }
 
 .character-god-currency > header span,
 .character-god-currency small {
-  color: #727e89;
-  font-size: 0.58rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
 }
 
 .character-god-currency small {
@@ -60,9 +60,9 @@
   padding: 10px 12px;
   border: 1px solid rgb(245 202 115 / 18%);
   border-radius: 9px;
-  color: #818b96;
+  color:#9da9b7;
   background: rgb(4 10 15 / 38%);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
 }
 
 .character-print-toolbar button {
@@ -95,7 +95,7 @@
 .character-hit-chart > header p {
   margin: 0;
   color: #bda978;
-  font-size: 0.57rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
 }
@@ -103,12 +103,12 @@
 .character-sheet > header h2 {
   margin: 4px 0 2px;
   color: #f0e8da;
-  font: 400 1.8rem "Palatino Linotype", Georgia, serif;
+  font: 400 1.8rem Arial, Helvetica, sans-serif;
 }
 
 .character-sheet > header span {
-  color: #7f8994;
-  font-size: 0.68rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
 }
 
 .character-sheet > header > strong {
@@ -116,7 +116,7 @@
   border: 1px solid rgb(94 234 212 / 24%);
   border-radius: 999px;
   color: #a7d9d1;
-  font-size: 0.61rem;
+  font-size: 0.75rem;
 }
 
 .character-sheet__identity,
@@ -154,8 +154,8 @@
 }
 
 .character-sheet__identity span {
-  color: #687482;
-  font-size: 0.55rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
   text-transform: uppercase;
 }
 
@@ -163,7 +163,7 @@
   margin-top: 3px;
   overflow-wrap: anywhere;
   color: #dcd6c9;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .character-sheet__summary-grid {
@@ -188,7 +188,7 @@
 .character-sheet h4 {
   margin: 0;
   color: #d8c99e;
-  font: 400 0.86rem "Palatino Linotype", Georgia, serif;
+  font: 400 0.86rem Arial, Helvetica, sans-serif;
 }
 
 .character-sheet__summary-grid h3,
@@ -209,7 +209,7 @@
   padding: 5px 7px;
   border-bottom: 1px solid rgb(255 255 255 / 6%);
   color: #aeb5bc;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   text-align: left;
   vertical-align: top;
 }
@@ -220,8 +220,8 @@
 }
 
 .character-sheet thead th {
-  color: #6f7b87;
-  font-size: 0.51rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -237,13 +237,13 @@
   margin: 0;
   padding: 6px 8px;
   border-bottom: 1px solid rgb(255 255 255 / 7%);
-  color: #77828d;
-  font-size: 0.58rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
 }
 
 .character-sheet__total strong {
   color: #e2d2a9;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .character-sheet__write-in span {
@@ -309,7 +309,7 @@
 .character-sheet__story p {
   margin: 5px 0 0;
   color: #8d969f;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -335,7 +335,7 @@
 
 .character-hit-chart > header > strong {
   color: #e1c77f;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .character-hit-chart__layout {
@@ -360,8 +360,8 @@
 
 .character-hit-chart figcaption {
   margin-top: 5px;
-  color: #66717c;
-  font-size: 0.5rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
   line-height: 1.4;
   text-align: center;
 }
@@ -404,7 +404,7 @@
 .character-hit-chart__records h5 {
   margin: 0 0 5px;
   color: #bda978;
-  font-size: 0.54rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -432,18 +432,18 @@
 .character-hit-chart__pools span,
 .character-hit-chart__locations span {
   color: #bdc3c8;
-  font-size: 0.54rem;
+  font-size: 0.75rem;
 }
 
 .character-hit-chart__pools strong {
   color: #e2d7c3;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
 }
 
 .character-hit-chart__pools small,
 .character-hit-chart__locations small {
-  color: #68737d;
-  font-size: 0.48rem;
+  color:#9da9b7;
+  font-size: 0.75rem;
 }
 
 .character-hit-chart__locations {
@@ -468,7 +468,7 @@
   border: 1px solid rgb(245 202 115 / 25%);
   border-radius: 50%;
   color: #dac697;
-  font-size: 0.53rem;
+  font-size: 0.75rem;
   place-items: center;
 }
 

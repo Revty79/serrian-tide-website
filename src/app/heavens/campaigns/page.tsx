@@ -9,7 +9,7 @@ import { CampaignWorkspace } from "./campaign-workspace";
 export default async function CampaignsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campaign?: string; player?: string; tab?: string }>;
+  searchParams: Promise<{ campaign?: string }>;
 }) {
   await requireGod().catch(() => redirect("/access"));
   const query = await searchParams;
@@ -22,8 +22,6 @@ export default async function CampaignsPage({
     <CampaignWorkspace
       initialCampaigns={campaigns}
       initialCampaignId={initialCampaignId}
-      initialPlayerUserId={query.player ?? null}
-      initialTab={query.tab === "players" ? "players" : "rules"}
     />
   );
 }

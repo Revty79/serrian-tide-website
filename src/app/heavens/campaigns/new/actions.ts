@@ -18,6 +18,7 @@ import {
 import { item, itemTagCatalog } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import { createCampaignInventoryPersistence } from "@/features/campaigns/campaign-inventory";
+import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
 import {
   campaignAllowedRace,
   campaignInventoryItem,
@@ -474,5 +475,5 @@ export async function createCampaign(formData: FormData) {
   revalidatePath("/heavens/campaigns");
   revalidatePath("/realms");
 
-  redirect(`/heavens/campaigns?campaign=${createdCampaignId}`);
+  redirect(getCampaignControlHref({ campaignId: createdCampaignId }));
 }

@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
+
 import type { CampaignReferenceData } from "../actions";
 import { CampaignInventorySelector } from "../campaign-inventory-selector";
 import { createCampaign } from "./actions";
@@ -141,11 +143,11 @@ export function CampaignCreateForm({
           sm:p-8
         "
       >
-        <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
+        <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
           Campaign Foundation
         </p>
 
-        <h2 className="font-portcullion mt-2 text-3xl text-slate-100">
+        <h2 className="font-sans mt-2 text-3xl text-slate-100">
           Campaign Basics
         </h2>
 
@@ -207,11 +209,11 @@ export function CampaignCreateForm({
           sm:p-8
         "
       >
-        <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
+        <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
           Mechanical Rules
         </p>
 
-        <h2 className="font-portcullion mt-2 text-3xl text-slate-100">
+        <h2 className="font-sans mt-2 text-3xl text-slate-100">
           Campaign Rules
         </h2>
 
@@ -327,11 +329,11 @@ export function CampaignCreateForm({
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
+              <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
                 Economy
               </p>
 
-              <h2 className="font-portcullion mt-2 text-3xl text-slate-100">
+              <h2 className="font-sans mt-2 text-3xl text-slate-100">
                 Derived Currencies
               </h2>
             </div>
@@ -371,7 +373,7 @@ export function CampaignCreateForm({
                   "
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-portcullion text-xl text-slate-100">
+                    <h3 className="font-sans text-xl text-slate-100">
                       Currency {index + 1}
                     </h3>
 
@@ -477,11 +479,11 @@ export function CampaignCreateForm({
           sm:p-8
         "
       >
-        <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
+        <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
           System Availability
         </p>
 
-        <h2 className="font-portcullion mt-2 text-3xl text-slate-100">
+        <h2 className="font-sans mt-2 text-3xl text-slate-100">
           Allowed Systems
         </h2>
 
@@ -565,7 +567,7 @@ export function CampaignCreateForm({
                 />
                 <span>
                   <strong className="block text-sm text-slate-100">{entry.name}</strong>
-                  <small className="mt-1 block text-xs text-slate-500">
+                  <small className="mt-1 block text-xs text-slate-300">
                     {entry.size || "Size not recorded"}
                   </small>
                 </span>
@@ -573,7 +575,7 @@ export function CampaignCreateForm({
             );
           })}
           {filteredRaces.length === 0 ? (
-            <p className="text-sm text-slate-500">No Races match that search.</p>
+            <p className="text-sm text-slate-300">No Races match that search.</p>
           ) : null}
         </div>
       </section>
@@ -597,7 +599,7 @@ export function CampaignCreateForm({
       {/* SAVE */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <a
-          href="/heavens/campaigns"
+          href={getCampaignControlHref()}
           className="
             inline-flex
             items-center
@@ -733,9 +735,9 @@ function SelectionHeading({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-purple-200">{eyebrow}</p>
-        <h2 className="font-portcullion mt-2 text-3xl text-slate-100">{title}</h2>
-        <span className="mt-2 block text-xs text-slate-500">{count}</span>
+        <p className="text-xs uppercase tracking-[0.14em] text-purple-200">{eyebrow}</p>
+        <h2 className="font-sans mt-2 text-3xl text-slate-100">{title}</h2>
+        <span className="mt-2 block text-xs text-slate-300">{count}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         <button

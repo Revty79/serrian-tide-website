@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { createCharacter } from "@/app/characters/actions";
 import {
@@ -12,6 +11,7 @@ import {
 } from "@/app/heavens/campaigns/actions";
 import { CampaignPlayerPanel } from "@/app/heavens/campaigns/campaign-player-panel";
 import { scopeCampaignCharacters } from "@/features/campaigns/campaign-membership";
+import { getCampaignSettingsHref } from "@/features/campaigns/campaign-workflow";
 
 const EMPTY_MEMBERS: CampaignMemberData = {
   players: [],
@@ -29,7 +29,6 @@ export function HeavensCampaignControl({
   initialCampaignId?: number | null;
   initialPlayerUserId?: string | null;
 }) {
-  const router = useRouter();
   const validInitialCampaignId = campaigns.some(({ id }) => id === initialCampaignId)
     ? String(initialCampaignId)
     : "";
@@ -77,9 +76,13 @@ export function HeavensCampaignControl({
     setFeedback("");
     try {
       const aggregate = await createCharacter(Number(campaignId), playerId);
-      router.push(`/heavens/characters/${aggregate.character.id}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`);
+      const refreshedMembers = await getCampaignMembers(Number(campaignId));
+      setMembers(refreshedMembers);
+      setCharacterId(String(aggregate.character.id));
+      setFeedback(`New Character was created for ${aggregate.character.playerUsername} and selected.`);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Character could not be created.");
+    } finally {
       setCreating(false);
     }
   }
@@ -97,7 +100,7 @@ export function HeavensCampaignControl({
         </select>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" disabled={!selectedCampaign} onClick={() => setInformationOpen((current) => !current)} className="min-h-10 rounded-full border border-white/15 bg-black/20 px-4 py-2.5 text-sm text-slate-300 disabled:opacity-40">Campaign Information</button>
-          <Link href={selectedCampaign ? `/heavens/campaigns?campaign=${selectedCampaign.id}` : "/heavens/campaigns"} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Campaign Control</Link>
+          <Link href={getCampaignSettingsHref(selectedCampaign?.id)} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Campaign</Link>
           <Link href="/heavens/campaigns/new" className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Create Campaign</Link>
         </div>
       </ControlRow>
@@ -105,14 +108,14 @@ export function HeavensCampaignControl({
       {informationOpen && selectedCampaign ? (
         <section className="mb-2 rounded-2xl border border-white/10 bg-black/25 p-5">
           <header className="flex items-start justify-between gap-4">
-            <div><p className="text-xs uppercase tracking-[0.2em] text-purple-200">Campaign Information</p><h3 className="font-portcullion mt-1 text-2xl text-slate-100">{selectedCampaign.name}</h3></div>
+            <div><p className="text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Information</p><h3 className="font-sans mt-1 text-2xl text-slate-100">{selectedCampaign.name}</h3></div>
             <button type="button" onClick={() => setInformationOpen(false)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-slate-400">Close</button>
           </header>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
-            <div><dt className="text-slate-500">Currency</dt><dd className="mt-1 text-slate-200">{selectedCampaign.currencySystem}</dd></div>
-            <div><dt className="text-slate-500">Players</dt><dd className="mt-1 text-slate-200">{members.players.length}</dd></div>
-            <div><dt className="text-slate-500">Characters</dt><dd className="mt-1 text-slate-200">{selectedCampaign.characterCount}</dd></div>
-            <div><dt className="text-slate-500">NPCs</dt><dd className="mt-1 text-slate-200">{selectedCampaign.npcCount}</dd></div>
+            <div><dt className="text-slate-300">Currency</dt><dd className="mt-1 text-slate-200">{selectedCampaign.currencySystem}</dd></div>
+            <div><dt className="text-slate-300">Players</dt><dd className="mt-1 text-slate-200">{members.players.length}</dd></div>
+            <div><dt className="text-slate-300">Characters</dt><dd className="mt-1 text-slate-200">{selectedCampaign.characterCount}</dd></div>
+            <div><dt className="text-slate-300">NPCs</dt><dd className="mt-1 text-slate-200">{selectedCampaign.npcCount}</dd></div>
           </dl>
         </section>
       ) : null}
@@ -127,7 +130,7 @@ export function HeavensCampaignControl({
           <option value="">{!campaignId ? "Select a Campaign First" : loading ? "Reading Players…" : "No Player Selected"}</option>
           {members.players.map((player) => <option key={player.userId} value={player.userId}>{player.username}</option>)}
         </select>
-        <span className="text-xs text-slate-500 lg:text-right">{members.players.length} Campaign Players</span>
+        <span className="text-xs text-slate-300 lg:text-right">{members.players.length} Campaign Players</span>
       </ControlRow>
 
       <CampaignPlayerPanel
@@ -155,10 +158,10 @@ export function HeavensCampaignControl({
         </select>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" disabled={!campaignId || !playerId || creating} onClick={() => void newCharacter()} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 text-sm text-amber-100/80 disabled:opacity-40">{creating ? "Creating…" : "New Character"}</button>
-          {characterId ? <Link href={`/heavens/characters/${characterId}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Character</Link> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-600">Edit Character</span>}
+          {characterId ? <Link href={`/heavens/characters/${characterId}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Character</Link> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-400">Edit Character</span>}
         </div>
       </ControlRow>
-      {feedback ? <p className="mt-2 text-xs text-red-300">{feedback}</p> : null}
+      {feedback ? <p className="mt-2 text-xs text-amber-100/80">{feedback}</p> : null}
     </div>
   );
 }
@@ -174,7 +177,7 @@ function ControlRow({
 }) {
   return (
     <div className={`grid gap-3 py-4 sm:grid-cols-[110px_minmax(0,1fr)] lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-center ${last ? "" : "border-b border-white/10"}`}>
-      <span className="font-portcullion text-lg text-slate-200">{label}</span>
+      <span className="font-sans text-lg text-slate-200">{label}</span>
       {children[0]}
       <div className="sm:col-start-2 lg:col-start-auto">{children[1]}</div>
     </div>

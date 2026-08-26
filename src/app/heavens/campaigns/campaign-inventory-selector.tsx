@@ -155,13 +155,13 @@ export function CampaignInventorySelector({
     <section className="rounded-3xl border border-white/10 bg-black/35 p-6 shadow-2xl backdrop-blur-md sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-purple-200">
+          <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
             Campaign Catalog
           </p>
-          <h2 className="font-portcullion mt-2 text-3xl text-slate-100">
+          <h2 className="font-sans mt-2 text-3xl text-slate-100">
             Inventory Genres & Items
           </h2>
-          <span className="mt-2 block text-xs text-slate-500">
+          <span className="mt-2 block text-xs text-slate-300">
             {selectedTagIds.length} genres selected · {selectedItemIds.length} Campaign Items
           </span>
         </div>
@@ -211,13 +211,13 @@ export function CampaignInventorySelector({
               />
               <span className="min-w-0">
                 <strong className="block text-sm text-slate-100">{tag.name}</strong>
-                <small className="mt-1 block text-xs text-slate-500">{tag.tagGroup}</small>
+                <small className="mt-1 block text-xs text-slate-300">{tag.tagGroup}</small>
               </span>
             </label>
           );
         })}
         {tags.length === 0 ? (
-          <p className="text-sm text-slate-500">No Item genres are currently available.</p>
+          <p className="text-sm text-slate-300">No Item genres are currently available.</p>
         ) : null}
       </div>
 
@@ -327,7 +327,7 @@ export function CampaignInventorySelector({
         />
       </div>
 
-      <p className="mt-4 text-xs leading-5 text-slate-500">
+      <p className="mt-4 text-xs leading-5 text-slate-300">
         Double-click Items to move them between lists. Genre, tab, and search changes remain unsaved until you save the Campaign.
       </p>
     </section>
@@ -354,12 +354,12 @@ function InventoryList({
   return (
     <section className="min-w-0 rounded-2xl border border-white/10 bg-black/25 p-4">
       <header className="flex items-end justify-between gap-3 border-b border-white/10 pb-3">
-        <h3 className="font-portcullion text-xl text-slate-100">{heading}</h3>
-        <span className="text-xs text-slate-500">{count}</span>
+        <h3 className="font-sans text-xl text-slate-100">{heading}</h3>
+        <span className="text-xs text-slate-300">{count}</span>
       </header>
       <div className="mt-3 flex max-h-[32rem] min-h-64 flex-col gap-2 overflow-y-auto pr-1">
         {items.length === 0 ? (
-          <p className="p-3 text-sm leading-6 text-slate-500">{emptyMessage}</p>
+          <p className="p-3 text-sm leading-6 text-slate-300">{emptyMessage}</p>
         ) : (
           items.map((item) => (
             <button
@@ -375,7 +375,7 @@ function InventoryList({
               }`}
             >
               <strong className="block text-sm text-slate-100">{item.name}</strong>
-              <span className="mt-1 block text-xs leading-5 text-slate-500">
+              <span className="mt-1 block text-xs leading-5 text-slate-300">
                 {item.canonicalId} · {item.equipmentGroup ?? "Inventory"} · {item.category}
               </span>
             </button>
