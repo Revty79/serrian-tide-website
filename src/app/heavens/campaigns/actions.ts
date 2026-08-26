@@ -23,6 +23,18 @@ import {
 import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import {
+  buildCampaignInventoryPool,
+  createCampaignInventoryPersistence,
+  restoreCampaignInventoryPersistence,
+  sortCampaignInventoryTags,
+  type CampaignInventoryItemRecord,
+  type CampaignInventoryPoolItem,
+} from "@/features/campaigns/campaign-inventory";
+import {
+  buildCampaignPlayerCandidates,
+  canAdministerCampaign,
+} from "@/features/campaigns/campaign-membership";
+import {
   campaignAllowedRace,
   campaignCharacter,
   campaignCharacterProfile,
@@ -68,17 +80,6 @@ export type CampaignAdminDraft = {
 export type CampaignReferenceData = {
   races: Array<{ id: number; name: string; size: string }>;
   tags: Array<{ id: number; name: string; tagGroup: string; description: string }>;
-  items: Array<{
-    id: number;
-    canonicalId: string;
-    name: string;
-    catalogScope: string;
-    equipmentGroup: string | null;
-    recordType: string;
-    family: string;
-    category: string;
-    credits: number | null;
-  }>;
 };
 
 export type CampaignMemberData = {
@@ -92,10 +93,13 @@ export type CampaignMemberData = {
     userId: string;
     username: string;
     displayName: string;
+    roles: Array<"admin" | "god" | "player">;
     isMember: boolean;
+    isCampaignCreator: boolean;
   }>;
   characters: Array<{
     id: number;
+    campaignId: number;
     playerUserId: string;
     playerName: string;
     name: string;
@@ -115,8 +119,8 @@ function nonNegative(value: number, label: string) { if (!Number.isFinite(value)
 
 async function requireOwner(campaignId: number) {
   const session = await requireGod();
-  const [owned] = await db.select({ id: campaign.id }).from(campaign).where(and(eq(campaign.id, campaignId), eq(campaign.createdByUserId, session.user.id))).limit(1);
-  if (!owned) throw new Error("Only the Campaign creator can manage this Campaign.");
+  const [owned] = await db.select({ id: campaign.id, createdByUserId: campaign.createdByUserId }).from(campaign).where(eq(campaign.id, campaignId)).limit(1);
+  if (!owned || !canAdministerCampaign(owned.createdByUserId, session.user.id)) throw new Error("Only the Campaign creator can manage this Campaign.");
   return session;
 }
 
@@ -162,9 +166,10 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id)),
     db.select({ raceId: campaignAllowedRace.raceId }).from(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, campaignId)).orderBy(asc(campaignAllowedRace.sortOrder)),
-    db.select({ tagId: campaignInventoryTag.tagId }).from(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, campaignId)).orderBy(asc(campaignInventoryTag.sortOrder)),
-    db.select({ itemId: campaignInventoryItem.itemId }).from(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, campaignId)).orderBy(asc(campaignInventoryItem.sortOrder)),
+    db.select({ id: campaignInventoryTag.tagId, sortOrder: campaignInventoryTag.sortOrder }).from(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, campaignId)).orderBy(asc(campaignInventoryTag.sortOrder)),
+    db.select({ id: campaignInventoryItem.itemId, sortOrder: campaignInventoryItem.sortOrder }).from(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, campaignId)).orderBy(asc(campaignInventoryItem.sortOrder)),
   ]);
+  const inventorySelection = restoreCampaignInventoryPersistence(tags, items);
   return {
     id: core.id,
     name: core.name,
@@ -180,8 +185,8 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
     allowedSystems: systems.map(({ system }) => system),
     derivedCurrencies: currencies.map(({ id, name, description, creditsPerUnit }) => ({ id, name, description, creditsPerUnit })),
     allowedRaceIds: races.map(({ raceId }) => raceId),
-    inventoryTagIds: tags.map(({ tagId }) => tagId),
-    inventoryItemIds: items.map(({ itemId }) => itemId),
+    inventoryTagIds: inventorySelection.tagIds,
+    inventoryItemIds: inventorySelection.itemIds,
   };
 }
 
@@ -196,27 +201,126 @@ export async function getCampaignCreationReferenceData(): Promise<CampaignRefere
 }
 
 async function readCampaignReferenceData(): Promise<CampaignReferenceData> {
-  const [races, tags, items] = await Promise.all([
+  const [races, tags] = await Promise.all([
     db.select({ id: race.id, name: race.name, size: race.size }).from(race).orderBy(asc(race.name), asc(race.id)),
-    db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),
-    db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope, equipmentGroup: item.equipmentGroup, recordType: item.recordType, family: item.family, category: item.category, credits: item.credits }).from(item).orderBy(asc(item.name), asc(item.id)),
+    db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog),
   ]);
-  return { races, tags, items };
+  return { races, tags: sortCampaignInventoryTags(tags) };
+}
+
+const campaignInventoryItemFields = {
+  id: item.id,
+  canonicalId: item.canonicalId,
+  name: item.name,
+  catalogScope: item.catalogScope,
+  equipmentGroup: item.equipmentGroup,
+  recordType: item.recordType,
+  family: item.family,
+  category: item.category,
+  credits: item.credits,
+};
+
+type CampaignInventoryItemQueryRow = {
+  id: number;
+  canonicalId: string;
+  name: string;
+  catalogScope: string;
+  equipmentGroup: string | null;
+  recordType: string;
+  family: string;
+  category: string;
+  credits: number | null;
+};
+
+function toCampaignInventoryItem(
+  row: CampaignInventoryItemQueryRow,
+): CampaignInventoryItemRecord {
+  return {
+    id: row.id,
+    canonicalId: row.canonicalId,
+    name: row.name,
+    catalogScope: row.catalogScope === "inventory" ? "inventory" : "equipment",
+    equipmentGroup:
+      row.equipmentGroup === "weapon" ||
+      row.equipmentGroup === "armor" ||
+      row.equipmentGroup === "general"
+        ? row.equipmentGroup
+        : null,
+    recordType: row.recordType,
+    family: row.family,
+    category: row.category,
+    credits: row.credits,
+  };
+}
+
+export async function getCampaignInventoryItems(input: {
+  campaignId: number | null;
+  selectedTagIds: number[];
+  selectedItemIds: number[];
+}): Promise<CampaignInventoryPoolItem[]> {
+  if (input.campaignId === null) {
+    await requireGod();
+  } else {
+    if (!Number.isInteger(input.campaignId) || input.campaignId <= 0) {
+      throw new Error("Campaign is invalid.");
+    }
+    await requireOwner(input.campaignId);
+  }
+
+  const selection = createCampaignInventoryPersistence(
+    input.selectedTagIds,
+    input.selectedItemIds,
+  );
+  const [taggedRows, selectedRows] = await Promise.all([
+    selection.tagIds.length
+      ? db
+          .select({ tagId: itemTagLink.tagId, ...campaignInventoryItemFields })
+          .from(itemTagLink)
+          .innerJoin(item, eq(item.id, itemTagLink.itemId))
+          .where(inArray(itemTagLink.tagId, selection.tagIds))
+      : [],
+    selection.itemIds.length
+      ? db
+          .select(campaignInventoryItemFields)
+          .from(item)
+          .where(inArray(item.id, selection.itemIds))
+      : [],
+  ]);
+
+  const taggedItemsByTag = new Map<number, CampaignInventoryItemRecord[]>();
+  for (const row of taggedRows) {
+    const group = taggedItemsByTag.get(row.tagId) ?? [];
+    group.push(toCampaignInventoryItem(row));
+    taggedItemsByTag.set(row.tagId, group);
+  }
+
+  return buildCampaignInventoryPool(
+    selection.tagIds.map((tagId) => taggedItemsByTag.get(tagId) ?? []),
+    selectedRows.map(toCampaignInventoryItem),
+  );
 }
 
 export async function getCampaignMembers(campaignId: number): Promise<CampaignMemberData> {
-  await requireOwner(campaignId);
-  const [playerRows, candidateRows, characterRows, npcRows] = await Promise.all([
+  const session = await requireOwner(campaignId);
+  const [playerRows, identityRoleRows, characterRows, npcRows] = await Promise.all([
     db.select({ userId: user.id, username: user.username, displayName: user.name, addedAt: campaignPlayer.createdAt }).from(campaignPlayer).innerJoin(user, eq(user.id, campaignPlayer.userId)).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.isNpcController, false))).orderBy(asc(user.username), asc(user.name)),
-    db.selectDistinct({ userId: user.id, username: user.username, displayName: user.name }).from(userRole).innerJoin(user, eq(user.id, userRole.userId)).where(eq(userRole.role, "player")).orderBy(asc(user.username), asc(user.name)),
-    db.select({ id: campaignCharacter.id, playerUserId: campaignCharacter.playerUserId, playerName: user.username, displayName: user.name, name: campaignCharacter.name, creationCompletedAt: campaignCharacterProfile.creationCompletedAt }).from(campaignCharacter).innerJoin(user, eq(user.id, campaignCharacter.playerUserId)).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, false))).orderBy(asc(user.username), asc(campaignCharacter.name)),
+    db.select({ userId: user.id, username: user.username, displayName: user.name, role: userRole.role }).from(user).leftJoin(userRole, eq(userRole.userId, user.id)).orderBy(asc(user.username), asc(user.name)),
+    db.select({ id: campaignCharacter.id, campaignId: campaignCharacter.campaignId, playerUserId: campaignCharacter.playerUserId, playerName: user.username, displayName: user.name, name: campaignCharacter.name, creationCompletedAt: campaignCharacterProfile.creationCompletedAt }).from(campaignCharacter).innerJoin(user, eq(user.id, campaignCharacter.playerUserId)).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, false))).orderBy(asc(user.username), asc(campaignCharacter.name)),
     db.select({ id: campaignCharacter.id, name: campaignCharacter.name, npcKind: campaignCharacter.npcKind, creationCompletedAt: campaignCharacterProfile.creationCompletedAt }).from(campaignCharacter).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, true))).orderBy(asc(campaignCharacter.name)),
   ]);
   const memberIds = new Set(playerRows.map(({ userId }) => userId));
+  const candidates = buildCampaignPlayerCandidates(
+    identityRoleRows.map((row) => ({
+      ...row,
+      username: row.username ?? row.displayName,
+    })),
+    [...memberIds],
+    session.user.id,
+  );
   return {
     players: playerRows.map((row) => ({ userId: row.userId, username: row.username ?? row.displayName, displayName: row.displayName, addedAt: row.addedAt.toISOString() })),
-    candidates: candidateRows.map((row) => ({ userId: row.userId, username: row.username ?? row.displayName, displayName: row.displayName, isMember: memberIds.has(row.userId) })),
-    characters: characterRows.map((row) => ({ id: row.id, playerUserId: row.playerUserId, playerName: row.playerName ?? row.displayName, name: row.name, creationCompletedAt: row.creationCompletedAt?.toISOString() ?? null })),
+    candidates,
+    characters: characterRows.map((row) => ({ id: row.id, campaignId: row.campaignId, playerUserId: row.playerUserId, playerName: row.playerName ?? row.displayName, name: row.name, creationCompletedAt: row.creationCompletedAt?.toISOString() ?? null })),
     npcs: npcRows.map((row) => ({ id: row.id, name: row.name, npcKind: row.npcKind === "creature" ? "creature" : "race", creationCompletedAt: row.creationCompletedAt?.toISOString() ?? null })),
   };
 }
@@ -229,8 +333,10 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     if (!campaignSystem.enumValues.includes(system)) throw new Error(`Unsupported Campaign system: ${system}.`);
   }
   const raceIds = [...new Set(input.allowedRaceIds.filter((id) => Number.isInteger(id) && id > 0))];
-  const tagIds = [...new Set(input.inventoryTagIds.filter((id) => Number.isInteger(id) && id > 0))];
-  const explicitItemIds = [...new Set(input.inventoryItemIds.filter((id) => Number.isInteger(id) && id > 0))];
+  const inventorySelection = createCampaignInventoryPersistence(
+    input.inventoryTagIds,
+    input.inventoryItemIds,
+  );
   let assignedFatePoints: number | null = null;
   if (input.fatePointMethod === "Assigned") {
     if (!Number.isInteger(input.assignedFatePoints) || (input.assignedFatePoints ?? -1) < 0) throw new Error("Assigned Fate Points must be a whole number zero or greater.");
@@ -244,8 +350,16 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
   }) : [];
   if (input.currencySystem === "Derived Currency" && !currencies.length) throw new Error("Derived Currency requires at least one currency.");
 
-  const taggedItemRows = tagIds.length ? await db.selectDistinct({ itemId: itemTagLink.itemId }).from(itemTagLink).where(inArray(itemTagLink.tagId, tagIds)) : [];
-  const authorizedItemIds = [...new Set([...explicitItemIds, ...taggedItemRows.map(({ itemId }) => itemId)])];
+  const [validTags, validItems] = await Promise.all([
+    inventorySelection.tagIds.length
+      ? db.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(inArray(itemTagCatalog.id, inventorySelection.tagIds))
+      : [],
+    inventorySelection.itemIds.length
+      ? db.select({ id: item.id }).from(item).where(inArray(item.id, inventorySelection.itemIds))
+      : [],
+  ]);
+  if (validTags.length !== inventorySelection.tagIds.length) throw new Error("An Inventory Tag is no longer available.");
+  if (validItems.length !== inventorySelection.itemIds.length) throw new Error("An Equipment or Inventory record is no longer available.");
 
   await db.transaction(async (tx) => {
     await tx.update(campaign).set({
@@ -285,9 +399,9 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     await tx.delete(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, input.id));
     if (raceIds.length) await tx.insert(campaignAllowedRace).values(raceIds.map((raceId, sortOrder) => ({ campaignId: input.id, raceId, sortOrder })));
     await tx.delete(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, input.id));
-    if (tagIds.length) await tx.insert(campaignInventoryTag).values(tagIds.map((tagId, sortOrder) => ({ campaignId: input.id, tagId, sortOrder })));
+    if (inventorySelection.tagIds.length) await tx.insert(campaignInventoryTag).values(inventorySelection.tagIds.map((tagId, sortOrder) => ({ campaignId: input.id, tagId, sortOrder })));
     await tx.delete(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, input.id));
-    if (authorizedItemIds.length) await tx.insert(campaignInventoryItem).values(authorizedItemIds.map((itemId, sortOrder) => ({ campaignId: input.id, itemId, sortOrder })));
+    if (inventorySelection.itemIds.length) await tx.insert(campaignInventoryItem).values(inventorySelection.itemIds.map((itemId, sortOrder) => ({ campaignId: input.id, itemId, sortOrder })));
   });
 
   revalidatePath("/heavens/campaigns");
@@ -297,11 +411,17 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
 
 export async function addCampaignPlayer(campaignId: number, userId: string) {
   await requireOwner(campaignId);
-  const [playerRole] = await db.select({ userId: userRole.userId }).from(userRole).where(and(eq(userRole.userId, userId), eq(userRole.role, "player"))).limit(1);
+  const [[targetUser], [playerRole]] = await Promise.all([
+    db.select({ id: user.id }).from(user).where(eq(user.id, userId)).limit(1),
+    db.select({ userId: userRole.userId }).from(userRole).where(and(eq(userRole.userId, userId), eq(userRole.role, "player"))).limit(1),
+  ]);
+  if (!targetUser) throw new Error("That registered account no longer exists.");
   if (!playerRole) throw new Error("That account does not have Player permission.");
   await db.insert(campaignPlayer).values({ campaignId, userId, isNpcController: false }).onConflictDoUpdate({ target: [campaignPlayer.campaignId, campaignPlayer.userId], set: { isNpcController: false } });
   revalidatePath("/heavens/campaigns");
+  revalidatePath("/heavens");
   revalidatePath("/realms");
+  return getCampaignMembers(campaignId);
 }
 
 export async function removeCampaignPlayer(campaignId: number, userId: string) {
@@ -310,5 +430,7 @@ export async function removeCampaignPlayer(campaignId: number, userId: string) {
   if (Number(characters?.value ?? 0) > 0) throw new Error("A Player cannot be removed while they still have Characters in the Campaign.");
   await db.delete(campaignPlayer).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.userId, userId), eq(campaignPlayer.isNpcController, false)));
   revalidatePath("/heavens/campaigns");
+  revalidatePath("/heavens");
   revalidatePath("/realms");
+  return getCampaignMembers(campaignId);
 }

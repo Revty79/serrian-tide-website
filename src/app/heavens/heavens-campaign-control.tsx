@@ -10,6 +10,8 @@ import {
   type CampaignAdminSummary,
   type CampaignMemberData,
 } from "@/app/heavens/campaigns/actions";
+import { CampaignPlayerPanel } from "@/app/heavens/campaigns/campaign-player-panel";
+import { scopeCampaignCharacters } from "@/features/campaigns/campaign-membership";
 
 const EMPTY_MEMBERS: CampaignMemberData = {
   players: [],
@@ -20,24 +22,35 @@ const EMPTY_MEMBERS: CampaignMemberData = {
 
 export function HeavensCampaignControl({
   campaigns,
+  initialCampaignId = null,
+  initialPlayerUserId = null,
 }: {
   campaigns: CampaignAdminSummary[];
+  initialCampaignId?: number | null;
+  initialPlayerUserId?: string | null;
 }) {
   const router = useRouter();
-  const [campaignId, setCampaignId] = useState("");
-  const [playerId, setPlayerId] = useState("");
+  const validInitialCampaignId = campaigns.some(({ id }) => id === initialCampaignId)
+    ? String(initialCampaignId)
+    : "";
+  const [campaignId, setCampaignId] = useState(validInitialCampaignId);
+  const [playerId, setPlayerId] = useState(
+    validInitialCampaignId ? initialPlayerUserId ?? "" : "",
+  );
   const [characterId, setCharacterId] = useState("");
   const [members, setMembers] = useState<CampaignMemberData>(EMPTY_MEMBERS);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(validInitialCampaignId));
   const [creating, setCreating] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [membersError, setMembersError] = useState("");
+  const [informationOpen, setInformationOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (!campaignId) return () => { active = false; };
     getCampaignMembers(Number(campaignId))
       .then((data) => { if (active) setMembers(data); })
-      .catch((error) => { if (active) setFeedback(error instanceof Error ? error.message : "Campaign context could not be loaded."); })
+      .catch((error) => { if (active) setMembersError(error instanceof Error ? error.message : "Campaign context could not be loaded."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [campaignId]);
@@ -48,10 +61,15 @@ export function HeavensCampaignControl({
     setPlayerId("");
     setCharacterId("");
     setFeedback("");
+    setMembersError("");
+    setInformationOpen(false);
     setLoading(Boolean(nextCampaignId));
   }
 
-  const playerCharacters = members.characters.filter((character) => character.playerUserId === playerId);
+  const playerCharacters = campaignId && playerId
+    ? scopeCampaignCharacters(members.characters, Number(campaignId), playerId)
+    : [];
+  const selectedCampaign = campaigns.find(({ id }) => String(id) === campaignId) ?? null;
 
   async function newCharacter() {
     if (!campaignId || !playerId) return;
@@ -59,7 +77,7 @@ export function HeavensCampaignControl({
     setFeedback("");
     try {
       const aggregate = await createCharacter(Number(campaignId), playerId);
-      router.push(`/heavens/characters/${aggregate.character.id}`);
+      router.push(`/heavens/characters/${aggregate.character.id}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Character could not be created.");
       setCreating(false);
@@ -78,10 +96,26 @@ export function HeavensCampaignControl({
           {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
         </select>
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Link href="/heavens/campaigns" className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">View Campaigns</Link>
+          <button type="button" disabled={!selectedCampaign} onClick={() => setInformationOpen((current) => !current)} className="min-h-10 rounded-full border border-white/15 bg-black/20 px-4 py-2.5 text-sm text-slate-300 disabled:opacity-40">Campaign Information</button>
+          <Link href={selectedCampaign ? `/heavens/campaigns?campaign=${selectedCampaign.id}` : "/heavens/campaigns"} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Campaign Control</Link>
           <Link href="/heavens/campaigns/new" className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Create Campaign</Link>
         </div>
       </ControlRow>
+
+      {informationOpen && selectedCampaign ? (
+        <section className="mb-2 rounded-2xl border border-white/10 bg-black/25 p-5">
+          <header className="flex items-start justify-between gap-4">
+            <div><p className="text-xs uppercase tracking-[0.2em] text-purple-200">Campaign Information</p><h3 className="font-portcullion mt-1 text-2xl text-slate-100">{selectedCampaign.name}</h3></div>
+            <button type="button" onClick={() => setInformationOpen(false)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-slate-400">Close</button>
+          </header>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
+            <div><dt className="text-slate-500">Currency</dt><dd className="mt-1 text-slate-200">{selectedCampaign.currencySystem}</dd></div>
+            <div><dt className="text-slate-500">Players</dt><dd className="mt-1 text-slate-200">{members.players.length}</dd></div>
+            <div><dt className="text-slate-500">Characters</dt><dd className="mt-1 text-slate-200">{selectedCampaign.characterCount}</dd></div>
+            <div><dt className="text-slate-500">NPCs</dt><dd className="mt-1 text-slate-200">{selectedCampaign.npcCount}</dd></div>
+          </dl>
+        </section>
+      ) : null}
 
       <ControlRow label="Player">
         <select
@@ -93,10 +127,21 @@ export function HeavensCampaignControl({
           <option value="">{!campaignId ? "Select a Campaign First" : loading ? "Reading Players…" : "No Player Selected"}</option>
           {members.players.map((player) => <option key={player.userId} value={player.userId}>{player.username}</option>)}
         </select>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Link href="/heavens/campaigns" className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Manage Players</Link>
-        </div>
+        <span className="text-xs text-slate-500 lg:text-right">{members.players.length} Campaign Players</span>
       </ControlRow>
+
+      <CampaignPlayerPanel
+        key={campaignId || "no-campaign"}
+        campaignId={campaignId ? Number(campaignId) : null}
+        members={members}
+        loading={loading}
+        loadError={membersError}
+        onMembersChange={setMembers}
+        onPlayerAdded={(userId) => {
+          setPlayerId(userId);
+          setCharacterId("");
+        }}
+      />
 
       <ControlRow label="Character" last>
         <select
@@ -110,7 +155,7 @@ export function HeavensCampaignControl({
         </select>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" disabled={!campaignId || !playerId || creating} onClick={() => void newCharacter()} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 text-sm text-amber-100/80 disabled:opacity-40">{creating ? "Creating…" : "New Character"}</button>
-          {characterId ? <Link href={`/heavens/characters/${characterId}`} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Character</Link> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-600">Edit Character</span>}
+          {characterId ? <Link href={`/heavens/characters/${characterId}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Character</Link> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-600">Edit Character</span>}
         </div>
       </ControlRow>
       {feedback ? <p className="mt-2 text-xs text-red-300">{feedback}</p> : null}

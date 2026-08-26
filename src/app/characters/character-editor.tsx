@@ -63,9 +63,13 @@ function OptionalNumber({ value, onChange, disabled = false, ...props }: { value
 export function CharacterEditor({
   initialAggregate,
   godMode,
+  backHref,
+  backLabel = "Back",
 }: {
   initialAggregate: CharacterAggregate;
   godMode: boolean;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const [aggregate, setAggregate] = useState(initialAggregate);
   const [draft, setDraft] = useState<CharacterDraft>(() => characterAggregateToDraft(initialAggregate));
@@ -123,19 +127,19 @@ export function CharacterEditor({
     }
   }
 
-  const backHref = godMode ? "/heavens" : "/realms";
+  const returnHref = backHref ?? (godMode ? "/heavens" : "/realms");
 
   return (
     <main className="character-page">
       <header className="character-header">
-        <Link href={backHref} className="font-evanescent character-logo">SERRIAN<br />TIDE</Link>
+        <Link href={returnHref} className="font-evanescent character-logo">SERRIAN<br />TIDE</Link>
         <div className="character-header__identity">
           <p>{godMode ? "THE HEAVENS / CHARACTER RECORD" : "THE REALMS / CHARACTER RECORD"}</p>
           <h1 className="font-portcullion">{draft.name || "New Character"}</h1>
           <span>{aggregate.campaign.name} · {aggregate.character.playerUsername}{aggregate.character.isNpc ? " · NPC" : ""}</span>
         </div>
         <div className="character-header__actions">
-          <Link href={backHref}>← Back</Link>
+          <Link href={returnHref}>← {backLabel}</Link>
           {!playerLocked ? <button type="button" disabled={saving || !dirty} onClick={() => void persist(false)}>{saving ? "Saving…" : "Save Draft"}</button> : <span className="character-lock">Creation Locked</span>}
         </div>
       </header>

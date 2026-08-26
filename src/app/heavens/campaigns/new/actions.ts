@@ -15,8 +15,9 @@ import {
   campaignFatePointMethod,
   campaignSystem,
 } from "@/db/campaign-schema";
-import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
+import { item, itemTagCatalog } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
+import { createCampaignInventoryPersistence } from "@/features/campaigns/campaign-inventory";
 import {
   campaignAllowedRace,
   campaignInventoryItem,
@@ -231,8 +232,12 @@ export async function createCampaign(formData: FormData) {
     formData,
     "inventoryItemIds",
   );
+  const inventorySelection = createCampaignInventoryPersistence(
+    inventoryTagIds,
+    explicitInventoryItemIds,
+  );
 
-  const [validRaces, validTags, validItems, taggedItems] = await Promise.all([
+  const [validRaces, validTags, validItems] = await Promise.all([
     allowedRaceIds.length
       ? db.select({ id: race.id }).from(race).where(inArray(race.id, allowedRaceIds))
       : [],
@@ -248,12 +253,6 @@ export async function createCampaign(formData: FormData) {
           .from(item)
           .where(inArray(item.id, explicitInventoryItemIds))
       : [],
-    inventoryTagIds.length
-      ? db
-          .select({ itemId: itemTagLink.itemId })
-          .from(itemTagLink)
-          .where(inArray(itemTagLink.tagId, inventoryTagIds))
-      : [],
   ]);
 
   if (validRaces.length !== allowedRaceIds.length) {
@@ -267,13 +266,6 @@ export async function createCampaign(formData: FormData) {
   if (validItems.length !== explicitInventoryItemIds.length) {
     throw new Error("An Equipment or Inventory record is no longer available.");
   }
-
-  const authorizedItemIds = [
-    ...new Set([
-      ...explicitInventoryItemIds,
-      ...taggedItems.map(({ itemId }) => itemId),
-    ]),
-  ];
 
   /*
    * Derived Currencies
@@ -455,9 +447,9 @@ export async function createCampaign(formData: FormData) {
       );
     }
 
-    if (inventoryTagIds.length > 0) {
+    if (inventorySelection.tagIds.length > 0) {
       await tx.insert(campaignInventoryTag).values(
-        inventoryTagIds.map((tagId, sortOrder) => ({
+        inventorySelection.tagIds.map((tagId, sortOrder) => ({
           campaignId: createdCampaign.id,
           tagId,
           sortOrder,
@@ -465,9 +457,9 @@ export async function createCampaign(formData: FormData) {
       );
     }
 
-    if (authorizedItemIds.length > 0) {
+    if (inventorySelection.itemIds.length > 0) {
       await tx.insert(campaignInventoryItem).values(
-        authorizedItemIds.map((itemId, sortOrder) => ({
+        inventorySelection.itemIds.map((itemId, sortOrder) => ({
           campaignId: createdCampaign.id,
           itemId,
           sortOrder,

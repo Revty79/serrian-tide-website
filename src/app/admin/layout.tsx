@@ -1,0 +1,18 @@
+import { redirect } from "next/navigation";
+
+import { AuthenticatedNavigation } from "@/app/authenticated-navigation";
+import { requireAccessContext } from "@/lib/server-access";
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const access = await requireAccessContext("admin").catch(() => redirect("/access"));
+  return (
+    <>
+      <AuthenticatedNavigation
+        context="admin"
+        roles={access.roles}
+        username={access.session.user.username ?? access.session.user.name}
+      />
+      {children}
+    </>
+  );
+}

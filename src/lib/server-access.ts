@@ -2,7 +2,7 @@ import { and, eq, or } from "drizzle-orm";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { userRole } from "@/db/authorization-schema";
+import { userRole, type SerrianRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { auth } from "@/lib/auth";
 
@@ -19,24 +19,29 @@ export async function requireSession() {
 }
 
 export async function requireRole(role: "admin" | "god" | "player") {
+  return (await requireAccessContext(role)).session;
+}
+
+export async function requireAccessContext(
+  role: "admin" | "god" | "player",
+): Promise<{ session: Awaited<ReturnType<typeof requireSession>>; roles: SerrianRole[] }> {
   const session = await requireSession();
 
-  const [access] = await db
+  const access = await db
     .select({ role: userRole.role })
     .from(userRole)
-    .where(
-      and(
-        eq(userRole.userId, session.user.id),
-        eq(userRole.role, role),
-      ),
-    )
-    .limit(1);
+    .where(eq(userRole.userId, session.user.id));
+  const roles = access.map(({ role: assignedRole }) => assignedRole);
 
-  if (!access) {
+  if (!roles.includes(role)) {
     throw new Error(`${role === "god" ? "G.O.D." : role} access is required.`);
   }
 
-  return session;
+  return { session, roles };
+}
+
+export function requireAdmin() {
+  return requireRole("admin");
 }
 
 export function requireGod() {

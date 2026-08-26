@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { CampaignReferenceData } from "../actions";
+import { CampaignInventorySelector } from "../campaign-inventory-selector";
 import { createCampaign } from "./actions";
 
 const CAMPAIGN_SYSTEM_OPTIONS = [
@@ -48,8 +49,6 @@ export function CampaignCreateForm({
     ]);
 
   const [raceSearch, setRaceSearch] = useState("");
-  const [equipmentSearch, setEquipmentSearch] = useState("");
-  const [inventorySearch, setInventorySearch] = useState("");
   const [selectedRaceIds, setSelectedRaceIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
@@ -64,16 +63,6 @@ export function CampaignCreateForm({
         )
       : references.races;
   }, [raceSearch, references.races]);
-
-  const equipment = useMemo(
-    () => filterCampaignItems(references.items, "equipment", equipmentSearch),
-    [equipmentSearch, references.items],
-  );
-
-  const inventory = useMemo(
-    () => filterCampaignItems(references.items, "inventory", inventorySearch),
-    [inventorySearch, references.items],
-  );
 
   function toggleId(
     id: number,
@@ -589,68 +578,13 @@ export function CampaignCreateForm({
         </div>
       </section>
 
-      {/* INVENTORY TAGS */}
-      <section className={sectionClass}>
-        <SelectionHeading
-          eyebrow="Campaign Catalog"
-          title="Inventory Tags"
-          count={`${selectedTagIds.length} selected`}
-          onSelectAll={() => setSelectedTagIds(references.tags.map(({ id }) => id))}
-          onClear={() => setSelectedTagIds([])}
-          disableSelectAll={references.tags.length === 0}
-          disableClear={selectedTagIds.length === 0}
-        />
-
-        <p className="mt-3 text-sm leading-6 text-slate-400">
-          A selected tag authorizes every current Equipment or Inventory record carrying that tag.
-          You can add individual records below as well.
-        </p>
-
-        <div className="mt-5 grid max-h-[24rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-          {references.tags.map((entry) => {
-            const selected = selectedTagIds.includes(entry.id);
-            return (
-              <label key={entry.id} className={selectionClass(selected)}>
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={() =>
-                    toggleId(entry.id, selectedTagIds, setSelectedTagIds)
-                  }
-                  className="h-4 w-4 accent-amber-300"
-                />
-                <span>
-                  <strong className="block text-sm text-slate-100">{entry.name}</strong>
-                  <small className="mt-1 block text-xs leading-5 text-slate-500">
-                    {entry.tagGroup} · {entry.description}
-                  </small>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </section>
-
-      <ItemSelectionSection
-        eyebrow="Equipment Access"
-        title="Allowed Equipment"
-        help="Choose Weapons, Armor, and General Equipment available in this Campaign."
-        items={equipment}
-        search={equipmentSearch}
-        onSearch={setEquipmentSearch}
-        selectedIds={selectedItemIds}
-        onChange={setSelectedItemIds}
-      />
-
-      <ItemSelectionSection
-        eyebrow="Inventory Access"
-        title="Allowed Inventory"
-        help="Choose consumables, supplies, services, and other Inventory records available in this Campaign."
-        items={inventory}
-        search={inventorySearch}
-        onSearch={setInventorySearch}
-        selectedIds={selectedItemIds}
-        onChange={setSelectedItemIds}
+      <CampaignInventorySelector
+        campaignId={null}
+        tags={references.tags}
+        selectedTagIds={selectedTagIds}
+        selectedItemIds={selectedItemIds}
+        onSelectedTagIdsChange={setSelectedTagIds}
+        onSelectedItemIdsChange={setSelectedItemIds}
       />
 
       <section className="rounded-3xl border border-purple-300/15 bg-purple-950/10 p-6 text-sm leading-6 text-slate-400">
@@ -663,7 +597,7 @@ export function CampaignCreateForm({
       {/* SAVE */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <a
-          href="/heavens"
+          href="/heavens/campaigns"
           className="
             inline-flex
             items-center
@@ -847,111 +781,5 @@ function SearchField({
         className={inputClass}
       />
     </label>
-  );
-}
-
-function filterCampaignItems(
-  items: CampaignReferenceData["items"],
-  catalogScope: "equipment" | "inventory",
-  searchText: string,
-) {
-  const search = searchText.trim().toLocaleLowerCase();
-  return items.filter((entry) => {
-    if (entry.catalogScope !== catalogScope) return false;
-    if (!search) return true;
-    return [
-      entry.name,
-      entry.canonicalId,
-      entry.recordType,
-      entry.family,
-      entry.category,
-      entry.equipmentGroup ?? "",
-    ].some((value) => value.toLocaleLowerCase().includes(search));
-  });
-}
-
-function ItemSelectionSection({
-  eyebrow,
-  title,
-  help,
-  items,
-  search,
-  onSearch,
-  selectedIds,
-  onChange,
-}: {
-  eyebrow: string;
-  title: string;
-  help: string;
-  items: CampaignReferenceData["items"];
-  search: string;
-  onSearch: (value: string) => void;
-  selectedIds: number[];
-  onChange: (ids: number[]) => void;
-}) {
-  const shownIds = items.map(({ id }) => id);
-  const selectedShown = shownIds.filter((id) => selectedIds.includes(id)).length;
-
-  function selectShown() {
-    onChange([...new Set([...selectedIds, ...shownIds])]);
-  }
-
-  function clearShown() {
-    const shown = new Set(shownIds);
-    onChange(selectedIds.filter((id) => !shown.has(id)));
-  }
-
-  return (
-    <section className={sectionClass}>
-      <SelectionHeading
-        eyebrow={eyebrow}
-        title={title}
-        count={`${selectedShown} of ${items.length} shown selected`}
-        onSelectAll={selectShown}
-        onClear={clearShown}
-        disableSelectAll={items.length === 0}
-        disableClear={selectedShown === 0}
-      />
-      <p className="mt-3 text-sm leading-6 text-slate-400">{help}</p>
-      <SearchField
-        label={`Search ${title}`}
-        value={search}
-        placeholder="Name, ID, type, family, or category"
-        onChange={onSearch}
-      />
-      <div className="mt-5 grid max-h-[34rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((entry) => {
-          const selected = selectedIds.includes(entry.id);
-          return (
-            <label key={entry.id} className={selectionClass(selected)}>
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={() =>
-                  onChange(
-                    selected
-                      ? selectedIds.filter((id) => id !== entry.id)
-                      : [...selectedIds, entry.id],
-                  )
-                }
-                className="h-4 w-4 accent-amber-300"
-              />
-              <span className="min-w-0">
-                <strong className="block text-sm text-slate-100">{entry.name}</strong>
-                <small className="mt-1 block text-xs leading-5 text-slate-500">
-                  {entry.canonicalId} · {entry.equipmentGroup ?? entry.recordType} · {entry.category}
-                </small>
-                <small className="block text-xs text-slate-600">
-                  {entry.credits === null ? "Unpriced" : `${entry.credits} cr`}
-                </small>
-              </span>
-            </label>
-          );
-        })}
-        {items.length === 0 ? (
-          <p className="text-sm text-slate-500">No records match that search.</p>
-        ) : null}
-      </div>
-    </section>
   );
 }

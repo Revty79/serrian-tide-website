@@ -45,9 +45,18 @@ const coreTools = [
   },
 ];
 
-export default async function HeavensPage() {
+export default async function HeavensPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ campaign?: string; player?: string }>;
+}) {
   const session = await requireGod().catch(() => redirect("/access"));
   const campaigns = await listCampaignsForGod();
+  const query = await searchParams;
+  const requestedCampaignId = Number(query.campaign);
+  const initialCampaignId = Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
+    ? requestedCampaignId
+    : null;
 
   return (
     <main className="relative z-10 min-h-screen px-5 py-8 sm:px-8 sm:py-10">
@@ -86,7 +95,11 @@ export default async function HeavensPage() {
               Select the Campaign, Player, and Character you are currently working with.
             </p>
           </div>
-          <HeavensCampaignControl campaigns={campaigns} />
+          <HeavensCampaignControl
+            campaigns={campaigns}
+            initialCampaignId={initialCampaignId}
+            initialPlayerUserId={query.player ?? null}
+          />
         </section>
 
         <section className="mt-10">
