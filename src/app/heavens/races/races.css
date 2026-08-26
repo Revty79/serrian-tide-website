@@ -1,0 +1,72 @@
+.races-page .race-brand {
+  display: inline-block;
+  background: linear-gradient(90deg, #a855f7, #fde68a, #a855f7);
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(2rem, 3.6vw, 3.35rem);
+  line-height: .78;
+  text-align: center;
+  text-decoration: none;
+}
+
+.races-page .skills-page__navigation a {
+  min-height: 38px;
+  padding: 9px 13px;
+  border: 1px solid rgb(143 164 161 / 26%);
+  border-radius: 4px;
+  color: rgb(235 231 220 / 78%);
+  background: rgb(6 13 17 / 64%);
+  font-size: .75rem;
+  text-decoration: none;
+}
+
+.races-workspace { grid-template-columns: minmax(300px, .65fr) minmax(590px, 1.7fr); }
+.race-library-filters { grid-template-columns: 1fr; }
+.race-editor__content { padding: 20px; }
+.race-section { display: grid; gap: 20px; }
+.race-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.race-field { min-width: 0; }
+.race-field--wide { grid-column: 1 / -1; }
+.race-field > span { display: block; margin-bottom: 6px; color: rgb(213 209 196 / 67%); font-size: .68rem; font-weight: 650; letter-spacing: .08em; }
+.race-subheading { display: flex; align-items: end; justify-content: space-between; gap: 15px; padding-bottom: 10px; border-bottom: 1px solid rgb(197 172 114 / 18%); }
+.race-subheading--spaced { margin-top: 12px; }
+.race-subheading p { margin: 0 0 5px; color: #bda978; font-size: .62rem; letter-spacing: .2em; }
+.race-subheading h3 { margin: 0; color: #eee8dc; font: 400 1.3rem/1.1 "Palatino Linotype", Georgia, serif; }
+.race-subheading button { min-height: 34px; padding: 6px 10px; }
+.race-row-list { display: grid; gap: 8px; }
+.race-repeat-row { display: grid; grid-template-columns: minmax(130px, 1fr) 120px auto; gap: 8px; align-items: center; padding: 9px; border: 1px solid rgb(128 154 156 / 14%); border-radius: 5px; background: rgb(3 9 13 / 32%); }
+.race-repeat-row--movement { grid-template-columns: 150px 100px minmax(180px, 1fr) auto; }
+.race-repeat-row button, .race-skill-link button { min-height: 36px; padding: 7px 10px; }
+.race-skill-picker { display: grid; grid-template-columns: 1fr .75fr 1.5fr .65fr auto; gap: 9px; align-items: end; }
+.race-add-link { min-height: 38px; }
+.race-skill-links { margin-top: 8px; }
+.race-skill-link { display: grid; grid-template-columns: minmax(180px, 1fr) 120px 90px auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid rgb(128 154 156 / 15%); border-radius: 5px; background: rgb(3 9 13 / 36%); }
+.race-skill-link > div { min-width: 0; }
+.race-skill-link strong, .race-skill-link span { display: block; }
+.race-skill-link strong { color: #f0e8d9; font-family: "Palatino Linotype", Georgia, serif; }
+.race-skill-link span { margin-top: 3px; color: rgb(178 201 197 / 62%); font-size: .67rem; text-transform: capitalize; }
+.race-preview { display: grid; gap: 18px; }
+.race-preview > header { padding-bottom: 14px; border-bottom: 1px solid rgb(197 172 114 / 18%); }
+.race-preview > header p { margin: 0 0 5px; color: #bda978; font-size: .65rem; letter-spacing: .18em; text-transform: uppercase; }
+.race-preview > header h3 { margin: 0; color: #f0e8d9; font: 400 2rem/1.1 "Palatino Linotype", Georgia, serif; }
+.race-preview > header span { color: rgb(224 222 212 / 55%); font-size: .78rem; }
+.race-preview h4 { margin: 0 0 8px; color: #d8c99e; font: 400 1.05rem "Palatino Linotype", Georgia, serif; }
+.race-preview p { margin: 0; color: rgb(230 226 216 / 70%); line-height: 1.55; }
+.race-preview__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.race-preview section { padding: 14px; border: 1px solid rgb(128 154 156 / 14%); border-radius: 5px; background: rgb(3 9 13 / 34%); }
+.race-preview__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.race-preview__chips span { padding: 5px 8px; border: 1px solid rgb(197 172 114 / 20%); border-radius: 999px; color: #e4d7b7; background: rgb(83 69 39 / 25%); font-size: .72rem; }
+.race-preview ul { margin: 0; padding-left: 18px; color: rgb(230 226 216 / 70%); }
+.race-preview li span { color: rgb(178 201 197 / 60%); font-size: .72rem; }
+
+@media (max-width: 1050px) {
+  .race-skill-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .race-add-link { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .race-form-grid, .race-preview__grid { grid-template-columns: 1fr; }
+  .race-field--wide { grid-column: auto; }
+  .race-repeat-row, .race-repeat-row--movement, .race-skill-link { grid-template-columns: 1fr; }
+  .race-skill-picker { grid-template-columns: 1fr; }
+}
