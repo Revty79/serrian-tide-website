@@ -28,8 +28,10 @@ import {
 import { withCalculationSnapshot } from "@/features/spell-construction/utilities/spellFactory";
 import { auth } from "@/lib/auth";
 
-export const SPELL_CONSTRUCTION_EXTENSION = "spell-construction";
-export const SPECIAL_ABILITY_CLASSIFICATION = "special ability";
+import {
+  SPECIAL_ABILITY_CLASSIFICATION,
+  SPELL_CONSTRUCTION_EXTENSION,
+} from "./constants";
 
 export type SkillLibraryFilters = {
   search?: string;
@@ -128,7 +130,9 @@ async function requireGod() {
   }
 
   const access = await db
-    .select({ role: userRole.role })
+    .select({
+      role: userRole.role,
+    })
     .from(userRole)
     .where(
       and(
@@ -145,26 +149,49 @@ async function requireGod() {
   return session;
 }
 
-function optionalText(value: string | null | undefined) {
+function optionalText(
+  value: string | null | undefined,
+) {
   const trimmed = value?.trim() ?? "";
   return trimmed || null;
 }
 
-function normalizeCore(input: SkillDraft["core"]) {
+function normalizeCore(
+  input: SkillDraft["core"],
+) {
   const name = input.name.trim();
-  if (!name) throw new Error("Name is required before saving.");
 
-  const primaryAttribute = optionalText(input.primaryAttribute);
-  const secondaryAttribute = optionalText(input.secondaryAttribute);
-  const hasAttribute = Boolean(primaryAttribute || secondaryAttribute);
+  if (!name) {
+    throw new Error(
+      "Name is required before saving.",
+    );
+  }
+
+  const primaryAttribute =
+    optionalText(input.primaryAttribute);
+
+  const secondaryAttribute =
+    optionalText(input.secondaryAttribute);
+
+  const hasAttribute = Boolean(
+    primaryAttribute || secondaryAttribute,
+  );
 
   const classification = hasAttribute
     ? input.classification.trim() || "standard"
     : SPECIAL_ABILITY_CLASSIFICATION;
 
-  const tier = hasAttribute ? input.tier : null;
-  if (tier !== null && (!Number.isInteger(tier) || tier < 1)) {
-    throw new Error("Tier must be a positive whole number or N/A.");
+  const tier = hasAttribute
+    ? input.tier
+    : null;
+
+  if (
+    tier !== null &&
+    (!Number.isInteger(tier) || tier < 1)
+  ) {
+    throw new Error(
+      "Tier must be a positive whole number or N/A.",
+    );
   }
 
   return {
@@ -174,8 +201,10 @@ function normalizeCore(input: SkillDraft["core"]) {
     primaryAttribute,
     secondaryAttribute,
     definition: input.definition.trim(),
-    sourceSystem: optionalText(input.sourceSystem),
-    sourceExternalId: optionalText(input.sourceExternalId),
+    sourceSystem:
+      optionalText(input.sourceSystem),
+    sourceExternalId:
+      optionalText(input.sourceExternalId),
   };
 }
 
@@ -185,28 +214,53 @@ function normalizeRelationships(
 ) {
   const seen = new Set<string>();
 
-  return relationships.map((relationship, index) => {
-    if (!Number.isInteger(relationship.relatedSkillId) || relationship.relatedSkillId < 1) {
-      throw new Error("A related Skill is invalid.");
-    }
-    if (relationship.relatedSkillId === skillId) {
-      throw new Error("A Skill cannot relate to itself.");
-    }
+  return relationships.map(
+    (relationship, index) => {
+      if (
+        !Number.isInteger(
+          relationship.relatedSkillId,
+        ) ||
+        relationship.relatedSkillId < 1
+      ) {
+        throw new Error(
+          "A related Skill is invalid.",
+        );
+      }
 
-    const relationshipType = relationship.relationshipType.trim() || "parent";
-    const key = `${relationship.relatedSkillId}:${relationshipType.toLowerCase()}`;
-    if (seen.has(key)) {
-      throw new Error("The same Skill relationship cannot be added twice.");
-    }
-    seen.add(key);
+      if (
+        relationship.relatedSkillId ===
+        skillId
+      ) {
+        throw new Error(
+          "A Skill cannot relate to itself.",
+        );
+      }
 
-    return {
-      relatedSkillId: relationship.relatedSkillId,
-      relatedSkillName: relationship.relatedSkillName,
-      relationshipType,
-      sortOrder: index,
-    };
-  });
+      const relationshipType =
+        relationship.relationshipType.trim() ||
+        "parent";
+
+      const key =
+        `${relationship.relatedSkillId}:${relationshipType.toLowerCase()}`;
+
+      if (seen.has(key)) {
+        throw new Error(
+          "The same Skill relationship cannot be added twice.",
+        );
+      }
+
+      seen.add(key);
+
+      return {
+        relatedSkillId:
+          relationship.relatedSkillId,
+        relatedSkillName:
+          relationship.relatedSkillName,
+        relationshipType,
+        sortOrder: index,
+      };
+    },
+  );
 }
 
 async function wouldCreateCircularPath(
@@ -216,32 +270,65 @@ async function wouldCreateCircularPath(
 ) {
   const rows = await db
     .select({
-      skillId: skillRelationship.skillId,
-      relatedSkillId: skillRelationship.relatedSkillId,
-      relationshipType: skillRelationship.relationshipType,
+      skillId:
+        skillRelationship.skillId,
+      relatedSkillId:
+        skillRelationship.relatedSkillId,
+      relationshipType:
+        skillRelationship.relationshipType,
     })
     .from(skillRelationship);
 
-  const graph = new Map<number, number[]>();
-  const targetType = relationshipType.toLowerCase();
+  const graph =
+    new Map<number, number[]>();
+
+  const targetType =
+    relationshipType.toLowerCase();
 
   for (const row of rows) {
-    if (row.skillId === skillId) continue;
-    if (row.relationshipType.toLowerCase() !== targetType) continue;
-    const current = graph.get(row.skillId) ?? [];
+    if (row.skillId === skillId) {
+      continue;
+    }
+
+    if (
+      row.relationshipType.toLowerCase() !==
+      targetType
+    ) {
+      continue;
+    }
+
+    const current =
+      graph.get(row.skillId) ?? [];
+
     current.push(row.relatedSkillId);
-    graph.set(row.skillId, current);
+
+    graph.set(
+      row.skillId,
+      current,
+    );
   }
 
   const stack = [relatedSkillId];
-  const visited = new Set<number>();
+
+  const visited =
+    new Set<number>();
 
   while (stack.length > 0) {
     const current = stack.pop()!;
-    if (current === skillId) return true;
-    if (visited.has(current)) continue;
+
+    if (current === skillId) {
+      return true;
+    }
+
+    if (visited.has(current)) {
+      continue;
+    }
+
     visited.add(current);
-    stack.push(...(graph.get(current) ?? []));
+
+    stack.push(
+      ...(graph.get(current) ?? []),
+    );
   }
 
   return false;
@@ -250,44 +337,95 @@ async function wouldCreateCircularPath(
 async function querySpellFrameworkSkills(
   tradition: Tradition,
 ): Promise<SpellFrameworkSkill[]> {
-  const identity = SPELL_IDENTITY_BY_TRADITION[tradition];
+  const identity =
+    SPELL_IDENTITY_BY_TRADITION[
+      tradition
+    ];
 
   const parentRows = await db
-    .select({ id: skill.id })
+    .select({
+      id: skill.id,
+    })
     .from(skill)
-    .where(inArray(skill.name, [...identity.parentSkillNames]));
-
-  const parentIds = parentRows.map(({ id }) => id);
-  if (parentIds.length === 0) return [];
-
-  const relationshipRows = await db
-    .select({ childId: skillRelationship.skillId })
-    .from(skillRelationship)
     .where(
-      and(
-        inArray(skillRelationship.relatedSkillId, parentIds),
-        eq(skillRelationship.relationshipType, "parent"),
+      inArray(
+        skill.name,
+        [...identity.parentSkillNames],
       ),
     );
 
-  const childIds = [...new Set(relationshipRows.map(({ childId }) => childId))];
-  if (childIds.length === 0) return [];
+  const parentIds =
+    parentRows.map(
+      ({ id }) => id,
+    );
 
-  const conditions = [inArray(skill.id, childIds)];
+  if (parentIds.length === 0) {
+    return [];
+  }
+
+  const relationshipRows = await db
+    .select({
+      childId:
+        skillRelationship.skillId,
+    })
+    .from(skillRelationship)
+    .where(
+      and(
+        inArray(
+          skillRelationship.relatedSkillId,
+          parentIds,
+        ),
+        eq(
+          skillRelationship.relationshipType,
+          "parent",
+        ),
+      ),
+    );
+
+  const childIds = [
+    ...new Set(
+      relationshipRows.map(
+        ({ childId }) => childId,
+      ),
+    ),
+  ];
+
+  if (childIds.length === 0) {
+    return [];
+  }
+
+  const conditions = [
+    inArray(
+      skill.id,
+      childIds,
+    ),
+  ];
+
   if (identity.tier !== undefined) {
-    conditions.push(eq(skill.tier, identity.tier));
+    conditions.push(
+      eq(
+        skill.tier,
+        identity.tier,
+      ),
+    );
   }
 
   return db
     .select({
       id: skill.id,
       name: skill.name,
-      classification: skill.classification,
+      classification:
+        skill.classification,
       tier: skill.tier,
     })
     .from(skill)
-    .where(and(...conditions))
-    .orderBy(asc(skill.name), asc(skill.id));
+    .where(
+      and(...conditions),
+    )
+    .orderBy(
+      asc(skill.name),
+      asc(skill.id),
+    );
 }
 
 export async function listSkills(
@@ -295,45 +433,126 @@ export async function listSkills(
 ): Promise<SkillLibraryResult> {
   await requireGod();
 
-  const page = Math.max(1, Math.trunc(filters.page ?? 1));
-  const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
+  const page = Math.max(
+    1,
+    Math.trunc(
+      filters.page ?? 1,
+    ),
+  );
+
+  const pageSize = Math.min(
+    100,
+    Math.max(
+      1,
+      Math.trunc(
+        filters.pageSize ?? 40,
+      ),
+    ),
+  );
+
   const conditions = [];
-  const search = filters.search?.trim();
 
-  if (search) conditions.push(ilike(skill.name, `%${search}%`));
-  if (filters.classification?.trim()) {
-    conditions.push(eq(skill.classification, filters.classification.trim()));
-  }
-  if (filters.tier !== undefined && filters.tier !== null) {
-    conditions.push(eq(skill.tier, filters.tier));
-  }
-  if (filters.primaryAttribute?.trim()) {
-    conditions.push(eq(skill.primaryAttribute, filters.primaryAttribute.trim()));
-  }
-  if (filters.secondaryAttribute?.trim()) {
-    conditions.push(eq(skill.secondaryAttribute, filters.secondaryAttribute.trim()));
+  const search =
+    filters.search?.trim();
+
+  if (search) {
+    conditions.push(
+      ilike(
+        skill.name,
+        `%${search}%`,
+      ),
+    );
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
-  const [countRow] = await db.select({ value: count() }).from(skill).where(where);
-  const total = Number(countRow?.value ?? 0);
+  if (
+    filters.classification?.trim()
+  ) {
+    conditions.push(
+      eq(
+        skill.classification,
+        filters.classification.trim(),
+      ),
+    );
+  }
+
+  if (
+    filters.tier !== undefined &&
+    filters.tier !== null
+  ) {
+    conditions.push(
+      eq(
+        skill.tier,
+        filters.tier,
+      ),
+    );
+  }
+
+  if (
+    filters.primaryAttribute?.trim()
+  ) {
+    conditions.push(
+      eq(
+        skill.primaryAttribute,
+        filters.primaryAttribute.trim(),
+      ),
+    );
+  }
+
+  if (
+    filters.secondaryAttribute?.trim()
+  ) {
+    conditions.push(
+      eq(
+        skill.secondaryAttribute,
+        filters.secondaryAttribute.trim(),
+      ),
+    );
+  }
+
+  const where =
+    conditions.length > 0
+      ? and(...conditions)
+      : undefined;
+
+  const [countRow] = await db
+    .select({
+      value: count(),
+    })
+    .from(skill)
+    .where(where);
+
+  const total = Number(
+    countRow?.value ?? 0,
+  );
 
   const baseRows = await db
     .select({
       id: skill.id,
       name: skill.name,
-      classification: skill.classification,
+      classification:
+        skill.classification,
       tier: skill.tier,
-      primaryAttribute: skill.primaryAttribute,
-      secondaryAttribute: skill.secondaryAttribute,
+      primaryAttribute:
+        skill.primaryAttribute,
+      secondaryAttribute:
+        skill.secondaryAttribute,
     })
     .from(skill)
     .where(where)
-    .orderBy(asc(skill.name), asc(skill.id))
+    .orderBy(
+      asc(skill.name),
+      asc(skill.id),
+    )
     .limit(pageSize)
-    .offset((page - 1) * pageSize);
+    .offset(
+      (page - 1) * pageSize,
+    );
 
-  const ids = baseRows.map(({ id }) => id);
+  const ids =
+    baseRows.map(
+      ({ id }) => id,
+    );
+
   if (ids.length === 0) {
     return {
       items: [],
@@ -341,172 +560,494 @@ export async function listSkills(
       total,
       page,
       pageSize,
-      pageCount: Math.max(1, Math.ceil(total / pageSize)),
+      pageCount: Math.max(
+        1,
+        Math.ceil(
+          total / pageSize,
+        ),
+      ),
     };
   }
 
-  const relationshipRows = await db
-    .select({
-      skillId: skillRelationship.skillId,
-      relatedSkillId: skillRelationship.relatedSkillId,
-      relationshipType: skillRelationship.relationshipType,
-      sortOrder: skillRelationship.sortOrder,
-    })
-    .from(skillRelationship)
-    .where(inArray(skillRelationship.skillId, ids))
-    .orderBy(asc(skillRelationship.sortOrder), asc(skillRelationship.id));
+  const relationshipRows =
+    await db
+      .select({
+        skillId:
+          skillRelationship.skillId,
+        relatedSkillId:
+          skillRelationship.relatedSkillId,
+        relationshipType:
+          skillRelationship.relationshipType,
+        sortOrder:
+          skillRelationship.sortOrder,
+      })
+      .from(skillRelationship)
+      .where(
+        inArray(
+          skillRelationship.skillId,
+          ids,
+        ),
+      )
+      .orderBy(
+        asc(
+          skillRelationship.sortOrder,
+        ),
+        asc(
+          skillRelationship.id,
+        ),
+      );
 
   const parentIds = [
     ...new Set(
       relationshipRows
-        .filter(({ relationshipType }) => relationshipType.toLowerCase() === "parent")
-        .map(({ relatedSkillId }) => relatedSkillId),
+        .filter(
+          ({
+            relationshipType,
+          }) =>
+            relationshipType.toLowerCase() ===
+            "parent",
+        )
+        .map(
+          ({
+            relatedSkillId,
+          }) =>
+            relatedSkillId,
+        ),
     ),
   ];
 
-  const parentRows = parentIds.length
-    ? await db
-        .select({ id: skill.id, name: skill.name })
-        .from(skill)
-        .where(inArray(skill.id, parentIds))
-    : [];
+  const parentRows =
+    parentIds.length
+      ? await db
+          .select({
+            id: skill.id,
+            name: skill.name,
+          })
+          .from(skill)
+          .where(
+            inArray(
+              skill.id,
+              parentIds,
+            ),
+          )
+      : [];
 
-  const parentNames = new Map(parentRows.map((row) => [row.id, row.name]));
-  const relationshipsBySkill = new Map<number, SkillRelationshipEdge[]>();
-
-  for (const relationship of relationshipRows) {
-    const current = relationshipsBySkill.get(relationship.skillId) ?? [];
-    current.push(relationship);
-    relationshipsBySkill.set(relationship.skillId, current);
-  }
-
-  const extensionRows = await db
-    .select({ skillId: skillExtension.skillId })
-    .from(skillExtension)
-    .where(
-      and(
-        inArray(skillExtension.skillId, ids),
-        eq(skillExtension.extensionType, SPELL_CONSTRUCTION_EXTENSION),
+  const parentNames =
+    new Map(
+      parentRows.map(
+        (row) => [
+          row.id,
+          row.name,
+        ],
       ),
     );
 
-  const hasSpellConstruction = new Set(extensionRows.map(({ skillId }) => skillId));
+  const relationshipsBySkill =
+    new Map<
+      number,
+      SkillRelationshipEdge[]
+    >();
+
+  for (
+    const relationship
+    of relationshipRows
+  ) {
+    const current =
+      relationshipsBySkill.get(
+        relationship.skillId,
+      ) ?? [];
+
+    current.push(
+      relationship,
+    );
+
+    relationshipsBySkill.set(
+      relationship.skillId,
+      current,
+    );
+  }
+
+  const extensionRows =
+    await db
+      .select({
+        skillId:
+          skillExtension.skillId,
+      })
+      .from(skillExtension)
+      .where(
+        and(
+          inArray(
+            skillExtension.skillId,
+            ids,
+          ),
+          eq(
+            skillExtension.extensionType,
+            SPELL_CONSTRUCTION_EXTENSION,
+          ),
+        ),
+      );
+
+  const hasSpellConstruction =
+    new Set(
+      extensionRows.map(
+        ({ skillId }) =>
+          skillId,
+      ),
+    );
 
   return {
-    items: baseRows.map((row) => {
-      const relationships = relationshipsBySkill.get(row.id) ?? [];
-      return {
-        ...row,
-        relationshipCount: relationships.length,
-        parentNames: relationships
-          .filter(({ relationshipType }) => relationshipType.toLowerCase() === "parent")
-          .map(({ relatedSkillId }) => parentNames.get(relatedSkillId))
-          .filter((name): name is string => Boolean(name)),
-        hasSpellConstruction: hasSpellConstruction.has(row.id),
-      };
-    }),
-    relationships: relationshipRows,
+    items: baseRows.map(
+      (row) => {
+        const relationships =
+          relationshipsBySkill.get(
+            row.id,
+          ) ?? [];
+
+        return {
+          ...row,
+
+          relationshipCount:
+            relationships.length,
+
+          parentNames:
+            relationships
+              .filter(
+                ({
+                  relationshipType,
+                }) =>
+                  relationshipType.toLowerCase() ===
+                  "parent",
+              )
+              .map(
+                ({
+                  relatedSkillId,
+                }) =>
+                  parentNames.get(
+                    relatedSkillId,
+                  ),
+              )
+              .filter(
+                (
+                  name,
+                ): name is string =>
+                  Boolean(name),
+              ),
+
+          hasSpellConstruction:
+            hasSpellConstruction.has(
+              row.id,
+            ),
+        };
+      },
+    ),
+
+    relationships:
+      relationshipRows,
+
     total,
     page,
     pageSize,
-    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+
+    pageCount: Math.max(
+      1,
+      Math.ceil(
+        total / pageSize,
+      ),
+    ),
   };
 }
 
-export async function getSkillFilterOptions(): Promise<SkillFilterOptions> {
+export async function getSkillFilterOptions():
+Promise<SkillFilterOptions> {
   await requireGod();
 
-  const [classifications, tiers, primaryAttributes, secondaryAttributes] = await Promise.all([
-    db.selectDistinct({ value: skill.classification }).from(skill).orderBy(asc(skill.classification)),
-    db.selectDistinct({ value: skill.tier }).from(skill).where(sql`${skill.tier} IS NOT NULL`).orderBy(asc(skill.tier)),
-    db.selectDistinct({ value: skill.primaryAttribute }).from(skill).where(sql`${skill.primaryAttribute} IS NOT NULL`).orderBy(asc(skill.primaryAttribute)),
-    db.selectDistinct({ value: skill.secondaryAttribute }).from(skill).where(sql`${skill.secondaryAttribute} IS NOT NULL`).orderBy(asc(skill.secondaryAttribute)),
+  const [
+    classifications,
+    tiers,
+    primaryAttributes,
+    secondaryAttributes,
+  ] = await Promise.all([
+    db
+      .selectDistinct({
+        value:
+          skill.classification,
+      })
+      .from(skill)
+      .orderBy(
+        asc(
+          skill.classification,
+        ),
+      ),
+
+    db
+      .selectDistinct({
+        value:
+          skill.tier,
+      })
+      .from(skill)
+      .where(
+        sql`${skill.tier} IS NOT NULL`,
+      )
+      .orderBy(
+        asc(skill.tier),
+      ),
+
+    db
+      .selectDistinct({
+        value:
+          skill.primaryAttribute,
+      })
+      .from(skill)
+      .where(
+        sql`${skill.primaryAttribute} IS NOT NULL`,
+      )
+      .orderBy(
+        asc(
+          skill.primaryAttribute,
+        ),
+      ),
+
+    db
+      .selectDistinct({
+        value:
+          skill.secondaryAttribute,
+      })
+      .from(skill)
+      .where(
+        sql`${skill.secondaryAttribute} IS NOT NULL`,
+      )
+      .orderBy(
+        asc(
+          skill.secondaryAttribute,
+        ),
+      ),
   ]);
 
   return {
-    classifications: classifications.map(({ value }) => value).filter(Boolean),
-    tiers: tiers.map(({ value }) => value).filter((value): value is number => value !== null),
-    primaryAttributes: primaryAttributes.map(({ value }) => value).filter((value): value is string => Boolean(value)),
-    secondaryAttributes: secondaryAttributes.map(({ value }) => value).filter((value): value is string => Boolean(value)),
+    classifications:
+      classifications
+        .map(
+          ({ value }) => value,
+        )
+        .filter(Boolean),
+
+    tiers:
+      tiers
+        .map(
+          ({ value }) => value,
+        )
+        .filter(
+          (
+            value,
+          ): value is number =>
+            value !== null,
+        ),
+
+    primaryAttributes:
+      primaryAttributes
+        .map(
+          ({ value }) => value,
+        )
+        .filter(
+          (
+            value,
+          ): value is string =>
+            Boolean(value),
+        ),
+
+    secondaryAttributes:
+      secondaryAttributes
+        .map(
+          ({ value }) => value,
+        )
+        .filter(
+          (
+            value,
+          ): value is string =>
+            Boolean(value),
+        ),
   };
 }
 
-export async function getSkill(id: number): Promise<SkillAggregate | null> {
+export async function getSkill(
+  id: number,
+): Promise<SkillAggregate | null> {
   await requireGod();
 
-  const [row] = await db.select().from(skill).where(eq(skill.id, id)).limit(1);
-  if (!row) return null;
+  const [row] = await db
+    .select()
+    .from(skill)
+    .where(
+      eq(
+        skill.id,
+        id,
+      ),
+    )
+    .limit(1);
 
-  const [relationshipRows, extensionRows] = await Promise.all([
+  if (!row) {
+    return null;
+  }
+
+  const [
+    relationshipRows,
+    extensionRows,
+  ] = await Promise.all([
     db
       .select({
-        relatedSkillId: skillRelationship.relatedSkillId,
-        relationshipType: skillRelationship.relationshipType,
-        sortOrder: skillRelationship.sortOrder,
+        relatedSkillId:
+          skillRelationship.relatedSkillId,
+        relationshipType:
+          skillRelationship.relationshipType,
+        sortOrder:
+          skillRelationship.sortOrder,
       })
       .from(skillRelationship)
-      .where(eq(skillRelationship.skillId, id))
-      .orderBy(asc(skillRelationship.sortOrder), asc(skillRelationship.id)),
+      .where(
+        eq(
+          skillRelationship.skillId,
+          id,
+        ),
+      )
+      .orderBy(
+        asc(
+          skillRelationship.sortOrder,
+        ),
+        asc(
+          skillRelationship.id,
+        ),
+      ),
+
     db
       .select({
-        extensionType: skillExtension.extensionType,
-        schemaVersion: skillExtension.schemaVersion,
-        dataJson: skillExtension.dataJson,
+        extensionType:
+          skillExtension.extensionType,
+        schemaVersion:
+          skillExtension.schemaVersion,
+        dataJson:
+          skillExtension.dataJson,
       })
       .from(skillExtension)
-      .where(eq(skillExtension.skillId, id))
-      .orderBy(asc(skillExtension.extensionType)),
+      .where(
+        eq(
+          skillExtension.skillId,
+          id,
+        ),
+      )
+      .orderBy(
+        asc(
+          skillExtension.extensionType,
+        ),
+      ),
   ]);
 
-  const relatedIds = relationshipRows.map(({ relatedSkillId }) => relatedSkillId);
-  const relatedRows = relatedIds.length
-    ? await db
-        .select({ id: skill.id, name: skill.name })
-        .from(skill)
-        .where(inArray(skill.id, relatedIds))
-    : [];
-  const relatedNames = new Map(relatedRows.map((candidate) => [candidate.id, candidate.name]));
+  const relatedIds =
+    relationshipRows.map(
+      ({
+        relatedSkillId,
+      }) =>
+        relatedSkillId,
+    );
 
-  const extensions = extensionRows.map((extension) => {
-    let data: unknown;
-    try {
-      data = extension.extensionType === SPELL_CONSTRUCTION_EXTENSION
-        ? parseSpellDocument(extension.dataJson)
-        : JSON.parse(extension.dataJson);
-    } catch (error) {
-      throw new Error(
-        error instanceof Error
-          ? error.message
-          : `The ${extension.extensionType} extension contains unreadable data.`,
-      );
-    }
+  const relatedRows =
+    relatedIds.length
+      ? await db
+          .select({
+            id: skill.id,
+            name: skill.name,
+          })
+          .from(skill)
+          .where(
+            inArray(
+              skill.id,
+              relatedIds,
+            ),
+          )
+      : [];
 
-    return {
-      extensionType: extension.extensionType,
-      schemaVersion: extension.schemaVersion,
-      data,
-    };
-  });
+  const relatedNames =
+    new Map(
+      relatedRows.map(
+        (candidate) => [
+          candidate.id,
+          candidate.name,
+        ],
+      ),
+    );
+
+  const extensions =
+    extensionRows.map(
+      (extension) => {
+        let data: unknown;
+
+        try {
+          data =
+            extension.extensionType ===
+            SPELL_CONSTRUCTION_EXTENSION
+              ? parseSpellDocument(
+                  extension.dataJson,
+                )
+              : JSON.parse(
+                  extension.dataJson,
+                );
+        } catch (error) {
+          throw new Error(
+            error instanceof Error
+              ? error.message
+              : `The ${extension.extensionType} extension contains unreadable data.`,
+          );
+        }
+
+        return {
+          extensionType:
+            extension.extensionType,
+          schemaVersion:
+            extension.schemaVersion,
+          data,
+        };
+      },
+    );
 
   return {
     id: row.id,
+
     core: {
       name: row.name,
-      classification: row.classification,
+      classification:
+        row.classification,
       tier: row.tier,
-      primaryAttribute: row.primaryAttribute,
-      secondaryAttribute: row.secondaryAttribute,
-      definition: row.definition,
-      sourceSystem: row.sourceSystem,
-      sourceExternalId: row.sourceExternalId,
+      primaryAttribute:
+        row.primaryAttribute,
+      secondaryAttribute:
+        row.secondaryAttribute,
+      definition:
+        row.definition,
+      sourceSystem:
+        row.sourceSystem,
+      sourceExternalId:
+        row.sourceExternalId,
     },
-    relationships: relationshipRows.map((relationship) => ({
-      ...relationship,
-      relatedSkillName: relatedNames.get(relationship.relatedSkillId) ?? `Skill ${relationship.relatedSkillId}`,
-    })),
+
+    relationships:
+      relationshipRows.map(
+        (relationship) => ({
+          ...relationship,
+
+          relatedSkillName:
+            relatedNames.get(
+              relationship.relatedSkillId,
+            ) ??
+            `Skill ${relationship.relatedSkillId}`,
+        }),
+      ),
+
     extensions,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+
+    createdAt:
+      row.createdAt.toISOString(),
+
+    updatedAt:
+      row.updatedAt.toISOString(),
   };
 }
 
@@ -514,65 +1055,150 @@ export async function listRelationshipCandidates(
   search: string,
   context: {
     tier: number | null;
-    primaryAttribute: string | null;
-    secondaryAttribute: string | null;
+    primaryAttribute:
+      string | null;
+    secondaryAttribute:
+      string | null;
   },
   excludeId?: number,
 ): Promise<SkillLibraryItem[]> {
   await requireGod();
 
-  const attributes = [context.primaryAttribute, context.secondaryAttribute]
-    .map((value) => value?.trim().toUpperCase() ?? "")
-    .filter((value, index, all) => value && value !== "N/A" && all.indexOf(value) === index);
+  const attributes = [
+    context.primaryAttribute,
+    context.secondaryAttribute,
+  ]
+    .map(
+      (value) =>
+        value
+          ?.trim()
+          .toUpperCase() ?? "",
+    )
+    .filter(
+      (
+        value,
+        index,
+        all,
+      ) =>
+        value &&
+        value !== "N/A" &&
+        all.indexOf(value) ===
+          index,
+    );
 
-  if (context.tier === null || context.tier <= 1 || attributes.length === 0) return [];
+  if (
+    context.tier === null ||
+    context.tier <= 1 ||
+    attributes.length === 0
+  ) {
+    return [];
+  }
 
   const rows = await db
     .select({
       id: skill.id,
       name: skill.name,
-      classification: skill.classification,
+      classification:
+        skill.classification,
       tier: skill.tier,
-      primaryAttribute: skill.primaryAttribute,
-      secondaryAttribute: skill.secondaryAttribute,
+      primaryAttribute:
+        skill.primaryAttribute,
+      secondaryAttribute:
+        skill.secondaryAttribute,
     })
     .from(skill)
-    .where(eq(skill.tier, context.tier - 1))
-    .orderBy(asc(skill.name), asc(skill.id));
+    .where(
+      eq(
+        skill.tier,
+        context.tier - 1,
+      ),
+    )
+    .orderBy(
+      asc(skill.name),
+      asc(skill.id),
+    );
 
-  const needle = search.trim().toLowerCase();
+  const needle =
+    search
+      .trim()
+      .toLowerCase();
 
   return rows
-    .filter((row) => row.id !== excludeId)
-    .filter((row) => !needle || row.name.toLowerCase().includes(needle))
-    .filter((row) =>
-      [row.primaryAttribute, row.secondaryAttribute]
-        .map((value) => value?.trim().toUpperCase() ?? "")
-        .some((value) => attributes.includes(value)),
+    .filter(
+      (row) =>
+        row.id !== excludeId,
+    )
+    .filter(
+      (row) =>
+        !needle ||
+        row.name
+          .toLowerCase()
+          .includes(
+            needle,
+          ),
+    )
+    .filter(
+      (row) =>
+        [
+          row.primaryAttribute,
+          row.secondaryAttribute,
+        ]
+          .map(
+            (value) =>
+              value
+                ?.trim()
+                .toUpperCase() ??
+              "",
+          )
+          .some(
+            (value) =>
+              attributes.includes(
+                value,
+              ),
+          ),
     )
     .slice(0, 30)
-    .map((row) => ({
-      ...row,
-      relationshipCount: 0,
-      parentNames: [],
-      hasSpellConstruction: false,
-    }));
+    .map(
+      (row) => ({
+        ...row,
+        relationshipCount: 0,
+        parentNames: [],
+        hasSpellConstruction:
+          false,
+      }),
+    );
 }
 
 export async function listSpellFrameworkSkills(
   tradition: Tradition,
 ): Promise<SpellFrameworkSkill[]> {
   await requireGod();
-  return querySpellFrameworkSkills(tradition);
+
+  return querySpellFrameworkSkills(
+    tradition,
+  );
 }
 
-export async function saveSkill(input: SkillDraft): Promise<SkillAggregate> {
-  const session = await requireGod();
-  const core = normalizeCore(input.core);
-  const relationships = normalizeRelationships(input.id, input.relationships);
+export async function saveSkill(
+  input: SkillDraft,
+): Promise<SkillAggregate> {
+  const session =
+    await requireGod();
+
+  const core =
+    normalizeCore(input.core);
+
+  const relationships =
+    normalizeRelationships(
+      input.id,
+      input.relationships,
+    );
 
   if (input.id !== undefined) {
-    for (const relationship of relationships) {
+    for (
+      const relationship
+      of relationships
+    ) {
       if (
         await wouldCreateCircularPath(
           input.id,
@@ -587,35 +1213,86 @@ export async function saveSkill(input: SkillDraft): Promise<SkillAggregate> {
     }
   }
 
-  const seenExtensions = new Set<string>();
-  const extensions = [] as Array<{
-    extensionType: string;
-    schemaVersion: number;
-    dataJson: string;
-  }>;
+  const seenExtensions =
+    new Set<string>();
 
-  for (const extension of input.extensions) {
-    const extensionType = extension.extensionType.trim();
-    if (!extensionType) throw new Error("Skill extension type is required.");
-    if (seenExtensions.has(extensionType)) {
-      throw new Error(`Only one ${extensionType} extension may be attached to a Skill.`);
+  const extensions:
+    Array<{
+      extensionType: string;
+      schemaVersion: number;
+      dataJson: string;
+    }> = [];
+
+  for (
+    const extension
+    of input.extensions
+  ) {
+    const extensionType =
+      extension.extensionType.trim();
+
+    if (!extensionType) {
+      throw new Error(
+        "Skill extension type is required.",
+      );
     }
-    seenExtensions.add(extensionType);
 
-    if (!Number.isInteger(extension.schemaVersion) || extension.schemaVersion < 1) {
-      throw new Error("Skill extension schema version is invalid.");
+    if (
+      seenExtensions.has(
+        extensionType,
+      )
+    ) {
+      throw new Error(
+        `Only one ${extensionType} extension may be attached to a Skill.`,
+      );
     }
 
-    if (extensionType === SPELL_CONSTRUCTION_EXTENSION) {
-      const document = withCalculationSnapshot({
-        ...parseSpellDocument(extension.data),
-        name: core.name,
-      });
+    seenExtensions.add(
+      extensionType,
+    );
 
-      if (document.frameworkSkillId) {
-        const eligible = await querySpellFrameworkSkills(document.tradition);
-        if (!eligible.some(({ id }) => id === document.frameworkSkillId)) {
-          const identity = SPELL_IDENTITY_BY_TRADITION[document.tradition];
+    if (
+      !Number.isInteger(
+        extension.schemaVersion,
+      ) ||
+      extension.schemaVersion < 1
+    ) {
+      throw new Error(
+        "Skill extension schema version is invalid.",
+      );
+    }
+
+    if (
+      extensionType ===
+      SPELL_CONSTRUCTION_EXTENSION
+    ) {
+      const document =
+        withCalculationSnapshot({
+          ...parseSpellDocument(
+            extension.data,
+          ),
+          name: core.name,
+        });
+
+      if (
+        document.frameworkSkillId
+      ) {
+        const eligible =
+          await querySpellFrameworkSkills(
+            document.tradition,
+          );
+
+        if (
+          !eligible.some(
+            ({ id }) =>
+              id ===
+              document.frameworkSkillId,
+          )
+        ) {
+          const identity =
+            SPELL_IDENTITY_BY_TRADITION[
+              document.tradition
+            ];
+
           throw new Error(
             `The selected ${identity.label} is no longer attached to the required Skill tree.`,
           );
@@ -624,87 +1301,203 @@ export async function saveSkill(input: SkillDraft): Promise<SkillAggregate> {
 
       extensions.push({
         extensionType,
-        schemaVersion: SPELL_SCHEMA_VERSION,
-        dataJson: JSON.stringify(document),
+
+        schemaVersion:
+          SPELL_SCHEMA_VERSION,
+
+        dataJson:
+          JSON.stringify(
+            document,
+          ),
       });
+
       continue;
     }
 
     let dataJson: string;
+
     try {
-      dataJson = JSON.stringify(extension.data);
+      dataJson =
+        JSON.stringify(
+          extension.data,
+        );
     } catch {
-      throw new Error(`The ${extensionType} extension cannot be serialized.`);
+      throw new Error(
+        `The ${extensionType} extension cannot be serialized.`,
+      );
     }
 
     extensions.push({
       extensionType,
-      schemaVersion: extension.schemaVersion,
+
+      schemaVersion:
+        extension.schemaVersion,
+
       dataJson,
     });
   }
 
-  const savedId = await db.transaction(async (tx) => {
-    let id = input.id;
+  const savedId =
+    await db.transaction(
+      async (tx) => {
+        let id = input.id;
 
-    if (id === undefined) {
-      const [created] = await tx
-        .insert(skill)
-        .values({
-          ...core,
-          createdByUserId: session.user.id,
-        })
-        .returning({ id: skill.id });
-      id = created.id;
-    } else {
-      const updated = await tx
-        .update(skill)
-        .set({
-          ...core,
-          updatedAt: new Date(),
-        })
-        .where(eq(skill.id, id))
-        .returning({ id: skill.id });
+        if (
+          id === undefined
+        ) {
+          const [created] =
+            await tx
+              .insert(skill)
+              .values({
+                ...core,
 
-      if (updated.length === 0) throw new Error("That Skill no longer exists.");
-    }
+                createdByUserId:
+                  session.user.id,
+              })
+              .returning({
+                id: skill.id,
+              });
 
-    await tx.delete(skillRelationship).where(eq(skillRelationship.skillId, id));
-    await tx.delete(skillExtension).where(eq(skillExtension.skillId, id));
+          id = created.id;
+        } else {
+          const updated =
+            await tx
+              .update(skill)
+              .set({
+                ...core,
 
-    if (relationships.length > 0) {
-      await tx.insert(skillRelationship).values(
-        relationships.map((relationship) => ({
-          skillId: id!,
-          relatedSkillId: relationship.relatedSkillId,
-          relationshipType: relationship.relationshipType,
-          sortOrder: relationship.sortOrder,
-        })),
-      );
-    }
+                updatedAt:
+                  new Date(),
+              })
+              .where(
+                eq(
+                  skill.id,
+                  id,
+                ),
+              )
+              .returning({
+                id: skill.id,
+              });
 
-    if (extensions.length > 0) {
-      await tx.insert(skillExtension).values(
-        extensions.map((extension) => ({
-          skillId: id!,
-          extensionType: extension.extensionType,
-          schemaVersion: extension.schemaVersion,
-          dataJson: extension.dataJson,
-        })),
-      );
-    }
+          if (
+            updated.length === 0
+          ) {
+            throw new Error(
+              "That Skill no longer exists.",
+            );
+          }
+        }
 
-    return id;
-  });
+        await tx
+          .delete(
+            skillRelationship,
+          )
+          .where(
+            eq(
+              skillRelationship.skillId,
+              id,
+            ),
+          );
 
-  revalidatePath("/heavens/skills");
-  const saved = await getSkill(savedId);
-  if (!saved) throw new Error("The saved Skill could not be reloaded.");
+        await tx
+          .delete(
+            skillExtension,
+          )
+          .where(
+            eq(
+              skillExtension.skillId,
+              id,
+            ),
+          );
+
+        if (
+          relationships.length >
+          0
+        ) {
+          await tx
+            .insert(
+              skillRelationship,
+            )
+            .values(
+              relationships.map(
+                (
+                  relationship,
+                ) => ({
+                  skillId: id!,
+
+                  relatedSkillId:
+                    relationship.relatedSkillId,
+
+                  relationshipType:
+                    relationship.relationshipType,
+
+                  sortOrder:
+                    relationship.sortOrder,
+                }),
+              ),
+            );
+        }
+
+        if (
+          extensions.length > 0
+        ) {
+          await tx
+            .insert(
+              skillExtension,
+            )
+            .values(
+              extensions.map(
+                (extension) => ({
+                  skillId: id!,
+
+                  extensionType:
+                    extension.extensionType,
+
+                  schemaVersion:
+                    extension.schemaVersion,
+
+                  dataJson:
+                    extension.dataJson,
+                }),
+              ),
+            );
+        }
+
+        return id;
+      },
+    );
+
+  revalidatePath(
+    "/heavens/skills",
+  );
+
+  const saved =
+    await getSkill(savedId);
+
+  if (!saved) {
+    throw new Error(
+      "The saved Skill could not be reloaded.",
+    );
+  }
+
   return saved;
 }
 
-export async function deleteSkill(id: number): Promise<void> {
+export async function deleteSkill(
+  id: number,
+): Promise<void> {
   await requireGod();
-  await db.delete(skill).where(eq(skill.id, id));
-  revalidatePath("/heavens/skills");
+
+  await db
+    .delete(skill)
+    .where(
+      eq(
+        skill.id,
+        id,
+      ),
+    );
+
+  revalidatePath(
+    "/heavens/skills",
+  );
 }
