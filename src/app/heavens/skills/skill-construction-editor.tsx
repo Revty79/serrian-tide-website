@@ -5,11 +5,8 @@ import { useState } from "react";
 import type { SpellDocument, Tradition } from "@/features/spell-construction/models/spell";
 import { createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
 
-import {
-  SPELL_CONSTRUCTION_EXTENSION,
-  type SkillDraft,
-  type SpellFrameworkSkill,
-} from "./actions";
+import type { SkillDraft, SpellFrameworkSkill } from "./actions";
+import { SPELL_CONSTRUCTION_EXTENSION } from "./constants";
 import { SpellConstructionEditor } from "./spell-construction-editor";
 
 export function SkillConstructionEditor({
