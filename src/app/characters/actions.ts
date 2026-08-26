@@ -5,7 +5,6 @@ import {
   asc,
   eq,
   inArray,
-  isNull,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -24,6 +23,7 @@ import {
   raceMovementMode,
   raceSkillLink,
 } from "@/db/race-schema";
+import { creature } from "@/db/creature-schema";
 import {
   campaignAllowedRace,
   campaignCharacter,
@@ -297,15 +297,14 @@ export async function listCharactersForCampaign(
       creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
       isNpc: campaignCharacter.isNpc,
       npcKind: campaignCharacter.npcKind,
-      creatureTemplateName: creatureNameForNpc.name,
+      creatureTemplateName: creature.canonicalName,
     })
     .from(campaignCharacter)
     .leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id))
     .leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
     .leftJoin(
-      // This alias-free projection is replaced below by a subquery-compatible import alias.
-      creatureNameForNpc,
-      eq(creatureNameForNpc.id, campaignCreatureNpcProfile.creatureId),
+      creature,
+      eq(creature.id, campaignCreatureNpcProfile.creatureId),
     )
     .where(and(...conditions))
     .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));
@@ -318,10 +317,6 @@ export async function listCharactersForCampaign(
     npcKind: row.npcKind === "creature" ? "creature" : "race",
   }));
 }
-
-/* Drizzle needs the Creature table for the NPC display-name join. Kept below the
- * exported list function so the character engine remains readable. */
-import { creature as creatureNameForNpc } from "@/db/creature-schema";
 
 export async function createCharacter(
   campaignId: number,

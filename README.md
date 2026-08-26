@@ -45,7 +45,7 @@ Player Character records remain ownership-protected server-side. Completing Char
 
 ## Database Setup
 
-The application reads its PostgreSQL connection from `DATABASE_URL`. Local development uses `.env.local`; environment files and credentials must never be committed.
+The application reads its PostgreSQL connection and authentication settings from environment variables. Copy `.env.example` to `.env.local`, then set `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`. For local development, `BETTER_AUTH_URL` is normally `http://localhost:3000`. Environment files and credentials must never be committed.
 
 Schema files are registered in `drizzle.config.ts`. After schema changes, generate and review a migration before applying it:
 

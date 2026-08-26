@@ -12,8 +12,6 @@ import {
   CHARACTER_ATTRIBUTE_LABELS,
   type CharacterAggregate,
   type CharacterDraft,
-  type CharacterSkillAllocationDraft,
-  type CharacterSkillReference,
 } from "@/features/characters/models";
 import {
   characterAggregateToDraft,

@@ -268,6 +268,7 @@ export function SkillsWorkspace({
           </section>
         ) : (
           <SkillEditor
+            key={draft?.id ?? "new-skill"}
             draft={draft}
             filterOptions={filterOptions}
             saving={saving}

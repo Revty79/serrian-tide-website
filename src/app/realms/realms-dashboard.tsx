@@ -33,18 +33,22 @@ export function RealmsDashboard({
 
   useEffect(() => {
     let active = true;
-    setCharacterId("");
-    setCharacters([]);
-    setFeedback("");
-    setRandomChoiceOpen(false);
     if (!campaignId) return () => { active = false; };
-    setLoadingCharacters(true);
     listCharactersForCampaign(Number(campaignId))
       .then((rows) => { if (active) setCharacters(rows); })
       .catch((error) => { if (active) setFeedback(error instanceof Error ? error.message : "Characters could not be loaded."); })
       .finally(() => { if (active) setLoadingCharacters(false); });
     return () => { active = false; };
   }, [campaignId]);
+
+  function changeCampaign(nextCampaignId: string) {
+    setCampaignId(nextCampaignId);
+    setCharacterId("");
+    setCharacters([]);
+    setFeedback("");
+    setRandomChoiceOpen(false);
+    setLoadingCharacters(Boolean(nextCampaignId));
+  }
 
   async function createNewCharacter() {
     if (!campaignId) return;
@@ -130,7 +134,7 @@ export function RealmsDashboard({
             <span>Select the Campaign and Character whose story you want to continue.</span>
           </div>
           <div className="realms-control-grid">
-            <label><span>Campaign</span><select value={campaignId} onChange={(event) => setCampaignId(event.target.value)}><option value="">{initialCampaigns.length ? "No Campaign Selected" : "No Campaign Memberships"}</option>{initialCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
+            <label><span>Campaign</span><select value={campaignId} onChange={(event) => changeCampaign(event.target.value)}><option value="">{initialCampaigns.length ? "No Campaign Selected" : "No Campaign Memberships"}</option>{initialCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
             <label><span>Character</span><select value={characterId} disabled={!campaignId || loadingCharacters} onChange={(event) => { setCharacterId(event.target.value); setRandomChoiceOpen(false); }}><option value="">{!campaignId ? "Select a Campaign First" : loadingCharacters ? "Reading Characters…" : "No Character Selected"}</option>{characters.map((character) => <option key={character.id} value={character.id}>{character.name}{character.creationCompletedAt ? "" : " · Creation Incomplete"}</option>)}</select></label>
           </div>
           <div className="realms-character-create">
@@ -168,7 +172,7 @@ export function RealmsDashboard({
           <section role="dialog" aria-modal="true" aria-labelledby="random-character-title">
             <p>RANDOM CHARACTER</p>
             <h2 id="random-character-title" className="font-portcullion">How should {selectedCharacter.name} be created?</h2>
-            <span>Both paths overwrite this unfinished Character's creation draft and leave the permanent completion lock untouched so you can review the result.</span>
+            <span>Both paths overwrite this unfinished Character&apos;s creation draft and leave the permanent completion lock untouched so you can review the result.</span>
             <div className="realms-random-modal__choices">
               <button type="button" onClick={() => router.push(`/realms/characters/${selectedCharacter.id}/random/guided`)}>
                 <strong>Guided Random</strong>

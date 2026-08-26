@@ -121,7 +121,7 @@ export function calculateCreatureChallengeRating(
     [
       ...creature.abilities.map((ability) => CREATURE_CR_IMPACT_POINTS[ability.crImpact]),
       ...creature.defenses.map((defense) => CREATURE_CR_IMPACT_POINTS[defense.crImpact]),
-    ].reduce((sum, value) => sum + value, 0),
+    ].reduce<number>((sum, value) => sum + value, 0),
   );
   const calculatedRating = clampRating(mechanicalBaseline + mobilityBonus + specialImpact);
   const adjustment = Math.min(49, Math.max(-49, Math.trunc(creature.core.challengeRatingAdjustment)));

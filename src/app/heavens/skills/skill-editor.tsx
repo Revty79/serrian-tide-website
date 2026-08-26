@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
 
@@ -104,11 +104,6 @@ export function SkillEditor({
 }: SkillEditorProps) {
   const [activeTab, setActiveTab] = useState<SkillEditorTab>("core");
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useEffect(() => {
-    setActiveTab("core");
-    setConfirmDelete(false);
-  }, [draft?.id]);
 
   if (!draft) {
     return (

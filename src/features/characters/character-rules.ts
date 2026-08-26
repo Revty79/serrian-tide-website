@@ -460,13 +460,31 @@ export function characterAggregateToDraft(
     ]),
   ) as Record<CharacterAttributeKey, number>;
 
-  const {
-    characterId: _characterId,
-    creationCompletedAt: _complete,
-    createdAt: _created,
-    updatedAt: _updated,
-    ...profile
-  } = aggregate.profile;
+  const profile: CharacterDraft["profile"] = {
+    raceId: aggregate.profile.raceId,
+    age: aggregate.profile.age,
+    sex: aggregate.profile.sex,
+    heightFeet: aggregate.profile.heightFeet,
+    heightInches: aggregate.profile.heightInches,
+    weight: aggregate.profile.weight,
+    skinColor: aggregate.profile.skinColor,
+    eyeColor: aggregate.profile.eyeColor,
+    hairColor: aggregate.profile.hairColor,
+    deity: aggregate.profile.deity,
+    definingMarks: aggregate.profile.definingMarks,
+    personality: aggregate.profile.personality,
+    goals: aggregate.profile.goals,
+    secrets: aggregate.profile.secrets,
+    backstory: aggregate.profile.backstory,
+    motivations: aggregate.profile.motivations,
+    fame: aggregate.profile.fame,
+    experience: aggregate.profile.experience,
+    totalExperience: aggregate.profile.totalExperience,
+    quintessence: aggregate.profile.quintessence,
+    totalQuintessence: aggregate.profile.totalQuintessence,
+    fatePoints: aggregate.profile.fatePoints,
+    creditsRemaining: aggregate.profile.creditsRemaining,
+  };
 
   return {
     name: aggregate.character.name,

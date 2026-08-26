@@ -39,12 +39,16 @@ export function SkillPathEditor({
 
   useEffect(() => {
     let current = true;
-    setSelectedCandidateId("");
-    setCandidates([]);
-    setLoading(true);
 
     const timeout = window.setTimeout(() => {
-      findCandidates(search, context, skillId)
+      setSelectedCandidateId("");
+      setCandidates([]);
+      setLoading(true);
+      findCandidates(search, {
+        tier: context.tier,
+        primaryAttribute: context.primaryAttribute,
+        secondaryAttribute: context.secondaryAttribute,
+      }, skillId)
         .then((next) => {
           if (current) setCandidates(next);
         })

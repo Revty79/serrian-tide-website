@@ -34,18 +34,22 @@ export function HeavensCampaignControl({
 
   useEffect(() => {
     let active = true;
-    setMembers(EMPTY_MEMBERS);
-    setPlayerId("");
-    setCharacterId("");
-    setFeedback("");
     if (!campaignId) return () => { active = false; };
-    setLoading(true);
     getCampaignMembers(Number(campaignId))
       .then((data) => { if (active) setMembers(data); })
       .catch((error) => { if (active) setFeedback(error instanceof Error ? error.message : "Campaign context could not be loaded."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [campaignId]);
+
+  function changeCampaign(nextCampaignId: string) {
+    setCampaignId(nextCampaignId);
+    setMembers(EMPTY_MEMBERS);
+    setPlayerId("");
+    setCharacterId("");
+    setFeedback("");
+    setLoading(Boolean(nextCampaignId));
+  }
 
   const playerCharacters = members.characters.filter((character) => character.playerUserId === playerId);
 
@@ -67,7 +71,7 @@ export function HeavensCampaignControl({
       <ControlRow label="Campaign">
         <select
           value={campaignId}
-          onChange={(event) => setCampaignId(event.target.value)}
+          onChange={(event) => changeCampaign(event.target.value)}
           className="h-11 w-full rounded-xl border border-white/15 bg-black/50 px-4 text-sm text-slate-300 outline-none backdrop-blur-sm"
         >
           <option value="">{campaigns.length ? "No Campaign Selected" : "No Campaigns Yet"}</option>

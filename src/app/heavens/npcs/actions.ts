@@ -14,7 +14,11 @@ import {
   campaignCreatureNpcProfile,
   campaignInventoryItem,
 } from "@/db/realm-schema";
-import { getCreature, type CreatureDraft } from "@/app/heavens/creatures/actions";
+import {
+  getCreature,
+  type CreatureAggregate,
+  type CreatureDraft,
+} from "@/app/heavens/creatures/actions";
 import { CHARACTER_ATTRIBUTE_KEYS } from "@/features/characters/models";
 import { requireGod } from "@/lib/server-access";
 
@@ -53,7 +57,7 @@ async function requireOwner(campaignId: number) {
   return session;
 }
 
-function snapshotFromAggregate(aggregate: Awaited<ReturnType<typeof getCreature>>): CreatureDraft {
+function snapshotFromAggregate(aggregate: CreatureAggregate): CreatureDraft {
   return {
     id: aggregate.id,
     core: { ...aggregate.core },

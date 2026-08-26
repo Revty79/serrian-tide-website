@@ -416,7 +416,17 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
     await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
 
     if (normalized.properties.length) {
-      await tx.insert(itemProperty).values(normalized.properties.map(({ relationKind: _relationKind, relatedItemName: _relatedItemName, relatedCreatureName: _relatedCreatureName, ...property }) => ({ itemId: id!, ...property })));
+      await tx.insert(itemProperty).values(normalized.properties.map((property) => ({
+        itemId: id!,
+        propertyName: property.propertyName,
+        value: property.value,
+        unit: property.unit,
+        quantity: property.quantity,
+        relatedItemId: property.relatedItemId,
+        relatedCreatureCanonicalId: property.relatedCreatureCanonicalId,
+        notes: property.notes,
+        sortOrder: property.sortOrder,
+      })));
     }
     if (normalized.weapon) {
       await tx.insert(weaponProfile).values({

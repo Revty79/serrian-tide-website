@@ -4,14 +4,8 @@ import { calculateSpell } from "@/features/spell-construction/engine/calculateSp
 import { validateSpell } from "@/features/spell-construction/engine/validateSpell";
 import type { SpellDocument } from "@/features/spell-construction/models/spell";
 
-import type {
-  SkillDraft,
-} from "./actions";
-
-import {
-  SPELL_CONSTRUCTION_EXTENSION,
-  type SkillDraft,
-} from "./actions";
+import type { SkillDraft } from "./actions";
+import { SPELL_CONSTRUCTION_EXTENSION } from "./constants";
 
 const MAGIC_CLASSIFICATIONS = new Set([
   "spell",

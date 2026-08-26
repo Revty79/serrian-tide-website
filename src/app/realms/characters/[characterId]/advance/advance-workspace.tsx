@@ -42,7 +42,6 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
     [draft, aggregate],
   );
   const allocations = new Map(aggregate.skillAllocations.map((entry) => [entry.id, entry]));
-  const skills = new Map(aggregate.skillCatalog.map((entry) => [entry.id, entry]));
   const selectedParent = parentAllocationId ? allocations.get(Number(parentAllocationId)) ?? null : null;
 
   const advancementCandidates = aggregate.skillCatalog.filter((candidate) => {
@@ -134,7 +133,6 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
           </div>
 
           <div className="advance-skill-list">{aggregate.skillAllocations.map((allocation) => {
-            const meta = skills.get(allocation.skillId);
             const parent = allocation.parentAllocationId === null ? null : allocations.get(allocation.parentAllocationId) ?? null;
             const racial = getRacialSkillGrant(aggregate.selectedRace, allocation.skillId);
             return <article key={allocation.id}><div><p>{parent ? `${parent.skillName} → ` : ""}{allocation.skillClassification}{allocation.skillTier ? ` · Tier ${allocation.skillTier}` : ""}</p><h3>{allocation.skillName}</h3><span>Purchased {allocation.points} · Racial +{racial.minimum} · Effective {getEffectiveSkillPoints(allocation.points, aggregate.selectedRace, allocation.skillId)}</span></div><div><span>Rank</span><strong>{ranks.get(allocation.id) ?? 0}</strong></div><button type="button" disabled={busy || aggregate.profile.experience < 1} onClick={() => void addExperiencePoint(allocation.skillId, allocation.parentAllocationId)}>+1 · 1 XP</button></article>;

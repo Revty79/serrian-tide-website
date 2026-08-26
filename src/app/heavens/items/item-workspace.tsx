@@ -262,7 +262,7 @@ export function ItemWorkspace({
           {activeTab === "weapon" && scope === "equipment" ? <Weapon draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "variants" ? <Variants draft={draft} onChange={change} onOpen={(summary) => void openItem({ ...summary, equipmentGroup: null, recordType: "", family: "", category: "", tags: [], hasWeaponProfile: false, hasArmorProfile: false })} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
+          {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem({ ...summary, equipmentGroup: null, recordType: "", family: "", category: "", tags: [], hasWeaponProfile: false, hasArmorProfile: false })} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
           {activeTab === "preview" ? <Preview draft={draft} /> : null}
         </div>
       </section> : <section className="skill-editor skill-editor--empty"><p>{label.toUpperCase()} EDITOR</p><h2>Select a record or begin a new one.</h2><span>The shared Item engine powers both authoring libraries.</span></section>}
@@ -382,7 +382,7 @@ function Tags({ draft, references, onChange }: { draft: ItemDraft; references: I
   return <div className="item-section"><div className="skill-editor__intro"><p>Tags are shared canonical metadata used for searching and campaign authorization.</p></div>{groups.length ? groups.map(([group, tags]) => <section className="item-tag-group" key={group}><h3>{group || "General"}</h3><div>{tags.map((tag) => <label key={tag.name} className={draft.tags.includes(tag.name) ? "is-selected" : ""} title={tag.description}><input type="checkbox" checked={draft.tags.includes(tag.name)} onChange={(e) => onChange({ ...draft, tags: e.target.checked ? [...draft.tags, tag.name] : draft.tags.filter((name) => name !== tag.name) })} /><strong>{tag.name}</strong><span>{tag.description}</span></label>)}</div></section>) : <p className="skill-library__empty">Tag references will appear after the canon import.</p>}</div>;
 }
 
-function Variants({ draft, onChange: _onChange, onOpen, onSaved }: { draft: ItemDraft; onChange: (draft: ItemDraft) => void; onOpen: (summary: ItemDraft["variants"][number]) => void; onSaved: (saved: ItemDraft) => void }) {
+function Variants({ draft, onOpen, onSaved }: { draft: ItemDraft; onOpen: (summary: ItemDraft["variants"][number]) => void; onSaved: (saved: ItemDraft) => void }) {
   const [variantName, setVariantName] = useState("");
   const [cloning, setCloning] = useState(false);
   async function clone() {

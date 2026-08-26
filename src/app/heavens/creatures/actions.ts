@@ -450,7 +450,13 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     },
     attributes,
     movement,
-    hpPools: pools.map(({ id: _id, ...pool }) => pool),
+    hpPools: pools.map(({ canonicalId, poolName, hpPercentage, notes, sortOrder }) => ({
+      canonicalId,
+      poolName,
+      hpPercentage,
+      notes,
+      sortOrder,
+    })),
     hitLocations: locations.map(({ hpPoolId, ...location }) => ({ ...location, hpPoolCanonicalId: hpPoolId ? poolIdToCanonical.get(hpPoolId) ?? null : null })),
     attacks,
     skillLinks: links,
@@ -517,7 +523,14 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
       const skillIds = [...new Set(normalized.skillLinks.map(({ skillId }) => skillId))];
       const existing = await tx.select({ id: skill.id }).from(skill).where(inArray(skill.id, skillIds));
       if (existing.length !== skillIds.length) throw new Error("One or more linked Skills no longer exist.");
-      await tx.insert(creatureSkillLink).values(normalized.skillLinks.map(({ skillName: _skillName, skillClassification: _skillClassification, ...row }) => ({ creatureId: id!, variantId: null, ...row })));
+      await tx.insert(creatureSkillLink).values(normalized.skillLinks.map(({ skillId, rank, notes, sortOrder }) => ({
+        creatureId: id!,
+        variantId: null,
+        skillId,
+        rank,
+        notes,
+        sortOrder,
+      })));
     }
     if (normalized.abilities.length) await tx.insert(creatureAbility).values(normalized.abilities.map((row) => ({ creatureId: id!, variantId: null, ...row })));
     if (normalized.defenses.length) await tx.insert(creatureDefense).values(normalized.defenses.map((row) => ({ creatureId: id!, variantId: null, ...row })));

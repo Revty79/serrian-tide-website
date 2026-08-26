@@ -42,8 +42,11 @@ export function SpellConstructionEditor({
   onChange: (document: SpellDocument) => void;
   findFrameworkSkills: (tradition: Tradition) => Promise<SpellFrameworkSkill[]>;
 }) {
-  const [frameworkOptions, setFrameworkOptions] = useState<SpellFrameworkSkill[]>([]);
-  const [frameworkState, setFrameworkState] = useState<"loading" | "ready" | "error">("loading");
+  const [frameworkResult, setFrameworkResult] = useState<{
+    tradition: Tradition | null;
+    options: SpellFrameworkSkill[];
+    state: "ready" | "error";
+  }>({ tradition: null, options: [], state: "ready" });
   const [rawCircumstance, setRawCircumstance] =
     useState<RawCastingCircumstanceId>("have-spell");
 
@@ -78,6 +81,9 @@ export function SpellConstructionEditor({
     [practitioner, rawCircumstance],
   );
 
+  const frameworkIsCurrent = frameworkResult.tradition === document.tradition;
+  const frameworkOptions = frameworkIsCurrent ? frameworkResult.options : [];
+  const frameworkState = frameworkIsCurrent ? frameworkResult.state : "loading";
   const identity = SPELL_IDENTITY_BY_TRADITION[document.tradition];
   const frameworkName = document[identity.field];
   const selectedFrameworkAvailable = frameworkOptions.some(
@@ -87,18 +93,15 @@ export function SpellConstructionEditor({
 
   useEffect(() => {
     let active = true;
-    setFrameworkState("loading");
 
     findFrameworkSkills(document.tradition)
       .then((options) => {
         if (!active) return;
-        setFrameworkOptions(options);
-        setFrameworkState("ready");
+        setFrameworkResult({ tradition: document.tradition, options, state: "ready" });
       })
       .catch(() => {
         if (!active) return;
-        setFrameworkOptions([]);
-        setFrameworkState("error");
+        setFrameworkResult({ tradition: document.tradition, options: [], state: "error" });
       });
 
     return () => {

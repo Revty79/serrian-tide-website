@@ -30,7 +30,7 @@ export function NpcWorkspace({ campaigns }: { campaigns: CampaignAdminSummary[] 
   const [campaignId, setCampaignId] = useState(initialCampaign);
   const [members, setMembers] = useState<CampaignMemberData>(EMPTY_MEMBERS);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(initialCampaign));
   const [creating, setCreating] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [creatureCreator, setCreatureCreator] = useState(false);
@@ -46,9 +46,27 @@ export function NpcWorkspace({ campaigns }: { campaigns: CampaignAdminSummary[] 
   }
 
   useEffect(() => {
-    if (!campaignId) { setMembers(EMPTY_MEMBERS); return; }
-    void refresh(Number(campaignId));
+    if (!campaignId) return;
+    let active = true;
+    getCampaignMembers(Number(campaignId))
+      .then((data) => { if (active) setMembers(data); })
+      .catch((error) => {
+        if (active) {
+          setFeedback({ kind: "error", message: error instanceof Error ? error.message : "NPC archive could not be loaded." });
+        }
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [campaignId]);
+
+  function changeCampaign(nextCampaignId: string) {
+    setCampaignId(nextCampaignId);
+    setMembers(EMPTY_MEMBERS);
+    setCreatureCreator(false);
+    setSelectedCreatureId("");
+    setFeedback(null);
+    setLoading(Boolean(nextCampaignId));
+  }
 
   useEffect(() => {
     if (!creatureCreator) return;
@@ -93,7 +111,7 @@ export function NpcWorkspace({ campaigns }: { campaigns: CampaignAdminSummary[] 
   return <main className="npcs-page">
     <header className="npcs-header"><Link href="/heavens" className="font-evanescent npcs-logo">SERRIAN<br />TIDE</Link><div><p>THE HEAVENS / NPCS</p><h1 className="font-portcullion">NPC Master Sheet</h1><span>Create, find, and open every non-player Character from one Campaign archive.</span></div><nav><Link href="/heavens">← The Heavens</Link></nav></header>
     {feedback ? <p className={`npcs-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-    <section className="npcs-control"><div><p>CAMPAIGN CONTEXT</p><h2 className="font-portcullion">Choose the NPC archive</h2></div><label><span>Campaign</span><select value={campaignId} onChange={(event) => { setCampaignId(event.target.value); setCreatureCreator(false); }}><option value="">No Campaign Selected</option>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><div><button type="button" disabled={!campaignId || creating} onClick={() => void createRace()}>{creating ? "Creating…" : "Create Race NPC"}</button><button type="button" disabled={!campaignId || creating} onClick={() => setCreatureCreator(true)}>Create Creature NPC</button></div></section>
+    <section className="npcs-control"><div><p>CAMPAIGN CONTEXT</p><h2 className="font-portcullion">Choose the NPC archive</h2></div><label><span>Campaign</span><select value={campaignId} onChange={(event) => changeCampaign(event.target.value)}><option value="">No Campaign Selected</option>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><div><button type="button" disabled={!campaignId || creating} onClick={() => void createRace()}>{creating ? "Creating…" : "Create Race NPC"}</button><button type="button" disabled={!campaignId || creating} onClick={() => setCreatureCreator(true)}>Create Creature NPC</button></div></section>
 
     {creatureCreator ? <section className="npcs-creature-creator"><header><div><p>SECOND NPC CREATION PATH</p><h2 className="font-portcullion">Create from Master Creature</h2><span>The individual begins as a snapshot. The master Creature remains unchanged.</span></div><button type="button" onClick={() => setCreatureCreator(false)}>Close</button></header><input type="search" placeholder="Search master Creatures" value={creatureSearch} onChange={(event) => setCreatureSearch(event.target.value)} /><div className="npcs-creature-grid">{creatures.map((creature) => <button type="button" key={creature.id} className={selectedCreatureId === String(creature.id) ? "is-selected" : ""} onClick={() => setSelectedCreatureId(String(creature.id))}><strong>{creature.canonicalName}</strong><span>{creature.canonicalId} · {creature.creatureType || creature.family || "Creature"}</span><small>{creature.size} · CR {creature.challengeRating ?? "?"}</small></button>)}</div><footer><span>{selectedCreatureId ? `${creatures.find((entry) => String(entry.id) === selectedCreatureId)?.canonicalName ?? "Creature"} selected` : "Choose a master Creature."}</span><button type="button" disabled={!selectedCreatureId || creating} onClick={() => void createCreature()}>{creating ? "Creating…" : "Create Individual NPC"}</button></footer></section> : null}
 
