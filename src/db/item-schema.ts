@@ -55,7 +55,9 @@ export const item = pgTable(
   },
   (table) => [
     uniqueIndex("items_canonical_id_uq").on(table.canonicalId),
-    uniqueIndex("items_source_external_id_uq").on(table.sourceExternalId).where(sql`${table.sourceExternalId} IS NOT NULL`),
+    uniqueIndex("items_source_identity_uq")
+      .on(table.sourceSystem, table.sourceExternalId)
+      .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),
     index("items_name_idx").on(table.name),
     index("items_catalog_scope_idx").on(table.catalogScope),
     index("items_equipment_group_idx").on(table.equipmentGroup),
