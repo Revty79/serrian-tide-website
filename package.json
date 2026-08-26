@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "db:import:canon": "node scripts/import-ststandalone-canon.mjs"
+    "db:import:canon": "node scripts/import-ststandalone-skills.mjs && node scripts/import-ststandalone-canon.mjs"
   },
   "dependencies": {
     "better-auth": "^1.7.1",
