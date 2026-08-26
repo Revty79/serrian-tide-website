@@ -12,6 +12,8 @@ export default defineConfig({
   schema: [
     "./src/db/auth-schema.ts",
     "./src/db/authorization-schema.ts",
+    "./src/db/campaign-schema.ts",
+
   ],
   out: "./drizzle",
   dialect: "postgresql",
