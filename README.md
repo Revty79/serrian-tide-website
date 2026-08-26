@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Serrian Tide Website
 
-## Getting Started
+The web edition of **Serrian Tide**, converted from the STSTandAlone desktop application into a shared Next.js/PostgreSQL application.
 
-First, run the development server:
+The conversion keeps STSTandAlone as the mechanical reference while using the visual language established by this website and StFinal.
+
+## Application Areas
+
+### The Heavens — G.O.D. tools
+
+- Campaign Control and Campaign authoring
+- Races
+- Skills
+- Equipment
+- Inventory
+- Creatures and Challenge Rating
+- Race NPCs
+- Creature NPC individuals
+- G.O.D. Character editing
+
+Shared system libraries are global Serrian Tide content. `createdByUserId` on shared library records is audit information, not private ownership.
+
+Campaigns are private creator-owned records. Only the Campaign creator may administratively mutate the Campaign or its Player/Character context.
+
+### The Realms — Player tools
+
+- Campaign and Character dashboard
+- Character creation and Character sheet
+- Guided Random Character
+- Completely Random Character
+- Character advancement
+- Experience and Quintessence spending
+- Spellbook
+- Magic Calculator / Spell Construction
+
+Player Character records remain ownership-protected server-side. Completing Character creation permanently locks the creation record for ordinary Player editing; later progression happens through advancement systems.
+
+## Technology
+
+- Next.js 16 / React 19 / TypeScript
+- PostgreSQL
+- Drizzle ORM / Drizzle Kit
+- Better Auth
+- Tailwind CSS 4 plus feature-specific styles
+
+## Database Setup
+
+The application reads its PostgreSQL connection from `DATABASE_URL`. Local development uses `.env.local`; environment files and credentials must never be committed.
+
+Schema files are registered in `drizzle.config.ts`. After schema changes, generate and review a migration before applying it:
+
+```bash
+npx drizzle-kit generate
+npx drizzle-kit migrate
+```
+
+Do not run the canonical-data importer before the required schema migration has been applied.
+
+## STSTandAlone Canon Import
+
+The website includes an idempotent importer for the checked-in canonical STSTandAlone data:
+
+```bash
+npm run db:import:canon
+```
+
+By default it reads the canonical seed JSON files from the public STSTandAlone repository. For an offline/local import, set `STSTANDALONE_DATA_DIR` to the old repository's `data` directory before running the command.
+
+The importer validates the source manifests and imports the canonical shared libraries while preserving G.O.D.-created records. The expected archive currently contains:
+
+- 56 Races and 283 Race-to-Skill links
+- 87 Creatures and all 50 Challenge Rating references
+- 1,007 Items: 494 Equipment and 513 Inventory records
+
+Skills must already be present because Race and Creature records resolve their canonical Skill relationships during import.
+
+## Validation
+
+Run these checks after pulling conversion work or before deployment:
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+```
+
+A GitHub validation workflow also runs TypeScript and ESLint checks when GitHub Actions is enabled for the repository.
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The local site is normally available at `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production Order
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+A production installation should be brought online in this order:
 
-## Learn More
+1. Provision PostgreSQL and application environment variables.
+2. Install dependencies.
+3. Apply reviewed Drizzle migrations.
+4. Import the canonical STSTandAlone shared libraries.
+5. Run TypeScript, lint, and production build validation.
+6. Start the Next.js production server behind the chosen HTTPS/reverse-proxy setup.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production secrets, Better Auth secrets, database credentials, and session data must remain outside the repository.
