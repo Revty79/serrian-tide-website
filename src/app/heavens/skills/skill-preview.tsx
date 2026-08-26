@@ -10,7 +10,8 @@ import type {
 
 import {
   SPELL_CONSTRUCTION_EXTENSION,
-} from "./constants";
+  type SkillDraft,
+} from "./actions";
 
 const MAGIC_CLASSIFICATIONS = new Set([
   "spell",
