@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { createCharacter } from "@/app/characters/actions";
+import { createCharacterForPlayer } from "@/app/characters/actions";
 import {
   getCampaignMembers,
   type CampaignAdminSummary,
@@ -75,7 +75,7 @@ export function HeavensCampaignControl({
     setCreating(true);
     setFeedback("");
     try {
-      const aggregate = await createCharacter(Number(campaignId), playerId);
+      const aggregate = await createCharacterForPlayer(Number(campaignId), playerId);
       const refreshedMembers = await getCampaignMembers(Number(campaignId));
       setMembers(refreshedMembers);
       setCharacterId(String(aggregate.character.id));

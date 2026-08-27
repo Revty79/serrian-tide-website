@@ -55,11 +55,25 @@ test("Heavens owns inline Add Player and links separately to Campaign Settings",
 
 test("Heavens creates and selects a Character in place, leaving Edit as the explicit navigation", () => {
   const source = readSource("src/app/heavens/heavens-campaign-control.tsx");
-  assert.match(source, /const aggregate = await createCharacter/);
+  assert.match(source, /const aggregate = await createCharacterForPlayer/);
   assert.match(source, /await getCampaignMembers/);
   assert.match(source, /setCharacterId\(String\(aggregate\.character\.id\)\)/);
   assert.match(source, />Edit Character<\/Link>/);
   assert.equal(source.includes("router.push"), false);
+});
+
+test("Realms opens the selected assigned Character and cannot create or self-assign one", () => {
+  const dashboardSource = readSource("src/app/realms/realms-dashboard.tsx");
+  const actionSource = readSource("src/app/characters/actions.ts");
+
+  assert.match(dashboardSource, /router\.push\(`\/realms\/characters\/\$\{selectedCharacter\.id\}`\)/);
+  assert.match(dashboardSource, />Open Character Editor<\/button>/);
+  assert.equal(dashboardSource.includes("Create New Character"), false);
+  assert.equal(dashboardSource.includes("createCharacter"), false);
+
+  assert.match(actionSource, /export async function createCharacterForPlayer\(\s*campaignId: number,\s*playerUserId: string/);
+  assert.match(actionSource, /const session = await requireGod\(\)/);
+  assert.equal(actionSource.includes("playerUserId ?? session.user.id"), false);
 });
 
 test("successful Campaign creation redirects to the selected Heavens Campaign", () => {

@@ -325,22 +325,15 @@ export async function listCharactersForCampaign(
   }));
 }
 
-export async function createCharacter(
+export async function createCharacterForPlayer(
   campaignId: number,
-  playerUserId?: string,
+  playerUserId: string,
 ): Promise<CharacterAggregate> {
-  const session = await requireSession();
-  const targetUserId = playerUserId ?? session.user.id;
+  const session = await requireGod();
   const ownerMode = await isCampaignOwner(campaignId, session.user.id);
+  if (!ownerMode) throw new Error("Only the Campaign creator can create a Character for a Player.");
 
-  if (targetUserId !== session.user.id || ownerMode) {
-    await requireGod();
-    if (!ownerMode) throw new Error("Only the Campaign creator can create a Character for another Player.");
-  } else {
-    await requirePlayer();
-  }
-
-  if (!(await isCampaignMember(campaignId, targetUserId))) {
+  if (!(await isCampaignMember(campaignId, playerUserId))) {
     throw new Error("The selected Player must belong to this Campaign before a Character can be created.");
   }
 
@@ -352,7 +345,7 @@ export async function createCharacter(
   const characterId = await db.transaction(async (tx) => {
     const [created] = await tx.insert(campaignCharacter).values({
       campaignId,
-      playerUserId: targetUserId,
+      playerUserId,
       name: "New Character",
       isNpc: false,
       npcKind: "race",

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  createCharacter,
   listCharactersForCampaign,
   type CharacterSummary,
   type PlayerCampaignSummary,
@@ -24,7 +23,6 @@ export function RealmsDashboard({
   const [characterId, setCharacterId] = useState("");
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [loadingCharacters, setLoadingCharacters] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [randomizing, setRandomizing] = useState(false);
   const [randomChoiceOpen, setRandomChoiceOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -50,18 +48,9 @@ export function RealmsDashboard({
     setLoadingCharacters(Boolean(nextCampaignId));
   }
 
-  async function createNewCharacter() {
-    if (!campaignId) return;
-    setCreating(true);
-    setFeedback("");
-    try {
-      const aggregate = await createCharacter(Number(campaignId));
-      router.push(`/realms/characters/${aggregate.character.id}`);
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "The Character could not be created.");
-    } finally {
-      setCreating(false);
-    }
+  function openSelectedCharacter() {
+    if (!selectedCharacter) return;
+    router.push(`/realms/characters/${selectedCharacter.id}`);
   }
 
   async function createCompletelyRandomCharacter() {
@@ -139,7 +128,7 @@ export function RealmsDashboard({
           </div>
           <div className="realms-character-create">
             <div className="realms-character-create__buttons">
-              <button type="button" disabled={!campaignId || creating} onClick={() => void createNewCharacter()}>{creating ? "Creating…" : "Create New Character"}</button>
+              <button type="button" disabled={!selectedCharacter} onClick={openSelectedCharacter}>Open Character Editor</button>
               <button
                 type="button"
                 disabled={!selectedCharacter || Boolean(selectedCharacter.creationCompletedAt) || randomizing}
@@ -148,7 +137,7 @@ export function RealmsDashboard({
                 Random Character
               </button>
             </div>
-            <span>Create a fresh draft, or select an unfinished Character and let the generator build it.</span>
+            <span>Select a Character assigned to you, then open its editor or let the generator build an unfinished draft.</span>
           </div>
           {feedback ? <p className="realms-feedback">{feedback}</p> : null}
         </section>
