@@ -30,7 +30,7 @@ type Tab = "overview" | "properties" | "weapon" | "armor" | "tags" | "variants" 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "properties", label: "Properties" },
-  { id: "weapon", label: "Weapon" },
+  { id: "weapon", label: "Weapon / Ammunition" },
   { id: "armor", label: "Armor" },
   { id: "tags", label: "Tags" },
   { id: "variants", label: "Variants" },
@@ -218,7 +218,7 @@ export function ItemWorkspace({
   }
 
   const visibleTabs = TABS.filter((tab) => {
-    if (scope === "inventory" && (tab.id === "weapon" || tab.id === "armor")) return false;
+    if (scope === "inventory" && tab.id === "armor") return false;
     return true;
   });
 
@@ -259,7 +259,7 @@ export function ItemWorkspace({
         <div className="skill-editor__content item-editor__content">
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
-          {activeTab === "weapon" && scope === "equipment" ? <Weapon draft={draft} onChange={change} /> : null}
+          {activeTab === "weapon" ? <Weapon draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem({ ...summary, equipmentGroup: null, recordType: "", family: "", category: "", tags: [], hasWeaponProfile: false, hasArmorProfile: false })} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
@@ -342,10 +342,12 @@ function Weapon({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemD
     }, 180);
     return () => window.clearTimeout(timer);
   }, [ammoSearch, draft.id]);
-  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON PROFILE</p><h3>This Item is not configured as a weapon.</h3><button className="skills-primary-button" type="button" onClick={() => onChange({ ...draft, core: { ...draft.core, equipmentGroup: "weapon" }, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", damageType: "", range: "", reach: "", ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", fireModes: [], rateOfFire: "", reloadInitiative: "", rulesText: "" } })}>Add Weapon Profile</button></div>;
-  const patch = (update: Partial<NonNullable<ItemDraft["weaponProfile"]>>) => onChange({ ...draft, core: { ...draft.core, equipmentGroup: "weapon" }, weaponProfile: { ...profile, ...update } });
+  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", damageType: "", range: "", reach: "", ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", fireModes: [], rateOfFire: "", reloadInitiative: "", rulesText: "" } })}>Add Weapon / Ammunition Profile</button></div>;
+  const patch = (update: Partial<NonNullable<ItemDraft["weaponProfile"]>>) => onChange({ ...draft, weaponProfile: { ...profile, ...update } });
+  const ammunitionProfile = profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition";
   return <div className="item-section item-form-grid">
-    <div className="item-profile-banner item-field--wide"><div><p>WEAPON PROFILE</p><h3>Combat Equipment</h3></div><button className="skills-danger-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: null })}>Remove Profile</button></div>
+    <div className="item-profile-banner item-field--wide"><div><p>WEAPON / AMMUNITION PROFILE</p><h3>{ammunitionProfile ? "Ammunition Damage & Mechanics" : "Combat Equipment"}</h3></div><button className="skills-danger-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: null })}>Remove Profile</button></div>
+    <Field label="Profile Record Type"><input value={profile.profileRecordType} onChange={(e) => patch({ profileRecordType: e.target.value })} /></Field>
     <Field label="Weapon Type"><input value={profile.weaponType} onChange={(e) => patch({ weaponType: e.target.value })} /></Field><Field label="Handedness"><input value={profile.handedness} onChange={(e) => patch({ handedness: e.target.value })} /></Field>
     <Field label="Damage Source"><input value={profile.damageSource} onChange={(e) => patch({ damageSource: e.target.value })} /></Field><Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
     <Field label="Damage Type"><input value={profile.damageType} onChange={(e) => patch({ damageType: e.target.value })} /></Field><Field label="Range"><input value={profile.range} onChange={(e) => patch({ range: e.target.value })} /></Field>

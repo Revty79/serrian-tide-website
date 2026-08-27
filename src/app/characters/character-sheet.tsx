@@ -19,7 +19,10 @@ import {
   getSkillRollTarget,
   normalizeSkillAttributeKey,
 } from "@/features/characters/character-rules";
-import { getCharacterWeaponDamageSummary } from "@/features/characters/character-sheet-rules";
+import {
+  getCharacterWeaponDamage,
+  getCharacterWeaponDamageSummary,
+} from "@/features/characters/character-sheet-rules";
 import {
   getCanonicalCreditsFromHoldings,
   getStoredCampaignMoneyBreakdown,
@@ -298,11 +301,12 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
             <div className="character-sheet__table-scroll">
               <table><thead><tr><th>Weapon</th><th>Qty</th><th>%</th><th>Damage</th><th>Mod</th><th>Total</th><th>Type</th><th>Range / Reach</th><th>Dur.</th></tr></thead><tbody>
                 {weaponRows.map(({ owned, item }) => {
+                  const profile = item ? getCharacterWeaponDamage(item) : null;
                   const damage = item
                     ? getCharacterWeaponDamageSummary(item, draft.attributes)
                     : null;
                   return (
-                    <tr key={owned.itemId}><th>{item?.name ?? `Item ${owned.itemId}`}</th><td>{owned.quantity}</td><td className="character-sheet__write-in"><span /></td><td>{item?.damage || "—"}</td><td>{damage?.modifier ?? "—"}</td><td>{damage?.totalDamage ?? "—"}</td><td>{item?.damageType || "—"}</td><td>{[item?.rangeText, item?.reachText].filter(Boolean).join(" / ") || "—"}</td><td>{item?.durability ?? "—"}</td></tr>
+                    <tr key={owned.itemId}><th>{item?.name ?? `Item ${owned.itemId}`}{profile?.sourceName ? <small> · {profile.sourceName}</small> : null}</th><td>{owned.quantity}</td><td className="character-sheet__write-in"><span /></td><td>{profile?.damage || "—"}</td><td>{damage?.modifier ?? "—"}</td><td>{damage?.totalDamage ?? "—"}</td><td>{profile?.damageType || "—"}</td><td>{[item?.rangeText, item?.reachText].filter(Boolean).join(" / ") || "—"}</td><td>{item?.durability ?? "—"}</td></tr>
                   );
                 })}
               </tbody></table>

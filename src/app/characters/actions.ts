@@ -6,6 +6,7 @@ import {
   eq,
   inArray,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -68,6 +69,9 @@ import {
   type CharacterQuintessencePurchaseType,
 } from "@/features/characters/quintessence-rules";
 import { requireGod, requirePlayer, requireSession } from "@/lib/server-access";
+
+const ammunitionItem = alias(item, "ammunition_item");
+const ammunitionWeaponProfile = alias(weaponProfile, "ammunition_weapon_profile");
 
 export type PlayerCampaignSummary = { id: number; name: string };
 export type CharacterSummary = {
@@ -472,8 +476,13 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       durability: item.durability,
       weaponType: weaponProfile.weaponType,
       handedness: weaponProfile.handedness,
+      damageSource: weaponProfile.damageSource,
       damage: weaponProfile.damage,
       damageType: weaponProfile.damageType,
+      ammunitionItemId: weaponProfile.ammunitionItemId,
+      ammunitionItemName: ammunitionItem.name,
+      ammunitionDamage: ammunitionWeaponProfile.damage,
+      ammunitionDamageType: ammunitionWeaponProfile.damageType,
       rangeText: weaponProfile.rangeText,
       reachText: weaponProfile.reachText,
       weaponRulesText: weaponProfile.rulesText,
@@ -485,6 +494,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
       .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+      .leftJoin(ammunitionItem, eq(ammunitionItem.id, weaponProfile.ammunitionItemId))
+      .leftJoin(ammunitionWeaponProfile, eq(ammunitionWeaponProfile.itemId, ammunitionItem.id))
       .leftJoin(armorProfile, eq(armorProfile.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, row.campaignId))
       .orderBy(asc(campaignInventoryItem.sortOrder), asc(item.name)),

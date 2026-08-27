@@ -182,8 +182,13 @@ export type CharacterAuthorizedItem = {
   durability: number | null;
   weaponType: string | null;
   handedness: string | null;
+  damageSource: string | null;
   damage: string | null;
   damageType: string | null;
+  ammunitionItemId: number | null;
+  ammunitionItemName: string | null;
+  ammunitionDamage: string | null;
+  ammunitionDamageType: string | null;
   rangeText: string | null;
   reachText: string | null;
   weaponRulesText: string | null;

@@ -14,6 +14,34 @@ export type CharacterWeaponDamageSummary = {
   totalDamage: string;
 };
 
+export type CharacterWeaponDamage = {
+  damage: string | null;
+  damageType: string | null;
+  sourceName: string | null;
+};
+
+export function getCharacterWeaponDamage(
+  item: CharacterAuthorizedItem,
+): CharacterWeaponDamage {
+  const usesLinkedAmmunition =
+    item.damageSource?.trim().toLowerCase() === "ammunition" &&
+    item.ammunitionItemId !== null;
+
+  if (usesLinkedAmmunition) {
+    return {
+      damage: item.ammunitionDamage?.trim() || item.damage?.trim() || null,
+      damageType: item.ammunitionDamageType?.trim() || item.damageType?.trim() || null,
+      sourceName: item.ammunitionItemName?.trim() || "Ammunition",
+    };
+  }
+
+  return {
+    damage: item.damage?.trim() || null,
+    damageType: item.damageType?.trim() || null,
+    sourceName: null,
+  };
+}
+
 function displayNumber(value: number): string {
   return Number.isInteger(value)
     ? String(value)
@@ -58,9 +86,10 @@ export function getCharacterWeaponDamageSummary(
   item: CharacterAuthorizedItem,
   attributes: Record<CharacterAttributeKey, number>,
 ): CharacterWeaponDamageSummary {
+  const profile = getCharacterWeaponDamage(item);
   const uses = weaponUses(item).map((use) => {
     const modifier = getAttributeModifier(attributes[use.attribute]);
-    return { ...use, modifier, totalDamage: addModifier(item.damage, modifier) };
+    return { ...use, modifier, totalDamage: addModifier(profile.damage, modifier) };
   });
 
   if (uses.length === 1) {

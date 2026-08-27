@@ -4,7 +4,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { CharacterHitLocationChart } from "@/app/characters/character-hit-location-chart";
-import { getCharacterWeaponDamageSummary } from "./character-sheet-rules";
+import {
+  getCharacterWeaponDamage,
+  getCharacterWeaponDamageSummary,
+} from "./character-sheet-rules";
 import type { CharacterAuthorizedItem } from "./models";
 
 function weapon(overrides: Partial<CharacterAuthorizedItem>): CharacterAuthorizedItem {
@@ -25,8 +28,13 @@ function weapon(overrides: Partial<CharacterAuthorizedItem>): CharacterAuthorize
     durability: null,
     weaponType: "Sword",
     handedness: "One-Handed",
+    damageSource: "Weapon",
     damage: "8",
     damageType: "Slashing",
+    ammunitionItemId: null,
+    ammunitionItemName: null,
+    ammunitionDamage: null,
+    ammunitionDamageType: null,
     rangeText: null,
     reachText: "5 ft",
     weaponRulesText: null,
@@ -55,6 +63,46 @@ test("ranged weapon damage applies Dexterity", () => {
       attributes,
     ),
     { modifier: "DEX +1", totalDamage: "9" },
+  );
+});
+
+test("ammunition-fed weapons resolve damage from their linked Ammunition Item", () => {
+  const firearm = weapon({
+    weaponType: "Rifle",
+    damageSource: "Ammunition",
+    damage: null,
+    damageType: null,
+    ammunitionItemId: 2001,
+    ammunitionItemName: "5.56×45 mm Cartridge",
+    ammunitionDamage: "10",
+    ammunitionDamageType: "Piercing",
+    rangeText: "300 ft",
+    reachText: null,
+  });
+
+  assert.deepEqual(getCharacterWeaponDamage(firearm), {
+    damage: "10",
+    damageType: "Piercing",
+    sourceName: "5.56×45 mm Cartridge",
+  });
+  assert.deepEqual(getCharacterWeaponDamageSummary(firearm, attributes), {
+    modifier: "DEX +1",
+    totalDamage: "11",
+  });
+});
+
+test("an Ammunition Item keeps its own damage when it does not reference other ammunition", () => {
+  assert.deepEqual(
+    getCharacterWeaponDamage(weapon({
+      catalogScope: "inventory",
+      equipmentGroup: null,
+      recordType: "Ammunition",
+      weaponType: "Cartridge",
+      damageSource: "Ammunition",
+      damage: "8",
+      damageType: "Piercing",
+    })),
+    { damage: "8", damageType: "Piercing", sourceName: null },
   );
 });
 
