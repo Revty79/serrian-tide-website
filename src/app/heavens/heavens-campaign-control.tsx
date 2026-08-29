@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { createCharacterForPlayer } from "@/app/characters/actions";
+import {
+  createCharacterForPlayer,
+  deleteCharacterAsGod,
+} from "@/app/characters/actions";
 import {
   getCampaignMembers,
   type CampaignAdminSummary,
@@ -40,6 +43,9 @@ export function HeavensCampaignControl({
   const [members, setMembers] = useState<CampaignMemberData>(EMPTY_MEMBERS);
   const [loading, setLoading] = useState(Boolean(validInitialCampaignId));
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [membersError, setMembersError] = useState("");
   const [informationOpen, setInformationOpen] = useState(false);
@@ -62,6 +68,8 @@ export function HeavensCampaignControl({
     setFeedback("");
     setMembersError("");
     setInformationOpen(false);
+    setDeleteConfirmationOpen(false);
+    setDeleteError("");
     setLoading(Boolean(nextCampaignId));
   }
 
@@ -69,6 +77,12 @@ export function HeavensCampaignControl({
     ? scopeCampaignCharacters(members.characters, Number(campaignId), playerId)
     : [];
   const selectedCampaign = campaigns.find(({ id }) => String(id) === campaignId) ?? null;
+  const selectedCharacter = playerCharacters.find(
+    ({ id }) => String(id) === characterId,
+  ) ?? null;
+  const selectedPlayer = members.players.find(
+    ({ userId }) => userId === playerId,
+  ) ?? null;
 
   async function newCharacter() {
     if (!campaignId || !playerId) return;
@@ -84,6 +98,40 @@ export function HeavensCampaignControl({
       setFeedback(error instanceof Error ? error.message : "Character could not be created.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function permanentlyDeleteCharacter() {
+    if (!selectedCharacter || !campaignId || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    setFeedback("");
+    try {
+      const deleted = await deleteCharacterAsGod(selectedCharacter.id);
+      setMembers((current) => ({
+        ...current,
+        characters: current.characters.filter(
+          (character) => character.id !== deleted.id,
+        ),
+      }));
+      setCharacterId("");
+      setDeleteConfirmationOpen(false);
+      setFeedback(`${deleted.name} was permanently deleted.`);
+      try {
+        setMembers(await getCampaignMembers(Number(campaignId)));
+      } catch {
+        setFeedback(
+          `${deleted.name} was permanently deleted. Campaign data could not be refreshed automatically.`,
+        );
+      }
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : "The selected Character could not be deleted.",
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -124,7 +172,7 @@ export function HeavensCampaignControl({
         <select
           value={playerId}
           disabled={!campaignId || loading}
-          onChange={(event) => { setPlayerId(event.target.value); setCharacterId(""); }}
+          onChange={(event) => { setPlayerId(event.target.value); setCharacterId(""); setDeleteConfirmationOpen(false); setDeleteError(""); }}
           className="h-11 w-full rounded-xl border border-white/15 bg-black/50 px-4 text-sm text-slate-300 outline-none backdrop-blur-sm disabled:opacity-50"
         >
           <option value="">{!campaignId ? "Select a Campaign First" : loading ? "Reading Players…" : "No Player Selected"}</option>
@@ -150,7 +198,7 @@ export function HeavensCampaignControl({
         <select
           value={characterId}
           disabled={!playerId}
-          onChange={(event) => setCharacterId(event.target.value)}
+          onChange={(event) => { setCharacterId(event.target.value); setFeedback(""); setDeleteError(""); }}
           className="h-11 w-full rounded-xl border border-white/15 bg-black/50 px-4 text-sm text-slate-300 outline-none backdrop-blur-sm disabled:opacity-50"
         >
           <option value="">{!playerId ? "Select a Player First" : "No Character Selected"}</option>
@@ -158,9 +206,30 @@ export function HeavensCampaignControl({
         </select>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" disabled={!campaignId || !playerId || creating} onClick={() => void newCharacter()} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 text-sm text-amber-100/80 disabled:opacity-40">{creating ? "Creating…" : "New Character"}</button>
-          {characterId ? <Link href={`/heavens/characters/${characterId}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Character</Link> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-400">Edit Character</span>}
+          {selectedCharacter ? <Link href={`/heavens/characters/${selectedCharacter.id}?source=heavens&campaign=${campaignId}&player=${encodeURIComponent(playerId)}`} className="min-h-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-100/80">Edit Character</Link> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-400">Edit Character</span>}
+          {selectedCharacter ? <button type="button" disabled={deleting} onClick={() => { setDeleteError(""); setDeleteConfirmationOpen(true); }} className="min-h-10 rounded-full border border-red-400/45 bg-red-500/10 px-4 text-sm text-red-200 hover:bg-red-500/20 disabled:opacity-40">Delete Character</button> : <span className="min-h-10 rounded-full border border-white/10 px-4 py-2.5 text-sm text-slate-400">Delete Character</span>}
         </div>
       </ControlRow>
+      {deleteConfirmationOpen && selectedCharacter && selectedCampaign ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm" role="presentation">
+          <section className="w-full max-w-xl rounded-2xl border border-red-400/35 bg-[#080d13] p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="delete-character-title">
+            <p className="text-xs uppercase tracking-[0.16em] text-red-300">Permanent Character Deletion</p>
+            <h2 id="delete-character-title" className="font-sans mt-2 text-2xl text-slate-100">Permanently delete {selectedCharacter.name}?</h2>
+            <dl className="mt-5 grid gap-2 rounded-xl border border-white/10 bg-black/25 p-4 text-sm">
+              <div className="flex justify-between gap-4"><dt className="text-slate-400">Character</dt><dd className="text-right text-slate-100">{selectedCharacter.name}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-slate-400">Player</dt><dd className="text-right text-slate-100">{selectedCharacter.playerName || selectedPlayer?.displayName || selectedPlayer?.username}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-slate-400">Campaign</dt><dd className="text-right text-slate-100">{selectedCampaign.name}</dd></div>
+            </dl>
+            <p className="mt-5 text-sm leading-6 text-slate-300">This will permanently remove this Character and all Character-specific progression, Skills, possessions, spell records, and other saved Character data.</p>
+            <p className="mt-3 text-sm font-semibold text-red-200">This cannot be undone.</p>
+            {deleteError ? <p className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{deleteError}</p> : null}
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" disabled={deleting} onClick={() => { setDeleteConfirmationOpen(false); setDeleteError(""); }} className="min-h-10 rounded-full border border-white/15 px-5 text-sm text-slate-300 disabled:opacity-40">Cancel</button>
+              <button type="button" disabled={deleting} onClick={() => void permanentlyDeleteCharacter()} className="min-h-10 rounded-full border border-red-400/55 bg-red-500/20 px-5 text-sm font-semibold text-red-100 hover:bg-red-500/30 disabled:opacity-40">{deleting ? "Deleting Character…" : "Permanently Delete Character"}</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       {feedback ? <p className="mt-2 text-xs text-amber-100/80">{feedback}</p> : null}
     </div>
   );

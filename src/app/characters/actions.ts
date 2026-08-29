@@ -72,6 +72,7 @@ import {
   getSkillAdvancementCost,
   type CharacterSkillAdvancementRequest,
 } from "@/features/characters/character-advancement-rules";
+import { authorizePlayerCharacterDeletion } from "@/features/characters/character-deletion";
 import {
   getCampaignMoneyBreakdown,
   getCanonicalCreditsFromHoldings,
@@ -382,6 +383,65 @@ export async function createCharacterForPlayer(
   revalidatePath("/realms");
   revalidatePath("/heavens");
   return getCharacter(characterId, ownerMode);
+}
+
+export async function deleteCharacterAsGod(characterId: number): Promise<{
+  id: number;
+  name: string;
+  campaignId: number;
+}> {
+  if (!Number.isInteger(characterId) || characterId <= 0) {
+    throw new Error("A saved player Character must be selected for deletion.");
+  }
+
+  const session = await requireGod();
+  const deleted = await db.transaction(async (tx) => {
+    const [context] = await tx
+      .select({
+        id: campaignCharacter.id,
+        campaignId: campaignCharacter.campaignId,
+        name: campaignCharacter.name,
+        isNpc: campaignCharacter.isNpc,
+        campaignOwnerUserId: campaign.createdByUserId,
+      })
+      .from(campaignCharacter)
+      .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
+      .where(eq(campaignCharacter.id, characterId))
+      .limit(1)
+      .for("update", { of: campaignCharacter });
+    const authorized = authorizePlayerCharacterDeletion(
+      context ?? null,
+      session.user.id,
+    );
+
+    const [removed] = await tx
+      .delete(campaignCharacter)
+      .where(
+        and(
+          eq(campaignCharacter.id, authorized.id),
+          eq(campaignCharacter.campaignId, authorized.campaignId),
+          eq(campaignCharacter.isNpc, false),
+        ),
+      )
+      .returning({
+        id: campaignCharacter.id,
+        name: campaignCharacter.name,
+        campaignId: campaignCharacter.campaignId,
+      });
+    if (!removed) {
+      throw new Error(
+        "Only a player Character from one of your Campaigns can be deleted.",
+      );
+    }
+    return removed;
+  });
+
+  revalidatePath("/heavens");
+  revalidatePath("/heavens/campaigns");
+  revalidatePath(`/heavens/characters/${deleted.id}`);
+  revalidatePath("/realms");
+  revalidatePath(`/realms/characters/${deleted.id}`);
+  return deleted;
 }
 
 export async function createRaceNpc(campaignId: number): Promise<CharacterAggregate> {
