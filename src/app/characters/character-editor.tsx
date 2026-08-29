@@ -19,10 +19,7 @@ import {
   getCharacterCreationTabs,
   type CharacterCreationTab,
 } from "@/features/characters/character-creation";
-import {
-  getAttributeReference,
-  getAttributeReferenceFields,
-} from "@/features/characters/attribute-reference";
+import { getCharacterAttributeCardDetails } from "@/features/characters/character-attribute-card";
 import {
   CHARACTER_ATTRIBUTE_KEYS,
   CHARACTER_ATTRIBUTE_LABELS,
@@ -41,15 +38,12 @@ import {
   getAttributeModifier,
   getAttributePointsUsed,
   getAttributeRollTarget,
-  getBaseInitiative,
-  getCharacterHp,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
   getCharacterSkillGroupKey,
   getCharacterSkillRanks,
   getCreationPurchasedSkillMaximum,
   getEffectiveSkillPoints,
-  getMovementInitiative,
   getPurchasedSkillMaximum,
   getRaceAttributeCap,
   getRacialSkillGrant,
@@ -793,12 +787,12 @@ function AttributesTab({
         {CHARACTER_ATTRIBUTE_KEYS.map((key) => {
           const score = draft.attributes[key];
           const cap = getRaceAttributeCap(race, key);
-          const reference = getAttributeReference(
+          const details = getCharacterAttributeCardDetails(
             aggregate.attributeReferenceCatalog,
             key,
             score,
+            race?.movementModes ?? [],
           );
-          const referenceFields = getAttributeReferenceFields(key);
 
           return (
             <article key={key}>
@@ -836,44 +830,41 @@ function AttributesTab({
                   <dt>Roll Target</dt>
                   <dd>{displayNumber(getAttributeRollTarget(score))}%</dd>
                 </div>
-                {referenceFields.map((field) => {
-                  const value = reference?.[field.key] ?? null;
-                  return (
-                    <div
-                      className="character-attribute-reference-stat"
-                      key={field.key}
-                    >
-                      <dt>{field.label}</dt>
-                      <dd>{value === null ? "—" : displayNumber(value)}</dd>
-                    </div>
-                  );
-                })}
+                {details.stats.map((stat) => (
+                  <div
+                    className={
+                      stat.source === "canon"
+                        ? "character-attribute-reference-stat"
+                        : "character-attribute-derived-stat"
+                    }
+                    key={stat.key}
+                  >
+                    <dt>{stat.label}</dt>
+                    <dd>
+                      {stat.value === null ? "—" : displayNumber(stat.value)}
+                    </dd>
+                  </div>
+                ))}
               </dl>
+              {details.movements.length ? (
+                <section className="character-attribute-movement">
+                  <h4>Race Movement</h4>
+                  {details.movements.map((movement) => (
+                    <div key={movement.movementMode}>
+                      <strong>{movement.movementMode}</strong>
+                      <span>
+                        Base {displayNumber(movement.baseMovement)}
+                      </span>
+                      <span>
+                        Initiative {displayNumber(movement.initiative)}
+                      </span>
+                    </div>
+                  ))}
+                </section>
+              ) : null}
             </article>
           );
         })}
-      </div>
-      <div className="character-derived-strip">
-        <div>
-          <span>HP Total</span>
-          <strong>{displayNumber(getCharacterHp(draft.attributes.CON))}</strong>
-        </div>
-        <div>
-          <span>Base Initiative</span>
-          <strong>
-            {displayNumber(getBaseInitiative(draft.attributes.DEX))}
-          </strong>
-        </div>
-        {race?.movementModes.map((mode) => (
-          <div key={mode.movementMode}>
-            <span>{mode.movementMode} Initiative</span>
-            <strong>
-              {displayNumber(
-                getMovementInitiative(draft.attributes.DEX, mode.baseValue),
-              )}
-            </strong>
-          </div>
-        ))}
       </div>
     </div>
   );

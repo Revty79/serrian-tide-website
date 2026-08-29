@@ -34,6 +34,7 @@ import {
   campaignCharacterItem,
   campaignCharacterProfile,
   campaignCharacterSkillAllocation,
+  campaignCharacterSpellDocument,
   campaignCreatureNpcProfile,
   campaignInventoryItem,
 } from "@/db/realm-schema";
@@ -419,6 +420,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     skillRows,
     relationshipRows,
     extensionRows,
+    personalSpellRows,
     authorizedRows,
     characterRow,
   ] = await Promise.all([
@@ -466,6 +468,18 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     db.select().from(skill).orderBy(asc(skill.name), asc(skill.id)),
     db.select({ skillId: skillRelationship.skillId, relatedSkillId: skillRelationship.relatedSkillId, relationshipType: skillRelationship.relationshipType, sortOrder: skillRelationship.sortOrder }).from(skillRelationship).where(eq(skillRelationship.relationshipType, "parent")).orderBy(asc(skillRelationship.skillId), asc(skillRelationship.sortOrder)),
     db.select({ skillId: skillExtension.skillId, extensionType: skillExtension.extensionType, dataJson: skillExtension.dataJson }).from(skillExtension).where(inArray(skillExtension.extensionType, ["spell-import-source", "spell-construction"])),
+    db.select({
+      id: campaignCharacterSpellDocument.id,
+      documentId: campaignCharacterSpellDocument.documentId,
+      name: campaignCharacterSpellDocument.name,
+      tradition: campaignCharacterSpellDocument.tradition,
+      documentJson: campaignCharacterSpellDocument.documentJson,
+    }).from(campaignCharacterSpellDocument)
+      .where(and(
+        eq(campaignCharacterSpellDocument.characterId, characterId),
+        eq(campaignCharacterSpellDocument.inSpellbook, true),
+      ))
+      .orderBy(asc(campaignCharacterSpellDocument.name), asc(campaignCharacterSpellDocument.id)),
     db.select({
       id: item.id,
       canonicalId: item.canonicalId,
@@ -632,6 +646,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       spellDocumentJson: spellDocuments.get(skillRow.id) ?? null,
     })),
     skillRelationships: relationshipRows,
+    personalSpellbook: personalSpellRows,
     authorizedItems: authorizedRows,
   };
 

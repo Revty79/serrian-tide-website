@@ -141,6 +141,7 @@ function aggregate(): CharacterAggregate {
       skill(6, "Tidal Light", "spell"),
     ],
     skillRelationships: [],
+    personalSpellbook: [],
     authorizedItems: [],
     skillAllocations: [
       allocation(100, 1, "Spellcraft", null, 1),

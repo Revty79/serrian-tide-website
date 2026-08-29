@@ -34,6 +34,7 @@ import {
 } from "@/features/characters/currency-rules";
 
 import { CharacterHitLocationChart } from "./character-hit-location-chart";
+import { CharacterPrintCenter } from "./character-print-center";
 
 type Props = {
   aggregate: CharacterAggregate;
@@ -179,12 +180,11 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
 
   return (
     <div className="character-sheet-wrap">
-      <div className="character-print-toolbar">
-        <span>Open your browser print preview to print this record or save it as PDF.</span>
-        <button type="button" onClick={() => window.print()}>
-          Print Character Sheet
-        </button>
-      </div>
+      <CharacterPrintCenter
+        aggregate={aggregate}
+        draft={draft}
+        selectedRace={selectedRace}
+      />
 
       <section className="character-sheet" aria-labelledby="character-sheet-title">
         <header>

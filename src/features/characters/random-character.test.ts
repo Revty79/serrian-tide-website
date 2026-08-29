@@ -125,6 +125,7 @@ function aggregate(): CharacterAggregate {
       spellDocumentJson: null,
     })),
     skillRelationships: [],
+    personalSpellbook: [],
     authorizedItems: [
       {
         id: 7,

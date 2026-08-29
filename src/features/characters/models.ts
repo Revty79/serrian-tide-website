@@ -181,6 +181,14 @@ export type CharacterSkillRelationship = {
   sortOrder: number;
 };
 
+export type CharacterPersonalSpell = {
+  id: number;
+  documentId: string;
+  name: string;
+  tradition: string;
+  documentJson: string;
+};
+
 export type CharacterAuthorizedItem = {
   id: number;
   canonicalId: string;
@@ -228,6 +236,7 @@ export type CharacterAggregate = {
   selectedRace: CharacterRaceAggregate | null;
   skillCatalog: CharacterSkillReference[];
   skillRelationships: CharacterSkillRelationship[];
+  personalSpellbook: CharacterPersonalSpell[];
   authorizedItems: CharacterAuthorizedItem[];
 };
 
