@@ -89,6 +89,7 @@ export const weaponProfile = pgTable(
     handedness: text("handedness").default("").notNull(),
     damageSource: text("damage_source").default("").notNull(),
     damage: text("damage").default("").notNull(),
+    initiativeCost: integer("initiative_cost"),
     damageType: text("damage_type").default("").notNull(),
     rangeText: text("range_text").default("").notNull(),
     reachText: text("reach_text").default("").notNull(),
@@ -107,6 +108,7 @@ export const weaponProfile = pgTable(
     index("weapon_profiles_ammunition_item_id_idx").on(table.ammunitionItemId),
     check("weapon_profiles_fire_modes_json_valid", sql`${table.fireModes}::jsonb IS NOT NULL AND jsonb_typeof(${table.fireModes}::jsonb) = 'array'`),
     check("weapon_profiles_ammo_not_self", sql`${table.ammunitionItemId} IS NULL OR ${table.ammunitionItemId} <> ${table.itemId}`),
+    check("weapon_profiles_initiative_cost_valid", sql`${table.initiativeCost} IS NULL OR ${table.initiativeCost} > 0`),
   ],
 );
 

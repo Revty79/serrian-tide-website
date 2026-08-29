@@ -43,6 +43,13 @@
       "when": 1788019433933,
       "tag": "0005_parched_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788026744721,
+      "tag": "0006_add_weapon_initiative_cost",
+      "breakpoints": true
     }
   ]
 }

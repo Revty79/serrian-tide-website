@@ -122,6 +122,7 @@ export type ItemDraft = {
     handedness: string;
     damageSource: string;
     damage: string;
+    initiativeCost: number | null;
     damageType: string;
     range: string;
     reach: string;
@@ -154,6 +155,7 @@ const optionalText = (value: string | null | undefined) => clean(value) || null;
 function required(value: string | null | undefined, label: string) { const result = clean(value); if (!result) throw new Error(`${label} is required.`); return result; }
 function nonNegative(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater, or left blank.`); return value; }
 function positive(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value <= 0) throw new Error(`${label} must be greater than zero, or left blank.`); return value; }
+function positiveInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a whole number greater than zero, or left blank.`); return value; }
 
 function normalize(input: ItemDraft) {
   const equipmentGroup = input.core.catalogScope === "equipment" ? input.core.equipmentGroup ?? "general" : null;
@@ -187,6 +189,7 @@ function normalize(input: ItemDraft) {
     handedness: clean(input.weaponProfile.handedness),
     damageSource: clean(input.weaponProfile.damageSource),
     damage: clean(input.weaponProfile.damage),
+    initiativeCost: positiveInteger(input.weaponProfile.initiativeCost, "Initiative Cost"),
     damageType: clean(input.weaponProfile.damageType),
     range: clean(input.weaponProfile.range),
     reach: clean(input.weaponProfile.reach),
@@ -361,7 +364,8 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     })),
     weaponProfile: weapon ? {
       profileRecordType: weapon.profileRecordType, weaponType: weapon.weaponType, handedness: weapon.handedness,
-      damageSource: weapon.damageSource, damage: weapon.damage, damageType: weapon.damageType, range: weapon.rangeText,
+      damageSource: weapon.damageSource, damage: weapon.damage, initiativeCost: weapon.initiativeCost,
+      damageType: weapon.damageType, range: weapon.rangeText,
       reach: weapon.reachText, ammunitionItemId: weapon.ammunitionItemId, ammunitionItemName,
       compatibility: weapon.compatibility, capacity: weapon.capacity,
       fireModes: (() => { try { const parsed = JSON.parse(weapon.fireModes); return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : []; } catch { return []; } })(),
@@ -475,7 +479,8 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
       await tx.insert(weaponProfile).values({
         itemId: id!, profileRecordType: normalized.weapon.profileRecordType, weaponType: normalized.weapon.weaponType,
         handedness: normalized.weapon.handedness, damageSource: normalized.weapon.damageSource, damage: normalized.weapon.damage,
-        damageType: normalized.weapon.damageType, rangeText: normalized.weapon.range, reachText: normalized.weapon.reach,
+        initiativeCost: normalized.weapon.initiativeCost, damageType: normalized.weapon.damageType,
+        rangeText: normalized.weapon.range, reachText: normalized.weapon.reach,
         ammunitionItemId: normalized.weapon.ammunitionItemId, compatibility: normalized.weapon.compatibility,
         capacity: normalized.weapon.capacity, fireModes: JSON.stringify(normalized.weapon.fireModes), rateOfFire: normalized.weapon.rateOfFire,
         reloadInitiative: normalized.weapon.reloadInitiative, rulesText: normalized.weapon.rulesText,
