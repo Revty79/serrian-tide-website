@@ -128,6 +128,15 @@ export function getMaximumAffordableSkillPoints(
   return points;
 }
 
+export function canPlayerAdvanceSkillWithExperience(
+  skill: CharacterSkillReference,
+  permanentAllocationPoints: number,
+): boolean {
+  return (
+    !isSpecialAbilitySkill(skill) || hasSkillPoints(permanentAllocationPoints)
+  );
+}
+
 function allocationFor(
   allocations: readonly CharacterSkillAllocationDraft[],
   skillId: number,
@@ -229,13 +238,13 @@ export function buildCharacterAdvancementTree(
       parentDraftId,
     );
     const racialGrant = getRacialSkillGrant(aggregate.selectedRace, skill.id);
-    const permanentlyOwned = hasSkillPoints(
-      getEffectiveSkillPoints(
-        permanentAllocation?.points ?? 0,
-        aggregate.selectedRace,
-        skill.id,
-      ),
-    );
+    const permanentAllocationPoints = permanentAllocation?.points ?? 0;
+    const permanentlyOwned = hasSkillPoints(permanentAllocationPoints);
+    if (
+      !canPlayerAdvanceSkillWithExperience(skill, permanentAllocationPoints)
+    ) {
+      return;
+    }
     if (
       !permanentAllocation &&
       !isSkillAllowedByCampaign(
@@ -261,7 +270,6 @@ export function buildCharacterAdvancementTree(
       return;
     }
 
-    const permanentAllocationPoints = permanentAllocation?.points ?? 0;
     const projectedAllocationPoints = projectedAllocation?.points ?? 0;
     const currentSkillNumber = getEffectiveSkillPoints(
       permanentAllocationPoints,

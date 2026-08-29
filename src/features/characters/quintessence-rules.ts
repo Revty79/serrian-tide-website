@@ -39,6 +39,43 @@ export function getExperienceFromQuintessence(quantity: number): number {
     : 0;
 }
 
+export function getMaximumQuintessenceAttributeIncrease(input: {
+  quintessence: number;
+  currentAttributeValue: number;
+  racialMaximum: number | null;
+}): number {
+  const affordablePoints = Math.max(
+    0,
+    Math.floor(input.quintessence / ATTRIBUTE_QUINTESSENCE_COST),
+  );
+  if (input.racialMaximum === null) return affordablePoints;
+  const pointsBelowRacialMaximum = Math.max(
+    0,
+    Math.floor(input.racialMaximum - input.currentAttributeValue + 0.000_001),
+  );
+  return Math.min(affordablePoints, pointsBelowRacialMaximum);
+}
+
+export function validateQuintessenceAttributeIncrease(input: {
+  currentAttributeValue: number;
+  quantity: number;
+  racialMaximum: number | null;
+}): number {
+  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new Error("Attribute increase must be a positive whole number.");
+  }
+  const finalValue = input.currentAttributeValue + input.quantity;
+  if (
+    input.racialMaximum !== null &&
+    finalValue > input.racialMaximum + 0.000_001
+  ) {
+    throw new Error(
+      `This Attribute cannot exceed its racial maximum of ${input.racialMaximum}.`,
+    );
+  }
+  return finalValue;
+}
+
 export function getQuintessenceSpendingLedger(input: {
   purchaseType: CharacterQuintessencePurchaseType;
   quantity: number;

@@ -13,7 +13,10 @@ import {
   setProjectedSkillNumber,
   type CharacterAdvancementTreeEntry,
 } from "@/features/characters/character-advancement-rules";
-import { SPECIAL_ABILITY_EFFECTIVE_MAXIMUM } from "@/features/characters/character-rules";
+import {
+  getRaceAttributeCap,
+  SPECIAL_ABILITY_EFFECTIVE_MAXIMUM,
+} from "@/features/characters/character-rules";
 import {
   CHARACTER_ATTRIBUTE_KEYS,
   CHARACTER_ATTRIBUTE_LABELS,
@@ -26,6 +29,7 @@ import {
   EXPERIENCE_PER_QUINTESSENCE,
   FATE_POINT_QUINTESSENCE_COST,
   getExperienceFromQuintessence,
+  getMaximumQuintessenceAttributeIncrease,
   getQuintessenceCost,
   type CharacterQuintessencePurchaseType,
 } from "@/features/characters/quintessence-rules";
@@ -63,9 +67,21 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
     () => buildCharacterAdvancementPlan(aggregate, projectedAllocations),
     [aggregate, projectedAllocations],
   );
-  const maximumAttributeQuantity = Math.floor(
-    aggregate.profile.quintessence / ATTRIBUTE_QUINTESSENCE_COST,
+  const selectedAttributeValue = aggregate.attributes.find(
+    (attribute) => attribute.attributeKey === attributeKey,
+  )?.value ?? 0;
+  const selectedAttributeRacialMaximum = getRaceAttributeCap(
+    aggregate.selectedRace,
+    attributeKey,
   );
+  const maximumAttributeQuantity = getMaximumQuintessenceAttributeIncrease({
+    quintessence: aggregate.profile.quintessence,
+    currentAttributeValue: selectedAttributeValue,
+    racialMaximum: selectedAttributeRacialMaximum,
+  });
+  const selectedAttributePurchaseQuantity = maximumAttributeQuantity < 1
+    ? 0
+    : Math.min(attributeQuantity, maximumAttributeQuantity);
   const maximumFateQuantity = Math.floor(
     aggregate.profile.quintessence / FATE_POINT_QUINTESSENCE_COST,
   );
@@ -277,11 +293,11 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
           <div className="quintessence-purchases">
             <article className="quintessence-purchase">
               <div className="quintessence-purchase__heading"><span aria-hidden="true">A</span><div><strong>Attribute Advancement</strong><small>{ATTRIBUTE_QUINTESSENCE_COST} Q per +1</small></div></div>
-              <p>Increase one core Attribute after Character Creation.</p>
+              <p>Increase one core Attribute after Character Creation. {selectedAttributeRacialMaximum === null ? "No racial maximum is recorded for this Attribute." : `Racial maximum: ${displayNumber(selectedAttributeRacialMaximum)}.`}</p>
               <Field label="Attribute"><select value={attributeKey} onChange={(event) => setAttributeKey(event.target.value as CharacterAttributeKey)}>{CHARACTER_ATTRIBUTE_KEYS.map((key) => <option key={key} value={key}>{CHARACTER_ATTRIBUTE_LABELS[key]}</option>)}</select></Field>
-              <QuantityPicker label="Attribute points" value={attributeQuantity} maximum={maximumAttributeQuantity} onChange={setAttributeQuantity} />
-              <div className="quintessence-purchase__result"><span>{CHARACTER_ATTRIBUTE_LABELS[attributeKey]}</span><strong>{displayNumber(aggregate.attributes.find((attribute) => attribute.attributeKey === attributeKey)?.value ?? 0)} → {displayNumber((aggregate.attributes.find((attribute) => attribute.attributeKey === attributeKey)?.value ?? 0) + attributeQuantity)}</strong></div>
-              <button type="button" disabled={busy || maximumAttributeQuantity < 1} onClick={() => beginQuintessencePurchase({ purchaseType: "attribute", quantity: attributeQuantity, attributeKey })}>Review · {getQuintessenceCost("attribute", attributeQuantity)} Q</button>
+              <QuantityPicker label="Attribute points" value={selectedAttributePurchaseQuantity} maximum={maximumAttributeQuantity} onChange={setAttributeQuantity} disabledMessage={selectedAttributeRacialMaximum !== null && selectedAttributeValue >= selectedAttributeRacialMaximum - 0.000_001 ? `Racial maximum ${displayNumber(selectedAttributeRacialMaximum)} reached.` : undefined} displayZeroWhenDisabled />
+              <div className="quintessence-purchase__result"><span>{CHARACTER_ATTRIBUTE_LABELS[attributeKey]}</span><strong>{displayNumber(selectedAttributeValue)} → {displayNumber(selectedAttributeValue + selectedAttributePurchaseQuantity)}</strong></div>
+              <button type="button" disabled={busy || maximumAttributeQuantity < 1} onClick={() => beginQuintessencePurchase({ purchaseType: "attribute", quantity: selectedAttributePurchaseQuantity, attributeKey })}>{selectedAttributePurchaseQuantity > 0 ? `Review · ${getQuintessenceCost("attribute", selectedAttributePurchaseQuantity)} Q` : selectedAttributeRacialMaximum !== null && selectedAttributeValue >= selectedAttributeRacialMaximum - 0.000_001 ? "Racial Maximum Reached" : "Not Enough Quintessence"}</button>
             </article>
 
             <article className="quintessence-purchase">
@@ -360,13 +376,18 @@ function QuantityPicker({
   value,
   maximum,
   onChange,
+  disabledMessage,
+  displayZeroWhenDisabled = false,
 }: {
   label: string;
   value: number;
   maximum: number;
   onChange: (value: number) => void;
+  disabledMessage?: string;
+  displayZeroWhenDisabled?: boolean;
 }) {
   const disabled = maximum < 1;
+  const displayedValue = disabled && displayZeroWhenDisabled ? 0 : value;
   const change = (requested: number) => {
     if (disabled) return;
     onChange(Math.min(maximum, Math.max(1, Math.trunc(requested))));
@@ -376,11 +397,11 @@ function QuantityPicker({
       <span>{label}</span>
       <div>
         <button type="button" disabled={disabled || value <= 1} onClick={() => change(value - 1)}>−</button>
-        <input type="number" min={1} max={Math.max(1, maximum)} step={1} disabled={disabled} value={value} onFocus={(event) => event.currentTarget.select()} onChange={(event) => change(Number(event.target.value))} />
+        <input type="number" min={disabled && displayZeroWhenDisabled ? 0 : 1} max={Math.max(1, maximum)} step={1} disabled={disabled} value={displayedValue} onFocus={(event) => event.currentTarget.select()} onChange={(event) => change(Number(event.target.value))} />
         <button type="button" disabled={disabled || value >= maximum} onClick={() => change(value + 1)}>+</button>
         <button type="button" disabled={disabled || value >= maximum} onClick={() => change(maximum)}>Max</button>
       </div>
-      <small>{disabled ? "Not enough Quintessence for one." : `Choose from 1 to ${maximum}.`}</small>
+      <small>{disabled ? disabledMessage ?? "Not enough Quintessence for one." : `Choose from 1 to ${maximum}.`}</small>
     </div>
   );
 }

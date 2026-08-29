@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   buildCharacterAdvancementPlan,
   buildCharacterAdvancementTree,
+  canPlayerAdvanceSkillWithExperience,
   getExperienceSpendingLedger,
   getInitialAdvancementAllocations,
   getMaximumAffordableSkillPoints,
@@ -317,6 +318,130 @@ test("the same shared Skill remains branch-specific in a projected plan", () => 
   );
 });
 
+test("an unowned Special Ability cannot be acquired through Player Advancement", () => {
+  const character = aggregate();
+  const phaseShift = skill(30, "Phase Shift", {
+    classification: "special ability",
+  });
+  character.campaign.allowedSystems.push("Special Abilities");
+  character.skillCatalog.push(phaseShift);
+
+  assert.equal(canPlayerAdvanceSkillWithExperience(phaseShift, 0), false);
+});
+
+test("an unowned Special Ability is omitted and cannot become projected ownership", () => {
+  const character = aggregate();
+  const phaseShift = skill(30, "Phase Shift", {
+    classification: "special ability",
+  });
+  character.campaign.allowedSystems.push("Special Abilities");
+  character.skillCatalog.push(phaseShift);
+  let projected = getInitialAdvancementAllocations(character);
+
+  assert.equal(
+    buildCharacterAdvancementTree(character, projected).some(
+      (entry) => entry.skill.id === phaseShift.id,
+    ),
+    false,
+  );
+
+  projected = setProjectedSkillNumber({
+    aggregate: character,
+    projectedAllocations: projected,
+    skillId: phaseShift.id,
+    parentDraftId: null,
+    requestedSkillNumber: 1,
+    newDraftId: -30,
+  });
+  assert.equal(
+    projected.some((entry) => entry.skillId === phaseShift.id),
+    false,
+  );
+});
+
+test("an owned Special Ability advances from #5 to #6 for 5 XP", () => {
+  const character = aggregate();
+  const phaseShift = skill(30, "Phase Shift", {
+    classification: "special ability",
+  });
+  character.skillCatalog.push(phaseShift);
+  character.skillAllocations.push(allocation(30, phaseShift, 5));
+  let projected = getInitialAdvancementAllocations(character);
+  projected = setProjectedSkillNumber({
+    aggregate: character,
+    projectedAllocations: projected,
+    skillId: phaseShift.id,
+    parentDraftId: null,
+    requestedSkillNumber: 6,
+    newDraftId: -30,
+  });
+  const entry = buildCharacterAdvancementPlan(character, projected).entries.find(
+    (candidate) => candidate.skillName === phaseShift.name,
+  );
+
+  assert.equal(canPlayerAdvanceSkillWithExperience(phaseShift, 5), true);
+  assert.deepEqual(
+    { before: entry?.before, after: entry?.after, cost: entry?.experienceCost },
+    { before: 5, after: 6, cost: 5 },
+  );
+});
+
+test("a permanently saved G.O.D.-granted Special Ability becomes Player-advanceable", () => {
+  const character = aggregate();
+  const tideStep = skill(31, "Tide Step", {
+    classification: "special ability",
+  });
+  character.skillCatalog.push(tideStep);
+  character.skillAllocations.push(allocation(31, tideStep, 1));
+  let projected = getInitialAdvancementAllocations(character);
+  projected = setProjectedSkillNumber({
+    aggregate: character,
+    projectedAllocations: projected,
+    skillId: tideStep.id,
+    parentDraftId: null,
+    requestedSkillNumber: 2,
+    newDraftId: -31,
+  });
+  const entry = buildCharacterAdvancementPlan(character, projected).entries.find(
+    (candidate) => candidate.skillName === tideStep.name,
+  );
+
+  assert.deepEqual(
+    { owned: canPlayerAdvanceSkillWithExperience(tideStep, 1), cost: entry?.experienceCost },
+    { owned: true, cost: 1 },
+  );
+});
+
+test("normal unlocked Skills still use the 10 XP first-point rule", () => {
+  const character = aggregate();
+  let projected = getInitialAdvancementAllocations(character);
+  projected = setProjectedSkillNumber({
+    aggregate: character,
+    projectedAllocations: projected,
+    skillId: 1,
+    parentDraftId: null,
+    requestedSkillNumber: 5,
+    newDraftId: -1,
+  });
+  projected = setProjectedSkillNumber({
+    aggregate: character,
+    projectedAllocations: projected,
+    skillId: 2,
+    parentDraftId: 10,
+    requestedSkillNumber: 1,
+    newDraftId: -2,
+  });
+  const climbing = buildCharacterAdvancementPlan(character, projected).entries.find(
+    (entry) => entry.skillName === "Climbing",
+  );
+
+  assert.equal(
+    canPlayerAdvanceSkillWithExperience(character.skillCatalog[1], 0),
+    true,
+  );
+  assert.equal(climbing?.experienceCost, 10);
+});
+
 test("Experience ledger adds actual spending to Lifetime Experience and rejects atomically", () => {
   assert.deepEqual(getExperienceSpendingLedger(30, 40, 11), {
     experience: 19,
@@ -356,16 +481,49 @@ test("the server validates the complete Advancement plan before its first write"
   );
 
   const ledgerIndex = action.indexOf("const ledger = getExperienceSpendingLedger(");
+  const specialAbilityGuardIndex = action.indexOf(
+    "!canPlayerAdvanceSkillWithExperience(",
+  );
   const firstAllocationUpdate = action.indexOf(".update(campaignCharacterSkillAllocation)");
   const firstAllocationInsert = action.indexOf(".insert(campaignCharacterSkillAllocation)");
   const profileUpdate = action.indexOf(".update(campaignCharacterProfile)");
   assert.ok(ledgerIndex >= 0, "the final Experience ledger validation is required");
+  assert.ok(
+    specialAbilityGuardIndex >= 0 && specialAbilityGuardIndex < ledgerIndex,
+    "saved Special Ability ownership must be validated before ledger calculation",
+  );
   assert.ok(firstAllocationUpdate > ledgerIndex);
   assert.ok(firstAllocationInsert > ledgerIndex);
   assert.ok(profileUpdate > ledgerIndex);
 });
 
-test("the server locks Quintessence accounting and never persists converted Q as Lifetime XP", () => {
+test("an unowned Special Ability rejection leaves allocations and XP ledgers unchanged", () => {
+  const phaseShift = skill(30, "Phase Shift", {
+    classification: "special ability",
+  });
+  const resources = { experience: 30, totalExperience: 40 };
+  const allocations = [{ id: 10, skillId: 1, points: 5 }];
+  const before = {
+    resources: { ...resources },
+    allocations: structuredClone(allocations),
+  };
+
+  assert.throws(() => {
+    if (!canPlayerAdvanceSkillWithExperience(phaseShift, 0)) {
+      throw new Error("Special Ability must already be permanently owned.");
+    }
+    allocations.push({ id: 30, skillId: phaseShift.id, points: 1 });
+    const ledger = getExperienceSpendingLedger(
+      resources.experience,
+      resources.totalExperience,
+      10,
+    );
+    Object.assign(resources, ledger);
+  }, /permanently owned/);
+  assert.deepEqual({ resources, allocations }, before);
+});
+
+test("the server enforces racial caps, locks Q accounting, and preserves Lifetime XP", () => {
   const source = readFileSync("src/app/characters/actions.ts", "utf8");
   const start = source.indexOf("export async function spendCharacterQuintessence(");
   const end = source.indexOf("function revalidateCharacterAdvancementPaths(", start);
@@ -377,8 +535,20 @@ test("the server locks Quintessence accounting and never persists converted Q as
     (action.match(/\.for\("update"/g) ?? []).length >= 2,
     "Character and profile resources must be locked",
   );
+  assert.match(action, /raceId: campaignCharacterProfile\.raceId/);
+  assert.match(action, /\.from\(raceAttributeCap\)/);
+  assert.match(action, /validateQuintessenceAttributeIncrease\(\{/);
   assert.match(action, /const ledger = getQuintessenceSpendingLedger\(/);
-  assert.doesNotMatch(action, /getRaceCap/);
+
+  const racialCapValidation = action.indexOf(
+    "validatedAttributeFinalValue = validateQuintessenceAttributeIncrease({",
+  );
+  const ledgerValidation = action.indexOf(
+    "const ledger = getQuintessenceSpendingLedger({",
+  );
+  const attributeWrite = action.indexOf(".update(campaignCharacterAttribute)");
+  assert.ok(racialCapValidation >= 0 && racialCapValidation < ledgerValidation);
+  assert.ok(ledgerValidation < attributeWrite);
 
   const profileWriteStart = action.indexOf(".update(campaignCharacterProfile)");
   const profileWriteEnd = action.indexOf(")\n      .where", profileWriteStart);
@@ -386,4 +556,16 @@ test("the server locks Quintessence accounting and never persists converted Q as
   assert.match(profileWrite, /totalQuintessence: ledger\.totalQuintessence/);
   assert.match(profileWrite, /experience: ledger\.experience/);
   assert.doesNotMatch(profileWrite, /totalExperience\s*:/);
+});
+
+test("the Quintessence UI applies both the selected Race cap and Q affordability", () => {
+  const source = readFileSync(
+    "src/app/realms/characters/[characterId]/advance/advance-workspace.tsx",
+    "utf8",
+  );
+
+  assert.match(source, /getRaceAttributeCap\([\s\S]*?aggregate\.selectedRace/);
+  assert.match(source, /getMaximumQuintessenceAttributeIncrease\(\{/);
+  assert.match(source, /maximum={maximumAttributeQuantity}/);
+  assert.match(source, /Racial maximum .* reached\./);
 });

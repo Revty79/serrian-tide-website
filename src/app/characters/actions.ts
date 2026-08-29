@@ -45,6 +45,7 @@ import {
 } from "@/db/skill-schema";
 import {
   CHARACTER_ATTRIBUTE_KEYS,
+  CHARACTER_ATTRIBUTE_LABELS,
   type CharacterAggregate,
   type CharacterAttributeKey,
   type CharacterAttributeReferenceKey,
@@ -66,6 +67,7 @@ import {
   isSkillAllowedByCampaign,
 } from "@/features/characters/character-rules";
 import {
+  canPlayerAdvanceSkillWithExperience,
   getExperienceSpendingLedger,
   getSkillAdvancementCost,
   type CharacterSkillAdvancementRequest,
@@ -77,6 +79,7 @@ import {
 import {
   getQuintessenceSpendingLedger,
   type CharacterQuintessencePurchaseType,
+  validateQuintessenceAttributeIncrease,
 } from "@/features/characters/quintessence-rules";
 import { requireGod, requirePlayer, requireSession } from "@/lib/server-access";
 
@@ -1160,6 +1163,16 @@ export async function advanceCharacterSkills(
     for (const resolved of resolvedRequests) {
       const target = catalogById.get(resolved.request.skillId);
       if (!target) throw new Error("A planned Skill could not be found.");
+      if (
+        !canPlayerAdvanceSkillWithExperience(
+          target,
+          resolved.currentAllocationPoints,
+        )
+      ) {
+        throw new Error(
+          `${target.name} must be permanently owned before a Player can advance it with Experience.`,
+        );
+      }
       const racialGrant = getRacialSkillGrant(selectedRace, target.id);
       let root = target;
       let parent: ProjectedAllocation | null = null;
@@ -1398,6 +1411,7 @@ export async function spendCharacterQuintessence(
 
     const [profile] = await tx
       .select({
+        raceId: campaignCharacterProfile.raceId,
         quintessence: campaignCharacterProfile.quintessence,
         totalQuintessence: campaignCharacterProfile.totalQuintessence,
         experience: campaignCharacterProfile.experience,
@@ -1417,15 +1431,7 @@ export async function spendCharacterQuintessence(
         "Character creation must be completed before Quintessence can be spent.",
       );
     }
-    const ledger = getQuintessenceSpendingLedger({
-      purchaseType,
-      quantity,
-      quintessence: profile.quintessence,
-      totalQuintessence: profile.totalQuintessence,
-      experience: profile.experience,
-      totalExperience: profile.totalExperience,
-    });
-
+    let validatedAttributeFinalValue: number | null = null;
     if (purchaseType === "attribute") {
       const [currentAttribute] = await tx
         .select({ value: campaignCharacterAttribute.value })
@@ -1441,9 +1447,43 @@ export async function spendCharacterQuintessence(
       if (!currentAttribute) {
         throw new Error("The selected Character Attribute could not be found.");
       }
+      let racialMaximum: number | null = null;
+      if (profile.raceId !== null) {
+        const capRows = await tx
+          .select({
+            attributeKey: raceAttributeCap.attributeKey,
+            maxValue: raceAttributeCap.maxValue,
+          })
+          .from(raceAttributeCap)
+          .where(eq(raceAttributeCap.raceId, profile.raceId))
+          .for("share");
+        const shortKey = attributeKey!.toUpperCase();
+        const longKey = CHARACTER_ATTRIBUTE_LABELS[attributeKey!].toUpperCase();
+        racialMaximum = capRows.find((cap) => {
+          const recordedKey = cap.attributeKey.trim().toUpperCase();
+          return recordedKey === shortKey || recordedKey === longKey;
+        })?.maxValue ?? null;
+      }
+      validatedAttributeFinalValue = validateQuintessenceAttributeIncrease({
+        currentAttributeValue: currentAttribute.value,
+        quantity,
+        racialMaximum,
+      });
+    }
+
+    const ledger = getQuintessenceSpendingLedger({
+      purchaseType,
+      quantity,
+      quintessence: profile.quintessence,
+      totalQuintessence: profile.totalQuintessence,
+      experience: profile.experience,
+      totalExperience: profile.totalExperience,
+    });
+
+    if (purchaseType === "attribute") {
       await tx
         .update(campaignCharacterAttribute)
-        .set({ value: currentAttribute.value + quantity })
+        .set({ value: validatedAttributeFinalValue! })
         .where(
           and(
             eq(campaignCharacterAttribute.characterId, characterId),
