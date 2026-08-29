@@ -23,6 +23,8 @@ const SOURCE_FILES = {
   creatures: "serrian-tide-creature-seed.json",
   items: "serrian-tide-item-seed.json",
 };
+const CHECKED_IN_CANON_DIR = path.resolve(process.cwd(), "data", "canon");
+const ATTRIBUTE_REFERENCE_SOURCE_FILE = "serrian-tide-attribute-reference-canon.json";
 
 const pool = connectionString ? new Pool({ connectionString }) : null;
 
@@ -41,6 +43,11 @@ async function loadJson(fileName) {
     throw new Error(`Could not download ${fileName} from STSTandAlone: HTTP ${response.status}. Set STSTANDALONE_DATA_DIR to a local data directory to import offline.`);
   }
   return response.json();
+}
+
+async function loadCheckedInCanonJson(fileName) {
+  const sourcePath = path.join(CHECKED_IN_CANON_DIR, fileName);
+  return JSON.parse(await readFile(sourcePath, "utf8"));
 }
 
 async function queryOne(client, text, values = []) {
@@ -77,6 +84,7 @@ async function requireTables(client) {
     "item_tags_catalog",
     "item_tag_links",
     "item_rules",
+    "attribute_score_reference",
   ];
 
   const result = await client.query(
@@ -130,6 +138,56 @@ function validateSeeds(raceSeed, creatureSeed, itemSeed) {
   assert(itemSeed?.schemaVersion === 1, "Unsupported Item seed schema.");
   assert(itemSeed?.counts?.items === 1007, `Item seed expected 1007 Items; found ${itemSeed?.counts?.items ?? "unknown"}.`);
   assert(Array.isArray(itemSeed.items) && itemSeed.items.length === 1007, "Item seed record count does not match its manifest.");
+}
+
+function materializeAttributeReferenceRows(seed) {
+  assert(seed?.title === "Serrian Tide Attribute Reference Canon", "Unsupported Attribute Reference title.");
+  assert(seed?.version === 1, "Unsupported Attribute Reference schema version.");
+
+  const definitions = [
+    { sourceKey: "strength", attributeKey: "STR", fields: ["maxCarry", "maxLift"] },
+    { sourceKey: "intelligence", attributeKey: "INT", fields: ["maxSpheres", "spellWeaving"] },
+    { sourceKey: "wisdom", attributeKey: "WIS", fields: ["teachingBase"] },
+    { sourceKey: "charisma", attributeKey: "CHR", fields: ["loyaltyBase"] },
+  ];
+  const rows = [];
+
+  for (const definition of definitions) {
+    const sourceRows = seed[definition.sourceKey];
+    assert(Array.isArray(sourceRows), `Attribute Reference ${definition.sourceKey} must be an array.`);
+    assert(sourceRows.length === 100, `Attribute Reference ${definition.attributeKey} expected 100 rows; found ${sourceRows.length}.`);
+
+    const scores = new Set();
+    for (const sourceRow of sourceRows) {
+      assert(Number.isInteger(sourceRow.score), `Attribute Reference ${definition.attributeKey} contains a non-integer score.`);
+      assert(sourceRow.score >= 1 && sourceRow.score <= 100, `Attribute Reference ${definition.attributeKey} score ${sourceRow.score} is outside 1-100.`);
+      assert(!scores.has(sourceRow.score), `Attribute Reference ${definition.attributeKey} repeats score ${sourceRow.score}.`);
+      scores.add(sourceRow.score);
+
+      for (const field of definition.fields) {
+        assert(Number.isInteger(sourceRow[field]) && sourceRow[field] >= 0, `Attribute Reference ${definition.attributeKey} ${sourceRow.score} has an invalid ${field}.`);
+      }
+
+      rows.push({
+        attributeKey: definition.attributeKey,
+        score: sourceRow.score,
+        maxCarry: null,
+        maxLift: null,
+        maxSpheres: null,
+        spellWeaving: null,
+        teachingBase: null,
+        loyaltyBase: null,
+        ...Object.fromEntries(definition.fields.map((field) => [field, sourceRow[field]])),
+      });
+    }
+
+    for (let score = 1; score <= 100; score += 1) {
+      assert(scores.has(score), `Attribute Reference ${definition.attributeKey} is missing score ${score}.`);
+    }
+  }
+
+  assert(rows.length === 400, `Attribute Reference expected 400 rows; found ${rows.length}.`);
+  return rows;
 }
 
 function withoutVariantIdentity(row) {
@@ -863,17 +921,49 @@ async function importItems(client, seed) {
   };
 }
 
+async function importAttributeReferences(client, rows) {
+  for (const row of rows) {
+    await client.query(
+      `INSERT INTO attribute_score_reference (
+         attribute_key, score, max_carry, max_lift, max_spheres,
+         spell_weaving, teaching_base, loyalty_base
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (attribute_key, score) DO UPDATE SET
+         max_carry=EXCLUDED.max_carry,
+         max_lift=EXCLUDED.max_lift,
+         max_spheres=EXCLUDED.max_spheres,
+         spell_weaving=EXCLUDED.spell_weaving,
+         teaching_base=EXCLUDED.teaching_base,
+         loyalty_base=EXCLUDED.loyalty_base`,
+      [
+        row.attributeKey,
+        row.score,
+        row.maxCarry,
+        row.maxLift,
+        row.maxSpheres,
+        row.spellWeaving,
+        row.teachingBase,
+        row.loyaltyBase,
+      ],
+    );
+  }
+
+  return rows.length;
+}
+
 async function main() {
-  const [raceSeed, creatureSeed, itemSeed] = await Promise.all([
+  const [raceSeed, creatureSeed, itemSeed, attributeReferenceSeed] = await Promise.all([
     loadJson(SOURCE_FILES.races),
     loadJson(SOURCE_FILES.creatures),
     loadJson(SOURCE_FILES.items),
+    loadCheckedInCanonJson(ATTRIBUTE_REFERENCE_SOURCE_FILE),
   ]);
   validateSeeds(raceSeed, creatureSeed, itemSeed);
   const validatedCounts = validateFinalCanon(raceSeed, creatureSeed, itemSeed);
+  const attributeReferenceRows = materializeAttributeReferenceRows(attributeReferenceSeed);
   if (VALIDATE_ONLY) {
     console.log("STSTandAlone final canon validation complete.");
-    console.log(`Races: ${validatedCounts.races} | Creatures: ${validatedCounts.creatures} | Items: ${validatedCounts.items}`);
+    console.log(`Races: ${validatedCounts.races} | Creatures: ${validatedCounts.creatures} | Items: ${validatedCounts.items} | Attribute References: ${attributeReferenceRows.length}`);
     if (pool) await pool.end();
     return;
   }
@@ -889,12 +979,14 @@ async function main() {
     const raceCounts = await importRaces(client, raceSeed, skillMap);
     const creatureCounts = await importCreatures(client, creatureSeed, skillMap);
     const itemCounts = await importItems(client, itemSeed);
+    const attributeReferenceCount = await importAttributeReferences(client, attributeReferenceRows);
     await client.query("COMMIT");
 
     console.log("STSTandAlone canon import complete.");
     console.log(`Races: ${raceCounts.races} | Attribute Caps: ${raceCounts.attributeCaps} | Movement Modes: ${raceCounts.movementModes} | Race→Skill Links: ${raceCounts.skillLinks}`);
     console.log(`Creatures: ${creatureCounts.creatures} | CR References: ${creatureCounts.challengeRatings} | Hit Locations: ${creatureCounts.hitLocations} | Attacks: ${creatureCounts.attacks}`);
     console.log(`Items: ${itemCounts.items} | Equipment: ${itemCounts.equipment} | Inventory: ${itemCounts.inventory} | Weapons: ${itemCounts.weaponProfiles} | Armor: ${itemCounts.armorProfiles} | Tags: ${itemCounts.tags}`);
+    console.log(`Attribute References: ${attributeReferenceCount}`);
   } catch (error) {
     try {
       await client.query("ROLLBACK");

@@ -10,6 +10,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { attributeScoreReference } from "@/db/attribute-reference-schema";
 import { user } from "@/db/auth-schema";
 import {
   campaign,
@@ -45,6 +46,7 @@ import {
   CHARACTER_ATTRIBUTE_KEYS,
   type CharacterAggregate,
   type CharacterAttributeKey,
+  type CharacterAttributeReferenceKey,
   type CharacterDraft,
   type CharacterRaceAggregate,
 } from "@/features/characters/models";
@@ -407,6 +409,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
 
   const [
     attributeRows,
+    attributeReferenceRows,
     allocationRows,
     ownedItems,
     currencyHoldings,
@@ -420,6 +423,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     characterRow,
   ] = await Promise.all([
     db.select().from(campaignCharacterAttribute).where(eq(campaignCharacterAttribute.characterId, characterId)),
+    db.select().from(attributeScoreReference).orderBy(
+      asc(attributeScoreReference.attributeKey),
+      asc(attributeScoreReference.score),
+    ),
     db.select({
       id: campaignCharacterSkillAllocation.id,
       characterId: campaignCharacterSkillAllocation.characterId,
@@ -587,6 +594,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       characterId: attribute.characterId,
       attributeKey: attribute.attributeKey as CharacterAttributeKey,
       value: attribute.value,
+    })),
+    attributeReferenceCatalog: attributeReferenceRows.map((reference) => ({
+      ...reference,
+      attributeKey: reference.attributeKey as CharacterAttributeReferenceKey,
     })),
     skillAllocations: allocationRows.map((allocation) => ({ ...allocation, createdAt: allocation.createdAt.toISOString(), updatedAt: allocation.updatedAt.toISOString() })),
     items: ownedItems.map((entry) => ({ ...entry, acquiredAt: entry.acquiredAt.toISOString() })),

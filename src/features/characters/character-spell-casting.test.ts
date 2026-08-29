@@ -95,6 +95,7 @@ function aggregate(): CharacterAggregate {
       updatedAt: "updated",
     },
     attributes: [],
+    attributeReferenceCatalog: [],
     items: [],
     currencyHoldings: [],
     campaign: {

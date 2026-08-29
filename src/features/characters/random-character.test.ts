@@ -84,6 +84,7 @@ function aggregate(): CharacterAggregate {
       updatedAt: "updated",
     },
     attributes: [],
+    attributeReferenceCatalog: [],
     skillAllocations: [],
     items: [],
     currencyHoldings: [],

@@ -61,6 +61,22 @@ export type CharacterAttributeAllocation = {
   value: number;
 };
 
+export type CharacterAttributeReferenceKey = Extract<
+  CharacterAttributeKey,
+  "STR" | "INT" | "WIS" | "CHR"
+>;
+
+export type CharacterAttributeReference = {
+  attributeKey: CharacterAttributeReferenceKey;
+  score: number;
+  maxCarry: number | null;
+  maxLift: number | null;
+  maxSpheres: number | null;
+  spellWeaving: number | null;
+  teachingBase: number | null;
+  loyaltyBase: number | null;
+};
+
 export type CharacterSkillAllocation = {
   id: number;
   characterId: number;
@@ -203,6 +219,7 @@ export type CharacterAggregate = {
   character: CharacterCore;
   profile: CharacterProfile;
   attributes: CharacterAttributeAllocation[];
+  attributeReferenceCatalog: CharacterAttributeReference[];
   skillAllocations: CharacterSkillAllocation[];
   items: CharacterOwnedItem[];
   currencyHoldings: CharacterCurrencyHolding[];

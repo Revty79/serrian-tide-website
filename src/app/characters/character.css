@@ -510,6 +510,16 @@
   text-align: center;
 }
 
+.character-attribute-grid dl .character-attribute-reference-stat {
+  border: 1px solid rgb(245 202 115 / 10%);
+  background: rgb(245 202 115 / 4%);
+}
+
+.character-attribute-reference-stat dd {
+  color: #e2d2a9;
+  font-weight: 700;
+}
+
 .character-attribute-grid dt {
   color:#9da9b7;
   font-size: 0.75rem;

@@ -5,6 +5,11 @@ import {
   type CharacterDraft,
 } from "@/features/characters/models";
 import {
+  CHARACTER_ATTRIBUTE_REFERENCE_KEYS,
+  getAttributeReference,
+  getAttributeReferenceFields,
+} from "@/features/characters/attribute-reference";
+import {
   getAttributeModifier,
   getAttributeRollTarget,
   getBaseInitiative,
@@ -49,6 +54,15 @@ function signedNumber(value: number): string {
 
 export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props) {
   const hp = getCharacterHp(draft.attributes.CON);
+  const attributeReferences = CHARACTER_ATTRIBUTE_REFERENCE_KEYS.map((key) => ({
+    key,
+    reference: getAttributeReference(
+      aggregate.attributeReferenceCatalog,
+      key,
+      draft.attributes[key],
+    ),
+    fields: getAttributeReferenceFields(key),
+  }));
   const hpBreakdown = getCharacterHpBreakdown(hp);
   const hitResultsByPool = new Map(
     hpBreakdown.pools.map((pool) => [
@@ -287,6 +301,43 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
               <tr><th>Fame</th><td>{displayNumber(draft.profile.fame)}</td><td /></tr>
             </tbody></table>
           </article>
+        </section>
+
+        <section
+          className="character-sheet__section character-sheet__web-only-reference"
+          aria-labelledby="character-sheet-attribute-reference-title"
+        >
+          <div className="character-sheet__section-heading">
+            <p>ATTRIBUTE SCORE REFERENCE</p>
+            <h3 id="character-sheet-attribute-reference-title">
+              Live Attribute Reference
+            </h3>
+            <span>Values shown for each stored Attribute score.</span>
+          </div>
+          <div className="character-sheet__attribute-reference-grid">
+            {attributeReferences.map(({ key, reference, fields }) => (
+              <article key={key}>
+                <header>
+                  <div>
+                    <span>{key}</span>
+                    <h4>{CHARACTER_ATTRIBUTE_LABELS[key]}</h4>
+                  </div>
+                  <strong>Score {displayNumber(draft.attributes[key])}</strong>
+                </header>
+                <dl>
+                  {fields.map((field) => {
+                    const value = reference?.[field.key] ?? null;
+                    return (
+                      <div key={field.key}>
+                        <dt>{field.label}</dt>
+                        <dd>{value === null ? "—" : displayNumber(value)}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </article>
+            ))}
+          </div>
         </section>
 
         <div className="character-sheet__play-reference">

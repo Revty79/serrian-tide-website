@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "validate:canon": "node scripts/import-ststandalone-canon.mjs --validate-only",
     "validate:campaign": "tsx --test src/features/campaigns/campaign-inventory.test.ts",
-    "validate:character": "tsx --test src/features/characters/character-creation.test.ts",
+    "validate:character": "tsx --test src/features/characters/character-creation.test.ts src/features/characters/attribute-reference.test.ts",
     "validate:magic": "tsx --test src/features/characters/character-spell-casting.test.ts src/features/characters/magic-context-parity.test.ts",
     "validate:navigation": "tsx --test src/features/navigation/authenticated-navigation.test.ts src/features/campaigns/campaign-membership.test.ts src/features/campaigns/campaign-workflow.test.ts",
     "validate:random": "tsx --test src/features/characters/random-character.test.ts",

@@ -20,6 +20,10 @@ import {
   type CharacterCreationTab,
 } from "@/features/characters/character-creation";
 import {
+  getAttributeReference,
+  getAttributeReferenceFields,
+} from "@/features/characters/attribute-reference";
+import {
   CHARACTER_ATTRIBUTE_KEYS,
   CHARACTER_ATTRIBUTE_LABELS,
   type CharacterAggregate,
@@ -751,9 +755,128 @@ function IdentityTab({ draft, aggregate, selectedRace, disabled, godMode, raceLo
   </div>;
 }
 
-function AttributesTab({ draft, aggregate, race, disabled, godMode, onSetAttribute }: { draft: CharacterDraft; aggregate: CharacterAggregate; race: CharacterRaceAggregate | null; disabled: boolean; godMode: boolean; onSetAttribute: (key: CharacterAttributeKey, value: number) => void }) {
+function AttributesTab({
+  draft,
+  aggregate,
+  race,
+  disabled,
+  godMode,
+  onSetAttribute,
+}: {
+  draft: CharacterDraft;
+  aggregate: CharacterAggregate;
+  race: CharacterRaceAggregate | null;
+  disabled: boolean;
+  godMode: boolean;
+  onSetAttribute: (key: CharacterAttributeKey, value: number) => void;
+}) {
   const used = getAttributePointsUsed(draft);
-  return <div className="character-section"><SectionHeading eyebrow="CAMPAIGN ALLOCATION" title="Attributes" detail={godMode ? `${displayNumber(used)} total points` : `${displayNumber(used)} used · ${displayNumber(aggregate.campaign.attributePoints - used)} remaining`} />{!race ? <p className="character-notice">Choose a Race to apply its recorded Attribute caps. Missing Race caps are never replaced with an invented maximum.</p> : null}<div className="character-attribute-grid">{CHARACTER_ATTRIBUTE_KEYS.map((key) => { const score = draft.attributes[key]; const cap = getRaceAttributeCap(race, key); return <article key={key}><header><div><span>{key}</span><h3>{CHARACTER_ATTRIBUTE_LABELS[key]}</h3></div><small>{cap === null ? "No recorded cap" : `Race cap ${displayNumber(cap)}`}</small></header><label><span>Score</span><input aria-label={`${CHARACTER_ATTRIBUTE_LABELS[key]} Score`} disabled={disabled} type="number" min={0} step={1} value={score} onChange={(event) => onSetAttribute(key, numericValue(event.target.value))} /></label><dl><div><dt>Modifier</dt><dd>{signedNumber(getAttributeModifier(score))}</dd></div><div><dt>Roll Target</dt><dd>{displayNumber(getAttributeRollTarget(score))}%</dd></div></dl></article>; })}</div><div className="character-derived-strip"><div><span>HP Total</span><strong>{displayNumber(getCharacterHp(draft.attributes.CON))}</strong></div><div><span>Base Initiative</span><strong>{displayNumber(getBaseInitiative(draft.attributes.DEX))}</strong></div>{race?.movementModes.map((mode) => <div key={mode.movementMode}><span>{mode.movementMode} Initiative</span><strong>{displayNumber(getMovementInitiative(draft.attributes.DEX, mode.baseValue))}</strong></div>)}</div></div>;
+
+  return (
+    <div className="character-section">
+      <SectionHeading
+        eyebrow="CAMPAIGN ALLOCATION"
+        title="Attributes"
+        detail={
+          godMode
+            ? `${displayNumber(used)} total points`
+            : `${displayNumber(used)} used · ${displayNumber(aggregate.campaign.attributePoints - used)} remaining`
+        }
+      />
+      {!race ? (
+        <p className="character-notice">
+          Choose a Race to apply its recorded Attribute caps. Missing Race caps
+          are never replaced with an invented maximum.
+        </p>
+      ) : null}
+      <div className="character-attribute-grid">
+        {CHARACTER_ATTRIBUTE_KEYS.map((key) => {
+          const score = draft.attributes[key];
+          const cap = getRaceAttributeCap(race, key);
+          const reference = getAttributeReference(
+            aggregate.attributeReferenceCatalog,
+            key,
+            score,
+          );
+          const referenceFields = getAttributeReferenceFields(key);
+
+          return (
+            <article key={key}>
+              <header>
+                <div>
+                  <span>{key}</span>
+                  <h3>{CHARACTER_ATTRIBUTE_LABELS[key]}</h3>
+                </div>
+                <small>
+                  {cap === null
+                    ? "No recorded cap"
+                    : `Race cap ${displayNumber(cap)}`}
+                </small>
+              </header>
+              <label>
+                <span>Score</span>
+                <input
+                  aria-label={`${CHARACTER_ATTRIBUTE_LABELS[key]} Score`}
+                  disabled={disabled}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={score}
+                  onChange={(event) =>
+                    onSetAttribute(key, numericValue(event.target.value))
+                  }
+                />
+              </label>
+              <dl>
+                <div>
+                  <dt>Modifier</dt>
+                  <dd>{signedNumber(getAttributeModifier(score))}</dd>
+                </div>
+                <div>
+                  <dt>Roll Target</dt>
+                  <dd>{displayNumber(getAttributeRollTarget(score))}%</dd>
+                </div>
+                {referenceFields.map((field) => {
+                  const value = reference?.[field.key] ?? null;
+                  return (
+                    <div
+                      className="character-attribute-reference-stat"
+                      key={field.key}
+                    >
+                      <dt>{field.label}</dt>
+                      <dd>{value === null ? "—" : displayNumber(value)}</dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+      <div className="character-derived-strip">
+        <div>
+          <span>HP Total</span>
+          <strong>{displayNumber(getCharacterHp(draft.attributes.CON))}</strong>
+        </div>
+        <div>
+          <span>Base Initiative</span>
+          <strong>
+            {displayNumber(getBaseInitiative(draft.attributes.DEX))}
+          </strong>
+        </div>
+        {race?.movementModes.map((mode) => (
+          <div key={mode.movementMode}>
+            <span>{mode.movementMode} Initiative</span>
+            <strong>
+              {displayNumber(
+                getMovementInitiative(draft.attributes.DEX, mode.baseValue),
+              )}
+            </strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function SkillsTab({ draft, aggregate, race, disabled, godMode, enforceCampaignTierLimits, ranks, manaProfiles, childrenByParent, skillGroups, activeSkillGroup, onSelectSkillGroup, onSetSkillPoints, onShowDescription }: { draft: CharacterDraft; aggregate: CharacterAggregate; race: CharacterRaceAggregate | null; disabled: boolean; godMode: boolean; enforceCampaignTierLimits: boolean; ranks: ReadonlyMap<number, number>; manaProfiles: readonly CharacterManaProfile[]; childrenByParent: ReadonlyMap<number, CharacterSkillReference[]>; skillGroups: Array<{ key: string; label: string; skills: CharacterSkillReference[] }>; activeSkillGroup: string; onSelectSkillGroup: (group: string) => void; onSetSkillPoints: (skillId: number, parentDraftId: number | null, points: number) => void; onShowDescription: (skill: CharacterSkillReference) => void }) {

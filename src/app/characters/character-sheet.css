@@ -267,6 +267,80 @@
   font-size: 1rem;
 }
 
+.character-sheet__web-only-reference .character-sheet__section-heading span {
+  display: block;
+  margin-top: 4px;
+  color: #8d969f;
+  font-size: 0.75rem;
+}
+
+.character-sheet__attribute-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.character-sheet__attribute-reference-grid article {
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 7px;
+  background: rgb(3 9 14 / 24%);
+}
+
+.character-sheet__attribute-reference-grid header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 2%);
+}
+
+.character-sheet__attribute-reference-grid header span {
+  color: #9da9b7;
+  font-size: 0.75rem;
+}
+
+.character-sheet__attribute-reference-grid header h4 {
+  margin-top: 2px;
+}
+
+.character-sheet__attribute-reference-grid header strong {
+  color: #e2d2a9;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.character-sheet__attribute-reference-grid dl {
+  margin: 0;
+}
+
+.character-sheet__attribute-reference-grid dl div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+}
+
+.character-sheet__attribute-reference-grid dl div:last-child {
+  border-bottom: 0;
+}
+
+.character-sheet__attribute-reference-grid dt {
+  color: #aeb5bc;
+  font-size: 0.75rem;
+}
+
+.character-sheet__attribute-reference-grid dd {
+  margin: 0;
+  color: #d8c99e;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .character-sheet__play-reference {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
@@ -478,6 +552,10 @@
     grid-template-columns: 1fr;
   }
 
+  .character-sheet__attribute-reference-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .character-sheet__summary-grid > article,
   .character-sheet__summary-grid > article:nth-child(3n),
   .character-sheet__summary-grid > article:nth-last-child(-n + 3) {
@@ -499,6 +577,7 @@
   .character-sheet__identity,
   .character-god-controls__grid,
   .character-god-currency__denominations,
+  .character-sheet__attribute-reference-grid,
   .character-sheet__skill-ledgers,
   .character-sheet__story,
   .character-hit-chart__layout,
@@ -534,6 +613,10 @@
   .character-feedback,
   .character-tabs,
   .character-print-toolbar {
+    display: none !important;
+  }
+
+  .character-sheet__web-only-reference {
     display: none !important;
   }
 

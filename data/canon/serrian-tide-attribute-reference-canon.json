@@ -1,0 +1,1821 @@
+{
+  "title": "Serrian Tide Attribute Reference Canon",
+  "version": 1,
+  "scope": "Player-facing web reference values for character attributes. Printable character sheet excluded.",
+  "sources": {
+    "strength": "str charts.pdf, printed page 150; Normal Human Ranges 1-50 and Super Human Ranges 51-100",
+    "otherAttributes": "Serrian Tide - Attribute Reference Canon Google Sheet"
+  },
+  "notes": [
+    "Do not duplicate modifier, roll target, HP, or initiative tables; the website already calculates those.",
+    "Do not extrapolate beyond score 1-100. Missing/out-of-range scores must return no reference value."
+  ],
+  "strength": [
+    {
+      "score": 1,
+      "maxCarry": 1,
+      "maxLift": 2
+    },
+    {
+      "score": 2,
+      "maxCarry": 2,
+      "maxLift": 4
+    },
+    {
+      "score": 3,
+      "maxCarry": 3,
+      "maxLift": 6
+    },
+    {
+      "score": 4,
+      "maxCarry": 4,
+      "maxLift": 8
+    },
+    {
+      "score": 5,
+      "maxCarry": 5,
+      "maxLift": 10
+    },
+    {
+      "score": 6,
+      "maxCarry": 6,
+      "maxLift": 12
+    },
+    {
+      "score": 7,
+      "maxCarry": 7,
+      "maxLift": 14
+    },
+    {
+      "score": 8,
+      "maxCarry": 8,
+      "maxLift": 16
+    },
+    {
+      "score": 9,
+      "maxCarry": 9,
+      "maxLift": 18
+    },
+    {
+      "score": 10,
+      "maxCarry": 16,
+      "maxLift": 26
+    },
+    {
+      "score": 11,
+      "maxCarry": 24,
+      "maxLift": 35
+    },
+    {
+      "score": 12,
+      "maxCarry": 33,
+      "maxLift": 45
+    },
+    {
+      "score": 13,
+      "maxCarry": 43,
+      "maxLift": 56
+    },
+    {
+      "score": 14,
+      "maxCarry": 54,
+      "maxLift": 68
+    },
+    {
+      "score": 15,
+      "maxCarry": 67,
+      "maxLift": 83
+    },
+    {
+      "score": 16,
+      "maxCarry": 81,
+      "maxLift": 97
+    },
+    {
+      "score": 17,
+      "maxCarry": 96,
+      "maxLift": 113
+    },
+    {
+      "score": 18,
+      "maxCarry": 112,
+      "maxLift": 130
+    },
+    {
+      "score": 19,
+      "maxCarry": 129,
+      "maxLift": 148
+    },
+    {
+      "score": 20,
+      "maxCarry": 139,
+      "maxLift": 159
+    },
+    {
+      "score": 21,
+      "maxCarry": 159,
+      "maxLift": 180
+    },
+    {
+      "score": 22,
+      "maxCarry": 180,
+      "maxLift": 202
+    },
+    {
+      "score": 23,
+      "maxCarry": 202,
+      "maxLift": 225
+    },
+    {
+      "score": 24,
+      "maxCarry": 225,
+      "maxLift": 249
+    },
+    {
+      "score": 25,
+      "maxCarry": 250,
+      "maxLift": 275
+    },
+    {
+      "score": 26,
+      "maxCarry": 276,
+      "maxLift": 302
+    },
+    {
+      "score": 27,
+      "maxCarry": 303,
+      "maxLift": 330
+    },
+    {
+      "score": 28,
+      "maxCarry": 331,
+      "maxLift": 359
+    },
+    {
+      "score": 29,
+      "maxCarry": 360,
+      "maxLift": 389
+    },
+    {
+      "score": 30,
+      "maxCarry": 391,
+      "maxLift": 421
+    },
+    {
+      "score": 31,
+      "maxCarry": 423,
+      "maxLift": 454
+    },
+    {
+      "score": 32,
+      "maxCarry": 456,
+      "maxLift": 488
+    },
+    {
+      "score": 33,
+      "maxCarry": 490,
+      "maxLift": 523
+    },
+    {
+      "score": 34,
+      "maxCarry": 524,
+      "maxLift": 558
+    },
+    {
+      "score": 35,
+      "maxCarry": 561,
+      "maxLift": 596
+    },
+    {
+      "score": 36,
+      "maxCarry": 599,
+      "maxLift": 635
+    },
+    {
+      "score": 37,
+      "maxCarry": 638,
+      "maxLift": 675
+    },
+    {
+      "score": 38,
+      "maxCarry": 678,
+      "maxLift": 716
+    },
+    {
+      "score": 39,
+      "maxCarry": 719,
+      "maxLift": 758
+    },
+    {
+      "score": 40,
+      "maxCarry": 762,
+      "maxLift": 802
+    },
+    {
+      "score": 41,
+      "maxCarry": 806,
+      "maxLift": 847
+    },
+    {
+      "score": 42,
+      "maxCarry": 851,
+      "maxLift": 893
+    },
+    {
+      "score": 43,
+      "maxCarry": 897,
+      "maxLift": 940
+    },
+    {
+      "score": 44,
+      "maxCarry": 944,
+      "maxLift": 988
+    },
+    {
+      "score": 45,
+      "maxCarry": 993,
+      "maxLift": 1038
+    },
+    {
+      "score": 46,
+      "maxCarry": 1043,
+      "maxLift": 1089
+    },
+    {
+      "score": 47,
+      "maxCarry": 1094,
+      "maxLift": 1141
+    },
+    {
+      "score": 48,
+      "maxCarry": 1146,
+      "maxLift": 1194
+    },
+    {
+      "score": 49,
+      "maxCarry": 1199,
+      "maxLift": 1248
+    },
+    {
+      "score": 50,
+      "maxCarry": 1254,
+      "maxLift": 1304
+    },
+    {
+      "score": 51,
+      "maxCarry": 1631,
+      "maxLift": 1682
+    },
+    {
+      "score": 52,
+      "maxCarry": 1688,
+      "maxLift": 1740
+    },
+    {
+      "score": 53,
+      "maxCarry": 1746,
+      "maxLift": 1799
+    },
+    {
+      "score": 54,
+      "maxCarry": 1805,
+      "maxLift": 1859
+    },
+    {
+      "score": 55,
+      "maxCarry": 2325,
+      "maxLift": 2380
+    },
+    {
+      "score": 56,
+      "maxCarry": 2387,
+      "maxLift": 2443
+    },
+    {
+      "score": 57,
+      "maxCarry": 2450,
+      "maxLift": 2507
+    },
+    {
+      "score": 58,
+      "maxCarry": 2514,
+      "maxLift": 2572
+    },
+    {
+      "score": 59,
+      "maxCarry": 2879,
+      "maxLift": 2938
+    },
+    {
+      "score": 60,
+      "maxCarry": 3599,
+      "maxLift": 3659
+    },
+    {
+      "score": 61,
+      "maxCarry": 3667,
+      "maxLift": 3728
+    },
+    {
+      "score": 62,
+      "maxCarry": 3736,
+      "maxLift": 3798
+    },
+    {
+      "score": 63,
+      "maxCarry": 3806,
+      "maxLift": 3869
+    },
+    {
+      "score": 64,
+      "maxCarry": 3877,
+      "maxLift": 3941
+    },
+    {
+      "score": 65,
+      "maxCarry": 4927,
+      "maxLift": 4992
+    },
+    {
+      "score": 66,
+      "maxCarry": 5001,
+      "maxLift": 5067
+    },
+    {
+      "score": 67,
+      "maxCarry": 5079,
+      "maxLift": 5143
+    },
+    {
+      "score": 68,
+      "maxCarry": 5155,
+      "maxLift": 5223
+    },
+    {
+      "score": 69,
+      "maxCarry": 5232,
+      "maxLift": 5301
+    },
+    {
+      "score": 70,
+      "maxCarry": 6627,
+      "maxLift": 6697
+    },
+    {
+      "score": 71,
+      "maxCarry": 6707,
+      "maxLift": 6778
+    },
+    {
+      "score": 72,
+      "maxCarry": 6788,
+      "maxLift": 6860
+    },
+    {
+      "score": 73,
+      "maxCarry": 6870,
+      "maxLift": 6943
+    },
+    {
+      "score": 74,
+      "maxCarry": 6953,
+      "maxLift": 7027
+    },
+    {
+      "score": 75,
+      "maxCarry": 8785,
+      "maxLift": 8860
+    },
+    {
+      "score": 76,
+      "maxCarry": 8871,
+      "maxLift": 8947
+    },
+    {
+      "score": 77,
+      "maxCarry": 8957,
+      "maxLift": 9033
+    },
+    {
+      "score": 78,
+      "maxCarry": 9045,
+      "maxLift": 9123
+    },
+    {
+      "score": 79,
+      "maxCarry": 9134,
+      "maxLift": 9213
+    },
+    {
+      "score": 80,
+      "maxCarry": 11517,
+      "maxLift": 11597
+    },
+    {
+      "score": 81,
+      "maxCarry": 11609,
+      "maxLift": 11690
+    },
+    {
+      "score": 82,
+      "maxCarry": 11702,
+      "maxLift": 11784
+    },
+    {
+      "score": 83,
+      "maxCarry": 11796,
+      "maxLift": 11879
+    },
+    {
+      "score": 84,
+      "maxCarry": 11891,
+      "maxLift": 11975
+    },
+    {
+      "score": 85,
+      "maxCarry": 14970,
+      "maxLift": 15055
+    },
+    {
+      "score": 86,
+      "maxCarry": 15068,
+      "maxLift": 15154
+    },
+    {
+      "score": 87,
+      "maxCarry": 15167,
+      "maxLift": 15254
+    },
+    {
+      "score": 88,
+      "maxCarry": 15267,
+      "maxLift": 15355
+    },
+    {
+      "score": 89,
+      "maxCarry": 15368,
+      "maxLift": 15457
+    },
+    {
+      "score": 90,
+      "maxCarry": 19338,
+      "maxLift": 19428
+    },
+    {
+      "score": 91,
+      "maxCarry": 19442,
+      "maxLift": 19533
+    },
+    {
+      "score": 92,
+      "maxCarry": 19547,
+      "maxLift": 19639
+    },
+    {
+      "score": 93,
+      "maxCarry": 19653,
+      "maxLift": 19746
+    },
+    {
+      "score": 94,
+      "maxCarry": 19760,
+      "maxLift": 19854
+    },
+    {
+      "score": 95,
+      "maxCarry": 24835,
+      "maxLift": 24930
+    },
+    {
+      "score": 96,
+      "maxCarry": 24945,
+      "maxLift": 25041
+    },
+    {
+      "score": 97,
+      "maxCarry": 25056,
+      "maxLift": 25153
+    },
+    {
+      "score": 98,
+      "maxCarry": 25168,
+      "maxLift": 25266
+    },
+    {
+      "score": 99,
+      "maxCarry": 25281,
+      "maxLift": 25380
+    },
+    {
+      "score": 100,
+      "maxCarry": 38094,
+      "maxLift": 38194
+    }
+  ],
+  "intelligence": [
+    {
+      "score": 1,
+      "maxSpheres": 0,
+      "spellWeaving": 0
+    },
+    {
+      "score": 2,
+      "maxSpheres": 0,
+      "spellWeaving": 0
+    },
+    {
+      "score": 3,
+      "maxSpheres": 0,
+      "spellWeaving": 0
+    },
+    {
+      "score": 4,
+      "maxSpheres": 0,
+      "spellWeaving": 0
+    },
+    {
+      "score": 5,
+      "maxSpheres": 1,
+      "spellWeaving": 0
+    },
+    {
+      "score": 6,
+      "maxSpheres": 1,
+      "spellWeaving": 0
+    },
+    {
+      "score": 7,
+      "maxSpheres": 1,
+      "spellWeaving": 0
+    },
+    {
+      "score": 8,
+      "maxSpheres": 1,
+      "spellWeaving": 0
+    },
+    {
+      "score": 9,
+      "maxSpheres": 1,
+      "spellWeaving": 0
+    },
+    {
+      "score": 10,
+      "maxSpheres": 2,
+      "spellWeaving": 0
+    },
+    {
+      "score": 11,
+      "maxSpheres": 2,
+      "spellWeaving": 0
+    },
+    {
+      "score": 12,
+      "maxSpheres": 3,
+      "spellWeaving": 0
+    },
+    {
+      "score": 13,
+      "maxSpheres": 3,
+      "spellWeaving": 0
+    },
+    {
+      "score": 14,
+      "maxSpheres": 3,
+      "spellWeaving": 0
+    },
+    {
+      "score": 15,
+      "maxSpheres": 4,
+      "spellWeaving": 0
+    },
+    {
+      "score": 16,
+      "maxSpheres": 4,
+      "spellWeaving": 0
+    },
+    {
+      "score": 17,
+      "maxSpheres": 5,
+      "spellWeaving": 0
+    },
+    {
+      "score": 18,
+      "maxSpheres": 5,
+      "spellWeaving": 0
+    },
+    {
+      "score": 19,
+      "maxSpheres": 6,
+      "spellWeaving": 0
+    },
+    {
+      "score": 20,
+      "maxSpheres": 6,
+      "spellWeaving": 0
+    },
+    {
+      "score": 21,
+      "maxSpheres": 7,
+      "spellWeaving": 0
+    },
+    {
+      "score": 22,
+      "maxSpheres": 7,
+      "spellWeaving": 0
+    },
+    {
+      "score": 23,
+      "maxSpheres": 7,
+      "spellWeaving": 0
+    },
+    {
+      "score": 24,
+      "maxSpheres": 7,
+      "spellWeaving": 0
+    },
+    {
+      "score": 25,
+      "maxSpheres": 8,
+      "spellWeaving": 0
+    },
+    {
+      "score": 26,
+      "maxSpheres": 8,
+      "spellWeaving": 0
+    },
+    {
+      "score": 27,
+      "maxSpheres": 8,
+      "spellWeaving": 0
+    },
+    {
+      "score": 28,
+      "maxSpheres": 9,
+      "spellWeaving": 0
+    },
+    {
+      "score": 29,
+      "maxSpheres": 9,
+      "spellWeaving": 0
+    },
+    {
+      "score": 30,
+      "maxSpheres": 10,
+      "spellWeaving": 0
+    },
+    {
+      "score": 31,
+      "maxSpheres": 10,
+      "spellWeaving": 0
+    },
+    {
+      "score": 32,
+      "maxSpheres": 10,
+      "spellWeaving": 0
+    },
+    {
+      "score": 33,
+      "maxSpheres": 11,
+      "spellWeaving": 0
+    },
+    {
+      "score": 34,
+      "maxSpheres": 11,
+      "spellWeaving": 0
+    },
+    {
+      "score": 35,
+      "maxSpheres": 14,
+      "spellWeaving": 0
+    },
+    {
+      "score": 36,
+      "maxSpheres": 14,
+      "spellWeaving": 0
+    },
+    {
+      "score": 37,
+      "maxSpheres": 15,
+      "spellWeaving": 0
+    },
+    {
+      "score": 38,
+      "maxSpheres": 16,
+      "spellWeaving": 0
+    },
+    {
+      "score": 39,
+      "maxSpheres": 16,
+      "spellWeaving": 0
+    },
+    {
+      "score": 40,
+      "maxSpheres": 16,
+      "spellWeaving": 1
+    },
+    {
+      "score": 41,
+      "maxSpheres": 16,
+      "spellWeaving": 2
+    },
+    {
+      "score": 42,
+      "maxSpheres": 16,
+      "spellWeaving": 3
+    },
+    {
+      "score": 43,
+      "maxSpheres": 16,
+      "spellWeaving": 4
+    },
+    {
+      "score": 44,
+      "maxSpheres": 16,
+      "spellWeaving": 5
+    },
+    {
+      "score": 45,
+      "maxSpheres": 16,
+      "spellWeaving": 6
+    },
+    {
+      "score": 46,
+      "maxSpheres": 16,
+      "spellWeaving": 6
+    },
+    {
+      "score": 47,
+      "maxSpheres": 16,
+      "spellWeaving": 6
+    },
+    {
+      "score": 48,
+      "maxSpheres": 16,
+      "spellWeaving": 6
+    },
+    {
+      "score": 49,
+      "maxSpheres": 16,
+      "spellWeaving": 6
+    },
+    {
+      "score": 50,
+      "maxSpheres": 16,
+      "spellWeaving": 7
+    },
+    {
+      "score": 51,
+      "maxSpheres": 16,
+      "spellWeaving": 7
+    },
+    {
+      "score": 52,
+      "maxSpheres": 16,
+      "spellWeaving": 7
+    },
+    {
+      "score": 53,
+      "maxSpheres": 16,
+      "spellWeaving": 7
+    },
+    {
+      "score": 54,
+      "maxSpheres": 16,
+      "spellWeaving": 7
+    },
+    {
+      "score": 55,
+      "maxSpheres": 16,
+      "spellWeaving": 8
+    },
+    {
+      "score": 56,
+      "maxSpheres": 16,
+      "spellWeaving": 8
+    },
+    {
+      "score": 57,
+      "maxSpheres": 16,
+      "spellWeaving": 8
+    },
+    {
+      "score": 58,
+      "maxSpheres": 16,
+      "spellWeaving": 8
+    },
+    {
+      "score": 59,
+      "maxSpheres": 16,
+      "spellWeaving": 8
+    },
+    {
+      "score": 60,
+      "maxSpheres": 16,
+      "spellWeaving": 9
+    },
+    {
+      "score": 61,
+      "maxSpheres": 16,
+      "spellWeaving": 9
+    },
+    {
+      "score": 62,
+      "maxSpheres": 16,
+      "spellWeaving": 9
+    },
+    {
+      "score": 63,
+      "maxSpheres": 16,
+      "spellWeaving": 9
+    },
+    {
+      "score": 64,
+      "maxSpheres": 16,
+      "spellWeaving": 9
+    },
+    {
+      "score": 65,
+      "maxSpheres": 16,
+      "spellWeaving": 10
+    },
+    {
+      "score": 66,
+      "maxSpheres": 16,
+      "spellWeaving": 10
+    },
+    {
+      "score": 67,
+      "maxSpheres": 16,
+      "spellWeaving": 10
+    },
+    {
+      "score": 68,
+      "maxSpheres": 16,
+      "spellWeaving": 10
+    },
+    {
+      "score": 69,
+      "maxSpheres": 16,
+      "spellWeaving": 10
+    },
+    {
+      "score": 70,
+      "maxSpheres": 16,
+      "spellWeaving": 11
+    },
+    {
+      "score": 71,
+      "maxSpheres": 16,
+      "spellWeaving": 11
+    },
+    {
+      "score": 72,
+      "maxSpheres": 16,
+      "spellWeaving": 11
+    },
+    {
+      "score": 73,
+      "maxSpheres": 16,
+      "spellWeaving": 11
+    },
+    {
+      "score": 74,
+      "maxSpheres": 16,
+      "spellWeaving": 11
+    },
+    {
+      "score": 75,
+      "maxSpheres": 16,
+      "spellWeaving": 12
+    },
+    {
+      "score": 76,
+      "maxSpheres": 16,
+      "spellWeaving": 12
+    },
+    {
+      "score": 77,
+      "maxSpheres": 16,
+      "spellWeaving": 12
+    },
+    {
+      "score": 78,
+      "maxSpheres": 16,
+      "spellWeaving": 12
+    },
+    {
+      "score": 79,
+      "maxSpheres": 16,
+      "spellWeaving": 12
+    },
+    {
+      "score": 80,
+      "maxSpheres": 16,
+      "spellWeaving": 13
+    },
+    {
+      "score": 81,
+      "maxSpheres": 16,
+      "spellWeaving": 13
+    },
+    {
+      "score": 82,
+      "maxSpheres": 16,
+      "spellWeaving": 13
+    },
+    {
+      "score": 83,
+      "maxSpheres": 16,
+      "spellWeaving": 13
+    },
+    {
+      "score": 84,
+      "maxSpheres": 16,
+      "spellWeaving": 13
+    },
+    {
+      "score": 85,
+      "maxSpheres": 16,
+      "spellWeaving": 14
+    },
+    {
+      "score": 86,
+      "maxSpheres": 16,
+      "spellWeaving": 14
+    },
+    {
+      "score": 87,
+      "maxSpheres": 16,
+      "spellWeaving": 14
+    },
+    {
+      "score": 88,
+      "maxSpheres": 16,
+      "spellWeaving": 14
+    },
+    {
+      "score": 89,
+      "maxSpheres": 16,
+      "spellWeaving": 14
+    },
+    {
+      "score": 90,
+      "maxSpheres": 16,
+      "spellWeaving": 15
+    },
+    {
+      "score": 91,
+      "maxSpheres": 16,
+      "spellWeaving": 15
+    },
+    {
+      "score": 92,
+      "maxSpheres": 16,
+      "spellWeaving": 15
+    },
+    {
+      "score": 93,
+      "maxSpheres": 16,
+      "spellWeaving": 15
+    },
+    {
+      "score": 94,
+      "maxSpheres": 16,
+      "spellWeaving": 15
+    },
+    {
+      "score": 95,
+      "maxSpheres": 16,
+      "spellWeaving": 16
+    },
+    {
+      "score": 96,
+      "maxSpheres": 16,
+      "spellWeaving": 16
+    },
+    {
+      "score": 97,
+      "maxSpheres": 16,
+      "spellWeaving": 16
+    },
+    {
+      "score": 98,
+      "maxSpheres": 16,
+      "spellWeaving": 16
+    },
+    {
+      "score": 99,
+      "maxSpheres": 16,
+      "spellWeaving": 16
+    },
+    {
+      "score": 100,
+      "maxSpheres": 16,
+      "spellWeaving": 16
+    }
+  ],
+  "wisdom": [
+    {
+      "score": 1,
+      "teachingBase": 1
+    },
+    {
+      "score": 2,
+      "teachingBase": 1
+    },
+    {
+      "score": 3,
+      "teachingBase": 1
+    },
+    {
+      "score": 4,
+      "teachingBase": 1
+    },
+    {
+      "score": 5,
+      "teachingBase": 1
+    },
+    {
+      "score": 6,
+      "teachingBase": 1
+    },
+    {
+      "score": 7,
+      "teachingBase": 1
+    },
+    {
+      "score": 8,
+      "teachingBase": 1
+    },
+    {
+      "score": 9,
+      "teachingBase": 1
+    },
+    {
+      "score": 10,
+      "teachingBase": 2
+    },
+    {
+      "score": 11,
+      "teachingBase": 2
+    },
+    {
+      "score": 12,
+      "teachingBase": 2
+    },
+    {
+      "score": 13,
+      "teachingBase": 2
+    },
+    {
+      "score": 14,
+      "teachingBase": 2
+    },
+    {
+      "score": 15,
+      "teachingBase": 3
+    },
+    {
+      "score": 16,
+      "teachingBase": 3
+    },
+    {
+      "score": 17,
+      "teachingBase": 3
+    },
+    {
+      "score": 18,
+      "teachingBase": 3
+    },
+    {
+      "score": 19,
+      "teachingBase": 3
+    },
+    {
+      "score": 20,
+      "teachingBase": 4
+    },
+    {
+      "score": 21,
+      "teachingBase": 4
+    },
+    {
+      "score": 22,
+      "teachingBase": 4
+    },
+    {
+      "score": 23,
+      "teachingBase": 4
+    },
+    {
+      "score": 24,
+      "teachingBase": 4
+    },
+    {
+      "score": 25,
+      "teachingBase": 5
+    },
+    {
+      "score": 26,
+      "teachingBase": 5
+    },
+    {
+      "score": 27,
+      "teachingBase": 5
+    },
+    {
+      "score": 28,
+      "teachingBase": 5
+    },
+    {
+      "score": 29,
+      "teachingBase": 5
+    },
+    {
+      "score": 30,
+      "teachingBase": 7
+    },
+    {
+      "score": 31,
+      "teachingBase": 7
+    },
+    {
+      "score": 32,
+      "teachingBase": 7
+    },
+    {
+      "score": 33,
+      "teachingBase": 7
+    },
+    {
+      "score": 34,
+      "teachingBase": 7
+    },
+    {
+      "score": 35,
+      "teachingBase": 9
+    },
+    {
+      "score": 36,
+      "teachingBase": 9
+    },
+    {
+      "score": 37,
+      "teachingBase": 9
+    },
+    {
+      "score": 38,
+      "teachingBase": 9
+    },
+    {
+      "score": 39,
+      "teachingBase": 9
+    },
+    {
+      "score": 40,
+      "teachingBase": 11
+    },
+    {
+      "score": 41,
+      "teachingBase": 11
+    },
+    {
+      "score": 42,
+      "teachingBase": 11
+    },
+    {
+      "score": 43,
+      "teachingBase": 11
+    },
+    {
+      "score": 44,
+      "teachingBase": 11
+    },
+    {
+      "score": 45,
+      "teachingBase": 13
+    },
+    {
+      "score": 46,
+      "teachingBase": 13
+    },
+    {
+      "score": 47,
+      "teachingBase": 13
+    },
+    {
+      "score": 48,
+      "teachingBase": 13
+    },
+    {
+      "score": 49,
+      "teachingBase": 13
+    },
+    {
+      "score": 50,
+      "teachingBase": 15
+    },
+    {
+      "score": 51,
+      "teachingBase": 15
+    },
+    {
+      "score": 52,
+      "teachingBase": 15
+    },
+    {
+      "score": 53,
+      "teachingBase": 15
+    },
+    {
+      "score": 54,
+      "teachingBase": 15
+    },
+    {
+      "score": 55,
+      "teachingBase": 17
+    },
+    {
+      "score": 56,
+      "teachingBase": 17
+    },
+    {
+      "score": 57,
+      "teachingBase": 17
+    },
+    {
+      "score": 58,
+      "teachingBase": 17
+    },
+    {
+      "score": 59,
+      "teachingBase": 17
+    },
+    {
+      "score": 60,
+      "teachingBase": 19
+    },
+    {
+      "score": 61,
+      "teachingBase": 19
+    },
+    {
+      "score": 62,
+      "teachingBase": 19
+    },
+    {
+      "score": 63,
+      "teachingBase": 19
+    },
+    {
+      "score": 64,
+      "teachingBase": 19
+    },
+    {
+      "score": 65,
+      "teachingBase": 21
+    },
+    {
+      "score": 66,
+      "teachingBase": 21
+    },
+    {
+      "score": 67,
+      "teachingBase": 21
+    },
+    {
+      "score": 68,
+      "teachingBase": 21
+    },
+    {
+      "score": 69,
+      "teachingBase": 21
+    },
+    {
+      "score": 70,
+      "teachingBase": 23
+    },
+    {
+      "score": 71,
+      "teachingBase": 23
+    },
+    {
+      "score": 72,
+      "teachingBase": 23
+    },
+    {
+      "score": 73,
+      "teachingBase": 23
+    },
+    {
+      "score": 74,
+      "teachingBase": 23
+    },
+    {
+      "score": 75,
+      "teachingBase": 25
+    },
+    {
+      "score": 76,
+      "teachingBase": 25
+    },
+    {
+      "score": 77,
+      "teachingBase": 25
+    },
+    {
+      "score": 78,
+      "teachingBase": 25
+    },
+    {
+      "score": 79,
+      "teachingBase": 25
+    },
+    {
+      "score": 80,
+      "teachingBase": 27
+    },
+    {
+      "score": 81,
+      "teachingBase": 27
+    },
+    {
+      "score": 82,
+      "teachingBase": 27
+    },
+    {
+      "score": 83,
+      "teachingBase": 27
+    },
+    {
+      "score": 84,
+      "teachingBase": 27
+    },
+    {
+      "score": 85,
+      "teachingBase": 29
+    },
+    {
+      "score": 86,
+      "teachingBase": 29
+    },
+    {
+      "score": 87,
+      "teachingBase": 29
+    },
+    {
+      "score": 88,
+      "teachingBase": 29
+    },
+    {
+      "score": 89,
+      "teachingBase": 29
+    },
+    {
+      "score": 90,
+      "teachingBase": 31
+    },
+    {
+      "score": 91,
+      "teachingBase": 31
+    },
+    {
+      "score": 92,
+      "teachingBase": 31
+    },
+    {
+      "score": 93,
+      "teachingBase": 31
+    },
+    {
+      "score": 94,
+      "teachingBase": 31
+    },
+    {
+      "score": 95,
+      "teachingBase": 33
+    },
+    {
+      "score": 96,
+      "teachingBase": 33
+    },
+    {
+      "score": 97,
+      "teachingBase": 33
+    },
+    {
+      "score": 98,
+      "teachingBase": 33
+    },
+    {
+      "score": 99,
+      "teachingBase": 33
+    },
+    {
+      "score": 100,
+      "teachingBase": 35
+    }
+  ],
+  "charisma": [
+    {
+      "score": 1,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 2,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 3,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 4,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 5,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 6,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 7,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 8,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 9,
+      "loyaltyBase": 0
+    },
+    {
+      "score": 10,
+      "loyaltyBase": 1
+    },
+    {
+      "score": 11,
+      "loyaltyBase": 1
+    },
+    {
+      "score": 12,
+      "loyaltyBase": 1
+    },
+    {
+      "score": 13,
+      "loyaltyBase": 1
+    },
+    {
+      "score": 14,
+      "loyaltyBase": 1
+    },
+    {
+      "score": 15,
+      "loyaltyBase": 2
+    },
+    {
+      "score": 16,
+      "loyaltyBase": 2
+    },
+    {
+      "score": 17,
+      "loyaltyBase": 2
+    },
+    {
+      "score": 18,
+      "loyaltyBase": 2
+    },
+    {
+      "score": 19,
+      "loyaltyBase": 2
+    },
+    {
+      "score": 20,
+      "loyaltyBase": 3
+    },
+    {
+      "score": 21,
+      "loyaltyBase": 3
+    },
+    {
+      "score": 22,
+      "loyaltyBase": 3
+    },
+    {
+      "score": 23,
+      "loyaltyBase": 3
+    },
+    {
+      "score": 24,
+      "loyaltyBase": 3
+    },
+    {
+      "score": 25,
+      "loyaltyBase": 4
+    },
+    {
+      "score": 26,
+      "loyaltyBase": 4
+    },
+    {
+      "score": 27,
+      "loyaltyBase": 4
+    },
+    {
+      "score": 28,
+      "loyaltyBase": 4
+    },
+    {
+      "score": 29,
+      "loyaltyBase": 4
+    },
+    {
+      "score": 30,
+      "loyaltyBase": 6
+    },
+    {
+      "score": 31,
+      "loyaltyBase": 6
+    },
+    {
+      "score": 32,
+      "loyaltyBase": 6
+    },
+    {
+      "score": 33,
+      "loyaltyBase": 6
+    },
+    {
+      "score": 34,
+      "loyaltyBase": 6
+    },
+    {
+      "score": 35,
+      "loyaltyBase": 8
+    },
+    {
+      "score": 36,
+      "loyaltyBase": 8
+    },
+    {
+      "score": 37,
+      "loyaltyBase": 8
+    },
+    {
+      "score": 38,
+      "loyaltyBase": 8
+    },
+    {
+      "score": 39,
+      "loyaltyBase": 8
+    },
+    {
+      "score": 40,
+      "loyaltyBase": 10
+    },
+    {
+      "score": 41,
+      "loyaltyBase": 10
+    },
+    {
+      "score": 42,
+      "loyaltyBase": 10
+    },
+    {
+      "score": 43,
+      "loyaltyBase": 10
+    },
+    {
+      "score": 44,
+      "loyaltyBase": 10
+    },
+    {
+      "score": 45,
+      "loyaltyBase": 12
+    },
+    {
+      "score": 46,
+      "loyaltyBase": 12
+    },
+    {
+      "score": 47,
+      "loyaltyBase": 12
+    },
+    {
+      "score": 48,
+      "loyaltyBase": 12
+    },
+    {
+      "score": 49,
+      "loyaltyBase": 12
+    },
+    {
+      "score": 50,
+      "loyaltyBase": 14
+    },
+    {
+      "score": 51,
+      "loyaltyBase": 14
+    },
+    {
+      "score": 52,
+      "loyaltyBase": 14
+    },
+    {
+      "score": 53,
+      "loyaltyBase": 14
+    },
+    {
+      "score": 54,
+      "loyaltyBase": 14
+    },
+    {
+      "score": 55,
+      "loyaltyBase": 16
+    },
+    {
+      "score": 56,
+      "loyaltyBase": 16
+    },
+    {
+      "score": 57,
+      "loyaltyBase": 16
+    },
+    {
+      "score": 58,
+      "loyaltyBase": 16
+    },
+    {
+      "score": 59,
+      "loyaltyBase": 16
+    },
+    {
+      "score": 60,
+      "loyaltyBase": 18
+    },
+    {
+      "score": 61,
+      "loyaltyBase": 18
+    },
+    {
+      "score": 62,
+      "loyaltyBase": 18
+    },
+    {
+      "score": 63,
+      "loyaltyBase": 18
+    },
+    {
+      "score": 64,
+      "loyaltyBase": 18
+    },
+    {
+      "score": 65,
+      "loyaltyBase": 20
+    },
+    {
+      "score": 66,
+      "loyaltyBase": 20
+    },
+    {
+      "score": 67,
+      "loyaltyBase": 20
+    },
+    {
+      "score": 68,
+      "loyaltyBase": 20
+    },
+    {
+      "score": 69,
+      "loyaltyBase": 20
+    },
+    {
+      "score": 70,
+      "loyaltyBase": 22
+    },
+    {
+      "score": 71,
+      "loyaltyBase": 22
+    },
+    {
+      "score": 72,
+      "loyaltyBase": 22
+    },
+    {
+      "score": 73,
+      "loyaltyBase": 22
+    },
+    {
+      "score": 74,
+      "loyaltyBase": 22
+    },
+    {
+      "score": 75,
+      "loyaltyBase": 24
+    },
+    {
+      "score": 76,
+      "loyaltyBase": 24
+    },
+    {
+      "score": 77,
+      "loyaltyBase": 24
+    },
+    {
+      "score": 78,
+      "loyaltyBase": 24
+    },
+    {
+      "score": 79,
+      "loyaltyBase": 24
+    },
+    {
+      "score": 80,
+      "loyaltyBase": 26
+    },
+    {
+      "score": 81,
+      "loyaltyBase": 26
+    },
+    {
+      "score": 82,
+      "loyaltyBase": 26
+    },
+    {
+      "score": 83,
+      "loyaltyBase": 26
+    },
+    {
+      "score": 84,
+      "loyaltyBase": 26
+    },
+    {
+      "score": 85,
+      "loyaltyBase": 28
+    },
+    {
+      "score": 86,
+      "loyaltyBase": 28
+    },
+    {
+      "score": 87,
+      "loyaltyBase": 28
+    },
+    {
+      "score": 88,
+      "loyaltyBase": 28
+    },
+    {
+      "score": 89,
+      "loyaltyBase": 28
+    },
+    {
+      "score": 90,
+      "loyaltyBase": 30
+    },
+    {
+      "score": 91,
+      "loyaltyBase": 30
+    },
+    {
+      "score": 92,
+      "loyaltyBase": 30
+    },
+    {
+      "score": 93,
+      "loyaltyBase": 30
+    },
+    {
+      "score": 94,
+      "loyaltyBase": 30
+    },
+    {
+      "score": 95,
+      "loyaltyBase": 32
+    },
+    {
+      "score": 96,
+      "loyaltyBase": 32
+    },
+    {
+      "score": 97,
+      "loyaltyBase": 32
+    },
+    {
+      "score": 98,
+      "loyaltyBase": 32
+    },
+    {
+      "score": 99,
+      "loyaltyBase": 32
+    },
+    {
+      "score": 100,
+      "loyaltyBase": 34
+    }
+  ]
+}
