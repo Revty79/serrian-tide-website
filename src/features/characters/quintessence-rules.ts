@@ -7,6 +7,13 @@ export type CharacterQuintessencePurchaseType =
   | "fatePoints"
   | "experience";
 
+export type CharacterQuintessenceLedger = {
+  quintessence: number;
+  totalQuintessence: number;
+  experience: number;
+  totalExperience: number;
+};
+
 export function getQuintessenceCost(
   purchaseType: CharacterQuintessencePurchaseType,
   quantity: number,
@@ -30,4 +37,29 @@ export function getExperienceFromQuintessence(quantity: number): number {
   return Number.isInteger(quantity) && quantity > 0
     ? quantity * EXPERIENCE_PER_QUINTESSENCE
     : 0;
+}
+
+export function getQuintessenceSpendingLedger(input: {
+  purchaseType: CharacterQuintessencePurchaseType;
+  quantity: number;
+  quintessence: number;
+  totalQuintessence: number;
+  experience: number;
+  totalExperience: number;
+}): CharacterQuintessenceLedger {
+  const cost = getQuintessenceCost(input.purchaseType, input.quantity);
+  if (cost > input.quintessence) {
+    throw new Error(
+      `This purchase costs ${cost} Quintessence, but only ${input.quintessence} is available.`,
+    );
+  }
+  return {
+    quintessence: input.quintessence - cost,
+    totalQuintessence: input.totalQuintessence + cost,
+    experience:
+      input.purchaseType === "experience"
+        ? input.experience + getExperienceFromQuintessence(input.quantity)
+        : input.experience,
+    totalExperience: input.totalExperience,
+  };
 }

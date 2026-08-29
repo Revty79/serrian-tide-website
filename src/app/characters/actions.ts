@@ -52,9 +52,12 @@ import {
   type CharacterRaceAggregate,
 } from "@/features/characters/models";
 import {
+  canAccessSupernaturalSkillAtLevel,
   evaluateCharacterReadiness,
   getAttributePointsUsed,
-  getCreationPurchasedSkillMaximum,
+  getCharacterMagicSystem,
+  getCharacterManaProfiles,
+  getEffectiveSkillMaximum,
   getEffectiveSkillPoints,
   getRaceAttributeCap,
   getRacialSkillGrant,
@@ -63,12 +66,16 @@ import {
   isSkillAllowedByCampaign,
 } from "@/features/characters/character-rules";
 import {
+  getExperienceSpendingLedger,
+  getSkillAdvancementCost,
+  type CharacterSkillAdvancementRequest,
+} from "@/features/characters/character-advancement-rules";
+import {
   getCampaignMoneyBreakdown,
   getCanonicalCreditsFromHoldings,
 } from "@/features/characters/currency-rules";
 import {
-  getExperienceFromQuintessence,
-  getQuintessenceCost,
+  getQuintessenceSpendingLedger,
   type CharacterQuintessencePurchaseType,
 } from "@/features/characters/quintessence-rules";
 import { requireGod, requirePlayer, requireSession } from "@/lib/server-access";
@@ -868,65 +875,474 @@ export async function saveCharacter(
   return getCharacter(characterId, godMode);
 }
 
+export async function advanceCharacterSkills(
+  characterId: number,
+  requests: CharacterSkillAdvancementRequest[],
+): Promise<CharacterAggregate> {
+  if (!Number.isInteger(characterId) || characterId <= 0) {
+    throw new Error("Character advancement must reference a saved Character.");
+  }
+  if (!Array.isArray(requests) || requests.length === 0) {
+    throw new Error("Choose at least one Skill advancement.");
+  }
+  if (requests.length > 500) {
+    throw new Error("The Skill advancement plan is too large.");
+  }
+  const planIds = new Set<string>();
+  for (const request of requests) {
+    if (!request.planId?.trim() || planIds.has(request.planId)) {
+      throw new Error("Every planned Skill branch needs a unique plan identity.");
+    }
+    planIds.add(request.planId);
+    if (!Number.isInteger(request.skillId) || request.skillId <= 0) {
+      throw new Error("Every advancement must reference a saved Skill.");
+    }
+    if (!Number.isInteger(request.pointsToAdd) || request.pointsToAdd <= 0) {
+      throw new Error("Skill advancement points must be positive whole numbers.");
+    }
+    if (
+      request.parentAllocationId !== null &&
+      (!Number.isInteger(request.parentAllocationId) || request.parentAllocationId <= 0)
+    ) {
+      throw new Error("A planned parent allocation must reference a saved record.");
+    }
+    if (request.parentAllocationId !== null && request.parentPlanId !== null) {
+      throw new Error("A planned Skill cannot have two parent paths.");
+    }
+  }
+  for (const request of requests) {
+    if (request.parentPlanId !== null && !planIds.has(request.parentPlanId)) {
+      throw new Error("A planned Skill references a missing planned parent.");
+    }
+  }
+
+  const session = await requirePlayer();
+  await db.transaction(async (tx) => {
+    const [characterContext] = await tx
+      .select({
+        id: campaignCharacter.id,
+        campaignId: campaignCharacter.campaignId,
+        playerUserId: campaignCharacter.playerUserId,
+        isNpc: campaignCharacter.isNpc,
+        membershipUserId: campaignPlayer.userId,
+        pointsToUnlockNextTier: campaign.pointsToUnlockNextTier,
+        maxPointsInSkill: campaign.maxPointsInSkill,
+      })
+      .from(campaignCharacter)
+      .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
+      .leftJoin(
+        campaignPlayer,
+        and(
+          eq(campaignPlayer.campaignId, campaignCharacter.campaignId),
+          eq(campaignPlayer.userId, session.user.id),
+        ),
+      )
+      .where(eq(campaignCharacter.id, characterId))
+      .limit(1)
+      .for("update", { of: campaignCharacter });
+    if (!characterContext) throw new Error("Character not found.");
+    if (
+      characterContext.isNpc ||
+      characterContext.playerUserId !== session.user.id ||
+      characterContext.membershipUserId !== session.user.id
+    ) {
+      throw new Error("A Player may only advance their own Character.");
+    }
+
+    const [profile] = await tx
+      .select({
+        raceId: campaignCharacterProfile.raceId,
+        experience: campaignCharacterProfile.experience,
+        totalExperience: campaignCharacterProfile.totalExperience,
+        creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
+      })
+      .from(campaignCharacterProfile)
+      .where(eq(campaignCharacterProfile.characterId, characterId))
+      .limit(1)
+      .for("update");
+    if (!profile) {
+      throw new Error("The Character aggregate is missing its profile row.");
+    }
+    if (!profile.creationCompletedAt) {
+      throw new Error(
+        "Character creation must be completed before Experience can be spent.",
+      );
+    }
+
+    const allocationRows = await tx
+      .select({
+        id: campaignCharacterSkillAllocation.id,
+        skillId: campaignCharacterSkillAllocation.skillId,
+        parentAllocationId: campaignCharacterSkillAllocation.parentAllocationId,
+        points: campaignCharacterSkillAllocation.points,
+      })
+      .from(campaignCharacterSkillAllocation)
+      .where(eq(campaignCharacterSkillAllocation.characterId, characterId))
+      .orderBy(asc(campaignCharacterSkillAllocation.id))
+      .for("update");
+    const skillRows = await tx.select().from(skill).orderBy(asc(skill.id));
+    const relationshipRows = await tx
+      .select({
+        skillId: skillRelationship.skillId,
+        relatedSkillId: skillRelationship.relatedSkillId,
+        relationshipType: skillRelationship.relationshipType,
+      })
+      .from(skillRelationship)
+      .where(eq(skillRelationship.relationshipType, "parent"));
+    const extensionRows = await tx
+      .select({ skillId: skillExtension.skillId, dataJson: skillExtension.dataJson })
+      .from(skillExtension)
+      .where(eq(skillExtension.extensionType, "spell-import-source"));
+    const allowedSystemRows = await tx
+      .select({ system: campaignAllowedSystem.system })
+      .from(campaignAllowedSystem)
+      .where(eq(campaignAllowedSystem.campaignId, characterContext.campaignId));
+
+    const importMap = new Map(
+      extensionRows.map((extension) => [
+        extension.skillId,
+        readSpellImportReference(extension.dataJson),
+      ]),
+    );
+    const skillCatalog = skillRows.map((skillRow) => ({
+      id: skillRow.id,
+      name: skillRow.name,
+      classification: skillRow.classification,
+      tier: skillRow.tier,
+      primaryAttribute: skillRow.primaryAttribute,
+      secondaryAttribute: skillRow.secondaryAttribute,
+      definition: skillRow.definition,
+      spellLevel: importMap.get(skillRow.id)?.spellLevel ?? null,
+      manaCost: importMap.get(skillRow.id)?.manaCost ?? null,
+      spellDocumentJson: null,
+    }));
+    const catalogById = new Map(
+      skillCatalog.map((catalogSkill) => [catalogSkill.id, catalogSkill]),
+    );
+
+    let selectedRace: CharacterRaceAggregate | null = null;
+    if (profile.raceId !== null) {
+      const [raceRow] = await tx
+        .select({
+          id: race.id,
+          name: race.name,
+          size: race.size,
+          baseMagic: race.baseMagic,
+          ageMin: race.ageMin,
+          ageMax: race.ageMax,
+          ageRangeText: race.ageRangeText,
+          physicalDescription: race.physicalDescription,
+          racialQuirkName: race.racialQuirkName,
+          quirkSuccessEffect: race.quirkSuccessEffect,
+          quirkFailureEffect: race.quirkFailureEffect,
+        })
+        .from(race)
+        .where(eq(race.id, profile.raceId))
+        .limit(1);
+      if (!raceRow) throw new Error("The Character's Race could not be read.");
+      const racialSkillRows = await tx
+        .select({
+          skillId: raceSkillLink.skillId,
+          skillName: skill.name,
+          skillClassification: skill.classification,
+          linkType: raceSkillLink.linkType,
+          value: raceSkillLink.value,
+        })
+        .from(raceSkillLink)
+        .innerJoin(skill, eq(skill.id, raceSkillLink.skillId))
+        .where(eq(raceSkillLink.raceId, profile.raceId));
+      selectedRace = {
+        race: raceRow,
+        attributeCaps: [],
+        movementModes: [],
+        skillLinks: racialSkillRows,
+      };
+    }
+
+    type ProjectedAllocation = {
+      id: number;
+      skillId: number;
+      parentAllocationId: number | null;
+      points: number;
+    };
+    type ResolvedRequest = {
+      request: CharacterSkillAdvancementRequest;
+      targetAllocationId: number;
+      parentAllocationId: number | null;
+      existingAllocationId: number | null;
+      currentAllocationPoints: number;
+    };
+    let nextTemporaryId = -1;
+    let projectedAllocations: ProjectedAllocation[] = allocationRows.map(
+      (allocation) => ({ ...allocation }),
+    );
+    const targetIdByPlanId = new Map<string, number>();
+    const resolvedRequests: ResolvedRequest[] = [];
+    const plannedBranches = new Set<string>();
+    const unresolved = [...requests];
+    while (unresolved.length > 0) {
+      let progressed = false;
+      for (let index = unresolved.length - 1; index >= 0; index -= 1) {
+        const request = unresolved[index];
+        if (
+          request.parentPlanId !== null &&
+          !targetIdByPlanId.has(request.parentPlanId)
+        ) {
+          continue;
+        }
+        const resolvedParentId = request.parentPlanId !== null
+          ? targetIdByPlanId.get(request.parentPlanId)!
+          : request.parentAllocationId;
+        if (
+          resolvedParentId !== null &&
+          !projectedAllocations.some((allocation) => allocation.id === resolvedParentId)
+        ) {
+          throw new Error("A planned Skill parent does not belong to this Character.");
+        }
+        const branchKey = `${resolvedParentId ?? "root"}:${request.skillId}`;
+        if (plannedBranches.has(branchKey)) {
+          throw new Error("A Skill branch may only appear once in an Advancement plan.");
+        }
+        plannedBranches.add(branchKey);
+        const existing = projectedAllocations.find(
+          (allocation) =>
+            allocation.skillId === request.skillId &&
+            allocation.parentAllocationId === resolvedParentId,
+        );
+        const targetAllocationId = existing?.id ?? nextTemporaryId--;
+        const currentAllocationPoints = existing?.points ?? 0;
+        if (existing) {
+          projectedAllocations = projectedAllocations.map((allocation) =>
+            allocation.id === existing.id
+              ? { ...allocation, points: allocation.points + request.pointsToAdd }
+              : allocation,
+          );
+        } else {
+          projectedAllocations.push({
+            id: targetAllocationId,
+            skillId: request.skillId,
+            parentAllocationId: resolvedParentId,
+            points: request.pointsToAdd,
+          });
+        }
+        targetIdByPlanId.set(request.planId, targetAllocationId);
+        resolvedRequests.push({
+          request,
+          targetAllocationId,
+          parentAllocationId: resolvedParentId,
+          existingAllocationId: existing?.id ?? null,
+          currentAllocationPoints,
+        });
+        unresolved.splice(index, 1);
+        progressed = true;
+      }
+      if (!progressed) {
+        throw new Error("The Advancement plan contains a missing parent or cycle.");
+      }
+    }
+
+    const projectedById = new Map(
+      projectedAllocations.map((allocation) => [allocation.id, allocation]),
+    );
+    const projectedManaProfiles = getCharacterManaProfiles(
+      {
+        skillAllocations: projectedAllocations.map((allocation) => ({
+          draftId: allocation.id,
+          skillId: allocation.skillId,
+          parentDraftId: allocation.parentAllocationId,
+          points: allocation.points,
+        })),
+      },
+      skillCatalog,
+      selectedRace,
+    );
+    let totalExperienceCost = 0;
+    for (const resolved of resolvedRequests) {
+      const target = catalogById.get(resolved.request.skillId);
+      if (!target) throw new Error("A planned Skill could not be found.");
+      const racialGrant = getRacialSkillGrant(selectedRace, target.id);
+      let root = target;
+      let parent: ProjectedAllocation | null = null;
+      if (resolved.parentAllocationId !== null) {
+        parent = projectedById.get(resolved.parentAllocationId) ?? null;
+        if (!parent) {
+          throw new Error("A planned parent Skill path no longer exists.");
+        }
+        const parentSkill = catalogById.get(parent.skillId);
+        if (!parentSkill) throw new Error("A planned parent Skill is missing.");
+        const linked = relationshipRows.some(
+          (relationship) =>
+            relationship.skillId === target.id &&
+            relationship.relatedSkillId === parentSkill.id &&
+            relationship.relationshipType.trim().toLowerCase() === "parent",
+        );
+        if (!linked) {
+          throw new Error(`${target.name} is not a child of ${parentSkill.name}.`);
+        }
+        if (
+          parentSkill.tier !== null &&
+          target.tier !== null &&
+          target.tier !== parentSkill.tier + 1
+        ) {
+          throw new Error("Skill tiers do not follow their parent branch.");
+        }
+        let cursor: ProjectedAllocation | null = parent;
+        const visited = new Set<number>();
+        while (cursor) {
+          if (visited.has(cursor.id)) {
+            throw new Error("The planned Skill ancestry contains a cycle.");
+          }
+          visited.add(cursor.id);
+          const cursorSkill = catalogById.get(cursor.skillId);
+          if (!cursorSkill) {
+            throw new Error("The planned Skill ancestry references a missing Skill.");
+          }
+          root = cursorSkill;
+          if (cursor.parentAllocationId === null) break;
+          cursor = projectedById.get(cursor.parentAllocationId) ?? null;
+          if (!cursor) {
+            throw new Error("The planned Skill ancestry has a missing parent.");
+          }
+        }
+      } else if (target.tier !== null && target.tier !== 1) {
+        throw new Error("Tier 2 and Tier 3 Skills require a parent allocation.");
+      }
+
+      const magicSystem = getCharacterMagicSystem(root);
+      const spellAccessLevel = magicSystem
+        ? projectedManaProfiles.find((mana) => mana.system === magicSystem)
+            ?.spellAccessLevel ?? null
+        : null;
+      if (!canAccessSupernaturalSkillAtLevel(target, root, spellAccessLevel)) {
+        throw new Error(
+          `${target.name} is above the Character's current projected casting access.`,
+        );
+      }
+      if (
+        !isSkillAllowedByCampaign(
+          target,
+          root,
+          allowedSystemRows.map(({ system }) => system),
+          false,
+          racialGrant.granted,
+        )
+      ) {
+        throw new Error("That Skill is not allowed by this Campaign.");
+      }
+      if (parent) {
+        const parentEffectivePoints = getEffectiveSkillPoints(
+          parent.points,
+          selectedRace,
+          parent.skillId,
+        );
+        const unlockThreshold = getSkillUnlockThreshold(
+          root,
+          characterContext.pointsToUnlockNextTier,
+        );
+        if (
+          !racialGrant.granted &&
+          parentEffectivePoints + 0.000_001 < unlockThreshold
+        ) {
+          throw new Error(
+            `${target.name} is locked until its parent reaches ${unlockThreshold} points.`,
+          );
+        }
+      }
+
+      const currentSkillNumber = getEffectiveSkillPoints(
+        resolved.currentAllocationPoints,
+        selectedRace,
+        target.id,
+      );
+      const finalAllocation = projectedById.get(resolved.targetAllocationId)!;
+      const finalSkillNumber = getEffectiveSkillPoints(
+        finalAllocation.points,
+        selectedRace,
+        target.id,
+      );
+      const maximumSkillNumber = getEffectiveSkillMaximum(
+        target,
+        characterContext.maxPointsInSkill,
+      );
+      if (finalSkillNumber > maximumSkillNumber + 0.000_001) {
+        throw new Error(
+          `${target.name} cannot exceed ${maximumSkillNumber} Skill points.`,
+        );
+      }
+      totalExperienceCost += getSkillAdvancementCost(
+        currentSkillNumber,
+        resolved.request.pointsToAdd,
+      );
+    }
+    const ledger = getExperienceSpendingLedger(
+      profile.experience,
+      profile.totalExperience,
+      totalExperienceCost,
+    );
+
+    const changedAt = new Date();
+    const savedIdByTemporaryId = new Map<number, number>();
+    for (const resolved of resolvedRequests) {
+      if (resolved.existingAllocationId !== null) {
+        const finalAllocation = projectedById.get(resolved.targetAllocationId)!;
+        await tx
+          .update(campaignCharacterSkillAllocation)
+          .set({ points: finalAllocation.points, updatedAt: changedAt })
+          .where(
+            and(
+              eq(campaignCharacterSkillAllocation.id, resolved.existingAllocationId),
+              eq(campaignCharacterSkillAllocation.characterId, characterId),
+            ),
+          );
+        continue;
+      }
+      const parentAllocationId = resolved.parentAllocationId === null
+        ? null
+        : resolved.parentAllocationId > 0
+          ? resolved.parentAllocationId
+          : savedIdByTemporaryId.get(resolved.parentAllocationId) ?? null;
+      if (resolved.parentAllocationId !== null && parentAllocationId === null) {
+        throw new Error("A planned parent Skill could not be saved.");
+      }
+      const [created] = await tx
+        .insert(campaignCharacterSkillAllocation)
+        .values({
+          characterId,
+          skillId: resolved.request.skillId,
+          parentAllocationId,
+          points: resolved.request.pointsToAdd,
+          updatedAt: changedAt,
+        })
+        .returning({ id: campaignCharacterSkillAllocation.id });
+      savedIdByTemporaryId.set(resolved.targetAllocationId, created.id);
+    }
+    await tx
+      .update(campaignCharacterProfile)
+      .set({ ...ledger, updatedAt: changedAt })
+      .where(eq(campaignCharacterProfile.characterId, characterId));
+    await tx
+      .update(campaignCharacter)
+      .set({ updatedAt: changedAt })
+      .where(eq(campaignCharacter.id, characterId));
+  });
+
+  revalidateCharacterAdvancementPaths(characterId);
+  return getCharacter(characterId, false);
+}
+
 export async function advanceCharacterSkill(
   characterId: number,
   skillId: number,
   parentAllocationId: number | null,
   pointsToAdd = 1,
 ): Promise<CharacterAggregate> {
-  await requireCharacterAccess(characterId, false);
-  const aggregate = await getCharacter(characterId, false);
-  if (!aggregate.profile.creationCompletedAt) throw new Error("Character creation must be completed before Experience can be spent.");
-  if (!Number.isInteger(pointsToAdd) || pointsToAdd <= 0) throw new Error("Skill advancement points must be a positive whole number.");
-  if (aggregate.profile.experience < pointsToAdd) throw new Error("Not enough Experience is available.");
-
-  const target = aggregate.skillCatalog.find(({ id }) => id === skillId);
-  if (!target) throw new Error("Skill not found.");
-  const racial = getRacialSkillGrant(aggregate.selectedRace, skillId);
-  const existing = aggregate.skillAllocations.find((entry) => entry.skillId === skillId && entry.parentAllocationId === parentAllocationId);
-  const currentPoints = existing?.points ?? 0;
-  if (currentPoints + pointsToAdd > getCreationPurchasedSkillMaximum(target, aggregate.campaign.maxPointsInSkill, aggregate.campaign.maxPointsInSkill, racial.minimum)) {
-    throw new Error("This advancement would exceed the maximum points allowed in the Skill.");
-  }
-
-  if (parentAllocationId !== null) {
-    const parent = aggregate.skillAllocations.find(({ id }) => id === parentAllocationId);
-    if (!parent) throw new Error("Parent Skill allocation not found.");
-    const relationship = aggregate.skillRelationships.some((edge) => edge.skillId === skillId && edge.relatedSkillId === parent.skillId && edge.relationshipType.toLowerCase() === "parent");
-    if (!relationship) throw new Error("That Skill does not descend from the selected parent Skill.");
-    const parentMeta = aggregate.skillCatalog.find(({ id }) => id === parent.skillId);
-    if (!parentMeta) throw new Error("Parent Skill not found.");
-    const threshold = getSkillUnlockThreshold(parentMeta, aggregate.campaign.pointsToUnlockNextTier);
-    if (!racial.granted && getEffectiveSkillPoints(parent.points, aggregate.selectedRace, parent.skillId) < threshold) {
-      throw new Error(`The parent Skill needs ${threshold} points before this tier unlocks.`);
-    }
-  } else if (target.tier !== null && target.tier > 1) {
-    throw new Error("Higher-tier Skills require a parent allocation.");
-  }
-
-  let root = target;
-  if (parentAllocationId !== null) {
-    let cursor = aggregate.skillAllocations.find(({ id }) => id === parentAllocationId) ?? null;
-    while (cursor) {
-      root = aggregate.skillCatalog.find(({ id }) => id === cursor!.skillId) ?? root;
-      cursor = cursor.parentAllocationId === null ? null : aggregate.skillAllocations.find(({ id }) => id === cursor!.parentAllocationId) ?? null;
-    }
-  }
-  if (!isSkillAllowedByCampaign(target, root, aggregate.campaign.allowedSystems, true, racial.granted)) {
-    throw new Error("That Skill is not allowed by this Campaign.");
-  }
-
-  await db.transaction(async (tx) => {
-    if (existing) {
-      await tx.update(campaignCharacterSkillAllocation).set({ points: currentPoints + pointsToAdd, updatedAt: new Date() }).where(eq(campaignCharacterSkillAllocation.id, existing.id));
-    } else {
-      await tx.insert(campaignCharacterSkillAllocation).values({ characterId, skillId, parentAllocationId, points: pointsToAdd });
-    }
-    await tx.update(campaignCharacterProfile).set({ experience: aggregate.profile.experience - pointsToAdd, updatedAt: new Date() }).where(eq(campaignCharacterProfile.characterId, characterId));
-  });
-
-  revalidatePath(`/realms/characters/${characterId}/advance`);
-  return getCharacter(characterId, false);
+  return advanceCharacterSkills(characterId, [{
+    planId: `legacy:${parentAllocationId ?? "root"}:${skillId}`,
+    skillId,
+    parentAllocationId,
+    parentPlanId: null,
+    pointsToAdd,
+  }]);
 }
 
 export async function spendCharacterQuintessence(
@@ -935,37 +1351,134 @@ export async function spendCharacterQuintessence(
   quantity: number,
   attributeKey: CharacterAttributeKey | null = null,
 ): Promise<CharacterAggregate> {
-  await requireCharacterAccess(characterId, false);
-  const aggregate = await getCharacter(characterId, false);
-  if (!aggregate.profile.creationCompletedAt) throw new Error("Character creation must be completed before Quintessence can be spent.");
-  if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("Purchase quantity must be a positive whole number.");
-  if (purchaseType === "attribute" && (!attributeKey || !CHARACTER_ATTRIBUTE_KEYS.includes(attributeKey))) throw new Error("Attribute advancement requires one core Attribute.");
-  const cost = getQuintessenceCost(purchaseType, quantity);
-  if (aggregate.profile.quintessence < cost) throw new Error(`This purchase costs ${cost} Quintessence, but only ${aggregate.profile.quintessence} is available.`);
+  if (!Number.isInteger(characterId) || characterId <= 0) {
+    throw new Error("A Quintessence purchase must reference a saved Character.");
+  }
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    throw new Error("Purchase quantity must be a positive whole number.");
+  }
+  if (!(["attribute", "fatePoints", "experience"] as const).includes(purchaseType)) {
+    throw new Error("Unsupported Quintessence purchase type.");
+  }
+  if (
+    purchaseType === "attribute" &&
+    (!attributeKey || !CHARACTER_ATTRIBUTE_KEYS.includes(attributeKey))
+  ) {
+    throw new Error("Attribute advancement requires one core Attribute.");
+  }
 
+  const session = await requirePlayer();
   await db.transaction(async (tx) => {
+    const [characterContext] = await tx
+      .select({
+        id: campaignCharacter.id,
+        playerUserId: campaignCharacter.playerUserId,
+        isNpc: campaignCharacter.isNpc,
+        membershipUserId: campaignPlayer.userId,
+      })
+      .from(campaignCharacter)
+      .leftJoin(
+        campaignPlayer,
+        and(
+          eq(campaignPlayer.campaignId, campaignCharacter.campaignId),
+          eq(campaignPlayer.userId, session.user.id),
+        ),
+      )
+      .where(eq(campaignCharacter.id, characterId))
+      .limit(1)
+      .for("update", { of: campaignCharacter });
+    if (!characterContext) throw new Error("Character not found.");
+    if (
+      characterContext.isNpc ||
+      characterContext.playerUserId !== session.user.id ||
+      characterContext.membershipUserId !== session.user.id
+    ) {
+      throw new Error("A Player may only spend Quintessence for their own Character.");
+    }
+
+    const [profile] = await tx
+      .select({
+        quintessence: campaignCharacterProfile.quintessence,
+        totalQuintessence: campaignCharacterProfile.totalQuintessence,
+        experience: campaignCharacterProfile.experience,
+        totalExperience: campaignCharacterProfile.totalExperience,
+        fatePoints: campaignCharacterProfile.fatePoints,
+        creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
+      })
+      .from(campaignCharacterProfile)
+      .where(eq(campaignCharacterProfile.characterId, characterId))
+      .limit(1)
+      .for("update");
+    if (!profile) {
+      throw new Error("The Character aggregate is missing its profile row.");
+    }
+    if (!profile.creationCompletedAt) {
+      throw new Error(
+        "Character creation must be completed before Quintessence can be spent.",
+      );
+    }
+    const ledger = getQuintessenceSpendingLedger({
+      purchaseType,
+      quantity,
+      quintessence: profile.quintessence,
+      totalQuintessence: profile.totalQuintessence,
+      experience: profile.experience,
+      totalExperience: profile.totalExperience,
+    });
+
     if (purchaseType === "attribute") {
-      const [current] = await tx.select({ value: campaignCharacterAttribute.value }).from(campaignCharacterAttribute).where(and(eq(campaignCharacterAttribute.characterId, characterId), eq(campaignCharacterAttribute.attributeKey, attributeKey!))).limit(1);
-      const cap = getRaceCap(aggregate.selectedRace, attributeKey!);
-      const nextValue = (current?.value ?? 0) + quantity;
-      if (cap !== null && nextValue > cap) throw new Error(`That Attribute cannot exceed the Race cap of ${cap}.`);
-      await tx.update(campaignCharacterAttribute).set({ value: nextValue }).where(and(eq(campaignCharacterAttribute.characterId, characterId), eq(campaignCharacterAttribute.attributeKey, attributeKey!)));
+      const [currentAttribute] = await tx
+        .select({ value: campaignCharacterAttribute.value })
+        .from(campaignCharacterAttribute)
+        .where(
+          and(
+            eq(campaignCharacterAttribute.characterId, characterId),
+            eq(campaignCharacterAttribute.attributeKey, attributeKey!),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!currentAttribute) {
+        throw new Error("The selected Character Attribute could not be found.");
+      }
+      await tx
+        .update(campaignCharacterAttribute)
+        .set({ value: currentAttribute.value + quantity })
+        .where(
+          and(
+            eq(campaignCharacterAttribute.characterId, characterId),
+            eq(campaignCharacterAttribute.attributeKey, attributeKey!),
+          ),
+        );
     }
-    const profileUpdate: Record<string, number | Date> = { quintessence: aggregate.profile.quintessence - cost, updatedAt: new Date() };
-    if (purchaseType === "fatePoints") profileUpdate.fatePoints = (aggregate.profile.fatePoints ?? 0) + quantity;
-    if (purchaseType === "experience") {
-      const gained = getExperienceFromQuintessence(quantity);
-      profileUpdate.experience = aggregate.profile.experience + gained;
-      profileUpdate.totalExperience = aggregate.profile.totalExperience + gained;
-    }
-    await tx.update(campaignCharacterProfile).set(profileUpdate).where(eq(campaignCharacterProfile.characterId, characterId));
+
+    const changedAt = new Date();
+    await tx
+      .update(campaignCharacterProfile)
+      .set({
+        quintessence: ledger.quintessence,
+        totalQuintessence: ledger.totalQuintessence,
+        experience: ledger.experience,
+        fatePoints:
+          purchaseType === "fatePoints"
+            ? (profile.fatePoints ?? 0) + quantity
+            : profile.fatePoints,
+        updatedAt: changedAt,
+      })
+      .where(eq(campaignCharacterProfile.characterId, characterId));
+    await tx
+      .update(campaignCharacter)
+      .set({ updatedAt: changedAt })
+      .where(eq(campaignCharacter.id, characterId));
   });
 
-  revalidatePath(`/realms/characters/${characterId}/advance`);
+  revalidateCharacterAdvancementPaths(characterId);
   return getCharacter(characterId, false);
 }
 
-function getRaceCap(raceAggregate: CharacterRaceAggregate | null, attributeKey: CharacterAttributeKey) {
-  const names: Record<CharacterAttributeKey, string> = { STR: "Strength", DEX: "Dexterity", CON: "Constitution", INT: "Intelligence", WIS: "Wisdom", CHR: "Charisma" };
-  return raceAggregate?.attributeCaps.find((cap) => cap.attributeKey.toUpperCase() === attributeKey || cap.attributeKey.toLowerCase() === names[attributeKey].toLowerCase())?.maxValue ?? null;
+function revalidateCharacterAdvancementPaths(characterId: number) {
+  revalidatePath("/realms");
+  revalidatePath(`/realms/characters/${characterId}`);
+  revalidatePath(`/realms/characters/${characterId}/advance`);
+  revalidatePath(`/heavens/characters/${characterId}`);
 }
