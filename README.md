@@ -47,11 +47,19 @@ Player Character records remain ownership-protected server-side. Completing Char
 
 The application reads its PostgreSQL connection and authentication settings from environment variables. Copy `.env.example` to `.env.local`, then set `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`. For local development, `BETTER_AUTH_URL` is normally `http://localhost:3000`. Environment files and credentials must never be committed.
 
-Schema files are registered in `drizzle.config.ts`. After schema changes, generate and review a migration before applying it:
+Schema files are registered in `drizzle.config.ts`. The reset baseline intentionally has one migration, `drizzle/0000_serrian_tide_baseline.sql`, containing the complete schema and migration-owned canon through the current project checkpoint. It must be applied to a newly created empty database; do not run the squashed baseline against a database that recorded the superseded migration history.
+
+After future schema changes, generate and review a new forward migration before applying it:
 
 ```bash
 npx drizzle-kit generate
 npx drizzle-kit migrate
+```
+
+Verify the complete baseline SQL in a transaction-isolated temporary schema with:
+
+```bash
+npm run validate:baseline
 ```
 
 Do not run the canonical-data importer before the required schema migration has been applied.
@@ -64,14 +72,20 @@ The website includes an idempotent bootstrap/import command for the canonical ST
 npm run db:import:canon
 ```
 
+After importing, verify the checked-in Firearm Skill rows and parent relationships with:
+
+```bash
+npm run audit:firearm-skills
+```
+
 By default it reads the canonical source files from the public STSTandAlone repository. For an offline/local import, set `STSTANDALONE_DATA_DIR` to the old repository's `data` directory before running the command.
 
-The command is safe for both a freshly migrated PostgreSQL database and an existing development database. It imports the dependency chain in order—Skills and spell extensions first, then Races, Creatures, Equipment, and Inventory—while leaving G.O.D.-created records outside the canonical source identities in place.
+The command is safe for both a freshly migrated PostgreSQL database and an existing development database. It imports the dependency chain in order—Skills and spell extensions first, then Races, Creatures, Equipment, and Inventory—while leaving G.O.D.-created records outside the canonical source identities in place. The consolidated Drizzle baseline independently seeds the Firearm branch so those Skills exist before the broader canon import runs.
 
 The expected archive currently contains:
 
-- 1,137 canonical Skills
-- 1,022 final canonical parent relationships, including the shared Spellcraft/Talismanism/Faith Sphere branches
+- 1,142 canonical Skills, including the five website-owned Firearm Skills
+- 1,027 final canonical parent relationships, including the Firearm branch and shared Spellcraft/Talismanism/Faith Sphere branches
 - 371 Spell Construction extensions and 371 source/reference extensions
 - 56 Races and 283 Race-to-Skill links
 - 87 Creatures and all 50 Challenge Rating references

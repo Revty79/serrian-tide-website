@@ -1,2 +1,0 @@
-ALTER TABLE "weapon_profiles" ADD COLUMN "initiative_cost" integer;--> statement-breakpoint
-ALTER TABLE "weapon_profiles" ADD CONSTRAINT "weapon_profiles_initiative_cost_valid" CHECK ("weapon_profiles"."initiative_cost" IS NULL OR "weapon_profiles"."initiative_cost" > 0);

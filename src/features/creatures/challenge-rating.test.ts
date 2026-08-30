@@ -75,6 +75,19 @@ test("checked-in Creature CR XP canon contains the exact locked CR 1-50 table", 
   }
 });
 
+test("the consolidated baseline seeds every locked CR XP value", () => {
+  const migration = readFileSync(
+    path.resolve(process.cwd(), "drizzle", "0000_serrian_tide_baseline.sql"),
+    "utf8",
+  );
+  for (const { challengeRating, killXp } of canon.rewards) {
+    assert.ok(
+      migration.includes(`(${challengeRating}, ${killXp})`),
+      `Baseline migration is missing CR ${challengeRating} XP ${killXp}.`,
+    );
+  }
+});
+
 test("final CR determines XP and ignores a submitted Creature XP value", () => {
   const cr1 = calculateCreatureChallengeRating(creatureWithAdjustment(0), references);
   assert.equal(cr1.calculatedRating, 1);

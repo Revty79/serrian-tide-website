@@ -23,9 +23,14 @@ const SOURCE_REPO =
 const LOCAL_SOURCE_DIR = process.env.STSTANDALONE_DATA_DIR?.trim() || null;
 const SKILL_FILE = "serrian-tide-skill-catalog.tsv";
 const SPELL_FILE = "serrian-tide-spell-seed.json";
+const FIREARM_SKILL_FILE = new URL(
+  "../data/canon/serrian-tide-firearm-skills-canon.json",
+  import.meta.url,
+);
 const SOURCE_SYSTEM = "serrian-tide-core";
-const EXPECTED_SKILLS = 1137;
-const EXPECTED_RELATIONSHIPS = 1022;
+const EXPECTED_SKILLS = 1142;
+const EXPECTED_RELATIONSHIPS = 1027;
+const EXPECTED_FIREARM_SKILLS = 5;
 const EXPECTED_SPELLS = 371;
 const CORRECTED_TIER_EXTERNAL_ID =
   "skill-386c592f2009be1807e6645fb730ea2f21c4b607fa0b9e21473bec9603863ca7";
@@ -70,7 +75,63 @@ async function loadJson(fileName) {
   return JSON.parse(await loadText(fileName));
 }
 
-function parseCatalog(source) {
+async function loadFirearmSkillOverlay() {
+  const document = JSON.parse(await readFile(FIREARM_SKILL_FILE, "utf8"));
+  assert(document?.schemaVersion === 1, "Unsupported Firearm Skill canon schema.");
+  assert(
+    document?.sourceSystem === SOURCE_SYSTEM,
+    "Firearm Skill canon has the wrong source system.",
+  );
+  assert(
+    document?.recordCount === EXPECTED_FIREARM_SKILLS &&
+      Array.isArray(document.records) &&
+      document.records.length === EXPECTED_FIREARM_SKILLS,
+    `Expected ${EXPECTED_FIREARM_SKILLS} required Firearm Skills.`,
+  );
+  return document.records;
+}
+
+function applyRequiredSkillOverlay(rows, requiredRows) {
+  const rowIndexByName = new Map(
+    rows.map((row, index) => [row.name.toLocaleLowerCase("en-US"), index]),
+  );
+  for (const required of requiredRows) {
+    assert(required?.name?.trim(), "Required Skill canon contains a nameless row.");
+    assert(
+      required?.definition?.trim(),
+      `Required Skill ${required?.name ?? "unknown"} has no Definition.`,
+    );
+    assert(
+      Number.isInteger(required.tier) && required.tier >= 1,
+      `Required Skill ${required.name} has an invalid Tier.`,
+    );
+    const key = required.name.toLocaleLowerCase("en-US");
+    const existingIndex = rowIndexByName.get(key);
+    const canonicalRow = {
+      ordinal:
+        existingIndex === undefined
+          ? rows.length + 1
+          : rows[existingIndex].ordinal,
+      externalId: sourceExternalId(required.name),
+      primaryAttribute: required.primaryAttribute ?? null,
+      secondaryAttribute: required.secondaryAttribute ?? null,
+      classification: required.classification,
+      tier: required.tier,
+      name: required.name,
+      parentName: required.parentName ?? null,
+      definition: required.definition,
+    };
+    if (existingIndex === undefined) {
+      rowIndexByName.set(key, rows.length);
+      rows.push(canonicalRow);
+    } else {
+      rows[existingIndex] = canonicalRow;
+    }
+  }
+  return rows;
+}
+
+function parseCatalog(source, requiredRows) {
   const lines = source
     .replace(/^\uFEFF/u, "")
     .replace(/\r\n?/gu, "\n")
@@ -84,50 +145,54 @@ function parseCatalog(source) {
     );
   }
 
-  const rows = lines.map((line, index) => {
-    const columns = line.split("\t").slice(0, expectedHeaders.length);
-    if (columns.length < expectedHeaders.length) {
-      throw new Error(
-        `Skill catalog row ${index + 2} has only ${columns.length} columns.`,
-      );
-    }
-    const [
-      primary,
-      secondary,
-      classification,
-      tierText,
-      name,
-      parent,
-      definition,
-    ] = columns.map((value) => value.trim());
+  const rows = applyRequiredSkillOverlay(
+    lines.map((line, index) => {
+      const columns = line.split("\t").slice(0, expectedHeaders.length);
+      if (columns.length < expectedHeaders.length) {
+        throw new Error(
+          `Skill catalog row ${index + 2} has only ${columns.length} columns.`,
+        );
+      }
+      const [
+        primary,
+        secondary,
+        classification,
+        tierText,
+        name,
+        parent,
+        definition,
+      ] = columns.map((value) => value.trim());
 
-    if (!name) throw new Error(`Skill catalog row ${index + 2} has no Skill Name.`);
-    if (!classification) {
-      throw new Error(`Skill catalog row ${index + 2} has no Skill Type.`);
-    }
-    if (!definition) {
-      throw new Error(`Skill catalog row ${index + 2} has no Definition.`);
-    }
+      if (!name)
+        throw new Error(`Skill catalog row ${index + 2} has no Skill Name.`);
+      if (!classification) {
+        throw new Error(`Skill catalog row ${index + 2} has no Skill Type.`);
+      }
+      if (!definition) {
+        throw new Error(`Skill catalog row ${index + 2} has no Definition.`);
+      }
 
-    const tier = emptyValues.has(tierText) ? null : Number(tierText);
-    if (tier !== null && (!Number.isInteger(tier) || tier < 1)) {
-      throw new Error(
-        `Skill catalog row ${index + 2} has invalid tier ${JSON.stringify(tierText)}.`,
-      );
-    }
+      const tier = emptyValues.has(tierText) ? null : Number(tierText);
+      if (tier !== null && (!Number.isInteger(tier) || tier < 1)) {
+        throw new Error(
+          `Skill catalog row ${index + 2} has invalid tier ${JSON.stringify(tierText)}.`,
+        );
+      }
 
-    return {
-      ordinal: index + 1,
-      externalId: sourceExternalId(name),
-      primaryAttribute: emptyValues.has(primary) ? null : primary,
-      secondaryAttribute: emptyValues.has(secondary) ? null : secondary,
-      classification,
-      tier,
-      name,
-      parentName: emptyValues.has(parent) ? null : parent,
-      definition,
-    };
-  });
+      return {
+        ordinal: index + 1,
+        externalId: sourceExternalId(name),
+        primaryAttribute: emptyValues.has(primary) ? null : primary,
+        secondaryAttribute: emptyValues.has(secondary) ? null : secondary,
+        classification,
+        tier,
+        name,
+        parentName: emptyValues.has(parent) ? null : parent,
+        definition,
+      };
+    }),
+    requiredRows,
+  );
 
   const byName = new Map();
   for (const row of rows) {
@@ -382,11 +447,12 @@ async function importSpellExtensions(
 }
 
 async function main() {
-  const [skillSource, spellSeed] = await Promise.all([
+  const [skillSource, spellSeed, firearmSkillOverlay] = await Promise.all([
     loadText(SKILL_FILE),
     loadJson(SPELL_FILE),
+    loadFirearmSkillOverlay(),
   ]);
-  const { rows } = parseCatalog(skillSource);
+  const { rows } = parseCatalog(skillSource, firearmSkillOverlay);
 
   const client = await pool.connect();
   try {

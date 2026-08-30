@@ -5,85 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1787623156344,
-      "tag": "0000_dapper_slipstream",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1787670952534,
-      "tag": "0001_lethal_stingray",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1787707552319,
-      "tag": "0002_stale_elektra",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1787708836973,
-      "tag": "0003_handy_roulette",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1787753815600,
-      "tag": "0004_neat_peter_quill",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1788019433933,
-      "tag": "0005_parched_hawkeye",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1788026744721,
-      "tag": "0006_add_weapon_initiative_cost",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1788056070494,
-      "tag": "0007_add_character_hp_multiplier_steps",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1788057760057,
-      "tag": "0008_replace_creature_cr_xp",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1788058829941,
-      "tag": "0009_add_derived_abilities",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1788060008051,
-      "tag": "0010_seed_attribute_reference_canon",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1788060237572,
-      "tag": "0011_seed_attribute_reference_canon_data",
+      "when": 1788131505167,
+      "tag": "0000_serrian_tide_baseline",
       "breakpoints": true
     }
   ]

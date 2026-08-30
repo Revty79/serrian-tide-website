@@ -54,20 +54,24 @@ test("location HP pools retain existing percentages and rounding for enhanced HP
   );
 });
 
-test("the additive migration safely defaults existing profiles to zero steps", () => {
+test("the consolidated baseline defaults Character HP multiplier steps to zero", () => {
   const migration = readFileSync(
-    path.resolve(process.cwd(), "drizzle/0007_add_character_hp_multiplier_steps.sql"),
+    path.resolve(process.cwd(), "drizzle/0000_serrian_tide_baseline.sql"),
     "utf8",
   );
   assert.match(
     migration,
-    /ADD COLUMN "hp_multiplier_steps" integer DEFAULT 0 NOT NULL/,
+    /"hp_multiplier_steps" integer DEFAULT 0 NOT NULL/,
   );
   assert.match(
     migration,
     /CHECK \("campaign_character_profile"\."hp_multiplier_steps" >= 0\)/,
   );
-  assert.doesNotMatch(migration, /DROP TABLE|CREATE TABLE/);
+  assert.equal(
+    (migration.match(/"hp_multiplier_steps" integer DEFAULT 0 NOT NULL/g) ?? [])
+      .length,
+    1,
+  );
 });
 
 test("HP multiplier advancement is updated atomically and survives aggregate reload", () => {

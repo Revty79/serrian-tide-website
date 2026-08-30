@@ -145,7 +145,7 @@ test("Character Sheet and print use the shared resolver and keep Derived Abiliti
 
 test("migration seeds exactly the six neutral canonical Attribute milestones", () => {
   const migration = readFileSync(
-    path.resolve(process.cwd(), "drizzle/0009_add_derived_abilities.sql"),
+    path.resolve(process.cwd(), "drizzle/0000_serrian_tide_baseline.sql"),
     "utf8",
   );
   for (const [name, key] of [

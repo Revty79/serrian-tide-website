@@ -90,12 +90,12 @@ test("checked-in Attribute Reference canon contains exactly 100 scores per suppo
   );
 });
 
-test("the additive migration seeds every checked-in Attribute Reference row", () => {
+test("the consolidated baseline seeds every checked-in Attribute Reference row", () => {
   const migration = readFileSync(
     path.resolve(
       process.cwd(),
       "drizzle",
-      "0011_seed_attribute_reference_canon_data.sql",
+      "0000_serrian_tide_baseline.sql",
     ),
     "utf8",
   );

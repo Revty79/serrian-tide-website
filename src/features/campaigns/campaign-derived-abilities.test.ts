@@ -60,6 +60,6 @@ test("one reusable selector serves Campaign Create and Campaign Settings", () =>
 });
 
 test("existing Campaigns are not opted into canonical abilities by migration", () => {
-  const migration = readSource("drizzle/0009_add_derived_abilities.sql");
+  const migration = readSource("drizzle/0000_serrian_tide_baseline.sql");
   assert.doesNotMatch(migration, /INSERT INTO "campaign_allowed_derived_ability"/);
 });

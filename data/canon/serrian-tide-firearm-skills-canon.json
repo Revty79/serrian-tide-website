@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "sourceSystem": "serrian-tide-core",
+  "recordCount": 5,
+  "records": [
+    {
+      "primaryAttribute": "DEX",
+      "secondaryAttribute": null,
+      "classification": "standard",
+      "tier": 2,
+      "name": "Firearm Mastery",
+      "parentName": "Precision Ranged",
+      "definition": "Firearm Mastery trains the controlled use of handguns, rifles, shotguns, and other conventional firearms. It covers sight alignment, trigger control, weapon presentation, recoil recovery, target acquisition, and maintaining accuracy under pressure. The Skill represents practical shooting proficiency across firearm families before more specialized training is applied."
+    },
+    {
+      "primaryAttribute": "DEX",
+      "secondaryAttribute": null,
+      "classification": "standard",
+      "tier": 3,
+      "name": "Handgun Mastery",
+      "parentName": "Firearm Mastery",
+      "definition": "Handgun Mastery specializes in pistols, revolvers, and similar compact firearms. Training emphasizes presentation, sight recovery, controlled follow-up shots, shooting from constrained positions, and maintaining accuracy with short sight radii and one- or two-handed grips."
+    },
+    {
+      "primaryAttribute": "DEX",
+      "secondaryAttribute": null,
+      "classification": "standard",
+      "tier": 3,
+      "name": "Rifle Mastery",
+      "parentName": "Firearm Mastery",
+      "definition": "Rifle Mastery specializes in shoulder-fired rifles and carbines. It emphasizes stable firing positions, sight alignment, controlled trigger use, target transitions, range judgment, and maintaining precision from supported and unsupported positions."
+    },
+    {
+      "primaryAttribute": "DEX",
+      "secondaryAttribute": null,
+      "classification": "standard",
+      "tier": 3,
+      "name": "Shotgun Mastery",
+      "parentName": "Firearm Mastery",
+      "definition": "Shotgun Mastery specializes in smoothbore and shotgun-pattern firearms. It covers rapid target acquisition, recoil recovery, ammunition handling, pattern awareness, and effective use of shot, slug, and other compatible loads at appropriate ranges."
+    },
+    {
+      "primaryAttribute": "DEX",
+      "secondaryAttribute": null,
+      "classification": "standard",
+      "tier": 3,
+      "name": "Automatic Fire Control",
+      "parentName": "Firearm Mastery",
+      "definition": "Automatic Fire Control trains the deliberate use of burst and fully automatic fire. It emphasizes muzzle control, burst discipline, target tracking, controlled sweep, ammunition management, and maintaining useful accuracy while repeated recoil attempts to drive the weapon off target."
+    }
+  ]
+}
