@@ -71,6 +71,20 @@
       "when": 1788058829941,
       "tag": "0009_add_derived_abilities",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788060008051,
+      "tag": "0010_seed_attribute_reference_canon",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788060237572,
+      "tag": "0011_seed_attribute_reference_canon_data",
+      "breakpoints": true
     }
   ]
 }

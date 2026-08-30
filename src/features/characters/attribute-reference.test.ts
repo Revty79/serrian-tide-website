@@ -90,6 +90,32 @@ test("checked-in Attribute Reference canon contains exactly 100 scores per suppo
   );
 });
 
+test("the additive migration seeds every checked-in Attribute Reference row", () => {
+  const migration = readFileSync(
+    path.resolve(
+      process.cwd(),
+      "drizzle",
+      "0011_seed_attribute_reference_canon_data.sql",
+    ),
+    "utf8",
+  );
+  const sqlValue = (value: number | null) =>
+    value === null ? "NULL" : String(value);
+
+  for (const row of rows) {
+    const tuple = `('${row.attributeKey}', ${row.score}, ${sqlValue(row.maxCarry)}, ${sqlValue(row.maxLift)}, ${sqlValue(row.maxSpheres)}, ${sqlValue(row.spellWeaving)}, ${sqlValue(row.teachingBase)}, ${sqlValue(row.loyaltyBase)})`;
+    assert.ok(
+      migration.includes(tuple),
+      `Migration is missing ${row.attributeKey} score ${row.score}.`,
+    );
+  }
+
+  assert.match(
+    migration,
+    /ON CONFLICT \("attribute_key", "score"\) DO UPDATE SET/,
+  );
+});
+
 test("Strength canon sentinels match the supplied source", () => {
   const expected = [
     [1, 1, 2],
