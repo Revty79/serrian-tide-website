@@ -25,6 +25,14 @@ const SOURCE_FILES = {
 };
 const CHECKED_IN_CANON_DIR = path.resolve(process.cwd(), "data", "canon");
 const ATTRIBUTE_REFERENCE_SOURCE_FILE = "serrian-tide-attribute-reference-canon.json";
+const CR_XP_SOURCE_FILE = "serrian-tide-cr-xp-canon.json";
+const EXPECTED_CR_KILL_XP = [
+  2, 3, 4, 5, 7, 9, 11, 13, 15, 18,
+  21, 24, 27, 30, 34, 38, 42, 46, 50, 55,
+  60, 65, 70, 75, 81, 87, 93, 100, 107, 115,
+  123, 131, 139, 147, 156, 165, 174, 183, 192, 201,
+  211, 221, 231, 241, 252, 263, 274, 286, 298, 310,
+];
 
 const pool = connectionString ? new Pool({ connectionString }) : null;
 
@@ -190,6 +198,55 @@ function materializeAttributeReferenceRows(seed) {
   return rows;
 }
 
+function materializeCrXpCanonRows(seed) {
+  assert(seed?.title === "Serrian Tide CR XP Canon", "Unsupported CR XP canon title.");
+  assert(seed?.version === 1, "Unsupported CR XP canon schema version.");
+  assert(Array.isArray(seed.rewards), "CR XP canon rewards must be an array.");
+  assert(seed.rewards.length === 50, `CR XP canon expected exactly 50 rows; found ${seed.rewards.length}.`);
+
+  const challengeRatings = new Set();
+  const rows = seed.rewards.map((row, index) => {
+    assert(Number.isInteger(row?.challengeRating), `CR XP canon row ${index + 1} has a non-integer Challenge Rating.`);
+    assert(row.challengeRating >= 1 && row.challengeRating <= 50, `CR XP canon Challenge Rating ${row.challengeRating} is outside 1-50.`);
+    assert(!challengeRatings.has(row.challengeRating), `CR XP canon repeats Challenge Rating ${row.challengeRating}.`);
+    challengeRatings.add(row.challengeRating);
+    assert(row.challengeRating === index + 1, `CR XP canon rows must be ordered CR 1 through 50; row ${index + 1} contains CR ${row.challengeRating}.`);
+    assert(Number.isInteger(row.killXp) && row.killXp >= 0, `CR XP canon CR ${row.challengeRating} has an invalid Kill XP value.`);
+    assert(row.killXp === EXPECTED_CR_KILL_XP[index], `CR XP canon CR ${row.challengeRating} must award ${EXPECTED_CR_KILL_XP[index]} XP; found ${row.killXp}.`);
+    return { challengeRating: row.challengeRating, killXp: row.killXp };
+  });
+
+  for (let challengeRating = 1; challengeRating <= 50; challengeRating += 1) {
+    assert(challengeRatings.has(challengeRating), `CR XP canon is missing Challenge Rating ${challengeRating}.`);
+  }
+  return rows;
+}
+
+function canonicalKillXpFor(killXpByCr, challengeRating, label) {
+  assert(Number.isInteger(challengeRating) && challengeRating >= 1 && challengeRating <= 50, `${label} has an invalid final Challenge Rating.`);
+  const killXp = killXpByCr.get(challengeRating);
+  assert(Number.isInteger(killXp) && killXp >= 0, `${label} is missing canonical Kill XP for CR ${challengeRating}.`);
+  return killXp;
+}
+
+function materializeChallengeRatingReferences(creatureSeed, crXpRows) {
+  assert(Array.isArray(creatureSeed.challengeReference), "Creature seed Challenge Rating references must be an array.");
+  assert(creatureSeed.challengeReference.length === 50, `Creature seed expected 50 Challenge Rating guidance rows; found ${creatureSeed.challengeReference.length}.`);
+
+  const sourceByCr = new Map();
+  for (const row of creatureSeed.challengeReference) {
+    assert(Number.isInteger(row.challengeRating) && row.challengeRating >= 1 && row.challengeRating <= 50, `Creature seed has an invalid Challenge Rating guidance row: ${row.challengeRating}.`);
+    assert(!sourceByCr.has(row.challengeRating), `Creature seed repeats Challenge Rating guidance for CR ${row.challengeRating}.`);
+    sourceByCr.set(row.challengeRating, row);
+  }
+
+  return crXpRows.map((reward) => {
+    const source = sourceByCr.get(reward.challengeRating);
+    assert(source, `Creature seed is missing non-XP guidance for CR ${reward.challengeRating}.`);
+    return { ...source, killXp: reward.killXp };
+  });
+}
+
 function withoutVariantIdentity(row) {
   const copy = { ...row };
   delete copy.variantCanonicalId;
@@ -218,15 +275,19 @@ function selectVariantAdditive(rows, variantCanonicalId) {
     .map(withoutVariantIdentity);
 }
 
-function materializeFinalCreatureRecords(seed) {
+function materializeFinalCreatureRecords(seed, crXpRows) {
   const killXpByCr = new Map(
-    seed.challengeReference.map((row) => [row.challengeRating, row.killXp ?? null]),
+    crXpRows.map((row) => [row.challengeRating, row.killXp]),
   );
   const records = [];
 
   for (const source of seed.creatures) {
     const baseRecord = {
       ...source,
+      core: {
+        ...source.core,
+        killXp: canonicalKillXpFor(killXpByCr, source.core.challengeRating, `Creature ${source.core.canonicalId}`),
+      },
       variants: [],
       attributes: (source.attributes ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
       movement: (source.movement ?? []).filter((row) => !row.variantCanonicalId).map(withoutVariantIdentity),
@@ -279,7 +340,7 @@ function materializeFinalCreatureRecords(seed) {
           canonicalName: variant.variantName,
           size: variant.sizeOverride ?? source.core.size,
           challengeRating,
-          killXp: variant.killXpOverride ?? killXpByCr.get(challengeRating) ?? source.core.killXp ?? null,
+          killXp: canonicalKillXpFor(killXpByCr, challengeRating, `Creature Variant ${variant.canonicalId}`),
           description: variant.description?.trim() ? variant.description : source.core.description,
           notes: variant.notes ?? "",
           parentCanonicalId: source.core.canonicalId,
@@ -305,8 +366,10 @@ function materializeFinalCreatureRecords(seed) {
   return records;
 }
 
-function validateFinalCanon(raceSeed, creatureSeed, itemSeed) {
-  const finalCreatureRecords = materializeFinalCreatureRecords(creatureSeed);
+function validateFinalCanon(raceSeed, creatureSeed, itemSeed, crXpRows) {
+  const challengeReferences = materializeChallengeRatingReferences(creatureSeed, crXpRows);
+  const finalCreatureRecords = materializeFinalCreatureRecords(creatureSeed, crXpRows);
+  const killXpByCr = new Map(crXpRows.map((row) => [row.challengeRating, row.killXp]));
   const assertUppercaseUnique = (values, label) => {
     const normalized = values.map((value) => String(value).toLocaleUpperCase("en-US"));
     assert(values.every((value, index) => value === normalized[index]), `${label} identities must be uppercase.`);
@@ -323,7 +386,11 @@ function validateFinalCanon(raceSeed, creatureSeed, itemSeed) {
 
   const creatureIds = new Set(finalCreatureRecords.map((record) => record.core.canonicalId));
   const itemIds = new Set(itemSeed.items.map((record) => record.core.canonicalId));
+  for (const reference of challengeReferences) {
+    assert(reference.killXp === killXpByCr.get(reference.challengeRating), `Imported CR ${reference.challengeRating} guidance did not receive canonical Kill XP.`);
+  }
   for (const record of finalCreatureRecords) {
+    assert(record.core.killXp === killXpByCr.get(record.core.challengeRating), `${record.core.canonicalId} Kill XP does not match final CR ${record.core.challengeRating}.`);
     assert(record.variants.length === 0, `${record.core.canonicalId} retained a residual Creature Variant row.`);
     assert(!record.core.parentCanonicalId || creatureIds.has(record.core.parentCanonicalId), `${record.core.canonicalId} has a missing parent Creature.`);
     const hpPoolIds = new Set((record.hpPools ?? []).map((row) => row.canonicalId));
@@ -342,6 +409,24 @@ function validateFinalCanon(raceSeed, creatureSeed, itemSeed) {
     assert(record.abilities.length === 1, `${canonicalId} must have its Horse ability.`);
     assert(record.uses.length === 3, `${canonicalId} must have all three Horse uses.`);
   }
+  const variantParentIndex = creatureSeed.creatures.findIndex((record) => (record.variants ?? []).length > 0);
+  assert(variantParentIndex >= 0, "Creature seed must contain a legacy Variant for the Kill XP override check.");
+  const overrideProbeSeed = {
+    ...creatureSeed,
+    creatures: creatureSeed.creatures.map((record, recordIndex) => recordIndex === variantParentIndex
+      ? {
+          ...record,
+          variants: record.variants.map((variant, variantIndex) => variantIndex === 0
+            ? { ...variant, killXpOverride: 999_999 }
+            : variant),
+        }
+      : record),
+  };
+  const probedVariant = overrideProbeSeed.creatures[variantParentIndex].variants[0];
+  const probedRecord = materializeFinalCreatureRecords(overrideProbeSeed, crXpRows)
+    .find((record) => record.core.canonicalId === probedVariant.canonicalId);
+  assert(probedRecord, `${probedVariant.canonicalId} was not materialized for the legacy Kill XP override check.`);
+  assert(probedRecord.core.killXp === killXpByCr.get(probedRecord.core.challengeRating), `${probedVariant.canonicalId} legacy Kill XP override displaced canonical CR XP.`);
   for (const record of itemSeed.items) {
     const core = record.core;
     assert(!core.parentCanonicalId || itemIds.has(core.parentCanonicalId), `Item ${core.canonicalId} has a missing parent Item.`);
@@ -356,6 +441,7 @@ function validateFinalCanon(raceSeed, creatureSeed, itemSeed) {
     races: raceSeed.records.length,
     creatures: finalCreatureRecords.length,
     items: itemSeed.items.length,
+    challengeRatings: challengeReferences.length,
   };
 }
 
@@ -474,9 +560,10 @@ async function importRaces(client, seed, skillMap) {
   };
 }
 
-async function importCreatures(client, seed, skillMap) {
-  const finalRecords = materializeFinalCreatureRecords(seed);
-  for (const row of seed.challengeReference) {
+async function importCreatures(client, seed, skillMap, crXpRows) {
+  const challengeReferences = materializeChallengeRatingReferences(seed, crXpRows);
+  const finalRecords = materializeFinalCreatureRecords(seed, crXpRows);
+  for (const row of challengeReferences) {
     await client.query(
       `INSERT INTO challenge_rating_reference (
          challenge_rating, threat_band, attack_target_guidance, damage_guidance,
@@ -703,9 +790,19 @@ async function importCreatures(client, seed, skillMap) {
     }
   }
 
+  const synchronized = await client.query(
+    `UPDATE creatures AS creature
+     SET kill_xp = reference.kill_xp
+     FROM challenge_rating_reference AS reference
+     WHERE creature.challenge_rating = reference.challenge_rating
+       AND creature.challenge_rating BETWEEN 1 AND 50
+       AND creature.kill_xp IS DISTINCT FROM reference.kill_xp`,
+  );
+
   return {
     creatures: finalRecords.length,
-    challengeRatings: seed.challengeReference.length,
+    challengeRatings: challengeReferences.length,
+    synchronizedCreatures: synchronized.rowCount ?? 0,
     attacks: finalRecords.reduce((sum, record) => sum + (record.attacks?.length ?? 0), 0),
     hitLocations: finalRecords.reduce((sum, record) => sum + (record.hitLocations?.length ?? 0), 0),
   };
@@ -952,18 +1049,20 @@ async function importAttributeReferences(client, rows) {
 }
 
 async function main() {
-  const [raceSeed, creatureSeed, itemSeed, attributeReferenceSeed] = await Promise.all([
+  const [raceSeed, creatureSeed, itemSeed, attributeReferenceSeed, crXpSeed] = await Promise.all([
     loadJson(SOURCE_FILES.races),
     loadJson(SOURCE_FILES.creatures),
     loadJson(SOURCE_FILES.items),
     loadCheckedInCanonJson(ATTRIBUTE_REFERENCE_SOURCE_FILE),
+    loadCheckedInCanonJson(CR_XP_SOURCE_FILE),
   ]);
   validateSeeds(raceSeed, creatureSeed, itemSeed);
-  const validatedCounts = validateFinalCanon(raceSeed, creatureSeed, itemSeed);
   const attributeReferenceRows = materializeAttributeReferenceRows(attributeReferenceSeed);
+  const crXpRows = materializeCrXpCanonRows(crXpSeed);
+  const validatedCounts = validateFinalCanon(raceSeed, creatureSeed, itemSeed, crXpRows);
   if (VALIDATE_ONLY) {
     console.log("STSTandAlone final canon validation complete.");
-    console.log(`Races: ${validatedCounts.races} | Creatures: ${validatedCounts.creatures} | Items: ${validatedCounts.items} | Attribute References: ${attributeReferenceRows.length}`);
+    console.log(`Races: ${validatedCounts.races} | Creatures: ${validatedCounts.creatures} | Items: ${validatedCounts.items} | CR XP Rewards: ${validatedCounts.challengeRatings} | Attribute References: ${attributeReferenceRows.length}`);
     if (pool) await pool.end();
     return;
   }
@@ -977,14 +1076,14 @@ async function main() {
 
     await client.query("BEGIN");
     const raceCounts = await importRaces(client, raceSeed, skillMap);
-    const creatureCounts = await importCreatures(client, creatureSeed, skillMap);
+    const creatureCounts = await importCreatures(client, creatureSeed, skillMap, crXpRows);
     const itemCounts = await importItems(client, itemSeed);
     const attributeReferenceCount = await importAttributeReferences(client, attributeReferenceRows);
     await client.query("COMMIT");
 
     console.log("STSTandAlone canon import complete.");
     console.log(`Races: ${raceCounts.races} | Attribute Caps: ${raceCounts.attributeCaps} | Movement Modes: ${raceCounts.movementModes} | Race→Skill Links: ${raceCounts.skillLinks}`);
-    console.log(`Creatures: ${creatureCounts.creatures} | CR References: ${creatureCounts.challengeRatings} | Hit Locations: ${creatureCounts.hitLocations} | Attacks: ${creatureCounts.attacks}`);
+    console.log(`Creatures: ${creatureCounts.creatures} | CR References: ${creatureCounts.challengeRatings} | XP-synchronized Creatures: ${creatureCounts.synchronizedCreatures} | Hit Locations: ${creatureCounts.hitLocations} | Attacks: ${creatureCounts.attacks}`);
     console.log(`Items: ${itemCounts.items} | Equipment: ${itemCounts.equipment} | Inventory: ${itemCounts.inventory} | Weapons: ${itemCounts.weaponProfiles} | Armor: ${itemCounts.armorProfiles} | Tags: ${itemCounts.tags}`);
     console.log(`Attribute References: ${attributeReferenceCount}`);
   } catch (error) {

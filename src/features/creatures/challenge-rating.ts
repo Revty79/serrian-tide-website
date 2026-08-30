@@ -17,6 +17,11 @@ export type ChallengeRatingReferenceLike = {
   killXp: number | null;
 };
 
+export type ChallengeRatingRewardReferenceLike = Pick<
+  ChallengeRatingReferenceLike,
+  "challengeRating" | "killXp"
+>;
+
 export type ChallengeRatingCreatureLike = {
   core: { challengeRatingAdjustment: number };
   attacks: Array<{ attackPercentage: number | null; damage: string | null }>;
@@ -41,6 +46,24 @@ export type ChallengeRatingBreakdown = {
 };
 
 const clampRating = (value: number) => Math.min(50, Math.max(1, Math.round(value)));
+
+export function getCreatureKillXpForChallengeRating(
+  finalRating: number,
+  references: ChallengeRatingRewardReferenceLike[],
+): number {
+  if (!Number.isInteger(finalRating) || finalRating < 1 || finalRating > 50) {
+    throw new Error(`Creature Challenge Rating ${finalRating} is outside the supported 1-50 range.`);
+  }
+
+  const killXp = references.find(
+    (reference) => reference.challengeRating === finalRating,
+  )?.killXp;
+  if (!Number.isInteger(killXp) || (killXp ?? -1) < 0) {
+    throw new Error(`Missing canonical Kill XP reference for Creature CR ${finalRating}.`);
+  }
+
+  return killXp as number;
+}
 
 function numericRange(value: string): [number, number] | null {
   const matches = value.match(/-?\d+(?:\.\d+)?/g);
@@ -126,7 +149,7 @@ export function calculateCreatureChallengeRating(
   const calculatedRating = clampRating(mechanicalBaseline + mobilityBonus + specialImpact);
   const adjustment = Math.min(49, Math.max(-49, Math.trunc(creature.core.challengeRatingAdjustment)));
   const finalRating = clampRating(calculatedRating + adjustment);
-  const killXp = references.find((reference) => reference.challengeRating === finalRating)?.killXp ?? 1;
+  const killXp = getCreatureKillXpForChallengeRating(finalRating, references);
 
   return {
     accuracyRating,

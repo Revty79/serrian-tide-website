@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CREATURE_CR_IMPACTS, CREATURE_SIZE_OPTIONS, type CreatureCrImpact } from "@/db/creature-schema";
+import {
+  calculateCreatureChallengeRating,
+  getCreatureKillXpForChallengeRating,
+} from "@/features/creatures/challenge-rating";
 
 import {
   createDerivedCreature,
@@ -41,7 +45,7 @@ function slug(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function newCreatureDraft(): CreatureDraft {
+function newCreatureDraft(references: ChallengeRatingReference[]): CreatureDraft {
   const seed = `CREATURE-${Date.now().toString(36).toUpperCase()}`;
   return {
     core: {
@@ -51,7 +55,7 @@ function newCreatureDraft(): CreatureDraft {
       creatureType: "",
       size: "Medium",
       challengeRating: 1,
-      killXp: 1,
+      killXp: getCreatureKillXpForChallengeRating(1, references),
       parentCreatureId: null,
       parentCreatureName: null,
       calculatedChallengeRating: 1,
@@ -108,6 +112,29 @@ export function CreatureWorkspace({
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; creature: CreatureSummary } | { kind: "new" } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const liveChallengeRating = useMemo(() => {
+    if (!draft) return { draft: null, error: null };
+    try {
+      const calculation = calculateCreatureChallengeRating(draft, references);
+      return {
+        draft: {
+          ...draft,
+          core: {
+            ...draft.core,
+            calculatedChallengeRating: calculation.calculatedRating,
+            challengeRating: calculation.finalRating,
+            killXp: calculation.killXp,
+          },
+        },
+        error: null,
+      };
+    } catch (error) {
+      return {
+        draft,
+        error: error instanceof Error ? error.message : "Creature CR reward data is unavailable.",
+      };
+    }
+  }, [draft, references]);
 
   const loadLibrary = useCallback(async (next: CreatureLibraryFilters) => {
     setLoadingLibrary(true);
@@ -154,11 +181,15 @@ export function CreatureWorkspace({
   }
 
   function createNew() {
-    setDraft(newCreatureDraft());
-    setDirty(false);
-    setActiveTab("overview");
-    setConfirmDelete(false);
-    setFeedback(null);
+    try {
+      setDraft(newCreatureDraft(references));
+      setDirty(false);
+      setActiveTab("overview");
+      setConfirmDelete(false);
+      setFeedback(null);
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Creature CR reward data is unavailable." });
+    }
   }
 
   function beginNew() {
@@ -248,6 +279,7 @@ export function CreatureWorkspace({
         <header className="skill-editor__header"><div><p>{draft.id ? `CREATURE ${draft.id}` : "NEW CREATURE DRAFT"}</p><h2>{draft.core.canonicalName || "Untitled Creature"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
         {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.canonicalName}?</strong><span>Derived Creatures must be deleted first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeCreature()}>Confirm Delete</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></div> : null}
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
+        {liveChallengeRating.error ? <p className="skill-editor__feedback is-error">{liveChallengeRating.error}</p> : null}
         <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
         <div className="skill-editor__content creature-editor__content">
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
@@ -255,8 +287,8 @@ export function CreatureWorkspace({
           {activeTab === "hp" ? <HpAndLocations draft={draft} onChange={change} /> : null}
           {activeTab === "combat" ? <Combat draft={draft} onChange={change} /> : null}
           {activeTab === "special" ? <Special draft={draft} onChange={change} /> : null}
-          {activeTab === "cr" ? <VariantsAndCr draft={draft} references={references} onChange={change} onOpen={(summary) => void openCreature(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
-          {activeTab === "preview" ? <Preview draft={draft} /> : null}
+          {activeTab === "cr" ? <VariantsAndCr draft={liveChallengeRating.draft ?? draft} references={references} onChange={change} onOpen={(summary) => void openCreature(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
+          {activeTab === "preview" ? <Preview draft={liveChallengeRating.draft ?? draft} /> : null}
         </div>
       </section> : <section className="skill-editor skill-editor--empty"><p>CREATURE EDITOR</p><h2>Select a Creature or begin a new one.</h2><span>Full bestiary aggregates open here.</span></section>}
     </div>

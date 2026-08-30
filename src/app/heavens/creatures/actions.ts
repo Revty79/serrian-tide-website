@@ -34,6 +34,7 @@ import { db } from "@/db";
 import { skill } from "@/db/skill-schema";
 import {
   calculateCreatureChallengeRating,
+  getCreatureKillXpForChallengeRating,
   type ChallengeRatingBreakdown,
 } from "@/features/creatures/challenge-rating";
 import { requireGod } from "@/lib/server-access";
@@ -304,7 +305,7 @@ function normalize(input: CreatureDraft) {
       creatureType: clean(input.core.creatureType),
       size,
       challengeRating: input.core.challengeRating === null ? 1 : wholeNumber(input.core.challengeRating, "Challenge Rating", 1, 50),
-      killXp: input.core.killXp === null ? 1 : wholeNumber(input.core.killXp, "Kill XP", 0),
+      killXp: null as number | null,
       parentCreatureId: input.core.parentCreatureId,
       calculatedChallengeRating: input.core.calculatedChallengeRating,
       challengeRatingAdjustment: adjustment,
@@ -476,12 +477,10 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
   const session = await requireGod();
   const normalized = normalize(input);
   const references = await db.select().from(challengeRatingReference).orderBy(asc(challengeRatingReference.challengeRating));
-  const calculation = references.length ? calculateCreatureChallengeRating({ ...normalized, core: normalized.core }, references) : null;
-  if (calculation) {
-    normalized.core.calculatedChallengeRating = calculation.calculatedRating;
-    normalized.core.challengeRating = calculation.finalRating;
-    normalized.core.killXp = calculation.killXp;
-  }
+  const calculation = calculateCreatureChallengeRating({ ...normalized, core: normalized.core }, references);
+  normalized.core.calculatedChallengeRating = calculation.calculatedRating;
+  normalized.core.challengeRating = calculation.finalRating;
+  normalized.core.killXp = calculation.killXp;
 
   const savedId = await db.transaction(async (tx) => {
     let id = input.id;
@@ -575,6 +574,21 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       .where(eq(creature.id, parentCreatureId))
       .limit(1);
     if (!parent) throw new Error("Parent Creature not found.");
+    if (parent.challengeRating === null) {
+      throw new Error("The parent Creature has no final Challenge Rating.");
+    }
+    const rewardReferences = await tx
+      .select({
+        challengeRating: challengeRatingReference.challengeRating,
+        killXp: challengeRatingReference.killXp,
+      })
+      .from(challengeRatingReference)
+      .where(eq(challengeRatingReference.challengeRating, parent.challengeRating))
+      .limit(1);
+    const killXp = getCreatureKillXpForChallengeRating(
+      parent.challengeRating,
+      rewardReferences,
+    );
 
     let rootId = parentCreatureId;
     let rootCanonicalId = parent.canonicalId;
@@ -622,7 +636,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
         creatureType: parent.creatureType,
         size: parent.size,
         challengeRating: parent.challengeRating,
-        killXp: parent.killXp,
+        killXp,
         description: parent.description,
         typicalBehavior: parent.typicalBehavior,
         habitatEcology: parent.habitatEcology,
