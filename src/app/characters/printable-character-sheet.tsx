@@ -20,6 +20,7 @@ import {
   getBaseInitiative,
   getCharacterHp,
   getCharacterHpBreakdown,
+  getCharacterHpMultiplier,
   getCharacterManaProfiles,
   getMovementInitiative,
 } from "@/features/characters/character-rules";
@@ -195,6 +196,7 @@ function AttributeReference({
             key,
             score,
             selectedRace?.movementModes ?? [],
+            draft.profile.hpMultiplierSteps,
           );
           return (
             <article key={key}>
@@ -222,7 +224,13 @@ function AttributeReference({
 }
 
 function HealthReference({ draft }: Pick<Props, "draft">) {
-  const hp = getCharacterHp(draft.attributes.CON);
+  const hp = getCharacterHp(
+    draft.attributes.CON,
+    draft.profile.hpMultiplierSteps,
+  );
+  const hpMultiplier = getCharacterHpMultiplier(
+    draft.profile.hpMultiplierSteps,
+  );
   const breakdown = getCharacterHpBreakdown(hp);
   const poolOrder = ["head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg"];
   const pools = breakdown.pools
@@ -232,6 +240,7 @@ function HealthReference({ draft }: Pick<Props, "draft">) {
   return (
     <PrintSection title="Health & Hit Locations" eyebrow="DAMAGE TRACKING" className="print-health">
       <p className="print-stat-line"><span>Total HP</span><strong>{displayNumber(hp)}</strong></p>
+      <p className="print-stat-line"><span>HP Multiplier</span><strong>×{hpMultiplier.toFixed(2)}</strong></p>
       <table>
         <thead><tr><th>Pool</th><th>HP</th><th>Damage</th></tr></thead>
         <tbody>

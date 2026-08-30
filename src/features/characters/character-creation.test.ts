@@ -187,6 +187,7 @@ test("a saved aggregate reopens as the same editable draft record", () => {
     totalExperience: 5,
     quintessence: 1,
     totalQuintessence: 2,
+    hpMultiplierSteps: 0,
     fatePoints: 4,
     creditsRemaining: 70,
     creationCompletedAt: null,
@@ -233,6 +234,7 @@ test("a saved aggregate reopens as the same editable draft record", () => {
     totalExperience: 5,
     quintessence: 1,
     totalQuintessence: 2,
+    hpMultiplierSteps: 0,
     fatePoints: 4,
     creditsRemaining: 70,
   });

@@ -1,6 +1,7 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
 
 import { getCampaignMoneyBreakdown } from "./currency-rules";
+import { HP_MULTIPLIER_STEP } from "./quintessence-rules";
 
 import {
   CHARACTER_ATTRIBUTE_KEYS,
@@ -67,8 +68,26 @@ export function getAttributeRollTarget(score: number): number {
   return 100 - score;
 }
 
-export function getCharacterHp(constitution: number): number {
-  return constitution * 2 + getAttributeModifier(constitution);
+export const CHARACTER_BASE_HP_MULTIPLIER = 2;
+
+export function getCharacterHpMultiplier(
+  hpMultiplierSteps: number | null | undefined = 0,
+): number {
+  const steps = hpMultiplierSteps ?? 0;
+  if (!Number.isInteger(steps) || steps < 0) {
+    throw new Error("HP multiplier steps must be a whole number zero or greater.");
+  }
+  return CHARACTER_BASE_HP_MULTIPLIER + steps * HP_MULTIPLIER_STEP;
+}
+
+export function getCharacterHp(
+  constitution: number,
+  hpMultiplierSteps: number | null | undefined = 0,
+): number {
+  return Math.ceil(
+    constitution * getCharacterHpMultiplier(hpMultiplierSteps) +
+      getAttributeModifier(constitution),
+  );
 }
 
 export const CHARACTER_HUMANOID_HP_POOLS = [
@@ -626,6 +645,7 @@ export function characterAggregateToDraft(
     totalExperience: aggregate.profile.totalExperience,
     quintessence: aggregate.profile.quintessence,
     totalQuintessence: aggregate.profile.totalQuintessence,
+    hpMultiplierSteps: aggregate.profile.hpMultiplierSteps ?? 0,
     fatePoints: aggregate.profile.fatePoints,
     creditsRemaining: aggregate.profile.creditsRemaining,
   };

@@ -1,6 +1,7 @@
 import type {
   CharacterAttributeKey,
   CharacterAuthorizedItem,
+  CharacterOwnedItem,
 } from "./models";
 import { getAttributeModifier } from "./character-rules";
 
@@ -19,6 +20,43 @@ export type CharacterWeaponDamage = {
   damageType: string | null;
   sourceName: string | null;
 };
+
+export type CharacterEncumbrance = {
+  totals: Array<{ weight: number; unit: string }>;
+  unknownQuantity: number;
+};
+
+export function getCharacterEncumbrance(
+  items: readonly CharacterOwnedItem[],
+): CharacterEncumbrance {
+  const totalsByUnit = new Map<string, { weight: number; unit: string }>();
+  let unknownQuantity = 0;
+
+  for (const item of items) {
+    const unit = item.weightUnit.trim();
+    if (
+      item.weight === null ||
+      !Number.isFinite(item.weight) ||
+      item.weight < 0 ||
+      !unit
+    ) {
+      unknownQuantity += item.quantity;
+      continue;
+    }
+
+    const normalizedUnit = unit.toLowerCase();
+    const current = totalsByUnit.get(normalizedUnit) ?? { weight: 0, unit };
+    current.weight += item.weight * item.quantity;
+    totalsByUnit.set(normalizedUnit, current);
+  }
+
+  return {
+    totals: [...totalsByUnit.values()].sort((left, right) =>
+      left.unit.localeCompare(right.unit),
+    ),
+    unknownQuantity,
+  };
+}
 
 export function getCharacterWeaponDamage(
   item: CharacterAuthorizedItem,

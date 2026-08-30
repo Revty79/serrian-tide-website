@@ -175,6 +175,7 @@ export const campaignCharacterProfile = pgTable(
     heightFeet: integer("height_feet"),
     heightInches: integer("height_inches"),
     fatePoints: integer("fate_points"),
+    hpMultiplierSteps: integer("hp_multiplier_steps").default(0).notNull(),
   },
   (table) => [
     index("campaign_character_profile_race_idx").on(table.raceId, table.characterId),
@@ -209,6 +210,10 @@ export const campaignCharacterProfile = pgTable(
     check(
       "campaign_character_profile_fate_valid",
       sql`${table.fatePoints} IS NULL OR ${table.fatePoints} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_hp_multiplier_steps_valid",
+      sql`${table.hpMultiplierSteps} >= 0`,
     ),
   ],
 );

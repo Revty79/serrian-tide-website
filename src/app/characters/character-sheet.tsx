@@ -15,6 +15,7 @@ import {
   getBaseInitiative,
   getCharacterHp,
   getCharacterHpBreakdown,
+  getCharacterHpMultiplier,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
   getCharacterSkillRanks,
@@ -25,6 +26,7 @@ import {
   normalizeSkillAttributeKey,
 } from "@/features/characters/character-rules";
 import {
+  getCharacterEncumbrance,
   getCharacterWeaponDamage,
   getCharacterWeaponDamageSummary,
 } from "@/features/characters/character-sheet-rules";
@@ -53,8 +55,30 @@ function signedNumber(value: number): string {
   return value > 0 ? `+${displayNumber(value)}` : displayNumber(value);
 }
 
+function displayEncumbrance(
+  encumbrance: ReturnType<typeof getCharacterEncumbrance>,
+): string {
+  const measured = encumbrance.totals.length
+    ? encumbrance.totals
+        .map(({ weight, unit }) => `${displayNumber(weight)} ${unit}`)
+        .join(" + ")
+    : encumbrance.unknownQuantity > 0
+      ? "Unknown"
+      : "0 lb";
+  return encumbrance.unknownQuantity > 0
+    ? `${measured} · ${encumbrance.unknownQuantity} unweighed`
+    : measured;
+}
+
 export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props) {
-  const hp = getCharacterHp(draft.attributes.CON);
+  const hp = getCharacterHp(
+    draft.attributes.CON,
+    draft.profile.hpMultiplierSteps,
+  );
+  const hpMultiplier = getCharacterHpMultiplier(
+    draft.profile.hpMultiplierSteps,
+  );
+  const encumbrance = getCharacterEncumbrance(aggregate.items);
   const attributeReferences = CHARACTER_ATTRIBUTE_REFERENCE_KEYS.map((key) => ({
     key,
     reference: getAttributeReference(
@@ -242,6 +266,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
           <article>
             <h3>Hit Points</h3>
             <p className="character-sheet__total"><span>Total HP</span><strong>{displayNumber(hp)}</strong></p>
+            <p className="character-sheet__total"><span>HP Multiplier</span><strong>×{hpMultiplier.toFixed(2)}</strong></p>
             <table>
               <thead><tr><th>Location</th><th>HP</th><th>Damage</th></tr></thead>
               <tbody>
@@ -334,6 +359,12 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
                       </div>
                     );
                   })}
+                  {key === "STR" ? (
+                    <div>
+                      <dt>Encumbrance</dt>
+                      <dd>{displayEncumbrance(encumbrance)}</dd>
+                    </div>
+                  ) : null}
                 </dl>
               </article>
             ))}

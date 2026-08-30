@@ -38,6 +38,7 @@ export function getCharacterAttributeCardDetails(
     movementMode: string;
     baseValue: number;
   }> = [],
+  hpMultiplierSteps: number | null | undefined = 0,
 ): CharacterAttributeCardDetails {
   const reference = getAttributeReference(referenceRows, attributeKey, score);
   const stats: CharacterAttributeCardStat[] = getAttributeReferenceFields(
@@ -62,7 +63,7 @@ export function getCharacterAttributeCardDetails(
     stats.push({
       key: "totalHp",
       label: "Total HP",
-      value: getCharacterHp(score),
+      value: getCharacterHp(score, hpMultiplierSteps),
       source: "derived",
     });
   }

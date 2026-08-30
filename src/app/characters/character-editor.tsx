@@ -38,6 +38,8 @@ import {
   getAttributeModifier,
   getAttributePointsUsed,
   getAttributeRollTarget,
+  getCharacterHp,
+  getCharacterHpMultiplier,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
   getCharacterSkillGroupKey,
@@ -622,9 +624,17 @@ export function CharacterEditor({
     }));
   }
 
-  function changeAdministrativeNumber(field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "creditsRemaining", value: number) {
+  function changeAdministrativeNumber(field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "hpMultiplierSteps" | "creditsRemaining", value: number) {
     if (!godMode) return;
-    change((current) => ({ ...current, profile: { ...current.profile, [field]: Math.max(0, value) } }));
+    change((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        [field]: field === "hpMultiplierSteps"
+          ? Math.max(0, Math.trunc(value))
+          : Math.max(0, value),
+      },
+    }));
   }
 
   function changeCurrency(currencyId: number, requested: number) {
@@ -792,6 +802,7 @@ function AttributesTab({
             key,
             score,
             race?.movementModes ?? [],
+            draft.profile.hpMultiplierSteps,
           );
 
           return (
@@ -895,7 +906,9 @@ function EquipmentTab({ draft, aggregate, disabled, godMode, filter, search, pur
   })}{!available.length ? <p className="character-notice">No Campaign-authorized Items match this search.</p> : null}</div></div>;
 }
 
-function GodControlsTab({ draft, aggregate, purse, onNumberChange, onCurrencyChange }: { draft: CharacterDraft; aggregate: CharacterAggregate; purse: ReturnType<typeof getCampaignMoneyBreakdown>; onNumberChange: (field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "creditsRemaining", value: number) => void; onCurrencyChange: (currencyId: number, quantity: number) => void }) {
-  const fields = [["fame", "Fame"], ["experience", "Available Experience"], ["totalExperience", "Lifetime Experience"], ["quintessence", "Available Quintessence"], ["totalQuintessence", "Lifetime Quintessence"]] as const;
-  return <div className="character-section"><SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" detail="Changes apply to the permanent Character record." /><p className="character-notice">Identity, Attributes, Skills, Story, and Equipment remain editable from their normal tabs, even after Character creation is complete.</p><div className="character-god-grid">{fields.map(([field, label]) => <Field key={field} label={label}><input type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => onNumberChange(field, numericValue(event.target.value))} /></Field>)}</div><section className="character-god-currency"><header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>{aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => onNumberChange("creditsRemaining", numericValue(event.target.value))} /></Field> : purse.entries.length ? <div className="character-god-grid">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input type="number" min={0} step={1} value={currency.quantity} onChange={(event) => onCurrencyChange(currency.id, numericValue(event.target.value))} /><small>{currency.description || "Campaign currency"}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}{!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}</section></div>;
+function GodControlsTab({ draft, aggregate, purse, onNumberChange, onCurrencyChange }: { draft: CharacterDraft; aggregate: CharacterAggregate; purse: ReturnType<typeof getCampaignMoneyBreakdown>; onNumberChange: (field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "hpMultiplierSteps" | "creditsRemaining", value: number) => void; onCurrencyChange: (currencyId: number, quantity: number) => void }) {
+  const fields = [["fame", "Fame"], ["experience", "Available Experience"], ["totalExperience", "Lifetime Experience"], ["quintessence", "Available Quintessence"], ["totalQuintessence", "Lifetime Quintessence"], ["hpMultiplierSteps", "HP Multiplier Steps"]] as const;
+  const hpMultiplier = getCharacterHpMultiplier(draft.profile.hpMultiplierSteps);
+  const hp = getCharacterHp(draft.attributes.CON, draft.profile.hpMultiplierSteps);
+  return <div className="character-section"><SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" detail="Changes apply to the permanent Character record." /><p className="character-notice">Identity, Attributes, Skills, Story, and Equipment remain editable from their normal tabs, even after Character creation is complete.</p><div className="character-god-grid">{fields.map(([field, label]) => <Field key={field} label={label}><input type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => onNumberChange(field, numericValue(event.target.value))} /></Field>)}</div><p className="character-notice">Effective HP Multiplier: ×{hpMultiplier.toFixed(2)} · Total HP: {displayNumber(hp)}</p><section className="character-god-currency"><header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>{aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => onNumberChange("creditsRemaining", numericValue(event.target.value))} /></Field> : purse.entries.length ? <div className="character-god-grid">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input type="number" min={0} step={1} value={currency.quantity} onChange={(event) => onCurrencyChange(currency.id, numericValue(event.target.value))} /><small>{currency.description || "Campaign currency"}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}{!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}</section></div>;
 }

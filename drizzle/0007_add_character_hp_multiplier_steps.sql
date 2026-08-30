@@ -1,0 +1,2 @@
+ALTER TABLE "campaign_character_profile" ADD COLUMN "hp_multiplier_steps" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "campaign_character_profile" ADD CONSTRAINT "campaign_character_profile_hp_multiplier_steps_valid" CHECK ("campaign_character_profile"."hp_multiplier_steps" >= 0);

@@ -78,6 +78,7 @@ import {
   getCanonicalCreditsFromHoldings,
 } from "@/features/characters/currency-rules";
 import {
+  getHpMultiplierStepsAfterPurchase,
   getQuintessenceSpendingLedger,
   type CharacterQuintessencePurchaseType,
   validateQuintessenceAttributeIncrease,
@@ -526,6 +527,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       category: item.category,
       quantity: campaignCharacterItem.quantity,
       unitCostCredits: campaignCharacterItem.unitCostCredits,
+      weight: item.weight,
+      weightUnit: item.weightUnit,
       acquiredAt: campaignCharacterItem.acquiredAt,
     }).from(campaignCharacterItem)
       .innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
@@ -668,6 +671,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       totalExperience: profileRow.totalExperience,
       quintessence: profileRow.quintessence,
       totalQuintessence: profileRow.totalQuintessence,
+      hpMultiplierSteps: profileRow.hpMultiplierSteps ?? 0,
       fatePoints: profileRow.fatePoints,
       creditsRemaining: profileRow.creditsRemaining,
       creationCompletedAt: profileRow.creationCompletedAt?.toISOString() ?? null,
@@ -808,6 +812,9 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     totalExperience: nonNegative(draft.profile.totalExperience, "Total Experience"),
     quintessence: nonNegative(draft.profile.quintessence, "Quintessence"),
     totalQuintessence: nonNegative(draft.profile.totalQuintessence, "Total Quintessence"),
+    hpMultiplierSteps: godMode
+      ? optionalWholeNonNegative(draft.profile.hpMultiplierSteps, "HP multiplier steps") ?? 0
+      : aggregate.profile.hpMultiplierSteps,
     fatePoints: godMode || aggregate.campaign.fatePointMethod === "Rolled"
       ? optionalWholeNonNegative(draft.profile.fatePoints, "Fate Points")
       : aggregate.campaign.assignedFatePoints ?? 0,
@@ -1430,7 +1437,7 @@ export async function spendCharacterQuintessence(
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new Error("Purchase quantity must be a positive whole number.");
   }
-  if (!(["attribute", "fatePoints", "experience"] as const).includes(purchaseType)) {
+  if (!(["attribute", "fatePoints", "experience", "hpMultiplier"] as const).includes(purchaseType)) {
     throw new Error("Unsupported Quintessence purchase type.");
   }
   if (
@@ -1477,6 +1484,7 @@ export async function spendCharacterQuintessence(
         experience: campaignCharacterProfile.experience,
         totalExperience: campaignCharacterProfile.totalExperience,
         fatePoints: campaignCharacterProfile.fatePoints,
+        hpMultiplierSteps: campaignCharacterProfile.hpMultiplierSteps,
         creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
       })
       .from(campaignCharacterProfile)
@@ -1539,6 +1547,9 @@ export async function spendCharacterQuintessence(
       experience: profile.experience,
       totalExperience: profile.totalExperience,
     });
+    const hpMultiplierSteps = purchaseType === "hpMultiplier"
+      ? getHpMultiplierStepsAfterPurchase(profile.hpMultiplierSteps, quantity)
+      : profile.hpMultiplierSteps;
 
     if (purchaseType === "attribute") {
       await tx
@@ -1563,6 +1574,7 @@ export async function spendCharacterQuintessence(
           purchaseType === "fatePoints"
             ? (profile.fatePoints ?? 0) + quantity
             : profile.fatePoints,
+        hpMultiplierSteps,
         updatedAt: changedAt,
       })
       .where(eq(campaignCharacterProfile.characterId, characterId));

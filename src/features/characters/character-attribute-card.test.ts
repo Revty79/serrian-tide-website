@@ -108,6 +108,11 @@ test("CON card details use the existing HP helper", () => {
       },
     ],
   );
+
+  assert.equal(
+    getCharacterAttributeCardDetails(references, "CON", 25, [], 2).stats[0]?.value,
+    63,
+  );
 });
 
 test("missing canon references remain missing instead of being invented", () => {

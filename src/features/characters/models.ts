@@ -48,6 +48,7 @@ export type CharacterProfile = {
   totalExperience: number;
   quintessence: number;
   totalQuintessence: number;
+  hpMultiplierSteps: number;
   fatePoints: number | null;
   creditsRemaining: number;
   creationCompletedAt: string | null;
@@ -102,6 +103,8 @@ export type CharacterOwnedItem = {
   category: string;
   quantity: number;
   unitCostCredits: number;
+  weight: number | null;
+  weightUnit: string;
   acquiredAt: string;
 };
 

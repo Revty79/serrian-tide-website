@@ -14,6 +14,8 @@ import {
   type CharacterAdvancementTreeEntry,
 } from "@/features/characters/character-advancement-rules";
 import {
+  getCharacterHp,
+  getCharacterHpMultiplier,
   getRaceAttributeCap,
   SPECIAL_ABILITY_EFFECTIVE_MAXIMUM,
 } from "@/features/characters/character-rules";
@@ -28,6 +30,8 @@ import {
   ATTRIBUTE_QUINTESSENCE_COST,
   EXPERIENCE_PER_QUINTESSENCE,
   FATE_POINT_QUINTESSENCE_COST,
+  HP_MULTIPLIER_QUINTESSENCE_COST,
+  HP_MULTIPLIER_STEP,
   getExperienceFromQuintessence,
   getMaximumQuintessenceAttributeIncrease,
   getQuintessenceCost,
@@ -47,6 +51,10 @@ function displayNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+function displayMultiplier(value: number) {
+  return `×${value.toFixed(2)}`;
+}
+
 export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: CharacterAggregate }) {
   const nextDraftId = useRef(-1);
   const [aggregate, setAggregate] = useState(initialAggregate);
@@ -62,6 +70,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
   const [attributeQuantity, setAttributeQuantity] = useState(1);
   const [fateQuantity, setFateQuantity] = useState(1);
   const [experienceQuantity, setExperienceQuantity] = useState(1);
+  const [hpMultiplierQuantity, setHpMultiplierQuantity] = useState(1);
 
   const experiencePlan = useMemo(
     () => buildCharacterAdvancementPlan(aggregate, projectedAllocations),
@@ -86,6 +95,28 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
     aggregate.profile.quintessence / FATE_POINT_QUINTESSENCE_COST,
   );
   const maximumExperienceQuantity = Math.floor(aggregate.profile.quintessence);
+  const maximumHpMultiplierQuantity = Math.floor(
+    aggregate.profile.quintessence / HP_MULTIPLIER_QUINTESSENCE_COST,
+  );
+  const selectedHpMultiplierQuantity = maximumHpMultiplierQuantity < 1
+    ? 0
+    : Math.min(hpMultiplierQuantity, maximumHpMultiplierQuantity);
+  const currentHpMultiplier = getCharacterHpMultiplier(
+    aggregate.profile.hpMultiplierSteps,
+  );
+  const constitution = aggregate.attributes.find(
+    ({ attributeKey: key }) => key === "CON",
+  )?.value ?? 0;
+  const currentHp = getCharacterHp(
+    constitution,
+    aggregate.profile.hpMultiplierSteps,
+  );
+  const resultingHpMultiplierSteps =
+    (aggregate.profile.hpMultiplierSteps ?? 0) + selectedHpMultiplierQuantity;
+  const resultingHpMultiplier = getCharacterHpMultiplier(
+    resultingHpMultiplierSteps,
+  );
+  const resultingHp = getCharacterHp(constitution, resultingHpMultiplierSteps);
   const pendingQuintessenceCost = pendingQuintessence
     ? getQuintessenceCost(
         pendingQuintessence.purchaseType,
@@ -176,13 +207,16 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
         ? `${CHARACTER_ATTRIBUTE_LABELS[purchase.attributeKey!]} increased by ${purchase.quantity}.`
         : purchase.purchaseType === "fatePoints"
           ? `${purchase.quantity} Fate ${purchase.quantity === 1 ? "Point was" : "Points were"} added.`
-          : `${getExperienceFromQuintessence(purchase.quantity)} available Experience was added.`;
+          : purchase.purchaseType === "hpMultiplier"
+            ? `HP multiplier increased by ${displayMultiplier(purchase.quantity * HP_MULTIPLIER_STEP)}.`
+            : `${getExperienceFromQuintessence(purchase.quantity)} available Experience was added.`;
       setAggregate(saved);
       resetExperiencePlan(saved);
       setPendingQuintessence(null);
       setAttributeQuantity(1);
       setFateQuantity(1);
       setExperienceQuantity(1);
+      setHpMultiplierQuantity(1);
       setFeedback({
         kind: "success",
         message: `${result} ${displayNumber(cost)} Quintessence was spent and added to Lifetime Quintessence.`,
@@ -227,7 +261,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
           <header className="advancement-section-heading">
             <p>CHOOSE AN ADVANCEMENT PATH</p>
             <h2 id="advancement-choice-heading">How will {aggregate.character.name} grow?</h2>
-            <span>Experience advances Skills. Quintessence improves Attributes, Fate, or available Experience.</span>
+            <span>Experience advances Skills. Quintessence improves Attributes, HP, Fate, or available Experience.</span>
           </header>
           <div className="advancement-choice__cards">
             <button type="button" onClick={() => setMode("experience")}>
@@ -239,7 +273,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
             <button type="button" onClick={() => setMode("quintessence")}>
               <span className="advancement-choice__mark" aria-hidden="true">Q</span>
               <strong>Spend Quintessence</strong>
-              <span>Increase Attributes, gain Fate Points, or convert Quintessence into available Experience.</span>
+              <span>Increase Attributes or HP, gain Fate Points, or convert Quintessence into available Experience.</span>
               <small>{displayNumber(aggregate.profile.quintessence)} Quintessence Available</small>
             </button>
           </div>
@@ -298,6 +332,15 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
               <QuantityPicker label="Attribute points" value={selectedAttributePurchaseQuantity} maximum={maximumAttributeQuantity} onChange={setAttributeQuantity} disabledMessage={selectedAttributeRacialMaximum !== null && selectedAttributeValue >= selectedAttributeRacialMaximum - 0.000_001 ? `Racial maximum ${displayNumber(selectedAttributeRacialMaximum)} reached.` : undefined} displayZeroWhenDisabled />
               <div className="quintessence-purchase__result"><span>{CHARACTER_ATTRIBUTE_LABELS[attributeKey]}</span><strong>{displayNumber(selectedAttributeValue)} → {displayNumber(selectedAttributeValue + selectedAttributePurchaseQuantity)}</strong></div>
               <button type="button" disabled={busy || maximumAttributeQuantity < 1} onClick={() => beginQuintessencePurchase({ purchaseType: "attribute", quantity: selectedAttributePurchaseQuantity, attributeKey })}>{selectedAttributePurchaseQuantity > 0 ? `Review · ${getQuintessenceCost("attribute", selectedAttributePurchaseQuantity)} Q` : selectedAttributeRacialMaximum !== null && selectedAttributeValue >= selectedAttributeRacialMaximum - 0.000_001 ? "Racial Maximum Reached" : "Not Enough Quintessence"}</button>
+            </article>
+
+            <article className="quintessence-purchase">
+              <div className="quintessence-purchase__heading"><span aria-hidden="true">HP</span><div><strong>Increase HP Multiplier</strong><small>{HP_MULTIPLIER_QUINTESSENCE_COST} Q per +{HP_MULTIPLIER_STEP.toFixed(2)}×</small></div></div>
+              <p>Permanent Health advancement with no maximum. Current HP: {displayNumber(currentHp)} at {displayMultiplier(currentHpMultiplier)}.</p>
+              <QuantityPicker label="Multiplier increases" value={selectedHpMultiplierQuantity} maximum={maximumHpMultiplierQuantity} onChange={setHpMultiplierQuantity} displayZeroWhenDisabled />
+              <div className="quintessence-purchase__result"><span>HP Multiplier</span><strong>{displayMultiplier(currentHpMultiplier)} → {displayMultiplier(resultingHpMultiplier)}</strong></div>
+              <div className="quintessence-purchase__result"><span>Total HP</span><strong>{displayNumber(currentHp)} → {displayNumber(resultingHp)}</strong></div>
+              <button type="button" disabled={busy || maximumHpMultiplierQuantity < 1} onClick={() => beginQuintessencePurchase({ purchaseType: "hpMultiplier", quantity: selectedHpMultiplierQuantity, attributeKey: null })}>{selectedHpMultiplierQuantity > 0 ? `Review · ${getQuintessenceCost("hpMultiplier", selectedHpMultiplierQuantity)} Q` : "Not Enough Quintessence"}</button>
             </article>
 
             <article className="quintessence-purchase">

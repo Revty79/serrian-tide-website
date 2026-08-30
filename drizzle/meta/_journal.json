@@ -50,6 +50,13 @@
       "when": 1788026744721,
       "tag": "0006_add_weapon_initiative_cost",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788056070494,
+      "tag": "0007_add_character_hp_multiplier_steps",
+      "breakpoints": true
     }
   ]
 }

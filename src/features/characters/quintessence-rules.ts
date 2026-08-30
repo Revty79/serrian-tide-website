@@ -1,11 +1,14 @@
 export const ATTRIBUTE_QUINTESSENCE_COST = 5;
 export const FATE_POINT_QUINTESSENCE_COST = 10;
 export const EXPERIENCE_PER_QUINTESSENCE = 10;
+export const HP_MULTIPLIER_QUINTESSENCE_COST = 25;
+export const HP_MULTIPLIER_STEP = 0.25;
 
 export type CharacterQuintessencePurchaseType =
   | "attribute"
   | "fatePoints"
-  | "experience";
+  | "experience"
+  | "hpMultiplier";
 
 export type CharacterQuintessenceLedger = {
   quintessence: number;
@@ -30,7 +33,24 @@ export function getQuintessenceCost(
     return quantity * FATE_POINT_QUINTESSENCE_COST;
   }
 
+  if (purchaseType === "hpMultiplier") {
+    return quantity * HP_MULTIPLIER_QUINTESSENCE_COST;
+  }
+
   return quantity;
+}
+
+export function getHpMultiplierStepsAfterPurchase(
+  currentSteps: number,
+  quantity: number,
+): number {
+  if (!Number.isInteger(currentSteps) || currentSteps < 0) {
+    throw new Error("Saved HP multiplier steps must be a whole number zero or greater.");
+  }
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    throw new Error("HP multiplier increase must be a positive whole number.");
+  }
+  return currentSteps + quantity;
 }
 
 export function getExperienceFromQuintessence(quantity: number): number {

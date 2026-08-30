@@ -5,10 +5,32 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { CharacterHitLocationChart } from "@/app/characters/character-hit-location-chart";
 import {
+  getCharacterEncumbrance,
   getCharacterWeaponDamage,
   getCharacterWeaponDamageSummary,
 } from "./character-sheet-rules";
-import type { CharacterAuthorizedItem } from "./models";
+import type { CharacterAuthorizedItem, CharacterOwnedItem } from "./models";
+
+function ownedItem(
+  overrides: Partial<CharacterOwnedItem>,
+): CharacterOwnedItem {
+  return {
+    characterId: 1,
+    itemId: 1,
+    canonicalId: "ITEM-TEST",
+    name: "Test Item",
+    catalogScope: "equipment",
+    equipmentGroup: "general",
+    recordType: "Equipment",
+    category: "Gear",
+    quantity: 1,
+    unitCostCredits: 1,
+    weight: 1,
+    weightUnit: "lb",
+    acquiredAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
 
 function weapon(overrides: Partial<CharacterAuthorizedItem>): CharacterAuthorizedItem {
   return {
@@ -48,6 +70,37 @@ function weapon(overrides: Partial<CharacterAuthorizedItem>): CharacterAuthorize
 }
 
 const attributes = { STR: 40, DEX: 30, CON: 25, INT: 25, WIS: 25, CHR: 25 };
+
+test("Encumbrance totals all owned Equipment and Inventory by quantity", () => {
+  assert.deepEqual(getCharacterEncumbrance([
+    ownedItem({ quantity: 3, weight: 2 }),
+    ownedItem({
+      itemId: 2,
+      catalogScope: "inventory",
+      equipmentGroup: null,
+      quantity: 4,
+      weight: 0.5,
+      weightUnit: "LB",
+    }),
+  ]), {
+    totals: [{ weight: 8, unit: "lb" }],
+    unknownQuantity: 0,
+  });
+});
+
+test("Encumbrance reports missing weights and keeps mixed units separate", () => {
+  assert.deepEqual(getCharacterEncumbrance([
+    ownedItem({ quantity: 2, weight: null, weightUnit: "" }),
+    ownedItem({ itemId: 2, weight: 3, weightUnit: "kg" }),
+    ownedItem({ itemId: 3, weight: 5, weightUnit: "lb" }),
+  ]), {
+    totals: [
+      { weight: 3, unit: "kg" },
+      { weight: 5, unit: "lb" },
+    ],
+    unknownQuantity: 2,
+  });
+});
 
 test("melee weapon damage applies Strength", () => {
   assert.deepEqual(getCharacterWeaponDamageSummary(weapon({}), attributes), {
