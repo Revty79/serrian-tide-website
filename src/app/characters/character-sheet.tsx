@@ -34,6 +34,10 @@ import {
   getCanonicalCreditsFromHoldings,
   getStoredCampaignMoneyBreakdown,
 } from "@/features/characters/currency-rules";
+import {
+  getActiveDerivedAbilities,
+  getDerivedAbilityRequirementSummary,
+} from "@/features/derived-abilities/derived-ability-rules";
 
 import { CharacterHitLocationChart } from "./character-hit-location-chart";
 import { CharacterPrintCenter } from "./character-print-center";
@@ -201,6 +205,10 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
     ["Backstory", draft.profile.backstory],
     ["Motivations", draft.profile.motivations],
   ].filter(([, value]) => value.trim());
+  const activeDerivedAbilities = getActiveDerivedAbilities(
+    aggregate.derivedAbilities,
+    { attributes: draft.attributes },
+  );
 
   return (
     <div className="character-sheet-wrap">
@@ -419,6 +427,21 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
             ))}
           </div>
         </section>
+
+        {activeDerivedAbilities.length ? (
+          <section className="character-sheet__section character-sheet__derived-abilities">
+            <div className="character-sheet__section-heading"><p>ACTIVE MILESTONES</p><h3>Derived Abilities</h3></div>
+            <div className="character-sheet__derived-ability-grid">
+              {activeDerivedAbilities.map((ability) => (
+                <article key={ability.id}>
+                  <header><h4>{ability.name}</h4><strong>{getDerivedAbilityRequirementSummary(ability)}</strong></header>
+                  {ability.description ? <p>{ability.description}</p> : null}
+                  {ability.mechanicalEffect ? <p><b>Effect:</b> {ability.mechanicalEffect}</p> : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="character-sheet__section character-sheet__inventory">
           <div className="character-sheet__section-heading"><p>POSSESSIONS</p><h3>Inventory & General Equipment</h3></div>

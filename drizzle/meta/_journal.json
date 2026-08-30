@@ -64,6 +64,13 @@
       "when": 1788057760057,
       "tag": "0008_replace_creature_cr_xp",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788058829941,
+      "tag": "0009_add_derived_abilities",
+      "breakpoints": true
     }
   ]
 }

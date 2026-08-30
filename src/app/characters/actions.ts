@@ -18,6 +18,11 @@ import {
   campaignDerivedCurrency,
   campaignPlayer,
 } from "@/db/campaign-schema";
+import {
+  campaignAllowedDerivedAbility,
+  derivedAbility,
+  derivedAbilityTrigger,
+} from "@/db/derived-ability-schema";
 import { armorProfile, item, weaponProfile } from "@/db/item-schema";
 import {
   race,
@@ -83,6 +88,7 @@ import {
   type CharacterQuintessencePurchaseType,
   validateQuintessenceAttributeIncrease,
 } from "@/features/characters/quintessence-rules";
+import { groupDerivedAbilityRows } from "@/features/derived-abilities/derived-ability-rules";
 import { requireGod, requirePlayer, requireSession } from "@/lib/server-access";
 
 const ammunitionItem = alias(item, "ammunition_item");
@@ -493,6 +499,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     extensionRows,
     personalSpellRows,
     authorizedRows,
+    derivedAbilityRows,
     characterRow,
   ] = await Promise.all([
     db.select().from(campaignCharacterAttribute).where(eq(campaignCharacterAttribute.characterId, characterId)),
@@ -593,6 +600,23 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       .leftJoin(armorProfile, eq(armorProfile.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, row.campaignId))
       .orderBy(asc(campaignInventoryItem.sortOrder), asc(item.name)),
+    db.select({
+      id: derivedAbility.id,
+      name: derivedAbility.name,
+      description: derivedAbility.description,
+      mechanicalEffect: derivedAbility.mechanicalEffect,
+      sourceSystem: derivedAbility.sourceSystem,
+      sourceExternalId: derivedAbility.sourceExternalId,
+      triggerId: derivedAbilityTrigger.id,
+      triggerType: derivedAbilityTrigger.triggerType,
+      attributeKey: derivedAbilityTrigger.attributeKey,
+      minimumScore: derivedAbilityTrigger.minimumScore,
+      triggerSortOrder: derivedAbilityTrigger.sortOrder,
+    }).from(campaignAllowedDerivedAbility)
+      .innerJoin(derivedAbility, eq(derivedAbility.id, campaignAllowedDerivedAbility.derivedAbilityId))
+      .innerJoin(derivedAbilityTrigger, eq(derivedAbilityTrigger.derivedAbilityId, derivedAbility.id))
+      .where(eq(campaignAllowedDerivedAbility.campaignId, row.campaignId))
+      .orderBy(asc(campaignAllowedDerivedAbility.sortOrder), asc(derivedAbilityTrigger.sortOrder)),
     db.select({
       id: campaignCharacter.id,
       campaignId: campaignCharacter.campaignId,
@@ -722,6 +746,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     skillRelationships: relationshipRows,
     personalSpellbook: personalSpellRows,
     authorizedItems: authorizedRows,
+    derivedAbilities: groupDerivedAbilityRows(derivedAbilityRows),
   };
 
   return aggregate;

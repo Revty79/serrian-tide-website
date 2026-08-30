@@ -1,0 +1,96 @@
+.derived-ability-brand {
+  color: rgb(253 230 138);
+  font-size: clamp(1.45rem, 4vw, 2.1rem);
+  line-height: 0.9;
+  text-align: center;
+}
+
+.derived-ability-editor__content {
+  display: grid;
+  gap: 1rem;
+}
+
+.derived-ability-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.46);
+  padding: 1.25rem;
+}
+
+.derived-ability-card > header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+}
+
+.derived-ability-card > header p {
+  color: rgb(216 180 254);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+
+.derived-ability-card > header h3 {
+  color: rgb(241 245 249);
+  font-size: 1.25rem;
+  margin-top: 0.25rem;
+}
+
+.derived-ability-form-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.derived-ability-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.derived-ability-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+.derived-ability-field > span {
+  color: rgb(203 213 225);
+  font-size: 0.78rem;
+}
+
+.derived-ability-field input,
+.derived-ability-field select,
+.derived-ability-field textarea {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgb(241 245 249);
+  padding: 0.75rem;
+}
+
+.derived-ability-metadata {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.derived-ability-metadata div {
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.75rem;
+}
+
+.derived-ability-metadata dt {
+  color: rgb(148 163 184);
+  font-size: 0.7rem;
+}
+
+.derived-ability-metadata dd {
+  color: rgb(241 245 249);
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .derived-ability-form-grid,
+  .derived-ability-metadata {
+    grid-template-columns: 1fr;
+  }
+}

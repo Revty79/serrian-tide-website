@@ -20,6 +20,12 @@ const coreTools = [
     href: "/heavens/skills",
   },
   {
+    title: "DERIVED ABILITIES",
+    subtitle: "Milestones",
+    description: "Create abilities automatically gained when Characters meet campaign-approved mechanical requirements.",
+    href: "/heavens/derived-abilities",
+  },
+  {
     title: "EQUIPMENT",
     subtitle: "Arsenal",
     description: "Create weapons, armor, and general Equipment with full combat profiles.",
@@ -42,6 +48,7 @@ const coreTools = [
     subtitle: "Characters",
     description: "Create Race NPCs and independent Creature NPC individuals inside Campaigns.",
     href: "/heavens/npcs",
+    wide: true,
   },
 ];
 
@@ -130,19 +137,21 @@ function LibraryCard({
   subtitle,
   description,
   href,
+  wide,
 }: {
   title: string;
   subtitle: string;
   description: string;
   href: string;
+  wide?: boolean;
 }) {
   return (
-    <Link href={href} className="group relative block min-h-[160px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-xl backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-amber-300/40 hover:bg-black/45 hover:shadow-[0_0_35px_rgba(139,92,246,0.10)]">
+    <Link href={href} className={`group relative block min-h-[160px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-xl backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-amber-300/40 hover:bg-black/45 hover:shadow-[0_0_35px_rgba(139,92,246,0.10)]${wide ? " text-center md:col-span-2" : ""}`}>
       <div className="absolute -bottom-14 -right-14 h-32 w-32 rounded-full border border-purple-400/10 transition duration-300 group-hover:scale-110 group-hover:border-amber-300/20" aria-hidden="true" />
       <span className="absolute right-5 top-4 text-xl text-amber-300/40 transition group-hover:text-amber-300/70" aria-hidden="true">◇</span>
       <p className="text-xs uppercase tracking-[0.14em] text-purple-300">{subtitle}</p>
       <h4 className="font-sans mt-3 text-2xl text-slate-100 transition group-hover:text-amber-200">{title}</h4>
-      <p className="mt-3 max-w-[90%] text-sm leading-6 text-slate-400">{description}</p>
+      <p className={`mt-3 max-w-[90%] text-sm leading-6 text-slate-400${wide ? " mx-auto" : ""}`}>{description}</p>
       <p className="mt-5 text-xs font-medium tracking-wide text-amber-200/60 transition group-hover:text-amber-200">Creation tools →</p>
     </Link>
   );

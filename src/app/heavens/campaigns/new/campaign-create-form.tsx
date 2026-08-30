@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
 
 import type { CampaignReferenceData } from "../actions";
+import { CampaignDerivedAbilitySelector } from "../campaign-derived-ability-selector";
 import { CampaignInventorySelector } from "../campaign-inventory-selector";
 import { createCampaign } from "./actions";
 
@@ -52,6 +53,7 @@ export function CampaignCreateForm({
 
   const [raceSearch, setRaceSearch] = useState("");
   const [selectedRaceIds, setSelectedRaceIds] = useState<number[]>([]);
+  const [selectedDerivedAbilityIds, setSelectedDerivedAbilityIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
 
@@ -579,6 +581,13 @@ export function CampaignCreateForm({
           ) : null}
         </div>
       </section>
+
+      <CampaignDerivedAbilitySelector
+        abilities={references.derivedAbilities}
+        selectedIds={selectedDerivedAbilityIds}
+        onSelectedIdsChange={setSelectedDerivedAbilityIds}
+        inputName="allowedDerivedAbilityIds"
+      />
 
       <CampaignInventorySelector
         campaignId={null}

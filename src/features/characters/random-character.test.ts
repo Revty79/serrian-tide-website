@@ -127,6 +127,7 @@ function aggregate(): CharacterAggregate {
     })),
     skillRelationships: [],
     personalSpellbook: [],
+    derivedAbilities: [],
     authorizedItems: [
       {
         id: 7,

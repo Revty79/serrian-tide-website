@@ -1,4 +1,5 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
+import type { DerivedAbilityDefinition } from "@/features/derived-abilities/models";
 
 export const CHARACTER_ATTRIBUTE_KEYS = ["STR", "DEX", "CON", "INT", "WIS", "CHR"] as const;
 export type CharacterAttributeKey = (typeof CHARACTER_ATTRIBUTE_KEYS)[number];
@@ -241,6 +242,7 @@ export type CharacterAggregate = {
   skillRelationships: CharacterSkillRelationship[];
   personalSpellbook: CharacterPersonalSpell[];
   authorizedItems: CharacterAuthorizedItem[];
+  derivedAbilities: DerivedAbilityDefinition[];
 };
 
 export type CharacterSkillAllocationDraft = {

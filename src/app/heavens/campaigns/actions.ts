@@ -20,6 +20,11 @@ import {
   campaignSystem,
   type CampaignSystem,
 } from "@/db/campaign-schema";
+import {
+  campaignAllowedDerivedAbility,
+  derivedAbility,
+  derivedAbilityTrigger,
+} from "@/db/derived-ability-schema";
 import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import {
@@ -34,6 +39,15 @@ import {
   buildCampaignPlayerCandidates,
   canAdministerCampaign,
 } from "@/features/campaigns/campaign-membership";
+import {
+  normalizeCampaignDerivedAbilityIds,
+  validateCampaignDerivedAbilitySelection,
+} from "@/features/derived-abilities/campaign-derived-abilities";
+import {
+  getDerivedAbilityRequirementSummary,
+  groupDerivedAbilityRows,
+} from "@/features/derived-abilities/derived-ability-rules";
+import type { CampaignDerivedAbilityOption } from "@/features/derived-abilities/models";
 import {
   campaignAllowedRace,
   campaignCharacter,
@@ -73,12 +87,14 @@ export type CampaignAdminDraft = {
     creditsPerUnit: number;
   }>;
   allowedRaceIds: number[];
+  allowedDerivedAbilityIds: number[];
   inventoryTagIds: number[];
   inventoryItemIds: number[];
 };
 
 export type CampaignReferenceData = {
   races: Array<{ id: number; name: string; size: string }>;
+  derivedAbilities: CampaignDerivedAbilityOption[];
   tags: Array<{ id: number; name: string; tagGroup: string; description: string }>;
 };
 
@@ -162,10 +178,11 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
   await requireOwner(campaignId);
   const [core] = await db.select().from(campaign).where(eq(campaign.id, campaignId)).limit(1);
   if (!core) throw new Error("Campaign not found.");
-  const [systems, currencies, races, tags, items] = await Promise.all([
+  const [systems, currencies, races, derivedAbilities, tags, items] = await Promise.all([
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id)),
     db.select({ raceId: campaignAllowedRace.raceId }).from(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, campaignId)).orderBy(asc(campaignAllowedRace.sortOrder)),
+    db.select({ derivedAbilityId: campaignAllowedDerivedAbility.derivedAbilityId }).from(campaignAllowedDerivedAbility).where(eq(campaignAllowedDerivedAbility.campaignId, campaignId)).orderBy(asc(campaignAllowedDerivedAbility.sortOrder)),
     db.select({ id: campaignInventoryTag.tagId, sortOrder: campaignInventoryTag.sortOrder }).from(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, campaignId)).orderBy(asc(campaignInventoryTag.sortOrder)),
     db.select({ id: campaignInventoryItem.itemId, sortOrder: campaignInventoryItem.sortOrder }).from(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, campaignId)).orderBy(asc(campaignInventoryItem.sortOrder)),
   ]);
@@ -185,6 +202,7 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
     allowedSystems: systems.map(({ system }) => system),
     derivedCurrencies: currencies.map(({ id, name, description, creditsPerUnit }) => ({ id, name, description, creditsPerUnit })),
     allowedRaceIds: races.map(({ raceId }) => raceId),
+    allowedDerivedAbilityIds: derivedAbilities.map(({ derivedAbilityId }) => derivedAbilityId),
     inventoryTagIds: inventorySelection.tagIds,
     inventoryItemIds: inventorySelection.itemIds,
   };
@@ -201,11 +219,30 @@ export async function getCampaignCreationReferenceData(): Promise<CampaignRefere
 }
 
 async function readCampaignReferenceData(): Promise<CampaignReferenceData> {
-  const [races, tags] = await Promise.all([
+  const [races, tags, derivedAbilityRows] = await Promise.all([
     db.select({ id: race.id, name: race.name, size: race.size }).from(race).orderBy(asc(race.name), asc(race.id)),
     db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog),
+    db.select({
+      id: derivedAbility.id,
+      name: derivedAbility.name,
+      description: derivedAbility.description,
+      mechanicalEffect: derivedAbility.mechanicalEffect,
+      sourceSystem: derivedAbility.sourceSystem,
+      sourceExternalId: derivedAbility.sourceExternalId,
+      triggerId: derivedAbilityTrigger.id,
+      triggerType: derivedAbilityTrigger.triggerType,
+      attributeKey: derivedAbilityTrigger.attributeKey,
+      minimumScore: derivedAbilityTrigger.minimumScore,
+      triggerSortOrder: derivedAbilityTrigger.sortOrder,
+    }).from(derivedAbility)
+      .innerJoin(derivedAbilityTrigger, eq(derivedAbilityTrigger.derivedAbilityId, derivedAbility.id))
+      .orderBy(asc(derivedAbility.name), asc(derivedAbility.id), asc(derivedAbilityTrigger.sortOrder)),
   ]);
-  return { races, tags: sortCampaignInventoryTags(tags) };
+  const derivedAbilities = groupDerivedAbilityRows(derivedAbilityRows).map((ability) => ({
+    ...ability,
+    requirementSummary: getDerivedAbilityRequirementSummary(ability),
+  }));
+  return { races, derivedAbilities, tags: sortCampaignInventoryTags(tags) };
 }
 
 const campaignInventoryItemFields = {
@@ -333,6 +370,9 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     if (!campaignSystem.enumValues.includes(system)) throw new Error(`Unsupported Campaign system: ${system}.`);
   }
   const raceIds = [...new Set(input.allowedRaceIds.filter((id) => Number.isInteger(id) && id > 0))];
+  const requestedDerivedAbilityIds = normalizeCampaignDerivedAbilityIds(
+    input.allowedDerivedAbilityIds,
+  );
   const inventorySelection = createCampaignInventoryPersistence(
     input.inventoryTagIds,
     input.inventoryItemIds,
@@ -350,16 +390,23 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
   }) : [];
   if (input.currencySystem === "Derived Currency" && !currencies.length) throw new Error("Derived Currency requires at least one currency.");
 
-  const [validTags, validItems] = await Promise.all([
+  const [validTags, validItems, validDerivedAbilities] = await Promise.all([
     inventorySelection.tagIds.length
       ? db.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(inArray(itemTagCatalog.id, inventorySelection.tagIds))
       : [],
     inventorySelection.itemIds.length
       ? db.select({ id: item.id }).from(item).where(inArray(item.id, inventorySelection.itemIds))
       : [],
+    requestedDerivedAbilityIds.length
+      ? db.select({ id: derivedAbility.id }).from(derivedAbility).where(inArray(derivedAbility.id, requestedDerivedAbilityIds))
+      : [],
   ]);
   if (validTags.length !== inventorySelection.tagIds.length) throw new Error("An Inventory Tag is no longer available.");
   if (validItems.length !== inventorySelection.itemIds.length) throw new Error("An Equipment or Inventory record is no longer available.");
+  const derivedAbilityIds = validateCampaignDerivedAbilitySelection(
+    requestedDerivedAbilityIds,
+    validDerivedAbilities.map(({ id }) => id),
+  );
 
   await db.transaction(async (tx) => {
     await tx.update(campaign).set({
@@ -398,6 +445,8 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
 
     await tx.delete(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, input.id));
     if (raceIds.length) await tx.insert(campaignAllowedRace).values(raceIds.map((raceId, sortOrder) => ({ campaignId: input.id, raceId, sortOrder })));
+    await tx.delete(campaignAllowedDerivedAbility).where(eq(campaignAllowedDerivedAbility.campaignId, input.id));
+    if (derivedAbilityIds.length) await tx.insert(campaignAllowedDerivedAbility).values(derivedAbilityIds.map((derivedAbilityId, sortOrder) => ({ campaignId: input.id, derivedAbilityId, sortOrder })));
     await tx.delete(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, input.id));
     if (inventorySelection.tagIds.length) await tx.insert(campaignInventoryTag).values(inventorySelection.tagIds.map((tagId, sortOrder) => ({ campaignId: input.id, tagId, sortOrder })));
     await tx.delete(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, input.id));

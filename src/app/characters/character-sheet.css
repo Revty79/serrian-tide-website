@@ -345,6 +345,44 @@
   border-radius: 7px;
 }
 
+.character-sheet__derived-ability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.character-sheet__derived-ability-grid article {
+  padding: 10px;
+  border: 1px solid rgb(245 202 115 / 18%);
+  border-radius: 7px;
+  background: rgb(245 202 115 / 3%);
+}
+
+.character-sheet__derived-ability-grid header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.character-sheet__derived-ability-grid h4,
+.character-sheet__derived-ability-grid p {
+  margin: 0;
+}
+
+.character-sheet__derived-ability-grid header strong {
+  color: #dbc27f;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.character-sheet__derived-ability-grid p {
+  margin-top: 6px;
+  color: #aab1b9;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
 .character-sheet__story {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -551,6 +589,7 @@
   .character-god-currency__denominations,
   .character-sheet__attribute-reference-grid,
   .character-sheet__skill-ledgers,
+  .character-sheet__derived-ability-grid,
   .character-sheet__story,
   .character-hit-chart__layout,
   .character-hit-chart__pools,

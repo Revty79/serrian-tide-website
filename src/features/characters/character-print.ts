@@ -18,12 +18,15 @@ import type {
   CharacterDraft,
   CharacterRaceAggregate,
 } from "./models";
+import { getActiveDerivedAbilities } from "@/features/derived-abilities/derived-ability-rules";
+import type { DerivedAbilityDefinition } from "@/features/derived-abilities/models";
 
 export const CHARACTER_PRINT_SECTION_KEYS = [
   "quick",
   "skills",
   "powers",
   "specialAbilities",
+  "derivedAbilities",
   "inventory",
   "equipment",
   "story",
@@ -44,6 +47,7 @@ export type CharacterPrintAvailability = {
   hasSkills: boolean;
   hasPowers: boolean;
   hasSpecialAbilities: boolean;
+  hasDerivedAbilities: boolean;
   hasInventory: boolean;
   hasEquipment: boolean;
   hasStory: boolean;
@@ -54,6 +58,7 @@ export type CharacterPrintContentSummary = {
   spellCount: number;
   supernaturalAbilityCount: number;
   specialAbilityCount: number;
+  derivedAbilityCount: number;
   inventoryCount: number;
   equipmentCount: number;
   hasStory: boolean;
@@ -64,6 +69,7 @@ export const EMPTY_CHARACTER_PRINT_SELECTION: CharacterPrintSelection = {
   skills: false,
   powers: false,
   specialAbilities: false,
+  derivedAbilities: false,
   inventory: false,
   equipment: false,
   story: false,
@@ -77,6 +83,7 @@ export function getCharacterPrintAvailability(
     hasPowers:
       summary.spellCount > 0 || summary.supernaturalAbilityCount > 0,
     hasSpecialAbilities: summary.specialAbilityCount > 0,
+    hasDerivedAbilities: summary.derivedAbilityCount > 0,
     hasInventory: summary.inventoryCount > 0,
     hasEquipment: summary.equipmentCount > 0,
     hasStory: summary.hasStory,
@@ -100,6 +107,7 @@ export function resolveCharacterPrintSelection(
               skills: true,
               powers: true,
               specialAbilities: true,
+              derivedAbilities: true,
               inventory: true,
               equipment: true,
             }
@@ -108,6 +116,7 @@ export function resolveCharacterPrintSelection(
               skills: true,
               powers: true,
               specialAbilities: true,
+              derivedAbilities: true,
               inventory: true,
               equipment: true,
               story: true,
@@ -119,6 +128,8 @@ export function resolveCharacterPrintSelection(
     powers: requested.powers && availability.hasPowers,
     specialAbilities:
       requested.specialAbilities && availability.hasSpecialAbilities,
+    derivedAbilities:
+      requested.derivedAbilities && availability.hasDerivedAbilities,
     inventory: requested.inventory && availability.hasInventory,
     equipment: requested.equipment && availability.hasEquipment,
     story: requested.story && availability.hasStory,
@@ -452,6 +463,7 @@ export type CharacterPrintData = {
   spells: PrintableCharacterSpellRow[];
   supernaturalAbilities: PrintableCharacterAbilityRow[];
   specialAbilities: PrintableCharacterAbilityRow[];
+  derivedAbilities: DerivedAbilityDefinition[];
   ownedItems: PrintableCharacterOwnedItem[];
   weapons: PrintableCharacterOwnedItem[];
   armor: PrintableCharacterOwnedItem[];
@@ -490,6 +502,10 @@ export function buildCharacterPrintData(
   ];
   const supernaturalAbilities = abilities.filter(({ special }) => !special);
   const specialAbilities = abilities.filter(({ special }) => special);
+  const derivedAbilities = getActiveDerivedAbilities(
+    aggregate.derivedAbilities,
+    { attributes: draft.attributes },
+  );
 
   return {
     skills,
@@ -498,6 +514,7 @@ export function buildCharacterPrintData(
     spells,
     supernaturalAbilities,
     specialAbilities,
+    derivedAbilities,
     ownedItems,
     weapons,
     armor,
@@ -507,6 +524,7 @@ export function buildCharacterPrintData(
       spellCount: spells.length,
       supernaturalAbilityCount: supernaturalAbilities.length,
       specialAbilityCount: specialAbilities.length,
+      derivedAbilityCount: derivedAbilities.length,
       inventoryCount: ownedItems.length,
       equipmentCount: weapons.length + armor.length,
       hasStory: storyValues.some((value) => value.trim().length > 0),

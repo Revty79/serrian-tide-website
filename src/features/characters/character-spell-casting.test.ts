@@ -144,6 +144,7 @@ function aggregate(): CharacterAggregate {
     skillRelationships: [],
     personalSpellbook: [],
     authorizedItems: [],
+    derivedAbilities: [],
     skillAllocations: [
       allocation(100, 1, "Spellcraft", null, 1),
       allocation(101, 3, "Channeling", 100, 16),

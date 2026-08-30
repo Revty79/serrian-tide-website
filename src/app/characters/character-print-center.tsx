@@ -63,6 +63,7 @@ const CUSTOM_OPTIONS: Array<{
     | "hasSkills"
     | "hasPowers"
     | "hasSpecialAbilities"
+    | "hasDerivedAbilities"
     | "hasInventory"
     | "hasEquipment"
     | "hasStory";
@@ -74,6 +75,11 @@ const CUSTOM_OPTIONS: Array<{
     id: "specialAbilities",
     label: "Special Abilities",
     availability: "hasSpecialAbilities",
+  },
+  {
+    id: "derivedAbilities",
+    label: "Derived Abilities",
+    availability: "hasDerivedAbilities",
   },
   { id: "inventory", label: "Inventory", availability: "hasInventory" },
   {

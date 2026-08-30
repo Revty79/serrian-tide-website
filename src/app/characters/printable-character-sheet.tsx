@@ -32,6 +32,7 @@ import {
   getCanonicalCreditsFromHoldings,
   getStoredCampaignMoneyBreakdown,
 } from "@/features/characters/currency-rules";
+import { getDerivedAbilityRequirementSummary } from "@/features/derived-abilities/derived-ability-rules";
 
 import { CharacterHitLocationSilhouette } from "./character-hit-location-chart";
 
@@ -680,6 +681,29 @@ function SupplementalPowers(props: Props) {
   );
 }
 
+function SupplementalDerivedAbilities(props: Props) {
+  if (!props.sections.derivedAbilities || !props.data.derivedAbilities.length) return null;
+  return (
+    <SupplementalModule title="Derived Abilities" eyebrow="ACTIVE CAMPAIGN MILESTONES">
+      <PrintSection title="Derived Abilities" eyebrow="CURRENT ATTRIBUTE REQUIREMENTS">
+        <table>
+          <thead><tr><th>Name</th><th>Requirement</th><th>Description</th><th>Mechanical Effect</th></tr></thead>
+          <tbody>
+            {props.data.derivedAbilities.map((ability) => (
+              <tr key={ability.id}>
+                <th>{ability.name}</th>
+                <td>{getDerivedAbilityRequirementSummary(ability)}</td>
+                <td>{ability.description || "—"}</td>
+                <td>{ability.mechanicalEffect || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </PrintSection>
+    </SupplementalModule>
+  );
+}
+
 function SupplementalInventory(props: Props) {
   if (!props.sections.inventory || !props.data.ownedItems.length) return null;
   return (
@@ -760,10 +784,11 @@ function SupplementalFlow(props: Props) {
   const hasPowers =
     (props.sections.powers && (props.data.spells.length > 0 || props.data.supernaturalAbilities.length > 0)) ||
     (props.sections.specialAbilities && props.data.specialAbilities.length > 0);
+  const hasDerivedAbilities = props.sections.derivedAbilities && props.data.derivedAbilities.length > 0;
   const hasInventory = props.sections.inventory && props.data.ownedItems.length > 0;
   const hasEquipment = props.sections.equipment && (props.data.weapons.length > 0 || props.data.armor.length > 0);
   const hasStory = props.sections.story;
-  if (!hasSkills && !hasPowers && !hasInventory && !hasEquipment && !hasStory) return null;
+  if (!hasSkills && !hasPowers && !hasDerivedAbilities && !hasInventory && !hasEquipment && !hasStory) return null;
 
   const title = props.preset === "complete"
     ? "Complete Character Record"
@@ -781,6 +806,7 @@ function SupplementalFlow(props: Props) {
       <PageHeader aggregate={props.aggregate} draft={props.draft} title={title} detail={detail} />
       <SupplementalSkills {...props} />
       <SupplementalPowers {...props} />
+      <SupplementalDerivedAbilities {...props} />
       <SupplementalInventory {...props} />
       <SupplementalEquipment {...props} />
       <SupplementalStory {...props} />
