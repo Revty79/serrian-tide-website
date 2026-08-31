@@ -8,6 +8,13 @@
       "when": 1788131505167,
       "tag": "0000_serrian_tide_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788192652752,
+      "tag": "0001_talented_metal_master",
+      "breakpoints": true
     }
   ]
 }

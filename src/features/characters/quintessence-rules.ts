@@ -3,12 +3,18 @@ export const FATE_POINT_QUINTESSENCE_COST = 10;
 export const EXPERIENCE_PER_QUINTESSENCE = 10;
 export const HP_MULTIPLIER_QUINTESSENCE_COST = 25;
 export const HP_MULTIPLIER_STEP = 0.25;
+export const BASE_MOVEMENT_QUINTESSENCE_COST = 25;
+export const BASE_MOVEMENT_STEP = 0.25;
+export const BASE_MAGIC_QUINTESSENCE_COST = 25;
+export const BASE_MAGIC_STEP = 0.25;
 
 export type CharacterQuintessencePurchaseType =
   | "attribute"
   | "fatePoints"
   | "experience"
-  | "hpMultiplier";
+  | "hpMultiplier"
+  | "baseMovement"
+  | "baseMagic";
 
 export type CharacterQuintessenceLedger = {
   quintessence: number;
@@ -37,6 +43,14 @@ export function getQuintessenceCost(
     return quantity * HP_MULTIPLIER_QUINTESSENCE_COST;
   }
 
+  if (purchaseType === "baseMovement") {
+    return quantity * BASE_MOVEMENT_QUINTESSENCE_COST;
+  }
+
+  if (purchaseType === "baseMagic") {
+    return quantity * BASE_MAGIC_QUINTESSENCE_COST;
+  }
+
   return quantity;
 }
 
@@ -51,6 +65,35 @@ export function getHpMultiplierStepsAfterPurchase(
     throw new Error("HP multiplier increase must be a positive whole number.");
   }
   return currentSteps + quantity;
+}
+
+function getStepsAfterPurchase(
+  currentSteps: number,
+  quantity: number,
+  savedLabel: string,
+  purchaseLabel: string,
+): number {
+  if (!Number.isInteger(currentSteps) || currentSteps < 0) {
+    throw new Error(`Saved ${savedLabel} steps must be a whole number zero or greater.`);
+  }
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    throw new Error(`${purchaseLabel} increase must be a positive whole number.`);
+  }
+  return currentSteps + quantity;
+}
+
+export function getBaseMovementStepsAfterPurchase(
+  currentSteps: number,
+  quantity: number,
+): number {
+  return getStepsAfterPurchase(currentSteps, quantity, "Base Movement", "Base Movement");
+}
+
+export function getBaseMagicStepsAfterPurchase(
+  currentSteps: number,
+  quantity: number,
+): number {
+  return getStepsAfterPurchase(currentSteps, quantity, "Base Magic", "Base Magic");
 }
 
 export function getExperienceFromQuintessence(quantity: number): number {

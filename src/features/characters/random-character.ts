@@ -258,7 +258,12 @@ function generateSkills(
 
   function eligibleCandidates(): SkillCandidate[] {
     const draft = { ...baseDraft, skillAllocations: allocations };
-    const manaProfiles = getCharacterManaProfiles(draft, aggregate.skillCatalog, race);
+    const manaProfiles = getCharacterManaProfiles(
+      draft,
+      aggregate.skillCatalog,
+      race,
+      draft.profile.baseMagicSteps,
+    );
     const candidates: SkillCandidate[] = [];
     const roots = aggregate.skillCatalog.filter((skill) =>
       !childIds.has(skill.id) && (skill.tier === null || skill.tier === 1));

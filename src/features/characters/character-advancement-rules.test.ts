@@ -126,6 +126,8 @@ function aggregate(): CharacterAggregate {
       quintessence: 20,
       totalQuintessence: 7,
       hpMultiplierSteps: 0,
+      baseMovementSteps: 0,
+      baseMagicSteps: 0,
       fatePoints: 3,
       creditsRemaining: 80,
       creationCompletedAt: "completed",

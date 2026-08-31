@@ -18,10 +18,12 @@ import {
   getAttributeModifier,
   getAttributeRollTarget,
   getBaseInitiative,
+  getCharacterBaseMagic,
   getCharacterHp,
   getCharacterHpBreakdown,
   getCharacterHpMultiplier,
   getCharacterManaProfiles,
+  getCharacterMovementBaseValue,
   getMovementInitiative,
 } from "@/features/characters/character-rules";
 import {
@@ -198,6 +200,7 @@ function AttributeReference({
             score,
             selectedRace?.movementModes ?? [],
             draft.profile.hpMultiplierSteps,
+            draft.profile.baseMovementSteps,
           );
           return (
             <article key={key}>
@@ -288,6 +291,13 @@ function MovementReference({
   selectedRace,
 }: Pick<Props, "draft" | "selectedRace">) {
   const dexterity = draft.attributes.DEX;
+  const movementModes = (selectedRace?.movementModes ?? []).map((mode) => ({
+    ...mode,
+    baseValue: getCharacterMovementBaseValue(
+      mode.baseValue,
+      draft.profile.baseMovementSteps,
+    ),
+  }));
   return (
     <PrintSection title="Movement & Initiative" eyebrow="TURN ORDER">
       <p className="print-stat-line">
@@ -297,7 +307,7 @@ function MovementReference({
       <table>
         <thead><tr><th>Mode</th><th>Base</th><th>Initiative</th></tr></thead>
         <tbody>
-          {(selectedRace?.movementModes ?? []).map((mode) => (
+          {movementModes.map((mode) => (
             <tr key={mode.movementMode}>
               <th>{mode.movementMode}</th>
               <td>{displayNumber(mode.baseValue)}</td>
@@ -319,12 +329,13 @@ function ManaReference({
     draft,
     aggregate.skillCatalog,
     selectedRace,
+    draft.profile.baseMagicSteps,
   );
   return (
     <PrintSection title="Mana" eyebrow="SUPERNATURAL RESOURCE">
       <p className="print-stat-line">
         <span>Base Magic</span>
-        <strong>{displayNumber(selectedRace?.race.baseMagic ?? 0)}</strong>
+        <strong>{displayNumber(getCharacterBaseMagic(selectedRace?.race.baseMagic, draft.profile.baseMagicSteps))}</strong>
       </p>
       {profiles.length ? (
         <table>
@@ -763,7 +774,7 @@ function SupplementalStory(props: Props) {
         <PrintSection title={props.selectedRace.race.name} eyebrow="RACE RECORD">
           <div className="print-profile-grid">
             <div><span>Size</span><strong>{textOrDash(props.selectedRace.race.size)}</strong></div>
-            <div><span>Base Magic</span><strong>{textOrDash(props.selectedRace.race.baseMagic)}</strong></div>
+            <div><span>Effective Base Magic</span><strong>{displayNumber(getCharacterBaseMagic(props.selectedRace.race.baseMagic, profile.baseMagicSteps))}</strong></div>
             <div><span>Age Range</span><strong>{textOrDash(props.selectedRace.race.ageRangeText)}</strong></div>
             <div><span>Racial Quirk</span><strong>{textOrDash(props.selectedRace.race.racialQuirkName)}</strong></div>
           </div>

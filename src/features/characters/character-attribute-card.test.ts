@@ -96,6 +96,25 @@ test("DEX card details use the existing Initiative helpers for every Race moveme
   ]);
 });
 
+test("DEX card applies the Character's Base Movement upgrades to every mode", () => {
+  const details = getCharacterAttributeCardDetails(
+    references,
+    "DEX",
+    25,
+    [
+      { movementMode: "Walk", baseValue: 3 },
+      { movementMode: "Run", baseValue: 5 },
+    ],
+    0,
+    2,
+  );
+
+  assert.deepEqual(details.movements, [
+    { movementMode: "Walk", baseMovement: 3.5, initiative: 21 },
+    { movementMode: "Run", baseMovement: 5.5, initiative: 33 },
+  ]);
+});
+
 test("CON card details use the existing HP helper", () => {
   assert.deepEqual(
     getCharacterAttributeCardDetails(references, "CON", 25).stats,

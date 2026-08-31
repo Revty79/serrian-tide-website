@@ -83,6 +83,8 @@ import {
   getCanonicalCreditsFromHoldings,
 } from "@/features/characters/currency-rules";
 import {
+  getBaseMagicStepsAfterPurchase,
+  getBaseMovementStepsAfterPurchase,
   getHpMultiplierStepsAfterPurchase,
   getQuintessenceSpendingLedger,
   type CharacterQuintessencePurchaseType,
@@ -696,6 +698,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       quintessence: profileRow.quintessence,
       totalQuintessence: profileRow.totalQuintessence,
       hpMultiplierSteps: profileRow.hpMultiplierSteps ?? 0,
+      baseMovementSteps: profileRow.baseMovementSteps ?? 0,
+      baseMagicSteps: profileRow.baseMagicSteps ?? 0,
       fatePoints: profileRow.fatePoints,
       creditsRemaining: profileRow.creditsRemaining,
       creationCompletedAt: profileRow.creationCompletedAt?.toISOString() ?? null,
@@ -840,6 +844,12 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     hpMultiplierSteps: godMode
       ? optionalWholeNonNegative(draft.profile.hpMultiplierSteps, "HP multiplier steps") ?? 0
       : aggregate.profile.hpMultiplierSteps,
+    baseMovementSteps: godMode
+      ? optionalWholeNonNegative(draft.profile.baseMovementSteps, "Base Movement steps") ?? 0
+      : aggregate.profile.baseMovementSteps,
+    baseMagicSteps: godMode
+      ? optionalWholeNonNegative(draft.profile.baseMagicSteps, "Base Magic steps") ?? 0
+      : aggregate.profile.baseMagicSteps,
     fatePoints: godMode || aggregate.campaign.fatePointMethod === "Rolled"
       ? optionalWholeNonNegative(draft.profile.fatePoints, "Fate Points")
       : aggregate.campaign.assignedFatePoints ?? 0,
@@ -1047,6 +1057,7 @@ export async function advanceCharacterSkills(
     const [profile] = await tx
       .select({
         raceId: campaignCharacterProfile.raceId,
+        baseMagicSteps: campaignCharacterProfile.baseMagicSteps,
         experience: campaignCharacterProfile.experience,
         totalExperience: campaignCharacterProfile.totalExperience,
         creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
@@ -1250,6 +1261,7 @@ export async function advanceCharacterSkills(
       },
       skillCatalog,
       selectedRace,
+      profile.baseMagicSteps,
     );
     let totalExperienceCost = 0;
     for (const resolved of resolvedRequests) {
@@ -1462,7 +1474,7 @@ export async function spendCharacterQuintessence(
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new Error("Purchase quantity must be a positive whole number.");
   }
-  if (!(["attribute", "fatePoints", "experience", "hpMultiplier"] as const).includes(purchaseType)) {
+  if (!(["attribute", "fatePoints", "experience", "hpMultiplier", "baseMovement", "baseMagic"] as const).includes(purchaseType)) {
     throw new Error("Unsupported Quintessence purchase type.");
   }
   if (
@@ -1510,6 +1522,8 @@ export async function spendCharacterQuintessence(
         totalExperience: campaignCharacterProfile.totalExperience,
         fatePoints: campaignCharacterProfile.fatePoints,
         hpMultiplierSteps: campaignCharacterProfile.hpMultiplierSteps,
+        baseMovementSteps: campaignCharacterProfile.baseMovementSteps,
+        baseMagicSteps: campaignCharacterProfile.baseMagicSteps,
         creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
       })
       .from(campaignCharacterProfile)
@@ -1575,6 +1589,12 @@ export async function spendCharacterQuintessence(
     const hpMultiplierSteps = purchaseType === "hpMultiplier"
       ? getHpMultiplierStepsAfterPurchase(profile.hpMultiplierSteps, quantity)
       : profile.hpMultiplierSteps;
+    const baseMovementSteps = purchaseType === "baseMovement"
+      ? getBaseMovementStepsAfterPurchase(profile.baseMovementSteps, quantity)
+      : profile.baseMovementSteps;
+    const baseMagicSteps = purchaseType === "baseMagic"
+      ? getBaseMagicStepsAfterPurchase(profile.baseMagicSteps, quantity)
+      : profile.baseMagicSteps;
 
     if (purchaseType === "attribute") {
       await tx
@@ -1600,6 +1620,8 @@ export async function spendCharacterQuintessence(
             ? (profile.fatePoints ?? 0) + quantity
             : profile.fatePoints,
         hpMultiplierSteps,
+        baseMovementSteps,
+        baseMagicSteps,
         updatedAt: changedAt,
       })
       .where(eq(campaignCharacterProfile.characterId, characterId));

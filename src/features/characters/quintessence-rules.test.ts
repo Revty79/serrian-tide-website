@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getBaseMagicStepsAfterPurchase,
+  getBaseMovementStepsAfterPurchase,
   getHpMultiplierStepsAfterPurchase,
   getExperienceFromQuintessence,
   getMaximumQuintessenceAttributeIncrease,
@@ -21,6 +23,15 @@ test("HP multiplier advancement costs exactly 25 Q per quarter-step", () => {
   assert.equal(getQuintessenceCost("hpMultiplier", 4), 100);
 });
 
+test("Base Movement and Base Magic cost exactly 25 Q per quarter-step", () => {
+  assert.equal(getQuintessenceCost("baseMovement", 1), 25);
+  assert.equal(getQuintessenceCost("baseMovement", 2), 50);
+  assert.equal(getQuintessenceCost("baseMovement", 4), 100);
+  assert.equal(getQuintessenceCost("baseMagic", 1), 25);
+  assert.equal(getQuintessenceCost("baseMagic", 2), 50);
+  assert.equal(getQuintessenceCost("baseMagic", 4), 100);
+});
+
 test("each Quintessence spent on Experience grants 10 XP", () => {
   assert.equal(getQuintessenceCost("experience", 4), 4);
   assert.equal(getExperienceFromQuintessence(4), 40);
@@ -33,6 +44,12 @@ test("Quintessence purchases reject zero, negative, and fractional quantities", 
   assert.equal(getQuintessenceCost("hpMultiplier", 0), Number.POSITIVE_INFINITY);
   assert.equal(getQuintessenceCost("hpMultiplier", -1), Number.POSITIVE_INFINITY);
   assert.equal(getQuintessenceCost("hpMultiplier", 1.5), Number.POSITIVE_INFINITY);
+  assert.equal(getQuintessenceCost("baseMovement", 0), Number.POSITIVE_INFINITY);
+  assert.equal(getQuintessenceCost("baseMovement", -1), Number.POSITIVE_INFINITY);
+  assert.equal(getQuintessenceCost("baseMovement", 1.5), Number.POSITIVE_INFINITY);
+  assert.equal(getQuintessenceCost("baseMagic", 0), Number.POSITIVE_INFINITY);
+  assert.equal(getQuintessenceCost("baseMagic", -1), Number.POSITIVE_INFINITY);
+  assert.equal(getQuintessenceCost("baseMagic", 1.5), Number.POSITIVE_INFINITY);
 });
 
 test("HP multiplier steps only advance by a positive whole purchase quantity", () => {
@@ -41,6 +58,19 @@ test("HP multiplier steps only advance by a positive whole purchase quantity", (
   assert.throws(() => getHpMultiplierStepsAfterPurchase(0, 0), /positive whole number/);
   assert.throws(() => getHpMultiplierStepsAfterPurchase(0, -1), /positive whole number/);
   assert.throws(() => getHpMultiplierStepsAfterPurchase(0, 1.5), /positive whole number/);
+});
+
+test("Base Movement and Base Magic steps only accept positive whole purchases and have no cap", () => {
+  assert.equal(getBaseMovementStepsAfterPurchase(4, 3), 7);
+  assert.equal(getBaseMagicStepsAfterPurchase(4, 3), 7);
+  assert.equal(getBaseMovementStepsAfterPurchase(1_000_000, 1), 1_000_001);
+  assert.equal(getBaseMagicStepsAfterPurchase(1_000_000, 1), 1_000_001);
+  assert.throws(() => getBaseMovementStepsAfterPurchase(0, 0), /positive whole number/);
+  assert.throws(() => getBaseMovementStepsAfterPurchase(0, -1), /positive whole number/);
+  assert.throws(() => getBaseMovementStepsAfterPurchase(0, 1.5), /positive whole number/);
+  assert.throws(() => getBaseMagicStepsAfterPurchase(0, 0), /positive whole number/);
+  assert.throws(() => getBaseMagicStepsAfterPurchase(0, -1), /positive whole number/);
+  assert.throws(() => getBaseMagicStepsAfterPurchase(0, 1.5), /positive whole number/);
 });
 
 test("HP multiplier purchases preserve the Quintessence lifetime ledger", () => {
@@ -65,6 +95,32 @@ test("HP multiplier purchases preserve the Quintessence lifetime ledger", () => 
     experience: 8,
     totalExperience: 50,
   }), /costs 50 Quintessence, but only 49 is available/);
+});
+
+test("Base Movement and Base Magic purchases preserve the Quintessence lifetime ledger", () => {
+  for (const purchaseType of ["baseMovement", "baseMagic"] as const) {
+    assert.deepEqual(getQuintessenceSpendingLedger({
+      purchaseType,
+      quantity: 2,
+      quintessence: 80,
+      totalQuintessence: 12,
+      experience: 8,
+      totalExperience: 50,
+    }), {
+      quintessence: 30,
+      totalQuintessence: 62,
+      experience: 8,
+      totalExperience: 50,
+    });
+    assert.throws(() => getQuintessenceSpendingLedger({
+      purchaseType,
+      quantity: 2,
+      quintessence: 49,
+      totalQuintessence: 12,
+      experience: 8,
+      totalExperience: 50,
+    }), /costs 50 Quintessence, but only 49 is available/);
+  }
 });
 
 test("Attribute and Fate purchases add actual Q spending to Lifetime Quintessence", () => {

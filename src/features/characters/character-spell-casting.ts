@@ -50,6 +50,7 @@ export function getAvailableSpellCastingContexts(
     characterAggregateToDraft(aggregate),
     aggregate.skillCatalog,
     aggregate.selectedRace,
+    aggregate.profile.baseMagicSteps,
   );
   const allowedSystems: SpellCastingSystem[] =
     spell.tradition === "Psionics"

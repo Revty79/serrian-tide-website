@@ -39,18 +39,21 @@ function sourceExternalId(name: string) {
     .digest("hex")}`;
 }
 
-test("Drizzle has one consolidated baseline migration", () => {
+test("Drizzle preserves the consolidated baseline and records the forward Character advancement migration", () => {
   const sqlFiles = readdirSync(path.resolve(root, "drizzle"))
     .filter((name) => name.endsWith(".sql"))
     .sort();
-  assert.deepEqual(sqlFiles, [migrationName]);
+  assert.equal(sqlFiles[0], migrationName);
+  assert.ok(sqlFiles.includes("0001_talented_metal_master.sql"));
 
   const journal = JSON.parse(
     readFileSync(path.resolve(root, "drizzle", "meta", "_journal.json"), "utf8"),
   ) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 1);
+  assert.equal(journal.entries.length, 2);
   assert.equal(journal.entries[0]?.idx, 0);
   assert.equal(journal.entries[0]?.tag, "0000_serrian_tide_baseline");
+  assert.equal(journal.entries[1]?.idx, 1);
+  assert.equal(journal.entries[1]?.tag, "0001_talented_metal_master");
 });
 
 test("the baseline migration owns the exact Firearm Skill branch", () => {

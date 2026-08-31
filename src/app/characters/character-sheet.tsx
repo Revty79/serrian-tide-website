@@ -13,11 +13,13 @@ import {
   getAttributeModifier,
   getAttributeRollTarget,
   getBaseInitiative,
+  getCharacterBaseMagic,
   getCharacterHp,
   getCharacterHpBreakdown,
   getCharacterHpMultiplier,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
+  getCharacterMovementBaseValue,
   getCharacterSkillRanks,
   getEffectiveSkillPoints,
   getMovementInitiative,
@@ -126,6 +128,18 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
     draft,
     aggregate.skillCatalog,
     selectedRace,
+    draft.profile.baseMagicSteps,
+  );
+  const effectiveMovementModes = (selectedRace?.movementModes ?? []).map((mode) => ({
+    ...mode,
+    baseValue: getCharacterMovementBaseValue(
+      mode.baseValue,
+      draft.profile.baseMovementSteps,
+    ),
+  }));
+  const effectiveBaseMagic = getCharacterBaseMagic(
+    selectedRace?.race.baseMagic,
+    draft.profile.baseMagicSteps,
   );
   function rootSkillFor(allocation: CharacterDraft["skillAllocations"][number]) {
     let cursor = allocation;
@@ -292,7 +306,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
             <h3>Movement & Initiative</h3>
             <p className="character-sheet__total"><span>Base Initiative</span><strong>{getBaseInitiative(draft.attributes.DEX)}</strong></p>
             <table><tbody>
-              {(selectedRace?.movementModes ?? []).map((mode) => (
+              {effectiveMovementModes.map((mode) => (
                 <tr key={mode.movementMode}>
                   <th>{mode.movementMode}</th>
                   <td>{displayNumber(mode.baseValue)}×</td>
@@ -303,7 +317,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
           </article>
           <article>
             <h3>Mana</h3>
-            <p className="character-sheet__total"><span>Base Magic</span><strong>{displayNumber(selectedRace?.race.baseMagic ?? 0)}</strong></p>
+            <p className="character-sheet__total"><span>Base Magic</span><strong>{displayNumber(effectiveBaseMagic)}</strong></p>
             <table><tbody>
               {manaProfiles.map((profile) => (
                 <tr key={profile.system}>

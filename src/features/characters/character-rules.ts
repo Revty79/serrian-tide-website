@@ -1,7 +1,11 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
 
 import { getCampaignMoneyBreakdown } from "./currency-rules";
-import { HP_MULTIPLIER_STEP } from "./quintessence-rules";
+import {
+  BASE_MAGIC_STEP,
+  BASE_MOVEMENT_STEP,
+  HP_MULTIPLIER_STEP,
+} from "./quintessence-rules";
 
 import {
   CHARACTER_ATTRIBUTE_KEYS,
@@ -159,6 +163,43 @@ export function normalizeSkillAttributeKey(
 export function isSpecialAbilitySkill(skill: CharacterSkillReference): boolean {
   const classification = skill.classification.trim().toLowerCase();
   return classification === "special ability" || classification === "special abilities";
+}
+
+function validatePermanentSteps(
+  steps: number | null | undefined,
+  label: string,
+): number {
+  const normalized = steps ?? 0;
+  if (!Number.isInteger(normalized) || normalized < 0) {
+    throw new Error(`${label} steps must be a whole number zero or greater.`);
+  }
+  return normalized;
+}
+
+export function getCharacterBaseMovementBonus(
+  baseMovementSteps: number | null | undefined = 0,
+): number {
+  return validatePermanentSteps(baseMovementSteps, "Base Movement") * BASE_MOVEMENT_STEP;
+}
+
+export function getCharacterMovementBaseValue(
+  racialBaseValue: number,
+  baseMovementSteps: number | null | undefined = 0,
+): number {
+  return racialBaseValue + getCharacterBaseMovementBonus(baseMovementSteps);
+}
+
+export function getCharacterBaseMagic(
+  racialBaseMagic: number | null | undefined,
+  baseMagicSteps: number | null | undefined = 0,
+): number {
+  return Math.max(0, racialBaseMagic ?? 0) + getCharacterBaseMagicBonus(baseMagicSteps);
+}
+
+export function getCharacterBaseMagicBonus(
+  baseMagicSteps: number | null | undefined = 0,
+): number {
+  return validatePermanentSteps(baseMagicSteps, "Base Magic") * BASE_MAGIC_STEP;
 }
 
 export type CharacterSkillGroupKey = CharacterAttributeKey | "SPECIAL" | "OTHER";
@@ -568,8 +609,9 @@ export function getCharacterManaProfiles(
   draft: Pick<CharacterDraft, "skillAllocations">,
   skillCatalog: readonly CharacterSkillReference[],
   race: CharacterRaceAggregate | null,
+  baseMagicSteps: number | null | undefined = 0,
 ): CharacterManaProfile[] {
-  const baseMagic = Math.max(0, race?.race.baseMagic ?? 0);
+  const baseMagic = getCharacterBaseMagic(race?.race.baseMagic, baseMagicSteps);
   const effectivePoints = (skill: CharacterSkillReference) =>
     draft.skillAllocations
       .filter((allocation) => allocation.skillId === skill.id)
@@ -651,6 +693,8 @@ export function characterAggregateToDraft(
     quintessence: aggregate.profile.quintessence,
     totalQuintessence: aggregate.profile.totalQuintessence,
     hpMultiplierSteps: aggregate.profile.hpMultiplierSteps ?? 0,
+    baseMovementSteps: aggregate.profile.baseMovementSteps ?? 0,
+    baseMagicSteps: aggregate.profile.baseMagicSteps ?? 0,
     fatePoints: aggregate.profile.fatePoints,
     creditsRemaining: aggregate.profile.creditsRemaining,
   };
@@ -804,6 +848,7 @@ export function evaluateCharacterReadiness(
     draft,
     aggregate.skillCatalog,
     race,
+    draft.profile.baseMagicSteps,
   );
   let skillRulesValid = true;
   const pathKeys = new Set<string>();

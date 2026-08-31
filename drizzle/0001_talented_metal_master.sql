@@ -1,0 +1,4 @@
+ALTER TABLE "campaign_character_profile" ADD COLUMN "base_movement_steps" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "campaign_character_profile" ADD COLUMN "base_magic_steps" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "campaign_character_profile" ADD CONSTRAINT "campaign_character_profile_base_movement_steps_valid" CHECK ("campaign_character_profile"."base_movement_steps" >= 0);--> statement-breakpoint
+ALTER TABLE "campaign_character_profile" ADD CONSTRAINT "campaign_character_profile_base_magic_steps_valid" CHECK ("campaign_character_profile"."base_magic_steps" >= 0);

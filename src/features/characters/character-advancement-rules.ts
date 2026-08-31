@@ -191,6 +191,7 @@ export function buildCharacterAdvancementTree(
     projectedDraft,
     aggregate.skillCatalog,
     aggregate.selectedRace,
+    aggregate.profile.baseMagicSteps,
   );
   const catalog = new Map(
     aggregate.skillCatalog.map((skill) => [skill.id, skill]),

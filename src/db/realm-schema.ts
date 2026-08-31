@@ -176,6 +176,8 @@ export const campaignCharacterProfile = pgTable(
     heightInches: integer("height_inches"),
     fatePoints: integer("fate_points"),
     hpMultiplierSteps: integer("hp_multiplier_steps").default(0).notNull(),
+    baseMovementSteps: integer("base_movement_steps").default(0).notNull(),
+    baseMagicSteps: integer("base_magic_steps").default(0).notNull(),
   },
   (table) => [
     index("campaign_character_profile_race_idx").on(table.raceId, table.characterId),
@@ -214,6 +216,14 @@ export const campaignCharacterProfile = pgTable(
     check(
       "campaign_character_profile_hp_multiplier_steps_valid",
       sql`${table.hpMultiplierSteps} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_base_movement_steps_valid",
+      sql`${table.baseMovementSteps} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_base_magic_steps_valid",
+      sql`${table.baseMagicSteps} >= 0`,
     ),
   ],
 );

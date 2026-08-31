@@ -60,6 +60,7 @@ function availableCastingSystems(character: Awaited<ReturnType<typeof getCharact
       },
       character.skillCatalog,
       character.selectedRace,
+      character.profile.baseMagicSteps,
     ).map(({ system }) => system),
   );
 }

@@ -96,7 +96,7 @@ test("HP multiplier advancement is updated atomically and survives aggregate rel
   assert.match(rules, /hpMultiplierSteps: aggregate\.profile\.hpMultiplierSteps \?\? 0/);
 });
 
-test("the server keeps HP advancement player-owned and rejects arbitrary save changes", () => {
+test("the server keeps permanent Quintessence advancement player-owned and rejects arbitrary save changes", () => {
   const source = readFileSync(
     path.resolve(process.cwd(), "src/app/characters/actions.ts"),
     "utf8",
@@ -109,7 +109,7 @@ test("the server keeps HP advancement player-owned and rejects arbitrary save ch
   assert.match(action, /characterContext\.membershipUserId !== session\.user\.id/);
   assert.match(action, /A Player may only spend Quintessence for their own Character/);
   assert.match(action, /Purchase quantity must be a positive whole number/);
-  assert.match(action, /\["attribute", "fatePoints", "experience", "hpMultiplier"\]/);
+  assert.match(action, /\["attribute", "fatePoints", "experience", "hpMultiplier", "baseMovement", "baseMagic"\]/);
   assert.match(
     source,
     /hpMultiplierSteps: godMode[\s\S]*?: aggregate\.profile\.hpMultiplierSteps/,

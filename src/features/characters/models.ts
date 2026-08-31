@@ -50,6 +50,8 @@ export type CharacterProfile = {
   quintessence: number;
   totalQuintessence: number;
   hpMultiplierSteps: number;
+  baseMovementSteps: number;
+  baseMagicSteps: number;
   fatePoints: number | null;
   creditsRemaining: number;
   creationCompletedAt: string | null;

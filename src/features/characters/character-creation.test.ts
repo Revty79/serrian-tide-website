@@ -7,7 +7,11 @@ import {
   canAccessSupernaturalSkillAtLevel,
   canAccessSpellAtLevel,
   characterAggregateToDraft,
+  getBaseInitiative,
   getCharacterManaProfiles,
+  getCharacterBaseMagic,
+  getCharacterMovementBaseValue,
+  getMovementInitiative,
   getCharacterSkillGroupKey,
   getCreationPurchasedSkillMaximum,
   getEffectiveSkillPoints,
@@ -201,6 +205,61 @@ test("magic roots unlock at one point and Mana controls spell access", () => {
   assert.equal(canAccessSpellAtLevel(masterSpell, profiles[0]?.spellAccessLevel ?? null), false);
   assert.equal(canAccessSupernaturalSkillAtLevel(apprenticeSpell, spellcraft, "Novice"), true);
   assert.equal(canAccessSupernaturalSkillAtLevel(masterSpell, spellcraft, "Novice"), false);
+
+  const upgradedProfiles = getCharacterManaProfiles(
+    { skillAllocations: [
+      { draftId: 1, skillId: 1, parentDraftId: null, points: 1 },
+      { draftId: 2, skillId: 2, parentDraftId: null, points: 6 },
+    ] },
+    [spellcraft, channeling, apprenticeSpell, masterSpell],
+    race(),
+    2,
+  );
+  assert.equal(getCharacterBaseMagic(2, 2), 2.5);
+  assert.equal(upgradedProfiles[0]?.baseMagic, 2.5);
+  assert.equal(upgradedProfiles[0]?.manaPool, 15);
+});
+
+test("Base Movement upgrades stack across every racial movement mode", () => {
+  const movementModes = [
+    { movementMode: "Walk", baseValue: 3 },
+    { movementMode: "Swim", baseValue: 5.5 },
+  ];
+  assert.deepEqual(
+    movementModes.map((mode) => getCharacterMovementBaseValue(mode.baseValue, 3)),
+    [3.75, 6.25],
+  );
+});
+
+test("Base Movement quarter-steps and initiative use the effective movement value", () => {
+  assert.equal(getCharacterMovementBaseValue(5, 0), 5);
+  assert.equal(getCharacterMovementBaseValue(5, 1), 5.25);
+  assert.equal(getCharacterMovementBaseValue(5, 2), 5.5);
+  assert.equal(getCharacterMovementBaseValue(5, 4), 6);
+  assert.equal(getBaseInitiative(25), 6);
+  assert.equal(getMovementInitiative(25, getCharacterMovementBaseValue(5, 2)), 33);
+});
+
+test("Base Magic quarter-steps feed the existing mana calculation", () => {
+  const spellcraft = skill(1, "Spellcraft", { classification: "magic" });
+  const channeling = skill(2, "Channeling", { classification: "magic" });
+  assert.equal(getCharacterBaseMagic(2, 0), 2);
+  assert.equal(getCharacterBaseMagic(2, 1), 2.25);
+  assert.equal(getCharacterBaseMagic(2, 2), 2.5);
+  assert.equal(getCharacterBaseMagic(2, 4), 3);
+
+  const profiles = getCharacterManaProfiles(
+    { skillAllocations: [
+      { draftId: 1, skillId: 1, parentDraftId: null, points: 1 },
+      { draftId: 2, skillId: 2, parentDraftId: null, points: 16 },
+    ] },
+    [spellcraft, channeling],
+    race(),
+    2,
+  );
+  assert.equal(profiles[0]?.baseMagic, 2.5);
+  assert.equal(profiles[0]?.sourceSkillPoints, 16);
+  assert.equal(profiles[0]?.manaPool, 40);
 });
 
 test("a saved aggregate reopens as the same editable draft record", () => {
@@ -228,6 +287,8 @@ test("a saved aggregate reopens as the same editable draft record", () => {
     quintessence: 1,
     totalQuintessence: 2,
     hpMultiplierSteps: 0,
+    baseMovementSteps: 3,
+    baseMagicSteps: 2,
     fatePoints: 4,
     creditsRemaining: 70,
     creationCompletedAt: null,
@@ -275,6 +336,8 @@ test("a saved aggregate reopens as the same editable draft record", () => {
     quintessence: 1,
     totalQuintessence: 2,
     hpMultiplierSteps: 0,
+    baseMovementSteps: 3,
+    baseMagicSteps: 2,
     fatePoints: 4,
     creditsRemaining: 70,
   });

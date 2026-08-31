@@ -5,6 +5,7 @@ import {
 import {
   getBaseInitiative,
   getCharacterHp,
+  getCharacterMovementBaseValue,
   getMovementInitiative,
 } from "./character-rules";
 import type {
@@ -39,6 +40,7 @@ export function getCharacterAttributeCardDetails(
     baseValue: number;
   }> = [],
   hpMultiplierSteps: number | null | undefined = 0,
+  baseMovementSteps: number | null | undefined = 0,
 ): CharacterAttributeCardDetails {
   const reference = getAttributeReference(referenceRows, attributeKey, score);
   const stats: CharacterAttributeCardStat[] = getAttributeReferenceFields(
@@ -74,8 +76,11 @@ export function getCharacterAttributeCardDetails(
       attributeKey === "DEX"
         ? movementModes.map((mode) => ({
             movementMode: mode.movementMode,
-            baseMovement: mode.baseValue,
-            initiative: getMovementInitiative(score, mode.baseValue),
+            baseMovement: getCharacterMovementBaseValue(mode.baseValue, baseMovementSteps),
+            initiative: getMovementInitiative(
+              score,
+              getCharacterMovementBaseValue(mode.baseValue, baseMovementSteps),
+            ),
           }))
         : [],
   };

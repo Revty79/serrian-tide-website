@@ -16,6 +16,8 @@ import {
 import {
   getCharacterHp,
   getCharacterHpMultiplier,
+  getCharacterBaseMagic,
+  getCharacterMovementBaseValue,
   getRaceAttributeCap,
   SPECIAL_ABILITY_EFFECTIVE_MAXIMUM,
 } from "@/features/characters/character-rules";
@@ -28,6 +30,10 @@ import {
 } from "@/features/characters/models";
 import {
   ATTRIBUTE_QUINTESSENCE_COST,
+  BASE_MAGIC_QUINTESSENCE_COST,
+  BASE_MAGIC_STEP,
+  BASE_MOVEMENT_QUINTESSENCE_COST,
+  BASE_MOVEMENT_STEP,
   EXPERIENCE_PER_QUINTESSENCE,
   FATE_POINT_QUINTESSENCE_COST,
   HP_MULTIPLIER_QUINTESSENCE_COST,
@@ -71,6 +77,8 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
   const [fateQuantity, setFateQuantity] = useState(1);
   const [experienceQuantity, setExperienceQuantity] = useState(1);
   const [hpMultiplierQuantity, setHpMultiplierQuantity] = useState(1);
+  const [baseMovementQuantity, setBaseMovementQuantity] = useState(1);
+  const [baseMagicQuantity, setBaseMagicQuantity] = useState(1);
 
   const experiencePlan = useMemo(
     () => buildCharacterAdvancementPlan(aggregate, projectedAllocations),
@@ -98,9 +106,21 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
   const maximumHpMultiplierQuantity = Math.floor(
     aggregate.profile.quintessence / HP_MULTIPLIER_QUINTESSENCE_COST,
   );
+  const maximumBaseMovementQuantity = Math.floor(
+    aggregate.profile.quintessence / BASE_MOVEMENT_QUINTESSENCE_COST,
+  );
+  const maximumBaseMagicQuantity = Math.floor(
+    aggregate.profile.quintessence / BASE_MAGIC_QUINTESSENCE_COST,
+  );
   const selectedHpMultiplierQuantity = maximumHpMultiplierQuantity < 1
     ? 0
     : Math.min(hpMultiplierQuantity, maximumHpMultiplierQuantity);
+  const selectedBaseMovementQuantity = maximumBaseMovementQuantity < 1
+    ? 0
+    : Math.min(baseMovementQuantity, maximumBaseMovementQuantity);
+  const selectedBaseMagicQuantity = maximumBaseMagicQuantity < 1
+    ? 0
+    : Math.min(baseMagicQuantity, maximumBaseMagicQuantity);
   const currentHpMultiplier = getCharacterHpMultiplier(
     aggregate.profile.hpMultiplierSteps,
   );
@@ -117,6 +137,25 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
     resultingHpMultiplierSteps,
   );
   const resultingHp = getCharacterHp(constitution, resultingHpMultiplierSteps);
+  const currentBaseMagic = getCharacterBaseMagic(
+    aggregate.selectedRace?.race.baseMagic,
+    aggregate.profile.baseMagicSteps,
+  );
+  const resultingBaseMagic = getCharacterBaseMagic(
+    aggregate.selectedRace?.race.baseMagic,
+    aggregate.profile.baseMagicSteps + selectedBaseMagicQuantity,
+  );
+  const movementPreview = (aggregate.selectedRace?.movementModes ?? []).map((mode) => ({
+    movementMode: mode.movementMode,
+    current: getCharacterMovementBaseValue(
+      mode.baseValue,
+      aggregate.profile.baseMovementSteps,
+    ),
+    resulting: getCharacterMovementBaseValue(
+      mode.baseValue,
+      aggregate.profile.baseMovementSteps + selectedBaseMovementQuantity,
+    ),
+  }));
   const pendingQuintessenceCost = pendingQuintessence
     ? getQuintessenceCost(
         pendingQuintessence.purchaseType,
@@ -209,7 +248,11 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
           ? `${purchase.quantity} Fate ${purchase.quantity === 1 ? "Point was" : "Points were"} added.`
           : purchase.purchaseType === "hpMultiplier"
             ? `HP multiplier increased by ${displayMultiplier(purchase.quantity * HP_MULTIPLIER_STEP)}.`
-            : `${getExperienceFromQuintessence(purchase.quantity)} available Experience was added.`;
+            : purchase.purchaseType === "baseMovement"
+              ? `Base Movement increased by ${displayNumber(purchase.quantity * BASE_MOVEMENT_STEP)} for every movement mode.`
+              : purchase.purchaseType === "baseMagic"
+                ? `Base Magic increased by ${displayNumber(purchase.quantity * BASE_MAGIC_STEP)}.`
+                : `${getExperienceFromQuintessence(purchase.quantity)} available Experience was added.`;
       setAggregate(saved);
       resetExperiencePlan(saved);
       setPendingQuintessence(null);
@@ -217,6 +260,8 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
       setFateQuantity(1);
       setExperienceQuantity(1);
       setHpMultiplierQuantity(1);
+      setBaseMovementQuantity(1);
+      setBaseMagicQuantity(1);
       setFeedback({
         kind: "success",
         message: `${result} ${displayNumber(cost)} Quintessence was spent and added to Lifetime Quintessence.`,
@@ -261,7 +306,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
           <header className="advancement-section-heading">
             <p>CHOOSE AN ADVANCEMENT PATH</p>
             <h2 id="advancement-choice-heading">How will {aggregate.character.name} grow?</h2>
-            <span>Experience advances Skills. Quintessence improves Attributes, HP, Fate, or available Experience.</span>
+            <span>Experience advances Skills. Quintessence improves Attributes, HP, Base Movement, Base Magic, Fate, or available Experience.</span>
           </header>
           <div className="advancement-choice__cards">
             <button type="button" onClick={() => setMode("experience")}>
@@ -273,7 +318,7 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
             <button type="button" onClick={() => setMode("quintessence")}>
               <span className="advancement-choice__mark" aria-hidden="true">Q</span>
               <strong>Spend Quintessence</strong>
-              <span>Increase Attributes or HP, gain Fate Points, or convert Quintessence into available Experience.</span>
+              <span>Increase Attributes, HP, Base Movement, or Base Magic; gain Fate Points; or convert Quintessence into available Experience.</span>
               <small>{displayNumber(aggregate.profile.quintessence)} Quintessence Available</small>
             </button>
           </div>
@@ -344,6 +389,22 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
             </article>
 
             <article className="quintessence-purchase">
+              <div className="quintessence-purchase__heading"><span aria-hidden="true">MV</span><div><strong>Increase Base Movement</strong><small>{BASE_MOVEMENT_QUINTESSENCE_COST} Q per +{BASE_MOVEMENT_STEP.toFixed(2)}</small></div></div>
+              <p>Permanently increase every movement mode inherited from this Character&apos;s Race. The Race record itself is unchanged.</p>
+              <QuantityPicker label="Movement increases" value={selectedBaseMovementQuantity} maximum={maximumBaseMovementQuantity} onChange={setBaseMovementQuantity} displayZeroWhenDisabled />
+              {movementPreview.length ? movementPreview.map((movement) => <div className="quintessence-purchase__result" key={movement.movementMode}><span>{movement.movementMode}</span><strong>{displayNumber(movement.current)} → {displayNumber(movement.resulting)}</strong></div>) : <p>No racial movement modes are recorded; purchased steps remain saved for future Race records.</p>}
+              <button type="button" disabled={busy || maximumBaseMovementQuantity < 1} onClick={() => beginQuintessencePurchase({ purchaseType: "baseMovement", quantity: selectedBaseMovementQuantity, attributeKey: null })}>{selectedBaseMovementQuantity > 0 ? `Review · ${getQuintessenceCost("baseMovement", selectedBaseMovementQuantity)} Q` : "Not Enough Quintessence"}</button>
+            </article>
+
+            <article className="quintessence-purchase">
+              <div className="quintessence-purchase__heading"><span aria-hidden="true">MG</span><div><strong>Increase Base Magic</strong><small>{BASE_MAGIC_QUINTESSENCE_COST} Q per +{BASE_MAGIC_STEP.toFixed(2)}</small></div></div>
+              <p>Permanently increase this Character&apos;s effective Base Magic. Mana pools and spell access recalculate from the new value.</p>
+              <QuantityPicker label="Magic increases" value={selectedBaseMagicQuantity} maximum={maximumBaseMagicQuantity} onChange={setBaseMagicQuantity} displayZeroWhenDisabled />
+              <div className="quintessence-purchase__result"><span>Base Magic</span><strong>{displayNumber(currentBaseMagic)} → {displayNumber(resultingBaseMagic)}</strong></div>
+              <button type="button" disabled={busy || maximumBaseMagicQuantity < 1} onClick={() => beginQuintessencePurchase({ purchaseType: "baseMagic", quantity: selectedBaseMagicQuantity, attributeKey: null })}>{selectedBaseMagicQuantity > 0 ? `Review · ${getQuintessenceCost("baseMagic", selectedBaseMagicQuantity)} Q` : "Not Enough Quintessence"}</button>
+            </article>
+
+            <article className="quintessence-purchase">
               <div className="quintessence-purchase__heading"><span aria-hidden="true">F</span><div><strong>Fate Points</strong><small>{FATE_POINT_QUINTESSENCE_COST} Q per +1</small></div></div>
               <p>Gain additional Fate Points.</p>
               <QuantityPicker label="Fate Points" value={fateQuantity} maximum={maximumFateQuantity} onChange={setFateQuantity} />
@@ -396,6 +457,8 @@ export function AdvanceWorkspace({ initialAggregate }: { initialAggregate: Chara
               <div><dt>Quintessence cost</dt><dd>{displayNumber(pendingQuintessenceCost)}</dd></div>
               <div><dt>Available Q</dt><dd>{displayNumber(aggregate.profile.quintessence)} → {displayNumber(aggregate.profile.quintessence - pendingQuintessenceCost)}</dd></div>
               <div><dt>Lifetime Q</dt><dd>{displayNumber(aggregate.profile.totalQuintessence)} → {displayNumber(aggregate.profile.totalQuintessence + pendingQuintessenceCost)}</dd></div>
+              {pendingQuintessence.purchaseType === "baseMagic" ? <div><dt>Base Magic</dt><dd>{displayNumber(currentBaseMagic)} → {displayNumber(getCharacterBaseMagic(aggregate.selectedRace?.race.baseMagic, aggregate.profile.baseMagicSteps + pendingQuintessence.quantity))}</dd></div> : null}
+              {pendingQuintessence.purchaseType === "baseMovement" ? <div><dt>Every movement mode</dt><dd>{movementPreview.map((movement) => `${movement.movementMode} ${displayNumber(movement.current)} → ${displayNumber(getCharacterMovementBaseValue(movement.current, pendingQuintessence.quantity))}`).join(" · ") || `+${displayNumber(pendingQuintessence.quantity * BASE_MOVEMENT_STEP)} saved`}</dd></div> : null}
               {pendingQuintessence.purchaseType === "experience" ? <div><dt>Lifetime XP</dt><dd>{displayNumber(aggregate.profile.totalExperience)} → {displayNumber(aggregate.profile.totalExperience)}</dd></div> : null}
             </dl>
             <span>This purchase is saved immediately after server validation.</span>
