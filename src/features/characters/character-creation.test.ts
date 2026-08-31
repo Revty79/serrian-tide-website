@@ -110,6 +110,46 @@ test("Campaign systems and tier limits govern branches without suppressing racia
   assert.equal(isSkillAllowedByCampaign(special, special, ["Tier 1"], true, true), true);
 });
 
+test("supernatural branches use system progression instead of ordinary Tier 2 and Tier 3 flags", () => {
+  const roots = [
+    ["Spellcraft", "Spellcraft", "spell"],
+    ["Talismanism", "Talismanism", "spell"],
+    ["Faith", "Faith", "spell"],
+    ["Psionic Focus", "Psyonics", "psionic skill"],
+    ["Resonant Performance", "Bardic Resonance", "reverberation"],
+  ] as const;
+
+  for (const [rootName, system, tierThreeClassification] of roots) {
+    const root = skill(10, rootName, { classification: "magic access", tier: 1 });
+    const tierTwo = skill(11, `${rootName} Branch`, {
+      classification: "sphere",
+      tier: 2,
+    });
+    const tierThree = skill(12, `${rootName} Power`, {
+      classification: tierThreeClassification,
+      tier: 3,
+      spellLevel: "Apprentice",
+    });
+    const allowedSystems = ["Tier 1", system] as const;
+
+    assert.equal(
+      isSkillAllowedByCampaign(root, root, [system]),
+      false,
+      `${rootName} still requires the Campaign's Tier 1 root permission`,
+    );
+    assert.equal(
+      isSkillAllowedByCampaign(tierTwo, root, allowedSystems),
+      true,
+      `${rootName} Tier 2 branches should use supernatural progression`,
+    );
+    assert.equal(
+      isSkillAllowedByCampaign(tierThree, root, allowedSystems),
+      true,
+      `${rootName} Tier 3 branches should be left to Mana/mastery access`,
+    );
+  }
+});
+
 test("recursive racial anchors preserve their parent path and descendants prune together", () => {
   let nextDraftId = 10;
   const racial = race([{ skillId: 2, skillName: "Acrobatics", skillClassification: "standard", linkType: "racial", value: 2 }]);

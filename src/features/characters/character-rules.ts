@@ -405,14 +405,19 @@ export function isSkillAllowedByCampaign(
   raciallyGranted = false,
 ) {
   if (raciallyGranted) return true;
+  const systems = rootSystems(rootSkill);
+  const usesSupernaturalTierProgression =
+    skill.tier !== null &&
+    skill.tier > 1 &&
+    systems?.some((system) => ONE_POINT_UNLOCK_SYSTEMS.has(system));
   if (
     enforceCampaignTierLimits &&
+    !usesSupernaturalTierProgression &&
     skill.tier !== null &&
     !allowedSystems.includes(`Tier ${skill.tier}` as CampaignSystem)
   ) {
     return false;
   }
-  const systems = rootSystems(rootSkill);
   return (
     systems !== null &&
     (systems.length === 0 ||
