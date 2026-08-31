@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import {
+  getAlternateRoleDestinations,
+  getContextHomeHref,
   getContextNavigationItems,
   getNavigationBreadcrumbs,
-  getRoleDestinations,
   isNavigationItemActive,
   type AuthenticatedContext,
   type SerrianAppRole,
@@ -33,8 +34,9 @@ export function AuthenticatedNavigation({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
-  const navigationItems = getContextNavigationItems(context);
-  const roleDestinations = getRoleDestinations(roles);
+  const navigationItems = getContextNavigationItems(context, pathname);
+  const contextHomeHref = getContextHomeHref(context);
+  const alternateRoleDestinations = getAlternateRoleDestinations(roles, context);
   const characterSource = searchParams.get("source");
   const requestedCampaignId = Number(searchParams.get("campaign"));
   const campaignId = Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
@@ -55,6 +57,10 @@ export function AuthenticatedNavigation({
     router.refresh();
   }
 
+  function closeDisclosure(event: MouseEvent<HTMLAnchorElement>) {
+    event.currentTarget.closest("details")?.removeAttribute("open");
+  }
+
   const links = (
     <>
       {navigationItems.map((item) => {
@@ -63,6 +69,7 @@ export function AuthenticatedNavigation({
           <Link
             key={item.href}
             href={item.href}
+            onClick={closeDisclosure}
             aria-current={active ? "page" : undefined}
             className={`rounded-full border px-3 py-2 text-xs transition ${
               active
@@ -80,7 +87,7 @@ export function AuthenticatedNavigation({
   return (
     <div className="authenticated-navigation sticky top-0 z-50 border-b border-white/10 bg-[#070a13]/92 shadow-2xl backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1500px] items-center gap-4 px-4 py-3 sm:px-6">
-        <Link href="/access" className="shrink-0 border-r border-white/10 pr-4">
+        <Link href={contextHomeHref} className="shrink-0 border-r border-white/10 pr-4" aria-label={`${contextNames[context]} dashboard`}>
           <strong className="font-evanescent block bg-gradient-to-r from-purple-400 via-amber-200 to-purple-400 bg-clip-text text-lg text-transparent">
             SERRIAN TIDE
           </strong>
@@ -99,32 +106,38 @@ export function AuthenticatedNavigation({
           </summary>
           <nav className="absolute right-0 top-12 grid w-[min(88vw,22rem)] gap-1 rounded-2xl border border-white/15 bg-[#080b15] p-3 shadow-2xl" aria-label={`${contextNames[context]} mobile navigation`}>
             {links}
-            <span className="mt-2 border-t border-white/10 px-3 pt-3 text-xs uppercase tracking-[0.14em] text-purple-200/85">
-              Switch Path
-            </span>
-            <Link href="/access" className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">Paths</Link>
-            {roleDestinations.map((destination) => (
-              <Link key={`mobile-${destination.href}`} href={destination.href} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">
-                {destination.label}
-              </Link>
-            ))}
+            {alternateRoleDestinations.length > 0 ? (
+              <>
+                <span className="mt-2 border-t border-white/10 px-3 pt-3 text-xs uppercase tracking-[0.14em] text-purple-200/85">
+                  Switch Path
+                </span>
+                <Link href="/access" onClick={closeDisclosure} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">All Paths</Link>
+                {alternateRoleDestinations.map((destination) => (
+                  <Link key={`mobile-${destination.href}`} href={destination.href} onClick={closeDisclosure} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">
+                    {destination.label}
+                  </Link>
+                ))}
+              </>
+            ) : null}
           </nav>
         </details>
 
         <div className="hidden shrink-0 items-center gap-2 border-l border-white/10 pl-4 md:flex">
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded-full border border-purple-300/20 px-3 py-2 text-xs text-purple-100">
-              Switch Path
-            </summary>
-            <div className="absolute right-0 top-11 grid min-w-40 gap-1 rounded-xl border border-white/15 bg-[#080b15] p-2 shadow-2xl">
-              <Link href="/access" className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">Paths</Link>
-              {roleDestinations.map((destination) => (
-                <Link key={destination.href} href={destination.href} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">
-                  {destination.label}
-                </Link>
-              ))}
-            </div>
-          </details>
+          {alternateRoleDestinations.length > 0 ? (
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded-full border border-purple-300/20 px-3 py-2 text-xs text-purple-100">
+                Switch Path
+              </summary>
+              <div className="absolute right-0 top-11 grid min-w-40 gap-1 rounded-xl border border-white/15 bg-[#080b15] p-2 shadow-2xl">
+                <Link href="/access" onClick={closeDisclosure} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">All Paths</Link>
+                {alternateRoleDestinations.map((destination) => (
+                  <Link key={destination.href} href={destination.href} onClick={closeDisclosure} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">
+                    {destination.label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          ) : null}
           <span className="max-w-28 truncate text-xs text-slate-300" title={username}>{username}</span>
           <button
             type="button"
@@ -149,7 +162,7 @@ export function AuthenticatedNavigation({
           </span>
         ))}
         <div className="ml-auto flex items-center gap-2 md:hidden">
-          <Link href="/access" className="text-purple-200">Paths</Link>
+          {alternateRoleDestinations.length > 0 ? <Link href="/access" className="text-purple-200">Paths</Link> : null}
           <button type="button" disabled={signingOut} onClick={() => void signOut()} className="text-slate-300 hover:text-red-200">
             {signingOut ? "Signing out…" : "Log Out"}
           </button>

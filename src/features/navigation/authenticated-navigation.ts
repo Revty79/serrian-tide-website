@@ -22,6 +22,7 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
     { label: "Campaign Settings", href: "/heavens/campaigns" },
     { label: "Races", href: "/heavens/races" },
     { label: "Skills", href: "/heavens/skills" },
+    { label: "Derived Abilities", href: "/heavens/derived-abilities" },
     { label: "Creatures", href: "/heavens/creatures" },
     { label: "Equipment", href: "/heavens/equipment" },
     { label: "Inventory", href: "/heavens/inventory" },
@@ -40,13 +41,47 @@ const ROLE_DESTINATIONS: Array<{
   { role: "player", label: "Realms", href: "/realms" },
 ];
 
-export function getContextNavigationItems(context: AuthenticatedContext) {
-  return CONTEXT_ITEMS[context];
+function getRealmsCharacterId(pathname?: string): number | null {
+  if (!pathname) return null;
+  const match = pathname.match(/^\/realms\/characters\/(\d+)(?:\/|$)/);
+  if (!match) return null;
+  const characterId = Number(match[1]);
+  return Number.isInteger(characterId) && characterId > 0 ? characterId : null;
+}
+
+export function getContextHomeHref(context: AuthenticatedContext) {
+  return CONTEXT_ITEMS[context][0]!.href;
+}
+
+export function getContextNavigationItems(
+  context: AuthenticatedContext,
+  pathname?: string,
+) {
+  const baseItems = CONTEXT_ITEMS[context];
+  const characterId = context === "realms" ? getRealmsCharacterId(pathname) : null;
+  if (!characterId) return baseItems;
+
+  const characterHref = `/realms/characters/${characterId}`;
+  return [
+    ...baseItems,
+    { label: "Character Sheet", href: characterHref },
+    { label: "Advancement", href: `${characterHref}/advance` },
+    { label: "Spellbook", href: `${characterHref}/spellbook` },
+    { label: "Magic Calculator", href: `${characterHref}/magic` },
+  ];
 }
 
 export function getRoleDestinations(roles: readonly SerrianAppRole[]) {
   const roleSet = new Set(roles);
   return ROLE_DESTINATIONS.filter(({ role }) => roleSet.has(role));
+}
+
+export function getAlternateRoleDestinations(
+  roles: readonly SerrianAppRole[],
+  context: AuthenticatedContext,
+) {
+  const currentHref = getContextHomeHref(context);
+  return getRoleDestinations(roles).filter(({ href }) => href !== currentHref);
 }
 
 export function isNavigationItemActive(
@@ -55,6 +90,7 @@ export function isNavigationItemActive(
   characterSource?: string | null,
 ) {
   if (pathname === item.href) return true;
+  if (/^\/realms\/characters\/\d+$/.test(item.href)) return false;
   if (
     item.href === "/heavens/npcs" &&
     pathname.startsWith("/heavens/characters/") &&

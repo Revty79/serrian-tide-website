@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 import {
+  getAlternateRoleDestinations,
   getCharacterToolReturnHref,
+  getContextHomeHref,
   getContextNavigationItems,
   getGodCharacterReturnHref,
   getNavigationBreadcrumbs,
@@ -18,12 +22,44 @@ test("Heavens exposes one consistent set of major destinations", () => {
       "Campaign Settings",
       "Races",
       "Skills",
+      "Derived Abilities",
       "Creatures",
       "Equipment",
       "Inventory",
       "NPCs",
     ],
   );
+});
+
+test("Realms exposes the complete tool set while working inside a Character", () => {
+  const items = getContextNavigationItems("realms", "/realms/characters/42/spellbook");
+  assert.deepEqual(
+    items.map(({ label }) => label),
+    [
+      "Realms Dashboard",
+      "Character Sheet",
+      "Advancement",
+      "Spellbook",
+      "Magic Calculator",
+    ],
+  );
+  assert.equal(
+    isNavigationItemActive(
+      "/realms/characters/42/spellbook",
+      items.find(({ label }) => label === "Character Sheet")!,
+    ),
+    false,
+  );
+  assert.equal(
+    isNavigationItemActive(
+      "/realms/characters/42/spellbook",
+      items.find(({ label }) => label === "Spellbook")!,
+    ),
+    true,
+  );
+  assert.deepEqual(getContextNavigationItems("realms"), [
+    { label: "Realms Dashboard", href: "/realms" },
+  ]);
 });
 
 test("active destination identifies both libraries and their nested editors", () => {
@@ -100,6 +136,14 @@ test("role destinations expose only authorized application contexts", () => {
     getRoleDestinations(["admin", "god", "player"]).map(({ label }) => label),
     ["Admin", "Heavens", "Realms"],
   );
+  assert.deepEqual(
+    getAlternateRoleDestinations(["admin", "god", "player"], "heavens").map(
+      ({ label }) => label,
+    ),
+    ["Admin", "Realms"],
+  );
+  assert.deepEqual(getAlternateRoleDestinations(["god"], "heavens"), []);
+  assert.equal(getContextHomeHref("heavens"), "/heavens");
 });
 
 test("library pages breadcrumb directly back to their Heavens library context", () => {
@@ -119,4 +163,39 @@ test("Add Player remains an inline action rather than an authenticated destinati
       .some(({ href }) => href.includes("add-player")),
     false,
   );
+});
+
+test("every public, shared, and contextual navigation destination has an application page", () => {
+  const destinations = new Set([
+    "/",
+    "/login",
+    "/register",
+    "/access",
+    ...(["admin", "heavens"] as const).flatMap((context) =>
+      getContextNavigationItems(context).map(({ href }) => href),
+    ),
+    ...getContextNavigationItems("realms", "/realms/characters/42/random/guided").map(
+      ({ href }) => href,
+    ),
+    ...getRoleDestinations(["admin", "god", "player"]).map(({ href }) => href),
+    "/heavens/campaigns/new",
+    "/heavens/characters/42",
+    "/heavens/npcs/42",
+    "/realms/characters/42/random/guided",
+  ]);
+
+  for (const destination of destinations) {
+    const sourceRoute = destination
+      .replace(/^\/heavens\/characters\/\d+/, "/heavens/characters/[characterId]")
+      .replace(/^\/heavens\/npcs\/\d+/, "/heavens/npcs/[npcId]")
+      .replace(/^\/realms\/characters\/\d+/, "/realms/characters/[characterId]");
+    const pageFile = join(
+      process.cwd(),
+      "src",
+      "app",
+      ...sourceRoute.split("/").filter(Boolean),
+      "page.tsx",
+    );
+    assert.equal(existsSync(pageFile), true, `${destination} is missing ${pageFile}`);
+  }
 });
