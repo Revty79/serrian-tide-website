@@ -109,6 +109,20 @@ export default async function HeavensPage({
           />
         </section>
 
+        <section className="mt-7">
+          <Link
+            href={initialCampaignId ? `/heavens/tabletop?campaign=${initialCampaignId}` : "/heavens/tabletop"}
+            className="group grid gap-5 overflow-hidden rounded-3xl border border-amber-300/20 bg-gradient-to-r from-purple-950/35 via-black/40 to-teal-950/25 p-6 shadow-2xl backdrop-blur-md transition hover:border-amber-300/45 sm:grid-cols-[1fr_auto] sm:items-center sm:p-8"
+          >
+            <div>
+              <p className="text-xs uppercase tracking-[0.14em] text-purple-200">Live Table Management</p>
+              <h3 className="font-sans mt-2 text-3xl text-slate-100">Tabletop Operations</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Plan, start, complete, and reopen Campaign Sessions while persistent Character and NPC state remains authoritative.</p>
+            </div>
+            <span className="text-sm text-amber-200">Open Sessions →</span>
+          </Link>
+        </section>
+
         <section className="mt-10">
           <div className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>

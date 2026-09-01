@@ -36,6 +36,13 @@
       "when": 1788244965353,
       "tag": "0004_persisted_creature_hp",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788276904771,
+      "tag": "0005_tabletop_operations_session_foundation",
+      "breakpoints": true
     }
   ]
 }

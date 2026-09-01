@@ -20,6 +20,7 @@ test("Heavens exposes one consistent set of major destinations", () => {
     [
       "Heavens Dashboard",
       "Campaign Settings",
+      "Tabletop Operations",
       "Races",
       "Skills",
       "Derived Abilities",

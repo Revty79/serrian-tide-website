@@ -20,6 +20,7 @@ export default defineConfig({
     "./src/db/item-schema.ts",
     "./src/db/realm-schema.ts",
     "./src/db/attribute-reference-schema.ts",
+    "./src/db/tabletop-operations-schema.ts",
   ],
   out: "./drizzle",
   dialect: "postgresql",

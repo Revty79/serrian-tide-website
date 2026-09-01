@@ -20,6 +20,7 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
   heavens: [
     { label: "Heavens Dashboard", href: "/heavens" },
     { label: "Campaign Settings", href: "/heavens/campaigns" },
+    { label: "Tabletop Operations", href: "/heavens/tabletop" },
     { label: "Races", href: "/heavens/races" },
     { label: "Skills", href: "/heavens/skills" },
     { label: "Derived Abilities", href: "/heavens/derived-abilities" },

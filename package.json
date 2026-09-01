@@ -17,6 +17,8 @@
     "validate:character": "tsx --test src/features/characters/character-creation.test.ts src/features/characters/attribute-reference.test.ts src/features/characters/character-attribute-card.test.ts src/features/characters/character-print.test.ts",
     "validate:magic": "tsx --test src/features/characters/character-spell-casting.test.ts src/features/characters/magic-context-parity.test.ts",
     "validate:navigation": "tsx --test src/features/navigation/authenticated-navigation.test.ts src/features/campaigns/campaign-membership.test.ts src/features/campaigns/campaign-workflow.test.ts",
+    "validate:tabletop": "tsx --test src/features/tabletop-operations/*.test.ts",
+    "validate:tabletop-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-operations-db.test.ts",
     "validate:random": "tsx --test src/features/characters/random-character.test.ts",
     "validate:realms": "tsx --test src/features/characters/*.test.ts",
     "validate:active-state": "tsx --test src/features/active-state/*.test.ts",
