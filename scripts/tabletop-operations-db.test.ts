@@ -9,6 +9,8 @@ import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { campaignCharacter } from "@/db/realm-schema";
 import {
   campaignSession,
+  campaignSessionEncounter,
+  campaignSessionEncounterParticipant,
   campaignSessionRoster,
   campaignSessionScene,
   campaignSessionSceneMember,
@@ -60,6 +62,60 @@ async function insertTemporaryCharacter(
   }).returning({ id: campaignCharacter.id });
   assert.ok(created);
   return created.id;
+}
+
+async function insertEncounterFixture(tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) {
+  const { campaignId, userId } = await insertTemporaryCampaign(tx);
+  const participantId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Encounter Participant" });
+  const secondParticipantId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Second Participant", isNpc: true });
+  const rosterOnlyId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Roster Only", isNpc: true });
+  const [session] = await tx.insert(campaignSession).values({
+    campaignId,
+    title: "Encounter Fixture Session",
+    sequenceNumber: 1,
+    status: "active",
+    startedAt: new Date("2026-09-03T17:00:00.000Z"),
+  }).returning({ id: campaignSession.id });
+  assert.ok(session);
+  await tx.insert(campaignSessionRoster).values([
+    { sessionId: session.id, campaignId, characterId: participantId, sortOrder: 0 },
+    { sessionId: session.id, campaignId, characterId: secondParticipantId, sortOrder: 1 },
+    { sessionId: session.id, campaignId, characterId: rosterOnlyId, sortOrder: 2 },
+  ]);
+  const [scene] = await tx.insert(campaignSessionScene).values({
+    sessionId: session.id,
+    campaignId,
+    sequenceNumber: 1,
+    title: "Encounter Fixture Scene",
+    status: "active",
+    startedAt: new Date("2026-09-03T17:30:00.000Z"),
+  }).returning({ id: campaignSessionScene.id });
+  assert.ok(scene);
+  await tx.insert(campaignSessionSceneMember).values([
+    { sceneId: scene.id, sessionId: session.id, campaignId, characterId: participantId, sortOrder: 0 },
+    { sceneId: scene.id, sessionId: session.id, campaignId, characterId: secondParticipantId, sortOrder: 1 },
+  ]);
+  const [encounter] = await tx.insert(campaignSessionEncounter).values({
+    sceneId: scene.id,
+    sessionId: session.id,
+    campaignId,
+    sequenceNumber: 1,
+    title: "Roadside Ambush",
+    encounterType: "combat",
+    description: "A focused challenge.",
+    godNotes: "No combat automation.",
+  }).returning({ id: campaignSessionEncounter.id });
+  assert.ok(encounter);
+  return {
+    campaignId,
+    userId,
+    sessionId: session.id,
+    sceneId: scene.id,
+    encounterId: encounter.id,
+    participantId,
+    secondParticipantId,
+    rosterOnlyId,
+  };
 }
 
 after(async () => {
@@ -417,6 +473,235 @@ test("deleting a planned Scene cascades only Scene membership", async () => {
     assert.equal(Number(memberCount?.value ?? 0), 0);
     assert.equal(Number(sessionCount?.value ?? 0), 1);
     assert.equal(Number(rosterCount?.value ?? 0), 1);
+    assert.equal(Number(characterCount?.value ?? 0), 1);
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
+});
+
+test("Encounter metadata, lifecycle, and ordered Participants persist", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    await tx.insert(campaignSessionEncounterParticipant).values([
+      {
+        encounterId: fixture.encounterId,
+        sceneId: fixture.sceneId,
+        sessionId: fixture.sessionId,
+        campaignId: fixture.campaignId,
+        characterId: fixture.secondParticipantId,
+        sortOrder: 1,
+        prepNotes: "NPC enters from the east.",
+      },
+      {
+        encounterId: fixture.encounterId,
+        sceneId: fixture.sceneId,
+        sessionId: fixture.sessionId,
+        campaignId: fixture.campaignId,
+        characterId: fixture.participantId,
+        sortOrder: 0,
+        prepNotes: "Player has the map.",
+      },
+    ]);
+    const startedAt = new Date("2026-09-03T18:00:00.000Z");
+    const completedAt = new Date("2026-09-03T19:00:00.000Z");
+    await tx.update(campaignSessionEncounter).set({ status: "active", startedAt }).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    await tx.update(campaignSessionEncounter).set({ status: "completed", completedAt }).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    await tx.update(campaignSessionEncounter).set({ status: "active", completedAt: null }).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    const [encounter] = await tx.select().from(campaignSessionEncounter).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    assert.equal(encounter?.title, "Roadside Ambush");
+    assert.equal(encounter?.encounterType, "combat");
+    assert.equal(encounter?.description, "A focused challenge.");
+    assert.equal(encounter?.godNotes, "No combat automation.");
+    assert.equal(encounter?.status, "active");
+    assert.equal(encounter?.startedAt?.toISOString(), startedAt.toISOString());
+    assert.equal(encounter?.completedAt, null);
+    const participants = await tx
+      .select({
+        characterId: campaignSessionEncounterParticipant.characterId,
+        sortOrder: campaignSessionEncounterParticipant.sortOrder,
+        prepNotes: campaignSessionEncounterParticipant.prepNotes,
+      })
+      .from(campaignSessionEncounterParticipant)
+      .where(eq(campaignSessionEncounterParticipant.encounterId, fixture.encounterId))
+      .orderBy(asc(campaignSessionEncounterParticipant.sortOrder));
+    assert.deepEqual(participants, [
+      { characterId: fixture.participantId, sortOrder: 0, prepNotes: "Player has the map." },
+      { characterId: fixture.secondParticipantId, sortOrder: 1, prepNotes: "NPC enters from the east." },
+    ]);
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
+});
+
+test("the database prevents two active Encounters in one Scene", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    const [second] = await tx.insert(campaignSessionEncounter).values({
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      sequenceNumber: 2,
+      title: "Second Encounter",
+    }).returning({ id: campaignSessionEncounter.id });
+    assert.ok(second);
+    await tx.update(campaignSessionEncounter).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    await tx.update(campaignSessionEncounter).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionEncounter.id, second.id));
+  }), (error: unknown) => /campaign_session_encounter_one_active_per_scene_uq|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("the database rejects non-Scene, duplicate, and cross-Scene/Session/Campaign Encounter Participants", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    await tx.insert(campaignSessionEncounterParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.rosterOnlyId,
+    });
+  }), (error: unknown) => /campaign_session_encounter_participant_scene_member_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    const participant = {
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+    };
+    await tx.insert(campaignSessionEncounterParticipant).values(participant);
+    await tx.insert(campaignSessionEncounterParticipant).values(participant);
+  }), (error: unknown) => /campaign_session_encounter_participant_encounter_id_character_id_pk|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    const [otherScene] = await tx.insert(campaignSessionScene).values({
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      sequenceNumber: 2,
+      title: "Other Scene",
+    }).returning({ id: campaignSessionScene.id });
+    assert.ok(otherScene);
+    await tx.insert(campaignSessionSceneMember).values({
+      sceneId: otherScene.id,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.rosterOnlyId,
+    });
+    await tx.insert(campaignSessionEncounterParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: otherScene.id,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.rosterOnlyId,
+    });
+  }), (error: unknown) => /campaign_session_encounter_participant_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    const [otherSession] = await tx.insert(campaignSession).values({
+      campaignId: fixture.campaignId,
+      title: "Other Session",
+      sequenceNumber: 2,
+    }).returning({ id: campaignSession.id });
+    assert.ok(otherSession);
+    await tx.insert(campaignSessionRoster).values({ sessionId: otherSession.id, campaignId: fixture.campaignId, characterId: fixture.rosterOnlyId });
+    const [otherScene] = await tx.insert(campaignSessionScene).values({
+      sessionId: otherSession.id,
+      campaignId: fixture.campaignId,
+      sequenceNumber: 1,
+      title: "Other Session Scene",
+    }).returning({ id: campaignSessionScene.id });
+    assert.ok(otherScene);
+    await tx.insert(campaignSessionSceneMember).values({
+      sceneId: otherScene.id,
+      sessionId: otherSession.id,
+      campaignId: fixture.campaignId,
+      characterId: fixture.rosterOnlyId,
+    });
+    await tx.insert(campaignSessionEncounterParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: otherScene.id,
+      sessionId: otherSession.id,
+      campaignId: fixture.campaignId,
+      characterId: fixture.rosterOnlyId,
+    });
+  }), (error: unknown) => /campaign_session_encounter_participant_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    const foreign = await insertTemporaryCampaign(tx);
+    const foreignCharacterId = await insertTemporaryCharacter(tx, {
+      campaignId: foreign.campaignId,
+      userId: foreign.userId,
+      name: "Foreign Participant",
+    });
+    const [foreignSession] = await tx.insert(campaignSession).values({
+      campaignId: foreign.campaignId,
+      title: "Foreign Session",
+      sequenceNumber: 1,
+    }).returning({ id: campaignSession.id });
+    assert.ok(foreignSession);
+    await tx.insert(campaignSessionRoster).values({ sessionId: foreignSession.id, campaignId: foreign.campaignId, characterId: foreignCharacterId });
+    const [foreignScene] = await tx.insert(campaignSessionScene).values({
+      sessionId: foreignSession.id,
+      campaignId: foreign.campaignId,
+      sequenceNumber: 1,
+      title: "Foreign Scene",
+    }).returning({ id: campaignSessionScene.id });
+    assert.ok(foreignScene);
+    await tx.insert(campaignSessionSceneMember).values({
+      sceneId: foreignScene.id,
+      sessionId: foreignSession.id,
+      campaignId: foreign.campaignId,
+      characterId: foreignCharacterId,
+    });
+    await tx.insert(campaignSessionEncounterParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: foreignScene.id,
+      sessionId: foreignSession.id,
+      campaignId: foreign.campaignId,
+      characterId: foreignCharacterId,
+    });
+  }), (error: unknown) => /campaign_session_encounter_participant_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("Encounter Participant history restricts Scene-member deletion", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    await tx.insert(campaignSessionEncounterParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+    });
+    await tx.delete(campaignSessionSceneMember).where(and(
+      eq(campaignSessionSceneMember.sceneId, fixture.sceneId),
+      eq(campaignSessionSceneMember.characterId, fixture.participantId),
+    ));
+  }), (error: unknown) => /campaign_session_encounter_participant_scene_member_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("deleting a planned Encounter cascades only its Participants", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    await tx.insert(campaignSessionEncounterParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+    });
+    await tx.delete(campaignSessionEncounter).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    const [participantCount] = await tx.select({ value: count() }).from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, fixture.encounterId));
+    const [sceneCount] = await tx.select({ value: count() }).from(campaignSessionScene).where(eq(campaignSessionScene.id, fixture.sceneId));
+    const [memberCount] = await tx.select({ value: count() }).from(campaignSessionSceneMember).where(and(eq(campaignSessionSceneMember.sceneId, fixture.sceneId), eq(campaignSessionSceneMember.characterId, fixture.participantId)));
+    const [sessionCount] = await tx.select({ value: count() }).from(campaignSession).where(eq(campaignSession.id, fixture.sessionId));
+    const [characterCount] = await tx.select({ value: count() }).from(campaignCharacter).where(eq(campaignCharacter.id, fixture.participantId));
+    assert.equal(Number(participantCount?.value ?? 0), 0);
+    assert.equal(Number(sceneCount?.value ?? 0), 1);
+    assert.equal(Number(memberCount?.value ?? 0), 1);
+    assert.equal(Number(sessionCount?.value ?? 0), 1);
     assert.equal(Number(characterCount?.value ?? 0), 1);
     throw ROLLBACK;
   }), (error) => error === ROLLBACK);

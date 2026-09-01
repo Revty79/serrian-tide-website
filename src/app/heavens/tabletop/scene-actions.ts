@@ -7,6 +7,8 @@ import { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
 import {
   campaignSession,
+  campaignSessionEncounter,
+  campaignSessionEncounterParticipant,
   campaignSessionRoster,
   campaignSessionScene,
   campaignSessionSceneMember,
@@ -395,7 +397,20 @@ async function applySceneLifecycleTransition(
     const updated = await db.transaction(async (tx) => {
       const locked = await lockOwnedScene(tx, sceneId, access.user.id);
       if (transition === "start") assertSceneMayStart(locked.sessionStatus);
-      if (transition === "complete") assertSceneMayComplete(locked.sessionStatus);
+      if (transition === "complete") {
+        assertSceneMayComplete(locked.sessionStatus);
+        const [activeEncounter] = await tx
+          .select({ id: campaignSessionEncounter.id })
+          .from(campaignSessionEncounter)
+          .where(and(
+            eq(campaignSessionEncounter.sceneId, sceneId),
+            eq(campaignSessionEncounter.status, "active"),
+          ))
+          .limit(1);
+        if (activeEncounter) {
+          throw new Error("Complete the active Encounter before completing this Scene.");
+        }
+      }
       if (transition === "reopen") assertSceneMayReopen(locked.sessionStatus);
       const next = transitionScene(locked, transition);
       if (next.status === "active") {
@@ -518,6 +533,17 @@ export async function removeCampaignSessionSceneMember(
   await db.transaction(async (tx) => {
     const locked = await lockOwnedScene(tx, sceneId, access.user.id);
     assertSceneIsEditable(locked.status, locked.sessionStatus);
+    const [encounterUse] = await tx
+      .select({ encounterId: campaignSessionEncounterParticipant.encounterId })
+      .from(campaignSessionEncounterParticipant)
+      .where(and(
+        eq(campaignSessionEncounterParticipant.sceneId, sceneId),
+        eq(campaignSessionEncounterParticipant.characterId, characterId),
+      ))
+      .limit(1);
+    if (encounterUse) {
+      throw new Error("This Scene member is used by an Encounter. Remove them from editable Encounters first; completed Encounter history cannot be erased.");
+    }
     const removed = await tx
       .delete(campaignSessionSceneMember)
       .where(and(

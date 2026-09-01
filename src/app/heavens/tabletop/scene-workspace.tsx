@@ -9,6 +9,8 @@ import {
 } from "@/features/tabletop-operations/scene-foundation";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
+import type { EncounterWorkspaceData } from "./encounter-actions";
+import { EncounterWorkspace } from "./encounter-workspace";
 import {
   addCampaignSessionSceneMember,
   completeCampaignSessionScene,
@@ -128,10 +130,12 @@ function SceneMemberCard({
 
 export function SceneWorkspace({
   initialData,
+  initialEncounterData,
   session,
   campaignName,
 }: {
   initialData: SceneWorkspaceData;
+  initialEncounterData: EncounterWorkspaceData | null;
   session: CampaignSessionSummary;
   campaignName: string;
 }) {
@@ -337,6 +341,12 @@ export function SceneWorkspace({
               </div>
             </div> : null}
           </section> : null}
+
+          {!creating && selectedScene && initialEncounterData ? <EncounterWorkspace
+            key={initialEncounterData.selectedEncounterId ?? "no-encounter"}
+            initialData={initialEncounterData}
+            scene={selectedScene}
+          /> : null}
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}
       </section>
     </div>

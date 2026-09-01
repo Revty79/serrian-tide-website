@@ -29,6 +29,21 @@ export const campaignSessionSceneStatus = pgEnum("campaign_session_scene_status"
   "completed",
 ]);
 
+export const campaignSessionEncounterStatus = pgEnum("campaign_session_encounter_status", [
+  "planned",
+  "active",
+  "completed",
+]);
+
+export const campaignSessionEncounterType = pgEnum("campaign_session_encounter_type", [
+  "combat",
+  "social",
+  "exploration",
+  "chase",
+  "hazard",
+  "other",
+]);
+
 export const campaignSession = pgTable(
   "campaign_session",
   {
@@ -182,6 +197,98 @@ export const campaignSessionSceneMember = pgTable(
   ],
 );
 
+export const campaignSessionEncounter = pgTable(
+  "campaign_session_encounter",
+  {
+    id: serial("id").primaryKey(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    sequenceNumber: integer("sequence_number").notNull(),
+    title: text("title").notNull(),
+    status: campaignSessionEncounterStatus("status").default("planned").notNull(),
+    encounterType: campaignSessionEncounterType("encounter_type").default("other").notNull(),
+    description: text("description").default("").notNull(),
+    godNotes: text("god_notes").default("").notNull(),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionScene.id,
+        campaignSessionScene.sessionId,
+        campaignSessionScene.campaignId,
+      ],
+      name: "campaign_session_encounter_scene_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("campaign_session_encounter_id_scene_session_campaign_uq").on(
+      table.id,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+    ),
+    uniqueIndex("campaign_session_encounter_scene_sequence_uq").on(
+      table.sceneId,
+      table.sequenceNumber,
+    ),
+    uniqueIndex("campaign_session_encounter_one_active_per_scene_uq")
+      .on(table.sceneId)
+      .where(sql`${table.status} = 'active'`),
+    index("campaign_session_encounter_scene_status_idx").on(table.sceneId, table.status),
+    index("campaign_session_encounter_scene_order_idx").on(table.sceneId, table.sequenceNumber),
+    check("campaign_session_encounter_title_nonblank", sql`length(trim(${table.title})) > 0`),
+    check("campaign_session_encounter_sequence_positive", sql`${table.sequenceNumber} > 0`),
+    check(
+      "campaign_session_encounter_lifecycle_timestamps_valid",
+      sql`(
+        (${table.status} = 'planned' AND ${table.startedAt} IS NULL AND ${table.completedAt} IS NULL)
+        OR (${table.status} = 'active' AND ${table.startedAt} IS NOT NULL AND ${table.completedAt} IS NULL)
+        OR (${table.status} = 'completed' AND ${table.startedAt} IS NOT NULL AND ${table.completedAt} IS NOT NULL)
+      )`,
+    ),
+  ],
+);
+
+export const campaignSessionEncounterParticipant = pgTable(
+  "campaign_session_encounter_participant",
+  {
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    characterId: integer("character_id").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    prepNotes: text("prep_notes").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.encounterId, table.characterId] }),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounter.id,
+        campaignSessionEncounter.sceneId,
+        campaignSessionEncounter.sessionId,
+        campaignSessionEncounter.campaignId,
+      ],
+      name: "campaign_session_encounter_participant_encounter_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.sceneId, table.characterId],
+      foreignColumns: [campaignSessionSceneMember.sceneId, campaignSessionSceneMember.characterId],
+      name: "campaign_session_encounter_participant_scene_member_fk",
+    }).onDelete("restrict"),
+    index("campaign_session_encounter_participant_order_idx").on(table.encounterId, table.sortOrder),
+    index("campaign_session_encounter_participant_scene_member_idx").on(table.sceneId, table.characterId),
+    check("campaign_session_encounter_participant_sort_order_nonnegative", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
 export const campaignSessionRelations = relations(campaignSession, ({ one, many }) => ({
   campaign: one(campaign, {
     fields: [campaignSession.campaignId],
@@ -209,9 +316,10 @@ export const campaignSessionSceneRelations = relations(campaignSessionScene, ({ 
     references: [campaignSession.id],
   }),
   members: many(campaignSessionSceneMember),
+  encounters: many(campaignSessionEncounter),
 }));
 
-export const campaignSessionSceneMemberRelations = relations(campaignSessionSceneMember, ({ one }) => ({
+export const campaignSessionSceneMemberRelations = relations(campaignSessionSceneMember, ({ one, many }) => ({
   scene: one(campaignSessionScene, {
     fields: [campaignSessionSceneMember.sceneId],
     references: [campaignSessionScene.id],
@@ -220,7 +328,29 @@ export const campaignSessionSceneMemberRelations = relations(campaignSessionScen
     fields: [campaignSessionSceneMember.sessionId, campaignSessionSceneMember.characterId],
     references: [campaignSessionRoster.sessionId, campaignSessionRoster.characterId],
   }),
+  encounterParticipations: many(campaignSessionEncounterParticipant),
+}));
+
+export const campaignSessionEncounterRelations = relations(campaignSessionEncounter, ({ one, many }) => ({
+  scene: one(campaignSessionScene, {
+    fields: [campaignSessionEncounter.sceneId],
+    references: [campaignSessionScene.id],
+  }),
+  participants: many(campaignSessionEncounterParticipant),
+}));
+
+export const campaignSessionEncounterParticipantRelations = relations(campaignSessionEncounterParticipant, ({ one }) => ({
+  encounter: one(campaignSessionEncounter, {
+    fields: [campaignSessionEncounterParticipant.encounterId],
+    references: [campaignSessionEncounter.id],
+  }),
+  sceneMember: one(campaignSessionSceneMember, {
+    fields: [campaignSessionEncounterParticipant.sceneId, campaignSessionEncounterParticipant.characterId],
+    references: [campaignSessionSceneMember.sceneId, campaignSessionSceneMember.characterId],
+  }),
 }));
 
 export type CampaignSessionStatus = (typeof campaignSessionStatus.enumValues)[number];
 export type CampaignSessionSceneStatus = (typeof campaignSessionSceneStatus.enumValues)[number];
+export type CampaignSessionEncounterStatus = (typeof campaignSessionEncounterStatus.enumValues)[number];
+export type CampaignSessionEncounterType = (typeof campaignSessionEncounterType.enumValues)[number];

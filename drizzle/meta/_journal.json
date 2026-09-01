@@ -57,6 +57,13 @@
       "when": 1788279565761,
       "tag": "0007_tabletop_operations_scenes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788286042550,
+      "tag": "0008_tabletop_operations_encounters",
+      "breakpoints": true
     }
   ]
 }

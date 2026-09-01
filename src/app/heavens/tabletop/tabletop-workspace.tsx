@@ -24,6 +24,7 @@ import {
   type TabletopWorkspaceData,
 } from "./actions";
 import type { SceneWorkspaceData } from "./scene-actions";
+import type { EncounterWorkspaceData } from "./encounter-actions";
 import { SceneWorkspace } from "./scene-workspace";
 
 type Feedback = { kind: "success" | "error"; message: string };
@@ -160,11 +161,13 @@ export function TabletopWorkspace({
   initialData,
   initialPrepData,
   initialSceneData,
+  initialEncounterData,
   requestedSessionId,
 }: {
   initialData: TabletopWorkspaceData;
   initialPrepData: SessionPrepWorkspaceData | null;
   initialSceneData: SceneWorkspaceData | null;
+  initialEncounterData: EncounterWorkspaceData | null;
   requestedSessionId: number | null;
 }) {
   const router = useRouter();
@@ -424,6 +427,7 @@ export function TabletopWorkspace({
           {!creating && selectedSession && activeTab === "scenes" && initialSceneData ? <SceneWorkspace
             key={initialSceneData.selectedSceneId ?? "no-scene"}
             initialData={initialSceneData}
+            initialEncounterData={initialEncounterData}
             session={selectedSession}
             campaignName={selectedCampaign.name}
           /> : null}

@@ -174,7 +174,7 @@ test("migration 0006 is additive, enforces same-Campaign references, and creates
   assert.match(migration, /ON DELETE cascade/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:scene|encounter|initiative|turn|round|combat|participant)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0007_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0008_snapshot\.json/);
 });
 
 test("Build 2 architecture defines the roster reference boundary and future consumers", () => {
@@ -182,5 +182,5 @@ test("Build 2 architecture defines the roster reference boundary and future cons
   assert.match(architecture, /Build 2 establishes the Session Roster/);
   assert.match(architecture, /references campaign_character/);
   assert.match(architecture, /never copies persistent Character state/);
-  assert.match(architecture, /Future Scenes and Encounters will select from, or otherwise reference, the Session-level roster/);
+  assert.match(architecture, /Scenes and Encounters select from, or otherwise reference, the Session-level roster/);
 });
