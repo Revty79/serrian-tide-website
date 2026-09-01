@@ -264,8 +264,8 @@ export function SceneWorkspace({
       <div><span>Session Status</span><strong>{initialData.sessionStatus}</strong></div>
     </section>
 
-    <div className="tabletop-scenes-layout">
-      <aside className="tabletop-scene-library">
+    <div className="tabletop-scenes-layout" data-workspace-flow="vertical">
+      <section className="tabletop-scene-library" aria-label="Scene selector">
         <header>
           <div><span>SCENE LIBRARY</span><h3 className="font-sans">Session Scenes</h3></div>
           {initialData.canCreate ? <button type="button" disabled={busy} onClick={beginCreate}>New Scene</button> : null}
@@ -283,7 +283,7 @@ export function SceneWorkspace({
           </button>)}
           {!initialData.scenes.length ? <p className="tabletop-empty">No Scenes yet. Create the first organizational span for this Session.</p> : null}
         </div>
-      </aside>
+      </section>
 
       <section className="tabletop-scene-editor">
         <header>

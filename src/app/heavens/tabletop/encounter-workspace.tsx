@@ -271,8 +271,8 @@ export function EncounterWorkspace({
     </header>
     {feedback ? <p className={`tabletop-encounter-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
-    <div className="tabletop-encounters-layout">
-      <aside className="tabletop-encounter-library">
+    <div className="tabletop-encounters-layout" data-workspace-flow="vertical">
+      <section className="tabletop-encounter-library" aria-label="Encounter selector">
         <header>
           <div><span>ENCOUNTER LIBRARY</span><h5 className="font-sans">Prepared Encounters</h5></div>
           {initialData.canCreate ? <button type="button" disabled={busy} onClick={beginCreate}>New Encounter</button> : null}
@@ -290,7 +290,7 @@ export function EncounterWorkspace({
           </button>)}
           {!initialData.encounters.length ? <p className="tabletop-empty">No Encounters yet. Add one when this Scene needs a focused prepared span.</p> : null}
         </div>
-      </aside>
+      </section>
 
       <section className="tabletop-encounter-editor">
         <header>

@@ -73,3 +73,18 @@
 @media(max-width:620px){.tabletop-creature-catalog>header,.combat-aid-operations>header,.combat-aid-operation-groups>article>header,.combat-aid-resolution>header,.combat-aid-reactions>header{align-items:stretch;flex-direction:column}.combat-aid-operations>header small{text-align:left}.combat-aid-operation-form{grid-template-columns:1fr}.combat-aid-operation-form label.is-wide,.combat-aid-operation-form>.is-wide,.combat-aid-operation-form>button,.combat-aid-operation-form>div,.combat-aid-operation-form>hr,.combat-aid-operation-form>small{grid-column:auto}.combat-aid-reactions>div,.combat-aid-equipment-controls>div{align-items:stretch;flex-direction:column}.combat-aid-equipment-controls select{max-width:none}}
 
 .combat-aid-runtime-result{display:grid;gap:.4rem;margin-top:8px;padding:.85rem 1rem;border:1px solid rgb(244 203 117 / 30%);border-radius:8px;background:rgb(82 61 27 / 10%)}.combat-aid-runtime-result span,.combat-aid-runtime-result small,.combat-aid-runtime-result li{color:#a99b7d;font-size:.62rem}.combat-aid-runtime-result ul{margin:0;padding-left:1.2rem}.combat-aid-action-history{display:grid;gap:5px;margin-top:8px;padding:9px;border:1px solid rgb(255 255 255 / 8%);border-radius:8px;background:rgb(5 10 16 / 62%)}.combat-aid-action-history>header{display:flex;align-items:center;justify-content:space-between}.combat-aid-action-history>header span{display:block;color:#9ac7e7;font-size:.57rem;letter-spacing:.13em}.combat-aid-action-history>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;padding:6px;border-radius:6px;background:rgb(255 255 255 / 3%)}.combat-aid-action-history b,.combat-aid-action-history small{display:block}.combat-aid-action-history b{font-size:.62rem}.combat-aid-action-history small{color:#788895;font-size:.55rem}.combat-aid-action-history>div>small:last-child{grid-column:1/-1}.combat-aid-action-history .status-chip{align-self:start;border-radius:999px;padding:3px 6px;background:rgb(255 255 255 / 6%);font-size:.52rem;text-transform:uppercase}
+
+/* Build 8 layout correction: hierarchy deepens vertically inside one dominant Session workspace. */
+.tabletop-workspace{grid-template-columns:minmax(240px,280px) minmax(0,1fr)}
+.tabletop-editor,.tabletop-scenes-workspace,.tabletop-scene-editor,.tabletop-encounters-workspace,.tabletop-encounter-editor{min-width:0}
+.tabletop-scenes-layout,.tabletop-encounters-layout{grid-template-columns:minmax(0,1fr)}
+.tabletop-scene-library>div,.tabletop-encounter-library>div{display:flex;flex-wrap:wrap}
+.tabletop-scene-library>div>button,.tabletop-encounter-library>div>button{flex:1 1 220px;min-width:0;max-width:360px}
+.initiative-participant-grid{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.combat-aid-layout{grid-template-columns:minmax(240px,300px) minmax(0,1fr)}
+.combat-aid-overview,.combat-aid-detail{min-width:0}
+.combat-aid-health-tracks{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.combat-aid-health-tracks b,.combat-aid-list b,.combat-aid-equipment b,.combat-aid-resources b{overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+@media(max-width:1050px){.tabletop-workspace{grid-template-columns:1fr}.tabletop-session-library{max-height:none}}
+@media(max-width:900px){.combat-aid-layout{grid-template-columns:1fr}}
+@media(max-width:700px){.initiative-participant-grid{grid-template-columns:1fr}.tabletop-scene-library>div>button,.tabletop-encounter-library>div>button{flex-basis:100%;max-width:none}}
