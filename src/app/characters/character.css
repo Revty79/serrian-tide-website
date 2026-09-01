@@ -984,6 +984,43 @@
   cursor: pointer;
 }
 
+.character-item-instances {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+}
+
+.character-item-instances > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(130px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid rgb(187 148 241 / 22%);
+  border-radius: 8px;
+  background: rgb(91 57 118 / 12%);
+}
+
+.character-item-instances span,
+.character-item-instances small {
+  color: #9da9b7;
+  font-size: 0.75rem;
+}
+
+.character-item-instances strong {
+  color: #e1cff9;
+  font-size: 0.78rem;
+}
+
+.character-item-instances button {
+  min-height: 34px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #d6dbe1;
+  background: rgb(255 255 255 / 4%);
+}
+
 .character-god-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));

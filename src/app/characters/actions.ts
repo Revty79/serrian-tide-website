@@ -5,6 +5,7 @@ import {
   asc,
   eq,
   inArray,
+  sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
@@ -23,7 +24,7 @@ import {
   derivedAbility,
   derivedAbilityTrigger,
 } from "@/db/derived-ability-schema";
-import { armorProfile, item, weaponProfile } from "@/db/item-schema";
+import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponProfile } from "@/db/item-schema";
 import {
   race,
   raceAttributeCap,
@@ -37,6 +38,7 @@ import {
   campaignCharacterAttribute,
   campaignCharacterCurrencyHolding,
   campaignCharacterItem,
+  campaignCharacterItemInstance,
   campaignCharacterProfile,
   campaignCharacterSkillAllocation,
   campaignCharacterSpellDocument,
@@ -91,10 +93,58 @@ import {
   validateQuintessenceAttributeIncrease,
 } from "@/features/characters/quintessence-rules";
 import { groupDerivedAbilityRows } from "@/features/derived-abilities/derived-ability-rules";
+import {
+  assertItemOwnershipStrategy,
+  assertNoStackInstanceOwnershipCollision,
+  getOwnedItemPurchaseCost,
+  getStartingItemInstanceCharges,
+  planOwnedItemInstancePersistence,
+  validateCurrentItemCharges,
+} from "@/features/items/item-ownership";
+import {
+  reconcileEquipmentAfterOwnershipMutationInTransaction,
+  validateEquipmentOwnershipMutationInTransaction,
+} from "@/features/items/equipment-state-service";
+import {
+  DEFAULT_ITEM_RUNTIME_PROFILE,
+  validateItemRuntimeProfile,
+  type ItemRuntimeProfile,
+  type ItemUseMode,
+} from "@/features/items/item-runtime";
 import { requireGod, requirePlayer, requireSession } from "@/lib/server-access";
 
 const ammunitionItem = alias(item, "ammunition_item");
 const ammunitionWeaponProfile = alias(weaponProfile, "ammunition_weapon_profile");
+
+type ItemRuntimeColumns = {
+  runtimeUseMode: string | null;
+  runtimeQuantityPerUse: number | null;
+  runtimeMaximumCharges: number | null;
+  runtimeChargesPerUse: number | null;
+  runtimeRechargeNotes: string | null;
+  runtimeActivationLabel: string | null;
+  runtimeUseNotes: string | null;
+};
+
+function readItemRuntimeProfile(row: ItemRuntimeColumns): ItemRuntimeProfile {
+  const validation = validateItemRuntimeProfile(
+    row.runtimeUseMode === null
+      ? DEFAULT_ITEM_RUNTIME_PROFILE
+      : {
+          useMode: row.runtimeUseMode as ItemUseMode,
+          quantityPerUse: row.runtimeQuantityPerUse,
+          maximumCharges: row.runtimeMaximumCharges,
+          chargesPerUse: row.runtimeChargesPerUse,
+          rechargeNotes: row.runtimeRechargeNotes,
+          activationLabel: row.runtimeActivationLabel,
+          useNotes: row.runtimeUseNotes,
+        },
+  );
+  if (!validation.valid) {
+    throw new Error(validation.issues.map(({ message }) => message).join(" "));
+  }
+  return validation.profile;
+}
 
 export type PlayerCampaignSummary = { id: number; name: string };
 export type CharacterSummary = {
@@ -492,6 +542,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     attributeReferenceRows,
     allocationRows,
     ownedItems,
+    ownedItemInstances,
     currencyHoldings,
     allowedSystemRows,
     currencies,
@@ -539,10 +590,46 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       weight: item.weight,
       weightUnit: item.weightUnit,
       acquiredAt: campaignCharacterItem.acquiredAt,
+      runtimeUseMode: itemRuntimeProfile.useMode,
+      runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+      runtimeMaximumCharges: itemRuntimeProfile.maximumCharges,
+      runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+      runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+      runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+      runtimeUseNotes: itemRuntimeProfile.useNotes,
     }).from(campaignCharacterItem)
       .innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
+      .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
       .where(eq(campaignCharacterItem.characterId, characterId))
       .orderBy(asc(item.name)),
+    db.select({
+      id: campaignCharacterItemInstance.id,
+      characterId: campaignCharacterItemInstance.characterId,
+      itemId: campaignCharacterItemInstance.itemId,
+      canonicalId: item.canonicalId,
+      name: item.name,
+      catalogScope: item.catalogScope,
+      equipmentGroup: item.equipmentGroup,
+      recordType: item.recordType,
+      category: item.category,
+      isMagical: item.isMagical,
+      currentCharges: campaignCharacterItemInstance.currentCharges,
+      unitCostCredits: campaignCharacterItemInstance.unitCostCredits,
+      weight: item.weight,
+      weightUnit: item.weightUnit,
+      acquiredAt: campaignCharacterItemInstance.acquiredAt,
+      runtimeUseMode: itemRuntimeProfile.useMode,
+      runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+      runtimeMaximumCharges: itemRuntimeProfile.maximumCharges,
+      runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+      runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+      runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+      runtimeUseNotes: itemRuntimeProfile.useNotes,
+    }).from(campaignCharacterItemInstance)
+      .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
+      .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .where(eq(campaignCharacterItemInstance.characterId, characterId))
+      .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id)),
     db.select().from(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId)),
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, row.campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, row.campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder)),
@@ -577,6 +664,15 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       weightUnit: item.weightUnit,
       size: item.size,
       durability: item.durability,
+      isMagical: item.isMagical,
+      effectCount: sql<number>`(select count(*)::int from ${itemEffect} where ${itemEffect.itemId} = ${item.id})`,
+      runtimeUseMode: itemRuntimeProfile.useMode,
+      runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+      runtimeMaximumCharges: itemRuntimeProfile.maximumCharges,
+      runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+      runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+      runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+      runtimeUseNotes: itemRuntimeProfile.useNotes,
       weaponType: weaponProfile.weaponType,
       handedness: weaponProfile.handedness,
       damageSource: weaponProfile.damageSource,
@@ -600,6 +696,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       .leftJoin(ammunitionItem, eq(ammunitionItem.id, weaponProfile.ammunitionItemId))
       .leftJoin(ammunitionWeaponProfile, eq(ammunitionWeaponProfile.itemId, ammunitionItem.id))
       .leftJoin(armorProfile, eq(armorProfile.itemId, item.id))
+      .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, row.campaignId))
       .orderBy(asc(campaignInventoryItem.sortOrder), asc(item.name)),
     db.select({
@@ -661,6 +758,20 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     throw new Error("The Character references a Race that is not allowed by its Campaign.");
   }
 
+  const ownedStackProfiles = ownedItems.map((entry) => ({
+    itemId: entry.itemId,
+    runtimeProfile: readItemRuntimeProfile(entry),
+  }));
+  const ownedInstanceProfiles = ownedItemInstances.map((entry) => ({
+    itemId: entry.itemId,
+    runtimeProfile: readItemRuntimeProfile(entry),
+  }));
+  assertNoStackInstanceOwnershipCollision({
+    definitions: [...ownedStackProfiles, ...ownedInstanceProfiles],
+    stacks: ownedItems,
+    instances: ownedItemInstances,
+  });
+
   const aggregate: CharacterAggregate = {
     character: {
       id: core.id,
@@ -716,7 +827,39 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       attributeKey: reference.attributeKey as CharacterAttributeReferenceKey,
     })),
     skillAllocations: allocationRows.map((allocation) => ({ ...allocation, createdAt: allocation.createdAt.toISOString(), updatedAt: allocation.updatedAt.toISOString() })),
-    items: ownedItems.map((entry) => ({ ...entry, acquiredAt: entry.acquiredAt.toISOString() })),
+    items: ownedItems.map((entry) => ({
+      characterId: entry.characterId,
+      itemId: entry.itemId,
+      canonicalId: entry.canonicalId,
+      name: entry.name,
+      catalogScope: entry.catalogScope,
+      equipmentGroup: entry.equipmentGroup,
+      recordType: entry.recordType,
+      category: entry.category,
+      quantity: entry.quantity,
+      unitCostCredits: entry.unitCostCredits,
+      weight: entry.weight,
+      weightUnit: entry.weightUnit,
+      acquiredAt: entry.acquiredAt.toISOString(),
+    })),
+    itemInstances: ownedItemInstances.map((entry) => ({
+      id: entry.id,
+      characterId: entry.characterId,
+      itemId: entry.itemId,
+      canonicalId: entry.canonicalId,
+      name: entry.name,
+      catalogScope: entry.catalogScope,
+      equipmentGroup: entry.equipmentGroup,
+      recordType: entry.recordType,
+      category: entry.category,
+      isMagical: entry.isMagical,
+      currentCharges: validateCurrentItemCharges(entry.currentCharges),
+      unitCostCredits: entry.unitCostCredits,
+      weight: entry.weight,
+      weightUnit: entry.weightUnit,
+      acquiredAt: entry.acquiredAt.toISOString(),
+      runtimeProfile: readItemRuntimeProfile(entry),
+    })),
     currencyHoldings,
     campaign: {
       id: core.campaignId,
@@ -749,7 +892,42 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     })),
     skillRelationships: relationshipRows,
     personalSpellbook: personalSpellRows,
-    authorizedItems: authorizedRows,
+    authorizedItems: authorizedRows.map((entry) => ({
+      id: entry.id,
+      canonicalId: entry.canonicalId,
+      name: entry.name,
+      catalogScope: entry.catalogScope,
+      equipmentGroup: entry.equipmentGroup,
+      recordType: entry.recordType,
+      category: entry.category,
+      credits: entry.credits,
+      priceBasis: entry.priceBasis,
+      description: entry.description,
+      weight: entry.weight,
+      weightUnit: entry.weightUnit,
+      size: entry.size,
+      durability: entry.durability,
+      isMagical: entry.isMagical,
+      effectCount: entry.effectCount,
+      runtimeProfile: readItemRuntimeProfile(entry),
+      weaponType: entry.weaponType,
+      handedness: entry.handedness,
+      damageSource: entry.damageSource,
+      damage: entry.damage,
+      damageType: entry.damageType,
+      ammunitionItemId: entry.ammunitionItemId,
+      ammunitionItemName: entry.ammunitionItemName,
+      ammunitionDamage: entry.ammunitionDamage,
+      ammunitionDamageType: entry.ammunitionDamageType,
+      rangeText: entry.rangeText,
+      reachText: entry.reachText,
+      weaponRulesText: entry.weaponRulesText,
+      armorType: entry.armorType,
+      coverage: entry.coverage,
+      baseSoak: entry.baseSoak,
+      armorDamageModifiers: entry.armorDamageModifiers,
+      armorRulesText: entry.armorRulesText,
+    })),
     derivedAbilities: groupDerivedAbilityRows(derivedAbilityRows),
   };
 
@@ -801,10 +979,65 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     if (!Number.isInteger(entry.quantity) || entry.quantity <= 0) throw new Error("Character Item quantity must be a positive whole number.");
     if (!Number.isFinite(entry.unitCostCredits) || entry.unitCostCredits < 0) throw new Error("Item unit cost must be zero or greater.");
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
-    if (!godMode && (!authorized || authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
+    if (!authorized) throw new Error("Character possessions must be Campaign-authorized Items.");
+    assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name);
+    if (!godMode && (authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
       throw new Error("Starting possessions must be Campaign-authorized and use their canonical price.");
     }
     return entry;
+  });
+
+  if (!Array.isArray(draft.itemInstances)) {
+    throw new Error("Character owned Item instances are missing from the draft.");
+  }
+  const existingInstances = new Map(aggregate.itemInstances.map((entry) => [entry.id, entry]));
+  const seenDraftInstanceIds = new Set<number>();
+  const seenPersistedInstanceIds = new Set<number>();
+  const itemInstances = draft.itemInstances.map((entry) => {
+    if (!Number.isSafeInteger(entry.draftId) || seenDraftInstanceIds.has(entry.draftId)) {
+      throw new Error("Every owned Item instance needs a distinct draft identity.");
+    }
+    seenDraftInstanceIds.add(entry.draftId);
+    if (!Number.isInteger(entry.itemId) || entry.itemId <= 0) {
+      throw new Error("Owned Item instance must reference a saved Item.");
+    }
+    if (!Number.isFinite(entry.unitCostCredits) || entry.unitCostCredits < 0) {
+      throw new Error("Item instance unit cost must be zero or greater.");
+    }
+    const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
+    if (!authorized) throw new Error("Owned Item instances must use Campaign-authorized Items.");
+    assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name);
+
+    if (entry.instanceId === null) {
+      if (entry.draftId >= 0) throw new Error("An unsaved Item instance needs a temporary draft identity.");
+      if (!godMode && (authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
+        throw new Error("Starting possessions must be Campaign-authorized and use their canonical price.");
+      }
+      return entry;
+    }
+
+    if (!Number.isInteger(entry.instanceId) || entry.instanceId <= 0 || seenPersistedInstanceIds.has(entry.instanceId)) {
+      throw new Error("Owned Item instance identity is invalid or duplicated.");
+    }
+    seenPersistedInstanceIds.add(entry.instanceId);
+    const existing = existingInstances.get(entry.instanceId);
+    if (
+      !existing
+      || existing.itemId !== entry.itemId
+      || Math.abs(existing.unitCostCredits - entry.unitCostCredits) > 0.000001
+    ) {
+      throw new Error("Owned Item instance identity and acquisition data cannot be changed.");
+    }
+    return entry;
+  });
+
+  assertNoStackInstanceOwnershipCollision({
+    definitions: aggregate.authorizedItems.map((entry) => ({
+      itemId: entry.id,
+      runtimeProfile: entry.runtimeProfile,
+    })),
+    stacks: items,
+    instances: itemInstances,
   });
 
   const currenciesSeen = new Set<number>();
@@ -856,7 +1089,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     creditsRemaining: nonNegative(draft.profile.creditsRemaining, "Current funds"),
   };
 
-  return { name, profile, attributes, items, currencyHoldings };
+  return { name, profile, attributes, items, itemInstances, currencyHoldings };
 }
 
 export async function saveCharacter(
@@ -899,11 +1132,10 @@ export async function saveCharacter(
     ? normalized.profile.creditsRemaining
     : Math.max(
         0,
-        aggregate.campaign.startingCreditAmount -
-          normalized.items.reduce(
-            (sum, entry) => sum + entry.quantity * entry.unitCostCredits,
-            0,
-          ),
+        aggregate.campaign.startingCreditAmount - getOwnedItemPurchaseCost({
+          stacks: normalized.items,
+          instances: normalized.itemInstances,
+        }),
       );
   let currencyHoldings = normalized.currencyHoldings;
   if (aggregate.campaign.currencySystem === "Credits") {
@@ -967,8 +1199,39 @@ export async function saveCharacter(
     }
     for (const allocation of draft.skillAllocations) await saveAllocation(allocation.draftId);
 
+    const { removedInstanceIds, newInstances: newItemInstances } = planOwnedItemInstancePersistence({
+      existingInstanceIds: aggregate.itemInstances.map(({ id }) => id),
+      drafts: normalized.itemInstances,
+    });
+    await validateEquipmentOwnershipMutationInTransaction(tx, {
+      characterId,
+      nextStackQuantities: normalized.items,
+      removedInstanceIds,
+    });
+
     await tx.delete(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId));
     if (normalized.items.length) await tx.insert(campaignCharacterItem).values(normalized.items.map((entry) => ({ characterId, ...entry })));
+
+    if (removedInstanceIds.length) {
+      await tx.delete(campaignCharacterItemInstance).where(and(
+        eq(campaignCharacterItemInstance.characterId, characterId),
+        inArray(campaignCharacterItemInstance.id, removedInstanceIds),
+      ));
+    }
+    if (newItemInstances.length) {
+      const authorizedItems = new Map(aggregate.authorizedItems.map((entry) => [entry.id, entry]));
+      await tx.insert(campaignCharacterItemInstance).values(newItemInstances.map((entry) => {
+        const authorized = authorizedItems.get(entry.itemId);
+        if (!authorized) throw new Error("Owned Item instance must use a Campaign-authorized Item.");
+        return {
+          characterId,
+          itemId: entry.itemId,
+          currentCharges: getStartingItemInstanceCharges(authorized.runtimeProfile),
+          unitCostCredits: entry.unitCostCredits,
+        };
+      }));
+    }
+    await reconcileEquipmentAfterOwnershipMutationInTransaction(tx, characterId);
 
     await tx.delete(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId));
     if (currencyHoldings.length) await tx.insert(campaignCharacterCurrencyHolding).values(currencyHoldings.map((entry) => ({ characterId, ...entry })));

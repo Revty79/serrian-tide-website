@@ -10,6 +10,10 @@ import {
   type CharacterSkillReference,
 } from "./models";
 import {
+  createDraftOwnedItemInstances,
+  getItemOwnershipStrategy,
+} from "@/features/items/item-ownership";
+import {
   canAccessSupernaturalSkillAtLevel,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
@@ -377,14 +381,14 @@ function generateItems(
   aggregate: CharacterAggregate,
   preference: RandomCharacterEquipment,
   random: () => number,
-): CharacterDraft["items"] {
+): Pick<CharacterDraft, "items" | "itemInstances"> {
   const budget = Math.max(0, aggregate.campaign.startingCreditAmount);
   const equipment = aggregate.authorizedItems.filter((item) =>
     item.catalogScope.toLowerCase() === "equipment"
     && item.credits !== null
     && item.credits >= 0
     && item.credits <= budget);
-  if (equipment.length === 0) return [];
+  if (equipment.length === 0) return { items: [], itemInstances: [] };
   const preferredGroup = preference === "armed"
     ? "weapon"
     : preference === "armored"
@@ -411,7 +415,24 @@ function generateItems(
       spent += item.credits!;
     }
   }
-  return chosen.map((item) => ({ itemId: item.id, quantity: 1, unitCostCredits: item.credits ?? 0 }));
+  let nextItemInstanceDraftId = -2_000_000;
+  const items: CharacterDraft["items"] = [];
+  const itemInstances: CharacterDraft["itemInstances"] = [];
+  for (const selected of chosen) {
+    const unitCostCredits = selected.credits ?? 0;
+    if (getItemOwnershipStrategy(selected.runtimeProfile) === "instance") {
+      itemInstances.push(...createDraftOwnedItemInstances({
+        itemId: selected.id,
+        quantity: 1,
+        unitCostCredits,
+        runtimeProfile: selected.runtimeProfile,
+        createDraftId: () => nextItemInstanceDraftId--,
+      }));
+    } else {
+      items.push({ itemId: selected.id, quantity: 1, unitCostCredits });
+    }
+  }
+  return { items, itemInstances };
 }
 
 function sizeIdentity(size: string, random: () => number) {
@@ -492,7 +513,7 @@ export function generateRandomCharacterDraft(
   const warnings: string[] = [];
   const attributes = generateAttributes(aggregate, race, answers.focus, random);
   const skills = generateSkills(aggregate, race, baseDraft, answers.focus, answers.magic, random);
-  const items = generateItems(aggregate, answers.equipment, random);
+  const possessions = generateItems(aggregate, answers.equipment, random);
   const identity = sizeIdentity(race.race.size, random);
   const ageMinimum = race.race.ageMin ?? 18;
   const ageMaximum = race.race.ageMax ?? Math.max(ageMinimum, 65);
@@ -504,7 +525,7 @@ export function generateRandomCharacterDraft(
   if (skills.unspent > 0.000001) {
     warnings.push(`${skills.unspent} Skill Points could not be assigned without breaking Campaign rules.`);
   }
-  if (items.length === 0) {
+  if (possessions.items.length === 0 && possessions.itemInstances.length === 0) {
     warnings.push("No priced Campaign-authorized Equipment was available, so starting Equipment still needs attention.");
   }
   if (aggregate.campaign.fatePointMethod === "Rolled" && baseDraft.profile.fatePoints === null) {
@@ -532,7 +553,7 @@ export function generateRandomCharacterDraft(
     },
     attributes: attributes.attributes,
     skillAllocations: skills.allocations,
-    items,
+    ...possessions,
   };
   return { draft, warnings };
 }

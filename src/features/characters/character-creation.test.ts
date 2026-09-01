@@ -308,6 +308,7 @@ test("a saved aggregate reopens as the same editable draft record", () => {
     ],
     skillAllocations: [{ id: 41, skillId: 7, parentAllocationId: null, points: 5 }],
     items: [{ itemId: 8, quantity: 2, unitCostCredits: 15 }],
+    itemInstances: [],
     currencyHoldings: [],
     campaign: { currencySystem: "Credits", derivedCurrencies: [] },
   } as unknown as CharacterAggregate;

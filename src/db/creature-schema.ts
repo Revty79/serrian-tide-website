@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -379,6 +380,28 @@ export const creatureAbility = pgTable(
     check("creature_abilities_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("creature_abilities_name_nonblank", sql`length(trim(${table.abilityName})) > 0`),
     check("creature_abilities_cr_impact_valid", sql`${table.crImpact} IN ('None','Minor','Moderate','Major','Extreme')`),
+  ],
+);
+
+export const creatureAbilityEffect = pgTable(
+  "creature_ability_effects",
+  {
+    id: serial("id").primaryKey(),
+    abilityId: integer("ability_id").notNull().references(() => creatureAbility.id, { onDelete: "cascade" }),
+    effectKey: text("effect_key").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    effectJson: jsonb("effect_json").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("creature_ability_effects_ability_key_uq").on(table.abilityId, table.effectKey),
+    unique("creature_ability_effects_ability_order_uq").on(table.abilityId, table.sortOrder),
+    index("creature_ability_effects_ability_id_idx").on(table.abilityId),
+    check("creature_ability_effects_key_nonblank", sql`length(trim(${table.effectKey})) > 0`),
+    check("creature_ability_effects_schema_version_positive", sql`${table.schemaVersion} > 0`),
+    check("creature_ability_effects_sort_order_nonnegative", sql`${table.sortOrder} >= 0`),
   ],
 );
 

@@ -5,12 +5,18 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import type { CharacterSavedSpell } from "@/app/characters/spell-actions";
+import { SpellCastDialog } from "@/app/characters/spell-cast-dialog";
 import { SpellCastingPanel } from "@/app/characters/spell-casting-panel";
 import { SpellPreview } from "@/app/heavens/skills/spell-preview";
+import type { ActiveManaView } from "@/features/active-state/active-mana";
 import {
   resolveCharacterSpellCastingContext,
   type CharacterSpellCastingContext,
 } from "@/features/characters/character-spell-casting";
+import type {
+  SpellCastExecutionResult,
+  SpellCastSourceRequest,
+} from "@/features/characters/character-spell-runtime";
 import type { CharacterAggregate } from "@/features/characters/models";
 import { getSpellFrameworkName } from "@/features/spell-construction/data/spellIdentity";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
@@ -29,6 +35,7 @@ type SpellbookEntry = {
   sourceLabel: string;
   document: SpellDocument;
   allocationId?: number;
+  savedSpellId?: number;
 };
 
 type OrganizedSpellbookEntry = SpellbookEntry & {
@@ -69,21 +76,26 @@ function personalSpellbookSpells(spells: CharacterSavedSpell[]): SpellbookEntry[
       source: "personal" as const,
       sourceLabel: "Personal Spell",
       document: saved.document,
+      savedSpellId: saved.id,
     }));
 }
 
 export function SpellbookWorkspace({
   aggregate,
   initialSpells,
+  initialActiveMana,
 }: {
   aggregate: CharacterAggregate;
   initialSpells: CharacterSavedSpell[];
+  initialActiveMana: ActiveManaView;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState("");
   const [activeSystem, setActiveSystem] =
     useState<SpellCastingSystem>("Spellcraft");
+  const [activeMana, setActiveMana] = useState(initialActiveMana);
+  const [castSource, setCastSource] = useState<SpellCastSourceRequest | null>(null);
 
   const entries = useMemo(
     () => [
@@ -133,6 +145,19 @@ export function SpellbookWorkspace({
     ? validateSpell(selected.document, undefined, calculation)
     : null;
   const castingContext = selected?.castingContext ?? null;
+  const currentManaPool = activeMana.pools.find(
+    ({ system }) => system === castingContext?.system,
+  );
+
+  function recordCast(result: SpellCastExecutionResult) {
+    setActiveMana((current) => ({
+      ...current,
+      pools: current.pools.map((pool) => (
+        pool.system === result.finalMana.system ? result.finalMana : pool
+      )),
+    }));
+    router.refresh();
+  }
 
   return (
     <main className="spell-player-page">
@@ -253,11 +278,35 @@ export function SpellbookWorkspace({
                   </span>
                   <strong>{selected.document.name.trim() || "Untitled Spell"}</strong>
                 </div>
+                <div className="spellbook-runtime-cast">
+                  <div>
+                    <span>ACTIVE {castingContext?.system?.toUpperCase() ?? "MANA"}</span>
+                    <strong>
+                      {currentManaPool
+                        ? `${currentManaPool.currentMana} / ${currentManaPool.maximumMana} Current Mana`
+                        : "No usable casting profile"}
+                    </strong>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!castingContext || !currentManaPool}
+                    onClick={() => {
+                      if (selected.source === "catalog" && selected.allocationId) {
+                        setCastSource({ kind: "catalog", allocationId: selected.allocationId });
+                      } else if (selected.source === "personal" && selected.savedSpellId) {
+                        setCastSource({ kind: "personal", savedSpellId: selected.savedSpellId });
+                      }
+                    }}
+                  >
+                    Cast Spell
+                  </button>
+                </div>
                 <SpellCastingPanel
                   spell={selected.document}
                   practitionerLevel={castingContext?.profile.spellAccessLevel ?? undefined}
                   castingSystem={castingContext?.system}
                   manaPool={castingContext?.profile.manaPool}
+                  currentMana={currentManaPool?.currentMana}
                   automaticKnownSpell
                 />
                 <article className="skill-preview spellbook-detail__preview">
@@ -278,6 +327,14 @@ export function SpellbookWorkspace({
           </section>
         </div>
       </div>
+      {castSource ? (
+        <SpellCastDialog
+          casterCharacterId={aggregate.character.id}
+          source={castSource}
+          onClose={() => setCastSource(null)}
+          onCast={recordCast}
+        />
+      ) : null}
     </main>
   );
 }

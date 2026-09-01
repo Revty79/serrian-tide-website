@@ -1,5 +1,7 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
 import type { DerivedAbilityDefinition } from "@/features/derived-abilities/models";
+import type { DraftOwnedItemInstance } from "@/features/items/item-ownership";
+import type { ItemRuntimeProfile } from "@/features/items/item-runtime";
 
 export const CHARACTER_ATTRIBUTE_KEYS = ["STR", "DEX", "CON", "INT", "WIS", "CHR"] as const;
 export type CharacterAttributeKey = (typeof CHARACTER_ATTRIBUTE_KEYS)[number];
@@ -111,6 +113,25 @@ export type CharacterOwnedItem = {
   acquiredAt: string;
 };
 
+export type CharacterOwnedItemInstance = {
+  id: number;
+  characterId: number;
+  itemId: number;
+  canonicalId: string;
+  name: string;
+  catalogScope: string;
+  equipmentGroup: string | null;
+  recordType: string;
+  category: string;
+  isMagical: boolean;
+  currentCharges: number;
+  unitCostCredits: number;
+  weight: number | null;
+  weightUnit: string;
+  acquiredAt: string;
+  runtimeProfile: ItemRuntimeProfile;
+};
+
 export type CharacterCurrencyHolding = {
   characterId: number;
   currencyId: number;
@@ -210,6 +231,9 @@ export type CharacterAuthorizedItem = {
   weightUnit: string;
   size: string;
   durability: number | null;
+  isMagical: boolean;
+  effectCount: number;
+  runtimeProfile: ItemRuntimeProfile;
   weaponType: string | null;
   handedness: string | null;
   damageSource: string | null;
@@ -236,6 +260,7 @@ export type CharacterAggregate = {
   attributeReferenceCatalog: CharacterAttributeReference[];
   skillAllocations: CharacterSkillAllocation[];
   items: CharacterOwnedItem[];
+  itemInstances: CharacterOwnedItemInstance[];
   currencyHoldings: CharacterCurrencyHolding[];
   campaign: CharacterCampaignRules;
   allowedRaces: CharacterRaceSummary[];
@@ -260,6 +285,7 @@ export type CharacterDraft = {
   attributes: Record<CharacterAttributeKey, number>;
   skillAllocations: CharacterSkillAllocationDraft[];
   items: Array<{ itemId: number; quantity: number; unitCostCredits: number }>;
+  itemInstances: DraftOwnedItemInstance[];
   currencyHoldings: Array<{ currencyId: number; quantity: number }>;
 };
 

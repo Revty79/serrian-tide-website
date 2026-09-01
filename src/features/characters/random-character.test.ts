@@ -90,6 +90,7 @@ function aggregate(): CharacterAggregate {
     attributeReferenceCatalog: [],
     skillAllocations: [],
     items: [],
+    itemInstances: [],
     currencyHoldings: [],
     campaign: {
       id: 12,
@@ -146,6 +147,17 @@ function aggregate(): CharacterAggregate {
         weightUnit: "lb",
         size: "Small",
         durability: 10,
+        isMagical: false,
+        effectCount: 0,
+        runtimeProfile: {
+          useMode: "none",
+          quantityPerUse: null,
+          maximumCharges: null,
+          chargesPerUse: null,
+          rechargeNotes: "",
+          activationLabel: "Use",
+          useNotes: "",
+        },
         weaponType: null,
         handedness: null,
         damageSource: null,
@@ -202,6 +214,7 @@ function draft(character: CharacterAggregate): CharacterDraft {
     attributes: { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHR: 0 },
     skillAllocations: [],
     items: [],
+    itemInstances: [],
     currencyHoldings: [],
   };
 }
@@ -236,6 +249,50 @@ test("guided random generation produces a legal, completion-ready draft", () => 
     evaluateCharacterReadiness(result.draft, character, selectedRace).ready,
     true,
   );
+});
+
+test("guided random generation routes charged equipment into per-copy drafts", () => {
+  const character = aggregate();
+  character.authorizedItems = [{
+    ...character.authorizedItems[0]!,
+    id: 8,
+    canonicalId: "ITEM-8",
+    name: "Restoration Wand",
+    credits: 100,
+    isMagical: true,
+    runtimeProfile: {
+      useMode: "charges",
+      quantityPerUse: null,
+      maximumCharges: 10,
+      chargesPerUse: 1,
+      rechargeNotes: "",
+      activationLabel: "Restore",
+      useNotes: "",
+    },
+  }];
+  const generated = generateRandomCharacterDraft(
+    character,
+    race(),
+    draft(character),
+    {
+      name: "Charged Test",
+      raceId: 3,
+      focus: "scout",
+      magic: "none",
+      equipment: "prepared",
+      temperament: "curious",
+    },
+    () => 0.37,
+  );
+
+  assert.deepEqual(generated.draft.items, []);
+  assert.equal(generated.draft.itemInstances.length, 1);
+  assert.deepEqual(generated.draft.itemInstances[0], {
+    draftId: -2_000_000,
+    instanceId: null,
+    itemId: 8,
+    unitCostCredits: 100,
+  });
 });
 
 test("complete random generation stays within Campaign choices and preserves rolled Fate ambiguity", () => {

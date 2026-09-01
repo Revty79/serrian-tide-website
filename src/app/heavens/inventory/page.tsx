@@ -9,6 +9,7 @@ import {
   listItems,
 } from "../items/actions";
 import "../items/items.css";
+import "../items/item-runtime.css";
 import { ItemWorkspace } from "../items/item-workspace";
 
 export default async function InventoryPage() {

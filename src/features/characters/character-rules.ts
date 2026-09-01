@@ -1,4 +1,8 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
+import {
+  assertItemOwnershipStrategy,
+  getOwnedItemPurchaseCost,
+} from "@/features/items/item-ownership";
 
 import { getCampaignMoneyBreakdown } from "./currency-rules";
 import {
@@ -332,10 +336,10 @@ export function getSkillPointsUsed(draft: CharacterDraft) {
 }
 
 export function getStartingFundsSpent(draft: CharacterDraft) {
-  return draft.items.reduce(
-    (total, entry) => total + entry.quantity * entry.unitCostCredits,
-    0,
-  );
+  return getOwnedItemPurchaseCost({
+    stacks: draft.items,
+    instances: draft.itemInstances,
+  });
 }
 
 export function getStartingFundsRemaining(
@@ -729,6 +733,12 @@ export function characterAggregateToDraft(
       quantity: entry.quantity,
       unitCostCredits: entry.unitCostCredits,
     })),
+    itemInstances: aggregate.itemInstances.map((entry) => ({
+      draftId: entry.id,
+      instanceId: entry.id,
+      itemId: entry.itemId,
+      unitCostCredits: entry.unitCostCredits,
+    })),
     currencyHoldings,
   };
 }
@@ -1029,7 +1039,27 @@ export function evaluateCharacterReadiness(
       ) {
         return false;
       }
+      try {
+        assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name);
+      } catch {
+        return false;
+      }
       seen.add(entry.itemId);
+      return true;
+    }) && draft.itemInstances.every((entry) => {
+      const source = authorized.get(entry.itemId);
+      if (
+        !source
+        || source.credits === null
+        || Math.abs(source.credits - entry.unitCostCredits) > EPSILON
+      ) {
+        return false;
+      }
+      try {
+        assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name);
+      } catch {
+        return false;
+      }
       return true;
     }) && spent <= aggregate.campaign.startingCreditAmount + EPSILON;
 
@@ -1040,9 +1070,8 @@ export function evaluateCharacterReadiness(
   }
   const equipmentComplete =
     itemRulesValid &&
-    draft.items.some(
-      (entry) =>
-        authorized.get(entry.itemId)?.catalogScope.toLowerCase() === "equipment",
+    [...draft.items, ...draft.itemInstances].some(
+      (entry) => authorized.get(entry.itemId)?.catalogScope.toLowerCase() === "equipment",
     );
   if (!equipmentComplete) {
     issues.push("Purchase at least one Campaign-authorized Equipment item.");

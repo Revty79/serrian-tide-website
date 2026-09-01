@@ -19,6 +19,7 @@ import {
   challengeRatingReference,
   creature,
   creatureAbility,
+  creatureAbilityEffect,
   creatureAttack,
   creatureAttribute,
   creatureDefense,
@@ -37,6 +38,10 @@ import {
   getCreatureKillXpForChallengeRating,
   type ChallengeRatingBreakdown,
 } from "@/features/creatures/challenge-rating";
+import {
+  normalizeCreatureAbilityEffects,
+  type CreatureAbilityDefinition,
+} from "@/features/creatures/creature-ability";
 import { requireGod } from "@/lib/server-access";
 
 export type CreatureLibraryFilters = {
@@ -129,7 +134,7 @@ export type CreatureDraft = {
   hitLocations: Array<{ hitLocationNumber: number; locationName: string; bodyPartsIncluded: string; hpPoolCanonicalId: string | null; naturalArmor: number | null; soak: number | null; locationEffect: string; notes: string; sortOrder: number }>;
   attacks: Array<{ canonicalId: string; attackName: string; attackPercentage: number | null; damage: string | null; damageType: string; rangeReach: string; requiredAnatomy: string; requirements: string; usesRecharge: string; specialEffect: string; notes: string; sortOrder: number }>;
   skillLinks: Array<{ skillId: number; skillName: string; skillClassification: string; rank: string | null; notes: string; sortOrder: number }>;
-  abilities: Array<{ canonicalId: string; abilityName: string; abilityType: string; activation: string; requirements: string; usesRecharge: string; description: string; mechanicalEffect: string; notes: string; sortOrder: number; crImpact: CreatureCrImpact }>;
+  abilities: Array<Omit<CreatureAbilityDefinition, "crImpact"> & { crImpact: CreatureCrImpact }>;
   defenses: Array<{ seedIdentity: string | null; defenseType: string; against: string; value: string | null; notes: string; sortOrder: number; crImpact: CreatureCrImpact }>;
   uses: Array<{ seedIdentity: string | null; useName: string; notes: string; sortOrder: number }>;
   derivedCreatures: CreatureLineageSummary[];
@@ -272,6 +277,7 @@ function normalize(input: CreatureDraft) {
     notes: clean(row.notes),
     sortOrder,
     crImpact: CREATURE_CR_IMPACTS.includes(row.crImpact) ? row.crImpact : "None" as CreatureCrImpact,
+    effects: normalizeCreatureAbilityEffects(row.effects),
   }));
   ensureUnique(abilities.map(({ canonicalId }) => canonicalId), "Ability ID");
 
@@ -421,12 +427,28 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     db.select({ hitLocationNumber: creatureHitLocation.hitLocationNumber, locationName: creatureHitLocation.locationName, bodyPartsIncluded: creatureHitLocation.bodyPartsIncluded, hpPoolId: creatureHitLocation.hpPoolId, naturalArmor: creatureHitLocation.naturalArmor, soak: creatureHitLocation.soak, locationEffect: creatureHitLocation.locationEffect, notes: creatureHitLocation.notes, sortOrder: creatureHitLocation.sortOrder }).from(creatureHitLocation).where(and(eq(creatureHitLocation.creatureId, id), isNull(creatureHitLocation.variantId))).orderBy(asc(creatureHitLocation.sortOrder), asc(creatureHitLocation.id)),
     db.select({ canonicalId: creatureAttack.canonicalId, attackName: creatureAttack.attackName, attackPercentage: creatureAttack.attackPercentage, damage: creatureAttack.damage, damageType: creatureAttack.damageType, rangeReach: creatureAttack.rangeReach, requiredAnatomy: creatureAttack.requiredAnatomy, requirements: creatureAttack.requirements, usesRecharge: creatureAttack.usesRecharge, specialEffect: creatureAttack.specialEffect, notes: creatureAttack.notes, sortOrder: creatureAttack.sortOrder }).from(creatureAttack).where(and(eq(creatureAttack.creatureId, id), isNull(creatureAttack.variantId))).orderBy(asc(creatureAttack.sortOrder), asc(creatureAttack.id)),
     db.select({ skillId: creatureSkillLink.skillId, skillName: skill.name, skillClassification: skill.classification, rank: creatureSkillLink.rank, notes: creatureSkillLink.notes, sortOrder: creatureSkillLink.sortOrder }).from(creatureSkillLink).innerJoin(skill, eq(skill.id, creatureSkillLink.skillId)).where(and(eq(creatureSkillLink.creatureId, id), isNull(creatureSkillLink.variantId))).orderBy(asc(creatureSkillLink.sortOrder), asc(creatureSkillLink.id)),
-    db.select({ canonicalId: creatureAbility.canonicalId, abilityName: creatureAbility.abilityName, abilityType: creatureAbility.abilityType, activation: creatureAbility.activation, requirements: creatureAbility.requirements, usesRecharge: creatureAbility.usesRecharge, description: creatureAbility.description, mechanicalEffect: creatureAbility.mechanicalEffect, notes: creatureAbility.notes, sortOrder: creatureAbility.sortOrder, crImpact: creatureAbility.crImpact }).from(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId))).orderBy(asc(creatureAbility.sortOrder), asc(creatureAbility.id)),
+    db.select({ id: creatureAbility.id, canonicalId: creatureAbility.canonicalId, abilityName: creatureAbility.abilityName, abilityType: creatureAbility.abilityType, activation: creatureAbility.activation, requirements: creatureAbility.requirements, usesRecharge: creatureAbility.usesRecharge, description: creatureAbility.description, mechanicalEffect: creatureAbility.mechanicalEffect, notes: creatureAbility.notes, sortOrder: creatureAbility.sortOrder, crImpact: creatureAbility.crImpact }).from(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId))).orderBy(asc(creatureAbility.sortOrder), asc(creatureAbility.id)),
     db.select({ seedIdentity: creatureDefense.seedIdentity, defenseType: creatureDefense.defenseType, against: creatureDefense.against, value: creatureDefense.value, notes: creatureDefense.notes, sortOrder: creatureDefense.sortOrder, crImpact: creatureDefense.crImpact }).from(creatureDefense).where(and(eq(creatureDefense.creatureId, id), isNull(creatureDefense.variantId))).orderBy(asc(creatureDefense.sortOrder), asc(creatureDefense.id)),
     db.select({ seedIdentity: creatureUse.seedIdentity, useName: creatureUse.useName, notes: creatureUse.notes, sortOrder: creatureUse.sortOrder }).from(creatureUse).where(and(eq(creatureUse.creatureId, id), isNull(creatureUse.variantId))).orderBy(asc(creatureUse.sortOrder), asc(creatureUse.id)),
     db.select({ id: creature.id, canonicalId: creature.canonicalId, canonicalName: creature.canonicalName, size: creature.size, challengeRating: creature.challengeRating, killXp: creature.killXp }).from(creature).where(eq(creature.parentCreatureId, id)).orderBy(asc(creature.canonicalName), asc(creature.id)),
     db.select().from(challengeRatingReference).orderBy(asc(challengeRatingReference.challengeRating)),
   ]);
+
+  const abilityEffectRows = abilities.length
+    ? await db.select({
+        abilityId: creatureAbilityEffect.abilityId,
+        effectKey: creatureAbilityEffect.effectKey,
+        schemaVersion: creatureAbilityEffect.schemaVersion,
+        effect: creatureAbilityEffect.effectJson,
+        sortOrder: creatureAbilityEffect.sortOrder,
+      }).from(creatureAbilityEffect)
+        .where(inArray(creatureAbilityEffect.abilityId, abilities.map(({ id: abilityId }) => abilityId)))
+        .orderBy(asc(creatureAbilityEffect.sortOrder), asc(creatureAbilityEffect.id))
+    : [];
+  const abilityEffects = new Map<number, typeof abilityEffectRows>();
+  for (const effect of abilityEffectRows) {
+    abilityEffects.set(effect.abilityId, [...(abilityEffects.get(effect.abilityId) ?? []), effect]);
+  }
 
   const poolIdToCanonical = new Map(pools.map((pool) => [pool.id, pool.canonicalId]));
   const draft: CreatureAggregate = {
@@ -462,7 +484,11 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     hitLocations: locations.map(({ hpPoolId, ...location }) => ({ ...location, hpPoolCanonicalId: hpPoolId ? poolIdToCanonical.get(hpPoolId) ?? null : null })),
     attacks,
     skillLinks: links,
-    abilities: abilities.map((ability) => ({ ...ability, crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact) ? ability.crImpact as CreatureCrImpact : "None" })),
+    abilities: abilities.map(({ id: abilityId, ...ability }) => ({
+      ...ability,
+      crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact) ? ability.crImpact as CreatureCrImpact : "None",
+      effects: normalizeCreatureAbilityEffects(abilityEffects.get(abilityId) ?? []),
+    })),
     defenses: defenses.map((defense) => ({ ...defense, crImpact: CREATURE_CR_IMPACTS.includes(defense.crImpact as CreatureCrImpact) ? defense.crImpact as CreatureCrImpact : "None" })),
     uses,
     derivedCreatures,
@@ -511,12 +537,31 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
       if (!updated.length) throw new Error("That Creature no longer exists.");
     }
 
+    const storedAbilities = await tx.select({
+      id: creatureAbility.id,
+      canonicalId: creatureAbility.canonicalId,
+    }).from(creatureAbility).where(and(
+      eq(creatureAbility.creatureId, id),
+      isNull(creatureAbility.variantId),
+    ));
+    const nextAbilityIds = new Set(
+      normalized.abilities.map(({ canonicalId }) => canonicalId.toLocaleLowerCase("en-US")),
+    );
+    const removedAbilityIds = storedAbilities
+      .filter(({ canonicalId }) => !nextAbilityIds.has(canonicalId.toLocaleLowerCase("en-US")))
+      .map(({ id: abilityId }) => abilityId);
+    if (removedAbilityIds.length) {
+      await tx.delete(creatureAbility).where(inArray(creatureAbility.id, removedAbilityIds));
+    }
+    const storedAbilityByCanonicalId = new Map(
+      storedAbilities.map((entry) => [entry.canonicalId.toLocaleLowerCase("en-US"), entry]),
+    );
+
     await tx.delete(creatureHitLocation).where(and(eq(creatureHitLocation.creatureId, id), isNull(creatureHitLocation.variantId)));
     await tx.delete(creatureAttribute).where(and(eq(creatureAttribute.creatureId, id), isNull(creatureAttribute.variantId)));
     await tx.delete(creatureMovement).where(and(eq(creatureMovement.creatureId, id), isNull(creatureMovement.variantId)));
     await tx.delete(creatureAttack).where(and(eq(creatureAttack.creatureId, id), isNull(creatureAttack.variantId)));
     await tx.delete(creatureSkillLink).where(and(eq(creatureSkillLink.creatureId, id), isNull(creatureSkillLink.variantId)));
-    await tx.delete(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId)));
     await tx.delete(creatureDefense).where(and(eq(creatureDefense.creatureId, id), isNull(creatureDefense.variantId)));
     await tx.delete(creatureUse).where(and(eq(creatureUse.creatureId, id), isNull(creatureUse.variantId)));
     await tx.delete(creatureHpPool).where(and(eq(creatureHpPool.creatureId, id), isNull(creatureHpPool.variantId)));
@@ -551,7 +596,50 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
         sortOrder,
       })));
     }
-    if (normalized.abilities.length) await tx.insert(creatureAbility).values(normalized.abilities.map((row) => ({ creatureId: id!, variantId: null, ...row })));
+    for (const { effects, ...ability } of normalized.abilities) {
+      const storedAbility = storedAbilityByCanonicalId.get(ability.canonicalId.toLocaleLowerCase("en-US"));
+      const abilityId = storedAbility
+        ? storedAbility.id
+        : (await tx.insert(creatureAbility).values({ creatureId: id!, variantId: null, ...ability }).returning({ id: creatureAbility.id }))[0].id;
+      if (storedAbility) {
+        await tx.update(creatureAbility).set({ ...ability, updatedAt: new Date() }).where(eq(creatureAbility.id, abilityId));
+      }
+
+      const storedEffects = await tx.select({
+        id: creatureAbilityEffect.id,
+        effectKey: creatureAbilityEffect.effectKey,
+      }).from(creatureAbilityEffect).where(eq(creatureAbilityEffect.abilityId, abilityId));
+      const nextEffectKeys = new Set(effects.map(({ effectKey }) => effectKey.toLocaleLowerCase("en-US")));
+      const removedEffectIds = storedEffects
+        .filter(({ effectKey }) => !nextEffectKeys.has(effectKey.toLocaleLowerCase("en-US")))
+        .map(({ id: effectId }) => effectId);
+      if (removedEffectIds.length) {
+        await tx.delete(creatureAbilityEffect).where(inArray(creatureAbilityEffect.id, removedEffectIds));
+      }
+      if (storedEffects.length) {
+        await tx.update(creatureAbilityEffect)
+          .set({ sortOrder: sql`${creatureAbilityEffect.sortOrder} + 1000000` })
+          .where(eq(creatureAbilityEffect.abilityId, abilityId));
+      }
+      const storedEffectByKey = new Map(
+        storedEffects.map((entry) => [entry.effectKey.toLocaleLowerCase("en-US"), entry]),
+      );
+      for (const effect of effects) {
+        const values = {
+          effectKey: effect.effectKey,
+          schemaVersion: effect.schemaVersion,
+          effectJson: effect.effect,
+          sortOrder: effect.sortOrder,
+          updatedAt: new Date(),
+        };
+        const storedEffect = storedEffectByKey.get(effect.effectKey.toLocaleLowerCase("en-US"));
+        if (storedEffect) {
+          await tx.update(creatureAbilityEffect).set(values).where(eq(creatureAbilityEffect.id, storedEffect.id));
+        } else {
+          await tx.insert(creatureAbilityEffect).values({ abilityId, ...values });
+        }
+      }
+    }
     if (normalized.defenses.length) await tx.insert(creatureDefense).values(normalized.defenses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
     if (normalized.uses.length) await tx.insert(creatureUse).values(normalized.uses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
 
@@ -708,6 +796,21 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
              ability_name, ability_type, activation, requirements, uses_recharge, description,
              mechanical_effect, notes, sort_order, cr_impact
       from creature_abilities where creature_id = ${parentCreatureId} and variant_id is null
+    `);
+    await tx.execute(sql`
+      insert into creature_ability_effects (
+        ability_id, effect_key, schema_version, effect_json, sort_order
+      )
+      select copied_ability.id, source_effect.effect_key, source_effect.schema_version,
+             source_effect.effect_json, source_effect.sort_order
+      from creature_ability_effects source_effect
+      inner join creature_abilities source_ability on source_ability.id = source_effect.ability_id
+      inner join creature_abilities copied_ability
+        on copied_ability.creature_id = ${created.id}
+       and copied_ability.variant_id is null
+       and copied_ability.canonical_id = 'ABL-' || ${childToken} || '-' || lpad(source_ability.id::text, 4, '0')
+      where source_ability.creature_id = ${parentCreatureId}
+        and source_ability.variant_id is null
     `);
     await tx.execute(sql`
       insert into creature_defenses (

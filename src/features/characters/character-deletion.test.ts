@@ -62,6 +62,7 @@ test("every normal player Character-owned table cascades from campaign_character
     "campaignCharacterSkillAllocation",
     "campaignCharacterCurrencyHolding",
     "campaignCharacterItem",
+    "campaignCharacterItemInstance",
     "campaignCharacterSpellDocument",
   ]) {
     assert.match(

@@ -67,13 +67,22 @@ function isSelection(value: unknown): boolean {
   );
 }
 
+function isEffectSelection(value: unknown): boolean {
+  if (!isSelection(value) || !isRecord(value)) return false;
+  if (value.healingScope === undefined) return true;
+  return (
+    value.ruleId === "healing" &&
+    (value.healingScope === "full-body" || value.healingScope === "area")
+  );
+}
+
 function isContainer(value: unknown): value is SpellContainer {
   if (!isRecord(value)) return false;
   if (
     typeof value.id !== "string" ||
     typeof value.containerRuleId !== "string" ||
     !Array.isArray(value.effects) ||
-    !value.effects.every(isSelection) ||
+    !value.effects.every(isEffectSelection) ||
     !Array.isArray(value.modifiers) ||
     !value.modifiers.every(isSelection) ||
     !Array.isArray(value.durations) ||

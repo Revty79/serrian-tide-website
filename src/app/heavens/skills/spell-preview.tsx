@@ -88,13 +88,20 @@ function ContainerPreview({
     cost: number;
   }> = container.effects.map((selection) => {
     const rule = rulesById.effects.get(selection.ruleId);
+    const quantityDetail = rule?.cost.kind === "scalable"
+      ? `${rule.quantityLabel ?? "Quantity"}: ${selection.quantity}`
+      : undefined;
+    const healingDetail = selection.ruleId === "healing"
+      ? `Application: ${selection.healingScope === "full-body"
+        ? "Full Body"
+        : selection.healingScope === "area"
+          ? "Area"
+          : "Unspecified / Manual Resolution"}`
+      : undefined;
     return {
       key: selection.id,
       name: rule?.name ?? selection.ruleId,
-      detail:
-        rule?.cost.kind === "scalable"
-          ? `${rule.quantityLabel ?? "Quantity"}: ${selection.quantity}`
-          : undefined,
+      detail: [quantityDetail, healingDetail].filter(Boolean).join(" · ") || undefined,
       description: selection.description,
       cost: rule ? calculateRuleCost(rule.cost, selection.quantity) : 0,
     };

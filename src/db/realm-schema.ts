@@ -355,6 +355,71 @@ export const campaignCharacterItem = pgTable(
   ],
 );
 
+export const campaignCharacterItemEquipmentState = pgTable(
+  "campaign_character_item_equipment_state",
+  {
+    characterId: integer("character_id")
+      .notNull(),
+    itemId: integer("item_id")
+      .notNull(),
+    state: text("state").notNull(),
+    quantity: integer("quantity").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.characterId, table.itemId, table.state] }),
+    foreignKey({
+      columns: [table.characterId, table.itemId],
+      foreignColumns: [campaignCharacterItem.characterId, campaignCharacterItem.itemId],
+      name: "campaign_character_item_equipment_state_ownership_fk",
+    }).onDelete("cascade"),
+    index("campaign_character_item_equipment_state_item_idx").on(table.itemId, table.characterId),
+    check("campaign_character_item_equipment_state_state_valid", sql`${table.state} IN ('equipped','worn','wielded')`),
+    check("campaign_character_item_equipment_state_quantity_valid", sql`${table.quantity} > 0`),
+  ],
+);
+
+export const campaignCharacterItemInstance = pgTable(
+  "campaign_character_item_instance",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "restrict" }),
+    currentCharges: integer("current_charges").notNull(),
+    equipmentState: text("equipment_state").default("inactive").notNull(),
+    unitCostCredits: doublePrecision("unit_cost_credits").notNull(),
+    acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("campaign_character_item_instance_character_idx").on(
+      table.characterId,
+      table.itemId,
+    ),
+    index("campaign_character_item_instance_catalog_idx").on(
+      table.itemId,
+      table.characterId,
+    ),
+    check(
+      "campaign_character_item_instance_charges_valid",
+      sql`${table.currentCharges} >= 0`,
+    ),
+    check(
+      "campaign_character_item_instance_equipment_state_valid",
+      sql`${table.equipmentState} IN ('inactive','equipped','worn','wielded')`,
+    ),
+    check(
+      "campaign_character_item_instance_cost_valid",
+      sql`${table.unitCostCredits} >= 0`,
+    ),
+  ],
+);
+
 export const campaignCharacterSpellDocument = pgTable(
   "campaign_character_spell_document",
   {
@@ -429,6 +494,227 @@ export const campaignCreatureNpcProfile = pgTable(
     check(
       "campaign_creature_npc_current_json_valid",
       sql`${table.currentSnapshotJson}::jsonb IS NOT NULL`,
+    ),
+  ],
+);
+
+export const campaignCharacterActiveHealth = pgTable(
+  "campaign_character_active_health",
+  {
+    characterId: integer("character_id")
+      .primaryKey(),
+    totalDamage: doublePrecision("total_damage").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.characterId],
+      foreignColumns: [campaignCharacter.id],
+      name: "campaign_character_active_health_character_fk",
+    }).onDelete("cascade"),
+    check(
+      "campaign_character_active_health_total_damage_valid",
+      sql`${table.totalDamage} >= 0`,
+    ),
+  ],
+);
+
+export const campaignCharacterActiveMana = pgTable(
+  "campaign_character_active_mana",
+  {
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    system: text("system").notNull(),
+    manaSpent: doublePrecision("mana_spent").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.characterId, table.system] }),
+    index("campaign_character_active_mana_system_idx").on(
+      table.system,
+      table.characterId,
+    ),
+    check(
+      "campaign_character_active_mana_system_valid",
+      sql`${table.system} IN ('Spellcraft', 'Talismanism', 'Faith', 'Psyonics', 'Bardic Resonance')`,
+    ),
+    check(
+      "campaign_character_active_mana_spent_valid",
+      sql`${table.manaSpent} >= 0`,
+    ),
+  ],
+);
+
+export const campaignCharacterActiveCondition = pgTable(
+  "campaign_character_active_condition",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").default("").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceName: text("source_name").notNull(),
+    sourceEffectKey: text("source_effect_key"),
+    durationKind: text("duration_kind").notNull(),
+    durationValue: integer("duration_value"),
+    durationLabel: text("duration_label").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+    resolutionNote: text("resolution_note").default("").notNull(),
+  },
+  (table) => [
+    index("campaign_character_active_condition_state_idx").on(
+      table.characterId,
+      table.resolvedAt,
+      table.createdAt,
+    ),
+    check("campaign_character_active_condition_name_nonblank", sql`length(trim(${table.name})) > 0`),
+    check("campaign_character_active_condition_source_kind_valid", sql`${table.sourceKind} IN ('item','spell','creature-ability','god','system')`),
+    check("campaign_character_active_condition_source_nonblank", sql`length(trim(${table.sourceId})) > 0 AND length(trim(${table.sourceName})) > 0`),
+    check("campaign_character_active_condition_duration_kind_valid", sql`${table.durationKind} IN ('until-removed','combat-steps','combat-rounds','scene')`),
+    check("campaign_character_active_condition_duration_valid", sql`(${table.durationKind} IN ('combat-steps','combat-rounds') AND ${table.durationValue} > 0) OR (${table.durationKind} IN ('until-removed','scene') AND ${table.durationValue} IS NULL)`),
+    check("campaign_character_active_condition_duration_label_nonblank", sql`length(trim(${table.durationLabel})) > 0`),
+  ],
+);
+
+export const campaignCharacterActiveModifier = pgTable(
+  "campaign_character_active_modifier",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    modifierChannel: text("modifier_channel").notNull(),
+    targetKey: text("target_key").notNull(),
+    amount: integer("amount").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceName: text("source_name").notNull(),
+    sourceEffectKey: text("source_effect_key"),
+    durationKind: text("duration_kind").notNull(),
+    durationValue: integer("duration_value"),
+    durationLabel: text("duration_label").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    endedAt: timestamp("ended_at"),
+    endNote: text("end_note").default("").notNull(),
+  },
+  (table) => [
+    index("campaign_character_active_modifier_state_idx").on(
+      table.characterId,
+      table.endedAt,
+      table.modifierChannel,
+      table.targetKey,
+    ),
+    check("campaign_character_active_modifier_label_nonblank", sql`length(trim(${table.label})) > 0`),
+    check("campaign_character_active_modifier_channel_valid", sql`${table.modifierChannel} IN ('attribute','skill','movement','initiative','soak','damage')`),
+    check("campaign_character_active_modifier_target_nonblank", sql`length(trim(${table.targetKey})) > 0`),
+    check("campaign_character_active_modifier_amount_nonzero", sql`${table.amount} <> 0`),
+    check("campaign_character_active_modifier_source_kind_valid", sql`${table.sourceKind} IN ('item','spell','creature-ability','god','system')`),
+    check("campaign_character_active_modifier_source_nonblank", sql`length(trim(${table.sourceId})) > 0 AND length(trim(${table.sourceName})) > 0`),
+    check("campaign_character_active_modifier_duration_kind_valid", sql`${table.durationKind} IN ('until-removed','combat-steps','combat-rounds','scene')`),
+    check("campaign_character_active_modifier_duration_valid", sql`(${table.durationKind} IN ('combat-steps','combat-rounds') AND ${table.durationValue} > 0) OR (${table.durationKind} IN ('until-removed','scene') AND ${table.durationValue} IS NULL)`),
+    check("campaign_character_active_modifier_duration_label_nonblank", sql`length(trim(${table.durationLabel})) > 0`),
+  ],
+);
+
+export const campaignCharacterActiveHealthPool = pgTable(
+  "campaign_character_active_health_pool",
+  {
+    characterId: integer("character_id")
+      .notNull(),
+    poolKey: text("pool_key").notNull(),
+    poolNameSnapshot: text("pool_name_snapshot").notNull(),
+    damage: doublePrecision("damage").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.characterId, table.poolKey] }),
+    foreignKey({
+      columns: [table.characterId],
+      foreignColumns: [campaignCharacterActiveHealth.characterId],
+      name: "campaign_character_active_health_pool_health_fk",
+    }).onDelete("cascade"),
+    index("campaign_character_active_health_pool_damage_idx")
+      .on(table.characterId, table.damage),
+    check(
+      "campaign_character_active_health_pool_key_nonblank",
+      sql`length(trim(${table.poolKey})) > 0`,
+    ),
+    check(
+      "campaign_character_active_health_pool_name_nonblank",
+      sql`length(trim(${table.poolNameSnapshot})) > 0`,
+    ),
+    check(
+      "campaign_character_active_health_pool_damage_valid",
+      sql`${table.damage} >= 0`,
+    ),
+  ],
+);
+
+export const campaignCharacterInjury = pgTable(
+  "campaign_character_injury",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull(),
+    poolKey: text("pool_key").notNull(),
+    poolNameSnapshot: text("pool_name_snapshot").notNull(),
+    hitLocationNumber: integer("hit_location_number"),
+    hitLocationNameSnapshot: text("hit_location_name_snapshot"),
+    name: text("name").notNull(),
+    notes: text("notes").default("").notNull(),
+    damageAmount: doublePrecision("damage_amount"),
+    resolved: boolean("resolved").default(false).notNull(),
+    resolvedAt: timestamp("resolved_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.characterId],
+      foreignColumns: [campaignCharacterActiveHealth.characterId],
+      name: "campaign_character_injury_health_fk",
+    }).onDelete("cascade"),
+    index("campaign_character_injury_state_idx").on(
+      table.characterId,
+      table.resolved,
+      table.createdAt,
+    ),
+    index("campaign_character_injury_pool_idx").on(
+      table.characterId,
+      table.poolKey,
+    ),
+    check(
+      "campaign_character_injury_pool_key_nonblank",
+      sql`length(trim(${table.poolKey})) > 0`,
+    ),
+    check(
+      "campaign_character_injury_pool_name_nonblank",
+      sql`length(trim(${table.poolNameSnapshot})) > 0`,
+    ),
+    check(
+      "campaign_character_injury_name_nonblank",
+      sql`length(trim(${table.name})) > 0`,
+    ),
+    check(
+      "campaign_character_injury_location_valid",
+      sql`${table.hitLocationNumber} IS NULL OR ${table.hitLocationNumber} BETWEEN 0 AND 9`,
+    ),
+    check(
+      "campaign_character_injury_damage_valid",
+      sql`${table.damageAmount} IS NULL OR ${table.damageAmount} >= 0`,
+    ),
+    check(
+      "campaign_character_injury_resolution_valid",
+      sql`(${table.resolved} = false AND ${table.resolvedAt} IS NULL) OR (${table.resolved} = true AND ${table.resolvedAt} IS NOT NULL)`,
     ),
   ],
 );

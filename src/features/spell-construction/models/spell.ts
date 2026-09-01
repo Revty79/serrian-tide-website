@@ -1,6 +1,6 @@
 import type { PractitionerLevel, SpellMastery } from './rules';
 
-export const SPELL_SCHEMA_VERSION = 6;
+export const SPELL_SCHEMA_VERSION = 7;
 
 export const TRADITIONS = [
   'Spellcraft/Talismanism/Faith',
@@ -25,6 +25,7 @@ export interface EffectSelection {
   ruleId: string;
   quantity: number;
   description?: string;
+  healingScope?: 'full-body' | 'area';
 }
 
 export interface ScaledAddOnSelection {

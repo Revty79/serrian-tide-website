@@ -220,6 +220,12 @@
 .spellbook-detail__source { display: flex; padding: 16px 20px; border: 1px solid rgb(216 189 131 / 34%); border-radius: 6px; background: rgb(8 19 24 / 88%); flex-direction: column; }
 .spellbook-detail__source span { color: #d7bc80; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; }
 .spellbook-detail__source strong { margin-top: 4px; color: #f5ecdc; font: 600 1.55rem Arial, Helvetica, sans-serif; }
+.spellbook-runtime-cast { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid rgb(92 178 167 / 38%); border-radius: 6px; background: rgb(20 83 75 / 13%); }
+.spellbook-runtime-cast div { display: flex; flex-direction: column; gap: 3px; }
+.spellbook-runtime-cast span { color: #81c8bc; font-size: .7rem; font-weight: 800; letter-spacing: .09em; }
+.spellbook-runtime-cast strong { color: #e9e1d3; font-size: .88rem; }
+.spellbook-runtime-cast button { border: 1px solid rgb(216 189 131 / 72%); border-radius: 5px; background: rgb(216 189 131 / 13%); padding: 9px 14px; color: #f1dcae; font-weight: 800; cursor: pointer; }
+.spellbook-runtime-cast button:disabled { cursor: not-allowed; opacity: .45; }
 .spellbook-detail__preview { width: 100%; }
 
 .spell-calculator-editor { display: grid; gap: 14px; }
@@ -233,6 +239,13 @@
 .spell-calculator-toolbar button,
 .spell-calculator-save-footer button { min-height: 38px; padding: 7px 11px; font-size: 0.78rem; }
 .spell-calculator-toolbar button.is-danger { border-color: rgb(205 102 92 / 72%); color: #efb1aa; }
+.spell-runtime-launch { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid rgb(92 178 167 / 38%); border-radius: 6px; background: rgb(20 83 75 / 13%); }
+.spell-runtime-launch > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.spell-runtime-launch span { color: #81c8bc; font-size: .7rem; font-weight: 800; letter-spacing: .09em; }
+.spell-runtime-launch strong { color: #e9e1d3; font-size: .88rem; }
+.spell-runtime-launch small { color: #aebfbd; line-height: 1.45; }
+.spell-runtime-launch button { flex: 0 0 auto; border: 1px solid rgb(216 189 131 / 72%); border-radius: 5px; background: rgb(216 189 131 / 13%); padding: 10px 14px; color: #f1dcae; font-weight: 800; cursor: pointer; }
+.spell-runtime-launch button:disabled { cursor: not-allowed; opacity: .45; }
 
 .spell-calculator-name,
 .spell-calculator-casting-system { display: flex; padding: 15px 17px; border: 1px solid rgb(216 189 131 / 34%); border-radius: 6px; background: rgb(7 17 22 / 88%); flex-direction: column; gap: 6px; }
@@ -269,6 +282,7 @@
   .spellbook-system-tabs button { min-width: 145px; }
   .spell-calculator-toolbar { align-items: stretch; flex-direction: column; }
   .spell-calculator-toolbar > div:last-child { justify-content: flex-start; }
+  .spell-runtime-launch { align-items: stretch; flex-direction: column; }
   .spell-calculator-save-footer { align-items: stretch; flex-direction: column; }
   .spell-calculator-save-footer > span { margin-right: 0; }
 }

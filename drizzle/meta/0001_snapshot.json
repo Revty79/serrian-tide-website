@@ -1,5 +1,5 @@
 {
-  "id": "3f84810f-f9d4-4bb6-8dcb-69efc0e2df91",
+  "id": "7d28a169-1adc-431e-a715-6d8ac9fa76fe",
   "prevId": "3ff05e83-f117-4e1a-90db-963fe486e8f7",
   "version": "7",
   "dialect": "postgresql",
@@ -2646,6 +2646,130 @@
       },
       "isRLSEnabled": false
     },
+    "public.creature_ability_effects": {
+      "name": "creature_ability_effects",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ability_id": {
+          "name": "ability_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effect_key": {
+          "name": "effect_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effect_json": {
+          "name": "effect_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "creature_ability_effects_ability_id_idx": {
+          "name": "creature_ability_effects_ability_id_idx",
+          "columns": [
+            {
+              "expression": "ability_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "creature_ability_effects_ability_id_creature_abilities_id_fk": {
+          "name": "creature_ability_effects_ability_id_creature_abilities_id_fk",
+          "tableFrom": "creature_ability_effects",
+          "tableTo": "creature_abilities",
+          "columnsFrom": [
+            "ability_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "creature_ability_effects_ability_key_uq": {
+          "name": "creature_ability_effects_ability_key_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "ability_id",
+            "effect_key"
+          ]
+        },
+        "creature_ability_effects_ability_order_uq": {
+          "name": "creature_ability_effects_ability_order_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "ability_id",
+            "sort_order"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "creature_ability_effects_key_nonblank": {
+          "name": "creature_ability_effects_key_nonblank",
+          "value": "length(trim(\"creature_ability_effects\".\"effect_key\")) > 0"
+        },
+        "creature_ability_effects_schema_version_positive": {
+          "name": "creature_ability_effects_schema_version_positive",
+          "value": "\"creature_ability_effects\".\"schema_version\" > 0"
+        },
+        "creature_ability_effects_sort_order_nonnegative": {
+          "name": "creature_ability_effects_sort_order_nonnegative",
+          "value": "\"creature_ability_effects\".\"sort_order\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.creature_attacks": {
       "name": "creature_attacks",
       "schema": "",
@@ -5033,6 +5157,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "is_magical": {
+          "name": "is_magical",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "parent_item_id": {
           "name": "parent_item_id",
           "type": "integer",
@@ -5390,6 +5521,249 @@
       },
       "isRLSEnabled": false
     },
+    "public.item_effects": {
+      "name": "item_effects",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effect_json": {
+          "name": "effect_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "item_effects_order_uq": {
+          "name": "item_effects_order_uq",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "item_effects_item_id_idx": {
+          "name": "item_effects_item_id_idx",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "item_effects_item_id_items_id_fk": {
+          "name": "item_effects_item_id_items_id_fk",
+          "tableFrom": "item_effects",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "item_effects_schema_version_valid": {
+          "name": "item_effects_schema_version_valid",
+          "value": "\"item_effects\".\"schema_version\" > 0"
+        },
+        "item_effects_sort_order_valid": {
+          "name": "item_effects_sort_order_valid",
+          "value": "\"item_effects\".\"sort_order\" >= 0"
+        },
+        "item_effects_json_object": {
+          "name": "item_effects_json_object",
+          "value": "jsonb_typeof(\"item_effects\".\"effect_json\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.item_passive_effects": {
+      "name": "item_passive_effects",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "required_equipment_state": {
+          "name": "required_equipment_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effect_json": {
+          "name": "effect_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "item_passive_effects_item_order_idx": {
+          "name": "item_passive_effects_item_order_idx",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "item_passive_effects_item_id_items_id_fk": {
+          "name": "item_passive_effects_item_id_items_id_fk",
+          "tableFrom": "item_passive_effects",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "item_passive_effects_required_state_valid": {
+          "name": "item_passive_effects_required_state_valid",
+          "value": "\"item_passive_effects\".\"required_equipment_state\" IN ('equipped','worn','wielded')"
+        },
+        "item_passive_effects_schema_version_valid": {
+          "name": "item_passive_effects_schema_version_valid",
+          "value": "\"item_passive_effects\".\"schema_version\" > 0"
+        },
+        "item_passive_effects_sort_order_valid": {
+          "name": "item_passive_effects_sort_order_valid",
+          "value": "\"item_passive_effects\".\"sort_order\" >= 0"
+        },
+        "item_passive_effects_json_object": {
+          "name": "item_passive_effects_json_object",
+          "value": "jsonb_typeof(\"item_passive_effects\".\"effect_json\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.item_properties": {
       "name": "item_properties",
       "schema": "",
@@ -5653,6 +6027,112 @@
         "item_rules_status_nonblank": {
           "name": "item_rules_status_nonblank",
           "value": "length(trim(\"item_rules\".\"status\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.item_runtime_profiles": {
+      "name": "item_runtime_profiles",
+      "schema": "",
+      "columns": {
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "use_mode": {
+          "name": "use_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "quantity_per_use": {
+          "name": "quantity_per_use",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maximum_charges": {
+          "name": "maximum_charges",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "charges_per_use": {
+          "name": "charges_per_use",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recharge_notes": {
+          "name": "recharge_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "activation_label": {
+          "name": "activation_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Use'"
+        },
+        "use_notes": {
+          "name": "use_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "item_runtime_profiles_item_id_items_id_fk": {
+          "name": "item_runtime_profiles_item_id_items_id_fk",
+          "tableFrom": "item_runtime_profiles",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "item_runtime_profiles_mode_valid": {
+          "name": "item_runtime_profiles_mode_valid",
+          "value": "\"item_runtime_profiles\".\"use_mode\" IN ('none', 'consume-item', 'charges', 'unlimited')"
+        },
+        "item_runtime_profiles_activation_label_nonblank": {
+          "name": "item_runtime_profiles_activation_label_nonblank",
+          "value": "length(trim(\"item_runtime_profiles\".\"activation_label\")) > 0"
+        },
+        "item_runtime_profiles_fields_valid": {
+          "name": "item_runtime_profiles_fields_valid",
+          "value": "(\n        (\"item_runtime_profiles\".\"use_mode\" IN ('none', 'unlimited') AND \"item_runtime_profiles\".\"quantity_per_use\" IS NULL AND \"item_runtime_profiles\".\"maximum_charges\" IS NULL AND \"item_runtime_profiles\".\"charges_per_use\" IS NULL)\n        OR (\"item_runtime_profiles\".\"use_mode\" = 'consume-item' AND \"item_runtime_profiles\".\"quantity_per_use\" > 0 AND \"item_runtime_profiles\".\"maximum_charges\" IS NULL AND \"item_runtime_profiles\".\"charges_per_use\" IS NULL)\n        OR (\"item_runtime_profiles\".\"use_mode\" = 'charges' AND \"item_runtime_profiles\".\"quantity_per_use\" IS NULL AND \"item_runtime_profiles\".\"maximum_charges\" > 0 AND \"item_runtime_profiles\".\"charges_per_use\" > 0 AND \"item_runtime_profiles\".\"charges_per_use\" <= \"item_runtime_profiles\".\"maximum_charges\")\n      )"
         }
       },
       "isRLSEnabled": false
@@ -6331,6 +6811,636 @@
       },
       "isRLSEnabled": false
     },
+    "public.campaign_character_active_condition": {
+      "name": "campaign_character_active_condition",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "source_kind": {
+          "name": "source_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_name": {
+          "name": "source_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_effect_key": {
+          "name": "source_effect_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_kind": {
+          "name": "duration_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_value": {
+          "name": "duration_value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_label": {
+          "name": "duration_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolution_note": {
+          "name": "resolution_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        }
+      },
+      "indexes": {
+        "campaign_character_active_condition_state_idx": {
+          "name": "campaign_character_active_condition_state_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "resolved_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_active_condition_character_id_campaign_character_id_fk": {
+          "name": "campaign_character_active_condition_character_id_campaign_character_id_fk",
+          "tableFrom": "campaign_character_active_condition",
+          "tableTo": "campaign_character",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_active_condition_name_nonblank": {
+          "name": "campaign_character_active_condition_name_nonblank",
+          "value": "length(trim(\"campaign_character_active_condition\".\"name\")) > 0"
+        },
+        "campaign_character_active_condition_source_kind_valid": {
+          "name": "campaign_character_active_condition_source_kind_valid",
+          "value": "\"campaign_character_active_condition\".\"source_kind\" IN ('item','spell','creature-ability','god','system')"
+        },
+        "campaign_character_active_condition_source_nonblank": {
+          "name": "campaign_character_active_condition_source_nonblank",
+          "value": "length(trim(\"campaign_character_active_condition\".\"source_id\")) > 0 AND length(trim(\"campaign_character_active_condition\".\"source_name\")) > 0"
+        },
+        "campaign_character_active_condition_duration_kind_valid": {
+          "name": "campaign_character_active_condition_duration_kind_valid",
+          "value": "\"campaign_character_active_condition\".\"duration_kind\" IN ('until-removed','combat-steps','combat-rounds','scene')"
+        },
+        "campaign_character_active_condition_duration_valid": {
+          "name": "campaign_character_active_condition_duration_valid",
+          "value": "(\"campaign_character_active_condition\".\"duration_kind\" IN ('combat-steps','combat-rounds') AND \"campaign_character_active_condition\".\"duration_value\" > 0) OR (\"campaign_character_active_condition\".\"duration_kind\" IN ('until-removed','scene') AND \"campaign_character_active_condition\".\"duration_value\" IS NULL)"
+        },
+        "campaign_character_active_condition_duration_label_nonblank": {
+          "name": "campaign_character_active_condition_duration_label_nonblank",
+          "value": "length(trim(\"campaign_character_active_condition\".\"duration_label\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign_character_active_health": {
+      "name": "campaign_character_active_health",
+      "schema": "",
+      "columns": {
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "total_damage": {
+          "name": "total_damage",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "campaign_character_active_health_character_fk": {
+          "name": "campaign_character_active_health_character_fk",
+          "tableFrom": "campaign_character_active_health",
+          "tableTo": "campaign_character",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_active_health_total_damage_valid": {
+          "name": "campaign_character_active_health_total_damage_valid",
+          "value": "\"campaign_character_active_health\".\"total_damage\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign_character_active_health_pool": {
+      "name": "campaign_character_active_health_pool",
+      "schema": "",
+      "columns": {
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pool_key": {
+          "name": "pool_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pool_name_snapshot": {
+          "name": "pool_name_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "damage": {
+          "name": "damage",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "campaign_character_active_health_pool_damage_idx": {
+          "name": "campaign_character_active_health_pool_damage_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "damage",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_active_health_pool_health_fk": {
+          "name": "campaign_character_active_health_pool_health_fk",
+          "tableFrom": "campaign_character_active_health_pool",
+          "tableTo": "campaign_character_active_health",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "character_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "campaign_character_active_health_pool_character_id_pool_key_pk": {
+          "name": "campaign_character_active_health_pool_character_id_pool_key_pk",
+          "columns": [
+            "character_id",
+            "pool_key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_active_health_pool_key_nonblank": {
+          "name": "campaign_character_active_health_pool_key_nonblank",
+          "value": "length(trim(\"campaign_character_active_health_pool\".\"pool_key\")) > 0"
+        },
+        "campaign_character_active_health_pool_name_nonblank": {
+          "name": "campaign_character_active_health_pool_name_nonblank",
+          "value": "length(trim(\"campaign_character_active_health_pool\".\"pool_name_snapshot\")) > 0"
+        },
+        "campaign_character_active_health_pool_damage_valid": {
+          "name": "campaign_character_active_health_pool_damage_valid",
+          "value": "\"campaign_character_active_health_pool\".\"damage\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign_character_active_mana": {
+      "name": "campaign_character_active_mana",
+      "schema": "",
+      "columns": {
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "system": {
+          "name": "system",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mana_spent": {
+          "name": "mana_spent",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "campaign_character_active_mana_system_idx": {
+          "name": "campaign_character_active_mana_system_idx",
+          "columns": [
+            {
+              "expression": "system",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_active_mana_character_id_campaign_character_id_fk": {
+          "name": "campaign_character_active_mana_character_id_campaign_character_id_fk",
+          "tableFrom": "campaign_character_active_mana",
+          "tableTo": "campaign_character",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "campaign_character_active_mana_character_id_system_pk": {
+          "name": "campaign_character_active_mana_character_id_system_pk",
+          "columns": [
+            "character_id",
+            "system"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_active_mana_system_valid": {
+          "name": "campaign_character_active_mana_system_valid",
+          "value": "\"campaign_character_active_mana\".\"system\" IN ('Spellcraft', 'Talismanism', 'Faith', 'Psyonics', 'Bardic Resonance')"
+        },
+        "campaign_character_active_mana_spent_valid": {
+          "name": "campaign_character_active_mana_spent_valid",
+          "value": "\"campaign_character_active_mana\".\"mana_spent\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign_character_active_modifier": {
+      "name": "campaign_character_active_modifier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modifier_channel": {
+          "name": "modifier_channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_key": {
+          "name": "target_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_kind": {
+          "name": "source_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_name": {
+          "name": "source_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_effect_key": {
+          "name": "source_effect_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_kind": {
+          "name": "duration_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_value": {
+          "name": "duration_value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_label": {
+          "name": "duration_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_note": {
+          "name": "end_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        }
+      },
+      "indexes": {
+        "campaign_character_active_modifier_state_idx": {
+          "name": "campaign_character_active_modifier_state_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ended_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "modifier_channel",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_active_modifier_character_id_campaign_character_id_fk": {
+          "name": "campaign_character_active_modifier_character_id_campaign_character_id_fk",
+          "tableFrom": "campaign_character_active_modifier",
+          "tableTo": "campaign_character",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_active_modifier_label_nonblank": {
+          "name": "campaign_character_active_modifier_label_nonblank",
+          "value": "length(trim(\"campaign_character_active_modifier\".\"label\")) > 0"
+        },
+        "campaign_character_active_modifier_channel_valid": {
+          "name": "campaign_character_active_modifier_channel_valid",
+          "value": "\"campaign_character_active_modifier\".\"modifier_channel\" IN ('attribute','skill','movement','initiative','soak','damage')"
+        },
+        "campaign_character_active_modifier_target_nonblank": {
+          "name": "campaign_character_active_modifier_target_nonblank",
+          "value": "length(trim(\"campaign_character_active_modifier\".\"target_key\")) > 0"
+        },
+        "campaign_character_active_modifier_amount_nonzero": {
+          "name": "campaign_character_active_modifier_amount_nonzero",
+          "value": "\"campaign_character_active_modifier\".\"amount\" <> 0"
+        },
+        "campaign_character_active_modifier_source_kind_valid": {
+          "name": "campaign_character_active_modifier_source_kind_valid",
+          "value": "\"campaign_character_active_modifier\".\"source_kind\" IN ('item','spell','creature-ability','god','system')"
+        },
+        "campaign_character_active_modifier_source_nonblank": {
+          "name": "campaign_character_active_modifier_source_nonblank",
+          "value": "length(trim(\"campaign_character_active_modifier\".\"source_id\")) > 0 AND length(trim(\"campaign_character_active_modifier\".\"source_name\")) > 0"
+        },
+        "campaign_character_active_modifier_duration_kind_valid": {
+          "name": "campaign_character_active_modifier_duration_kind_valid",
+          "value": "\"campaign_character_active_modifier\".\"duration_kind\" IN ('until-removed','combat-steps','combat-rounds','scene')"
+        },
+        "campaign_character_active_modifier_duration_valid": {
+          "name": "campaign_character_active_modifier_duration_valid",
+          "value": "(\"campaign_character_active_modifier\".\"duration_kind\" IN ('combat-steps','combat-rounds') AND \"campaign_character_active_modifier\".\"duration_value\" > 0) OR (\"campaign_character_active_modifier\".\"duration_kind\" IN ('until-removed','scene') AND \"campaign_character_active_modifier\".\"duration_value\" IS NULL)"
+        },
+        "campaign_character_active_modifier_duration_label_nonblank": {
+          "name": "campaign_character_active_modifier_duration_label_nonblank",
+          "value": "length(trim(\"campaign_character_active_modifier\".\"duration_label\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.campaign_character_attribute": {
       "name": "campaign_character_attribute",
       "schema": "",
@@ -6502,6 +7612,189 @@
       },
       "isRLSEnabled": false
     },
+    "public.campaign_character_injury": {
+      "name": "campaign_character_injury",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pool_key": {
+          "name": "pool_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pool_name_snapshot": {
+          "name": "pool_name_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hit_location_number": {
+          "name": "hit_location_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hit_location_name_snapshot": {
+          "name": "hit_location_name_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "damage_amount": {
+          "name": "damage_amount",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved": {
+          "name": "resolved",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "campaign_character_injury_state_idx": {
+          "name": "campaign_character_injury_state_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "resolved",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "campaign_character_injury_pool_idx": {
+          "name": "campaign_character_injury_pool_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "pool_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_injury_health_fk": {
+          "name": "campaign_character_injury_health_fk",
+          "tableFrom": "campaign_character_injury",
+          "tableTo": "campaign_character_active_health",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "character_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_injury_pool_key_nonblank": {
+          "name": "campaign_character_injury_pool_key_nonblank",
+          "value": "length(trim(\"campaign_character_injury\".\"pool_key\")) > 0"
+        },
+        "campaign_character_injury_pool_name_nonblank": {
+          "name": "campaign_character_injury_pool_name_nonblank",
+          "value": "length(trim(\"campaign_character_injury\".\"pool_name_snapshot\")) > 0"
+        },
+        "campaign_character_injury_name_nonblank": {
+          "name": "campaign_character_injury_name_nonblank",
+          "value": "length(trim(\"campaign_character_injury\".\"name\")) > 0"
+        },
+        "campaign_character_injury_location_valid": {
+          "name": "campaign_character_injury_location_valid",
+          "value": "\"campaign_character_injury\".\"hit_location_number\" IS NULL OR \"campaign_character_injury\".\"hit_location_number\" BETWEEN 0 AND 9"
+        },
+        "campaign_character_injury_damage_valid": {
+          "name": "campaign_character_injury_damage_valid",
+          "value": "\"campaign_character_injury\".\"damage_amount\" IS NULL OR \"campaign_character_injury\".\"damage_amount\" >= 0"
+        },
+        "campaign_character_injury_resolution_valid": {
+          "name": "campaign_character_injury_resolution_valid",
+          "value": "(\"campaign_character_injury\".\"resolved\" = false AND \"campaign_character_injury\".\"resolved_at\" IS NULL) OR (\"campaign_character_injury\".\"resolved\" = true AND \"campaign_character_injury\".\"resolved_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.campaign_character_item": {
       "name": "campaign_character_item",
       "schema": "",
@@ -6608,6 +7901,260 @@
         "campaign_character_item_cost_valid": {
           "name": "campaign_character_item_cost_valid",
           "value": "\"campaign_character_item\".\"unit_cost_credits\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign_character_item_equipment_state": {
+      "name": "campaign_character_item_equipment_state",
+      "schema": "",
+      "columns": {
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "campaign_character_item_equipment_state_item_idx": {
+          "name": "campaign_character_item_equipment_state_item_idx",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_item_equipment_state_ownership_fk": {
+          "name": "campaign_character_item_equipment_state_ownership_fk",
+          "tableFrom": "campaign_character_item_equipment_state",
+          "tableTo": "campaign_character_item",
+          "columnsFrom": [
+            "character_id",
+            "item_id"
+          ],
+          "columnsTo": [
+            "character_id",
+            "item_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "campaign_character_item_equipment_state_character_id_item_id_state_pk": {
+          "name": "campaign_character_item_equipment_state_character_id_item_id_state_pk",
+          "columns": [
+            "character_id",
+            "item_id",
+            "state"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_item_equipment_state_state_valid": {
+          "name": "campaign_character_item_equipment_state_state_valid",
+          "value": "\"campaign_character_item_equipment_state\".\"state\" IN ('equipped','worn','wielded')"
+        },
+        "campaign_character_item_equipment_state_quantity_valid": {
+          "name": "campaign_character_item_equipment_state_quantity_valid",
+          "value": "\"campaign_character_item_equipment_state\".\"quantity\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign_character_item_instance": {
+      "name": "campaign_character_item_instance",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_charges": {
+          "name": "current_charges",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "equipment_state": {
+          "name": "equipment_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'inactive'"
+        },
+        "unit_cost_credits": {
+          "name": "unit_cost_credits",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acquired_at": {
+          "name": "acquired_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "campaign_character_item_instance_character_idx": {
+          "name": "campaign_character_item_instance_character_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "campaign_character_item_instance_catalog_idx": {
+          "name": "campaign_character_item_instance_catalog_idx",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_character_item_instance_character_id_campaign_character_id_fk": {
+          "name": "campaign_character_item_instance_character_id_campaign_character_id_fk",
+          "tableFrom": "campaign_character_item_instance",
+          "tableTo": "campaign_character",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "campaign_character_item_instance_item_id_items_id_fk": {
+          "name": "campaign_character_item_instance_item_id_items_id_fk",
+          "tableFrom": "campaign_character_item_instance",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaign_character_item_instance_charges_valid": {
+          "name": "campaign_character_item_instance_charges_valid",
+          "value": "\"campaign_character_item_instance\".\"current_charges\" >= 0"
+        },
+        "campaign_character_item_instance_equipment_state_valid": {
+          "name": "campaign_character_item_instance_equipment_state_valid",
+          "value": "\"campaign_character_item_instance\".\"equipment_state\" IN ('inactive','equipped','worn','wielded')"
+        },
+        "campaign_character_item_instance_cost_valid": {
+          "name": "campaign_character_item_instance_cost_valid",
+          "value": "\"campaign_character_item_instance\".\"unit_cost_credits\" >= 0"
         }
       },
       "isRLSEnabled": false

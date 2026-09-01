@@ -4,6 +4,27 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { EQUIPMENT_GROUPS, type EquipmentCatalogGroup, type ItemCatalogScope } from "@/db/item-schema";
+import {
+  DEFAULT_ITEM_RUNTIME_PROFILE,
+  formatItemActivatedUse,
+  validateItemRuntimeProfile,
+  type ItemRuntimeProfile,
+  type ItemUseMode,
+} from "@/features/items/item-runtime";
+import {
+  PASSIVE_REQUIRED_EQUIPMENT_STATES,
+  passiveLifecycleLabel,
+  validatePassiveItemEffect,
+  type ItemPassiveEffectDefinition,
+  type PassiveRequiredEquipmentState,
+} from "@/features/items/equipment-state";
+import {
+  formatMechanicalEffectSummary,
+  MODIFIER_ATTRIBUTE_KEYS,
+  TEMPORARY_MODIFIER_CHANNELS,
+  validateMechanicalEffect,
+  type MechanicalEffect,
+} from "@/features/mechanical-effects";
 
 import {
   createItemVariant,
@@ -25,11 +46,12 @@ import {
   type RelatedItemCandidate,
 } from "./actions";
 
-type Tab = "overview" | "properties" | "weapon" | "armor" | "tags" | "variants" | "preview";
+type Tab = "overview" | "properties" | "effects" | "weapon" | "armor" | "tags" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "properties", label: "Properties" },
+  { id: "effects", label: "Effects" },
   { id: "weapon", label: "Weapon / Ammunition" },
   { id: "armor", label: "Armor" },
   { id: "tags", label: "Tags" },
@@ -41,8 +63,21 @@ function titleFor(scope: ItemCatalogScope) {
   return scope === "equipment" ? "Equipment" : "Inventory";
 }
 
+function itemRuntimeIndicators(entry: Pick<ItemSummary, "isMagical" | "useMode">): string[] {
+  const indicators: string[] = [];
+  if (entry.isMagical) indicators.push("Magical");
+  if (entry.useMode === "consume-item") indicators.push("Consumable");
+  if (entry.useMode === "charges") indicators.push("Charged");
+  if (entry.useMode === "unlimited") indicators.push("Unlimited");
+  return indicators;
+}
+
 function newItemDraft(scope: ItemCatalogScope): ItemDraft {
   return {
+    isMagical: false,
+    runtimeProfile: { ...DEFAULT_ITEM_RUNTIME_PROFILE },
+    effects: [],
+    passiveEffects: [],
     core: {
       canonicalId: "",
       name: "",
@@ -133,7 +168,7 @@ export function ItemWorkspace({
     setReferences(nextReferences);
   }
 
-  async function openItem(summary: ItemSummary) {
+  async function openItem(summary: Pick<ItemSummary, "id">) {
     setLoadingEditor(true);
     setFeedback(null);
     try {
@@ -244,7 +279,7 @@ export function ItemWorkspace({
           {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
             <span className="skill-library__row-name">{entry.name}</span>
             <span className="skill-library__row-meta">{entry.recordType} · {entry.category}{entry.equipmentGroup ? ` · ${entry.equipmentGroup}` : ""}</span>
-            <span className="skill-library__row-parents">{entry.canonicalId}{entry.tags.length ? ` · ${entry.tags.join(", ")}` : ""}</span>
+            <span className="skill-library__row-parents">{entry.canonicalId}{entry.tags.length ? ` · ${entry.tags.join(", ")}` : ""}{itemRuntimeIndicators(entry).length ? ` · ${itemRuntimeIndicators(entry).join(" · ")}` : ""}</span>
           </button>)}
           {!library.items.length && !loadingLibrary ? <p className="skill-library__empty">No records match this view.</p> : null}
         </div>
@@ -259,10 +294,11 @@ export function ItemWorkspace({
         <div className="skill-editor__content item-editor__content">
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
+          {activeTab === "effects" ? <Effects draft={draft} skills={references.skills} onChange={change} /> : null}
           {activeTab === "weapon" ? <Weapon draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem({ ...summary, equipmentGroup: null, recordType: "", family: "", category: "", tags: [], hasWeaponProfile: false, hasArmorProfile: false })} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
+          {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
           {activeTab === "preview" ? <Preview draft={draft} /> : null}
         </div>
       </section> : <section className="skill-editor skill-editor--empty"><p>{label.toUpperCase()} EDITOR</p><h2>Select a record or begin a new one.</h2><span>The shared Item engine powers both authoring libraries.</span></section>}
@@ -277,6 +313,7 @@ function Overview({ draft, onChange }: { draft: ItemDraft; onChange: (draft: Ite
   const setCore = (update: Partial<ItemDraft["core"]>) => onChange({ ...draft, core: { ...core, ...update } });
   return <div className="item-section item-form-grid">
     <Field label="Name" wide><input value={core.name} onChange={(e) => setCore({ name: e.target.value })} /></Field>
+    <label className="item-magical-toggle item-field--wide"><input type="checkbox" checked={draft.isMagical} onChange={(event) => onChange({ ...draft, isMagical: event.target.checked })} /><span><strong>Magical Item</strong><small>Explicit classification only; this does not add effects or charges.</small></span></label>
     <Field label="Canonical ID"><input value={core.canonicalId} disabled placeholder={draft.id ? "" : "Assigned on first save"} /></Field>
     {core.catalogScope === "equipment" ? <Field label="Equipment Group"><select value={core.equipmentGroup ?? "general"} onChange={(e) => setCore({ equipmentGroup: e.target.value as EquipmentCatalogGroup })}>{EQUIPMENT_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}</select></Field> : null}
     <Field label="Record Type"><input value={core.recordType} onChange={(e) => setCore({ recordType: e.target.value })} /></Field>
@@ -330,6 +367,216 @@ function Properties({ draft, onChange }: { draft: ItemDraft; onChange: (draft: I
       </div>
     </article>)}</div>
   </div>;
+}
+
+function runtimeProfileForMode(
+  profile: ItemRuntimeProfile,
+  useMode: ItemUseMode,
+): ItemRuntimeProfile {
+  const base = {
+    useMode,
+    activationLabel: profile.activationLabel,
+    useNotes: profile.useNotes,
+    rechargeNotes: useMode === "charges" ? profile.rechargeNotes : "",
+  };
+  if (useMode === "consume-item") {
+    return {
+      ...base,
+      quantityPerUse: profile.quantityPerUse && profile.quantityPerUse > 0
+        ? profile.quantityPerUse
+        : 1,
+      maximumCharges: null,
+      chargesPerUse: null,
+    };
+  }
+  if (useMode === "charges") {
+    const maximumCharges = profile.maximumCharges && profile.maximumCharges > 0
+      ? profile.maximumCharges
+      : 1;
+    const chargesPerUse = profile.chargesPerUse
+      && profile.chargesPerUse > 0
+      && profile.chargesPerUse <= maximumCharges
+      ? profile.chargesPerUse
+      : 1;
+    return {
+      ...base,
+      quantityPerUse: null,
+      maximumCharges,
+      chargesPerUse,
+    };
+  }
+  return {
+    ...base,
+    quantityPerUse: null,
+    maximumCharges: null,
+    chargesPerUse: null,
+  };
+}
+
+function newMechanicalEffect(kind: MechanicalEffect["kind"]): MechanicalEffect {
+  if (kind === "health.heal") return { kind, amount: 1, scope: "full-body" };
+  if (kind === "health.damage") return { kind, amount: 1, application: "localized" };
+  if (kind === "condition.apply") return { kind, name: "", description: "", duration: { kind: "until-removed", value: null } };
+  if (kind === "modifier.apply") return { kind, label: "", channel: "initiative", targetKey: "self", amount: 1, duration: { kind: "until-removed", value: null } };
+  return { kind, title: "", description: "" };
+}
+
+function Effects({ draft, skills, onChange }: { draft: ItemDraft; skills: ItemAuthoringReferences["skills"]; onChange: (draft: ItemDraft) => void }) {
+  const profile = draft.runtimeProfile;
+  const profileValidation = validateItemRuntimeProfile(profile);
+  const patchProfile = (update: Partial<ItemRuntimeProfile>) => onChange({
+    ...draft,
+    runtimeProfile: { ...profile, ...update },
+  });
+  const replaceEffect = (index: number, effect: MechanicalEffect) => onChange({
+    ...draft,
+    effects: draft.effects.map((entry, effectIndex) => effectIndex === index ? effect : entry),
+  });
+  const moveEffect = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= draft.effects.length) return;
+    const effects = [...draft.effects];
+    [effects[index], effects[target]] = [effects[target], effects[index]];
+    onChange({ ...draft, effects });
+  };
+
+  return <div className="item-section item-effects-editor">
+    <SectionHeading eyebrow="ACTIVATION / USE" title="Runtime Use Profile" />
+    <div className="item-form-grid">
+      <Field label="Use Mode"><select value={profile.useMode} onChange={(event) => onChange({ ...draft, runtimeProfile: runtimeProfileForMode(profile, event.target.value as ItemUseMode) })}><option value="none">No Activated Use</option><option value="consume-item">Consume Item</option><option value="charges">Charges</option><option value="unlimited">Unlimited</option></select></Field>
+      <Field label="Activation Label"><input value={profile.activationLabel} placeholder="Use" onChange={(event) => patchProfile({ activationLabel: event.target.value })} /></Field>
+      {profile.useMode === "consume-item" ? <Field label="Quantity Consumed Per Use"><OptionalNumber value={profile.quantityPerUse} min={1} step={1} onChange={(quantityPerUse) => patchProfile({ quantityPerUse })} /></Field> : null}
+      {profile.useMode === "charges" ? <><Field label="Maximum Charges"><OptionalNumber value={profile.maximumCharges} min={1} step={1} onChange={(maximumCharges) => patchProfile({ maximumCharges })} /></Field><Field label="Charges Per Use"><OptionalNumber value={profile.chargesPerUse} min={1} step={1} onChange={(chargesPerUse) => patchProfile({ chargesPerUse })} /></Field><Field label="Recharge Rule / Notes" wide><textarea rows={4} value={profile.rechargeNotes} placeholder="Example: Regains 1d4 Charges at sunrise." onChange={(event) => patchProfile({ rechargeNotes: event.target.value })} /></Field></> : null}
+      <Field label="Use Notes" wide><textarea rows={4} value={profile.useNotes} placeholder="Optional runtime-use guidance" onChange={(event) => patchProfile({ useNotes: event.target.value })} /></Field>
+    </div>
+    {profile.useMode === "charges" ? <p className="item-runtime-note">Recharge rules are descriptive. The program does not roll, schedule, or detect when recharge occurs; authorized users update each owned copy manually.</p> : null}
+    {profile.useMode === "unlimited" ? <p className="item-runtime-note">Activating this Item does not consume Item quantity or charges.</p> : null}
+    {!profileValidation.valid ? <ul className="item-validation-list">{profileValidation.issues.map((issue) => <li key={`${issue.path}-${issue.message}`}>{issue.message}</li>)}</ul> : null}
+
+    <SectionHeading eyebrow="ACTIVATED MECHANICAL EFFECTS" title="Ordered Effects" action="Add Effect" onAction={() => onChange({ ...draft, effects: [...draft.effects, newMechanicalEffect("health.heal")] })} />
+    {!draft.effects.length ? <div className="item-empty-profile"><p>NO EFFECTS DEFINED</p><h3>This Item may still retain a descriptive use profile for future behavior.</h3></div> : null}
+    <div className="item-card-list">{draft.effects.map((effect, index) => {
+      const validation = validateMechanicalEffect(effect);
+      return <article className="item-edit-card item-effect-card" key={index}>
+        <header><div><strong>{validation.valid ? formatMechanicalEffectSummary(validation.effect) : `Effect ${index + 1}`}</strong><span>Effect {index + 1}</span></div><div className="item-effect-card__actions"><button type="button" disabled={index === 0} onClick={() => moveEffect(index, -1)}>Up</button><button type="button" disabled={index === draft.effects.length - 1} onClick={() => moveEffect(index, 1)}>Down</button><button className="is-danger" type="button" onClick={() => onChange({ ...draft, effects: draft.effects.filter((_, effectIndex) => effectIndex !== index) })}>Remove</button></div></header>
+        <div className="item-form-grid">
+          <Field label="Effect"><select value={effect.kind} onChange={(event) => replaceEffect(index, newMechanicalEffect(event.target.value as MechanicalEffect["kind"]))}><option value="health.heal">Health Healing</option><option value="health.damage">Health Damage</option><option value="condition.apply">Apply Condition</option><option value="modifier.apply">Apply Temporary Modifier</option><option value="manual">Manual / G.O.D. Resolution</option></select></Field>
+          {effect.kind === "health.heal" ? <><Field label="Amount"><input type="number" min={0} step="any" value={effect.amount} onChange={(event) => replaceEffect(index, { ...effect, amount: Number(event.target.value) })} /></Field><Field label="Application"><select value={effect.scope} onChange={(event) => replaceEffect(index, { ...effect, scope: event.target.value as "full-body" | "area" })}><option value="full-body">Full Body</option><option value="area">Area Applied</option></select></Field></> : null}
+          {effect.kind === "health.damage" ? <><Field label="Amount"><input type="number" min={0} step="any" value={effect.amount} onChange={(event) => replaceEffect(index, { ...effect, amount: Number(event.target.value) })} /></Field><Field label="Application"><select value={effect.application} disabled><option value="localized">Localized</option></select></Field></> : null}
+          {effect.kind === "condition.apply" ? <><Field label="Condition Name"><input value={effect.name} onChange={(event) => replaceEffect(index, { ...effect, name: event.target.value })} /></Field><Field label="Duration"><select value={effect.duration.kind} onChange={(event) => { const kind = event.target.value as "until-removed" | "scene" | "combat-steps" | "combat-rounds"; replaceEffect(index, { ...effect, duration: kind === "combat-steps" || kind === "combat-rounds" ? { kind, value: 1 } : { kind, value: null } }); }}><option value="until-removed">Until Removed</option><option value="scene">Scene</option><option value="combat-steps">Combat Steps</option><option value="combat-rounds">Combat Rounds</option></select></Field>{effect.duration.kind === "combat-steps" || effect.duration.kind === "combat-rounds" ? <Field label="Duration Count"><input type="number" min={1} step={1} value={effect.duration.value ?? 1} onChange={(event) => replaceEffect(index, { ...effect, duration: { ...effect.duration, value: Number(event.target.value) } })} /></Field> : null}<Field label="Description" wide><textarea rows={4} value={effect.description} onChange={(event) => replaceEffect(index, { ...effect, description: event.target.value })} /></Field></> : null}
+          {effect.kind === "modifier.apply" ? <>
+            <Field label="Label"><input value={effect.label} onChange={(event) => replaceEffect(index, { ...effect, label: event.target.value })} /></Field>
+            <Field label="Channel"><select value={effect.channel} onChange={(event) => {
+              const channel = event.target.value as typeof effect.channel;
+              const targetKey = channel === "attribute" ? "STR" : channel === "skill" ? `skill:${skills[0]?.id ?? ""}` : channel === "movement" ? "movement:Land" : "self";
+              replaceEffect(index, { ...effect, channel, targetKey });
+            }}>{TEMPORARY_MODIFIER_CHANNELS.map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select></Field>
+            {effect.channel === "attribute" ? <Field label="Attribute"><select value={effect.targetKey} onChange={(event) => replaceEffect(index, { ...effect, targetKey: event.target.value })}>{MODIFIER_ATTRIBUTE_KEYS.map((key) => <option key={key}>{key}</option>)}</select></Field> : null}
+            {effect.channel === "skill" ? <Field label="Skill"><select value={effect.targetKey} onChange={(event) => replaceEffect(index, { ...effect, targetKey: event.target.value })}><option value="">Choose Skill</option>{skills.map((entry) => <option key={entry.id} value={`skill:${entry.id}`}>{entry.name} · #{entry.id}</option>)}</select></Field> : null}
+            {effect.channel === "movement" ? <Field label="Movement Mode"><input value={effect.targetKey.replace("movement:", "")} onChange={(event) => replaceEffect(index, { ...effect, targetKey: `movement:${event.target.value}` })} /></Field> : null}
+            <Field label="Amount"><input type="number" step={1} value={effect.amount} onChange={(event) => replaceEffect(index, { ...effect, amount: Number(event.target.value) })} /></Field>
+            <Field label="Duration"><select value={effect.duration.kind} onChange={(event) => {
+              const kind = event.target.value as "until-removed" | "scene" | "combat-steps" | "combat-rounds";
+              replaceEffect(index, { ...effect, duration: kind === "combat-steps" || kind === "combat-rounds" ? { kind, value: 1 } : { kind, value: null } });
+            }}><option value="until-removed">Until Removed</option><option value="scene">Scene</option><option value="combat-steps">Combat Steps</option><option value="combat-rounds">Combat Rounds</option></select></Field>
+            {effect.duration.kind === "combat-steps" || effect.duration.kind === "combat-rounds" ? <Field label="Duration Count"><input type="number" min={1} step={1} value={effect.duration.value ?? 1} onChange={(event) => replaceEffect(index, { ...effect, duration: { ...effect.duration, value: Number(event.target.value) } })} /></Field> : null}
+          </> : null}
+          {effect.kind === "manual" ? <><Field label="Title"><input value={effect.title} onChange={(event) => replaceEffect(index, { ...effect, title: event.target.value })} /></Field><Field label="Description" wide><textarea rows={5} value={effect.description} onChange={(event) => replaceEffect(index, { ...effect, description: event.target.value })} /></Field><p className="item-runtime-note item-field--wide">Manual effects are shown during runtime but are resolved by the G.O.D. rather than automatically applied by the software.</p></> : null}
+        </div>
+        {!validation.valid ? <ul className="item-validation-list">{validation.issues.map((issue) => <li key={`${issue.path}-${issue.message}`}>{issue.message}</li>)}</ul> : null}
+      </article>;
+    })}</div>
+    <PassiveEffectsEditor draft={draft} skills={skills} onChange={onChange} />
+  </div>;
+}
+
+type PassiveEffectKind = "condition.apply" | "modifier.apply" | "manual";
+
+function newPassiveMechanicalEffect(
+  kind: PassiveEffectKind,
+  requiredEquipmentState: PassiveRequiredEquipmentState,
+): MechanicalEffect {
+  const lifecycle = { kind: "until-removed" as const, value: null, label: passiveLifecycleLabel(requiredEquipmentState) };
+  if (kind === "condition.apply") return { kind, name: "", description: "", duration: lifecycle };
+  if (kind === "modifier.apply") return { kind, label: "", channel: "attribute", targetKey: "STR", amount: 1, duration: lifecycle };
+  return { kind, title: "", description: "" };
+}
+
+function withPassiveLifecycle(
+  effect: MechanicalEffect,
+  requiredEquipmentState: PassiveRequiredEquipmentState,
+): MechanicalEffect {
+  return effect.kind === "condition.apply" || effect.kind === "modifier.apply"
+    ? { ...effect, duration: { kind: "until-removed", value: null, label: passiveLifecycleLabel(requiredEquipmentState) } }
+    : effect;
+}
+
+function PassiveEffectsEditor({
+  draft,
+  skills,
+  onChange,
+}: {
+  draft: ItemDraft;
+  skills: ItemAuthoringReferences["skills"];
+  onChange: (draft: ItemDraft) => void;
+}) {
+  if (draft.core.catalogScope !== "equipment") {
+    return <section className="item-passive-effects"><SectionHeading eyebrow="PASSIVE EFFECTS" title="Equipment State Passives" /><p className="item-runtime-note">Inventory-only Items cannot define Equipment State passives.</p></section>;
+  }
+  const replace = (index: number, entry: ItemPassiveEffectDefinition) => onChange({
+    ...draft,
+    passiveEffects: draft.passiveEffects.map((current, entryIndex) => entryIndex === index ? entry : current),
+  });
+  const move = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= draft.passiveEffects.length) return;
+    const passiveEffects = [...draft.passiveEffects];
+    [passiveEffects[index], passiveEffects[target]] = [passiveEffects[target], passiveEffects[index]];
+    onChange({ ...draft, passiveEffects });
+  };
+  return <section className="item-passive-effects">
+    <SectionHeading eyebrow="PASSIVE EFFECTS" title="Equipment State Passives" action="Add Passive" onAction={() => onChange({
+      ...draft,
+      passiveEffects: [...draft.passiveEffects, {
+        id: null,
+        requiredEquipmentState: "equipped",
+        effect: newPassiveMechanicalEffect("modifier.apply", "equipped"),
+      }],
+    })} />
+    <p className="item-runtime-note">Passive Conditions and Modifiers remain active only while at least one owned copy satisfies the selected Equipment State. Identical copies do not multiply the same passive definition.</p>
+    {!draft.passiveEffects.length ? <div className="item-empty-profile"><p>NO PASSIVE EFFECTS</p><h3>This Equipment creates no automatic state merely because it is equipped.</h3></div> : null}
+    <div className="item-card-list">{draft.passiveEffects.map((entry, index) => {
+      let validationMessage: string | null = null;
+      try { validatePassiveItemEffect(entry); } catch (error) { validationMessage = error instanceof Error ? error.message : "Passive Effect is invalid."; }
+      const effect = entry.effect;
+      return <article className="item-edit-card item-effect-card" key={entry.id ?? `new-${index}`}>
+        <header><div><strong>{effect.kind === "manual" ? effect.title || `Passive ${index + 1}` : formatMechanicalEffectSummary(effect)}</strong><span>{passiveLifecycleLabel(entry.requiredEquipmentState)} · {entry.id ? `Stable effect #${entry.id}` : "New definition"}</span></div><div className="item-effect-card__actions"><button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Up</button><button type="button" disabled={index === draft.passiveEffects.length - 1} onClick={() => move(index, 1)}>Down</button><button className="is-danger" type="button" onClick={() => onChange({ ...draft, passiveEffects: draft.passiveEffects.filter((_, effectIndex) => effectIndex !== index) })}>Remove</button></div></header>
+        <div className="item-form-grid">
+          <Field label="Required Equipment State"><select value={entry.requiredEquipmentState} onChange={(event) => {
+            const requiredEquipmentState = event.target.value as PassiveRequiredEquipmentState;
+            replace(index, { ...entry, requiredEquipmentState, effect: withPassiveLifecycle(entry.effect, requiredEquipmentState) });
+          }}>{PASSIVE_REQUIRED_EQUIPMENT_STATES.map((state) => <option key={state} value={state}>{state[0].toUpperCase() + state.slice(1)}</option>)}</select></Field>
+          <Field label="Passive Effect"><select value={effect.kind} onChange={(event) => replace(index, { ...entry, effect: newPassiveMechanicalEffect(event.target.value as PassiveEffectKind, entry.requiredEquipmentState) })}><option value="condition.apply">Apply Condition</option><option value="modifier.apply">Apply Temporary Modifier</option><option value="manual">Manual / G.O.D. Resolution</option></select></Field>
+          {effect.kind === "condition.apply" ? <><Field label="Condition Name"><input value={effect.name} onChange={(event) => replace(index, { ...entry, effect: { ...effect, name: event.target.value } })} /></Field><Field label="Lifecycle"><input disabled value={passiveLifecycleLabel(entry.requiredEquipmentState)} /></Field><Field label="Description" wide><textarea rows={4} value={effect.description} onChange={(event) => replace(index, { ...entry, effect: { ...effect, description: event.target.value } })} /></Field></> : null}
+          {effect.kind === "modifier.apply" ? <>
+            <Field label="Label"><input value={effect.label} onChange={(event) => replace(index, { ...entry, effect: { ...effect, label: event.target.value } })} /></Field>
+            <Field label="Channel"><select value={effect.channel} onChange={(event) => {
+              const channel = event.target.value as typeof effect.channel;
+              const targetKey = channel === "attribute" ? "STR" : channel === "skill" ? `skill:${skills[0]?.id ?? ""}` : channel === "movement" ? "movement:Land" : "self";
+              replace(index, { ...entry, effect: { ...effect, channel, targetKey } });
+            }}>{TEMPORARY_MODIFIER_CHANNELS.map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select></Field>
+            {effect.channel === "attribute" ? <Field label="Attribute"><select value={effect.targetKey} onChange={(event) => replace(index, { ...entry, effect: { ...effect, targetKey: event.target.value } })}>{MODIFIER_ATTRIBUTE_KEYS.map((key) => <option key={key}>{key}</option>)}</select></Field> : null}
+            {effect.channel === "skill" ? <Field label="Skill"><select value={effect.targetKey} onChange={(event) => replace(index, { ...entry, effect: { ...effect, targetKey: event.target.value } })}><option value="">Choose Skill</option>{skills.map((skill) => <option key={skill.id} value={`skill:${skill.id}`}>{skill.name} · #{skill.id}</option>)}</select></Field> : null}
+            {effect.channel === "movement" ? <Field label="Movement Mode"><input value={effect.targetKey.replace("movement:", "")} onChange={(event) => replace(index, { ...entry, effect: { ...effect, targetKey: `movement:${event.target.value}` } })} /></Field> : null}
+            <Field label="Amount"><input type="number" step={1} value={effect.amount} onChange={(event) => replace(index, { ...entry, effect: { ...effect, amount: Number(event.target.value) } })} /></Field>
+            <Field label="Lifecycle"><input disabled value={passiveLifecycleLabel(entry.requiredEquipmentState)} /></Field>
+          </> : null}
+          {effect.kind === "manual" ? <><Field label="Title"><input value={effect.title} onChange={(event) => replace(index, { ...entry, effect: { ...effect, title: event.target.value } })} /></Field><Field label="Lifecycle"><input disabled value={passiveLifecycleLabel(entry.requiredEquipmentState)} /></Field><Field label="Instructions" wide><textarea rows={4} value={effect.description} onChange={(event) => replace(index, { ...entry, effect: { ...effect, description: event.target.value } })} /></Field></> : null}
+        </div>
+        {validationMessage ? <ul className="item-validation-list"><li>{validationMessage}</li></ul> : null}
+      </article>;
+    })}</div>
+  </section>;
 }
 
 function Weapon({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemDraft) => void }) {
@@ -397,7 +644,18 @@ function Variants({ draft, onOpen, onSaved }: { draft: ItemDraft; onOpen: (summa
 }
 
 function Preview({ draft }: { draft: ItemDraft }) {
-  return <article className="item-preview"><header><p>{draft.core.catalogScope}{draft.core.equipmentGroup ? ` / ${draft.core.equipmentGroup}` : ""}</p><h3>{draft.core.name || "Untitled Item"}</h3><span>{draft.core.canonicalId || "Canonical ID assigned on save"} · {draft.core.recordType} · {draft.core.category}</span></header><div className="item-preview__facts"><div><dt>Credits</dt><dd>{draft.core.credits ?? "—"}</dd></div><div><dt>Price Basis</dt><dd>{draft.core.priceBasis || "—"}</dd></div><div><dt>Weight</dt><dd>{draft.core.weight === null ? "—" : `${draft.core.weight} ${draft.core.weightUnit}`}</dd></div><div><dt>Size</dt><dd>{draft.core.size || "—"}</dd></div><div><dt>Durability</dt><dd>{draft.core.durability ?? "—"}</dd></div></div><section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section>{draft.weaponProfile ? <section><h4>Weapon Profile</h4><p>{draft.weaponProfile.weaponType || "Weapon"} · {draft.weaponProfile.damage || "—"} {draft.weaponProfile.damageType} · Range {draft.weaponProfile.range || "—"}</p><p>{draft.weaponProfile.rulesText || "No additional weapon rules."}</p></section> : null}{draft.armorProfile ? <section><h4>Armor Profile</h4><p>{draft.armorProfile.armorType || "Armor"} · Soak {draft.armorProfile.baseSoak ?? "—"} · {draft.armorProfile.coverage || "Coverage not specified"}</p><p>{draft.armorProfile.rulesText || "No additional armor rules."}</p></section> : null}<section><h4>Properties</h4>{draft.properties.length ? <ul>{draft.properties.map((property, index) => <li key={index}><strong>{property.propertyName}</strong>: {property.value || "—"}{property.unit ? ` ${property.unit}` : ""}{property.quantity ? ` ×${property.quantity}` : ""}</li>)}</ul> : <p>No properties.</p>}</section><section><h4>Tags</h4><div className="item-preview__chips">{draft.tags.length ? draft.tags.map((tag) => <span key={tag}>{tag}</span>) : <span>None</span>}</div></section></article>;
+  return <article className="item-preview">
+    <header><p>{draft.core.catalogScope}{draft.core.equipmentGroup ? ` / ${draft.core.equipmentGroup}` : ""}</p><h3>{draft.core.name || "Untitled Item"}</h3><span>{draft.core.canonicalId || "Canonical ID assigned on save"} · {draft.core.recordType} · {draft.core.category}</span><div className="item-preview__classification"><span>{draft.isMagical ? "Magical Item" : "Mundane Item"}</span>{draft.runtimeProfile.useMode !== "none" ? <span>{draft.runtimeProfile.useMode === "consume-item" ? "Consumable" : draft.runtimeProfile.useMode === "charges" ? "Charged" : "Unlimited"}</span> : null}</div></header>
+    <div className="item-preview__facts"><div><dt>Credits</dt><dd>{draft.core.credits ?? "—"}</dd></div><div><dt>Price Basis</dt><dd>{draft.core.priceBasis || "—"}</dd></div><div><dt>Weight</dt><dd>{draft.core.weight === null ? "—" : `${draft.core.weight} ${draft.core.weightUnit}`}</dd></div><div><dt>Size</dt><dd>{draft.core.size || "—"}</dd></div><div><dt>Durability</dt><dd>{draft.core.durability ?? "—"}</dd></div></div>
+    <section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section>
+    <section><h4>Runtime Use</h4><p><strong>Activated Use:</strong> {formatItemActivatedUse(draft.runtimeProfile)}</p><p><strong>Activation:</strong> {draft.runtimeProfile.activationLabel || "Use"}</p>{draft.runtimeProfile.useNotes ? <p>{draft.runtimeProfile.useNotes}</p> : null}</section>
+    <section><h4>Activated Mechanical Effects</h4>{draft.effects.length ? <ul>{draft.effects.map((effect, index) => <li key={index}><strong>{formatMechanicalEffectSummary(effect)}</strong>{effect.kind === "manual" ? <span> — {effect.description}</span> : null}</li>)}</ul> : <p>No activated Mechanical Effects.</p>}</section>
+    <section><h4>Passive Equipment Effects</h4>{draft.passiveEffects.length ? <ul>{draft.passiveEffects.map((entry, index) => <li key={entry.id ?? index}><strong>{passiveLifecycleLabel(entry.requiredEquipmentState)} · {formatMechanicalEffectSummary(entry.effect)}</strong>{entry.effect.kind === "manual" ? <span> — {entry.effect.description}</span> : null}</li>)}</ul> : <p>No passive Equipment Effects.</p>}</section>
+    {draft.weaponProfile ? <section><h4>Weapon Profile</h4><p>{draft.weaponProfile.weaponType || "Weapon"} · {draft.weaponProfile.damage || "—"} {draft.weaponProfile.damageType} · Range {draft.weaponProfile.range || "—"}</p><p>{draft.weaponProfile.rulesText || "No additional weapon rules."}</p></section> : null}
+    {draft.armorProfile ? <section><h4>Armor Profile</h4><p>{draft.armorProfile.armorType || "Armor"} · Soak {draft.armorProfile.baseSoak ?? "—"} · {draft.armorProfile.coverage || "Coverage not specified"}</p><p>{draft.armorProfile.rulesText || "No additional armor rules."}</p></section> : null}
+    <section><h4>Properties</h4>{draft.properties.length ? <ul>{draft.properties.map((property, index) => <li key={index}><strong>{property.propertyName}</strong>: {property.value || "—"}{property.unit ? ` ${property.unit}` : ""}{property.quantity ? ` ×${property.quantity}` : ""}</li>)}</ul> : <p>No properties.</p>}</section>
+    <section><h4>Tags</h4><div className="item-preview__chips">{draft.tags.length ? draft.tags.map((tag) => <span key={tag}>{tag}</span>) : <span>None</span>}</div></section>
+  </article>;
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {

@@ -152,7 +152,7 @@ test("versioned construction documents and snapshots round-trip", () => {
   const parsed = parseSpellDocument(JSON.stringify(saved));
 
   assert.equal(parsed.name, "Archive Test");
-  assert.equal(parsed.schemaVersion, 6);
+  assert.equal(parsed.schemaVersion, 7);
   assert.equal(parsed.calculation?.ruleProfileId, saved.calculation?.ruleProfileId);
   assert.equal(calculateSpell(parsed).totalMana, calculateSpell(spell).totalMana);
 });

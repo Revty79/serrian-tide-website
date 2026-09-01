@@ -18,6 +18,7 @@ import type {
   CharacterDraft,
   CharacterRaceAggregate,
 } from "./models";
+import { getItemChargeDisplay } from "@/features/items/item-ownership";
 import { getActiveDerivedAbilities } from "@/features/derived-abilities/derived-ability-rules";
 import type { DerivedAbilityDefinition } from "@/features/derived-abilities/models";
 
@@ -278,7 +279,10 @@ export function selectCharacterQuickRolls(
 }
 
 export type PrintableCharacterOwnedItem = {
-  owned: CharacterDraft["items"][number];
+  rowKey: string;
+  displayName: string;
+  stateSummary: string;
+  owned: { itemId: number; quantity: number; unitCostCredits: number };
   item: CharacterAuthorizedItem | null;
   isWeapon: boolean;
   isArmor: boolean;
@@ -291,9 +295,12 @@ export function getPrintableCharacterOwnedItems(
   const itemMap = new Map(
     aggregate.authorizedItems.map((item) => [item.id, item]),
   );
-  return draft.items.map((owned) => {
+  const stacks = draft.items.map((owned) => {
     const item = itemMap.get(owned.itemId) ?? null;
     return {
+      rowKey: `stack:${owned.itemId}`,
+      displayName: item?.name ?? `Item ${owned.itemId}`,
+      stateSummary: "",
       owned,
       item,
       isWeapon:
@@ -301,6 +308,31 @@ export function getPrintableCharacterOwnedItems(
       isArmor: item?.equipmentGroup === "armor" || Boolean(item?.armorType),
     };
   });
+  const instances = draft.itemInstances.map((instance, index) => {
+    const item = itemMap.get(instance.itemId) ?? null;
+    const persisted = instance.instanceId === null
+      ? null
+      : aggregate.itemInstances.find(({ id }) => id === instance.instanceId) ?? null;
+    const chargeDisplay = getItemChargeDisplay({
+      currentCharges: persisted?.currentCharges ?? item?.runtimeProfile.maximumCharges ?? 0,
+      maximumCharges: item?.runtimeProfile.maximumCharges ?? null,
+    });
+    const copyLabel = instance.instanceId === null ? `New copy ${index + 1}` : `Copy #${instance.instanceId}`;
+    return {
+      rowKey: `instance:${instance.draftId}`,
+      displayName: `${item?.name ?? persisted?.name ?? `Item ${instance.itemId}`} · ${copyLabel}`,
+      stateSummary: `${chargeDisplay.label}${chargeDisplay.exceedsCurrentMaximum ? " · Above current maximum" : ""}`,
+      owned: {
+        itemId: instance.itemId,
+        quantity: 1,
+        unitCostCredits: instance.unitCostCredits,
+      },
+      item,
+      isWeapon: item?.equipmentGroup === "weapon" || Boolean(item?.weaponType),
+      isArmor: item?.equipmentGroup === "armor" || Boolean(item?.armorType),
+    };
+  });
+  return [...stacks, ...instances];
 }
 
 export type PrintableCharacterAbilityRow = {

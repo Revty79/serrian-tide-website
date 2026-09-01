@@ -1,0 +1,231 @@
+.spell-cast-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(4 9 13 / 82%);
+  overflow-y: auto;
+}
+
+.spell-cast-dialog__surface {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid rgb(132 185 193 / 52%);
+  background: #101b20;
+  color: #eef6f4;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+}
+
+.spell-cast-dialog__header,
+.spell-cast-dialog__actions,
+.spell-cast-dialog__status,
+.spell-cast-dialog__applications li > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.spell-cast-dialog__header p,
+.spell-cast-dialog__result > p {
+  margin: 0 0 .35rem;
+  color: #8cc8c9;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.spell-cast-dialog__header h2,
+.spell-cast-dialog__result h3 {
+  margin: 0;
+}
+
+.spell-cast-dialog button,
+.spell-cast-dialog select {
+  font: inherit;
+}
+
+.spell-cast-dialog button {
+  border: 1px solid #52777b;
+  padding: .65rem .9rem;
+  background: #16292f;
+  color: inherit;
+  cursor: pointer;
+}
+
+.spell-cast-dialog button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.spell-cast-dialog__primary {
+  border-color: #b89752 !important;
+  background: #896a2e !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+
+.spell-cast-dialog__loading,
+.spell-cast-dialog__error,
+.spell-cast-dialog__status,
+.spell-cast-dialog__section {
+  margin: 1rem 0 0;
+  padding: .9rem 1rem;
+  border: 1px solid rgb(126 168 172 / 25%);
+  background: rgb(255 255 255 / 3%);
+}
+
+.spell-cast-dialog__error,
+.spell-cast-dialog__section.is-error,
+.spell-cast-dialog__status.is-invalid,
+.spell-cast-dialog__status.is-insufficient-mana {
+  border-color: #9b5151;
+  background: rgb(120 38 38 / 18%);
+}
+
+.spell-cast-dialog__section.is-warning,
+.spell-cast-dialog__status.is-needs-selection {
+  border-color: #9b7f46;
+  background: rgb(127 91 25 / 16%);
+}
+
+.spell-cast-dialog__section.is-manual {
+  border-color: #77689c;
+  background: rgb(84 66 119 / 15%);
+}
+
+.spell-cast-dialog__status.is-ready {
+  border-color: #4f8e72;
+  background: rgb(44 111 79 / 16%);
+}
+
+.spell-cast-dialog__status span,
+.spell-cast-dialog__target-group small,
+.spell-cast-dialog__applications small {
+  color: #b8c8c7;
+  font-size: .8rem;
+}
+
+.spell-cast-dialog__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: .65rem;
+  margin: 1rem 0 0;
+}
+
+.spell-cast-dialog__facts div {
+  padding: .7rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.spell-cast-dialog__facts dt {
+  color: #9db3b2;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.spell-cast-dialog__facts dd {
+  margin: .3rem 0 0;
+  font-weight: 800;
+}
+
+.spell-cast-dialog__section h3,
+.spell-cast-dialog__section h4,
+.spell-cast-dialog__section ul,
+.spell-cast-dialog__section ol,
+.spell-cast-dialog__section p {
+  margin-top: 0;
+}
+
+.spell-cast-dialog__section article p {
+  margin: .35rem 0 1rem;
+  white-space: pre-wrap;
+}
+
+.spell-cast-dialog__target-group {
+  margin: .8rem 0;
+  padding: .8rem;
+  border: 1px solid rgb(126 168 172 / 32%);
+}
+
+.spell-cast-dialog__target-group p {
+  margin-bottom: .25rem;
+}
+
+.spell-cast-dialog__target-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .4rem;
+  margin-top: .7rem;
+}
+
+.spell-cast-dialog__target-options label {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .45rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.spell-cast-dialog__applications {
+  display: grid;
+  gap: .65rem;
+  padding-left: 1.4rem;
+}
+
+.spell-cast-dialog__applications li {
+  padding: .7rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.spell-cast-dialog__applications li > div span {
+  color: #b8c8c7;
+}
+
+.spell-cast-dialog__applications label {
+  display: grid;
+  gap: .35rem;
+  margin-top: .6rem;
+  font-size: .8rem;
+}
+
+.spell-cast-dialog__applications select {
+  width: 100%;
+  padding: .55rem;
+  border: 1px solid #52777b;
+  background: #0c171b;
+  color: #eef6f4;
+}
+
+.spell-cast-dialog__actions {
+  position: sticky;
+  bottom: -2rem;
+  margin: 1.25rem -2rem -2rem;
+  padding: 1rem 2rem;
+  justify-content: flex-end;
+  background: #0c171b;
+  border-top: 1px solid rgb(132 185 193 / 35%);
+}
+
+.spell-cast-dialog__result {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .spell-cast-dialog__header,
+  .spell-cast-dialog__actions,
+  .spell-cast-dialog__status {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .spell-cast-dialog__actions {
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+  }
+}

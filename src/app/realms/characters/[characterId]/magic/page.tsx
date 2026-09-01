@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getCharacter } from "@/app/characters/actions";
+import { getActiveMana } from "@/app/characters/active-mana-actions";
 import { listCharacterSpells } from "@/app/characters/spell-actions";
 import "@/app/heavens/skills/skills.css";
 import { requirePlayer } from "@/lib/server-access";
@@ -22,7 +23,10 @@ export default async function MagicCalculatorPage({
 
   const aggregate = await getCharacter(id, false).catch(() => null);
   if (!aggregate) redirect("/realms");
-  const spells = await listCharacterSpells(id);
+  const [spells, activeMana] = await Promise.all([
+    listCharacterSpells(id),
+    getActiveMana(id),
+  ]);
   const query = await searchParams;
   const initialSpellId = query.spell ? Number(query.spell) : undefined;
 
@@ -30,6 +34,7 @@ export default async function MagicCalculatorPage({
     <MagicWorkspace
       aggregate={aggregate}
       initialSpells={spells}
+      initialActiveMana={activeMana}
       initialSpellId={Number.isInteger(initialSpellId) ? initialSpellId : undefined}
     />
   );

@@ -63,6 +63,25 @@ function EffectSelectionEditor({
         </label>
       )}
 
+      {effect.ruleId === "healing" ? (
+        <label>
+          <span>Healing Application</span>
+          <select
+            value={effect.healingScope ?? ""}
+            onChange={(event) => onChange({
+              ...effect,
+              healingScope: event.target.value === "full-body" || event.target.value === "area"
+                ? event.target.value
+                : undefined,
+            })}
+          >
+            <option value="">Unspecified / Manual Resolution</option>
+            <option value="full-body">Full Body</option>
+            <option value="area">Area</option>
+          </select>
+        </label>
+      ) : null}
+
       <label>
         <span>Component description</span>
         <textarea

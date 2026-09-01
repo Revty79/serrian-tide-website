@@ -13,8 +13,18 @@ import {
 
 import "./character-sheet.css";
 
-import { getAllowedRaceForCharacter, saveCharacter } from "./actions";
+import { getAllowedRaceForCharacter, getCharacter, saveCharacter } from "./actions";
+import { getActiveHealth } from "./active-health-actions";
+import { getActiveMana } from "./active-mana-actions";
+import { getActiveEffects } from "./active-effects-actions";
+import { getCharacterEquipmentState } from "./equipment-state-actions";
+import { getCharacterItemChargeState } from "./item-charge-actions";
 import { CharacterSheet } from "./character-sheet";
+import type { ActiveHealthView } from "@/features/active-state/models";
+import type { ActiveManaView } from "@/features/active-state/active-mana";
+import type { ActiveEffectsView } from "@/features/active-state/active-effects";
+import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
+import type { CharacterItemChargeStateView } from "@/features/items/item-charge";
 import {
   getCharacterCreationTabs,
   type CharacterCreationTab,
@@ -76,6 +86,14 @@ import {
   getStoredCampaignMoneyBreakdown,
 } from "@/features/characters/currency-rules";
 import { getCharacterWeaponDamage } from "@/features/characters/character-sheet-rules";
+import {
+  getItemChargeDisplay,
+  getItemOwnershipStrategy,
+  getOwnedItemPurchaseCost,
+  getOwnedItemQuantity,
+  removeDraftOwnedItemInstance,
+  resizeDraftOwnedItemInstances,
+} from "@/features/items/item-ownership";
 
 type EquipmentFilter = "all" | "weapon" | "armor" | "general" | "inventory";
 
@@ -371,18 +389,53 @@ function SkillBranch({
 
 export function CharacterEditor({
   initialAggregate,
+  initialActiveHealth,
+  initialActiveMana,
+  initialActiveEffects,
+  initialEquipmentState,
+  initialChargeState,
   godMode,
   backHref,
   backLabel = "Back",
 }: {
   initialAggregate: CharacterAggregate;
+  initialActiveHealth: ActiveHealthView;
+  initialActiveMana: ActiveManaView;
+  initialActiveEffects: ActiveEffectsView;
+  initialEquipmentState: CharacterEquipmentStateView;
+  initialChargeState: CharacterItemChargeStateView;
   godMode: boolean;
   backHref?: string;
   backLabel?: string;
 }) {
   const nextDraftId = useRef(-1_000_000);
+  const nextItemInstanceDraftId = useRef(-2_000_000);
   const [aggregate, setAggregate] = useState(initialAggregate);
+  const [activeHealth, setActiveHealth] = useState(initialActiveHealth);
+  const [activeMana, setActiveMana] = useState(initialActiveMana);
+  const [activeEffects, setActiveEffects] = useState(initialActiveEffects);
+  const [equipmentState, setEquipmentState] = useState(initialEquipmentState);
+  const [chargeState, setChargeState] = useState(initialChargeState);
   const [selectedRace, setSelectedRace] = useState(initialAggregate.selectedRace);
+
+  function acceptChargeState(next: CharacterItemChargeStateView) {
+    const charges = new Map(next.instances.map((entry) => [entry.instanceId, entry.currentCharges]));
+    setChargeState(next);
+    setAggregate((current) => ({
+      ...current,
+      itemInstances: current.itemInstances.map((entry) => ({
+        ...entry,
+        currentCharges: charges.get(entry.id) ?? entry.currentCharges,
+      })),
+    }));
+    setEquipmentState((current) => ({
+      ...current,
+      instances: current.instances.map((entry) => ({
+        ...entry,
+        currentCharges: charges.get(entry.instanceId) ?? entry.currentCharges,
+      })),
+    }));
+  }
   const [draft, setDraft] = useState<CharacterDraft>(() => {
     const initial = characterAggregateToDraft(initialAggregate);
     let initialDraftId = -1;
@@ -618,11 +671,29 @@ export function CharacterEditor({
     const catalogItem = aggregate.authorizedItems.find((item) => item.id === itemId);
     if (!catalogItem || (catalogItem.credits !== null && catalogItem.credits < 0)) return;
     const existing = draft.items.find((item) => item.itemId === itemId);
-    const unitCostCredits = catalogItem.credits ?? existing?.unitCostCredits ?? 0;
+    const existingInstance = draft.itemInstances.find((instance) => instance.itemId === itemId);
+    const unitCostCredits = catalogItem.credits ?? existing?.unitCostCredits ?? existingInstance?.unitCostCredits ?? 0;
     if (!godMode && catalogItem.credits === null) return;
-    const spentWithoutItem = draft.items.filter((item) => item.itemId !== itemId).reduce((sum, item) => sum + item.quantity * item.unitCostCredits, 0);
+    const spentWithoutItem = getOwnedItemPurchaseCost({
+      stacks: draft.items.filter((item) => item.itemId !== itemId),
+      instances: draft.itemInstances.filter((instance) => instance.itemId !== itemId),
+    });
     const maximumQuantity = godMode ? Number.MAX_SAFE_INTEGER : catalogItem.credits === 0 ? 999 : Math.floor((aggregate.campaign.startingCreditAmount - spentWithoutItem) / unitCostCredits);
     const quantity = Math.min(Math.max(0, Math.trunc(requestedQuantity)), maximumQuantity);
+    if (getItemOwnershipStrategy(catalogItem.runtimeProfile) === "instance") {
+      change((current) => ({
+        ...current,
+        itemInstances: resizeDraftOwnedItemInstances({
+          current: current.itemInstances,
+          itemId,
+          quantity,
+          unitCostCredits,
+          runtimeProfile: catalogItem.runtimeProfile,
+          createDraftId: () => nextItemInstanceDraftId.current--,
+        }),
+      }));
+      return;
+    }
     change((current) => ({
       ...current,
       items: quantity === 0
@@ -630,6 +701,14 @@ export function CharacterEditor({
         : existing
           ? current.items.map((item) => item.itemId === itemId ? { ...item, quantity, unitCostCredits } : item)
           : [...current.items, { itemId, quantity, unitCostCredits }],
+    }));
+  }
+
+  function removeItemInstance(draftId: number) {
+    if (playerLocked) return;
+    change((current) => ({
+      ...current,
+      itemInstances: removeDraftOwnedItemInstance(current.itemInstances, draftId),
     }));
   }
 
@@ -660,8 +739,18 @@ export function CharacterEditor({
     setFeedback(null);
     try {
       const saved = await saveCharacter(aggregate.character.id, draft, completeCreation, godMode);
+      const [refreshedHealth, refreshedMana, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+        getActiveHealth(aggregate.character.id),
+        getActiveMana(aggregate.character.id),
+        getCharacterEquipmentState(aggregate.character.id),
+        getCharacterItemChargeState(aggregate.character.id),
+      ]);
       const savedDraft = characterAggregateToDraft(saved);
       setAggregate(saved);
+      setActiveHealth(refreshedHealth);
+      setActiveMana(refreshedMana);
+      setEquipmentState(refreshedEquipmentState);
+      setChargeState(refreshedChargeState);
       setSelectedRace(saved.selectedRace);
       setDraft({
         ...savedDraft,
@@ -681,6 +770,33 @@ export function CharacterEditor({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function refreshAfterItemUse() {
+    const [refreshed, refreshedHealth, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+      getCharacter(aggregate.character.id, godMode),
+      getActiveHealth(aggregate.character.id),
+      getActiveEffects(aggregate.character.id, godMode),
+      getCharacterEquipmentState(aggregate.character.id),
+      getCharacterItemChargeState(aggregate.character.id),
+    ]);
+    const refreshedDraft = characterAggregateToDraft(refreshed);
+    setAggregate(refreshed);
+    setActiveHealth(refreshedHealth);
+    setActiveEffects(refreshedEffects);
+    setEquipmentState(refreshedEquipmentState);
+    setChargeState(refreshedChargeState);
+    setSelectedRace(refreshed.selectedRace);
+    setDraft({
+      ...refreshedDraft,
+      skillAllocations: reconcileRacialSkillAnchors(
+        refreshedDraft.skillAllocations,
+        refreshed.selectedRace,
+        refreshed.skillRelationships,
+        () => nextDraftId.current--,
+      ),
+    });
+    setFeedback({ kind: "success", message: "Item use resolved and the Character record was refreshed." });
   }
 
   const statusPurse = characterPurse();
@@ -720,9 +836,9 @@ export function CharacterEditor({
           {activeTab === "attributes" ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked} godMode={godMode} onSetAttribute={setAttribute} /> : null}
           {activeTab === "skills" ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={setActiveSkillGroup} onSetSkillPoints={setSkillPoints} onShowDescription={setDescribedSkill} /> : null}
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked} onChange={change} /> : null}
-          {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={setEquipmentFilter} onSearch={setEquipmentSearch} onQuantityChange={changeItemQuantity} campaignMoney={campaignMoney} /> : null}
+          {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={setEquipmentFilter} onSearch={setEquipmentSearch} onQuantityChange={changeItemQuantity} onRemoveInstance={removeItemInstance} campaignMoney={campaignMoney} /> : null}
           {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} /> : null}
-          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} /> : null}
+          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving} onItemUseComplete={refreshAfterItemUse} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>
@@ -903,16 +1019,16 @@ function StoryTab({ draft, disabled, onChange }: { draft: CharacterDraft; disabl
   return <div className="character-section"><SectionHeading eyebrow="REQUIRED NARRATIVE RECORD" title="Story & Personality" detail="Every field is required before completion." /><div className="character-story-grid">{fields.map(([field, label]) => <Field key={field} label={`${label} · Required`}><textarea disabled={disabled} rows={field === "backstory" ? 8 : 5} value={draft.profile[field]} onChange={(event) => onChange((current) => ({ ...current, profile: { ...current.profile, [field]: event.target.value } }))} /></Field>)}</div></div>;
 }
 
-function EquipmentTab({ draft, aggregate, disabled, godMode, filter, search, purse, onFilter, onSearch, onQuantityChange, campaignMoney }: { draft: CharacterDraft; aggregate: CharacterAggregate; disabled: boolean; godMode: boolean; filter: EquipmentFilter; search: string; purse: ReturnType<typeof getCampaignMoneyBreakdown>; onFilter: (filter: EquipmentFilter) => void; onSearch: (search: string) => void; onQuantityChange: (itemId: number, quantity: number) => void; campaignMoney: (credits: number) => string }) {
+function EquipmentTab({ draft, aggregate, disabled, godMode, filter, search, purse, onFilter, onSearch, onQuantityChange, onRemoveInstance, campaignMoney }: { draft: CharacterDraft; aggregate: CharacterAggregate; disabled: boolean; godMode: boolean; filter: EquipmentFilter; search: string; purse: ReturnType<typeof getCampaignMoneyBreakdown>; onFilter: (filter: EquipmentFilter) => void; onSearch: (search: string) => void; onQuantityChange: (itemId: number, quantity: number) => void; onRemoveInstance: (draftId: number) => void; campaignMoney: (credits: number) => string }) {
   const normalizedSearch = search.trim().toLowerCase();
   const options: Array<[EquipmentFilter, string]> = [["all", "All Items"], ["weapon", "Weapons"], ["armor", "Armor"], ["general", "General Equipment"], ["inventory", "Inventory"]];
   const matchesFilter = (item: CharacterAggregate["authorizedItems"][number], target: EquipmentFilter) => target === "all" || (target === "inventory" && item.catalogScope.toLowerCase() === "inventory") || item.equipmentGroup?.toLowerCase() === target;
   const available = aggregate.authorizedItems.filter((item) => matchesFilter(item, filter) && (!normalizedSearch || [item.name, item.canonicalId, item.category, item.recordType, item.description, item.weaponType, item.damageType, item.ammunitionItemName, item.ammunitionDamageType, item.armorType, item.coverage].some((value) => value?.toLowerCase().includes(normalizedSearch))));
   const remaining = godMode ? draft.profile.creditsRemaining : getStartingFundsRemaining(draft, aggregate.campaign.startingCreditAmount);
-  return <div className="character-section"><SectionHeading eyebrow="CAMPAIGN-AUTHORIZED CATALOG" title="Starting Equipment Store" detail={`${purse.formatted} ${godMode ? "currently held" : "remaining"}`} />{aggregate.campaign.currencySystem === "Derived Currency" ? <><div className="character-currency-ledger">{purse.entries.map((currency) => <div key={currency.id}><strong>{displayNumber(currency.quantity)} {currency.name}</strong><span>{currency.description || "Campaign currency"}</span></div>)}</div>{!purse.fullyRepresented ? <p className="character-notice">The configured denominations cannot exactly represent this balance.</p> : null}</> : null}<div className="character-equipment-toolbar"><Field label="Search permitted Items"><input type="search" value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Name, ID, category, damage, armor, or type" /></Field><nav>{options.map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => onFilter(value)}><span>{label}</span><strong>{aggregate.authorizedItems.filter((item) => matchesFilter(item, value)).length}</strong></button>)}</nav></div>{!godMode && !draft.items.some((owned) => aggregate.authorizedItems.find((item) => item.id === owned.itemId)?.catalogScope.toLowerCase() === "equipment") ? <p className="character-notice">Purchase at least one Equipment item before completing Character creation. Inventory supplies alone do not satisfy starting equipment.</p> : null}<div className="character-equipment-list">{available.map((item) => {
-    const owned = draft.items.find((row) => row.itemId === item.id); const quantity = owned?.quantity ?? 0; const details: Array<[string, string]> = []; const damageProfile = getCharacterWeaponDamage(item);
+  return <div className="character-section"><SectionHeading eyebrow="CAMPAIGN-AUTHORIZED CATALOG" title="Starting Equipment Store" detail={`${purse.formatted} ${godMode ? "currently held" : "remaining"}`} />{aggregate.campaign.currencySystem === "Derived Currency" ? <><div className="character-currency-ledger">{purse.entries.map((currency) => <div key={currency.id}><strong>{displayNumber(currency.quantity)} {currency.name}</strong><span>{currency.description || "Campaign currency"}</span></div>)}</div>{!purse.fullyRepresented ? <p className="character-notice">The configured denominations cannot exactly represent this balance.</p> : null}</> : null}<div className="character-equipment-toolbar"><Field label="Search permitted Items"><input type="search" value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Name, ID, category, damage, armor, or type" /></Field><nav>{options.map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => onFilter(value)}><span>{label}</span><strong>{aggregate.authorizedItems.filter((item) => matchesFilter(item, value)).length}</strong></button>)}</nav></div>{!godMode && ![...draft.items, ...draft.itemInstances].some((owned) => aggregate.authorizedItems.find((item) => item.id === owned.itemId)?.catalogScope.toLowerCase() === "equipment") ? <p className="character-notice">Purchase at least one Equipment item before completing Character creation. Inventory supplies alone do not satisfy starting equipment.</p> : null}<div className="character-equipment-list">{available.map((item) => {
+    const quantity = getOwnedItemQuantity(item.id, draft.items, draft.itemInstances); const itemInstances = draft.itemInstances.filter((entry) => entry.itemId === item.id); const details: Array<[string, string]> = []; const damageProfile = getCharacterWeaponDamage(item);
     if (item.weaponType) details.push(["Weapon", item.weaponType]); if (item.handedness) details.push(["Hands", item.handedness]); if (damageProfile.damage) details.push(["Damage", `${damageProfile.damage}${damageProfile.damageType ? ` ${damageProfile.damageType}` : ""}`]); if (damageProfile.sourceName) details.push(["Ammunition", damageProfile.sourceName]); if (item.rangeText) details.push(["Range", item.rangeText]); if (item.reachText) details.push(["Reach", item.reachText]); if (item.armorType) details.push(["Armor", item.armorType]); if (item.coverage) details.push(["Coverage", item.coverage]); if (item.baseSoak !== null) details.push(["Base Soak", displayNumber(item.baseSoak)]); if (item.armorDamageModifiers) details.push(["Damage Modifiers", item.armorDamageModifiers]); if (item.weight !== null) details.push(["Weight", `${displayNumber(item.weight)} ${item.weightUnit}`.trim()]); if (item.durability !== null) details.push(["Durability", displayNumber(item.durability)]);
-    return <article key={item.id} className={quantity > 0 ? "is-owned" : ""}><div className="character-equipment-list__identity"><p>{item.canonicalId} · {item.recordType}</p><h3>{item.name}</h3><span>{item.category}{item.equipmentGroup ? ` · ${item.equipmentGroup}` : " · Inventory"}</span>{item.description ? <small>{item.description}</small> : null}</div>{details.length ? <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="character-equipment-list__empty">No additional mechanics recorded.</p>}{item.weaponRulesText || item.armorRulesText ? <p className="character-equipment-list__rules">{item.weaponRulesText || item.armorRulesText}</p> : null}<div className="character-equipment-list__purchase"><div><span>Cost</span><strong>{item.credits === null ? "Not priced" : campaignMoney(item.credits)}</strong><small>{item.priceBasis}</small></div><label><span>Owned</span><input aria-label={`${item.name} Quantity`} type="number" min={0} step={1} disabled={disabled || (!godMode && item.credits === null)} value={quantity} onChange={(event) => onQuantityChange(item.id, numericValue(event.target.value))} /></label><button type="button" disabled={disabled || (!godMode && (item.credits === null || (item.credits > remaining && quantity === 0)))} onClick={() => onQuantityChange(item.id, quantity + 1)}>Buy One</button></div></article>;
+    return <article key={item.id} className={quantity > 0 ? "is-owned" : ""}><div className="character-equipment-list__identity"><p>{item.canonicalId} · {item.recordType}</p><h3>{item.name}</h3><span>{item.category}{item.equipmentGroup ? ` · ${item.equipmentGroup}` : " · Inventory"}{item.isMagical ? " · Magical" : ""}</span>{item.description ? <small>{item.description}</small> : null}</div>{details.length ? <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="character-equipment-list__empty">No additional mechanics recorded.</p>}{item.weaponRulesText || item.armorRulesText ? <p className="character-equipment-list__rules">{item.weaponRulesText || item.armorRulesText}</p> : null}<div className="character-equipment-list__purchase"><div><span>Cost</span><strong>{item.credits === null ? "Not priced" : campaignMoney(item.credits)}</strong><small>{item.priceBasis}</small></div><label><span>{getItemOwnershipStrategy(item.runtimeProfile) === "instance" ? "Copies" : "Owned"}</span><input aria-label={`${item.name} Quantity`} type="number" min={0} step={1} disabled={disabled || (!godMode && item.credits === null)} value={quantity} onChange={(event) => onQuantityChange(item.id, numericValue(event.target.value))} /></label><button type="button" disabled={disabled || (!godMode && (item.credits === null || (item.credits > remaining && quantity === 0)))} onClick={() => onQuantityChange(item.id, quantity + 1)}>Buy One</button></div>{itemInstances.length ? <div className="character-item-instances">{itemInstances.map((owned, index) => { const persisted = owned.instanceId === null ? null : aggregate.itemInstances.find(({ id }) => id === owned.instanceId); const chargeDisplay = getItemChargeDisplay({ currentCharges: persisted?.currentCharges ?? item.runtimeProfile.maximumCharges ?? 0, maximumCharges: item.runtimeProfile.maximumCharges }); return <div key={owned.draftId}><span>{owned.instanceId === null ? `New copy ${index + 1}` : `Copy #${owned.instanceId}`}</span><strong>{chargeDisplay.label}</strong>{chargeDisplay.exceedsCurrentMaximum ? <small>Above the current template maximum; saved state preserved.</small> : null}<button type="button" disabled={disabled} onClick={() => onRemoveInstance(owned.draftId)}>Remove this copy</button></div>; })}</div> : null}</article>;
   })}{!available.length ? <p className="character-notice">No Campaign-authorized Items match this search.</p> : null}</div></div>;
 }
 

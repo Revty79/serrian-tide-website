@@ -19,7 +19,7 @@ export type CharacterSpellCastingContext = {
 };
 
 function rootSystemForAllocation(
-  aggregate: CharacterAggregate,
+  aggregate: Pick<CharacterAggregate, "skillAllocations" | "skillCatalog">,
   allocation: CharacterSkillAllocation,
 ): SpellCastingSystem | null {
   const allocationsById = new Map(
@@ -40,6 +40,14 @@ function rootSystemForAllocation(
   return rootSkill
     ? (getCharacterMagicSystem(rootSkill) as SpellCastingSystem | null)
     : null;
+}
+
+export function getCastingSystemForAllocation(
+  aggregate: Pick<CharacterAggregate, "skillAllocations" | "skillCatalog">,
+  allocationId: number,
+): SpellCastingSystem | null {
+  const allocation = aggregate.skillAllocations.find(({ id }) => id === allocationId);
+  return allocation ? rootSystemForAllocation(aggregate, allocation) : null;
 }
 
 export function getAvailableSpellCastingContexts(
@@ -71,12 +79,7 @@ export function resolveCharacterSpellCastingContext(
   const contexts = getAvailableSpellCastingContexts(aggregate, spell);
   let system = spell.castingSystem;
   if (allocationId !== undefined) {
-    const allocation = aggregate.skillAllocations.find(
-      ({ id }) => id === allocationId,
-    );
-    system = allocation
-      ? rootSystemForAllocation(aggregate, allocation) ?? undefined
-      : undefined;
+    system = getCastingSystemForAllocation(aggregate, allocationId) ?? undefined;
   }
   if (!system && spell.frameworkSkillId) {
     const frameworkSystems = new Set(

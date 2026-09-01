@@ -100,6 +100,7 @@ function aggregate(): CharacterAggregate {
     attributes: [],
     attributeReferenceCatalog: [],
     items: [],
+    itemInstances: [],
     currencyHoldings: [],
     campaign: {
       id: 12,

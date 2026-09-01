@@ -1,10 +1,12 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  boolean,
   check,
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   serial,
@@ -44,6 +46,7 @@ export const item = pgTable(
     durability: doublePrecision("durability"),
     credits: doublePrecision("credits"),
     priceBasis: text("price_basis").notNull(),
+    isMagical: boolean("is_magical").default(false).notNull(),
     parentItemId: integer("parent_item_id").references(
       (): AnyPgColumn => item.id,
       { onDelete: "restrict" },
@@ -76,6 +79,75 @@ export const item = pgTable(
     check("items_durability_valid", sql`${table.durability} IS NULL OR ${table.durability} >= 0`),
     check("items_credits_valid", sql`${table.credits} IS NULL OR ${table.credits} >= 0`),
     check("items_parent_not_self", sql`${table.parentItemId} IS NULL OR ${table.parentItemId} <> ${table.id}`),
+  ],
+);
+
+export const itemRuntimeProfile = pgTable(
+  "item_runtime_profiles",
+  {
+    itemId: integer("item_id").primaryKey().references(() => item.id, { onDelete: "cascade" }),
+    useMode: text("use_mode").default("none").notNull(),
+    quantityPerUse: integer("quantity_per_use"),
+    maximumCharges: integer("maximum_charges"),
+    chargesPerUse: integer("charges_per_use"),
+    rechargeNotes: text("recharge_notes").default("").notNull(),
+    activationLabel: text("activation_label").default("Use").notNull(),
+    useNotes: text("use_notes").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    check("item_runtime_profiles_mode_valid", sql`${table.useMode} IN ('none', 'consume-item', 'charges', 'unlimited')`),
+    check("item_runtime_profiles_activation_label_nonblank", sql`length(trim(${table.activationLabel})) > 0`),
+    check(
+      "item_runtime_profiles_fields_valid",
+      sql`(
+        (${table.useMode} IN ('none', 'unlimited') AND ${table.quantityPerUse} IS NULL AND ${table.maximumCharges} IS NULL AND ${table.chargesPerUse} IS NULL)
+        OR (${table.useMode} = 'consume-item' AND ${table.quantityPerUse} > 0 AND ${table.maximumCharges} IS NULL AND ${table.chargesPerUse} IS NULL)
+        OR (${table.useMode} = 'charges' AND ${table.quantityPerUse} IS NULL AND ${table.maximumCharges} > 0 AND ${table.chargesPerUse} > 0 AND ${table.chargesPerUse} <= ${table.maximumCharges})
+      )`,
+    ),
+  ],
+);
+
+export const itemEffect = pgTable(
+  "item_effects",
+  {
+    id: serial("id").primaryKey(),
+    itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "cascade" }),
+    schemaVersion: integer("schema_version").notNull(),
+    effectJson: jsonb("effect_json").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("item_effects_order_uq").on(table.itemId, table.sortOrder),
+    index("item_effects_item_id_idx").on(table.itemId),
+    check("item_effects_schema_version_valid", sql`${table.schemaVersion} > 0`),
+    check("item_effects_sort_order_valid", sql`${table.sortOrder} >= 0`),
+    check("item_effects_json_object", sql`jsonb_typeof(${table.effectJson}) = 'object'`),
+  ],
+);
+
+export const itemPassiveEffect = pgTable(
+  "item_passive_effects",
+  {
+    id: serial("id").primaryKey(),
+    itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "cascade" }),
+    requiredEquipmentState: text("required_equipment_state").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    effectJson: jsonb("effect_json").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("item_passive_effects_item_order_idx").on(table.itemId, table.sortOrder, table.id),
+    check("item_passive_effects_required_state_valid", sql`${table.requiredEquipmentState} IN ('equipped','worn','wielded')`),
+    check("item_passive_effects_schema_version_valid", sql`${table.schemaVersion} > 0`),
+    check("item_passive_effects_sort_order_valid", sql`${table.sortOrder} >= 0`),
+    check("item_passive_effects_json_object", sql`jsonb_typeof(${table.effectJson}) = 'object'`),
   ],
 );
 

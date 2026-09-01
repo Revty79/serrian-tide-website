@@ -8,7 +8,7 @@ function source(relativePath: string) {
 }
 
 test("the forward migration adds nonnegative Character-owned Base Movement and Base Magic steps", () => {
-  const migration = source("drizzle/0001_talented_metal_master.sql");
+  const migration = source("drizzle/0001_runtime_foundation.sql");
   assert.match(migration, /ADD COLUMN "base_movement_steps" integer DEFAULT 0 NOT NULL/);
   assert.match(migration, /ADD COLUMN "base_magic_steps" integer DEFAULT 0 NOT NULL/);
   assert.match(migration, /"base_movement_steps" >= 0/);

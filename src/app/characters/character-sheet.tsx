@@ -18,7 +18,6 @@ import {
   getCharacterHpBreakdown,
   getCharacterHpMultiplier,
   getCharacterMagicSystem,
-  getCharacterManaProfiles,
   getCharacterMovementBaseValue,
   getCharacterSkillRanks,
   getEffectiveSkillPoints,
@@ -32,6 +31,8 @@ import {
   getCharacterWeaponDamage,
   getCharacterWeaponDamageSummary,
 } from "@/features/characters/character-sheet-rules";
+import { getItemChargeDisplay } from "@/features/items/item-ownership";
+import { getItemUseActivatability } from "@/features/items/item-use";
 import {
   getCanonicalCreditsFromHoldings,
   getStoredCampaignMoneyBreakdown,
@@ -40,15 +41,42 @@ import {
   getActiveDerivedAbilities,
   getDerivedAbilityRequirementSummary,
 } from "@/features/derived-abilities/derived-ability-rules";
+import type { ActiveHealthView } from "@/features/active-state/models";
+import type { ActiveManaView } from "@/features/active-state/active-mana";
+import type { ActiveEffectsView } from "@/features/active-state/active-effects";
+import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
+import type { CharacterItemChargeStateView } from "@/features/items/item-charge";
 
+import { ActiveHealthPanel } from "./active-health-panel";
+import { ActiveManaPanel } from "./active-mana-panel";
+import { ActiveEffectsPanel } from "./active-effects-panel";
 import { CharacterHitLocationChart } from "./character-hit-location-chart";
 import { CharacterPrintCenter } from "./character-print-center";
+import { ItemUseDialog } from "./item-use-dialog";
+import { EquipmentStatePanel } from "./equipment-state-panel";
+import { ItemChargePanel } from "./item-charge-panel";
 
 type Props = {
   aggregate: CharacterAggregate;
   draft: CharacterDraft;
   selectedRace: CharacterAggregate["selectedRace"];
   ready: boolean;
+  activeHealth: ActiveHealthView;
+  onActiveHealthChange: (health: ActiveHealthView) => void;
+  activeMana: ActiveManaView;
+  onActiveManaChange: (mana: ActiveManaView) => void;
+  activeManaDisabled: boolean;
+  itemUseDisabled: boolean;
+  onItemUseComplete: () => void | Promise<void>;
+  activeEffects: ActiveEffectsView;
+  onActiveEffectsChange: (state: ActiveEffectsView) => void;
+  equipmentState: CharacterEquipmentStateView;
+  onEquipmentStateChange: (state: CharacterEquipmentStateView) => void;
+  equipmentStateDisabled: boolean;
+  chargeState: CharacterItemChargeStateView;
+  onChargeStateChange: (state: CharacterItemChargeStateView) => void;
+  chargeStateDisabled: boolean;
+  godMode: boolean;
 };
 
 function displayNumber(value: number): string {
@@ -76,7 +104,7 @@ function displayEncumbrance(
     : measured;
 }
 
-export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props) {
+export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, onItemUseComplete, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode }: Props) {
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -84,7 +112,30 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
   const hpMultiplier = getCharacterHpMultiplier(
     draft.profile.hpMultiplierSteps,
   );
-  const encumbrance = getCharacterEncumbrance(aggregate.items);
+  const encumbrance = getCharacterEncumbrance([
+    ...aggregate.items,
+    ...draft.itemInstances.map((owned) => {
+      const persisted = owned.instanceId === null
+        ? null
+        : aggregate.itemInstances.find(({ id }) => id === owned.instanceId) ?? null;
+      const definition = aggregate.authorizedItems.find(({ id }) => id === owned.itemId) ?? null;
+      return {
+      characterId: aggregate.character.id,
+      itemId: owned.itemId,
+      canonicalId: definition?.canonicalId ?? persisted?.canonicalId ?? `ITEM-${owned.itemId}`,
+      name: definition?.name ?? persisted?.name ?? `Item ${owned.itemId}`,
+      catalogScope: definition?.catalogScope ?? persisted?.catalogScope ?? "inventory",
+      equipmentGroup: definition?.equipmentGroup ?? persisted?.equipmentGroup ?? null,
+      recordType: definition?.recordType ?? persisted?.recordType ?? "Item",
+      category: definition?.category ?? persisted?.category ?? "Item",
+      quantity: 1,
+      unitCostCredits: owned.unitCostCredits,
+      weight: definition?.weight ?? persisted?.weight ?? null,
+      weightUnit: definition?.weightUnit ?? persisted?.weightUnit ?? "",
+      acquiredAt: persisted?.acquiredAt ?? "",
+    };
+    }),
+  ]);
   const attributeReferences = CHARACTER_ATTRIBUTE_REFERENCE_KEYS.map((key) => ({
     key,
     reference: getAttributeReference(
@@ -124,12 +175,29 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
     [...weaponRows, ...armorRows].map(({ owned }) => owned.itemId),
   );
   const generalRows = ownedItems.filter(({ owned }) => !combatItemIds.has(owned.itemId));
-  const manaProfiles = getCharacterManaProfiles(
-    draft,
-    aggregate.skillCatalog,
-    selectedRace,
-    draft.profile.baseMagicSteps,
-  );
+  const activatedStacks = draft.items.flatMap((owned) => {
+    const definition = itemMap.get(owned.itemId);
+    return definition && getItemUseActivatability(definition.runtimeProfile, definition.effectCount).executable
+      ? [{ owned, definition }]
+      : [];
+  });
+  const activatedInstances = draft.itemInstances.flatMap((owned) => {
+    if (owned.instanceId === null) return [];
+    const definition = itemMap.get(owned.itemId);
+    const persisted = aggregate.itemInstances.find(({ id }) => id === owned.instanceId);
+    return definition && persisted && getItemUseActivatability(definition.runtimeProfile, definition.effectCount).executable
+      ? [{ owned, definition, persisted }]
+      : [];
+  });
+  const unavailableActivatedItems = [
+    ...draft.items.map(({ itemId }) => itemId),
+    ...draft.itemInstances.map(({ itemId }) => itemId),
+  ].filter((itemId, index, values) => values.indexOf(itemId) === index).flatMap((itemId) => {
+    const definition = itemMap.get(itemId);
+    return definition && definition.runtimeProfile.useMode !== "none" && definition.effectCount <= 0
+      ? [definition]
+      : [];
+  });
   const effectiveMovementModes = (selectedRace?.movementModes ?? []).map((mode) => ({
     ...mode,
     baseValue: getCharacterMovementBaseValue(
@@ -268,6 +336,12 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
           ))}
         </section>
 
+        <ActiveHealthPanel health={activeHealth} onHealthChange={onActiveHealthChange} />
+        <ActiveManaPanel mana={activeMana} disabled={activeManaDisabled} onManaChange={onActiveManaChange} />
+        <ActiveEffectsPanel state={activeEffects} godMode={godMode} skillOptions={aggregate.skillCatalog.map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
+        <EquipmentStatePanel state={equipmentState} disabled={equipmentStateDisabled} includeEffectHistory={godMode} onChange={onEquipmentStateChange} onActiveEffectsChange={onActiveEffectsChange} />
+        <ItemChargePanel state={chargeState} disabled={chargeStateDisabled} onChange={onChargeStateChange} />
+
         <section className="character-sheet__summary-grid" aria-label="Core character record">
           <article>
             <h3>Attributes</h3>
@@ -319,11 +393,11 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
             <h3>Mana</h3>
             <p className="character-sheet__total"><span>Base Magic</span><strong>{displayNumber(effectiveBaseMagic)}</strong></p>
             <table><tbody>
-              {manaProfiles.map((profile) => (
-                <tr key={profile.system}>
-                  <th>{profile.system}</th>
-                  <td>{displayNumber(profile.manaPool)}</td>
-                  <td>{profile.spellAccessLevel ?? "Below Apprentice"}</td>
+              {activeMana.pools.map((pool) => (
+                <tr key={pool.system}>
+                  <th>{pool.system}</th>
+                  <td>{displayNumber(pool.currentMana)} / {displayNumber(pool.maximumMana)}</td>
+                  <td>{displayNumber(pool.manaSpent)} Spent · {pool.spellAccessLevel ?? "Below Apprentice"}</td>
                 </tr>
               ))}
             </tbody></table>
@@ -467,6 +541,45 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready }: Props)
             </tbody></table>
           </div>
         </section>
+
+        {activatedStacks.length || activatedInstances.length || unavailableActivatedItems.length ? (
+          <section className="character-sheet__section character-sheet__activated-items">
+            <div className="character-sheet__section-heading"><p>ACTIVE POSSESSIONS</p><h3>Activated Items</h3><span>Preview the exact resource and health changes before confirming.</span></div>
+            {itemUseDisabled ? <p className="character-sheet__item-use-note">Save or discard pending Character edits before using an Item.</p> : null}
+            <div className="character-sheet__activated-item-grid">
+              {activatedStacks.map(({ owned, definition }) => <article key={`stack-${owned.itemId}`}><div><strong>{definition.name}</strong><span>{owned.quantity} owned · {definition.runtimeProfile.useMode === "unlimited" ? "Unlimited" : `${definition.runtimeProfile.quantityPerUse} per use`}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={null} itemName={definition.name} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled} onComplete={onItemUseComplete} /></article>)}
+              {activatedInstances.map(({ owned, definition, persisted }) => {
+                const chargeDisplay = getItemChargeDisplay({
+                  currentCharges: persisted.currentCharges,
+                  maximumCharges: definition.runtimeProfile.maximumCharges,
+                });
+                return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled} onComplete={onItemUseComplete} /></article>;
+              })}
+              {unavailableActivatedItems.map((definition) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>Not executable: this activated profile has no Mechanical Effects. Add a Manual effect for descriptive resolution.</span></div></article>)}
+            </div>
+          </section>
+        ) : null}
+
+        {draft.itemInstances.length ? (
+          <section className="character-sheet__section character-sheet__inventory">
+            <div className="character-sheet__section-heading"><p>INDIVIDUAL POSSESSIONS</p><h3>Charged Item Copies</h3><span>Each copy keeps its own identity and charge state.</span></div>
+            <div className="character-sheet__table-scroll">
+              <table><thead><tr><th>Item</th><th>Copy</th><th>Classification</th><th>Current Charges</th><th>Unit Cost</th></tr></thead><tbody>
+                {draft.itemInstances.map((owned, index) => {
+                  const persisted = owned.instanceId === null
+                    ? null
+                    : aggregate.itemInstances.find(({ id }) => id === owned.instanceId) ?? null;
+                  const definition = itemMap.get(owned.itemId) ?? null;
+                  const chargeDisplay = getItemChargeDisplay({
+                    currentCharges: persisted?.currentCharges ?? definition?.runtimeProfile.maximumCharges ?? 0,
+                    maximumCharges: definition?.runtimeProfile.maximumCharges ?? null,
+                  });
+                  return <tr key={owned.draftId}><th>{definition?.name ?? persisted?.name ?? `Item ${owned.itemId}`}</th><td>{owned.instanceId === null ? `New copy ${index + 1}` : `#${owned.instanceId}`}</td><td>{definition?.isMagical || persisted?.isMagical ? "Magical · Charged" : "Charged"}</td><td>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? <small> · Above current maximum</small> : null}</td><td>{displayNumber(owned.unitCostCredits)} cr</td></tr>;
+                })}
+              </tbody></table>
+            </div>
+          </section>
+        ) : null}
 
         {story.length ? (
           <section className="character-sheet__section character-sheet__story-section">

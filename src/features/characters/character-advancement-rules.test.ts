@@ -143,6 +143,7 @@ function aggregate(): CharacterAggregate {
       allocation(11, swordsmanship, 8),
     ],
     items: [],
+    itemInstances: [],
     currencyHoldings: [],
     campaign: {
       id: 12,

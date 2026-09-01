@@ -406,14 +406,14 @@ function WeaponTable({
     <table className="print-combat-table">
       <thead><tr><th>Weapon</th><th>Qty</th><th>%</th><th>Damage</th><th>Mod</th><th>Total</th><th>Type</th><th>Range / Reach</th><th>Dur.</th></tr></thead>
       <tbody>
-        {rows.map(({ owned, item }) => {
+        {rows.map(({ rowKey, displayName, owned, item }) => {
           const profile = item ? getCharacterWeaponDamage(item) : null;
           const damage = item
             ? getCharacterWeaponDamageSummary(item, draft.attributes)
             : null;
           return (
-            <tr key={owned.itemId}>
-              <th>{item?.name ?? `Item ${owned.itemId}`}{profile?.sourceName ? <small> · {profile.sourceName}</small> : null}</th>
+            <tr key={rowKey}>
+              <th>{displayName}{profile?.sourceName ? <small> · {profile.sourceName}</small> : null}</th>
               <td>{owned.quantity}</td>
               <td><span className="print-write-line is-short" /></td>
               <td>{profile?.damage || "—"}</td>
@@ -435,9 +435,9 @@ function ArmorTable({ rows }: { rows: readonly PrintableCharacterOwnedItem[] }) 
     <table className="print-combat-table">
       <thead><tr><th>Armor</th><th>Qty</th><th>Coverage</th><th>Dur.</th><th>Soak</th><th>Properties / Rules</th></tr></thead>
       <tbody>
-        {rows.map(({ owned, item }) => (
-          <tr key={owned.itemId}>
-            <th>{item?.name ?? `Item ${owned.itemId}`}</th>
+        {rows.map(({ rowKey, displayName, owned, item }) => (
+          <tr key={rowKey}>
+            <th>{displayName}</th>
             <td>{owned.quantity}</td>
             <td>{item?.coverage || "—"}</td>
             <td>{item?.durability ?? "—"}</td>
@@ -562,13 +562,13 @@ function CompactInventory({ data }: Pick<Props, "data">) {
       <table>
         <thead><tr><th>Item</th><th>Qty</th><th>Weight</th><th>Type</th><th>Short Notes</th></tr></thead>
         <tbody>
-          {rows.map(({ owned, item }) => (
-            <tr key={owned.itemId}>
-              <th>{item?.name ?? `Item ${owned.itemId}`}</th>
+          {rows.map(({ rowKey, displayName, stateSummary, owned, item }) => (
+            <tr key={rowKey}>
+              <th>{displayName}</th>
               <td>{owned.quantity}</td>
               <td>{item?.weight === null || item?.weight === undefined ? "—" : `${displayNumber(item.weight * owned.quantity)} ${item.weightUnit}`}</td>
               <td>{item?.recordType || item?.category || "Item"}</td>
-              <td>{compactText(item?.description || item?.weaponRulesText || item?.armorRulesText, 80) || "—"}</td>
+              <td>{stateSummary || compactText(item?.description || item?.weaponRulesText || item?.armorRulesText, 80) || "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -723,14 +723,14 @@ function SupplementalInventory(props: Props) {
         <table>
           <thead><tr><th>Item</th><th>Qty</th><th>Weight</th><th>Catalog</th><th>Type</th><th>Notes / Rules</th></tr></thead>
           <tbody>
-            {props.data.ownedItems.map(({ owned, item }) => (
-              <tr key={owned.itemId}>
-                <th>{item?.name ?? `Item ${owned.itemId}`}</th>
+            {props.data.ownedItems.map(({ rowKey, displayName, stateSummary, owned, item }) => (
+              <tr key={rowKey}>
+                <th>{displayName}</th>
                 <td>{owned.quantity}</td>
                 <td>{item?.weight === null || item?.weight === undefined ? "—" : `${displayNumber(item.weight * owned.quantity)} ${item.weightUnit}`}</td>
                 <td>{item?.equipmentGroup || item?.catalogScope || "Inventory"}</td>
                 <td>{item?.recordType || item?.category || "Item"}</td>
-                <td>{item?.description || item?.weaponRulesText || item?.armorRulesText || "—"}</td>
+                <td>{stateSummary || item?.description || item?.weaponRulesText || item?.armorRulesText || "—"}</td>
               </tr>
             ))}
           </tbody>

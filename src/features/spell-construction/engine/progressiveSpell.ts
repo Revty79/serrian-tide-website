@@ -155,7 +155,7 @@ export function describeProgressiveChange(change: ProgressiveChange): string {
     case 'set-container-rule': return `Change container to ${containerName(change.containerRuleId)}`;
     case 'add-effect': return `Add ${effectName(change.effect.ruleId)}`;
     case 'remove-effect': return 'Remove inherited effect';
-    case 'set-effect': return `Change ${effectName(change.effect.ruleId)} (quantity or description)`;
+    case 'set-effect': return `Change ${effectName(change.effect.ruleId)} selection details`;
     case 'set-range': return `Set Range to ${rangeName(change.rangeRuleId)}`;
     case 'set-shape': return `Set Shape to ${shapeName(change.shape?.ruleId)}`;
     case 'add-duration': return `Add ${durationName(change.duration.ruleId)} Duration`;

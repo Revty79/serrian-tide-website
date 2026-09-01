@@ -32,17 +32,24 @@ export function SpellCastingPanel({
   onPractitionerLevelChange,
   castingSystem,
   manaPool,
+  currentMana,
   automaticKnownSpell = false,
+  rawCastingCircumstance,
+  onRawCastingCircumstanceChange,
 }: {
   spell: SpellDocument;
   practitionerLevel?: PractitionerLevel;
   onPractitionerLevelChange?: (level: PractitionerLevel | undefined) => void;
   castingSystem?: string;
   manaPool?: number;
+  currentMana?: number;
   automaticKnownSpell?: boolean;
+  rawCastingCircumstance?: RawCastingCircumstanceId;
+  onRawCastingCircumstanceChange?: (circumstance: RawCastingCircumstanceId) => void;
 }) {
-  const [circumstance, setCircumstance] =
+  const [internalCircumstance, setInternalCircumstance] =
     useState<RawCastingCircumstanceId>();
+  const circumstance = rawCastingCircumstance ?? internalCircumstance;
   const baseCalculation = useMemo(() => calculateSpell(spell), [spell]);
   const progressiveResolution = useMemo(
     () =>
@@ -114,7 +121,8 @@ export function SpellCastingPanel({
           {practitionerLevel ? (
             <>
               Using <strong>{castingSystem}</strong> at <strong>{practitionerLevel}</strong> level
-              with <strong>{manaPool ?? 0} Mana</strong>. Because this Spell is in the
+              with <strong>{currentMana ?? manaPool ?? 0} / {manaPool ?? 0} Current Mana</strong>.
+              Because this Spell is in the
               Character&apos;s Spellbook, <strong>I Have the Spell</strong> is automatic.
             </>
           ) : (
@@ -159,7 +167,10 @@ export function SpellCastingPanel({
                     key={option.id}
                     className={circumstance === option.id ? "is-active" : ""}
                     title={labels.description}
-                    onClick={() => setCircumstance(option.id)}
+                    onClick={() => {
+                      setInternalCircumstance(option.id);
+                      onRawCastingCircumstanceChange?.(option.id);
+                    }}
                   >
                     {labels.shortLabel} +{option.adjustmentPercent}%
                   </button>
@@ -182,7 +193,7 @@ export function SpellCastingPanel({
           <small>
             {automaticKnownSpell
               ? practitionerLevel
-                ? `${castingSystem} · ${manaPool ?? 0} Mana available`
+                ? `${castingSystem} · ${currentMana ?? manaPool ?? 0} / ${manaPool ?? 0} Current Mana`
                 : "No eligible casting profile"
               : practitioner
                 ? `${practitioner.combatCastingTime} Initiative · ${practitioner.outOfCombatCastingTimeSeconds}s`

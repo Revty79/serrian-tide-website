@@ -1,15 +1,19 @@
 "use server";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
-import { item } from "@/db/item-schema";
+import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
+import { item, itemEffect, itemRuntimeProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
+  campaignCharacterActiveHealthPool,
   campaignCharacterAttribute,
+  campaignCharacterInjury,
   campaignCharacterItem,
+  campaignCharacterItemInstance,
   campaignCharacterProfile,
   campaignCreatureNpcProfile,
   campaignInventoryItem,
@@ -20,6 +24,28 @@ import {
   type CreatureDraft,
 } from "@/app/heavens/creatures/actions";
 import { CHARACTER_ATTRIBUTE_KEYS } from "@/features/characters/models";
+import {
+  copyCreatureAbility,
+  normalizeCreatureSnapshotAbilities,
+} from "@/features/creatures/creature-ability";
+import {
+  assertItemOwnershipStrategy,
+  assertNoStackInstanceOwnershipCollision,
+  getStartingItemInstanceCharges,
+  planOwnedItemInstancePersistence,
+  validateCurrentItemCharges,
+  type DraftOwnedItemInstance,
+} from "@/features/items/item-ownership";
+import {
+  DEFAULT_ITEM_RUNTIME_PROFILE,
+  validateItemRuntimeProfile,
+  type ItemRuntimeProfile,
+  type ItemUseMode,
+} from "@/features/items/item-runtime";
+import {
+  reconcileEquipmentAfterOwnershipMutationInTransaction,
+  validateEquipmentOwnershipMutationInTransaction,
+} from "@/features/items/equipment-state-service";
 import { requireGod } from "@/lib/server-access";
 
 export type CreatureNpcDraft = {
@@ -34,7 +60,11 @@ export type CreatureNpcDraft = {
   hpAdjustment: number;
   baselineSnapshot: CreatureDraft;
   currentSnapshot: CreatureDraft;
-  items: Array<{ itemId: number; quantity: number }>;
+  items: Array<{ itemId: number; quantity: number; unitCostCredits: number }>;
+  itemInstances: Array<DraftOwnedItemInstance & {
+    currentCharges: number;
+    acquiredAt: string | null;
+  }>;
   authorizedItems: Array<{
     id: number;
     name: string;
@@ -43,8 +73,39 @@ export type CreatureNpcDraft = {
     equipmentGroup: string | null;
     category: string;
     credits: number | null;
+    isMagical: boolean;
+    effectCount: number;
+    runtimeProfile: ItemRuntimeProfile;
   }>;
 };
+
+type ItemRuntimeColumns = {
+  runtimeUseMode: string | null;
+  runtimeQuantityPerUse: number | null;
+  runtimeMaximumCharges: number | null;
+  runtimeChargesPerUse: number | null;
+  runtimeRechargeNotes: string | null;
+  runtimeActivationLabel: string | null;
+  runtimeUseNotes: string | null;
+};
+
+function readItemRuntimeProfile(row: ItemRuntimeColumns): ItemRuntimeProfile {
+  const validation = validateItemRuntimeProfile(
+    row.runtimeUseMode === null
+      ? DEFAULT_ITEM_RUNTIME_PROFILE
+      : {
+          useMode: row.runtimeUseMode as ItemUseMode,
+          quantityPerUse: row.runtimeQuantityPerUse,
+          maximumCharges: row.runtimeMaximumCharges,
+          chargesPerUse: row.runtimeChargesPerUse,
+          rechargeNotes: row.runtimeRechargeNotes,
+          activationLabel: row.runtimeActivationLabel,
+          useNotes: row.runtimeUseNotes,
+        },
+  );
+  if (!validation.valid) throw new Error(validation.issues.map(({ message }) => message).join(" "));
+  return validation.profile;
+}
 
 async function requireOwner(campaignId: number) {
   const session = await requireGod();
@@ -67,7 +128,10 @@ function snapshotFromAggregate(aggregate: CreatureAggregate): CreatureDraft {
     hitLocations: aggregate.hitLocations.map((row) => ({ ...row })),
     attacks: aggregate.attacks.map((row) => ({ ...row })),
     skillLinks: aggregate.skillLinks.map((row) => ({ ...row })),
-    abilities: aggregate.abilities.map((row) => ({ ...row })),
+    abilities: aggregate.abilities.map((row) => ({
+      ...copyCreatureAbility(row),
+      crImpact: row.crImpact,
+    })),
     defenses: aggregate.defenses.map((row) => ({ ...row })),
     uses: aggregate.uses.map((row) => ({ ...row })),
     derivedCreatures: [],
@@ -76,9 +140,19 @@ function snapshotFromAggregate(aggregate: CreatureAggregate): CreatureDraft {
 
 function parseSnapshot(value: string, label: string): CreatureDraft {
   try {
-    return JSON.parse(value) as CreatureDraft;
-  } catch {
-    throw new Error(`${label} contains unreadable Creature data.`);
+    const parsed = JSON.parse(value) as CreatureDraft;
+    const normalized = normalizeCreatureSnapshotAbilities(parsed);
+    return {
+      ...parsed,
+      abilities: normalized.abilities.map((ability) => ({
+        ...ability,
+        crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact)
+          ? ability.crImpact as CreatureCrImpact
+          : "None",
+      })),
+    };
+  } catch (error) {
+    throw new Error(`${label} contains invalid Creature data: ${error instanceof Error ? error.message : "Unreadable snapshot."}`);
   }
 }
 
@@ -155,11 +229,43 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
     .limit(1);
   if (!profile) throw new Error("Creature NPC profile is missing.");
 
-  const [template, ownedItems, authorizedItems] = await Promise.all([
+  const [template, ownedItems, ownedItemInstances, authorizedItems] = await Promise.all([
     getCreature(profile.creatureId),
-    db.select({ itemId: campaignCharacterItem.itemId, quantity: campaignCharacterItem.quantity })
+    db.select({
+      itemId: campaignCharacterItem.itemId,
+      quantity: campaignCharacterItem.quantity,
+      unitCostCredits: campaignCharacterItem.unitCostCredits,
+      runtimeUseMode: itemRuntimeProfile.useMode,
+      runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+      runtimeMaximumCharges: itemRuntimeProfile.maximumCharges,
+      runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+      runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+      runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+      runtimeUseNotes: itemRuntimeProfile.useNotes,
+    })
       .from(campaignCharacterItem)
+      .innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
+      .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
       .where(eq(campaignCharacterItem.characterId, characterId)),
+    db.select({
+      id: campaignCharacterItemInstance.id,
+      itemId: campaignCharacterItemInstance.itemId,
+      currentCharges: campaignCharacterItemInstance.currentCharges,
+      unitCostCredits: campaignCharacterItemInstance.unitCostCredits,
+      acquiredAt: campaignCharacterItemInstance.acquiredAt,
+      runtimeUseMode: itemRuntimeProfile.useMode,
+      runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+      runtimeMaximumCharges: itemRuntimeProfile.maximumCharges,
+      runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+      runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+      runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+      runtimeUseNotes: itemRuntimeProfile.useNotes,
+    })
+      .from(campaignCharacterItemInstance)
+      .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
+      .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .where(eq(campaignCharacterItemInstance.characterId, characterId))
+      .orderBy(asc(campaignCharacterItemInstance.id)),
     db.select({
       id: item.id,
       name: item.name,
@@ -168,11 +274,30 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       equipmentGroup: item.equipmentGroup,
       category: item.category,
       credits: item.credits,
+      isMagical: item.isMagical,
+      effectCount: sql<number>`(select count(*)::int from ${itemEffect} where ${itemEffect.itemId} = ${item.id})`,
+      runtimeUseMode: itemRuntimeProfile.useMode,
+      runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+      runtimeMaximumCharges: itemRuntimeProfile.maximumCharges,
+      runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+      runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+      runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+      runtimeUseNotes: itemRuntimeProfile.useNotes,
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
+      .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, core.campaignId))
       .orderBy(asc(item.name)),
   ]);
+
+  assertNoStackInstanceOwnershipCollision({
+    definitions: [
+      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry) })),
+      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry) })),
+    ],
+    stacks: ownedItems,
+    instances: ownedItemInstances,
+  });
 
   return {
     characterId,
@@ -186,8 +311,27 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
     hpAdjustment: profile.hpAdjustment,
     baselineSnapshot: parseSnapshot(profile.baselineSnapshotJson, "Baseline snapshot"),
     currentSnapshot: parseSnapshot(profile.currentSnapshotJson, "Current snapshot"),
-    items: ownedItems,
-    authorizedItems,
+    items: ownedItems.map(({ itemId, quantity, unitCostCredits }) => ({ itemId, quantity, unitCostCredits })),
+    itemInstances: ownedItemInstances.map((entry) => ({
+      draftId: entry.id,
+      instanceId: entry.id,
+      itemId: entry.itemId,
+      currentCharges: validateCurrentItemCharges(entry.currentCharges),
+      unitCostCredits: entry.unitCostCredits,
+      acquiredAt: entry.acquiredAt.toISOString(),
+    })),
+    authorizedItems: authorizedItems.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      canonicalId: entry.canonicalId,
+      catalogScope: entry.catalogScope,
+      equipmentGroup: entry.equipmentGroup,
+      category: entry.category,
+      credits: entry.credits,
+      isMagical: entry.isMagical,
+      effectCount: entry.effectCount,
+      runtimeProfile: readItemRuntimeProfile(entry),
+    })),
   };
 }
 
@@ -219,19 +363,80 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
   unique(input.currentSnapshot.hpPools.map((row) => row.canonicalId), "HP Pool ID");
   unique(input.currentSnapshot.attacks.map((row) => row.canonicalId), "Attack ID");
   unique(input.currentSnapshot.abilities.map((row) => row.canonicalId), "Ability ID");
+  const normalizedAbilities = normalizeCreatureSnapshotAbilities(input.currentSnapshot).abilities.map((ability) => ({
+    ...ability,
+    crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact)
+      ? ability.crImpact as CreatureCrImpact
+      : "None" as CreatureCrImpact,
+  }));
 
   const authorizedIds = new Set(current.authorizedItems.map(({ id }) => id));
+  const authorizedById = new Map(current.authorizedItems.map((entry) => [entry.id, entry]));
   const seenItems = new Set<number>();
   const items = input.items.map((entry) => {
     if (!authorizedIds.has(entry.itemId)) throw new Error("Creature NPC inventory must use Campaign-authorized Items.");
     if (seenItems.has(entry.itemId)) throw new Error("An Item can only appear once in Creature NPC inventory.");
     if (!Number.isInteger(entry.quantity) || entry.quantity <= 0) throw new Error("Creature NPC Item quantity must be a positive whole number.");
     seenItems.add(entry.itemId);
+    const source = authorizedById.get(entry.itemId);
+    if (!source) throw new Error("Creature NPC inventory must use Campaign-authorized Items.");
+    assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name);
+    const existing = current.items.find((owned) => owned.itemId === entry.itemId);
+    return {
+      itemId: entry.itemId,
+      quantity: entry.quantity,
+      unitCostCredits: source.credits ?? existing?.unitCostCredits ?? 0,
+    };
+  });
+
+  if (!Array.isArray(input.itemInstances)) throw new Error("Creature NPC Item instances are missing.");
+  const existingInstances = new Map(
+    current.itemInstances.flatMap((entry) => entry.instanceId === null ? [] : [[entry.instanceId, entry] as const]),
+  );
+  const seenDraftIds = new Set<number>();
+  const seenInstanceIds = new Set<number>();
+  const itemInstances = input.itemInstances.map((entry) => {
+    if (!Number.isSafeInteger(entry.draftId) || seenDraftIds.has(entry.draftId)) {
+      throw new Error("Every Creature NPC Item instance needs a distinct draft identity.");
+    }
+    seenDraftIds.add(entry.draftId);
+    const source = authorizedById.get(entry.itemId);
+    if (!source) throw new Error("Creature NPC Item instances must use Campaign-authorized Items.");
+    assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name);
+    if (entry.instanceId === null) {
+      if (entry.draftId >= 0) throw new Error("An unsaved Creature NPC Item instance needs a temporary draft identity.");
+      return {
+        ...entry,
+        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile),
+        unitCostCredits: source.credits ?? entry.unitCostCredits,
+        acquiredAt: null,
+      };
+    }
+    if (!Number.isInteger(entry.instanceId) || entry.instanceId <= 0 || seenInstanceIds.has(entry.instanceId)) {
+      throw new Error("Creature NPC Item instance identity is invalid or duplicated.");
+    }
+    seenInstanceIds.add(entry.instanceId);
+    const existing = existingInstances.get(entry.instanceId);
+    if (
+      !existing
+      || existing.itemId !== entry.itemId
+      || existing.currentCharges !== entry.currentCharges
+      || Math.abs(existing.unitCostCredits - entry.unitCostCredits) > 0.000001
+      || existing.acquiredAt !== entry.acquiredAt
+    ) {
+      throw new Error("Creature NPC Item instance state and acquisition data cannot be changed here.");
+    }
     return entry;
+  });
+  assertNoStackInstanceOwnershipCollision({
+    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile })),
+    stacks: items,
+    instances: itemInstances,
   });
 
   const normalizedSnapshot: CreatureDraft = {
     ...input.currentSnapshot,
+    abilities: normalizedAbilities,
     id: current.baselineSnapshot.id,
     core: {
       ...input.currentSnapshot.core,
@@ -243,8 +448,56 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     },
     derivedCreatures: [],
   };
-
   await db.transaction(async (tx) => {
+    await tx
+      .select({ id: campaignCharacter.id })
+      .from(campaignCharacter)
+      .where(eq(campaignCharacter.id, input.characterId))
+      .limit(1)
+      .for("update");
+    const [lockedProfile] = await tx
+      .select({ currentSnapshotJson: campaignCreatureNpcProfile.currentSnapshotJson })
+      .from(campaignCreatureNpcProfile)
+      .where(eq(campaignCreatureNpcProfile.characterId, input.characterId))
+      .limit(1)
+      .for("update");
+    if (!lockedProfile) throw new Error("Creature NPC profile is missing.");
+    const lockedSnapshot = parseSnapshot(lockedProfile.currentSnapshotJson, "Current snapshot");
+    const nextPoolKeys = new Set(
+      normalizedSnapshot.hpPools.map(({ canonicalId }) => canonicalId.toLocaleLowerCase("en-US")),
+    );
+    const removedPoolKeys = lockedSnapshot.hpPools
+      .map(({ canonicalId }) => canonicalId)
+      .filter((canonicalId) => !nextPoolKeys.has(canonicalId.toLocaleLowerCase("en-US")));
+    if (removedPoolKeys.length) {
+      const [damagedPool] = await tx
+        .select({ poolKey: campaignCharacterActiveHealthPool.poolKey })
+        .from(campaignCharacterActiveHealthPool)
+        .where(and(
+          eq(campaignCharacterActiveHealthPool.characterId, input.characterId),
+          inArray(campaignCharacterActiveHealthPool.poolKey, removedPoolKeys),
+          gt(campaignCharacterActiveHealthPool.damage, 0),
+        ))
+        .limit(1);
+      const [unresolvedInjury] = await tx
+        .select({ poolKey: campaignCharacterInjury.poolKey })
+        .from(campaignCharacterInjury)
+        .where(and(
+          eq(campaignCharacterInjury.characterId, input.characterId),
+          inArray(campaignCharacterInjury.poolKey, removedPoolKeys),
+          eq(campaignCharacterInjury.resolved, false),
+        ))
+        .limit(1);
+      const referencedPoolKey = damagedPool?.poolKey ?? unresolvedInjury?.poolKey;
+      if (referencedPoolKey) {
+        const currentPool = lockedSnapshot.hpPools.find(
+          ({ canonicalId }) => canonicalId === referencedPoolKey,
+        );
+        throw new Error(
+          `${currentPool?.poolName ?? referencedPoolKey} cannot be removed or assigned a new HP Pool ID while it has Active Damage or unresolved Injuries. Heal/resolve that state first.`,
+        );
+      }
+    }
     await tx.update(campaignCharacter).set({ name, updatedAt: new Date() }).where(eq(campaignCharacter.id, input.characterId));
     await tx.update(campaignCreatureNpcProfile).set({
       personality: input.personality.trim(),
@@ -253,17 +506,41 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       currentSnapshotJson: JSON.stringify(normalizedSnapshot),
       updatedAt: new Date(),
     }).where(eq(campaignCreatureNpcProfile.characterId, input.characterId));
+    const { removedInstanceIds, newInstances } = planOwnedItemInstancePersistence({
+      existingInstanceIds: current.itemInstances.flatMap(
+        (entry) => entry.instanceId === null ? [] : [entry.instanceId],
+      ),
+      drafts: itemInstances,
+    });
+    await validateEquipmentOwnershipMutationInTransaction(tx, {
+      characterId: input.characterId,
+      nextStackQuantities: items,
+      removedInstanceIds,
+    });
     await tx.delete(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, input.characterId));
     if (items.length) {
-      const itemRows = await tx.select({ id: item.id, credits: item.credits }).from(item).where(inArray(item.id, items.map(({ itemId }) => itemId)));
-      const prices = new Map(itemRows.map((row) => [row.id, row.credits ?? 0]));
       await tx.insert(campaignCharacterItem).values(items.map((entry) => ({
         characterId: input.characterId,
         itemId: entry.itemId,
         quantity: entry.quantity,
-        unitCostCredits: prices.get(entry.itemId) ?? 0,
+        unitCostCredits: entry.unitCostCredits,
       })));
     }
+    if (removedInstanceIds.length) {
+      await tx.delete(campaignCharacterItemInstance).where(and(
+        eq(campaignCharacterItemInstance.characterId, input.characterId),
+        inArray(campaignCharacterItemInstance.id, removedInstanceIds),
+      ));
+    }
+    if (newInstances.length) {
+      await tx.insert(campaignCharacterItemInstance).values(newInstances.map((entry) => ({
+        characterId: input.characterId,
+        itemId: entry.itemId,
+        currentCharges: entry.currentCharges,
+        unitCostCredits: entry.unitCostCredits,
+      })));
+    }
+    await reconcileEquipmentAfterOwnershipMutationInTransaction(tx, input.characterId);
   });
 
   revalidatePath("/heavens/npcs");

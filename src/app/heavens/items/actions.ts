@@ -23,13 +23,38 @@ import {
   EQUIPMENT_GROUPS,
   item,
   itemArmorDamageModifier,
+  itemEffect,
+  itemPassiveEffect,
   itemProperty,
+  itemRuntimeProfile,
   itemTagCatalog,
   itemTagLink,
   weaponProfile,
   type EquipmentCatalogGroup,
   type ItemCatalogScope,
 } from "@/db/item-schema";
+import { skill } from "@/db/skill-schema";
+import { campaignCharacterItemInstance } from "@/db/realm-schema";
+import {
+  copyPassiveItemEffects,
+  validatePassiveItemEffect,
+  type ItemPassiveEffectDefinition,
+} from "@/features/items/equipment-state";
+import {
+  copyItemRuntimeDefinition,
+  decodeItemEffects,
+  DEFAULT_ITEM_RUNTIME_PROFILE,
+  encodeItemEffects,
+  validateItemRuntimeDefinition,
+  validateItemRuntimeProfile,
+  type ItemRuntimeProfile,
+  type ItemUseMode,
+} from "@/features/items/item-runtime";
+import {
+  decodeMechanicalEffect,
+  encodeMechanicalEffect,
+  type MechanicalEffect,
+} from "@/features/mechanical-effects";
 import { requireGod } from "@/lib/server-access";
 
 export type ItemLibraryFilters = {
@@ -52,6 +77,8 @@ export type ItemSummary = {
   recordType: string;
   family: string;
   category: string;
+  isMagical: boolean;
+  useMode: ItemUseMode;
   tags: string[];
   hasWeaponProfile: boolean;
   hasArmorProfile: boolean;
@@ -74,6 +101,7 @@ export type ItemFacets = {
 export type ItemAuthoringReferences = {
   tags: Array<{ name: string; tagGroup: string; description: string }>;
   armorBodyLocations: Array<{ key: string; label: string }>;
+  skills: Array<{ id: number; name: string }>;
 };
 
 export type RelatedItemCandidate = { id: number; canonicalId: string; name: string; recordType: string };
@@ -82,6 +110,10 @@ export type ItemLineageSummary = { id: number; canonicalId: string; name: string
 
 export type ItemDraft = {
   id?: number;
+  isMagical: boolean;
+  runtimeProfile: ItemRuntimeProfile;
+  effects: MechanicalEffect[];
+  passiveEffects: ItemPassiveEffectDefinition[];
   core: {
     canonicalId: string;
     name: string;
@@ -164,6 +196,22 @@ function normalize(input: ItemDraft) {
   }
   if ((input.core.weight === null) !== (clean(input.core.weightUnit) === "")) throw new Error("Weight and Weight Unit must be provided together.");
 
+  const runtimeValidation = validateItemRuntimeDefinition({
+    isMagical: input.isMagical,
+    runtimeProfile: input.runtimeProfile,
+    effects: input.effects,
+  });
+  if (!runtimeValidation.valid) {
+    throw new Error(runtimeValidation.issues.map(({ message }) => message).join(" "));
+  }
+  if (!Array.isArray(input.passiveEffects)) throw new Error("Item Passive Effects must be an ordered list.");
+  if (input.core.catalogScope !== "equipment" && input.passiveEffects.length) {
+    throw new Error("Only Equipment Items may define Passive Effects.");
+  }
+  const passiveEffects = input.passiveEffects.map((entry) => validatePassiveItemEffect(entry));
+  const passiveIds = passiveEffects.flatMap(({ id }) => id === null ? [] : [id]);
+  if (new Set(passiveIds).size !== passiveIds.length) throw new Error("Passive Effect identities cannot be duplicated.");
+
   const properties = input.properties.map((row, sortOrder) => {
     const relatedItemId = row.relationKind === "item" ? row.relatedItemId : null;
     const relatedCreatureCanonicalId = row.relationKind === "creature" ? optionalText(row.relatedCreatureCanonicalId) : null;
@@ -220,6 +268,8 @@ function normalize(input: ItemDraft) {
   } : null;
 
   return {
+    ...runtimeValidation.definition,
+    passiveEffects,
     core: {
       canonicalId: input.id
         ? required(input.core.canonicalId, "Item ID").toLocaleUpperCase("en-US")
@@ -271,7 +321,8 @@ export async function listItems(filters: ItemLibraryFilters): Promise<ItemLibrar
   const baseRows = await db.select({
     id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope,
     equipmentGroup: item.equipmentGroup, recordType: item.recordType, family: item.family, category: item.category,
-  }).from(item).where(where).orderBy(asc(item.name), asc(item.id)).limit(pageSize).offset((page - 1) * pageSize);
+    isMagical: item.isMagical, useMode: itemRuntimeProfile.useMode,
+  }).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(where).orderBy(asc(item.name), asc(item.id)).limit(pageSize).offset((page - 1) * pageSize);
   const ids = baseRows.map(({ id }) => id);
   if (!ids.length) return { items: [], total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
   const [tagRows, weaponRows, armorRows] = await Promise.all([
@@ -284,7 +335,13 @@ export async function listItems(filters: ItemLibraryFilters): Promise<ItemLibrar
   const hasWeapon = new Set(weaponRows.map(({ itemId }) => itemId));
   const hasArmor = new Set(armorRows.map(({ itemId }) => itemId));
   return {
-    items: baseRows.map((row) => ({ ...row, tags: tags.get(row.id) ?? [], hasWeaponProfile: hasWeapon.has(row.id), hasArmorProfile: hasArmor.has(row.id) })),
+    items: baseRows.map((row) => ({
+      ...row,
+      useMode: (row.useMode ?? "none") as ItemUseMode,
+      tags: tags.get(row.id) ?? [],
+      hasWeaponProfile: hasWeapon.has(row.id),
+      hasArmorProfile: hasArmor.has(row.id),
+    })),
     total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)),
   };
 }
@@ -305,11 +362,12 @@ export async function listItemFacets(catalogScope: ItemCatalogScope): Promise<It
 
 export async function listItemAuthoringReferences(): Promise<ItemAuthoringReferences> {
   await requireGod();
-  const [tags, locations] = await Promise.all([
+  const [tags, locations, skills] = await Promise.all([
     db.select({ name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),
     db.select({ key: armorLocationReference.locationCode, label: armorLocationReference.locationName }).from(armorLocationReference).orderBy(asc(armorLocationReference.sortOrder)),
+    db.select({ id: skill.id, name: skill.name }).from(skill).orderBy(asc(skill.name), asc(skill.id)),
   ]);
-  return { tags, armorBodyLocations: locations };
+  return { tags, armorBodyLocations: locations, skills };
 }
 
 export async function getItem(id: number): Promise<ItemAggregate | null> {
@@ -321,7 +379,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     const [parent] = await db.select({ name: item.name }).from(item).where(eq(item.id, row.parentItemId)).limit(1);
     parentItemName = parent?.name ?? null;
   }
-  const [properties, weaponRows, armorRows, modifiers, locations, tags, variants] = await Promise.all([
+  const [properties, weaponRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows] = await Promise.all([
     db.select().from(itemProperty).where(eq(itemProperty.itemId, id)).orderBy(asc(itemProperty.sortOrder), asc(itemProperty.id)),
     db.select().from(weaponProfile).where(eq(weaponProfile.itemId, id)).limit(1),
     db.select().from(armorProfile).where(eq(armorProfile.itemId, id)).limit(1),
@@ -329,6 +387,19 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     db.select({ key: armorLocation.locationCode }).from(armorLocation).where(eq(armorLocation.itemId, id)).orderBy(asc(armorLocation.sortOrder)),
     db.select({ name: itemTagCatalog.name }).from(itemTagLink).innerJoin(itemTagCatalog, eq(itemTagCatalog.id, itemTagLink.tagId)).where(eq(itemTagLink.itemId, id)).orderBy(asc(itemTagCatalog.name)),
     db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope }).from(item).where(eq(item.parentItemId, id)).orderBy(asc(item.name), asc(item.id)),
+    db.select().from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
+    db.select({
+      schemaVersion: itemEffect.schemaVersion,
+      effectJson: itemEffect.effectJson,
+      sortOrder: itemEffect.sortOrder,
+    }).from(itemEffect).where(eq(itemEffect.itemId, id)).orderBy(asc(itemEffect.sortOrder), asc(itemEffect.id)),
+    db.select({
+      id: itemPassiveEffect.id,
+      requiredEquipmentState: itemPassiveEffect.requiredEquipmentState,
+      schemaVersion: itemPassiveEffect.schemaVersion,
+      effectJson: itemPassiveEffect.effectJson,
+      sortOrder: itemPassiveEffect.sortOrder,
+    }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id)).orderBy(asc(itemPassiveEffect.sortOrder), asc(itemPassiveEffect.id)),
   ]);
   const relatedItemIds = properties.map(({ relatedItemId }) => relatedItemId).filter((value): value is number => value !== null);
   const relatedCreatureIds = properties.map(({ relatedCreatureCanonicalId }) => relatedCreatureCanonicalId).filter((value): value is string => value !== null);
@@ -345,8 +416,24 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     const [ammo] = await db.select({ name: item.name }).from(item).where(eq(item.id, weapon.ammunitionItemId)).limit(1);
     ammunitionItemName = ammo?.name ?? null;
   }
+  const runtimeValidation = validateItemRuntimeProfile(
+    runtimeRows[0] ?? DEFAULT_ITEM_RUNTIME_PROFILE,
+  );
+  if (!runtimeValidation.valid) {
+    throw new Error(`Item ${row.canonicalId} has an invalid runtime profile: ${runtimeValidation.issues.map(({ message }) => message).join(" ")}`);
+  }
+  const effects = decodeItemEffects(effectRows);
+  const passiveEffects = passiveEffectRows.map((entry) => validatePassiveItemEffect({
+    id: entry.id,
+    requiredEquipmentState: entry.requiredEquipmentState as ItemPassiveEffectDefinition["requiredEquipmentState"],
+    effect: decodeMechanicalEffect({ schemaVersion: entry.schemaVersion, effectJson: entry.effectJson }),
+  }));
   return {
     id: row.id,
+    isMagical: row.isMagical,
+    runtimeProfile: runtimeValidation.profile,
+    effects,
+    passiveEffects,
     core: {
       canonicalId: row.canonicalId, name: row.name, catalogScope: row.catalogScope as ItemCatalogScope,
       equipmentGroup: row.equipmentGroup as EquipmentCatalogGroup | null, recordType: row.recordType, family: row.family,
@@ -421,6 +508,7 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
       const canonicalId = `ITEM-${String(largestSequence + 1).padStart(4, "0")}`;
       const [created] = await tx.insert(item).values({
         ...normalized.core,
+        isMagical: normalized.isMagical,
         canonicalId,
         createdByUserId: session.user.id,
         sourceSystem: null,
@@ -451,7 +539,20 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
       ) {
         throw new Error("Canonical Item source identity cannot be changed.");
       }
-      const updated = await tx.update(item).set({ ...normalized.core, updatedAt: new Date() }).where(eq(item.id, id)).returning({ id: item.id });
+      if (normalized.runtimeProfile.useMode !== "charges") {
+        const [storedRuntime, ownedInstances] = await Promise.all([
+          tx.select({ useMode: itemRuntimeProfile.useMode }).from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
+          tx.select({ value: count() }).from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.itemId, id)),
+        ]);
+        if (storedRuntime[0]?.useMode === "charges" && Number(ownedInstances[0]?.value ?? 0) > 0) {
+          throw new Error("This charged Item has owned instances. Resolve those stable copies before changing its runtime mode; no automatic stack conversion or data deletion is allowed.");
+        }
+      }
+      const updated = await tx.update(item).set({
+        ...normalized.core,
+        isMagical: normalized.isMagical,
+        updatedAt: new Date(),
+      }).where(eq(item.id, id)).returning({ id: item.id });
       if (!updated.length) throw new Error("That Item no longer exists.");
     }
 
@@ -461,6 +562,49 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
     await tx.delete(itemProperty).where(eq(itemProperty.itemId, id));
     await tx.delete(weaponProfile).where(eq(weaponProfile.itemId, id));
     await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
+    await tx.delete(itemEffect).where(eq(itemEffect.itemId, id));
+    await tx.delete(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id));
+
+    await tx.insert(itemRuntimeProfile).values({
+      itemId: id!,
+      ...normalized.runtimeProfile,
+    });
+    const encodedEffects = encodeItemEffects(normalized.effects);
+    if (encodedEffects.length) {
+      await tx.insert(itemEffect).values(encodedEffects.map((effect) => ({
+        itemId: id!,
+        ...effect,
+      })));
+    }
+    const storedPassiveRows = await tx.select({ id: itemPassiveEffect.id }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));
+    const storedPassiveIds = new Set(storedPassiveRows.map(({ id: passiveId }) => passiveId));
+    const submittedPassiveIds = new Set(normalized.passiveEffects.flatMap(({ id: passiveId }) => passiveId === null ? [] : [passiveId]));
+    if ([...submittedPassiveIds].some((passiveId) => !storedPassiveIds.has(passiveId))) {
+      throw new Error("One or more Passive Effect identities do not belong to this Item.");
+    }
+    const removedPassiveIds = [...storedPassiveIds].filter((passiveId) => !submittedPassiveIds.has(passiveId));
+    if (removedPassiveIds.length) {
+      await tx.delete(itemPassiveEffect).where(and(eq(itemPassiveEffect.itemId, id!), inArray(itemPassiveEffect.id, removedPassiveIds)));
+    }
+    for (const [sortOrder, passive] of normalized.passiveEffects.entries()) {
+      const encoded = encodeMechanicalEffect(passive.effect);
+      if (passive.id === null) {
+        await tx.insert(itemPassiveEffect).values({
+          itemId: id!,
+          requiredEquipmentState: passive.requiredEquipmentState,
+          ...encoded,
+          sortOrder,
+        });
+      } else {
+        const updated = await tx.update(itemPassiveEffect).set({
+          requiredEquipmentState: passive.requiredEquipmentState,
+          ...encoded,
+          sortOrder,
+          updatedAt: new Date(),
+        }).where(and(eq(itemPassiveEffect.id, passive.id), eq(itemPassiveEffect.itemId, id!))).returning({ id: itemPassiveEffect.id });
+        if (!updated.length) throw new Error("Passive Effect changed before the Item could be saved.");
+      }
+    }
 
     if (normalized.properties.length) {
       await tx.insert(itemProperty).values(normalized.properties.map((property) => ({
@@ -511,9 +655,12 @@ export async function createItemVariant(parentItemId: number, variantName: strin
   const parent = await getItem(parentItemId);
   if (!parent) throw new Error("Parent Item not found.");
   const name = required(variantName, "Variant Name");
+  const runtimeDefinition = copyItemRuntimeDefinition(parent);
   const clone: ItemDraft = {
     ...parent,
     id: undefined,
+    ...runtimeDefinition,
+    passiveEffects: copyPassiveItemEffects(parent.passiveEffects),
     core: { ...parent.core, canonicalId: "", name, parentItemId, parentItemName: parent.core.name, sourceSystem: null, sourceExternalId: null },
     properties: parent.properties.map((row) => ({ ...row })),
     weaponProfile: parent.weaponProfile ? { ...parent.weaponProfile, fireModes: [...parent.weaponProfile.fireModes] } : null,

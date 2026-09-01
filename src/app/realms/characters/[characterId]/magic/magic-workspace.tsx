@@ -12,10 +12,17 @@ import {
   setCharacterSpellbookStatus,
   type CharacterSavedSpell,
 } from "@/app/characters/spell-actions";
+import { SpellCastDialog } from "@/app/characters/spell-cast-dialog";
 import { SpellCastingPanel } from "@/app/characters/spell-casting-panel";
 import { SpellConstructionEditor } from "@/app/heavens/skills/spell-construction-editor";
+import type { ActiveManaView } from "@/features/active-state/active-mana";
 import { getAvailableSpellCastingContexts } from "@/features/characters/character-spell-casting";
+import type {
+  SpellCastExecutionResult,
+  SpellCastSourceRequest,
+} from "@/features/characters/character-spell-runtime";
 import type { CharacterAggregate } from "@/features/characters/models";
+import type { RawCastingCircumstanceId } from "@/features/spell-construction/data/rawCastingRules";
 import { getSpellFrameworkName } from "@/features/spell-construction/data/spellIdentity";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
 import type {
@@ -41,10 +48,12 @@ function errorMessage(error: unknown): string {
 export function MagicWorkspace({
   aggregate,
   initialSpells,
+  initialActiveMana,
   initialSpellId,
 }: {
   aggregate: CharacterAggregate;
   initialSpells: CharacterSavedSpell[];
+  initialActiveMana: ActiveManaView;
   initialSpellId?: number;
 }) {
   const router = useRouter();
@@ -62,6 +71,9 @@ export function MagicWorkspace({
     message: string;
   } | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingCalculatorAction | null>(null);
+  const [activeMana, setActiveMana] = useState(initialActiveMana);
+  const [rawCircumstance, setRawCircumstance] = useState<RawCastingCircumstanceId>();
+  const [castSource, setCastSource] = useState<SpellCastSourceRequest | null>(null);
 
   useEffect(() => {
     if (!dirty) return;
@@ -122,6 +134,52 @@ export function MagicWorkspace({
     () => calculateSpell(activeDocument),
     [activeDocument],
   );
+  const runtimeContext = availableCastingContexts.find(
+    ({ system }) => system === activeDocument.castingSystem,
+  ) ?? (availableCastingContexts.length === 1 ? availableCastingContexts[0] : null);
+  const runtimeMana = activeMana.pools.find(
+    ({ system }) => system === runtimeContext?.system,
+  );
+  const knownSpellHasUnsavedChanges = Boolean(selectedSaved?.inSpellbook && dirty);
+  const canPrepareRuntimeCast = Boolean(
+    runtimeContext
+      && runtimeMana
+      && !knownSpellHasUnsavedChanges
+      && (selectedSaved?.inSpellbook || rawCircumstance),
+  );
+
+  function prepareRuntimeCast() {
+    if (!canPrepareRuntimeCast) return;
+    if (selectedSaved?.inSpellbook && !dirty) {
+      setCastSource({ kind: "personal", savedSpellId: selectedSaved.id });
+    } else if (selectedSaved && !dirty && rawCircumstance) {
+      setCastSource({
+        kind: "raw-saved",
+        savedSpellId: selectedSaved.id,
+        circumstance: rawCircumstance,
+      });
+    } else if (rawCircumstance) {
+      setCastSource({
+        kind: "raw-formula",
+        document: activeDocument,
+        circumstance: rawCircumstance,
+      });
+    }
+  }
+
+  function recordCast(result: SpellCastExecutionResult) {
+    setActiveMana((current) => ({
+      ...current,
+      pools: current.pools.map((pool) => (
+        pool.system === result.finalMana.system ? result.finalMana : pool
+      )),
+    }));
+    setFeedback({
+      kind: "success",
+      message: `${result.spell.name} cast successfully. ${result.finalMana.currentMana} ${result.finalMana.system} Mana remains.`,
+    });
+    router.refresh();
+  }
 
   function startNewSpell() {
     setDocument(createEmptySpell());
@@ -421,12 +479,37 @@ export function MagicWorkspace({
           <SpellCastingPanel
             spell={activeDocument}
             practitionerLevel={activeDocument.practitionerLevel}
+            rawCastingCircumstance={rawCircumstance}
+            onRawCastingCircumstanceChange={setRawCircumstance}
             onPractitionerLevelChange={(practitionerLevel) => changeDocument({
               ...activeDocument,
               practitionerLevel,
               modifiedAt: new Date().toISOString(),
             })}
           />
+
+          <section className="spell-runtime-launch">
+            <div>
+              <span>REAL CASTING · SERVER AUTHORITATIVE</span>
+              <strong>
+                {runtimeContext && runtimeMana
+                  ? `${runtimeContext.system}: ${runtimeMana.currentMana} / ${runtimeMana.maximumMana} Current Mana · ${runtimeMana.spellAccessLevel ?? "No caster level"}`
+                  : "This Character has no unambiguous active casting context for the formula."}
+              </strong>
+              <small>
+                {knownSpellHasUnsavedChanges
+                  ? "Save or discard changes before casting this Spellbook Spell."
+                  : selectedSaved?.inSpellbook
+                    ? "Known Spell casting uses I Have the Spell automatically."
+                    : rawCircumstance
+                      ? `Selected tabletop declaration: ${rawCircumstance}. Runtime targets are chosen in the preview.`
+                      : "Choose an established Raw Casting circumstance above to enable a real preview."}
+              </small>
+            </div>
+            <button type="button" disabled={!canPrepareRuntimeCast} onClick={prepareRuntimeCast}>
+              Preview Runtime Cast
+            </button>
+          </section>
 
           <div className="spell-calculator-editor__builder">
             <SpellConstructionEditor
@@ -460,6 +543,14 @@ export function MagicWorkspace({
             <button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button>
           </div>
         </div>
+      ) : null}
+      {castSource ? (
+        <SpellCastDialog
+          casterCharacterId={aggregate.character.id}
+          source={castSource}
+          onClose={() => setCastSource(null)}
+          onCast={recordCast}
+        />
       ) : null}
     </main>
   );
