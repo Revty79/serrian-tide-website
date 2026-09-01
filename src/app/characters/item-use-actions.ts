@@ -16,7 +16,10 @@ import {
   readActiveHealthInTransaction,
   type ActiveHealthTransaction,
 } from "@/features/active-state/active-health-service";
-import { persistPlannedMechanicalEffectInTransaction } from "@/features/active-state/mechanical-effect-service";
+import {
+  persistPlannedMechanicalEffectInTransaction,
+  type PersistedMechanicalEffectObserver,
+} from "@/features/active-state/mechanical-effect-service";
 import {
   assertConsumableHasInactiveQuantityInTransaction,
   lockEquipmentStateCharacterInTransaction,
@@ -382,6 +385,7 @@ export async function executeCharacterItemUseInCallerTransaction(
   tx: ActiveHealthTransaction,
   input: ItemUseRequest,
   actingUserId: string,
+  onPersistedEffect?: PersistedMechanicalEffectObserver,
 ): Promise<ItemUseExecutionResult> {
   const request = validateRequest(input);
   let loaded: LoadedUse | null = null;
@@ -429,12 +433,13 @@ export async function executeCharacterItemUseInCallerTransaction(
     applyAutomaticEffect: async (effect) => {
       const context = loaded;
       if (!context) throw new Error("The planned Item effect lost its authoritative target state.");
-      await persistPlannedMechanicalEffectInTransaction(tx, {
+      const persisted = await persistPlannedMechanicalEffectInTransaction(tx, {
         plan: effect.plan,
         targetCharacterId: context.plan.target.characterId,
         sourceEffectKey: String(effect.effectId),
         targetAnatomy: context.targetAnatomy,
       });
+      if (persisted && onPersistedEffect) await onPersistedEffect(persisted);
     },
   }));
 }

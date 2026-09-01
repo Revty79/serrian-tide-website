@@ -13,6 +13,7 @@ import {
 } from "@/db/realm-schema";
 import {
   persistPlannedMechanicalEffectInTransaction,
+  type PersistedMechanicalEffectObserver,
 } from "@/features/active-state/mechanical-effect-service";
 import {
   lockActiveHealthInTransaction,
@@ -299,6 +300,7 @@ export async function executeCreatureAbilityUseInCallerTransaction(
   input: CreatureAbilityUseRequest,
   actingUserId: string,
   confirmed: boolean,
+  onPersistedEffect?: PersistedMechanicalEffectObserver,
 ): Promise<CreatureAbilityUseResult> {
   const request = validateRequest(input);
   let loaded: LoadedPlan | null = null;
@@ -311,12 +313,13 @@ export async function executeCreatureAbilityUseInCallerTransaction(
       applyAutomaticEffect: async (application) => {
         const target = loaded?.targets.find(({ characterId }) => characterId === application.targetCharacterId);
         if (!target) throw new Error("The planned Creature Ability effect lost its authoritative target state.");
-        await persistPlannedMechanicalEffectInTransaction(tx, {
+        const persisted = await persistPlannedMechanicalEffectInTransaction(tx, {
           plan: application.plan,
           targetCharacterId: application.targetCharacterId,
           sourceEffectKey: application.effectKey,
           targetAnatomy: target.anatomy,
         });
+        if (persisted && onPersistedEffect) await onPersistedEffect(persisted);
       },
     }),
     confirmed,

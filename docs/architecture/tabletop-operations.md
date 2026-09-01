@@ -235,3 +235,27 @@ Master Creature records remain reusable templates and never participate directly
 ### Tabletop-aid authority
 
 Runtime Integration does not invent attack rolls, defense rolls, automatic targets, NPC decisions, Weapon-to-Skill mappings, armor/soak automation, or narrative consequences. Creature attack damage is accepted only when it is direct numeric Serrian Tide damage; dice notation remains a G.O.D. ruling. Ambiguous or manual effects are shown for explicit G.O.D. resolution.
+
+## Build 9 Duration Advancement and Encounter Closeout
+
+Build 9 attaches Tabletop lifecycle context to the existing authoritative Active Condition and Temporary Modifier identities. The authored `durationKind`, `durationValue`, and `durationLabel` remain on the Active Effect unchanged. A `campaign_session_effect_duration_binding` stores only the owning Scene/Encounter, finite remaining value, and lifecycle status. `until-removed` effects never receive automatic bindings. Existing finite or Scene effects without trustworthy context remain visibly unbound until the G.O.D. explicitly binds them; they do not advance based on the currently selected page, timestamps, or inferred context.
+
+```text
+Authoritative Active Effect identity
+                |
+Tabletop duration binding and remaining value
+                |
+authoritative Initiative / Scene lifecycle boundary
+                |
+existing Active Effects end/resolve service
+```
+
+Combat Step and Round passage is observed around every server-side persistence path that mutates the Build 5 Initiative engine. The actual positive change in `stepNumber` advances `combat-steps`; the actual positive change in `roundNumber` advances `combat-rounds`. A Round transition can advance both once. Forced Round advancement is elapsed table time and counts normally. Advanced G.O.D. Initiative correction is bookkeeping and explicitly reports no duration passage. Closing Initiative expires remaining combat-scoped bindings in the same transaction. Completing an Encounter does not expire Scene effects; completing their specifically bound Scene does. Reopening Initiative, an Encounter, or a Scene never resurrects expired effects.
+
+Duration advancement is driven by authoritative lifecycle boundaries, not page refreshes or inferred real time. Expiration uses the existing Condition resolution and Modifier ending services, preserves effect history, and closes the binding atomically. Manual Tabletop resolution closes its binding immediately; lifecycle processing also reconciles effects ended elsewhere without resurrecting or double-ending them.
+
+Encounter closeout is a G.O.D.-facing read and controller layer, not another combat engine. It blocks finalization while Initiative is active; a pending action is active or interrupted; an authored action is pending or needs a ruling; or a Reaction is declared or needs a ruling. Unbound effects are warnings because their relationship to the Encounter is not objectively known.
+
+Build 9 rewards are XP only. Authored Creature snapshot `core.killXp` values are optional, unchecked suggestions. Reward suggestions never constitute an automatic outcome or XP grant. The system does not inspect Health, infer defeat/death, or calculate XP from CR. The G.O.D. explicitly chooses Creature references and enters each Participant recipient's amount.
+
+The finalizer locks the Encounter and exact Participant Character profiles, revalidates all blockers and recipients, increments only spendable `campaign_character_profile.experience`, writes immutable `campaign_session_encounter_reward` history, and completes the Encounter in one transaction. `totalExperience` remains the established lifetime-spent Advancement ledger and is not changed by awards. Zero XP is valid. Unique reward history and locked lifecycle state prevent repeat submissions from duplicating XP. Reopening does not refund XP, delete reward history, resurrect effects, or permit the prior award to be granted again.

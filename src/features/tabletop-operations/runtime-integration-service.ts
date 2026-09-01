@@ -98,6 +98,11 @@ import {
 import { resolveInitiativeCapacityInTransaction } from "./initiative-capacity-service";
 import { enrollLateInitiativeParticipant } from "./initiative-runtime";
 import { assertCampaignSessionOwner } from "./session-foundation";
+import {
+  applyInitiativeDurationTransitionInTransaction,
+  bindPersistedEffectDurationInTransaction,
+  closeDurationBindingForEffectInTransaction,
+} from "./duration-lifecycle-service";
 
 export type RuntimeIntegrationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -418,6 +423,7 @@ async function persistInitiativeEngine(
       });
     }
   }
+  await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime);
 }
 
 async function nextPendingActionId(tx: RuntimeIntegrationTransaction): Promise<number> {
@@ -974,17 +980,34 @@ export async function resolveAuthoredActionInTransaction(
     }
   } else if (binding.sourceKind === "spell") {
     const request = parseDurablePayload<SpellCastRequest>(binding.payloadJson);
-    spell = await executeCharacterSpellCastInCallerTransaction(tx as ActiveHealthTransaction, request, actingUserId, true);
+    spell = await executeCharacterSpellCastInCallerTransaction(
+      tx as ActiveHealthTransaction,
+      request,
+      actingUserId,
+      true,
+      (effect) => bindPersistedEffectDurationInTransaction(tx, context, effect).then(() => undefined),
+    );
     manualEffects = spell.manualEffects;
     summary = `${spell.spell.name} cast for ${spell.finalManaCost} Mana.`;
   } else if (binding.sourceKind === "item") {
     const request = parseDurablePayload<ItemUseRequest>(binding.payloadJson);
-    itemResult = await executeCharacterItemUseInCallerTransaction(tx as ActiveHealthTransaction, request, actingUserId);
+    itemResult = await executeCharacterItemUseInCallerTransaction(
+      tx as ActiveHealthTransaction,
+      request,
+      actingUserId,
+      (effect) => bindPersistedEffectDurationInTransaction(tx, context, effect).then(() => undefined),
+    );
     manualEffects = itemResult.manualEffects;
     summary = `${itemResult.item.name} used on ${itemResult.target.name}.`;
   } else {
     const request = parseDurablePayload<CreatureAbilityUseRequest>(binding.payloadJson);
-    creatureAbility = await executeCreatureAbilityUseInCallerTransaction(tx as ActiveHealthTransaction, request, actingUserId, true);
+    creatureAbility = await executeCreatureAbilityUseInCallerTransaction(
+      tx as ActiveHealthTransaction,
+      request,
+      actingUserId,
+      true,
+      (effect) => bindPersistedEffectDurationInTransaction(tx, context, effect).then(() => undefined),
+    );
     manualEffects = creatureAbility.manualEffects;
     summary = `${creatureAbility.ability.abilityName} resolved.`;
   }
@@ -1263,10 +1286,16 @@ export async function addEncounterConditionInTransaction(
 ) {
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
-  await applyConditionInTransaction(tx, {
+  const created = await applyConditionInTransaction(tx, {
     characterId: input.targetCharacterId,
     effect: { kind: "condition.apply", name: input.name, description: input.description, duration: input.duration },
     source: { kind: "god", id: actingUserId, name: "G.O.D. Tabletop Operations" },
+  });
+  await bindPersistedEffectDurationInTransaction(tx, context, {
+    kind: "condition",
+    id: created.id,
+    characterId: created.characterId,
+    duration: created.duration,
   });
   return readActiveEffectsInTransaction(tx, input.targetCharacterId, false);
 }
@@ -1281,6 +1310,12 @@ export async function resolveEncounterConditionInTransaction(
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, targetCharacterId, true);
   await resolveConditionInTransaction(tx, targetCharacterId, conditionId, note);
+  await closeDurationBindingForEffectInTransaction(tx, {
+    effectKind: "condition",
+    effectId: conditionId,
+    characterId: targetCharacterId,
+    reason: note.trim() || "Condition resolved manually in Tabletop Operations.",
+  });
   return readActiveEffectsInTransaction(tx, targetCharacterId, false);
 }
 
@@ -1292,10 +1327,16 @@ export async function addEncounterModifierInTransaction(
 ) {
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
-  await applyModifierInTransaction(tx, {
+  const created = await applyModifierInTransaction(tx, {
     characterId: input.targetCharacterId,
     effect: { kind: "modifier.apply", label: input.label, channel: input.channel, targetKey: input.targetKey, amount: input.amount, duration: input.duration },
     source: { kind: "god", id: actingUserId, name: "G.O.D. Tabletop Operations" },
+  });
+  await bindPersistedEffectDurationInTransaction(tx, context, {
+    kind: "modifier",
+    id: created.id,
+    characterId: created.characterId,
+    duration: created.duration,
   });
   return readActiveEffectsInTransaction(tx, input.targetCharacterId, false);
 }
@@ -1310,6 +1351,12 @@ export async function endEncounterModifierInTransaction(
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, targetCharacterId, true);
   await endModifierInTransaction(tx, targetCharacterId, modifierId, note);
+  await closeDurationBindingForEffectInTransaction(tx, {
+    effectKind: "modifier",
+    effectId: modifierId,
+    characterId: targetCharacterId,
+    reason: note.trim() || "Modifier ended manually in Tabletop Operations.",
+  });
   return readActiveEffectsInTransaction(tx, targetCharacterId, false);
 }
 
@@ -1373,7 +1420,13 @@ export async function executeImmediateEncounterSpellInTransaction(
   assertLiveEncounter(context);
   await assertNoActiveInitiative(tx, context);
   await requireEncounterParticipants(tx, context, [request.casterCharacterId, ...spellTargetIds(request)]);
-  return executeCharacterSpellCastInCallerTransaction(tx as ActiveHealthTransaction, request, actingUserId, true);
+  return executeCharacterSpellCastInCallerTransaction(
+    tx as ActiveHealthTransaction,
+    request,
+    actingUserId,
+    true,
+    (effect) => bindPersistedEffectDurationInTransaction(tx, context, effect).then(() => undefined),
+  );
 }
 
 export async function executeImmediateEncounterItemInTransaction(
@@ -1388,7 +1441,12 @@ export async function executeImmediateEncounterItemInTransaction(
     request.sourceCharacterId,
     request.targetCharacterId ?? request.sourceCharacterId,
   ]);
-  return executeCharacterItemUseInCallerTransaction(tx as ActiveHealthTransaction, request, actingUserId);
+  return executeCharacterItemUseInCallerTransaction(
+    tx as ActiveHealthTransaction,
+    request,
+    actingUserId,
+    (effect) => bindPersistedEffectDurationInTransaction(tx, context, effect).then(() => undefined),
+  );
 }
 
 export async function executeImmediateEncounterCreatureAbilityInTransaction(
@@ -1400,5 +1458,11 @@ export async function executeImmediateEncounterCreatureAbilityInTransaction(
   assertLiveEncounter(context);
   await assertNoActiveInitiative(tx, context);
   await requireEncounterParticipants(tx, context, [request.sourceCharacterId, ...request.targetCharacterIds]);
-  return executeCreatureAbilityUseInCallerTransaction(tx as ActiveHealthTransaction, request, actingUserId, true);
+  return executeCreatureAbilityUseInCallerTransaction(
+    tx as ActiveHealthTransaction,
+    request,
+    actingUserId,
+    true,
+    (effect) => bindPersistedEffectDurationInTransaction(tx, context, effect).then(() => undefined),
+  );
 }

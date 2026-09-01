@@ -20,6 +20,7 @@ import {
   resolveInitiativeCapacityInTransaction,
   resolveInitiativeCapacityOptionsInTransaction,
 } from "@/features/tabletop-operations/initiative-capacity-service";
+import { applyInitiativeDurationTransitionInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 import type { InitiativeTrackerCapacityInput } from "@/features/tabletop-operations/initiative-tracker";
 import {
   addDeferredInitiativeCost,
@@ -241,6 +242,7 @@ async function persistEngine(
   context: OwnedEncounterContext,
   before: InitiativeEngineState,
   after: InitiativeEngineState,
+  durationPassage: "elapsed" | "correction" = "elapsed",
 ): Promise<void> {
   const now = new Date();
   await tx
@@ -355,6 +357,14 @@ async function persistEngine(
       ));
     }
   }
+
+  await applyInitiativeDurationTransitionInTransaction(
+    tx,
+    context,
+    before.runtime,
+    after.runtime,
+    durationPassage,
+  );
 }
 
 async function mutateOwnedInitiative(
@@ -364,6 +374,7 @@ async function mutateOwnedInitiative(
     context: OwnedEncounterContext,
     tx: TabletopTransaction,
   ) => Promise<InitiativeEngineState> | InitiativeEngineState,
+  options: { durationPassage?: "elapsed" | "correction" } = {},
 ): Promise<InitiativeRuntimeView> {
   assertPositiveId(encounterId, "Encounter");
   const access = await requireGod();
@@ -373,7 +384,7 @@ async function mutateOwnedInitiative(
     const current = await loadInitiativeEngine(tx, encounterId, true);
     if (!current) throw new Error("Initiative has not been initialized for this Encounter.");
     const changed = await mutate(current, context, tx);
-    await persistEngine(tx, context, current, changed);
+    await persistEngine(tx, context, current, changed, options.durationPassage);
     return changed;
   });
   refreshInitiative();
@@ -731,7 +742,11 @@ export async function correctEncounterInitiativeRuntime(
   encounterId: number,
   input: { roundNumber: number; stepNumber: number; timelineInitiative: number },
 ): Promise<InitiativeRuntimeView> {
-  return mutateOwnedInitiative(encounterId, (state) => correctInitiativeRuntimePosition(state, input));
+  return mutateOwnedInitiative(
+    encounterId,
+    (state) => correctInitiativeRuntimePosition(state, input),
+    { durationPassage: "correction" },
+  );
 }
 
 export async function closeEncounterInitiative(encounterId: number): Promise<InitiativeRuntimeView> {

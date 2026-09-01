@@ -8,6 +8,7 @@ import { getNextSessionSequence, type SessionMetadataInput } from "@/features/ta
 import type { SessionRosterEntityKind } from "@/features/tabletop-operations/session-roster";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
+import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 
 import {
   addSessionRosterMember,
@@ -166,6 +167,7 @@ export function TabletopWorkspace({
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
+  initialCloseout,
   requestedSessionId,
 }: {
   initialData: TabletopWorkspaceData;
@@ -174,6 +176,7 @@ export function TabletopWorkspace({
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
+  initialCloseout: EncounterCloseoutView | null;
   requestedSessionId: number | null;
 }) {
   const router = useRouter();
@@ -436,6 +439,7 @@ export function TabletopWorkspace({
             initialEncounterData={initialEncounterData}
             initialInitiativeTracker={initialInitiativeTracker}
             initialCombatAid={initialCombatAid}
+            initialCloseout={initialCloseout}
             session={selectedSession}
             campaignName={selectedCampaign.name}
           /> : null}

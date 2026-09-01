@@ -17,7 +17,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { campaign } from "./campaign-schema";
-import { campaignCharacter } from "./realm-schema";
+import {
+  campaignCharacter,
+  campaignCharacterActiveCondition,
+  campaignCharacterActiveModifier,
+  campaignCharacterProfile,
+} from "./realm-schema";
 
 export const campaignSessionStatus = pgEnum("campaign_session_status", [
   "planned",
@@ -79,6 +84,16 @@ export const campaignSessionEncounterReactionType = pgEnum(
 export const campaignSessionEncounterReactionStatus = pgEnum(
   "campaign_session_encounter_reaction_status",
   ["declared", "resolved", "cancelled", "needs-ruling"],
+);
+
+export const campaignSessionEffectDurationBindingStatus = pgEnum(
+  "campaign_session_effect_duration_binding_status",
+  ["active", "expired", "closed"],
+);
+
+export const campaignSessionEncounterRewardKind = pgEnum(
+  "campaign_session_encounter_reward_kind",
+  ["experience"],
 );
 
 export const campaignSession = pgTable(
@@ -657,6 +672,180 @@ export const campaignSessionEncounterReaction = pgTable(
   ],
 );
 
+export const campaignSessionEffectDurationBinding = pgTable(
+  "campaign_session_effect_duration_binding",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    encounterId: integer("encounter_id"),
+    characterId: integer("character_id").notNull(),
+    conditionId: integer("condition_id"),
+    modifierId: integer("modifier_id"),
+    durationKind: text("duration_kind").notNull(),
+    remainingValue: integer("remaining_value"),
+    status: campaignSessionEffectDurationBindingStatus("status").default("active").notNull(),
+    closedAt: timestamp("closed_at"),
+    closeReason: text("close_reason").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionScene.id,
+        campaignSessionScene.sessionId,
+        campaignSessionScene.campaignId,
+      ],
+      name: "campaign_session_effect_duration_binding_scene_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounter.id,
+        campaignSessionEncounter.sceneId,
+        campaignSessionEncounter.sessionId,
+        campaignSessionEncounter.campaignId,
+      ],
+      name: "campaign_session_effect_duration_binding_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.characterId, table.campaignId],
+      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
+      name: "campaign_session_effect_duration_binding_character_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.conditionId, table.characterId],
+      foreignColumns: [campaignCharacterActiveCondition.id, campaignCharacterActiveCondition.characterId],
+      name: "campaign_session_effect_duration_binding_condition_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.modifierId, table.characterId],
+      foreignColumns: [campaignCharacterActiveModifier.id, campaignCharacterActiveModifier.characterId],
+      name: "campaign_session_effect_duration_binding_modifier_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("campaign_session_effect_duration_binding_condition_uq")
+      .on(table.conditionId)
+      .where(sql`${table.conditionId} IS NOT NULL`),
+    uniqueIndex("campaign_session_effect_duration_binding_modifier_uq")
+      .on(table.modifierId)
+      .where(sql`${table.modifierId} IS NOT NULL`),
+    index("campaign_session_effect_duration_binding_encounter_status_idx").on(
+      table.encounterId,
+      table.status,
+      table.durationKind,
+    ),
+    index("campaign_session_effect_duration_binding_scene_status_idx").on(
+      table.sceneId,
+      table.status,
+      table.durationKind,
+    ),
+    index("campaign_session_effect_duration_binding_character_status_idx").on(
+      table.characterId,
+      table.status,
+    ),
+    check(
+      "campaign_session_effect_duration_binding_effect_identity_valid",
+      sql`num_nonnulls(${table.conditionId}, ${table.modifierId}) = 1`,
+    ),
+    check(
+      "campaign_session_effect_duration_binding_kind_valid",
+      sql`${table.durationKind} IN ('combat-steps','combat-rounds','scene')`,
+    ),
+    check(
+      "campaign_session_effect_duration_binding_context_valid",
+      sql`(
+        ${table.durationKind} IN ('combat-steps','combat-rounds')
+        AND ${table.encounterId} IS NOT NULL
+        AND ${table.remainingValue} IS NOT NULL
+        AND ${table.remainingValue} >= 0
+      ) OR (
+        ${table.durationKind} = 'scene'
+        AND ${table.encounterId} IS NULL
+        AND ${table.remainingValue} IS NULL
+      )`,
+    ),
+    check(
+      "campaign_session_effect_duration_binding_lifecycle_valid",
+      sql`(
+        ${table.status} = 'active'
+        AND ${table.closedAt} IS NULL
+        AND ${table.closeReason} = ''
+        AND (${table.remainingValue} IS NULL OR ${table.remainingValue} > 0)
+      ) OR (
+        ${table.status} <> 'active'
+        AND ${table.closedAt} IS NOT NULL
+        AND length(trim(${table.closeReason})) > 0
+      )`,
+    ),
+  ],
+);
+
+export const campaignSessionEncounterReward = pgTable(
+  "campaign_session_encounter_reward",
+  {
+    id: serial("id").primaryKey(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    characterId: integer("character_id").notNull(),
+    rewardKind: campaignSessionEncounterRewardKind("reward_kind").default("experience").notNull(),
+    amount: doublePrecision("amount").notNull(),
+    note: text("note").default("").notNull(),
+    awardedAt: timestamp("awarded_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounter.id,
+        campaignSessionEncounter.sceneId,
+        campaignSessionEncounter.sessionId,
+        campaignSessionEncounter.campaignId,
+      ],
+      name: "campaign_session_encounter_reward_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [
+        table.encounterId,
+        table.sceneId,
+        table.sessionId,
+        table.campaignId,
+        table.characterId,
+      ],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_reward_participant_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.characterId],
+      foreignColumns: [campaignCharacterProfile.characterId],
+      name: "campaign_session_encounter_reward_profile_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("campaign_session_encounter_reward_character_kind_uq").on(
+      table.encounterId,
+      table.characterId,
+      table.rewardKind,
+    ),
+    index("campaign_session_encounter_reward_history_idx").on(
+      table.encounterId,
+      table.awardedAt,
+      table.id,
+    ),
+    check("campaign_session_encounter_reward_amount_positive", sql`${table.amount} > 0`),
+    check("campaign_session_encounter_reward_kind_valid", sql`${table.rewardKind} = 'experience'`),
+  ],
+);
+
 export const campaignSessionRelations = relations(campaignSession, ({ one, many }) => ({
   campaign: one(campaign, {
     fields: [campaignSession.campaignId],
@@ -706,6 +895,8 @@ export const campaignSessionEncounterRelations = relations(campaignSessionEncoun
   }),
   participants: many(campaignSessionEncounterParticipant),
   initiativeRuntime: one(campaignSessionEncounterInitiative),
+  durationBindings: many(campaignSessionEffectDurationBinding),
+  rewards: many(campaignSessionEncounterReward),
 }));
 
 export const campaignSessionEncounterParticipantRelations = relations(campaignSessionEncounterParticipant, ({ one }) => ({
@@ -771,3 +962,5 @@ export type CampaignSessionEncounterType = (typeof campaignSessionEncounterType.
 export type CampaignSessionEncounterInitiativeStatus = (typeof campaignSessionEncounterInitiativeStatus.enumValues)[number];
 export type CampaignSessionEncounterInitiativeParticipantStatus = (typeof campaignSessionEncounterInitiativeParticipantStatus.enumValues)[number];
 export type CampaignSessionEncounterPendingActionStatus = (typeof campaignSessionEncounterPendingActionStatus.enumValues)[number];
+export type CampaignSessionEffectDurationBindingStatus = (typeof campaignSessionEffectDurationBindingStatus.enumValues)[number];
+export type CampaignSessionEncounterRewardKind = (typeof campaignSessionEncounterRewardKind.enumValues)[number];

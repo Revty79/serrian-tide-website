@@ -16,7 +16,10 @@ import {
   readActiveHealthInTransaction,
   type ActiveHealthTransaction,
 } from "@/features/active-state/active-health-service";
-import { persistPlannedMechanicalEffectInTransaction } from "@/features/active-state/mechanical-effect-service";
+import {
+  persistPlannedMechanicalEffectInTransaction,
+  type PersistedMechanicalEffectObserver,
+} from "@/features/active-state/mechanical-effect-service";
 import {
   readActiveManaInTransaction,
   spendActiveManaInTransaction,
@@ -579,6 +582,7 @@ export async function executeCharacterSpellCastInCallerTransaction(
   input: SpellCastRequest,
   actingUserId: string,
   confirmed: boolean,
+  onPersistedEffect?: PersistedMechanicalEffectObserver,
 ): Promise<SpellCastExecutionResult> {
   const request = validateRequest(input);
   const subject = await loadSubject(tx, actingUserId);
@@ -601,12 +605,13 @@ export async function executeCharacterSpellCastInCallerTransaction(
         if (!target) {
           throw new Error("The planned Spell effect lost its authoritative target state.");
         }
-        await persistPlannedMechanicalEffectInTransaction(tx, {
+        const persisted = await persistPlannedMechanicalEffectInTransaction(tx, {
           plan: application.plan,
           targetCharacterId: application.targetCharacterId,
           sourceEffectKey: application.spellEffectId,
           targetAnatomy: target.anatomy,
         });
+        if (persisted && onPersistedEffect) await onPersistedEffect(persisted);
       },
     }),
     confirmed,

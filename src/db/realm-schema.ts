@@ -570,6 +570,10 @@ export const campaignCharacterActiveCondition = pgTable(
     resolutionNote: text("resolution_note").default("").notNull(),
   },
   (table) => [
+    uniqueIndex("campaign_character_active_condition_id_character_uq").on(
+      table.id,
+      table.characterId,
+    ),
     index("campaign_character_active_condition_state_idx").on(
       table.characterId,
       table.resolvedAt,
@@ -607,6 +611,10 @@ export const campaignCharacterActiveModifier = pgTable(
     endNote: text("end_note").default("").notNull(),
   },
   (table) => [
+    uniqueIndex("campaign_character_active_modifier_id_character_uq").on(
+      table.id,
+      table.characterId,
+    ),
     index("campaign_character_active_modifier_state_idx").on(
       table.characterId,
       table.endedAt,

@@ -7,8 +7,17 @@ import {
   applyModifierInTransaction,
   type ActiveEffectsTransaction,
 } from "./active-effects-service";
+import type { ActiveEffectDuration } from "./active-effects";
 import { persistActiveHealthStateInTransaction } from "./active-health-service";
 import type { ActiveHealthAnatomy } from "./models";
+
+export type PersistedMechanicalEffectIdentity =
+  | { kind: "condition"; id: number; characterId: number; duration: ActiveEffectDuration }
+  | { kind: "modifier"; id: number; characterId: number; duration: ActiveEffectDuration };
+
+export type PersistedMechanicalEffectObserver = (
+  effect: PersistedMechanicalEffectIdentity,
+) => Promise<void>;
 
 export async function persistPlannedMechanicalEffectInTransaction(
   tx: ActiveEffectsTransaction,
@@ -18,7 +27,7 @@ export async function persistPlannedMechanicalEffectInTransaction(
     sourceEffectKey: string;
     targetAnatomy?: ActiveHealthAnatomy | null;
   },
-): Promise<void> {
+): Promise<PersistedMechanicalEffectIdentity | null> {
   const { plan } = input;
   if (plan.status !== "ready" || !plan.effect || !plan.source) {
     throw new Error("Mechanical Effect is not ready for persistence.");
@@ -28,15 +37,15 @@ export async function persistPlannedMechanicalEffectInTransaction(
       throw new Error("Health Mechanical Effect lost its authoritative anatomy or result.");
     }
     await persistActiveHealthStateInTransaction(tx, input.targetAnatomy, plan.healthResult.nextState);
-    return;
+    return null;
   }
   if (plan.effect.kind === "condition.apply") {
-    await applyConditionInTransaction(tx, { characterId: input.targetCharacterId, effect: plan.effect, source: plan.source, sourceEffectKey: input.sourceEffectKey });
-    return;
+    const created = await applyConditionInTransaction(tx, { characterId: input.targetCharacterId, effect: plan.effect, source: plan.source, sourceEffectKey: input.sourceEffectKey });
+    return { kind: "condition", id: created.id, characterId: created.characterId, duration: created.duration };
   }
   if (plan.effect.kind === "modifier.apply") {
-    await applyModifierInTransaction(tx, { characterId: input.targetCharacterId, effect: plan.effect, source: plan.source, sourceEffectKey: input.sourceEffectKey });
-    return;
+    const created = await applyModifierInTransaction(tx, { characterId: input.targetCharacterId, effect: plan.effect, source: plan.source, sourceEffectKey: input.sourceEffectKey });
+    return { kind: "modifier", id: created.id, characterId: created.characterId, duration: created.duration };
   }
   throw new Error("Manual Mechanical Effects do not persist automatically.");
 }

@@ -8,8 +8,15 @@ import type { SpellCastRequest, SpellCastRuntimeSelections } from "@/features/ch
 import type { ItemUseRequest } from "@/features/items/item-use";
 import type { CreatureAbilityUseRequest } from "@/features/creatures/creature-ability-runtime";
 import type { RawCastingCircumstanceId } from "@/features/spell-construction/data/rawCastingRules";
+import type { ActiveEffectDuration } from "@/features/active-state/active-effects";
+import type { TabletopDurationBindingView } from "@/features/tabletop-operations/duration-lifecycle-service";
 
 import { interruptEncounterPendingAction } from "./initiative-actions";
+import {
+  bindEncounterEffectDuration,
+  correctEncounterEffectDurationRemaining,
+  expireEncounterEffectDurationNow,
+} from "./closeout-actions";
 import {
   addEncounterCondition,
   addEncounterInjury,
@@ -74,6 +81,47 @@ function describeManualEffects(value: unknown): string[] {
   });
 }
 
+function DurationLifecycleControls({
+  encounterId,
+  characterId,
+  effectKind,
+  effectId,
+  duration,
+  binding,
+  busy,
+  perform,
+}: {
+  encounterId: number;
+  characterId: number;
+  effectKind: "condition" | "modifier";
+  effectId: number;
+  duration: ActiveEffectDuration;
+  binding: TabletopDurationBindingView | null;
+  busy: boolean;
+  perform: (work: () => Promise<void>, success: string) => Promise<void>;
+}) {
+  const [remaining, setRemaining] = useState(String(binding?.remainingValue ?? duration.value ?? ""));
+  if (duration.kind === "until-removed") return <small>Until Removed · no automatic lifecycle</small>;
+  if (!binding) return <span className="combat-aid-duration-controls">
+    <small>{duration.label} · UNBOUND — will not auto-advance</small>
+    <button type="button" disabled={busy} onClick={() => void perform(
+      () => bindEncounterEffectDuration(encounterId, { characterId, effectKind, effectId }),
+      `${duration.label} effect bound to the current ${duration.kind === "scene" ? "Scene" : "Encounter"}.`,
+    )}>Bind to Current {duration.kind === "scene" ? "Scene" : "Encounter"}</button>
+  </span>;
+  return <span className="combat-aid-duration-controls">
+    <small>{binding.remainingValue === null ? duration.label : `${binding.remainingValue} remaining / ${duration.value} authored`} · Bound: {binding.durationKind === "scene" ? binding.sceneTitle : binding.encounterTitle}</small>
+    {binding.remainingValue !== null ? <><input type="number" min="1" step="1" value={remaining} disabled={busy} aria-label={`Remaining duration for ${effectKind} ${effectId}`} onChange={(event) => setRemaining(event.target.value)} /><button type="button" disabled={busy} onClick={() => void perform(
+      () => correctEncounterEffectDurationRemaining(encounterId, binding.id, Number(remaining)),
+      "Duration remaining was corrected explicitly.",
+    )}>Set Remaining</button></> : null}
+    <button type="button" disabled={busy} onClick={() => void perform(
+      () => expireEncounterEffectDurationNow(encounterId, binding.id),
+      "Effect expired through the explicit duration correction.",
+    )}>Expire Now</button>
+  </span>;
+}
+
 export function CombatAidOperations({
   data,
   participant,
@@ -104,7 +152,7 @@ export function CombatAidOperations({
   const [conditionDescription, setConditionDescription] = useState("");
   const [modifierLabel, setModifierLabel] = useState("");
   const [modifierChannel, setModifierChannel] = useState<"attribute" | "skill" | "movement" | "initiative" | "soak" | "damage">("initiative");
-  const [modifierTargetKey, setModifierTargetKey] = useState("initiative");
+  const [modifierTargetKey, setModifierTargetKey] = useState("self");
   const [modifierAmount, setModifierAmount] = useState("1");
   const [durationKind, setDurationKind] = useState<"until-removed" | "combat-steps" | "combat-rounds" | "scene">("until-removed");
   const [durationValue, setDurationValue] = useState("1");
@@ -327,8 +375,14 @@ export function CombatAidOperations({
             <label><span>Target key</span><input value={modifierTargetKey} onChange={(event) => setModifierTargetKey(event.target.value)} placeholder="DEX, skill:12, Walk…" /></label>
             <label><span>Amount</span><input type="number" step="0.01" value={modifierAmount} onChange={(event) => setModifierAmount(event.target.value)} /></label>
             <button type="button" disabled={busy} onClick={() => void perform(() => addEncounterModifier(encounterId, { targetCharacterId: characterId, label: modifierLabel, channel: modifierChannel, targetKey: modifierTargetKey, amount: Number(modifierAmount), duration: { kind: durationKind, value: durationKind === "combat-steps" || durationKind === "combat-rounds" ? Number(durationValue) : null } }), `${modifierLabel} was applied.`)}>Add Temporary Modifier</button>
-            <div className="combat-aid-operation-list">{participant.effects?.conditions.map((condition) => <div key={condition.id}><span><b>{condition.name}</b><small>{condition.duration.label}</small></span><button type="button" disabled={busy} onClick={() => void perform(() => resolveEncounterCondition(encounterId, characterId, condition.id), `${condition.name} was resolved.`)}>Resolve</button></div>)}</div>
-            <div className="combat-aid-operation-list">{participant.effects?.modifiers.map((modifier) => <div key={modifier.id}><span><b>{modifier.label}</b><small>{modifier.amount} {modifier.channel} · {modifier.targetKey}</small></span><button type="button" disabled={busy} onClick={() => void perform(() => endEncounterModifier(encounterId, characterId, modifier.id), `${modifier.label} ended.`)}>End</button></div>)}</div>
+            <div className="combat-aid-operation-list">{participant.effects?.conditions.map((condition) => {
+              const binding = participant.durationBindings.find((entry) => entry.effectKind === "condition" && entry.effectId === condition.id && entry.status === "active") ?? null;
+              return <div key={condition.id}><span><b>{condition.name}</b><DurationLifecycleControls encounterId={encounterId} characterId={characterId} effectKind="condition" effectId={condition.id} duration={condition.duration} binding={binding} busy={busy} perform={perform} /></span><button type="button" disabled={busy} onClick={() => void perform(() => resolveEncounterCondition(encounterId, characterId, condition.id), `${condition.name} was resolved.`)}>Resolve</button></div>;
+            })}</div>
+            <div className="combat-aid-operation-list">{participant.effects?.modifiers.map((modifier) => {
+              const binding = participant.durationBindings.find((entry) => entry.effectKind === "modifier" && entry.effectId === modifier.id && entry.status === "active") ?? null;
+              return <div key={modifier.id}><span><b>{modifier.label}</b><small>{modifier.amount} {modifier.channel} · {modifier.targetKey}</small><DurationLifecycleControls encounterId={encounterId} characterId={characterId} effectKind="modifier" effectId={modifier.id} duration={modifier.duration} binding={binding} busy={busy} perform={perform} /></span><button type="button" disabled={busy} onClick={() => void perform(() => endEncounterModifier(encounterId, characterId, modifier.id), `${modifier.label} ended.`)}>End</button></div>;
+            })}</div>
           </> : null}
 
           {runtimePanel === "injury" ? <>

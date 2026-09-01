@@ -10,6 +10,7 @@ import {
 } from "@/features/tabletop-operations/encounter-foundation";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
+import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 
 import {
   addCampaignSessionEncounterParticipant,
@@ -29,6 +30,7 @@ import {
 import type { CampaignSceneDetail } from "./scene-actions";
 import { InitiativeTracker } from "./initiative-tracker";
 import { CombatAidWorkspace } from "./combat-aid-workspace";
+import { EncounterCloseout } from "./encounter-closeout";
 import { CreatureCatalogSpawn } from "./creature-catalog-spawn";
 
 type Feedback = { kind: "success" | "error"; message: string };
@@ -150,17 +152,19 @@ export function EncounterWorkspace({
   initialData,
   initialInitiativeTracker,
   initialCombatAid,
+  initialCloseout,
   scene,
 }: {
   initialData: EncounterWorkspaceData;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
+  initialCloseout: EncounterCloseoutView | null;
   scene: CampaignSceneDetail;
 }) {
   const router = useRouter();
   const selectedEncounter = initialData.selectedEncounter;
   const [creating, setCreating] = useState(false);
-  const [activeSection, setActiveSection] = useState<"prep" | "initiative" | "combat-aid">("prep");
+  const [activeSection, setActiveSection] = useState<"prep" | "initiative" | "combat-aid" | "closeout">("prep");
   const [draft, setDraft] = useState<EncounterMetadataInput>(() => selectedEncounter
     ? metadataFromEncounter(selectedEncounter)
     : emptyEncounterMetadata(initialData));
@@ -302,6 +306,7 @@ export function EncounterWorkspace({
           <button type="button" className={activeSection === "prep" ? "is-selected" : ""} onClick={() => setActiveSection("prep")}>Encounter Prep</button>
           <button type="button" className={activeSection === "initiative" ? "is-selected" : ""} onClick={() => setActiveSection("initiative")}>Initiative Tracker {initialInitiativeTracker?.runtime?.runtime.status === "active" ? <span>Active</span> : null}</button>
           <button type="button" className={activeSection === "combat-aid" ? "is-selected" : ""} onClick={() => setActiveSection("combat-aid")}>Combat Aid <span>{initialCombatAid?.participants.length ?? 0}</span></button>
+          <button type="button" className={activeSection === "closeout" ? "is-selected" : ""} onClick={() => setActiveSection("closeout")}>Closeout {initialCloseout?.blockers.length ? <span>{initialCloseout.blockers.length}</span> : null}</button>
         </nav> : null}
 
         {editorVisible && (creating || activeSection === "prep") ? <>
@@ -330,7 +335,7 @@ export function EncounterWorkspace({
               setFeedback(null);
             }}>Cancel</button> : null}
             {!creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" disabled={busy} onClick={() => void lifecycle("start")}>Start Encounter</button> : null}
-            {!creating && selectedEncounter?.status === "active" && parentsActive ? <button type="button" disabled={busy} onClick={() => void lifecycle("complete")}>Complete Encounter</button> : null}
+            {!creating && selectedEncounter?.status === "active" && parentsActive ? <button type="button" disabled={busy} onClick={() => setActiveSection("closeout")}>Review Closeout</button> : null}
             {!creating && selectedEncounter?.status === "completed" && parentsActive ? <button type="button" disabled={busy} onClick={() => void lifecycle("reopen")}>Reopen Encounter</button> : null}
             {!creating && selectedEncounter?.status === "planned" && initialData.canCreate ? <button type="button" className="is-danger" disabled={busy} onClick={() => void removeEncounter()}>Delete Planned Encounter</button> : null}
           </div>
@@ -377,6 +382,13 @@ export function EncounterWorkspace({
         {!creating && selectedEncounter && activeSection === "combat-aid" ? initialCombatAid
           ? <CombatAidWorkspace data={initialCombatAid} onOpenInitiative={() => setActiveSection("initiative")} />
           : <p className="tabletop-empty">Combat Aid state is unavailable for this Encounter.</p> : null}
+        {!creating && selectedEncounter && activeSection === "closeout" ? initialCloseout
+          ? <EncounterCloseout
+            data={initialCloseout}
+            onOpenInitiative={() => setActiveSection("initiative")}
+            onOpenCombatAid={() => setActiveSection("combat-aid")}
+          />
+          : <p className="tabletop-empty">Closeout state is unavailable for this Encounter.</p> : null}
       </section>
     </div>
   </section>;

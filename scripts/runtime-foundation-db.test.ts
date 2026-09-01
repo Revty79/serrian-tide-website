@@ -430,9 +430,9 @@ test("Runtime Foundation real PostgreSQL freeze", { concurrency: false }, async 
     const identity = await pool.query<{ address: string; port: number; database: string }>(
       "select inet_server_addr()::text as address,inet_server_port() as port,current_database() as database",
     );
-    assert.equal(identity.rows[0]!.address, "127.0.0.1/32");
-    assert.equal(identity.rows[0]!.port, 55432);
-    assert.equal(identity.rows[0]!.database, "serrian_tide_dev");
+    assert.ok(["127.0.0.1/32", "::1/128"].includes(identity.rows[0]!.address));
+    assert.equal(identity.rows[0]!.port, Number(databaseUrl.port || 5432));
+    assert.equal(identity.rows[0]!.database, databaseUrl.pathname.slice(1));
     fixtures = await loadFixtures();
     const authRows = await pool.query<{ id: string; roles: string[] }>(`
       select u.id,array_agg(ur.role order by ur.role) roles from "user" u

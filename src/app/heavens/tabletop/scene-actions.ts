@@ -34,6 +34,7 @@ import {
   type SessionStatus,
 } from "@/features/tabletop-operations/session-foundation";
 import { requireGod } from "@/lib/server-access";
+import { expireSceneDurationsInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 
 import {
   getSessionPrepWorkspace,
@@ -432,6 +433,9 @@ async function applySceneLifecycleTransition(
         ))
         .returning(sceneFields);
       if (!row) throw new Error("The Scene changed before this action completed. Refresh and try again.");
+      if (next.status === "completed") {
+        await expireSceneDurationsInTransaction(tx, sceneId, locked.sequenceNumber);
+      }
       return row;
     });
     refreshScenes();

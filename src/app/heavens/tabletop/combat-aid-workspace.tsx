@@ -7,6 +7,7 @@ import type {
   CombatAidEncounterView,
   CombatAidParticipant,
 } from "@/features/tabletop-operations/combat-aid-service";
+import type { ActiveEffectDuration } from "@/features/active-state/active-effects";
 import { CombatAidOperations } from "./combat-aid-operations";
 
 function value(value: number | null): string {
@@ -57,6 +58,25 @@ function SummaryCard({
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="combat-aid-empty">{children}</p>;
+}
+
+function durationLifecycleText(
+  participant: CombatAidParticipant,
+  effectKind: "condition" | "modifier",
+  effectId: number,
+  duration: ActiveEffectDuration,
+): string {
+  if (duration.kind === "until-removed") return duration.label;
+  const binding = participant.durationBindings.find((entry) => (
+    entry.effectKind === effectKind && entry.effectId === effectId && entry.status === "active"
+  ));
+  if (!binding) return `${duration.label} · UNBOUND — will not auto-advance`;
+  const context = binding.durationKind === "scene"
+    ? binding.sceneTitle
+    : binding.encounterTitle ?? `Encounter #${binding.encounterId}`;
+  return binding.remainingValue === null
+    ? `${duration.label} · Bound: ${context}`
+    : `${binding.remainingValue} remaining / ${duration.value} authored · Bound: ${context}`;
 }
 
 export function CombatAidWorkspace({
@@ -130,8 +150,8 @@ export function CombatAidWorkspace({
             <article>
               <header><span>CONDITIONS &amp; MODIFIERS</span><strong>{(selected.effects?.conditions.length ?? 0) + (selected.effects?.modifiers.length ?? 0)} active</strong></header>
               {selected.effects && (selected.effects.conditions.length || selected.effects.modifiers.length) ? <div className="combat-aid-list">
-                {selected.effects.conditions.map((condition) => <div key={`condition:${condition.id}`}><b>{condition.name}</b><span>{condition.duration.label}</span><small>{condition.description || "No description"} · Source: {condition.source.name}</small></div>)}
-                {selected.effects.modifiers.map((modifier) => <div key={`modifier:${modifier.id}`}><b>{modifier.label}</b><span>{modifier.amount >= 0 ? "+" : ""}{modifier.amount} {modifier.channel}</span><small>{modifier.targetKey} · {modifier.duration.label} · Source: {modifier.source.name}</small></div>)}
+                {selected.effects.conditions.map((condition) => <div key={`condition:${condition.id}`}><b>{condition.name}</b><span>{durationLifecycleText(selected, "condition", condition.id, condition.duration)}</span><small>{condition.description || "No description"} · Source: {condition.source.name}</small></div>)}
+                {selected.effects.modifiers.map((modifier) => <div key={`modifier:${modifier.id}`}><b>{modifier.label}</b><span>{modifier.amount >= 0 ? "+" : ""}{modifier.amount} {modifier.channel}</span><small>{modifier.targetKey} · {durationLifecycleText(selected, "modifier", modifier.id, modifier.duration)} · Source: {modifier.source.name}</small></div>)}
               </div> : <Empty>No active Conditions or Modifiers.</Empty>}
             </article>
 

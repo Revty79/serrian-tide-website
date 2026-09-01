@@ -6,6 +6,7 @@ import { buildInitiativeTrackerReadModel } from "@/features/tabletop-operations/
 import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
 import { getSceneEncounterWorkspace } from "./encounter-actions";
 import { getEncounterCombatAid } from "./combat-aid-actions";
+import { getEncounterCloseout } from "./closeout-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -68,6 +69,9 @@ export default async function TabletopOperationsPage({
   const combatAid = encounterWorkspace?.selectedEncounter
     ? await getEncounterCombatAid(encounterWorkspace.selectedEncounter.id)
     : null;
+  const closeout = encounterWorkspace?.selectedEncounter
+    ? await getEncounterCloseout(encounterWorkspace.selectedEncounter.id)
+    : null;
   return (
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
@@ -77,6 +81,7 @@ export default async function TabletopOperationsPage({
       initialEncounterData={encounterWorkspace}
       initialInitiativeTracker={initiativeTracker}
       initialCombatAid={combatAid}
+      initialCloseout={closeout}
       requestedSessionId={selectedSessionId}
     />
   );

@@ -32,6 +32,10 @@ import {
 } from "@/features/tabletop-operations/encounter-foundation";
 import { assertCampaignSessionOwner, type SessionStatus } from "@/features/tabletop-operations/session-foundation";
 import type { SceneStatus } from "@/features/tabletop-operations/scene-foundation";
+import {
+  finalizeEncounterCloseoutInTransaction,
+  lockEncounterCloseoutContextInTransaction,
+} from "@/features/tabletop-operations/encounter-closeout-service";
 import { requireGod } from "@/lib/server-access";
 
 import { getSessionSceneWorkspace, type SceneMemberView } from "./scene-actions";
@@ -450,7 +454,18 @@ export async function startCampaignSessionEncounter(encounterId: number): Promis
 }
 
 export async function completeCampaignSessionEncounter(encounterId: number): Promise<CampaignEncounterSummary> {
-  return applyEncounterLifecycleTransition(encounterId, "complete");
+  const access = await requireGod();
+  assertPositiveId(encounterId, "Encounter");
+  const completed = await db.transaction(async (tx) => {
+    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, access.user.id);
+    await finalizeEncounterCloseoutInTransaction(tx, context, { awards: [] });
+    const [row] = await tx.select(encounterFields).from(campaignSessionEncounter)
+      .where(eq(campaignSessionEncounter.id, encounterId)).limit(1);
+    if (!row) throw new Error("That Encounter no longer exists.");
+    return row;
+  });
+  refreshEncounters();
+  return toEncounterSummary(completed);
 }
 
 export async function reopenCampaignSessionEncounter(encounterId: number): Promise<CampaignEncounterSummary> {

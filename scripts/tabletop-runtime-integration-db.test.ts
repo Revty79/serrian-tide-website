@@ -33,6 +33,7 @@ import {
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
+  campaignSessionEffectDurationBinding,
   campaignSessionRoster,
   campaignSessionScene,
   campaignSessionSceneMember,
@@ -320,6 +321,12 @@ test("G.O.D. operations mutate the same Player Character Health, Mana, Condition
     });
     const effects = await readActiveEffectsInTransaction(tx, data.targetCharacterId, false);
     assert.ok(effects.conditions.some(({ name }) => name === "Build 8 Verified"));
+    const directCondition = effects.conditions.find(({ name }) => name === "Build 8 Verified");
+    assert.ok(directCondition);
+    const [directDuration] = await tx.select().from(campaignSessionEffectDurationBinding)
+      .where(eq(campaignSessionEffectDurationBinding.conditionId, directCondition.id));
+    assert.equal(directDuration?.sceneId, data.sceneId);
+    assert.equal(directDuration?.durationKind, "scene");
 
     const [chargedItem] = await tx.insert(item).values({
       canonicalId: `BUILD8-CHARGED-${data.suffix}`.toUpperCase(),
@@ -344,7 +351,7 @@ test("G.O.D. operations mutate the same Player Character Health, Mana, Condition
     await tx.insert(itemEffect).values({
       itemId: chargedItem.id,
       schemaVersion: 2,
-      effectJson: { kind: "manual", title: "Build 8 audit", description: "No automatic consequence." },
+      effectJson: { kind: "condition.apply", name: "Charged Ward", description: "Structured Item condition.", duration: { kind: "scene", value: null } },
       sortOrder: 0,
     });
     await tx.insert(campaignInventoryItem).values({
@@ -373,6 +380,13 @@ test("G.O.D. operations mutate the same Player Character Health, Mana, Condition
       instanceId: ownedInstance.id,
     });
     assert.equal(chargeState.currentCharges, 2);
+    const effectsAfterItem = await readActiveEffectsInTransaction(tx, data.targetCharacterId, false);
+    const itemCondition = effectsAfterItem.conditions.find(({ name }) => name === "Charged Ward");
+    assert.ok(itemCondition);
+    const [itemDuration] = await tx.select().from(campaignSessionEffectDurationBinding)
+      .where(eq(campaignSessionEffectDurationBinding.conditionId, itemCondition.id));
+    assert.equal(itemDuration?.sceneId, data.sceneId);
+    assert.equal(itemDuration?.durationKind, "scene");
     await setEncounterEquipmentStateInTransaction(tx, data.context, {
       kind: "instance",
       targetCharacterId: data.targetCharacterId,

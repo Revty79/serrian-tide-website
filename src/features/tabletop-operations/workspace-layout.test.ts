@@ -23,6 +23,7 @@ test("Scene and Encounter hierarchy uses vertical workspace composition instead 
   assert.match(sceneWorkspace, /<EncounterWorkspace/);
   assert.match(encounterWorkspace, /<InitiativeTracker data=/);
   assert.match(encounterWorkspace, /<CombatAidWorkspace data=/);
+  assert.match(encounterWorkspace, /<EncounterCloseout/);
 });
 
 test("desktop hierarchy keeps one Session rail and flowing Scene and Encounter selectors", () => {

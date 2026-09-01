@@ -51,6 +51,10 @@ import {
   type EncounterCreatureAbility,
   type EncounterCreatureAttack,
 } from "@/features/tabletop-operations/runtime-integration-service";
+import {
+  readCharacterDurationBindingsInTransaction,
+  type TabletopDurationBindingView,
+} from "@/features/tabletop-operations/duration-lifecycle-service";
 import { assertCampaignSessionOwner } from "@/features/tabletop-operations/session-foundation";
 import {
   classifySessionRosterEntity,
@@ -92,6 +96,7 @@ export type CombatAidParticipant = {
   health: ActiveHealthView | null;
   mana: ActiveManaView | null;
   effects: ActiveEffectsView | null;
+  durationBindings: TabletopDurationBindingView[];
   equipment: CharacterEquipmentStateView | null;
   resources: CharacterOperationalItemStateView | null;
   creatureAttacks: EncounterCreatureAttack[];
@@ -308,6 +313,11 @@ export async function readCombatAidEncounterInTransaction(
     const kind = classifySessionRosterEntity(row);
     const initiative = initiativeByCharacter.get(row.characterId);
     const action = actionByCharacter.get(row.characterId);
+    const effects = await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false));
+    const durationBindings = await readCharacterDurationBindingsInTransaction(tx, row.characterId, false).catch((error) => {
+      errors.push({ section: "effects", message: error instanceof Error ? error.message : "Duration lifecycle state is unavailable." });
+      return [];
+    });
     participants.push({
       identity: {
         characterId: row.characterId,
@@ -321,7 +331,8 @@ export async function readCombatAidEncounterInTransaction(
         await readActiveHealthInTransaction(tx, row.characterId, row.npcKind)
       ).view),
       mana: await readSection("mana", errors, () => readActiveManaInTransaction(tx, row.characterId)),
-      effects: await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false)),
+      effects,
+      durationBindings,
       equipment: await readSection("equipment", errors, () => readCharacterEquipmentStateInTransaction(tx, row.characterId)),
       resources: await readSection("resources", errors, () => readCharacterOperationalItemsInTransaction(tx, row.characterId)),
       creatureAttacks: kind === "creature-npc"
