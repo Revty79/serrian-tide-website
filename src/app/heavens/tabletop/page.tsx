@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { requireGod } from "@/lib/server-access";
 
-import { getTabletopWorkspace } from "./actions";
+import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
 import "./tabletop.css";
 import { TabletopWorkspace } from "./tabletop-workspace";
 
@@ -23,10 +23,14 @@ export default async function TabletopOperationsPage({
   const selectedSessionId = workspace.sessions.some(({ id }) => id === requestedSessionId)
     ? requestedSessionId
     : workspace.sessions[0]?.id ?? null;
+  const prepWorkspace = selectedSessionId === null
+    ? null
+    : await getSessionPrepWorkspace(selectedSessionId);
   return (
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
       initialData={workspace}
+      initialPrepData={prepWorkspace}
       requestedSessionId={selectedSessionId}
     />
   );

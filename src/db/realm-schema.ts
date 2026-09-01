@@ -122,6 +122,7 @@ export const campaignCharacter = pgTable(
       name: "campaign_character_campaign_player_fk",
     }).onDelete("cascade"),
     index("campaign_character_campaign_id_idx").on(table.campaignId),
+    uniqueIndex("campaign_character_id_campaign_uq").on(table.id, table.campaignId),
     index("campaign_character_player_user_id_idx").on(table.playerUserId),
     index("campaign_character_player_campaign_idx").on(
       table.playerUserId,

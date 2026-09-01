@@ -2,10 +2,12 @@ import { relations, sql } from "drizzle-orm";
 import {
   check,
   date,
+  foreignKey,
   index,
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -13,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { campaign } from "./campaign-schema";
+import { campaignCharacter } from "./realm-schema";
 
 export const campaignSessionStatus = pgEnum("campaign_session_status", [
   "planned",
@@ -39,6 +42,7 @@ export const campaignSession = pgTable(
   },
   (table) => [
     index("campaign_session_campaign_id_idx").on(table.campaignId),
+    uniqueIndex("campaign_session_id_campaign_uq").on(table.id, table.campaignId),
     index("campaign_session_campaign_status_idx").on(table.campaignId, table.status),
     uniqueIndex("campaign_session_campaign_sequence_uq").on(
       table.campaignId,
@@ -60,6 +64,35 @@ export const campaignSession = pgTable(
   ],
 );
 
+export const campaignSessionRoster = pgTable(
+  "campaign_session_roster",
+  {
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    characterId: integer("character_id").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    prepNotes: text("prep_notes").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sessionId, table.characterId] }),
+    foreignKey({
+      columns: [table.sessionId, table.campaignId],
+      foreignColumns: [campaignSession.id, campaignSession.campaignId],
+      name: "campaign_session_roster_session_campaign_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.characterId, table.campaignId],
+      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
+      name: "campaign_session_roster_character_campaign_fk",
+    }).onDelete("cascade"),
+    index("campaign_session_roster_session_order_idx").on(table.sessionId, table.sortOrder),
+    index("campaign_session_roster_character_idx").on(table.characterId, table.campaignId),
+    check("campaign_session_roster_sort_order_nonnegative", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
 export const campaignSessionRelations = relations(campaignSession, ({ one }) => ({
   campaign: one(campaign, {
     fields: [campaignSession.campaignId],
@@ -67,5 +100,15 @@ export const campaignSessionRelations = relations(campaignSession, ({ one }) => 
   }),
 }));
 
-export type CampaignSessionStatus = (typeof campaignSessionStatus.enumValues)[number];
+export const campaignSessionRosterRelations = relations(campaignSessionRoster, ({ one }) => ({
+  session: one(campaignSession, {
+    fields: [campaignSessionRoster.sessionId],
+    references: [campaignSession.id],
+  }),
+  character: one(campaignCharacter, {
+    fields: [campaignSessionRoster.characterId],
+    references: [campaignCharacter.id],
+  }),
+}));
 
+export type CampaignSessionStatus = (typeof campaignSessionStatus.enumValues)[number];

@@ -43,6 +43,13 @@
       "when": 1788276904771,
       "tag": "0005_tabletop_operations_session_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788278057846,
+      "tag": "0006_tabletop_operations_session_roster",
+      "breakpoints": true
     }
   ]
 }

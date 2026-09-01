@@ -74,6 +74,12 @@ export function assertSessionMayBeDeleted(status: SessionStatus): void {
   }
 }
 
+export function assertSessionIsEditable(status: SessionStatus): void {
+  if (status === "completed") {
+    throw new Error("A completed Session is read-only. Reopen it before making changes.");
+  }
+}
+
 export function assertCampaignSessionOwner(
   campaignOwnerUserId: string,
   actingUserId: string,
@@ -97,4 +103,3 @@ export function getNextSessionSequence(
 ): number {
   return Math.max(0, ...sessions.map(({ sequenceNumber }) => sequenceNumber)) + 1;
 }
-

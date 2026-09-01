@@ -14,7 +14,7 @@ if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname)) {
 }
 
 const snapshot = JSON.parse(
-  await readFile(new URL("../drizzle/meta/0001_snapshot.json", import.meta.url), "utf8"),
+  await readFile(new URL("../drizzle/meta/0006_snapshot.json", import.meta.url), "utf8"),
 );
 const expectedTables = Object.values(snapshot.tables).filter(
   (table) => table.schema === "" || table.schema === "public",
@@ -53,6 +53,7 @@ function normalizeDefault(value) {
 function normalizeExpression(value) {
   return String(value ?? "")
     .replaceAll('"', "")
+    .replace(/::(?:[a-z_][a-z0-9_]*|character varying)(?:\(\d+\))?/gi, "")
     .replace(/\b[a-z_][a-z0-9_]*\./gi, "")
     .replace(/[()]/g, "")
     .replace(/\s+/g, " ")
@@ -242,7 +243,12 @@ try {
       join pg_class ix on ix.oid=i.indexrelid
       join pg_am am on am.oid=ix.relam
      where n.nspname='public'
-       and not exists (select 1 from pg_constraint con where con.conindid=i.indexrelid)
+       and not exists (
+         select 1
+           from pg_constraint con
+          where con.conindid=i.indexrelid
+            and con.contype in ('p','u','x')
+       )
      order by t.relname, ix.relname
   `);
   const actualIndexes = new Map(indexRows.rows.map((row) => [key(row.table_name, row.index_name), row]));

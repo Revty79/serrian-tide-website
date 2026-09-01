@@ -111,7 +111,10 @@ test("Session schema persists metadata, lifecycle timestamps, and structural inv
 
 test("completing or reopening a Session cannot mutate persistent Character or NPC state", () => {
   const actions = readSource("src/app/heavens/tabletop/actions.ts");
-  const schema = readSource("src/db/tabletop-operations-schema.ts");
+  const lifecycleSource = actions.slice(
+    actions.indexOf("async function applyLifecycleTransition"),
+    actions.indexOf("export async function startCampaignSession"),
+  );
   for (const forbidden of [
     "campaignCharacter",
     "activeHealth",
@@ -122,8 +125,7 @@ test("completing or reopening a Session cannot mutate persistent Character or NP
     "equipmentState",
     "campaignCreatureNpcProfile",
   ]) {
-    assert.equal(actions.includes(forbidden), false, `${forbidden} must remain outside Session lifecycle actions`);
-    assert.equal(schema.includes(forbidden), false, `${forbidden} must not be copied into Session schema`);
+    assert.equal(lifecycleSource.includes(forbidden), false, `${forbidden} must remain outside Session lifecycle actions`);
   }
 });
 
