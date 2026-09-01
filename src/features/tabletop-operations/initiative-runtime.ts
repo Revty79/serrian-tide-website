@@ -243,7 +243,7 @@ export function getNextInitiativeTimelineEvent(state: InitiativeEngineState): In
   const completionCandidates = state.pendingActions.flatMap((action) => {
     if (action.status !== "active") return [];
     const actor = participantById(state, action.actorCharacterId);
-    const availableThisRound = Math.max(0, Math.min(actor.currentInitiative, timeline));
+    const availableThisRound = Math.max(0, actor.currentInitiative);
     if (action.remainingInitiativeCost <= availableThisRound) {
       return [{ id: action.id, initiative: availableThisRound - action.remainingInitiativeCost }];
     }
@@ -260,7 +260,7 @@ export function getNextInitiativeTimelineEvent(state: InitiativeEngineState): In
   const boundaryActionIds = state.pendingActions.flatMap((action) => {
     if (action.status !== "active") return [];
     const actor = participantById(state, action.actorCharacterId);
-    return action.remainingInitiativeCost > Math.max(0, Math.min(actor.currentInitiative, timeline))
+    return action.remainingInitiativeCost > Math.max(0, actor.currentInitiative)
       && actor.currentInitiative > 0
       ? [action.id]
       : [];
@@ -362,7 +362,7 @@ export function startInitiativeAction(
     remainingInitiativeCost: initiativeCost,
     startInitiative: participant.currentInitiative,
     startTimelineInitiative: state.runtime.timelineInitiative,
-    expectedCompletionInitiative: state.runtime.timelineInitiative - initiativeCost,
+    expectedCompletionInitiative: participant.currentInitiative - initiativeCost,
     status: "active",
     startedRound: state.runtime.roundNumber,
     completedRound: null,
@@ -381,7 +381,6 @@ export function advanceInitiativeTimeline(
   finite(targetInitiative, "Timeline Initiative");
   if (targetInitiative < 0) throw new Error("The shared Round timeline cannot advance below zero.");
   if (targetInitiative > state.runtime.timelineInitiative) throw new Error("The Initiative timeline cannot rewind.");
-  const previousTimeline = state.runtime.timelineInitiative;
   const participants = state.participants.map((entry) => ({ ...entry }));
   const pendingActions = state.pendingActions.map((entry) => ({ ...entry }));
 
@@ -391,7 +390,7 @@ export function advanceInitiativeTimeline(
     const participantIndex = participants.findIndex(({ characterId }) => characterId === action.actorCharacterId);
     if (participantIndex < 0) throw new Error("Pending Action actor is not enrolled in Initiative.");
     let actor = participants[participantIndex]!;
-    const from = Math.max(0, Math.min(actor.currentInitiative, previousTimeline));
+    const from = Math.max(0, actor.currentInitiative);
     const to = Math.max(0, Math.min(from, targetInitiative));
     const elapsed = Math.min(action.remainingInitiativeCost, from - to);
     if (elapsed > 0) {
@@ -424,6 +423,30 @@ export function advanceInitiativeToNextEvent(state: InitiativeEngineState): Init
   if (event.kind === "none") throw new Error("There is no further Initiative event in this Round.");
   if (event.kind === "normal-opportunity" && event.initiative === state.runtime.timelineInitiative) {
     throw new Error("The current Initiative opportunity must act, Hold, Pass, or be resolved by the G.O.D. before time advances.");
+  }
+  if (event.kind === "pending-completion" && event.initiative > state.runtime.timelineInitiative) {
+    let resolved = state;
+    for (const actionId of event.actionIds) {
+      const action = actionById(resolved, actionId);
+      const actor = participantById(resolved, action.actorCharacterId);
+      if (action.status !== "active" || action.remainingInitiativeCost > Math.max(0, actor.currentInitiative)) {
+        throw new Error("The retained Initiative completion is no longer resolvable.");
+      }
+      const spent = action.remainingInitiativeCost;
+      resolved = replaceParticipant(resolved, settleAllDeferredCost({
+        ...actor,
+        currentInitiative: actor.currentInitiative - spent,
+        lastSatisfiedStep: resolved.runtime.stepNumber,
+      }));
+      resolved = replaceAction(resolved, {
+        ...action,
+        initiativeSpent: action.initiativeSpent + spent,
+        remainingInitiativeCost: 0,
+        status: "completed",
+        completedRound: resolved.runtime.roundNumber,
+      });
+    }
+    return reconcileCompletedCombatStep(resolved);
   }
   return advanceInitiativeTimeline(state, event.initiative);
 }
@@ -621,7 +644,7 @@ function resumeAction(
     remainingInitiativeCost: remaining,
     startInitiative: participant.currentInitiative,
     startTimelineInitiative: state.runtime.timelineInitiative,
-    expectedCompletionInitiative: state.runtime.timelineInitiative - remaining,
+    expectedCompletionInitiative: participant.currentInitiative - remaining,
     startedRound: state.runtime.roundNumber,
     completedRound: null,
   });
@@ -648,11 +671,12 @@ export function adjustPendingInitiativeActionRemainingCost(
     throw new Error("Only an active or interrupted action may have its remaining Initiative Cost adjusted.");
   }
   const remaining = positive(remainingInitiativeCost, "Remaining Initiative Cost");
+  const actor = participantById(state, action.actorCharacterId);
   return replaceAction(state, {
     ...action,
     remainingInitiativeCost: remaining,
     expectedCompletionInitiative: action.status === "active"
-      ? state.runtime.timelineInitiative - remaining
+      ? actor.currentInitiative - remaining
       : action.expectedCompletionInitiative,
   });
 }
@@ -700,7 +724,7 @@ export function advanceInitiativeRound(
     const actor = participants.find(({ characterId }) => characterId === action.actorCharacterId)!;
     return {
       ...action,
-      expectedCompletionInitiative: Math.min(actor.currentInitiative, timelineInitiative) - action.remainingInitiativeCost,
+      expectedCompletionInitiative: actor.currentInitiative - action.remainingInitiativeCost,
     };
   });
   return { runtime, participants, pendingActions };

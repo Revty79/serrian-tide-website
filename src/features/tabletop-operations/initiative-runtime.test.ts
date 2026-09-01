@@ -191,7 +191,7 @@ test("pending completion precedes a new opportunity at the same Initiative", () 
   assert.equal(engine.runtime.timelineInitiative, 21);
 });
 
-test("Hold retains Initiative, does not freeze chronology, and supports later intervention without rewind", () => {
+test("Held 23 to 21 intervention spends retained Initiative and completes before a new action at 21", () => {
   let engine = state(23, 21);
   engine = holdInitiative(engine, 1);
   assert.equal(participant(engine, 1).currentInitiative, 23);
@@ -207,7 +207,65 @@ test("Hold retains Initiative, does not freeze chronology, and supports later in
   });
   assert.equal(action(engine).startInitiative, 23);
   assert.equal(action(engine).startTimelineInitiative, 21);
+  assert.equal(action(engine).expectedCompletionInitiative, 21);
+  assert.equal(action(engine).initiativeSpent, 0);
+  assert.equal(action(engine).remainingInitiativeCost, 2);
   assert.equal(engine.runtime.timelineInitiative, 21);
+  assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
+    kind: "pending-completion", initiative: 21, actionIds: [1],
+  });
+  assert.throws(() => startInitiativeAction(engine, {
+    id: 2, actorCharacterId: 2, label: "Bob at 21", initiativeCost: 1, allowsMultiRound: false,
+  }), /completion must resolve/);
+  engine = advanceInitiativeToNextEvent(engine);
+  assert.equal(action(engine).status, "completed");
+  assert.equal(action(engine).initiativeSpent, 2);
+  assert.equal(action(engine).remainingInitiativeCost, 0);
+  assert.equal(participant(engine, 1).currentInitiative, 21);
+  assert.equal(engine.runtime.timelineInitiative, 21);
+  assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
+    kind: "normal-opportunity", initiative: 21, characterIds: [1, 2],
+  });
+});
+
+test("a Held 23 action at timeline 21 consumes its retained span before continuing to 18", () => {
+  let engine = state(23, 21);
+  engine = holdInitiative(engine, 1);
+  engine = advanceInitiativeToNextEvent(engine);
+  engine = startInitiativeAction(engine, {
+    id: 1, actorCharacterId: 1, label: "Five-point held action", initiativeCost: 5, allowsMultiRound: false, heldIntervention: true,
+  });
+  assert.equal(action(engine).startInitiative, 23);
+  assert.equal(action(engine).startTimelineInitiative, 21);
+  assert.equal(action(engine).expectedCompletionInitiative, 18);
+  engine = passInitiative(engine, 2);
+  engine = advanceInitiativeToNextEvent(engine);
+  assert.equal(engine.runtime.timelineInitiative, 18);
+  assert.equal(action(engine).status, "completed");
+  assert.equal(action(engine).initiativeSpent, 5);
+  assert.equal(action(engine).remainingInitiativeCost, 0);
+  assert.equal(participant(engine, 1).currentInitiative, 18);
+});
+
+test("a Held completion above a lower normal opportunity resolves without rewinding world time", () => {
+  let engine = state(23, 20);
+  engine = holdInitiative(engine, 1);
+  engine = advanceInitiativeToNextEvent(engine);
+  assert.equal(engine.runtime.timelineInitiative, 20);
+  engine = startInitiativeAction(engine, {
+    id: 1, actorCharacterId: 1, label: "Retained punch", initiativeCost: 2, allowsMultiRound: false, heldIntervention: true,
+  });
+  assert.equal(action(engine).expectedCompletionInitiative, 21);
+  assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
+    kind: "pending-completion", initiative: 21, actionIds: [1],
+  });
+  engine = advanceInitiativeToNextEvent(engine);
+  assert.equal(action(engine).status, "completed");
+  assert.equal(participant(engine, 1).currentInitiative, 21);
+  assert.equal(engine.runtime.timelineInitiative, 20);
+  assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
+    kind: "normal-opportunity", initiative: 20, characterIds: [1, 2],
+  });
 });
 
 test("Pass banks Current Initiative, prevents normal same-round entry, and resets next Round", () => {
@@ -299,6 +357,36 @@ test("late enrollment grants full Normal Initiative without changing timeline, R
   assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
     kind: "normal-opportunity", initiative: 20, characterIds: [2, 3],
   });
+});
+
+test("a late entrant with 30 Initiative at timeline 20 can spend all 30 for 90 feet in the same Round", () => {
+  let engine = passInitiative(state(20), 1);
+  engine = enrollLateInitiativeParticipant(engine, {
+    characterId: 2, normalTotalInitiative: 30, movementMode: "Land",
+  });
+  assert.equal(engine.runtime.timelineInitiative, 20);
+  assert.equal(participant(engine, 2).currentInitiative, 30);
+  engine = startInitiativeAction(engine, {
+    id: 1,
+    actorCharacterId: 2,
+    label: "Move full distance",
+    actionKind: "movement",
+    initiativeCost: 30,
+    allowsMultiRound: false,
+  });
+  assert.equal(action(engine).startInitiative, 30);
+  assert.equal(action(engine).startTimelineInitiative, 20);
+  assert.equal(action(engine).expectedCompletionInitiative, 0);
+  assert.equal(getMaximumMovementDistance(3, action(engine).originalInitiativeCost), 90);
+  assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
+    kind: "pending-completion", initiative: 0, actionIds: [1],
+  });
+  engine = advanceInitiativeToNextEvent(engine);
+  assert.equal(action(engine).initiativeSpent, 30);
+  assert.equal(action(engine).remainingInitiativeCost, 0);
+  assert.equal(participant(engine, 2).currentInitiative, 0);
+  assert.equal(engine.runtime.timelineInitiative, 0);
+  assert.equal(engine.runtime.roundNumber, 1);
 });
 
 test("multiple pending actions are ordered by shared chronology rather than insertion stack", () => {
