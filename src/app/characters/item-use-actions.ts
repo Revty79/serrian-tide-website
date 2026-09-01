@@ -348,33 +348,47 @@ export async function prepareCharacterItemUse(
 ): Promise<ItemUsePreparation> {
   const request = validateRequest(input);
   const session = await requireSession();
-  return db.transaction(async (tx) => {
-    const roles = await tx
-      .select({ role: userRole.role })
-      .from(userRole)
-      .where(eq(userRole.userId, session.user.id));
-    const source = await loadAccessEntity(tx, request.sourceCharacterId, session.user.id, false);
-    const targets = await listTargetOptions(
-      tx,
-      source,
-      session.user.id,
-      roles.map(({ role }) => role),
-    );
-    const loaded = await loadUse(tx, request, session.user.id, false);
-    return { plan: loaded.plan, targetOptions: targets.options, canChooseTarget: targets.canChooseTarget };
-  });
+  return db.transaction((tx) => prepareCharacterItemUseInTransaction(
+    tx,
+    request,
+    session.user.id,
+  ));
 }
 
-export async function executeCharacterItemUse(
+/** Caller-owned preview boundary used by Tabletop Operations. */
+export async function prepareCharacterItemUseInTransaction(
+  tx: ActiveHealthTransaction,
   input: ItemUseRequest,
+  actingUserId: string,
+): Promise<ItemUsePreparation> {
+  const request = validateRequest(input);
+  const roles = await tx
+    .select({ role: userRole.role })
+    .from(userRole)
+    .where(eq(userRole.userId, actingUserId));
+  const source = await loadAccessEntity(tx, request.sourceCharacterId, actingUserId, false);
+  const targets = await listTargetOptions(
+    tx,
+    source,
+    actingUserId,
+    roles.map(({ role }) => role),
+  );
+  const loaded = await loadUse(tx, request, actingUserId, false);
+  return { plan: loaded.plan, targetOptions: targets.options, canChooseTarget: targets.canChooseTarget };
+}
+
+/** Executes one Item use inside a transaction owned by the caller. */
+export async function executeCharacterItemUseInCallerTransaction(
+  tx: ActiveHealthTransaction,
+  input: ItemUseRequest,
+  actingUserId: string,
 ): Promise<ItemUseExecutionResult> {
   const request = validateRequest(input);
-  const session = await requireSession();
   let loaded: LoadedUse | null = null;
-  const result = await executeItemUseInTransaction((execute) => db.transaction(async (tx) => execute({
+  return executeItemUseInTransaction(async (execute) => execute({
     loadAndPlan: async () => {
       await lockEquipmentStateCharacterInTransaction(tx, request.sourceCharacterId);
-      loaded = await loadUse(tx, request, session.user.id, true);
+      loaded = await loadUse(tx, request, actingUserId, true);
       return loaded.plan;
     },
     consumeResource: async (resource) => {
@@ -387,25 +401,18 @@ export async function executeCharacterItemUse(
           consumeQuantity: resource.before - resource.after,
         });
         if (resource.after === 0) {
-          const deleted = await tx
-            .delete(campaignCharacterItem)
-            .where(and(
-              eq(campaignCharacterItem.characterId, request.sourceCharacterId),
-              eq(campaignCharacterItem.itemId, request.itemId),
-            ))
-            .returning({ itemId: campaignCharacterItem.itemId });
+          const deleted = await tx.delete(campaignCharacterItem).where(and(
+            eq(campaignCharacterItem.characterId, request.sourceCharacterId),
+            eq(campaignCharacterItem.itemId, request.itemId),
+          )).returning({ itemId: campaignCharacterItem.itemId });
           if (!deleted.length) throw new Error("The owned Item stack changed before use could resolve.");
           await reconcileItemPassiveEffectsInTransaction(tx, request.sourceCharacterId, [request.itemId]);
           return;
         }
-        const updated = await tx
-          .update(campaignCharacterItem)
-          .set({ quantity: resource.after })
-          .where(and(
-            eq(campaignCharacterItem.characterId, request.sourceCharacterId),
-            eq(campaignCharacterItem.itemId, request.itemId),
-          ))
-          .returning({ itemId: campaignCharacterItem.itemId });
+        const updated = await tx.update(campaignCharacterItem).set({ quantity: resource.after }).where(and(
+          eq(campaignCharacterItem.characterId, request.sourceCharacterId),
+          eq(campaignCharacterItem.itemId, request.itemId),
+        )).returning({ itemId: campaignCharacterItem.itemId });
         if (!updated.length) throw new Error("The owned Item stack changed before use could resolve.");
         await reconcileItemPassiveEffectsInTransaction(tx, request.sourceCharacterId, [request.itemId]);
         return;
@@ -429,7 +436,19 @@ export async function executeCharacterItemUse(
         targetAnatomy: context.targetAnatomy,
       });
     },
-  })));
+  }));
+}
+
+export async function executeCharacterItemUse(
+  input: ItemUseRequest,
+): Promise<ItemUseExecutionResult> {
+  const request = validateRequest(input);
+  const session = await requireSession();
+  const result = await db.transaction((tx) => executeCharacterItemUseInCallerTransaction(
+    tx,
+    request,
+    session.user.id,
+  ));
 
   revalidatePath(`/realms/characters/${request.sourceCharacterId}`);
   revalidatePath(`/heavens/characters/${request.sourceCharacterId}`);

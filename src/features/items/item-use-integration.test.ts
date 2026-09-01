@@ -8,9 +8,10 @@ const health = readFileSync("src/features/active-state/active-health-service.ts"
 const characterSheet = readFileSync("src/app/characters/character-sheet.tsx", "utf8");
 const creatureWorkspace = readFileSync("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx", "utf8");
 
-test("Item Use owns one transaction and reloads authoritative inputs inside it", () => {
-  assert.match(actions, /executeItemUseInTransaction\(\(execute\) => db\.transaction/);
-  assert.match(actions, /loadUse\(tx, request, session\.user\.id, true\)/);
+test("Item Use supports both its route-owned transaction and a reusable caller-owned transaction", () => {
+  assert.match(actions, /db\.transaction\(\(tx\) => executeCharacterItemUseInCallerTransaction/);
+  assert.match(actions, /executeItemUseInTransaction\(async \(execute\) => execute/);
+  assert.match(actions, /loadUse\(tx, request, actingUserId, true\)/);
   assert.match(actions, /loadDefinition\(tx,/);
   assert.match(actions, /loadResource\(tx,/);
   assert.match(actions, /readActiveHealthInTransaction\(/);

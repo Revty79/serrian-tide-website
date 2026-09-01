@@ -14,6 +14,7 @@ import {
 } from "@/db/item-schema";
 import {
   campaignCharacter,
+  campaignCharacterAttribute,
   campaignCharacterActiveCondition,
   campaignCharacterActiveModifier,
   campaignCharacterItem,
@@ -29,6 +30,16 @@ import {
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
 import { canMutateActiveHealth } from "@/features/active-state/authorization";
 import { persistPlannedMechanicalEffectInTransaction } from "@/features/active-state/mechanical-effect-service";
+import {
+  getCharacterWeaponDamage,
+  getCharacterWeaponDamageAttributeKeys,
+  getCharacterWeaponDamageSummary,
+  type CharacterWeaponDamageInput,
+} from "@/features/characters/character-sheet-rules";
+import {
+  CHARACTER_ATTRIBUTE_KEYS,
+  type CharacterAttributeKey,
+} from "@/features/characters/models";
 import { decodeMechanicalEffect, planMechanicalEffect } from "@/features/mechanical-effects";
 import { requireSession } from "@/lib/server-access";
 
@@ -225,9 +236,69 @@ export async function readCharacterEquipmentStateInTransaction(
   const passives = await loadPassiveEffectsInTransaction(tx, activeItemIds);
   const armorRows = activeItemIds.length ? await tx.select().from(armorProfile).where(inArray(armorProfile.itemId, activeItemIds)) : [];
   const weaponRows = activeItemIds.length ? await tx.select().from(weaponProfile).where(inArray(weaponProfile.itemId, activeItemIds)) : [];
+  const ammunitionItemIds = [...new Set(weaponRows.flatMap((profile) => (
+    profile.ammunitionItemId === null ? [] : [profile.ammunitionItemId]
+  )))];
+  const ammunitionRows = ammunitionItemIds.length ? await tx.select({
+    itemId: item.id,
+    itemName: item.name,
+    damage: weaponProfile.damage,
+    damageType: weaponProfile.damageType,
+  }).from(item)
+    .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+    .where(inArray(item.id, ammunitionItemIds)) : [];
+  const attributeRows = await tx.select({
+    attributeKey: campaignCharacterAttribute.attributeKey,
+    value: campaignCharacterAttribute.value,
+  }).from(campaignCharacterAttribute)
+    .where(eq(campaignCharacterAttribute.characterId, characterId));
   const locationRows = activeItemIds.length ? await tx.select({ itemId: armorLocation.itemId, locationCode: armorLocation.locationCode }).from(armorLocation).where(inArray(armorLocation.itemId, activeItemIds)).orderBy(asc(armorLocation.itemId), asc(armorLocation.sortOrder)) : [];
   const armorByItem = new Map(armorRows.map((row) => [row.itemId, row]));
   const weaponByItem = new Map(weaponRows.map((row) => [row.itemId, row]));
+  const ammunitionByItem = new Map(ammunitionRows.map((row) => [row.itemId, row]));
+  const attributes = Object.fromEntries(CHARACTER_ATTRIBUTE_KEYS.map((key) => [key, 0])) as Record<CharacterAttributeKey, number>;
+  const presentAttributeKeys = new Set<CharacterAttributeKey>();
+  for (const row of attributeRows) {
+    if (CHARACTER_ATTRIBUTE_KEYS.includes(row.attributeKey as CharacterAttributeKey)) {
+      const key = row.attributeKey as CharacterAttributeKey;
+      attributes[key] = row.value;
+      presentAttributeKeys.add(key);
+    }
+  }
+  const weaponRuntimeFields = (profile: (typeof weaponRows)[number]) => {
+    const ammunition = profile.ammunitionItemId === null ? null : ammunitionByItem.get(profile.ammunitionItemId) ?? null;
+    const damageInput: CharacterWeaponDamageInput = {
+      damageSource: profile.damageSource,
+      damage: profile.damage,
+      damageType: profile.damageType,
+      ammunitionItemId: profile.ammunitionItemId,
+      ammunitionItemName: ammunition?.itemName ?? null,
+      ammunitionDamage: ammunition?.damage ?? null,
+      ammunitionDamageType: ammunition?.damageType ?? null,
+      weaponType: profile.weaponType,
+      rangeText: profile.rangeText,
+      reachText: profile.reachText,
+    };
+    const resolved = getCharacterWeaponDamage(damageInput);
+    const requiredAttributes = getCharacterWeaponDamageAttributeKeys(damageInput);
+    if (!requiredAttributes.every((key) => presentAttributeKeys.has(key))) {
+      return {
+        damage: resolved.damage ?? "",
+        damageType: resolved.damageType ?? "",
+        authoredDamage: "",
+        authoredDamageModifier: "required Character Attribute unavailable",
+        authoredDamageSourceName: resolved.sourceName,
+      };
+    }
+    const summary = getCharacterWeaponDamageSummary(damageInput, attributes);
+    return {
+      damage: resolved.damage ?? "",
+      damageType: resolved.damageType ?? "",
+      authoredDamage: summary.totalDamage === "\u2014" ? "" : summary.totalDamage,
+      authoredDamageModifier: summary.modifier,
+      authoredDamageSourceName: resolved.sourceName,
+    };
+  };
   const locationsByItem = new Map<number, string[]>();
   for (const row of locationRows) locationsByItem.set(row.itemId, [...(locationsByItem.get(row.itemId) ?? []), row.locationCode]);
 
@@ -290,8 +361,7 @@ export async function readCharacterEquipmentStateInTransaction(
         activeQuantity,
         weaponType: profile.weaponType,
         handedness: profile.handedness,
-        damage: profile.damage,
-        damageType: profile.damageType,
+        ...weaponRuntimeFields(profile),
         initiativeCost: profile.initiativeCost,
         range: profile.rangeText,
         reach: profile.reachText,
@@ -308,8 +378,7 @@ export async function readCharacterEquipmentStateInTransaction(
         activeQuantity: 1,
         weaponType: profile.weaponType,
         handedness: profile.handedness,
-        damage: profile.damage,
-        damageType: profile.damageType,
+        ...weaponRuntimeFields(profile),
         initiativeCost: profile.initiativeCost,
         range: profile.rangeText,
         reach: profile.reachText,
@@ -532,68 +601,78 @@ export function getCharacterEquipmentState(characterId: number): Promise<Charact
   return withEquipmentAccess(characterId, ({ tx }) => readCharacterEquipmentStateInTransaction(tx, characterId));
 }
 
+export async function setStackEquipmentStateInTransaction(
+  tx: EquipmentStateTransaction,
+  command: SetStackEquipmentStateCommand,
+): Promise<EquipmentStateMutationResult> {
+  positiveId(command.itemId, "Equipment Item");
+  if (!ACTIVE_EQUIPMENT_STATES.includes(command.state)) throw new Error("Stack Equipment State must be Equipped, Worn, or Wielded.");
+  if (!Number.isSafeInteger(command.quantity) || command.quantity < 0) throw new Error("Active Equipment quantity must be a whole number zero or greater.");
+  await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  const ownershipRows = await tx.select({ quantity: campaignCharacterItem.quantity, scope: item.catalogScope })
+    .from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
+    .where(and(eq(campaignCharacterItem.characterId, command.characterId), eq(campaignCharacterItem.itemId, command.itemId)))
+    .limit(1).for("update");
+  const ownership = ownershipRows[0];
+  if (!ownership) throw new Error("The Character does not own that Item as a stack.");
+  if (ownership.scope !== "equipment") throw new Error("Inventory-only Items cannot enter Equipment State.");
+  const states = await tx.select({ state: campaignCharacterItemEquipmentState.state, quantity: campaignCharacterItemEquipmentState.quantity })
+    .from(campaignCharacterItemEquipmentState)
+    .where(and(eq(campaignCharacterItemEquipmentState.characterId, command.characterId), eq(campaignCharacterItemEquipmentState.itemId, command.itemId)));
+  const nextActive = states.reduce((total, row) => total + (row.state === command.state ? 0 : row.quantity), 0) + command.quantity;
+  getInactiveStackQuantity(ownership.quantity, nextActive);
+  if (command.quantity === 0) {
+    await tx.delete(campaignCharacterItemEquipmentState).where(and(
+      eq(campaignCharacterItemEquipmentState.characterId, command.characterId),
+      eq(campaignCharacterItemEquipmentState.itemId, command.itemId),
+      eq(campaignCharacterItemEquipmentState.state, command.state),
+    ));
+  } else {
+    await tx.insert(campaignCharacterItemEquipmentState).values({
+      characterId: command.characterId,
+      itemId: command.itemId,
+      state: command.state,
+      quantity: command.quantity,
+      updatedAt: new Date(),
+    }).onConflictDoUpdate({
+      target: [campaignCharacterItemEquipmentState.characterId, campaignCharacterItemEquipmentState.itemId, campaignCharacterItemEquipmentState.state],
+      set: { quantity: command.quantity, updatedAt: new Date() },
+    });
+  }
+  await reconcileItemPassiveEffectsInTransaction(tx, command.characterId, [command.itemId]);
+  const equipmentState = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
+  const activeEffects = await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false);
+  return { equipmentState, activeEffects };
+}
+
 export function setStackEquipmentState(command: SetStackEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
-  return withEquipmentAccess(command.characterId, async ({ tx }) => {
-    positiveId(command.itemId, "Equipment Item");
-    if (!ACTIVE_EQUIPMENT_STATES.includes(command.state)) throw new Error("Stack Equipment State must be Equipped, Worn, or Wielded.");
-    if (!Number.isSafeInteger(command.quantity) || command.quantity < 0) throw new Error("Active Equipment quantity must be a whole number zero or greater.");
-    await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
-    const ownershipRows = await tx.select({ quantity: campaignCharacterItem.quantity, scope: item.catalogScope })
-      .from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
-      .where(and(eq(campaignCharacterItem.characterId, command.characterId), eq(campaignCharacterItem.itemId, command.itemId)))
-      .limit(1).for("update");
-    const ownership = ownershipRows[0];
-    if (!ownership) throw new Error("The Character does not own that Item as a stack.");
-    if (ownership.scope !== "equipment") throw new Error("Inventory-only Items cannot enter Equipment State.");
-    const states = await tx.select({ state: campaignCharacterItemEquipmentState.state, quantity: campaignCharacterItemEquipmentState.quantity })
-      .from(campaignCharacterItemEquipmentState)
-      .where(and(eq(campaignCharacterItemEquipmentState.characterId, command.characterId), eq(campaignCharacterItemEquipmentState.itemId, command.itemId)));
-    const nextActive = states.reduce((total, row) => total + (row.state === command.state ? 0 : row.quantity), 0) + command.quantity;
-    getInactiveStackQuantity(ownership.quantity, nextActive);
-    if (command.quantity === 0) {
-      await tx.delete(campaignCharacterItemEquipmentState).where(and(
-        eq(campaignCharacterItemEquipmentState.characterId, command.characterId),
-        eq(campaignCharacterItemEquipmentState.itemId, command.itemId),
-        eq(campaignCharacterItemEquipmentState.state, command.state),
-      ));
-    } else {
-      await tx.insert(campaignCharacterItemEquipmentState).values({
-        characterId: command.characterId,
-        itemId: command.itemId,
-        state: command.state,
-        quantity: command.quantity,
-        updatedAt: new Date(),
-      }).onConflictDoUpdate({
-        target: [campaignCharacterItemEquipmentState.characterId, campaignCharacterItemEquipmentState.itemId, campaignCharacterItemEquipmentState.state],
-        set: { quantity: command.quantity, updatedAt: new Date() },
-      });
-    }
-    await reconcileItemPassiveEffectsInTransaction(tx, command.characterId, [command.itemId]);
-    const equipmentState = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
-    const activeEffects = await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false);
-    return { equipmentState, activeEffects };
-  });
+  return withEquipmentAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command));
+}
+
+export async function setInstanceEquipmentStateInTransaction(
+  tx: EquipmentStateTransaction,
+  command: SetInstanceEquipmentStateCommand,
+): Promise<EquipmentStateMutationResult> {
+  positiveId(command.instanceId, "Owned Item copy");
+  const state = requireEquipmentState(command.state);
+  await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  const rows = await tx.select({ itemId: campaignCharacterItemInstance.itemId, scope: item.catalogScope })
+    .from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
+    .where(and(eq(campaignCharacterItemInstance.characterId, command.characterId), eq(campaignCharacterItemInstance.id, command.instanceId)))
+    .limit(1).for("update");
+  const owned = rows[0];
+  if (!owned) throw new Error("Owned Item copy was not found.");
+  if (owned.scope !== "equipment") throw new Error("Inventory-only Items cannot enter Equipment State.");
+  await tx.update(campaignCharacterItemInstance).set({ equipmentState: state, updatedAt: new Date() }).where(and(
+    eq(campaignCharacterItemInstance.characterId, command.characterId),
+    eq(campaignCharacterItemInstance.id, command.instanceId),
+  ));
+  await reconcileItemPassiveEffectsInTransaction(tx, command.characterId, [owned.itemId]);
+  const equipmentState = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
+  const activeEffects = await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false);
+  return { equipmentState, activeEffects };
 }
 
 export function setInstanceEquipmentState(command: SetInstanceEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
-  return withEquipmentAccess(command.characterId, async ({ tx }) => {
-    positiveId(command.instanceId, "Owned Item copy");
-    const state = requireEquipmentState(command.state);
-    await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
-    const rows = await tx.select({ itemId: campaignCharacterItemInstance.itemId, scope: item.catalogScope })
-      .from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
-      .where(and(eq(campaignCharacterItemInstance.characterId, command.characterId), eq(campaignCharacterItemInstance.id, command.instanceId)))
-      .limit(1).for("update");
-    const owned = rows[0];
-    if (!owned) throw new Error("Owned Item copy was not found.");
-    if (owned.scope !== "equipment") throw new Error("Inventory-only Items cannot enter Equipment State.");
-    await tx.update(campaignCharacterItemInstance).set({ equipmentState: state, updatedAt: new Date() }).where(and(
-      eq(campaignCharacterItemInstance.characterId, command.characterId),
-      eq(campaignCharacterItemInstance.id, command.instanceId),
-    ));
-    await reconcileItemPassiveEffectsInTransaction(tx, command.characterId, [owned.itemId]);
-    const equipmentState = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
-    const activeEffects = await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false);
-    return { equipmentState, activeEffects };
-  });
+  return withEquipmentAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command));
 }

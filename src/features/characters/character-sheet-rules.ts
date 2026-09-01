@@ -21,6 +21,20 @@ export type CharacterWeaponDamage = {
   sourceName: string | null;
 };
 
+export type CharacterWeaponDamageInput = Pick<
+  CharacterAuthorizedItem,
+  | "damageSource"
+  | "damage"
+  | "damageType"
+  | "ammunitionItemId"
+  | "ammunitionItemName"
+  | "ammunitionDamage"
+  | "ammunitionDamageType"
+  | "weaponType"
+  | "rangeText"
+  | "reachText"
+>;
+
 export type CharacterEncumbrance = {
   totals: Array<{ weight: number; unit: string }>;
   unknownQuantity: number;
@@ -59,7 +73,7 @@ export function getCharacterEncumbrance(
 }
 
 export function getCharacterWeaponDamage(
-  item: CharacterAuthorizedItem,
+  item: CharacterWeaponDamageInput,
 ): CharacterWeaponDamage {
   const usesLinkedAmmunition =
     item.damageSource?.trim().toLowerCase() === "ammunition" &&
@@ -100,7 +114,7 @@ function addModifier(damage: string | null, modifier: number): string {
   return `${base} ${modifier > 0 ? "+" : "−"} ${displayNumber(Math.abs(modifier))}`;
 }
 
-function weaponUses(item: CharacterAuthorizedItem): WeaponUse[] {
+function weaponUses(item: CharacterWeaponDamageInput): WeaponUse[] {
   const hasRange = Boolean(item.rangeText?.trim());
   const hasReach = Boolean(item.reachText?.trim());
   const explicitlyRanged =
@@ -120,8 +134,14 @@ function weaponUses(item: CharacterAuthorizedItem): WeaponUse[] {
   return [{ attribute: "STR", label: "Melee" }];
 }
 
+export function getCharacterWeaponDamageAttributeKeys(
+  item: CharacterWeaponDamageInput,
+): CharacterAttributeKey[] {
+  return weaponUses(item).map(({ attribute }) => attribute);
+}
+
 export function getCharacterWeaponDamageSummary(
-  item: CharacterAuthorizedItem,
+  item: CharacterWeaponDamageInput,
   attributes: Record<CharacterAttributeKey, number>,
 ): CharacterWeaponDamageSummary {
   const profile = getCharacterWeaponDamage(item);

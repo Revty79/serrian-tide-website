@@ -60,6 +60,9 @@ export type WieldedWeaponRuntimeContext = {
   handedness: string;
   damage: string;
   damageType: string;
+  authoredDamage: string;
+  authoredDamageModifier: string;
+  authoredDamageSourceName: string | null;
   initiativeCost: number | null;
   range: string;
   reach: string;

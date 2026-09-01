@@ -27,6 +27,7 @@ const serviceSource = readFileSync("src/features/creatures/creature-ability-runt
 const runtimeSource = readFileSync("src/features/creatures/creature-ability-runtime.ts", "utf8");
 const creatureActionsSource = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
 const npcActionsSource = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
+const npcConstructorSource = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
 const npcWorkspaceSource = readFileSync("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx", "utf8");
 const schemaSource = readFileSync("src/db/creature-schema.ts", "utf8");
 
@@ -150,7 +151,9 @@ test("11.7 A new NPC snapshot receives copied structured Ability effects", () =>
   const master = ability([effect("venom", { kind: "condition.apply", name: "Poisoned", description: "", duration: { kind: "scene", value: null } })]);
   const snapshot = normalizeCreatureSnapshotAbilities({ abilities: [copyCreatureAbility(master)] });
   assert.deepEqual(snapshot.abilities[0]?.effects, master.effects);
-  assert.match(npcActionsSource, /baselineSnapshotJson: JSON\.stringify\(snapshot\)/);
+  assert.match(npcActionsSource, /createCreatureNpcInTransaction/);
+  assert.match(npcConstructorSource, /baselineSnapshotJson: JSON\.stringify\(snapshot\)/);
+  assert.match(npcConstructorSource, /currentSnapshotJson: JSON\.stringify\(snapshot\)/);
 });
 
 test("11.8 Baseline and current snapshot initially match", () => {
@@ -439,7 +442,7 @@ test("11.47 Failed Ability use commits no partial application", async () => {
 });
 
 test("11.48 Confirm reloads the authoritative CURRENT snapshot", () => {
-  assert.match(serviceSource, /loadAuthoritativePlan\(tx, request, session\.user\.id, true\)/);
+  assert.match(serviceSource, /loadAuthoritativePlan\(tx, request, actingUserId, true\)/);
   assert.match(serviceSource, /currentSnapshotJson/);
 });
 

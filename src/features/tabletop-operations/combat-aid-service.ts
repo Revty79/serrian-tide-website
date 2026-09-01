@@ -1,12 +1,18 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { campaign } from "@/db/campaign-schema";
 import { creature } from "@/db/creature-schema";
-import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
+import {
+  campaignCharacter,
+  campaignCharacterSkillAllocation,
+  campaignCharacterSpellDocument,
+  campaignCreatureNpcProfile,
+} from "@/db/realm-schema";
+import { skill, skillExtension } from "@/db/skill-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
@@ -14,6 +20,8 @@ import {
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
+  campaignSessionEncounterPendingActionSource,
+  campaignSessionEncounterReaction,
   campaignSessionScene,
 } from "@/db/tabletop-operations-schema";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
@@ -33,6 +41,16 @@ import type {
   InitiativeRuntimeStatus,
   PendingInitiativeActionStatus,
 } from "@/features/tabletop-operations/initiative-runtime";
+import {
+  canHoldingParticipantIntervene,
+  canParticipantReactToAction,
+} from "@/features/tabletop-operations/initiative-runtime";
+import {
+  readEncounterCreatureAbilitiesInTransaction,
+  readEncounterCreatureAttacksInTransaction,
+  type EncounterCreatureAbility,
+  type EncounterCreatureAttack,
+} from "@/features/tabletop-operations/runtime-integration-service";
 import { assertCampaignSessionOwner } from "@/features/tabletop-operations/session-foundation";
 import {
   classifySessionRosterEntity,
@@ -52,6 +70,7 @@ export type CombatAidInitiativeSummary =
       participationStatus: InitiativeParticipationStatus;
       deferredInitiativeCost: number;
       movementMode: string;
+      reactionOpportunityActionIds: number[];
       pendingAction: null | {
         id: number;
         label: string;
@@ -75,8 +94,40 @@ export type CombatAidParticipant = {
   effects: ActiveEffectsView | null;
   equipment: CharacterEquipmentStateView | null;
   resources: CharacterOperationalItemStateView | null;
+  creatureAttacks: EncounterCreatureAttack[];
+  creatureAbilities: EncounterCreatureAbility[];
+  spellSources: Array<
+    | { kind: "catalog"; allocationId: number; name: string }
+    | { kind: "personal"; savedSpellId: number; name: string }
+    | { kind: "raw-saved"; savedSpellId: number; name: string }
+  >;
   initiative: CombatAidInitiativeSummary;
   errors: Array<{ section: "health" | "mana" | "effects" | "equipment" | "resources"; message: string }>;
+};
+
+export type CombatAidAuthoredAction = {
+  id: number;
+  pendingActionId: number;
+  sourceCharacterId: number;
+  sourceKind: "weapon" | "creature-attack" | "spell" | "item" | "creature-ability";
+  sourceRef: string;
+  sourceInstanceId: number | null;
+  targetCharacterIds: number[];
+  resolutionStatus: "pending" | "resolved" | "cancelled" | "needs-ruling";
+  resolutionSummary: string;
+  resolvedAt: string | null;
+};
+
+export type CombatAidReaction = {
+  id: number;
+  pendingActionId: number;
+  reactorCharacterId: number;
+  reactionType: "dodge" | "block" | "parry" | "no-reaction";
+  committedInitiativeCost: number;
+  status: "declared" | "resolved" | "cancelled" | "needs-ruling";
+  outcome: string;
+  defenderFinalCost: number | null;
+  attackerAdditionalCost: number | null;
 };
 
 export type CombatAidEncounterView = {
@@ -95,6 +146,8 @@ export type CombatAidEncounterView = {
     timelineInitiative: number;
   };
   participants: CombatAidParticipant[];
+  authoredActions: CombatAidAuthoredAction[];
+  reactions: CombatAidReaction[];
 };
 
 type SectionName = CombatAidParticipant["errors"][number]["section"];
@@ -158,6 +211,8 @@ export async function readCombatAidEncounterInTransaction(
       roundNumber: campaignSessionEncounterInitiative.roundNumber,
       stepNumber: campaignSessionEncounterInitiative.stepNumber,
       timelineInitiative: campaignSessionEncounterInitiative.timelineInitiative,
+      startedAt: campaignSessionEncounterInitiative.startedAt,
+      closedAt: campaignSessionEncounterInitiative.closedAt,
     }).from(campaignSessionEncounterInitiative)
       .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId)).limit(1);
   const initiativeRows = await tx.select({
@@ -166,6 +221,7 @@ export async function readCombatAidEncounterInTransaction(
       currentInitiative: campaignSessionEncounterInitiativeParticipant.currentInitiative,
       participationStatus: campaignSessionEncounterInitiativeParticipant.participationStatus,
       deferredInitiativeCost: campaignSessionEncounterInitiativeParticipant.deferredInitiativeCost,
+      lastSatisfiedStep: campaignSessionEncounterInitiativeParticipant.lastSatisfiedStep,
       movementMode: campaignSessionEncounterInitiativeParticipant.movementMode,
     }).from(campaignSessionEncounterInitiativeParticipant)
       .where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, encounterId));
@@ -175,18 +231,76 @@ export async function readCombatAidEncounterInTransaction(
       label: campaignSessionEncounterPendingAction.label,
       status: campaignSessionEncounterPendingAction.status,
       remainingInitiativeCost: campaignSessionEncounterPendingAction.remainingInitiativeCost,
+      startTimelineInitiative: campaignSessionEncounterPendingAction.startTimelineInitiative,
       expectedCompletionInitiative: campaignSessionEncounterPendingAction.expectedCompletionInitiative,
     }).from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.encounterId, encounterId))
       .orderBy(asc(campaignSessionEncounterPendingAction.id));
+  const authoredActions = await tx.select({
+    id: campaignSessionEncounterPendingActionSource.id,
+    pendingActionId: campaignSessionEncounterPendingActionSource.pendingActionId,
+    sourceCharacterId: campaignSessionEncounterPendingActionSource.sourceCharacterId,
+    sourceKind: campaignSessionEncounterPendingActionSource.sourceKind,
+    sourceRef: campaignSessionEncounterPendingActionSource.sourceRef,
+    sourceInstanceId: campaignSessionEncounterPendingActionSource.sourceInstanceId,
+    payloadJson: campaignSessionEncounterPendingActionSource.payloadJson,
+    resolutionStatus: campaignSessionEncounterPendingActionSource.resolutionStatus,
+    resolutionSummary: campaignSessionEncounterPendingActionSource.resolutionSummary,
+    resolvedAt: campaignSessionEncounterPendingActionSource.resolvedAt,
+  }).from(campaignSessionEncounterPendingActionSource)
+    .where(eq(campaignSessionEncounterPendingActionSource.encounterId, encounterId))
+    .orderBy(asc(campaignSessionEncounterPendingActionSource.id));
+  const reactions = await tx.select({
+    id: campaignSessionEncounterReaction.id,
+    pendingActionId: campaignSessionEncounterReaction.pendingActionId,
+    reactorCharacterId: campaignSessionEncounterReaction.reactorCharacterId,
+    reactionType: campaignSessionEncounterReaction.reactionType,
+    committedInitiativeCost: campaignSessionEncounterReaction.committedInitiativeCost,
+    status: campaignSessionEncounterReaction.status,
+    outcome: campaignSessionEncounterReaction.outcome,
+    defenderFinalCost: campaignSessionEncounterReaction.defenderFinalCost,
+    attackerAdditionalCost: campaignSessionEncounterReaction.attackerAdditionalCost,
+  }).from(campaignSessionEncounterReaction)
+    .where(eq(campaignSessionEncounterReaction.encounterId, encounterId))
+    .orderBy(asc(campaignSessionEncounterReaction.id));
   const initiativeRuntime = runtimeRows[0] ? {
     ...runtimeRows[0],
     status: runtimeRows[0].status as InitiativeRuntimeStatus,
   } : null;
   const initiativeByCharacter = new Map(initiativeRows.map((row) => [row.characterId, row]));
+  const unresolvedAuthoredActionIds = new Set(authoredActions
+    .filter(({ resolutionStatus }) => resolutionStatus === "pending" || resolutionStatus === "needs-ruling")
+    .map(({ pendingActionId }) => pendingActionId));
   const actionByCharacter = new Map(actionRows
-    .filter(({ status }) => status === "active" || status === "interrupted")
+    .filter((row) => row.status === "active" || row.status === "interrupted" || unresolvedAuthoredActionIds.has(row.id))
     .map((row) => [row.actorCharacterId, row]));
+  const characterIds = participantRows.map(({ characterId }) => characterId);
+  const personalSpells = characterIds.length ? await tx.select({
+      characterId: campaignCharacterSpellDocument.characterId,
+      savedSpellId: campaignCharacterSpellDocument.id,
+      name: campaignCharacterSpellDocument.name,
+      inSpellbook: campaignCharacterSpellDocument.inSpellbook,
+    }).from(campaignCharacterSpellDocument)
+      .where(inArray(campaignCharacterSpellDocument.characterId, characterIds))
+      .orderBy(asc(campaignCharacterSpellDocument.name), asc(campaignCharacterSpellDocument.id)) : [];
+  const catalogSpells = characterIds.length ? await tx.select({
+      characterId: campaignCharacterSkillAllocation.characterId,
+      allocationId: campaignCharacterSkillAllocation.id,
+      name: skill.name,
+    }).from(campaignCharacterSkillAllocation)
+      .innerJoin(skill, eq(skill.id, campaignCharacterSkillAllocation.skillId))
+      .innerJoin(skillExtension, and(
+        eq(skillExtension.skillId, campaignCharacterSkillAllocation.skillId),
+        eq(skillExtension.extensionType, "spell-construction"),
+      ))
+      .where(and(
+        inArray(campaignCharacterSkillAllocation.characterId, characterIds),
+        gt(campaignCharacterSkillAllocation.points, 0),
+      )).orderBy(asc(skill.name), asc(campaignCharacterSkillAllocation.id)) : [];
+  const personalByCharacter = new Map<number, typeof personalSpells>();
+  for (const spell of personalSpells) personalByCharacter.set(spell.characterId, [...(personalByCharacter.get(spell.characterId) ?? []), spell]);
+  const catalogByCharacter = new Map<number, typeof catalogSpells>();
+  for (const spell of catalogSpells) catalogByCharacter.set(spell.characterId, [...(catalogByCharacter.get(spell.characterId) ?? []), spell]);
 
   const participants: CombatAidParticipant[] = [];
   for (const row of participantRows) {
@@ -210,6 +324,18 @@ export async function readCombatAidEncounterInTransaction(
       effects: await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false)),
       equipment: await readSection("equipment", errors, () => readCharacterEquipmentStateInTransaction(tx, row.characterId)),
       resources: await readSection("resources", errors, () => readCharacterOperationalItemsInTransaction(tx, row.characterId)),
+      creatureAttacks: kind === "creature-npc"
+        ? await readEncounterCreatureAttacksInTransaction(tx, row.characterId).catch(() => [])
+        : [],
+      creatureAbilities: kind === "creature-npc"
+        ? await readEncounterCreatureAbilitiesInTransaction(tx, row.characterId).catch(() => [])
+        : [],
+      spellSources: [
+        ...(catalogByCharacter.get(row.characterId) ?? []).map(({ allocationId, name }) => ({ kind: "catalog" as const, allocationId, name })),
+        ...(personalByCharacter.get(row.characterId) ?? []).map(({ savedSpellId, name, inSpellbook }) => inSpellbook
+          ? { kind: "personal" as const, savedSpellId, name }
+          : { kind: "raw-saved" as const, savedSpellId, name }),
+      ],
       initiative: initiative && initiativeRuntime ? {
         enrolled: true,
         runtimeStatus: initiativeRuntime.status,
@@ -218,6 +344,33 @@ export async function readCombatAidEncounterInTransaction(
         participationStatus: initiative.participationStatus as InitiativeParticipationStatus,
         deferredInitiativeCost: initiative.deferredInitiativeCost,
         movementMode: initiative.movementMode,
+        reactionOpportunityActionIds: initiativeRuntime.status === "active"
+          ? actionRows.filter((candidate) => (
+              candidate.status === "active"
+              && candidate.actorCharacterId !== row.characterId
+              && (
+                canParticipantReactToAction(candidate, initiative.currentInitiative)
+                || canHoldingParticipantIntervene({
+                  encounterId,
+                  status: initiativeRuntime.status,
+                  roundNumber: initiativeRuntime.roundNumber,
+                  stepNumber: initiativeRuntime.stepNumber,
+                  timelineInitiative: initiativeRuntime.timelineInitiative,
+                  startedAt: initiativeRuntime.startedAt,
+                  closedAt: initiativeRuntime.closedAt,
+                }, {
+                  encounterId,
+                  characterId: row.characterId,
+                  normalTotalInitiative: initiative.normalTotalInitiative,
+                  currentInitiative: initiative.currentInitiative,
+                  participationStatus: initiative.participationStatus as InitiativeParticipationStatus,
+                  deferredInitiativeCost: initiative.deferredInitiativeCost,
+                  lastSatisfiedStep: initiative.lastSatisfiedStep,
+                  movementMode: initiative.movementMode,
+                })
+              )
+            )).map(({ id }) => id)
+          : [],
         pendingAction: action ? {
           id: action.id,
           label: action.label,
@@ -240,5 +393,36 @@ export async function readCombatAidEncounterInTransaction(
     },
     initiativeRuntime,
     participants,
+    authoredActions: authoredActions.map(({ payloadJson, ...entry }) => {
+      let targetCharacterIds: number[] = [];
+      try {
+        const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+        if (entry.sourceKind === "weapon" || entry.sourceKind === "creature-attack") {
+          if (typeof payload.targetCharacterId === "number") targetCharacterIds = [payload.targetCharacterId];
+        } else if (entry.sourceKind === "item") {
+          const target = typeof payload.targetCharacterId === "number"
+            ? payload.targetCharacterId
+            : typeof payload.sourceCharacterId === "number" ? payload.sourceCharacterId : null;
+          if (target !== null) targetCharacterIds = [target];
+        } else if (entry.sourceKind === "creature-ability") {
+          targetCharacterIds = Array.isArray(payload.targetCharacterIds)
+            ? payload.targetCharacterIds.filter((id): id is number => typeof id === "number")
+            : [];
+        } else {
+          const selections = payload.selections as { targetGroups?: Record<string, unknown> } | undefined;
+          targetCharacterIds = [...new Set(Object.values(selections?.targetGroups ?? {}).flatMap((ids) => (
+            Array.isArray(ids) ? ids.filter((id): id is number => typeof id === "number") : []
+          )))];
+        }
+      } catch {
+        targetCharacterIds = [];
+      }
+      return {
+        ...entry,
+        targetCharacterIds,
+        resolvedAt: entry.resolvedAt?.toISOString() ?? null,
+      };
+    }),
+    reactions,
   };
 }

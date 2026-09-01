@@ -274,24 +274,38 @@ export async function prepareCreatureAbilityUse(
 ): Promise<CreatureAbilityUsePreparation> {
   const request = validateRequest(input);
   const session = await requireSession();
-  return db.transaction(async (tx) => {
-    const loaded = await loadAuthoritativePlan(tx, request, session.user.id, false);
-    const targetOptions = await listTargetOptions(tx, loaded.campaignId);
-    return { plan: loaded.plan, targetOptions };
-  });
+  return db.transaction((tx) => prepareCreatureAbilityUseInTransaction(
+    tx,
+    request,
+    session.user.id,
+  ));
 }
 
-export async function executeCreatureAbilityUse(
+/** Caller-owned preview boundary used by Encounter orchestration. */
+export async function prepareCreatureAbilityUseInTransaction(
+  tx: ActiveHealthTransaction,
   input: CreatureAbilityUseRequest,
+  actingUserId: string,
+): Promise<CreatureAbilityUsePreparation> {
+  const request = validateRequest(input);
+  const loaded = await loadAuthoritativePlan(tx, request, actingUserId, false);
+  const targetOptions = await listTargetOptions(tx, loaded.campaignId);
+  return { plan: loaded.plan, targetOptions };
+}
+
+/** Executes one Creature Ability inside a transaction owned by the caller. */
+export async function executeCreatureAbilityUseInCallerTransaction(
+  tx: ActiveHealthTransaction,
+  input: CreatureAbilityUseRequest,
+  actingUserId: string,
   confirmed: boolean,
 ): Promise<CreatureAbilityUseResult> {
   const request = validateRequest(input);
-  const session = await requireSession();
   let loaded: LoadedPlan | null = null;
   return executeCreatureAbilityUseInTransaction(
-    (execute) => db.transaction(async (tx) => execute({
+    async (execute) => execute({
       loadAndPlan: async () => {
-        loaded = await loadAuthoritativePlan(tx, request, session.user.id, true);
+        loaded = await loadAuthoritativePlan(tx, request, actingUserId, true);
         return loaded.plan;
       },
       applyAutomaticEffect: async (application) => {
@@ -304,7 +318,21 @@ export async function executeCreatureAbilityUse(
           targetAnatomy: target.anatomy,
         });
       },
-    })),
+    }),
     confirmed,
   );
+}
+
+export async function executeCreatureAbilityUse(
+  input: CreatureAbilityUseRequest,
+  confirmed: boolean,
+): Promise<CreatureAbilityUseResult> {
+  const request = validateRequest(input);
+  const session = await requireSession();
+  return db.transaction((tx) => executeCreatureAbilityUseInCallerTransaction(
+    tx,
+    request,
+    session.user.id,
+    confirmed,
+  ));
 }

@@ -4,40 +4,39 @@ import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { campaign, campaignPlayer } from "@/db/campaign-schema";
+import { campaign } from "@/db/campaign-schema";
 import {
   CREATURE_CR_IMPACTS,
-  CREATURE_SIZE_OPTIONS,
   type CreatureCrImpact,
-  type CreatureSize,
 } from "@/db/creature-schema";
 import { item, itemEffect, itemRuntimeProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
   campaignCharacterActiveHealthPool,
-  campaignCharacterAttribute,
   campaignCharacterInjury,
   campaignCharacterItem,
   campaignCharacterItemInstance,
-  campaignCharacterProfile,
   campaignCreatureNpcProfile,
   campaignInventoryItem,
 } from "@/db/realm-schema";
 import {
   getCreature,
-  type CreatureAggregate,
   type CreatureDraft,
 } from "@/app/heavens/creatures/actions";
-import { CHARACTER_ATTRIBUTE_KEYS } from "@/features/characters/models";
 import {
-  copyCreatureAbility,
   normalizeCreatureSnapshotAbilities,
 } from "@/features/creatures/creature-ability";
 import {
   assertCreatureCanonicalIdsSystemOwned,
   resolveSystemAssignedCreatureIds,
 } from "@/features/creatures/creature-canonical-ids";
-import { normalizeCreatureHpSnapshot } from "@/features/creatures/creature-size-rules";
+import {
+  buildCreatureNpcSnapshot,
+  createCreatureNpcInTransaction,
+  normalizeCreatureNpcSnapshot,
+  normalizeCreatureNpcSnapshotCore,
+  parseCreatureNpcSnapshot,
+} from "@/features/creatures/creature-npc-constructor-service";
 import {
   assertItemOwnershipStrategy,
   assertNoStackInstanceOwnershipCollision,
@@ -128,72 +127,8 @@ async function requireOwner(campaignId: number) {
   return session;
 }
 
-function snapshotFromAggregate(aggregate: CreatureAggregate): CreatureDraft {
-  return {
-    id: aggregate.id,
-    core: { ...aggregate.core },
-    attributes: aggregate.attributes.map((row) => ({ ...row })),
-    movement: aggregate.movement.map((row) => ({ ...row })),
-    hpPools: aggregate.hpPools.map((row) => ({ ...row })),
-    hitLocations: aggregate.hitLocations.map((row) => ({ ...row })),
-    attacks: aggregate.attacks.map((row) => ({ ...row })),
-    skillLinks: aggregate.skillLinks.map((row) => ({ ...row })),
-    abilities: aggregate.abilities.map((row) => ({
-      ...copyCreatureAbility(row),
-      crImpact: row.crImpact,
-    })),
-    defenses: aggregate.defenses.map((row) => ({ ...row })),
-    uses: aggregate.uses.map((row) => ({ ...row })),
-    derivedCreatures: [],
-  };
-}
-
-function normalizeSnapshotCore(core: CreatureDraft["core"]): CreatureDraft["core"] {
-  const size = core.size as CreatureSize;
-  if (!CREATURE_SIZE_OPTIONS.includes(size)) {
-    throw new Error(`Creature Size must be one of: ${CREATURE_SIZE_OPTIONS.join(", ")}.`);
-  }
-  const steps = (value: number | null | undefined, label: string) => {
-    const normalized = value ?? 0;
-    if (!Number.isInteger(normalized) || normalized < 0) {
-      throw new Error(`${label} must be a whole number zero or greater.`);
-    }
-    return normalized;
-  };
-  return {
-    ...core,
-    size,
-    hpMultiplierSteps: steps(core.hpMultiplierSteps, "HP Multiplier Steps"),
-    baseMovementSteps: steps(core.baseMovementSteps, "Base Movement Steps"),
-    baseMagicSteps: steps(core.baseMagicSteps, "Base Magic Steps"),
-  };
-}
-
-function normalizeSnapshotHp(snapshot: CreatureDraft, hpAdjustment: number): CreatureDraft {
-  const core = normalizeSnapshotCore(snapshot.core);
-  return normalizeCreatureHpSnapshot({
-    ...snapshot,
-    core,
-    hpPools: snapshot.hpPools.map((pool) => ({ ...pool, maximumHp: null })),
-  }, hpAdjustment);
-}
-
 function parseSnapshot(value: string, label: string, hpAdjustment = 0): CreatureDraft {
-  try {
-    const parsed = JSON.parse(value) as CreatureDraft;
-    const normalized = normalizeCreatureSnapshotAbilities(parsed);
-    return normalizeSnapshotHp({
-      ...parsed,
-      abilities: normalized.abilities.map((ability) => ({
-        ...ability,
-        crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact)
-          ? ability.crImpact as CreatureCrImpact
-          : "None",
-      })),
-    }, hpAdjustment);
-  } catch (error) {
-    throw new Error(`${label} contains invalid Creature data: ${error instanceof Error ? error.message : "Unreadable snapshot."}`);
-  }
+  return parseCreatureNpcSnapshot(value, label, hpAdjustment);
 }
 
 export async function createCreatureNpc(
@@ -203,44 +138,14 @@ export async function createCreatureNpc(
   const session = await requireOwner(campaignId);
   const template = await getCreature(creatureId);
   if (!template) throw new Error("The selected master Creature no longer exists.");
-  const snapshot = normalizeSnapshotHp(snapshotFromAggregate(template), 0);
-  const [campaignRow] = await db
-    .select({ name: campaign.name, startingCredits: campaign.startingCreditAmount })
-    .from(campaign)
-    .where(eq(campaign.id, campaignId))
-    .limit(1);
-  if (!campaignRow) throw new Error("Campaign not found.");
-
-  const characterId = await db.transaction(async (tx) => {
-    await tx
-      .insert(campaignPlayer)
-      .values({ campaignId, userId: session.user.id, isNpcController: true })
-      .onConflictDoNothing();
-    const [created] = await tx.insert(campaignCharacter).values({
-      campaignId,
-      playerUserId: session.user.id,
-      name: template.core.canonicalName,
-      isNpc: true,
-      npcKind: "creature",
-    }).returning({ id: campaignCharacter.id });
-    await tx.insert(campaignCharacterProfile).values({
-      characterId: created.id,
-      creditsRemaining: campaignRow.startingCredits,
-    });
-    await tx.insert(campaignCharacterAttribute).values(
-      CHARACTER_ATTRIBUTE_KEYS.map((attributeKey) => ({ characterId: created.id, attributeKey, value: 25 })),
-    );
-    await tx.insert(campaignCreatureNpcProfile).values({
-      characterId: created.id,
-      creatureId,
-      personality: "",
-      instanceNotes: "",
-      hpAdjustment: 0,
-      baselineSnapshotJson: JSON.stringify(snapshot),
-      currentSnapshotJson: JSON.stringify(snapshot),
-    });
-    return created.id;
-  });
+  const snapshot = buildCreatureNpcSnapshot(template);
+  const characterId = await db.transaction((tx) => createCreatureNpcInTransaction(tx, {
+    campaignId,
+    controllerUserId: session.user.id,
+    creatureId,
+    name: template.core.canonicalName,
+    snapshot,
+  }));
 
   revalidatePath("/heavens/npcs");
   return getCreatureNpc(characterId);
@@ -501,11 +406,11 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     instances: itemInstances,
   });
 
-  const normalizedSnapshot = normalizeSnapshotHp({
+  const normalizedSnapshot = normalizeCreatureNpcSnapshot({
     ...systemAssignedSnapshot,
     id: current.baselineSnapshot.id,
     core: {
-      ...normalizeSnapshotCore(systemAssignedSnapshot.core),
+      ...normalizeCreatureNpcSnapshotCore(systemAssignedSnapshot.core),
       canonicalId: current.baselineSnapshot.core.canonicalId,
       canonicalName: current.baselineSnapshot.core.canonicalName,
       parentCreatureId: current.baselineSnapshot.core.parentCreatureId,

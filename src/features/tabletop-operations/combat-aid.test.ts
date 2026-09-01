@@ -42,8 +42,10 @@ test("Combat Aid read model preserves authoritative identity, Initiative values,
   assert.match(service, /errors\.push\(\{ section/);
 });
 
-test("Combat Aid UI is read-only, exposes the operational summaries, and labels completed live state", () => {
+test("Combat Aid preserves the read summary and delegates Build 8 operations through its controller", () => {
   const ui = read("src/app/heavens/tabletop/combat-aid-workspace.tsx");
+  const operations = read("src/app/heavens/tabletop/combat-aid-operations.tsx");
+  const actions = read("src/app/heavens/tabletop/runtime-integration-actions.ts");
   for (const label of [
     "HEALTH",
     "MANA",
@@ -59,7 +61,13 @@ test("Combat Aid UI is read-only, exposes the operational summaries, and labels 
   assert.match(ui, /current living Campaign state/);
   assert.match(ui, /conditions\.map\(\(\{ name \}\) => name\)/);
   assert.doesNotMatch(ui, /from ["'].*(?:active-health-service|active-mana-service|active-effects-service|equipment-state-service|item-use|spell-runtime|creature-ability-runtime)["']/);
-  assert.doesNotMatch(ui, /applyDamage|apply.*Condition|spend.*Mana|restore.*Mana|useItem|castSpell|executeCreatureAbility|set.*Equipment/i);
+  assert.match(ui, /CombatAidOperations/);
+  for (const label of ["RUNTIME STATE", "ACTIONS", "REACTIONS", "READY TO RESOLVE"]) {
+    assert.match(operations, new RegExp(label));
+  }
+  assert.match(actions, /requireGod\(\)/);
+  assert.match(actions, /lockOwnedEncounterRuntimeInTransaction/);
+  assert.match(actions, /db\.transaction/);
 });
 
 test("Combat Aid adds no copied combat Character-state persistence", () => {
@@ -78,11 +86,13 @@ test("Combat Aid adds no copied combat Character-state persistence", () => {
   ]) assert.doesNotMatch(schema, new RegExp(forbidden));
 });
 
-test("architecture contract fixes Build 7 as reads and defers mutations to Build 8", () => {
+test("architecture contract keeps Build 7 reads and defines the Build 8 runtime boundary", () => {
   const architecture = read("docs/architecture/tabletop-operations.md");
   assert.match(architecture, /Build 7 Combat Aid read boundary/);
   assert.match(architecture, /one repeatable-read transaction/);
   assert.match(architecture, /current living Character state/);
-  assert.match(architecture, /Build 8 mutation direction/);
-  assert.match(architecture, /delegate mutation to the existing owning runtime transaction service/);
+  assert.match(architecture, /Build 8 Runtime Integration boundary/);
+  assert.match(architecture, /same `campaign_character` records/);
+  assert.match(architecture, /Starting an action spends only Initiative time/);
+  assert.match(architecture, /never stores Health, Mana, inventory quantities, charge counts, Attributes, Skills, Creature snapshots/);
 });

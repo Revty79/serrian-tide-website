@@ -7,6 +7,7 @@ import type {
   CombatAidEncounterView,
   CombatAidParticipant,
 } from "@/features/tabletop-operations/combat-aid-service";
+import { CombatAidOperations } from "./combat-aid-operations";
 
 function value(value: number | null): string {
   return value === null ? "Unconfigured" : String(value);
@@ -73,7 +74,7 @@ export function CombatAidWorkspace({
 
   return <section className="combat-aid">
     <header className="combat-aid-heading">
-      <div><span>READ-ONLY LIVE STATE</span><h6 className="font-sans">Combat Aid</h6><p>One table view of the authoritative state already owned by each runtime system.</p></div>
+      <div><span>LIVE AUTHORITATIVE STATE</span><h6 className="font-sans">Combat Aid</h6><p>Read and operate on the same Character state used by Player and G.O.D. pages.</p></div>
       <div><button type="button" onClick={() => router.refresh()}>Refresh State</button><button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button></div>
     </header>
     {data.encounter.status === "completed" ? <p className="combat-aid-history"><strong>Completed Encounter:</strong> participant membership is historical. The Character and NPC state shown below is current living Campaign state, not an Encounter snapshot.</p> : null}
@@ -157,6 +158,7 @@ export function CombatAidWorkspace({
               </div> : <Empty>Inventory resource state could not be resolved.</Empty>}
             </article>
           </div>
+          <CombatAidOperations key={selected.identity.characterId} data={data} participant={selected} />
         </> : <Empty>Select an Encounter participant to inspect current state.</Empty>}
       </section>
     </div>

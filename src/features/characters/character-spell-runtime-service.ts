@@ -544,21 +544,73 @@ export async function prepareCharacterSpellCast(
 ): Promise<SpellCastPreparation> {
   const request = validateRequest(input);
   const session = await requireSession();
-  return db.transaction(async (tx) => {
-    const subject = await loadSubject(tx, session.user.id);
-    const caster = await loadAccessEntity(
-      tx,
-      request.casterCharacterId,
-      subject.userId,
-      false,
-    );
-    if (!canInitiateSpellCast(subject, caster)) {
-      throw new Error("You do not have permission to cast as this Character.");
-    }
-    const loaded = await loadAuthoritativePlan(tx, request, subject, false);
-    const targetOptions = await listTargetOptions(tx, subject, caster);
-    return { plan: loaded.plan, targetOptions };
-  });
+  return db.transaction((tx) => prepareCharacterSpellCastInTransaction(
+    tx,
+    request,
+    session.user.id,
+  ));
+}
+
+/** Caller-owned transaction boundary used by Tabletop Operations orchestration. */
+export async function prepareCharacterSpellCastInTransaction(
+  tx: ActiveHealthTransaction,
+  input: SpellCastRequest,
+  actingUserId: string,
+): Promise<SpellCastPreparation> {
+  const request = validateRequest(input);
+  const subject = await loadSubject(tx, actingUserId);
+  const caster = await loadAccessEntity(
+    tx,
+    request.casterCharacterId,
+    subject.userId,
+    false,
+  );
+  if (!canInitiateSpellCast(subject, caster)) {
+    throw new Error("You do not have permission to cast as this Character.");
+  }
+  const loaded = await loadAuthoritativePlan(tx, request, subject, false);
+  const targetOptions = await listTargetOptions(tx, subject, caster);
+  return { plan: loaded.plan, targetOptions };
+}
+
+/** Executes one authoritative cast inside a transaction owned by the caller. */
+export async function executeCharacterSpellCastInCallerTransaction(
+  tx: ActiveHealthTransaction,
+  input: SpellCastRequest,
+  actingUserId: string,
+  confirmed: boolean,
+): Promise<SpellCastExecutionResult> {
+  const request = validateRequest(input);
+  const subject = await loadSubject(tx, actingUserId);
+  let loaded: LoadedRuntimePlan | null = null;
+  return executeSpellCastInTransaction(
+    async (execute) => execute({
+      loadAndPlan: async () => {
+        loaded = await loadAuthoritativePlan(tx, request, subject, true);
+        return loaded.plan;
+      },
+      spendMana: (plan) => spendActiveManaInTransaction(tx, {
+        characterId: plan.caster.characterId,
+        system: plan.caster.system,
+        amount: plan.finalManaCost,
+      }),
+      applyAutomaticEffect: async (application) => {
+        const target = loaded?.targets.find(
+          ({ characterId }) => characterId === application.targetCharacterId,
+        );
+        if (!target) {
+          throw new Error("The planned Spell effect lost its authoritative target state.");
+        }
+        await persistPlannedMechanicalEffectInTransaction(tx, {
+          plan: application.plan,
+          targetCharacterId: application.targetCharacterId,
+          sourceEffectKey: application.spellEffectId,
+          targetAnatomy: target.anatomy,
+        });
+      },
+    }),
+    confirmed,
+  );
 }
 
 export async function executeCharacterSpellCast(
@@ -567,37 +619,10 @@ export async function executeCharacterSpellCast(
 ): Promise<SpellCastExecutionResult> {
   const request = validateRequest(input);
   const session = await requireSession();
-  let loaded: LoadedRuntimePlan | null = null;
-  const result = await executeSpellCastInTransaction(
-    (execute) => db.transaction(async (tx) => {
-      const subject = await loadSubject(tx, session.user.id);
-      return execute({
-        loadAndPlan: async () => {
-          loaded = await loadAuthoritativePlan(tx, request, subject, true);
-          return loaded.plan;
-        },
-        spendMana: (plan) => spendActiveManaInTransaction(tx, {
-          characterId: plan.caster.characterId,
-          system: plan.caster.system,
-          amount: plan.finalManaCost,
-        }),
-        applyAutomaticEffect: async (application) => {
-          const target = loaded?.targets.find(
-            ({ characterId }) => characterId === application.targetCharacterId,
-          );
-          if (!target) {
-            throw new Error("The planned Spell effect lost its authoritative target state.");
-          }
-          await persistPlannedMechanicalEffectInTransaction(tx, {
-            plan: application.plan,
-            targetCharacterId: application.targetCharacterId,
-            sourceEffectKey: application.spellEffectId,
-            targetAnatomy: target.anatomy,
-          });
-        },
-      });
-    }),
+  return db.transaction((tx) => executeCharacterSpellCastInCallerTransaction(
+    tx,
+    request,
+    session.user.id,
     confirmed,
-  );
-  return result;
+  ));
 }

@@ -14,7 +14,7 @@ if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname)) {
 }
 
 const snapshot = JSON.parse(
-  await readFile(new URL("../drizzle/meta/0009_snapshot.json", import.meta.url), "utf8"),
+  await readFile(new URL("../drizzle/meta/0010_snapshot.json", import.meta.url), "utf8"),
 );
 const expectedTables = Object.values(snapshot.tables).filter(
   (table) => table.schema === "" || table.schema === "public",

@@ -443,84 +443,164 @@ export async function getActiveHealth(characterId: number): Promise<ActiveHealth
   return withAuthorizedHealthTransaction(characterId, readView);
 }
 
+/** Transaction-capable Health mutations for trusted orchestration callers. */
+export async function applyLocalizedDamageInTransaction(
+  tx: ActiveHealthTransaction,
+  command: ApplyLocalizedDamageCommand,
+  npcKind: string,
+): Promise<ActiveHealthView> {
+  const amount = positiveAmount(command.amount, "Damage");
+  const context = await lockActiveHealthInTransaction(tx, command.characterId, npcKind);
+  const target = resolveLocalizedDamageTarget(context.anatomy, { ...command, amount });
+  const nameInput = command.injuryName?.trim() ?? "";
+  const notes = injuryNotes(command.injuryNotes);
+  if (!nameInput && notes) throw new Error("An Injury Name is required when Injury Notes are recorded.");
+  const now = new Date();
+  await tx.update(campaignCharacterActiveHealth).set({
+    totalDamage: sql`${campaignCharacterActiveHealth.totalDamage} + ${target.amount}`,
+    updatedAt: now,
+  }).where(eq(campaignCharacterActiveHealth.characterId, command.characterId));
+  await tx.insert(campaignCharacterActiveHealthPool).values({
+    characterId: command.characterId,
+    poolKey: target.poolKey,
+    poolNameSnapshot: target.poolName,
+    damage: target.amount,
+    updatedAt: now,
+  }).onConflictDoUpdate({
+    target: [campaignCharacterActiveHealthPool.characterId, campaignCharacterActiveHealthPool.poolKey],
+    set: {
+      poolNameSnapshot: target.poolName,
+      damage: sql`${campaignCharacterActiveHealthPool.damage} + ${target.amount}`,
+      updatedAt: now,
+    },
+  });
+  if (nameInput) {
+    await tx.insert(campaignCharacterInjury).values({
+      characterId: command.characterId,
+      poolKey: target.poolKey,
+      poolNameSnapshot: target.poolName,
+      hitLocationNumber: target.hitLocationNumber,
+      hitLocationNameSnapshot: target.hitLocationName,
+      name: injuryName(nameInput),
+      notes,
+      damageAmount: target.amount,
+      updatedAt: now,
+    });
+  }
+  return (await readActiveHealthInTransaction(tx, command.characterId, npcKind)).view;
+}
+
+export async function healFullBodyInTransaction(
+  tx: ActiveHealthTransaction,
+  characterId: number,
+  npcKind: string,
+  amountInput: number,
+): Promise<ActiveHealthView> {
+  const amount = positiveAmount(amountInput, "Healing");
+  await lockActiveHealthInTransaction(tx, characterId, npcKind);
+  const now = new Date();
+  await tx.update(campaignCharacterActiveHealth).set({
+    totalDamage: sql`greatest(0, ${campaignCharacterActiveHealth.totalDamage} - ${amount})`,
+    updatedAt: now,
+  }).where(eq(campaignCharacterActiveHealth.characterId, characterId));
+  await tx.update(campaignCharacterActiveHealthPool).set({
+    damage: sql`greatest(0, ${campaignCharacterActiveHealthPool.damage} - ${amount})`,
+    updatedAt: now,
+  }).where(eq(campaignCharacterActiveHealthPool.characterId, characterId));
+  return (await readActiveHealthInTransaction(tx, characterId, npcKind)).view;
+}
+
+export async function healAreaInTransaction(
+  tx: ActiveHealthTransaction,
+  characterId: number,
+  npcKind: string,
+  poolKey: string,
+  amountInput: number,
+): Promise<ActiveHealthView> {
+  const amount = positiveAmount(amountInput, "Healing");
+  const context = await lockActiveHealthInTransaction(tx, characterId, npcKind);
+  const pool = context.anatomy.pools.find((entry) => entry.key === poolKey);
+  if (!pool) throw new Error(`HP Pool ${JSON.stringify(poolKey)} is not part of the current anatomy.`);
+  await tx.update(campaignCharacterActiveHealthPool).set({
+    poolNameSnapshot: pool.name,
+    damage: sql`greatest(0, ${campaignCharacterActiveHealthPool.damage} - ${amount})`,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(campaignCharacterActiveHealthPool.characterId, characterId),
+    eq(campaignCharacterActiveHealthPool.poolKey, pool.key),
+  ));
+  return (await readActiveHealthInTransaction(tx, characterId, npcKind)).view;
+}
+
+export async function addInjuryInTransaction(
+  tx: ActiveHealthTransaction,
+  command: AddInjuryCommand,
+  npcKind: string,
+): Promise<ActiveHealthView> {
+  const damageAmount = optionalDamageAmount(command.damageAmount);
+  const context = await lockActiveHealthInTransaction(tx, command.characterId, npcKind);
+  const target = resolveLocalizedDamageTarget(context.anatomy, {
+    amount: damageAmount && damageAmount > 0 ? damageAmount : 1,
+    hitLocationNumber: command.hitLocationNumber,
+    poolKey: command.poolKey,
+  });
+  const now = new Date();
+  await tx.insert(campaignCharacterInjury).values({
+    characterId: command.characterId,
+    poolKey: target.poolKey,
+    poolNameSnapshot: target.poolName,
+    hitLocationNumber: target.hitLocationNumber,
+    hitLocationNameSnapshot: target.hitLocationName,
+    name: injuryName(command.name),
+    notes: injuryNotes(command.notes),
+    damageAmount,
+    updatedAt: now,
+  });
+  return (await readActiveHealthInTransaction(tx, command.characterId, npcKind)).view;
+}
+
+export async function resolveInjuryInTransaction(
+  tx: ActiveHealthTransaction,
+  characterId: number,
+  npcKind: string,
+  injuryId: number,
+): Promise<ActiveHealthView> {
+  if (!Number.isInteger(injuryId) || injuryId <= 0) throw new Error("A saved Injury is required.");
+  await lockActiveHealthInTransaction(tx, characterId, npcKind);
+  const now = new Date();
+  const resolved = await tx.update(campaignCharacterInjury).set({
+    resolved: true,
+    resolvedAt: now,
+    updatedAt: now,
+  }).where(and(
+    eq(campaignCharacterInjury.id, injuryId),
+    eq(campaignCharacterInjury.characterId, characterId),
+    eq(campaignCharacterInjury.resolved, false),
+  )).returning({ id: campaignCharacterInjury.id });
+  if (!resolved.length) throw new Error("The unresolved Injury could not be found.");
+  return (await readActiveHealthInTransaction(tx, characterId, npcKind)).view;
+}
+
 export async function applyLocalizedDamageToCharacter(
   command: ApplyLocalizedDamageCommand,
 ): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(command.characterId, async (context) => {
-    const target = resolveLocalizedDamageTarget(context.anatomy, command);
-    const nameInput = command.injuryName?.trim() ?? "";
-    const notes = injuryNotes(command.injuryNotes);
-    if (!nameInput && notes) throw new Error("An Injury Name is required when Injury Notes are recorded.");
-    const now = new Date();
-    await ensureHealthRow(context.tx, context.characterId);
-    await context.tx
-      .update(campaignCharacterActiveHealth)
-      .set({
-        totalDamage: sql`${campaignCharacterActiveHealth.totalDamage} + ${target.amount}`,
-        updatedAt: now,
-      })
-      .where(eq(campaignCharacterActiveHealth.characterId, context.characterId));
-    await context.tx
-      .insert(campaignCharacterActiveHealthPool)
-      .values({
-        characterId: context.characterId,
-        poolKey: target.poolKey,
-        poolNameSnapshot: target.poolName,
-        damage: target.amount,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [
-          campaignCharacterActiveHealthPool.characterId,
-          campaignCharacterActiveHealthPool.poolKey,
-        ],
-        set: {
-          poolNameSnapshot: target.poolName,
-          damage: sql`${campaignCharacterActiveHealthPool.damage} + ${target.amount}`,
-          updatedAt: now,
-        },
-      });
-    if (nameInput) {
-      await context.tx.insert(campaignCharacterInjury).values({
-        characterId: context.characterId,
-        poolKey: target.poolKey,
-        poolNameSnapshot: target.poolName,
-        hitLocationNumber: target.hitLocationNumber,
-        hitLocationNameSnapshot: target.hitLocationName,
-        name: injuryName(nameInput),
-        notes,
-        damageAmount: target.amount,
-        updatedAt: now,
-      });
-    }
-    return readView(context);
-  });
+  return withAuthorizedHealthTransaction(command.characterId, (context) => applyLocalizedDamageInTransaction(
+    context.tx,
+    command,
+    context.anatomy.kind === "creature" ? "creature" : "race",
+  ));
 }
 
 export async function healCharacterFullBody(
   characterId: number,
   amountInput: number,
 ): Promise<ActiveHealthView> {
-  const amount = positiveAmount(amountInput, "Healing");
-  return withAuthorizedHealthTransaction(characterId, async (context) => {
-    const now = new Date();
-    await ensureHealthRow(context.tx, context.characterId);
-    await context.tx
-      .update(campaignCharacterActiveHealth)
-      .set({
-        totalDamage: sql`greatest(0, ${campaignCharacterActiveHealth.totalDamage} - ${amount})`,
-        updatedAt: now,
-      })
-      .where(eq(campaignCharacterActiveHealth.characterId, context.characterId));
-    await context.tx
-      .update(campaignCharacterActiveHealthPool)
-      .set({
-        damage: sql`greatest(0, ${campaignCharacterActiveHealthPool.damage} - ${amount})`,
-        updatedAt: now,
-      })
-      .where(eq(campaignCharacterActiveHealthPool.characterId, context.characterId));
-    return readView(context);
-  });
+  return withAuthorizedHealthTransaction(characterId, (context) => healFullBodyInTransaction(
+    context.tx,
+    characterId,
+    context.anatomy.kind === "creature" ? "creature" : "race",
+    amountInput,
+  ));
 }
 
 export async function healCharacterArea(
@@ -528,70 +608,33 @@ export async function healCharacterArea(
   poolKey: string,
   amountInput: number,
 ): Promise<ActiveHealthView> {
-  const amount = positiveAmount(amountInput, "Healing");
-  return withAuthorizedHealthTransaction(characterId, async (context) => {
-    const pool = context.anatomy.pools.find((entry) => entry.key === poolKey);
-    if (!pool) throw new Error(`HP Pool ${JSON.stringify(poolKey)} is not part of the current anatomy.`);
-    await ensureHealthRow(context.tx, context.characterId);
-    await context.tx
-      .update(campaignCharacterActiveHealthPool)
-      .set({
-        poolNameSnapshot: pool.name,
-        damage: sql`greatest(0, ${campaignCharacterActiveHealthPool.damage} - ${amount})`,
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(campaignCharacterActiveHealthPool.characterId, context.characterId),
-        eq(campaignCharacterActiveHealthPool.poolKey, pool.key),
-      ));
-    return readView(context);
-  });
+  return withAuthorizedHealthTransaction(characterId, (context) => healAreaInTransaction(
+    context.tx,
+    characterId,
+    context.anatomy.kind === "creature" ? "creature" : "race",
+    poolKey,
+    amountInput,
+  ));
 }
 
 export async function addCharacterInjury(command: AddInjuryCommand): Promise<ActiveHealthView> {
-  const damageAmount = optionalDamageAmount(command.damageAmount);
-  return withAuthorizedHealthTransaction(command.characterId, async (context) => {
-    const target = resolveLocalizedDamageTarget(context.anatomy, {
-      amount: damageAmount && damageAmount > 0 ? damageAmount : 1,
-      hitLocationNumber: command.hitLocationNumber,
-      poolKey: command.poolKey,
-    });
-    const now = new Date();
-    await ensureHealthRow(context.tx, context.characterId);
-    await context.tx.insert(campaignCharacterInjury).values({
-      characterId: context.characterId,
-      poolKey: target.poolKey,
-      poolNameSnapshot: target.poolName,
-      hitLocationNumber: target.hitLocationNumber,
-      hitLocationNameSnapshot: target.hitLocationName,
-      name: injuryName(command.name),
-      notes: injuryNotes(command.notes),
-      damageAmount,
-      updatedAt: now,
-    });
-    return readView(context);
-  });
+  return withAuthorizedHealthTransaction(command.characterId, (context) => addInjuryInTransaction(
+    context.tx,
+    command,
+    context.anatomy.kind === "creature" ? "creature" : "race",
+  ));
 }
 
 export async function resolveCharacterInjury(
   characterId: number,
   injuryId: number,
 ): Promise<ActiveHealthView> {
-  if (!Number.isInteger(injuryId) || injuryId <= 0) throw new Error("A saved Injury is required.");
-  return withAuthorizedHealthTransaction(characterId, async (context) => {
-    const now = new Date();
-    const resolved = await context.tx
-      .update(campaignCharacterInjury)
-      .set({ resolved: true, resolvedAt: now, updatedAt: now })
-      .where(and(
-        eq(campaignCharacterInjury.id, injuryId),
-        eq(campaignCharacterInjury.characterId, context.characterId),
-        eq(campaignCharacterInjury.resolved, false),
-      ))
-      .returning({ id: campaignCharacterInjury.id });
-    if (!resolved.length) throw new Error("The unresolved Injury could not be found.");
-    return readView(context);
-  });
+  return withAuthorizedHealthTransaction(characterId, (context) => resolveInjuryInTransaction(
+    context.tx,
+    characterId,
+    context.anatomy.kind === "creature" ? "creature" : "race",
+    injuryId,
+  ));
 }
 
 export async function restoreCharacterHealth(characterId: number): Promise<ActiveHealthView> {

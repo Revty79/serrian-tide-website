@@ -192,6 +192,46 @@ Completed Encounter membership is historical, but Combat Aid intentionally shows
 
 Combat Aid contains no damage, healing, Mana spending, Condition, Equipment, Item use, charge, or Initiative mutation controls. Refreshing the page only rereads the same state. A failure to resolve one participant subsection is surfaced on that participant without hiding other independently available sections.
 
-## Build 8 mutation direction
+## Build 8 Runtime Integration boundary
 
-Build 8 may add authored table actions, but each operation must accept authoritative identities from the Combat Aid read model, re-authorize the Encounter and Participant server-side, and delegate mutation to the existing owning runtime transaction service. It must not turn Combat Aid into a second rules engine, infer targets, copy state into tabletop tables, or recreate Health, Mana, effect, equipment, Item, charge, or Initiative calculations.
+Build 8 makes Combat Aid operational without creating another Character-state system. Every mutation begins by locking the selected Encounter, authorizing the Campaign-owning G.O.D., and confirming every source and target is a current Participant of that exact Encounter.
+
+```text
+Encounter Participant references campaign_character
+                         |
+             +-----------+-----------+
+             |                       |
+   Encounter Initiative       Existing runtime owners
+   and authored action ID     Health / Mana / Effects
+             |                Equipment / Items / Spells
+             |                Creature snapshots / Abilities
+             +-----------+-----------+
+                         |
+                  SAME LIVE STATE
+```
+
+Combat Aid delegates Health, Mana, Conditions, Temporary Modifiers, Injuries, Equipment, Item Use, Spell Casting, and Creature Ability execution to the existing transaction-aware services. Player and G.O.D. views therefore read and mutate the same `campaign_character` records. Tabletop persistence adds only Encounter-specific authored-action identity, selected request identities, resolution status, and Reaction accounting. It never stores Health, Mana, inventory quantities, charge counts, Attributes, Skills, Creature snapshots, or calculated Character state.
+
+### Authored action timing
+
+An authored Weapon, Creature Attack, Spell, Item, or Creature Ability starts as a normal Build 5 pending Initiative action plus a durable source binding. Starting an action spends only Initiative time. Damage, Mana, Item resources, Charges, Conditions, and other runtime consequences remain unchanged until the pending action reaches `completed` and the G.O.D. explicitly confirms resolution.
+
+The durable binding survives refresh, Round advancement, interruption, and resume. Resume, Restart, and Adjusted Resume keep it pending. End or Abandon cancels it. Manual completion makes it eligible for resolution but does not secretly execute it. Resolution locks the binding and requires `pending`, so a repeated submission cannot execute consequences twice.
+
+Spell bindings accept only durable Catalog, personal Spellbook, or saved Raw Spell identities during Initiative. Unsaved raw formulas remain available in their existing calculator/generic-action path. At resolution, every runtime source and target is reread and revalidated authoritatively; cached previews are not trusted.
+
+### Reactions
+
+Reaction opportunity comes only from the Initiative engine. Dodge commits 1 Initiative. Block and Parry require a currently wielded authoritative Weapon and commit its full Initiative Cost, including debt when necessary. The G.O.D. records success or failure; no roll is automated.
+
+A successful Block or Parry refunds the defender's committed cost minus 1 and applies only the defending Weapon cost as additional attacker cost, because the attack's own cost has already elapsed. The shared timeline never rewinds. A failed defense keeps its committed cost and adds no attacker cost. If its source action is interrupted or ended first, the Reaction becomes `needs-ruling` so the G.O.D. explicitly keeps or refunds the commitment.
+
+### Creature Catalog spawning
+
+Creature Catalog spawning creates real Creature NPC `campaign_character` records through the same canonical constructor used by NPC management. A single caller-owned transaction loads the master Creature, builds the canonical snapshot, creates each independent NPC, and inserts Session Roster, Scene Member, and Encounter Participant references. Quantity naming is deterministic within the batch. Optional active-Initiative enrollment uses late-entry rules and never changes the shared timeline; it is never implied by merely adding the Creature.
+
+Master Creature records remain reusable templates and never participate directly. Spawned Creature NPCs own independent Active Health and current snapshots. Any failure rolls back the entire batch and all membership/enrollment writes.
+
+### Tabletop-aid authority
+
+Runtime Integration does not invent attack rolls, defense rolls, automatic targets, NPC decisions, Weapon-to-Skill mappings, armor/soak automation, or narrative consequences. Creature attack damage is accepted only when it is direct numeric Serrian Tide damage; dice notation remains a G.O.D. ruling. Ambiguous or manual effects are shown for explicit G.O.D. resolution.

@@ -266,22 +266,25 @@ test("the controlled HP backfill imports the canonical model and is dry-run by d
 test("master save/load, lineage, and NPC snapshots carry all modifier steps", () => {
   const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
   const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
+  const constructor = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
 
   for (const field of ["hpMultiplierSteps", "baseMovementSteps", "baseMagicSteps"]) {
     assert.match(masterActions, new RegExp(`${field}: wholeNumber\\(input\\.core\\.${field} \\?\\? 0`));
     assert.match(masterActions, new RegExp(`${field}: creature\\.${field}`));
     assert.match(masterActions, new RegExp(`${field}: parent\\.${field}`));
-    assert.match(npcActions, new RegExp(`${field}: steps\\(core\\.${field}`));
+    assert.match(constructor, new RegExp(`${field}: nonnegativeSteps\\(core\\.${field}`));
   }
-  assert.match(npcActions, /core: \{ \.\.\.aggregate\.core \}/);
-  assert.match(npcActions, /baselineSnapshotJson: JSON\.stringify\(snapshot\)/);
-  assert.match(npcActions, /currentSnapshotJson: JSON\.stringify\(snapshot\)/);
+  assert.match(constructor, /core: \{ \.\.\.template\.core \}/);
+  assert.match(constructor, /baselineSnapshotJson: JSON\.stringify\(snapshot\)/);
+  assert.match(constructor, /currentSnapshotJson: JSON\.stringify\(snapshot\)/);
+  assert.match(npcActions, /createCreatureNpcInTransaction/);
 });
 
 test("master, derived, and NPC persistence remain server-authoritative for HP", () => {
   const schema = readFileSync("src/db/creature-schema.ts", "utf8");
   const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
   const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
+  const constructor = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
   const anatomy = readFileSync("src/features/active-state/anatomy.ts", "utf8");
 
   assert.match(schema, /totalHp: integer\("total_hp"\)/);
@@ -291,8 +294,8 @@ test("master, derived, and NPC persistence remain server-authoritative for HP", 
   assert.match(masterActions, /normalized\.hpPools = hpModel\.pools/);
   assert.match(masterActions, /const parentHpModel = resolveCreatureHpModel/);
   assert.match(masterActions, /totalHp: parentHpModel\.calculatedTotalHp/);
-  assert.match(npcActions, /function normalizeSnapshotHp/);
-  assert.match(npcActions, /normalizeCreatureHpSnapshot/);
+  assert.match(constructor, /normalizeCreatureNpcSnapshot/);
+  assert.match(constructor, /normalizeCreatureHpSnapshot/);
   assert.match(npcActions, /currentSnapshot: parseSnapshot[\s\S]*profile\.hpAdjustment/);
   assert.match(anatomy, /resolveCreatureTotalMaximumHp/);
   assert.match(anatomy, /resolveCreatureHpPoolMaximum/);

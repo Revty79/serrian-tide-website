@@ -12,6 +12,8 @@ import {
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
+  campaignSessionEncounterPendingActionSource,
+  campaignSessionEncounterReaction,
   campaignSessionScene,
 } from "@/db/tabletop-operations-schema";
 import {
@@ -322,6 +324,35 @@ async function persistEngine(
         actorCharacterId: action.actorCharacterId,
         ...values,
       });
+    }
+  }
+
+  const beforeActionById = new Map(before.pendingActions.map((action) => [action.id, action]));
+  for (const action of after.pendingActions) {
+    const prior = beforeActionById.get(action.id);
+    if (!prior || prior.status === action.status) continue;
+    if (action.status === "abandoned" || action.status === "ended") {
+      await tx.update(campaignSessionEncounterPendingActionSource).set({
+        resolutionStatus: "cancelled",
+        resolutionSummary: `Pending action ${action.status}; authored consequences were not executed.`,
+        resolvedAt: now,
+        updatedAt: now,
+      }).where(and(
+        eq(campaignSessionEncounterPendingActionSource.pendingActionId, action.id),
+        eq(campaignSessionEncounterPendingActionSource.encounterId, context.encounterId),
+        eq(campaignSessionEncounterPendingActionSource.resolutionStatus, "pending"),
+      ));
+    }
+    if (action.status === "interrupted" || action.status === "abandoned" || action.status === "ended") {
+      await tx.update(campaignSessionEncounterReaction).set({
+        status: "needs-ruling",
+        outcome: "Source action stopped before Reaction resolution.",
+        resolvedAt: now,
+        updatedAt: now,
+      }).where(and(
+        eq(campaignSessionEncounterReaction.pendingActionId, action.id),
+        eq(campaignSessionEncounterReaction.status, "declared"),
+      ));
     }
   }
 }

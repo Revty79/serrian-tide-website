@@ -223,7 +223,7 @@ test("50-53: worn Armor exposes individual Soak and coverage without folding tem
 });
 
 test("54-56: wielded Weapon exposes context but does not roll, spend Initiative, or apply Damage", () => {
-  const weapon: WieldedWeaponRuntimeContext = { ownershipKey: "stack:4", instanceId: null, itemId: 4, itemName: "Spear", activeQuantity: 1, weaponType: "spear", handedness: "two", damage: "1d10", damageType: "piercing", initiativeCost: 4, range: "", reach: "10 ft", rulesText: "" };
+  const weapon: WieldedWeaponRuntimeContext = { ownershipKey: "stack:4", instanceId: null, itemId: 4, itemName: "Spear", activeQuantity: 1, weaponType: "spear", handedness: "two", damage: "1d10", damageType: "piercing", authoredDamage: "1d10 + 2", authoredDamageModifier: "STR +2", authoredDamageSourceName: null, initiativeCost: 4, range: "", reach: "10 ft", rulesText: "" };
   assert.equal(weapon.damage, "1d10");
   assert.equal(weapon.initiativeCost, 4);
   assert.match(equipmentPanel, /nothing is rolled, spent, or applied/);

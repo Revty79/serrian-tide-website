@@ -29,6 +29,7 @@ import {
 import type { CampaignSceneDetail } from "./scene-actions";
 import { InitiativeTracker } from "./initiative-tracker";
 import { CombatAidWorkspace } from "./combat-aid-workspace";
+import { CreatureCatalogSpawn } from "./creature-catalog-spawn";
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -362,6 +363,11 @@ export function EncounterWorkspace({
                 </article>)}
                 {!availableParticipants.length ? <p className="tabletop-empty">{selectedEncounter.availableSceneMembers.length ? "No Scene Members match that search." : "Every Scene Member is already participating."}</p> : null}
               </div>
+              <CreatureCatalogSpawn
+                encounterId={selectedEncounter.id}
+                initiativeActive={initialInitiativeTracker?.runtime?.runtime.status === "active"}
+                onFeedback={setFeedback}
+              />
             </div> : null}
           </section> : null}
         </> : !editorVisible ? <p className="tabletop-empty">Select an Encounter or create a new one.</p> : null}

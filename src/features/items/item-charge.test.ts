@@ -92,7 +92,9 @@ test("9-13: stable instances and Equipment State remain independent across every
 
 test("14-19: Item Use delegates Charge spending and keeps resource plus effects in its caller-owned transaction", () => {
   assert.match(itemUseActions, /spendItemChargesInTransaction\(tx,/);
-  assert.match(itemUseActions, /executeItemUseInTransaction\(\(execute\) => db\.transaction/);
+  assert.match(itemUseActions, /executeCharacterItemUseInCallerTransaction/);
+  assert.match(itemUseActions, /db\.transaction\(\(tx\) => executeCharacterItemUseInCallerTransaction/);
+  assert.match(itemUseActions, /executeItemUseInTransaction\(async \(execute\) => execute/);
   assert.match(itemUseActions, /spendItemChargesInTransaction[\s\S]*persistPlannedMechanicalEffectInTransaction/);
   assert.doesNotMatch(itemUseActions, /\.set\(\{\s*currentCharges:/);
   assert.equal(spendItemCharges(5, 2), 3);

@@ -20,6 +20,7 @@
     "validate:tabletop": "tsx --test src/features/tabletop-operations/*.test.ts",
     "validate:tabletop-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-operations-db.test.ts",
     "validate:combat-aid-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/combat-aid-db.test.ts",
+    "validate:tabletop-runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-runtime-integration-db.test.ts",
     "validate:random": "tsx --test src/features/characters/random-character.test.ts",
     "validate:realms": "tsx --test src/features/characters/*.test.ts",
     "validate:active-state": "tsx --test src/features/active-state/*.test.ts",

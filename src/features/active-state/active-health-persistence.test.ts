@@ -34,7 +34,8 @@ test("health mutations lock the entity and use atomic arithmetic", () => {
   assert.match(service, /totalDamage: sql`\$\{campaignCharacterActiveHealth\.totalDamage\} \+ \$\{target\.amount\}`/);
   assert.match(service, /damage: sql`\$\{campaignCharacterActiveHealthPool\.damage\} \+ \$\{target\.amount\}`/);
   assert.match(service, /greatest\(0, \$\{campaignCharacterActiveHealth\.totalDamage\} - \$\{amount\}\)/);
-  assert.match(service, /context\.tx\.insert\(campaignCharacterInjury\)/);
+  assert.match(service, /export async function addInjuryInTransaction/);
+  assert.match(service, /await tx\.insert\(campaignCharacterInjury\)/);
 });
 
 test("Creature anatomy edits cannot silently remove referenced active Pools", () => {
