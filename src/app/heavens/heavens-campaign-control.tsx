@@ -159,6 +159,12 @@ export function HeavensCampaignControl({
             <div><p className="text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Information</p><h3 className="font-sans mt-1 text-2xl text-slate-100">{selectedCampaign.name}</h3></div>
             <button type="button" onClick={() => setInformationOpen(false)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-slate-400">Close</button>
           </header>
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Overview</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+              {selectedCampaign.overview || "No Campaign overview has been provided yet."}
+            </p>
+          </div>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
             <div><dt className="text-slate-300">Currency</dt><dd className="mt-1 text-slate-200">{selectedCampaign.currencySystem}</dd></div>
             <div><dt className="text-slate-300">Players</dt><dd className="mt-1 text-slate-200">{members.players.length}</dd></div>

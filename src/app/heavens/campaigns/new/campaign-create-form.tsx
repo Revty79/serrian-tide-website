@@ -160,6 +160,20 @@ export function CampaignCreateForm({
             type="text"
           />
 
+          <label className="block md:col-span-2">
+            <span className="text-sm text-slate-300">
+              Campaign Overview
+            </span>
+            <textarea
+              name="overview"
+              rows={8}
+              className="mt-2 min-h-40 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-4 py-3 text-sm leading-6 text-slate-100 outline-none transition focus:border-amber-300/50"
+            />
+            <small className="mt-2 block text-xs leading-5 text-slate-400">
+              Player-visible introduction to the Campaign, its setting, premise, tone, and starting context.
+            </small>
+          </label>
+
           <Field
             label="Attribute Points"
             name="attributePoints"

@@ -104,6 +104,7 @@ export async function createCampaign(formData: FormData) {
   }
 
   const name = readText(formData, "name");
+  const overview = readText(formData, "overview");
 
   if (!name) {
     throw new Error("Campaign Name is required.");
@@ -395,6 +396,7 @@ export async function createCampaign(formData: FormData) {
       .insert(campaign)
       .values({
         name,
+        overview,
 
         attributePoints,
         skillPoints,

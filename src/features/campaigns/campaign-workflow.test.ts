@@ -85,6 +85,38 @@ test("successful Campaign creation redirects to the selected Heavens Campaign", 
   );
 });
 
+test("Campaign Overview is persisted once and is readable in Heavens and Realms", () => {
+  const schemaSource = readSource("src/db/campaign-schema.ts");
+  const createActionSource = readSource("src/app/heavens/campaigns/new/actions.ts");
+  const createFormSource = readSource("src/app/heavens/campaigns/new/campaign-create-form.tsx");
+  const adminActionSource = readSource("src/app/heavens/campaigns/actions.ts");
+  const editorSource = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
+  const playerActionSource = readSource("src/app/characters/actions.ts");
+  const realmsSource = readSource("src/app/realms/realms-dashboard.tsx");
+  const heavensSource = readSource("src/app/heavens/heavens-campaign-control.tsx");
+
+  assert.match(
+    schemaSource,
+    /overview:\s*text\("overview"\)\s*\.default\(""\)\s*\.notNull\(\)/,
+  );
+  assert.match(createActionSource, /const overview = readText\(formData, "overview"\)/);
+  assert.match(createActionSource, /\.values\(\{[\s\S]*?overview,/);
+  assert.match(createFormSource, /name="overview"/);
+  assert.match(adminActionSource, /overview:\s*clean\(input\.overview\)/);
+  assert.match(editorSource, /value=\{draft\.overview\}/);
+  assert.match(
+    playerActionSource,
+    /PlayerCampaignSummary = \{ id: number; name: string; overview: string \}/,
+  );
+  assert.match(playerActionSource, /overview: campaign\.overview/);
+  assert.match(realmsSource, /selectedCampaign\.overview/);
+  assert.match(realmsSource, /whitespace-pre-wrap/);
+  assert.match(heavensSource, /selectedCampaign\.overview/);
+  assert.match(heavensSource, /whitespace-pre-wrap/);
+  assert.equal(realmsSource.includes("dangerouslySetInnerHTML"), false);
+  assert.equal(heavensSource.includes("dangerouslySetInnerHTML"), false);
+});
+
 test("normal G.O.D. Character links no longer target the removed Settings workflow", () => {
   const controlSource = readSource("src/app/heavens/heavens-campaign-control.tsx");
   const characterPageSource = readSource("src/app/heavens/characters/[characterId]/page.tsx");

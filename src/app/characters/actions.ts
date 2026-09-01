@@ -146,7 +146,7 @@ function readItemRuntimeProfile(row: ItemRuntimeColumns): ItemRuntimeProfile {
   return validation.profile;
 }
 
-export type PlayerCampaignSummary = { id: number; name: string };
+export type PlayerCampaignSummary = { id: number; name: string; overview: string };
 export type CharacterSummary = {
   id: number;
   campaignId: number;
@@ -306,7 +306,7 @@ function readSpellImportReference(dataJson: string) {
 export async function listPlayerCampaigns(): Promise<PlayerCampaignSummary[]> {
   const session = await requirePlayer();
   return db
-    .select({ id: campaign.id, name: campaign.name })
+    .select({ id: campaign.id, name: campaign.name, overview: campaign.overview })
     .from(campaignPlayer)
     .innerJoin(campaign, eq(campaign.id, campaignPlayer.campaignId))
     .where(eq(campaignPlayer.userId, session.user.id))

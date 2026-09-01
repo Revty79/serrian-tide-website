@@ -27,6 +27,7 @@ export function RealmsDashboard({
   const [randomChoiceOpen, setRandomChoiceOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
 
+  const selectedCampaign = initialCampaigns.find((entry) => String(entry.id) === campaignId) ?? null;
   const selectedCharacter = characters.find((entry) => String(entry.id) === characterId) ?? null;
 
   useEffect(() => {
@@ -141,6 +142,18 @@ export function RealmsDashboard({
           </div>
           {feedback ? <p className="realms-feedback">{feedback}</p> : null}
         </section>
+
+        {selectedCampaign ? (
+          <section className="mt-6 rounded-[26px] border border-white/10 bg-black/35 p-6 shadow-[0_22px_55px_rgb(0_0_0/22%)] backdrop-blur-2xl">
+            <div className="border-b border-white/10 pb-4">
+              <p className="m-0 text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Overview</p>
+              <h2 className="font-sans mt-2 text-3xl font-normal text-slate-100">{selectedCampaign.name}</h2>
+            </div>
+            <p className="mb-0 mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-300">
+              {selectedCampaign.overview || "No Campaign overview has been provided yet."}
+            </p>
+          </section>
+        ) : null}
 
         <section className="realms-actions">
           <div className="realms-section-heading"><div><p>CHARACTER ACTIONS</p><h2 className="font-sans">Your Character</h2></div><span>{selectedCharacter ? selectedCharacter.name : "Choose a Character above."}</span></div>

@@ -46,6 +46,10 @@ export const campaign = pgTable(
 
     name: text("name").notNull(),
 
+    overview: text("overview")
+      .default("")
+      .notNull(),
+
     attributePoints: doublePrecision("attribute_points").notNull(),
     skillPoints: doublePrecision("skill_points").notNull(),
 

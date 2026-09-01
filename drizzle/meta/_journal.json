@@ -15,6 +15,13 @@
       "when": 1788233972341,
       "tag": "0001_runtime_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788239635411,
+      "tag": "0002_campaign_overview",
+      "breakpoints": true
     }
   ]
 }

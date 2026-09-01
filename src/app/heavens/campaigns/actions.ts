@@ -60,6 +60,7 @@ import { requireGod } from "@/lib/server-access";
 export type CampaignAdminSummary = {
   id: number;
   name: string;
+  overview: string;
   currencySystem: "Credits" | "Derived Currency";
   updatedAt: string;
   playerCount: number;
@@ -70,6 +71,7 @@ export type CampaignAdminSummary = {
 export type CampaignAdminDraft = {
   id: number;
   name: string;
+  overview: string;
   attributePoints: number;
   skillPoints: number;
   maxStartingSkill: number;
@@ -145,6 +147,7 @@ export async function listCampaignsForGod(): Promise<CampaignAdminSummary[]> {
   const rows = await db.select({
     id: campaign.id,
     name: campaign.name,
+    overview: campaign.overview,
     currencySystem: campaign.currencySystem,
     updatedAt: campaign.updatedAt,
   }).from(campaign).where(eq(campaign.createdByUserId, session.user.id)).orderBy(asc(campaign.name), asc(campaign.id));
@@ -166,6 +169,7 @@ export async function listCampaignsForGod(): Promise<CampaignAdminSummary[]> {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
+    overview: row.overview,
     currencySystem: row.currencySystem,
     updatedAt: row.updatedAt.toISOString(),
     playerCount: playerCount.get(row.id) ?? 0,
@@ -190,6 +194,7 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
   return {
     id: core.id,
     name: core.name,
+    overview: core.overview,
     attributePoints: core.attributePoints,
     skillPoints: core.skillPoints,
     maxStartingSkill: core.maxStartingSkill,
@@ -411,6 +416,7 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
   await db.transaction(async (tx) => {
     await tx.update(campaign).set({
       name,
+      overview: clean(input.overview),
       attributePoints: nonNegative(input.attributePoints, "Attribute Points"),
       skillPoints: nonNegative(input.skillPoints, "Skill Points"),
       maxStartingSkill: nonNegative(input.maxStartingSkill, "Max Starting Skill"),
