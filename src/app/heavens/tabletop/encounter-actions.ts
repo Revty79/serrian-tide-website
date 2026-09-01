@@ -8,6 +8,8 @@ import { campaign } from "@/db/campaign-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterInitiative,
+  campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionScene,
   campaignSessionSceneMember,
@@ -409,6 +411,19 @@ async function applyEncounterLifecycleTransition(
           ));
         assertNoOtherActiveEncounter(activeRows.map(({ id }) => id), encounterId);
       }
+      if (next.status === "completed") {
+        const [activeInitiative] = await tx
+          .select({ encounterId: campaignSessionEncounterInitiative.encounterId })
+          .from(campaignSessionEncounterInitiative)
+          .where(and(
+            eq(campaignSessionEncounterInitiative.encounterId, encounterId),
+            eq(campaignSessionEncounterInitiative.status, "active"),
+          ))
+          .limit(1);
+        if (activeInitiative) {
+          throw new Error("Close the active Initiative Runtime before completing this Encounter.");
+        }
+      }
       const [row] = await tx
         .update(campaignSessionEncounter)
         .set({ ...next, updatedAt: new Date() })
@@ -451,6 +466,14 @@ export async function deleteCampaignSessionEncounter(
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertParentsAllowEncounterPreparation(locked.sessionStatus, locked.sceneStatus);
     assertEncounterMayBeDeleted(locked.status);
+    const [initiativeHistory] = await tx
+      .select({ encounterId: campaignSessionEncounterInitiative.encounterId })
+      .from(campaignSessionEncounterInitiative)
+      .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId))
+      .limit(1);
+    if (initiativeHistory) {
+      throw new Error("This Encounter has Initiative history and cannot be deleted.");
+    }
     const [row] = await tx
       .delete(campaignSessionEncounter)
       .where(and(
@@ -523,6 +546,17 @@ export async function removeCampaignSessionEncounterParticipant(
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertEncounterIsEditable(locked.status, locked.sessionStatus, locked.sceneStatus);
+    const [initiativeHistory] = await tx
+      .select({ characterId: campaignSessionEncounterInitiativeParticipant.characterId })
+      .from(campaignSessionEncounterInitiativeParticipant)
+      .where(and(
+        eq(campaignSessionEncounterInitiativeParticipant.encounterId, encounterId),
+        eq(campaignSessionEncounterInitiativeParticipant.characterId, characterId),
+      ))
+      .limit(1);
+    if (initiativeHistory) {
+      throw new Error("This Encounter Participant has Initiative runtime or history attached and cannot be removed.");
+    }
     const removed = await tx
       .delete(campaignSessionEncounterParticipant)
       .where(and(

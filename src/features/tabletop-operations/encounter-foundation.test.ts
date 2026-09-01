@@ -200,14 +200,14 @@ test("migration 0008 is additive and contains only Encounter and Participant per
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:encounter_health|encounter_mana|encounter_inventory|encounter_condition|encounter_equipment|encounter_snapshot|initiative|combat_action|turn_state)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0008_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0009_snapshot\.json/);
 });
 
-test("Build 4 architecture establishes Encounter identity while Initiative remains deferred", () => {
+test("Build 4 Encounter identity remains the foundation used by Build 5 Initiative", () => {
   const architecture = readSource("docs/architecture/tabletop-operations.md");
   assert.match(architecture, /Build 4 establishes Encounters and Encounter Participants/);
   assert.match(architecture, /selects Encounter Participants only from that Scene's Members/);
   assert.match(architecture, /display and preparation order only; it is not Initiative order/);
   assert.match(architecture, /Encounter type is descriptive and never starts combat/);
-  assert.match(architecture, /Future Initiative.*must attach to this Participant model/);
+  assert.match(architecture, /Build 5 attaches Initiative.*to that identity/);
 });

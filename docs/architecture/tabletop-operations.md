@@ -12,10 +12,12 @@ Campaign
               ├── Scene Members
               └── Encounter
                     ├── Encounter Participants
-                    └── Initiative Runtime       [future]
+                    └── Initiative Runtime
+                          ├── Initiative Participants
+                          └── Pending Actions
 ```
 
-Build 2 establishes the Session Roster as references to existing Campaign Characters. Build 3 establishes Scenes and Scene membership beneath Sessions. Build 4 establishes Encounters and Encounter Participants. Initiative and combat runtime remain future additions and must not be represented by speculative placeholder tables.
+Build 2 establishes the Session Roster as references to existing Campaign Characters. Build 3 establishes Scenes and Scene membership beneath Sessions. Build 4 establishes Encounters and Encounter Participants. Build 5 establishes the persistent Initiative Runtime attached to that Participant identity. Authored attack, reaction, spell, Item, Creature Ability, and Active State integration remain later additions.
 
 ## Session Roster boundary
 
@@ -67,7 +69,28 @@ Encounter Participants identify who is actively involved in that focused Encount
 
 Completed Encounters preserve metadata and Participant references as history. Removing a Scene Member must be rejected while an Encounter still references it, rather than cascading away Encounter history.
 
-Build 4 creates the stable Encounter Participant identity layer only. Future Initiative, Hold/Pass, pending actions, entry/exit, and other Encounter runtime state must attach to this Participant model rather than creating another participant identity system.
+Build 4 creates the stable Encounter Participant identity layer. Build 5 attaches Initiative, Hold/Pass, Combat Step/Round state, pending actions, and late Initiative enrollment to that identity rather than creating another participant identity system.
+
+## One authoritative Character state
+
+Tabletop Operations, the G.O.D. interface, and the Player Character interface are different views and controllers of the same authoritative `campaign_character` runtime state. They must never maintain competing copies of persistent Character or NPC state.
+
+```text
+                 campaign_character
+                 AUTHORITATIVE ENTITY
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+ Player Interface   G.O.D. Table    Runtime Services
+        │               │               │
+        └───────────────┼───────────────┘
+                        │
+                  SAME LIVE STATE
+```
+
+Health, Mana, Conditions, Temporary Modifiers, Injuries, Inventory, Item Instances, Charges, Equipment, Attributes, Skills, Spells, Creature Abilities, and Creature snapshots remain in their existing authoritative Character-owned persistence and services. When later Tabletop Operations builds damage a Character, spend Mana, or apply a Condition, those operations must use those same services so both Player and G.O.D. views observe the same live state.
+
+Encounter Initiative is valid Encounter-specific runtime state. Normal and Current Initiative, Hold/Pass/Suspension, signed Initiative debt, Round and Combat Step counters, deferred Initiative costs, and pending-action progress may be persisted beneath an Encounter because they describe that Encounter's continuous timeline. They are not alternative copies of Character state.
 
 ## Persistent entity state
 
@@ -91,7 +114,7 @@ Session Rosters, Scenes, and Encounters reference these existing entities and se
 
 ## Session, Scene, and Encounter boundary
 
-Session- or Encounter-specific state may eventually include:
+Session- or Encounter-specific state includes:
 
 ```text
 session participation
@@ -105,7 +128,7 @@ approaching / withdrawing status
 combat-step / round state
 ```
 
-That state belongs to the future Tabletop Operations layer. It does not replace or reset persistent Character state.
+Build 5 implements only the Initiative-related subset of that state. It does not replace or reset persistent Character state.
 
 Completing or reopening a Session is organizational. It must not reset Health, Mana, Conditions, Temporary Modifiers, Injuries, Inventory, Charges, Equipment State, Creature snapshots, abilities, or spells.
 
@@ -117,7 +140,7 @@ Automation must not choose Player actions, decide NPC tactics, infer narrative c
 
 ## Initiative authority
 
-All future Initiative implementation must conform to:
+All Initiative implementation must conform to:
 
 ```text
 docs/rules/initiative-runtime-contract.md

@@ -1,7 +1,9 @@
 import { relations, sql } from "drizzle-orm";
 import {
   check,
+  boolean,
   date,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -43,6 +45,21 @@ export const campaignSessionEncounterType = pgEnum("campaign_session_encounter_t
   "hazard",
   "other",
 ]);
+
+export const campaignSessionEncounterInitiativeStatus = pgEnum(
+  "campaign_session_encounter_initiative_status",
+  ["active", "closed"],
+);
+
+export const campaignSessionEncounterInitiativeParticipantStatus = pgEnum(
+  "campaign_session_encounter_initiative_participant_status",
+  ["active", "holding", "passed", "suspended"],
+);
+
+export const campaignSessionEncounterPendingActionStatus = pgEnum(
+  "campaign_session_encounter_pending_action_status",
+  ["active", "interrupted", "completed", "abandoned", "ended"],
+);
 
 export const campaignSession = pgTable(
   "campaign_session",
@@ -268,6 +285,13 @@ export const campaignSessionEncounterParticipant = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.encounterId, table.characterId] }),
+    uniqueIndex("campaign_session_encounter_participant_runtime_identity_uq").on(
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+      table.characterId,
+    ),
     foreignKey({
       columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
       foreignColumns: [
@@ -286,6 +310,173 @@ export const campaignSessionEncounterParticipant = pgTable(
     index("campaign_session_encounter_participant_order_idx").on(table.encounterId, table.sortOrder),
     index("campaign_session_encounter_participant_scene_member_idx").on(table.sceneId, table.characterId),
     check("campaign_session_encounter_participant_sort_order_nonnegative", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export const campaignSessionEncounterInitiative = pgTable(
+  "campaign_session_encounter_initiative",
+  {
+    encounterId: integer("encounter_id").primaryKey(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    status: campaignSessionEncounterInitiativeStatus("status").default("active").notNull(),
+    roundNumber: integer("round_number").default(1).notNull(),
+    stepNumber: integer("step_number").default(1).notNull(),
+    timelineInitiative: doublePrecision("timeline_initiative").notNull(),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    closedAt: timestamp("closed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounter.id,
+        campaignSessionEncounter.sceneId,
+        campaignSessionEncounter.sessionId,
+        campaignSessionEncounter.campaignId,
+      ],
+      name: "campaign_session_encounter_initiative_encounter_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("campaign_session_encounter_initiative_runtime_identity_uq").on(
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+    ),
+    index("campaign_session_encounter_initiative_campaign_status_idx").on(table.campaignId, table.status),
+    check("campaign_session_encounter_initiative_round_positive", sql`${table.roundNumber} > 0`),
+    check("campaign_session_encounter_initiative_step_positive", sql`${table.stepNumber} > 0`),
+    check("campaign_session_encounter_initiative_timeline_nonnegative", sql`${table.timelineInitiative} >= 0`),
+    check(
+      "campaign_session_encounter_initiative_lifecycle_valid",
+      sql`(
+        (${table.status} = 'active' AND ${table.closedAt} IS NULL)
+        OR (${table.status} = 'closed' AND ${table.closedAt} IS NOT NULL)
+      )`,
+    ),
+  ],
+);
+
+export const campaignSessionEncounterInitiativeParticipant = pgTable(
+  "campaign_session_encounter_initiative_participant",
+  {
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    characterId: integer("character_id").notNull(),
+    normalTotalInitiative: doublePrecision("normal_total_initiative").notNull(),
+    currentInitiative: doublePrecision("current_initiative").notNull(),
+    participationStatus: campaignSessionEncounterInitiativeParticipantStatus("participation_status").default("active").notNull(),
+    deferredInitiativeCost: doublePrecision("deferred_initiative_cost").default(0).notNull(),
+    lastSatisfiedStep: integer("last_satisfied_step").default(0).notNull(),
+    movementMode: text("movement_mode").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.encounterId, table.characterId] }),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterInitiative.encounterId,
+        campaignSessionEncounterInitiative.sceneId,
+        campaignSessionEncounterInitiative.sessionId,
+        campaignSessionEncounterInitiative.campaignId,
+      ],
+      name: "campaign_session_encounter_initiative_participant_runtime_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.characterId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_initiative_participant_encounter_participant_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("campaign_session_encounter_initiative_participant_runtime_identity_uq").on(
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+      table.characterId,
+    ),
+    index("campaign_session_encounter_initiative_participant_current_idx").on(
+      table.encounterId,
+      table.currentInitiative,
+    ),
+    index("campaign_session_encounter_initiative_participant_status_idx").on(
+      table.encounterId,
+      table.participationStatus,
+    ),
+    check("campaign_session_encounter_initiative_participant_normal_positive", sql`${table.normalTotalInitiative} > 0`),
+    check("campaign_session_encounter_initiative_participant_deferred_nonnegative", sql`${table.deferredInitiativeCost} >= 0`),
+    check("campaign_session_encounter_initiative_participant_step_nonnegative", sql`${table.lastSatisfiedStep} >= 0`),
+  ],
+);
+
+export const campaignSessionEncounterPendingAction = pgTable(
+  "campaign_session_encounter_pending_action",
+  {
+    id: serial("id").primaryKey(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    actorCharacterId: integer("actor_character_id").notNull(),
+    label: text("label").notNull(),
+    actionKind: text("action_kind").default("generic").notNull(),
+    allowsMultiRound: boolean("allows_multi_round").default(false).notNull(),
+    originalInitiativeCost: doublePrecision("original_initiative_cost").notNull(),
+    initiativeSpent: doublePrecision("initiative_spent").default(0).notNull(),
+    remainingInitiativeCost: doublePrecision("remaining_initiative_cost").notNull(),
+    startInitiative: doublePrecision("start_initiative").notNull(),
+    startTimelineInitiative: doublePrecision("start_timeline_initiative").notNull(),
+    expectedCompletionInitiative: doublePrecision("expected_completion_initiative").notNull(),
+    status: campaignSessionEncounterPendingActionStatus("status").default("active").notNull(),
+    startedRound: integer("started_round").notNull(),
+    completedRound: integer("completed_round"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.actorCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterInitiativeParticipant.encounterId,
+        campaignSessionEncounterInitiativeParticipant.sceneId,
+        campaignSessionEncounterInitiativeParticipant.sessionId,
+        campaignSessionEncounterInitiativeParticipant.campaignId,
+        campaignSessionEncounterInitiativeParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_pending_action_actor_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("campaign_session_encounter_pending_action_one_active_actor_uq")
+      .on(table.encounterId, table.actorCharacterId)
+      .where(sql`${table.status} = 'active'`),
+    index("campaign_session_encounter_pending_action_timeline_idx").on(
+      table.encounterId,
+      table.status,
+      table.expectedCompletionInitiative,
+    ),
+    index("campaign_session_encounter_pending_action_actor_history_idx").on(
+      table.encounterId,
+      table.actorCharacterId,
+      table.createdAt,
+    ),
+    check("campaign_session_encounter_pending_action_label_nonblank", sql`length(trim(${table.label})) > 0`),
+    check("campaign_session_encounter_pending_action_original_cost_positive", sql`${table.originalInitiativeCost} > 0`),
+    check("campaign_session_encounter_pending_action_spent_nonnegative", sql`${table.initiativeSpent} >= 0`),
+    check("campaign_session_encounter_pending_action_remaining_nonnegative", sql`${table.remainingInitiativeCost} >= 0`),
+    check("campaign_session_encounter_pending_action_start_timeline_nonnegative", sql`${table.startTimelineInitiative} >= 0`),
+    check("campaign_session_encounter_pending_action_started_round_positive", sql`${table.startedRound} > 0`),
+    check("campaign_session_encounter_pending_action_completed_round_positive", sql`${table.completedRound} IS NULL OR ${table.completedRound} > 0`),
   ],
 );
 
@@ -337,6 +528,7 @@ export const campaignSessionEncounterRelations = relations(campaignSessionEncoun
     references: [campaignSessionScene.id],
   }),
   participants: many(campaignSessionEncounterParticipant),
+  initiativeRuntime: one(campaignSessionEncounterInitiative),
 }));
 
 export const campaignSessionEncounterParticipantRelations = relations(campaignSessionEncounterParticipant, ({ one }) => ({
@@ -348,9 +540,57 @@ export const campaignSessionEncounterParticipantRelations = relations(campaignSe
     fields: [campaignSessionEncounterParticipant.sceneId, campaignSessionEncounterParticipant.characterId],
     references: [campaignSessionSceneMember.sceneId, campaignSessionSceneMember.characterId],
   }),
+  initiativeState: one(campaignSessionEncounterInitiativeParticipant),
+}));
+
+export const campaignSessionEncounterInitiativeRelations = relations(campaignSessionEncounterInitiative, ({ one, many }) => ({
+  encounter: one(campaignSessionEncounter, {
+    fields: [campaignSessionEncounterInitiative.encounterId],
+    references: [campaignSessionEncounter.id],
+  }),
+  participants: many(campaignSessionEncounterInitiativeParticipant),
+  pendingActions: many(campaignSessionEncounterPendingAction),
+}));
+
+export const campaignSessionEncounterInitiativeParticipantRelations = relations(campaignSessionEncounterInitiativeParticipant, ({ one, many }) => ({
+  runtime: one(campaignSessionEncounterInitiative, {
+    fields: [campaignSessionEncounterInitiativeParticipant.encounterId],
+    references: [campaignSessionEncounterInitiative.encounterId],
+  }),
+  encounterParticipant: one(campaignSessionEncounterParticipant, {
+    fields: [
+      campaignSessionEncounterInitiativeParticipant.encounterId,
+      campaignSessionEncounterInitiativeParticipant.characterId,
+    ],
+    references: [
+      campaignSessionEncounterParticipant.encounterId,
+      campaignSessionEncounterParticipant.characterId,
+    ],
+  }),
+  pendingActions: many(campaignSessionEncounterPendingAction),
+}));
+
+export const campaignSessionEncounterPendingActionRelations = relations(campaignSessionEncounterPendingAction, ({ one }) => ({
+  runtime: one(campaignSessionEncounterInitiative, {
+    fields: [campaignSessionEncounterPendingAction.encounterId],
+    references: [campaignSessionEncounterInitiative.encounterId],
+  }),
+  actor: one(campaignSessionEncounterInitiativeParticipant, {
+    fields: [
+      campaignSessionEncounterPendingAction.encounterId,
+      campaignSessionEncounterPendingAction.actorCharacterId,
+    ],
+    references: [
+      campaignSessionEncounterInitiativeParticipant.encounterId,
+      campaignSessionEncounterInitiativeParticipant.characterId,
+    ],
+  }),
 }));
 
 export type CampaignSessionStatus = (typeof campaignSessionStatus.enumValues)[number];
 export type CampaignSessionSceneStatus = (typeof campaignSessionSceneStatus.enumValues)[number];
 export type CampaignSessionEncounterStatus = (typeof campaignSessionEncounterStatus.enumValues)[number];
 export type CampaignSessionEncounterType = (typeof campaignSessionEncounterType.enumValues)[number];
+export type CampaignSessionEncounterInitiativeStatus = (typeof campaignSessionEncounterInitiativeStatus.enumValues)[number];
+export type CampaignSessionEncounterInitiativeParticipantStatus = (typeof campaignSessionEncounterInitiativeParticipantStatus.enumValues)[number];
+export type CampaignSessionEncounterPendingActionStatus = (typeof campaignSessionEncounterPendingActionStatus.enumValues)[number];

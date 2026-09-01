@@ -6,15 +6,26 @@ import { and, asc, count, eq, like } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { user } from "@/db/auth-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
-import { campaignCharacter } from "@/db/realm-schema";
+import { creature } from "@/db/creature-schema";
+import { race, raceMovementMode } from "@/db/race-schema";
+import {
+  campaignCharacter,
+  campaignCharacterAttribute,
+  campaignCharacterProfile,
+  campaignCreatureNpcProfile,
+} from "@/db/realm-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterInitiative,
+  campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
+  campaignSessionEncounterPendingAction,
   campaignSessionRoster,
   campaignSessionScene,
   campaignSessionSceneMember,
 } from "@/db/tabletop-operations-schema";
+import { resolveInitiativeCapacityInTransaction } from "@/features/tabletop-operations/initiative-capacity-service";
 
 const ROLLBACK = new Error("ROLLBACK_TABLETOP_TEST");
 
@@ -116,6 +127,33 @@ async function insertEncounterFixture(tx: Parameters<Parameters<typeof db.transa
     secondParticipantId,
     rosterOnlyId,
   };
+}
+
+async function insertInitiativeFixture(tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) {
+  const fixture = await insertEncounterFixture(tx);
+  await tx.insert(campaignSessionEncounterParticipant).values([
+    {
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+      sortOrder: 0,
+    },
+    {
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.secondParticipantId,
+      sortOrder: 1,
+    },
+  ]);
+  await tx
+    .update(campaignSessionEncounter)
+    .set({ status: "active", startedAt: new Date("2026-09-03T18:00:00.000Z") })
+    .where(eq(campaignSessionEncounter.id, fixture.encounterId));
+  return fixture;
 }
 
 after(async () => {
@@ -705,6 +743,355 @@ test("deleting a planned Encounter cascades only its Participants", async () => 
     assert.equal(Number(characterCount?.value ?? 0), 1);
     throw ROLLBACK;
   }), (error) => error === ROLLBACK);
+});
+
+test("authoritative Initiative capacity resolves PC, race-NPC, and current Creature-NPC mechanics", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const [testRace] = await tx.insert(race).values({
+      name: temporaryIdentity("initiative-race"),
+      size: "Medium",
+    }).returning({ id: race.id });
+    assert.ok(testRace);
+    await tx.insert(raceMovementMode).values({
+      raceId: testRace.id,
+      movementMode: "Walk",
+      baseValue: 5,
+      sortOrder: 0,
+    });
+
+    const pcId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Initiative PC" });
+    const raceNpcId = await insertTemporaryCharacter(tx, {
+      campaignId,
+      userId,
+      name: "Initiative Race NPC",
+      isNpc: true,
+      npcKind: "race",
+    });
+    await tx.insert(campaignCharacterProfile).values([
+      { characterId: pcId, raceId: testRace.id, baseMovementSteps: 2 },
+      { characterId: raceNpcId, raceId: testRace.id, baseMovementSteps: 0 },
+    ]);
+    await tx.insert(campaignCharacterAttribute).values([
+      { characterId: pcId, attributeKey: "DEX", value: 10 },
+      { characterId: raceNpcId, attributeKey: "DEX", value: 20 },
+    ]);
+
+    const creatureNpcId = await insertTemporaryCharacter(tx, {
+      campaignId,
+      userId,
+      name: "Initiative Creature NPC",
+      isNpc: true,
+      npcKind: "creature",
+    });
+    const [testCreature] = await tx.insert(creature).values({
+      canonicalId: `INIT-${crypto.randomUUID().toUpperCase()}`,
+      canonicalName: "Initiative Test Creature",
+      size: "Medium",
+    }).returning({ id: creature.id });
+    assert.ok(testCreature);
+    const snapshot = JSON.stringify({
+      core: { size: "Medium", baseMovementSteps: 1 },
+      attributes: [{ attributeKey: "Dexterity", value: 12 }],
+      movement: [{ movementMode: "Scuttle", movementValue: 4 }],
+    });
+    await tx.insert(campaignCreatureNpcProfile).values({
+      characterId: creatureNpcId,
+      creatureId: testCreature.id,
+      baselineSnapshotJson: snapshot,
+      currentSnapshotJson: snapshot,
+    });
+
+    assert.deepEqual(await resolveInitiativeCapacityInTransaction(tx, pcId, campaignId, "Walk"), {
+      characterId: pcId,
+      sourceKind: "player-character",
+      dexterity: 10,
+      movementMode: "Walk",
+      baseMovement: 5.5,
+      normalTotalInitiative: 16.5,
+    });
+    assert.deepEqual(await resolveInitiativeCapacityInTransaction(tx, raceNpcId, campaignId), {
+      characterId: raceNpcId,
+      sourceKind: "race-npc",
+      dexterity: 20,
+      movementMode: "Walk",
+      baseMovement: 5,
+      normalTotalInitiative: 25,
+    });
+    assert.deepEqual(await resolveInitiativeCapacityInTransaction(tx, creatureNpcId, campaignId), {
+      characterId: creatureNpcId,
+      sourceKind: "creature-npc",
+      dexterity: 12,
+      movementMode: "Scuttle",
+      baseMovement: 4.25,
+      normalTotalInitiative: 12.75,
+    });
+    await assert.rejects(
+      resolveInitiativeCapacityInTransaction(tx, pcId, campaignId, "Fly"),
+      /selected Movement mode is not available/,
+    );
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
+});
+
+test("Initiative runtime, signed Participant values, and pending-action history persist", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 44,
+    });
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values([
+      {
+        encounterId: fixture.encounterId,
+        sceneId: fixture.sceneId,
+        sessionId: fixture.sessionId,
+        campaignId: fixture.campaignId,
+        characterId: fixture.participantId,
+        normalTotalInitiative: 35,
+        currentInitiative: -5,
+        deferredInitiativeCost: 3,
+        movementMode: "Walk",
+      },
+      {
+        encounterId: fixture.encounterId,
+        sceneId: fixture.sceneId,
+        sessionId: fixture.sessionId,
+        campaignId: fixture.campaignId,
+        characterId: fixture.secondParticipantId,
+        normalTotalInitiative: 30,
+        currentInitiative: 44,
+        participationStatus: "holding",
+        movementMode: "Fly",
+      },
+    ]);
+    const [pending] = await tx.insert(campaignSessionEncounterPendingAction).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      actorCharacterId: fixture.secondParticipantId,
+      label: "Long ritual",
+      actionKind: "generic",
+      allowsMultiRound: true,
+      originalInitiativeCost: 50,
+      initiativeSpent: 6,
+      remainingInitiativeCost: 44,
+      startInitiative: 50,
+      startTimelineInitiative: 50,
+      expectedCompletionInitiative: 6,
+      startedRound: 1,
+    }).returning({ id: campaignSessionEncounterPendingAction.id });
+    assert.ok(pending);
+
+    const participants = await tx
+      .select({
+        characterId: campaignSessionEncounterInitiativeParticipant.characterId,
+        normal: campaignSessionEncounterInitiativeParticipant.normalTotalInitiative,
+        current: campaignSessionEncounterInitiativeParticipant.currentInitiative,
+        status: campaignSessionEncounterInitiativeParticipant.participationStatus,
+        deferred: campaignSessionEncounterInitiativeParticipant.deferredInitiativeCost,
+      })
+      .from(campaignSessionEncounterInitiativeParticipant)
+      .where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, fixture.encounterId))
+      .orderBy(asc(campaignSessionEncounterInitiativeParticipant.characterId));
+    assert.deepEqual(participants, [
+      { characterId: fixture.participantId, normal: 35, current: -5, status: "active", deferred: 3 },
+      { characterId: fixture.secondParticipantId, normal: 30, current: 44, status: "holding", deferred: 0 },
+    ]);
+    await tx.update(campaignSessionEncounterPendingAction).set({ status: "interrupted" }).where(eq(campaignSessionEncounterPendingAction.id, pending.id));
+    await tx.update(campaignSessionEncounterInitiative).set({ status: "closed", closedAt: new Date() }).where(eq(campaignSessionEncounterInitiative.encounterId, fixture.encounterId));
+    const [historyCount] = await tx.select({ value: count() }).from(campaignSessionEncounterPendingAction).where(eq(campaignSessionEncounterPendingAction.encounterId, fixture.encounterId));
+    assert.equal(Number(historyCount?.value ?? 0), 1);
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
+});
+
+test("Initiative relational integrity requires one runtime, Encounter Participants, and same-Encounter actors", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    const runtime = {
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    };
+    await tx.insert(campaignSessionEncounterInitiative).values(runtime);
+    await tx.insert(campaignSessionEncounterInitiative).values(runtime);
+  }), (error: unknown) => /campaign_session_encounter_initiative_pkey|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertEncounterFixture(tx);
+    await tx.update(campaignSessionEncounter).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionEncounter.id, fixture.encounterId));
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    });
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+      normalTotalInitiative: 35,
+      currentInitiative: 35,
+    });
+  }), (error: unknown) => /initiative_participant_encounter_participant_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    });
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+      normalTotalInitiative: 35,
+      currentInitiative: 35,
+    });
+    await tx.insert(campaignSessionEncounterPendingAction).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      actorCharacterId: fixture.secondParticipantId,
+      label: "Foreign actor",
+      originalInitiativeCost: 5,
+      remainingInitiativeCost: 5,
+      startInitiative: 30,
+      startTimelineInitiative: 30,
+      expectedCompletionInitiative: 25,
+      startedRound: 1,
+    });
+  }), (error: unknown) => /pending_action_actor_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("Initiative runtime rejects cross-hierarchy references and preserves Participant history", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    const [otherScene] = await tx.insert(campaignSessionScene).values({
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      sequenceNumber: 2,
+      title: "Wrong Scene",
+    }).returning({ id: campaignSessionScene.id });
+    assert.ok(otherScene);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: otherScene.id,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    });
+  }), (error: unknown) => /initiative_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    const [otherSession] = await tx.insert(campaignSession).values({
+      campaignId: fixture.campaignId,
+      title: "Wrong Session",
+      sequenceNumber: 2,
+    }).returning({ id: campaignSession.id });
+    assert.ok(otherSession);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: otherSession.id,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    });
+  }), (error: unknown) => /initiative_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    const foreign = await insertTemporaryCampaign(tx);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: foreign.campaignId,
+      timelineInitiative: 35,
+    });
+  }), (error: unknown) => /initiative_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    });
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+      normalTotalInitiative: 35,
+      currentInitiative: 35,
+    });
+    await tx.delete(campaignSessionEncounterParticipant).where(and(
+      eq(campaignSessionEncounterParticipant.encounterId, fixture.encounterId),
+      eq(campaignSessionEncounterParticipant.characterId, fixture.participantId),
+    ));
+  }), (error: unknown) => /initiative_participant_encounter_participant_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("the database permits only one active pending action per actor while retaining resolved history", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const fixture = await insertInitiativeFixture(tx);
+    await tx.insert(campaignSessionEncounterInitiative).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      timelineInitiative: 35,
+    });
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      characterId: fixture.participantId,
+      normalTotalInitiative: 35,
+      currentInitiative: 35,
+    });
+    const action = {
+      encounterId: fixture.encounterId,
+      sceneId: fixture.sceneId,
+      sessionId: fixture.sessionId,
+      campaignId: fixture.campaignId,
+      actorCharacterId: fixture.participantId,
+      label: "First action",
+      originalInitiativeCost: 5,
+      remainingInitiativeCost: 5,
+      startInitiative: 35,
+      startTimelineInitiative: 35,
+      expectedCompletionInitiative: 30,
+      startedRound: 1,
+    };
+    const [first] = await tx.insert(campaignSessionEncounterPendingAction).values(action).returning({ id: campaignSessionEncounterPendingAction.id });
+    assert.ok(first);
+    await tx.update(campaignSessionEncounterPendingAction).set({ status: "completed", remainingInitiativeCost: 0, completedRound: 1 }).where(eq(campaignSessionEncounterPendingAction.id, first.id));
+    await tx.insert(campaignSessionEncounterPendingAction).values({ ...action, label: "Second action" });
+    await tx.insert(campaignSessionEncounterPendingAction).values({ ...action, label: "Third active action" });
+  }), (error: unknown) => /pending_action_one_active_actor_uq|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
 });
 
 test("transaction-only validation leaves no fixture Campaigns or users", async () => {
