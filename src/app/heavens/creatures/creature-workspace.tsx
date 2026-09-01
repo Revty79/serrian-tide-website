@@ -14,6 +14,7 @@ import {
   resolveCreatureHpModel,
   resolveEffectiveCreatureStatistics,
 } from "@/features/creatures/creature-size-rules";
+import { createCreatureDraftCanonicalId } from "@/features/creatures/creature-canonical-ids";
 
 import {
   createDerivedCreature,
@@ -48,15 +49,10 @@ const TABS: Array<{ id: Tab; label: string }> = [
 
 const ATTRIBUTES = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
 
-function slug(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
 function newCreatureDraft(references: ChallengeRatingReference[]): CreatureDraft {
-  const seed = `CREATURE-${Date.now().toString(36).toUpperCase()}`;
   return {
     core: {
-      canonicalId: seed,
+      canonicalId: createCreatureDraftCanonicalId("CREATURE"),
       canonicalName: "",
       family: "",
       creatureType: "",
@@ -92,6 +88,7 @@ function newCreatureDraft(references: ChallengeRatingReference[]): CreatureDraft
 }
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  if (label.includes("Canonical ID")) return null;
   return <label className={wide ? "creature-field creature-field--wide" : "creature-field"}><span>{label}</span>{children}</label>;
 }
 
@@ -316,12 +313,7 @@ function Overview({ draft, onChange }: { draft: CreatureDraft; onChange: (draft:
   const core = draft.core;
   const setCore = (update: Partial<CreatureDraft["core"]>) => onChange({ ...draft, core: { ...core, ...update } });
   return <div className="creature-section creature-form-grid">
-    <Field label="Canonical Name" wide><input value={core.canonicalName} onChange={(e) => {
-      const name = e.target.value;
-      const shouldGenerate = !draft.id && (!core.canonicalId || core.canonicalId.startsWith("CREATURE-"));
-      setCore({ canonicalName: name, ...(shouldGenerate && slug(name) ? { canonicalId: `CREATURE-${slug(name).toUpperCase()}` } : {}) });
-    }} /></Field>
-    <Field label="Canonical ID"><input value={core.canonicalId} disabled={Boolean(draft.id)} onChange={(e) => setCore({ canonicalId: e.target.value })} /></Field>
+    <Field label="Canonical Name" wide><input value={core.canonicalName} onChange={(e) => setCore({ canonicalName: e.target.value })} /></Field>
     <Field label="Size"><select value={core.size} onChange={(e) => setCore({ size: e.target.value })}>{CREATURE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field>
     <Field label="Family"><input value={core.family} onChange={(e) => setCore({ family: e.target.value })} /></Field>
     <Field label="Creature Type"><input value={core.creatureType} onChange={(e) => setCore({ creatureType: e.target.value })} /></Field>
@@ -374,10 +366,9 @@ function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (
       <div><span>Effective CON</span><strong>{formatCreatureNumber(effective.effectiveConstitution)}</strong></div>
       <div><span>HP Multiplier</span><strong>×{formatCreatureNumber(effective.hpMultiplier)}</strong></div>
     </div>
-    <SectionHeading eyebrow="TOUGHNESS MODEL" title="HP Pools" action="Add HP Pool" onAction={() => onChange({ ...draft, hpPools: [...draft.hpPools, { canonicalId: `${draft.core.canonicalId}-hp-${draft.hpPools.length + 1}`, poolName: `Pool ${draft.hpPools.length + 1}`, hpPercentage: null, maximumHp: null, notes: "", sortOrder: draft.hpPools.length }] })} />
+    <SectionHeading eyebrow="TOUGHNESS MODEL" title="HP Pools" action="Add HP Pool" onAction={() => onChange({ ...draft, hpPools: [...draft.hpPools, { canonicalId: createCreatureDraftCanonicalId("HP"), poolName: `Pool ${draft.hpPools.length + 1}`, hpPercentage: null, maximumHp: null, notes: "", sortOrder: draft.hpPools.length }] })} />
     <p className={percentageStatus.complete ? "creature-hp-allocation is-complete" : "creature-hp-allocation is-warning"}>Allocated HP: {formatCreatureNumber(percentageStatus.totalPercentage)}%{percentageStatus.complete ? " · Complete" : " · HP Pool percentages should total 100%. You may still save an incomplete Creature."}</p>
     <div className="creature-row-list">{draft.hpPools.map((row, index) => <div className="creature-repeat-row creature-pool-row" key={`${row.canonicalId}-${index}`}>
-      <input placeholder="Canonical ID" value={row.canonicalId} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { canonicalId: e.target.value })} />
       <input placeholder="Pool Name" value={row.poolName} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { poolName: e.target.value })} />
       <div><OptionalNumber value={row.hpPercentage} placeholder="HP %" onChange={(value) => patchArray(draft, onChange, "hpPools", index, { hpPercentage: value })} /><small>Maximum HP: {formatCreatureNumber(hpModel.pools[index]?.maximumHp ?? null)}</small></div>
       <input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { notes: e.target.value })} />
@@ -407,9 +398,9 @@ function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (
 
 function Combat({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
   return <div className="creature-section">
-    <SectionHeading eyebrow="DIRECT COMBAT" title="Attacks" action="Add Attack" onAction={() => onChange({ ...draft, attacks: [...draft.attacks, { canonicalId: `${draft.core.canonicalId}-attack-${draft.attacks.length + 1}`, attackName: "", attackPercentage: null, damage: null, damageType: "", rangeReach: "", requiredAnatomy: "", requirements: "", usesRecharge: "", specialEffect: "", notes: "", sortOrder: draft.attacks.length }] })} />
+    <SectionHeading eyebrow="DIRECT COMBAT" title="Attacks" action="Add Attack" onAction={() => onChange({ ...draft, attacks: [...draft.attacks, { canonicalId: createCreatureDraftCanonicalId("ATK"), attackName: "", attackPercentage: null, damage: null, damageType: "", rangeReach: "", requiredAnatomy: "", requirements: "", usesRecharge: "", specialEffect: "", notes: "", sortOrder: draft.attacks.length }] })} />
     <div className="creature-card-list">{draft.attacks.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.attackName || `Attack ${index + 1}`} onRemove={() => removeArray(draft, onChange, "attacks", index)} /><div className="creature-form-grid">
-      <Field label="Attack Name"><input value={row.attackName} onChange={(e) => patchArray(draft, onChange, "attacks", index, { attackName: e.target.value })} /></Field><Field label="Canonical ID"><input value={row.canonicalId} onChange={(e) => patchArray(draft, onChange, "attacks", index, { canonicalId: e.target.value })} /></Field>
+      <Field label="Attack Name"><input value={row.attackName} onChange={(e) => patchArray(draft, onChange, "attacks", index, { attackName: e.target.value })} /></Field>
       <Field label="Attack %"><OptionalNumber value={row.attackPercentage} onChange={(value) => patchArray(draft, onChange, "attacks", index, { attackPercentage: value })} /></Field><Field label="Damage"><input value={row.damage ?? ""} onChange={(e) => patchArray(draft, onChange, "attacks", index, { damage: e.target.value || null })} /></Field>
       <Field label="Damage Type"><input value={row.damageType} onChange={(e) => patchArray(draft, onChange, "attacks", index, { damageType: e.target.value })} /></Field><Field label="Range / Reach"><input value={row.rangeReach} onChange={(e) => patchArray(draft, onChange, "attacks", index, { rangeReach: e.target.value })} /></Field>
       <Field label="Required Anatomy"><input value={row.requiredAnatomy} onChange={(e) => patchArray(draft, onChange, "attacks", index, { requiredAnatomy: e.target.value })} /></Field><Field label="Uses / Recharge"><input value={row.usesRecharge} onChange={(e) => patchArray(draft, onChange, "attacks", index, { usesRecharge: e.target.value })} /></Field>
@@ -443,9 +434,9 @@ function CreatureSkills({ draft, onChange }: { draft: CreatureDraft; onChange: (
 
 function Special({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
   return <div className="creature-section">
-    <SectionHeading eyebrow="SPECIAL MECHANICS" title="Abilities" action="Add Ability" onAction={() => onChange({ ...draft, abilities: [...draft.abilities, { canonicalId: `${draft.core.canonicalId}-ability-${draft.abilities.length + 1}`, abilityName: "", abilityType: "", activation: "", requirements: "", usesRecharge: "", description: "", mechanicalEffect: "", notes: "", sortOrder: draft.abilities.length, crImpact: "None", effects: [] }] })} />
+    <SectionHeading eyebrow="SPECIAL MECHANICS" title="Abilities" action="Add Ability" onAction={() => onChange({ ...draft, abilities: [...draft.abilities, { canonicalId: createCreatureDraftCanonicalId("ABL"), abilityName: "", abilityType: "", activation: "", requirements: "", usesRecharge: "", description: "", mechanicalEffect: "", notes: "", sortOrder: draft.abilities.length, crImpact: "None", effects: [] }] })} />
     <div className="creature-card-list">{draft.abilities.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.abilityName || `Ability ${index + 1}`} onRemove={() => removeArray(draft, onChange, "abilities", index)} /><div className="creature-form-grid">
-      <Field label="Ability Name"><input value={row.abilityName} onChange={(e) => patchArray(draft, onChange, "abilities", index, { abilityName: e.target.value })} /></Field><Field label="Canonical ID"><input value={row.canonicalId} onChange={(e) => patchArray(draft, onChange, "abilities", index, { canonicalId: e.target.value })} /></Field><Field label="Type"><input value={row.abilityType} onChange={(e) => patchArray(draft, onChange, "abilities", index, { abilityType: e.target.value })} /></Field><Field label="Activation"><input value={row.activation} onChange={(e) => patchArray(draft, onChange, "abilities", index, { activation: e.target.value })} /></Field><Field label="CR Impact"><CrImpact value={row.crImpact} onChange={(crImpact) => patchArray(draft, onChange, "abilities", index, { crImpact })} /></Field><Field label="Uses / Recharge"><input value={row.usesRecharge} onChange={(e) => patchArray(draft, onChange, "abilities", index, { usesRecharge: e.target.value })} /></Field><Field label="Requirements" wide><input value={row.requirements} onChange={(e) => patchArray(draft, onChange, "abilities", index, { requirements: e.target.value })} /></Field><Field label="Description" wide><textarea rows={3} value={row.description} onChange={(e) => patchArray(draft, onChange, "abilities", index, { description: e.target.value })} /></Field><Field label="Mechanical Notes (Legacy Text)" wide><textarea rows={3} value={row.mechanicalEffect} onChange={(e) => patchArray(draft, onChange, "abilities", index, { mechanicalEffect: e.target.value })} /></Field><Field label="Notes" wide><textarea rows={2} value={row.notes} onChange={(e) => patchArray(draft, onChange, "abilities", index, { notes: e.target.value })} /></Field>
+      <Field label="Ability Name"><input value={row.abilityName} onChange={(e) => patchArray(draft, onChange, "abilities", index, { abilityName: e.target.value })} /></Field><Field label="Type"><input value={row.abilityType} onChange={(e) => patchArray(draft, onChange, "abilities", index, { abilityType: e.target.value })} /></Field><Field label="Activation"><input value={row.activation} onChange={(e) => patchArray(draft, onChange, "abilities", index, { activation: e.target.value })} /></Field><Field label="CR Impact"><CrImpact value={row.crImpact} onChange={(crImpact) => patchArray(draft, onChange, "abilities", index, { crImpact })} /></Field><Field label="Uses / Recharge"><input value={row.usesRecharge} onChange={(e) => patchArray(draft, onChange, "abilities", index, { usesRecharge: e.target.value })} /></Field><Field label="Requirements" wide><input value={row.requirements} onChange={(e) => patchArray(draft, onChange, "abilities", index, { requirements: e.target.value })} /></Field><Field label="Description" wide><textarea rows={3} value={row.description} onChange={(e) => patchArray(draft, onChange, "abilities", index, { description: e.target.value })} /></Field><Field label="Mechanical Notes (Legacy Text)" wide><textarea rows={3} value={row.mechanicalEffect} onChange={(e) => patchArray(draft, onChange, "abilities", index, { mechanicalEffect: e.target.value })} /></Field><Field label="Notes" wide><textarea rows={2} value={row.notes} onChange={(e) => patchArray(draft, onChange, "abilities", index, { notes: e.target.value })} /></Field>
     </div><CreatureAbilityEffectsEditor ability={row} skillOptions={draft.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} onChange={(ability) => patchArray(draft, onChange, "abilities", index, { ...ability, crImpact: row.crImpact })} /></article>)}</div>
     <SectionHeading eyebrow="PROTECTION & RESISTANCE" title="Defenses" action="Add Defense" onAction={() => onChange({ ...draft, defenses: [...draft.defenses, { seedIdentity: null, defenseType: "", against: "", value: null, notes: "", sortOrder: draft.defenses.length, crImpact: "None" }] })} />
     <div className="creature-row-list">{draft.defenses.map((row, index) => <div className="creature-repeat-row creature-defense-row" key={index}><input placeholder="Defense Type" value={row.defenseType} onChange={(e) => patchArray(draft, onChange, "defenses", index, { defenseType: e.target.value })} /><input placeholder="Against" value={row.against} onChange={(e) => patchArray(draft, onChange, "defenses", index, { against: e.target.value })} /><input placeholder="Value" value={row.value ?? ""} onChange={(e) => patchArray(draft, onChange, "defenses", index, { value: e.target.value || null })} /><CrImpact value={row.crImpact} onChange={(crImpact) => patchArray(draft, onChange, "defenses", index, { crImpact })} /><input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "defenses", index, { notes: e.target.value })} /><RemoveButton onClick={() => removeArray(draft, onChange, "defenses", index)} /></div>)}</div>

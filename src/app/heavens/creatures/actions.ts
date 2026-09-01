@@ -42,6 +42,10 @@ import {
   normalizeCreatureAbilityEffects,
   type CreatureAbilityDefinition,
 } from "@/features/creatures/creature-ability";
+import {
+  assertCreatureCanonicalIdsSystemOwned,
+  resolveSystemAssignedCreatureIds,
+} from "@/features/creatures/creature-canonical-ids";
 import { resolveCreatureHpModel } from "@/features/creatures/creature-size-rules";
 import { requireGod } from "@/lib/server-access";
 
@@ -521,6 +525,24 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
 export async function saveCreature(input: CreatureDraft): Promise<CreatureAggregate> {
   const session = await requireGod();
   const normalized = normalize(input);
+  const assignedIds = resolveSystemAssignedCreatureIds(normalized, input.id === undefined);
+  normalized.core.canonicalId = assignedIds.coreCanonicalId;
+  normalized.hpPools = normalized.hpPools.map((pool, index) => ({
+    ...pool,
+    canonicalId: assignedIds.hpPoolCanonicalIds[index]!,
+  }));
+  normalized.hitLocations = normalized.hitLocations.map((location, index) => ({
+    ...location,
+    hpPoolCanonicalId: assignedIds.hitLocationPoolCanonicalIds[index]!,
+  }));
+  normalized.attacks = normalized.attacks.map((attack, index) => ({
+    ...attack,
+    canonicalId: assignedIds.attackCanonicalIds[index]!,
+  }));
+  normalized.abilities = normalized.abilities.map((ability, index) => ({
+    ...ability,
+    canonicalId: assignedIds.abilityCanonicalIds[index]!,
+  }));
   const hpModel = resolveCreatureHpModel(normalized, normalized.hpPools);
   normalized.core.totalHp = hpModel.calculatedTotalHp;
   normalized.hpPools = hpModel.pools;
@@ -559,13 +581,28 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
       if (!updated.length) throw new Error("That Creature no longer exists.");
     }
 
-    const storedAbilities = await tx.select({
-      id: creatureAbility.id,
-      canonicalId: creatureAbility.canonicalId,
-    }).from(creatureAbility).where(and(
-      eq(creatureAbility.creatureId, id),
-      isNull(creatureAbility.variantId),
-    ));
+    const [storedAbilities, storedPools, storedAttacks] = await Promise.all([
+      tx.select({
+        id: creatureAbility.id,
+        canonicalId: creatureAbility.canonicalId,
+      }).from(creatureAbility).where(and(
+        eq(creatureAbility.creatureId, id),
+        isNull(creatureAbility.variantId),
+      )),
+      tx.select({ canonicalId: creatureHpPool.canonicalId }).from(creatureHpPool).where(and(
+        eq(creatureHpPool.creatureId, id),
+        isNull(creatureHpPool.variantId),
+      )),
+      tx.select({ canonicalId: creatureAttack.canonicalId }).from(creatureAttack).where(and(
+        eq(creatureAttack.creatureId, id),
+        isNull(creatureAttack.variantId),
+      )),
+    ]);
+    if (input.id !== undefined) {
+      assertCreatureCanonicalIdsSystemOwned(input.hpPools, storedPools, "HP Pool");
+      assertCreatureCanonicalIdsSystemOwned(input.attacks, storedAttacks, "Attack");
+      assertCreatureCanonicalIdsSystemOwned(input.abilities, storedAbilities, "Ability");
+    }
     const nextAbilityIds = new Set(
       normalized.abilities.map(({ canonicalId }) => canonicalId.toLocaleLowerCase("en-US")),
     );

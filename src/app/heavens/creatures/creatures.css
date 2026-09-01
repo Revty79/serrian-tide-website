@@ -27,7 +27,7 @@
 .creature-repeat-row > div > small { display: block; margin-top: 4px; color: rgb(178 201 197 / 72%); font-size: .7rem; }
 .creature-attribute-row { grid-template-columns: 180px 110px minmax(180px, 1fr); }
 .creature-movement-row { grid-template-columns: 140px 95px 95px 1fr 1fr auto; }
-.creature-pool-row { grid-template-columns: 1fr 1fr 90px 1.3fr auto; }
+.creature-pool-row { grid-template-columns: 1fr 90px 1.3fr auto; }
 .creature-skill-row { grid-template-columns: minmax(180px, 1fr) 100px 1.3fr auto; }
 .creature-defense-row { grid-template-columns: 1fr 1fr 90px 110px 1.3fr auto; }
 .creature-use-row { grid-template-columns: 1fr 2fr auto; }

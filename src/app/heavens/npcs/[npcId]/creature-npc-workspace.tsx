@@ -24,6 +24,7 @@ import { getActiveHealth } from "@/app/characters/active-health-actions";
 import { getActiveEffects } from "@/app/characters/active-effects-actions";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
+import { createCreatureDraftCanonicalId } from "@/features/creatures/creature-canonical-ids";
 import {
   getCreatureHpPercentageStatus,
   resolveCreatureHitLocationMaximumHp,
@@ -61,6 +62,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
 ];
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  if (label.includes("Canonical ID")) return null;
   return <label className={wide ? "creature-npc-field creature-npc-field--wide" : "creature-npc-field"}><span>{label}</span>{children}</label>;
 }
 function OptionalNumber({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
@@ -88,7 +90,37 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
     setFeedback(null);
   }
   function changeSnapshot(next: CreatureDraft) {
-    change({ ...draft, currentSnapshot: next });
+    const current = draft.currentSnapshot;
+    const existingPoolIds = new Set(current.hpPools.map(({ canonicalId }) => canonicalId));
+    const existingAttackIds = new Set(current.attacks.map(({ canonicalId }) => canonicalId));
+    const existingAbilityIds = new Set(current.abilities.map(({ canonicalId }) => canonicalId));
+    const poolIdMap = new Map<string, string>();
+    const hpPools = next.hpPools.map((pool) => {
+      const canonicalId = existingPoolIds.has(pool.canonicalId)
+        ? pool.canonicalId
+        : createCreatureDraftCanonicalId("HP");
+      poolIdMap.set(pool.canonicalId, canonicalId);
+      return { ...pool, canonicalId };
+    });
+    change({
+      ...draft,
+      currentSnapshot: {
+        ...next,
+        hpPools,
+        hitLocations: next.hitLocations.map((location) => ({
+          ...location,
+          hpPoolCanonicalId: location.hpPoolCanonicalId === null
+            ? null
+            : poolIdMap.get(location.hpPoolCanonicalId) ?? location.hpPoolCanonicalId,
+        })),
+        attacks: next.attacks.map((attack) => existingAttackIds.has(attack.canonicalId)
+          ? attack
+          : { ...attack, canonicalId: createCreatureDraftCanonicalId("ATK") }),
+        abilities: next.abilities.map((ability) => existingAbilityIds.has(ability.canonicalId)
+          ? ability
+          : { ...ability, canonicalId: createCreatureDraftCanonicalId("ABL") }),
+      },
+    });
   }
   function acceptChargeState(next: CharacterItemChargeStateView) {
     const charges = new Map(next.instances.map((entry) => [entry.instanceId, entry.currentCharges]));
@@ -164,7 +196,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
 
 function Identity({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (draft: CreatureNpcDraft) => void }) {
   const core = draft.currentSnapshot.core;
-  return <div className="creature-npc-section creature-npc-form-grid"><SectionHeading eyebrow="INDIVIDUAL RECORD" title="Identity & Personality" wide /><Field label="NPC Name" wide><input value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} /></Field><Field label="Master Creature"><input disabled value={draft.creatureName} /></Field><Field label="Template Canonical ID"><input disabled value={core.canonicalId} /></Field><Field label="Final Individual HP Adjustment"><input type="number" value={draft.hpAdjustment} onChange={(e) => onChange({ ...draft, hpAdjustment: Number(e.target.value) })} /></Field><Field label="Size"><select value={core.size} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, size: e.target.value } } })}>{CREATURE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field><Field label="HP Multiplier Steps"><input type="number" min={0} step={1} value={core.hpMultiplierSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, hpMultiplierSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Movement Steps"><input type="number" min={0} step={1} value={core.baseMovementSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMovementSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Magic Steps"><input type="number" min={0} step={1} value={core.baseMagicSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMagicSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Family"><input value={core.family} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, family: e.target.value } } })} /></Field><Field label="Creature Type"><input value={core.creatureType} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, creatureType: e.target.value } } })} /></Field><p className="creature-npc-field--wide creature-npc-runtime-note">Size scales the six effective Attributes. Exceptional steps remain independent and use the established Character quarter-step rules; HP Adjustment is applied last to this NPC only.</p><Field label="Personality" wide><textarea rows={6} value={draft.personality} onChange={(e) => onChange({ ...draft, personality: e.target.value })} /></Field><Field label="Instance Notes" wide><textarea rows={6} value={draft.instanceNotes} onChange={(e) => onChange({ ...draft, instanceNotes: e.target.value })} /></Field><Field label="Individual Description" wide><textarea rows={6} value={core.description} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, description: e.target.value } } })} /></Field></div>;
+  return <div className="creature-npc-section creature-npc-form-grid"><SectionHeading eyebrow="INDIVIDUAL RECORD" title="Identity & Personality" wide /><Field label="NPC Name" wide><input value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} /></Field><Field label="Master Creature"><input disabled value={draft.creatureName} /></Field><Field label="Final Individual HP Adjustment"><input type="number" value={draft.hpAdjustment} onChange={(e) => onChange({ ...draft, hpAdjustment: Number(e.target.value) })} /></Field><Field label="Size"><select value={core.size} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, size: e.target.value } } })}>{CREATURE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field><Field label="HP Multiplier Steps"><input type="number" min={0} step={1} value={core.hpMultiplierSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, hpMultiplierSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Movement Steps"><input type="number" min={0} step={1} value={core.baseMovementSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMovementSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Magic Steps"><input type="number" min={0} step={1} value={core.baseMagicSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMagicSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Family"><input value={core.family} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, family: e.target.value } } })} /></Field><Field label="Creature Type"><input value={core.creatureType} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, creatureType: e.target.value } } })} /></Field><p className="creature-npc-field--wide creature-npc-runtime-note">Size scales the six effective Attributes. Exceptional steps remain independent and use the established Character quarter-step rules; HP Adjustment is applied last to this NPC only.</p><Field label="Personality" wide><textarea rows={6} value={draft.personality} onChange={(e) => onChange({ ...draft, personality: e.target.value })} /></Field><Field label="Instance Notes" wide><textarea rows={6} value={draft.instanceNotes} onChange={(e) => onChange({ ...draft, instanceNotes: e.target.value })} /></Field><Field label="Individual Description" wide><textarea rows={6} value={core.description} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, description: e.target.value } } })} /></Field></div>;
 }
 
 function Stats({ snapshot, onChange }: { snapshot: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {

@@ -33,6 +33,10 @@ import {
   copyCreatureAbility,
   normalizeCreatureSnapshotAbilities,
 } from "@/features/creatures/creature-ability";
+import {
+  assertCreatureCanonicalIdsSystemOwned,
+  resolveSystemAssignedCreatureIds,
+} from "@/features/creatures/creature-canonical-ids";
 import { normalizeCreatureHpSnapshot } from "@/features/creatures/creature-size-rules";
 import {
   assertItemOwnershipStrategy,
@@ -399,12 +403,39 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
   unique(input.currentSnapshot.hpPools.map((row) => row.canonicalId), "HP Pool ID");
   unique(input.currentSnapshot.attacks.map((row) => row.canonicalId), "Attack ID");
   unique(input.currentSnapshot.abilities.map((row) => row.canonicalId), "Ability ID");
+  assertCreatureCanonicalIdsSystemOwned(input.currentSnapshot.hpPools, current.currentSnapshot.hpPools, "HP Pool");
+  assertCreatureCanonicalIdsSystemOwned(input.currentSnapshot.attacks, current.currentSnapshot.attacks, "Attack");
+  assertCreatureCanonicalIdsSystemOwned(input.currentSnapshot.abilities, current.currentSnapshot.abilities, "Ability");
   const normalizedAbilities = normalizeCreatureSnapshotAbilities(input.currentSnapshot).abilities.map((ability) => ({
     ...ability,
     crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact)
       ? ability.crImpact as CreatureCrImpact
       : "None" as CreatureCrImpact,
   }));
+  const submittedSnapshot = {
+    ...input.currentSnapshot,
+    abilities: normalizedAbilities,
+  };
+  const assignedIds = resolveSystemAssignedCreatureIds(submittedSnapshot, false);
+  const systemAssignedSnapshot = {
+    ...submittedSnapshot,
+    hpPools: submittedSnapshot.hpPools.map((pool, index) => ({
+      ...pool,
+      canonicalId: assignedIds.hpPoolCanonicalIds[index],
+    })),
+    hitLocations: submittedSnapshot.hitLocations.map((location, index) => ({
+      ...location,
+      hpPoolCanonicalId: assignedIds.hitLocationPoolCanonicalIds[index],
+    })),
+    attacks: submittedSnapshot.attacks.map((attack, index) => ({
+      ...attack,
+      canonicalId: assignedIds.attackCanonicalIds[index],
+    })),
+    abilities: submittedSnapshot.abilities.map((ability, index) => ({
+      ...ability,
+      canonicalId: assignedIds.abilityCanonicalIds[index],
+    })),
+  };
 
   const authorizedIds = new Set(current.authorizedItems.map(({ id }) => id));
   const authorizedById = new Map(current.authorizedItems.map((entry) => [entry.id, entry]));
@@ -471,11 +502,10 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
   });
 
   const normalizedSnapshot = normalizeSnapshotHp({
-    ...input.currentSnapshot,
-    abilities: normalizedAbilities,
+    ...systemAssignedSnapshot,
     id: current.baselineSnapshot.id,
     core: {
-      ...normalizeSnapshotCore(input.currentSnapshot.core),
+      ...normalizeSnapshotCore(systemAssignedSnapshot.core),
       canonicalId: current.baselineSnapshot.core.canonicalId,
       canonicalName: current.baselineSnapshot.core.canonicalName,
       parentCreatureId: current.baselineSnapshot.core.parentCreatureId,
