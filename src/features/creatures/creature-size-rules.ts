@@ -46,6 +46,18 @@ export type CreatureStatisticsSource = {
   }>;
 };
 
+export type CreatureHpPoolSource = {
+  canonicalId: string;
+  hpPercentage: number | null;
+};
+
+export type CreatureHpModel<TPool extends CreatureHpPoolSource> = {
+  statistics: EffectiveCreatureStatistics;
+  calculatedTotalHp: number | null;
+  finalTotalHp: number | null;
+  pools: Array<TPool & { maximumHp: number | null }>;
+};
+
 export type EffectiveCreatureStatistics = {
   size: CreatureSize;
   sizeMultiplier: number;
@@ -153,4 +165,71 @@ export function resolveCreatureHpPoolMaximum(
     throw new Error("Creature HP Pool requires finite Total HP and percentage values.");
   }
   return Math.max(0, Math.ceil((totalMaximumHp * hpPercentage) / 100));
+}
+
+export function resolveCreatureHpModel<TPool extends CreatureHpPoolSource>(
+  source: CreatureStatisticsSource,
+  pools: ReadonlyArray<TPool>,
+  hpAdjustment = 0,
+): CreatureHpModel<TPool> {
+  const statistics = resolveEffectiveCreatureStatistics(source);
+  const calculatedTotalHp = statistics.calculatedTotalMaximumHp;
+  const finalTotalHp = resolveCreatureTotalMaximumHp(source, hpAdjustment);
+  return {
+    statistics,
+    calculatedTotalHp,
+    finalTotalHp,
+    pools: pools.map((pool) => ({
+      ...pool,
+      maximumHp: resolveCreatureHpPoolMaximum(finalTotalHp, pool.hpPercentage),
+    })),
+  };
+}
+
+export function normalizeCreatureHpSnapshot<
+  TCore extends CreatureStatisticsSource["core"] & { totalHp?: number | null },
+  TAttribute extends { attributeKey: string; value: number | null },
+  TPool extends CreatureHpPoolSource & { maximumHp?: number | null },
+  TSnapshot extends {
+    core: TCore;
+    attributes: ReadonlyArray<TAttribute>;
+    hpPools: ReadonlyArray<TPool>;
+  },
+>(
+  snapshot: TSnapshot,
+  hpAdjustment = 0,
+): Omit<TSnapshot, "core" | "hpPools"> & {
+  core: TCore & { totalHp: number | null };
+  hpPools: Array<TPool & { maximumHp: number | null }>;
+} {
+  const hpModel = resolveCreatureHpModel(snapshot, snapshot.hpPools, hpAdjustment);
+  return {
+    ...snapshot,
+    core: { ...snapshot.core, totalHp: hpModel.calculatedTotalHp },
+    hpPools: hpModel.pools,
+  };
+}
+
+export function getCreatureHpPercentageStatus(
+  pools: ReadonlyArray<Pick<CreatureHpPoolSource, "hpPercentage">>,
+): { totalPercentage: number; complete: boolean } {
+  const totalPercentage = pools.reduce(
+    (total, pool) => total + (pool.hpPercentage ?? 0),
+    0,
+  );
+  return {
+    totalPercentage,
+    complete: pools.length > 0
+      && pools.every(({ hpPercentage }) => hpPercentage !== null)
+      && Math.abs(totalPercentage - 100) < 0.000001,
+  };
+}
+
+export function resolveCreatureHitLocationMaximumHp(
+  hpPoolCanonicalId: string | null,
+  pools: ReadonlyArray<CreatureHpPoolSource & { maximumHp: number | null }>,
+): number | null {
+  if (!hpPoolCanonicalId) return null;
+  const key = hpPoolCanonicalId.toLocaleLowerCase("en-US");
+  return pools.find(({ canonicalId }) => canonicalId.toLocaleLowerCase("en-US") === key)?.maximumHp ?? null;
 }

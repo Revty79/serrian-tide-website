@@ -29,6 +29,13 @@
       "when": 1788243023100,
       "tag": "0003_creature_effective_statistics",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788244965353,
+      "tag": "0004_persisted_creature_hp",
+      "breakpoints": true
     }
   ]
 }

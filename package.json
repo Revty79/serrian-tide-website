@@ -34,6 +34,7 @@
     "validate:runtime-schema": "node scripts/verify-runtime-foundation-schema.mjs",
     "validate:runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/runtime-foundation-db.test.ts",
     "db:seed:runtime-dev": "tsx scripts/seed-runtime-foundation-dev.ts",
+    "db:backfill:creature-hp": "tsx scripts/backfill-creature-hp.ts",
     "audit:firearm-skills": "node scripts/audit-firearm-skills.mjs",
     "db:import:canon": "node scripts/import-ststandalone-skills.mjs && node scripts/import-ststandalone-canon.mjs"
   },

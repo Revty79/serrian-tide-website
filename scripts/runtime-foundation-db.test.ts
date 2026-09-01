@@ -515,14 +515,15 @@ test("Runtime Foundation real PostgreSQL freeze", { concurrency: false }, async 
     assert.equal(health.state.injuries[0]!.resolved, true);
   });
 
-  await t.test("Creature Active Health uses the current snapshot anatomy without inventing Total HP", async () => {
+  await t.test("Creature Active Health uses calculated current-snapshot Total and Pool HP", async () => {
     await clearActiveState([fixtures.creatureNpcId]);
     await db.transaction(async (tx) => {
       const context = await lockActiveHealthInTransaction(tx, fixtures.creatureNpcId, "creature");
       assert.equal(context.anatomy.kind, "creature");
-      assert.equal(context.anatomy.totalMaximumHp, null);
-      assert.match(context.anatomy.maximumHpNote ?? "", /not defined/);
+      assert.equal(context.anatomy.totalMaximumHp, 50);
+      assert.equal(context.anatomy.maximumHpNote, null);
       assert.deepEqual(context.anatomy.pools.map(({ name }) => name), ["Body", "Tail"]);
+      assert.deepEqual(context.anatomy.pools.map(({ maximumHp }) => maximumHp), [40, 10]);
       const next = applyLocalizedDamage(context.state, context.anatomy, { amount: 4, hitLocationNumber: 9 });
       await persistActiveHealthStateInTransaction(tx, context.anatomy, next);
     });

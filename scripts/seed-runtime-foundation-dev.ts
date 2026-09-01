@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import pg from "pg";
 
 import type { MechanicalEffect } from "../src/features/mechanical-effects";
+import { resolveCreatureHpModel } from "../src/features/creatures/creature-size-rules";
 import type { SpellDocument } from "../src/features/spell-construction/models/spell";
 import {
   createContainer,
@@ -297,14 +298,46 @@ try {
     `, [campaign.id, GOD_ID]);
 
     const challenge = await one<{ xp: number }>(client, "select kill_xp as xp from challenge_rating_reference where challenge_rating=1");
+    const runtimeCreatureAttributes = [
+      "Strength",
+      "Dexterity",
+      "Constitution",
+      "Intelligence",
+      "Wisdom",
+      "Charisma",
+    ].map((attributeKey, sortOrder) => ({ attributeKey, value: 25, notes: "", sortOrder }));
+    const runtimeCreaturePools = [
+      { canonicalId: "DEV-STEP13-BODY", poolName: "Body", hpPercentage: 80, notes: "", sortOrder: 0 },
+      { canonicalId: "DEV-STEP13-TAIL", poolName: "Tail", hpPercentage: 20, notes: "", sortOrder: 1 },
+    ];
+    const runtimeCreatureHp = resolveCreatureHpModel(
+      {
+        core: { size: "Medium", hpMultiplierSteps: 0 },
+        attributes: runtimeCreatureAttributes,
+      },
+      runtimeCreaturePools,
+    );
     const creature = await one<{ id: number }>(client, `
       insert into creatures (
         canonical_id,canonical_name,family,creature_type,size,challenge_rating,kill_xp,
-        description,created_by_user_id,source_system,calculated_challenge_rating
+        description,created_by_user_id,source_system,calculated_challenge_rating,total_hp
       ) values ('DEV-STEP13-CREATURE','Runtime Review Beast','Development','Runtime Fixture','Medium',1,$1,
-        'Local-only Creature Ability and anatomy fixture.',$2,'step13-local',1)
+        'Local-only Creature Ability and anatomy fixture.',$2,'step13-local',1,$3)
       returning id
-    `, [challenge.xp, GOD_ID]);
+    `, [challenge.xp, GOD_ID, runtimeCreatureHp.calculatedTotalHp]);
+    for (const attribute of runtimeCreatureAttributes) {
+      await client.query(`
+        insert into creature_attributes (creature_id,attribute_key,value,notes,sort_order)
+        values ($1,$2,$3,$4,$5)
+      `, [creature.id, attribute.attributeKey, attribute.value, attribute.notes, attribute.sortOrder]);
+    }
+    for (const pool of runtimeCreatureHp.pools) {
+      await client.query(`
+        insert into creature_hp_pools
+          (canonical_id,creature_id,pool_name,hp_percentage,maximum_hp,notes,sort_order)
+        values ($1,$2,$3,$4,$5,$6,$7)
+      `, [pool.canonicalId, creature.id, pool.poolName, pool.hpPercentage, pool.maximumHp, pool.notes, pool.sortOrder]);
+    }
     const structuredAbility = await one<{ id: number }>(client, `
       insert into creature_abilities (
         canonical_id,creature_id,ability_name,ability_type,activation,description,mechanical_effect,sort_order,cr_impact
@@ -339,6 +372,10 @@ try {
         family: "Development",
         creatureType: "Runtime Fixture",
         size: "Medium",
+        hpMultiplierSteps: 0,
+        baseMovementSteps: 0,
+        baseMagicSteps: 0,
+        totalHp: runtimeCreatureHp.calculatedTotalHp,
         challengeRating: 1,
         killXp: challenge.xp,
         parentCreatureId: null,
@@ -352,12 +389,9 @@ try {
         notes: "",
         sourceSystem: "step13-local",
       },
-      attributes: ["STR", "DEX", "CON", "INT", "WIS", "CHR"].map((attributeKey, sortOrder) => ({ attributeKey, value: 25, notes: "", sortOrder })),
+      attributes: runtimeCreatureAttributes,
       movement: [{ movementMode: "Ground", movementValue: 8, initiative: 8, requirements: "", notes: "", sortOrder: 0 }],
-      hpPools: [
-        { canonicalId: "DEV-STEP13-BODY", poolName: "Body", hpPercentage: 80, notes: "", sortOrder: 0 },
-        { canonicalId: "DEV-STEP13-TAIL", poolName: "Tail", hpPercentage: 20, notes: "", sortOrder: 1 },
-      ],
+      hpPools: runtimeCreatureHp.pools,
       hitLocations: [
         { hitLocationNumber: 0, locationName: "Body", bodyPartsIncluded: "Body", hpPoolCanonicalId: "DEV-STEP13-BODY", naturalArmor: "", soak: "", locationEffect: "", notes: "", sortOrder: 0 },
         { hitLocationNumber: 9, locationName: "Tail", bodyPartsIncluded: "Tail", hpPoolCanonicalId: "DEV-STEP13-TAIL", naturalArmor: "", soak: "", locationEffect: "", notes: "", sortOrder: 1 },

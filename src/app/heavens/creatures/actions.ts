@@ -42,6 +42,7 @@ import {
   normalizeCreatureAbilityEffects,
   type CreatureAbilityDefinition,
 } from "@/features/creatures/creature-ability";
+import { resolveCreatureHpModel } from "@/features/creatures/creature-size-rules";
 import { requireGod } from "@/lib/server-access";
 
 export type CreatureLibraryFilters = {
@@ -116,6 +117,7 @@ export type CreatureDraft = {
     creatureType: string;
     size: string;
     hpMultiplierSteps: number;
+    totalHp: number | null;
     baseMovementSteps: number;
     baseMagicSteps: number;
     challengeRating: number | null;
@@ -133,7 +135,7 @@ export type CreatureDraft = {
   };
   attributes: Array<{ attributeKey: string; value: number | null; notes: string; sortOrder: number }>;
   movement: Array<{ movementMode: string; movementValue: number | null; initiative: number | null; requirements: string; notes: string; sortOrder: number }>;
-  hpPools: Array<{ canonicalId: string; poolName: string; hpPercentage: number | null; notes: string; sortOrder: number }>;
+  hpPools: Array<{ canonicalId: string; poolName: string; hpPercentage: number | null; maximumHp: number | null; notes: string; sortOrder: number }>;
   hitLocations: Array<{ hitLocationNumber: number; locationName: string; bodyPartsIncluded: string; hpPoolCanonicalId: string | null; naturalArmor: number | null; soak: number | null; locationEffect: string; notes: string; sortOrder: number }>;
   attacks: Array<{ canonicalId: string; attackName: string; attackPercentage: number | null; damage: string | null; damageType: string; rangeReach: string; requiredAnatomy: string; requirements: string; usesRecharge: string; specialEffect: string; notes: string; sortOrder: number }>;
   skillLinks: Array<{ skillId: number; skillName: string; skillClassification: string; rank: string | null; notes: string; sortOrder: number }>;
@@ -214,6 +216,7 @@ function normalize(input: CreatureDraft) {
     canonicalId: required(row.canonicalId, "HP Pool ID").toLocaleUpperCase("en-US"),
     poolName: required(row.poolName, "HP Pool Name"),
     hpPercentage: optionalNumber(row.hpPercentage, `${row.poolName || "HP Pool"} HP %`),
+    maximumHp: null as number | null,
     notes: clean(row.notes),
     sortOrder,
   }));
@@ -314,6 +317,7 @@ function normalize(input: CreatureDraft) {
       creatureType: clean(input.core.creatureType),
       size,
       hpMultiplierSteps: wholeNumber(input.core.hpMultiplierSteps ?? 0, "HP Multiplier Steps", 0),
+      totalHp: null as number | null,
       baseMovementSteps: wholeNumber(input.core.baseMovementSteps ?? 0, "Base Movement Steps", 0),
       baseMagicSteps: wholeNumber(input.core.baseMagicSteps ?? 0, "Base Magic Steps", 0),
       challengeRating: input.core.challengeRating === null ? 1 : wholeNumber(input.core.challengeRating, "Challenge Rating", 1, 50),
@@ -404,6 +408,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     creatureType: creature.creatureType,
     size: creature.size,
     hpMultiplierSteps: creature.hpMultiplierSteps,
+    totalHp: creature.totalHp,
     baseMovementSteps: creature.baseMovementSteps,
     baseMagicSteps: creature.baseMagicSteps,
     challengeRating: creature.challengeRating,
@@ -432,7 +437,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
   const [attributes, movement, pools, locations, attacks, links, abilities, defenses, uses, derivedCreatures, references] = await Promise.all([
     db.select({ attributeKey: creatureAttribute.attributeKey, value: creatureAttribute.value, notes: creatureAttribute.notes, sortOrder: creatureAttribute.sortOrder }).from(creatureAttribute).where(and(eq(creatureAttribute.creatureId, id), isNull(creatureAttribute.variantId))).orderBy(asc(creatureAttribute.sortOrder), asc(creatureAttribute.id)),
     db.select({ movementMode: creatureMovement.movementMode, movementValue: creatureMovement.movementValue, initiative: creatureMovement.initiative, requirements: creatureMovement.requirements, notes: creatureMovement.notes, sortOrder: creatureMovement.sortOrder }).from(creatureMovement).where(and(eq(creatureMovement.creatureId, id), isNull(creatureMovement.variantId))).orderBy(asc(creatureMovement.sortOrder), asc(creatureMovement.id)),
-    db.select({ id: creatureHpPool.id, canonicalId: creatureHpPool.canonicalId, poolName: creatureHpPool.poolName, hpPercentage: creatureHpPool.hpPercentage, notes: creatureHpPool.notes, sortOrder: creatureHpPool.sortOrder }).from(creatureHpPool).where(and(eq(creatureHpPool.creatureId, id), isNull(creatureHpPool.variantId))).orderBy(asc(creatureHpPool.sortOrder), asc(creatureHpPool.id)),
+    db.select({ id: creatureHpPool.id, canonicalId: creatureHpPool.canonicalId, poolName: creatureHpPool.poolName, hpPercentage: creatureHpPool.hpPercentage, maximumHp: creatureHpPool.maximumHp, notes: creatureHpPool.notes, sortOrder: creatureHpPool.sortOrder }).from(creatureHpPool).where(and(eq(creatureHpPool.creatureId, id), isNull(creatureHpPool.variantId))).orderBy(asc(creatureHpPool.sortOrder), asc(creatureHpPool.id)),
     db.select({ hitLocationNumber: creatureHitLocation.hitLocationNumber, locationName: creatureHitLocation.locationName, bodyPartsIncluded: creatureHitLocation.bodyPartsIncluded, hpPoolId: creatureHitLocation.hpPoolId, naturalArmor: creatureHitLocation.naturalArmor, soak: creatureHitLocation.soak, locationEffect: creatureHitLocation.locationEffect, notes: creatureHitLocation.notes, sortOrder: creatureHitLocation.sortOrder }).from(creatureHitLocation).where(and(eq(creatureHitLocation.creatureId, id), isNull(creatureHitLocation.variantId))).orderBy(asc(creatureHitLocation.sortOrder), asc(creatureHitLocation.id)),
     db.select({ canonicalId: creatureAttack.canonicalId, attackName: creatureAttack.attackName, attackPercentage: creatureAttack.attackPercentage, damage: creatureAttack.damage, damageType: creatureAttack.damageType, rangeReach: creatureAttack.rangeReach, requiredAnatomy: creatureAttack.requiredAnatomy, requirements: creatureAttack.requirements, usesRecharge: creatureAttack.usesRecharge, specialEffect: creatureAttack.specialEffect, notes: creatureAttack.notes, sortOrder: creatureAttack.sortOrder }).from(creatureAttack).where(and(eq(creatureAttack.creatureId, id), isNull(creatureAttack.variantId))).orderBy(asc(creatureAttack.sortOrder), asc(creatureAttack.id)),
     db.select({ skillId: creatureSkillLink.skillId, skillName: skill.name, skillClassification: skill.classification, rank: creatureSkillLink.rank, notes: creatureSkillLink.notes, sortOrder: creatureSkillLink.sortOrder }).from(creatureSkillLink).innerJoin(skill, eq(skill.id, creatureSkillLink.skillId)).where(and(eq(creatureSkillLink.creatureId, id), isNull(creatureSkillLink.variantId))).orderBy(asc(creatureSkillLink.sortOrder), asc(creatureSkillLink.id)),
@@ -469,6 +474,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
       creatureType: row.creatureType,
       size: row.size,
       hpMultiplierSteps: row.hpMultiplierSteps,
+      totalHp: row.totalHp,
       baseMovementSteps: row.baseMovementSteps,
       baseMagicSteps: row.baseMagicSteps,
       challengeRating: row.challengeRating,
@@ -486,10 +492,11 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     },
     attributes,
     movement,
-    hpPools: pools.map(({ canonicalId, poolName, hpPercentage, notes, sortOrder }) => ({
+    hpPools: pools.map(({ canonicalId, poolName, hpPercentage, maximumHp, notes, sortOrder }) => ({
       canonicalId,
       poolName,
       hpPercentage,
+      maximumHp,
       notes,
       sortOrder,
     })),
@@ -514,6 +521,9 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
 export async function saveCreature(input: CreatureDraft): Promise<CreatureAggregate> {
   const session = await requireGod();
   const normalized = normalize(input);
+  const hpModel = resolveCreatureHpModel(normalized, normalized.hpPools);
+  normalized.core.totalHp = hpModel.calculatedTotalHp;
+  normalized.hpPools = hpModel.pools;
   const references = await db.select().from(challengeRatingReference).orderBy(asc(challengeRatingReference.challengeRating));
   const calculation = calculateCreatureChallengeRating({ ...normalized, core: normalized.core }, references);
   normalized.core.calculatedChallengeRating = calculation.calculatedRating;
@@ -689,6 +699,46 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       parent.challengeRating,
       rewardReferences,
     );
+    const [parentAttributes, parentPools, parentHitLocations] = await Promise.all([
+      tx.select({
+        attributeKey: creatureAttribute.attributeKey,
+        value: creatureAttribute.value,
+      }).from(creatureAttribute).where(and(
+        eq(creatureAttribute.creatureId, parentCreatureId),
+        isNull(creatureAttribute.variantId),
+      )).orderBy(asc(creatureAttribute.sortOrder), asc(creatureAttribute.id)),
+      tx.select({
+        id: creatureHpPool.id,
+        poolName: creatureHpPool.poolName,
+        hpPercentage: creatureHpPool.hpPercentage,
+        notes: creatureHpPool.notes,
+        sortOrder: creatureHpPool.sortOrder,
+      }).from(creatureHpPool).where(and(
+        eq(creatureHpPool.creatureId, parentCreatureId),
+        isNull(creatureHpPool.variantId),
+      )).orderBy(asc(creatureHpPool.sortOrder), asc(creatureHpPool.id)),
+      tx.select({
+        hitLocationNumber: creatureHitLocation.hitLocationNumber,
+        locationName: creatureHitLocation.locationName,
+        bodyPartsIncluded: creatureHitLocation.bodyPartsIncluded,
+        hpPoolId: creatureHitLocation.hpPoolId,
+        naturalArmor: creatureHitLocation.naturalArmor,
+        soak: creatureHitLocation.soak,
+        locationEffect: creatureHitLocation.locationEffect,
+        notes: creatureHitLocation.notes,
+        sortOrder: creatureHitLocation.sortOrder,
+      }).from(creatureHitLocation).where(and(
+        eq(creatureHitLocation.creatureId, parentCreatureId),
+        isNull(creatureHitLocation.variantId),
+      )).orderBy(asc(creatureHitLocation.sortOrder), asc(creatureHitLocation.id)),
+    ]);
+    const parentHpModel = resolveCreatureHpModel(
+      {
+        core: parent,
+        attributes: parentAttributes,
+      },
+      parentPools.map((pool) => ({ ...pool, canonicalId: String(pool.id) })),
+    );
 
     let rootId = parentCreatureId;
     let rootCanonicalId = parent.canonicalId;
@@ -736,6 +786,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
         creatureType: parent.creatureType,
         size: parent.size,
         hpMultiplierSteps: parent.hpMultiplierSteps,
+        totalHp: parentHpModel.calculatedTotalHp,
         baseMovementSteps: parent.baseMovementSteps,
         baseMagicSteps: parent.baseMagicSteps,
         challengeRating: parent.challengeRating,
@@ -764,28 +815,45 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       select ${created.id}, null, movement_mode, movement_value, initiative, requirements, notes, sort_order
       from creature_movement where creature_id = ${parentCreatureId} and variant_id is null
     `);
-    await tx.execute(sql`
-      insert into creature_hp_pools (canonical_id, creature_id, variant_id, pool_name, hp_percentage, notes, sort_order)
-      select 'HP-' || ${childToken} || '-' || lpad(id::text, 4, '0'), ${created.id}, null,
-             pool_name, hp_percentage, notes, sort_order
-      from creature_hp_pools where creature_id = ${parentCreatureId} and variant_id is null
-    `);
-    await tx.execute(sql`
-      insert into creature_hit_locations (
-        creature_id, variant_id, hit_location_number, location_name, body_parts_included,
-        hp_pool_id, natural_armor, soak, location_effect, notes, sort_order
-      )
-      select ${created.id}, null, source.hit_location_number, source.location_name,
-             source.body_parts_included,
-             case when source.hp_pool_id is null then null else (
-               select copied.id from creature_hp_pools copied
-               where copied.creature_id = ${created.id}
-                 and copied.canonical_id = 'HP-' || ${childToken} || '-' || lpad(source.hp_pool_id::text, 4, '0')
-             ) end,
-             source.natural_armor, source.soak, source.location_effect, source.notes, source.sort_order
-      from creature_hit_locations source
-      where source.creature_id = ${parentCreatureId} and source.variant_id is null
-    `);
+    const copiedPoolIds = new Map<number, number>();
+    for (const pool of parentHpModel.pools) {
+      const parentPoolId = Number(pool.canonicalId);
+      const [copied] = await tx.insert(creatureHpPool).values({
+        canonicalId: `HP-${childToken}-${String(parentPoolId).padStart(4, "0")}`,
+        creatureId: created.id,
+        variantId: null,
+        poolName: pool.poolName,
+        hpPercentage: pool.hpPercentage,
+        maximumHp: pool.maximumHp,
+        notes: pool.notes,
+        sortOrder: pool.sortOrder,
+      }).returning({ id: creatureHpPool.id });
+      copiedPoolIds.set(parentPoolId, copied.id);
+    }
+    if (parentHitLocations.length) {
+      const copiedLocations = parentHitLocations.map((location) => {
+        const hpPoolId = location.hpPoolId === null
+          ? null
+          : copiedPoolIds.get(location.hpPoolId);
+        if (hpPoolId === undefined) {
+          throw new Error(`Hit Location ${location.hitLocationNumber} references an unavailable parent HP Pool.`);
+        }
+        return {
+          creatureId: created.id,
+          variantId: null,
+          hitLocationNumber: location.hitLocationNumber,
+          locationName: location.locationName,
+          bodyPartsIncluded: location.bodyPartsIncluded,
+          hpPoolId,
+          naturalArmor: location.naturalArmor,
+          soak: location.soak,
+          locationEffect: location.locationEffect,
+          notes: location.notes,
+          sortOrder: location.sortOrder,
+        };
+      });
+      await tx.insert(creatureHitLocation).values(copiedLocations);
+    }
     await tx.execute(sql`
       insert into creature_attacks (
         canonical_id, creature_id, variant_id, attack_name, attack_percentage, damage,

@@ -73,6 +73,7 @@ export const creature = pgTable(
     creatureType: text("creature_type").default("").notNull(),
     size: text("size").notNull(),
     hpMultiplierSteps: integer("hp_multiplier_steps").default(0).notNull(),
+    totalHp: integer("total_hp"),
     baseMovementSteps: integer("base_movement_steps").default(0).notNull(),
     baseMagicSteps: integer("base_magic_steps").default(0).notNull(),
     challengeRating: integer("challenge_rating").references(
@@ -107,6 +108,7 @@ export const creature = pgTable(
     check("creatures_name_nonblank", sql`length(trim(${table.canonicalName})) > 0`),
     check("creatures_size_valid", sql`${table.size} IN ('Minuscule','Tiny','Small','Medium','Large','Huge','Gargantuan','Colossal')`),
     check("creatures_hp_multiplier_steps_valid", sql`${table.hpMultiplierSteps} >= 0`),
+    check("creatures_total_hp_valid", sql`${table.totalHp} IS NULL OR ${table.totalHp} >= 0`),
     check("creatures_base_movement_steps_valid", sql`${table.baseMovementSteps} >= 0`),
     check("creatures_base_magic_steps_valid", sql`${table.baseMagicSteps} >= 0`),
     check("creatures_parent_not_self", sql`${table.parentCreatureId} IS NULL OR ${table.parentCreatureId} <> ${table.id}`),
@@ -223,6 +225,7 @@ export const creatureHpPool = pgTable(
     variantId: integer("variant_id"),
     poolName: text("pool_name").notNull(),
     hpPercentage: doublePrecision("hp_percentage"),
+    maximumHp: integer("maximum_hp"),
     notes: text("notes").default("").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -241,6 +244,7 @@ export const creatureHpPool = pgTable(
     check("creature_hp_pools_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
     check("creature_hp_pools_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("creature_hp_pools_name_nonblank", sql`length(trim(${table.poolName})) > 0`),
+    check("creature_hp_pools_maximum_hp_valid", sql`${table.maximumHp} IS NULL OR ${table.maximumHp} >= 0`),
   ],
 );
 

@@ -77,6 +77,32 @@
   .creature-movement-row, .creature-pool-row, .creature-defense-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .creature-movement-row button, .creature-pool-row button, .creature-defense-row button { grid-column: 1 / -1; }
 }
+.creature-hp-allocation {
+  margin: 0 0 0.8rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.45rem;
+  font-size: 0.82rem;
+}
+
+.creature-total-hp-stat {
+  border-color: rgba(245, 202, 115, 0.5) !important;
+  background: rgba(164, 111, 38, 0.18) !important;
+}
+
+.creature-total-hp-stat strong {
+  font-size: 1.35rem !important;
+}
+
+.creature-hp-allocation.is-complete {
+  color: #b8ddbd;
+  background: rgba(70, 132, 76, 0.18);
+}
+
+.creature-hp-allocation.is-warning {
+  color: #f1d29a;
+  background: rgba(164, 111, 38, 0.2);
+}
+
 @media (max-width: 760px) {
   .creature-form-grid, .creature-cr-reference dl, .creature-derived-list, .creature-preview__columns { grid-template-columns: 1fr; }
   .creature-field--wide { grid-column: auto; }

@@ -33,6 +33,7 @@ import {
   copyCreatureAbility,
   normalizeCreatureSnapshotAbilities,
 } from "@/features/creatures/creature-ability";
+import { normalizeCreatureHpSnapshot } from "@/features/creatures/creature-size-rules";
 import {
   assertItemOwnershipStrategy,
   assertNoStackInstanceOwnershipCollision,
@@ -164,20 +165,28 @@ function normalizeSnapshotCore(core: CreatureDraft["core"]): CreatureDraft["core
   };
 }
 
-function parseSnapshot(value: string, label: string): CreatureDraft {
+function normalizeSnapshotHp(snapshot: CreatureDraft, hpAdjustment: number): CreatureDraft {
+  const core = normalizeSnapshotCore(snapshot.core);
+  return normalizeCreatureHpSnapshot({
+    ...snapshot,
+    core,
+    hpPools: snapshot.hpPools.map((pool) => ({ ...pool, maximumHp: null })),
+  }, hpAdjustment);
+}
+
+function parseSnapshot(value: string, label: string, hpAdjustment = 0): CreatureDraft {
   try {
     const parsed = JSON.parse(value) as CreatureDraft;
     const normalized = normalizeCreatureSnapshotAbilities(parsed);
-    return {
+    return normalizeSnapshotHp({
       ...parsed,
-      core: normalizeSnapshotCore(parsed.core),
       abilities: normalized.abilities.map((ability) => ({
         ...ability,
         crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact)
           ? ability.crImpact as CreatureCrImpact
           : "None",
       })),
-    };
+    }, hpAdjustment);
   } catch (error) {
     throw new Error(`${label} contains invalid Creature data: ${error instanceof Error ? error.message : "Unreadable snapshot."}`);
   }
@@ -190,7 +199,7 @@ export async function createCreatureNpc(
   const session = await requireOwner(campaignId);
   const template = await getCreature(creatureId);
   if (!template) throw new Error("The selected master Creature no longer exists.");
-  const snapshot = snapshotFromAggregate(template);
+  const snapshot = normalizeSnapshotHp(snapshotFromAggregate(template), 0);
   const [campaignRow] = await db
     .select({ name: campaign.name, startingCredits: campaign.startingCreditAmount })
     .from(campaign)
@@ -337,7 +346,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
     instanceNotes: profile.instanceNotes,
     hpAdjustment: profile.hpAdjustment,
     baselineSnapshot: parseSnapshot(profile.baselineSnapshotJson, "Baseline snapshot"),
-    currentSnapshot: parseSnapshot(profile.currentSnapshotJson, "Current snapshot"),
+    currentSnapshot: parseSnapshot(profile.currentSnapshotJson, "Current snapshot", profile.hpAdjustment),
     items: ownedItems.map(({ itemId, quantity, unitCostCredits }) => ({ itemId, quantity, unitCostCredits })),
     itemInstances: ownedItemInstances.map((entry) => ({
       draftId: entry.id,
@@ -461,7 +470,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     instances: itemInstances,
   });
 
-  const normalizedSnapshot: CreatureDraft = {
+  const normalizedSnapshot = normalizeSnapshotHp({
     ...input.currentSnapshot,
     abilities: normalizedAbilities,
     id: current.baselineSnapshot.id,
@@ -474,7 +483,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       sourceSystem: current.baselineSnapshot.core.sourceSystem,
     },
     derivedCreatures: [],
-  };
+  }, input.hpAdjustment);
   await db.transaction(async (tx) => {
     await tx
       .select({ id: campaignCharacter.id })
@@ -483,13 +492,20 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       .limit(1)
       .for("update");
     const [lockedProfile] = await tx
-      .select({ currentSnapshotJson: campaignCreatureNpcProfile.currentSnapshotJson })
+      .select({
+        currentSnapshotJson: campaignCreatureNpcProfile.currentSnapshotJson,
+        hpAdjustment: campaignCreatureNpcProfile.hpAdjustment,
+      })
       .from(campaignCreatureNpcProfile)
       .where(eq(campaignCreatureNpcProfile.characterId, input.characterId))
       .limit(1)
       .for("update");
     if (!lockedProfile) throw new Error("Creature NPC profile is missing.");
-    const lockedSnapshot = parseSnapshot(lockedProfile.currentSnapshotJson, "Current snapshot");
+    const lockedSnapshot = parseSnapshot(
+      lockedProfile.currentSnapshotJson,
+      "Current snapshot",
+      lockedProfile.hpAdjustment,
+    );
     const nextPoolKeys = new Set(
       normalizedSnapshot.hpPools.map(({ canonicalId }) => canonicalId.toLocaleLowerCase("en-US")),
     );

@@ -6,6 +6,10 @@ import { getCharacterHp } from "@/features/characters/character-rules";
 
 import {
   CREATURE_SIZE_ATTRIBUTE_MULTIPLIERS,
+  getCreatureHpPercentageStatus,
+  normalizeCreatureHpSnapshot,
+  resolveCreatureHitLocationMaximumHp,
+  resolveCreatureHpModel,
   resolveCreatureHpPoolMaximum,
   resolveCreatureTotalMaximumHp,
   resolveEffectiveCreatureStatistics,
@@ -84,6 +88,101 @@ test("custom Creature HP Pools use final Total HP percentages", () => {
   assert.equal(resolveCreatureHpPoolMaximum(100, 50), 50);
 });
 
+test("the authoritative HP model calculates persisted master totals and Pool maxima", () => {
+  const authoredPools = [
+    { canonicalId: "BODY", hpPercentage: 70, poolName: "Body" },
+    { canonicalId: "TAIL", hpPercentage: 30, poolName: "Tail" },
+  ];
+  const before = structuredClone(authoredPools);
+  const model = resolveCreatureHpModel(source("Large", { hpMultiplierSteps: 2 }), authoredPools);
+
+  assert.equal(model.calculatedTotalHp, getCharacterHp(50, 2));
+  assert.equal(model.finalTotalHp, model.calculatedTotalHp);
+  assert.deepEqual(
+    model.pools.map(({ maximumHp }) => maximumHp),
+    [
+      resolveCreatureHpPoolMaximum(model.finalTotalHp, 70),
+      resolveCreatureHpPoolMaximum(model.finalTotalHp, 30),
+    ],
+  );
+  assert.deepEqual(authoredPools, before);
+});
+
+test("NPC HP Adjustment changes only final total and recalculated Pool maxima", () => {
+  const master = resolveCreatureHpModel(source(), [{ canonicalId: "BODY", hpPercentage: 100 }]);
+  const npc = resolveCreatureHpModel(source(), [{ canonicalId: "BODY", hpPercentage: 100 }], 9);
+
+  assert.equal(npc.calculatedTotalHp, master.calculatedTotalHp);
+  assert.equal(npc.finalTotalHp, (master.finalTotalHp ?? 0) + 9);
+  assert.equal(npc.pools[0]?.maximumHp, npc.finalTotalHp);
+  assert.equal(master.pools[0]?.maximumHp, master.finalTotalHp);
+});
+
+test("missing Constitution leaves total and Pool maxima unset", () => {
+  const creature = source();
+  creature.attributes = creature.attributes.filter(({ attributeKey }) => attributeKey !== "Constitution");
+  const model = resolveCreatureHpModel(creature, [{ canonicalId: "BODY", hpPercentage: 100 }]);
+  assert.equal(model.calculatedTotalHp, null);
+  assert.equal(model.pools[0]?.maximumHp, null);
+});
+
+test("an old NPC snapshot without calculated HP fields normalizes without rejection", () => {
+  const oldSnapshot = {
+    ...source("Huge", { hpMultiplierSteps: 1 }),
+    core: { ...source("Huge", { hpMultiplierSteps: 1 }).core },
+    hpPools: [{ canonicalId: "BODY", hpPercentage: 100 }],
+    snapshotName: "legacy",
+  };
+  const normalized = normalizeCreatureHpSnapshot(oldSnapshot, 4);
+
+  assert.equal(Object.hasOwn(oldSnapshot.core, "totalHp"), false);
+  assert.equal(Object.hasOwn(oldSnapshot.hpPools[0]!, "maximumHp"), false);
+  assert.equal(normalized.core.totalHp, getCharacterHp(60, 1));
+  assert.equal(normalized.hpPools[0]?.maximumHp, normalized.core.totalHp + 4);
+  assert.equal(normalized.snapshotName, "legacy");
+});
+
+test("calculated HP normalization overwrites stale client or snapshot values", () => {
+  const stale = {
+    ...source(),
+    core: { ...source().core, totalHp: 9999 },
+    hpPools: [{ canonicalId: "BODY", hpPercentage: 15, maximumHp: 9999 }],
+  };
+  const normalized = normalizeCreatureHpSnapshot(stale);
+
+  assert.equal(normalized.core.totalHp, getCharacterHp(40, 0));
+  assert.equal(
+    normalized.hpPools[0]?.maximumHp,
+    resolveCreatureHpPoolMaximum(normalized.core.totalHp, 15),
+  );
+  assert.equal(stale.core.totalHp, 9999);
+  assert.equal(stale.hpPools[0]?.maximumHp, 9999);
+});
+
+test("HP allocation status warns without blocking incomplete authoring", () => {
+  assert.deepEqual(getCreatureHpPercentageStatus([
+    { hpPercentage: 60 },
+    { hpPercentage: 30 },
+  ]), { totalPercentage: 90, complete: false });
+  assert.deepEqual(getCreatureHpPercentageStatus([
+    { hpPercentage: 60 },
+    { hpPercentage: 40 },
+  ]), { totalPercentage: 100, complete: true });
+  assert.equal(getCreatureHpPercentageStatus([{ hpPercentage: null }]).complete, false);
+});
+
+test("shared Hit Locations display the same assigned persisted Pool maximum", () => {
+  const model = resolveCreatureHpModel(source(), [
+    { canonicalId: "RIGHT-LEG", hpPercentage: 20 },
+    { canonicalId: "LEFT-LEG", hpPercentage: 20 },
+  ]);
+  const first = resolveCreatureHitLocationMaximumHp("RIGHT-LEG", model.pools);
+  const second = resolveCreatureHitLocationMaximumHp("right-leg", model.pools);
+  assert.equal(first, second);
+  assert.equal(first, model.pools[0]?.maximumHp);
+  assert.equal(resolveCreatureHitLocationMaximumHp(null, model.pools), null);
+});
+
 test("individual HP Adjustment is final, additive, and cannot produce negative HP", () => {
   const creature = source();
   const calculated = getCharacterHp(40, 0);
@@ -146,6 +245,24 @@ test("the forward migration only adds safe zero-default Creature modifier fields
   assert.equal(migration.includes("campaign_character_injury"), false);
 });
 
+test("the additive persisted HP migration is nullable and contains no data rewrite", () => {
+  const migration = readFileSync("drizzle/0004_persisted_creature_hp.sql", "utf8");
+  assert.match(migration, /ADD COLUMN "total_hp" integer/);
+  assert.match(migration, /ADD COLUMN "maximum_hp" integer/);
+  assert.match(migration, /total_hp" IS NULL OR/);
+  assert.match(migration, /maximum_hp" IS NULL OR/);
+  assert.equal(/DROP|DELETE|TRUNCATE|UPDATE/i.test(migration), false);
+});
+
+test("the controlled HP backfill imports the canonical model and is dry-run by default", () => {
+  const backfill = readFileSync("scripts/backfill-creature-hp.ts", "utf8");
+  assert.match(backfill, /import \{ resolveCreatureHpModel \}/);
+  assert.match(backfill, /process\.argv\.includes\("--apply"\)/);
+  assert.match(backfill, /await client\.query\("rollback"\)/);
+  assert.equal(backfill.includes("Math.ceil"), false);
+  assert.equal(backfill.includes("getCharacterHp"), false);
+});
+
 test("master save/load, lineage, and NPC snapshots carry all modifier steps", () => {
   const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
   const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
@@ -159,6 +276,26 @@ test("master save/load, lineage, and NPC snapshots carry all modifier steps", ()
   assert.match(npcActions, /core: \{ \.\.\.aggregate\.core \}/);
   assert.match(npcActions, /baselineSnapshotJson: JSON\.stringify\(snapshot\)/);
   assert.match(npcActions, /currentSnapshotJson: JSON\.stringify\(snapshot\)/);
+});
+
+test("master, derived, and NPC persistence remain server-authoritative for HP", () => {
+  const schema = readFileSync("src/db/creature-schema.ts", "utf8");
+  const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
+  const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
+  const anatomy = readFileSync("src/features/active-state/anatomy.ts", "utf8");
+
+  assert.match(schema, /totalHp: integer\("total_hp"\)/);
+  assert.match(schema, /maximumHp: integer\("maximum_hp"\)/);
+  assert.match(masterActions, /const hpModel = resolveCreatureHpModel\(normalized, normalized\.hpPools\)/);
+  assert.match(masterActions, /normalized\.core\.totalHp = hpModel\.calculatedTotalHp/);
+  assert.match(masterActions, /normalized\.hpPools = hpModel\.pools/);
+  assert.match(masterActions, /const parentHpModel = resolveCreatureHpModel/);
+  assert.match(masterActions, /totalHp: parentHpModel\.calculatedTotalHp/);
+  assert.match(npcActions, /function normalizeSnapshotHp/);
+  assert.match(npcActions, /normalizeCreatureHpSnapshot/);
+  assert.match(npcActions, /currentSnapshot: parseSnapshot[\s\S]*profile\.hpAdjustment/);
+  assert.match(anatomy, /resolveCreatureTotalMaximumHp/);
+  assert.match(anatomy, /resolveCreatureHpPoolMaximum/);
 });
 
 test("canon import leaves authored Attributes unscaled and relies on schema defaults", () => {
@@ -180,8 +317,11 @@ test("master and NPC authoring expose base/effective statistics and HP clarity",
     assert.equal(npcWorkspace.includes(label), true);
   }
   assert.match(masterWorkspace, /Base \{formatCreatureNumber\(attribute\.value\)\} · Effective/);
-  assert.match(masterWorkspace, /Calculated Total HP/);
+  assert.match(masterWorkspace, /<span>Total HP<\/span>/);
+  assert.match(masterWorkspace, /HP Pool percentages should total 100%/);
+  assert.match(masterWorkspace, /resolveCreatureHitLocationMaximumHp/);
   assert.match(npcWorkspace, /Final Total HP/);
+  assert.match(npcWorkspace, /HP Pool percentages should total 100%/);
   assert.match(npcWorkspace, /Individual adjustment/);
   assert.match(npcWorkspace, /The .* master Creature was not changed/);
 });

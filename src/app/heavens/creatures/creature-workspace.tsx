@@ -9,7 +9,9 @@ import {
   getCreatureKillXpForChallengeRating,
 } from "@/features/creatures/challenge-rating";
 import {
-  resolveCreatureHpPoolMaximum,
+  getCreatureHpPercentageStatus,
+  resolveCreatureHitLocationMaximumHp,
+  resolveCreatureHpModel,
   resolveEffectiveCreatureStatistics,
 } from "@/features/creatures/creature-size-rules";
 
@@ -60,6 +62,7 @@ function newCreatureDraft(references: ChallengeRatingReference[]): CreatureDraft
       creatureType: "",
       size: "Medium",
       hpMultiplierSteps: 0,
+      totalHp: null,
       baseMovementSteps: 0,
       baseMagicSteps: 0,
       challengeRating: 1,
@@ -361,19 +364,22 @@ function Stats({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: Cr
 }
 
 function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
-  const effective = resolveEffectiveCreatureStatistics(draft);
+  const hpModel = resolveCreatureHpModel(draft, draft.hpPools);
+  const effective = hpModel.statistics;
+  const percentageStatus = getCreatureHpPercentageStatus(draft.hpPools);
   return <div className="creature-section">
     <SectionHeading eyebrow="CALCULATED TOUGHNESS" title="Creature Total HP" />
     <div className="creature-cr-grid">
+      <div className="creature-total-hp-stat"><span>Total HP</span><strong>{formatCreatureNumber(hpModel.calculatedTotalHp)}</strong></div>
       <div><span>Effective CON</span><strong>{formatCreatureNumber(effective.effectiveConstitution)}</strong></div>
       <div><span>HP Multiplier</span><strong>×{formatCreatureNumber(effective.hpMultiplier)}</strong></div>
-      <div><span>Calculated Total HP</span><strong>{formatCreatureNumber(effective.calculatedTotalMaximumHp)}</strong></div>
     </div>
-    <SectionHeading eyebrow="TOUGHNESS MODEL" title="HP Pools" action="Add HP Pool" onAction={() => onChange({ ...draft, hpPools: [...draft.hpPools, { canonicalId: `${draft.core.canonicalId}-hp-${draft.hpPools.length + 1}`, poolName: `Pool ${draft.hpPools.length + 1}`, hpPercentage: null, notes: "", sortOrder: draft.hpPools.length }] })} />
+    <SectionHeading eyebrow="TOUGHNESS MODEL" title="HP Pools" action="Add HP Pool" onAction={() => onChange({ ...draft, hpPools: [...draft.hpPools, { canonicalId: `${draft.core.canonicalId}-hp-${draft.hpPools.length + 1}`, poolName: `Pool ${draft.hpPools.length + 1}`, hpPercentage: null, maximumHp: null, notes: "", sortOrder: draft.hpPools.length }] })} />
+    <p className={percentageStatus.complete ? "creature-hp-allocation is-complete" : "creature-hp-allocation is-warning"}>Allocated HP: {formatCreatureNumber(percentageStatus.totalPercentage)}%{percentageStatus.complete ? " · Complete" : " · HP Pool percentages should total 100%. You may still save an incomplete Creature."}</p>
     <div className="creature-row-list">{draft.hpPools.map((row, index) => <div className="creature-repeat-row creature-pool-row" key={`${row.canonicalId}-${index}`}>
       <input placeholder="Canonical ID" value={row.canonicalId} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { canonicalId: e.target.value })} />
       <input placeholder="Pool Name" value={row.poolName} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { poolName: e.target.value })} />
-      <div><OptionalNumber value={row.hpPercentage} placeholder="HP %" onChange={(value) => patchArray(draft, onChange, "hpPools", index, { hpPercentage: value })} /><small>Maximum: {formatCreatureNumber(resolveCreatureHpPoolMaximum(effective.calculatedTotalMaximumHp, row.hpPercentage))}</small></div>
+      <div><OptionalNumber value={row.hpPercentage} placeholder="HP %" onChange={(value) => patchArray(draft, onChange, "hpPools", index, { hpPercentage: value })} /><small>Maximum HP: {formatCreatureNumber(hpModel.pools[index]?.maximumHp ?? null)}</small></div>
       <input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { notes: e.target.value })} />
       <RemoveButton onClick={() => removeArray(draft, onChange, "hpPools", index)} />
     </div>)}</div>
@@ -389,7 +395,7 @@ function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (
         <Field label="Roll #"><input type="number" min={0} max={9} value={row.hitLocationNumber} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { hitLocationNumber: Number(e.target.value) })} /></Field>
         <Field label="Location Name"><input value={row.locationName} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { locationName: e.target.value })} /></Field>
         <Field label="Body Parts" wide><input value={row.bodyPartsIncluded} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { bodyPartsIncluded: e.target.value })} /></Field>
-        <Field label="HP Pool"><select value={row.hpPoolCanonicalId ?? ""} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { hpPoolCanonicalId: e.target.value || null })}><option value="">None</option>{draft.hpPools.map((pool) => <option key={pool.canonicalId} value={pool.canonicalId}>{pool.poolName}</option>)}</select></Field>
+        <Field label="HP Pool"><select value={row.hpPoolCanonicalId ?? ""} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { hpPoolCanonicalId: e.target.value || null })}><option value="">None</option>{draft.hpPools.map((pool) => <option key={pool.canonicalId} value={pool.canonicalId}>{pool.poolName}</option>)}</select><small>Maximum HP: {formatCreatureNumber(resolveCreatureHitLocationMaximumHp(row.hpPoolCanonicalId, hpModel.pools))}</small></Field>
         <Field label="Natural Armor"><OptionalNumber value={row.naturalArmor} onChange={(value) => patchArray(draft, onChange, "hitLocations", index, { naturalArmor: value })} /></Field>
         <Field label="Soak"><OptionalNumber value={row.soak} onChange={(value) => patchArray(draft, onChange, "hitLocations", index, { soak: value })} /></Field>
         <Field label="Location Effect" wide><input value={row.locationEffect} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { locationEffect: e.target.value })} /></Field>
