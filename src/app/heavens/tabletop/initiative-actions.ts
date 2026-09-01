@@ -14,7 +14,11 @@ import {
   campaignSessionEncounterPendingAction,
   campaignSessionScene,
 } from "@/db/tabletop-operations-schema";
-import { resolveInitiativeCapacityInTransaction } from "@/features/tabletop-operations/initiative-capacity-service";
+import {
+  resolveInitiativeCapacityInTransaction,
+  resolveInitiativeCapacityOptionsInTransaction,
+} from "@/features/tabletop-operations/initiative-capacity-service";
+import type { InitiativeTrackerCapacityInput } from "@/features/tabletop-operations/initiative-tracker";
 import {
   addDeferredInitiativeCost,
   adjustPendingInitiativeActionRemainingCost,
@@ -353,6 +357,51 @@ export async function getEncounterInitiativeRuntime(encounterId: number): Promis
     return loadInitiativeEngine(tx, encounterId, false);
   });
   return state ? toView(state) : null;
+}
+
+export async function getEncounterInitiativeCapacityOptions(
+  encounterId: number,
+): Promise<InitiativeTrackerCapacityInput[]> {
+  assertPositiveId(encounterId, "Encounter");
+  const access = await requireGod();
+  return db.transaction(async (tx) => {
+    const context = await lockOwnedEncounter(tx, encounterId, access.user.id);
+    const participants = await tx
+      .select({ characterId: campaignSessionEncounterParticipant.characterId })
+      .from(campaignSessionEncounterParticipant)
+      .where(and(
+        eq(campaignSessionEncounterParticipant.encounterId, encounterId),
+        eq(campaignSessionEncounterParticipant.sceneId, context.sceneId),
+        eq(campaignSessionEncounterParticipant.sessionId, context.sessionId),
+        eq(campaignSessionEncounterParticipant.campaignId, context.campaignId),
+      ))
+      .orderBy(
+        asc(campaignSessionEncounterParticipant.sortOrder),
+        asc(campaignSessionEncounterParticipant.characterId),
+      );
+    const capacities: InitiativeTrackerCapacityInput[] = [];
+    for (const participant of participants) {
+      try {
+        const resolved = await resolveInitiativeCapacityOptionsInTransaction(
+          tx,
+          participant.characterId,
+          context.campaignId,
+        );
+        capacities.push({
+          characterId: participant.characterId,
+          movementModes: resolved.movementModes,
+          error: null,
+        });
+      } catch (error) {
+        capacities.push({
+          characterId: participant.characterId,
+          movementModes: [],
+          error: error instanceof Error ? error.message : "Initiative capacity could not be resolved.",
+        });
+      }
+    }
+    return capacities;
+  });
 }
 
 export async function initializeEncounterInitiative(

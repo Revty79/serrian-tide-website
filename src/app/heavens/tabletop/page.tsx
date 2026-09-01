@@ -1,9 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { requireGod } from "@/lib/server-access";
+import { buildInitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 
 import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
 import { getSceneEncounterWorkspace } from "./encounter-actions";
+import {
+  getEncounterInitiativeCapacityOptions,
+  getEncounterInitiativeRuntime,
+} from "./initiative-actions";
 import { getSessionSceneWorkspace } from "./scene-actions";
 import "./tabletop.css";
 import { TabletopWorkspace } from "./tabletop-workspace";
@@ -42,6 +47,23 @@ export default async function TabletopOperationsPage({
         Number.isInteger(requestedEncounterId) && requestedEncounterId > 0 ? requestedEncounterId : null,
       )
     : null;
+  const initiativeTracker = encounterWorkspace?.selectedEncounter
+    ? await Promise.all([
+        getEncounterInitiativeRuntime(encounterWorkspace.selectedEncounter.id),
+        getEncounterInitiativeCapacityOptions(encounterWorkspace.selectedEncounter.id),
+      ]).then(([runtime, capacities]) => buildInitiativeTrackerReadModel({
+        encounter: {
+          id: encounterWorkspace.selectedEncounter!.id,
+          title: encounterWorkspace.selectedEncounter!.title,
+          status: encounterWorkspace.selectedEncounter!.status,
+        },
+        sessionStatus: encounterWorkspace.sessionStatus,
+        sceneStatus: encounterWorkspace.sceneStatus,
+        identities: encounterWorkspace.selectedEncounter!.participants,
+        capacities,
+        runtime,
+      }))
+    : null;
   return (
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
@@ -49,6 +71,7 @@ export default async function TabletopOperationsPage({
       initialPrepData={prepWorkspace}
       initialSceneData={sceneWorkspace}
       initialEncounterData={encounterWorkspace}
+      initialInitiativeTracker={initiativeTracker}
       requestedSessionId={selectedSessionId}
     />
   );

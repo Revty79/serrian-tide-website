@@ -7,6 +7,7 @@ import {
   getNextSceneSequence,
   type SceneMetadataInput,
 } from "@/features/tabletop-operations/scene-foundation";
+import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
@@ -131,11 +132,13 @@ function SceneMemberCard({
 export function SceneWorkspace({
   initialData,
   initialEncounterData,
+  initialInitiativeTracker,
   session,
   campaignName,
 }: {
   initialData: SceneWorkspaceData;
   initialEncounterData: EncounterWorkspaceData | null;
+  initialInitiativeTracker: InitiativeTrackerReadModel | null;
   session: CampaignSessionSummary;
   campaignName: string;
 }) {
@@ -345,6 +348,7 @@ export function SceneWorkspace({
           {!creating && selectedScene && initialEncounterData ? <EncounterWorkspace
             key={initialEncounterData.selectedEncounterId ?? "no-encounter"}
             initialData={initialEncounterData}
+            initialInitiativeTracker={initialInitiativeTracker}
             scene={selectedScene}
           /> : null}
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}

@@ -147,3 +147,23 @@ docs/rules/initiative-runtime-contract.md
 ```
 
 Do not reinterpret or simplify that contract. Architecture changes affecting Initiative must update both the architecture documentation and its regression tests.
+
+## Build 6 Initiative Tracker boundary
+
+The G.O.D.-facing Initiative Tracker is nested beneath the selected Encounter in `/heavens/tabletop`. It is a read model and controller for the Build 5 engine, not a second Initiative implementation.
+
+```text
+Encounter Participants / Character identity
+                    +
+Build 5 Initiative Runtime
+                    +
+Authoritative capacity options
+                    ↓
+          Initiative Tracker read model
+                    ↓
+       Existing locked server operations
+```
+
+The Tracker joins names and kind labels at read time. Initiative tables continue storing Character IDs, Initiative state, and pending-action history only. Next-event precedence, action eligibility, retained Hold intervention, reaction timing, Round eligibility, capacity changes, carryover, and debt remain engine-owned calculations.
+
+Build 6 supplies generic descriptive actions and explicit G.O.D. corrections. Authored Weapon, Spell, Item, Creature Ability, reaction resolution, Health, Mana, Conditions, damage, healing, maps, tokens, and live Player synchronization remain later integrations.

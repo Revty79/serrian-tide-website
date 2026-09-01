@@ -8,6 +8,7 @@ import {
   getNextEncounterSequence,
   type EncounterMetadataInput,
 } from "@/features/tabletop-operations/encounter-foundation";
+import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 
 import {
   addCampaignSessionEncounterParticipant,
@@ -25,6 +26,7 @@ import {
   type EncounterWorkspaceData,
 } from "./encounter-actions";
 import type { CampaignSceneDetail } from "./scene-actions";
+import { InitiativeTracker } from "./initiative-tracker";
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -143,14 +145,17 @@ function EncounterParticipantCard({
 
 export function EncounterWorkspace({
   initialData,
+  initialInitiativeTracker,
   scene,
 }: {
   initialData: EncounterWorkspaceData;
+  initialInitiativeTracker: InitiativeTrackerReadModel | null;
   scene: CampaignSceneDetail;
 }) {
   const router = useRouter();
   const selectedEncounter = initialData.selectedEncounter;
   const [creating, setCreating] = useState(false);
+  const [activeSection, setActiveSection] = useState<"prep" | "initiative">("prep");
   const [draft, setDraft] = useState<EncounterMetadataInput>(() => selectedEncounter
     ? metadataFromEncounter(selectedEncounter)
     : emptyEncounterMetadata(initialData));
@@ -178,6 +183,7 @@ export function EncounterWorkspace({
   function beginCreate(): void {
     setDraft(emptyEncounterMetadata(initialData));
     setCreating(true);
+    setActiveSection("prep");
     setFeedback(null);
   }
 
@@ -185,6 +191,7 @@ export function EncounterWorkspace({
     setCreating(false);
     if (selectedEncounter?.id === encounterId) setDraft(metadataFromEncounter(selectedEncounter));
     setFeedback(null);
+    setActiveSection("prep");
     router.push(encounterHref(encounterId));
   }
 
@@ -286,7 +293,12 @@ export function EncounterWorkspace({
           {!creating && selectedEncounter ? <em className={`tabletop-status is-${selectedEncounter.status}`}>{selectedEncounter.status}</em> : null}
         </header>
 
-        {editorVisible ? <>
+        {!creating && selectedEncounter ? <nav className="tabletop-encounter-tabs" aria-label="Encounter workspace">
+          <button type="button" className={activeSection === "prep" ? "is-selected" : ""} onClick={() => setActiveSection("prep")}>Encounter Prep</button>
+          <button type="button" className={activeSection === "initiative" ? "is-selected" : ""} onClick={() => setActiveSection("initiative")}>Initiative Tracker {initialInitiativeTracker?.runtime?.runtime.status === "active" ? <span>Active</span> : null}</button>
+        </nav> : null}
+
+        {editorVisible && (creating || activeSection === "prep") ? <>
           {!creating && !selectedEncounter?.editable ? <p className="tabletop-readonly-notice">This Encounter or one of its parents is historical and read-only. Reopen the parent records and then the Encounter to make corrections.</p> : null}
           {!parentsActive && selectedEncounter?.status === "planned" ? <p className="tabletop-encounter-guidance">Activate both the Session and this Scene before starting the Encounter. Preparation remains available while the parents are planned.</p> : null}
           <div className="tabletop-encounter-form">
@@ -347,7 +359,10 @@ export function EncounterWorkspace({
               </div>
             </div> : null}
           </section> : null}
-        </> : <p className="tabletop-empty">Select an Encounter or create a new one.</p>}
+        </> : !editorVisible ? <p className="tabletop-empty">Select an Encounter or create a new one.</p> : null}
+        {!creating && selectedEncounter && activeSection === "initiative" ? initialInitiativeTracker
+          ? <InitiativeTracker data={initialInitiativeTracker} />
+          : <p className="tabletop-empty">Initiative data is unavailable for this Encounter.</p> : null}
       </section>
     </div>
   </section>;

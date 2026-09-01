@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { getNextSessionSequence, type SessionMetadataInput } from "@/features/tabletop-operations/session-foundation";
 import type { SessionRosterEntityKind } from "@/features/tabletop-operations/session-roster";
+import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 
 import {
   addSessionRosterMember,
@@ -162,12 +163,14 @@ export function TabletopWorkspace({
   initialPrepData,
   initialSceneData,
   initialEncounterData,
+  initialInitiativeTracker,
   requestedSessionId,
 }: {
   initialData: TabletopWorkspaceData;
   initialPrepData: SessionPrepWorkspaceData | null;
   initialSceneData: SceneWorkspaceData | null;
   initialEncounterData: EncounterWorkspaceData | null;
+  initialInitiativeTracker: InitiativeTrackerReadModel | null;
   requestedSessionId: number | null;
 }) {
   const router = useRouter();
@@ -428,6 +431,7 @@ export function TabletopWorkspace({
             key={initialSceneData.selectedSceneId ?? "no-scene"}
             initialData={initialSceneData}
             initialEncounterData={initialEncounterData}
+            initialInitiativeTracker={initialInitiativeTracker}
             session={selectedSession}
             campaignName={selectedCampaign.name}
           /> : null}

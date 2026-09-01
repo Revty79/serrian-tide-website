@@ -29,13 +29,25 @@ export type ResolvedInitiativeCapacity = {
   normalTotalInitiative: number;
 };
 
+export type InitiativeCapacityOption = {
+  movementMode: string;
+  baseMovement: number;
+  normalTotalInitiative: number;
+};
+
+export type ResolvedInitiativeCapacityOptions = {
+  characterId: number;
+  sourceKind: ResolvedInitiativeCapacity["sourceKind"];
+  dexterity: number;
+  movementModes: InitiativeCapacityOption[];
+};
+
 function selectMovementMode(
-  movement: ReadonlyArray<{ movementMode: string; baseMovement: number | null }>,
+  movement: ReadonlyArray<InitiativeCapacityOption>,
   requestedMovementMode?: string,
-): { movementMode: string; baseMovement: number } {
-  const usable = movement.filter((entry): entry is { movementMode: string; baseMovement: number } => (
-    entry.baseMovement !== null
-    && Number.isFinite(entry.baseMovement)
+): InitiativeCapacityOption {
+  const usable = movement.filter((entry) => (
+    Number.isFinite(entry.baseMovement)
     && entry.baseMovement > 0
   ));
   if (!usable.length) throw new Error("The Initiative Participant has no usable authoritative Movement mode.");
@@ -65,6 +77,25 @@ export async function resolveInitiativeCapacityInTransaction(
   expectedCampaignId: number,
   requestedMovementMode?: string,
 ): Promise<ResolvedInitiativeCapacity> {
+  const options = await resolveInitiativeCapacityOptionsInTransaction(
+    tx,
+    characterId,
+    expectedCampaignId,
+  );
+  const selected = selectMovementMode(options.movementModes, requestedMovementMode);
+  return {
+    characterId,
+    sourceKind: options.sourceKind,
+    dexterity: options.dexterity,
+    ...selected,
+  };
+}
+
+export async function resolveInitiativeCapacityOptionsInTransaction(
+  tx: TabletopTransaction,
+  characterId: number,
+  expectedCampaignId: number,
+): Promise<ResolvedInitiativeCapacityOptions> {
   const [character] = await tx
     .select({
       id: campaignCharacter.id,
@@ -92,19 +123,21 @@ export async function resolveInitiativeCapacityInTransaction(
     if (dexterity === null || !Number.isFinite(dexterity)) {
       throw new Error("The Creature NPC current snapshot has no usable effective Dexterity.");
     }
-    const selected = selectMovementMode(
-      effective.movement.map(({ movementMode, effectiveValue }) => ({
-        movementMode,
-        baseMovement: effectiveValue,
-      })),
-      requestedMovementMode,
-    );
+    const movementModes = effective.movement.flatMap(({ movementMode, effectiveValue }) => (
+      effectiveValue !== null && Number.isFinite(effectiveValue) && effectiveValue > 0
+        ? [{
+            movementMode,
+            baseMovement: effectiveValue,
+            normalTotalInitiative: calculateNormalTotalInitiative(dexterity, effectiveValue),
+          }]
+        : []
+    ));
+    if (!movementModes.length) throw new Error("The Initiative Participant has no usable authoritative Movement mode.");
     return {
       characterId,
       sourceKind: "creature-npc",
       dexterity,
-      ...selected,
-      normalTotalInitiative: calculateNormalTotalInitiative(dexterity, selected.baseMovement),
+      movementModes,
     };
   }
 
@@ -136,18 +169,21 @@ export async function resolveInitiativeCapacityInTransaction(
     .from(raceMovementMode)
     .where(eq(raceMovementMode.raceId, profile.raceId))
     .orderBy(asc(raceMovementMode.sortOrder), asc(raceMovementMode.id));
-  const selected = selectMovementMode(
-    movementRows.map(({ movementMode, racialBaseMovement }) => ({
-      movementMode,
-      baseMovement: getCharacterMovementBaseValue(racialBaseMovement, profile.baseMovementSteps),
-    })),
-    requestedMovementMode,
-  );
+  const movementModes = movementRows.flatMap(({ movementMode, racialBaseMovement }) => {
+    const baseMovement = getCharacterMovementBaseValue(racialBaseMovement, profile.baseMovementSteps);
+    return baseMovement !== null && Number.isFinite(baseMovement) && baseMovement > 0
+      ? [{
+          movementMode,
+          baseMovement,
+          normalTotalInitiative: calculateNormalTotalInitiative(dexterityRow.value, baseMovement),
+        }]
+      : [];
+  });
+  if (!movementModes.length) throw new Error("The Initiative Participant has no usable authoritative Movement mode.");
   return {
     characterId,
     sourceKind: character.isNpc ? "race-npc" : "player-character",
     dexterity: dexterityRow.value,
-    ...selected,
-    normalTotalInitiative: calculateNormalTotalInitiative(dexterityRow.value, selected.baseMovement),
+    movementModes,
   };
 }
