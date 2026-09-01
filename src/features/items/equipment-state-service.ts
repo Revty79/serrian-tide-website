@@ -251,6 +251,7 @@ export async function readCharacterEquipmentStateInTransaction(
       const profile = armorByItem.get(entry.itemId);
       return activeQuantity > 0 && profile ? [{
         ownershipKey: `stack:${entry.itemId}`,
+        instanceId: null,
         itemId: entry.itemId,
         itemName: entry.itemName,
         activeQuantity,
@@ -265,6 +266,7 @@ export async function readCharacterEquipmentStateInTransaction(
       const profile = entry.state === "worn" ? armorByItem.get(entry.itemId) : null;
       return profile ? [{
         ownershipKey: `instance:${entry.instanceId}`,
+        instanceId: entry.instanceId,
         itemId: entry.itemId,
         itemName: `${entry.itemName} · Copy #${entry.instanceId}`,
         activeQuantity: 1,
@@ -282,6 +284,7 @@ export async function readCharacterEquipmentStateInTransaction(
       const profile = weaponByItem.get(entry.itemId);
       return activeQuantity > 0 && profile ? [{
         ownershipKey: `stack:${entry.itemId}`,
+        instanceId: null,
         itemId: entry.itemId,
         itemName: entry.itemName,
         activeQuantity,
@@ -299,6 +302,7 @@ export async function readCharacterEquipmentStateInTransaction(
       const profile = entry.state === "wielded" ? weaponByItem.get(entry.itemId) : null;
       return profile ? [{
         ownershipKey: `instance:${entry.instanceId}`,
+        instanceId: entry.instanceId,
         itemId: entry.itemId,
         itemName: `${entry.itemName} · Copy #${entry.instanceId}`,
         activeQuantity: 1,

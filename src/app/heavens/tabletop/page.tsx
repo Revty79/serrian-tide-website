@@ -5,6 +5,7 @@ import { buildInitiativeTrackerReadModel } from "@/features/tabletop-operations/
 
 import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
 import { getSceneEncounterWorkspace } from "./encounter-actions";
+import { getEncounterCombatAid } from "./combat-aid-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -64,6 +65,9 @@ export default async function TabletopOperationsPage({
         runtime,
       }))
     : null;
+  const combatAid = encounterWorkspace?.selectedEncounter
+    ? await getEncounterCombatAid(encounterWorkspace.selectedEncounter.id)
+    : null;
   return (
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
@@ -72,6 +76,7 @@ export default async function TabletopOperationsPage({
       initialSceneData={sceneWorkspace}
       initialEncounterData={encounterWorkspace}
       initialInitiativeTracker={initiativeTracker}
+      initialCombatAid={combatAid}
       requestedSessionId={selectedSessionId}
     />
   );

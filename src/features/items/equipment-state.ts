@@ -39,6 +39,7 @@ export type InstanceEquipmentState = {
 
 export type WornArmorRuntimeContext = {
   ownershipKey: string;
+  instanceId: number | null;
   itemId: number;
   itemName: string;
   activeQuantity: number;
@@ -51,6 +52,7 @@ export type WornArmorRuntimeContext = {
 
 export type WieldedWeaponRuntimeContext = {
   ownershipKey: string;
+  instanceId: number | null;
   itemId: number;
   itemName: string;
   activeQuantity: number;

@@ -167,3 +167,31 @@ Authoritative capacity options
 The Tracker joins names and kind labels at read time. Initiative tables continue storing Character IDs, Initiative state, and pending-action history only. Next-event precedence, action eligibility, retained Hold intervention, reaction timing, Round eligibility, capacity changes, carryover, and debt remain engine-owned calculations.
 
 Build 6 supplies generic descriptive actions and explicit G.O.D. corrections. Authored Weapon, Spell, Item, Creature Ability, reaction resolution, Health, Mana, Conditions, damage, healing, maps, tokens, and live Player synchronization remain later integrations.
+
+## Build 7 Combat Aid read boundary
+
+Combat Aid is the read-only G.O.D. workspace nested beside Encounter Prep and the Initiative Tracker for the selected Encounter. Encounter Participant membership is its authorization and display boundary; it does not create a combatant record or copy Character state.
+
+```text
+Authorized Encounter Participants
+              +
+one repeatable-read transaction
+              +
+Active Health / Mana / Effects services
+Equipment / Item / Charge services
+Initiative runtime rows
+              ↓
+      Combat Aid read model
+```
+
+The server first resolves the Encounter through Session, Scene, and Campaign ownership and verifies the acting user is the Campaign-owning G.O.D. It then resolves only that Encounter's Participant identities. Within the same caller-owned read transaction it asks the existing domain services for living Health and anatomy, Mana, active Conditions and Temporary Modifiers, Equipment State and passives, operational inventory, and charged instances. Initiative is summarized from the selected Encounter's authoritative Initiative runtime.
+
+The read model retains authoritative Character, Item, Item Instance, and Initiative identities needed for future operations. It does not persist totals, summaries, target state, equipment profiles, inventory state, or any other duplicate runtime data. Health totals and pool remaining values come from Active Health; Mana comes from Active Mana; effect duration/source snapshots come from Active Effects; weapon, armor, passive, and ownership data come from Equipment State; item-use definitions and charges come from Item Runtime and Charge State. Creature Health continues resolving from the Creature NPC's current snapshot anatomy.
+
+Completed Encounter membership is historical, but Combat Aid intentionally shows current living Character state. The UI labels that distinction explicitly so it cannot be mistaken for an Encounter-completion snapshot.
+
+Combat Aid contains no damage, healing, Mana spending, Condition, Equipment, Item use, charge, or Initiative mutation controls. Refreshing the page only rereads the same state. A failure to resolve one participant subsection is surfaced on that participant without hiding other independently available sections.
+
+## Build 8 mutation direction
+
+Build 8 may add authored table actions, but each operation must accept authoritative identities from the Combat Aid read model, re-authorize the Encounter and Participant server-side, and delegate mutation to the existing owning runtime transaction service. It must not turn Combat Aid into a second rules engine, infer targets, copy state into tabletop tables, or recreate Health, Mana, effect, equipment, Item, charge, or Initiative calculations.

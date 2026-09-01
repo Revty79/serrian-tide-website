@@ -9,6 +9,7 @@ import {
   type EncounterMetadataInput,
 } from "@/features/tabletop-operations/encounter-foundation";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
+import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
 
 import {
   addCampaignSessionEncounterParticipant,
@@ -27,6 +28,7 @@ import {
 } from "./encounter-actions";
 import type { CampaignSceneDetail } from "./scene-actions";
 import { InitiativeTracker } from "./initiative-tracker";
+import { CombatAidWorkspace } from "./combat-aid-workspace";
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -146,16 +148,18 @@ function EncounterParticipantCard({
 export function EncounterWorkspace({
   initialData,
   initialInitiativeTracker,
+  initialCombatAid,
   scene,
 }: {
   initialData: EncounterWorkspaceData;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
+  initialCombatAid: CombatAidEncounterView | null;
   scene: CampaignSceneDetail;
 }) {
   const router = useRouter();
   const selectedEncounter = initialData.selectedEncounter;
   const [creating, setCreating] = useState(false);
-  const [activeSection, setActiveSection] = useState<"prep" | "initiative">("prep");
+  const [activeSection, setActiveSection] = useState<"prep" | "initiative" | "combat-aid">("prep");
   const [draft, setDraft] = useState<EncounterMetadataInput>(() => selectedEncounter
     ? metadataFromEncounter(selectedEncounter)
     : emptyEncounterMetadata(initialData));
@@ -296,6 +300,7 @@ export function EncounterWorkspace({
         {!creating && selectedEncounter ? <nav className="tabletop-encounter-tabs" aria-label="Encounter workspace">
           <button type="button" className={activeSection === "prep" ? "is-selected" : ""} onClick={() => setActiveSection("prep")}>Encounter Prep</button>
           <button type="button" className={activeSection === "initiative" ? "is-selected" : ""} onClick={() => setActiveSection("initiative")}>Initiative Tracker {initialInitiativeTracker?.runtime?.runtime.status === "active" ? <span>Active</span> : null}</button>
+          <button type="button" className={activeSection === "combat-aid" ? "is-selected" : ""} onClick={() => setActiveSection("combat-aid")}>Combat Aid <span>{initialCombatAid?.participants.length ?? 0}</span></button>
         </nav> : null}
 
         {editorVisible && (creating || activeSection === "prep") ? <>
@@ -363,6 +368,9 @@ export function EncounterWorkspace({
         {!creating && selectedEncounter && activeSection === "initiative" ? initialInitiativeTracker
           ? <InitiativeTracker data={initialInitiativeTracker} />
           : <p className="tabletop-empty">Initiative data is unavailable for this Encounter.</p> : null}
+        {!creating && selectedEncounter && activeSection === "combat-aid" ? initialCombatAid
+          ? <CombatAidWorkspace data={initialCombatAid} onOpenInitiative={() => setActiveSection("initiative")} />
+          : <p className="tabletop-empty">Combat Aid state is unavailable for this Encounter.</p> : null}
       </section>
     </div>
   </section>;

@@ -212,8 +212,8 @@ test("47-49: Item Use consumes only inactive stack quantity and leaves instance 
 });
 
 test("50-53: worn Armor exposes individual Soak and coverage without folding temporary Soak into base data", () => {
-  const coat: WornArmorRuntimeContext = { ownershipKey: "stack:1", itemId: 1, itemName: "Coat", activeQuantity: 1, baseSoak: 2, coverage: "Torso", coveredLocationKeys: ["chest"], armorType: "light", rulesText: "" };
-  const helm: WornArmorRuntimeContext = { ownershipKey: "stack:2", itemId: 2, itemName: "Helm", activeQuantity: 1, baseSoak: 3, coverage: "Head", coveredLocationKeys: ["head"], armorType: "light", rulesText: "" };
+  const coat: WornArmorRuntimeContext = { ownershipKey: "stack:1", instanceId: null, itemId: 1, itemName: "Coat", activeQuantity: 1, baseSoak: 2, coverage: "Torso", coveredLocationKeys: ["chest"], armorType: "light", rulesText: "" };
+  const helm: WornArmorRuntimeContext = { ownershipKey: "stack:2", instanceId: null, itemId: 2, itemName: "Helm", activeQuantity: 1, baseSoak: 3, coverage: "Head", coveredLocationKeys: ["head"], armorType: "light", rulesText: "" };
   const temporarySoak = { ...activeModifier(3, 300, 4), channel: "soak" as const, targetKey: "self" };
   assert.deepEqual([coat.baseSoak, helm.baseSoak], [2, 3]);
   assert.deepEqual([coat.coverage, helm.coveredLocationKeys], ["Torso", ["head"]]);
@@ -223,7 +223,7 @@ test("50-53: worn Armor exposes individual Soak and coverage without folding tem
 });
 
 test("54-56: wielded Weapon exposes context but does not roll, spend Initiative, or apply Damage", () => {
-  const weapon: WieldedWeaponRuntimeContext = { ownershipKey: "stack:4", itemId: 4, itemName: "Spear", activeQuantity: 1, weaponType: "spear", handedness: "two", damage: "1d10", damageType: "piercing", initiativeCost: 4, range: "", reach: "10 ft", rulesText: "" };
+  const weapon: WieldedWeaponRuntimeContext = { ownershipKey: "stack:4", instanceId: null, itemId: 4, itemName: "Spear", activeQuantity: 1, weaponType: "spear", handedness: "two", damage: "1d10", damageType: "piercing", initiativeCost: 4, range: "", reach: "10 ft", rulesText: "" };
   assert.equal(weapon.damage, "1d10");
   assert.equal(weapon.initiativeCost, 4);
   assert.match(equipmentPanel, /nothing is rolled, spent, or applied/);

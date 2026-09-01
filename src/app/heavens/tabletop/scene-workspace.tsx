@@ -8,6 +8,7 @@ import {
   type SceneMetadataInput,
 } from "@/features/tabletop-operations/scene-foundation";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
+import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
@@ -133,12 +134,14 @@ export function SceneWorkspace({
   initialData,
   initialEncounterData,
   initialInitiativeTracker,
+  initialCombatAid,
   session,
   campaignName,
 }: {
   initialData: SceneWorkspaceData;
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
+  initialCombatAid: CombatAidEncounterView | null;
   session: CampaignSessionSummary;
   campaignName: string;
 }) {
@@ -349,6 +352,7 @@ export function SceneWorkspace({
             key={initialEncounterData.selectedEncounterId ?? "no-encounter"}
             initialData={initialEncounterData}
             initialInitiativeTracker={initialInitiativeTracker}
+            initialCombatAid={initialCombatAid}
             scene={selectedScene}
           /> : null}
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}
