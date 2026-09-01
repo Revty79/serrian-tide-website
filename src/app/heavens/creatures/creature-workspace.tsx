@@ -8,6 +8,10 @@ import {
   calculateCreatureChallengeRating,
   getCreatureKillXpForChallengeRating,
 } from "@/features/creatures/challenge-rating";
+import {
+  resolveCreatureHpPoolMaximum,
+  resolveEffectiveCreatureStatistics,
+} from "@/features/creatures/creature-size-rules";
 
 import {
   createDerivedCreature,
@@ -55,6 +59,9 @@ function newCreatureDraft(references: ChallengeRatingReference[]): CreatureDraft
       family: "",
       creatureType: "",
       size: "Medium",
+      hpMultiplierSteps: 0,
+      baseMovementSteps: 0,
+      baseMagicSteps: 0,
       challengeRating: 1,
       killXp: getCreatureKillXpForChallengeRating(1, references),
       parentCreatureId: null,
@@ -87,6 +94,10 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
 
 function OptionalNumber({ value, onChange, ...props }: { value: number | null; onChange: (value: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
   return <input {...props} type="number" value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} />;
+}
+
+function formatCreatureNumber(value: number | null) {
+  return value === null ? "—" : Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
 }
 
 export function CreatureWorkspace({
@@ -320,17 +331,27 @@ function Overview({ draft, onChange }: { draft: CreatureDraft; onChange: (draft:
 }
 
 function Stats({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
+  const effective = resolveEffectiveCreatureStatistics(draft);
+  const effectiveAttributes = new Map(effective.attributes.map((row) => [row.attributeKey, row.effectiveValue]));
+  const effectiveMovement = new Map(effective.movement.map((row) => [row.movementMode, row.effectiveValue]));
   return <div className="creature-section">
+    <SectionHeading eyebrow="EXCEPTIONAL CREATURE MODIFIERS" title="Persistent Step Improvements" />
+    <div className="creature-form-grid">
+      <Field label="HP Multiplier Steps"><input type="number" min={0} step={1} value={draft.core.hpMultiplierSteps} onChange={(e) => onChange({ ...draft, core: { ...draft.core, hpMultiplierSteps: Math.max(0, Math.trunc(Number(e.target.value))) } })} /><small>Resolved multiplier: ×{formatCreatureNumber(effective.hpMultiplier)}</small></Field>
+      <Field label="Base Movement Steps"><input type="number" min={0} step={1} value={draft.core.baseMovementSteps} onChange={(e) => onChange({ ...draft, core: { ...draft.core, baseMovementSteps: Math.max(0, Math.trunc(Number(e.target.value))) } })} /><small>Resolved bonus: +{formatCreatureNumber(effective.baseMovementBonus)}</small></Field>
+      <Field label="Base Magic Steps"><input type="number" min={0} step={1} value={draft.core.baseMagicSteps} onChange={(e) => onChange({ ...draft, core: { ...draft.core, baseMagicSteps: Math.max(0, Math.trunc(Number(e.target.value))) } })} /><small>Resolved bonus: +{formatCreatureNumber(effective.baseMagicBonus)}</small></Field>
+    </div>
+    <p className="skill-library__empty">These exceptional modifiers are separate from Size. Each step uses the established Character quarter-step rule.</p>
     <SectionHeading eyebrow="BASE STAT BLOCK" title="Attributes" />
     <div className="creature-row-list">{draft.attributes.map((row, index) => <div className="creature-repeat-row creature-attribute-row" key={row.attributeKey}>
       <select value={row.attributeKey} onChange={(e) => onChange({ ...draft, attributes: draft.attributes.map((entry, i) => i === index ? { ...entry, attributeKey: e.target.value } : entry) })}>{ATTRIBUTES.map((attribute) => <option key={attribute}>{attribute}</option>)}</select>
-      <OptionalNumber value={row.value} placeholder="Value" onChange={(value) => onChange({ ...draft, attributes: draft.attributes.map((entry, i) => i === index ? { ...entry, value } : entry) })} />
+      <div><OptionalNumber value={row.value} placeholder="Base Value" onChange={(value) => onChange({ ...draft, attributes: draft.attributes.map((entry, i) => i === index ? { ...entry, value } : entry) })} /><small>Effective: {formatCreatureNumber(effectiveAttributes.get(row.attributeKey) ?? null)}</small></div>
       <input placeholder="Notes" value={row.notes} onChange={(e) => onChange({ ...draft, attributes: draft.attributes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} />
     </div>)}</div>
     <SectionHeading eyebrow="MOBILITY & INITIATIVE" title="Movement Modes" action="Add Movement" onAction={() => onChange({ ...draft, movement: [...draft.movement, { movementMode: "Land", movementValue: null, initiative: null, requirements: "", notes: "", sortOrder: draft.movement.length }] })} />
     <div className="creature-row-list">{draft.movement.map((row, index) => <div className="creature-repeat-row creature-movement-row" key={`${row.movementMode}-${index}`}>
       <input placeholder="Mode" value={row.movementMode} onChange={(e) => patchArray(draft, onChange, "movement", index, { movementMode: e.target.value })} />
-      <OptionalNumber value={row.movementValue} placeholder="Movement" onChange={(value) => patchArray(draft, onChange, "movement", index, { movementValue: value })} />
+      <div><OptionalNumber value={row.movementValue} placeholder="Base Movement" onChange={(value) => patchArray(draft, onChange, "movement", index, { movementValue: value })} /><small>Effective: {formatCreatureNumber(effectiveMovement.get(row.movementMode) ?? null)}</small></div>
       <OptionalNumber value={row.initiative} placeholder="Initiative" onChange={(value) => patchArray(draft, onChange, "movement", index, { initiative: value })} />
       <input placeholder="Requirements" value={row.requirements} onChange={(e) => patchArray(draft, onChange, "movement", index, { requirements: e.target.value })} />
       <input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "movement", index, { notes: e.target.value })} />
@@ -340,12 +361,19 @@ function Stats({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: Cr
 }
 
 function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
+  const effective = resolveEffectiveCreatureStatistics(draft);
   return <div className="creature-section">
+    <SectionHeading eyebrow="CALCULATED TOUGHNESS" title="Creature Total HP" />
+    <div className="creature-cr-grid">
+      <div><span>Effective CON</span><strong>{formatCreatureNumber(effective.effectiveConstitution)}</strong></div>
+      <div><span>HP Multiplier</span><strong>×{formatCreatureNumber(effective.hpMultiplier)}</strong></div>
+      <div><span>Calculated Total HP</span><strong>{formatCreatureNumber(effective.calculatedTotalMaximumHp)}</strong></div>
+    </div>
     <SectionHeading eyebrow="TOUGHNESS MODEL" title="HP Pools" action="Add HP Pool" onAction={() => onChange({ ...draft, hpPools: [...draft.hpPools, { canonicalId: `${draft.core.canonicalId}-hp-${draft.hpPools.length + 1}`, poolName: `Pool ${draft.hpPools.length + 1}`, hpPercentage: null, notes: "", sortOrder: draft.hpPools.length }] })} />
     <div className="creature-row-list">{draft.hpPools.map((row, index) => <div className="creature-repeat-row creature-pool-row" key={`${row.canonicalId}-${index}`}>
       <input placeholder="Canonical ID" value={row.canonicalId} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { canonicalId: e.target.value })} />
       <input placeholder="Pool Name" value={row.poolName} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { poolName: e.target.value })} />
-      <OptionalNumber value={row.hpPercentage} placeholder="HP %" onChange={(value) => patchArray(draft, onChange, "hpPools", index, { hpPercentage: value })} />
+      <div><OptionalNumber value={row.hpPercentage} placeholder="HP %" onChange={(value) => patchArray(draft, onChange, "hpPools", index, { hpPercentage: value })} /><small>Maximum: {formatCreatureNumber(resolveCreatureHpPoolMaximum(effective.calculatedTotalMaximumHp, row.hpPercentage))}</small></div>
       <input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "hpPools", index, { notes: e.target.value })} />
       <RemoveButton onClick={() => removeArray(draft, onChange, "hpPools", index)} />
     </div>)}</div>
@@ -449,7 +477,10 @@ function VariantsAndCr({ draft, references, onChange, onOpen, onSaved }: { draft
 
 function Preview({ draft }: { draft: CreatureDraft }) {
   const protection = draft.hitLocations.map((location) => Math.max(location.naturalArmor ?? 0, location.soak ?? 0));
-  return <article className="creature-preview"><header><p>{draft.core.family || "Creature"} · {draft.core.creatureType || "Unclassified"}</p><h3>{draft.core.canonicalName || "Untitled Creature"}</h3><span>{draft.core.size} · CR {draft.core.challengeRating ?? "?"} · {draft.core.killXp ?? "?"} XP</span></header><div className="creature-preview__facts">{draft.attributes.map((attribute) => <div key={attribute.attributeKey}><dt>{attribute.attributeKey}</dt><dd>{attribute.value ?? "—"}</dd></div>)}</div><section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section><section><h4>Movement</h4><div className="creature-preview__chips">{draft.movement.map((row, index) => <span key={`${row.movementMode}-${index}`}>{row.movementMode}: {row.movementValue ?? "—"} / Init {row.initiative ?? "—"}</span>)}</div></section><section><h4>Attacks</h4>{draft.attacks.length ? <ul>{draft.attacks.map((attack) => <li key={attack.canonicalId}><strong>{attack.attackName}</strong> · {attack.attackPercentage ?? "?"}% · {attack.damage ?? "—"} {attack.damageType}</li>)}</ul> : <p>No attacks.</p>}</section><section><h4>Protection</h4><p>Highest authored protection: {protection.length ? Math.max(...protection) : 0}. {draft.hitLocations.length} hit locations.</p></section><section><h4>Special</h4><div className="creature-preview__chips">{draft.abilities.map((row) => <span key={row.canonicalId}>{row.abilityName} · {row.crImpact}</span>)}{draft.defenses.map((row, index) => <span key={`${row.defenseType}-${index}`}>{row.defenseType} · {row.crImpact}</span>)}</div></section><div className="creature-preview__columns"><section><h4>Behavior</h4><p>{draft.core.typicalBehavior || "Not specified."}</p></section><section><h4>Habitat & Ecology</h4><p>{draft.core.habitatEcology || "Not specified."}</p></section></div></article>;
+  const effective = resolveEffectiveCreatureStatistics(draft);
+  const effectiveAttributes = new Map(effective.attributes.map((row) => [row.attributeKey, row.effectiveValue]));
+  const effectiveMovement = new Map(effective.movement.map((row) => [row.movementMode, row.effectiveValue]));
+  return <article className="creature-preview"><header><p>{draft.core.family || "Creature"} · {draft.core.creatureType || "Unclassified"}</p><h3>{draft.core.canonicalName || "Untitled Creature"}</h3><span>{draft.core.size} ×{formatCreatureNumber(effective.sizeMultiplier)} · CR {draft.core.challengeRating ?? "?"} · {draft.core.killXp ?? "?"} XP</span></header><div className="creature-preview__facts">{draft.attributes.map((attribute) => <div key={attribute.attributeKey}><dt>{attribute.attributeKey}</dt><dd>Base {formatCreatureNumber(attribute.value)} · Effective {formatCreatureNumber(effectiveAttributes.get(attribute.attributeKey) ?? null)}</dd></div>)}</div><section><h4>Health & Exceptional Modifiers</h4><p>Effective CON {formatCreatureNumber(effective.effectiveConstitution)} · HP Multiplier ×{formatCreatureNumber(effective.hpMultiplier)} · Total HP {formatCreatureNumber(effective.calculatedTotalMaximumHp)} · Movement bonus +{formatCreatureNumber(effective.baseMovementBonus)} · Base Magic bonus +{formatCreatureNumber(effective.baseMagicBonus)}</p></section><section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section><section><h4>Movement</h4><div className="creature-preview__chips">{draft.movement.map((row, index) => <span key={`${row.movementMode}-${index}`}>{row.movementMode}: Base {formatCreatureNumber(row.movementValue)} / Effective {formatCreatureNumber(effectiveMovement.get(row.movementMode) ?? null)} / Init {row.initiative ?? "—"}</span>)}</div></section><section><h4>Attacks</h4>{draft.attacks.length ? <ul>{draft.attacks.map((attack) => <li key={attack.canonicalId}><strong>{attack.attackName}</strong> · {attack.attackPercentage ?? "?"}% · {attack.damage ?? "—"} {attack.damageType}</li>)}</ul> : <p>No attacks.</p>}</section><section><h4>Protection</h4><p>Highest authored protection: {protection.length ? Math.max(...protection) : 0}. {draft.hitLocations.length} hit locations.</p></section><section><h4>Special</h4><div className="creature-preview__chips">{draft.abilities.map((row) => <span key={row.canonicalId}>{row.abilityName} · {row.crImpact}</span>)}{draft.defenses.map((row, index) => <span key={`${row.defenseType}-${index}`}>{row.defenseType} · {row.crImpact}</span>)}</div></section><div className="creature-preview__columns"><section><h4>Behavior</h4><p>{draft.core.typicalBehavior || "Not specified."}</p></section><section><h4>Habitat & Ecology</h4><p>{draft.core.habitatEcology || "Not specified."}</p></section></div></article>;
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {

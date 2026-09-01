@@ -205,6 +205,12 @@ test("humanoid anatomy maps locations 3 and 4 to the shared Right Leg Pool", () 
 
 test("Creature anatomy uses current non-humanoid Pool IDs and exact locations", () => {
   const anatomy = resolveCreatureHealthAnatomy({
+    core: {
+      size: "Huge",
+      hpMultiplierSteps: 0,
+      baseMovementSteps: 0,
+      baseMagicSteps: 0,
+    },
     attributes: [{ attributeKey: "Constitution", value: 30 }],
     hpPools: [
       { canonicalId: "CORE", poolName: "Core", hpPercentage: 50, sortOrder: 0 },
@@ -219,13 +225,14 @@ test("Creature anatomy uses current non-humanoid Pool IDs and exact locations", 
       hpPoolCanonicalId: "LEFT-WING",
       sortOrder: 0,
     }],
-  }, 0);
+  }, 6);
   const damaged = applyLocalizedDamage(createEmptyActiveHealthState(17), anatomy, {
     amount: 9,
     hitLocationNumber: 2,
   });
-  assert.equal(anatomy.totalMaximumHp, null);
+  assert.equal(anatomy.totalMaximumHp, 100);
   assert.deepEqual(anatomy.pools.map(({ key }) => key), ["CORE", "LEFT-WING", "RIGHT-WING", "TAIL"]);
+  assert.deepEqual(anatomy.pools.map(({ maximumHp }) => maximumHp), [50, 20, 20, 10]);
   assert.equal(damaged.totalDamage, 9);
   assert.deepEqual(damaged.pools, [{ poolKey: "LEFT-WING", poolNameSnapshot: "Left Wing", damage: 9 }]);
   assert.equal(anatomy.pools.some(({ name }) => /arm|leg|torso/i.test(name)), false);

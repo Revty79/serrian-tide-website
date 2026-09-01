@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
-import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
+import {
+  CREATURE_CR_IMPACTS,
+  CREATURE_SIZE_OPTIONS,
+  type CreatureCrImpact,
+  type CreatureSize,
+} from "@/db/creature-schema";
 import { item, itemEffect, itemRuntimeProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
@@ -138,12 +143,34 @@ function snapshotFromAggregate(aggregate: CreatureAggregate): CreatureDraft {
   };
 }
 
+function normalizeSnapshotCore(core: CreatureDraft["core"]): CreatureDraft["core"] {
+  const size = core.size as CreatureSize;
+  if (!CREATURE_SIZE_OPTIONS.includes(size)) {
+    throw new Error(`Creature Size must be one of: ${CREATURE_SIZE_OPTIONS.join(", ")}.`);
+  }
+  const steps = (value: number | null | undefined, label: string) => {
+    const normalized = value ?? 0;
+    if (!Number.isInteger(normalized) || normalized < 0) {
+      throw new Error(`${label} must be a whole number zero or greater.`);
+    }
+    return normalized;
+  };
+  return {
+    ...core,
+    size,
+    hpMultiplierSteps: steps(core.hpMultiplierSteps, "HP Multiplier Steps"),
+    baseMovementSteps: steps(core.baseMovementSteps, "Base Movement Steps"),
+    baseMagicSteps: steps(core.baseMagicSteps, "Base Magic Steps"),
+  };
+}
+
 function parseSnapshot(value: string, label: string): CreatureDraft {
   try {
     const parsed = JSON.parse(value) as CreatureDraft;
     const normalized = normalizeCreatureSnapshotAbilities(parsed);
     return {
       ...parsed,
+      core: normalizeSnapshotCore(parsed.core),
       abilities: normalized.abilities.map((ability) => ({
         ...ability,
         crImpact: CREATURE_CR_IMPACTS.includes(ability.crImpact as CreatureCrImpact)
@@ -439,7 +466,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     abilities: normalizedAbilities,
     id: current.baselineSnapshot.id,
     core: {
-      ...input.currentSnapshot.core,
+      ...normalizeSnapshotCore(input.currentSnapshot.core),
       canonicalId: current.baselineSnapshot.core.canonicalId,
       canonicalName: current.baselineSnapshot.core.canonicalName,
       parentCreatureId: current.baselineSnapshot.core.parentCreatureId,

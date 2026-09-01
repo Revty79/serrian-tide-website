@@ -127,6 +127,14 @@ function numberValue(record: Record<string, unknown>, key: string, label: string
   return value;
 }
 
+function snapshotStepValue(record: Record<string, unknown>, key: string, label: string) {
+  const value = record[key] ?? 0;
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    throw new Error(`Creature snapshot ${label} must be a whole number zero or greater.`);
+  }
+  return value as number;
+}
+
 function parseCreatureHealthSnapshot(raw: string): CreatureHealthSnapshot {
   let parsed: unknown;
   try {
@@ -135,12 +143,20 @@ function parseCreatureHealthSnapshot(raw: string): CreatureHealthSnapshot {
     throw new Error("The Creature NPC current anatomy snapshot is not valid JSON.");
   }
   if (!isRecord(parsed)) throw new Error("The Creature NPC current anatomy snapshot is invalid.");
+  const rawCore = parsed.core;
   const rawAttributes = parsed.attributes;
   const rawPools = parsed.hpPools;
   const rawLocations = parsed.hitLocations;
-  if (!Array.isArray(rawAttributes) || !Array.isArray(rawPools) || !Array.isArray(rawLocations)) {
+  if (!isRecord(rawCore) || !Array.isArray(rawAttributes) || !Array.isArray(rawPools) || !Array.isArray(rawLocations)) {
     throw new Error("The Creature NPC current anatomy snapshot is incomplete.");
   }
+
+  const core = {
+    size: textValue(rawCore, "size", "Size"),
+    hpMultiplierSteps: snapshotStepValue(rawCore, "hpMultiplierSteps", "HP Multiplier Steps"),
+    baseMovementSteps: snapshotStepValue(rawCore, "baseMovementSteps", "Base Movement Steps"),
+    baseMagicSteps: snapshotStepValue(rawCore, "baseMagicSteps", "Base Magic Steps"),
+  };
 
   const attributes = rawAttributes.map((value, index) => {
     if (!isRecord(value)) throw new Error(`Creature snapshot Attribute ${index + 1} is invalid.`);
@@ -172,7 +188,7 @@ function parseCreatureHealthSnapshot(raw: string): CreatureHealthSnapshot {
       sortOrder: numberValue(value, "sortOrder", `Hit Location ${index + 1} order`),
     };
   });
-  return { attributes, hpPools, hitLocations };
+  return { core, attributes, hpPools, hitLocations };
 }
 
 async function loadAnatomy(

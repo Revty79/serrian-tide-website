@@ -111,8 +111,14 @@ test("localized damage supports direct Pool targeting already accepted by Active
   assert.equal(result.nextState.pools[0]?.damage, 4);
 });
 
-test("creature damage uses non-humanoid Pool identity without requiring maximum HP", () => {
+test("creature damage uses non-humanoid Pool identity with calculated maximum HP", () => {
   const anatomy = resolveCreatureHealthAnatomy({
+    core: {
+      size: "Medium",
+      hpMultiplierSteps: 0,
+      baseMovementSteps: 0,
+      baseMagicSteps: 0,
+    },
     attributes: [{ attributeKey: "Constitution", value: 30 }],
     hpPools: [
       { canonicalId: "CORE", poolName: "Core", hpPercentage: 60, sortOrder: 0 },
@@ -139,12 +145,12 @@ test("creature damage uses non-humanoid Pool identity without requiring maximum 
   assert.equal(result.nextState.totalDamage, 12);
   assert.equal(result.nextState.pools[0]?.poolKey, "LEFT_WING");
   assert.equal(result.nextState.pools[0]?.damage, 6);
-  assert.equal(result.before.total.maximumHp, null);
-  assert.equal(result.after.total.maximumHp, null);
-  assert.equal(result.after.total.remainingHp, null);
-  assert.equal(wing?.maximumHp, null);
-  assert.equal(wing?.remainingHp, null);
-  assert.equal(anatomy.maximumHpNote?.includes("not defined"), true);
+  assert.equal(result.before.total.maximumHp, 61);
+  assert.equal(result.after.total.maximumHp, 61);
+  assert.equal(result.after.total.remainingHp, 49);
+  assert.equal(wing?.maximumHp, 25);
+  assert.equal(wing?.remainingHp, 19);
+  assert.equal(anatomy.maximumHpNote, null);
 });
 
 test("health preview rejects a state belonging to a different selected target", () => {

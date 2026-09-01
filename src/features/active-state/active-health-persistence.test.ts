@@ -4,6 +4,7 @@ import test from "node:test";
 
 const schema = readFileSync("src/db/realm-schema.ts", "utf8");
 const service = readFileSync("src/features/active-state/active-health-service.ts", "utf8");
+const anatomy = readFileSync("src/features/active-state/anatomy.ts", "utf8");
 const creatureNpcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
 const characterSheet = readFileSync("src/app/characters/character-sheet.tsx", "utf8");
 const creatureWorkspace = readFileSync("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx", "utf8");
@@ -41,6 +42,15 @@ test("Creature anatomy edits cannot silently remove referenced active Pools", ()
   assert.match(creatureNpcActions, /campaignCharacterActiveHealthPool\.damage/);
   assert.match(creatureNpcActions, /campaignCharacterInjury\.resolved/);
   assert.match(creatureNpcActions, /cannot be removed or assigned a new HP Pool ID/);
+});
+
+test("Creature Active Health derives real maxima without rewriting persisted state", () => {
+  assert.match(service, /snapshotStepValue\(rawCore, "hpMultiplierSteps"/);
+  assert.match(service, /parseCreatureHealthSnapshot\(profile\.currentSnapshotJson\)/);
+  assert.match(anatomy, /resolveCreatureTotalMaximumHp\(snapshot, hpAdjustment\)/);
+  assert.match(anatomy, /resolveCreatureHpPoolMaximum\(totalMaximumHp, pool\.hpPercentage\)/);
+  assert.equal(anatomy.includes("Creature Total HP is not defined"), false);
+  assert.equal(anatomy.includes("campaignCharacterActiveHealth"), false);
 });
 
 test("the shared Current State panel is mounted in Character and Creature entity workspaces", () => {

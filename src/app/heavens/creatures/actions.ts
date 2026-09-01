@@ -115,6 +115,9 @@ export type CreatureDraft = {
     family: string;
     creatureType: string;
     size: string;
+    hpMultiplierSteps: number;
+    baseMovementSteps: number;
+    baseMagicSteps: number;
     challengeRating: number | null;
     killXp: number | null;
     parentCreatureId: number | null;
@@ -310,6 +313,9 @@ function normalize(input: CreatureDraft) {
       family: clean(input.core.family),
       creatureType: clean(input.core.creatureType),
       size,
+      hpMultiplierSteps: wholeNumber(input.core.hpMultiplierSteps ?? 0, "HP Multiplier Steps", 0),
+      baseMovementSteps: wholeNumber(input.core.baseMovementSteps ?? 0, "Base Movement Steps", 0),
+      baseMagicSteps: wholeNumber(input.core.baseMagicSteps ?? 0, "Base Magic Steps", 0),
       challengeRating: input.core.challengeRating === null ? 1 : wholeNumber(input.core.challengeRating, "Challenge Rating", 1, 50),
       killXp: null as number | null,
       parentCreatureId: input.core.parentCreatureId,
@@ -397,6 +403,9 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     family: creature.family,
     creatureType: creature.creatureType,
     size: creature.size,
+    hpMultiplierSteps: creature.hpMultiplierSteps,
+    baseMovementSteps: creature.baseMovementSteps,
+    baseMagicSteps: creature.baseMagicSteps,
     challengeRating: creature.challengeRating,
     killXp: creature.killXp,
     parentCreatureId: creature.parentCreatureId,
@@ -459,6 +468,9 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
       family: row.family,
       creatureType: row.creatureType,
       size: row.size,
+      hpMultiplierSteps: row.hpMultiplierSteps,
+      baseMovementSteps: row.baseMovementSteps,
+      baseMagicSteps: row.baseMagicSteps,
       challengeRating: row.challengeRating,
       killXp: row.killXp,
       parentCreatureId: row.parentCreatureId,
@@ -723,6 +735,9 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
         family: parent.family,
         creatureType: parent.creatureType,
         size: parent.size,
+        hpMultiplierSteps: parent.hpMultiplierSteps,
+        baseMovementSteps: parent.baseMovementSteps,
+        baseMagicSteps: parent.baseMagicSteps,
         challengeRating: parent.challengeRating,
         killXp,
         description: parent.description,

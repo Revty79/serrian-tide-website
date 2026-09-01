@@ -16,6 +16,7 @@
 .creature-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .creature-field--wide { grid-column: 1 / -1; }
 .creature-field > span { display: block; margin-bottom: 6px; color: rgb(213 209 196 / 67%); font-size: 0.75rem; font-weight: 650; letter-spacing: .08em; }
+.creature-field > small { display: block; margin-top: 5px; color: rgb(178 201 197 / 72%); font-size: .7rem; }
 .creature-subheading { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin-top: 6px; padding: 10px 0; border-bottom: 1px solid rgb(197 172 114 / 18%); }
 .creature-subheading p { margin: 0 0 5px; color: #bda978; font-size: 0.75rem; letter-spacing: 0.14em; }
 .creature-subheading h3 { margin: 0; color: #eee8dc; font: 400 1.35rem/1.1 Arial, Helvetica, sans-serif; }
@@ -23,6 +24,7 @@
 .creature-row-list, .creature-card-list, .creature-location-cards { display: grid; gap: 9px; }
 .creature-repeat-row { display: grid; gap: 8px; align-items: center; padding: 9px; border: 1px solid rgb(128 154 156 / 14%); border-radius: 5px; background: rgb(3 9 13 / 32%); }
 .creature-repeat-row button { min-height: 36px; padding: 7px 10px; }
+.creature-repeat-row > div > small { display: block; margin-top: 4px; color: rgb(178 201 197 / 72%); font-size: .7rem; }
 .creature-attribute-row { grid-template-columns: 180px 110px minmax(180px, 1fr); }
 .creature-movement-row { grid-template-columns: 140px 95px 95px 1fr 1fr auto; }
 .creature-pool-row { grid-template-columns: 1fr 1fr 90px 1.3fr auto; }
