@@ -8,7 +8,12 @@ import { user } from "@/db/auth-schema";
 import { campaign } from "@/db/campaign-schema";
 import { creature } from "@/db/creature-schema";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
-import { campaignSession, campaignSessionRoster } from "@/db/tabletop-operations-schema";
+import {
+  campaignSession,
+  campaignSessionRoster,
+  campaignSessionScene,
+  campaignSessionSceneMember,
+} from "@/db/tabletop-operations-schema";
 import {
   assertCampaignSessionOwner,
   assertNoOtherActiveSession,
@@ -411,6 +416,17 @@ export async function removeSessionRosterMember(
   assertPositiveId(characterId, "Character");
   await db.transaction(async (tx) => {
     await lockOwnedEditableSession(tx, sessionId, access.user.id);
+    const [sceneReference] = await tx
+      .select({ sceneId: campaignSessionSceneMember.sceneId })
+      .from(campaignSessionSceneMember)
+      .where(and(
+        eq(campaignSessionSceneMember.sessionId, sessionId),
+        eq(campaignSessionSceneMember.characterId, characterId),
+      ))
+      .limit(1);
+    if (sceneReference) {
+      throw new Error("This roster member is used by a Scene. Remove them from editable Scenes first; completed Scene history cannot be erased.");
+    }
     const removed = await tx
       .delete(campaignSessionRoster)
       .where(and(
@@ -494,6 +510,19 @@ async function applyLifecycleTransition(
       if (!locked) throw new Error("That Session no longer exists.");
       assertCampaignSessionOwner(locked.ownerUserId, access.user.id);
       const next = transitionSession(locked, transition);
+      if (transition === "complete") {
+        const [activeScene] = await tx
+          .select({ id: campaignSessionScene.id })
+          .from(campaignSessionScene)
+          .where(and(
+            eq(campaignSessionScene.sessionId, sessionId),
+            eq(campaignSessionScene.status, "active"),
+          ))
+          .limit(1);
+        if (activeScene) {
+          throw new Error("Complete the active Scene before completing this Session.");
+        }
+      }
       if (next.status === "active") {
         const activeRows = await tx
           .select({ id: campaignSession.id })

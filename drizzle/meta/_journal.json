@@ -50,6 +50,13 @@
       "when": 1788278057846,
       "tag": "0006_tabletop_operations_session_roster",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788279565761,
+      "tag": "0007_tabletop_operations_scenes",
+      "breakpoints": true
     }
   ]
 }

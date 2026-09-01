@@ -23,9 +23,11 @@ import {
   type SessionRosterEntryView,
   type TabletopWorkspaceData,
 } from "./actions";
+import type { SceneWorkspaceData } from "./scene-actions";
+import { SceneWorkspace } from "./scene-workspace";
 
 type Feedback = { kind: "success" | "error"; message: string };
-type WorkspaceTab = "record" | "prep";
+type WorkspaceTab = "record" | "prep" | "scenes";
 
 const rosterGroups: { kind: SessionRosterEntityKind; title: string }[] = [
   { kind: "pc", title: "Player Characters" },
@@ -157,10 +159,12 @@ function SessionRosterCard({
 export function TabletopWorkspace({
   initialData,
   initialPrepData,
+  initialSceneData,
   requestedSessionId,
 }: {
   initialData: TabletopWorkspaceData;
   initialPrepData: SessionPrepWorkspaceData | null;
+  initialSceneData: SceneWorkspaceData | null;
   requestedSessionId: number | null;
 }) {
   const router = useRouter();
@@ -324,13 +328,14 @@ export function TabletopWorkspace({
 
         <section className="tabletop-editor">
           <header>
-            <div><p>{creating ? "NEW SESSION" : activeTab === "record" ? "SESSION RECORD" : "ROSTER & PREP"}</p><h2 className="font-sans">{creating ? "Plan a Session" : selectedSession?.title ?? "Select a Session"}</h2></div>
+            <div><p>{creating ? "NEW SESSION" : activeTab === "record" ? "SESSION RECORD" : activeTab === "prep" ? "ROSTER & PREP" : "SCENES"}</p><h2 className="font-sans">{creating ? "Plan a Session" : selectedSession?.title ?? "Select a Session"}</h2></div>
             {!creating && selectedSession ? <span className={`tabletop-status is-${selectedSession.status}`}>{selectedSession.status}</span> : null}
           </header>
 
           {!creating && selectedSession ? <nav className="tabletop-editor-tabs" aria-label="Session workspace">
             <button type="button" className={activeTab === "record" ? "is-selected" : ""} onClick={() => setActiveTab("record")}>Session Record</button>
             <button type="button" className={activeTab === "prep" ? "is-selected" : ""} onClick={() => setActiveTab("prep")}>Roster &amp; Prep <span>{initialPrepData?.roster.length ?? 0}</span></button>
+            <button type="button" className={activeTab === "scenes" ? "is-selected" : ""} onClick={() => setActiveTab("scenes")}>Scenes <span>{initialSceneData?.scenes.length ?? 0}</span></button>
           </nav> : null}
 
           {(creating || selectedSession) && (creating || activeTab === "record") ? <>
@@ -415,6 +420,13 @@ export function TabletopWorkspace({
               {!filteredAvailable.length ? <p className="tabletop-empty">{initialPrepData.available.length ? "No available Characters match that search." : "Every Campaign Character and NPC is already on this roster."}</p> : null}
             </section> : null}
           </div> : null}
+
+          {!creating && selectedSession && activeTab === "scenes" && initialSceneData ? <SceneWorkspace
+            key={initialSceneData.selectedSceneId ?? "no-scene"}
+            initialData={initialSceneData}
+            session={selectedSession}
+            campaignName={selectedCampaign.name}
+          /> : null}
 
           {!creating && !selectedSession ? <p className="tabletop-empty">Select or create a Session to begin.</p> : null}
         </section>

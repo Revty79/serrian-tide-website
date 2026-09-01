@@ -7,7 +7,12 @@ import { db, pool } from "@/db";
 import { user } from "@/db/auth-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { campaignCharacter } from "@/db/realm-schema";
-import { campaignSession, campaignSessionRoster } from "@/db/tabletop-operations-schema";
+import {
+  campaignSession,
+  campaignSessionRoster,
+  campaignSessionScene,
+  campaignSessionSceneMember,
+} from "@/db/tabletop-operations-schema";
 
 const ROLLBACK = new Error("ROLLBACK_TABLETOP_TEST");
 
@@ -190,10 +195,8 @@ test("deleting a planned Session cascades only its roster membership", async () 
     await tx.insert(campaignSessionRoster).values({ sessionId: session.id, campaignId, characterId });
     await tx.delete(campaignSession).where(eq(campaignSession.id, session.id));
 
-    const [[rosterCount], [characterCount]] = await Promise.all([
-      tx.select({ value: count() }).from(campaignSessionRoster).where(eq(campaignSessionRoster.sessionId, session.id)),
-      tx.select({ value: count() }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId)),
-    ]);
+    const [rosterCount] = await tx.select({ value: count() }).from(campaignSessionRoster).where(eq(campaignSessionRoster.sessionId, session.id));
+    const [characterCount] = await tx.select({ value: count() }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId));
     assert.equal(Number(rosterCount?.value ?? 0), 0);
     assert.equal(Number(characterCount?.value ?? 0), 1);
     throw ROLLBACK;
@@ -228,6 +231,195 @@ test("the database rejects cross-Campaign roster references", async () => {
       characterId: foreignCharacterId,
     });
   }), (error: unknown) => /campaign_session_roster_character_campaign_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("Scene metadata, lifecycle, and ordered membership persist without duplication", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const firstCharacterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "First Scene Member" });
+    const secondCharacterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Second Scene Member", isNpc: true });
+    const sessionStartedAt = new Date("2026-09-02T17:00:00.000Z");
+    const [session] = await tx.insert(campaignSession).values({
+      campaignId,
+      title: "Scene Persistence",
+      sequenceNumber: 1,
+      status: "active",
+      startedAt: sessionStartedAt,
+    }).returning({ id: campaignSession.id });
+    assert.ok(session);
+    await tx.insert(campaignSessionRoster).values([
+      { sessionId: session.id, campaignId, characterId: firstCharacterId, sortOrder: 0 },
+      { sessionId: session.id, campaignId, characterId: secondCharacterId, sortOrder: 1 },
+    ]);
+    const [scene] = await tx.insert(campaignSessionScene).values({
+      sessionId: session.id,
+      campaignId,
+      sequenceNumber: 1,
+      title: "The Bridge",
+      locationLabel: "Abandoned Highway Bridge",
+      description: "Search the wreckage.",
+      godNotes: "The captain is lying.",
+    }).returning();
+    assert.ok(scene);
+    assert.equal(scene.status, "planned");
+    assert.equal(scene.locationLabel, "Abandoned Highway Bridge");
+    assert.equal(scene.description, "Search the wreckage.");
+    assert.equal(scene.godNotes, "The captain is lying.");
+    await tx.insert(campaignSessionSceneMember).values([
+      { sceneId: scene.id, sessionId: session.id, campaignId, characterId: secondCharacterId, sortOrder: 1 },
+      { sceneId: scene.id, sessionId: session.id, campaignId, characterId: firstCharacterId, sortOrder: 0 },
+    ]);
+
+    const startedAt = new Date("2026-09-02T18:00:00.000Z");
+    const completedAt = new Date("2026-09-02T20:00:00.000Z");
+    await tx.update(campaignSessionScene).set({ status: "active", startedAt }).where(eq(campaignSessionScene.id, scene.id));
+    await tx.update(campaignSessionScene).set({ status: "completed", completedAt }).where(eq(campaignSessionScene.id, scene.id));
+    await tx.update(campaignSessionScene).set({ status: "active", completedAt: null }).where(eq(campaignSessionScene.id, scene.id));
+    const [reopened] = await tx.select().from(campaignSessionScene).where(eq(campaignSessionScene.id, scene.id));
+    assert.equal(reopened?.status, "active");
+    assert.equal(reopened?.startedAt?.toISOString(), startedAt.toISOString());
+    assert.equal(reopened?.completedAt, null);
+    const members = await tx
+      .select({ characterId: campaignSessionSceneMember.characterId, sortOrder: campaignSessionSceneMember.sortOrder })
+      .from(campaignSessionSceneMember)
+      .where(eq(campaignSessionSceneMember.sceneId, scene.id))
+      .orderBy(asc(campaignSessionSceneMember.sortOrder));
+    assert.deepEqual(members, [
+      { characterId: firstCharacterId, sortOrder: 0 },
+      { characterId: secondCharacterId, sortOrder: 1 },
+    ]);
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
+});
+
+test("the database prevents two active Scenes in one Session", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId } = await insertTemporaryCampaign(tx);
+    const [session] = await tx.insert(campaignSession).values({
+      campaignId,
+      title: "One Active Scene",
+      sequenceNumber: 1,
+      status: "active",
+      startedAt: new Date(),
+    }).returning({ id: campaignSession.id });
+    assert.ok(session);
+    const [first, second] = await tx.insert(campaignSessionScene).values([
+      { sessionId: session.id, campaignId, sequenceNumber: 1, title: "First" },
+      { sessionId: session.id, campaignId, sequenceNumber: 2, title: "Second" },
+    ]).returning({ id: campaignSessionScene.id });
+    assert.ok(first && second);
+    await tx.update(campaignSessionScene).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionScene.id, first.id));
+    await tx.update(campaignSessionScene).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionScene.id, second.id));
+  }), (error: unknown) => /campaign_session_scene_one_active_per_session_uq|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("the database rejects Scene members who are not in that Session Roster", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const unrosteredCharacterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Not Rostered" });
+    const [session] = await tx.insert(campaignSession).values({ campaignId, title: "Roster Gate", sequenceNumber: 1 }).returning({ id: campaignSession.id });
+    assert.ok(session);
+    const [scene] = await tx.insert(campaignSessionScene).values({ sessionId: session.id, campaignId, sequenceNumber: 1, title: "Closed Scene" }).returning({ id: campaignSessionScene.id });
+    assert.ok(scene);
+    await tx.insert(campaignSessionSceneMember).values({
+      sceneId: scene.id,
+      sessionId: session.id,
+      campaignId,
+      characterId: unrosteredCharacterId,
+    });
+  }), (error: unknown) => /campaign_session_scene_member_roster_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("the database rejects cross-Session and cross-Campaign Scene relationships", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const first = await insertTemporaryCampaign(tx);
+    const second = await insertTemporaryCampaign(tx);
+    const [foreignSession] = await tx.insert(campaignSession).values({
+      campaignId: second.campaignId,
+      title: "Foreign Session",
+      sequenceNumber: 1,
+    }).returning({ id: campaignSession.id });
+    assert.ok(foreignSession);
+    await tx.insert(campaignSessionScene).values({
+      sessionId: foreignSession.id,
+      campaignId: first.campaignId,
+      sequenceNumber: 1,
+      title: "Cross-Campaign Scene",
+    });
+  }), (error: unknown) => /campaign_session_scene_session_campaign_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const characterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Other Session Member" });
+    const [firstSession, secondSession] = await tx.insert(campaignSession).values([
+      { campaignId, title: "First Session", sequenceNumber: 1 },
+      { campaignId, title: "Second Session", sequenceNumber: 2 },
+    ]).returning({ id: campaignSession.id });
+    assert.ok(firstSession && secondSession);
+    await tx.insert(campaignSessionRoster).values({ sessionId: firstSession.id, campaignId, characterId });
+    const [scene] = await tx.insert(campaignSessionScene).values({ sessionId: secondSession.id, campaignId, sequenceNumber: 1, title: "Second Session Scene" }).returning({ id: campaignSessionScene.id });
+    assert.ok(scene);
+    await tx.insert(campaignSessionSceneMember).values({
+      sceneId: scene.id,
+      sessionId: firstSession.id,
+      campaignId,
+      characterId,
+    });
+  }), (error: unknown) => /campaign_session_scene_member_scene_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("the database rejects duplicate Scene membership and protects referenced roster history", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const characterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "One Scene Entry" });
+    const [session] = await tx.insert(campaignSession).values({ campaignId, title: "Duplicate Scene Member", sequenceNumber: 1 }).returning({ id: campaignSession.id });
+    assert.ok(session);
+    await tx.insert(campaignSessionRoster).values({ sessionId: session.id, campaignId, characterId });
+    const [scene] = await tx.insert(campaignSessionScene).values({ sessionId: session.id, campaignId, sequenceNumber: 1, title: "One Membership" }).returning({ id: campaignSessionScene.id });
+    assert.ok(scene);
+    const member = { sceneId: scene.id, sessionId: session.id, campaignId, characterId };
+    await tx.insert(campaignSessionSceneMember).values(member);
+    await tx.insert(campaignSessionSceneMember).values(member);
+  }), (error: unknown) => /campaign_session_scene_member_scene_id_character_id_pk|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const characterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Historical Member" });
+    const [session] = await tx.insert(campaignSession).values({ campaignId, title: "History Protection", sequenceNumber: 1 }).returning({ id: campaignSession.id });
+    assert.ok(session);
+    await tx.insert(campaignSessionRoster).values({ sessionId: session.id, campaignId, characterId });
+    const [scene] = await tx.insert(campaignSessionScene).values({ sessionId: session.id, campaignId, sequenceNumber: 1, title: "Preserved Scene" }).returning({ id: campaignSessionScene.id });
+    assert.ok(scene);
+    await tx.insert(campaignSessionSceneMember).values({ sceneId: scene.id, sessionId: session.id, campaignId, characterId });
+    await tx.delete(campaignSessionRoster).where(and(
+      eq(campaignSessionRoster.sessionId, session.id),
+      eq(campaignSessionRoster.characterId, characterId),
+    ));
+  }), (error: unknown) => /campaign_session_scene_member_roster_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+});
+
+test("deleting a planned Scene cascades only Scene membership", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const { campaignId, userId } = await insertTemporaryCampaign(tx);
+    const characterId = await insertTemporaryCharacter(tx, { campaignId, userId, name: "Scene Survivor" });
+    const [session] = await tx.insert(campaignSession).values({ campaignId, title: "Scene Deletion", sequenceNumber: 1 }).returning({ id: campaignSession.id });
+    assert.ok(session);
+    await tx.insert(campaignSessionRoster).values({ sessionId: session.id, campaignId, characterId });
+    const [scene] = await tx.insert(campaignSessionScene).values({ sessionId: session.id, campaignId, sequenceNumber: 1, title: "Disposable Scene" }).returning({ id: campaignSessionScene.id });
+    assert.ok(scene);
+    await tx.insert(campaignSessionSceneMember).values({ sceneId: scene.id, sessionId: session.id, campaignId, characterId });
+    await tx.delete(campaignSessionScene).where(eq(campaignSessionScene.id, scene.id));
+
+    const [memberCount] = await tx.select({ value: count() }).from(campaignSessionSceneMember).where(eq(campaignSessionSceneMember.sceneId, scene.id));
+    const [sessionCount] = await tx.select({ value: count() }).from(campaignSession).where(eq(campaignSession.id, session.id));
+    const [rosterCount] = await tx.select({ value: count() }).from(campaignSessionRoster).where(and(eq(campaignSessionRoster.sessionId, session.id), eq(campaignSessionRoster.characterId, characterId)));
+    const [characterCount] = await tx.select({ value: count() }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId));
+    assert.equal(Number(memberCount?.value ?? 0), 0);
+    assert.equal(Number(sessionCount?.value ?? 0), 1);
+    assert.equal(Number(rosterCount?.value ?? 0), 1);
+    assert.equal(Number(characterCount?.value ?? 0), 1);
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
 });
 
 test("transaction-only validation leaves no fixture Campaigns or users", async () => {
