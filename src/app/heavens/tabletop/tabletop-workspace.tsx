@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getNextSessionSequence, type SessionMetadataInput } from "@/features/tabletop-operations/session-foundation";
@@ -196,9 +196,22 @@ export function TabletopWorkspace({
     : emptyMetadata(initialData.sessions));
   const [creating, setCreating] = useState(initialData.sessions.length === 0 && selectedCampaign !== null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("record");
+  const [rollNavigationRequest, setRollNavigationRequest] = useState(0);
   const [rosterSearch, setRosterSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const rollWorkspaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeTab !== "rolls" || rollNavigationRequest === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      const destination = rollWorkspaceRef.current;
+      if (!destination) return;
+      destination.scrollIntoView({ behavior: "smooth", block: "start" });
+      destination.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, rollNavigationRequest]);
 
   const statusCounts = useMemo(() => ({
     planned: initialData.sessions.filter(({ status }) => status === "planned").length,
@@ -290,6 +303,11 @@ export function TabletopWorkspace({
     setFeedback(nextFeedback);
   }
 
+  function openRollWorkspace(): void {
+    setActiveTab("rolls");
+    setRollNavigationRequest((request) => request + 1);
+  }
+
   return <main className="tabletop-page">
     <header className="tabletop-hero">
       <div>
@@ -334,7 +352,7 @@ export function TabletopWorkspace({
         <footer>{initialSessionCloseout.activeContext.encounterId && initialSessionCloseout.activeContext.sceneId ? <button type="button" onClick={() => {
           setActiveTab("scenes");
           router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}`);
-        }}>Go to Active Encounter</button> : null}<button type="button" onClick={() => setActiveTab("rolls")}>Roll</button><button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
+        }}>Go to Active Encounter</button> : null}<button type="button" onClick={openRollWorkspace}>Roll</button><button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
       </section> : null}
 
       <div className="tabletop-workspace">
@@ -364,7 +382,7 @@ export function TabletopWorkspace({
             <button type="button" className={activeTab === "record" ? "is-selected" : ""} onClick={() => setActiveTab("record")}>Session Record</button>
             <button type="button" className={activeTab === "prep" ? "is-selected" : ""} onClick={() => setActiveTab("prep")}>Roster &amp; Prep <span>{initialPrepData?.roster.length ?? 0}</span></button>
             <button type="button" className={activeTab === "scenes" ? "is-selected" : ""} onClick={() => setActiveTab("scenes")}>Scenes <span>{initialSceneData?.scenes.length ?? 0}</span></button>
-            <button type="button" className={activeTab === "rolls" ? "is-selected" : ""} onClick={() => setActiveTab("rolls")}>Rolls <span>{initialSessionCloseout?.rolls.total ?? 0}</span></button>
+            <button type="button" className={activeTab === "rolls" ? "is-selected" : ""} onClick={openRollWorkspace}>Rolls <span>{initialSessionCloseout?.rolls.total ?? 0}</span></button>
             <button type="button" className={activeTab === "closeout" ? "is-selected" : ""} onClick={() => setActiveTab("closeout")}>Closeout {initialSessionCloseout?.blockers.length ? <span>{initialSessionCloseout.blockers.length}</span> : null}</button>
           </nav> : null}
 
@@ -463,9 +481,9 @@ export function TabletopWorkspace({
             campaignName={selectedCampaign.name}
           /> : null}
 
-          {!creating && selectedSession && activeTab === "rolls" && initialRollWorkspace ? <SessionRollWorkspace key={`${initialRollWorkspace.initialHistory.rolls[0]?.id ?? "empty"}:${initialRollWorkspace.initialHistory.rolls.length}`} workspace={initialRollWorkspace} /> : null}
+          {!creating && selectedSession && activeTab === "rolls" && initialRollWorkspace ? <div ref={rollWorkspaceRef} id="session-roll-workspace" tabIndex={-1} aria-label="Session Roll Tray and Ledger"><SessionRollWorkspace key={`${initialRollWorkspace.initialHistory.rolls[0]?.id ?? "empty"}:${initialRollWorkspace.initialHistory.rolls.length}`} workspace={initialRollWorkspace} /></div> : null}
 
-          {!creating && selectedSession && activeTab === "closeout" && initialSessionCloseout ? <SessionCloseout data={initialSessionCloseout} onOpenScenes={() => setActiveTab("scenes")} onOpenRolls={() => setActiveTab("rolls")} /> : null}
+          {!creating && selectedSession && activeTab === "closeout" && initialSessionCloseout ? <SessionCloseout data={initialSessionCloseout} onOpenScenes={() => setActiveTab("scenes")} onOpenRolls={openRollWorkspace} /> : null}
 
           {!creating && !selectedSession ? <p className="tabletop-empty">Select or create a Session to begin.</p> : null}
         </section>

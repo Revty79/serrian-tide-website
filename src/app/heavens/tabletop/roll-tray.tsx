@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   ROLL_PURPOSES,
@@ -47,7 +46,6 @@ export function RollTray({
   prefill?: RollTrayPrefill;
   onRecorded?: (roll: RollLedgerEntry) => void;
 }) {
-  const router = useRouter();
   const availableDefaultScope = prefill.scope === "encounter" && workspace.selectedEncounter
     ? "encounter"
     : prefill.scope === "scene" && workspace.selectedScene
@@ -110,7 +108,6 @@ export function RollTray({
       setFeedback({ kind: "success", message: `Roll #${roll.id} was recorded without adjudicating an outcome.` });
       if (method === "entered") setEnteredTotal("");
       onRecorded?.(roll);
-      router.refresh();
     } catch (error) {
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Roll could not be recorded." });
     } finally {
@@ -118,7 +115,7 @@ export function RollTray({
     }
   }
 
-  return <section className="roll-tray" aria-label="Shared Serrian Tide Roll Tray">
+  return <section className="roll-tray" aria-label="Shared Serrian Tide Roll Tray" aria-busy={busy}>
     <header>
       <div><span>SHARED ROLL RUNTIME</span><h6 className="font-sans">Roll Tray</h6><p>Record evidence for the table. The Roll never decides or executes an outcome.</p></div>
       <strong>{scope === "encounter" ? workspace.selectedEncounter?.title : scope === "scene" ? workspace.selectedScene?.title : workspace.session.title}</strong>

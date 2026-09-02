@@ -91,6 +91,33 @@ test("Session workspace exposes active table, Rolls, and Closeout without replac
   assert.match(closeout, /Finalization never heals, restores, clears, deletes, awards, or resets Character state/);
 });
 
+test("Active Table Roll navigation selects, scrolls to, and focuses the shared Roll workspace", () => {
+  const workspace = read("src/app/heavens/tabletop/tabletop-workspace.tsx");
+  assert.match(workspace, /function openRollWorkspace\(\)[\s\S]*setActiveTab\("rolls"\)[\s\S]*setRollNavigationRequest/);
+  assert.match(workspace, /rollWorkspaceRef\.current/);
+  assert.match(workspace, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
+  assert.match(workspace, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(workspace, /id="session-roll-workspace"[\s\S]*tabIndex=\{-1\}/);
+  assert.match(workspace, />Roll<\/button>/);
+  assert.match(workspace, /onClick=\{openRollWorkspace\}>Roll/);
+});
+
+test("Roll Tray sends the complete corrected request and always exposes progress or failure", () => {
+  const tray = read("src/app/heavens/tabletop/roll-tray.tsx");
+  for (const field of [
+    "sessionId", "sceneId", "encounterId", "rollerCharacterId", "targetCharacterId",
+    "pendingActionId", "reactionId", "method", "rollType", "visibility", "purposeKind",
+    "enteredTotal", "label", "targetNumber", "notes",
+  ]) assert.match(tray, new RegExp(`\\b${field}\\b`));
+  assert.match(tray, /enteredTotal:\s*method === "entered" \? Number\(enteredTotal\) : null/);
+  assert.match(tray, /busy \? "Recording…"/);
+  assert.match(tray, /aria-busy=\{busy\}/);
+  assert.match(tray, /role="status"/);
+  assert.match(tray, /error instanceof Error \? error\.message/);
+  assert.match(tray, /setLastRoll\(roll\)[\s\S]*onRecorded\?\.\(roll\)/);
+  assert.doesNotMatch(tray, /router\.refresh\(\)/);
+});
+
 test("Session Closeout uses one locked transaction and only organizational completion", () => {
   const service = read("src/features/tabletop-operations/session-closeout-service.ts");
   const actions = read("src/app/heavens/tabletop/session-closeout-actions.ts");
