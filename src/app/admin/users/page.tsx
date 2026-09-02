@@ -218,6 +218,13 @@ export default async function AdminUsersPage() {
                           {account.createdAt.toLocaleDateString()}
                         </p>
                       </div>
+
+                      <Link
+                        href={`/admin/users/${encodeURIComponent(account.id)}`}
+                        className="mt-5 inline-flex rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm text-amber-200 transition hover:border-amber-200/50 hover:bg-amber-300/15 hover:text-amber-100"
+                      >
+                        View Account
+                      </Link>
                     </div>
 
                     <div className="lg:min-w-[370px] lg:text-right">
