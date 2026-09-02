@@ -1,34 +1,44 @@
 import "server-only";
 
-import { and, desc, eq, gt, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
-import { chatMessage, chatRoom } from "@/db/chat-schema";
+import { chatMessage, chatRoom, chatRoomMember, type ChatRoomScope } from "@/db/chat-schema";
 
 import {
   CHAT_HISTORY_LIMIT,
   CHAT_RATE_MIN_INTERVAL_MS,
   CHAT_RATE_WINDOW_MAX_MESSAGES,
   CHAT_RATE_WINDOW_MS,
+  CHAT_USER_SEARCH_LIMIT,
+  DIRECT_CHAT_ROOM_NAME,
   ChatError,
   assertChatRoleAccess,
   assertChatRoomAccess,
   decodeChatCursor,
   encodeChatCursor,
+  getCampaignGeneralChatName,
+  getCampaignGeneralChatSlug,
+  getDirectChatSlug,
   mayDeleteChatMessage,
   normalizeChatClientRequestId,
   normalizeChatContent,
   normalizeChatDeletionReason,
   normalizeChatMessageId,
   normalizeChatRoomSlug,
+  normalizeDirectMessageTargetUserId,
+  normalizeDirectMessageUserSearch,
   resolveChatDisplayName,
   type ChatAccessContext,
   type ChatHistoryPage,
   type ChatMessageDto,
+  type ChatRoomDirectory,
   type DeleteChatMessageInput,
+  type DirectConversation,
+  type DirectMessageUserSearchResult,
   type PostChatMessageInput,
   type PostChatMessageResult,
 } from "./chat";
@@ -39,11 +49,12 @@ type ResolvedRoom = {
   id: number;
   slug: string;
   name: string;
-  scope: "global" | "campaign";
+  scope: ChatRoomScope;
   campaignId: number | null;
   isArchived: boolean;
   campaignCreatorUserId: string | null;
   campaignMemberUserId: string | null;
+  directMemberUserId: string | null;
 };
 
 type MessageRow = {
@@ -138,6 +149,7 @@ async function resolveAuthorizedRoom(
       isArchived: chatRoom.isArchived,
       campaignCreatorUserId: campaign.createdByUserId,
       campaignMemberUserId: campaignPlayer.userId,
+      directMemberUserId: chatRoomMember.userId,
     })
     .from(chatRoom)
     .leftJoin(campaign, eq(campaign.id, chatRoom.campaignId))
@@ -148,11 +160,282 @@ async function resolveAuthorizedRoom(
         eq(campaignPlayer.userId, actor.userId),
       ),
     )
+    .leftJoin(
+      chatRoomMember,
+      and(
+        eq(chatRoomMember.roomId, chatRoom.id),
+        eq(chatRoomMember.userId, actor.userId),
+      ),
+    )
     .where(eq(chatRoom.slug, roomSlug))
     .limit(1);
   if (!room) unavailableRoom();
   assertChatRoomAccess(actor, room);
   return room;
+}
+
+export async function synchronizeCampaignGeneralChatRoomInTransaction(
+  tx: ChatTransaction,
+  input: { campaignId: number; campaignName: string },
+): Promise<{ slug: string; name: string }> {
+  const slug = getCampaignGeneralChatSlug(input.campaignId);
+  const name = getCampaignGeneralChatName(input.campaignName);
+  await tx
+    .insert(chatRoom)
+    .values({
+      slug,
+      name,
+      scope: "campaign",
+      campaignId: input.campaignId,
+      isArchived: false,
+    })
+    .onConflictDoNothing({ target: chatRoom.slug });
+  const [room] = await tx
+    .select({
+      id: chatRoom.id,
+      scope: chatRoom.scope,
+      campaignId: chatRoom.campaignId,
+    })
+    .from(chatRoom)
+    .where(eq(chatRoom.slug, slug))
+    .limit(1)
+    .for("update", { of: chatRoom });
+  if (!room || room.scope !== "campaign" || room.campaignId !== input.campaignId) {
+    throw new ChatError("REQUEST_FAILED", "The Campaign Chat room could not be synchronized.");
+  }
+  await tx
+    .update(chatRoom)
+    .set({ name, updatedAt: sql`clock_timestamp()` })
+    .where(eq(chatRoom.id, room.id));
+  return { slug, name };
+}
+
+function byNameThenSlug(
+  left: { name: string; slug: string },
+  right: { name: string; slug: string },
+): number {
+  return left.name.localeCompare(right.name) || left.slug.localeCompare(right.slug);
+}
+
+export async function listAccessibleChatRoomsInTransaction(
+  tx: ChatTransaction,
+  actorUserId: string,
+): Promise<ChatRoomDirectory> {
+  const actor = await resolveChatActor(tx, actorUserId, false);
+  const globalRows = await tx
+    .select({
+      slug: chatRoom.slug,
+      name: chatRoom.name,
+      archived: chatRoom.isArchived,
+    })
+    .from(chatRoom)
+    .where(eq(chatRoom.scope, "global"));
+  const campaignRows = await tx
+    .select({
+      slug: chatRoom.slug,
+      name: chatRoom.name,
+      archived: chatRoom.isArchived,
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+    })
+    .from(chatRoom)
+    .innerJoin(campaign, eq(campaign.id, chatRoom.campaignId))
+    .leftJoin(campaignPlayer, and(
+      eq(campaignPlayer.campaignId, campaign.id),
+      eq(campaignPlayer.userId, actor.userId),
+    ))
+    .where(and(
+      eq(chatRoom.scope, "campaign"),
+      or(
+        eq(campaign.createdByUserId, actor.userId),
+        eq(campaignPlayer.userId, actor.userId),
+      ),
+    ));
+  const directRows = await tx
+    .select({
+      id: chatRoom.id,
+      slug: chatRoom.slug,
+      name: chatRoom.name,
+      archived: chatRoom.isArchived,
+    })
+    .from(chatRoom)
+    .innerJoin(chatRoomMember, and(
+      eq(chatRoomMember.roomId, chatRoom.id),
+      eq(chatRoomMember.userId, actor.userId),
+    ))
+    .where(eq(chatRoom.scope, "direct"));
+
+  const directIds = [...new Set(directRows.map(({ id }) => id))];
+  const partnerRows = directIds.length
+    ? await tx.select({
+        roomId: chatRoomMember.roomId,
+        userId: user.id,
+        displayUsername: user.displayUsername,
+        username: user.username,
+        name: user.name,
+      })
+        .from(chatRoomMember)
+        .innerJoin(user, eq(user.id, chatRoomMember.userId))
+        .where(and(
+          inArray(chatRoomMember.roomId, directIds),
+          ne(chatRoomMember.userId, actor.userId),
+        ))
+        .orderBy(asc(chatRoomMember.roomId), asc(user.id))
+    : [];
+  const partnerByRoom = new Map<number, string>();
+  for (const row of partnerRows) {
+    if (!partnerByRoom.has(row.roomId)) {
+      partnerByRoom.set(row.roomId, resolveChatDisplayName(row));
+    }
+  }
+
+  const globalRooms = [...new Map(globalRows.map((room) => [room.slug, {
+    ...room,
+    scope: "global" as const,
+  }])).values()].sort(byNameThenSlug);
+  const campaignRooms = [...new Map(campaignRows.map((room) => [room.slug, {
+    ...room,
+    scope: "campaign" as const,
+  }])).values()].sort(byNameThenSlug);
+  const directConversations = [...new Map(directRows.map((room) => [room.slug, {
+    slug: room.slug,
+    name: room.name,
+    scope: "direct" as const,
+    archived: room.archived,
+    partnerName: partnerByRoom.get(room.id) ?? DIRECT_CHAT_ROOM_NAME,
+  }])).values()].sort((left, right) => (
+    left.partnerName.localeCompare(right.partnerName) || left.slug.localeCompare(right.slug)
+  ));
+  return { globalRooms, campaignRooms, directConversations };
+}
+
+function unavailableUser(): never {
+  throw new ChatError("USER_UNAVAILABLE", "That Chat user is unavailable.");
+}
+
+export async function getOrCreateDirectConversationInTransaction(
+  tx: ChatTransaction,
+  actorUserId: string,
+  targetUserIdValue: unknown,
+): Promise<DirectConversation> {
+  const targetUserId = normalizeDirectMessageTargetUserId(targetUserIdValue);
+  const participantIds = [actorUserId, targetUserId].sort();
+  const accounts = await tx.select({
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    displayUsername: user.displayUsername,
+  })
+    .from(user)
+    .where(inArray(user.id, participantIds))
+    .orderBy(asc(user.id))
+    .for("update", { of: user });
+  const accountById = new Map(accounts.map((account) => [account.id, account]));
+  const actorAccount = accountById.get(actorUserId);
+  if (!actorAccount) {
+    throw new ChatError("AUTH_REQUIRED", "You must be signed in.");
+  }
+
+  const roleRows = await tx.select({ userId: userRole.userId, role: userRole.role })
+    .from(userRole)
+    .where(inArray(userRole.userId, participantIds));
+  const rolesByUser = new Map<string, Array<(typeof roleRows)[number]["role"]>>();
+  for (const row of roleRows) {
+    const assigned = rolesByUser.get(row.userId) ?? [];
+    assigned.push(row.role);
+    rolesByUser.set(row.userId, assigned);
+  }
+  assertChatRoleAccess(rolesByUser.get(actorUserId) ?? []);
+  if (actorUserId === targetUserId) {
+    throw new ChatError("INVALID_INPUT", "You cannot start a direct conversation with yourself.");
+  }
+  const targetAccount = accountById.get(targetUserId);
+  if (!targetAccount) unavailableUser();
+  if (!(rolesByUser.get(targetUserId)?.length)) unavailableUser();
+
+  const slug = getDirectChatSlug(actorUserId, targetUserId);
+  let [room] = await tx.select({
+    id: chatRoom.id,
+    slug: chatRoom.slug,
+    name: chatRoom.name,
+    scope: chatRoom.scope,
+    campaignId: chatRoom.campaignId,
+    archived: chatRoom.isArchived,
+  }).from(chatRoom).where(eq(chatRoom.slug, slug)).limit(1).for("update", { of: chatRoom });
+  const created = !room;
+  if (!room) {
+    [room] = await tx.insert(chatRoom).values({
+      slug,
+      name: DIRECT_CHAT_ROOM_NAME,
+      scope: "direct",
+      campaignId: null,
+      isArchived: false,
+    }).returning({
+      id: chatRoom.id,
+      slug: chatRoom.slug,
+      name: chatRoom.name,
+      scope: chatRoom.scope,
+      campaignId: chatRoom.campaignId,
+      archived: chatRoom.isArchived,
+    });
+  }
+  if (!room || room.scope !== "direct" || room.campaignId !== null) unavailableRoom();
+  if (created) {
+    await tx.insert(chatRoomMember).values(participantIds.map((userId) => ({
+      roomId: room!.id,
+      userId,
+    })));
+  }
+  const memberships = await tx.select({ userId: chatRoomMember.userId })
+    .from(chatRoomMember)
+    .where(eq(chatRoomMember.roomId, room.id))
+    .orderBy(asc(chatRoomMember.userId));
+  if (
+    memberships.length !== 2
+    || memberships.some(({ userId }, index) => userId !== participantIds[index])
+  ) unavailableRoom();
+
+  return {
+    slug: room.slug,
+    name: room.name,
+    scope: "direct",
+    archived: room.archived,
+    partnerName: resolveChatDisplayName(targetAccount),
+  };
+}
+
+export async function searchDirectMessageUsersInTransaction(
+  tx: ChatTransaction,
+  actorUserId: string,
+  searchValue: unknown,
+): Promise<DirectMessageUserSearchResult[]> {
+  await resolveChatActor(tx, actorUserId, false);
+  const search = normalizeDirectMessageUserSearch(searchValue);
+  const matches = await tx.select({
+    userId: user.id,
+    displayUsername: user.displayUsername,
+    username: user.username,
+    name: user.name,
+  })
+    .from(user)
+    .where(and(
+      ne(user.id, actorUserId),
+      sql`exists (select 1 from ${userRole} where ${userRole.userId} = ${user.id})`,
+      or(
+        sql`position(lower(${search}) in lower(coalesce(${user.displayUsername}, ''))) > 0`,
+        sql`position(lower(${search}) in lower(coalesce(${user.username}, ''))) > 0`,
+        sql`position(lower(${search}) in lower(${user.name})) > 0`,
+      ),
+    ))
+    .orderBy(
+      asc(sql`lower(coalesce(nullif(trim(${user.displayUsername}), ''), nullif(trim(${user.username}), ''), ${user.name}))`),
+      asc(user.id),
+    )
+    .limit(CHAT_USER_SEARCH_LIMIT);
+  return matches.map((match) => ({
+    userId: match.userId,
+    displayName: resolveChatDisplayName(match),
+  }));
 }
 
 function messageSelection() {
@@ -397,4 +680,24 @@ export function deleteChatMessage(
   input: DeleteChatMessageInput,
 ): Promise<ChatMessageDto> {
   return db.transaction((tx) => deleteChatMessageInTransaction(tx, actorUserId, input));
+}
+
+export function listAccessibleChatRooms(actorUserId: string): Promise<ChatRoomDirectory> {
+  return db.transaction((tx) => listAccessibleChatRoomsInTransaction(tx, actorUserId));
+}
+
+export function getOrCreateDirectConversation(
+  actorUserId: string,
+  targetUserId: unknown,
+): Promise<DirectConversation> {
+  return db.transaction((tx) => (
+    getOrCreateDirectConversationInTransaction(tx, actorUserId, targetUserId)
+  ));
+}
+
+export function searchDirectMessageUsers(
+  actorUserId: string,
+  search: unknown,
+): Promise<DirectMessageUserSearchResult[]> {
+  return db.transaction((tx) => searchDirectMessageUsersInTransaction(tx, actorUserId, search));
 }

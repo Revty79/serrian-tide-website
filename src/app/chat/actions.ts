@@ -3,15 +3,21 @@
 import { requireSession } from "@/lib/server-access";
 import {
   deleteChatMessage,
+  getOrCreateDirectConversation,
+  listAccessibleChatRooms,
   loadChatHistory,
   postChatMessage,
+  searchDirectMessageUsers,
 } from "@/features/chat/chat-service";
 import {
   ChatError,
   type ChatErrorCode,
   type ChatHistoryPage,
   type ChatMessageDto,
+  type ChatRoomDirectory,
   type DeleteChatMessageInput,
+  type DirectConversation,
+  type DirectMessageUserSearchResult,
   type PostChatMessageInput,
   type PostChatMessageResult,
 } from "@/features/chat/chat";
@@ -87,4 +93,22 @@ export async function deleteChatMessageAction(
   input: DeleteChatMessageInput,
 ): Promise<ChatActionResult<ChatMessageDto>> {
   return authenticatedChatAction((userId) => deleteChatMessage(userId, input));
+}
+
+export async function listAccessibleChatRoomsAction(): Promise<ChatActionResult<ChatRoomDirectory>> {
+  return authenticatedChatAction((userId) => listAccessibleChatRooms(userId));
+}
+
+export async function getOrCreateDirectConversationAction(input: {
+  targetUserId: string;
+}): Promise<ChatActionResult<DirectConversation>> {
+  return authenticatedChatAction((userId) => (
+    getOrCreateDirectConversation(userId, input.targetUserId)
+  ));
+}
+
+export async function searchDirectMessageUsersAction(input: {
+  search: string;
+}): Promise<ChatActionResult<DirectMessageUserSearchResult[]>> {
+  return authenticatedChatAction((userId) => searchDirectMessageUsers(userId, input.search));
 }

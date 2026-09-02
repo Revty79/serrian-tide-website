@@ -39,8 +39,8 @@ const schema = source("src/db/chat-schema.ts");
 const config = source("drizzle.config.ts");
 const migration = source("drizzle/0013_chat_foundation.sql");
 
-test("Crossroads enums contain only the two contracted values", () => {
-  assert.deepEqual(chatRoomScope.enumValues, ["global", "campaign"]);
+test("current Crossroads room scope extends the historical foundation with direct rooms", () => {
+  assert.deepEqual(chatRoomScope.enumValues, ["global", "campaign", "direct"]);
   assert.deepEqual(chatMessageStatus.enumValues, ["active", "deleted"]);
 });
 

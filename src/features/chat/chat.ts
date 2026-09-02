@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { SerrianRole } from "@/db/authorization-schema";
 import type { ChatRoomScope } from "@/db/chat-schema";
 
@@ -8,6 +10,9 @@ export const CHAT_DELETION_REASON_MAX_LENGTH = 500;
 export const CHAT_RATE_WINDOW_MS = 60_000;
 export const CHAT_RATE_WINDOW_MAX_MESSAGES = 20;
 export const CHAT_RATE_MIN_INTERVAL_MS = 1_000;
+export const CHAT_USER_SEARCH_MAX_LENGTH = 100;
+export const CHAT_USER_SEARCH_LIMIT = 20;
+export const DIRECT_CHAT_ROOM_NAME = "Private Conversation";
 
 export type ChatErrorCode =
   | "AUTH_REQUIRED"
@@ -15,6 +20,7 @@ export type ChatErrorCode =
   | "ROOM_UNAVAILABLE"
   | "ROOM_ARCHIVED"
   | "MESSAGE_UNAVAILABLE"
+  | "USER_UNAVAILABLE"
   | "INVALID_INPUT"
   | "REQUEST_ID_COLLISION"
   | "RATE_LIMITED"
@@ -50,6 +56,38 @@ export type ChatRoomAccessFacts = {
   campaignId: number | null;
   campaignCreatorUserId: string | null;
   campaignMemberUserId: string | null;
+  directMemberUserId: string | null;
+};
+
+export type ChatRoomDirectory = {
+  globalRooms: Array<{
+    slug: string;
+    name: string;
+    scope: "global";
+    archived: boolean;
+  }>;
+  campaignRooms: Array<{
+    slug: string;
+    name: string;
+    scope: "campaign";
+    archived: boolean;
+    campaignId: number;
+    campaignName: string;
+  }>;
+  directConversations: Array<{
+    slug: string;
+    name: string;
+    scope: "direct";
+    archived: boolean;
+    partnerName: string;
+  }>;
+};
+
+export type DirectConversation = ChatRoomDirectory["directConversations"][number];
+
+export type DirectMessageUserSearchResult = {
+  userId: string;
+  displayName: string;
 };
 
 export type ChatMessageCursor = {
@@ -126,11 +164,61 @@ export function assertChatRoomAccess(
   room: ChatRoomAccessFacts,
 ): void {
   if (room.scope === "global") return;
-  if (
+  if (room.scope === "campaign" &&
     room.campaignId !== null
     && (room.campaignCreatorUserId === actor.userId || room.campaignMemberUserId === actor.userId)
   ) return;
+  if (room.scope === "direct" && room.directMemberUserId === actor.userId) return;
   throw new ChatError("ROOM_UNAVAILABLE", "That Chat room is unavailable.");
+}
+
+export function getCampaignGeneralChatSlug(campaignId: number): string {
+  if (!Number.isSafeInteger(campaignId) || campaignId <= 0) {
+    throw new ChatError("INVALID_INPUT", "Campaign is invalid.");
+  }
+  return `campaign-${campaignId}-general`;
+}
+
+export function getCampaignGeneralChatName(campaignName: unknown): string {
+  if (typeof campaignName !== "string") return "Campaign Chat";
+  const name = campaignName.trim();
+  return name ? `${[...name].slice(0, 95).join("")} Chat` : "Campaign Chat";
+}
+
+function normalizeDirectParticipantId(value: unknown): string {
+  if (typeof value !== "string" || !value || value !== value.trim()) {
+    throw new ChatError("INVALID_INPUT", "Chat user is invalid.");
+  }
+  return value;
+}
+
+export function getDirectChatSlug(firstUserId: unknown, secondUserId: unknown): string {
+  const first = normalizeDirectParticipantId(firstUserId);
+  const second = normalizeDirectParticipantId(secondUserId);
+  if (first === second) {
+    throw new ChatError("INVALID_INPUT", "You cannot start a direct conversation with yourself.");
+  }
+  const participants = first < second ? [first, second] : [second, first];
+  const digest = createHash("sha256").update(JSON.stringify(participants)).digest("hex");
+  return `direct-${digest}`;
+}
+
+export function normalizeDirectMessageTargetUserId(value: unknown): string {
+  return normalizeDirectParticipantId(value);
+}
+
+export function normalizeDirectMessageUserSearch(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new ChatError("INVALID_INPUT", "Search is invalid.");
+  }
+  const search = value.trim();
+  if (search.length < 2) {
+    throw new ChatError("INVALID_INPUT", "Enter at least two characters to search.");
+  }
+  if (search.length > CHAT_USER_SEARCH_MAX_LENGTH) {
+    throw new ChatError("INVALID_INPUT", `Search cannot exceed ${CHAT_USER_SEARCH_MAX_LENGTH} characters.`);
+  }
+  return search;
 }
 
 export function normalizeChatRoomSlug(value: unknown): string {

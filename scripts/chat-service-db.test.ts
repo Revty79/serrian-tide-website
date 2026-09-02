@@ -11,8 +11,12 @@ import { pool as applicationPool } from "@/db";
 import { ChatError } from "@/features/chat/chat";
 import {
   deleteChatMessageInTransaction,
+  getOrCreateDirectConversationInTransaction,
+  listAccessibleChatRoomsInTransaction,
   loadChatHistoryInTransaction,
   postChatMessageInTransaction,
+  searchDirectMessageUsersInTransaction,
+  synchronizeCampaignGeneralChatRoomInTransaction,
   type ChatTransaction,
 } from "@/features/chat/chat-service";
 
@@ -33,7 +37,9 @@ if (!/^chat_service_[0-9]+_[0-9]+$/.test(schemaName)) {
 }
 const quotedSchema = `"${schemaName}"`;
 const localSearchPath = `set local search_path to ${quotedSchema}, public`;
-const migration = readFileSync(join(process.cwd(), "drizzle/0013_chat_foundation.sql"), "utf8")
+const migration = ["0013_chat_foundation.sql", "0014_chat_room_membership.sql"]
+  .map((filename) => readFileSync(join(process.cwd(), "drizzle", filename), "utf8"))
+  .join("\n")
   .replaceAll("\"public\".", "")
   .replaceAll("--> statement-breakpoint", "");
 
@@ -116,6 +122,20 @@ function remove(userId: string, messageId: number, reason?: string, roomSlug = "
   }));
 }
 
+function directory(userId: string) {
+  return withChatTransaction((tx) => listAccessibleChatRoomsInTransaction(tx, userId));
+}
+
+function direct(actorUserId: string, targetUserId: string) {
+  return withChatTransaction((tx) => (
+    getOrCreateDirectConversationInTransaction(tx, actorUserId, targetUserId)
+  ));
+}
+
+function searchUsers(actorUserId: string, search: string) {
+  return withChatTransaction((tx) => searchDirectMessageUsersInTransaction(tx, actorUserId, search));
+}
+
 before(async () => {
   await setupPool.query(`create schema ${quotedSchema}`);
   try {
@@ -140,6 +160,7 @@ before(async () => {
       );
       create table campaign (
         id serial primary key,
+        name text not null,
         created_by_user_id text not null references "user"(id)
       );
       create table campaign_player (
@@ -175,7 +196,7 @@ before(async () => {
       await setupQuery("insert into user_role (user_id,role) values ($1,$2)", [userId, role]);
     }
     campaignId = Number((await setupQuery(
-      "insert into campaign (created_by_user_id) values ($1) returning id",
+      "insert into campaign (name,created_by_user_id) values ('Service Campaign',$1) returning id",
       [ids.creator],
     )).rows[0].id);
     await setupQuery("insert into campaign_player (campaign_id,user_id) values ($1,$2)", [campaignId, ids.member]);
@@ -211,6 +232,8 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
     await expectChatError(() => load("missing-session-user"), "AUTH_REQUIRED");
     await expectChatError(() => load(ids.noRole), "ACCESS_DENIED");
     await expectChatError(() => post(ids.noRole, "no-role-post", "Denied"), "ACCESS_DENIED");
+    await expectChatError(() => direct(ids.noRole, ids.author), "ACCESS_DENIED");
+    await expectChatError(() => searchUsers(ids.noRole, "author"), "ACCESS_DENIED");
   });
 
   await t.test("all three roles access global history", async () => {
@@ -412,6 +435,215 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
       deleted_by_user_id: ids.admin,
       content: "Still active",
     }]);
+  });
+
+  await t.test("Campaign general rooms are created and renamed transactionally without touching custom rooms", async () => {
+    const initial = await withChatTransaction((tx) => synchronizeCampaignGeneralChatRoomInTransaction(tx, {
+      campaignId,
+      campaignName: "  Service Campaign  ",
+    }));
+    assert.deepEqual(initial, {
+      slug: `campaign-${campaignId}-general`,
+      name: "Service Campaign Chat",
+    });
+    await withChatTransaction(async (tx) => {
+      await tx.execute(sql`update campaign set name = 'Renamed Campaign' where id = ${campaignId}`);
+      await synchronizeCampaignGeneralChatRoomInTransaction(tx, {
+        campaignId,
+        campaignName: "Renamed Campaign",
+      });
+    });
+    assert.deepEqual((await setupQuery(
+      "select slug,name from chat_room where campaign_id=$1 order by slug",
+      [campaignId],
+    )).rows, [
+      { slug: `campaign-${campaignId}-general`, name: "Renamed Campaign Chat" },
+      { slug: "campaign-room", name: "Campaign Room" },
+    ]);
+  });
+
+  await t.test("Campaign and default room creation roll back together", async () => {
+    let rolledBackCampaignId = 0;
+    await assert.rejects(
+      () => withChatTransaction(async (tx) => {
+        const inserted = await tx.execute<{ id: number }>(sql`
+          insert into campaign (name,created_by_user_id)
+          values ('Rollback Campaign',${ids.creator}) returning id
+        `);
+        rolledBackCampaignId = Number(inserted.rows[0]!.id);
+        await synchronizeCampaignGeneralChatRoomInTransaction(tx, {
+          campaignId: rolledBackCampaignId,
+          campaignName: "Rollback Campaign",
+        });
+        throw new Error("intentional rollback");
+      }),
+      /intentional rollback/,
+    );
+    assert.ok(rolledBackCampaignId > 0);
+    assert.deepEqual((await setupQuery(
+      "select (select count(*)::int from campaign where id=$1) as campaigns, (select count(*)::int from chat_room where slug=$2) as rooms",
+      [rolledBackCampaignId, `campaign-${rolledBackCampaignId}-general`],
+    )).rows, [{ campaigns: 0, rooms: 0 }]);
+  });
+
+  await t.test("the room directory is authorized, grouped, deterministic, deduplicated, and private", async () => {
+    const creatorDirectory = await directory(ids.creator);
+    const memberDirectory = await directory(ids.member);
+    const unrelatedDirectory = await directory(ids.unrelated);
+    for (const result of [creatorDirectory, memberDirectory, unrelatedDirectory]) {
+      assert.ok(result.globalRooms.some(({ slug }) => slug === "crossroads"));
+      assert.equal(new Set([
+        ...result.globalRooms,
+        ...result.campaignRooms,
+        ...result.directConversations,
+      ].map(({ slug }) => slug)).size,
+      result.globalRooms.length + result.campaignRooms.length + result.directConversations.length);
+      assert.doesNotMatch(JSON.stringify(result), /private\.invalid|email|roles|session/i);
+    }
+    assert.ok(creatorDirectory.campaignRooms.some(({ slug }) => slug === `campaign-${campaignId}-general`));
+    assert.ok(memberDirectory.campaignRooms.some(({ slug }) => slug === `campaign-${campaignId}-general`));
+    assert.equal(unrelatedDirectory.campaignRooms.length, 0);
+    assert.ok(creatorDirectory.globalRooms.some(({ slug, archived }) => slug === "archived-room" && archived));
+    const sorted = [...creatorDirectory.globalRooms].sort((left, right) => (
+      left.name.localeCompare(right.name) || left.slug.localeCompare(right.slug)
+    ));
+    assert.deepEqual(creatorDirectory.globalRooms, sorted);
+    await expectChatError(() => directory(ids.noRole), "ACCESS_DENIED");
+  });
+
+  await t.test("removing a Campaign Player immediately removes room and directory access", async () => {
+    await setupQuery("delete from campaign_player where campaign_id=$1 and user_id=$2", [campaignId, ids.member]);
+    await expectChatError(() => load(ids.member, `campaign-${campaignId}-general`), "ROOM_UNAVAILABLE");
+    assert.equal((await directory(ids.member)).campaignRooms.length, 0);
+    await setupQuery("insert into campaign_player (campaign_id,user_id) values ($1,$2)", [campaignId, ids.member]);
+  });
+
+  let directSlug = "";
+  let directMessageId = 0;
+  await t.test("a direct conversation creates one opaque room with exactly the intended pair", async () => {
+    const conversation = await direct(ids.member, ids.unrelated);
+    directSlug = conversation.slug;
+    assert.equal(conversation.scope, "direct");
+    assert.equal(conversation.partnerName, "unrelated-username");
+    assert.doesNotMatch(conversation.slug, /chat-member|chat-unrelated/);
+    const room = await setupQuery(
+      "select id,scope,campaign_id,name from chat_room where slug=$1",
+      [directSlug],
+    );
+    assert.deepEqual(room.rows.map(({ scope, campaign_id, name }) => ({ scope, campaign_id, name })), [{
+      scope: "direct",
+      campaign_id: null,
+      name: "Private Conversation",
+    }]);
+    assert.deepEqual((await setupQuery(
+      "select user_id from chat_room_member where room_id=$1 order by user_id",
+      [room.rows[0].id],
+    )).rows.map(({ user_id }) => user_id), [ids.member, ids.unrelated].sort());
+  });
+
+  await t.test("direct conversation repeat, reversal, and concurrency resolve one room", async () => {
+    assert.equal((await direct(ids.member, ids.unrelated)).slug, directSlug);
+    assert.equal((await direct(ids.unrelated, ids.member)).slug, directSlug);
+    const concurrent = await Promise.all([
+      direct(ids.duplicate, ids.fast),
+      direct(ids.fast, ids.duplicate),
+    ]);
+    assert.equal(concurrent[0].slug, concurrent[1].slug);
+    assert.equal((await setupQuery(
+      "select count(*)::int as count from chat_room where slug=$1",
+      [concurrent[0].slug],
+    )).rows[0].count, 1);
+    assert.equal((await setupQuery(`
+      select count(*)::int as count from chat_room_member
+      where room_id=(select id from chat_room where slug=$1)
+    `, [concurrent[0].slug])).rows[0].count, 2);
+  });
+
+  await t.test("self, missing, and roleless direct-conversation targets are rejected safely", async () => {
+    await expectChatError(() => direct(ids.member, ids.member), "INVALID_INPUT");
+    const missing = await expectChatError(() => direct(ids.member, "missing-chat-user"), "USER_UNAVAILABLE");
+    const roleless = await expectChatError(() => direct(ids.member, ids.noRole), "USER_UNAVAILABLE");
+    assert.equal(missing.message, roleless.message);
+  });
+
+  await t.test("direct rooms appear only to their two members and identify the other participant", async () => {
+    const memberDirectory = await directory(ids.member);
+    const unrelatedDirectory = await directory(ids.unrelated);
+    assert.equal(memberDirectory.directConversations.find(({ slug }) => slug === directSlug)?.partnerName, "unrelated-username");
+    assert.equal(unrelatedDirectory.directConversations.find(({ slug }) => slug === directSlug)?.partnerName, "member-username");
+    assert.equal((await directory(ids.admin)).directConversations.some(({ slug }) => slug === directSlug), false);
+    assert.equal((await directory(ids.god)).directConversations.some(({ slug }) => slug === directSlug), false);
+  });
+
+  await t.test("authorized direct messages preserve history, idempotency, rate limiting, and soft deletion", async () => {
+    const first = await post(ids.member, "direct-message", "Private plain text", directSlug);
+    directMessageId = first.message.id;
+    assert.equal(first.message.room.slug, directSlug);
+    assert.equal((await post(ids.member, "direct-message", "Private plain text", directSlug)).created, false);
+    await expectChatError(() => post(ids.member, "direct-too-fast", "Rate limited", directSlug), "RATE_LIMITED");
+    assert.equal((await load(ids.unrelated, directSlug)).messages.some(({ id }) => id === directMessageId), true);
+    await expectChatError(() => load(ids.admin, directSlug), "ROOM_UNAVAILABLE");
+    await expectChatError(() => post(ids.admin, "admin-intrusion", "Denied", directSlug), "ROOM_UNAVAILABLE");
+    await expectChatError(() => remove(ids.admin, directMessageId, undefined, directSlug), "ROOM_UNAVAILABLE");
+    const deleted = await remove(ids.member, directMessageId, "author cleanup", directSlug);
+    assert.equal(deleted.deleted, true);
+    assert.equal(deleted.content, null);
+    assert.equal((await load(ids.unrelated, directSlug)).messages.find(({ id }) => id === directMessageId)?.content, null);
+  });
+
+  await t.test("removing direct membership immediately removes all room access", async () => {
+    const roomId = Number((await setupQuery("select id from chat_room where slug=$1", [directSlug])).rows[0].id);
+    await setupQuery("delete from chat_room_member where room_id=$1 and user_id=$2", [roomId, ids.unrelated]);
+    await expectChatError(() => load(ids.unrelated, directSlug), "ROOM_UNAVAILABLE");
+    assert.equal((await directory(ids.unrelated)).directConversations.some(({ slug }) => slug === directSlug), false);
+    await expectChatError(() => direct(ids.member, ids.unrelated), "ROOM_UNAVAILABLE");
+    await setupQuery("insert into chat_room_member (room_id,user_id) values ($1,$2)", [roomId, ids.unrelated]);
+  });
+
+  await t.test("direct User search is role-filtered, actor-excluding, private, capped, and deterministic", async () => {
+    for (let index = 0; index < 25; index += 1) {
+      const id = `search-user-${String(index).padStart(2, "0")}`;
+      await setupQuery(
+        "insert into \"user\" (id,name,email,username,display_username) values ($1,$2,$3,$4,$5)",
+        [id, `Search Person ${String(index).padStart(2, "0")}`, `${id}@private.invalid`, id, null],
+      );
+      await setupQuery("insert into user_role (user_id,role) values ($1,'player')", [id]);
+    }
+    await setupQuery("update \"user\" set name='Search Person Roleless' where id=$1", [ids.noRole]);
+    await setupQuery("update \"user\" set email='search-person-email-only@private.invalid' where id=$1", [ids.god]);
+    const matches = await searchUsers(ids.member, "  Search Person  ");
+    assert.equal(matches.length, 20);
+    assert.equal(matches.some(({ userId }) => userId === ids.member), false);
+    assert.equal(matches.some(({ userId }) => userId === ids.noRole), false);
+    assert.doesNotMatch(JSON.stringify(matches), /private\.invalid|email|role/i);
+    assert.deepEqual(matches, [...matches].sort((left, right) => (
+      left.displayName.localeCompare(right.displayName) || left.userId.localeCompare(right.userId)
+    )));
+    assert.deepEqual(await searchUsers(ids.member, "member-username"), []);
+    assert.deepEqual(await searchUsers(ids.member, "email-only"), []);
+    await expectChatError(() => searchUsers(ids.member, " "), "INVALID_INPUT");
+  });
+
+  await t.test("Campaign deletion cascades its rooms and messages", async () => {
+    const disposableCampaignId = Number((await setupQuery(
+      "insert into campaign (name,created_by_user_id) values ('Disposable Campaign',$1) returning id",
+      [ids.creator],
+    )).rows[0].id);
+    const synchronized = await withChatTransaction((tx) => synchronizeCampaignGeneralChatRoomInTransaction(tx, {
+      campaignId: disposableCampaignId,
+      campaignName: "Disposable Campaign",
+    }));
+    const roomId = Number((await setupQuery("select id from chat_room where slug=$1", [synchronized.slug])).rows[0].id);
+    const messageId = Number((await setupQuery(`
+      insert into chat_message (room_id,author_user_id,client_request_id,content)
+      values ($1,$2,'campaign-cascade','Cascade') returning id
+    `, [roomId, ids.creator])).rows[0].id);
+    await setupQuery("delete from campaign where id=$1", [disposableCampaignId]);
+    assert.deepEqual((await setupQuery(`
+      select
+        (select count(*)::int from chat_room where id=$1) as rooms,
+        (select count(*)::int from chat_message where id=$2) as messages
+    `, [roomId, messageId])).rows, [{ rooms: 0, messages: 0 }]);
   });
 
   assert.ok(campaignRoomId > 0 && archivedRoomId > 0 && paginationRoomId > 0);

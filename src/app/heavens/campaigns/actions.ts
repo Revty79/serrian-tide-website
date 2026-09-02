@@ -39,6 +39,7 @@ import {
   buildCampaignPlayerCandidates,
   canAdministerCampaign,
 } from "@/features/campaigns/campaign-membership";
+import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
 import {
   normalizeCampaignDerivedAbilityIds,
   validateCampaignDerivedAbilitySelection,
@@ -428,6 +429,11 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
       assignedFatePoints,
       updatedAt: new Date(),
     }).where(eq(campaign.id, input.id));
+
+    await synchronizeCampaignGeneralChatRoomInTransaction(tx, {
+      campaignId: input.id,
+      campaignName: name,
+    });
 
     await tx.delete(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, input.id));
     if (allowedSystems.length) await tx.insert(campaignAllowedSystem).values(allowedSystems.map((system, sortOrder) => ({ campaignId: input.id, system, sortOrder })));

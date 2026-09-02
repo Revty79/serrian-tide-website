@@ -23,6 +23,7 @@ import { item, itemTagCatalog } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import { createCampaignInventoryPersistence } from "@/features/campaigns/campaign-inventory";
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
+import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
 import { validateCampaignDerivedAbilitySelection } from "@/features/derived-abilities/campaign-derived-abilities";
 import {
   campaignAllowedRace,
@@ -424,6 +425,11 @@ export async function createCampaign(formData: FormData) {
         "Campaign could not be created.",
       );
     }
+
+    await synchronizeCampaignGeneralChatRoomInTransaction(tx, {
+      campaignId: createdCampaign.id,
+      campaignName: name,
+    });
 
     if (allowedSystems.length > 0) {
       await tx

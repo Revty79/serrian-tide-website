@@ -6,6 +6,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -18,6 +19,7 @@ import { campaign } from "./campaign-schema";
 export const chatRoomScope = pgEnum("chat_room_scope", [
   "global",
   "campaign",
+  "direct",
 ]);
 
 export const chatMessageStatus = pgEnum("chat_message_status", [
@@ -56,10 +58,27 @@ export const chatRoom = pgTable(
     check(
       "chat_room_scope_campaign_valid",
       sql`(
-        (${table.scope} = 'global' AND ${table.campaignId} IS NULL)
-        OR (${table.scope} = 'campaign' AND ${table.campaignId} IS NOT NULL)
+        (${table.scope} = 'campaign' AND ${table.campaignId} IS NOT NULL)
+        OR (${table.scope} <> 'campaign' AND ${table.campaignId} IS NULL)
       )`,
     ),
+  ],
+);
+
+export const chatRoomMember = pgTable(
+  "chat_room_member",
+  {
+    roomId: integer("room_id")
+      .notNull()
+      .references(() => chatRoom.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.roomId, table.userId] }),
+    index("chat_room_member_user_room_idx").on(table.userId, table.roomId),
   ],
 );
 
@@ -134,6 +153,18 @@ export const chatRoomRelations = relations(chatRoom, ({ one, many }) => ({
     references: [campaign.id],
   }),
   messages: many(chatMessage),
+  members: many(chatRoomMember),
+}));
+
+export const chatRoomMemberRelations = relations(chatRoomMember, ({ one }) => ({
+  room: one(chatRoom, {
+    fields: [chatRoomMember.roomId],
+    references: [chatRoom.id],
+  }),
+  user: one(user, {
+    fields: [chatRoomMember.userId],
+    references: [user.id],
+  }),
 }));
 
 export const chatMessageRelations = relations(chatMessage, ({ one }) => ({

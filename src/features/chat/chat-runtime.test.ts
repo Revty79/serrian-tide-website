@@ -5,17 +5,22 @@ import { test } from "node:test";
 
 import {
   CHAT_CONTENT_MAX_LENGTH,
+  CHAT_USER_SEARCH_MAX_LENGTH,
   ChatError,
   assertChatRoleAccess,
   assertChatRoomAccess,
   decodeChatCursor,
   encodeChatCursor,
+  getCampaignGeneralChatName,
+  getCampaignGeneralChatSlug,
+  getDirectChatSlug,
   mayDeleteChatMessage,
   normalizeChatClientRequestId,
   normalizeChatContent,
   normalizeChatDeletionReason,
   normalizeChatMessageId,
   normalizeChatRoomSlug,
+  normalizeDirectMessageUserSearch,
   resolveChatDisplayName,
   type ChatAccessContext,
 } from "./chat";
@@ -56,6 +61,7 @@ test("Admin, G.O.D., and Player roles all have role-neutral global access", () =
       campaignId: null,
       campaignCreatorUserId: null,
       campaignMemberUserId: null,
+      directMemberUserId: null,
     }));
   }
 });
@@ -66,6 +72,7 @@ test("Campaign room access is limited to its creator and Campaign Players", () =
     campaignId: 7,
     campaignCreatorUserId: "creator",
     campaignMemberUserId: null,
+    directMemberUserId: null,
   };
   assert.doesNotThrow(() => assertChatRoomAccess(actor("creator", ["god"]), room));
   assert.doesNotThrow(() => assertChatRoomAccess(actor("member", ["player"]), {
@@ -73,6 +80,45 @@ test("Campaign room access is limited to its creator and Campaign Players", () =
     campaignMemberUserId: "member",
   }));
   expectChatError(() => assertChatRoomAccess(actor("unrelated", ["admin"]), room), "ROOM_UNAVAILABLE");
+});
+
+test("direct room access requires current membership regardless of role", () => {
+  const room = {
+    scope: "direct" as const,
+    campaignId: null,
+    campaignCreatorUserId: null,
+    campaignMemberUserId: null,
+    directMemberUserId: "member",
+  };
+  assert.doesNotThrow(() => assertChatRoomAccess(actor("member", ["player"]), room));
+  expectChatError(() => assertChatRoomAccess(actor("admin", ["admin"]), room), "ROOM_UNAVAILABLE");
+  expectChatError(() => assertChatRoomAccess(actor("god", ["god"]), room), "ROOM_UNAVAILABLE");
+});
+
+test("Campaign general room identity is stable and its bounded display name is safe", () => {
+  assert.equal(getCampaignGeneralChatSlug(42), "campaign-42-general");
+  expectChatError(() => getCampaignGeneralChatSlug(0), "INVALID_INPUT");
+  assert.equal(getCampaignGeneralChatName("  The Long Road  "), "The Long Road Chat");
+  assert.equal(getCampaignGeneralChatName("   "), "Campaign Chat");
+  assert.equal(getCampaignGeneralChatName(null), "Campaign Chat");
+  assert.equal(getCampaignGeneralChatName("x".repeat(200)).length, 100);
+});
+
+test("direct room slugs are deterministic, pair-order neutral, bounded, and opaque", () => {
+  const forward = getDirectChatSlug("user-alpha", "user-beta");
+  const reverse = getDirectChatSlug("user-beta", "user-alpha");
+  assert.equal(forward, reverse);
+  assert.match(forward, /^direct-[a-f0-9]{64}$/);
+  assert.ok(forward.length <= 80);
+  assert.doesNotMatch(forward, /user-alpha|user-beta/);
+  expectChatError(() => getDirectChatSlug("same-user", "same-user"), "INVALID_INPUT");
+});
+
+test("direct User search is trimmed, bounded, and cannot enumerate with a blank query", () => {
+  assert.equal(normalizeDirectMessageUserSearch("  ar  "), "ar");
+  for (const invalid of ["", " ", "a", "x".repeat(CHAT_USER_SEARCH_MAX_LENGTH + 1)]) {
+    expectChatError(() => normalizeDirectMessageUserSearch(invalid), "INVALID_INPUT");
+  }
 });
 
 test("display names favor display username, then username, then account name, never email", () => {
@@ -156,5 +202,8 @@ test("future server actions authenticate centrally, expose narrow inputs, and av
     "loadOlderChatMessagesAction",
     "postChatMessageAction",
     "deleteChatMessageAction",
+    "listAccessibleChatRoomsAction",
+    "getOrCreateDirectConversationAction",
+    "searchDirectMessageUsersAction",
   ]) assert.ok(actions.includes(`function ${entryPoint}`));
 });

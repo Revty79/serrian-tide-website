@@ -85,6 +85,19 @@ test("successful Campaign creation redirects to the selected Heavens Campaign", 
   );
 });
 
+test("Campaign creation and editing synchronize the stable general Chat room inside their transactions", () => {
+  const createSource = readSource("src/app/heavens/campaigns/new/actions.ts");
+  const editSource = readSource("src/app/heavens/campaigns/actions.ts");
+  for (const source of [createSource, editSource]) {
+    const transactionStart = source.indexOf("db.transaction(async (tx) =>");
+    const synchronization = source.indexOf("synchronizeCampaignGeneralChatRoomInTransaction(tx");
+    assert.ok(transactionStart >= 0);
+    assert.ok(synchronization > transactionStart);
+  }
+  assert.doesNotMatch(createSource, /campaign-\$\{|Campaign Chat/);
+  assert.doesNotMatch(editSource, /campaign-\$\{|Campaign Chat/);
+});
+
 test("Campaign Overview is persisted once and is readable in Heavens and Realms", () => {
   const schemaSource = readSource("src/db/campaign-schema.ts");
   const createActionSource = readSource("src/app/heavens/campaigns/new/actions.ts");
