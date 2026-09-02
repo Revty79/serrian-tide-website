@@ -23,7 +23,8 @@ if (!["localhost", "127.0.0.1", "::1"].includes(databaseUrl.hostname)) {
 }
 
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-const PORT = Number(process.env.CHAT_LIVE_BROWSER_PORT ?? 3106);
+const PRODUCTION_MODE = process.argv.includes("--production");
+const PORT = Number(process.env.CHAT_LIVE_BROWSER_PORT ?? (PRODUCTION_MODE ? 3107 : 3106));
 const BASE_URL = `http://localhost:${PORT}`;
 const TEST_DIST_DIRECTORY = ".next-crossroads-navigation-browser";
 const LIVE_APPLICATION_NAME = "serrian-tide-chat-live-sse-browser-test";
@@ -37,6 +38,7 @@ const MARKER = `crossroads-live-${Date.now()}`;
 const USER_A_ID = `${MARKER}-a`;
 const USER_B_ID = `${MARKER}-b`;
 const USER_C_ID = `${MARKER}-c`;
+const USER_ADMIN_ID = `${MARKER}-admin`;
 const ROLELESS_USER_ID = `${MARKER}-roleless`;
 const VISUAL_ROOM_SLUG = `${MARKER}-gallery`;
 const EMPTY_ROOM_SLUG = `${MARKER}-empty`;
@@ -51,6 +53,7 @@ type Fixture = {
   userAEmail: string;
   userBEmail: string;
   userCEmail: string;
+  adminEmail: string;
   rolelessEmail: string;
   campaignId: number;
   campaignSlug: string;
@@ -68,6 +71,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       { id: USER_A_ID, name: "Crossroads Live A", displayName: "Live Browser A" },
       { id: USER_B_ID, name: "Crossroads Live B", displayName: "Live Browser B" },
       { id: USER_C_ID, name: "Crossroads Live C", displayName: "Live Browser C" },
+      { id: USER_ADMIN_ID, name: "Crossroads Live Admin", displayName: "Live Browser Admin" },
       { id: ROLELESS_USER_ID, name: "Crossroads Roleless", displayName: "Live Browser Roleless" },
     ].map((account) => ({
       ...account,
@@ -87,8 +91,9 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       );
     }
     await client.query(
-      "insert into user_role (user_id,role) values ($1,'player'),($2,'player'),($3,'player')",
-      [USER_A_ID, USER_B_ID, USER_C_ID],
+      `insert into user_role (user_id,role) values
+        ($1,'god'),($2,'player'),($3,'player'),($4,'admin'),($4,'god')`,
+      [USER_A_ID, USER_B_ID, USER_C_ID, USER_ADMIN_ID],
     );
     const visualRoomId = Number((await client.query<{ id: number }>(
       `insert into chat_room (slug,name,scope)
@@ -144,7 +149,8 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       userAEmail: accounts[0]!.email,
       userBEmail: accounts[1]!.email,
       userCEmail: accounts[2]!.email,
-      rolelessEmail: accounts[3]!.email,
+      adminEmail: accounts[3]!.email,
+      rolelessEmail: accounts[4]!.email,
       campaignId,
       campaignSlug,
       visualRoomSlug: VISUAL_ROOM_SLUG,
@@ -160,7 +166,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
 }
 
 async function cleanupFixture(pool: pg.Pool): Promise<void> {
-  const ids = [USER_A_ID, USER_B_ID, USER_C_ID, ROLELESS_USER_ID];
+  const ids = [USER_A_ID, USER_B_ID, USER_C_ID, USER_ADMIN_ID, ROLELESS_USER_ID];
   await pool.query("delete from chat_message where author_user_id = any($1::text[]) or deleted_by_user_id = any($1::text[])", [ids]);
   await pool.query(
     `delete from chat_room
@@ -184,6 +190,32 @@ async function removeCampaignMembershipAndNotify(pool: pg.Pool, campaignId: numb
       [campaignId, userId],
     );
     assert.equal(removed.rowCount, 1, "Expected one Campaign membership to be removed.");
+    await client.query("select pg_notify($1,$2)", [CHAT_LIVE_CHANNEL, JSON.stringify({ category: "directory" })]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function renameCampaignAndNotify(
+  pool: pg.Pool,
+  campaignId: number,
+  campaignSlug: string,
+  campaignName: string,
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const renamed = await client.query("update campaign set name=$1 where id=$2 returning id", [campaignName, campaignId]);
+    assert.equal(renamed.rowCount, 1, "Expected one Campaign to be renamed.");
+    const synchronized = await client.query(
+      "update chat_room set name=$1,updated_at=clock_timestamp() where slug=$2 returning slug",
+      [`${campaignName} Chat`, campaignSlug],
+    );
+    assert.deepEqual(synchronized.rows, [{ slug: campaignSlug }], "Campaign room slug changed during rename.");
     await client.query("select pg_notify($1,$2)", [CHAT_LIVE_CHANNEL, JSON.stringify({ category: "directory" })]);
     await client.query("commit");
   } catch (error) {
@@ -224,6 +256,27 @@ async function waitForServer(server: ChildProcess): Promise<void> {
   throw new Error("Timed out waiting for the Chat live browser-test server.");
 }
 
+async function runCompiledProductionBuild(): Promise<void> {
+  await new Promise<void>((resolvePromise, reject) => {
+    const build = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        BETTER_AUTH_URL: BASE_URL,
+        NEXT_TELEMETRY_DISABLED: "1",
+        SERRIAN_TEST_NEXT_DIST_DIR: TEST_DIST_DIRECTORY,
+      },
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    build.once("error", reject);
+    build.once("exit", (code) => {
+      if (code === 0) resolvePromise();
+      else reject(new Error(`Compiled Crossroads production build exited with ${code}.`));
+    });
+  });
+}
+
 async function waitForLiveConnectionCleanup(pool: pg.Pool): Promise<number> {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const [{ count }] = (await pool.query<{ count: string }>(
@@ -241,11 +294,31 @@ async function waitForLiveConnectionCleanup(pool: pg.Pool): Promise<number> {
 
 async function login(context: BrowserContext, email: string): Promise<Page> {
   const page = await context.newPage();
+  const authResponses: Array<{ status: number; url: string }> = [];
+  page.on("response", (response) => {
+    if (response.url().includes("/api/auth/")) {
+      authResponses.push({ status: response.status(), url: response.url() });
+    }
+  });
   await page.goto(`${BASE_URL}/login`);
   await page.locator('input[name="username"]').fill(email);
   await page.locator('input[name="password"]').fill(PASSWORD);
   await page.getByRole("button", { name: /^Enter$/ }).click();
-  await page.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
+  try {
+    await page.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
+  } catch (error) {
+    const diagnostic = {
+      url: page.url(),
+      error: await page.locator('[role="alert"]').allTextContents(),
+      authResponses,
+      cookies: (await context.cookies()).map((cookie) => ({
+        domain: cookie.domain,
+        name: cookie.name,
+        secure: cookie.secure,
+      })),
+    };
+    throw new Error(`Browser fixture login failed: ${JSON.stringify(diagnostic)}`, { cause: error });
+  }
   return page;
 }
 
@@ -418,7 +491,13 @@ async function main(): Promise<void> {
     const fixture = await seedFixture(pool);
     await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
     await rm(TEST_DIST_PATH, { recursive: true, force: true });
-    server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)], {
+    if (PRODUCTION_MODE) await runCompiledProductionBuild();
+    server = spawn(process.execPath, [
+      "node_modules/next/dist/bin/next",
+      PRODUCTION_MODE ? "start" : "dev",
+      "--port",
+      String(PORT),
+    ], {
       cwd: process.cwd(),
       env: {
         ...process.env,
@@ -438,22 +517,46 @@ async function main(): Promise<void> {
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
     const contextC = await browser.newContext();
+    const adminContext = await browser.newContext();
     const rolelessContext = await browser.newContext();
     const pageA = await login(contextA, fixture.userAEmail);
     const pageB = await login(contextB, fixture.userBEmail);
     const pageC = await login(contextC, fixture.userCEmail);
+    // Better Auth intentionally permits only three production sign-ins per
+    // ten-second window. Keep the acceptance identities realistic instead of
+    // disabling that production protection for the browser rehearsal.
+    if (PRODUCTION_MODE) await new Promise((resolvePromise) => setTimeout(resolvePromise, 10_100));
+    const adminPage = await login(adminContext, fixture.adminEmail);
     const rolelessPage = await login(rolelessContext, fixture.rolelessEmail);
+    for (const [name, page] of [["G.O.D.", pageA], ["Player B", pageB], ["Player C", pageC], ["Admin", adminPage]] as const) {
+      assert.equal(
+        await page.locator('main a[href="/chat"]').count(),
+        1,
+        `${name} Paths did not expose exactly one Crossroads entry.`,
+      );
+    }
+    assert.equal(await rolelessPage.locator('main a[href="/chat"]').count(), 0);
     assert.equal(await rolelessPage.evaluate(async () => (await fetch("/api/chat/live?room=crossroads")).status), 403);
     await rolelessContext.close();
 
+    let successfulStaticAssets = 0;
+    const failedStaticAssets: Array<{ status: number; url: string }> = [];
+    pageA.on("response", (response) => {
+      if (!response.url().includes("/_next/static/")) return;
+      if (response.status() >= 400) failedStaticAssets.push({ status: response.status(), url: response.url() });
+      else successfulStaticAssets += 1;
+    });
     const visualRoomUrl = `${BASE_URL}/chat?room=${encodeURIComponent(fixture.visualRoomSlug)}`;
-    await Promise.all([pageA.goto(visualRoomUrl), pageB.goto(visualRoomUrl), pageC.goto(visualRoomUrl)]);
+    await Promise.all([pageA.goto(visualRoomUrl), pageB.goto(visualRoomUrl), pageC.goto(visualRoomUrl), adminPage.goto(visualRoomUrl)]);
     await Promise.all([
       pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
       pageB.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
       pageC.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
+      adminPage.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
     ]);
     assert.equal(await pageA.evaluate(async () => (await fetch("/api/chat/live?room=missing-room")).status), 404);
+    assert.ok(successfulStaticAssets > 0, "The Chat route did not load a successful compiled static asset.");
+    assert.deepEqual(failedStaticAssets, [], "The Chat route requested a failing static asset.");
     await verifyActualChatLayout(pageA);
 
     await pageA.locator('aside[aria-label="Chat rooms"]').getByRole("button", { name: "New Message" }).click();
@@ -478,6 +581,19 @@ async function main(): Promise<void> {
     await redactedForB.getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
     assert.equal((await redactedForB.innerText()).includes(sharedMessage), false);
 
+    const adminModerationMessage = `${MARKER} global Admin moderation target`;
+    await submitMessage(pageB, adminModerationMessage);
+    const adminTarget = adminPage.locator("li", { hasText: adminModerationMessage });
+    await adminTarget.waitFor({ timeout: 15_000 });
+    const adminModerationMessageId = await adminTarget.getAttribute("data-message-id");
+    assert.ok(adminModerationMessageId, "The Admin moderation target had no stable message identity.");
+    await adminTarget.getByRole("button", { name: "Remove", exact: true }).click();
+    const adminReason = adminTarget.getByRole("textbox", { name: "Reason for removal" });
+    await adminReason.fill("Browser-verified global Admin moderation");
+    await adminTarget.getByRole("button", { name: "Confirm", exact: true }).click();
+    await pageB.locator(`li[data-message-id="${adminModerationMessageId}"]`).getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
+    assert.equal(await pageB.getByText(adminModerationMessage, { exact: true }).count(), 0);
+
     await Promise.all([
       pageA.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.campaignSlug)}`),
       pageB.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.campaignSlug)}`),
@@ -488,6 +604,19 @@ async function main(): Promise<void> {
       pageB.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
       pageC.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
     ]);
+    assert.equal(
+      await adminPage.locator(`option[value="${fixture.campaignSlug}"]`).count(),
+      0,
+      "An unrelated Admin + G.O.D. discovered a private Campaign room.",
+    );
+    assert.equal(
+      await adminPage.evaluate(async (slug) => (await fetch(`/api/chat/live?room=${encodeURIComponent(slug)}`)).status, fixture.campaignSlug),
+      404,
+      "An unrelated Admin + G.O.D. subscribed to a private Campaign room.",
+    );
+    // User B authored the global moderation target immediately before this
+    // room transition. Honor the product's one-message-per-second throttle.
+    await pageB.waitForTimeout(1_100);
     const campaignMessage = `${MARKER} Campaign Player message`;
     await submitMessage(pageB, campaignMessage);
     const campaignMessageForA = pageA.locator("li", { hasText: campaignMessage });
@@ -541,6 +670,18 @@ async function main(): Promise<void> {
     await campaignRedactedForC.getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
     assert.equal((await campaignRedactedForB.innerText()).includes(campaignMessage), false);
 
+    const renamedCampaign = "Crossroads Live Campaign Renamed";
+    await renameCampaignAndNotify(pool, fixture.campaignId, fixture.campaignSlug, renamedCampaign);
+    await Promise.all([pageA, pageB, pageC].map((page) => page.waitForFunction(
+      ({ roomSlug, roomName }) => {
+        const option = document.querySelector<HTMLOptionElement>(`option[value="${roomSlug}"]`);
+        return option?.textContent?.trim() === roomName;
+      },
+      { roomSlug: fixture.campaignSlug, roomName: renamedCampaign },
+      { timeout: 15_000 },
+    )));
+    assert.equal(new URL(pageA.url()).searchParams.get("room"), fixture.campaignSlug);
+
     await removeCampaignMembershipAndNotify(pool, fixture.campaignId, USER_B_ID);
     await pageB.waitForURL((url) => (
       url.pathname === "/chat" && url.searchParams.get("room") === "crossroads"
@@ -578,15 +719,51 @@ async function main(): Promise<void> {
     await pageA.getByRole("button", { name: "Search", exact: true }).click();
     await pageA.getByRole("button", { name: /Live Browser B.*Open conversation/ }).click();
     await pageA.getByRole("heading", { name: "Live Browser B" }).waitFor({ timeout: 15_000 });
-    await pageB.locator('aside[aria-label="Chat rooms"]').getByRole("button", { name: /Live Browser A/ }).waitFor({ timeout: 15_000 });
+    const directRoomSlug = new URL(pageA.url()).searchParams.get("room");
+    assert.ok(directRoomSlug, "The direct conversation did not expose its stable room slug.");
+    const directRoomForB = pageB.locator('aside[aria-label="Chat rooms"]').getByRole("button", { name: /Live Browser A/ });
+    await directRoomForB.waitFor({ timeout: 15_000 });
+    assert.equal(await adminPage.locator(`option[value="${directRoomSlug}"]`).count(), 0);
+    assert.equal(
+      await adminPage.evaluate(async (slug) => (await fetch(`/api/chat/live?room=${encodeURIComponent(slug)}`)).status, directRoomSlug),
+      404,
+      "An unrelated Admin + G.O.D. subscribed to a private direct conversation.",
+    );
+    await directRoomForB.click();
+    await pageB.getByRole("heading", { name: "Live Browser A" }).waitFor({ timeout: 15_000 });
+    await pageB.locator('[data-live-status="live"]').waitFor({ timeout: 15_000 });
 
     await pageA.locator('[data-live-status="live"]').waitFor({ timeout: 15_000 });
     await pageA.waitForTimeout(1_100);
     const directMessage = `${MARKER} private room message`;
     await submitMessage(pageA, directMessage);
+    const directMessageForB = pageB.locator("li", { hasText: directMessage });
+    await directMessageForB.waitFor({ timeout: 15_000 });
+    assert.equal(
+      await directMessageForB.getByRole("button", { name: /^(Delete|Remove)$/ }).count(),
+      0,
+      "A direct participant received moderation controls for the other participant's message.",
+    );
     await captureEvidence(pageA, "03-desktop-direct-conversation.png");
-    await pageB.waitForTimeout(1_500);
-    assert.equal(await pageB.getByText(directMessage, { exact: true }).count(), 0, "An unrelated-room message reached the visible global history.");
+    await adminPage.waitForTimeout(500);
+    assert.equal(await adminPage.getByText(directMessage, { exact: true }).count(), 0, "A private direct message reached an unrelated room.");
+
+    await pageB.waitForTimeout(1_100);
+    const directReply = `${MARKER} private reply`;
+    await submitMessage(pageB, directReply);
+    const directReplyForA = pageA.locator("li", { hasText: directReply });
+    await directReplyForA.waitFor({ timeout: 15_000 });
+    assert.equal(
+      await directReplyForA.getByRole("button", { name: /^(Delete|Remove)$/ }).count(),
+      0,
+      "A direct participant received moderation controls for the other participant's message.",
+    );
+    const directReplyForB = pageB.locator("li", { hasText: directReply });
+    const directReplyId = await directReplyForB.getAttribute("data-message-id");
+    assert.ok(directReplyId, "The direct reply did not expose its stable message identity.");
+    await directReplyForB.getByRole("button", { name: "Delete", exact: true }).click();
+    await directReplyForB.getByRole("button", { name: "Confirm", exact: true }).click();
+    await pageA.locator(`li[data-message-id="${directReplyId}"]`).getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
 
     const terminatedConnections = await pool.query(
       "select pg_terminate_backend(pid) from pg_stat_activity where application_name = $1",
@@ -607,22 +784,30 @@ async function main(): Promise<void> {
     assert.equal(await pageA.locator("#chat-message").count(), 0, "Archived room still exposed the composer.");
     await captureEvidence(pageA, "09-archived-conversation.png");
 
-    await Promise.all([contextA.close(), contextB.close(), contextC.close()]);
+    await Promise.all([contextA.close(), contextB.close(), contextC.close(), adminContext.close()]);
     assert.equal(await waitForLiveConnectionCleanup(pool), 0, "SSE PostgreSQL connections remained after browser contexts closed.");
 
     console.log(JSON.stringify({
       passed: true,
+      serverMode: PRODUCTION_MODE ? "compiled-production" : "development",
       verified: [
         "unauthenticated and roleless SSE rejection",
         "authorized room SSE",
+        "single-entry Paths navigation for G.O.D., Player, and Admin roles",
         "two-session live post",
         "two-session live deletion redaction",
+        "global Admin moderation with required reason",
         "Campaign creator moderation with required reason",
         "ordinary Campaign Player moderation denial",
+        "unrelated Admin + G.O.D. Campaign denial",
+        "live Campaign rename with stable room slug",
         "Campaign membership live fallback without retained room data",
         "final-role revocation clears Chat and redirects to access",
         "expired session clears Chat and redirects to login",
         "live direct-room directory refresh",
+        "direct-room two-participant live delivery and self-deletion",
+        "direct-participant cross-moderation denial",
+        "unrelated Admin + G.O.D. direct-room denial",
         "unrelated-room event isolation",
         "SSE reconnect",
         "dedicated connection cleanup",

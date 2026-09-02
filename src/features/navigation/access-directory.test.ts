@@ -92,3 +92,32 @@ test("Crossroads remains a header destination instead of being embedded in gamep
     }
   }
 });
+
+test("Crossroads runtime implementation stays outside Character and tabletop mechanical domains", () => {
+  const prohibitedRuntimeRoots = [
+    "src/features/active-state",
+    "src/features/characters",
+    "src/features/creatures",
+    "src/features/items",
+    "src/features/mechanical-effects",
+    "src/features/spell-construction",
+    "src/features/tabletop-operations",
+  ];
+
+  for (const root of prohibitedRuntimeRoots) {
+    const files = readdirSync(join(process.cwd(), root), {
+      recursive: true,
+      withFileTypes: true,
+    });
+    for (const file of files) {
+      if (!file.isFile() || !/\.(?:ts|tsx)$/.test(file.name)) continue;
+      const sourcePath = join(file.parentPath, file.name);
+      const source = readFileSync(sourcePath, "utf8");
+      assert.doesNotMatch(
+        source,
+        /@\/features\/chat|@\/app\/chat|<ChatWorkspace\b|<ChatLiveConnection\b/,
+        `${sourcePath} must not depend on the Crossroads runtime`,
+      );
+    }
+  }
+});

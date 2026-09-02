@@ -19,6 +19,7 @@
     "validate:chat-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/chat-foundation-db.test.ts scripts/chat-room-foundation-db.test.ts scripts/chat-service-db.test.ts",
     "validate:chat-browser": "node --import tsx --test scripts/chat-interface-browser.test.ts",
     "validate:chat-live-browser": "node --import tsx scripts/chat-live-browser.test.ts",
+    "validate:chat-production-browser": "node --import tsx scripts/chat-live-browser.test.ts --production",
     "validate:magic": "tsx --test src/features/characters/character-spell-casting.test.ts src/features/characters/magic-context-parity.test.ts",
     "validate:navigation": "tsx --test src/features/navigation/*.test.ts src/features/campaigns/campaign-membership.test.ts src/features/campaigns/campaign-workflow.test.ts",
     "validate:crossroads-navigation-browser": "node --import tsx scripts/crossroads-navigation-browser.test.ts",

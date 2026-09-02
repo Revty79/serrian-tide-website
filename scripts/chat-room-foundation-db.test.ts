@@ -37,7 +37,8 @@ function migrationSql(first: number, last: number): string {
     .replaceAll("--> statement-breakpoint", "");
 }
 
-const migrationsThrough0013 = migrationSql(0, 13);
+const migrationsThrough0012 = migrationSql(0, 12);
+const migration0013 = migrationSql(13, 13);
 const migration0014 = migrationSql(14, 14);
 const campaignBackfill = migration0014.slice(migration0014.indexOf('INSERT INTO "chat_room"'));
 let savepointSequence = 0;
@@ -71,13 +72,13 @@ after(async () => {
   await pool.end();
 });
 
-test("0014 safely completes the Chat room model after the complete migration history", { timeout: 60_000 }, async () => {
+test("0000 through 0014 safely upgrade a populated pre-Chat site and complete the Chat room model", { timeout: 60_000 }, async () => {
   await pool.query(`create schema ${quotedSchema}`);
   const client = await pool.connect();
   try {
     await client.query("begin");
     await client.query(`set local search_path to ${quotedSchema}, public`);
-    await client.query(migrationsThrough0013);
+    await client.query(migrationsThrough0012);
 
     const creatorId = "room-foundation-creator";
     const memberId = "room-foundation-member";
@@ -102,6 +103,33 @@ test("0014 safely completes the Chat room model after the complete migration his
       campaignIds.push(result.rows[0]!.id);
     }
     await client.query(
+      "insert into campaign_player (campaign_id,user_id) values ($1,$2)",
+      [campaignIds[0], memberId],
+    );
+
+    assert.equal(
+      (await client.query<{ table_name: string | null }>(
+        "select to_regclass(current_schema() || '.chat_room')::text as table_name",
+      )).rows[0]!.table_name,
+      null,
+      "The pre-Chat schema unexpectedly exposed Chat rooms.",
+    );
+    await client.query(migration0013);
+    assert.deepEqual((await client.query(
+      "select slug,name,scope,campaign_id,is_archived from chat_room where slug='crossroads'",
+    )).rows, [{
+      slug: "crossroads",
+      name: "The Crossroads",
+      scope: "global",
+      campaign_id: null,
+      is_archived: false,
+    }]);
+    assert.equal(
+      Number((await client.query<{ count: string }>("select count(*)::text as count from chat_message")).rows[0]!.count),
+      0,
+      "0013 must not create sample messages.",
+    );
+    await client.query(
       "insert into chat_room (slug,name,scope,campaign_id) values ($1,'Already Present','campaign',$2)",
       [`campaign-${campaignIds[3]}-general`, campaignIds[3]],
     );
@@ -114,6 +142,33 @@ test("0014 safely completes the Chat room model after the complete migration his
     `, [crossroadsId, creatorId])).rows[0]!.id);
 
     await client.query(migration0014);
+
+    assert.deepEqual((await client.query(
+      "select id,name from \"user\" where id=any($1::text[]) order by id",
+      [[creatorId, memberId]],
+    )).rows, [
+      { id: creatorId, name: "Migration Creator" },
+      { id: memberId, name: "Migration Member" },
+    ]);
+    assert.equal(
+      Number((await client.query<{ count: string }>(
+        "select count(*)::text as count from campaign where id=any($1::int[])",
+        [campaignIds],
+      )).rows[0]!.count),
+      4,
+      "The Chat upgrade changed existing Campaign records.",
+    );
+    assert.deepEqual((await client.query(
+      "select campaign_id,user_id from campaign_player where campaign_id=$1 and user_id=$2",
+      [campaignIds[0], memberId],
+    )).rows, [{ campaign_id: campaignIds[0], user_id: memberId }]);
+    assert.equal(
+      Number((await client.query<{ count: string }>(
+        "select count(*)::text as count from chat_room where slug='crossroads' and scope='global'",
+      )).rows[0]!.count),
+      1,
+      "The complete upgrade must retain exactly one global Crossroads room.",
+    );
 
     const enumValues = await client.query<{ value: string }>(`
       select enumlabel as value from pg_enum
