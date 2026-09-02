@@ -102,10 +102,14 @@ test("direct search is explicit, bounded, private, and refreshes the directory b
 
 test("the interface retains manual refresh and responsiveness around the approved live runtime", () => {
   assert.match(workspace, /Refresh Messages/);
-  assert.match(stylesheet, /@media \(max-width: 900px\)/);
-  assert.match(stylesheet, /@media \(max-width: 720px\)/);
+  assert.match(stylesheet, /@media \(max-width: 1024px\)/);
+  assert.match(stylesheet, /@media \(max-width: 760px\)/);
   assert.match(stylesheet, /@media \(max-width: 460px\)/);
   assert.match(stylesheet, /overflow-x:\s*hidden/);
+  assert.match(stylesheet, /\.conversation\s*\{[\s\S]*?display:\s*flex/);
+  assert.match(stylesheet, /\.history\s*\{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(stylesheet, /\.ownMessage\s*\{[\s\S]*?align-self:\s*flex-end/);
+  assert.match(stylesheet, /\.currentBadge/);
   assert.match(stylesheet, /prefers-reduced-motion/);
   assert.match(workspace, /<ChatLiveConnection/);
   assert.match(liveConnection, /new EventSource\(`\/api\/chat\/live\?room=/);

@@ -29,17 +29,17 @@ function fixtureHtml(): string {
             <header class="hero">
               <div class="brandBlock"><span class="brand">SERRIAN TIDE</span><span class="eyebrow">Communication Center</span></div>
               <div class="heroCopy"><p class="eyebrow">Where paths converge</p><h1>The Crossroads</h1><p>Gather with the Serrian Tide community, continue Campaign conversations, and send private messages.</p></div>
-              <div class="accountBlock"><span>Signed in as <strong>Brannan</strong></span><a href="#">Return to Paths</a></div>
+              <div class="accountBlock"><span class="identityBlock"><span>Signed in as</span><strong>Brannan</strong></span><a href="#">Return to Paths</a></div>
             </header>
             <div class="mobileRoomPicker"><label for="room">Conversation</label><div class="mobileRoomControls"><select id="room"><option>The Crossroads</option><option>The Long Road</option></select><button>New Message</button></div></div>
             <div class="workspace">
               <aside class="sidebar" aria-label="Chat rooms">
-                <section class="roomGroup"><h2>Crossroads</h2><button class="roomButton roomButtonActive"><span class="roomButtonText"><strong>The Crossroads</strong></span></button></section>
+                <section class="roomGroup"><h2>Crossroads</h2><button class="roomButton roomButtonActive"><span class="roomButtonText"><strong>The Crossroads</strong></span><span class="roomBadges"><span class="currentBadge">Current</span></span></button></section>
                 <section class="roomGroup"><h2>Campaigns</h2><button class="roomButton"><span class="roomButtonText"><strong>The Long Road</strong><small>The Long Road Chat</small></span></button><button class="roomButton"><span class="roomButtonText"><strong>Archived Chronicle</strong><small>Archived Chronicle Chat</small></span><span class="archivedBadge">Archived</span></button></section>
                 <section class="roomGroup"><div class="roomGroupHeading"><h2>Direct Messages</h2><button class="smallAction">New Message</button></div><button class="roomButton"><span class="roomButtonText"><strong>Mara</strong><small>Private conversation</small></span></button></section>
               </aside>
               <section class="conversation">
-                <header class="conversationHeader"><div><div class="scopeLine"><span>Global</span></div><h2>The Crossroads</h2><p>Open to every current Serrian Tide role</p></div><button>Refresh Messages</button></header>
+                <header class="conversationHeader"><div><div class="scopeLine"><span>Global</span></div><h2>The Crossroads</h2><p>Open to every current Serrian Tide role</p></div><div class="conversationControls"><span class="liveStatus" data-live-status="live"><span></span>Live</span><button>Refresh Messages</button></div></header>
                 <div class="history">
                   <div class="olderControl"><button>Load Older Messages</button></div>
                   <ol class="messageList">
@@ -48,7 +48,7 @@ function fixtureHtml(): string {
                     <li class="message deletedMessage"><div class="messageMeta"><strong>Aster</strong><time datetime="2026-09-02T04:11:00.000Z">10:11 PM</time></div><p class="removedText">Message removed</p></li>
                   </ol>
                 </div>
-                <form class="composer"><label for="message">Message The Crossroads</label><textarea id="message" rows="3" placeholder="Write a message…"></textarea><div class="composerFooter"><span>Enter sends · Shift+Enter adds a new line</span><span>0 / 1000</span><button>Send</button></div><p class="inlineError"></p></form>
+                <form class="composer"><label for="message">Message The Crossroads</label><div class="composerInputRow"><textarea id="message" rows="3" placeholder="Write a message…"></textarea><button>Send</button></div><div class="composerFooter"><span>Enter sends · Shift+Enter adds a new line</span><span>0 / 1000</span></div><p class="inlineError"></p></form>
               </section>
             </div>
           </div>
@@ -69,6 +69,7 @@ test("the Crossroads stylesheet provides a usable desktop and narrow-phone works
       { width: 1024, height: 768, mode: "laptop" },
       { width: 768, height: 1024, mode: "tablet" },
       { width: 390, height: 844, mode: "phone" },
+      { width: 360, height: 800, mode: "narrow-phone" },
     ]) {
       await page.setViewportSize(viewport);
       const layout = await page.evaluate(() => {
@@ -76,24 +77,61 @@ test("the Crossroads stylesheet provides a usable desktop and narrow-phone works
         const sidebar = document.querySelector<HTMLElement>(".sidebar");
         const picker = document.querySelector<HTMLElement>(".mobileRoomPicker");
         const conversation = document.querySelector<HTMLElement>(".conversation");
+        const workspace = document.querySelector<HTMLElement>(".workspace");
+        const history = document.querySelector<HTMLElement>(".history");
+        const composer = document.querySelector<HTMLElement>(".composer");
+        const activeRoom = document.querySelector<HTMLElement>(".roomButtonActive");
+        const messages = document.querySelectorAll<HTMLElement>(".message");
         const longMessage = document.querySelectorAll<HTMLElement>(".messageContent")[1];
+        const firstMessage = messages[0];
+        const ownMessage = messages[1];
+        const composerRect = composer?.getBoundingClientRect();
+        const conversationRect = conversation?.getBoundingClientRect();
+        const interactiveControls = Array.from(document.querySelectorAll<HTMLElement>("button, select"))
+          .filter((control) => control.getBoundingClientRect().height > 0);
+        const shortestControl = interactiveControls.reduce((shortest, control) => (
+          control.getBoundingClientRect().height < shortest.getBoundingClientRect().height ? control : shortest
+        ));
         return {
           horizontalOverflow: root.scrollWidth > root.clientWidth || document.body.scrollWidth > root.clientWidth,
+          pageOverflow: root.scrollHeight > root.clientHeight + 1,
+          workspaceBorder: workspace ? getComputedStyle(workspace).borderTopWidth : "0px",
           sidebarDisplay: sidebar ? getComputedStyle(sidebar).display : "missing",
+          sidebarOverflow: sidebar ? getComputedStyle(sidebar).overflowY : "missing",
           pickerDisplay: picker ? getComputedStyle(picker).display : "missing",
+          historyOverflow: history ? getComputedStyle(history).overflowY : "missing",
           conversationWidth: conversation?.getBoundingClientRect().width ?? 0,
+          composerInsideConversation: Boolean(composerRect && conversationRect
+            && composerRect.bottom <= conversationRect.bottom + 1
+            && composerRect.top >= conversationRect.top),
+          opposingMessages: Boolean(firstMessage && ownMessage
+            && firstMessage.getBoundingClientRect().left < ownMessage.getBoundingClientRect().left),
+          bubblesConstrained: Array.from(messages).every((message) => !conversationRect
+            || message.getBoundingClientRect().width <= conversationRect.width * 0.92 + 1),
+          activeHasCurrentLabel: activeRoom?.textContent?.includes("Current") ?? false,
+          shortestControl: shortestControl.getBoundingClientRect().height,
+          shortestControlLabel: shortestControl.textContent?.trim() || shortestControl.tagName,
           messageWithinConversation: Boolean(longMessage && conversation
             && longMessage.getBoundingClientRect().right <= conversation.getBoundingClientRect().right + 1),
         };
       });
       assert.equal(layout.horizontalOverflow, false, `${viewport.mode} layout overflowed horizontally.`);
+      assert.equal(layout.pageOverflow, false, `${viewport.mode} escaped the available viewport.`);
       assert.ok(layout.conversationWidth > 300, `${viewport.mode} conversation became impractically narrow.`);
+      assert.equal(layout.workspaceBorder, "1px", `${viewport.mode} workspace styling was not applied.`);
+      assert.equal(layout.historyOverflow, "auto", `${viewport.mode} history does not scroll independently.`);
+      assert.equal(layout.composerInsideConversation, true, `${viewport.mode} composer escaped the workspace.`);
+      assert.equal(layout.opposingMessages, true, `${viewport.mode} own and incoming messages do not oppose.`);
+      assert.equal(layout.bubblesConstrained, true, `${viewport.mode} message bubbles are not constrained.`);
+      assert.equal(layout.activeHasCurrentLabel, true, `${viewport.mode} active room relies on color alone.`);
       assert.equal(layout.messageWithinConversation, true, `${viewport.mode} long message escaped its panel.`);
-      if (viewport.width <= 720) {
+      if (viewport.width <= 760) {
         assert.equal(layout.sidebarDisplay, "none");
         assert.notEqual(layout.pickerDisplay, "none");
+        assert.ok(layout.shortestControl >= 44, `${viewport.mode} ${layout.shortestControlLabel} is only ${layout.shortestControl}px tall.`);
       } else {
         assert.notEqual(layout.sidebarDisplay, "none");
+        assert.equal(layout.sidebarOverflow, "auto");
         assert.equal(layout.pickerDisplay, "none");
       }
       if (screenshotDirectory) {

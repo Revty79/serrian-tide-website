@@ -122,7 +122,12 @@ function RoomButton({
         <strong>{label}</strong>
         {detail ? <small>{detail}</small> : null}
       </span>
-      {archived ? <span className={styles.archivedBadge}>Archived</span> : null}
+      {active || archived ? (
+        <span className={styles.roomBadges}>
+          {active ? <span className={styles.currentBadge}>Current</span> : null}
+          {archived ? <span className={styles.archivedBadge}>Archived</span> : null}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -714,10 +719,13 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
           <div className={styles.heroCopy}>
             <p className={styles.eyebrow}>Where paths converge</p>
             <h1>The Crossroads</h1>
-            <p>Gather with the Serrian Tide community, continue Campaign conversations, and send private messages.</p>
+            <p>Community, Campaign, and private conversations in one gathering place.</p>
           </div>
           <div className={styles.accountBlock}>
-            <span>Signed in as <strong>{initialBootstrap.displayName}</strong></span>
+            <span className={styles.identityBlock}>
+              <span>Signed in as</span>
+              <strong title={initialBootstrap.displayName}>{initialBootstrap.displayName}</strong>
+            </span>
             <Link href="/access">Return to Paths</Link>
           </div>
         </header>
@@ -783,9 +791,6 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
                   </div>
                 </header>
 
-                {activeRoom.archived ? (
-                  <p className={styles.archivedNotice} role="status">This room is archived. Its history remains available, but new messages cannot be sent.</p>
-                ) : null}
                 {roomError ? <p className={styles.errorNotice} role="alert">{roomError}</p> : null}
 
                 <div ref={historyViewportRef} className={styles.history} aria-live="polite" aria-busy={roomLoadState === "loading"}>
@@ -812,7 +817,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
                           <li
                             key={message.id}
                             data-message-id={message.id}
-                            className={`${styles.message} ${message.isOwn ? styles.ownMessage : ""} ${message.deleted ? styles.deletedMessage : ""}`}
+                            className={`${styles.message} ${message.isOwn ? styles.ownMessage : ""} ${message.deleted ? styles.deletedMessage : ""} ${confirmDeleteId === message.id ? styles.messageConfirming : ""}`}
                             aria-label={message.isOwn ? "Your message" : `Message from ${message.authorName}`}
                           >
                             <div className={styles.messageMeta}>
@@ -872,27 +877,34 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
                 </div>
 
                 {messageError ? <p className={styles.errorNotice} role="alert">{messageError}</p> : null}
-                {!activeRoom.archived && roomLoadState !== "empty" ? (
+                {activeRoom.archived ? (
+                  <div className={styles.archivedComposerNotice} role="status">
+                    <strong>Archived conversation</strong>
+                    <span>History remains available, but this room no longer accepts new messages.</span>
+                  </div>
+                ) : roomLoadState !== "empty" ? (
                   <form className={styles.composer} onSubmit={submitComposer}>
                     <label htmlFor="chat-message">Message {roomMetadata.title}</label>
-                    <textarea
-                      ref={composerRef}
-                      id="chat-message"
-                      value={draft}
-                      onChange={changeDraft}
-                      onKeyDown={composerKeyDown}
-                      maxLength={CHAT_CONTENT_MAX_LENGTH}
-                      rows={3}
-                      disabled={submitting || roomLoadState === "loading"}
-                      aria-describedby="chat-message-guidance chat-message-count chat-composer-error"
-                      placeholder="Write a message…"
-                    />
-                    <div className={styles.composerFooter}>
-                      <span id="chat-message-guidance">Enter sends · Shift+Enter adds a new line</span>
-                      <span id="chat-message-count" className={draft.length === CHAT_CONTENT_MAX_LENGTH ? styles.counterLimit : ""}>{draft.length} / {CHAT_CONTENT_MAX_LENGTH}</span>
+                    <div className={styles.composerInputRow}>
+                      <textarea
+                        ref={composerRef}
+                        id="chat-message"
+                        value={draft}
+                        onChange={changeDraft}
+                        onKeyDown={composerKeyDown}
+                        maxLength={CHAT_CONTENT_MAX_LENGTH}
+                        rows={3}
+                        disabled={submitting || roomLoadState === "loading"}
+                        aria-describedby="chat-message-guidance chat-message-count chat-composer-error"
+                        placeholder="Write a message…"
+                      />
                       <button type="submit" disabled={submitting || roomLoadState !== "ready" || !/\S/u.test(draft)}>
                         {submitting ? "Sending…" : "Send"}
                       </button>
+                    </div>
+                    <div className={styles.composerFooter}>
+                      <span id="chat-message-guidance">Enter sends · Shift+Enter adds a new line</span>
+                      <span id="chat-message-count" className={draft.length === CHAT_CONTENT_MAX_LENGTH ? styles.counterLimit : ""}>{draft.length} / {CHAT_CONTENT_MAX_LENGTH}</span>
                     </div>
                     <p id="chat-composer-error" className={styles.inlineError} role={composerError ? "alert" : undefined}>{composerError ?? ""}</p>
                   </form>
@@ -926,6 +938,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
               </div>
               <button type="button" onClick={closeDirectPanel} aria-label="Close new message panel">Close</button>
             </div>
+            <p className={styles.directIntro}>Find a Serrian Tide User by their visible display name and open a private conversation.</p>
             <form onSubmit={searchDirectUsers} className={styles.directSearchForm}>
               <label htmlFor="direct-user-search">Search visible username</label>
               <div>

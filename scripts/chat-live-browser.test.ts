@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { hashPassword } from "better-auth/crypto";
@@ -37,7 +38,14 @@ const USER_A_ID = `${MARKER}-a`;
 const USER_B_ID = `${MARKER}-b`;
 const USER_C_ID = `${MARKER}-c`;
 const ROLELESS_USER_ID = `${MARKER}-roleless`;
-const SCREENSHOT_DIRECTORY = process.env.CHAT_LIVE_SCREENSHOTS_DIR?.trim() || null;
+const VISUAL_ROOM_SLUG = `${MARKER}-gallery`;
+const EMPTY_ROOM_SLUG = `${MARKER}-empty`;
+const ARCHIVED_ROOM_SLUG = `${MARKER}-archive`;
+const SCREENSHOT_DIRECTORY = resolve(
+  process.env.CHAT_LIVE_SCREENSHOTS_DIR?.trim()
+    || join(tmpdir(), `serrian-crossroads-pass8-evidence-${MARKER}`),
+);
+const evidencePaths: string[] = [];
 
 type Fixture = {
   userAEmail: string;
@@ -46,6 +54,9 @@ type Fixture = {
   rolelessEmail: string;
   campaignId: number;
   campaignSlug: string;
+  visualRoomSlug: string;
+  emptyRoomSlug: string;
+  archivedRoomSlug: string;
 };
 
 async function seedFixture(pool: pg.Pool): Promise<Fixture> {
@@ -79,6 +90,36 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       "insert into user_role (user_id,role) values ($1,'player'),($2,'player'),($3,'player')",
       [USER_A_ID, USER_B_ID, USER_C_ID],
     );
+    const visualRoomId = Number((await client.query<{ id: number }>(
+      `insert into chat_room (slug,name,scope)
+       values ($1,'The Lantern Crossroads','global') returning id`,
+      [VISUAL_ROOM_SLUG],
+    )).rows[0]!.id);
+    const archivedRoomId = Number((await client.query<{ id: number }>(
+      `insert into chat_room (slug,name,scope,is_archived)
+       values ($1,'The Archived Waystone','global',true) returning id`,
+      [ARCHIVED_ROOM_SLUG],
+    )).rows[0]!.id);
+    await client.query(
+      "insert into chat_room (slug,name,scope) values ($1,'The Quiet Crossing','global')",
+      [EMPTY_ROOM_SLUG],
+    );
+    await client.query(
+      `insert into chat_message (room_id,author_user_id,client_request_id,content,created_at)
+       values
+         ($1,$2,$3,'The northern road is clear through moonrise.',now() - interval '8 minutes'),
+         ($1,$4,$5,'Then I will bring the warding lanterns. Meet at the old marker.',now() - interval '6 minutes'),
+         ($6,$2,$7,'This record is preserved for the Campaign archive.',now() - interval '2 days')`,
+      [
+        visualRoomId,
+        USER_B_ID,
+        `${MARKER}-visual-b`,
+        USER_A_ID,
+        `${MARKER}-visual-a`,
+        archivedRoomId,
+        `${MARKER}-archive-a`,
+      ],
+    );
     const campaignId = Number((await client.query<{ id: number }>(`
       insert into campaign (
         name, overview, attribute_points, skill_points, max_starting_skill,
@@ -106,6 +147,9 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       rolelessEmail: accounts[3]!.email,
       campaignId,
       campaignSlug,
+      visualRoomSlug: VISUAL_ROOM_SLUG,
+      emptyRoomSlug: EMPTY_ROOM_SLUG,
+      archivedRoomSlug: ARCHIVED_ROOM_SLUG,
     };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
@@ -124,6 +168,9 @@ async function cleanupFixture(pool: pg.Pool): Promise<void> {
        and id in (select room_id from chat_room_member where user_id = any($1::text[]))`,
     [ids],
   );
+  await pool.query("delete from chat_room where slug = any($1::text[])", [
+    [VISUAL_ROOM_SLUG, EMPTY_ROOM_SLUG, ARCHIVED_ROOM_SLUG],
+  ]);
   await pool.query("delete from campaign where created_by_user_id=$1", [USER_A_ID]);
   await pool.query("delete from \"user\" where id = any($1::text[])", [ids]);
 }
@@ -202,11 +249,43 @@ async function login(context: BrowserContext, email: string): Promise<Page> {
   return page;
 }
 
+async function captureEvidence(page: Page, filename: string): Promise<void> {
+  await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
+  const path = join(SCREENSHOT_DIRECTORY, filename);
+  await page.screenshot({ path, fullPage: false });
+  evidencePaths.push(path);
+}
+
+async function assertDirectPanelFits(page: Page, width: number, height: number, mode: string): Promise<void> {
+  await page.setViewportSize({ width, height });
+  await page.waitForTimeout(100);
+  const layout = await page.getByRole("dialog", { name: "Start a Conversation" }).evaluate((dialog) => {
+    const rect = dialog.getBoundingClientRect();
+    const controls = Array.from(dialog.querySelectorAll<HTMLElement>("button, input"));
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      overflowY: getComputedStyle(dialog).overflowY,
+      shortestControl: Math.min(...controls.map((control) => control.getBoundingClientRect().height)),
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  assert.ok(layout.left >= 0 && layout.right <= width, `${mode} direct-message panel overflowed horizontally.`);
+  assert.ok(layout.top >= 0 && layout.bottom <= height, `${mode} direct-message panel escaped the viewport.`);
+  assert.equal(layout.overflowY, "auto", `${mode} direct-message panel cannot scroll on a short screen.`);
+  assert.equal(layout.pageOverflow, false, `${mode} direct-message panel caused page overflow.`);
+  if (width <= 760) assert.ok(layout.shortestControl >= 44, `${mode} direct-message control is shorter than 44px.`);
+}
+
 async function verifyActualChatLayout(page: Page): Promise<void> {
-  if (SCREENSHOT_DIRECTORY) await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
   for (const viewport of [
     { width: 1440, height: 900, mode: "desktop" },
+    { width: 1024, height: 768, mode: "laptop" },
+    { width: 768, height: 1024, mode: "tablet" },
     { width: 390, height: 844, mode: "mobile" },
+    { width: 360, height: 800, mode: "narrow-mobile" },
   ]) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(150);
@@ -215,22 +294,48 @@ async function verifyActualChatLayout(page: Page): Promise<void> {
       const hero = main?.querySelector<HTMLElement>("header");
       const sidebar = main?.querySelector<HTMLElement>('aside[aria-label="Chat rooms"]');
       const conversation = main?.querySelector<HTMLElement>('section[aria-label="Selected conversation"]');
-      const composer = main?.querySelector<HTMLElement>("form");
+      const history = main?.querySelector<HTMLElement>('[aria-live="polite"][aria-busy]');
+      const composer = main?.querySelector<HTMLTextAreaElement>("#chat-message")?.closest<HTMLElement>("form");
       const picker = main?.querySelector<HTMLElement>('select[id="chat-room-select"]')?.closest("div")?.parentElement;
       const workspace = sidebar?.parentElement;
+      const incoming = main?.querySelector<HTMLElement>('li[aria-label^="Message from"]');
+      const own = main?.querySelector<HTMLElement>('li[aria-label="Your message"]');
+      const liveStatus = main?.querySelector<HTMLElement>('[data-live-status]');
+      const conversationRect = conversation?.getBoundingClientRect();
+      const composerRect = composer?.getBoundingClientRect();
+      const visibleControls = Array.from(main?.querySelectorAll<HTMLElement>("button, select, textarea, a") ?? [])
+        .filter((control) => control.getBoundingClientRect().height > 0);
       return {
         mainClass: main?.className ?? "",
         heroClass: hero?.className ?? "",
         heroBorder: hero ? getComputedStyle(hero).borderTopWidth : "missing",
+        heroHeight: hero?.getBoundingClientRect().height ?? 0,
         workspaceDisplay: workspace ? getComputedStyle(workspace).display : "missing",
         workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : "missing",
+        workspaceHeight: workspace?.getBoundingClientRect().height ?? 0,
         sidebarDisplay: sidebar ? getComputedStyle(sidebar).display : "missing",
+        sidebarOverflow: sidebar ? getComputedStyle(sidebar).overflowY : "missing",
         pickerDisplay: picker ? getComputedStyle(picker).display : "missing",
         workspaceBorder: workspace ? getComputedStyle(workspace).borderTopWidth : "missing",
         conversationWidth: conversation?.getBoundingClientRect().width ?? 0,
         composerBorder: composer ? getComputedStyle(composer).borderTopWidth : "missing",
+        composerVisible: Boolean(composerRect && conversationRect
+          && composerRect.height > 0
+          && composerRect.bottom <= conversationRect.bottom + 1
+          && composerRect.top >= conversationRect.top),
+        historyOverflow: history ? getComputedStyle(history).overflowY : "missing",
+        opposingMessages: Boolean(incoming && own
+          && incoming.getBoundingClientRect().left < own.getBoundingClientRect().left),
+        constrainedMessages: Boolean(incoming && own && conversationRect
+          && incoming.getBoundingClientRect().width <= conversationRect.width * 0.92 + 1
+          && own.getBoundingClientRect().width <= conversationRect.width * 0.92 + 1),
+        currentLabel: main?.querySelector('[aria-current="page"]')?.textContent?.includes("Current") ?? false,
+        liveStatusVisible: Boolean(liveStatus && liveStatus.getBoundingClientRect().height > 0
+          && /Live|Connecting|Reconnecting/.test(liveStatus.textContent ?? "")),
+        shortestControl: Math.min(...visibleControls.map((control) => control.getBoundingClientRect().height)),
         overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
           || document.body.scrollWidth > document.documentElement.clientWidth,
+        pageOverflow: document.documentElement.scrollHeight > document.documentElement.clientHeight + 1,
       };
     });
     assert.notEqual(layout.mainClass, "", `${viewport.mode} Chat CSS module class was empty.`);
@@ -239,23 +344,51 @@ async function verifyActualChatLayout(page: Page): Promise<void> {
     assert.equal(layout.workspaceBorder, "1px", `${viewport.mode} conversation workspace border was not applied.`);
     assert.ok(layout.conversationWidth > 300, `${viewport.mode} conversation panel became impractically narrow.`);
     assert.equal(layout.composerBorder, "1px", `${viewport.mode} composer border was not applied.`);
+    assert.equal(layout.composerVisible, true, `${viewport.mode} composer was not visible inside the workspace.`);
+    assert.equal(layout.historyOverflow, "auto", `${viewport.mode} message history does not scroll independently.`);
+    assert.equal(layout.opposingMessages, true, `${viewport.mode} own and incoming messages do not oppose.`);
+    assert.equal(layout.constrainedMessages, true, `${viewport.mode} message bubbles are not width-constrained.`);
+    assert.equal(layout.currentLabel, true, `${viewport.mode} active room relies on color alone.`);
+    assert.equal(layout.liveStatusVisible, true, `${viewport.mode} live connection status is not visibly labelled.`);
     assert.equal(layout.overflow, false, `${viewport.mode} Chat layout overflowed horizontally.`);
-    if (viewport.mode === "desktop") {
+    assert.equal(layout.pageOverflow, false, `${viewport.mode} Chat layout escaped the viewport.`);
+    assert.ok(layout.workspaceHeight >= viewport.height * 0.6, `${viewport.mode} header left too little room for conversation.`);
+    assert.ok(layout.heroHeight < viewport.height * 0.2, `${viewport.mode} header is disproportionately tall.`);
+    if (viewport.width > 760) {
       assert.equal(layout.workspaceDisplay, "grid");
       assert.notEqual(layout.workspaceColumns, "none");
       assert.notEqual(layout.sidebarDisplay, "none");
+      assert.equal(layout.sidebarOverflow, "auto");
       assert.equal(layout.pickerDisplay, "none");
     } else {
       assert.equal(layout.sidebarDisplay, "none");
       assert.notEqual(layout.pickerDisplay, "none");
+      assert.ok(layout.shortestControl >= 44, `${viewport.mode} contains a touch target shorter than 44px.`);
     }
-    if (SCREENSHOT_DIRECTORY) {
-      await page.screenshot({
-        path: join(SCREENSHOT_DIRECTORY, `crossroads-live-${viewport.width}x${viewport.height}.png`),
-        fullPage: true,
-      });
+    if (viewport.mode === "desktop") {
+      await captureEvidence(page, "01-desktop-global-room.png");
+    } else if (viewport.mode === "mobile") {
+      await captureEvidence(page, "04-mobile-conversation-390x844.png");
+      const picker = page.locator("#chat-room-select").locator("xpath=../..");
+      const path = join(SCREENSHOT_DIRECTORY, "05-mobile-room-selector.png");
+      await picker.screenshot({ path });
+      evidencePaths.push(path);
     }
   }
+  await page.setViewportSize({ width: 720, height: 450 });
+  await page.locator("#chat-message").scrollIntoViewIfNeeded();
+  const zoomEquivalent = await page.evaluate(() => {
+    const composer = document.querySelector<HTMLElement>("#chat-message");
+    const rect = composer?.getBoundingClientRect();
+    return {
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      composerReachable: Boolean(rect && rect.top >= 0 && rect.bottom <= innerHeight),
+      roomPickerVisible: Boolean(document.querySelector<HTMLElement>("#chat-room-select")?.getBoundingClientRect().height),
+    };
+  });
+  assert.equal(zoomEquivalent.horizontalOverflow, false, "200% effective viewport overflowed horizontally.");
+  assert.equal(zoomEquivalent.composerReachable, true, "Composer was not reachable at a 200% effective viewport.");
+  assert.equal(zoomEquivalent.roomPickerVisible, true, "Room selection was lost at a 200% effective viewport.");
   await page.setViewportSize({ width: 1440, height: 900 });
 }
 
@@ -283,6 +416,7 @@ async function main(): Promise<void> {
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
   try {
     const fixture = await seedFixture(pool);
+    await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
     await rm(TEST_DIST_PATH, { recursive: true, force: true });
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)], {
       cwd: process.cwd(),
@@ -312,7 +446,8 @@ async function main(): Promise<void> {
     assert.equal(await rolelessPage.evaluate(async () => (await fetch("/api/chat/live?room=crossroads")).status), 403);
     await rolelessContext.close();
 
-    await Promise.all([pageA.goto(`${BASE_URL}/chat`), pageB.goto(`${BASE_URL}/chat`), pageC.goto(`${BASE_URL}/chat`)]);
+    const visualRoomUrl = `${BASE_URL}/chat?room=${encodeURIComponent(fixture.visualRoomSlug)}`;
+    await Promise.all([pageA.goto(visualRoomUrl), pageB.goto(visualRoomUrl), pageC.goto(visualRoomUrl)]);
     await Promise.all([
       pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
       pageB.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
@@ -320,6 +455,14 @@ async function main(): Promise<void> {
     ]);
     assert.equal(await pageA.evaluate(async () => (await fetch("/api/chat/live?room=missing-room")).status), 404);
     await verifyActualChatLayout(pageA);
+
+    await pageA.locator('aside[aria-label="Chat rooms"]').getByRole("button", { name: "New Message" }).click();
+    await pageA.getByRole("dialog", { name: "Start a Conversation" }).waitFor();
+    await assertDirectPanelFits(pageA, 390, 844, "mobile");
+    await assertDirectPanelFits(pageA, 720, 450, "200% effective viewport");
+    await pageA.setViewportSize({ width: 1440, height: 900 });
+    await captureEvidence(pageA, "06-direct-message-panel.png");
+    await pageA.getByRole("button", { name: "Close new message panel" }).click();
 
     const sharedMessage = `${MARKER} shared message`;
     await submitMessage(pageA, sharedMessage);
@@ -354,6 +497,8 @@ async function main(): Promise<void> {
       campaignMessageForA.waitFor({ timeout: 15_000 }),
       campaignMessageForC.waitFor({ timeout: 15_000 }),
     ]);
+    await pageA.setViewportSize({ width: 1440, height: 900 });
+    await captureEvidence(pageA, "02-desktop-campaign-room.png");
     const campaignMessageId = await campaignMessageForB.getAttribute("data-message-id");
     assert.ok(campaignMessageId, "The Campaign message did not expose its stable message identity.");
     assert.equal(
@@ -365,6 +510,30 @@ async function main(): Promise<void> {
     await campaignMessageForA.getByText("Remove this message as moderator?", { exact: true }).waitFor();
     const moderationReason = campaignMessageForA.getByRole("textbox", { name: "Reason for removal" });
     await moderationReason.fill("  Browser-verified Campaign moderation  ");
+    await captureEvidence(pageA, "07-campaign-moderation-confirmation.png");
+    await pageA.setViewportSize({ width: 390, height: 844 });
+    const mobileModeration = await campaignMessageForA.evaluate((message) => {
+      const conversation = message.closest<HTMLElement>('section[aria-label="Selected conversation"]');
+      const messageRect = message.getBoundingClientRect();
+      const conversationRect = conversation?.getBoundingClientRect();
+      const input = message.querySelector<HTMLElement>("input");
+      const controls = Array.from(message.querySelectorAll<HTMLElement>("button, input"));
+      return {
+        withinConversation: Boolean(conversationRect
+          && messageRect.left >= conversationRect.left
+          && messageRect.right <= conversationRect.right),
+        inputWithinMessage: Boolean(input
+          && input.getBoundingClientRect().left >= messageRect.left
+          && input.getBoundingClientRect().right <= messageRect.right),
+        shortestControl: Math.min(...controls.map((control) => control.getBoundingClientRect().height)),
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+    assert.equal(mobileModeration.withinConversation, true, "Mobile moderation card escaped the conversation.");
+    assert.equal(mobileModeration.inputWithinMessage, true, "Mobile moderation reason overflowed its message card.");
+    assert.ok(mobileModeration.shortestControl >= 44, "Mobile moderation control is shorter than 44px.");
+    assert.equal(mobileModeration.horizontalOverflow, false, "Mobile moderation caused horizontal overflow.");
+    await pageA.setViewportSize({ width: 1440, height: 900 });
     await campaignMessageForA.getByRole("button", { name: "Confirm", exact: true }).click();
     const campaignRedactedForB = pageB.locator(`li[data-message-id="${campaignMessageId}"]`);
     const campaignRedactedForC = pageC.locator(`li[data-message-id="${campaignMessageId}"]`);
@@ -392,7 +561,14 @@ async function main(): Promise<void> {
     await pageC.goto(`${BASE_URL}/chat`);
     await pageC.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 });
     await pool.query("delete from session where user_id=$1", [USER_C_ID]);
-    await pageC.getByRole("button", { name: "Refresh Messages", exact: true }).click();
+    await pageC.waitForTimeout(250);
+    if (new URL(pageC.url()).pathname === "/chat") {
+      try {
+        await pageC.getByRole("button", { name: "Refresh Messages", exact: true }).click();
+      } catch (error) {
+        if (new URL(pageC.url()).pathname !== "/login") throw error;
+      }
+    }
     await pageC.waitForURL((url) => url.pathname === "/login", { timeout: 20_000 });
     assert.equal(await pageC.locator("[data-chat-workspace]").count(), 0);
     assert.equal(await pageC.getByText(sharedMessage, { exact: true }).count(), 0);
@@ -408,6 +584,7 @@ async function main(): Promise<void> {
     await pageA.waitForTimeout(1_100);
     const directMessage = `${MARKER} private room message`;
     await submitMessage(pageA, directMessage);
+    await captureEvidence(pageA, "03-desktop-direct-conversation.png");
     await pageB.waitForTimeout(1_500);
     assert.equal(await pageB.getByText(directMessage, { exact: true }).count(), 0, "An unrelated-room message reached the visible global history.");
 
@@ -418,6 +595,17 @@ async function main(): Promise<void> {
     assert.ok(terminatedConnections.rowCount && terminatedConnections.rowCount >= 2, "The two live browser sessions did not own dedicated PostgreSQL listeners.");
     await pageA.locator('[data-live-status="reconnecting"]').waitFor({ timeout: 15_000 });
     await pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 });
+
+    await pageA.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.emptyRoomSlug)}`);
+    await pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 });
+    await pageA.getByText("No messages yet", { exact: true }).waitFor();
+    await captureEvidence(pageA, "08-empty-conversation.png");
+
+    await pageA.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.archivedRoomSlug)}`);
+    await pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 });
+    await pageA.getByText("Archived conversation", { exact: true }).waitFor();
+    assert.equal(await pageA.locator("#chat-message").count(), 0, "Archived room still exposed the composer.");
+    await captureEvidence(pageA, "09-archived-conversation.png");
 
     await Promise.all([contextA.close(), contextB.close(), contextC.close()]);
     assert.equal(await waitForLiveConnectionCleanup(pool), 0, "SSE PostgreSQL connections remained after browser contexts closed.");
@@ -438,8 +626,11 @@ async function main(): Promise<void> {
         "unrelated-room event isolation",
         "SSE reconnect",
         "dedicated connection cleanup",
-        "desktop and mobile real-route styling",
+        "five-viewport real-route computed styling",
+        "safe fixture-only visual evidence for all requested states",
       ],
+      screenshotDirectory: SCREENSHOT_DIRECTORY,
+      screenshots: evidencePaths,
     }, null, 2));
   } finally {
     await browser?.close().catch(() => undefined);
