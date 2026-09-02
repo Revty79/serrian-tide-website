@@ -36,12 +36,14 @@ import {
   type ChatHistoryPage,
   type ChatMessageDto,
   type ChatRoomDirectory,
+  type ChatWorkspaceBootstrap,
   type DeleteChatMessageInput,
   type DirectConversation,
   type DirectMessageUserSearchResult,
   type PostChatMessageInput,
   type PostChatMessageResult,
 } from "./chat";
+import { selectInitialChatRoomSlug } from "./chat-interface";
 
 export type ChatTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -96,6 +98,7 @@ function toMessageDto(
     createdAt: row.createdAt.toISOString(),
     deleted,
     canDelete: !deleted && mayDeleteChatMessage(actor, row.authorUserId),
+    isOwn: actor.userId === row.authorUserId,
   };
 }
 
@@ -700,4 +703,32 @@ export function searchDirectMessageUsers(
   search: unknown,
 ): Promise<DirectMessageUserSearchResult[]> {
   return db.transaction((tx) => searchDirectMessageUsersInTransaction(tx, actorUserId, search));
+}
+
+export async function getChatWorkspaceBootstrapInTransaction(
+  tx: ChatTransaction,
+  actorUserId: string,
+  requestedRoomSlug: string | null,
+): Promise<ChatWorkspaceBootstrap> {
+  const actor = await resolveChatActor(tx, actorUserId, false);
+  const directory = await listAccessibleChatRoomsInTransaction(tx, actorUserId);
+  const selectedRoomSlug = selectInitialChatRoomSlug(directory, requestedRoomSlug);
+  const history = selectedRoomSlug
+    ? await loadChatHistoryInTransaction(tx, actorUserId, { roomSlug: selectedRoomSlug })
+    : null;
+  return {
+    displayName: actor.displayName,
+    directory,
+    selectedRoomSlug,
+    history,
+  };
+}
+
+export function getChatWorkspaceBootstrap(
+  actorUserId: string,
+  requestedRoomSlug: string | null,
+): Promise<ChatWorkspaceBootstrap> {
+  return db.transaction((tx) => (
+    getChatWorkspaceBootstrapInTransaction(tx, actorUserId, requestedRoomSlug)
+  ));
 }

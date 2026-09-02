@@ -106,6 +106,14 @@ export type ChatMessageDto = {
   createdAt: string;
   deleted: boolean;
   canDelete: boolean;
+  isOwn: boolean;
+};
+
+export type ChatWorkspaceBootstrap = {
+  displayName: string;
+  directory: ChatRoomDirectory;
+  selectedRoomSlug: string | null;
+  history: ChatHistoryPage | null;
 };
 
 export type ChatHistoryPage = {

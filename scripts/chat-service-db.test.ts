@@ -11,6 +11,7 @@ import { pool as applicationPool } from "@/db";
 import { ChatError } from "@/features/chat/chat";
 import {
   deleteChatMessageInTransaction,
+  getChatWorkspaceBootstrapInTransaction,
   getOrCreateDirectConversationInTransaction,
   listAccessibleChatRoomsInTransaction,
   loadChatHistoryInTransaction,
@@ -242,6 +243,20 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
     }
   });
 
+  await t.test("the page bootstrap uses the current visible identity and only directory-authorized selection", async () => {
+    const selected = await withChatTransaction((tx) => (
+      getChatWorkspaceBootstrapInTransaction(tx, ids.author, "campaign-room")
+    ));
+    assert.equal(selected.displayName, "Visible Author");
+    assert.equal(selected.selectedRoomSlug, "crossroads");
+    assert.equal(selected.history?.room.slug, "crossroads");
+    const campaignSelected = await withChatTransaction((tx) => (
+      getChatWorkspaceBootstrapInTransaction(tx, ids.member, "campaign-room")
+    ));
+    assert.equal(campaignSelected.selectedRoomSlug, "campaign-room");
+    assert.equal(campaignSelected.history?.room.scope, "campaign");
+  });
+
   await t.test("Campaign creator and member access succeeds while an unrelated user learns nothing", async () => {
     assert.equal((await load(ids.creator, "campaign-room")).room.scope, "campaign");
     assert.equal((await load(ids.member, "campaign-room")).room.scope, "campaign");
@@ -262,8 +277,15 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
     assert.equal(result.created, true);
     assert.equal(result.message.authorName, "Visible Author");
     assert.equal(result.message.content, content);
+    assert.equal(result.message.isOwn, true);
     assert.equal("email" in result.message, false);
     assert.equal("authorUserId" in result.message, false);
+    const otherView = (await load(ids.other)).messages.find(({ id }) => id === result.message.id)!;
+    assert.equal(otherView.isOwn, false);
+    assert.equal(otherView.canDelete, false);
+    const adminView = (await load(ids.admin)).messages.find(({ id }) => id === result.message.id)!;
+    assert.equal(adminView.isOwn, false);
+    assert.equal(adminView.canDelete, true);
     const persisted = await setupQuery(
       "select author_user_id,content,status from chat_message where id=$1",
       [result.message.id],
