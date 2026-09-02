@@ -184,11 +184,20 @@ test("malformed or incomplete history cursors fail closed", () => {
   ]) expectChatError(() => decodeChatCursor(invalid), "INVALID_INPUT");
 });
 
-test("only the author or an Admin may delete a message", () => {
-  assert.equal(mayDeleteChatMessage(actor("author", ["player"]), "author"), true);
-  assert.equal(mayDeleteChatMessage(actor("admin", ["admin"]), "author"), true);
-  assert.equal(mayDeleteChatMessage(actor("god", ["god"]), "author"), false);
-  assert.equal(mayDeleteChatMessage(actor("other", ["player"]), "author"), false);
+test("message deletion follows the exact room-scoped moderation matrix", () => {
+  const globalRoom = { scope: "global" as const, campaignCreatorUserId: null };
+  const campaignRoom = { scope: "campaign" as const, campaignCreatorUserId: "creator" };
+  const directRoom = { scope: "direct" as const, campaignCreatorUserId: null };
+
+  for (const room of [globalRoom, campaignRoom, directRoom]) {
+    assert.equal(mayDeleteChatMessage(actor("author", ["player"]), room, "author"), true);
+  }
+  assert.equal(mayDeleteChatMessage(actor("admin", ["admin"]), globalRoom, "author"), true);
+  assert.equal(mayDeleteChatMessage(actor("admin", ["admin"]), campaignRoom, "author"), false);
+  assert.equal(mayDeleteChatMessage(actor("admin", ["admin"]), directRoom, "author"), false);
+  assert.equal(mayDeleteChatMessage(actor("creator", ["god"]), campaignRoom, "author"), true);
+  assert.equal(mayDeleteChatMessage(actor("god", ["god"]), globalRoom, "author"), false);
+  assert.equal(mayDeleteChatMessage(actor("member", ["player"]), campaignRoom, "author"), false);
 });
 
 test("future server actions authenticate centrally, expose narrow inputs, and avoid forbidden runtime behavior", () => {

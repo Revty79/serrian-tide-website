@@ -18,6 +18,8 @@ const domain = source("src/features/chat/chat.ts");
 const liveEvents = source("src/features/chat/chat-live-events.ts");
 const liveRoute = source("src/app/api/chat/live/route.ts");
 const liveConnection = source("src/features/chat/chat-live-connection.tsx");
+const roleActions = source("src/app/admin/users/actions.ts");
+const roleService = source("src/features/authorization/user-role-service.ts");
 
 test("the role-neutral Chat page authenticates on the server and loads only a directory-authorized bootstrap", () => {
   assert.match(page, /const session = await requireSession\(\)/);
@@ -71,8 +73,11 @@ test("history paging, posting, and deletion use tested reconciliation instead of
   assert.match(workspace, /reconcileDeletedChatMessage\(current, result\.data\)/);
   assert.match(workspace, /getBoundingClientRect\(\)\.top/);
   assert.match(workspace, /Load Older Messages/);
-  assert.match(workspace, /Remove this message\?/);
-  assert.doesNotMatch(workspace, /deletionReason|reason:/);
+  assert.match(workspace, /Delete your message\?/);
+  assert.match(workspace, /Remove this message as moderator\?/);
+  assert.match(workspace, /reason: message\.isOwn \? undefined : moderationReason/);
+  assert.match(workspace, /maxLength=\{CHAT_DELETION_REASON_MAX_LENGTH\}/);
+  assert.doesNotMatch(workspace, /deletionReason|deletedByUserId|campaignCreatorUserId/);
 });
 
 test("the composer preserves exact content and enforces the cryptographic retry identity lifecycle", () => {
@@ -109,4 +114,34 @@ test("the interface retains manual refresh and responsiveness around the approve
   assert.match(liveRoute, /LISTEN/);
   assert.doesNotMatch(`${workspace}\n${liveConnection}`, /setInterval|WebSocket|\bpoll(?:ing)?\b/i);
   assert.doesNotMatch(`${page}\n${actions}`, /EventSource|LISTEN|NOTIFY|pg_notify/i);
+});
+
+test("terminal authorization failures clear Chat state before navigation and every Chat action uses the shared handler", () => {
+  assert.match(workspace, /function clearChatStateForTerminalAuthorization/);
+  assert.match(workspace, /setDirectory\(\{ globalRooms: \[\], campaignRooms: \[\], directConversations: \[\] \}\)/);
+  assert.match(workspace, /setMessages\(\[\]\)/);
+  assert.match(workspace, /setTerminalDestination\(destination\)[\s\S]*router\.replace\(destination\)/);
+  assert.match(workspace, /terminalDestination[\s\S]*authorizationLoss/);
+  assert.ok(
+    (workspace.match(/handleTerminalAuthorizationError\(/g) ?? []).length >= 12,
+    "Every Chat operation should route terminal authorization failures through the shared handler.",
+  );
+  assert.match(workspace, /terminalDestination === "\/login"/);
+  assert.match(workspace, /"\/access"/);
+});
+
+test("role changes are transactional and publish only generic committed directory invalidations", () => {
+  assert.match(roleActions, /db\.transaction\(\(tx\) => setUserRoleInTransaction/);
+  assert.doesNotMatch(roleActions, /\.insert\(userRole\)|\.delete\(userRole\)/);
+  assert.match(roleService, /onConflictDoNothing\(\)[\s\S]*returning/);
+  assert.match(roleService, /if \(changedRows\.length > 0\)[\s\S]*publishChatDirectoryInvalidationInTransaction\(tx\)/);
+  assert.match(roleService, /You cannot remove your own administrator access/);
+});
+
+test("room authorization is asserted once before room-scoped moderation", () => {
+  const start = service.indexOf("async function resolveAuthorizedRoom");
+  const end = service.indexOf("async function findRequestMessage", start);
+  const resolver = service.slice(start, end);
+  assert.equal((resolver.match(/assertChatRoomAccess\(actor, room\)/g) ?? []).length, 1);
+  assert.match(service, /for\("update", \{ of: chatMessage \}\)[\s\S]*mayDeleteChatMessage\(actor, room, message\.authorUserId\)/);
 });

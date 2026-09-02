@@ -27,6 +27,7 @@ import {
 } from "./actions";
 import {
   CHAT_CONTENT_MAX_LENGTH,
+  CHAT_DELETION_REASON_MAX_LENGTH,
   type ChatMessageDto,
   type ChatRoomDirectory,
   type ChatWorkspaceBootstrap,
@@ -46,6 +47,7 @@ import {
   reconcileLiveChatMessage,
   reconcilePostedChatMessage,
   retainChatSubmissionIdentityAfterDraftChange,
+  terminalChatDestination,
   type ChatRoomLoadToken,
   type ChatSubmissionIdentity,
 } from "@/features/chat/chat-interface";
@@ -148,6 +150,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
   const [submitting, setSubmitting] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [moderationReason, setModerationReason] = useState("");
   const [deletingMessageId, setDeletingMessageId] = useState<number | null>(null);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [directPanelOpen, setDirectPanelOpen] = useState(false);
@@ -156,6 +159,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
   const [directSearching, setDirectSearching] = useState(false);
   const [directOpeningUserId, setDirectOpeningUserId] = useState<string | null>(null);
   const [directError, setDirectError] = useState<string | null>(null);
+  const [terminalDestination, setTerminalDestination] = useState<"/login" | "/access" | null>(null);
 
   const activeRoomSlugRef = useRef(activeRoomSlug);
   const loadSequenceRef = useRef(0);
@@ -195,6 +199,48 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     return !viewport || isChatViewportNearNewest(viewport);
   }
 
+  function clearChatStateForTerminalAuthorization(destination: "/login" | "/access") {
+    const sequence = ++loadSequenceRef.current;
+    activeRoomSlugRef.current = null;
+    activeLoadTokenRef.current = { roomSlug: "", sequence };
+    sendingRef.current = false;
+    draftRef.current = "";
+    submissionIdentityRef.current = null;
+    setDirectory({ globalRooms: [], campaignRooms: [], directConversations: [] });
+    setActiveRoomSlug(null);
+    setMessages([]);
+    setHasOlder(false);
+    setOlderCursor(null);
+    setRoomLoadState("empty");
+    setRoomError(null);
+    setWorkspaceNotice(null);
+    setRefreshing(false);
+    setLoadingOlder(false);
+    setDraft("");
+    setSubmitting(false);
+    setComposerError(null);
+    setConfirmDeleteId(null);
+    setModerationReason("");
+    setDeletingMessageId(null);
+    setMessageError(null);
+    setDirectPanelOpen(false);
+    setDirectSearch("");
+    setDirectResults(null);
+    setDirectSearching(false);
+    setDirectOpeningUserId(null);
+    setDirectError(null);
+    setTerminalDestination(destination);
+    router.replace(destination);
+    router.refresh();
+  }
+
+  function handleTerminalAuthorizationError(error: ChatActionError): boolean {
+    const destination = terminalChatDestination(error.code);
+    if (!destination) return false;
+    clearChatStateForTerminalAuthorization(destination);
+    return true;
+  }
+
   function updateRoomUrl(roomSlug: string) {
     router.replace(`/chat?room=${encodeURIComponent(roomSlug)}`, { scroll: false });
   }
@@ -217,10 +263,12 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setMessageError(null);
     setComposerError(null);
     setConfirmDeleteId(null);
+    setModerationReason("");
     setRoomLoadState("loading");
     updateRoomUrl(roomSlug);
 
     const result = await loadChatHistoryAction({ roomSlug });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (!isCurrentChatRoomLoad(activeRoomSlugRef.current, activeLoadTokenRef.current, token)) return;
     if (!result.ok) {
       setRoomLoadState("error");
@@ -246,6 +294,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
 
   async function refreshDirectoryAfterRoomChange(previousRoomSlug: string) {
     const result = await listAccessibleChatRoomsAction();
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (!result.ok || activeRoomSlugRef.current !== previousRoomSlug) return;
     setDirectory(result.data);
     const nextRoomSlug = preserveChatRoomSelection(result.data, previousRoomSlug);
@@ -265,6 +314,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
   async function reconcileNewestHistoryFromLive(roomSlug: string) {
     if (activeRoomSlugRef.current !== roomSlug) return;
     const result = await loadChatHistoryAction({ roomSlug });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (activeRoomSlugRef.current !== roomSlug) return;
     if (!result.ok) {
       if (result.error.code === "ROOM_UNAVAILABLE") {
@@ -285,6 +335,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
   async function reconcileExactMessageFromLive(roomSlug: string, messageId: number) {
     if (activeRoomSlugRef.current !== roomSlug) return;
     const result = await loadChatMessageAction({ roomSlug, messageId });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (activeRoomSlugRef.current !== roomSlug) return;
     if (!result.ok) {
       if (result.error.code === "ROOM_UNAVAILABLE") {
@@ -294,6 +345,10 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     }
     if (result.data.room.slug !== roomSlug) return;
     const followNewest = readerIsNearNewest();
+    if (result.data.id === confirmDeleteId && (result.data.deleted || !result.data.canDelete)) {
+      setConfirmDeleteId(null);
+      setModerationReason("");
+    }
     setMessages((current) => reconcileLiveChatMessage(current, result.data));
     if (followNewest) scrollToNewest();
   }
@@ -320,9 +375,11 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setMessageError(null);
     setComposerError(null);
     setConfirmDeleteId(null);
+    setModerationReason("");
     setRoomLoadState("loading");
     updateRoomUrl(roomSlug);
     const result = await loadChatHistoryAction({ roomSlug });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (!isCurrentChatRoomLoad(activeRoomSlugRef.current, activeLoadTokenRef.current, token)) return;
     if (!result.ok) {
       setRoomLoadState("error");
@@ -353,6 +410,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setRefreshing(true);
     setRoomError(null);
     const result = await loadChatHistoryAction({ roomSlug });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (!isCurrentChatRoomLoad(activeRoomSlugRef.current, activeLoadTokenRef.current, token)) return;
     setRefreshing(false);
     if (!result.ok) {
@@ -386,6 +444,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setLoadingOlder(true);
     setRoomError(null);
     const result = await loadOlderChatMessagesAction({ roomSlug, cursor: olderCursor });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (activeRoomSlugRef.current !== roomSlug) return;
     setLoadingOlder(false);
     if (!result.ok) {
@@ -451,6 +510,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     });
     sendingRef.current = false;
     setSubmitting(false);
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (activeRoomSlugRef.current !== roomSlug) return;
     if (!result.ok) {
       setComposerError(actionErrorMessage(result.error));
@@ -479,12 +539,28 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     }
   }
 
+  function beginDeleteConfirmation(messageId: number) {
+    setConfirmDeleteId(messageId);
+    setModerationReason("");
+    setMessageError(null);
+  }
+
+  function cancelDeleteConfirmation() {
+    setConfirmDeleteId(null);
+    setModerationReason("");
+  }
+
   async function deleteMessage(message: ChatMessageDto) {
     const roomSlug = activeRoomSlugRef.current;
     if (!roomSlug || deletingMessageId !== null) return;
     setDeletingMessageId(message.id);
     setMessageError(null);
-    const result = await deleteChatMessageAction({ roomSlug, messageId: message.id });
+    const result = await deleteChatMessageAction({
+      roomSlug,
+      messageId: message.id,
+      reason: message.isOwn ? undefined : moderationReason,
+    });
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (activeRoomSlugRef.current !== roomSlug) return;
     setDeletingMessageId(null);
     if (!result.ok) {
@@ -493,6 +569,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     }
     setMessages((current) => reconcileDeletedChatMessage(current, result.data));
     setConfirmDeleteId(null);
+    setModerationReason("");
   }
 
   function openDirectPanel(event: MouseEvent<HTMLButtonElement>) {
@@ -521,6 +598,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setDirectError(null);
     const result = await searchDirectMessageUsersAction({ search });
     setDirectSearching(false);
+    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
     if (!result.ok) {
       setDirectResults(null);
       setDirectError(actionErrorMessage(result.error));
@@ -534,6 +612,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setDirectOpeningUserId(resultUser.userId);
     setDirectError(null);
     const conversation = await getOrCreateDirectConversationAction({ targetUserId: resultUser.userId });
+    if (!conversation.ok && handleTerminalAuthorizationError(conversation.error)) return;
     if (!conversation.ok) {
       setDirectOpeningUserId(null);
       setDirectError(actionErrorMessage(conversation.error));
@@ -541,6 +620,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     }
     const refreshed = await listAccessibleChatRoomsAction();
     setDirectOpeningUserId(null);
+    if (!refreshed.ok && handleTerminalAuthorizationError(refreshed.error)) return;
     if (!refreshed.ok) {
       setDirectError(actionErrorMessage(refreshed.error));
       return;
@@ -555,6 +635,24 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setDirectSearch("");
     setWorkspaceNotice(null);
     await openAuthorizedRoomFromDirectory(conversation.data.slug, refreshed.data, true);
+  }
+
+  if (terminalDestination) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <section className={styles.authorizationLoss} role="alert" aria-live="assertive">
+            <p className={styles.eyebrow}>Crossroads access changed</p>
+            <h1>{terminalDestination === "/login" ? "Sign-in required" : "Access no longer available"}</h1>
+            <p>
+              {terminalDestination === "/login"
+                ? "Your session is no longer active. Redirecting to sign in."
+                : "Your current role no longer permits Chat access. Redirecting to the access page."}
+            </p>
+          </section>
+        </div>
+      </main>
+    );
   }
 
   const roomGroups = (
@@ -729,15 +827,40 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
                             {message.canDelete && !message.deleted ? (
                               <div className={styles.messageActions}>
                                 {confirmDeleteId === message.id ? (
-                                  <span className={styles.deleteConfirm}>
-                                    <span>Remove this message?</span>
-                                    <button type="button" onClick={() => void deleteMessage(message)} disabled={deletingMessageId !== null}>
-                                      {deletingMessageId === message.id ? "Removing…" : "Confirm"}
-                                    </button>
-                                    <button type="button" onClick={() => setConfirmDeleteId(null)} disabled={deletingMessageId !== null}>Cancel</button>
-                                  </span>
+                                  <div className={styles.deleteConfirm}>
+                                    <strong>{message.isOwn ? "Delete your message?" : "Remove this message as moderator?"}</strong>
+                                    {!message.isOwn ? (
+                                      <label className={styles.moderationReason}>
+                                        <span>Reason for removal</span>
+                                        <input
+                                          type="text"
+                                          value={moderationReason}
+                                          onChange={(event) => setModerationReason(event.target.value)}
+                                          maxLength={CHAT_DELETION_REASON_MAX_LENGTH}
+                                          disabled={deletingMessageId !== null}
+                                          aria-describedby={`moderation-reason-${message.id}`}
+                                          autoFocus
+                                        />
+                                        <small id={`moderation-reason-${message.id}`}>
+                                          Required · {moderationReason.length} / {CHAT_DELETION_REASON_MAX_LENGTH}
+                                        </small>
+                                      </label>
+                                    ) : null}
+                                    <span className={styles.deleteConfirmButtons}>
+                                      <button
+                                        type="button"
+                                        onClick={() => void deleteMessage(message)}
+                                        disabled={deletingMessageId !== null || (!message.isOwn && !moderationReason.trim())}
+                                      >
+                                        {deletingMessageId === message.id ? "Removing…" : "Confirm"}
+                                      </button>
+                                      <button type="button" onClick={cancelDeleteConfirmation} disabled={deletingMessageId !== null}>Cancel</button>
+                                    </span>
+                                  </div>
                                 ) : (
-                                  <button type="button" onClick={() => setConfirmDeleteId(message.id)}>Delete</button>
+                                  <button type="button" onClick={() => beginDeleteConfirmation(message.id)}>
+                                    {message.isOwn ? "Delete" : "Remove"}
+                                  </button>
                                 )}
                               </div>
                             ) : null}

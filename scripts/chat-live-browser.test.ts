@@ -8,6 +8,8 @@ import dotenv from "dotenv";
 import pg from "pg";
 import { chromium, type BrowserContext, type Page } from "playwright-core";
 
+import { CHAT_LIVE_CHANNEL } from "@/features/chat/chat-live-events";
+
 dotenv.config({ path: ".env.local", quiet: true });
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required for the Chat live browser test.");
@@ -33,13 +35,17 @@ const PASSWORD = "Crossroads-Live-Browser-Only!";
 const MARKER = `crossroads-live-${Date.now()}`;
 const USER_A_ID = `${MARKER}-a`;
 const USER_B_ID = `${MARKER}-b`;
+const USER_C_ID = `${MARKER}-c`;
 const ROLELESS_USER_ID = `${MARKER}-roleless`;
 const SCREENSHOT_DIRECTORY = process.env.CHAT_LIVE_SCREENSHOTS_DIR?.trim() || null;
 
 type Fixture = {
   userAEmail: string;
   userBEmail: string;
+  userCEmail: string;
   rolelessEmail: string;
+  campaignId: number;
+  campaignSlug: string;
 };
 
 async function seedFixture(pool: pg.Pool): Promise<Fixture> {
@@ -50,6 +56,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     const accounts = [
       { id: USER_A_ID, name: "Crossroads Live A", displayName: "Live Browser A" },
       { id: USER_B_ID, name: "Crossroads Live B", displayName: "Live Browser B" },
+      { id: USER_C_ID, name: "Crossroads Live C", displayName: "Live Browser C" },
       { id: ROLELESS_USER_ID, name: "Crossroads Roleless", displayName: "Live Browser Roleless" },
     ].map((account) => ({
       ...account,
@@ -69,14 +76,36 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       );
     }
     await client.query(
-      "insert into user_role (user_id,role) values ($1,'player'),($2,'player')",
-      [USER_A_ID, USER_B_ID],
+      "insert into user_role (user_id,role) values ($1,'player'),($2,'player'),($3,'player')",
+      [USER_A_ID, USER_B_ID, USER_C_ID],
+    );
+    const campaignId = Number((await client.query<{ id: number }>(`
+      insert into campaign (
+        name, overview, attribute_points, skill_points, max_starting_skill,
+        points_to_unlock_next_tier, max_points_in_skill, starting_credit_amount,
+        currency_system, fate_point_method, assigned_fate_points, created_by_user_id
+      ) values (
+        'Crossroads Live Campaign', '', 150, 50, 50,
+        10, 100, 1000, 'Credits', 'Assigned', 3, $1
+      ) returning id
+    `, [USER_A_ID])).rows[0]!.id);
+    await client.query(
+      "insert into campaign_player (campaign_id,user_id) values ($1,$2),($1,$3)",
+      [campaignId, USER_B_ID, USER_C_ID],
+    );
+    const campaignSlug = `campaign-${campaignId}-general`;
+    await client.query(
+      "insert into chat_room (slug,name,scope,campaign_id) values ($1,'Crossroads Live Campaign Chat','campaign',$2)",
+      [campaignSlug, campaignId],
     );
     await client.query("commit");
     return {
       userAEmail: accounts[0]!.email,
       userBEmail: accounts[1]!.email,
-      rolelessEmail: accounts[2]!.email,
+      userCEmail: accounts[2]!.email,
+      rolelessEmail: accounts[3]!.email,
+      campaignId,
+      campaignSlug,
     };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
@@ -87,7 +116,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
 }
 
 async function cleanupFixture(pool: pg.Pool): Promise<void> {
-  const ids = [USER_A_ID, USER_B_ID, ROLELESS_USER_ID];
+  const ids = [USER_A_ID, USER_B_ID, USER_C_ID, ROLELESS_USER_ID];
   await pool.query("delete from chat_message where author_user_id = any($1::text[]) or deleted_by_user_id = any($1::text[])", [ids]);
   await pool.query(
     `delete from chat_room
@@ -95,7 +124,43 @@ async function cleanupFixture(pool: pg.Pool): Promise<void> {
        and id in (select room_id from chat_room_member where user_id = any($1::text[]))`,
     [ids],
   );
+  await pool.query("delete from campaign where created_by_user_id=$1", [USER_A_ID]);
   await pool.query("delete from \"user\" where id = any($1::text[])", [ids]);
+}
+
+async function removeCampaignMembershipAndNotify(pool: pg.Pool, campaignId: number, userId: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const removed = await client.query(
+      "delete from campaign_player where campaign_id=$1 and user_id=$2 returning user_id",
+      [campaignId, userId],
+    );
+    assert.equal(removed.rowCount, 1, "Expected one Campaign membership to be removed.");
+    await client.query("select pg_notify($1,$2)", [CHAT_LIVE_CHANNEL, JSON.stringify({ category: "directory" })]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function removeFinalRoleAndNotify(pool: pg.Pool, userId: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const removed = await client.query("delete from user_role where user_id=$1 returning role", [userId]);
+    assert.equal(removed.rowCount, 1, "Expected one final Serrian role to be removed.");
+    await client.query("select pg_notify($1,$2)", [CHAT_LIVE_CHANNEL, JSON.stringify({ category: "directory" })]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function waitForServer(server: ChildProcess): Promise<void> {
@@ -238,17 +303,20 @@ async function main(): Promise<void> {
     browser = await chromium.launch({ executablePath: CHROME, headless: true });
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
+    const contextC = await browser.newContext();
     const rolelessContext = await browser.newContext();
     const pageA = await login(contextA, fixture.userAEmail);
     const pageB = await login(contextB, fixture.userBEmail);
+    const pageC = await login(contextC, fixture.userCEmail);
     const rolelessPage = await login(rolelessContext, fixture.rolelessEmail);
     assert.equal(await rolelessPage.evaluate(async () => (await fetch("/api/chat/live?room=crossroads")).status), 403);
     await rolelessContext.close();
 
-    await Promise.all([pageA.goto(`${BASE_URL}/chat`), pageB.goto(`${BASE_URL}/chat`)]);
+    await Promise.all([pageA.goto(`${BASE_URL}/chat`), pageB.goto(`${BASE_URL}/chat`), pageC.goto(`${BASE_URL}/chat`)]);
     await Promise.all([
       pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
       pageB.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
+      pageC.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
     ]);
     assert.equal(await pageA.evaluate(async () => (await fetch("/api/chat/live?room=missing-room")).status), 404);
     await verifyActualChatLayout(pageA);
@@ -266,6 +334,68 @@ async function main(): Promise<void> {
     const redactedForB = pageB.locator(`li[data-message-id="${sharedMessageId}"]`);
     await redactedForB.getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
     assert.equal((await redactedForB.innerText()).includes(sharedMessage), false);
+
+    await Promise.all([
+      pageA.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.campaignSlug)}`),
+      pageB.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.campaignSlug)}`),
+      pageC.goto(`${BASE_URL}/chat?room=${encodeURIComponent(fixture.campaignSlug)}`),
+    ]);
+    await Promise.all([
+      pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
+      pageB.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
+      pageC.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 }),
+    ]);
+    const campaignMessage = `${MARKER} Campaign Player message`;
+    await submitMessage(pageB, campaignMessage);
+    const campaignMessageForA = pageA.locator("li", { hasText: campaignMessage });
+    const campaignMessageForB = pageB.locator("li", { hasText: campaignMessage });
+    const campaignMessageForC = pageC.locator("li", { hasText: campaignMessage });
+    await Promise.all([
+      campaignMessageForA.waitFor({ timeout: 15_000 }),
+      campaignMessageForC.waitFor({ timeout: 15_000 }),
+    ]);
+    const campaignMessageId = await campaignMessageForB.getAttribute("data-message-id");
+    assert.ok(campaignMessageId, "The Campaign message did not expose its stable message identity.");
+    assert.equal(
+      await campaignMessageForC.getByRole("button", { name: /^(Delete|Remove)$/ }).count(),
+      0,
+      "An ordinary Campaign Player received moderation controls for another User's message.",
+    );
+    await campaignMessageForA.getByRole("button", { name: "Remove", exact: true }).click();
+    await campaignMessageForA.getByText("Remove this message as moderator?", { exact: true }).waitFor();
+    const moderationReason = campaignMessageForA.getByRole("textbox", { name: "Reason for removal" });
+    await moderationReason.fill("  Browser-verified Campaign moderation  ");
+    await campaignMessageForA.getByRole("button", { name: "Confirm", exact: true }).click();
+    const campaignRedactedForB = pageB.locator(`li[data-message-id="${campaignMessageId}"]`);
+    const campaignRedactedForC = pageC.locator(`li[data-message-id="${campaignMessageId}"]`);
+    await campaignRedactedForB.getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
+    await campaignRedactedForC.getByText("Message removed", { exact: true }).waitFor({ timeout: 15_000 });
+    assert.equal((await campaignRedactedForB.innerText()).includes(campaignMessage), false);
+
+    await removeCampaignMembershipAndNotify(pool, fixture.campaignId, USER_B_ID);
+    await pageB.waitForURL((url) => (
+      url.pathname === "/chat" && url.searchParams.get("room") === "crossroads"
+    ), { timeout: 20_000 });
+    await pageB
+      .getByRole("region", { name: "Selected conversation" })
+      .getByRole("heading", { name: "The Crossroads", exact: true })
+      .waitFor();
+    assert.equal(await pageB.locator(`option[value="${fixture.campaignSlug}"]`).count(), 0);
+    assert.equal(await pageB.getByText(campaignMessage, { exact: true }).count(), 0);
+
+    await removeFinalRoleAndNotify(pool, USER_C_ID);
+    await pageC.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
+    assert.equal(await pageC.locator("[data-chat-workspace]").count(), 0);
+    assert.equal(await pageC.getByText(campaignMessage, { exact: true }).count(), 0);
+
+    await pool.query("insert into user_role (user_id,role) values ($1,'player')", [USER_C_ID]);
+    await pageC.goto(`${BASE_URL}/chat`);
+    await pageC.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 });
+    await pool.query("delete from session where user_id=$1", [USER_C_ID]);
+    await pageC.getByRole("button", { name: "Refresh Messages", exact: true }).click();
+    await pageC.waitForURL((url) => url.pathname === "/login", { timeout: 20_000 });
+    assert.equal(await pageC.locator("[data-chat-workspace]").count(), 0);
+    assert.equal(await pageC.getByText(sharedMessage, { exact: true }).count(), 0);
 
     await pageA.getByRole("button", { name: "New Message" }).click();
     await pageA.locator("#direct-user-search").fill("Live Browser B");
@@ -289,7 +419,7 @@ async function main(): Promise<void> {
     await pageA.locator('[data-live-status="reconnecting"]').waitFor({ timeout: 15_000 });
     await pageA.locator('[data-live-status="live"]').waitFor({ timeout: 20_000 });
 
-    await Promise.all([contextA.close(), contextB.close()]);
+    await Promise.all([contextA.close(), contextB.close(), contextC.close()]);
     assert.equal(await waitForLiveConnectionCleanup(pool), 0, "SSE PostgreSQL connections remained after browser contexts closed.");
 
     console.log(JSON.stringify({
@@ -299,6 +429,11 @@ async function main(): Promise<void> {
         "authorized room SSE",
         "two-session live post",
         "two-session live deletion redaction",
+        "Campaign creator moderation with required reason",
+        "ordinary Campaign Player moderation denial",
+        "Campaign membership live fallback without retained room data",
+        "final-role revocation clears Chat and redirects to access",
+        "expired session clears Chat and redirects to login",
         "live direct-room directory refresh",
         "unrelated-room event isolation",
         "SSE reconnect",

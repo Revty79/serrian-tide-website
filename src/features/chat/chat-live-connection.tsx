@@ -33,11 +33,13 @@ export function ChatLiveConnection({
     const generation = ++generationRef.current;
     const pendingMessageIds = new Set<number>();
     let directoryPending = false;
+    let accessCheckRequested = false;
     const source = new EventSource(`/api/chat/live?room=${encodeURIComponent(roomSlug)}`);
     const isCurrent = () => generationRef.current === generation;
 
     const handleReady = () => {
       if (!isCurrent()) return;
+      accessCheckRequested = false;
       setStatus("live");
       void callbacksRef.current.onReady(roomSlug);
     };
@@ -64,13 +66,19 @@ export function ChatLiveConnection({
     source.addEventListener("message", handleMessage);
     source.addEventListener("directory", handleDirectory);
     source.onerror = () => {
-      if (isCurrent()) setStatus("reconnecting");
+      if (!isCurrent()) return;
+      setStatus("reconnecting");
+      if (!accessCheckRequested) {
+        accessCheckRequested = true;
+        handleDirectory();
+      }
     };
 
     return () => {
       generationRef.current += 1;
       pendingMessageIds.clear();
       directoryPending = false;
+      accessCheckRequested = false;
       source.close();
     };
   }, [roomSlug]);

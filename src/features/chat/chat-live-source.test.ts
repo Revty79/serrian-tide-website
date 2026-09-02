@@ -11,6 +11,8 @@ const workspace = source("src/app/chat/chat-workspace.tsx");
 const actions = source("src/app/chat/actions.ts");
 const service = source("src/features/chat/chat-service.ts");
 const campaignActions = source("src/app/heavens/campaigns/actions.ts");
+const roleActions = source("src/app/admin/users/actions.ts");
+const roleService = source("src/features/authorization/user-role-service.ts");
 
 test("Chat SSE is a Node-only authenticated and room-authorized invalidation route", () => {
   assert.match(route, /export const runtime = "nodejs"/);
@@ -38,6 +40,8 @@ test("Chat SSE has heartbeat, no-buffering, and complete dedicated-client cleanu
   assert.match(route, /request\.signal\.addEventListener\("abort"/);
   assert.match(route, /async cancel\(\)/);
   assert.match(route, /client\.on\("error", onError\)/);
+  assert.match(route, /request\.signal\.aborted/);
+  assert.match(route, /retry: 3000/);
 });
 
 test("posting, deletion, room creation, renaming, and membership changes publish transactionally", () => {
@@ -48,6 +52,8 @@ test("posting, deletion, room creation, renaming, and membership changes publish
   assert.match(service, /if \(createdRoom \|\| room\.name !== name\)/);
   assert.match(campaignActions, /db\.transaction\(async \(tx\) => \{[\s\S]*publishChatDirectoryInvalidationInTransaction\(tx\)/);
   assert.match(campaignActions, /if \(removed\.length > 0\) await publishChatDirectoryInvalidationInTransaction\(tx\)/);
+  assert.match(roleActions, /db\.transaction\(\(tx\) => setUserRoleInTransaction/);
+  assert.match(roleService, /if \(changedRows\.length > 0\)[\s\S]*publishChatDirectoryInvalidationInTransaction\(tx\)/);
 });
 
 test("exact live message reload remains session-authenticated and server-authorized", () => {
@@ -64,6 +70,9 @@ test("the browser keeps one selected-room subscription and rejects stale work", 
   assert.match(connection, /pendingMessageIds\.has\(payload\.messageId\)/);
   assert.match(connection, /source\.close\(\)/);
   assert.match(connection, /pendingMessageIds\.clear\(\)/);
+  assert.match(connection, /source\.onerror/);
+  assert.match(connection, /accessCheckRequested/);
+  assert.match(connection, /callbacksRef\.current\.onDirectory\(roomSlug\)/);
   assert.match(connection, /\}, \[roomSlug\]\)/);
   assert.doesNotMatch(connection, /setInterval|WebSocket|\bpoll(?:ing)?\b/i);
 });
@@ -77,9 +86,15 @@ test("ready, exact-message, directory, and scroll reconciliation preserve local 
   assert.match(workspace, /reconcileLiveChatMessage\(current, result\.data\)/);
   assert.match(workspace, /readerIsNearNewest\(\)/);
   assert.match(workspace, /onDirectory=\{refreshDirectoryAfterRoomChange\}/);
-  const liveHandlers = workspace.slice(
+  const newestHandler = workspace.slice(
     workspace.indexOf("async function reconcileNewestHistoryFromLive"),
+    workspace.indexOf("async function reconcileExactMessageFromLive"),
+  );
+  const exactHandler = workspace.slice(
+    workspace.indexOf("async function reconcileExactMessageFromLive"),
     workspace.indexOf("async function openAuthorizedRoomFromDirectory"),
   );
-  assert.doesNotMatch(liveHandlers, /setDraft|setConfirmDeleteId|submissionIdentityRef/);
+  assert.doesNotMatch(newestHandler, /setDraft|setConfirmDeleteId|submissionIdentityRef/);
+  assert.doesNotMatch(exactHandler, /setDraft|submissionIdentityRef/);
+  assert.match(exactHandler, /result\.data\.id === confirmDeleteId && \(result\.data\.deleted \|\| !result\.data\.canDelete\)/);
 });

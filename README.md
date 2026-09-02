@@ -64,6 +64,8 @@ npm run validate:baseline
 
 Do not run the canonical-data importer before the required schema migration has been applied.
 
+Crossroads deployment, SSE proxy requirements, clean-build recovery, backups, and its production smoke test are documented in [Operating The Crossroads](docs/operations/crossroads.md).
+
 ## STSTandAlone Canon Import
 
 The website includes an idempotent bootstrap/import command for the canonical STSTandAlone shared libraries:

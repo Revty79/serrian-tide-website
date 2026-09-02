@@ -98,9 +98,14 @@ export async function GET(request: Request): Promise<Response> {
       client.on("notification", onNotification);
       client.on("error", onError);
       request.signal.addEventListener("abort", () => void cleanup(), { once: true });
+      if (request.signal.aborted) {
+        void cleanup();
+        return;
+      }
       heartbeat = setInterval(() => {
         if (!closed) controller.enqueue(encoder.encode(": heartbeat\n\n"));
       }, 20_000);
+      controller.enqueue(encoder.encode("retry: 3000\n\n"));
       send("ready", { connected: true });
     },
     async cancel() {

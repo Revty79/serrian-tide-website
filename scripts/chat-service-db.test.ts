@@ -8,6 +8,7 @@ import pg from "pg";
 
 import { db } from "@/db";
 import { pool as applicationPool } from "@/db";
+import { setUserRoleInTransaction } from "@/features/authorization/user-role-service";
 import { ChatError } from "@/features/chat/chat";
 import {
   CHAT_LIVE_CHANNEL,
@@ -293,9 +294,16 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
   });
 
   await t.test("archived rooms remain readable and reject only new posts", async () => {
+    const archivedMessageId = Number((await setupQuery(`
+      insert into chat_message (room_id,author_user_id,client_request_id,content,created_at)
+      values ($1,$2,'archived-existing','Existing archived content',clock_timestamp()-interval '2 seconds') returning id
+    `, [archivedRoomId, ids.author])).rows[0].id);
     const page = await load(ids.author, "archived-room");
     assert.equal(page.room.archived, true);
+    assert.equal(page.messages.find(({ id }) => id === archivedMessageId)?.content, "Existing archived content");
     await expectChatError(() => post(ids.author, "archived-new", "No new posts", "archived-room"), "ROOM_ARCHIVED");
+    assert.equal((await remove(ids.author, archivedMessageId, undefined, "archived-room")).deleted, true);
+    assert.equal((await load(ids.other, "archived-room")).messages.find(({ id }) => id === archivedMessageId)?.content, null);
   });
 
   await t.test("author identity is server-derived and markup-like text remains exact plain data", async () => {
@@ -432,7 +440,7 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
   await t.test("authors soft-delete their own messages with complete lifecycle data and repeat safely", async () => {
     await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.author]);
     const posted = await post(ids.author, "author-delete", "Retained in storage");
-    const deleted = await remove(ids.author, posted.message.id, "  author request  ");
+    const deleted = await remove(ids.author, posted.message.id);
     assert.equal(deleted.deleted, true);
     assert.equal(deleted.content, null);
     const repeated = await remove(ids.author, posted.message.id, "different ignored reason");
@@ -445,7 +453,7 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
       status: "deleted",
       has_deleted_at: true,
       deleted_by_user_id: ids.author,
-      deletion_reason: "author request",
+      deletion_reason: "",
       content: "Retained in storage",
     }]);
   });
@@ -466,6 +474,21 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
       "ROOM_UNAVAILABLE",
     );
     await expectChatError(() => loadMessage(ids.other, 2_000_000_000), "MESSAGE_UNAVAILABLE");
+  });
+
+  await t.test("concurrent deletion serializes safely and remains idempotent", async () => {
+    await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.unrelated]);
+    const posted = await post(ids.unrelated, "concurrent-delete", "Delete exactly once");
+    const [first, second] = await Promise.all([
+      remove(ids.unrelated, posted.message.id),
+      remove(ids.unrelated, posted.message.id),
+    ]);
+    assert.equal(first.id, posted.message.id);
+    assert.equal(second.id, posted.message.id);
+    assert.equal((await setupQuery(
+      "select count(*)::int as count from chat_message where id=$1 and status='deleted'",
+      [posted.message.id],
+    )).rows[0].count, 1);
   });
 
   await t.test("committed posts and first deletions notify while rollback and idempotent repeats stay silent", async () => {
@@ -537,6 +560,43 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
       await remove(ids.god, committedMessageId, "repeat live deletion");
       await new Promise((resolve) => setTimeout(resolve, 120));
       assert.equal(events.filter((event) => event.category === "message" && event.messageId === committedMessageId).length, afterFirstDelete);
+
+      await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.author]);
+      const moderationTarget = await post(ids.author, "live-moderation-target", "Moderation target content");
+      await waitForInvalidation(events, (event) => event.category === "message" && event.messageId === moderationTarget.message.id);
+      const beforeModeration = events.filter((event) => (
+        event.category === "message" && event.messageId === moderationTarget.message.id
+      )).length;
+      await assert.rejects(() => withChatTransaction(async (tx) => {
+        await deleteChatMessageInTransaction(tx, ids.admin, {
+          roomSlug: "crossroads",
+          messageId: moderationTarget.message.id,
+          reason: "must roll back",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert.equal(events.filter((event) => (
+          event.category === "message" && event.messageId === moderationTarget.message.id
+        )).length, beforeModeration);
+        throw new Error("intentional moderation rollback");
+      }), /intentional moderation rollback/);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.filter((event) => (
+        event.category === "message" && event.messageId === moderationTarget.message.id
+      )).length, beforeModeration);
+      assert.equal((await setupQuery(
+        "select status from chat_message where id=$1",
+        [moderationTarget.message.id],
+      )).rows[0].status, "active");
+
+      await remove(ids.admin, moderationTarget.message.id, "committed moderation");
+      await waitForInvalidation(events, (event) => (
+        event.category === "message"
+        && event.messageId === moderationTarget.message.id
+        && events.filter((candidate) => candidate.category === "message" && candidate.messageId === moderationTarget.message.id).length === beforeModeration + 1
+      ));
+      assert.equal(events.filter((event) => (
+        event.category === "message" && event.messageId === moderationTarget.message.id
+      )).length, beforeModeration + 1);
     } finally {
       await listener.query(`UNLISTEN ${CHAT_LIVE_CHANNEL}`).catch(() => undefined);
       await listener.end().catch(() => undefined);
@@ -546,8 +606,8 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
   await t.test("another author and a G.O.D. cannot moderate a global message and failure changes nothing", async () => {
     await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.other]);
     const posted = await post(ids.other, "protected-message", "Still active");
-    await expectChatError(() => remove(ids.author, posted.message.id), "ACCESS_DENIED");
-    await expectChatError(() => remove(ids.god, posted.message.id), "ACCESS_DENIED");
+    await expectChatError(() => remove(ids.author, posted.message.id), "MODERATION_DENIED");
+    await expectChatError(() => remove(ids.god, posted.message.id), "MODERATION_DENIED");
     assert.deepEqual((await setupQuery(
       "select status,deleted_at,deleted_by_user_id,deletion_reason,content from chat_message where id=$1",
       [posted.message.id],
@@ -565,18 +625,154 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
       "select id from chat_message where author_user_id=$1 and client_request_id='protected-message'",
       [ids.other],
     )).rows[0];
-    const deleted = await remove(ids.admin, Number(target.id), "admin moderation");
+    await expectChatError(() => remove(ids.admin, Number(target.id)), "INVALID_INPUT");
+    await expectChatError(() => remove(ids.admin, Number(target.id), "   "), "INVALID_INPUT");
+    await expectChatError(() => remove(ids.admin, Number(target.id), "x".repeat(501)), "INVALID_INPUT");
+    const deleted = await remove(ids.admin, Number(target.id), "  admin moderation  ");
     assert.equal(deleted.deleted, true);
     const stored = await setupQuery(
-      "select count(*)::int as count,status,deleted_by_user_id,content from chat_message where id=$1 group by status,deleted_by_user_id,content",
+      "select count(*)::int as count,status,deleted_by_user_id,deletion_reason,content from chat_message where id=$1 group by status,deleted_by_user_id,deletion_reason,content",
       [target.id],
     );
     assert.deepEqual(stored.rows, [{
       count: 1,
       status: "deleted",
       deleted_by_user_id: ids.admin,
+      deletion_reason: "admin moderation",
       content: "Still active",
     }]);
+  });
+
+  await t.test("Campaign moderation belongs only to the creator and requires a reason", async () => {
+    await setupQuery("insert into campaign_player (campaign_id,user_id) values ($1,$2) on conflict do nothing", [campaignId, ids.god]);
+    await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.member]);
+    const memberPost = await post(ids.member, "campaign-moderation", "Campaign creator may remove this", "campaign-room");
+    assert.equal(memberPost.message.canDelete, true, "Authors retain self-deletion in Campaign rooms.");
+
+    await expectChatError(
+      () => remove(ids.admin, memberPost.message.id, "Admin is only a Campaign participant", "campaign-room"),
+      "MODERATION_DENIED",
+    );
+    await expectChatError(
+      () => remove(ids.god, memberPost.message.id, "G.O.D. is only a Campaign participant", "campaign-room"),
+      "MODERATION_DENIED",
+    );
+    const creatorView = await loadMessage(ids.creator, memberPost.message.id, "campaign-room");
+    assert.equal(creatorView.canDelete, true);
+    assert.equal(creatorView.isOwn, false);
+    await expectChatError(
+      () => remove(ids.creator, memberPost.message.id, "  ", "campaign-room"),
+      "INVALID_INPUT",
+    );
+    const deleted = await remove(
+      ids.creator,
+      memberPost.message.id,
+      `  ${"r".repeat(500)}  `,
+      "campaign-room",
+    );
+    assert.equal(deleted.deleted, true);
+    assert.equal((await setupQuery(
+      "select length(deletion_reason)::int as length from chat_message where id=$1",
+      [memberPost.message.id],
+    )).rows[0].length, 500);
+
+    await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.creator]);
+    const creatorPost = await post(ids.creator, "campaign-player-denied", "Players cannot moderate this", "campaign-room");
+    assert.equal(creatorPost.message.canDelete, true, "Authors retain self-deletion in Campaign rooms.");
+    await expectChatError(
+      () => remove(ids.member, creatorPost.message.id, "Player moderation denied", "campaign-room"),
+      "MODERATION_DENIED",
+    );
+    assert.equal((await remove(ids.creator, creatorPost.message.id, undefined, "campaign-room")).deleted, true);
+  });
+
+  await t.test("role mutations publish only generic committed directory invalidations on genuine changes", async () => {
+    const listener = new pg.Client({ connectionString, application_name: "chat-role-invalidation-test" });
+    const events: ChatInvalidation[] = [];
+    await listener.connect();
+    await listener.query(`LISTEN ${CHAT_LIVE_CHANNEL}`);
+    listener.on("notification", (notification) => {
+      if (notification.channel !== CHAT_LIVE_CHANNEL) return;
+      const event = parseChatNotificationPayload(notification.payload);
+      if (event) events.push(event);
+    });
+    try {
+      await withChatTransaction(async (tx) => {
+        const result = await setUserRoleInTransaction(tx, ids.admin, {
+          targetUserId: ids.noRole,
+          requestedRole: "player",
+          enabled: "true",
+        });
+        assert.deepEqual(result, { changed: true, role: "player", enabled: true });
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert.equal(events.length, 0);
+      });
+      await waitForInvalidation(events, (event) => event.category === "directory");
+      assert.deepEqual(events[0], { category: "directory" });
+      const afterAdd = events.length;
+
+      assert.deepEqual(await withChatTransaction((tx) => setUserRoleInTransaction(tx, ids.admin, {
+        targetUserId: ids.noRole,
+        requestedRole: "player",
+        enabled: "true",
+      })), { changed: false, role: "player", enabled: true });
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.length, afterAdd);
+
+      await assert.rejects(() => withChatTransaction(async (tx) => {
+        const result = await setUserRoleInTransaction(tx, ids.admin, {
+          targetUserId: ids.noRole,
+          requestedRole: "player",
+          enabled: "false",
+        });
+        assert.equal(result.changed, true);
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert.equal(events.length, afterAdd);
+        throw new Error("intentional role rollback");
+      }), /intentional role rollback/);
+      assert.equal((await setupQuery(
+        "select count(*)::int as count from user_role where user_id=$1 and role='player'",
+        [ids.noRole],
+      )).rows[0].count, 1);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.length, afterAdd);
+
+      assert.deepEqual(await withChatTransaction((tx) => setUserRoleInTransaction(tx, ids.admin, {
+        targetUserId: ids.noRole,
+        requestedRole: "player",
+        enabled: "false",
+      })), { changed: true, role: "player", enabled: false });
+      await waitForInvalidation(events, (event) => event.category === "directory" && events.length === afterAdd + 1);
+      assert.deepEqual(events.at(-1), { category: "directory" });
+
+      const afterRemove = events.length;
+      assert.deepEqual(await withChatTransaction((tx) => setUserRoleInTransaction(tx, ids.admin, {
+        targetUserId: ids.noRole,
+        requestedRole: "player",
+        enabled: "false",
+      })), { changed: false, role: "player", enabled: false });
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.length, afterRemove);
+      await assert.rejects(
+        () => withChatTransaction((tx) => setUserRoleInTransaction(tx, ids.admin, {
+          targetUserId: ids.admin,
+          requestedRole: "admin",
+          enabled: "false",
+        })),
+        /cannot remove your own administrator access/,
+      );
+      await assert.rejects(
+        () => withChatTransaction((tx) => setUserRoleInTransaction(tx, ids.author, {
+          targetUserId: ids.noRole,
+          requestedRole: "player",
+          enabled: "true",
+        })),
+        /Administrator access is required/,
+      );
+    } finally {
+      await listener.query(`UNLISTEN ${CHAT_LIVE_CHANNEL}`).catch(() => undefined);
+      await listener.end().catch(() => undefined);
+    }
   });
 
   await t.test("Campaign general rooms are created and renamed transactionally without touching custom rooms", async () => {
@@ -717,7 +913,22 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
     assert.equal((await directory(ids.god)).directConversations.some(({ slug }) => slug === directSlug), false);
   });
 
+  await t.test("an Admin who is a direct participant cannot moderate the other participant", async () => {
+    const adminDirect = await direct(ids.admin, ids.other);
+    await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.other]);
+    const otherPost = await post(ids.other, "admin-direct-policy", "Private participant message", adminDirect.slug);
+    const adminView = await loadMessage(ids.admin, otherPost.message.id, adminDirect.slug);
+    assert.equal(adminView.canDelete, false);
+    assert.equal(adminView.isOwn, false);
+    await expectChatError(
+      () => remove(ids.admin, otherPost.message.id, "Admin status is irrelevant", adminDirect.slug),
+      "MODERATION_DENIED",
+    );
+    assert.equal((await remove(ids.other, otherPost.message.id, undefined, adminDirect.slug)).deleted, true);
+  });
+
   await t.test("authorized direct messages preserve history, idempotency, rate limiting, and soft deletion", async () => {
+    await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.member]);
     const first = await post(ids.member, "direct-message", "Private plain text", directSlug);
     directMessageId = first.message.id;
     assert.equal(first.message.room.slug, directSlug);
@@ -727,7 +938,7 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
     await expectChatError(() => load(ids.admin, directSlug), "ROOM_UNAVAILABLE");
     await expectChatError(() => post(ids.admin, "admin-intrusion", "Denied", directSlug), "ROOM_UNAVAILABLE");
     await expectChatError(() => remove(ids.admin, directMessageId, undefined, directSlug), "ROOM_UNAVAILABLE");
-    const deleted = await remove(ids.member, directMessageId, "author cleanup", directSlug);
+    const deleted = await remove(ids.member, directMessageId, undefined, directSlug);
     assert.equal(deleted.deleted, true);
     assert.equal(deleted.content, null);
     assert.equal((await load(ids.unrelated, directSlug)).messages.find(({ id }) => id === directMessageId)?.content, null);

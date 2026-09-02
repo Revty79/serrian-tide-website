@@ -17,6 +17,7 @@ export const DIRECT_CHAT_ROOM_NAME = "Private Conversation";
 export type ChatErrorCode =
   | "AUTH_REQUIRED"
   | "ACCESS_DENIED"
+  | "MODERATION_DENIED"
   | "ROOM_UNAVAILABLE"
   | "ROOM_ARCHIVED"
   | "MESSAGE_UNAVAILABLE"
@@ -306,6 +307,13 @@ export function decodeChatCursor(value: unknown): ChatMessageCursor | null {
   }
 }
 
-export function mayDeleteChatMessage(actor: ChatAccessContext, authorUserId: string): boolean {
-  return actor.isAdmin || actor.userId === authorUserId;
+export function mayDeleteChatMessage(
+  actor: ChatAccessContext,
+  room: Pick<ChatRoomAccessFacts, "scope" | "campaignCreatorUserId">,
+  authorUserId: string,
+): boolean {
+  if (actor.userId === authorUserId) return true;
+  if (room.scope === "global") return actor.isAdmin;
+  if (room.scope === "campaign") return room.campaignCreatorUserId === actor.userId;
+  return false;
 }

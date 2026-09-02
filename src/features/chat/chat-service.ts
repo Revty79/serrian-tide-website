@@ -87,7 +87,7 @@ function unavailableMessage(): never {
 function toMessageDto(
   row: MessageRow,
   actor: ChatAccessContext,
-  room: Pick<ResolvedRoom, "slug" | "name">,
+  room: Pick<ResolvedRoom, "slug" | "name" | "scope" | "campaignCreatorUserId">,
 ): ChatMessageDto {
   const deleted = row.status === "deleted";
   return {
@@ -101,7 +101,7 @@ function toMessageDto(
     content: deleted ? null : row.content,
     createdAt: row.createdAt.toISOString(),
     deleted,
-    canDelete: !deleted && mayDeleteChatMessage(actor, row.authorUserId),
+    canDelete: !deleted && mayDeleteChatMessage(actor, room, row.authorUserId),
     isOwn: actor.userId === row.authorUserId,
   };
 }
@@ -666,7 +666,6 @@ export async function deleteChatMessageInTransaction(
 ): Promise<ChatMessageDto> {
   const roomSlug = normalizeChatRoomSlug(input.roomSlug);
   const messageId = normalizeChatMessageId(input.messageId);
-  const reason = normalizeChatDeletionReason(input.reason);
   const actor = await resolveChatActor(tx, actorUserId, false);
   const room = await resolveAuthorizedRoom(tx, actor, roomSlug);
   const [message] = await tx
@@ -677,10 +676,14 @@ export async function deleteChatMessageInTransaction(
     .limit(1)
     .for("update", { of: chatMessage });
   if (!message) unavailableMessage();
-  if (!mayDeleteChatMessage(actor, message.authorUserId)) {
-    throw new ChatError("ACCESS_DENIED", "You may delete only your own Chat messages.");
+  if (!mayDeleteChatMessage(actor, room, message.authorUserId)) {
+    throw new ChatError("MODERATION_DENIED", "You do not have permission to remove that Chat message.");
   }
   if (message.status === "deleted") return toMessageDto(message, actor, room);
+  const reason = normalizeChatDeletionReason(input.reason);
+  if (actor.userId !== message.authorUserId && !reason) {
+    throw new ChatError("INVALID_INPUT", "A moderation reason is required when removing another User's message.");
+  }
 
   const [deleted] = await tx
     .update(chatMessage)

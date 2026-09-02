@@ -11,6 +11,31 @@
   margin: 0 auto;
 }
 
+.authorizationLoss {
+  width: min(100%, 38rem);
+  margin: clamp(5rem, 18vh, 11rem) auto 0;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border: 1px solid rgba(204, 167, 222, 0.24);
+  border-radius: 1.25rem;
+  background: rgba(4, 7, 17, 0.9);
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.34);
+  text-align: center;
+  backdrop-filter: blur(18px);
+}
+
+.authorizationLoss h1 {
+  margin: 0.5rem 0;
+  color: #f4f1ea;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 500;
+}
+
+.authorizationLoss > p:last-child {
+  margin: 0;
+  color: #aeb8ca;
+  line-height: 1.55;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(11rem, 0.7fr) minmax(20rem, 1.7fr) minmax(12rem, 0.8fr);
@@ -557,6 +582,50 @@
   gap: 0.4rem;
   color: #b9c1cf;
   font-size: 0.68rem;
+}
+
+.deleteConfirm > strong {
+  color: #d8bdc4;
+  font-size: 0.7rem;
+}
+
+.moderationReason {
+  display: grid;
+  width: min(100%, 25rem);
+  gap: 0.25rem;
+  text-align: left;
+}
+
+.moderationReason > span {
+  color: #c3a7d5;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.moderationReason input {
+  width: 100%;
+  border: 1px solid rgba(206, 100, 117, 0.3);
+  border-radius: 0.55rem;
+  outline: none;
+  padding: 0.42rem 0.55rem;
+  background: rgba(3, 7, 15, 0.92);
+  color: #e7ebf2;
+}
+
+.moderationReason input:focus {
+  border-color: rgba(223, 183, 100, 0.68);
+  box-shadow: 0 0 0 3px rgba(208, 169, 87, 0.08);
+}
+
+.moderationReason small {
+  color: #7f8a9c;
+}
+
+.deleteConfirmButtons {
+  display: inline-flex;
+  gap: 0.4rem;
 }
 
 .composer {

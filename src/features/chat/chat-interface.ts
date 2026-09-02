@@ -1,4 +1,5 @@
 import type {
+  ChatErrorCode,
   ChatHistoryPage,
   ChatMessageDto,
   ChatRoomDirectory,
@@ -28,6 +29,14 @@ export type ChatSubmissionIdentity = {
 export type ChatLiveMessagePayload = {
   messageId: number;
 };
+
+export function terminalChatDestination(
+  code: ChatErrorCode,
+): "/login" | "/access" | null {
+  if (code === "AUTH_REQUIRED") return "/login";
+  if (code === "ACCESS_DENIED") return "/access";
+  return null;
+}
 
 export function parseChatLiveMessagePayload(value: unknown): ChatLiveMessagePayload | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;

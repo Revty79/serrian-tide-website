@@ -18,6 +18,7 @@ import {
   reconcilePostedChatMessage,
   retainChatSubmissionIdentityAfterDraftChange,
   selectInitialChatRoomSlug,
+  terminalChatDestination,
 } from "./chat-interface";
 
 const directory: ChatRoomDirectory = {
@@ -84,6 +85,14 @@ test("authorized requested rooms win, Crossroads is preferred fallback, then fir
 test("directory refresh preserves an accessible active room and falls back safely when access disappears", () => {
   assert.equal(preserveChatRoomSelection(directory, "direct-example"), "direct-example");
   assert.equal(preserveChatRoomSelection({ ...directory, directConversations: [] }, "direct-example"), "crossroads");
+});
+
+test("only terminal session and role failures leave the Chat workspace", () => {
+  assert.equal(terminalChatDestination("AUTH_REQUIRED"), "/login");
+  assert.equal(terminalChatDestination("ACCESS_DENIED"), "/access");
+  assert.equal(terminalChatDestination("MODERATION_DENIED"), null);
+  assert.equal(terminalChatDestination("ROOM_UNAVAILABLE"), null);
+  assert.equal(terminalChatDestination("REQUEST_FAILED"), null);
 });
 
 test("an authoritative room load updates archived state without changing directory identity", () => {
