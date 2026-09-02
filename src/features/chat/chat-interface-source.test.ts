@@ -82,9 +82,12 @@ test("history paging, posting, and deletion use tested reconciliation instead of
 
 test("the composer preserves exact content and enforces the cryptographic retry identity lifecycle", () => {
   assert.match(workspace, /content = draftRef\.current/);
-  assert.match(workspace, /window\.crypto\.randomUUID\(\)/);
+  assert.match(workspace, /window\.crypto\.getRandomValues\(new Uint8Array\(16\)\)/);
+  assert.doesNotMatch(workspace, /randomUUID/);
   assert.match(workspace, /submissionIdentityRef/);
   assert.match(workspace, /sendingRef\.current/);
+  assert.match(workspace, /finally \{[\s\S]*?sendingRef\.current = false;[\s\S]*?setSubmitting\(false\)/);
+  assert.match(workspace, /The message could not be sent\. Check your connection and try again\./);
   assert.match(workspace, /maxLength=\{CHAT_CONTENT_MAX_LENGTH\}/);
   assert.match(workspace, /event\.key === "Enter" && !event\.shiftKey/);
   assert.match(workspace, /Enter sends · Shift\+Enter adds a new line/);

@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import type { ChatMessageDto, ChatRoomDirectory } from "./chat";
 import {
+  createChatClientRequestId,
   findChatDirectoryRoom,
   flattenChatDirectory,
   getChatRoomMetadata,
@@ -200,4 +201,16 @@ test("failed identical submissions reuse one request ID while changed or success
   assert.notEqual(changed.clientRequestId, first.clientRequestId);
   const afterSuccess = getChatSubmissionIdentity(null, "new", createRequestId);
   assert.notEqual(afterSuccess.clientRequestId, changed.clientRequestId);
+});
+
+test("client request IDs encode Web Crypto random bytes without requiring a secure-context UUID API", () => {
+  const requestId = createChatClientRequestId(Uint8Array.from([
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 255,
+  ]));
+  assert.equal(requestId, "000102030405060708090a0b0c0d0eff");
+  assert.equal(requestId.length, 32);
+  assert.throws(
+    () => createChatClientRequestId(new Uint8Array(15)),
+    /exactly 16 random bytes/,
+  );
 });

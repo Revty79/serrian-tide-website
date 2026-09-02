@@ -34,6 +34,7 @@ import {
   type DirectMessageUserSearchResult,
 } from "@/features/chat/chat";
 import {
+  createChatClientRequestId,
   findChatDirectoryRoom,
   getChatRoomMetadata,
   getChatSubmissionIdentity,
@@ -502,34 +503,41 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     sendingRef.current = true;
     setSubmitting(true);
     setComposerError(null);
-    const identity = getChatSubmissionIdentity(
-      submissionIdentityRef.current,
-      content,
-      () => window.crypto.randomUUID(),
-    );
-    submissionIdentityRef.current = identity;
-    const result = await postChatMessageAction({
-      roomSlug,
-      content,
-      clientRequestId: identity.clientRequestId,
-    });
-    sendingRef.current = false;
-    setSubmitting(false);
-    if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
-    if (activeRoomSlugRef.current !== roomSlug) return;
-    if (!result.ok) {
-      setComposerError(actionErrorMessage(result.error));
-      if (result.error.code === "ROOM_UNAVAILABLE" || result.error.code === "ROOM_ARCHIVED") {
-        void refreshDirectoryAfterRoomChange(roomSlug);
+    try {
+      const identity = getChatSubmissionIdentity(
+        submissionIdentityRef.current,
+        content,
+        () => createChatClientRequestId(window.crypto.getRandomValues(new Uint8Array(16))),
+      );
+      submissionIdentityRef.current = identity;
+      const result = await postChatMessageAction({
+        roomSlug,
+        content,
+        clientRequestId: identity.clientRequestId,
+      });
+      if (!result.ok && handleTerminalAuthorizationError(result.error)) return;
+      if (activeRoomSlugRef.current !== roomSlug) return;
+      if (!result.ok) {
+        setComposerError(actionErrorMessage(result.error));
+        if (result.error.code === "ROOM_UNAVAILABLE" || result.error.code === "ROOM_ARCHIVED") {
+          void refreshDirectoryAfterRoomChange(roomSlug);
+        }
+        return;
       }
-      return;
+      setMessages((current) => reconcilePostedChatMessage(current, result.data.message));
+      submissionIdentityRef.current = null;
+      draftRef.current = "";
+      setDraft("");
+      scrollToNewest();
+      requestAnimationFrame(() => composerRef.current?.focus());
+    } catch {
+      if (activeRoomSlugRef.current === roomSlug) {
+        setComposerError("The message could not be sent. Check your connection and try again.");
+      }
+    } finally {
+      sendingRef.current = false;
+      setSubmitting(false);
     }
-    setMessages((current) => reconcilePostedChatMessage(current, result.data.message));
-    submissionIdentityRef.current = null;
-    draftRef.current = "";
-    setDraft("");
-    scrollToNewest();
-    requestAnimationFrame(() => composerRef.current?.focus());
   }
 
   function submitComposer(event: FormEvent<HTMLFormElement>) {

@@ -203,6 +203,13 @@ export function getChatSubmissionIdentity(
   return { content, clientRequestId: createRequestId() };
 }
 
+export function createChatClientRequestId(randomBytes: Uint8Array): string {
+  if (randomBytes.length !== 16) {
+    throw new Error("Chat request identity requires exactly 16 random bytes.");
+  }
+  return Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function retainChatSubmissionIdentityAfterDraftChange(
   existing: ChatSubmissionIdentity | null,
   content: string,
