@@ -274,7 +274,7 @@ A Roll is evidence recorded by the tabletop runtime. It does not itself adjudica
         Build 10 G.O.D. UI      Build 11 Player UI
 ```
 
-A random Roll is generated and persisted on the server with `node:crypto` secure randomness. The browser supplies an explicit Serrian Tide Roll type and context, never a random result. The only supported types are `percentile`, whose canonical result is 1–100, and `hit-location`, whose canonical result preserves the established 0–9 table. Entered/physical Rolls use the same immutable record type. A physical percentile `00` is entered as numeric 100. There is no generic dice notation, polyhedral preset, multi-die result, damage-dice Roll, or Initiative Roll in this runtime; Damage remains direct numeric and Initiative remains calculated.
+A random Roll is generated and persisted on the server with `node:crypto` secure randomness. Every Roll in this runtime is Serrian Tide percentile, with one canonical result from 1–100; the browser supplies context, never a random result. Entered/physical Rolls use the same immutable record type, and physical percentile `00` is entered as numeric 100. Hit Location is a view derived from the ones digit of that same immutable percentile result and never causes another random request or ledger row. There is no Roll Type column, generic dice notation, polyhedral preset, multi-die result, damage-dice Roll, or Initiative Roll in this runtime; Damage remains direct numeric and Initiative remains calculated.
 
 Roll context can reference an exact Session, Scene, Encounter, Character, target Character, pending action, or Reaction only after hierarchy, membership, and linkage validation. Active Encounter Initiative contributes a historical Round/Step event snapshot; it never creates alternate Initiative state. The Roll can retain a target number, purpose, label, notes, and visibility, but never adjudicates success, additional successes, attack/defense outcome, Damage, Soak, Injuries, action resolution, Reaction resolution, XP, targets, or tactical choices. Existing authored-action and Reaction controls remain the only place the G.O.D. records what a Roll means.
 
@@ -285,3 +285,25 @@ The Session Roll Ledger uses bounded cursor pagination and filters. The Session 
 Session Closeout locks and rereads the complete Session runtime before completion. Active Scenes, Encounters, Initiative, pending/interrupted actions, unresolved authored actions, and unresolved Reactions are blockers. Planned content and objectively unbound finite durations are warnings, not guessed state. XP summaries derive from existing immutable Encounter rewards and Roll summaries derive from the Roll ledger; there is no second reward or Roll store.
 
 Finalizing or reopening a Session changes only organizational lifecycle fields. It never heals, restores Mana, clears Conditions/Modifiers/Injuries, advances or expires durations, mutates Inventory/Charges/Equipment, alters XP, rewrites Rolls/rewards, replays Encounter effects, or resets Character/Creature state.
+
+## Build 11 Player Active Encounter and live synchronization
+
+The final Roll correction leaves one Serrian Tide percentile result, 1–100. Hit Location is never rolled separately: an Attack Roll derives the canonical 0–9 location from the same result with `result % 10`. There is no persisted Roll type and no separate hit-location die.
+
+Build 11 adds a narrow Player controller over the same active hierarchy and runtime services. Active Encounter discovery is exact: the signed-in Player must own the non-NPC Character, and that Character must be present in the active Session Roster, active Scene membership, and active Encounter Participants. There is no newest/latest fallback and no Player combat copy.
+
+The server projects a dedicated Player DTO. The Player receives their own full runtime read plus only each other Participant's identity label, current Initiative, participation status, and public pending-action summary. The projection never contains NPC Health, Mana, Effects, Equipment, inventory, private preparation notes, G.O.D. notes, authored payloads, or `god-only` Rolls. Server-side mutation authorization is repeated for every request; hiding a control is never authorization.
+
+```text
+Player controller                         G.O.D. controller
+       \                                      /
+        +---- shared transaction services ---+
+                 |     |      |      |
+             Initiative Actions Reactions Roll Ledger
+                 |     |      |      |
+              one Encounter and Character runtime state
+```
+
+Players may Hold or Pass only their own Initiative, start an action only from their own currently wielded authoritative Weapon, prepare a known or saved Raw Spell and enter its authoritative calculated casting time, declare an eligible Reaction for their own Character, and record a table-visible percentile Roll as their own Character. Weapon timing and Spell cost are reloaded server-side. Players cannot supply an Initiative Cost, use generic actions, adjudicate outcomes, apply Damage, resolve Reactions, mutate another Character, record private Rolls, or void Roll history. Items continue using the existing Character runtime outside active Initiative. While Initiative is active, direct Player Item execution is blocked both in the Character UI and on the server; missing combat timing remains an explicit G.O.D. ruling rather than invented Player timing.
+
+Live synchronization transports invalidation only. A successful caller-owned database transaction invokes PostgreSQL `pg_notify`; PostgreSQL releases that event only after commit, so rollback emits nothing. Authorized Node SSE endpoints use dedicated `LISTEN` connections and filter minimal Campaign/Session/Scene/Encounter/Character identity plus a category. G.O.D. subscriptions require Campaign ownership. Player subscriptions repeat exact Character ownership and active hierarchy authorization. No Health, Mana, notes, Roll results, or other private state is sent in an event. The browser receives an invalidation, refreshes its normal server read, and reconnects with heartbeat status; SSE never becomes a second state store or mutation path.

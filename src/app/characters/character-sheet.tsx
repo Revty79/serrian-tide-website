@@ -67,6 +67,7 @@ type Props = {
   onActiveManaChange: (mana: ActiveManaView) => void;
   activeManaDisabled: boolean;
   itemUseDisabled: boolean;
+  itemUseDisabledReason?: string;
   onItemUseComplete: () => void | Promise<void>;
   activeEffects: ActiveEffectsView;
   onActiveEffectsChange: (state: ActiveEffectsView) => void;
@@ -104,7 +105,7 @@ function displayEncumbrance(
     : measured;
 }
 
-export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, onItemUseComplete, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode }: Props) {
+export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode }: Props) {
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -545,7 +546,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
         {activatedStacks.length || activatedInstances.length || unavailableActivatedItems.length ? (
           <section className="character-sheet__section character-sheet__activated-items">
             <div className="character-sheet__section-heading"><p>ACTIVE POSSESSIONS</p><h3>Activated Items</h3><span>Preview the exact resource and health changes before confirming.</span></div>
-            {itemUseDisabled ? <p className="character-sheet__item-use-note">Save or discard pending Character edits before using an Item.</p> : null}
+            {itemUseDisabled ? <p className="character-sheet__item-use-note">{itemUseDisabledReason ?? "Save or discard pending Character edits before using an Item."}</p> : null}
             <div className="character-sheet__activated-item-grid">
               {activatedStacks.map(({ owned, definition }) => <article key={`stack-${owned.itemId}`}><div><strong>{definition.name}</strong><span>{owned.quantity} owned · {definition.runtimeProfile.useMode === "unlimited" ? "Unlimited" : `${definition.runtimeProfile.quantityPerUse} per use`}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={null} itemName={definition.name} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled} onComplete={onItemUseComplete} /></article>)}
               {activatedInstances.map(({ owned, definition, persisted }) => {

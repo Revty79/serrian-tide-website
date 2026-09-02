@@ -102,11 +102,6 @@ export const campaignSessionRollMethod = pgEnum(
   ["random", "entered"],
 );
 
-export const campaignSessionRollType = pgEnum(
-  "campaign_session_roll_type",
-  ["percentile", "hit-location"],
-);
-
 export const campaignSessionRollVisibility = pgEnum(
   "campaign_session_roll_visibility",
   ["table", "god-only"],
@@ -893,7 +888,6 @@ export const campaignSessionRoll = pgTable(
     reactionId: integer("reaction_id"),
     recordedByUserId: text("recorded_by_user_id").notNull(),
     method: campaignSessionRollMethod("method").notNull(),
-    rollType: campaignSessionRollType("roll_type").notNull(),
     visibility: campaignSessionRollVisibility("visibility").default("god-only").notNull(),
     purposeKind: campaignSessionRollPurpose("purpose_kind").default("free").notNull(),
     label: text("label").default("").notNull(),
@@ -989,14 +983,8 @@ export const campaignSessionRoll = pgTable(
     index("campaign_session_roll_reaction_idx").on(table.reactionId, table.createdAt, table.id),
     index("campaign_session_roll_visibility_status_idx").on(table.sessionId, table.visibility, table.status),
     check(
-      "campaign_session_roll_type_result_valid",
-      sql`(
-        ${table.rollType} = 'percentile'
-        AND ${table.resultTotal} BETWEEN 1 AND 100
-      ) OR (
-        ${table.rollType} = 'hit-location'
-        AND ${table.resultTotal} BETWEEN 0 AND 9
-      )`,
+      "campaign_session_roll_result_valid",
+      sql`${table.resultTotal} BETWEEN 1 AND 100`,
     ),
     check(
       "campaign_session_roll_hierarchy_valid",

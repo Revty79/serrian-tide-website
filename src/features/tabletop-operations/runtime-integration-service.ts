@@ -77,6 +77,8 @@ import {
   applyDirectInitiativeDelta,
   canHoldingParticipantIntervene,
   canParticipantReactToAction,
+  holdInitiative,
+  passInitiative,
   startInitiativeAction,
   type InitiativeEngineState,
   type PendingInitiativeActionState,
@@ -431,6 +433,32 @@ async function nextPendingActionId(tx: RuntimeIntegrationTransaction): Promise<n
     select nextval(pg_get_serial_sequence('campaign_session_encounter_pending_action', 'id'))::integer as id
   `);
   return positiveId(Number((result.rows[0] as { id?: number } | undefined)?.id), "Pending Action");
+}
+
+/** Player and G.O.D. controllers share the authoritative Initiative engine. */
+export async function holdParticipantInitiativeInTransaction(
+  tx: RuntimeIntegrationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  characterId: number,
+): Promise<void> {
+  assertActiveInitiativeHierarchy(context);
+  await requireEncounterParticipant(tx, context, characterId, true);
+  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const changed = holdInitiative(state, characterId);
+  await persistInitiativeEngine(tx, context, state, changed);
+}
+
+/** Player and G.O.D. controllers share the authoritative Initiative engine. */
+export async function passParticipantInitiativeInTransaction(
+  tx: RuntimeIntegrationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  characterId: number,
+): Promise<void> {
+  assertActiveInitiativeHierarchy(context);
+  await requireEncounterParticipant(tx, context, characterId, true);
+  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const changed = passInitiative(state, characterId);
+  await persistInitiativeEngine(tx, context, state, changed);
 }
 
 export async function startAuthoredActionInTransaction(

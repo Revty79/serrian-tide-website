@@ -45,6 +45,7 @@ import {
   canHoldingParticipantIntervene,
   canParticipantReactToAction,
 } from "@/features/tabletop-operations/initiative-runtime";
+import { buildInitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import {
   readEncounterCreatureAbilitiesInTransaction,
   readEncounterCreatureAttacksInTransaction,
@@ -74,6 +75,11 @@ export type CombatAidInitiativeSummary =
       participationStatus: InitiativeParticipationStatus;
       deferredInitiativeCost: number;
       movementMode: string;
+      isCurrentOpportunity: boolean;
+      canAct: boolean;
+      canHold: boolean;
+      canPass: boolean;
+      canIntervene: boolean;
       reactionOpportunityActionIds: number[];
       pendingAction: null | {
         id: number;
@@ -184,6 +190,8 @@ export async function readCombatAidEncounterInTransaction(
     sessionTitle: campaignSession.title,
     campaignName: campaign.name,
     ownerUserId: campaign.createdByUserId,
+    sessionStatus: campaignSession.status,
+    sceneStatus: campaignSessionScene.status,
   }).from(campaignSessionEncounter)
     .innerJoin(campaignSessionScene, and(
       eq(campaignSessionScene.id, campaignSessionEncounter.sceneId),
@@ -232,12 +240,20 @@ export async function readCombatAidEncounterInTransaction(
       .where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, encounterId));
   const actionRows = await tx.select({
       id: campaignSessionEncounterPendingAction.id,
+      encounterId: campaignSessionEncounterPendingAction.encounterId,
       actorCharacterId: campaignSessionEncounterPendingAction.actorCharacterId,
       label: campaignSessionEncounterPendingAction.label,
+      actionKind: campaignSessionEncounterPendingAction.actionKind,
+      allowsMultiRound: campaignSessionEncounterPendingAction.allowsMultiRound,
+      originalInitiativeCost: campaignSessionEncounterPendingAction.originalInitiativeCost,
+      initiativeSpent: campaignSessionEncounterPendingAction.initiativeSpent,
       status: campaignSessionEncounterPendingAction.status,
       remainingInitiativeCost: campaignSessionEncounterPendingAction.remainingInitiativeCost,
+      startInitiative: campaignSessionEncounterPendingAction.startInitiative,
       startTimelineInitiative: campaignSessionEncounterPendingAction.startTimelineInitiative,
       expectedCompletionInitiative: campaignSessionEncounterPendingAction.expectedCompletionInitiative,
+      startedRound: campaignSessionEncounterPendingAction.startedRound,
+      completedRound: campaignSessionEncounterPendingAction.completedRound,
     }).from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.encounterId, encounterId))
       .orderBy(asc(campaignSessionEncounterPendingAction.id));
@@ -306,12 +322,47 @@ export async function readCombatAidEncounterInTransaction(
   for (const spell of personalSpells) personalByCharacter.set(spell.characterId, [...(personalByCharacter.get(spell.characterId) ?? []), spell]);
   const catalogByCharacter = new Map<number, typeof catalogSpells>();
   for (const spell of catalogSpells) catalogByCharacter.set(spell.characterId, [...(catalogByCharacter.get(spell.characterId) ?? []), spell]);
+  const trackerParticipants = initiativeRuntime ? new Map(buildInitiativeTrackerReadModel({
+    encounter: { id: context.id, title: context.title, status: context.status },
+    sessionStatus: context.sessionStatus,
+    sceneStatus: context.sceneStatus,
+    identities: participantRows.map((row) => {
+      const kind = classifySessionRosterEntity(row);
+      return {
+        characterId: row.characterId,
+        name: row.name,
+        kind,
+        kindLabel: getSessionRosterEntityLabel(kind),
+        playerName: kind === "pc" ? row.playerUsername ?? row.playerName : null,
+        creatureTemplateName: kind === "creature-npc" ? row.creatureTemplateName : null,
+      };
+    }),
+    capacities: [],
+    runtime: {
+      runtime: {
+        ...initiativeRuntime,
+        encounterId,
+        startedAt: initiativeRuntime.startedAt.toISOString(),
+        closedAt: initiativeRuntime.closedAt?.toISOString() ?? null,
+      },
+      participants: initiativeRows.map((row) => ({
+        ...row,
+        encounterId,
+        participationStatus: row.participationStatus as InitiativeParticipationStatus,
+      })),
+      pendingActions: actionRows.map((row) => ({
+        ...row,
+        status: row.status as PendingInitiativeActionStatus,
+      })),
+    },
+  }).participants.map((participant) => [participant.characterId, participant])) : new Map();
 
   const participants: CombatAidParticipant[] = [];
   for (const row of participantRows) {
     const errors: CombatAidParticipant["errors"] = [];
     const kind = classifySessionRosterEntity(row);
     const initiative = initiativeByCharacter.get(row.characterId);
+    const trackerParticipant = trackerParticipants.get(row.characterId);
     const action = actionByCharacter.get(row.characterId);
     const effects = await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false));
     const durationBindings = await readCharacterDurationBindingsInTransaction(tx, row.characterId, false).catch((error) => {
@@ -355,6 +406,11 @@ export async function readCombatAidEncounterInTransaction(
         participationStatus: initiative.participationStatus as InitiativeParticipationStatus,
         deferredInitiativeCost: initiative.deferredInitiativeCost,
         movementMode: initiative.movementMode,
+        isCurrentOpportunity: trackerParticipant?.isCurrentOpportunity ?? false,
+        canAct: trackerParticipant?.canAct ?? false,
+        canHold: trackerParticipant?.canHold ?? false,
+        canPass: trackerParticipant?.canPass ?? false,
+        canIntervene: trackerParticipant?.canIntervene ?? false,
         reactionOpportunityActionIds: initiativeRuntime.status === "active"
           ? actionRows.filter((candidate) => (
               candidate.status === "active"

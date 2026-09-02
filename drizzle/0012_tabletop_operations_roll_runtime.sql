@@ -1,7 +1,6 @@
 CREATE TYPE "public"."campaign_session_roll_method" AS ENUM('random', 'entered');--> statement-breakpoint
 CREATE TYPE "public"."campaign_session_roll_purpose" AS ENUM('free', 'attribute', 'skill', 'attack', 'defense', 'ability', 'other');--> statement-breakpoint
 CREATE TYPE "public"."campaign_session_roll_status" AS ENUM('recorded', 'voided');--> statement-breakpoint
-CREATE TYPE "public"."campaign_session_roll_type" AS ENUM('percentile', 'hit-location');--> statement-breakpoint
 CREATE TYPE "public"."campaign_session_roll_visibility" AS ENUM('table', 'god-only');--> statement-breakpoint
 CREATE UNIQUE INDEX "campaign_session_encounter_reaction_hierarchy_uq" ON "campaign_session_encounter_reaction" USING btree ("id","encounter_id","scene_id","session_id","campaign_id");--> statement-breakpoint
 CREATE TABLE "campaign_session_roll" (
@@ -16,7 +15,6 @@ CREATE TABLE "campaign_session_roll" (
 	"reaction_id" integer,
 	"recorded_by_user_id" text NOT NULL,
 	"method" "campaign_session_roll_method" NOT NULL,
-	"roll_type" "campaign_session_roll_type" NOT NULL,
 	"visibility" "campaign_session_roll_visibility" DEFAULT 'god-only' NOT NULL,
 	"purpose_kind" "campaign_session_roll_purpose" DEFAULT 'free' NOT NULL,
 	"label" text DEFAULT '' NOT NULL,
@@ -30,13 +28,7 @@ CREATE TABLE "campaign_session_roll" (
 	"void_reason" text DEFAULT '' NOT NULL,
 	"voided_by_user_id" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "campaign_session_roll_type_result_valid" CHECK ((
-        "campaign_session_roll"."roll_type" = 'percentile'
-        AND "campaign_session_roll"."result_total" BETWEEN 1 AND 100
-      ) OR (
-        "campaign_session_roll"."roll_type" = 'hit-location'
-        AND "campaign_session_roll"."result_total" BETWEEN 0 AND 9
-      )),
+	CONSTRAINT "campaign_session_roll_result_valid" CHECK ("campaign_session_roll"."result_total" BETWEEN 1 AND 100),
 	CONSTRAINT "campaign_session_roll_hierarchy_valid" CHECK ((
         ("campaign_session_roll"."scene_id" IS NULL AND "campaign_session_roll"."encounter_id" IS NULL)
         OR ("campaign_session_roll"."scene_id" IS NOT NULL)

@@ -36,6 +36,7 @@ import {
   type SessionRosterEntityKind,
 } from "@/features/tabletop-operations/session-roster";
 import { readSessionCloseoutInTransaction } from "@/features/tabletop-operations/session-closeout-service";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 export type TabletopCampaignSummary = {
@@ -404,6 +405,14 @@ export async function addSessionRosterMember(
       characterId,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     });
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: locked.campaignId,
+      sessionId,
+      sceneId: null,
+      encounterId: null,
+      characterIds: [],
+      category: "hierarchy",
+    });
   });
   refreshTabletop();
 }
@@ -416,7 +425,7 @@ export async function removeSessionRosterMember(
   assertPositiveId(sessionId, "Session");
   assertPositiveId(characterId, "Character");
   await db.transaction(async (tx) => {
-    await lockOwnedEditableSession(tx, sessionId, access.user.id);
+    const locked = await lockOwnedEditableSession(tx, sessionId, access.user.id);
     const [sceneReference] = await tx
       .select({ sceneId: campaignSessionSceneMember.sceneId })
       .from(campaignSessionSceneMember)
@@ -437,6 +446,14 @@ export async function removeSessionRosterMember(
       .returning({ characterId: campaignSessionRoster.characterId });
     if (!removed.length) throw new Error("That Character or NPC is not in this Session roster.");
     await normalizePersistedRosterOrder(tx, sessionId);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: locked.campaignId,
+      sessionId,
+      sceneId: null,
+      encounterId: null,
+      characterIds: [],
+      category: "hierarchy",
+    });
   });
   refreshTabletop();
 }
@@ -545,6 +562,14 @@ async function applyLifecycleTransition(
         ))
         .returning(sessionFields);
       if (!saved) throw new Error("The Session changed before this action completed. Refresh and try again.");
+      await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: locked.campaignId,
+        sessionId: locked.id,
+        sceneId: null,
+        encounterId: null,
+        characterIds: [],
+        category: "hierarchy",
+      });
       return saved;
     });
     refreshTabletop();

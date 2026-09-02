@@ -2,19 +2,16 @@ export const ROLL_METHODS = ["random", "entered"] as const;
 export const ROLL_VISIBILITIES = ["table", "god-only"] as const;
 export const ROLL_PURPOSES = ["free", "attribute", "skill", "attack", "defense", "ability", "other"] as const;
 export const ROLL_STATUSES = ["recorded", "voided"] as const;
-export const ROLL_TYPES = ["percentile", "hit-location"] as const;
+export const PERCENTILE_ROLL_LABEL = "Percentile / d100";
 
 export type RollMethod = (typeof ROLL_METHODS)[number];
 export type RollVisibility = (typeof ROLL_VISIBILITIES)[number];
 export type RollPurpose = (typeof ROLL_PURPOSES)[number];
 export type RollStatus = (typeof ROLL_STATUSES)[number];
-export type RollType = (typeof ROLL_TYPES)[number];
 
 export type RollRandomSource = (minimumInclusive: number, maximumExclusive: number) => number;
 
-export type RollOutcome = {
-  resultTotal: number;
-};
+export type RollOutcome = { resultTotal: number };
 
 export type RollRecordRequest = {
   sessionId: number;
@@ -27,7 +24,6 @@ export type RollRecordRequest = {
   method: RollMethod;
   visibility: RollVisibility;
   purposeKind: RollPurpose;
-  rollType: RollType;
   enteredTotal?: number | null;
   label?: string;
   targetNumber?: number | null;
@@ -66,27 +62,22 @@ function boundedText(value: string | undefined, label: string, maximum: number):
   return normalized;
 }
 
-export function rollTypeLabel(rollType: RollType): string {
-  return rollType === "percentile" ? "Percentile / d100" : "Hit Location / d10 (0–9)";
-}
-
-export function validateRollResult(rollType: RollType, resultTotal: number): number {
-  if (!Number.isInteger(resultTotal)) throw new Error("An entered Roll total must be a whole number.");
-  const [minimum, maximum] = rollType === "percentile" ? [1, 100] : [0, 9];
-  if (resultTotal < minimum || resultTotal > maximum) {
-    throw new Error(`${rollTypeLabel(rollType)} results must be between ${minimum} and ${maximum}.`);
+export function validateRollResult(resultTotal: number): number {
+  if (!Number.isInteger(resultTotal)) throw new Error("An entered percentile result must be a whole number.");
+  if (resultTotal < 1 || resultTotal > 100) {
+    throw new Error(`${PERCENTILE_ROLL_LABEL} results must be between 1 and 100.`);
   }
   return resultTotal;
 }
 
-export function generateRandomRoll(
-  rollType: RollType,
-  randomSource: RollRandomSource,
-): RollOutcome {
-  const [minimumInclusive, maximumExclusive] = rollType === "percentile" ? [1, 101] : [0, 10];
-  const resultTotal = randomSource(minimumInclusive, maximumExclusive);
-  if (!Number.isInteger(resultTotal) || resultTotal < minimumInclusive || resultTotal >= maximumExclusive) {
-    throw new Error(`The secure Roll source returned an invalid ${rollTypeLabel(rollType)} result.`);
+export function getHitLocationFromPercentile(resultTotal: number): number {
+  return validateRollResult(resultTotal) % 10;
+}
+
+export function generateRandomRoll(randomSource: RollRandomSource): RollOutcome {
+  const resultTotal = randomSource(1, 101);
+  if (!Number.isInteger(resultTotal) || resultTotal < 1 || resultTotal > 100) {
+    throw new Error(`The secure Roll source returned an invalid ${PERCENTILE_ROLL_LABEL} result.`);
   }
   return { resultTotal };
 }
@@ -99,19 +90,16 @@ export function resolveRollOutcome(
     if (request.enteredTotal !== null) {
       throw new Error("A System Random Roll cannot accept a browser-supplied result.");
     }
-    return generateRandomRoll(request.rollType, randomSource);
+    return generateRandomRoll(randomSource);
   }
-  if (request.enteredTotal === null) throw new Error("Enter the physical Roll total.");
-  return {
-    resultTotal: validateRollResult(request.rollType, request.enteredTotal),
-  };
+  if (request.enteredTotal === null) throw new Error("Enter the physical percentile result.");
+  return { resultTotal: validateRollResult(request.enteredTotal) };
 }
 
 export function normalizeRollRecordRequest(request: RollRecordRequest): NormalizedRollRecordRequest {
   if (!hasValue(ROLL_METHODS, request.method)) throw new Error("Roll method is invalid.");
   if (!hasValue(ROLL_VISIBILITIES, request.visibility)) throw new Error("Roll visibility is invalid.");
   if (!hasValue(ROLL_PURPOSES, request.purposeKind)) throw new Error("Roll purpose is invalid.");
-  if (!hasValue(ROLL_TYPES, request.rollType)) throw new Error("Roll type must be percentile or hit-location.");
   const sceneId = optionalPositiveId(request.sceneId, "Scene");
   const encounterId = optionalPositiveId(request.encounterId, "Encounter");
   const pendingActionId = optionalPositiveId(request.pendingActionId, "Pending Action");

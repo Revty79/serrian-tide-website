@@ -24,6 +24,8 @@
     "validate:tabletop-closeout-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-closeout-db.test.ts",
     "validate:tabletop-roll-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-roll-runtime-db.test.ts",
     "validate:tabletop-session-closeout-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-session-closeout-db.test.ts",
+    "validate:tabletop-player-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-player-encounter-db.test.ts",
+    "validate:tabletop-player-browser": "node --conditions=react-server --import tsx scripts/tabletop-player-encounter-browser.test.ts",
     "validate:random": "tsx --test src/features/characters/random-character.test.ts",
     "validate:realms": "tsx --test src/features/characters/*.test.ts",
     "validate:active-state": "tsx --test src/features/active-state/*.test.ts",
@@ -64,6 +66,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
+    "playwright-core": "^1.62.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"

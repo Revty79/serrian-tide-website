@@ -37,6 +37,7 @@ import {
   finalizeEncounterCloseoutInTransaction,
   lockEncounterCloseoutContextInTransaction,
 } from "@/features/tabletop-operations/encounter-closeout-service";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 import { getSessionSceneWorkspace, type SceneMemberView } from "./scene-actions";
@@ -148,6 +149,21 @@ function toEncounterSummary(row: EncounterRow, participantCount = 0): CampaignEn
 function refreshEncounters(): void {
   revalidatePath("/heavens/tabletop");
   revalidatePath("/heavens");
+}
+
+async function publishEncounterHierarchy(
+  tx: TabletopTransaction,
+  context: { campaignId: number; sessionId: number; sceneId: number; id?: number; encounterId?: number },
+  characterIds: number[] = [],
+): Promise<void> {
+  await publishTabletopInvalidationInTransaction(tx, {
+    campaignId: context.campaignId,
+    sessionId: context.sessionId,
+    sceneId: context.sceneId,
+    encounterId: context.encounterId ?? context.id ?? null,
+    characterIds,
+    category: "hierarchy",
+  });
 }
 
 async function lockOwnedScene(tx: TabletopTransaction, sceneId: number, actingUserId: string) {
@@ -383,6 +399,7 @@ export async function updateCampaignSessionEncounter(
         ))
         .returning(encounterFields);
       if (!row) throw new Error("The Encounter changed before this update completed. Refresh and try again.");
+      await publishEncounterHierarchy(tx, locked);
       return row;
     });
     refreshEncounters();
@@ -438,6 +455,7 @@ async function applyEncounterLifecycleTransition(
         ))
         .returning(encounterFields);
       if (!row) throw new Error("The Encounter changed before this action completed. Refresh and try again.");
+      await publishEncounterHierarchy(tx, locked);
       return row;
     });
     refreshEncounters();
@@ -460,6 +478,7 @@ export async function completeCampaignSessionEncounter(encounterId: number): Pro
   const completed = await db.transaction(async (tx) => {
     const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, access.user.id);
     await finalizeEncounterCloseoutInTransaction(tx, context, { awards: [] });
+    await publishEncounterHierarchy(tx, context);
     const [row] = await tx.select(encounterFields).from(campaignSessionEncounter)
       .where(eq(campaignSessionEncounter.id, encounterId)).limit(1);
     if (!row) throw new Error("That Encounter no longer exists.");
@@ -553,6 +572,7 @@ export async function addCampaignSessionEncounterParticipant(
       characterId,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     });
+    await publishEncounterHierarchy(tx, locked, [characterId]);
   });
   refreshEncounters();
 }
@@ -587,6 +607,7 @@ export async function removeCampaignSessionEncounterParticipant(
       .returning({ characterId: campaignSessionEncounterParticipant.characterId });
     if (!removed.length) throw new Error("That Character or NPC is not an Encounter Participant.");
     await normalizePersistedParticipantOrder(tx, encounterId);
+    await publishEncounterHierarchy(tx, locked, [characterId]);
   });
   refreshEncounters();
 }

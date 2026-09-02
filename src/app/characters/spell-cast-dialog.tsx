@@ -32,16 +32,26 @@ function statusLabel(status: SpellCastPreparation["plan"]["status"]): string {
   return "Ready to cast";
 }
 
+const executeImmediateSpellCast = (request: SpellCastRequest) => (
+  executeCharacterSpellCastAction(request, true)
+);
+
 export function SpellCastDialog({
   casterCharacterId,
   source,
   onClose,
   onCast,
+  prepareCast = prepareCharacterSpellCast,
+  executeCast = executeImmediateSpellCast,
+  confirmationLabel,
 }: {
   casterCharacterId: number;
   source: SpellCastSourceRequest;
   onClose: () => void;
   onCast?: (result: SpellCastExecutionResult) => void;
+  prepareCast?: (request: SpellCastRequest) => Promise<SpellCastPreparation>;
+  executeCast?: (request: SpellCastRequest) => Promise<SpellCastExecutionResult | null>;
+  confirmationLabel?: string;
 }) {
   const [selections, setSelections] = useState<SpellCastRuntimeSelections>(EMPTY_SELECTIONS);
   const [preparation, setPreparation] = useState<SpellCastPreparation | null>(null);
@@ -58,7 +68,7 @@ export function SpellCastDialog({
     setBusy(true);
     setError(null);
     try {
-      setPreparation(await prepareCharacterSpellCast(requestFor(nextSelections)));
+      setPreparation(await prepareCast(requestFor(nextSelections)));
       setPreviewDirty(false);
     } catch (caught) {
       setPreparation(null);
@@ -74,7 +84,7 @@ export function SpellCastDialog({
       applications: {},
     } satisfies SpellCastRuntimeSelections;
     let cancelled = false;
-    void prepareCharacterSpellCast({ casterCharacterId, source, selections: initial })
+    void prepareCast({ casterCharacterId, source, selections: initial })
       .then((next) => {
         if (cancelled) return;
         setPreparation(next);
@@ -86,7 +96,7 @@ export function SpellCastDialog({
         setBusy(false);
       });
     return () => { cancelled = true; };
-  }, [casterCharacterId, source]);
+  }, [casterCharacterId, prepareCast, source]);
 
   function selectTarget(groupId: string, characterId: number, selected: boolean) {
     setSelections((current) => {
@@ -134,9 +144,13 @@ export function SpellCastDialog({
     setBusy(true);
     setError(null);
     try {
-      const next = await executeCharacterSpellCastAction(requestFor(), true);
-      setResult(next);
-      onCast?.(next);
+      const next = await executeCast(requestFor());
+      if (next) {
+        setResult(next);
+        onCast?.(next);
+      } else {
+        onClose();
+      }
     } catch (caught) {
       setError(messageFor(caught));
       setPreviewDirty(true);
@@ -348,7 +362,7 @@ export function SpellCastDialog({
                 disabled={busy || previewDirty || !plan.ready}
                 onClick={() => void execute()}
               >
-                Confirm · Spend {plan.finalManaCost} Mana
+                {confirmationLabel ?? `Confirm · Spend ${plan.finalManaCost} Mana`}
               </button>
             </footer>
           </>

@@ -1,5 +1,5 @@
 {
-  "id": "6bd0ebd8-502d-4c40-993b-36fa7ff8462c",
+  "id": "a494afcb-4006-4d79-8004-ce6e7560a788",
   "prevId": "dce05197-45f4-4e2e-9ffc-843108e26fee",
   "version": "7",
   "dialect": "postgresql",
@@ -11945,13 +11945,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "roll_type": {
-          "name": "roll_type",
-          "type": "campaign_session_roll_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
         "visibility": {
           "name": "visibility",
           "type": "campaign_session_roll_visibility",
@@ -12387,9 +12380,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "campaign_session_roll_type_result_valid": {
-          "name": "campaign_session_roll_type_result_valid",
-          "value": "(\n        \"campaign_session_roll\".\"roll_type\" = 'percentile'\n        AND \"campaign_session_roll\".\"result_total\" BETWEEN 1 AND 100\n      ) OR (\n        \"campaign_session_roll\".\"roll_type\" = 'hit-location'\n        AND \"campaign_session_roll\".\"result_total\" BETWEEN 0 AND 9\n      )"
+        "campaign_session_roll_result_valid": {
+          "name": "campaign_session_roll_result_valid",
+          "value": "\"campaign_session_roll\".\"result_total\" BETWEEN 1 AND 100"
         },
         "campaign_session_roll_hierarchy_valid": {
           "name": "campaign_session_roll_hierarchy_valid",
@@ -13121,14 +13114,6 @@
       "values": [
         "recorded",
         "voided"
-      ]
-    },
-    "public.campaign_session_roll_type": {
-      "name": "campaign_session_roll_type",
-      "schema": "public",
-      "values": [
-        "percentile",
-        "hit-location"
       ]
     },
     "public.campaign_session_roll_visibility": {

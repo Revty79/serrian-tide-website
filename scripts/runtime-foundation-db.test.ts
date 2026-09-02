@@ -276,10 +276,15 @@ async function useFixtureItem(input: {
           instanceId: resource.instanceId,
         });
       } else if (resource.useMode === "consume-item") {
-        await tx.update(campaignCharacterItem).set({ quantity: resource.after }).where(and(
+        const ownership = and(
           eq(campaignCharacterItem.characterId, fixtures.playerCharacterId),
           eq(campaignCharacterItem.itemId, definition.id),
-        ));
+        );
+        if (resource.after === 0) {
+          await tx.delete(campaignCharacterItem).where(ownership);
+        } else {
+          await tx.update(campaignCharacterItem).set({ quantity: resource.after }).where(ownership);
+        }
       }
     },
     applyAutomaticEffect: async (effect) => {
@@ -712,7 +717,7 @@ test("Runtime Foundation real PostgreSQL freeze", { concurrency: false }, async 
     const consumed = await useFixtureItem({ canonicalId: "DEV-STEP13-HEAL" });
     assert.equal(consumed.resource.kind, "stack");
     const afterConsume = await pool.query<{ quantity: number }>("select quantity from campaign_character_item where character_id=$1 and item_id=(select id from items where canonical_id='DEV-STEP13-HEAL')", [fixtures.playerCharacterId]);
-    assert.equal(afterConsume.rows[0]!.quantity, beforeConsume.rows[0]!.quantity - 1);
+    assert.equal(afterConsume.rows[0]?.quantity ?? 0, beforeConsume.rows[0]!.quantity - 1);
 
     const health = await persistedHealth(fixtures.playerCharacterId);
     const location = health.anatomy.hitLocations.find(({ poolKey }) => Boolean(poolKey))!;

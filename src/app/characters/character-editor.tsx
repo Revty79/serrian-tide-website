@@ -395,6 +395,7 @@ export function CharacterEditor({
   initialEquipmentState,
   initialChargeState,
   godMode,
+  itemUseTimingBlocked = false,
   backHref,
   backLabel = "Back",
 }: {
@@ -405,6 +406,7 @@ export function CharacterEditor({
   initialEquipmentState: CharacterEquipmentStateView;
   initialChargeState: CharacterItemChargeStateView;
   godMode: boolean;
+  itemUseTimingBlocked?: boolean;
   backHref?: string;
   backLabel?: string;
 }) {
@@ -838,7 +840,7 @@ export function CharacterEditor({
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked} onChange={change} /> : null}
           {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={setEquipmentFilter} onSearch={setEquipmentSearch} onQuantityChange={changeItemQuantity} onRemoveInstance={removeItemInstance} campaignMoney={campaignMoney} /> : null}
           {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} /> : null}
-          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving} onItemUseComplete={refreshAfterItemUse} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
+          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked} itemUseDisabledReason={itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterItemUse} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>

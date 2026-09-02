@@ -36,6 +36,7 @@ import {
 } from "@/features/tabletop-operations/session-foundation";
 import { requireGod } from "@/lib/server-access";
 import { expireSceneDurationsInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 
 import {
   getSessionPrepWorkspace,
@@ -437,6 +438,14 @@ async function applySceneLifecycleTransition(
       if (next.status === "completed") {
         await expireSceneDurationsInTransaction(tx, sceneId, locked.sequenceNumber);
       }
+      await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: locked.campaignId,
+        sessionId: locked.sessionId,
+        sceneId,
+        encounterId: null,
+        characterIds: [],
+        category: "hierarchy",
+      });
       return row;
     });
     refreshScenes();
@@ -529,6 +538,14 @@ export async function addCampaignSessionSceneMember(
       characterId,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     });
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: locked.campaignId,
+      sessionId: locked.sessionId,
+      sceneId,
+      encounterId: null,
+      characterIds: [],
+      category: "hierarchy",
+    });
   });
   refreshScenes();
 }
@@ -563,6 +580,14 @@ export async function removeCampaignSessionSceneMember(
       .returning({ characterId: campaignSessionSceneMember.characterId });
     if (!removed.length) throw new Error("That Character or NPC is not in this Scene.");
     await normalizePersistedMemberOrder(tx, sceneId);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: locked.campaignId,
+      sessionId: locked.sessionId,
+      sceneId,
+      encounterId: null,
+      characterIds: [],
+      category: "hierarchy",
+    });
   });
   refreshScenes();
 }

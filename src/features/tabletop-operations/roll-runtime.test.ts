@@ -4,12 +4,11 @@ import test from "node:test";
 import {
   canReadRollVisibility,
   generateRandomRoll,
+  getHitLocationFromPercentile,
   normalizeRollRecordRequest,
   normalizeVoidReason,
   readableRollVisibilities,
   resolveRollOutcome,
-  ROLL_TYPES,
-  rollTypeLabel,
   validateRollResult,
 } from "./roll-runtime";
 
@@ -19,42 +18,23 @@ function request(overrides: Partial<Parameters<typeof normalizeRollRecordRequest
     method: "random",
     visibility: "god-only",
     purposeKind: "free",
-    rollType: "percentile",
     ...overrides,
   });
 }
 
-test("Roll types are explicitly limited to Serrian Tide percentile and hit location", () => {
-  assert.deepEqual(ROLL_TYPES, ["percentile", "hit-location"]);
-  assert.equal(rollTypeLabel("percentile"), "Percentile / d100");
-  assert.equal(rollTypeLabel("hit-location"), "Hit Location / d10 (0–9)");
-  assert.throws(() => request({ rollType: "d20" as "percentile" }), /percentile or hit-location/);
-});
-
-test("server random percentile uses the canonical 1 through 100 range", () => {
+test("server random percentile uses exactly one secure 1 through 100 request", () => {
   const bounds: Array<[number, number]> = [];
-  assert.deepEqual(generateRandomRoll("percentile", (minimum, maximum) => {
+  assert.deepEqual(generateRandomRoll((minimum, maximum) => {
     bounds.push([minimum, maximum]);
     return 100;
   }), { resultTotal: 100 });
   assert.deepEqual(bounds, [[1, 101]]);
 });
 
-test("server random hit location preserves the canonical 0 through 9 values", () => {
-  const bounds: Array<[number, number]> = [];
-  assert.deepEqual(generateRandomRoll("hit-location", (minimum, maximum) => {
-    bounds.push([minimum, maximum]);
-    return 0;
-  }), { resultTotal: 0 });
-  assert.deepEqual(bounds, [[0, 10]]);
-});
-
-test("random source output is defensively validated for both canonical Roll types", () => {
-  assert.throws(() => generateRandomRoll("percentile", () => 0), /invalid Percentile/);
-  assert.throws(() => generateRandomRoll("percentile", () => 101), /invalid Percentile/);
-  assert.throws(() => generateRandomRoll("hit-location", () => -1), /invalid Hit Location/);
-  assert.throws(() => generateRandomRoll("hit-location", () => 10), /invalid Hit Location/);
-  assert.throws(() => generateRandomRoll("hit-location", () => 2.5), /invalid Hit Location/);
+test("random source output is defensively limited to canonical percentile", () => {
+  assert.throws(() => generateRandomRoll(() => 0), /invalid Percentile/);
+  assert.throws(() => generateRandomRoll(() => 101), /invalid Percentile/);
+  assert.throws(() => generateRandomRoll(() => 2.5), /invalid Percentile/);
 });
 
 test("System Random rejects any browser-supplied result", () => {
@@ -62,25 +42,26 @@ test("System Random rejects any browser-supplied result", () => {
   assert.deepEqual(resolveRollOutcome(request(), () => 73), { resultTotal: 73 });
 });
 
-test("entered physical Rolls store a validated canonical result", () => {
-  const normalized = request({ method: "entered", rollType: "hit-location", enteredTotal: 8 });
-  assert.deepEqual(resolveRollOutcome(normalized, () => { throw new Error("must not generate"); }), {
-    resultTotal: 8,
-  });
-  assert.throws(() => resolveRollOutcome(request({ method: "entered" }), () => 1), /Enter the physical Roll total/);
+test("entered physical percentile accepts 1, 73, and physical 00 as 100", () => {
+  for (const result of [1, 73, 100]) {
+    const normalized = request({ method: "entered", enteredTotal: result });
+    assert.deepEqual(resolveRollOutcome(normalized, () => { throw new Error("must not generate"); }), { resultTotal: result });
+  }
+  assert.throws(() => resolveRollOutcome(request({ method: "entered" }), () => 1), /physical percentile result/);
+  assert.throws(() => validateRollResult(0), /between 1 and 100/);
+  assert.throws(() => validateRollResult(101), /between 1 and 100/);
 });
 
-test("physical percentile 00 is represented as 100 while zero is rejected", () => {
-  assert.equal(validateRollResult("percentile", 100), 100);
-  assert.throws(() => validateRollResult("percentile", 0), /between 1 and 100/);
-});
-
-test("hit-location results remain canonical 0 through 9", () => {
-  assert.equal(validateRollResult("hit-location", 0), 0);
-  assert.equal(validateRollResult("hit-location", 9), 9);
-  assert.throws(() => validateRollResult("hit-location", -1), /between 0 and 9/);
-  assert.throws(() => validateRollResult("hit-location", 10), /between 0 and 9/);
-  assert.throws(() => validateRollResult("hit-location", 7.5), /whole number/);
+test("Hit Location is derived from the ones digit of the one percentile result", () => {
+  const expected = new Map([
+    [1, 1], [9, 9], [10, 0], [23, 3], [48, 8], [73, 3], [90, 0], [99, 9], [100, 0],
+  ]);
+  for (const [roll, hitLocation] of expected) {
+    assert.equal(getHitLocationFromPercentile(roll), hitLocation);
+  }
+  for (const invalid of [0, 101, 1.5, Number.NaN]) {
+    assert.throws(() => getHitLocationFromPercentile(invalid));
+  }
 });
 
 test("request normalization enforces exact hierarchy prerequisites", () => {
@@ -109,7 +90,7 @@ test("void reasons are mandatory, trimmed, and bounded", () => {
   assert.throws(() => normalizeVoidReason("x".repeat(501)), /500 characters/);
 });
 
-test("shared visibility policy hides G.O.D.-only Rolls from future Player reads", () => {
+test("shared visibility policy hides G.O.D.-only Rolls from Player reads", () => {
   assert.equal(canReadRollVisibility("god-owner", "table"), true);
   assert.equal(canReadRollVisibility("god-owner", "god-only"), true);
   assert.equal(canReadRollVisibility("player", "table"), true);

@@ -195,7 +195,6 @@ test("Session finalization and reopen preserve Character state, XP, rewards, Rol
       method: "entered",
       visibility: "table",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 73,
       label: "Preserved Roll",
     });
@@ -332,7 +331,6 @@ test("Session finalization and reopen preserve Character state, XP, rewards, Rol
       method: "entered",
       visibility: "table",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 50,
     }), /completed Session/);
 
@@ -369,7 +367,6 @@ test("Session finalization and reopen preserve Character state, XP, rewards, Rol
       method: "entered",
       visibility: "table",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 50,
     });
     assert.notEqual(newRoll.id, recorded.id);

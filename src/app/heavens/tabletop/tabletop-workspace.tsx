@@ -11,6 +11,7 @@ import type { CombatAidEncounterView } from "@/features/tabletop-operations/comb
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 import type { SessionCloseoutView } from "@/features/tabletop-operations/session-closeout-service";
+import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 
 import {
   addSessionRosterMember,
@@ -315,7 +316,10 @@ export function TabletopWorkspace({
         <h1 className="font-sans">Tabletop Operations</h1>
         <span>Organize the table. Preserve the living state of the world.</span>
       </div>
-      <Link href="/heavens">Return to The Heavens</Link>
+      <div className="tabletop-hero__actions">
+        {initialData.selectedCampaignId ? <TabletopLiveRefresh mode="god" campaignId={initialData.selectedCampaignId} /> : null}
+        <Link href="/heavens">Return to The Heavens</Link>
+      </div>
     </header>
 
     <section className="tabletop-campaigns" aria-label="Campaign selection">

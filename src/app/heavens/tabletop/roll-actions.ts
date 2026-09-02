@@ -18,6 +18,7 @@ import {
   type RollWorkspaceView,
 } from "@/features/tabletop-operations/roll-runtime-service";
 import type { RollRecordRequest } from "@/features/tabletop-operations/roll-runtime";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -76,7 +77,16 @@ export async function recordGodRoll(input: RollRecordRequest): Promise<RollLedge
   const access = await requireGod();
   const result = await db.transaction(async (tx) => {
     const actor = await getGodRollActor(tx, input.sessionId, access.user.id);
-    return recordRollInTransaction(tx, actor, input);
+    const recorded = await recordRollInTransaction(tx, actor, input);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: actor.campaignId,
+      sessionId: input.sessionId,
+      sceneId: recorded.sceneId,
+      encounterId: recorded.encounterId,
+      characterIds: [recorded.rollerCharacterId, recorded.targetCharacterId].filter((id): id is number => id !== null),
+      category: "roll",
+    });
+    return recorded;
   });
   refreshRolls();
   return result;
@@ -90,7 +100,16 @@ export async function voidGodRoll(
   const access = await requireGod();
   const result = await db.transaction(async (tx) => {
     const actor = await getGodRollActor(tx, sessionId, access.user.id);
-    return voidRollInTransaction(tx, actor, rollId, reason);
+    const voided = await voidRollInTransaction(tx, actor, rollId, reason);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: actor.campaignId,
+      sessionId,
+      sceneId: voided.sceneId,
+      encounterId: voided.encounterId,
+      characterIds: [voided.rollerCharacterId, voided.targetCharacterId].filter((id): id is number => id !== null),
+      category: "roll",
+    });
+    return voided;
   });
   refreshRolls();
   return result;

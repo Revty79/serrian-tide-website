@@ -29,7 +29,6 @@ import {
   ROLL_METHODS,
   ROLL_PURPOSES,
   ROLL_STATUSES,
-  ROLL_TYPES,
   ROLL_VISIBILITIES,
   type RollMethod,
   type RollPurpose,
@@ -37,7 +36,6 @@ import {
   type RollReadActor,
   type RollRecordRequest,
   type RollStatus,
-  type RollType,
   type RollVisibility,
 } from "./roll-runtime";
 
@@ -69,7 +67,6 @@ export type RollLedgerEntry = {
   recordedByUserId: string;
   recordedByName: string;
   method: RollMethod;
-  rollType: RollType;
   visibility: RollVisibility;
   purposeKind: RollPurpose;
   label: string;
@@ -91,7 +88,6 @@ export type RollLedgerFilters = {
   encounterId?: number | null;
   characterId?: number | null;
   method?: RollMethod | null;
-  rollType?: RollType | null;
   visibility?: RollVisibility | null;
   purposeKind?: RollPurpose | null;
   status?: RollStatus | null;
@@ -314,7 +310,6 @@ export async function recordRollInTransaction(
     reactionId: request.reactionId,
     recordedByUserId: actor.userId,
     method: request.method,
-    rollType: request.rollType,
     visibility: request.visibility,
     purposeKind: request.purposeKind,
     label: request.label,
@@ -381,7 +376,6 @@ export async function readRollLedgerInTransaction(
   const characterId = optionalFilterId(filters.characterId, "Character filter");
   const beforeId = optionalFilterId(filters.beforeId, "Roll cursor");
   const method = enumFilter(ROLL_METHODS, filters.method, "Roll method filter");
-  const rollType = enumFilter(ROLL_TYPES, filters.rollType, "Roll type filter");
   const requestedVisibility = enumFilter(ROLL_VISIBILITIES, filters.visibility, "Roll visibility filter");
   const purposeKind = enumFilter(ROLL_PURPOSES, filters.purposeKind, "Roll purpose filter");
   const status = enumFilter(ROLL_STATUSES, filters.status, "Roll status filter");
@@ -402,7 +396,6 @@ export async function readRollLedgerInTransaction(
     eq(campaignSessionRoll.targetCharacterId, characterId),
   )!);
   if (method !== null) clauses.push(eq(campaignSessionRoll.method, method));
-  if (rollType !== null) clauses.push(eq(campaignSessionRoll.rollType, rollType));
   if (requestedVisibility !== null) clauses.push(eq(campaignSessionRoll.visibility, requestedVisibility));
   if (purposeKind !== null) clauses.push(eq(campaignSessionRoll.purposeKind, purposeKind));
   if (status !== null) clauses.push(eq(campaignSessionRoll.status, status));
@@ -458,7 +451,6 @@ export async function readRollLedgerInTransaction(
       recordedByUserId: row.recordedByUserId,
       recordedByName: userNames.get(row.recordedByUserId) ?? "Unknown user",
       method: row.method,
-      rollType: row.rollType,
       visibility: row.visibility,
       purposeKind: row.purposeKind,
       label: row.label,

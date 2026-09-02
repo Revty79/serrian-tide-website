@@ -53,6 +53,7 @@ import {
   type PendingInitiativeActionStatus,
 } from "@/features/tabletop-operations/initiative-runtime";
 import { assertCampaignSessionOwner } from "@/features/tabletop-operations/session-foundation";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 type TabletopTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -385,6 +386,14 @@ async function mutateOwnedInitiative(
     if (!current) throw new Error("Initiative has not been initialized for this Encounter.");
     const changed = await mutate(current, context, tx);
     await persistEngine(tx, context, current, changed, options.durationPassage);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: context.campaignId,
+      sessionId: context.sessionId,
+      sceneId: context.sceneId,
+      encounterId: context.encounterId,
+      characterIds: [],
+      category: "initiative",
+    });
     return changed;
   });
   refreshInitiative();
@@ -509,6 +518,14 @@ export async function initializeEncounterInitiative(
         movementMode: participant.movementMode,
       })));
     }
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: context.campaignId,
+      sessionId: context.sessionId,
+      sceneId: context.sceneId,
+      encounterId: context.encounterId,
+      characterIds: [],
+      category: "initiative",
+    });
     return engine;
   });
   refreshInitiative();

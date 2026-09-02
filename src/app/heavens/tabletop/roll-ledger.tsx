@@ -8,11 +8,11 @@ import type {
   RollWorkspaceView,
 } from "@/features/tabletop-operations/roll-runtime-service";
 import {
-  rollTypeLabel,
+  getHitLocationFromPercentile,
+  PERCENTILE_ROLL_LABEL,
   type RollMethod,
   type RollPurpose,
   type RollStatus,
-  type RollType,
   type RollVisibility,
 } from "@/features/tabletop-operations/roll-runtime";
 
@@ -55,8 +55,8 @@ function RollCard({
   }
   return <article className={`roll-ledger-card is-${roll.status}`}>
     <header>
-      <div><strong>{roll.resultTotal}</strong><span>{rollTypeLabel(roll.rollType)}</span></div>
-      <div><b>{roll.label || "Unlabeled Roll"}</b><small>{roll.purposeKind} · {methodLabel(roll.method)} · {visibilityLabel(roll.visibility)}</small></div>
+      <div><strong>{roll.resultTotal}</strong><span>{PERCENTILE_ROLL_LABEL}</span></div>
+      <div><b>{roll.label || "Unlabeled Roll"}</b><small>{roll.purposeKind} · {methodLabel(roll.method)} · {visibilityLabel(roll.visibility)}</small>{roll.purposeKind === "attack" ? <small>Derived Hit Location: {getHitLocationFromPercentile(roll.resultTotal)}</small> : null}</div>
       <em>{roll.status}</em>
     </header>
     <div className="roll-ledger-context">
@@ -82,7 +82,6 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
   const [scope, setScope] = useState<ScopeFilter>("session");
   const [characterId, setCharacterId] = useState("");
   const [method, setMethod] = useState<RollMethod | "">("");
-  const [rollType, setRollType] = useState<RollType | "">("");
   const [visibility, setVisibility] = useState<RollVisibility | "">("");
   const [purposeKind, setPurposeKind] = useState<RollPurpose | "">("");
   const [status, setStatus] = useState<RollStatus | "">("");
@@ -95,7 +94,6 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
       encounterId: scope === "encounter" ? workspace.selectedEncounter?.id ?? null : null,
       characterId: characterId ? Number(characterId) : null,
       method: method || null,
-      rollType: rollType || null,
       visibility: visibility || null,
       purposeKind: purposeKind || null,
       status: status || null,
@@ -145,7 +143,6 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
         <label><span>Context</span><select value={scope} onChange={(event) => setScope(event.target.value as ScopeFilter)}><option value="session">Current Session</option>{workspace.selectedScene ? <option value="scene">Current Scene</option> : null}{workspace.selectedEncounter ? <option value="encounter">Current Encounter</option> : null}</select></label>
         <label><span>Character</span><select value={characterId} onChange={(event) => setCharacterId(event.target.value)}><option value="">All Characters</option>{workspace.characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
         <label><span>Method</span><select value={method} onChange={(event) => setMethod(event.target.value as typeof method)}><option value="">All methods</option><option value="random">System Random</option><option value="entered">Entered / Physical</option></select></label>
-        <label><span>Roll Type</span><select value={rollType} onChange={(event) => setRollType(event.target.value as typeof rollType)}><option value="">All Roll types</option><option value="percentile">Percentile / d100</option><option value="hit-location">Hit Location / d10 (0–9)</option></select></label>
         <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as typeof visibility)}><option value="">All visibility</option><option value="table">Table-visible</option><option value="god-only">G.O.D. Only</option></select></label>
         <label><span>Purpose</span><select value={purposeKind} onChange={(event) => setPurposeKind(event.target.value as typeof purposeKind)}><option value="">All purposes</option>{["free", "attribute", "skill", "attack", "defense", "ability", "other"].map((purpose) => <option key={purpose} value={purpose}>{purpose}</option>)}</select></label>
         <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="">Active and voided</option><option value="recorded">Recorded</option><option value="voided">Voided</option></select></label>

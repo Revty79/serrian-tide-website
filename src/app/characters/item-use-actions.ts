@@ -12,6 +12,7 @@ import {
   campaignCharacterItem,
   campaignInventoryItem,
 } from "@/db/realm-schema";
+import { campaignSessionEncounterInitiative } from "@/db/tabletop-operations-schema";
 import {
   readActiveHealthInTransaction,
   type ActiveHealthTransaction,
@@ -46,6 +47,8 @@ import {
   type ItemRuntimeProfile,
   type ItemUseMode,
 } from "@/features/items/item-runtime";
+import { resolveActivePlayerEncounterInTransaction } from "@/features/tabletop-operations/player-encounter-service";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireSession } from "@/lib/server-access";
 
 export type ItemUseTargetOption = {
@@ -358,6 +361,25 @@ export async function prepareCharacterItemUse(
   ));
 }
 
+async function assertStandalonePlayerItemTiming(
+  tx: ActiveHealthTransaction,
+  characterId: number,
+  actingUserId: string,
+) {
+  const roles = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, actingUserId));
+  if (roles.some(({ role }) => role === "god")) return null;
+  const context = await resolveActivePlayerEncounterInTransaction(tx, characterId, actingUserId);
+  if (!context) return null;
+  const [initiative] = await tx.select({ status: campaignSessionEncounterInitiative.status })
+    .from(campaignSessionEncounterInitiative)
+    .where(eq(campaignSessionEncounterInitiative.encounterId, context.encounterId))
+    .limit(1);
+  if (initiative?.status === "active") {
+    throw new Error("G.O.D. TIMING RULING REQUIRED: this Item has no universal Initiative Cost and cannot be used directly during active Initiative.");
+  }
+  return context;
+}
+
 /** Caller-owned preview boundary used by Tabletop Operations. */
 export async function prepareCharacterItemUseInTransaction(
   tx: ActiveHealthTransaction,
@@ -365,6 +387,7 @@ export async function prepareCharacterItemUseInTransaction(
   actingUserId: string,
 ): Promise<ItemUsePreparation> {
   const request = validateRequest(input);
+  await assertStandalonePlayerItemTiming(tx, request.sourceCharacterId, actingUserId);
   const roles = await tx
     .select({ role: userRole.role })
     .from(userRole)
@@ -388,8 +411,9 @@ export async function executeCharacterItemUseInCallerTransaction(
   onPersistedEffect?: PersistedMechanicalEffectObserver,
 ): Promise<ItemUseExecutionResult> {
   const request = validateRequest(input);
+  const liveContext = await assertStandalonePlayerItemTiming(tx, request.sourceCharacterId, actingUserId);
   let loaded: LoadedUse | null = null;
-  return executeItemUseInTransaction(async (execute) => execute({
+  const result = await executeItemUseInTransaction(async (execute) => execute({
     loadAndPlan: async () => {
       await lockEquipmentStateCharacterInTransaction(tx, request.sourceCharacterId);
       loaded = await loadUse(tx, request, actingUserId, true);
@@ -442,6 +466,17 @@ export async function executeCharacterItemUseInCallerTransaction(
       if (persisted && onPersistedEffect) await onPersistedEffect(persisted);
     },
   }));
+  if (liveContext) {
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: liveContext.campaignId,
+      sessionId: liveContext.sessionId,
+      sceneId: liveContext.sceneId,
+      encounterId: liveContext.encounterId,
+      characterIds: [],
+      category: "character-state",
+    });
+  }
+  return result;
 }
 
 export async function executeCharacterItemUse(

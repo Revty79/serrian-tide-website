@@ -3,12 +3,11 @@
 import { useMemo, useState } from "react";
 
 import {
+  getHitLocationFromPercentile,
+  PERCENTILE_ROLL_LABEL,
   ROLL_PURPOSES,
-  ROLL_TYPES,
-  rollTypeLabel,
   type RollMethod,
   type RollPurpose,
-  type RollType,
   type RollVisibility,
 } from "@/features/tabletop-operations/roll-runtime";
 import type {
@@ -28,7 +27,6 @@ export type RollTrayPrefill = {
   reactionId?: number | null;
   purposeKind?: RollPurpose;
   label?: string;
-  rollType?: RollType;
 };
 
 function methodLabel(method: RollMethod): string {
@@ -57,7 +55,6 @@ export function RollTray({
           : "session";
   const [scope, setScope] = useState<RollTrayScope>(availableDefaultScope);
   const [method, setMethod] = useState<RollMethod>("random");
-  const [rollType, setRollType] = useState<RollType>(prefill.rollType ?? "percentile");
   const [purposeKind, setPurposeKind] = useState<RollPurpose>(prefill.purposeKind ?? "free");
   const [rollerCharacterId, setRollerCharacterId] = useState(prefill.rollerCharacterId ? String(prefill.rollerCharacterId) : "");
   const [targetCharacterId, setTargetCharacterId] = useState(prefill.targetCharacterId ? String(prefill.targetCharacterId) : "");
@@ -96,7 +93,6 @@ export function RollTray({
         pendingActionId: scope === "encounter" ? numericId(pendingActionId) : null,
         reactionId: scope === "encounter" ? numericId(reactionId) : null,
         method,
-        rollType,
         visibility,
         purposeKind,
         enteredTotal: method === "entered" ? Number(enteredTotal) : null,
@@ -123,7 +119,8 @@ export function RollTray({
 
     {lastRoll ? <aside className={`roll-tray-result is-${lastRoll.status}`}>
       <strong>{lastRoll.resultTotal}</strong>
-      <span>{rollTypeLabel(lastRoll.rollType)} · {methodLabel(lastRoll.method)}</span>
+      <span>{PERCENTILE_ROLL_LABEL} · {methodLabel(lastRoll.method)}</span>
+      {lastRoll.purposeKind === "attack" ? <em>Derived Hit Location: {getHitLocationFromPercentile(lastRoll.resultTotal)}</em> : null}
       <small>{lastRoll.method === "random" ? "Canonical result generated securely by the server." : "Physical/external result recorded as entered."}</small>
     </aside> : null}
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
@@ -141,8 +138,8 @@ export function RollTray({
         {workspace.selectedEncounter ? <option value="encounter">Current Encounter</option> : null}
       </select></label>
       <label><span>Purpose</span><select value={purposeKind} onChange={(event) => setPurposeKind(event.target.value as RollPurpose)}>{ROLL_PURPOSES.map((purpose) => <option key={purpose} value={purpose}>{purpose[0].toUpperCase() + purpose.slice(1)}</option>)}</select></label>
-      <label className="is-wide"><span>Roll Type</span><div className="roll-tray-dice-presets">{ROLL_TYPES.map((type) => <button type="button" className={rollType === type ? "is-selected" : ""} key={type} onClick={() => setRollType(type)}>{rollTypeLabel(type)}</button>)}</div><small>Serrian Tide supports percentile checks and canonical 0–9 hit-location rolls. Damage and Initiative are never rolled here.</small></label>
-      {method === "entered" ? <label><span>Result</span><input type="number" min={rollType === "percentile" ? 1 : 0} max={rollType === "percentile" ? 100 : 9} step="1" value={enteredTotal} onChange={(event) => setEnteredTotal(event.target.value)} placeholder={rollType === "percentile" ? "73" : "0–9"} /><small>{rollType === "percentile" ? "Enter 100 for a physical percentile 00 result." : "Preserve the canonical hit-location value exactly as 0–9."}</small></label> : <div className="roll-tray-random-note"><span>Result</span><strong>Generated securely by the server</strong><small>The browser cannot submit the random result.</small></div>}
+      <div className="roll-tray-percentile-note"><span>Roll</span><strong>Serrian Tide Percentile</strong><small>One result from 1–100. Attack Hit Location is derived from its ones digit; it is never rolled separately. Damage and Initiative are never rolled here.</small></div>
+      {method === "entered" ? <label><span>Result</span><input type="number" min={1} max={100} step="1" value={enteredTotal} onChange={(event) => setEnteredTotal(event.target.value)} placeholder="73" /><small>Enter 100 for a physical percentile 00 result.</small></label> : <div className="roll-tray-random-note"><span>Result</span><strong>Generated securely by the server</strong><small>The browser cannot submit the random result.</small></div>}
       <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as RollVisibility)}><option value="god-only">G.O.D. Only</option><option value="table">Show to Table</option></select></label>
       <label><span>Character</span><select value={rollerCharacterId} onChange={(event) => setRollerCharacterId(event.target.value)}><option value="">No Character context</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
       <label><span>Target Character</span><select value={targetCharacterId} onChange={(event) => setTargetCharacterId(event.target.value)}><option value="">No target Character</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>

@@ -8,12 +8,11 @@ test("migration 0012 is additive, bounded, immutable-history oriented, and hiera
   const migration = read("drizzle/0012_tabletop_operations_roll_runtime.sql");
   assert.match(migration, /CREATE TABLE "campaign_session_roll"/);
   assert.match(migration, /campaign_session_roll_method/);
-  assert.match(migration, /campaign_session_roll_type/);
-  assert.match(migration, /'percentile', 'hit-location'/);
+  assert.doesNotMatch(migration, /campaign_session_roll_type|roll_type|hit-location/);
   assert.match(migration, /campaign_session_roll_visibility/);
   assert.match(migration, /campaign_session_roll_purpose/);
   assert.match(migration, /campaign_session_roll_status/);
-  assert.match(migration, /campaign_session_roll_type_result_valid/);
+  assert.match(migration, /campaign_session_roll_result_valid/);
   assert.match(migration, /campaign_session_roll_pending_action_fk/);
   assert.match(migration, /campaign_session_roll_reaction_fk/);
   assert.match(migration, /ON DELETE restrict/g);
@@ -30,7 +29,10 @@ test("the shared service owns secure generation, context validation, pagination,
   assert.match(service, /from "node:crypto"/);
   assert.match(service, /randomInt\(/);
   assert.doesNotMatch(`${service}\n${domain}`, /Math\.random\(/);
-  assert.match(domain, /ROLL_TYPES = \["percentile", "hit-location"\]/);
+  assert.match(domain, /randomSource\(1, 101\)/);
+  assert.match(domain, /getHitLocationFromPercentile/);
+  assert.match(domain, /validateRollResult\(resultTotal\) % 10/);
+  assert.doesNotMatch(`${service}\n${domain}`, /hit-location|ROLL_TYPES|RollType/);
   assert.doesNotMatch(domain, /parseDiceNotation|DiceSpecification|NdM|ROLL_DICE_PRESETS/);
   assert.match(service, /recordRollInTransaction/);
   assert.match(service, /assertContextCharacters/);
@@ -72,7 +74,7 @@ test("all G.O.D. Roll surfaces reuse one tray and quick Rolls remain explicit pr
   assert.match(tray, /Random/);
   assert.match(tray, /Enter Physical/);
   assert.match(`${tray}\n${domain}`, /d100/);
-  assert.match(`${tray}\n${domain}`, /d10 \(0–9\)/);
+  assert.doesNotMatch(`${tray}\n${domain}`, /d10.*Hit Location|hit-location.*Roll/);
   assert.match(tray, /Target Number/);
   assert.match(tray, /G\.O\.D\. Only/);
   assert.match(tray, /Show to Table/);
@@ -106,9 +108,10 @@ test("Roll Tray sends the complete corrected request and always exposes progress
   const tray = read("src/app/heavens/tabletop/roll-tray.tsx");
   for (const field of [
     "sessionId", "sceneId", "encounterId", "rollerCharacterId", "targetCharacterId",
-    "pendingActionId", "reactionId", "method", "rollType", "visibility", "purposeKind",
+    "pendingActionId", "reactionId", "method", "visibility", "purposeKind",
     "enteredTotal", "label", "targetNumber", "notes",
   ]) assert.match(tray, new RegExp(`\\b${field}\\b`));
+  assert.doesNotMatch(tray, /rollType|ROLL_TYPES|Hit Location \/ d10/);
   assert.match(tray, /enteredTotal:\s*method === "entered" \? Number\(enteredTotal\) : null/);
   assert.match(tray, /busy \? "Recording…"/);
   assert.match(tray, /aria-busy=\{busy\}/);

@@ -93,13 +93,13 @@ export function CombatAidWorkspace({
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(data.participants[0]?.identity.characterId ?? null);
   const [rollTrayOpen, setRollTrayOpen] = useState(false);
-  const [rollPrefill, setRollPrefill] = useState<RollTrayPrefill>({ scope: "encounter", rollType: "percentile" });
+  const [rollPrefill, setRollPrefill] = useState<RollTrayPrefill>({ scope: "encounter" });
   const selected = data.participants.find(({ identity }) => identity.characterId === selectedId)
     ?? data.participants[0]
     ?? null;
 
   function openRollTray(prefill: RollTrayPrefill = {}): void {
-    setRollPrefill({ scope: "encounter", rollType: "percentile", ...prefill });
+    setRollPrefill({ scope: "encounter", ...prefill });
     setRollTrayOpen(true);
   }
 

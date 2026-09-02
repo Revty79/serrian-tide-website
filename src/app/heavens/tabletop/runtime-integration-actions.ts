@@ -45,6 +45,10 @@ import {
   startWeaponActionInTransaction,
   type ResolveAuthoredActionInput,
 } from "@/features/tabletop-operations/runtime-integration-service";
+import {
+  publishTabletopInvalidationInTransaction,
+  type TabletopInvalidationCategory,
+} from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 function refreshRuntime(characterIds: readonly number[] = []): void {
@@ -64,16 +68,28 @@ async function mutateEncounter<T>(
     context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>,
     actingUserId: string,
   ) => Promise<T>,
+  category: TabletopInvalidationCategory | null = "character-state",
 ): Promise<T> {
   const access = await requireGod();
   return db.transaction(async (tx) => {
     const context = await lockOwnedEncounterRuntimeInTransaction(tx, encounterId, access.user.id);
-    return operation(tx, context, access.user.id);
+    const result = await operation(tx, context, access.user.id);
+    if (category) {
+      await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: context.campaignId,
+        sessionId: context.sessionId,
+        sceneId: context.sceneId,
+        encounterId: context.encounterId,
+        characterIds: [],
+        category,
+      });
+    }
+    return result;
   });
 }
 
 export async function getEncounterCreatureCatalog(encounterId: number): Promise<CreatureCatalogEntry[]> {
-  return mutateEncounter(encounterId, (tx) => listCreatureCatalogInTransaction(tx));
+  return mutateEncounter(encounterId, (tx) => listCreatureCatalogInTransaction(tx), null);
 }
 
 export async function spawnEncounterCreatures(
@@ -252,7 +268,7 @@ export async function prepareEncounterSpellAction(encounterId: number, request: 
     context,
     request,
     actingUserId,
-  ));
+  ), null);
 }
 
 export async function prepareEncounterItemAction(encounterId: number, request: ItemUseRequest) {
@@ -261,7 +277,7 @@ export async function prepareEncounterItemAction(encounterId: number, request: I
     context,
     request,
     actingUserId,
-  ));
+  ), null);
 }
 
 export async function prepareEncounterCreatureAbilityAction(encounterId: number, request: CreatureAbilityUseRequest) {
@@ -270,7 +286,7 @@ export async function prepareEncounterCreatureAbilityAction(encounterId: number,
     context,
     request,
     actingUserId,
-  ));
+  ), null);
 }
 
 export async function startEncounterCreatureAttack(

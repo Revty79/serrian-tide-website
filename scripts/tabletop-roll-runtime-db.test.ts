@@ -51,34 +51,17 @@ test("System Random and entered/physical Rolls share one distinguishable ledger 
       method: "random",
       visibility: "table",
       purposeKind: "attack",
-      rollType: "percentile",
       label: "Random attack reference",
     }, () => 73);
-    const hitLocation = await recordRollInTransaction(tx, data.actor, {
-      sessionId: data.sessionId,
-      sceneId: data.sceneId,
-      encounterId: data.encounterId,
-      rollerCharacterId: data.heroId,
-      targetCharacterId: data.defenderId,
-      method: "random",
-      visibility: "table",
-      purposeKind: "attack",
-      rollType: "hit-location",
-      label: "Random hit location",
-    }, () => 0);
     const entered = await recordRollInTransaction(tx, data.actor, {
       sessionId: data.sessionId,
       method: "entered",
       visibility: "god-only",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 73,
       label: "Physical Roll",
     });
     assert.equal(random.resultTotal, 73);
-    assert.equal(random.rollType, "percentile");
-    assert.equal(hitLocation.resultTotal, 0);
-    assert.equal(hitLocation.rollType, "hit-location");
     assert.equal(random.method, "random");
     assert.equal(random.visibility, "table");
     assert.equal(random.roundNumber, 3);
@@ -87,13 +70,13 @@ test("System Random and entered/physical Rolls share one distinguishable ledger 
     assert.equal(entered.method, "entered");
     assert.equal(entered.visibility, "god-only");
     const ownerPage = await readRollLedgerInTransaction(tx, data.actor, data.sessionId, { limit: 10 });
-    assert.deepEqual(ownerPage.rolls.map(({ id }) => id), [entered.id, hitLocation.id, random.id]);
+    assert.deepEqual(ownerPage.rolls.map(({ id }) => id), [entered.id, random.id]);
     const playerPage = await readRollLedgerInTransaction(tx, {
       ...data.actor,
       readAs: "player",
       canRecordGodOnly: false,
     }, data.sessionId, { limit: 10 });
-    assert.deepEqual(playerPage.rolls.map(({ id }) => id), [hitLocation.id, random.id]);
+    assert.deepEqual(playerPage.rolls.map(({ id }) => id), [random.id]);
     throw ROLLBACK;
   }), (error: unknown) => error === ROLLBACK);
 });
@@ -109,7 +92,6 @@ test("Character hierarchy rejects Encounter nonparticipants and cross-Campaign C
       method: "entered",
       visibility: "table",
       purposeKind: "skill",
-      rollType: "percentile",
       enteredTotal: 40,
     }), /exact Encounter Participant/);
 
@@ -138,7 +120,6 @@ test("Character hierarchy rejects Encounter nonparticipants and cross-Campaign C
       method: "entered",
       visibility: "table",
       purposeKind: "skill",
-      rollType: "percentile",
       enteredTotal: 40,
     }), /exact Session Roster member/);
     assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.sessionId, data.sessionId))).length, 0);
@@ -158,7 +139,6 @@ test("pending-action and Reaction links validate exact actor identity", async ()
       method: "entered",
       visibility: "table",
       purposeKind: "attack",
-      rollType: "percentile",
       enteredTotal: 55,
     }), /action's actor Character/);
     await assert.rejects(recordRollInTransaction(tx, data.actor, {
@@ -170,7 +150,6 @@ test("pending-action and Reaction links validate exact actor identity", async ()
       method: "entered",
       visibility: "table",
       purposeKind: "defense",
-      rollType: "percentile",
       enteredTotal: 65,
     }), /reacting Character/);
     throw ROLLBACK;
@@ -196,7 +175,6 @@ test("linked action and Reaction Rolls change only Roll history", async () => {
       method: "entered",
       visibility: "table",
       purposeKind: "attack",
-      rollType: "percentile",
       enteredTotal: 73,
     });
     await recordRollInTransaction(tx, data.actor, {
@@ -208,7 +186,6 @@ test("linked action and Reaction Rolls change only Roll history", async () => {
       method: "entered",
       visibility: "table",
       purposeKind: "defense",
-      rollType: "percentile",
       enteredTotal: 82,
     });
     const afterAction = (await tx.select().from(campaignSessionEncounterPendingAction).where(eq(campaignSessionEncounterPendingAction.id, data.pendingActionId)))[0]!;
@@ -239,7 +216,6 @@ test("Void preserves original Roll context and rejects a second Void", async () 
       method: "entered",
       visibility: "table",
       purposeKind: "attack",
-      rollType: "percentile",
       enteredTotal: 73,
       targetNumber: 55,
       label: "Longsword Attack",
@@ -247,7 +223,7 @@ test("Void preserves original Roll context and rejects a second Void", async () 
     const voided = await voidRollInTransaction(tx, data.actor, recorded.id, "wrong physical result");
     assert.equal(voided.status, "voided");
     assert.equal(voided.voidReason, "wrong physical result");
-    for (const field of ["id", "rollType", "resultTotal", "method", "visibility", "rollerCharacterId", "targetCharacterId", "pendingActionId", "targetNumber", "createdAt"] as const) {
+    for (const field of ["id", "resultTotal", "method", "visibility", "rollerCharacterId", "targetCharacterId", "pendingActionId", "targetNumber", "createdAt"] as const) {
       assert.equal(voided[field], recorded[field]);
     }
     assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.id, recorded.id))).length, 1);
@@ -264,7 +240,6 @@ test("completed Encounter and completed Session reject new scoped Rolls without 
       method: "entered",
       visibility: "table",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 100,
     });
     await tx.update(campaignSessionEncounter).set({ status: "completed", completedAt: new Date() }).where(eq(campaignSessionEncounter.id, data.encounterId));
@@ -275,7 +250,6 @@ test("completed Encounter and completed Session reject new scoped Rolls without 
       method: "entered",
       visibility: "table",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 20,
     }), /completed Encounter/);
     await tx.update(campaignSession).set({ status: "completed", completedAt: new Date() }).where(eq(campaignSession.id, data.sessionId));
@@ -284,7 +258,6 @@ test("completed Encounter and completed Session reject new scoped Rolls without 
       method: "entered",
       visibility: "table",
       purposeKind: "free",
-      rollType: "percentile",
       enteredTotal: 30,
     }), /completed Session/);
     const history = await readRollLedgerInTransaction(tx, data.actor, data.sessionId, { limit: 10 });

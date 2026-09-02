@@ -9,6 +9,7 @@ import {
   readSessionCloseoutInTransaction,
   type SessionCloseoutView,
 } from "@/features/tabletop-operations/session-closeout-service";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 function refreshSessionCloseout(): void {
@@ -28,7 +29,16 @@ export async function finalizeSessionCloseout(sessionId: number): Promise<Sessio
   const access = await requireGod();
   const result = await db.transaction(async (tx) => {
     const context = await lockSessionCloseoutContextInTransaction(tx, sessionId, access.user.id);
-    return finalizeSessionCloseoutInTransaction(tx, context);
+    const finalized = await finalizeSessionCloseoutInTransaction(tx, context);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: context.campaignId,
+      sessionId: context.sessionId,
+      sceneId: null,
+      encounterId: null,
+      characterIds: [],
+      category: "hierarchy",
+    });
+    return finalized;
   });
   refreshSessionCloseout();
   return result;

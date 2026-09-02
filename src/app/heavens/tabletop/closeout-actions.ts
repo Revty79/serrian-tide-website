@@ -17,6 +17,7 @@ import {
 } from "@/features/tabletop-operations/duration-lifecycle-service";
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import type { DurationEffectKind } from "@/features/tabletop-operations/duration-lifecycle";
+import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
 function refreshCloseout(characterIds: readonly number[] = []): void {
@@ -44,7 +45,16 @@ export async function finalizeEncounterCloseout(
   const access = await requireGod();
   const result = await db.transaction(async (tx) => {
     const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, access.user.id);
-    return finalizeEncounterCloseoutInTransaction(tx, context, input);
+    const finalized = await finalizeEncounterCloseoutInTransaction(tx, context, input);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: context.campaignId,
+      sessionId: context.sessionId,
+      sceneId: context.sceneId,
+      encounterId: context.encounterId,
+      characterIds: [],
+      category: "hierarchy",
+    });
+    return finalized;
   });
   refreshCloseout(input.awards.map(({ characterId }) => characterId));
   return result;
@@ -64,6 +74,14 @@ async function mutateDuration(
       throw new Error("Duration corrections require an active Encounter, Scene, and Session.");
     }
     await operation(tx, context);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: context.campaignId,
+      sessionId: context.sessionId,
+      sceneId: context.sceneId,
+      encounterId: context.encounterId,
+      characterIds: [],
+      category: "character-state",
+    });
   });
   refreshCloseout();
 }
