@@ -12,13 +12,20 @@ export type NavigationBreadcrumb = AuthenticatedNavigationItem & {
   current: boolean;
 };
 
+const CROSSROADS_ITEM: AuthenticatedNavigationItem = {
+  label: "Crossroads",
+  href: "/chat",
+};
+
 const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]> = {
   admin: [
     { label: "Admin Dashboard", href: "/admin" },
+    CROSSROADS_ITEM,
     { label: "Users & Roles", href: "/admin/users" },
   ],
   heavens: [
     { label: "Heavens Dashboard", href: "/heavens" },
+    CROSSROADS_ITEM,
     { label: "Campaign Settings", href: "/heavens/campaigns" },
     { label: "Tabletop Operations", href: "/heavens/tabletop" },
     { label: "Races", href: "/heavens/races" },
@@ -29,7 +36,10 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
     { label: "Inventory", href: "/heavens/inventory" },
     { label: "NPCs", href: "/heavens/npcs" },
   ],
-  realms: [{ label: "Realms Dashboard", href: "/realms" }],
+  realms: [
+    { label: "Realms Dashboard", href: "/realms" },
+    CROSSROADS_ITEM,
+  ],
 };
 
 const ROLE_DESTINATIONS: Array<{

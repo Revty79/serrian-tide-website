@@ -19,6 +19,7 @@ test("Heavens exposes one consistent set of major destinations", () => {
     getContextNavigationItems("heavens").map(({ label }) => label),
     [
       "Heavens Dashboard",
+      "Crossroads",
       "Campaign Settings",
       "Tabletop Operations",
       "Races",
@@ -38,6 +39,7 @@ test("Realms exposes the complete tool set while working inside a Character", ()
     items.map(({ label }) => label),
     [
       "Realms Dashboard",
+      "Crossroads",
       "Character Sheet",
       "Advancement",
       "Spellbook",
@@ -60,7 +62,24 @@ test("Realms exposes the complete tool set while working inside a Character", ()
   );
   assert.deepEqual(getContextNavigationItems("realms"), [
     { label: "Realms Dashboard", href: "/realms" },
+    { label: "Crossroads", href: "/chat" },
   ]);
+});
+
+test("every authenticated context exposes Crossroads exactly once, including Character routes", () => {
+  for (const context of ["admin", "heavens", "realms"] as const) {
+    const items = getContextNavigationItems(context);
+    assert.equal(items.filter(({ href }) => href === "/chat").length, 1);
+  }
+  const characterItems = getContextNavigationItems(
+    "realms",
+    "/realms/characters/42/spellbook",
+  );
+  assert.equal(characterItems.filter(({ href }) => href === "/chat").length, 1);
+  assert.equal(
+    isNavigationItemActive("/chat", characterItems.find(({ href }) => href === "/chat")!),
+    true,
+  );
 });
 
 test("active destination identifies both libraries and their nested editors", () => {
@@ -144,6 +163,11 @@ test("role destinations expose only authorized application contexts", () => {
     ["Admin", "Realms"],
   );
   assert.deepEqual(getAlternateRoleDestinations(["god"], "heavens"), []);
+  assert.equal(
+    getAlternateRoleDestinations(["admin", "god", "player"], "heavens")
+      .some(({ href }) => href === "/chat"),
+    false,
+  );
   assert.equal(getContextHomeHref("heavens"), "/heavens");
 });
 

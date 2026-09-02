@@ -5,43 +5,12 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
+import { userRole } from "@/db/authorization-schema";
 import {
-  userRole,
-  type SerrianRole,
-} from "@/db/authorization-schema";
+  getAccessDestinationCards,
+} from "@/features/navigation/access-directory";
 
-const accessOptions: {
-  role: SerrianRole;
-  title: string;
-  subtitle: string;
-  href: string;
-  description: string;
-}[] = [
-  {
-    role: "admin",
-    title: "ADMIN",
-    subtitle: "System Administration",
-    href: "/admin",
-    description:
-      "Manage Serrian Tide users, permissions, and system-level administration.",
-  },
-  {
-    role: "god",
-    title: "THE HEAVENS",
-    subtitle: "G.O.D. Access",
-    href: "/heavens",
-    description:
-      "Enter the G.O.D. side of Serrian Tide to create, manage, and run the systems behind the world.",
-  },
-  {
-    role: "player",
-    title: "THE REALMS",
-    subtitle: "Player Access",
-    href: "/realms",
-    description:
-      "Enter the player-facing side of Serrian Tide for characters, campaigns, and play.",
-  },
-];
+import styles from "./access.module.css";
 
 export default async function AccessPage() {
   const session = await auth.api.getSession({
@@ -59,14 +28,9 @@ export default async function AccessPage() {
     .from(userRole)
     .where(eq(userRole.userId, session.user.id));
 
-  const roles = new Set(assignedRoles.map((entry) => entry.role));
-
-  const availableOptions = accessOptions.filter((option) =>
-    roles.has(option.role),
+  const availableOptions = getAccessDestinationCards(
+    assignedRoles.map((entry) => entry.role),
   );
-  if (availableOptions.length === 1) {
-  redirect(availableOptions[0].href);
-}
 
   return (
     <main className="relative z-10 flex min-h-screen items-center justify-center px-6 py-12">
@@ -102,21 +66,10 @@ export default async function AccessPage() {
         </div>
 
         {availableOptions.length > 0 ? (
-          <div
-            className={`
-              mt-10 grid gap-6
-              ${
-                availableOptions.length === 1
-                  ? "mx-auto max-w-md"
-                  : availableOptions.length === 2
-                    ? "mx-auto max-w-3xl md:grid-cols-2"
-                    : "md:grid-cols-3"
-              }
-            `}
-          >
+          <div className={styles.cardGrid} data-card-count={availableOptions.length}>
             {availableOptions.map((option) => (
               <Link
-                key={option.role}
+                key={option.key}
                 href={option.href}
                 className="
                   group
