@@ -10,8 +10,8 @@ import { creature } from "@/db/creature-schema";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import {
   campaignSession,
+  campaignSessionRoll,
   campaignSessionRoster,
-  campaignSessionScene,
   campaignSessionSceneMember,
 } from "@/db/tabletop-operations-schema";
 import {
@@ -35,6 +35,7 @@ import {
   normalizeRosterPrepNotes,
   type SessionRosterEntityKind,
 } from "@/features/tabletop-operations/session-roster";
+import { readSessionCloseoutInTransaction } from "@/features/tabletop-operations/session-closeout-service";
 import { requireGod } from "@/lib/server-access";
 
 export type TabletopCampaignSummary = {
@@ -511,16 +512,18 @@ async function applyLifecycleTransition(
       assertCampaignSessionOwner(locked.ownerUserId, access.user.id);
       const next = transitionSession(locked, transition);
       if (transition === "complete") {
-        const [activeScene] = await tx
-          .select({ id: campaignSessionScene.id })
-          .from(campaignSessionScene)
-          .where(and(
-            eq(campaignSessionScene.sessionId, sessionId),
-            eq(campaignSessionScene.status, "active"),
-          ))
-          .limit(1);
-        if (activeScene) {
-          throw new Error("Complete the active Scene before completing this Session.");
+        const closeout = await readSessionCloseoutInTransaction(tx, {
+          sessionId: locked.id,
+          campaignId: locked.campaignId,
+          title: locked.title,
+          sequenceNumber: locked.sequenceNumber,
+          status: locked.status,
+          startedAt: locked.startedAt,
+          completedAt: locked.completedAt,
+          ownerUserId: locked.ownerUserId,
+        });
+        if (closeout.blockers.length) {
+          throw new Error(`Session closeout is blocked: ${closeout.blockers.map(({ message }) => message).join(" ")}`);
         }
       }
       if (next.status === "active") {
@@ -585,6 +588,11 @@ export async function deleteCampaignSession(sessionId: number): Promise<{ id: nu
     if (!locked) throw new Error("That Session no longer exists.");
     assertCampaignSessionOwner(locked.ownerUserId, access.user.id);
     assertSessionMayBeDeleted(locked.status);
+    const [rollHistory] = await tx.select({ id: campaignSessionRoll.id })
+      .from(campaignSessionRoll)
+      .where(eq(campaignSessionRoll.sessionId, sessionId))
+      .limit(1);
+    if (rollHistory) throw new Error("This Session contains Roll history and cannot be deleted.");
     const [removed] = await tx
       .delete(campaignSession)
       .where(and(eq(campaignSession.id, sessionId), eq(campaignSession.status, "planned")))

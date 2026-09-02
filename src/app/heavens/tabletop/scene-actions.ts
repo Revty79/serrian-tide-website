@@ -9,6 +9,7 @@ import {
   campaignSession,
   campaignSessionEncounter,
   campaignSessionEncounterParticipant,
+  campaignSessionRoll,
   campaignSessionRoster,
   campaignSessionScene,
   campaignSessionSceneMember,
@@ -467,6 +468,11 @@ export async function deleteCampaignSessionScene(sceneId: number): Promise<{ id:
     const locked = await lockOwnedScene(tx, sceneId, access.user.id);
     assertParentSessionAllowsScenePreparation(locked.sessionStatus);
     assertSceneMayBeDeleted(locked.status);
+    const [rollHistory] = await tx.select({ id: campaignSessionRoll.id })
+      .from(campaignSessionRoll)
+      .where(eq(campaignSessionRoll.sceneId, sceneId))
+      .limit(1);
+    if (rollHistory) throw new Error("This Scene contains Roll history and cannot be deleted.");
     const [row] = await tx
       .delete(campaignSessionScene)
       .where(and(

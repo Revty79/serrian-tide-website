@@ -17,6 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { campaign } from "./campaign-schema";
+import { user } from "./auth-schema";
 import {
   campaignCharacter,
   campaignCharacterActiveCondition,
@@ -94,6 +95,31 @@ export const campaignSessionEffectDurationBindingStatus = pgEnum(
 export const campaignSessionEncounterRewardKind = pgEnum(
   "campaign_session_encounter_reward_kind",
   ["experience"],
+);
+
+export const campaignSessionRollMethod = pgEnum(
+  "campaign_session_roll_method",
+  ["random", "entered"],
+);
+
+export const campaignSessionRollType = pgEnum(
+  "campaign_session_roll_type",
+  ["percentile", "hit-location"],
+);
+
+export const campaignSessionRollVisibility = pgEnum(
+  "campaign_session_roll_visibility",
+  ["table", "god-only"],
+);
+
+export const campaignSessionRollPurpose = pgEnum(
+  "campaign_session_roll_purpose",
+  ["free", "attribute", "skill", "attack", "defense", "ability", "other"],
+);
+
+export const campaignSessionRollStatus = pgEnum(
+  "campaign_session_roll_status",
+  ["recorded", "voided"],
 );
 
 export const campaignSession = pgTable(
@@ -647,6 +673,13 @@ export const campaignSessionEncounterReaction = pgTable(
     uniqueIndex("campaign_session_encounter_reaction_one_declared_reactor_uq")
       .on(table.pendingActionId, table.reactorCharacterId)
       .where(sql`${table.status} = 'declared'`),
+    uniqueIndex("campaign_session_encounter_reaction_hierarchy_uq").on(
+      table.id,
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+    ),
     index("campaign_session_encounter_reaction_history_idx").on(
       table.encounterId,
       table.pendingActionId,
@@ -846,6 +879,165 @@ export const campaignSessionEncounterReward = pgTable(
   ],
 );
 
+export const campaignSessionRoll = pgTable(
+  "campaign_session_roll",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    sceneId: integer("scene_id"),
+    encounterId: integer("encounter_id"),
+    rollerCharacterId: integer("roller_character_id"),
+    targetCharacterId: integer("target_character_id"),
+    pendingActionId: integer("pending_action_id"),
+    reactionId: integer("reaction_id"),
+    recordedByUserId: text("recorded_by_user_id").notNull(),
+    method: campaignSessionRollMethod("method").notNull(),
+    rollType: campaignSessionRollType("roll_type").notNull(),
+    visibility: campaignSessionRollVisibility("visibility").default("god-only").notNull(),
+    purposeKind: campaignSessionRollPurpose("purpose_kind").default("free").notNull(),
+    label: text("label").default("").notNull(),
+    resultTotal: integer("result_total").notNull(),
+    targetNumber: doublePrecision("target_number"),
+    notes: text("notes").default("").notNull(),
+    roundNumber: integer("round_number"),
+    stepNumber: integer("step_number"),
+    status: campaignSessionRollStatus("status").default("recorded").notNull(),
+    voidedAt: timestamp("voided_at"),
+    voidReason: text("void_reason").default("").notNull(),
+    voidedByUserId: text("voided_by_user_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.sessionId, table.campaignId],
+      foreignColumns: [campaignSession.id, campaignSession.campaignId],
+      name: "campaign_session_roll_session_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionScene.id,
+        campaignSessionScene.sessionId,
+        campaignSessionScene.campaignId,
+      ],
+      name: "campaign_session_roll_scene_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounter.id,
+        campaignSessionEncounter.sceneId,
+        campaignSessionEncounter.sessionId,
+        campaignSessionEncounter.campaignId,
+      ],
+      name: "campaign_session_roll_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.rollerCharacterId, table.campaignId],
+      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
+      name: "campaign_session_roll_roller_character_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.targetCharacterId, table.campaignId],
+      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
+      name: "campaign_session_roll_target_character_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [
+        table.pendingActionId,
+        table.encounterId,
+        table.sceneId,
+        table.sessionId,
+        table.campaignId,
+      ],
+      foreignColumns: [
+        campaignSessionEncounterPendingAction.id,
+        campaignSessionEncounterPendingAction.encounterId,
+        campaignSessionEncounterPendingAction.sceneId,
+        campaignSessionEncounterPendingAction.sessionId,
+        campaignSessionEncounterPendingAction.campaignId,
+      ],
+      name: "campaign_session_roll_pending_action_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.reactionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterReaction.id,
+        campaignSessionEncounterReaction.encounterId,
+        campaignSessionEncounterReaction.sceneId,
+        campaignSessionEncounterReaction.sessionId,
+        campaignSessionEncounterReaction.campaignId,
+      ],
+      name: "campaign_session_roll_reaction_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.recordedByUserId],
+      foreignColumns: [user.id],
+      name: "campaign_session_roll_recorded_by_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.voidedByUserId],
+      foreignColumns: [user.id],
+      name: "campaign_session_roll_voided_by_fk",
+    }).onDelete("restrict"),
+    index("campaign_session_roll_session_history_idx").on(table.sessionId, table.createdAt, table.id),
+    index("campaign_session_roll_scene_history_idx").on(table.sceneId, table.createdAt, table.id),
+    index("campaign_session_roll_encounter_history_idx").on(table.encounterId, table.createdAt, table.id),
+    index("campaign_session_roll_roller_history_idx").on(table.rollerCharacterId, table.createdAt, table.id),
+    index("campaign_session_roll_action_idx").on(table.pendingActionId, table.createdAt, table.id),
+    index("campaign_session_roll_reaction_idx").on(table.reactionId, table.createdAt, table.id),
+    index("campaign_session_roll_visibility_status_idx").on(table.sessionId, table.visibility, table.status),
+    check(
+      "campaign_session_roll_type_result_valid",
+      sql`(
+        ${table.rollType} = 'percentile'
+        AND ${table.resultTotal} BETWEEN 1 AND 100
+      ) OR (
+        ${table.rollType} = 'hit-location'
+        AND ${table.resultTotal} BETWEEN 0 AND 9
+      )`,
+    ),
+    check(
+      "campaign_session_roll_hierarchy_valid",
+      sql`(
+        (${table.sceneId} IS NULL AND ${table.encounterId} IS NULL)
+        OR (${table.sceneId} IS NOT NULL)
+      )
+      AND (${table.pendingActionId} IS NULL OR ${table.encounterId} IS NOT NULL)
+      AND (${table.reactionId} IS NULL OR ${table.encounterId} IS NOT NULL)`,
+    ),
+    check(
+      "campaign_session_roll_initiative_snapshot_valid",
+      sql`(
+        ${table.roundNumber} IS NULL
+        AND ${table.stepNumber} IS NULL
+      ) OR (
+        ${table.encounterId} IS NOT NULL
+        AND ${table.roundNumber} > 0
+        AND ${table.stepNumber} > 0
+      )`,
+    ),
+    check("campaign_session_roll_label_length_valid", sql`length(${table.label}) <= 200`),
+    check("campaign_session_roll_notes_length_valid", sql`length(${table.notes}) <= 2000`),
+    check("campaign_session_roll_void_reason_length_valid", sql`length(${table.voidReason}) <= 500`),
+    check(
+      "campaign_session_roll_lifecycle_valid",
+      sql`(
+        ${table.status} = 'recorded'
+        AND ${table.voidedAt} IS NULL
+        AND ${table.voidReason} = ''
+        AND ${table.voidedByUserId} IS NULL
+      ) OR (
+        ${table.status} = 'voided'
+        AND ${table.voidedAt} IS NOT NULL
+        AND length(trim(${table.voidReason})) > 0
+        AND ${table.voidedByUserId} IS NOT NULL
+      )`,
+    ),
+  ],
+);
+
 export const campaignSessionRelations = relations(campaignSession, ({ one, many }) => ({
   campaign: one(campaign, {
     fields: [campaignSession.campaignId],
@@ -853,6 +1045,7 @@ export const campaignSessionRelations = relations(campaignSession, ({ one, many 
   }),
   roster: many(campaignSessionRoster),
   scenes: many(campaignSessionScene),
+  rolls: many(campaignSessionRoll),
 }));
 
 export const campaignSessionRosterRelations = relations(campaignSessionRoster, ({ one, many }) => ({
@@ -874,6 +1067,7 @@ export const campaignSessionSceneRelations = relations(campaignSessionScene, ({ 
   }),
   members: many(campaignSessionSceneMember),
   encounters: many(campaignSessionEncounter),
+  rolls: many(campaignSessionRoll),
 }));
 
 export const campaignSessionSceneMemberRelations = relations(campaignSessionSceneMember, ({ one, many }) => ({
@@ -897,6 +1091,46 @@ export const campaignSessionEncounterRelations = relations(campaignSessionEncoun
   initiativeRuntime: one(campaignSessionEncounterInitiative),
   durationBindings: many(campaignSessionEffectDurationBinding),
   rewards: many(campaignSessionEncounterReward),
+  rolls: many(campaignSessionRoll),
+}));
+
+export const campaignSessionRollRelations = relations(campaignSessionRoll, ({ one }) => ({
+  session: one(campaignSession, {
+    fields: [campaignSessionRoll.sessionId],
+    references: [campaignSession.id],
+  }),
+  scene: one(campaignSessionScene, {
+    fields: [campaignSessionRoll.sceneId],
+    references: [campaignSessionScene.id],
+  }),
+  encounter: one(campaignSessionEncounter, {
+    fields: [campaignSessionRoll.encounterId],
+    references: [campaignSessionEncounter.id],
+  }),
+  roller: one(campaignCharacter, {
+    fields: [campaignSessionRoll.rollerCharacterId],
+    references: [campaignCharacter.id],
+  }),
+  target: one(campaignCharacter, {
+    fields: [campaignSessionRoll.targetCharacterId],
+    references: [campaignCharacter.id],
+  }),
+  pendingAction: one(campaignSessionEncounterPendingAction, {
+    fields: [campaignSessionRoll.pendingActionId],
+    references: [campaignSessionEncounterPendingAction.id],
+  }),
+  reaction: one(campaignSessionEncounterReaction, {
+    fields: [campaignSessionRoll.reactionId],
+    references: [campaignSessionEncounterReaction.id],
+  }),
+  recordedBy: one(user, {
+    fields: [campaignSessionRoll.recordedByUserId],
+    references: [user.id],
+  }),
+  voidedBy: one(user, {
+    fields: [campaignSessionRoll.voidedByUserId],
+    references: [user.id],
+  }),
 }));
 
 export const campaignSessionEncounterParticipantRelations = relations(campaignSessionEncounterParticipant, ({ one }) => ({
@@ -964,3 +1198,7 @@ export type CampaignSessionEncounterInitiativeParticipantStatus = (typeof campai
 export type CampaignSessionEncounterPendingActionStatus = (typeof campaignSessionEncounterPendingActionStatus.enumValues)[number];
 export type CampaignSessionEffectDurationBindingStatus = (typeof campaignSessionEffectDurationBindingStatus.enumValues)[number];
 export type CampaignSessionEncounterRewardKind = (typeof campaignSessionEncounterRewardKind.enumValues)[number];
+export type CampaignSessionRollMethod = (typeof campaignSessionRollMethod.enumValues)[number];
+export type CampaignSessionRollVisibility = (typeof campaignSessionRollVisibility.enumValues)[number];
+export type CampaignSessionRollPurpose = (typeof campaignSessionRollPurpose.enumValues)[number];
+export type CampaignSessionRollStatus = (typeof campaignSessionRollStatus.enumValues)[number];

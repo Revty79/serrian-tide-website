@@ -8,7 +8,9 @@ import type {
   CombatAidParticipant,
 } from "@/features/tabletop-operations/combat-aid-service";
 import type { ActiveEffectDuration } from "@/features/active-state/active-effects";
+import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 import { CombatAidOperations } from "./combat-aid-operations";
+import { RollTray, type RollTrayPrefill } from "./roll-tray";
 
 function value(value: number | null): string {
   return value === null ? "Unconfigured" : String(value);
@@ -81,22 +83,35 @@ function durationLifecycleText(
 
 export function CombatAidWorkspace({
   data,
+  rollWorkspace,
   onOpenInitiative,
 }: {
   data: CombatAidEncounterView;
+  rollWorkspace: RollWorkspaceView | null;
   onOpenInitiative: () => void;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(data.participants[0]?.identity.characterId ?? null);
+  const [rollTrayOpen, setRollTrayOpen] = useState(false);
+  const [rollPrefill, setRollPrefill] = useState<RollTrayPrefill>({ scope: "encounter", rollType: "percentile" });
   const selected = data.participants.find(({ identity }) => identity.characterId === selectedId)
     ?? data.participants[0]
     ?? null;
 
+  function openRollTray(prefill: RollTrayPrefill = {}): void {
+    setRollPrefill({ scope: "encounter", rollType: "percentile", ...prefill });
+    setRollTrayOpen(true);
+  }
+
   return <section className="combat-aid">
     <header className="combat-aid-heading">
       <div><span>LIVE AUTHORITATIVE STATE</span><h6 className="font-sans">Combat Aid</h6><p>Read and operate on the same Character state used by Player and G.O.D. pages.</p></div>
-      <div><button type="button" onClick={() => router.refresh()}>Refresh State</button><button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button></div>
+      <div><button type="button" onClick={() => router.refresh()}>Refresh State</button>{rollWorkspace ? <button type="button" onClick={() => openRollTray()}>Roll Tray</button> : null}<button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button></div>
     </header>
+    {rollWorkspace && rollTrayOpen ? <details className="combat-aid-roll-tray" open>
+      <summary onClick={(event) => { event.preventDefault(); setRollTrayOpen(false); }}>Close Roll Tray</summary>
+      <RollTray key={JSON.stringify(rollPrefill)} workspace={rollWorkspace} defaultScope="encounter" prefill={rollPrefill} />
+    </details> : null}
     {data.encounter.status === "completed" ? <p className="combat-aid-history"><strong>Completed Encounter:</strong> participant membership is historical. The Character and NPC state shown below is current living Campaign state, not an Encounter snapshot.</p> : null}
     <section className="combat-aid-runtime-strip">
       <div><span>Encounter</span><strong>{data.encounter.title}</strong></div>
@@ -178,7 +193,7 @@ export function CombatAidWorkspace({
               </div> : <Empty>Inventory resource state could not be resolved.</Empty>}
             </article>
           </div>
-          <CombatAidOperations key={selected.identity.characterId} data={data} participant={selected} />
+          <CombatAidOperations key={selected.identity.characterId} data={data} participant={selected} onOpenRollTray={rollWorkspace ? openRollTray : undefined} />
         </> : <Empty>Select an Encounter participant to inspect current state.</Empty>}
       </section>
     </div>

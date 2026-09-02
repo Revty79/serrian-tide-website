@@ -85,6 +85,13 @@
       "when": 1788301757843,
       "tag": "0011_tabletop_operations_duration_closeout",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788308758802,
+      "tag": "0012_tabletop_operations_roll_runtime",
+      "breakpoints": true
     }
   ]
 }

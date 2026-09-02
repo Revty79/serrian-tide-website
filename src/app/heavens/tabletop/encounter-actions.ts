@@ -11,6 +11,7 @@ import {
   campaignSessionEncounterInitiative,
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
+  campaignSessionRoll,
   campaignSessionScene,
   campaignSessionSceneMember,
 } from "@/db/tabletop-operations-schema";
@@ -489,6 +490,11 @@ export async function deleteCampaignSessionEncounter(
     if (initiativeHistory) {
       throw new Error("This Encounter has Initiative history and cannot be deleted.");
     }
+    const [rollHistory] = await tx.select({ id: campaignSessionRoll.id })
+      .from(campaignSessionRoll)
+      .where(eq(campaignSessionRoll.encounterId, encounterId))
+      .limit(1);
+    if (rollHistory) throw new Error("This Encounter contains Roll history and cannot be deleted.");
     const [row] = await tx
       .delete(campaignSessionEncounter)
       .where(and(

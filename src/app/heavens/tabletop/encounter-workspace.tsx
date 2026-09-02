@@ -11,6 +11,7 @@ import {
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
+import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 
 import {
   addCampaignSessionEncounterParticipant,
@@ -153,12 +154,14 @@ export function EncounterWorkspace({
   initialInitiativeTracker,
   initialCombatAid,
   initialCloseout,
+  initialRollWorkspace,
   scene,
 }: {
   initialData: EncounterWorkspaceData;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
   initialCloseout: EncounterCloseoutView | null;
+  initialRollWorkspace: RollWorkspaceView | null;
   scene: CampaignSceneDetail;
 }) {
   const router = useRouter();
@@ -380,7 +383,7 @@ export function EncounterWorkspace({
           ? <InitiativeTracker data={initialInitiativeTracker} />
           : <p className="tabletop-empty">Initiative data is unavailable for this Encounter.</p> : null}
         {!creating && selectedEncounter && activeSection === "combat-aid" ? initialCombatAid
-          ? <CombatAidWorkspace data={initialCombatAid} onOpenInitiative={() => setActiveSection("initiative")} />
+          ? <CombatAidWorkspace data={initialCombatAid} rollWorkspace={initialRollWorkspace} onOpenInitiative={() => setActiveSection("initiative")} />
           : <p className="tabletop-empty">Combat Aid state is unavailable for this Encounter.</p> : null}
         {!creating && selectedEncounter && activeSection === "closeout" ? initialCloseout
           ? <EncounterCloseout

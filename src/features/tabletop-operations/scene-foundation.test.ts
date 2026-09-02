@@ -153,7 +153,8 @@ test("roster removal and Session completion protect Scene history", () => {
     sessionActions.indexOf("async function applyLifecycleTransition"),
     sessionActions.indexOf("export async function startCampaignSession"),
   );
-  assert.match(lifecycleSource, /Complete the active Scene before completing this Session/);
+  assert.match(lifecycleSource, /readSessionCloseoutInTransaction/);
+  assert.match(lifecycleSource, /Session closeout is blocked/);
   assert.doesNotMatch(lifecycleSource, /\.delete\(campaignSessionScene/);
 });
 
@@ -198,7 +199,7 @@ test("migration 0007 is additive and contains only Scene and Scene-member persis
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:scene_health|scene_mana|scene_inventory|scene_conditions|scene_equipment|scene_snapshot|encounter|initiative|combat)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0011_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0012_snapshot\.json/);
 });
 
 test("Build 3 architecture documents Scene scope and deferred duration integration", () => {

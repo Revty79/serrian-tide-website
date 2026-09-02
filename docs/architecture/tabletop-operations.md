@@ -259,3 +259,29 @@ Encounter closeout is a G.O.D.-facing read and controller layer, not another com
 Build 9 rewards are XP only. Authored Creature snapshot `core.killXp` values are optional, unchecked suggestions. Reward suggestions never constitute an automatic outcome or XP grant. The system does not inspect Health, infer defeat/death, or calculate XP from CR. The G.O.D. explicitly chooses Creature references and enters each Participant recipient's amount.
 
 The finalizer locks the Encounter and exact Participant Character profiles, revalidates all blockers and recipients, increments only spendable `campaign_character_profile.experience`, writes immutable `campaign_session_encounter_reward` history, and completes the Encounter in one transaction. `totalExperience` remains the established lifetime-spent Advancement ledger and is not changed by awards. Zero XP is valid. Unique reward history and locked lifecycle state prevent repeat submissions from duplicating XP. Reopening does not refund XP, delete reward history, resurrect effects, or permit the prior award to be granted again.
+
+## Build 10 Shared Roll Runtime and Session Closeout
+
+Build 10 adds one durable `campaign_session_roll` ledger and one shared Roll Runtime service. The G.O.D. controller authorizes Campaign ownership and the later Player controller can supply its own narrower authorization to the same transaction API. The domain itself does not require a G.O.D. role. The shared read policy returns every Roll to the Campaign owner and only `table` visibility to a future authorized Player; `god-only` Rolls never cross that boundary.
+
+A Roll is evidence recorded by the tabletop runtime. It does not itself adjudicate or execute a game outcome. Build 11 must use this same Roll Runtime and Roll Ledger rather than introducing a Player-side dice subsystem.
+
+```text
+                    Shared Roll Runtime
+                            |
+              campaign_session_roll ledger
+                    /               \
+        Build 10 G.O.D. UI      Build 11 Player UI
+```
+
+A random Roll is generated and persisted on the server with `node:crypto` secure randomness. The browser supplies an explicit Serrian Tide Roll type and context, never a random result. The only supported types are `percentile`, whose canonical result is 1–100, and `hit-location`, whose canonical result preserves the established 0–9 table. Entered/physical Rolls use the same immutable record type. A physical percentile `00` is entered as numeric 100. There is no generic dice notation, polyhedral preset, multi-die result, damage-dice Roll, or Initiative Roll in this runtime; Damage remains direct numeric and Initiative remains calculated.
+
+Roll context can reference an exact Session, Scene, Encounter, Character, target Character, pending action, or Reaction only after hierarchy, membership, and linkage validation. Active Encounter Initiative contributes a historical Round/Step event snapshot; it never creates alternate Initiative state. The Roll can retain a target number, purpose, label, notes, and visibility, but never adjudicates success, additional successes, attack/defense outcome, Damage, Soak, Injuries, action resolution, Reaction resolution, XP, targets, or tactical choices. Existing authored-action and Reaction controls remain the only place the G.O.D. records what a Roll means.
+
+Roll records cannot be edited or deleted. A Campaign-owning G.O.D. may void a currently recorded Roll with a nonblank reason, timestamp, and user identity. The original Roll type, result, context, recorder, and creation time remain. Completed Encounter and Session history remains readable; recording resumes only after an explicit organizational reopen and always creates a new record.
+
+The Session Roll Ledger uses bounded cursor pagination and filters. The Session Roll Tray, Encounter Roll Tray, authored-action quick Roll, and Reaction quick Roll all render the same component and call the same server service. Quick controls only prefill context and never invoke an outcome control.
+
+Session Closeout locks and rereads the complete Session runtime before completion. Active Scenes, Encounters, Initiative, pending/interrupted actions, unresolved authored actions, and unresolved Reactions are blockers. Planned content and objectively unbound finite durations are warnings, not guessed state. XP summaries derive from existing immutable Encounter rewards and Roll summaries derive from the Roll ledger; there is no second reward or Roll store.
+
+Finalizing or reopening a Session changes only organizational lifecycle fields. It never heals, restores Mana, clears Conditions/Modifiers/Injuries, advances or expires durations, mutates Inventory/Charges/Equipment, alters XP, rewrites Rolls/rewards, replays Encounter effects, or resets Character/Creature state.
