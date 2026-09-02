@@ -21,6 +21,7 @@ export default defineConfig({
     "./src/db/realm-schema.ts",
     "./src/db/attribute-reference-schema.ts",
     "./src/db/tabletop-operations-schema.ts",
+    "./src/db/chat-schema.ts",
   ],
   out: "./drizzle",
   dialect: "postgresql",
