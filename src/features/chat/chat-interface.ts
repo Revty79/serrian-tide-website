@@ -25,6 +25,37 @@ export type ChatSubmissionIdentity = {
   clientRequestId: string;
 };
 
+export type ChatLiveMessagePayload = {
+  messageId: number;
+};
+
+export function parseChatLiveMessagePayload(value: unknown): ChatLiveMessagePayload | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (
+    Object.keys(row).length !== 1
+    || !Number.isSafeInteger(row.messageId)
+    || Number(row.messageId) <= 0
+  ) return null;
+  return { messageId: Number(row.messageId) };
+}
+
+export function parseChatLiveMessageData(value: string): ChatLiveMessagePayload | null {
+  try {
+    return parseChatLiveMessagePayload(JSON.parse(value));
+  } catch {
+    return null;
+  }
+}
+
+export function isChatViewportNearNewest(input: {
+  scrollTop: number;
+  clientHeight: number;
+  scrollHeight: number;
+}, threshold = 80): boolean {
+  return input.scrollHeight - input.clientHeight - input.scrollTop <= threshold;
+}
+
 export function flattenChatDirectory(directory: ChatRoomDirectory): ChatDirectoryRoom[] {
   const rooms = [
     ...directory.globalRooms,
@@ -126,6 +157,13 @@ export function reconcilePostedChatMessage(
   postedMessage: ChatMessageDto,
 ): ChatMessageDto[] {
   return mergeChatMessages(currentMessages, [postedMessage]);
+}
+
+export function reconcileLiveChatMessage(
+  currentMessages: readonly ChatMessageDto[],
+  authoritativeMessage: ChatMessageDto,
+): ChatMessageDto[] {
+  return mergeChatMessages(currentMessages, [authoritativeMessage]);
 }
 
 export function reconcileDeletedChatMessage(

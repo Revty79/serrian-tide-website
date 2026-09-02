@@ -10,11 +10,17 @@ import { db } from "@/db";
 import { pool as applicationPool } from "@/db";
 import { ChatError } from "@/features/chat/chat";
 import {
+  CHAT_LIVE_CHANNEL,
+  parseChatNotificationPayload,
+  type ChatInvalidation,
+} from "@/features/chat/chat-live-events";
+import {
   deleteChatMessageInTransaction,
   getChatWorkspaceBootstrapInTransaction,
   getOrCreateDirectConversationInTransaction,
   listAccessibleChatRoomsInTransaction,
   loadChatHistoryInTransaction,
+  loadChatMessageInTransaction,
   postChatMessageInTransaction,
   searchDirectMessageUsersInTransaction,
   synchronizeCampaignGeneralChatRoomInTransaction,
@@ -105,6 +111,27 @@ async function expectChatError(
 
 function load(userId: string, roomSlug = "crossroads", cursor?: string | null) {
   return withChatTransaction((tx) => loadChatHistoryInTransaction(tx, userId, { roomSlug, cursor }));
+}
+
+function loadMessage(userId: string, messageId: number, roomSlug = "crossroads") {
+  return withChatTransaction((tx) => loadChatMessageInTransaction(tx, userId, {
+    roomSlug,
+    messageId,
+  }));
+}
+
+async function waitForInvalidation(
+  events: ChatInvalidation[],
+  predicate: (event: ChatInvalidation) => boolean,
+  timeoutMs = 2_000,
+): Promise<ChatInvalidation> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const event = events.find(predicate);
+    if (event) return event;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("Timed out waiting for a Chat invalidation.");
 }
 
 function post(userId: string, requestId: string, content: string, roomSlug = "crossroads") {
@@ -421,6 +448,99 @@ test("Crossroads service enforces access, posting, pagination, and soft deletion
       deletion_reason: "author request",
       content: "Retained in storage",
     }]);
+  });
+
+  await t.test("exact message loading rechecks room access and returns only redacted deletion data", async () => {
+    const posted = await post(ids.god, "exact-live-message", "Exact stored content");
+    const otherView = await loadMessage(ids.other, posted.message.id);
+    assert.equal(otherView.isOwn, false);
+    assert.equal(otherView.canDelete, false);
+    await remove(ids.god, posted.message.id, "redact exact live message");
+    const deleted = await loadMessage(ids.admin, posted.message.id);
+    assert.equal(deleted.deleted, true);
+    assert.equal(deleted.content, null);
+    assert.equal(deleted.canDelete, false);
+    assert.doesNotMatch(JSON.stringify(deleted), /Exact stored content|deletedBy|deletionReason|authorUserId/);
+    await expectChatError(
+      () => loadMessage(ids.unrelated, posted.message.id, "campaign-room"),
+      "ROOM_UNAVAILABLE",
+    );
+    await expectChatError(() => loadMessage(ids.other, 2_000_000_000), "MESSAGE_UNAVAILABLE");
+  });
+
+  await t.test("committed posts and first deletions notify while rollback and idempotent repeats stay silent", async () => {
+    const listener = new pg.Client({ connectionString, application_name: "chat-live-db-test-listener" });
+    const events: ChatInvalidation[] = [];
+    await listener.connect();
+    await listener.query(`LISTEN ${CHAT_LIVE_CHANNEL}`);
+    listener.on("notification", (notification) => {
+      if (notification.channel !== CHAT_LIVE_CHANNEL) return;
+      const event = parseChatNotificationPayload(notification.payload);
+      if (event) events.push(event);
+    });
+    try {
+      await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.god]);
+      let committedMessageId = 0;
+      await withChatTransaction(async (tx) => {
+        const posted = await postChatMessageInTransaction(tx, ids.god, {
+          roomSlug: "crossroads",
+          clientRequestId: "live-committed-post",
+          content: "Notification payload must not contain this",
+        });
+        committedMessageId = posted.message.id;
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert.equal(events.some((event) => event.category === "message" && event.messageId === committedMessageId), false);
+      });
+      const committed = await waitForInvalidation(events, (event) => (
+        event.category === "message" && event.messageId === committedMessageId
+      ));
+      assert.deepEqual(committed, {
+        category: "message",
+        roomSlug: "crossroads",
+        messageId: committedMessageId,
+      });
+      assert.doesNotMatch(JSON.stringify(committed), /Notification payload|chat-god|private\.invalid/);
+
+      const committedCount = events.filter((event) => (
+        event.category === "message" && event.messageId === committedMessageId
+      )).length;
+      assert.equal((await post(ids.god, "live-committed-post", "Notification payload must not contain this")).created, false);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.filter((event) => (
+        event.category === "message" && event.messageId === committedMessageId
+      )).length, committedCount);
+
+      let rolledBackMessageId = 0;
+      await setupQuery("update chat_message set created_at=clock_timestamp()-interval '2 seconds' where author_user_id=$1", [ids.unrelated]);
+      await assert.rejects(() => withChatTransaction(async (tx) => {
+        const posted = await postChatMessageInTransaction(tx, ids.unrelated, {
+          roomSlug: "crossroads",
+          clientRequestId: "live-rolled-back-post",
+          content: "Must roll back",
+        });
+        rolledBackMessageId = posted.message.id;
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert.equal(events.some((event) => event.category === "message" && event.messageId === rolledBackMessageId), false);
+        throw new Error("intentional live rollback");
+      }), /intentional live rollback/);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.some((event) => event.category === "message" && event.messageId === rolledBackMessageId), false);
+      assert.equal((await setupQuery("select count(*)::int as count from chat_message where id=$1", [rolledBackMessageId])).rows[0].count, 0);
+
+      await remove(ids.god, committedMessageId, "first live deletion");
+      await waitForInvalidation(events, (event) => (
+        event.category === "message"
+        && event.messageId === committedMessageId
+        && events.filter((candidate) => candidate.category === "message" && candidate.messageId === committedMessageId).length >= 2
+      ));
+      const afterFirstDelete = events.filter((event) => event.category === "message" && event.messageId === committedMessageId).length;
+      await remove(ids.god, committedMessageId, "repeat live deletion");
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(events.filter((event) => event.category === "message" && event.messageId === committedMessageId).length, afterFirstDelete);
+    } finally {
+      await listener.query(`UNLISTEN ${CHAT_LIVE_CHANNEL}`).catch(() => undefined);
+      await listener.end().catch(() => undefined);
+    }
   });
 
   await t.test("another author and a G.O.D. cannot moderate a global message and failure changes nothing", async () => {

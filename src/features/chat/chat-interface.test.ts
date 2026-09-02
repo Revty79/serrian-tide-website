@@ -7,11 +7,14 @@ import {
   flattenChatDirectory,
   getChatRoomMetadata,
   getChatSubmissionIdentity,
+  isChatViewportNearNewest,
   isCurrentChatRoomLoad,
+  parseChatLiveMessageData,
   prependOlderChatMessages,
   preserveChatRoomSelection,
   reconcileChatRoomArchiveState,
   reconcileDeletedChatMessage,
+  reconcileLiveChatMessage,
   reconcilePostedChatMessage,
   retainChatSubmissionIdentityAfterDraftChange,
   selectInitialChatRoomSlug,
@@ -130,6 +133,42 @@ test("posting reconciles without duplication and deletion replaces without remov
   assert.deepEqual(reconciled.map(({ id }) => id), [1, 2]);
   assert.equal(reconciled[1]?.deleted, true);
   assert.equal(reconciled[1]?.content, null);
+});
+
+test("live message payloads are strict and authoritative messages reconcile out of order", () => {
+  assert.deepEqual(parseChatLiveMessageData('{"messageId":4}'), { messageId: 4 });
+  for (const invalid of [
+    "not-json",
+    "{}",
+    '{"messageId":0}',
+    '{"messageId":"4"}',
+    '{"messageId":4,"roomSlug":"crossroads"}',
+  ]) assert.equal(parseChatLiveMessageData(invalid), null);
+
+  const initial = [
+    message(2, "2026-09-02T12:02:00.000Z"),
+    message(4, "2026-09-02T12:04:00.000Z"),
+  ];
+  const withOlderLiveMessage = reconcileLiveChatMessage(
+    initial,
+    message(3, "2026-09-02T12:03:00.000Z"),
+  );
+  assert.deepEqual(withOlderLiveMessage.map(({ id }) => id), [2, 3, 4]);
+  assert.equal(reconcileLiveChatMessage(withOlderLiveMessage, withOlderLiveMessage[1]!).length, 3);
+  const deletedOlderMessage = message(2, "2026-09-02T12:02:00.000Z", {
+    content: null,
+    deleted: true,
+    canDelete: false,
+  });
+  const deleted = reconcileLiveChatMessage(withOlderLiveMessage, deletedOlderMessage);
+  assert.equal(deleted[0]?.deleted, true);
+  assert.equal(deleted[0]?.content, null);
+});
+
+test("live following occurs only while the reader remains near the newest messages", () => {
+  assert.equal(isChatViewportNearNewest({ scrollTop: 920, clientHeight: 500, scrollHeight: 1500 }), true);
+  assert.equal(isChatViewportNearNewest({ scrollTop: 919, clientHeight: 500, scrollHeight: 1500 }), false);
+  assert.equal(isChatViewportNearNewest({ scrollTop: 0, clientHeight: 500, scrollHeight: 500 }), true);
 });
 
 test("only the latest matching room-load token may change visible history", () => {

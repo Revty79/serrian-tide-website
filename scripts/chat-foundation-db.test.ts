@@ -71,7 +71,10 @@ test("0013 enforces the complete Crossroads schema contract in an isolated trans
       where pg_type.typname = 'chat_room_scope'
       order by enumsortorder
     `);
-    assert.deepEqual(roomScopes.rows.map(({ value }) => value), ["global", "campaign"]);
+    const expectedRoomScopes = migrationAppliedInTest
+      ? ["global", "campaign"]
+      : ["global", "campaign", "direct"];
+    assert.deepEqual(roomScopes.rows.map(({ value }) => value), expectedRoomScopes);
     const messageStatuses = await client.query<{ value: string }>(`
       select enumlabel as value
       from pg_enum

@@ -15,6 +15,9 @@ const stylesheet = source("src/app/chat/chat.module.css");
 const actions = source("src/app/chat/actions.ts");
 const service = source("src/features/chat/chat-service.ts");
 const domain = source("src/features/chat/chat.ts");
+const liveEvents = source("src/features/chat/chat-live-events.ts");
+const liveRoute = source("src/app/api/chat/live/route.ts");
+const liveConnection = source("src/features/chat/chat-live-connection.tsx");
 
 test("the role-neutral Chat page authenticates on the server and loads only a directory-authorized bootstrap", () => {
   assert.match(page, /const session = await requireSession\(\)/);
@@ -92,14 +95,18 @@ test("direct search is explicit, bounded, private, and refreshes the directory b
   assert.doesNotMatch(workspace, /email|roles/);
 });
 
-test("the interface is manually refreshed, responsive, and contains no live-sync runtime", () => {
+test("the interface retains manual refresh and responsiveness around the approved live runtime", () => {
   assert.match(workspace, /Refresh Messages/);
   assert.match(stylesheet, /@media \(max-width: 900px\)/);
   assert.match(stylesheet, /@media \(max-width: 720px\)/);
   assert.match(stylesheet, /@media \(max-width: 460px\)/);
   assert.match(stylesheet, /overflow-x:\s*hidden/);
   assert.match(stylesheet, /prefers-reduced-motion/);
-  for (const chatSource of [page, workspace, actions, service]) {
-    assert.doesNotMatch(chatSource, /setInterval|EventSource|server-sent|\bSSE\b|\bLISTEN\b|\bNOTIFY\b|pg_notify/i);
-  }
+  assert.match(workspace, /<ChatLiveConnection/);
+  assert.match(liveConnection, /new EventSource\(`\/api\/chat\/live\?room=/);
+  assert.match(liveConnection, /source\.close\(\)/);
+  assert.match(liveEvents, /select pg_notify/);
+  assert.match(liveRoute, /LISTEN/);
+  assert.doesNotMatch(`${workspace}\n${liveConnection}`, /setInterval|WebSocket|\bpoll(?:ing)?\b/i);
+  assert.doesNotMatch(`${page}\n${actions}`, /EventSource|LISTEN|NOTIFY|pg_notify/i);
 });

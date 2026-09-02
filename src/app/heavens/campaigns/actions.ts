@@ -40,6 +40,7 @@ import {
   canAdministerCampaign,
 } from "@/features/campaigns/campaign-membership";
 import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
+import { publishChatDirectoryInvalidationInTransaction } from "@/features/chat/chat-live-events";
 import {
   normalizeCampaignDerivedAbilityIds,
   validateCampaignDerivedAbilitySelection,
@@ -478,7 +479,10 @@ export async function addCampaignPlayer(campaignId: number, userId: string) {
   ]);
   if (!targetUser) throw new Error("That registered account no longer exists.");
   if (!playerRole) throw new Error("That account does not have Player permission.");
-  await db.insert(campaignPlayer).values({ campaignId, userId, isNpcController: false }).onConflictDoUpdate({ target: [campaignPlayer.campaignId, campaignPlayer.userId], set: { isNpcController: false } });
+  await db.transaction(async (tx) => {
+    await tx.insert(campaignPlayer).values({ campaignId, userId, isNpcController: false }).onConflictDoUpdate({ target: [campaignPlayer.campaignId, campaignPlayer.userId], set: { isNpcController: false } });
+    await publishChatDirectoryInvalidationInTransaction(tx);
+  });
   revalidatePath("/heavens/campaigns");
   revalidatePath("/heavens");
   revalidatePath("/realms");
@@ -487,9 +491,12 @@ export async function addCampaignPlayer(campaignId: number, userId: string) {
 
 export async function removeCampaignPlayer(campaignId: number, userId: string) {
   await requireOwner(campaignId);
-  const [characters] = await db.select({ value: count() }).from(campaignCharacter).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.playerUserId, userId), eq(campaignCharacter.isNpc, false)));
-  if (Number(characters?.value ?? 0) > 0) throw new Error("A Player cannot be removed while they still have Characters in the Campaign.");
-  await db.delete(campaignPlayer).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.userId, userId), eq(campaignPlayer.isNpcController, false)));
+  await db.transaction(async (tx) => {
+    const [characters] = await tx.select({ value: count() }).from(campaignCharacter).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.playerUserId, userId), eq(campaignCharacter.isNpc, false)));
+    if (Number(characters?.value ?? 0) > 0) throw new Error("A Player cannot be removed while they still have Characters in the Campaign.");
+    const removed = await tx.delete(campaignPlayer).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.userId, userId), eq(campaignPlayer.isNpcController, false))).returning({ userId: campaignPlayer.userId });
+    if (removed.length > 0) await publishChatDirectoryInvalidationInTransaction(tx);
+  });
   revalidatePath("/heavens/campaigns");
   revalidatePath("/heavens");
   revalidatePath("/realms");

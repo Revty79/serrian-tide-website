@@ -200,6 +200,7 @@ test("future server actions authenticate centrally, expose narrow inputs, and av
   for (const entryPoint of [
     "loadChatHistoryAction",
     "loadOlderChatMessagesAction",
+    "loadChatMessageAction",
     "postChatMessageAction",
     "deleteChatMessageAction",
     "listAccessibleChatRoomsAction",

@@ -44,6 +44,10 @@ import {
   type PostChatMessageResult,
 } from "./chat";
 import { selectInitialChatRoomSlug } from "./chat-interface";
+import {
+  publishChatDirectoryInvalidationInTransaction,
+  publishChatMessageInvalidationInTransaction,
+} from "./chat-live-events";
 
 export type ChatTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -183,7 +187,7 @@ export async function synchronizeCampaignGeneralChatRoomInTransaction(
 ): Promise<{ slug: string; name: string }> {
   const slug = getCampaignGeneralChatSlug(input.campaignId);
   const name = getCampaignGeneralChatName(input.campaignName);
-  await tx
+  const [createdRoom] = await tx
     .insert(chatRoom)
     .values({
       slug,
@@ -192,10 +196,12 @@ export async function synchronizeCampaignGeneralChatRoomInTransaction(
       campaignId: input.campaignId,
       isArchived: false,
     })
-    .onConflictDoNothing({ target: chatRoom.slug });
+    .onConflictDoNothing({ target: chatRoom.slug })
+    .returning({ id: chatRoom.id });
   const [room] = await tx
     .select({
       id: chatRoom.id,
+      name: chatRoom.name,
       scope: chatRoom.scope,
       campaignId: chatRoom.campaignId,
     })
@@ -210,6 +216,9 @@ export async function synchronizeCampaignGeneralChatRoomInTransaction(
     .update(chatRoom)
     .set({ name, updatedAt: sql`clock_timestamp()` })
     .where(eq(chatRoom.id, room.id));
+  if (createdRoom || room.name !== name) {
+    await publishChatDirectoryInvalidationInTransaction(tx);
+  }
   return { slug, name };
 }
 
@@ -398,6 +407,10 @@ export async function getOrCreateDirectConversationInTransaction(
     || memberships.some(({ userId }, index) => userId !== participantIds[index])
   ) unavailableRoom();
 
+  if (created) {
+    await publishChatDirectoryInvalidationInTransaction(tx);
+  }
+
   return {
     slug: room.slug,
     name: room.name,
@@ -568,6 +581,36 @@ export async function loadChatHistoryInTransaction(
   };
 }
 
+export async function authorizeChatRoomSubscriptionInTransaction(
+  tx: ChatTransaction,
+  actorUserId: string,
+  roomSlugValue: unknown,
+): Promise<string> {
+  const roomSlug = normalizeChatRoomSlug(roomSlugValue);
+  const actor = await resolveChatActor(tx, actorUserId, false);
+  const room = await resolveAuthorizedRoom(tx, actor, roomSlug);
+  return room.slug;
+}
+
+export async function loadChatMessageInTransaction(
+  tx: ChatTransaction,
+  actorUserId: string,
+  input: { roomSlug: string; messageId: number },
+): Promise<ChatMessageDto> {
+  const roomSlug = normalizeChatRoomSlug(input.roomSlug);
+  const messageId = normalizeChatMessageId(input.messageId);
+  const actor = await resolveChatActor(tx, actorUserId, false);
+  const room = await resolveAuthorizedRoom(tx, actor, roomSlug);
+  const [message] = await tx
+    .select(messageSelection())
+    .from(chatMessage)
+    .innerJoin(user, eq(user.id, chatMessage.authorUserId))
+    .where(and(eq(chatMessage.id, messageId), eq(chatMessage.roomId, room.id)))
+    .limit(1);
+  if (!message) unavailableMessage();
+  return toMessageDto(message, actor, room);
+}
+
 export async function postChatMessageInTransaction(
   tx: ChatTransaction,
   actorUserId: string,
@@ -604,6 +647,7 @@ export async function postChatMessageInTransaction(
       status: chatMessage.status,
       createdAt: chatMessage.createdAt,
     });
+  await publishChatMessageInvalidationInTransaction(tx, room.slug, inserted.id);
   return {
     message: toMessageDto({
       ...inserted,
@@ -656,6 +700,7 @@ export async function deleteChatMessageInTransaction(
       status: chatMessage.status,
       createdAt: chatMessage.createdAt,
     });
+  await publishChatMessageInvalidationInTransaction(tx, room.slug, deleted.id);
   return toMessageDto({
     ...deleted,
     authorDisplayUsername: message.authorDisplayUsername,
@@ -669,6 +714,13 @@ export function loadChatHistory(
   input: { roomSlug: string; cursor?: string | null },
 ): Promise<ChatHistoryPage> {
   return db.transaction((tx) => loadChatHistoryInTransaction(tx, actorUserId, input));
+}
+
+export function loadChatMessage(
+  actorUserId: string,
+  input: { roomSlug: string; messageId: number },
+): Promise<ChatMessageDto> {
+  return db.transaction((tx) => loadChatMessageInTransaction(tx, actorUserId, input));
 }
 
 export function postChatMessage(

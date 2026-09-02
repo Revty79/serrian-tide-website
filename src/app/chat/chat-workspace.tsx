@@ -19,6 +19,7 @@ import {
   getOrCreateDirectConversationAction,
   listAccessibleChatRoomsAction,
   loadChatHistoryAction,
+  loadChatMessageAction,
   loadOlderChatMessagesAction,
   postChatMessageAction,
   searchDirectMessageUsersAction,
@@ -35,17 +36,20 @@ import {
   findChatDirectoryRoom,
   getChatRoomMetadata,
   getChatSubmissionIdentity,
+  isChatViewportNearNewest,
   isCurrentChatRoomLoad,
   mergeChatMessages,
   prependOlderChatMessages,
   preserveChatRoomSelection,
   reconcileChatRoomArchiveState,
   reconcileDeletedChatMessage,
+  reconcileLiveChatMessage,
   reconcilePostedChatMessage,
   retainChatSubmissionIdentityAfterDraftChange,
   type ChatRoomLoadToken,
   type ChatSubmissionIdentity,
 } from "@/features/chat/chat-interface";
+import { ChatLiveConnection } from "@/features/chat/chat-live-connection";
 
 import styles from "./chat.module.css";
 
@@ -186,6 +190,11 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     });
   }
 
+  function readerIsNearNewest(): boolean {
+    const viewport = historyViewportRef.current;
+    return !viewport || isChatViewportNearNewest(viewport);
+  }
+
   function updateRoomUrl(roomSlug: string) {
     router.replace(`/chat?room=${encodeURIComponent(roomSlug)}`, { scroll: false });
   }
@@ -251,6 +260,42 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
       setWorkspaceNotice("That conversation is no longer available, and no other Chat room is currently accessible.");
       router.replace("/chat", { scroll: false });
     }
+  }
+
+  async function reconcileNewestHistoryFromLive(roomSlug: string) {
+    if (activeRoomSlugRef.current !== roomSlug) return;
+    const result = await loadChatHistoryAction({ roomSlug });
+    if (activeRoomSlugRef.current !== roomSlug) return;
+    if (!result.ok) {
+      if (result.error.code === "ROOM_UNAVAILABLE") {
+        await refreshDirectoryAfterRoomChange(roomSlug);
+      }
+      return;
+    }
+    const followNewest = readerIsNearNewest();
+    setMessages((current) => mergeChatMessages(current, result.data.messages));
+    setDirectory((current) => reconcileChatRoomArchiveState(
+      current,
+      roomSlug,
+      result.data.room.archived,
+    ));
+    if (followNewest) scrollToNewest();
+  }
+
+  async function reconcileExactMessageFromLive(roomSlug: string, messageId: number) {
+    if (activeRoomSlugRef.current !== roomSlug) return;
+    const result = await loadChatMessageAction({ roomSlug, messageId });
+    if (activeRoomSlugRef.current !== roomSlug) return;
+    if (!result.ok) {
+      if (result.error.code === "ROOM_UNAVAILABLE") {
+        await refreshDirectoryAfterRoomChange(roomSlug);
+      }
+      return;
+    }
+    if (result.data.room.slug !== roomSlug) return;
+    const followNewest = readerIsNearNewest();
+    setMessages((current) => reconcileLiveChatMessage(current, result.data));
+    if (followNewest) scrollToNewest();
   }
 
   async function openAuthorizedRoomFromDirectory(
@@ -625,9 +670,19 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
                     <h2 ref={conversationHeadingRef} tabIndex={-1}>{roomMetadata.title}</h2>
                     <p>{roomMetadata.contextLabel}</p>
                   </div>
-                  <button type="button" onClick={() => void refreshMessages()} disabled={refreshing || roomLoadState === "loading"}>
-                    {refreshing ? "Refreshing…" : "Refresh Messages"}
-                  </button>
+                  <div className={styles.conversationControls}>
+                    <ChatLiveConnection
+                      key={activeRoom.slug}
+                      roomSlug={activeRoom.slug}
+                      onReady={reconcileNewestHistoryFromLive}
+                      onMessage={reconcileExactMessageFromLive}
+                      onDirectory={refreshDirectoryAfterRoomChange}
+                      className={styles.liveStatus}
+                    />
+                    <button type="button" onClick={() => void refreshMessages()} disabled={refreshing || roomLoadState === "loading"}>
+                      {refreshing ? "Refreshing…" : "Refresh Messages"}
+                    </button>
+                  </div>
                 </header>
 
                 {activeRoom.archived ? (

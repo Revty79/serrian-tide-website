@@ -6,6 +6,7 @@ import {
   getOrCreateDirectConversation,
   listAccessibleChatRooms,
   loadChatHistory,
+  loadChatMessage,
   postChatMessage,
   searchDirectMessageUsers,
 } from "@/features/chat/chat-service";
@@ -81,6 +82,13 @@ export async function loadOlderChatMessagesAction(input: {
   cursor: string;
 }): Promise<ChatActionResult<ChatHistoryPage>> {
   return authenticatedChatAction((userId) => loadChatHistory(userId, input));
+}
+
+export async function loadChatMessageAction(input: {
+  roomSlug: string;
+  messageId: number;
+}): Promise<ChatActionResult<ChatMessageDto>> {
+  return authenticatedChatAction((userId) => loadChatMessage(userId, input));
 }
 
 export async function postChatMessageAction(

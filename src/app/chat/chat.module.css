@@ -324,6 +324,42 @@
   overflow-wrap: anywhere;
 }
 
+.conversationControls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.liveStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: #8e9aae;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveStatus > span {
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: #cc9d53;
+  box-shadow: 0 0 0.65rem rgba(204, 157, 83, 0.42);
+}
+
+.liveStatus[data-live-status="live"] > span {
+  background: #58c9af;
+  box-shadow: 0 0 0.65rem rgba(88, 201, 175, 0.48);
+}
+
+.liveStatus[data-live-status="reconnecting"] > span {
+  background: #c97d88;
+  box-shadow: 0 0 0.65rem rgba(201, 125, 136, 0.45);
+}
+
 .conversationHeader button,
 .olderControl button,
 .composer button,
@@ -856,6 +892,11 @@
 
   .conversationHeader button {
     align-self: stretch;
+  }
+
+  .conversationControls {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .composerFooter {
