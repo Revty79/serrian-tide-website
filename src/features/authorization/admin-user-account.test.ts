@@ -26,13 +26,15 @@ test("an account with no associated records receives calm zero-count groups", ()
     campaignsCreated: 0,
     campaignsJoined: 0,
     playerCharacters: 0,
-    npcsControlled: 0,
+    raceNpcsControlled: 0,
+    creatureNpcsControlled: 0,
   });
   assert.deepEqual(summary.roles, []);
   assert.deepEqual(summary.campaignsCreated, []);
   assert.deepEqual(summary.campaignsJoined, []);
   assert.deepEqual(summary.playerCharacters, []);
-  assert.deepEqual(summary.npcsControlled, []);
+  assert.deepEqual(summary.raceNpcsControlled, []);
+  assert.deepEqual(summary.creatureNpcsControlled, []);
 });
 
 test("created and joined Campaign associations remain independent even when they overlap", () => {
@@ -55,7 +57,7 @@ test("created and joined Campaign associations remain independent even when they
   assert.equal(summary.counts.campaignsJoined, 2);
 });
 
-test("player Characters and controlled NPCs are separated by the stored isNpc value", () => {
+test("player Characters, race NPCs, and Creature NPCs have separate names and counts", () => {
   const summary = buildAdminUserAccountSummary({
     account,
     roles: ["player"],
@@ -68,6 +70,7 @@ test("player Characters and controlled NPCs are separated by the stored isNpc va
         campaignId: 7,
         campaignName: "The Breaking",
         isNpc: false,
+        npcKind: "race",
       },
       {
         id: 12,
@@ -75,6 +78,15 @@ test("player Characters and controlled NPCs are separated by the stored isNpc va
         campaignId: 7,
         campaignName: "The Breaking",
         isNpc: true,
+        npcKind: "race",
+      },
+      {
+        id: 13,
+        name: "Ash Drake",
+        campaignId: 7,
+        campaignName: "The Breaking",
+        isNpc: true,
+        npcKind: "creature",
       },
     ],
   });
@@ -87,7 +99,7 @@ test("player Characters and controlled NPCs are separated by the stored isNpc va
       campaignName: "The Breaking",
     },
   ]);
-  assert.deepEqual(summary.npcsControlled, [
+  assert.deepEqual(summary.raceNpcsControlled, [
     {
       id: 12,
       name: "The Ferryman",
@@ -95,8 +107,17 @@ test("player Characters and controlled NPCs are separated by the stored isNpc va
       campaignName: "The Breaking",
     },
   ]);
+  assert.deepEqual(summary.creatureNpcsControlled, [
+    {
+      id: 13,
+      name: "Ash Drake",
+      campaignId: 7,
+      campaignName: "The Breaking",
+    },
+  ]);
   assert.equal(summary.counts.playerCharacters, 1);
-  assert.equal(summary.counts.npcsControlled, 1);
+  assert.equal(summary.counts.raceNpcsControlled, 1);
+  assert.equal(summary.counts.creatureNpcsControlled, 1);
 });
 
 test("the detail service projects only administrative summary relationships and never mutates", () => {
@@ -109,6 +130,7 @@ test("the detail service projects only administrative summary relationships and 
   assert.match(service, /campaignPlayer\.userId/);
   assert.match(service, /campaignCharacter\.playerUserId/);
   assert.match(service, /campaignCharacter\.isNpc/);
+  assert.match(service, /campaignCharacter\.npcKind/);
   assert.doesNotMatch(service, /\.insert\(|\.update\(|\.delete\(/);
 });
 
@@ -119,6 +141,8 @@ test("the admin route guards access, handles missing users, and preserves role c
   assert.match(detailPage, /await requireAdmin\(\)/);
   assert.match(detailPage, /if \(!summary\) notFound\(\)/);
   assert.match(detailPage, /getAdminUserAccountSummary\(userId\)/);
+  assert.match(detailPage, /Race NPCs Controlled/);
+  assert.match(detailPage, /Creature NPCs Controlled/);
   assert.match(usersPage, /action=\{setUserRole\}/);
   assert.match(usersPage, /View Account/);
 });

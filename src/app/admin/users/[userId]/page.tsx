@@ -14,7 +14,8 @@ const summaryCards = [
   { key: "campaignsCreated", label: "Campaigns Created" },
   { key: "campaignsJoined", label: "Campaigns Joined" },
   { key: "playerCharacters", label: "Player Characters" },
-  { key: "npcsControlled", label: "NPCs Controlled" },
+  { key: "raceNpcsControlled", label: "Race NPCs Controlled" },
+  { key: "creatureNpcsControlled", label: "Creature NPCs Controlled" },
 ] as const;
 
 export default async function AdminUserAccountPage({
@@ -118,7 +119,7 @@ export default async function AdminUserAccountPage({
           <h2 id="account-overview-heading" className="font-sans text-2xl text-slate-100 sm:text-3xl">
             Overview
           </h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {summaryCards.map((card) => (
               <article
                 key={card.key}
@@ -170,11 +171,24 @@ export default async function AdminUserAccountPage({
           </RecordSection>
 
           <RecordSection
-            title="NPCs Controlled"
-            count={summary.counts.npcsControlled}
-            emptyMessage="No NPCs controlled."
+            title="Race NPCs Controlled"
+            count={summary.counts.raceNpcsControlled}
+            emptyMessage="No race NPCs controlled."
           >
-            {summary.npcsControlled.map((character) => (
+            {summary.raceNpcsControlled.map((character) => (
+              <li key={character.id} className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+                <p className="text-slate-100">{character.name}</p>
+                <p className="mt-1 text-sm text-slate-400">{character.campaignName}</p>
+              </li>
+            ))}
+          </RecordSection>
+
+          <RecordSection
+            title="Creature NPCs Controlled"
+            count={summary.counts.creatureNpcsControlled}
+            emptyMessage="No Creature NPCs controlled."
+          >
+            {summary.creatureNpcsControlled.map((character) => (
               <li key={character.id} className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
                 <p className="text-slate-100">{character.name}</p>
                 <p className="mt-1 text-sm text-slate-400">{character.campaignName}</p>

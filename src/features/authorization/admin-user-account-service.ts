@@ -55,6 +55,7 @@ export async function getAdminUserAccountSummary(
           campaignId: campaign.id,
           campaignName: campaign.name,
           isNpc: campaignCharacter.isNpc,
+          npcKind: campaignCharacter.npcKind,
         })
         .from(campaignCharacter)
         .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))

@@ -174,7 +174,7 @@ test("migration 0006 is additive, enforces same-Campaign references, and creates
   assert.match(migration, /ON DELETE cascade/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:scene|encounter|initiative|turn|round|combat|participant)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0012_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0014_snapshot\.json/);
 });
 
 test("Build 2 architecture defines the roster reference boundary and future consumers", () => {

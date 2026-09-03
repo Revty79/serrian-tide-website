@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "validate:unit": "node scripts/run-feature-tests.mjs",
     "validate:canon": "node scripts/import-ststandalone-canon.mjs --validate-only",
     "validate:campaign": "tsx --test src/features/campaigns/*.test.ts",
     "validate:creatures": "tsx --test src/features/creatures/*.test.ts",

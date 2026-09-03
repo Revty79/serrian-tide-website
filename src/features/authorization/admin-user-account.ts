@@ -27,17 +27,20 @@ export type AdminUserAccountSummary = {
   campaignsCreated: AdminUserCampaignSummary[];
   campaignsJoined: AdminUserCampaignSummary[];
   playerCharacters: AdminUserCharacterSummary[];
-  npcsControlled: AdminUserCharacterSummary[];
+  raceNpcsControlled: AdminUserCharacterSummary[];
+  creatureNpcsControlled: AdminUserCharacterSummary[];
   counts: {
     campaignsCreated: number;
     campaignsJoined: number;
     playerCharacters: number;
-    npcsControlled: number;
+    raceNpcsControlled: number;
+    creatureNpcsControlled: number;
   };
 };
 
 type AdminUserCharacterRow = AdminUserCharacterSummary & {
   isNpc: boolean;
+  npcKind: string;
 };
 
 const roleOrder: SerrianRole[] = ["admin", "god", "player"];
@@ -53,13 +56,16 @@ export function buildAdminUserAccountSummary(input: {
     (left, right) => roleOrder.indexOf(left) - roleOrder.indexOf(right),
   );
   const playerCharacters: AdminUserCharacterSummary[] = [];
-  const npcsControlled: AdminUserCharacterSummary[] = [];
+  const raceNpcsControlled: AdminUserCharacterSummary[] = [];
+  const creatureNpcsControlled: AdminUserCharacterSummary[] = [];
 
-  for (const { isNpc, ...character } of input.characters) {
-    if (isNpc) {
-      npcsControlled.push(character);
-    } else {
+  for (const { isNpc, npcKind, ...character } of input.characters) {
+    if (!isNpc) {
       playerCharacters.push(character);
+    } else if (npcKind === "creature") {
+      creatureNpcsControlled.push(character);
+    } else {
+      raceNpcsControlled.push(character);
     }
   }
 
@@ -69,12 +75,14 @@ export function buildAdminUserAccountSummary(input: {
     campaignsCreated: input.campaignsCreated,
     campaignsJoined: input.campaignsJoined,
     playerCharacters,
-    npcsControlled,
+    raceNpcsControlled,
+    creatureNpcsControlled,
     counts: {
       campaignsCreated: input.campaignsCreated.length,
       campaignsJoined: input.campaignsJoined.length,
       playerCharacters: playerCharacters.length,
-      npcsControlled: npcsControlled.length,
+      raceNpcsControlled: raceNpcsControlled.length,
+      creatureNpcsControlled: creatureNpcsControlled.length,
     },
   };
 }
