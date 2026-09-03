@@ -76,6 +76,8 @@ export const derivedAbilityTrigger = pgTable(
   ],
 );
 
+// Legacy campaign-level allowlisting retained for persisted-data compatibility.
+// Gameplay governance uses campaign_allowed_system as of Derived Abilities Pass 1.
 export const campaignAllowedDerivedAbility = pgTable(
   "campaign_allowed_derived_ability",
   {

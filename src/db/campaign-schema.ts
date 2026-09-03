@@ -36,6 +36,7 @@ export const campaignSystem = pgEnum(
     "Psyonics",
     "Special Abilities",
     "Bardic Resonance",
+    "Derived Abilities",
   ],
 );
 

@@ -1,3 +1,5 @@
+import type { CampaignSystem } from "@/db/campaign-schema";
+
 import {
   DERIVED_ABILITY_ATTRIBUTE_KEYS,
   type DerivedAbilityAttributeKey,
@@ -98,10 +100,12 @@ export function evaluateDerivedAbilityTrigger(
 }
 
 export function getActiveDerivedAbilities(
-  campaignEnabledAbilities: readonly DerivedAbilityDefinition[],
+  catalog: readonly DerivedAbilityDefinition[],
   context: DerivedAbilityEvaluationContext,
+  allowedSystems: readonly CampaignSystem[],
 ): DerivedAbilityDefinition[] {
-  return campaignEnabledAbilities.filter(
+  if (!allowedSystems.includes("Derived Abilities")) return [];
+  return catalog.filter(
     (ability) =>
       ability.triggers.length === 1 &&
       evaluateDerivedAbilityTrigger(ability.triggers[0]!, context),

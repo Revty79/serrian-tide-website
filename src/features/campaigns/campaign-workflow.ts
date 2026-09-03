@@ -1,7 +1,6 @@
 export const CAMPAIGN_SETTINGS_TABS = [
   { id: "rules", label: "Rules & Systems" },
   { id: "races", label: "Allowed Races" },
-  { id: "derivedAbilities", label: "Derived Abilities" },
   { id: "inventory", label: "Inventory Access" },
 ] as const;
 

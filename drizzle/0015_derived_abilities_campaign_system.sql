@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_system" ADD VALUE 'Derived Abilities';

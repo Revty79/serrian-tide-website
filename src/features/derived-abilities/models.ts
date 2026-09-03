@@ -28,7 +28,3 @@ export type DerivedAbilityDefinition = {
   sourceExternalId: string | null;
   triggers: DerivedAbilityTriggerDefinition[];
 };
-
-export type CampaignDerivedAbilityOption = DerivedAbilityDefinition & {
-  requirementSummary: string;
-};

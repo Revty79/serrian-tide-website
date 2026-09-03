@@ -3,63 +3,74 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import {
-  normalizeCampaignDerivedAbilityIds,
-  validateCampaignDerivedAbilitySelection,
-} from "@/features/derived-abilities/campaign-derived-abilities";
+import { campaignSystem } from "@/db/campaign-schema";
 
 function readSource(relativePath: string) {
   return readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
 }
 
-test("Campaign Derived Ability selections de-duplicate and reject invalid or stale IDs", () => {
-  assert.deepEqual(normalizeCampaignDerivedAbilityIds([3, 1, 3]), [3, 1]);
-  assert.deepEqual(validateCampaignDerivedAbilitySelection([2, 1], [1, 2, 3]), [2, 1]);
-  assert.throws(() => normalizeCampaignDerivedAbilityIds([0]), /invalid record/);
-  assert.throws(() => normalizeCampaignDerivedAbilityIds([1.5]), /invalid record/);
-  assert.throws(
-    () => validateCampaignDerivedAbilitySelection([1, 99], [1, 2]),
-    /no longer available/,
+test("Derived Abilities is a valid persisted Campaign System", () => {
+  assert.equal(campaignSystem.enumValues.includes("Derived Abilities"), true);
+
+  const migration = readSource("drizzle/0015_derived_abilities_campaign_system.sql");
+  assert.match(
+    migration,
+    /ALTER TYPE "public"\."campaign_system" ADD VALUE 'Derived Abilities'/,
+  );
+  assert.doesNotMatch(migration, /CREATE TABLE|DROP TABLE|DELETE FROM|INSERT INTO/);
+});
+
+test("Campaign creation uses the Allowed Systems checkbox and no per-ability selector", () => {
+  const form = readSource("src/app/heavens/campaigns/new/campaign-create-form.tsx");
+  const action = readSource("src/app/heavens/campaigns/new/actions.ts");
+
+  assert.match(form, /CAMPAIGN_SYSTEM_OPTIONS[\s\S]*"Derived Abilities"/);
+  assert.match(form, /name="allowedSystems"/);
+  assert.doesNotMatch(form, /CampaignDerivedAbilitySelector|allowedDerivedAbilityIds/);
+  assert.match(action, /\.getAll\("allowedSystems"\)/);
+  assert.match(action, /tx[\s\S]*\.insert\(campaignAllowedSystem\)/);
+  assert.doesNotMatch(
+    action,
+    /campaignAllowedDerivedAbility|allowedDerivedAbilityIds|validateCampaignDerivedAbilitySelection/,
   );
 });
 
-test("different Campaigns retain independent Derived Ability selections", () => {
-  const existing = [1, 2, 3, 4, 5, 6];
-  const campaignA = validateCampaignDerivedAbilitySelection([1, 2], existing);
-  const campaignB = validateCampaignDerivedAbilitySelection([5, 6], existing);
-  assert.deepEqual(campaignA, [1, 2]);
-  assert.deepEqual(campaignB, [5, 6]);
+test("Campaign editing replaces Allowed Systems and has no per-ability governance", () => {
+  const workspace = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
+  const action = readSource("src/app/heavens/campaigns/actions.ts");
+
+  assert.match(workspace, /const SYSTEMS =[\s\S]*"Derived Abilities"/);
+  assert.match(workspace, /draft\.allowedSystems\.includes\(system\)/);
+  assert.doesNotMatch(
+    workspace,
+    /CampaignDerivedAbilitySelector|allowedDerivedAbilityIds|tab === "derivedAbilities"/,
+  );
+  assert.match(action, /tx\.delete\(campaignAllowedSystem\)/);
+  assert.match(action, /tx\.insert\(campaignAllowedSystem\)/);
+  assert.doesNotMatch(
+    action,
+    /campaignAllowedDerivedAbility|allowedDerivedAbilityIds|validateCampaignDerivedAbilitySelection/,
+  );
 });
 
-test("Create Campaign validates real IDs and inserts associations transactionally", () => {
-  const source = readSource("src/app/heavens/campaigns/new/actions.ts");
-  assert.match(source, /readPositiveIntegerList\([\s\S]*"allowedDerivedAbilityIds"/);
-  assert.match(source, /validateCampaignDerivedAbilitySelection/);
-  assert.match(source, /db\.transaction/);
-  assert.match(source, /tx\.insert\(campaignAllowedDerivedAbility\)/);
-  assert.match(source, /G\.O\.D\. access is required/);
+test("Character aggregates load the V1 catalog directly and resolution uses Campaign systems", () => {
+  const action = readSource("src/app/characters/actions.ts");
+  const resolver = readSource(
+    "src/features/derived-abilities/derived-ability-rules.ts",
+  );
+
+  assert.match(action, /\.from\(derivedAbility\)/);
+  assert.doesNotMatch(action, /campaignAllowedDerivedAbility/);
+  assert.match(resolver, /allowedSystems\.includes\("Derived Abilities"\)/);
 });
 
-test("Campaign Settings is owner-authorized and replaces persisted selections", () => {
-  const source = readSource("src/app/heavens/campaigns/actions.ts");
-  assert.match(source, /await requireOwner\(input\.id\)/);
-  assert.match(source, /validateCampaignDerivedAbilitySelection/);
-  assert.match(source, /tx\.delete\(campaignAllowedDerivedAbility\)/);
-  assert.match(source, /tx\.insert\(campaignAllowedDerivedAbility\)/);
-  assert.match(source, /allowedDerivedAbilityIds: derivedAbilities\.map/);
-});
+test("legacy per-ability Campaign storage and existing data remain preserved", () => {
+  const schema = readSource("src/db/derived-ability-schema.ts");
+  const baseline = readSource("drizzle/0000_serrian_tide_baseline.sql");
+  const migration = readSource("drizzle/0015_derived_abilities_campaign_system.sql");
 
-test("one reusable selector serves Campaign Create and Campaign Settings", () => {
-  const create = readSource("src/app/heavens/campaigns/new/campaign-create-form.tsx");
-  const edit = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
-  for (const source of [create, edit]) {
-    assert.match(source, /CampaignDerivedAbilitySelector/);
-  }
-  assert.match(create, /inputName="allowedDerivedAbilityIds"/);
-  assert.match(edit, /allowedDerivedAbilityIds/);
-});
-
-test("existing Campaigns are not opted into canonical abilities by migration", () => {
-  const migration = readSource("drizzle/0000_serrian_tide_baseline.sql");
-  assert.doesNotMatch(migration, /INSERT INTO "campaign_allowed_derived_ability"/);
+  assert.match(schema, /Legacy campaign-level allowlisting retained/);
+  assert.match(schema, /export const campaignAllowedDerivedAbility = pgTable/);
+  assert.match(baseline, /CREATE TABLE "campaign_allowed_derived_ability"/);
+  assert.doesNotMatch(migration, /campaign_allowed_derived_ability/);
 });

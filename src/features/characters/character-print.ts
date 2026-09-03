@@ -537,6 +537,7 @@ export function buildCharacterPrintData(
   const derivedAbilities = getActiveDerivedAbilities(
     aggregate.derivedAbilities,
     { attributes: draft.attributes },
+    aggregate.campaign.allowedSystems,
   );
 
   return {

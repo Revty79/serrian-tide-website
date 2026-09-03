@@ -19,11 +19,7 @@ import {
   campaignDerivedCurrency,
   campaignPlayer,
 } from "@/db/campaign-schema";
-import {
-  campaignAllowedDerivedAbility,
-  derivedAbility,
-  derivedAbilityTrigger,
-} from "@/db/derived-ability-schema";
+import { derivedAbility, derivedAbilityTrigger } from "@/db/derived-ability-schema";
 import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponProfile } from "@/db/item-schema";
 import {
   race,
@@ -711,11 +707,9 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       attributeKey: derivedAbilityTrigger.attributeKey,
       minimumScore: derivedAbilityTrigger.minimumScore,
       triggerSortOrder: derivedAbilityTrigger.sortOrder,
-    }).from(campaignAllowedDerivedAbility)
-      .innerJoin(derivedAbility, eq(derivedAbility.id, campaignAllowedDerivedAbility.derivedAbilityId))
+    }).from(derivedAbility)
       .innerJoin(derivedAbilityTrigger, eq(derivedAbilityTrigger.derivedAbilityId, derivedAbility.id))
-      .where(eq(campaignAllowedDerivedAbility.campaignId, row.campaignId))
-      .orderBy(asc(campaignAllowedDerivedAbility.sortOrder), asc(derivedAbilityTrigger.sortOrder)),
+      .orderBy(asc(derivedAbility.name), asc(derivedAbility.id), asc(derivedAbilityTrigger.sortOrder)),
     db.select({
       id: campaignCharacter.id,
       campaignId: campaignCharacter.campaignId,

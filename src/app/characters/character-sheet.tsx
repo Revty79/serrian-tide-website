@@ -291,6 +291,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
   const activeDerivedAbilities = getActiveDerivedAbilities(
     aggregate.derivedAbilities,
     { attributes: draft.attributes },
+    aggregate.campaign.allowedSystems,
   );
 
   return (

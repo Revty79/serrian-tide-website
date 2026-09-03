@@ -15,16 +15,11 @@ import {
   campaignFatePointMethod,
   campaignSystem,
 } from "@/db/campaign-schema";
-import {
-  campaignAllowedDerivedAbility,
-  derivedAbility,
-} from "@/db/derived-ability-schema";
 import { item, itemTagCatalog } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import { createCampaignInventoryPersistence } from "@/features/campaigns/campaign-inventory";
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
 import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
-import { validateCampaignDerivedAbilitySelection } from "@/features/derived-abilities/campaign-derived-abilities";
 import {
   campaignAllowedRace,
   campaignInventoryItem,
@@ -235,10 +230,6 @@ export async function createCampaign(formData: FormData) {
   });
 
   const allowedRaceIds = readPositiveIntegerList(formData, "allowedRaceIds");
-  const requestedDerivedAbilityIds = readPositiveIntegerList(
-    formData,
-    "allowedDerivedAbilityIds",
-  );
   const inventoryTagIds = readPositiveIntegerList(formData, "inventoryTagIds");
   const explicitInventoryItemIds = readPositiveIntegerList(
     formData,
@@ -249,12 +240,9 @@ export async function createCampaign(formData: FormData) {
     explicitInventoryItemIds,
   );
 
-  const [validRaces, validDerivedAbilities, validTags, validItems] = await Promise.all([
+  const [validRaces, validTags, validItems] = await Promise.all([
     allowedRaceIds.length
       ? db.select({ id: race.id }).from(race).where(inArray(race.id, allowedRaceIds))
-      : [],
-    requestedDerivedAbilityIds.length
-      ? db.select({ id: derivedAbility.id }).from(derivedAbility).where(inArray(derivedAbility.id, requestedDerivedAbilityIds))
       : [],
     inventoryTagIds.length
       ? db
@@ -273,11 +261,6 @@ export async function createCampaign(formData: FormData) {
   if (validRaces.length !== allowedRaceIds.length) {
     throw new Error("An Allowed Race is no longer available.");
   }
-
-  const allowedDerivedAbilityIds = validateCampaignDerivedAbilitySelection(
-    requestedDerivedAbilityIds,
-    validDerivedAbilities.map(({ id }) => id),
-  );
 
   if (validTags.length !== inventoryTagIds.length) {
     throw new Error("An Inventory Tag is no longer available.");
@@ -468,16 +451,6 @@ export async function createCampaign(formData: FormData) {
         allowedRaceIds.map((raceId, sortOrder) => ({
           campaignId: createdCampaign.id,
           raceId,
-          sortOrder,
-        })),
-      );
-    }
-
-    if (allowedDerivedAbilityIds.length > 0) {
-      await tx.insert(campaignAllowedDerivedAbility).values(
-        allowedDerivedAbilityIds.map((derivedAbilityId, sortOrder) => ({
-          campaignId: createdCampaign.id,
-          derivedAbilityId,
           sortOrder,
         })),
       );

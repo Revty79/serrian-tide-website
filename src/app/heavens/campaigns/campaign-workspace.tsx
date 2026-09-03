@@ -16,10 +16,9 @@ import {
   type CampaignAdminSummary,
   type CampaignReferenceData,
 } from "./actions";
-import { CampaignDerivedAbilitySelector } from "./campaign-derived-ability-selector";
 import { CampaignInventorySelector } from "./campaign-inventory-selector";
 
-const SYSTEMS = ["Tier 1", "Tier 2", "Tier 3", "Spellcraft", "Talismanism", "Faith", "Psyonics", "Special Abilities", "Bardic Resonance"] as const;
+const SYSTEMS = ["Tier 1", "Tier 2", "Tier 3", "Spellcraft", "Talismanism", "Faith", "Psyonics", "Special Abilities", "Bardic Resonance", "Derived Abilities"] as const;
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return <label className={wide ? "campaign-field campaign-field--wide" : "campaign-field"}><span>{label}</span>{children}</label>;
@@ -121,7 +120,6 @@ export function CampaignWorkspace({
       {loading ? <section className="campaign-editor campaign-empty"><p>LOADING CAMPAIGN SETTINGS</p></section> : draft && references ? <section className="campaign-editor"><header className="campaign-editor-header"><div><p>CAMPAIGN {draft.id}</p><h2>{draft.name}</h2><span>{dirty ? "Unsaved changes" : "Saved"}</span></div><button type="button" disabled={saving || !dirty} onClick={() => void persist()}>{saving ? "Saving…" : "Save Campaign"}</button></header><nav className="campaign-tabs">{CAMPAIGN_SETTINGS_TABS.map((entry) => <button key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => setTab(entry.id)}>{entry.label}</button>)}</nav><div className="campaign-editor-content">
         {tab === "rules" ? <Rules draft={draft} onChange={change} /> : null}
         {tab === "races" ? <Races draft={draft} races={filteredRaces} search={raceSearch} onSearch={setRaceSearch} onChange={change} /> : null}
-        {tab === "derivedAbilities" ? <CampaignDerivedAbilitySelector abilities={references.derivedAbilities} selectedIds={draft.allowedDerivedAbilityIds} onSelectedIdsChange={(allowedDerivedAbilityIds) => change({ ...draft, allowedDerivedAbilityIds })} /> : null}
         {tab === "inventory" ? <CampaignInventorySelector key={draft.id} campaignId={draft.id} tags={references.tags} selectedTagIds={draft.inventoryTagIds} selectedItemIds={draft.inventoryItemIds} onSelectedTagIdsChange={(inventoryTagIds) => change({ ...draft, inventoryTagIds })} onSelectedItemIdsChange={(inventoryItemIds) => change({ ...draft, inventoryItemIds })} /> : null}
       </div></section> : <section className="campaign-editor campaign-empty"><p>CAMPAIGN SETTINGS</p><h2>Select a Campaign to edit, or create a new one.</h2></section>}
     </div>

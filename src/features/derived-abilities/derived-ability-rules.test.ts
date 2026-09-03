@@ -39,19 +39,43 @@ function ability(
 const durableMuscles = ability(1, "Durable Muscles", "STR");
 const ambidexterity = ability(2, "Ambidexterity", "DEX");
 const indomitableWill = ability(5, "Indomitable Will", "WIS");
+const derivedAbilitiesEnabled = ["Derived Abilities"] as const;
+const derivedAbilitiesDisabled = ["Tier 1"] as const;
 
-test("Attribute thresholds activate at the required score and remain active above it", () => {
+test("Campaign-enabled Durable Muscles activates at STR 40 and remains active above it", () => {
   const trigger = durableMuscles.triggers[0]!;
   assert.equal(evaluateDerivedAbilityTrigger(trigger, { attributes: { STR: 39 } }), false);
   assert.equal(evaluateDerivedAbilityTrigger(trigger, { attributes: { STR: 40 } }), true);
-  assert.equal(evaluateDerivedAbilityTrigger(trigger, { attributes: { STR: 41 } }), true);
+  assert.equal(evaluateDerivedAbilityTrigger(trigger, { attributes: { STR: 50 } }), true);
+
+  for (const [score, expectedNames] of [
+    [39, []],
+    [40, ["Durable Muscles"]],
+    [50, ["Durable Muscles"]],
+  ] as const) {
+    assert.deepEqual(
+      getActiveDerivedAbilities(
+        [durableMuscles],
+        { attributes: { STR: score } },
+        derivedAbilitiesEnabled,
+      ).map(({ name }) => name),
+      expectedNames,
+    );
+  }
 });
 
-test("Campaign gating comes from the enabled ability list", () => {
+test("Campaign system availability gates the canonical catalog before V1 requirements", () => {
   const context = { attributes: { STR: 50 } };
-  assert.deepEqual(getActiveDerivedAbilities([], context), []);
   assert.deepEqual(
-    getActiveDerivedAbilities([durableMuscles], context).map(({ name }) => name),
+    getActiveDerivedAbilities([durableMuscles], context, derivedAbilitiesDisabled),
+    [],
+  );
+  assert.deepEqual(
+    getActiveDerivedAbilities(
+      [durableMuscles],
+      context,
+      derivedAbilitiesEnabled,
+    ).map(({ name }) => name),
     ["Durable Muscles"],
   );
 });
@@ -60,29 +84,50 @@ test("multiple enabled abilities resolve independently against matching Attribut
   const active = getActiveDerivedAbilities(
     [durableMuscles, ambidexterity],
     { attributes: { STR: 45, DEX: 42 } },
+    derivedAbilitiesEnabled,
   );
   assert.deepEqual(active.map(({ name }) => name), ["Durable Muscles", "Ambidexterity"]);
   assert.deepEqual(
-    getActiveDerivedAbilities([ambidexterity], { attributes: { STR: 50, DEX: 39 } }),
+    getActiveDerivedAbilities(
+      [ambidexterity],
+      { attributes: { STR: 50, DEX: 39 } },
+      derivedAbilitiesEnabled,
+    ),
     [],
   );
 });
 
-test("Attribute advancement, reduction, and Campaign removal change live resolution without grants", () => {
+test("Attribute advancement, reduction, and Campaign system removal change live resolution without grants", () => {
   assert.deepEqual(
-    getActiveDerivedAbilities([indomitableWill], { attributes: { WIS: 39 } }),
+    getActiveDerivedAbilities(
+      [indomitableWill],
+      { attributes: { WIS: 39 } },
+      derivedAbilitiesEnabled,
+    ),
     [],
   );
   assert.deepEqual(
-    getActiveDerivedAbilities([indomitableWill], { attributes: { WIS: 40 } }).map(({ name }) => name),
+    getActiveDerivedAbilities(
+      [indomitableWill],
+      { attributes: { WIS: 40 } },
+      derivedAbilitiesEnabled,
+    ).map(({ name }) => name),
     ["Indomitable Will"],
   );
   assert.deepEqual(
-    getActiveDerivedAbilities([indomitableWill], { attributes: { WIS: 38 } }),
+    getActiveDerivedAbilities(
+      [indomitableWill],
+      { attributes: { WIS: 38 } },
+      derivedAbilitiesEnabled,
+    ),
     [],
   );
   assert.deepEqual(
-    getActiveDerivedAbilities([], { attributes: { WIS: 50 } }),
+    getActiveDerivedAbilities(
+      [indomitableWill],
+      { attributes: { WIS: 50 } },
+      derivedAbilitiesDisabled,
+    ),
     [],
   );
 });
@@ -91,6 +136,7 @@ test("a Character created above a threshold resolves the ability without a purch
   const active = getActiveDerivedAbilities(
     [ambidexterity],
     { attributes: { DEX: 42 } },
+    derivedAbilitiesEnabled,
   );
   assert.equal(active[0]?.name, "Ambidexterity");
   assert.equal(getDerivedAbilityRequirementSummary(active[0]!), "DEX 40+");
@@ -135,10 +181,12 @@ test("Character Sheet and print use the shared resolver and keep Derived Abiliti
     "utf8",
   );
   assert.match(sheet, /getActiveDerivedAbilities/);
+  assert.match(sheet, /aggregate\.campaign\.allowedSystems/);
   assert.match(sheet, />Derived Abilities</);
   assert.match(sheet, /character-sheet__derived-abilities/);
   assert.match(sheet, /skillSections\.map/);
   assert.match(printRules, /getActiveDerivedAbilities/);
+  assert.match(printRules, /aggregate\.campaign\.allowedSystems/);
   assert.match(printable, /function SupplementalDerivedAbilities/);
   assert.match(printable, /title="Derived Abilities"/);
 });
