@@ -1,0 +1,1 @@
+ALTER TABLE "campaign" ADD COLUMN "legacy_derived_ability_compatibility_resolved" boolean DEFAULT false NOT NULL;

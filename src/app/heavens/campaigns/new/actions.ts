@@ -392,6 +392,7 @@ export async function createCampaign(formData: FormData) {
         currencySystem,
         fatePointMethod,
         assignedFatePoints,
+        legacyDerivedAbilityCompatibilityResolved: true,
 
         /*
          * OWNERSHIP:

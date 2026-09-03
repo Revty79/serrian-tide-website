@@ -200,7 +200,7 @@ test("migration 0008 is additive and contains only Encounter and Participant per
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:encounter_health|encounter_mana|encounter_inventory|encounter_condition|encounter_equipment|encounter_snapshot|initiative|combat_action|turn_state)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0015_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0016_snapshot\.json/);
 });
 
 test("Build 4 Encounter identity remains the foundation used by Build 5 Initiative", () => {

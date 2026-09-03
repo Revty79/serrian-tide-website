@@ -20,6 +20,7 @@ import {
   campaignSystem,
   type CampaignSystem,
 } from "@/db/campaign-schema";
+import { campaignAllowedDerivedAbility } from "@/db/derived-ability-schema";
 import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import {
@@ -34,6 +35,7 @@ import {
   buildCampaignPlayerCandidates,
   canAdministerCampaign,
 } from "@/features/campaigns/campaign-membership";
+import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
 import { publishChatDirectoryInvalidationInTransaction } from "@/features/chat/chat-live-events";
 import {
@@ -168,12 +170,16 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
   await requireOwner(campaignId);
   const [core] = await db.select().from(campaign).where(eq(campaign.id, campaignId)).limit(1);
   if (!core) throw new Error("Campaign not found.");
-  const [systems, currencies, races, tags, items] = await Promise.all([
+  const [systems, currencies, races, tags, items, legacyDerivedAbilities] = await Promise.all([
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id)),
     db.select({ raceId: campaignAllowedRace.raceId }).from(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, campaignId)).orderBy(asc(campaignAllowedRace.sortOrder)),
     db.select({ id: campaignInventoryTag.tagId, sortOrder: campaignInventoryTag.sortOrder }).from(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, campaignId)).orderBy(asc(campaignInventoryTag.sortOrder)),
     db.select({ id: campaignInventoryItem.itemId, sortOrder: campaignInventoryItem.sortOrder }).from(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, campaignId)).orderBy(asc(campaignInventoryItem.sortOrder)),
+    db.select({ id: campaignAllowedDerivedAbility.derivedAbilityId })
+      .from(campaignAllowedDerivedAbility)
+      .where(eq(campaignAllowedDerivedAbility.campaignId, campaignId))
+      .limit(1),
   ]);
   const inventorySelection = restoreCampaignInventoryPersistence(tags, items);
   return {
@@ -189,7 +195,14 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
     currencySystem: core.currencySystem,
     fatePointMethod: core.fatePointMethod,
     assignedFatePoints: core.assignedFatePoints,
-    allowedSystems: systems.map(({ system }) => system),
+    allowedSystems: getEffectiveCampaignSystems(
+      systems.map(({ system }) => system),
+      {
+        hasLegacyDerivedAbilityConfiguration: legacyDerivedAbilities.length > 0,
+        legacyDerivedAbilityCompatibilityResolved:
+          core.legacyDerivedAbilityCompatibilityResolved,
+      },
+    ),
     derivedCurrencies: currencies.map(({ id, name, description, creditsPerUnit }) => ({ id, name, description, creditsPerUnit })),
     allowedRaceIds: races.map(({ raceId }) => raceId),
     inventoryTagIds: inventorySelection.tagIds,
@@ -381,6 +394,7 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
       currencySystem: input.currencySystem,
       fatePointMethod: input.fatePointMethod,
       assignedFatePoints,
+      legacyDerivedAbilityCompatibilityResolved: true,
       updatedAt: new Date(),
     }).where(eq(campaign.id, input.id));
 

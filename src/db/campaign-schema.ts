@@ -78,6 +78,12 @@ export const campaign = pgTable(
 
     assignedFatePoints: integer("assigned_fate_points"),
 
+    legacyDerivedAbilityCompatibilityResolved: boolean(
+      "legacy_derived_ability_compatibility_resolved",
+    )
+      .default(false)
+      .notNull(),
+
     createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => user.id),

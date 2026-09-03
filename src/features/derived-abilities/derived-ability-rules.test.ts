@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
+
 import {
   evaluateDerivedAbilityTrigger,
   getActiveDerivedAbilities,
@@ -77,6 +79,39 @@ test("Campaign system availability gates the canonical catalog before V1 require
       derivedAbilitiesEnabled,
     ).map(({ name }) => name),
     ["Durable Muscles"],
+  );
+});
+
+test("legacy Campaign intent enables catalog-wide V1 resolution without restoring its allowlist", () => {
+  const historicallySelectedAbilities = [durableMuscles];
+  const effectiveSystems = getEffectiveCampaignSystems([], {
+    hasLegacyDerivedAbilityConfiguration: historicallySelectedAbilities.length > 0,
+    legacyDerivedAbilityCompatibilityResolved: false,
+  });
+
+  assert.deepEqual(
+    getActiveDerivedAbilities(
+      [durableMuscles, ambidexterity],
+      { attributes: { STR: 39, DEX: 39 } },
+      effectiveSystems,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    getActiveDerivedAbilities(
+      [durableMuscles, ambidexterity],
+      { attributes: { STR: 40, DEX: 39 } },
+      effectiveSystems,
+    ).map(({ name }) => name),
+    ["Durable Muscles"],
+  );
+  assert.deepEqual(
+    getActiveDerivedAbilities(
+      [durableMuscles, ambidexterity],
+      { attributes: { STR: 39, DEX: 40 } },
+      effectiveSystems,
+    ).map(({ name }) => name),
+    ["Ambidexterity"],
   );
 });
 

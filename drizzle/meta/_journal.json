@@ -113,6 +113,13 @@
       "when": 1788453338817,
       "tag": "0015_derived_abilities_campaign_system",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788454286423,
+      "tag": "0016_legacy_derived_ability_compatibility",
+      "breakpoints": true
     }
   ]
 }

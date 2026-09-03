@@ -19,7 +19,11 @@ import {
   campaignDerivedCurrency,
   campaignPlayer,
 } from "@/db/campaign-schema";
-import { derivedAbility, derivedAbilityTrigger } from "@/db/derived-ability-schema";
+import {
+  campaignAllowedDerivedAbility,
+  derivedAbility,
+  derivedAbilityTrigger,
+} from "@/db/derived-ability-schema";
 import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponProfile } from "@/db/item-schema";
 import {
   race,
@@ -75,6 +79,7 @@ import {
   getSkillAdvancementCost,
   type CharacterSkillAdvancementRequest,
 } from "@/features/characters/character-advancement-rules";
+import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import { authorizePlayerCharacterDeletion } from "@/features/characters/character-deletion";
 import {
   getCampaignMoneyBreakdown,
@@ -541,6 +546,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     ownedItemInstances,
     currencyHoldings,
     allowedSystemRows,
+    legacyDerivedAbilityRows,
     currencies,
     allowedRaceRows,
     skillRows,
@@ -628,6 +634,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id)),
     db.select().from(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId)),
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, row.campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
+    db.select({ id: campaignAllowedDerivedAbility.derivedAbilityId })
+      .from(campaignAllowedDerivedAbility)
+      .where(eq(campaignAllowedDerivedAbility.campaignId, row.campaignId))
+      .limit(1),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, row.campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder)),
     db.select({ id: race.id, name: race.name }).from(campaignAllowedRace).innerJoin(race, eq(race.id, campaignAllowedRace.raceId)).where(eq(campaignAllowedRace.campaignId, row.campaignId)).orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name)),
     db.select().from(skill).orderBy(asc(skill.name), asc(skill.id)),
@@ -731,6 +741,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       currencySystem: campaign.currencySystem,
       fatePointMethod: campaign.fatePointMethod,
       assignedFatePoints: campaign.assignedFatePoints,
+      legacyDerivedAbilityCompatibilityResolved:
+        campaign.legacyDerivedAbilityCompatibilityResolved,
     }).from(campaignCharacter)
       .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
       .innerJoin(user, eq(user.id, campaignCharacter.playerUserId))
@@ -867,7 +879,14 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       currencySystem: core.currencySystem,
       fatePointMethod: core.fatePointMethod,
       assignedFatePoints: core.assignedFatePoints,
-      allowedSystems: allowedSystemRows.map(({ system }) => system),
+      allowedSystems: getEffectiveCampaignSystems(
+        allowedSystemRows.map(({ system }) => system),
+        {
+          hasLegacyDerivedAbilityConfiguration: legacyDerivedAbilityRows.length > 0,
+          legacyDerivedAbilityCompatibilityResolved:
+            core.legacyDerivedAbilityCompatibilityResolved,
+        },
+      ),
       derivedCurrencies: currencies,
     },
     allowedRaces: allowedRaceRows,
