@@ -125,6 +125,15 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
         `${MARKER}-archive-a`,
       ],
     );
+    await client.query(
+      `insert into chat_message (room_id,author_user_id,client_request_id,content,created_at)
+       select $1, case when value % 2 = 0 then $2 else $3 end,
+         $4 || '-scroll-' || value,
+         'Crossroads road report ' || value || E'\nThe waystone record remains available for travelers reviewing the conversation.',
+         now() - interval '40 minutes' + value * interval '1 minute'
+       from generate_series(1,18) value`,
+      [visualRoomId, USER_A_ID, USER_B_ID, MARKER],
+    );
     const campaignId = Number((await client.query<{ id: number }>(`
       insert into campaign (
         name, overview, attribute_points, skill_points, max_starting_skill,
@@ -483,6 +492,25 @@ async function submitMessage(page: Page, content: string): Promise<void> {
   }
 }
 
+async function historyScrollState(page: Page): Promise<{
+  scrollTop: number;
+  newestDistance: number;
+  overflow: number;
+}> {
+  return page.locator("[data-chat-history]").evaluate((history) => ({
+    scrollTop: history.scrollTop,
+    newestDistance: history.scrollHeight - history.clientHeight - history.scrollTop,
+    overflow: history.scrollHeight - history.clientHeight,
+  }));
+}
+
+async function waitForNewestMessagePosition(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const history = document.querySelector<HTMLElement>("[data-chat-history]");
+    return Boolean(history && history.scrollHeight - history.clientHeight - history.scrollTop <= 2);
+  });
+}
+
 async function main(): Promise<void> {
   const pool = new pg.Pool({ connectionString });
   let server: ChildProcess | null = null;
@@ -557,6 +585,8 @@ async function main(): Promise<void> {
     assert.equal(await pageA.evaluate(async () => (await fetch("/api/chat/live?room=missing-room")).status), 404);
     assert.ok(successfulStaticAssets > 0, "The Chat route did not load a successful compiled static asset.");
     assert.deepEqual(failedStaticAssets, [], "The Chat route requested a failing static asset.");
+    await Promise.all([pageA, pageB, pageC, adminPage].map(waitForNewestMessagePosition));
+    assert.ok((await historyScrollState(pageA)).overflow > 0, "The browser fixture did not create scrollable Chat history.");
     await verifyActualChatLayout(pageA);
 
     await pageA.locator('aside[aria-label="Chat rooms"]').getByRole("button", { name: "New Message" }).click();
@@ -567,10 +597,22 @@ async function main(): Promise<void> {
     await captureEvidence(pageA, "06-direct-message-panel.png");
     await pageA.getByRole("button", { name: "Close new message panel" }).click();
 
+    await pageC.locator("[data-chat-history]").evaluate((history) => {
+      history.scrollTop = 0;
+      history.dispatchEvent(new Event("scroll"));
+    });
     const sharedMessage = `${MARKER} shared message`;
     await submitMessage(pageA, sharedMessage);
     const receivedByB = pageB.locator("li", { hasText: sharedMessage });
-    await receivedByB.waitFor({ timeout: 15_000 });
+    const receivedByC = pageC.locator("li", { hasText: sharedMessage });
+    await Promise.all([
+      receivedByB.waitFor({ timeout: 15_000 }),
+      receivedByC.waitFor({ timeout: 15_000 }),
+    ]);
+    await Promise.all([pageA, pageB].map(waitForNewestMessagePosition));
+    const readerPosition = await historyScrollState(pageC);
+    assert.ok(readerPosition.scrollTop <= 2, "A live message pulled a reader away from older Chat history.");
+    assert.ok(readerPosition.newestDistance > 80, "The reader-preservation fixture was not far enough from the newest message.");
     const sharedMessageId = await receivedByB.getAttribute("data-message-id");
     assert.ok(sharedMessageId, "The live message did not expose its stable message identity.");
 
@@ -795,6 +837,7 @@ async function main(): Promise<void> {
         "authorized room SSE",
         "single-entry Paths navigation for G.O.D., Player, and Admin roles",
         "two-session live post",
+        "initial, sent, and received message auto-scroll with older-history reader preservation",
         "two-session live deletion redaction",
         "global Admin moderation with required reason",
         "Campaign creator moderation with required reason",

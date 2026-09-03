@@ -84,7 +84,8 @@ test("ready, exact-message, directory, and scroll reconciliation preserve local 
   assert.match(workspace, /onReady=\{reconcileNewestHistoryFromLive\}/);
   assert.match(workspace, /loadChatMessageAction\(\{ roomSlug, messageId \}\)/);
   assert.match(workspace, /reconcileLiveChatMessage\(current, result\.data\)/);
-  assert.match(workspace, /readerIsNearNewest\(\)/);
+  assert.match(workspace, /onScroll=\{updateHistoryFollowState\}/);
+  assert.match(workspace, /followNewestRef\.current = isChatViewportNearNewest\(viewport\)/);
   assert.match(workspace, /onDirectory=\{refreshDirectoryAfterRoomChange\}/);
   const newestHandler = workspace.slice(
     workspace.indexOf("async function reconcileNewestHistoryFromLive"),

@@ -7,7 +7,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -181,6 +181,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
   const sendingRef = useRef(false);
   const draftRef = useRef("");
   const submissionIdentityRef = useRef<ChatSubmissionIdentity | null>(null);
+  const followNewestRef = useRef(true);
 
   const activeRoom = useMemo(
     () => findChatDirectoryRoom(directory, activeRoomSlug),
@@ -188,21 +189,15 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
   );
   const roomMetadata = activeRoom ? getChatRoomMetadata(activeRoom) : null;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!followNewestRef.current) return;
     const viewport = historyViewportRef.current;
     if (viewport) viewport.scrollTop = viewport.scrollHeight;
-  }, []);
+  }, [activeRoomSlug, messages, roomLoadState]);
 
-  function scrollToNewest() {
-    requestAnimationFrame(() => {
-      const viewport = historyViewportRef.current;
-      if (viewport) viewport.scrollTop = viewport.scrollHeight;
-    });
-  }
-
-  function readerIsNearNewest(): boolean {
+  function updateHistoryFollowState() {
     const viewport = historyViewportRef.current;
-    return !viewport || isChatViewportNearNewest(viewport);
+    if (viewport) followNewestRef.current = isChatViewportNearNewest(viewport);
   }
 
   function clearChatStateForTerminalAuthorization(destination: "/login" | "/access") {
@@ -257,6 +252,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     const token = { roomSlug, sequence: ++loadSequenceRef.current };
     activeLoadTokenRef.current = token;
     activeRoomSlugRef.current = roomSlug;
+    followNewestRef.current = true;
     setActiveRoomSlug(roomSlug);
     setMessages([]);
     setHasOlder(false);
@@ -291,7 +287,6 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setHasOlder(result.data.hasOlder);
     setOlderCursor(result.data.olderCursor);
     setRoomLoadState("ready");
-    scrollToNewest();
     requestAnimationFrame(() => {
       if (focusComposer && !result.data.room.archived) composerRef.current?.focus();
       else conversationHeadingRef.current?.focus();
@@ -328,14 +323,12 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
       }
       return;
     }
-    const followNewest = readerIsNearNewest();
     setMessages((current) => mergeChatMessages(current, result.data.messages));
     setDirectory((current) => reconcileChatRoomArchiveState(
       current,
       roomSlug,
       result.data.room.archived,
     ));
-    if (followNewest) scrollToNewest();
   }
 
   async function reconcileExactMessageFromLive(roomSlug: string, messageId: number) {
@@ -350,13 +343,11 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
       return;
     }
     if (result.data.room.slug !== roomSlug) return;
-    const followNewest = readerIsNearNewest();
     if (result.data.id === confirmDeleteId && (result.data.deleted || !result.data.canDelete)) {
       setConfirmDeleteId(null);
       setModerationReason("");
     }
     setMessages((current) => reconcileLiveChatMessage(current, result.data));
-    if (followNewest) scrollToNewest();
   }
 
   async function openAuthorizedRoomFromDirectory(
@@ -370,6 +361,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     const token = { roomSlug, sequence: ++loadSequenceRef.current };
     activeLoadTokenRef.current = token;
     activeRoomSlugRef.current = roomSlug;
+    followNewestRef.current = true;
     setActiveRoomSlug(roomSlug);
     setMessages([]);
     setHasOlder(false);
@@ -401,7 +393,6 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setHasOlder(result.data.hasOlder);
     setOlderCursor(result.data.olderCursor);
     setRoomLoadState("ready");
-    scrollToNewest();
     requestAnimationFrame(() => {
       if (focusComposer && !result.data.room.archived) composerRef.current?.focus();
       else conversationHeadingRef.current?.focus();
@@ -457,6 +448,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
       setRoomError(actionErrorMessage(result.error));
       return;
     }
+    followNewestRef.current = false;
     setMessages((current) => prependOlderChatMessages(current, result.data));
     setDirectory((current) => reconcileChatRoomArchiveState(
       current,
@@ -473,6 +465,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
           - viewport.getBoundingClientRect().top
           - anchorViewportOffset;
       }
+      followNewestRef.current = isChatViewportNearNewest(viewport);
     });
   }
 
@@ -524,11 +517,11 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
         }
         return;
       }
+      followNewestRef.current = true;
       setMessages((current) => reconcilePostedChatMessage(current, result.data.message));
       submissionIdentityRef.current = null;
       draftRef.current = "";
       setDraft("");
-      scrollToNewest();
       requestAnimationFrame(() => composerRef.current?.focus());
     } catch {
       if (activeRoomSlugRef.current === roomSlug) {
@@ -801,7 +794,14 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
 
                 {roomError ? <p className={styles.errorNotice} role="alert">{roomError}</p> : null}
 
-                <div ref={historyViewportRef} className={styles.history} aria-live="polite" aria-busy={roomLoadState === "loading"}>
+                <div
+                  ref={historyViewportRef}
+                  className={styles.history}
+                  data-chat-history
+                  onScroll={updateHistoryFollowState}
+                  aria-live="polite"
+                  aria-busy={roomLoadState === "loading"}
+                >
                   {roomLoadState === "loading" ? (
                     <div className={styles.centerState}><span className={styles.loadingMark} aria-hidden="true" />Loading conversation…</div>
                   ) : roomLoadState === "error" ? (

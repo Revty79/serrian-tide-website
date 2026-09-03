@@ -80,6 +80,14 @@ test("history paging, posting, and deletion use tested reconciliation instead of
   assert.doesNotMatch(workspace, /deletionReason|deletedByUserId|campaignCreatorUserId/);
 });
 
+test("message history follows the newest message without pulling readers away from older history", () => {
+  assert.match(workspace, /useLayoutEffect\(\(\) => \{[\s\S]*followNewestRef\.current[\s\S]*viewport\.scrollTop = viewport\.scrollHeight/);
+  assert.match(workspace, /onScroll=\{updateHistoryFollowState\}/);
+  assert.match(workspace, /followNewestRef\.current = isChatViewportNearNewest\(viewport\)/);
+  assert.match(workspace, /followNewestRef\.current = true;[\s\S]*reconcilePostedChatMessage/);
+  assert.match(workspace, /followNewestRef\.current = false;[\s\S]*prependOlderChatMessages/);
+});
+
 test("the composer preserves exact content and enforces the cryptographic retry identity lifecycle", () => {
   assert.match(workspace, /content = draftRef\.current/);
   assert.match(workspace, /window\.crypto\.getRandomValues\(new Uint8Array\(16\)\)/);
