@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { DERIVED_ABILITY_ATTRIBUTE_KEYS } from "@/features/derived-abilities/models";
+import { createDefaultDerivedAbilityDraft } from "@/features/derived-abilities/derived-ability-authoring";
+import {
+  DERIVED_ABILITY_ACQUISITION_TYPES,
+  DERIVED_ABILITY_ACTIVATION_TYPES,
+} from "@/features/derived-abilities/models";
 
 import {
   deleteDerivedAbility,
@@ -11,49 +15,40 @@ import {
   listDerivedAbilities,
   saveDerivedAbility,
   type DerivedAbilityDraft,
+  type DerivedAbilityEditorReferences,
   type DerivedAbilityLibraryFilters,
   type DerivedAbilityLibraryResult,
   type DerivedAbilitySummary,
 } from "./actions";
-
-function newDraft(): DerivedAbilityDraft {
-  return {
-    core: {
-      name: "",
-      description: "",
-      mechanicalEffect: "",
-      sourceSystem: null,
-      sourceExternalId: null,
-    },
-    trigger: {
-      triggerType: "attribute",
-      attributeKey: "STR",
-      minimumScore: 40,
-      sortOrder: 0,
-    },
-  };
-}
-
-function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return <label className={wide ? "derived-ability-field is-wide" : "derived-ability-field"}><span>{label}</span>{children}</label>;
-}
+import { DerivedAbilityConstructor } from "./derived-ability-constructor";
 
 export function DerivedAbilityWorkspace({
   initialLibrary,
+  references,
   username,
 }: {
   initialLibrary: DerivedAbilityLibraryResult;
+  references: DerivedAbilityEditorReferences;
   username: string;
 }) {
-  const [filters, setFilters] = useState<DerivedAbilityLibraryFilters>({ page: 1, pageSize: 40 });
+  const [filters, setFilters] = useState<DerivedAbilityLibraryFilters>({
+    page: 1,
+    pageSize: 40,
+  });
   const [library, setLibrary] = useState(initialLibrary);
+  const [editorReferences, setEditorReferences] = useState(references);
   const [draft, setDraft] = useState<DerivedAbilityDraft | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingEditor, setLoadingEditor] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const [pending, setPending] = useState<{ kind: "open"; ability: DerivedAbilitySummary } | { kind: "new" } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [pending, setPending] = useState<
+    { kind: "open"; ability: DerivedAbilitySummary } | { kind: "new" } | null
+  >(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const loadLibrary = useCallback(async (next: DerivedAbilityLibraryFilters) => {
@@ -61,7 +56,12 @@ export function DerivedAbilityWorkspace({
     try {
       setLibrary(await listDerivedAbilities(next));
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Derived Ability Library could not be loaded." });
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error
+          ? error.message
+          : "The Derived Ability Library could not be loaded.",
+      });
     } finally {
       setLoadingLibrary(false);
     }
@@ -82,7 +82,12 @@ export function DerivedAbilityWorkspace({
       setDirty(false);
       setConfirmDelete(false);
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Derived Ability could not be loaded." });
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error
+          ? error.message
+          : "That Derived Ability could not be loaded.",
+      });
     } finally {
       setLoadingEditor(false);
     }
@@ -94,7 +99,7 @@ export function DerivedAbilityWorkspace({
   }
 
   function createNew() {
-    setDraft(newDraft());
+    setDraft(createDefaultDerivedAbilityDraft());
     setDirty(false);
     setFeedback(null);
     setConfirmDelete(false);
@@ -113,11 +118,24 @@ export function DerivedAbilityWorkspace({
     try {
       const saved = await saveDerivedAbility(draft);
       setDraft(saved);
+      setEditorReferences((current) => ({
+        ...current,
+        abilities: [
+          ...current.abilities.filter((ability) => ability.id !== saved.id),
+          { id: saved.id, name: saved.core.name },
+        ].sort((left, right) =>
+          left.name.localeCompare(right.name) || left.id - right.id),
+      }));
       setDirty(false);
       setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
       await loadLibrary(filters);
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Derived Ability could not be saved." });
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error
+          ? error.message
+          : "The Derived Ability could not be saved.",
+      });
     } finally {
       setSaving(false);
     }
@@ -129,13 +147,22 @@ export function DerivedAbilityWorkspace({
     try {
       const name = draft.core.name;
       await deleteDerivedAbility(draft.id);
+      setEditorReferences((current) => ({
+        ...current,
+        abilities: current.abilities.filter((ability) => ability.id !== draft.id),
+      }));
       setDraft(null);
       setDirty(false);
       setConfirmDelete(false);
       setFeedback({ kind: "success", message: `${name} was deleted.` });
       await loadLibrary(filters);
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Derived Ability could not be deleted." });
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error
+          ? error.message
+          : "The Derived Ability could not be deleted.",
+      });
     } finally {
       setSaving(false);
     }
@@ -149,46 +176,183 @@ export function DerivedAbilityWorkspace({
     else void openAbility(next.ability);
   }
 
-  const core = draft?.core;
-  const campaignAssignmentCount =
-    draft &&
-    "campaignAssignmentCount" in draft &&
-    typeof draft.campaignAssignmentCount === "number"
-      ? draft.campaignAssignmentCount
-      : null;
   return (
     <main className="skills-page derived-abilities-page">
       <header className="skills-page__header">
-        <div className="skills-page__brand"><Link href="/heavens" className="font-evanescent derived-ability-brand">SERRIAN<br />TIDE</Link></div>
-        <div className="skills-page__title"><p>THE HEAVENS / DERIVED ABILITIES</p><h1>Derived Abilities</h1><span>G.O.D. archive · {username}</span></div>
-        <div className="skills-page__navigation"><Link href="/heavens">Back to The Heavens</Link></div>
+        <div className="skills-page__brand">
+          <Link href="/heavens" className="font-evanescent derived-ability-brand">
+            SERRIAN<br />TIDE
+          </Link>
+        </div>
+        <div className="skills-page__title">
+          <p>THE HEAVENS / DERIVED ABILITIES</p>
+          <h1>Derived Abilities</h1>
+          <span>G.O.D. archive · {username}</span>
+        </div>
+        <div className="skills-page__navigation">
+          <Link href="/heavens">Back to The Heavens</Link>
+        </div>
       </header>
       <div className="skills-workspace derived-abilities-workspace">
         <aside className="skill-library">
-          <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>Milestones</h2></div><button className="skills-primary-button" type="button" onClick={() => dirty ? setPending({ kind: "new" }) : createNew()}>New Ability</button></div>
-          <div className="skill-library__search"><label htmlFor="derived-ability-search">Search</label><input id="derived-ability-search" type="search" value={filters.search ?? ""} placeholder="Search abilities" onChange={(event) => setFilters({ ...filters, search: event.target.value, page: 1 })} /></div>
-          <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} abilities</span></div>
-          <div className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
-            {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => choose(entry)}><span className="skill-library__row-name">{entry.name}</span><span className="skill-library__row-meta">{entry.requirementSummary}</span><span className="skill-library__row-parents">{entry.description || (entry.sourceSystem ? "Canonical milestone" : "Custom milestone")}</span></button>)}
-            {!library.items.length && !loadingLibrary ? <p className="skill-library__empty">No Derived Abilities match this view.</p> : null}
+          <div className="skill-library__heading">
+            <div><p>MASTER CONTENT</p><h2>Derived Ability Library</h2></div>
+            <button
+              className="skills-primary-button"
+              type="button"
+              onClick={() => dirty ? setPending({ kind: "new" }) : createNew()}
+            >
+              New Ability
+            </button>
           </div>
-          <nav className="skill-library__pagination"><button type="button" disabled={library.page <= 1 || loadingLibrary} onClick={() => setFilters({ ...filters, page: library.page - 1 })}>Previous</button><span>Page {library.page} of {library.pageCount}</span><button type="button" disabled={library.page >= library.pageCount || loadingLibrary} onClick={() => setFilters({ ...filters, page: library.page + 1 })}>Next</button></nav>
+          <div className="skill-library__search">
+            <label htmlFor="derived-ability-search">Search</label>
+            <input
+              id="derived-ability-search"
+              type="search"
+              value={filters.search ?? ""}
+              placeholder="Search name, description, or Rules Text"
+              onChange={(event) => setFilters({
+                ...filters,
+                search: event.target.value,
+                page: 1,
+              })}
+            />
+          </div>
+          <div className="skill-library__filters derived-ability-library-filters">
+            <label>
+              <span>Acquisition</span>
+              <select
+                value={filters.acquisitionType ?? ""}
+                onChange={(event) => setFilters({
+                  ...filters,
+                  acquisitionType:
+                    event.target.value as DerivedAbilityLibraryFilters["acquisitionType"],
+                  page: 1,
+                })}
+              >
+                <option value="">All</option>
+                {DERIVED_ABILITY_ACQUISITION_TYPES.map((type) => (
+                  <option key={type} value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Activation</span>
+              <select
+                value={filters.activationType ?? ""}
+                onChange={(event) => setFilters({
+                  ...filters,
+                  activationType:
+                    event.target.value as DerivedAbilityLibraryFilters["activationType"],
+                  page: 1,
+                })}
+              >
+                <option value="">All</option>
+                {DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => (
+                  <option key={type} value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="skill-library__toolbar">
+            <span>{library.total.toLocaleString()} abilities</span>
+          </div>
+          <div className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
+            {library.items.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`}
+                onClick={() => choose(entry)}
+              >
+                <span className="skill-library__row-name">{entry.name}</span>
+                <span className="derived-ability-library-badges">
+                  <em>{entry.acquisitionType}</em>
+                  <em>{entry.activationType}</em>
+                  <em>{entry.requirementOrigin}</em>
+                </span>
+                <span className="skill-library__row-meta">{entry.requirementSummary}</span>
+                <span className="skill-library__row-parents">
+                  {entry.description || (entry.sourceSystem ? "Canonical ability" : "Custom ability")}
+                </span>
+              </button>
+            ))}
+            {!library.items.length && !loadingLibrary ? (
+              <p className="skill-library__empty">No Derived Abilities match this view.</p>
+            ) : null}
+          </div>
+          <nav className="skill-library__pagination">
+            <button
+              type="button"
+              disabled={library.page <= 1 || loadingLibrary}
+              onClick={() => setFilters({ ...filters, page: library.page - 1 })}
+            >Previous</button>
+            <span>Page {library.page} of {library.pageCount}</span>
+            <button
+              type="button"
+              disabled={library.page >= library.pageCount || loadingLibrary}
+              onClick={() => setFilters({ ...filters, page: library.page + 1 })}
+            >Next</button>
+          </nav>
         </aside>
-        {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING DERIVED ABILITY</p></section> : draft && core ? (
-          <section className="skill-editor derived-ability-editor">
-            <header className="skill-editor__header"><div><p>{draft.id ? `DERIVED ABILITY ${draft.id}` : "NEW DERIVED ABILITY"}</p><h2>{core.name || "Untitled Ability"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Ability"}</button></div></header>
-            {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {core.name}?</strong><span>Canonical or Campaign-assigned abilities cannot be deleted.</span></div><button className="skills-danger-button" type="button" onClick={() => void remove()}>Confirm Delete</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></div> : null}
-            {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-            <div className="skill-editor__content derived-ability-editor__content">
-              <section className="derived-ability-card"><header><p>IDENTITY</p><h3>Name & Description</h3></header><div className="derived-ability-form-grid"><Field label="Name" wide><input value={core.name} onChange={(event) => change({ ...draft, core: { ...core, name: event.target.value } })} /></Field><Field label="Description" wide><textarea rows={5} value={core.description} onChange={(event) => change({ ...draft, core: { ...core, description: event.target.value } })} /></Field></div></section>
-              <section className="derived-ability-card"><header><p>RULES</p><h3>Mechanical Effect</h3></header><Field label="Rules Text" wide><textarea rows={6} value={core.mechanicalEffect} onChange={(event) => change({ ...draft, core: { ...core, mechanicalEffect: event.target.value } })} /></Field></section>
-              <section className="derived-ability-card"><header><p>LIVE REQUIREMENT</p><h3>Attribute Trigger</h3></header><div className="derived-ability-form-grid"><Field label="Trigger Type"><select value="attribute" onChange={() => undefined}><option value="attribute">Attribute</option></select></Field><Field label="Attribute"><select value={draft.trigger.attributeKey ?? ""} onChange={(event) => change({ ...draft, trigger: { ...draft.trigger, attributeKey: event.target.value } })}>{DERIVED_ABILITY_ATTRIBUTE_KEYS.map((key) => <option key={key}>{key}</option>)}</select></Field><Field label="Required Score"><input type="number" min={0} step={1} value={draft.trigger.minimumScore ?? ""} onChange={(event) => change({ ...draft, trigger: { ...draft.trigger, minimumScore: event.target.value === "" ? null : Number(event.target.value) } })} /></Field></div></section>
-              <section className="derived-ability-card"><header><p>METADATA</p><h3>{core.sourceSystem ? "Canonical Record" : "Custom Record"}</h3></header><dl className="derived-ability-metadata"><div><dt>Source System</dt><dd>{core.sourceSystem ?? "Custom"}</dd></div><div><dt>Source Identity</dt><dd>{core.sourceExternalId ?? "—"}</dd></div>{campaignAssignmentCount !== null ? <div><dt>Campaign Assignments</dt><dd>{campaignAssignmentCount}</dd></div> : null}</dl></section>
-            </div>
+        {loadingEditor ? (
+          <section className="skill-editor skill-editor--empty">
+            <p>LOADING DERIVED ABILITY</p>
           </section>
-        ) : <section className="skill-editor skill-editor--empty"><p>DERIVED ABILITY EDITOR</p><h2>Select an ability or create a new milestone.</h2><span>V1 abilities activate from Campaign-approved Attribute thresholds.</span></section>}
+        ) : draft ? (
+          <section className="skill-editor derived-ability-editor">
+            <header className="skill-editor__header">
+              <div>
+                <p>{draft.id ? `DERIVED ABILITY ${draft.id}` : "NEW DERIVED ABILITY"}</p>
+                <h2>{draft.core.name || "Untitled Ability"}</h2>
+                <span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span>
+              </div>
+              <div className="skill-editor__actions">
+                {draft.id && !confirmDelete ? (
+                  <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button>
+                ) : null}
+                <button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>
+                  {saving ? "Saving…" : "Save Ability"}
+                </button>
+              </div>
+            </header>
+            {confirmDelete ? (
+              <div className="skill-editor__delete-confirm">
+                <div>
+                  <strong>Delete {draft.core.name}?</strong>
+                  <span>Canonical abilities, prerequisite targets, and records with legacy campaign references are protected.</span>
+                </div>
+                <button className="skills-danger-button" type="button" onClick={() => void remove()}>Confirm Delete</button>
+                <button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              </div>
+            ) : null}
+            {feedback ? (
+              <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p>
+            ) : null}
+            <DerivedAbilityConstructor
+              draft={draft}
+              references={editorReferences}
+              onChange={change}
+            />
+          </section>
+        ) : (
+          <section className="skill-editor skill-editor--empty">
+            <p>DERIVED ABILITY CONSTRUCTOR</p>
+            <h2>Select an ability or create a new definition.</h2>
+            <span>Author Attributes, stored Skill # requirements, prerequisites, manual rules, use conditions, costs, and limits.</span>
+          </section>
+        )}
       </div>
-      {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Discard this Derived Ability draft?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => setPending(null)}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button></div></div> : null}
+      {pending ? (
+        <div className="skills-page__discard-confirm">
+          <div><p>Unsaved changes</p><span>Discard this Derived Ability draft?</span></div>
+          <div className="skills-page__discard-actions">
+            <button type="button" onClick={() => setPending(null)}>Keep Editing</button>
+            <button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

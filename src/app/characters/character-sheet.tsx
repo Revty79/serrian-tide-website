@@ -298,6 +298,12 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
     },
     aggregate.campaign.allowedSystems,
   );
+  const derivedAbilitySummaryReferences = {
+    skillNames: new Map(aggregate.skillCatalog.map((skill) => [skill.id, skill.name])),
+    derivedAbilityNames: new Map(
+      aggregate.derivedAbilities.map((ability) => [ability.id, ability.name]),
+    ),
+  };
 
   return (
     <div className="character-sheet-wrap">
@@ -525,11 +531,11 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
 
         {activeDerivedAbilities.length ? (
           <section className="character-sheet__section character-sheet__derived-abilities">
-            <div className="character-sheet__section-heading"><p>ACTIVE MILESTONES</p><h3>Derived Abilities</h3></div>
+            <div className="character-sheet__section-heading"><p>ACTIVE DERIVED ABILITIES</p><h3>Derived Abilities</h3></div>
             <div className="character-sheet__derived-ability-grid">
               {activeDerivedAbilities.map((ability) => (
                 <article key={ability.id}>
-                  <header><h4>{ability.name}</h4><strong>{getDerivedAbilityRequirementSummary(ability)}</strong></header>
+                  <header><h4>{ability.name}</h4><strong>{getDerivedAbilityRequirementSummary(ability, derivedAbilitySummaryReferences)}</strong></header>
                   {ability.description ? <p>{ability.description}</p> : null}
                   {ability.mechanicalEffect ? <p><b>Effect:</b> {ability.mechanicalEffect}</p> : null}
                 </article>

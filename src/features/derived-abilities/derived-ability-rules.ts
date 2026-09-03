@@ -151,7 +151,7 @@ export function isV1MirrorRequirement(
     requirement.requiredDerivedAbilityId === null &&
     requirement.operator === "gte" &&
     requirement.requiredValue !== null &&
-    Number.isFinite(requirement.requiredValue) &&
+    Number.isInteger(requirement.requiredValue) &&
     requirement.requiredValue >= 0 &&
     requirement.notes.trim() === "" &&
     Number.isInteger(requirement.sortOrder) &&
@@ -185,6 +185,37 @@ export function canV1EditorSynchronizeRequirements(
     existing.notes === expectedMirror.notes &&
     existing.sortOrder === expectedMirror.sortOrder
   );
+}
+
+export function getLegacyTriggerMirrorForDefinition(
+  ability: Pick<
+    DerivedAbilityDefinition,
+    | "acquisitionType"
+    | "activationType"
+    | "requirements"
+    | "useConditions"
+    | "costs"
+    | "useLimits"
+  >,
+): DerivedAbilityTriggerDefinition | null {
+  if (
+    ability.acquisitionType !== "automatic" ||
+    ability.activationType !== "passive" ||
+    ability.requirements.length !== 1 ||
+    ability.useConditions.length > 0 ||
+    ability.costs.length > 0 ||
+    ability.useLimits.length > 0
+  ) {
+    return null;
+  }
+  const requirement = ability.requirements[0]!;
+  if (!isV1MirrorRequirement(requirement)) return null;
+  return {
+    triggerType: "attribute",
+    attributeKey: requirement.attributeKey,
+    minimumScore: requirement.requiredValue,
+    sortOrder: 0,
+  };
 }
 
 export function evaluateDerivedAbilityTrigger(
@@ -335,22 +366,96 @@ export function getActiveDerivedAbilities(
 export function getDerivedAbilityRequirementSummary(
   ability: Pick<DerivedAbilityDefinition, "triggers"> &
     Partial<Pick<DerivedAbilityDefinition, "requirements">>,
+  references: {
+    skillNames?: ReadonlyMap<number, string>;
+    derivedAbilityNames?: ReadonlyMap<number, string>;
+  } = {},
 ): string {
-  const liveRequirements = ability.requirements?.filter(
-    (requirement) => requirement.requirementScope === "live",
-  ) ?? [];
-  if (liveRequirements.length === 1 && isV1MirrorRequirement(liveRequirements[0]!)) {
-    const requirement = liveRequirements[0]!;
-    return `${requirement.attributeKey} ${requirement.requiredValue}+`;
+  const requirements = ability.requirements ?? [];
+  const summarizeRequirement = (
+    requirement: DerivedAbilityRequirementDefinition,
+  ): string => {
+    if (requirement.requirementType === "manual") {
+      return `Manual: ${requirement.notes.trim() || "judgment required"}`;
+    }
+    if (requirement.requirementType === "derived-ability") {
+      const id = requirement.requiredDerivedAbilityId;
+      const name = id === null
+        ? "ability"
+        : references.derivedAbilityNames?.get(id) ?? `Ability ${id}`;
+      return requirement.operator === "not-possessed"
+        ? `Does not possess ${name}`
+        : `Requires ${name}`;
+    }
+    const value = requirement.requiredValue;
+    const operator = requirement.operator;
+    const comparison = operator === "gte"
+      ? `${value}+`
+      : `${({ gt: ">", lte: "≤", lt: "<", eq: "=", neq: "≠" } as const)[
+          operator as "gt" | "lte" | "lt" | "eq" | "neq"
+        ] ?? operator ?? "?"} ${value}`;
+    if (requirement.requirementType === "skill") {
+      const id = requirement.skillId;
+      const name = id === null
+        ? "Skill"
+        : references.skillNames?.get(id) ?? `Skill ${id}`;
+      return `${name} # ${comparison}`;
+    }
+    return `${requirement.attributeKey ?? "Attribute"} ${comparison}`;
+  };
+  const summarizeScope = (scope: DerivedAbilityRequirementScope): string | null => {
+    const scoped = requirements
+      .filter((requirement) => requirement.requirementScope === scope)
+      .sort(
+        (left, right) =>
+          left.groupNumber - right.groupNumber ||
+          left.sortOrder - right.sortOrder ||
+          (left.id ?? Number.MAX_SAFE_INTEGER) -
+            (right.id ?? Number.MAX_SAFE_INTEGER),
+      );
+    if (scoped.length === 0) return null;
+    const groups = new Map<number, DerivedAbilityRequirementDefinition[]>();
+    for (const requirement of scoped) {
+      const group = groups.get(requirement.groupNumber) ?? [];
+      group.push(requirement);
+      groups.set(requirement.groupNumber, group);
+    }
+    return [...groups.values()].map((group) => {
+      const summary = group.map(summarizeRequirement).join(" AND ");
+      return group.length > 1 ? `(${summary})` : summary;
+    }).join(" OR ");
+  };
+
+  const acquisition = summarizeScope("acquisition");
+  const live = summarizeScope("live");
+  if (acquisition && live) return `Acquire: ${acquisition} · Live: ${live}`;
+  if (acquisition) return `Acquire: ${acquisition}`;
+  if (live) return live;
+
+  if (ability.triggers.length === 1) {
+    const trigger = ability.triggers[0]!;
+    if (
+      trigger.triggerType === "attribute" &&
+      trigger.attributeKey &&
+      trigger.minimumScore !== null
+    ) {
+      return `${trigger.attributeKey} ${trigger.minimumScore}+`;
+    }
   }
-  if (ability.triggers.length !== 1) return "Invalid V1 trigger";
-  const trigger = ability.triggers[0]!;
-  if (
-    trigger.triggerType !== "attribute" ||
-    !trigger.attributeKey ||
-    trigger.minimumScore === null
-  ) {
-    return "Unsupported trigger";
+  return "No requirements";
+}
+
+export function getDerivedAbilityRequirementOrigin(
+  ability: Pick<DerivedAbilityDefinition, "requirements" | "triggers">,
+): "ATTRIBUTE" | "SKILL" | "ABILITY" | "MANUAL" | "MIXED" | "NONE" {
+  const types = new Set(ability.requirements.map(({ requirementType }) => requirementType));
+  if (types.size === 0) {
+    return ability.triggers.length === 1 ? "ATTRIBUTE" : "NONE";
   }
-  return `${trigger.attributeKey} ${trigger.minimumScore}+`;
+  if (types.size > 1) return "MIXED";
+  const [type] = types;
+  if (type === "attribute") return "ATTRIBUTE";
+  if (type === "skill") return "SKILL";
+  if (type === "derived-ability") return "ABILITY";
+  return "MANUAL";
 }

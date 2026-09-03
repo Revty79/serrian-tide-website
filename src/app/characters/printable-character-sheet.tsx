@@ -694,16 +694,24 @@ function SupplementalPowers(props: Props) {
 
 function SupplementalDerivedAbilities(props: Props) {
   if (!props.sections.derivedAbilities || !props.data.derivedAbilities.length) return null;
+  const references = {
+    skillNames: new Map(
+      props.aggregate.skillCatalog.map((skill) => [skill.id, skill.name]),
+    ),
+    derivedAbilityNames: new Map(
+      props.aggregate.derivedAbilities.map((ability) => [ability.id, ability.name]),
+    ),
+  };
   return (
-    <SupplementalModule title="Derived Abilities" eyebrow="ACTIVE CAMPAIGN MILESTONES">
-      <PrintSection title="Derived Abilities" eyebrow="CURRENT ATTRIBUTE REQUIREMENTS">
+    <SupplementalModule title="Derived Abilities" eyebrow="ACTIVE DERIVED ABILITIES">
+      <PrintSection title="Derived Abilities" eyebrow="CURRENT LIVE REQUIREMENTS">
         <table>
-          <thead><tr><th>Name</th><th>Requirement</th><th>Description</th><th>Mechanical Effect</th></tr></thead>
+          <thead><tr><th>Name</th><th>Requirement</th><th>Description</th><th>Rules Text</th></tr></thead>
           <tbody>
             {props.data.derivedAbilities.map((ability) => (
               <tr key={ability.id}>
                 <th>{ability.name}</th>
-                <td>{getDerivedAbilityRequirementSummary(ability)}</td>
+                <td>{getDerivedAbilityRequirementSummary(ability, references)}</td>
                 <td>{ability.description || "—"}</td>
                 <td>{ability.mechanicalEffect || "—"}</td>
               </tr>

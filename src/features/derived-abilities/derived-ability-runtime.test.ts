@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
 
 import {
@@ -430,7 +428,7 @@ test("Manual Live rules do not auto-activate and use metadata is not executed", 
   assert.equal(getActiveDerivedAbilities([metadataOnly], { attributes: {} }, enabled).length, 1);
 });
 
-test("temporary V1 mirroring is exact and complex generalized requirements are protected", () => {
+test("the retired V1 editor guard still identifies only exact legacy mirror structures", () => {
   const mirror = buildV1MirrorRequirement({
     triggerType: "attribute",
     attributeKey: "CON",
@@ -471,15 +469,4 @@ test("temporary V1 mirroring is exact and complex generalized requirements are p
   );
   assert.equal(canV1EditorSynchronizeRequirements([mirror], [trigger, trigger]), false);
 
-  const action = readFileSync(
-    path.resolve(process.cwd(), "src/app/heavens/derived-abilities/actions.ts"),
-    "utf8",
-  );
-  assert.match(action, /canV1EditorSynchronizeRequirements\(requirementRows, triggerRows\)/);
-  assert.match(action, /legacy or generalized requirements the temporary V1 editor cannot safely change/);
-  assert.match(action, /insert\(derivedAbilityTrigger\)/);
-  assert.match(action, /insert\(derivedAbilityRequirement\)/);
-  assert.match(action, /update\(derivedAbilityRequirement\)/);
-  assert.match(action, /db\.transaction/);
-  assert.doesNotMatch(action, /delete\(derivedAbilityRequirement\)/);
 });
