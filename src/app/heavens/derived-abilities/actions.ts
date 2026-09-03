@@ -17,6 +17,7 @@ import {
   campaignAllowedDerivedAbility,
   derivedAbility,
   derivedAbilityCost,
+  derivedAbilityEffect,
   derivedAbilityRequirement,
   derivedAbilityTrigger,
   derivedAbilityUseCondition,
@@ -30,6 +31,10 @@ import {
   normalizeDerivedAbilityAuthoringDraft,
 } from "@/features/derived-abilities/derived-ability-authoring";
 import { assembleDerivedAbilityCatalog } from "@/features/derived-abilities/derived-ability-catalog";
+import {
+  decodeDerivedAbilityEffects,
+  encodeDerivedAbilityEffects,
+} from "@/features/derived-abilities/derived-ability-effects";
 import {
   getDerivedAbilityRequirementOrigin,
   getDerivedAbilityRequirementSummary,
@@ -65,6 +70,7 @@ export type DerivedAbilitySummary = {
   requirementOrigin: "ATTRIBUTE" | "SKILL" | "ABILITY" | "MANUAL" | "MIXED" | "NONE";
   acquisitionType: DerivedAbilityAcquisitionType;
   activationType: DerivedAbilityActivationType;
+  effectCount: number;
   sourceSystem: string | null;
 };
 
@@ -139,6 +145,16 @@ function loadLimitRows(ids?: readonly number[]) {
       asc(derivedAbilityUseLimit.derivedAbilityId),
       asc(derivedAbilityUseLimit.sortOrder),
       asc(derivedAbilityUseLimit.id),
+    );
+}
+
+function loadEffectRows(ids?: readonly number[]) {
+  return db.select().from(derivedAbilityEffect)
+    .where(ids ? inArray(derivedAbilityEffect.derivedAbilityId, [...ids]) : undefined)
+    .orderBy(
+      asc(derivedAbilityEffect.derivedAbilityId),
+      asc(derivedAbilityEffect.sortOrder),
+      asc(derivedAbilityEffect.id),
     );
 }
 
@@ -234,9 +250,13 @@ export async function listDerivedAbilities(
     .offset((page - 1) * pageSize);
 
   const ids = rows.map(({ id }) => id);
-  const [triggerRows, rawRequirementRows] = ids.length
-    ? await Promise.all([loadTriggerRows(ids), loadRequirementRows(ids)])
-    : [[], []];
+  const [triggerRows, rawRequirementRows, effectRows] = ids.length
+    ? await Promise.all([
+        loadTriggerRows(ids),
+        loadRequirementRows(ids),
+        loadEffectRows(ids),
+      ])
+    : [[], [], []];
   const requirements = mapRequirementRows(rawRequirementRows);
   const skillIds = [...new Set(requirements.flatMap((entry) =>
     entry.skillId === null ? [] : [entry.skillId]))];
@@ -264,6 +284,13 @@ export async function listDerivedAbilities(
       prerequisiteNames.map((entry) => [entry.id, entry.name]),
     ),
   };
+  const effectCounts = new Map<number, number>();
+  for (const effect of effectRows) {
+    effectCounts.set(
+      effect.derivedAbilityId,
+      (effectCounts.get(effect.derivedAbilityId) ?? 0) + 1,
+    );
+  }
 
   return {
     items: catalog.map((ability) => ({
@@ -274,6 +301,7 @@ export async function listDerivedAbilities(
       requirementOrigin: getDerivedAbilityRequirementOrigin(ability),
       acquisitionType: ability.acquisitionType,
       activationType: ability.activationType,
+      effectCount: effectCounts.get(ability.id) ?? 0,
       sourceSystem: ability.sourceSystem,
     })),
     total,
@@ -296,6 +324,7 @@ export async function getDerivedAbility(
     conditionRows,
     costRows,
     limitRows,
+    effectRows,
     legacyReferenceRows,
   ] = await Promise.all([
     loadTriggerRows([id]),
@@ -303,6 +332,7 @@ export async function getDerivedAbility(
     loadConditionRows([id]),
     loadCostRows([id]),
     loadLimitRows([id]),
+    loadEffectRows([id]),
     db.select({ value: count() }).from(campaignAllowedDerivedAbility)
       .where(eq(campaignAllowedDerivedAbility.derivedAbilityId, id)),
   ]);
@@ -313,6 +343,11 @@ export async function getDerivedAbility(
     useConditions: mapConditionRows(conditionRows),
     costs: mapCostRows(costRows),
     useLimits: mapLimitRows(limitRows),
+    effects: decodeDerivedAbilityEffects(effectRows).map((effect, sortOrder) => ({
+      derivedAbilityId: id,
+      sortOrder,
+      effect,
+    })),
   });
   if (!definition) return null;
   return {
@@ -411,6 +446,10 @@ export async function saveDerivedAbility(
       notes: limit.notes,
       sortOrder: limit.sortOrder,
     }));
+    const effects = encodeDerivedAbilityEffects(ownedDefinition.effects).map((effect) => ({
+      derivedAbilityId: id,
+      ...effect,
+    }));
 
     await tx.delete(derivedAbilityRequirement)
       .where(eq(derivedAbilityRequirement.derivedAbilityId, id));
@@ -420,10 +459,13 @@ export async function saveDerivedAbility(
       .where(eq(derivedAbilityCost.derivedAbilityId, id));
     await tx.delete(derivedAbilityUseLimit)
       .where(eq(derivedAbilityUseLimit.derivedAbilityId, id));
+    await tx.delete(derivedAbilityEffect)
+      .where(eq(derivedAbilityEffect.derivedAbilityId, id));
     if (requirements.length) await tx.insert(derivedAbilityRequirement).values(requirements);
     if (conditions.length) await tx.insert(derivedAbilityUseCondition).values(conditions);
     if (costs.length) await tx.insert(derivedAbilityCost).values(costs);
     if (limits.length) await tx.insert(derivedAbilityUseLimit).values(limits);
+    if (effects.length) await tx.insert(derivedAbilityEffect).values(effects);
 
     await tx.delete(derivedAbilityTrigger)
       .where(eq(derivedAbilityTrigger.derivedAbilityId, id));

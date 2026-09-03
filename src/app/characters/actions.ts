@@ -23,6 +23,7 @@ import {
   campaignAllowedDerivedAbility,
   derivedAbility,
   derivedAbilityCost,
+  derivedAbilityEffect,
   derivedAbilityRequirement,
   derivedAbilityTrigger,
   derivedAbilityUseCondition,
@@ -98,6 +99,7 @@ import {
   validateQuintessenceAttributeIncrease,
 } from "@/features/characters/quintessence-rules";
 import { assembleDerivedAbilityCatalog } from "@/features/derived-abilities/derived-ability-catalog";
+import { decodeDerivedAbilityEffectRows } from "@/features/derived-abilities/derived-ability-effects";
 import type {
   DerivedAbilityCostType,
   DerivedAbilityRefreshScope,
@@ -571,6 +573,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     derivedAbilityUseConditionRows,
     derivedAbilityCostRows,
     derivedAbilityUseLimitRows,
+    derivedAbilityEffectRows,
     characterRow,
   ] = await Promise.all([
     db.select().from(campaignCharacterAttribute).where(eq(campaignCharacterAttribute.characterId, characterId)),
@@ -766,6 +769,11 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       asc(derivedAbilityUseLimit.derivedAbilityId),
       asc(derivedAbilityUseLimit.sortOrder),
       asc(derivedAbilityUseLimit.id),
+    ),
+    db.select().from(derivedAbilityEffect).orderBy(
+      asc(derivedAbilityEffect.derivedAbilityId),
+      asc(derivedAbilityEffect.sortOrder),
+      asc(derivedAbilityEffect.id),
     ),
     db.select({
       id: campaignCharacter.id,
@@ -1020,6 +1028,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
         ...limit,
         refreshScope: limit.refreshScope as DerivedAbilityRefreshScope,
       })),
+      effects: decodeDerivedAbilityEffectRows(derivedAbilityEffectRows),
     }),
   };
 

@@ -4,6 +4,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -272,6 +273,40 @@ export const derivedAbilityUseLimit = pgTable(
   ],
 );
 
+export const derivedAbilityEffect = pgTable(
+  "derived_ability_effect",
+  {
+    id: serial("id").primaryKey(),
+    derivedAbilityId: integer("derived_ability_id")
+      .notNull()
+      .references(() => derivedAbility.id, { onDelete: "cascade" }),
+    schemaVersion: integer("schema_version").notNull(),
+    effectJson: jsonb("effect_json").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("derived_ability_effect_order_uq").on(
+      table.derivedAbilityId,
+      table.sortOrder,
+    ),
+    index("derived_ability_effect_ability_idx").on(table.derivedAbilityId),
+    check(
+      "derived_ability_effect_schema_version_valid",
+      sql`${table.schemaVersion} > 0`,
+    ),
+    check(
+      "derived_ability_effect_sort_order_valid",
+      sql`${table.sortOrder} >= 0`,
+    ),
+    check(
+      "derived_ability_effect_json_object",
+      sql`jsonb_typeof(${table.effectJson}) = 'object'`,
+    ),
+  ],
+);
+
 // Legacy V1 compatibility storage remains authoritative only when an ability
 // has no generalized requirements. The generalized editor keeps a mirror only
 // for clean V1-compatible definitions and removes stale mirrors from a complex
@@ -355,6 +390,7 @@ export const derivedAbilityRelations = relations(derivedAbility, ({ many }) => (
   useConditions: many(derivedAbilityUseCondition),
   costs: many(derivedAbilityCost),
   useLimits: many(derivedAbilityUseLimit),
+  effects: many(derivedAbilityEffect),
   campaignAssignments: many(campaignAllowedDerivedAbility),
 }));
 
@@ -413,6 +449,16 @@ export const derivedAbilityUseLimitRelations = relations(
   ({ one }) => ({
     derivedAbility: one(derivedAbility, {
       fields: [derivedAbilityUseLimit.derivedAbilityId],
+      references: [derivedAbility.id],
+    }),
+  }),
+);
+
+export const derivedAbilityEffectRelations = relations(
+  derivedAbilityEffect,
+  ({ one }) => ({
+    derivedAbility: one(derivedAbility, {
+      fields: [derivedAbilityEffect.derivedAbilityId],
       references: [derivedAbility.id],
     }),
   }),

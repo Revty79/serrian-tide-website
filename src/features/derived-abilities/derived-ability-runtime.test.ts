@@ -60,6 +60,7 @@ function definition(
     useConditions: [],
     costs: [],
     useLimits: [],
+    effects: [],
     ...overrides,
   };
 }

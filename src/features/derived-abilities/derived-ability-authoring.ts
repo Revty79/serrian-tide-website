@@ -18,6 +18,8 @@ import {
   type DerivedAbilityUseConditionDefinition,
   type DerivedAbilityUseLimitDefinition,
 } from "./models";
+import type { MechanicalEffect } from "../mechanical-effects";
+import { normalizeDerivedAbilityEffects } from "./derived-ability-effects";
 
 export type DerivedAbilityCoreDraft = {
   name: string;
@@ -36,6 +38,7 @@ export type DerivedAbilityAuthoringDraft = {
   useConditions: DerivedAbilityUseConditionDefinition[];
   costs: DerivedAbilityCostDefinition[];
   useLimits: DerivedAbilityUseLimitDefinition[];
+  effects: MechanicalEffect[];
   legacyTriggers: DerivedAbilityTriggerDefinition[];
 };
 
@@ -147,6 +150,7 @@ export function normalizeDerivedAbilityAuthoringDraft(
       })),
       normalizeDerivedAbilityUseLimit,
     ),
+    effects: normalizeDerivedAbilityEffects(input.effects),
     legacyTriggers: [...input.legacyTriggers]
       .sort((left, right) => left.sortOrder - right.sortOrder),
   };
@@ -178,6 +182,7 @@ export function createDefaultDerivedAbilityDraft(): DerivedAbilityAuthoringDraft
     useConditions: [],
     costs: [],
     useLimits: [],
+    effects: [],
     legacyTriggers: [],
   };
 }
@@ -200,6 +205,7 @@ export function definitionToDerivedAbilityDraft(
     useConditions: definition.useConditions,
     costs: definition.costs,
     useLimits: definition.useLimits,
+    effects: definition.effects,
     legacyTriggers: definition.triggers,
   };
 }

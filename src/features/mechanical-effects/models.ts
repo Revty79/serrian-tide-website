@@ -75,6 +75,7 @@ export type MechanicalEffectSource =
   | { kind: "item"; id: number; name: string }
   | { kind: "spell"; id: string; name: string }
   | { kind: "creature-ability"; id: string; name: string }
+  | { kind: "derived-ability"; id: number; name: string }
   | { kind: "god"; id: string; name: string }
   | { kind: "system"; id: string; name: string };
 

@@ -271,6 +271,7 @@ export function DerivedAbilityWorkspace({
                   <em>{entry.acquisitionType}</em>
                   <em>{entry.activationType}</em>
                   <em>{entry.requirementOrigin}</em>
+                  {entry.effectCount > 0 ? <em>{entry.effectCount} EFFECT{entry.effectCount === 1 ? "" : "S"}</em> : null}
                 </span>
                 <span className="skill-library__row-meta">{entry.requirementSummary}</span>
                 <span className="skill-library__row-parents">

@@ -77,6 +77,18 @@ test("catalog assembly keeps triggerless definitions and independently ordered c
       notes: "",
       sortOrder: 0,
     }],
+    effects: [
+      {
+        derivedAbilityId: 8,
+        sortOrder: 1,
+        effect: { kind: "manual", title: "Second", description: "Second effect." },
+      },
+      {
+        derivedAbilityId: 8,
+        sortOrder: 0,
+        effect: { kind: "health.heal", amount: 10, scope: "full-body" },
+      },
+    ],
   });
 
   assert.equal(catalog.length, 1);
@@ -88,6 +100,10 @@ test("catalog assembly keeps triggerless definitions and independently ordered c
   assert.equal(catalog[0]?.useConditions[0]?.conditionKey, "successful-parry");
   assert.equal(catalog[0]?.costs[0]?.amount, 6);
   assert.equal(catalog[0]?.useLimits[0]?.refreshScope, "round");
+  assert.deepEqual(catalog[0]?.effects.map(({ kind }) => kind), [
+    "health.heal",
+    "manual",
+  ]);
 });
 
 test("Character loading queries definitions and each child collection independently", () => {
@@ -101,6 +117,8 @@ test("Character loading queries definitions and each child collection independen
   assert.match(action, /\.from\(derivedAbilityUseCondition\)/);
   assert.match(action, /\.from\(derivedAbilityCost\)/);
   assert.match(action, /\.from\(derivedAbilityUseLimit\)/);
+  assert.match(action, /\.from\(derivedAbilityEffect\)/);
+  assert.match(action, /decodeDerivedAbilityEffectRows\(derivedAbilityEffectRows\)/);
   assert.match(action, /assembleDerivedAbilityCatalog/);
   assert.doesNotMatch(
     action,

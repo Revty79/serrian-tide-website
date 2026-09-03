@@ -58,6 +58,7 @@ export function groupDerivedAbilityRows(
       useConditions: [],
       costs: [],
       useLimits: [],
+      effects: [],
     };
     definition.triggers.push({
       id: row.triggerId,

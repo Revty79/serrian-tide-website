@@ -25,6 +25,7 @@ import type {
   DerivedAbilityDraft,
   DerivedAbilityEditorReferences,
 } from "./actions";
+import { DerivedAbilityEffectsEditor } from "./derived-ability-effects-editor";
 
 const NUMERIC_OPERATORS: Array<{
   value: Extract<DerivedAbilityRequirementOperator, "gte" | "gt" | "lte" | "lt" | "eq" | "neq">;
@@ -705,17 +706,22 @@ export function DerivedAbilityConstructor({
               {DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => <option key={type} value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>)}
             </select>
           </Field>
-          <p className="derived-ability-explanation">{ACTIVATION_EXPLANATIONS[draft.activationType]} This classification does not execute combat behavior in Pass 4.</p>
+          <p className="derived-ability-explanation">{ACTIVATION_EXPLANATIONS[draft.activationType]} This classification does not execute combat behavior in Pass 5.</p>
         </div>
       </section>
 
       <UseConditionsEditor draft={draft} onChange={onChange} />
       <CostsEditor draft={draft} onChange={onChange} />
       <UseLimitsEditor draft={draft} onChange={onChange} />
+      <DerivedAbilityEffectsEditor
+        draft={draft}
+        references={references}
+        onChange={onChange}
+      />
 
       <section className="derived-ability-card">
         <header><p>RULES</p><h3>Human-Readable Rules Text</h3></header>
-        <Field label="Rules Text" wide help="Structured Mechanical Effects are added in Pass 5."><textarea rows={7} value={draft.core.mechanicalEffect} onChange={(event) => onChange({ ...draft, core: { ...draft.core, mechanicalEffect: event.target.value } })} /></Field>
+        <Field label="Rules Text" wide help="Keep the complete table-facing rule here. Structured Mechanical Effects are stored independently."><textarea rows={7} value={draft.core.mechanicalEffect} onChange={(event) => onChange({ ...draft, core: { ...draft.core, mechanicalEffect: event.target.value } })} /></Field>
       </section>
 
       <section className="derived-ability-card">

@@ -134,6 +134,13 @@
       "when": 1788456513702,
       "tag": "0018_migrate_derived_ability_requirements",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788462349479,
+      "tag": "0019_derived_ability_mechanical_effects",
+      "breakpoints": true
     }
   ]
 }

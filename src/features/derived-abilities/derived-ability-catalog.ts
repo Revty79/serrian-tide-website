@@ -7,10 +7,16 @@ import {
   type DerivedAbilityUseConditionDefinition,
   type DerivedAbilityUseLimitDefinition,
 } from "./models";
+import type { MechanicalEffect } from "../mechanical-effects";
 
 export type DerivedAbilityCatalogDefinition = Omit<
   DerivedAbilityDefinition,
-  "triggers" | "requirements" | "useConditions" | "costs" | "useLimits"
+  | "triggers"
+  | "requirements"
+  | "useConditions"
+  | "costs"
+  | "useLimits"
+  | "effects"
 >;
 
 type PersistedChild<T extends { derivedAbilityId?: number }> = T & {
@@ -24,6 +30,12 @@ export type DerivedAbilityCatalogParts = {
   useConditions?: readonly PersistedChild<DerivedAbilityUseConditionDefinition>[];
   costs?: readonly PersistedChild<DerivedAbilityCostDefinition>[];
   useLimits?: readonly PersistedChild<DerivedAbilityUseLimitDefinition>[];
+  effects?: readonly {
+    derivedAbilityId: number;
+    id?: number;
+    sortOrder: number;
+    effect: MechanicalEffect;
+  }[];
 };
 
 function groupByAbility<T extends { derivedAbilityId: number }>(
@@ -62,6 +74,7 @@ export function assembleDerivedAbilityCatalog({
   useConditions = [],
   costs = [],
   useLimits = [],
+  effects = [],
 }: DerivedAbilityCatalogParts): DerivedAbilityDefinition[] {
   const triggerGroups = groupByAbility(triggers, bySortThenId);
   const requirementGroups = groupByAbility(requirements, (left, right) =>
@@ -73,6 +86,7 @@ export function assembleDerivedAbilityCatalog({
   const conditionGroups = groupByAbility(useConditions, bySortThenId);
   const costGroups = groupByAbility(costs, bySortThenId);
   const limitGroups = groupByAbility(useLimits, bySortThenId);
+  const effectGroups = groupByAbility(effects, bySortThenId);
 
   return definitions.map((definition) => ({
     ...definition,
@@ -81,5 +95,6 @@ export function assembleDerivedAbilityCatalog({
     useConditions: conditionGroups.get(definition.id) ?? [],
     costs: costGroups.get(definition.id) ?? [],
     useLimits: limitGroups.get(definition.id) ?? [],
+    effects: (effectGroups.get(definition.id) ?? []).map(({ effect }) => effect),
   }));
 }

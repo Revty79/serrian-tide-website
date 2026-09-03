@@ -296,7 +296,7 @@ test("event use conditions preserve successful-parry without running combat logi
   });
 });
 
-test("Pass 2 schema remains additive while Pass 3 retains V1 fallback storage", () => {
+test("the additive domain retains V1 fallback storage and shared effect source support", () => {
   const schema = readFileSync(
     path.resolve(process.cwd(), "src/db/derived-ability-schema.ts"),
     "utf8",
@@ -320,7 +320,7 @@ test("Pass 2 schema remains additive while Pass 3 retains V1 fallback storage", 
   assert.match(runtime, /ability\.requirements\.length === 0/);
   assert.match(runtime, /evaluateLegacyV1Fallback\(ability, context\)/);
   assert.match(runtime, /evaluateDerivedAbilityLiveRequirements/);
-  assert.doesNotMatch(mechanicalEffects, /derived-ability/);
+  assert.match(mechanicalEffects, /kind: "derived-ability"; id: number; name: string/);
 });
 
 test("migration 0017 adds only the generalized Derived Ability foundation", () => {

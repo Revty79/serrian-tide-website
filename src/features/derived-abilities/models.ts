@@ -1,3 +1,5 @@
+import type { MechanicalEffect } from "../mechanical-effects";
+
 export const DERIVED_ABILITY_ATTRIBUTE_KEYS = [
   "STR",
   "DEX",
@@ -171,4 +173,5 @@ export type DerivedAbilityDefinition = {
   useConditions: DerivedAbilityUseConditionDefinition[];
   costs: DerivedAbilityCostDefinition[];
   useLimits: DerivedAbilityUseLimitDefinition[];
+  effects: MechanicalEffect[];
 };

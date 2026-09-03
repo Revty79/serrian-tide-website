@@ -53,6 +53,7 @@ function ability(
     useConditions: [],
     costs: [],
     useLimits: [],
+    effects: [],
   };
 }
 

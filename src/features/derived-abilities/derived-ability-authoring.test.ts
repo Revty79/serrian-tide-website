@@ -118,6 +118,27 @@ function complexDraft(): DerivedAbilityAuthoringDraft {
       { maximumUses: 1, refreshScope: "never", refreshKey: null, notes: "", sortOrder: 5 },
       { maximumUses: 1, refreshScope: "event", refreshKey: "successful-rest", notes: "", sortOrder: 6 },
     ],
+    effects: [
+      {
+        kind: "condition.apply",
+        name: "Hamstrung",
+        description: "The target's leg is impaired.",
+        duration: { kind: "combat-rounds", value: 2 },
+      },
+      {
+        kind: "modifier.apply",
+        label: "Hamstring movement penalty",
+        channel: "movement",
+        targetKey: "movement:Land",
+        amount: -10,
+        duration: { kind: "combat-rounds", value: 2 },
+      },
+      {
+        kind: "manual",
+        title: "Anatomy ruling",
+        description: "G.O.D. determines whether the target has anatomy that can be hamstrung.",
+      },
+    ],
     legacyTriggers: [],
   };
 }
@@ -127,6 +148,7 @@ test("new drafts retain the safe Automatic Passive STR 40 Live default", () => {
   assert.equal(draft.acquisitionType, "automatic");
   assert.equal(draft.activationType, "passive");
   assert.deepEqual(draft.costs, []);
+  assert.deepEqual(draft.effects, []);
   assert.deepEqual(draft.requirements, [{
     requirementScope: "live",
     requirementType: "attribute",
@@ -181,6 +203,7 @@ test("Riposte definition fields persist without adding reaction runtime behavior
       sortOrder: 0,
     }],
     useLimits: [],
+    effects: [],
     legacyTriggers: [],
   });
   assert.equal(riposte.acquisitionType, "learned");
@@ -223,6 +246,10 @@ test("full constructor normalization preserves complex meaning and deterministic
     normalized.useLimits.map(({ refreshScope }) => refreshScope),
     ["round", "encounter", "scene", "manual", "never", "event"],
   );
+  assert.deepEqual(
+    normalized.effects.map(({ kind }) => kind),
+    ["condition.apply", "modifier.apply", "manual"],
+  );
 });
 
 test("a normalized complex save/reload reconstruction preserves every meaningful collection", () => {
@@ -254,6 +281,11 @@ test("a normalized complex save/reload reconstruction preserves every meaningful
       ...entry,
       derivedAbilityId: normalized.id!,
     })),
+    effects: normalized.effects.map((effect, sortOrder) => ({
+      derivedAbilityId: normalized.id!,
+      sortOrder,
+      effect,
+    })),
   });
   const reloaded = definitionToDerivedAbilityDraft(definition!);
   assert.equal(reloaded.acquisitionType, normalized.acquisitionType);
@@ -263,6 +295,7 @@ test("a normalized complex save/reload reconstruction preserves every meaningful
   assert.deepEqual(reloaded.useConditions, normalized.useConditions);
   assert.deepEqual(reloaded.costs, normalized.costs);
   assert.deepEqual(reloaded.useLimits, normalized.useLimits);
+  assert.deepEqual(reloaded.effects, normalized.effects);
 });
 
 test("server normalization rejects direct self-reference and invalid child definitions", () => {
@@ -284,6 +317,15 @@ test("server normalization rejects direct self-reference and invalid child defin
     () => normalizeDerivedAbilityAuthoringDraft(invalidManual),
     /Manual requirement text is required/,
   );
+  const invalidEffect = complexDraft();
+  invalidEffect.effects[1] = {
+    ...invalidEffect.effects[1] as Extract<DerivedAbilityAuthoringDraft["effects"][number], { kind: "modifier.apply" }>,
+    amount: 0,
+  };
+  assert.throws(
+    () => normalizeDerivedAbilityAuthoringDraft(invalidEffect),
+    /non-zero whole number/,
+  );
 });
 
 test("legacy mirrors survive only for the exact clean V1-compatible generalized shape", () => {
@@ -301,6 +343,7 @@ test("legacy mirrors survive only for the exact clean V1-compatible generalized 
     useConditions: [],
     costs: [],
     useLimits: [],
+    effects: [],
   };
   assert.deepEqual(getLegacyTriggerMirrorForDefinition(durable), {
     triggerType: "attribute",
@@ -381,6 +424,7 @@ test("library and loader use definitions as primary rows with matching filters a
     "loadConditionRows([id])",
     "loadCostRows([id])",
     "loadLimitRows([id])",
+    "loadEffectRows([id])",
   ]) assert.ok(action.includes(loader));
 });
 
@@ -394,11 +438,14 @@ test("full saves normalize and transactionally replace only definition-owned chi
     "derivedAbilityUseCondition",
     "derivedAbilityCost",
     "derivedAbilityUseLimit",
+    "derivedAbilityEffect",
   ]) {
     assert.match(action, new RegExp(`delete\\(${table}\\)`));
     assert.match(action, new RegExp(`insert\\(${table}\\)`));
   }
   assert.match(action, /getLegacyTriggerMirrorForDefinition\(ownedDefinition\)/);
+  assert.match(action, /encodeDerivedAbilityEffects\(ownedDefinition\.effects\)/);
+  assert.match(action, /decodeDerivedAbilityEffects\(effectRows\)/);
   assert.match(action, /delete\(derivedAbilityTrigger\)/);
   assert.match(action, /insert\(derivedAbilityTrigger\)/);
   assert.match(action, /sourceSystem: null/);
@@ -423,6 +470,7 @@ test("constructor exposes all generalized controls and removes Milestone-first V
     "Use Conditions",
     "Resource Costs",
     "Use Limits / Recharge",
+    "Mechanical Effects",
     "Rules Text",
     "Legacy Campaign References",
   ]) assert.ok(constructor.includes(label), `missing constructor label: ${label}`);
@@ -459,6 +507,10 @@ test("constructor component renders complex fields and Automatic warnings", () =
     "Use Conditions",
     "Resource Costs",
     "Use Limits / Recharge",
+    "Mechanical Effects",
+    "Hamstrung",
+    "Hamstring movement penalty",
+    "Anatomy ruling",
     "Rules Text",
   ]) assert.match(complexHtml, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.doesNotMatch(complexHtml, /Self Ability/);
@@ -479,12 +531,9 @@ test("delete errors explain prerequisite and legacy compatibility references", (
   assert.match(action, /Canonical Derived Abilities cannot be deleted/);
 });
 
-test("Pass 4 adds no ownership, Mechanical Effects, combat, or migration persistence", () => {
+test("Pass 5 adds definition effects without ownership, payment, or combat execution", () => {
   const action = source("src/app/heavens/derived-abilities/actions.ts");
   assert.doesNotMatch(action, /characterDerivedAbility|campaignCharacterDerivedAbility/);
-  assert.doesNotMatch(action, /mechanicalEffectDefinition|activeEffect|initiativeRuntime/);
-  assert.equal(
-    source("drizzle/meta/_journal.json").includes("0019_"),
-    false,
-  );
+  assert.doesNotMatch(action, /activeEffect|initiativeRuntime|deduct|consume|recharge|reactionWindow/);
+  assert.match(source("drizzle/meta/_journal.json"), /0019_derived_ability_mechanical_effects/);
 });

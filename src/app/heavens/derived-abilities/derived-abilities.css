@@ -265,6 +265,29 @@
   text-transform: capitalize;
 }
 
+.derived-ability-effect-row > header > div:first-child span {
+  display: block;
+  margin-top: 0.15rem;
+  color: rgb(148 163 184);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.derived-ability-effect-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgb(148 163 184);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.derived-ability-validation-list {
+  margin: 0.65rem 0 0;
+  color: rgb(253 164 175);
+  font-size: 0.72rem;
+}
+
 .derived-ability-row-actions {
   display: flex;
   flex-wrap: wrap;
