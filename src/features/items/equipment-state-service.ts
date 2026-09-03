@@ -10,6 +10,7 @@ import {
   armorProfile,
   item,
   itemPassiveEffect,
+  weaponFiringMode,
   weaponProfile,
 } from "@/db/item-schema";
 import {
@@ -42,6 +43,7 @@ import {
 } from "@/features/characters/models";
 import { decodeMechanicalEffect, planMechanicalEffect } from "@/features/mechanical-effects";
 import { requireSession } from "@/lib/server-access";
+import { resolveFirearmFiringMode } from "./firearm-timing";
 
 import {
   ACTIVE_EQUIPMENT_STATES,
@@ -236,6 +238,10 @@ export async function readCharacterEquipmentStateInTransaction(
   const passives = await loadPassiveEffectsInTransaction(tx, activeItemIds);
   const armorRows = activeItemIds.length ? await tx.select().from(armorProfile).where(inArray(armorProfile.itemId, activeItemIds)) : [];
   const weaponRows = activeItemIds.length ? await tx.select().from(weaponProfile).where(inArray(weaponProfile.itemId, activeItemIds)) : [];
+  const weaponProfileIds = weaponRows.map(({ id }) => id);
+  const firingModeRows = weaponProfileIds.length ? await tx.select().from(weaponFiringMode)
+    .where(inArray(weaponFiringMode.weaponProfileId, weaponProfileIds))
+    .orderBy(asc(weaponFiringMode.weaponProfileId), asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id)) : [];
   const ammunitionItemIds = [...new Set(weaponRows.flatMap((profile) => (
     profile.ammunitionItemId === null ? [] : [profile.ammunitionItemId]
   )))];
@@ -244,6 +250,8 @@ export async function readCharacterEquipmentStateInTransaction(
     itemName: item.name,
     damage: weaponProfile.damage,
     damageType: weaponProfile.damageType,
+    cyclingInitiativeModifier: weaponProfile.ammunitionCyclingInitiativeModifier,
+    recoilResetInitiativeModifier: weaponProfile.ammunitionRecoilResetInitiativeModifier,
   }).from(item)
     .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
     .where(inArray(item.id, ammunitionItemIds)) : [];
@@ -256,6 +264,8 @@ export async function readCharacterEquipmentStateInTransaction(
   const armorByItem = new Map(armorRows.map((row) => [row.itemId, row]));
   const weaponByItem = new Map(weaponRows.map((row) => [row.itemId, row]));
   const ammunitionByItem = new Map(ammunitionRows.map((row) => [row.itemId, row]));
+  const firingModesByProfile = new Map<number, typeof firingModeRows>();
+  for (const mode of firingModeRows) firingModesByProfile.set(mode.weaponProfileId, [...(firingModesByProfile.get(mode.weaponProfileId) ?? []), mode]);
   const attributes = Object.fromEntries(CHARACTER_ATTRIBUTE_KEYS.map((key) => [key, 0])) as Record<CharacterAttributeKey, number>;
   const presentAttributeKeys = new Set<CharacterAttributeKey>();
   for (const row of attributeRows) {
@@ -267,6 +277,24 @@ export async function readCharacterEquipmentStateInTransaction(
   }
   const weaponRuntimeFields = (profile: (typeof weaponRows)[number]) => {
     const ammunition = profile.ammunitionItemId === null ? null : ammunitionByItem.get(profile.ammunitionItemId) ?? null;
+    const timingFields = {
+      ammunitionTiming: ammunition ? {
+        itemId: ammunition.itemId,
+        itemName: ammunition.itemName,
+        cyclingInitiativeModifier: ammunition.cyclingInitiativeModifier ?? 0,
+        recoilResetInitiativeModifier: ammunition.recoilResetInitiativeModifier ?? 0,
+      } : null,
+      firingModes: (firingModesByProfile.get(profile.id) ?? []).map((mode) => resolveFirearmFiringMode({
+        id: mode.id,
+        name: mode.name,
+        sortOrder: mode.sortOrder,
+        baseCyclingInitiativeCost: mode.baseCyclingInitiativeCost,
+        baseRecoilResetInitiativeCost: mode.baseRecoilResetInitiativeCost,
+        deliveryCadence: mode.deliveryCadence as "per-trigger" | "sustained-per-initiative" | null,
+        roundsPerCadence: mode.roundsPerCadence,
+        mechanicsReviewRequired: mode.mechanicsReviewRequired,
+      }, ammunition?.cyclingInitiativeModifier ?? 0, ammunition?.recoilResetInitiativeModifier ?? 0)),
+    };
     const damageInput: CharacterWeaponDamageInput = {
       damageSource: profile.damageSource,
       damage: profile.damage,
@@ -288,6 +316,7 @@ export async function readCharacterEquipmentStateInTransaction(
         authoredDamage: "",
         authoredDamageModifier: "required Character Attribute unavailable",
         authoredDamageSourceName: resolved.sourceName,
+        ...timingFields,
       };
     }
     const summary = getCharacterWeaponDamageSummary(damageInput, attributes);
@@ -297,6 +326,7 @@ export async function readCharacterEquipmentStateInTransaction(
       authoredDamage: summary.totalDamage === "\u2014" ? "" : summary.totalDamage,
       authoredDamageModifier: summary.modifier,
       authoredDamageSourceName: resolved.sourceName,
+      ...timingFields,
     };
   };
   const locationsByItem = new Map<number, string[]>();

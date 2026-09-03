@@ -171,6 +171,8 @@ export const weaponProfile = pgTable(
     fireModes: text("fire_modes").default("[]").notNull(),
     rateOfFire: text("rate_of_fire").default("").notNull(),
     reloadInitiative: text("reload_initiative").default("").notNull(),
+    ammunitionCyclingInitiativeModifier: integer("ammunition_cycling_initiative_modifier").default(0).notNull(),
+    ammunitionRecoilResetInitiativeModifier: integer("ammunition_recoil_reset_initiative_modifier").default(0).notNull(),
     rulesText: text("rules_text").default("").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -181,6 +183,39 @@ export const weaponProfile = pgTable(
     check("weapon_profiles_fire_modes_json_valid", sql`${table.fireModes}::jsonb IS NOT NULL AND jsonb_typeof(${table.fireModes}::jsonb) = 'array'`),
     check("weapon_profiles_ammo_not_self", sql`${table.ammunitionItemId} IS NULL OR ${table.ammunitionItemId} <> ${table.itemId}`),
     check("weapon_profiles_initiative_cost_valid", sql`${table.initiativeCost} IS NULL OR ${table.initiativeCost} > 0`),
+  ],
+);
+
+export const weaponFiringMode = pgTable(
+  "weapon_firing_modes",
+  {
+    id: serial("id").primaryKey(),
+    weaponProfileId: integer("weapon_profile_id").notNull().references(() => weaponProfile.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    baseCyclingInitiativeCost: integer("base_cycling_initiative_cost"),
+    baseRecoilResetInitiativeCost: integer("base_recoil_reset_initiative_cost"),
+    deliveryCadence: text("delivery_cadence"),
+    roundsPerCadence: integer("rounds_per_cadence"),
+    mechanicsReviewRequired: boolean("mechanics_review_required").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("weapon_firing_modes_profile_name_uq").on(table.weaponProfileId, table.normalizedName),
+    index("weapon_firing_modes_profile_order_idx").on(table.weaponProfileId, table.sortOrder, table.id),
+    check("weapon_firing_modes_name_nonblank", sql`length(trim(${table.name})) > 0`),
+    check("weapon_firing_modes_normalized_name_valid", sql`${table.normalizedName} = lower(trim(${table.name})) AND length(${table.normalizedName}) > 0`),
+    check("weapon_firing_modes_sort_order_valid", sql`${table.sortOrder} >= 0`),
+    check("weapon_firing_modes_cycling_cost_valid", sql`${table.baseCyclingInitiativeCost} IS NULL OR ${table.baseCyclingInitiativeCost} >= 0`),
+    check("weapon_firing_modes_recoil_cost_valid", sql`${table.baseRecoilResetInitiativeCost} IS NULL OR ${table.baseRecoilResetInitiativeCost} >= 0`),
+    check("weapon_firing_modes_delivery_cadence_valid", sql`${table.deliveryCadence} IS NULL OR ${table.deliveryCadence} IN ('per-trigger', 'sustained-per-initiative')`),
+    check("weapon_firing_modes_rounds_per_cadence_valid", sql`${table.roundsPerCadence} IS NULL OR ${table.roundsPerCadence} > 0`),
+    check(
+      "weapon_firing_modes_review_state_valid",
+      sql`(${table.mechanicsReviewRequired} AND ${table.baseCyclingInitiativeCost} IS NULL AND ${table.baseRecoilResetInitiativeCost} IS NULL AND ${table.deliveryCadence} IS NULL AND ${table.roundsPerCadence} IS NULL) OR (NOT ${table.mechanicsReviewRequired} AND ${table.baseCyclingInitiativeCost} IS NOT NULL AND ${table.baseRecoilResetInitiativeCost} IS NOT NULL AND ${table.deliveryCadence} IS NOT NULL AND ${table.roundsPerCadence} IS NOT NULL)`,
+    ),
   ],
 );
 

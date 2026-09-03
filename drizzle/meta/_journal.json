@@ -148,6 +148,13 @@
       "when": 1788464116353,
       "tag": "0020_derived_ability_character_runtime",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788475655445,
+      "tag": "0021_structured_firearm_timing_profiles",
+      "breakpoints": true
     }
   ]
 }

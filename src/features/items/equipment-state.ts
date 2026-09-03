@@ -2,6 +2,7 @@ import {
   validateMechanicalEffect,
   type MechanicalEffect,
 } from "@/features/mechanical-effects";
+import type { ResolvedFirearmFiringMode } from "./firearm-timing";
 
 export const EQUIPMENT_STATES = ["inactive", "equipped", "worn", "wielded"] as const;
 export const ACTIVE_EQUIPMENT_STATES = ["equipped", "worn", "wielded"] as const;
@@ -66,6 +67,13 @@ export type WieldedWeaponRuntimeContext = {
   initiativeCost: number | null;
   range: string;
   reach: string;
+  ammunitionTiming: null | {
+    itemId: number;
+    itemName: string;
+    cyclingInitiativeModifier: number;
+    recoilResetInitiativeModifier: number;
+  };
+  firingModes: ResolvedFirearmFiringMode[];
   rulesText: string;
 };
 

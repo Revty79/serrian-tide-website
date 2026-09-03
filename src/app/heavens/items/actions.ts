@@ -29,6 +29,7 @@ import {
   itemRuntimeProfile,
   itemTagCatalog,
   itemTagLink,
+  weaponFiringMode,
   weaponProfile,
   type EquipmentCatalogGroup,
   type ItemCatalogScope,
@@ -50,6 +51,14 @@ import {
   type ItemRuntimeProfile,
   type ItemUseMode,
 } from "@/features/items/item-runtime";
+import {
+  copyFirearmFiringModes,
+  normalizeFirearmFiringModes,
+  normalizeFiringModeName,
+  resolveFirearmFiringMode,
+  type FirearmFiringModeDraft,
+  type ResolvedFirearmFiringMode,
+} from "@/features/items/firearm-timing";
 import {
   decodeMechanicalEffect,
   encodeMechanicalEffect,
@@ -104,7 +113,14 @@ export type ItemAuthoringReferences = {
   skills: Array<{ id: number; name: string }>;
 };
 
-export type RelatedItemCandidate = { id: number; canonicalId: string; name: string; recordType: string };
+export type RelatedItemCandidate = {
+  id: number;
+  canonicalId: string;
+  name: string;
+  recordType: string;
+  ammunitionCyclingInitiativeModifier: number;
+  ammunitionRecoilResetInitiativeModifier: number;
+};
 export type RelatedCreatureCandidate = { canonicalId: string; name: string; family: string; creatureType: string };
 export type ItemLineageSummary = { id: number; canonicalId: string; name: string; catalogScope: string };
 
@@ -162,9 +178,18 @@ export type ItemDraft = {
     ammunitionItemName: string | null;
     compatibility: string;
     capacity: string;
-    fireModes: string[];
+    firingModes: FirearmFiringModeDraft[];
+    resolvedFiringModes: ResolvedFirearmFiringMode[];
     rateOfFire: string;
     reloadInitiative: string;
+    ammunitionCyclingInitiativeModifier: number;
+    ammunitionRecoilResetInitiativeModifier: number;
+    referencedAmmunition: null | {
+      itemId: number;
+      name: string;
+      cyclingInitiativeModifier: number;
+      recoilResetInitiativeModifier: number;
+    };
     rulesText: string;
   };
   armorProfile: null | {
@@ -188,8 +213,9 @@ function required(value: string | null | undefined, label: string) { const resul
 function nonNegative(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater, or left blank.`); return value; }
 function positive(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value <= 0) throw new Error(`${label} must be greater than zero, or left blank.`); return value; }
 function positiveInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a whole number greater than zero, or left blank.`); return value; }
+function wholeInteger(value: number, label: string) { if (!Number.isSafeInteger(value)) throw new Error(`${label} must be a whole number.`); return value; }
 
-function normalize(input: ItemDraft) {
+function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
   const equipmentGroup = input.core.catalogScope === "equipment" ? input.core.equipmentGroup ?? "general" : null;
   if (input.core.catalogScope === "equipment" && !EQUIPMENT_GROUPS.includes(equipmentGroup as EquipmentCatalogGroup)) {
     throw new Error("Equipment Group must be Weapon, Armor, or General.");
@@ -231,6 +257,9 @@ function normalize(input: ItemDraft) {
     };
   });
 
+  const weaponIsAmmunition = input.weaponProfile
+    ? [input.weaponProfile.profileRecordType, input.core.recordType].some((value) => clean(value).toLocaleLowerCase("en-US") === "ammunition")
+    : false;
   const weapon = input.weaponProfile ? {
     profileRecordType: clean(input.weaponProfile.profileRecordType) || clean(input.core.recordType),
     weaponType: clean(input.weaponProfile.weaponType),
@@ -245,9 +274,11 @@ function normalize(input: ItemDraft) {
     ammunitionItemName: input.weaponProfile.ammunitionItemId ? optionalText(input.weaponProfile.ammunitionItemName) : null,
     compatibility: clean(input.weaponProfile.compatibility),
     capacity: clean(input.weaponProfile.capacity),
-    fireModes: [...new Set(input.weaponProfile.fireModes.map(clean).filter(Boolean))],
+    firingModes: normalizeFirearmFiringModes(input.weaponProfile.firingModes, { allowUnreviewedNewModes }),
     rateOfFire: clean(input.weaponProfile.rateOfFire),
     reloadInitiative: clean(input.weaponProfile.reloadInitiative),
+    ammunitionCyclingInitiativeModifier: weaponIsAmmunition ? wholeInteger(input.weaponProfile.ammunitionCyclingInitiativeModifier, "Ammunition Cycling Initiative modifier") : 0,
+    ammunitionRecoilResetInitiativeModifier: weaponIsAmmunition ? wholeInteger(input.weaponProfile.ammunitionRecoilResetInitiativeModifier, "Ammunition Recoil Reset Initiative modifier") : 0,
     rulesText: clean(input.weaponProfile.rulesText),
   } : null;
 
@@ -379,9 +410,22 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     const [parent] = await db.select({ name: item.name }).from(item).where(eq(item.id, row.parentItemId)).limit(1);
     parentItemName = parent?.name ?? null;
   }
-  const [properties, weaponRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows] = await Promise.all([
+  const [properties, weaponRows, firingModeRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows] = await Promise.all([
     db.select().from(itemProperty).where(eq(itemProperty.itemId, id)).orderBy(asc(itemProperty.sortOrder), asc(itemProperty.id)),
     db.select().from(weaponProfile).where(eq(weaponProfile.itemId, id)).limit(1),
+    db.select({
+      id: weaponFiringMode.id,
+      name: weaponFiringMode.name,
+      sortOrder: weaponFiringMode.sortOrder,
+      baseCyclingInitiativeCost: weaponFiringMode.baseCyclingInitiativeCost,
+      baseRecoilResetInitiativeCost: weaponFiringMode.baseRecoilResetInitiativeCost,
+      deliveryCadence: weaponFiringMode.deliveryCadence,
+      roundsPerCadence: weaponFiringMode.roundsPerCadence,
+      mechanicsReviewRequired: weaponFiringMode.mechanicsReviewRequired,
+    }).from(weaponFiringMode)
+      .innerJoin(weaponProfile, eq(weaponProfile.id, weaponFiringMode.weaponProfileId))
+      .where(eq(weaponProfile.itemId, id))
+      .orderBy(asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id)),
     db.select().from(armorProfile).where(eq(armorProfile.itemId, id)).limit(1),
     db.select().from(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id)).orderBy(asc(itemArmorDamageModifier.sortOrder), asc(itemArmorDamageModifier.id)),
     db.select({ key: armorLocation.locationCode }).from(armorLocation).where(eq(armorLocation.itemId, id)).orderBy(asc(armorLocation.sortOrder)),
@@ -412,9 +456,23 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
   const weapon = weaponRows[0];
   const armor = armorRows[0];
   let ammunitionItemName: string | null = null;
+  let referencedAmmunition: NonNullable<ItemDraft["weaponProfile"]>["referencedAmmunition"] = null;
   if (weapon?.ammunitionItemId) {
-    const [ammo] = await db.select({ name: item.name }).from(item).where(eq(item.id, weapon.ammunitionItemId)).limit(1);
+    const [ammo] = await db.select({
+      name: item.name,
+      cyclingInitiativeModifier: weaponProfile.ammunitionCyclingInitiativeModifier,
+      recoilResetInitiativeModifier: weaponProfile.ammunitionRecoilResetInitiativeModifier,
+    }).from(item)
+      .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+      .where(eq(item.id, weapon.ammunitionItemId))
+      .limit(1);
     ammunitionItemName = ammo?.name ?? null;
+    referencedAmmunition = ammo ? {
+      itemId: weapon.ammunitionItemId,
+      name: ammo.name,
+      cyclingInitiativeModifier: ammo.cyclingInitiativeModifier ?? 0,
+      recoilResetInitiativeModifier: ammo.recoilResetInitiativeModifier ?? 0,
+    } : null;
   }
   const runtimeValidation = validateItemRuntimeProfile(
     runtimeRows[0] ?? DEFAULT_ITEM_RUNTIME_PROFILE,
@@ -455,8 +513,20 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       damageType: weapon.damageType, range: weapon.rangeText,
       reach: weapon.reachText, ammunitionItemId: weapon.ammunitionItemId, ammunitionItemName,
       compatibility: weapon.compatibility, capacity: weapon.capacity,
-      fireModes: (() => { try { const parsed = JSON.parse(weapon.fireModes); return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : []; } catch { return []; } })(),
-      rateOfFire: weapon.rateOfFire, reloadInitiative: weapon.reloadInitiative, rulesText: weapon.rulesText,
+      firingModes: firingModeRows.map((mode) => ({
+        ...mode,
+        deliveryCadence: mode.deliveryCadence as FirearmFiringModeDraft["deliveryCadence"],
+      })),
+      resolvedFiringModes: firingModeRows.map((mode) => resolveFirearmFiringMode(
+        { ...mode, deliveryCadence: mode.deliveryCadence as FirearmFiringModeDraft["deliveryCadence"] },
+        referencedAmmunition?.cyclingInitiativeModifier ?? 0,
+        referencedAmmunition?.recoilResetInitiativeModifier ?? 0,
+      )),
+      rateOfFire: weapon.rateOfFire, reloadInitiative: weapon.reloadInitiative,
+      ammunitionCyclingInitiativeModifier: weapon.ammunitionCyclingInitiativeModifier,
+      ammunitionRecoilResetInitiativeModifier: weapon.ammunitionRecoilResetInitiativeModifier,
+      referencedAmmunition,
+      rulesText: weapon.rulesText,
     } : null,
     armorProfile: armor ? {
       armorType: armor.armorType, coverage: armor.coverage, baseSoak: armor.baseSoak,
@@ -477,7 +547,23 @@ export async function findRelatedItems(search: string, excludeItemId?: number): 
   if (excludeItemId) conditions.push(ne(item.id, excludeItemId));
   const needle = clean(search);
   if (needle) conditions.push(or(ilike(item.name, `%${needle}%`), ilike(item.canonicalId, `%${needle}%`))!);
-  return db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, recordType: item.recordType }).from(item).where(conditions.length ? and(...conditions) : undefined).orderBy(asc(item.name), asc(item.id)).limit(20);
+  const rows = await db.select({
+    id: item.id,
+    canonicalId: item.canonicalId,
+    name: item.name,
+    recordType: item.recordType,
+    ammunitionCyclingInitiativeModifier: weaponProfile.ammunitionCyclingInitiativeModifier,
+    ammunitionRecoilResetInitiativeModifier: weaponProfile.ammunitionRecoilResetInitiativeModifier,
+  }).from(item)
+    .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(asc(item.name), asc(item.id))
+    .limit(20);
+  return rows.map((candidate) => ({
+    ...candidate,
+    ammunitionCyclingInitiativeModifier: candidate.ammunitionCyclingInitiativeModifier ?? 0,
+    ammunitionRecoilResetInitiativeModifier: candidate.ammunitionRecoilResetInitiativeModifier ?? 0,
+  }));
 }
 
 export async function findRelatedCreatures(search: string): Promise<RelatedCreatureCandidate[]> {
@@ -486,9 +572,9 @@ export async function findRelatedCreatures(search: string): Promise<RelatedCreat
   return db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName, family: creature.family, creatureType: creature.creatureType }).from(creature).where(needle ? or(ilike(creature.canonicalName, `%${needle}%`), ilike(creature.canonicalId, `%${needle}%`)) : undefined).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(20);
 }
 
-export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
+async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boolean): Promise<ItemAggregate> {
   const session = await requireGod();
-  const normalized = normalize(input);
+  const normalized = normalize(input, allowUnreviewedNewModes);
   const savedId = await db.transaction(async (tx) => {
     let id = input.id;
     if (id === undefined) {
@@ -560,7 +646,7 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
     await tx.delete(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id));
     await tx.delete(armorLocation).where(eq(armorLocation.itemId, id));
     await tx.delete(itemProperty).where(eq(itemProperty.itemId, id));
-    await tx.delete(weaponProfile).where(eq(weaponProfile.itemId, id));
+    if (!normalized.weapon) await tx.delete(weaponProfile).where(eq(weaponProfile.itemId, id));
     await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
     await tx.delete(itemEffect).where(eq(itemEffect.itemId, id));
     await tx.delete(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id));
@@ -620,15 +706,78 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
       })));
     }
     if (normalized.weapon) {
-      await tx.insert(weaponProfile).values({
-        itemId: id!, profileRecordType: normalized.weapon.profileRecordType, weaponType: normalized.weapon.weaponType,
-        handedness: normalized.weapon.handedness, damageSource: normalized.weapon.damageSource, damage: normalized.weapon.damage,
-        initiativeCost: normalized.weapon.initiativeCost, damageType: normalized.weapon.damageType,
-        rangeText: normalized.weapon.range, reachText: normalized.weapon.reach,
-        ammunitionItemId: normalized.weapon.ammunitionItemId, compatibility: normalized.weapon.compatibility,
-        capacity: normalized.weapon.capacity, fireModes: JSON.stringify(normalized.weapon.fireModes), rateOfFire: normalized.weapon.rateOfFire,
-        reloadInitiative: normalized.weapon.reloadInitiative, rulesText: normalized.weapon.rulesText,
-      });
+      const [storedWeapon] = await tx.select({ id: weaponProfile.id }).from(weaponProfile).where(eq(weaponProfile.itemId, id!)).limit(1);
+      const weaponValues = {
+        profileRecordType: normalized.weapon.profileRecordType,
+        weaponType: normalized.weapon.weaponType,
+        handedness: normalized.weapon.handedness,
+        damageSource: normalized.weapon.damageSource,
+        damage: normalized.weapon.damage,
+        initiativeCost: normalized.weapon.initiativeCost,
+        damageType: normalized.weapon.damageType,
+        rangeText: normalized.weapon.range,
+        reachText: normalized.weapon.reach,
+        ammunitionItemId: normalized.weapon.ammunitionItemId,
+        compatibility: normalized.weapon.compatibility,
+        capacity: normalized.weapon.capacity,
+        fireModes: JSON.stringify(normalized.weapon.firingModes.map(({ name }) => name)),
+        rateOfFire: normalized.weapon.rateOfFire,
+        reloadInitiative: normalized.weapon.reloadInitiative,
+        ammunitionCyclingInitiativeModifier: normalized.weapon.ammunitionCyclingInitiativeModifier,
+        ammunitionRecoilResetInitiativeModifier: normalized.weapon.ammunitionRecoilResetInitiativeModifier,
+        rulesText: normalized.weapon.rulesText,
+      };
+      const weaponProfileId = storedWeapon
+        ? (await tx.update(weaponProfile).set({ ...weaponValues, updatedAt: new Date() }).where(eq(weaponProfile.id, storedWeapon.id)).returning({ id: weaponProfile.id }))[0]!.id
+        : (await tx.insert(weaponProfile).values({ itemId: id!, ...weaponValues }).returning({ id: weaponProfile.id }))[0]!.id;
+      const storedModes = storedWeapon
+        ? await tx.select().from(weaponFiringMode).where(eq(weaponFiringMode.weaponProfileId, weaponProfileId))
+        : [];
+      const storedModesById = new Map(storedModes.map((mode) => [mode.id, mode]));
+      const submittedModeIds = new Set(normalized.weapon.firingModes.flatMap(({ id: modeId }) => modeId === null ? [] : [modeId]));
+      if ([...submittedModeIds].some((modeId) => !storedModesById.has(modeId))) {
+        throw new Error("One or more Firing Mode identities do not belong to this Weapon Profile.");
+      }
+      for (const mode of normalized.weapon.firingModes) {
+        if (!mode.mechanicsReviewRequired) continue;
+        if (mode.id === null && allowUnreviewedNewModes) continue;
+        const storedMode = mode.id === null ? null : storedModesById.get(mode.id);
+        if (
+          !storedMode
+          || !storedMode.mechanicsReviewRequired
+          || storedMode.name !== mode.name
+          || storedMode.sortOrder !== mode.sortOrder
+          || storedMode.baseCyclingInitiativeCost !== null
+          || storedMode.baseRecoilResetInitiativeCost !== null
+          || storedMode.deliveryCadence !== null
+          || storedMode.roundsPerCadence !== null
+        ) {
+          throw new Error(`Firing Mode ${mode.name} was changed and now requires valid nonnegative cycling and recoil-reset costs.`);
+        }
+      }
+      const removedModeIds = storedModes.map(({ id: modeId }) => modeId).filter((modeId) => !submittedModeIds.has(modeId));
+      if (removedModeIds.length) await tx.delete(weaponFiringMode).where(inArray(weaponFiringMode.id, removedModeIds));
+      for (const mode of normalized.weapon.firingModes) {
+        const values = {
+          weaponProfileId,
+          name: mode.name,
+          normalizedName: normalizeFiringModeName(mode.name),
+          sortOrder: mode.sortOrder,
+          baseCyclingInitiativeCost: mode.baseCyclingInitiativeCost,
+          baseRecoilResetInitiativeCost: mode.baseRecoilResetInitiativeCost,
+          deliveryCadence: mode.deliveryCadence,
+          roundsPerCadence: mode.roundsPerCadence,
+          mechanicsReviewRequired: mode.mechanicsReviewRequired,
+        };
+        if (mode.id === null) {
+          await tx.insert(weaponFiringMode).values(values);
+        } else {
+          const updated = await tx.update(weaponFiringMode).set({ ...values, updatedAt: new Date() })
+            .where(and(eq(weaponFiringMode.id, mode.id), eq(weaponFiringMode.weaponProfileId, weaponProfileId)))
+            .returning({ id: weaponFiringMode.id });
+          if (!updated.length) throw new Error("A Firing Mode changed before the Item could be saved.");
+        }
+      }
     }
     if (normalized.armor) {
       await tx.insert(armorProfile).values({ itemId: id!, armorType: normalized.armor.armorType, coverage: normalized.armor.coverage, baseSoak: normalized.armor.baseSoak, damageModifiersSourceText: normalized.armor.damageModifiersSourceText, rulesText: normalized.armor.rulesText });
@@ -650,6 +799,10 @@ export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
   return saved;
 }
 
+export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
+  return saveItemDefinition(input, false);
+}
+
 export async function createItemVariant(parentItemId: number, variantName: string): Promise<ItemAggregate> {
   await requireGod();
   const parent = await getItem(parentItemId);
@@ -663,12 +816,17 @@ export async function createItemVariant(parentItemId: number, variantName: strin
     passiveEffects: copyPassiveItemEffects(parent.passiveEffects),
     core: { ...parent.core, canonicalId: "", name, parentItemId, parentItemName: parent.core.name, sourceSystem: null, sourceExternalId: null },
     properties: parent.properties.map((row) => ({ ...row })),
-    weaponProfile: parent.weaponProfile ? { ...parent.weaponProfile, fireModes: [...parent.weaponProfile.fireModes] } : null,
+    weaponProfile: parent.weaponProfile ? {
+      ...parent.weaponProfile,
+      firingModes: copyFirearmFiringModes(parent.weaponProfile.firingModes),
+      resolvedFiringModes: [],
+      referencedAmmunition: parent.weaponProfile.referencedAmmunition ? { ...parent.weaponProfile.referencedAmmunition } : null,
+    } : null,
     armorProfile: parent.armorProfile ? { ...parent.armorProfile, damageModifiers: parent.armorProfile.damageModifiers.map((row) => ({ ...row })), coveredBodyLocationKeys: [...parent.armorProfile.coveredBodyLocationKeys] } : null,
     tags: [...parent.tags],
     variants: [],
   };
-  return saveItem(clone);
+  return saveItemDefinition(clone, true);
 }
 
 export async function deleteItem(id: number) {

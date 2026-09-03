@@ -12,6 +12,11 @@ import {
   type ItemUseMode,
 } from "@/features/items/item-runtime";
 import {
+  FIREARM_DELIVERY_CADENCES,
+  resolveFirearmFiringMode,
+  type FirearmFiringModeDraft,
+} from "@/features/items/firearm-timing";
+import {
   PASSIVE_REQUIRED_EQUIPMENT_STATES,
   passiveLifecycleLabel,
   validatePassiveItemEffect,
@@ -113,6 +118,14 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
 
 function OptionalNumber({ value, onChange, ...props }: { value: number | null; onChange: (value: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
   return <input {...props} type="number" value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} />;
+}
+
+function moveFiringMode(modes: readonly FirearmFiringModeDraft[], index: number, direction: -1 | 1): FirearmFiringModeDraft[] {
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= modes.length) return [...modes];
+  const next = modes.map((mode) => ({ ...mode }));
+  [next[index], next[nextIndex]] = [next[nextIndex]!, next[index]!];
+  return next.map((mode, sortOrder) => ({ ...mode, sortOrder }));
 }
 
 export function ItemWorkspace({
@@ -589,7 +602,7 @@ function Weapon({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemD
     }, 180);
     return () => window.clearTimeout(timer);
   }, [ammoSearch, draft.id]);
-  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", fireModes: [], rateOfFire: "", reloadInitiative: "", rulesText: "" } })}>Add Weapon / Ammunition Profile</button></div>;
+  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } })}>Add Weapon / Ammunition Profile</button></div>;
   const patch = (update: Partial<NonNullable<ItemDraft["weaponProfile"]>>) => onChange({ ...draft, weaponProfile: { ...profile, ...update } });
   const ammunitionProfile = profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition";
   return <div className="item-section item-form-grid">
@@ -601,8 +614,30 @@ function Weapon({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemD
     <Field label="Range"><input value={profile.range} onChange={(e) => patch({ range: e.target.value })} /></Field>
     <Field label="Reach"><input value={profile.reach} onChange={(e) => patch({ reach: e.target.value })} /></Field><Field label="Capacity"><input value={profile.capacity} onChange={(e) => patch({ capacity: e.target.value })} /></Field>
     <Field label="Rate of Fire"><input value={profile.rateOfFire} onChange={(e) => patch({ rateOfFire: e.target.value })} /></Field><Field label="Reload Initiative"><input value={profile.reloadInitiative} onChange={(e) => patch({ reloadInitiative: e.target.value })} /></Field>
-    <Field label="Find Ammunition"><input value={ammoSearch} onChange={(e) => setAmmoSearch(e.target.value)} /></Field><Field label="Ammunition Item"><select value={profile.ammunitionItemId ?? ""} onChange={(e) => { const id = Number(e.target.value); const candidate = ammoCandidates.find((row) => row.id === id); patch({ ammunitionItemId: id || null, ammunitionItemName: candidate?.name ?? null }); }}><option value="">None</option>{profile.ammunitionItemId && profile.ammunitionItemName ? <option value={profile.ammunitionItemId}>{profile.ammunitionItemName}</option> : null}{ammoCandidates.filter((row) => row.id !== profile.ammunitionItemId).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field>
-    <Field label="Fire Modes" wide><input value={profile.fireModes.join(", ")} placeholder="Single, Burst, Automatic" onChange={(e) => patch({ fireModes: e.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} /></Field>
+    {ammunitionProfile ? <section className="item-firearm-timing item-field--wide">
+      <SectionHeading eyebrow="AMMUNITION TIMING" title="Firearm Timing Modifiers" />
+      <p className="item-firearm-help">These signed whole numbers modify the firing mode authored on the weapon. Zero leaves that part of the weapon unchanged; for example, +1 increases its cost and -1 reduces it. Each effective component is clamped at zero.</p>
+      <div className="item-form-grid">
+        <Field label="Cycling Initiative Modifier"><input type="number" step={1} value={profile.ammunitionCyclingInitiativeModifier} onChange={(e) => patch({ ammunitionCyclingInitiativeModifier: Number(e.target.value) })} /></Field>
+        <Field label="Recoil Reset Initiative Modifier"><input type="number" step={1} value={profile.ammunitionRecoilResetInitiativeModifier} onChange={(e) => patch({ ammunitionRecoilResetInitiativeModifier: Number(e.target.value) })} /></Field>
+      </div>
+    </section> : <>
+      <Field label="Find Ammunition"><input value={ammoSearch} onChange={(e) => setAmmoSearch(e.target.value)} /></Field><Field label="Ammunition Item"><select value={profile.ammunitionItemId ?? ""} onChange={(e) => { const id = Number(e.target.value); const candidate = ammoCandidates.find((row) => row.id === id); patch({ ammunitionItemId: id || null, ammunitionItemName: candidate?.name ?? null, referencedAmmunition: candidate ? { itemId: candidate.id, name: candidate.name, cyclingInitiativeModifier: candidate.ammunitionCyclingInitiativeModifier, recoilResetInitiativeModifier: candidate.ammunitionRecoilResetInitiativeModifier } : null }); }}><option value="">None</option>{profile.ammunitionItemId && profile.ammunitionItemName ? <option value={profile.ammunitionItemId}>{profile.ammunitionItemName}</option> : null}{ammoCandidates.filter((row) => row.id !== profile.ammunitionItemId).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field>
+      <section className="item-firearm-timing item-field--wide">
+        <SectionHeading eyebrow="FOLLOW-UP PREPARATION" title="Structured Firing Modes" action="Add Mode" onAction={() => patch({ firingModes: [...profile.firingModes, { id: null, name: "", sortOrder: profile.firingModes.length, baseCyclingInitiativeCost: null, baseRecoilResetInitiativeCost: null, deliveryCadence: null, roundsPerCadence: null, mechanicsReviewRequired: false }] })} />
+        <p className="item-firearm-help">Cycling is the time required for the weapon to prepare, chamber, or reset its firing mechanism. Recoil reset is the time required for the wielder to recover control. These values are added before another trigger pull. Delivery cadence records either rounds per trigger pull or rounds per Initiative spent holding the trigger. Examples: Semiautomatic can deliver 1 round per trigger, a three-round burst 3 rounds per trigger, and fully automatic fire 5 rounds per Initiative. Trigger pull (normally 1 Initiative), Aim, Reload, and live ammunition use are handled separately.</p>
+        <div className="item-card-list">{profile.firingModes.map((mode, index) => {
+          const ready = mode.baseCyclingInitiativeCost !== null && mode.baseRecoilResetInitiativeCost !== null && mode.deliveryCadence !== null && mode.roundsPerCadence !== null;
+          const baseTiming = ready ? resolveFirearmFiringMode(mode).timing : null;
+          const replace = (update: Partial<FirearmFiringModeDraft>) => patch({ firingModes: profile.firingModes.map((entry, i) => i === index ? { ...entry, ...update } : entry) });
+          return <article className={mode.mechanicsReviewRequired && !ready ? "item-edit-card item-firearm-mode is-review-required" : "item-edit-card item-firearm-mode"} key={mode.id ?? `new-${index}`}>
+            <header><div><strong>Mode {index + 1}</strong>{mode.mechanicsReviewRequired && !ready ? <span>Mechanical review required</span> : null}</div><button className="is-danger" type="button" onClick={() => patch({ firingModes: profile.firingModes.filter((_, i) => i !== index).map((entry, sortOrder) => ({ ...entry, sortOrder })) })}>Remove</button></header>
+            <div className="item-form-grid"><Field label="Mode Name" wide><input value={mode.name} placeholder="Single, Burst, or another authored mode" onChange={(e) => replace({ name: e.target.value })} /></Field><Field label="Cycling Initiative Cost"><OptionalNumber value={mode.baseCyclingInitiativeCost} min={0} step={1} onChange={(baseCyclingInitiativeCost) => replace({ baseCyclingInitiativeCost })} /></Field><Field label="Recoil Reset Initiative Cost"><OptionalNumber value={mode.baseRecoilResetInitiativeCost} min={0} step={1} onChange={(baseRecoilResetInitiativeCost) => replace({ baseRecoilResetInitiativeCost })} /></Field><Field label="Delivery Cadence"><select value={mode.deliveryCadence ?? ""} onChange={(e) => replace({ deliveryCadence: e.target.value ? e.target.value as FirearmFiringModeDraft["deliveryCadence"] : null })}><option value="">Choose cadence</option>{FIREARM_DELIVERY_CADENCES.map((cadence) => <option key={cadence} value={cadence}>{cadence === "per-trigger" ? "Per trigger" : "Sustained per Initiative"}</option>)}</select></Field><Field label="Rounds Per Cadence"><OptionalNumber value={mode.roundsPerCadence} min={1} step={1} onChange={(roundsPerCadence) => replace({ roundsPerCadence })} /></Field></div>
+            <footer><span>Base follow-up preparation: <strong>{baseTiming?.followUpPreparationInitiativeCost ?? "Review required"}</strong>{ready ? <> · Delivery: <strong>{mode.roundsPerCadence} {mode.roundsPerCadence === 1 ? "round" : "rounds"} {mode.deliveryCadence === "per-trigger" ? "per trigger" : "per Initiative"}</strong></> : null}</span><div><button type="button" disabled={index === 0} onClick={() => patch({ firingModes: moveFiringMode(profile.firingModes, index, -1) })}>Move Up</button><button type="button" disabled={index === profile.firingModes.length - 1} onClick={() => patch({ firingModes: moveFiringMode(profile.firingModes, index, 1) })}>Move Down</button></div></footer>
+          </article>;
+        })}</div>
+      </section>
+    </>}
     <Field label="Compatibility" wide><textarea rows={3} value={profile.compatibility} onChange={(e) => patch({ compatibility: e.target.value })} /></Field>
     <Field label="Weapon Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field>
   </div>;
@@ -651,7 +686,11 @@ function Preview({ draft }: { draft: ItemDraft }) {
     <section><h4>Runtime Use</h4><p><strong>Activated Use:</strong> {formatItemActivatedUse(draft.runtimeProfile)}</p><p><strong>Activation:</strong> {draft.runtimeProfile.activationLabel || "Use"}</p>{draft.runtimeProfile.useNotes ? <p>{draft.runtimeProfile.useNotes}</p> : null}</section>
     <section><h4>Activated Mechanical Effects</h4>{draft.effects.length ? <ul>{draft.effects.map((effect, index) => <li key={index}><strong>{formatMechanicalEffectSummary(effect)}</strong>{effect.kind === "manual" ? <span> — {effect.description}</span> : null}</li>)}</ul> : <p>No activated Mechanical Effects.</p>}</section>
     <section><h4>Passive Equipment Effects</h4>{draft.passiveEffects.length ? <ul>{draft.passiveEffects.map((entry, index) => <li key={entry.id ?? index}><strong>{passiveLifecycleLabel(entry.requiredEquipmentState)} · {formatMechanicalEffectSummary(entry.effect)}</strong>{entry.effect.kind === "manual" ? <span> — {entry.effect.description}</span> : null}</li>)}</ul> : <p>No passive Equipment Effects.</p>}</section>
-    {draft.weaponProfile ? <section><h4>Weapon Profile</h4><p>{draft.weaponProfile.weaponType || "Weapon"} · {draft.weaponProfile.damage || "—"} {draft.weaponProfile.damageType} · Range {draft.weaponProfile.range || "—"}</p><p>{draft.weaponProfile.rulesText || "No additional weapon rules."}</p></section> : null}
+    {draft.weaponProfile ? <section><h4>Weapon Profile</h4><p>{draft.weaponProfile.weaponType || "Weapon"} · {draft.weaponProfile.damage || "—"} {draft.weaponProfile.damageType} · Range {draft.weaponProfile.range || "—"}</p>{draft.weaponProfile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition" ? <p><strong>Ammunition timing:</strong> Cycling {draft.weaponProfile.ammunitionCyclingInitiativeModifier >= 0 ? "+" : ""}{draft.weaponProfile.ammunitionCyclingInitiativeModifier}; Recoil reset {draft.weaponProfile.ammunitionRecoilResetInitiativeModifier >= 0 ? "+" : ""}{draft.weaponProfile.ammunitionRecoilResetInitiativeModifier} Initiative.</p> : <>{draft.weaponProfile.firingModes.length ? <ul>{draft.weaponProfile.firingModes.map((mode, index) => {
+        const ammunition = draft.weaponProfile?.referencedAmmunition;
+        const resolved = resolveFirearmFiringMode(mode, ammunition?.cyclingInitiativeModifier ?? 0, ammunition?.recoilResetInitiativeModifier ?? 0);
+        return <li key={mode.id ?? index}><strong>{mode.name || `Mode ${index + 1}`}</strong>: {resolved.timing && mode.deliveryCadence && mode.roundsPerCadence ? <>base {mode.baseCyclingInitiativeCost} cycling + {mode.baseRecoilResetInitiativeCost} recoil = {mode.baseCyclingInitiativeCost! + mode.baseRecoilResetInitiativeCost!} follow-up; delivers {mode.roundsPerCadence} {mode.roundsPerCadence === 1 ? "round" : "rounds"} {mode.deliveryCadence === "per-trigger" ? "per trigger" : "per Initiative"}{ammunition ? <>; with {ammunition.name}, {resolved.timing.effectiveCyclingInitiativeCost} + {resolved.timing.effectiveRecoilResetInitiativeCost} = {resolved.timing.followUpPreparationInitiativeCost} follow-up, {resolved.timing.totalThroughNextTriggerPullInitiativeCost} through the next trigger pull</> : <>; {resolved.timing.totalThroughNextTriggerPullInitiativeCost} through the next trigger pull</>}</> : "mechanical review required"}</li>;
+      })}</ul> : <p>No firing modes authored.</p>}</>}<p><strong>Rate of Fire:</strong> {draft.weaponProfile.rateOfFire || "Not recorded"} · <strong>Reload Initiative:</strong> {draft.weaponProfile.reloadInitiative || "Not recorded"}</p><p>{draft.weaponProfile.rulesText || "No additional weapon rules."}</p></section> : null}
     {draft.armorProfile ? <section><h4>Armor Profile</h4><p>{draft.armorProfile.armorType || "Armor"} · Soak {draft.armorProfile.baseSoak ?? "—"} · {draft.armorProfile.coverage || "Coverage not specified"}</p><p>{draft.armorProfile.rulesText || "No additional armor rules."}</p></section> : null}
     <section><h4>Properties</h4>{draft.properties.length ? <ul>{draft.properties.map((property, index) => <li key={index}><strong>{property.propertyName}</strong>: {property.value || "—"}{property.unit ? ` ${property.unit}` : ""}{property.quantity ? ` ×${property.quantity}` : ""}</li>)}</ul> : <p>No properties.</p>}</section>
     <section><h4>Tags</h4><div className="item-preview__chips">{draft.tags.length ? draft.tags.map((tag) => <span key={tag}>{tag}</span>) : <span>None</span>}</div></section>

@@ -924,12 +924,15 @@ async function importItems(client, seed) {
 
     const weapon = record.weaponProfile;
     if (weapon) {
-      await client.query(
+      const insertedWeapon = await client.query(
         `INSERT INTO weapon_profiles (
            item_id, profile_record_type, weapon_type, handedness, damage_source,
            damage, damage_type, range_text, reach_text, ammunition_item_id,
-           compatibility, capacity, fire_modes, rate_of_fire, reload_initiative, rules_text
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+           compatibility, capacity, fire_modes, rate_of_fire, reload_initiative,
+           ammunition_cycling_initiative_modifier, ammunition_recoil_reset_initiative_modifier,
+           rules_text
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+         RETURNING id`,
         [
           itemId,
           weapon.profileRecordType ?? "",
@@ -946,9 +949,30 @@ async function importItems(client, seed) {
           JSON.stringify(weapon.fireModes ?? []),
           weapon.rateOfFire ?? "",
           weapon.reloadInitiative ?? "",
+          weapon.ammunitionCyclingInitiativeModifier ?? 0,
+          weapon.ammunitionRecoilResetInitiativeModifier ?? 0,
           weapon.rulesText ?? "",
         ],
       );
+      const weaponProfileId = Number(insertedWeapon.rows[0].id);
+      const seenModeNames = new Set();
+      let modeSortOrder = 0;
+      for (const rawName of weapon.fireModes ?? []) {
+        const name = String(rawName).trim();
+        const normalizedName = name.toLocaleLowerCase("en-US");
+        if (!name || seenModeNames.has(normalizedName)) continue;
+        seenModeNames.add(normalizedName);
+        await client.query(
+          `INSERT INTO weapon_firing_modes (
+             weapon_profile_id, name, normalized_name, sort_order,
+             base_cycling_initiative_cost, base_recoil_reset_initiative_cost,
+             delivery_cadence, rounds_per_cadence,
+             mechanics_review_required
+           ) VALUES ($1,$2,$3,$4,NULL,NULL,NULL,NULL,true)`,
+          [weaponProfileId, name, normalizedName, modeSortOrder],
+        );
+        modeSortOrder += 1;
+      }
     }
 
     const armor = record.armorProfile;
