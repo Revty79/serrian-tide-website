@@ -22,7 +22,11 @@ import {
 import {
   campaignAllowedDerivedAbility,
   derivedAbility,
+  derivedAbilityCost,
+  derivedAbilityRequirement,
   derivedAbilityTrigger,
+  derivedAbilityUseCondition,
+  derivedAbilityUseLimit,
 } from "@/db/derived-ability-schema";
 import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponProfile } from "@/db/item-schema";
 import {
@@ -93,7 +97,14 @@ import {
   type CharacterQuintessencePurchaseType,
   validateQuintessenceAttributeIncrease,
 } from "@/features/characters/quintessence-rules";
-import { groupDerivedAbilityRows } from "@/features/derived-abilities/derived-ability-rules";
+import { assembleDerivedAbilityCatalog } from "@/features/derived-abilities/derived-ability-catalog";
+import type {
+  DerivedAbilityCostType,
+  DerivedAbilityRefreshScope,
+  DerivedAbilityRequirementOperator,
+  DerivedAbilityRequirementType,
+  DerivedAbilityUseConditionType,
+} from "@/features/derived-abilities/models";
 import {
   assertItemOwnershipStrategy,
   assertNoStackInstanceOwnershipCollision,
@@ -555,6 +566,11 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     personalSpellRows,
     authorizedRows,
     derivedAbilityRows,
+    derivedAbilityTriggerRows,
+    derivedAbilityRequirementRows,
+    derivedAbilityUseConditionRows,
+    derivedAbilityCostRows,
+    derivedAbilityUseLimitRows,
     characterRow,
   ] = await Promise.all([
     db.select().from(campaignCharacterAttribute).where(eq(campaignCharacterAttribute.characterId, characterId)),
@@ -714,14 +730,43 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       activationType: derivedAbility.activationType,
       sourceSystem: derivedAbility.sourceSystem,
       sourceExternalId: derivedAbility.sourceExternalId,
+    }).from(derivedAbility)
+      .orderBy(asc(derivedAbility.name), asc(derivedAbility.id)),
+    db.select({
       triggerId: derivedAbilityTrigger.id,
+      derivedAbilityId: derivedAbilityTrigger.derivedAbilityId,
       triggerType: derivedAbilityTrigger.triggerType,
       attributeKey: derivedAbilityTrigger.attributeKey,
       minimumScore: derivedAbilityTrigger.minimumScore,
-      triggerSortOrder: derivedAbilityTrigger.sortOrder,
-    }).from(derivedAbility)
-      .innerJoin(derivedAbilityTrigger, eq(derivedAbilityTrigger.derivedAbilityId, derivedAbility.id))
-      .orderBy(asc(derivedAbility.name), asc(derivedAbility.id), asc(derivedAbilityTrigger.sortOrder)),
+      sortOrder: derivedAbilityTrigger.sortOrder,
+    }).from(derivedAbilityTrigger)
+      .orderBy(
+        asc(derivedAbilityTrigger.derivedAbilityId),
+        asc(derivedAbilityTrigger.sortOrder),
+        asc(derivedAbilityTrigger.id),
+      ),
+    db.select().from(derivedAbilityRequirement).orderBy(
+      asc(derivedAbilityRequirement.derivedAbilityId),
+      asc(derivedAbilityRequirement.requirementScope),
+      asc(derivedAbilityRequirement.groupNumber),
+      asc(derivedAbilityRequirement.sortOrder),
+      asc(derivedAbilityRequirement.id),
+    ),
+    db.select().from(derivedAbilityUseCondition).orderBy(
+      asc(derivedAbilityUseCondition.derivedAbilityId),
+      asc(derivedAbilityUseCondition.sortOrder),
+      asc(derivedAbilityUseCondition.id),
+    ),
+    db.select().from(derivedAbilityCost).orderBy(
+      asc(derivedAbilityCost.derivedAbilityId),
+      asc(derivedAbilityCost.sortOrder),
+      asc(derivedAbilityCost.id),
+    ),
+    db.select().from(derivedAbilityUseLimit).orderBy(
+      asc(derivedAbilityUseLimit.derivedAbilityId),
+      asc(derivedAbilityUseLimit.sortOrder),
+      asc(derivedAbilityUseLimit.id),
+    ),
     db.select({
       id: campaignCharacter.id,
       campaignId: campaignCharacter.campaignId,
@@ -943,7 +988,39 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       armorDamageModifiers: entry.armorDamageModifiers,
       armorRulesText: entry.armorRulesText,
     })),
-    derivedAbilities: groupDerivedAbilityRows(derivedAbilityRows),
+    derivedAbilities: assembleDerivedAbilityCatalog({
+      definitions: derivedAbilityRows,
+      triggers: derivedAbilityTriggerRows.map((trigger) => ({
+        id: trigger.triggerId,
+        derivedAbilityId: trigger.derivedAbilityId,
+        triggerType: trigger.triggerType,
+        attributeKey: trigger.attributeKey,
+        minimumScore: trigger.minimumScore,
+        sortOrder: trigger.sortOrder,
+      })),
+      requirements: derivedAbilityRequirementRows.map((requirement) => ({
+        ...requirement,
+        requirementType:
+          requirement.requirementType as DerivedAbilityRequirementType,
+        operator:
+          requirement.operator as DerivedAbilityRequirementOperator | null,
+      })),
+      useConditions: derivedAbilityUseConditionRows.map((condition) => ({
+        ...condition,
+        conditionType:
+          condition.conditionType as DerivedAbilityUseConditionType,
+        operator:
+          condition.operator as DerivedAbilityRequirementOperator | null,
+      })),
+      costs: derivedAbilityCostRows.map((cost) => ({
+        ...cost,
+        costType: cost.costType as DerivedAbilityCostType,
+      })),
+      useLimits: derivedAbilityUseLimitRows.map((limit) => ({
+        ...limit,
+        refreshScope: limit.refreshScope as DerivedAbilityRefreshScope,
+      })),
+    }),
   };
 
   return aggregate;

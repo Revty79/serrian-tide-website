@@ -272,6 +272,11 @@ export const derivedAbilityUseLimit = pgTable(
   ],
 );
 
+// Legacy V1 compatibility storage remains authoritative only when an ability
+// has no generalized requirements. The temporary V1 editor dual-writes this
+// row and its mirror requirement until Pass 4 replaces that editor.
+// TODO: Remove only after unmigrated/malformed legacy content and the expanded
+// editor/runtime transition have been proven through a controlled migration.
 export const derivedAbilityTrigger = pgTable(
   "derived_ability_trigger",
   {

@@ -788,6 +788,25 @@ export function getCharacterSkillRanks(
   return ranks;
 }
 
+/**
+ * Derived Ability progression requirements use the persisted Skill # invested
+ * in an allocation. They deliberately exclude calculated Rank, Attribute and
+ * parent bonuses, racial grants, and Skill tier. If one Skill ID is present in
+ * multiple branches, its highest stored allocation is the available Skill #.
+ */
+export function getCharacterSkillPointsById(
+  draft: Pick<CharacterDraft, "skillAllocations">,
+): ReadonlyMap<number, number> {
+  const values = new Map<number, number>();
+  for (const allocation of draft.skillAllocations) {
+    values.set(
+      allocation.skillId,
+      Math.max(values.get(allocation.skillId) ?? 0, allocation.points),
+    );
+  }
+  return values;
+}
+
 export function evaluateCharacterReadiness(
   draft: CharacterDraft,
   aggregate: CharacterAggregate,

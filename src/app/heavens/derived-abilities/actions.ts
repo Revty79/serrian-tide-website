@@ -7,9 +7,12 @@ import { db } from "@/db";
 import {
   campaignAllowedDerivedAbility,
   derivedAbility,
+  derivedAbilityRequirement,
   derivedAbilityTrigger,
 } from "@/db/derived-ability-schema";
 import {
+  buildV1MirrorRequirement,
+  canV1EditorSynchronizeRequirements,
   getDerivedAbilityRequirementSummary,
   normalizeV1DerivedAbilityTrigger,
 } from "@/features/derived-abilities/derived-ability-rules";
@@ -178,6 +181,7 @@ export async function saveDerivedAbility(
   const normalized = normalize(input);
   const savedId = await db.transaction(async (tx) => {
     let id = input.id;
+    let mirrorRequirementId: number | undefined;
     if (id === undefined) {
       const [created] = await tx.insert(derivedAbility).values({
         ...normalized.core,
@@ -190,6 +194,8 @@ export async function saveDerivedAbility(
       const [stored] = await tx.select({
         sourceSystem: derivedAbility.sourceSystem,
         sourceExternalId: derivedAbility.sourceExternalId,
+        acquisitionType: derivedAbility.acquisitionType,
+        activationType: derivedAbility.activationType,
       }).from(derivedAbility).where(eq(derivedAbility.id, id)).limit(1);
       if (!stored) throw new Error("That Derived Ability no longer exists.");
       if (
@@ -198,6 +204,36 @@ export async function saveDerivedAbility(
       ) {
         throw new Error("Canonical Derived Ability source identity cannot be changed.");
       }
+      if (
+        stored.acquisitionType !== "automatic" ||
+        stored.activationType !== "passive"
+      ) {
+        throw new Error(
+          "This Derived Ability uses classifications the temporary V1 editor cannot safely change. Use the expanded editor in Pass 4.",
+        );
+      }
+      const [requirementRows, triggerRows] = await Promise.all([
+        tx.select().from(derivedAbilityRequirement)
+          .where(eq(derivedAbilityRequirement.derivedAbilityId, id))
+          .orderBy(
+            asc(derivedAbilityRequirement.requirementScope),
+            asc(derivedAbilityRequirement.groupNumber),
+            asc(derivedAbilityRequirement.sortOrder),
+            asc(derivedAbilityRequirement.id),
+          ),
+        tx.select().from(derivedAbilityTrigger)
+          .where(eq(derivedAbilityTrigger.derivedAbilityId, id))
+          .orderBy(
+            asc(derivedAbilityTrigger.sortOrder),
+            asc(derivedAbilityTrigger.id),
+          ),
+      ]);
+      if (!canV1EditorSynchronizeRequirements(requirementRows, triggerRows)) {
+        throw new Error(
+          "This Derived Ability has legacy or generalized requirements the temporary V1 editor cannot safely change. Use the expanded editor in Pass 4.",
+        );
+      }
+      mirrorRequirementId = requirementRows[0]?.id;
       await tx.update(derivedAbility).set({
         name: normalized.core.name,
         description: normalized.core.description,
@@ -211,6 +247,18 @@ export async function saveDerivedAbility(
       derivedAbilityId: id,
       ...normalized.trigger,
     });
+    const mirrorRequirement = buildV1MirrorRequirement(normalized.trigger, id);
+    if (mirrorRequirementId === undefined) {
+      await tx.insert(derivedAbilityRequirement).values({
+        ...mirrorRequirement,
+        derivedAbilityId: id,
+      });
+    } else {
+      await tx.update(derivedAbilityRequirement).set({
+        ...mirrorRequirement,
+        updatedAt: new Date(),
+      }).where(eq(derivedAbilityRequirement.id, mirrorRequirementId));
+    }
     return id;
   });
 

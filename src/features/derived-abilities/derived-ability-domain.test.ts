@@ -296,7 +296,7 @@ test("event use conditions preserve successful-parry without running combat logi
   });
 });
 
-test("Pass 2 schema is additive and keeps V1 trigger/runtime and future systems separate", () => {
+test("Pass 2 schema remains additive while Pass 3 retains V1 fallback storage", () => {
   const schema = readFileSync(
     path.resolve(process.cwd(), "src/db/derived-ability-schema.ts"),
     "utf8",
@@ -317,9 +317,9 @@ test("Pass 2 schema is additive and keeps V1 trigger/runtime and future systems 
   assert.match(schema, /export const campaignAllowedDerivedAbility = pgTable/);
   assert.match(schema, /mechanicalEffect: text\("mechanical_effect"\)/);
   assert.doesNotMatch(schema, /character_derived_ability/);
-  assert.match(runtime, /ability\.triggers\.length === 1/);
-  assert.match(runtime, /evaluateDerivedAbilityTrigger\(ability\.triggers\[0\]!/);
-  assert.doesNotMatch(runtime, /groupDerivedAbilityRequirements/);
+  assert.match(runtime, /ability\.requirements\.length === 0/);
+  assert.match(runtime, /evaluateLegacyV1Fallback\(ability, context\)/);
+  assert.match(runtime, /evaluateDerivedAbilityLiveRequirements/);
   assert.doesNotMatch(mechanicalEffects, /derived-ability/);
 });
 

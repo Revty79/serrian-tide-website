@@ -20,6 +20,7 @@ import {
   getCharacterMagicSystem,
   getCharacterMovementBaseValue,
   getCharacterSkillRanks,
+  getCharacterSkillPointsById,
   getEffectiveSkillPoints,
   getMovementInitiative,
   getRacialSkillGrant,
@@ -290,7 +291,11 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
   ].filter(([, value]) => value.trim());
   const activeDerivedAbilities = getActiveDerivedAbilities(
     aggregate.derivedAbilities,
-    { attributes: draft.attributes },
+    {
+      attributes: draft.attributes,
+      skillPoints: getCharacterSkillPointsById(draft),
+      possessedDerivedAbilityIds: new Set(),
+    },
     aggregate.campaign.allowedSystems,
   );
 

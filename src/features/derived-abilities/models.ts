@@ -92,6 +92,15 @@ export const DERIVED_ABILITY_REFRESH_SCOPES = [
 export type DerivedAbilityRefreshScope =
   (typeof DERIVED_ABILITY_REFRESH_SCOPES)[number];
 
+export const DERIVED_ABILITY_REQUIREMENT_RESULTS = [
+  "satisfied",
+  "unsatisfied",
+  "manual",
+] as const;
+
+export type DerivedAbilityRequirementResult =
+  (typeof DERIVED_ABILITY_REQUIREMENT_RESULTS)[number];
+
 export type DerivedAbilityTriggerDefinition = {
   id?: number;
   derivedAbilityId?: number;

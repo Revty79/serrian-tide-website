@@ -6,6 +6,7 @@ import { resolveCharacterSpellCastingContext } from "./character-spell-casting";
 import {
   getCharacterMagicSystem,
   getCharacterSkillRanks,
+  getCharacterSkillPointsById,
   getEffectiveSkillPoints,
   getRacialSkillGrant,
   getSkillRollTarget,
@@ -536,7 +537,11 @@ export function buildCharacterPrintData(
   const specialAbilities = abilities.filter(({ special }) => special);
   const derivedAbilities = getActiveDerivedAbilities(
     aggregate.derivedAbilities,
-    { attributes: draft.attributes },
+    {
+      attributes: draft.attributes,
+      skillPoints: getCharacterSkillPointsById(draft),
+      possessedDerivedAbilityIds: new Set(),
+    },
     aggregate.campaign.allowedSystems,
   );
 

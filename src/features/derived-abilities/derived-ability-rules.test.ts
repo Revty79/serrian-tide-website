@@ -37,7 +37,19 @@ function ability(
       minimumScore,
       sortOrder: 0,
     }],
-    requirements: [],
+    requirements: [{
+      derivedAbilityId: id,
+      requirementScope: "live",
+      requirementType: "attribute",
+      groupNumber: 0,
+      attributeKey,
+      skillId: null,
+      requiredDerivedAbilityId: null,
+      operator: "gte",
+      requiredValue: minimumScore,
+      notes: "",
+      sortOrder: 0,
+    }],
     useConditions: [],
     costs: [],
     useLimits: [],
@@ -46,7 +58,18 @@ function ability(
 
 const durableMuscles = ability(1, "Durable Muscles", "STR");
 const ambidexterity = ability(2, "Ambidexterity", "DEX");
+const poisonResistance = ability(3, "Poison Resistance", "CON");
+const eideticMemory = ability(4, "Eidetic Memory", "INT");
 const indomitableWill = ability(5, "Indomitable Will", "WIS");
+const likeable = ability(6, "Likeable", "CHR");
+const canonicalAbilities = [
+  durableMuscles,
+  ambidexterity,
+  poisonResistance,
+  eideticMemory,
+  indomitableWill,
+  likeable,
+] as const;
 const derivedAbilitiesEnabled = ["Derived Abilities"] as const;
 const derivedAbilitiesDisabled = ["Tier 1"] as const;
 
@@ -72,7 +95,7 @@ test("Campaign-enabled Durable Muscles activates at STR 40 and remains active ab
   }
 });
 
-test("Campaign system availability gates the canonical catalog before V1 requirements", () => {
+test("Campaign system availability gates the canonical catalog before generalized requirements", () => {
   const context = { attributes: { STR: 50 } };
   assert.deepEqual(
     getActiveDerivedAbilities([durableMuscles], context, derivedAbilitiesDisabled),
@@ -181,6 +204,30 @@ test("a Character created above a threshold resolves the ability without a purch
   );
   assert.equal(active[0]?.name, "Ambidexterity");
   assert.equal(getDerivedAbilityRequirementSummary(active[0]!), "DEX 40+");
+});
+
+test("all six canonical generalized requirements preserve exact 40-point Live behavior", () => {
+  for (const canonical of canonicalAbilities) {
+    const requirement = canonical.requirements[0]!;
+    const attributeKey = requirement.attributeKey!;
+    assert.deepEqual(
+      getActiveDerivedAbilities(
+        [canonical],
+        { attributes: { [attributeKey]: 39 } },
+        derivedAbilitiesEnabled,
+      ),
+      [],
+    );
+    assert.equal(
+      getActiveDerivedAbilities(
+        [canonical],
+        { attributes: { [attributeKey]: 40 } },
+        derivedAbilitiesEnabled,
+      )[0]?.name,
+      canonical.name,
+    );
+    assert.equal(getDerivedAbilityRequirementSummary(canonical), `${attributeKey} 40+`);
+  }
 });
 
 test("V1 trigger validation rejects invalid keys, thresholds, missing data, and future trigger types", () => {

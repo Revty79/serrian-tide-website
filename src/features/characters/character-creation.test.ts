@@ -11,6 +11,7 @@ import {
   getCharacterManaProfiles,
   getCharacterBaseMagic,
   getCharacterMovementBaseValue,
+  getCharacterSkillPointsById,
   getMovementInitiative,
   getCharacterSkillGroupKey,
   getCreationPurchasedSkillMaximum,
@@ -182,6 +183,18 @@ test("creation maxima, ranks, and roll targets retain final rules", () => {
   assert.equal(getSkillRank(3, 4, 9, 2), 12);
   assert.equal(getSpecialAbilityRollTarget(37), 63);
   assert.equal(getRaceAttributeCap(race(), "STR"), 42);
+});
+
+test("Derived Ability progression context uses stored Skill points, not calculated Rank", () => {
+  const values = getCharacterSkillPointsById({
+    skillAllocations: [
+      { draftId: 1, skillId: 123, parentDraftId: null, points: 99 },
+      { draftId: 2, skillId: 123, parentDraftId: 50, points: 80 },
+    ],
+  });
+  assert.equal(values.get(123), 99);
+  assert.ok(getSkillRank(99, 25, null, 1) > 100);
+  assert.ok(getSkillRank(99, 0, 140, 5) > 100);
 });
 
 test("magic roots unlock at one point and Mana controls spell access", () => {
