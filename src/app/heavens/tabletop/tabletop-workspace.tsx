@@ -61,6 +61,56 @@ function emptyMetadata(sessions: CampaignSessionSummary[]): SessionMetadataInput
   };
 }
 
+function CampaignIntroductionDialog({
+  campaignName,
+  introduction,
+  onDismiss,
+}: {
+  campaignName: string;
+  introduction: string;
+  onDismiss: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+
+  return <dialog
+    id="tabletop-campaign-intro-dialog"
+    ref={dialogRef}
+    className="tabletop-campaign-intro-dialog"
+    aria-labelledby="tabletop-campaign-intro-title"
+    onCancel={(event) => {
+      event.preventDefault();
+      onDismiss();
+    }}
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onDismiss();
+    }}
+  >
+    <article className="tabletop-campaign-intro-panel">
+      <header>
+        <div>
+          <p>CAMPAIGN INTRODUCTION</p>
+          <h2 id="tabletop-campaign-intro-title" className="font-sans">{campaignName}</h2>
+        </div>
+        <button type="button" onClick={onDismiss} aria-label="Close campaign introduction">Close</button>
+      </header>
+      <div id="tabletop-campaign-intro-copy" className="tabletop-campaign-intro-copy">{introduction}</div>
+      <footer>
+        <span>Campaign reference</span>
+        <button type="button" onClick={onDismiss}>Return to Tabletop Operations</button>
+      </footer>
+    </article>
+  </dialog>;
+}
+
 function displayTimestamp(value: string | null): string {
   if (!value) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -201,6 +251,7 @@ export function TabletopWorkspace({
   const [rosterSearch, setRosterSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [campaignIntroOpen, setCampaignIntroOpen] = useState(false);
   const rollWorkspaceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -338,13 +389,29 @@ export function TabletopWorkspace({
     {selectedCampaign ? <>
       <section className="tabletop-campaign-context">
         <div><span>Selected Campaign</span><strong>{selectedCampaign.name}</strong></div>
-        <p>{selectedCampaign.overview || "No Campaign overview has been written yet."}</p>
+        <div className="tabletop-campaign-intro-control">
+          <button
+            type="button"
+            className="tabletop-campaign-intro-button"
+            aria-haspopup="dialog"
+            aria-controls="tabletop-campaign-intro-dialog"
+            disabled={!selectedCampaign.overview.trim()}
+            onClick={() => setCampaignIntroOpen(true)}
+          >View Campaign Intro</button>
+          <small>{selectedCampaign.overview.trim() ? "Opens the full introduction" : "No introduction has been written yet"}</small>
+        </div>
         <dl>
           <div><dt>Planned</dt><dd>{statusCounts.planned}</dd></div>
           <div><dt>Active</dt><dd>{statusCounts.active}</dd></div>
           <div><dt>Completed</dt><dd>{statusCounts.completed}</dd></div>
         </dl>
       </section>
+
+      {campaignIntroOpen && selectedCampaign.overview.trim() ? <CampaignIntroductionDialog
+        campaignName={selectedCampaign.name}
+        introduction={selectedCampaign.overview}
+        onDismiss={() => setCampaignIntroOpen(false)}
+      /> : null}
 
       {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
