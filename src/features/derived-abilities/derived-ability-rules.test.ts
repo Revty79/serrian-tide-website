@@ -27,6 +27,8 @@ function ability(
     name,
     description: "",
     mechanicalEffect: "",
+    acquisitionType: "automatic",
+    activationType: "passive",
     sourceSystem: "test",
     sourceExternalId: `DA-${id}`,
     triggers: [{
@@ -35,6 +37,10 @@ function ability(
       minimumScore,
       sortOrder: 0,
     }],
+    requirements: [],
+    useConditions: [],
+    costs: [],
+    useLimits: [],
   };
 }
 

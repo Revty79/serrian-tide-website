@@ -710,6 +710,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       name: derivedAbility.name,
       description: derivedAbility.description,
       mechanicalEffect: derivedAbility.mechanicalEffect,
+      acquisitionType: derivedAbility.acquisitionType,
+      activationType: derivedAbility.activationType,
       sourceSystem: derivedAbility.sourceSystem,
       sourceExternalId: derivedAbility.sourceExternalId,
       triggerId: derivedAbilityTrigger.id,

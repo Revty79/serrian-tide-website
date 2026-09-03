@@ -120,6 +120,13 @@
       "when": 1788454286423,
       "tag": "0016_legacy_derived_ability_compatibility",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788455148463,
+      "tag": "0017_expanded_derived_ability_domain",
+      "breakpoints": true
     }
   ]
 }

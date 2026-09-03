@@ -2,6 +2,8 @@ import type { CampaignSystem } from "@/db/campaign-schema";
 
 import {
   DERIVED_ABILITY_ATTRIBUTE_KEYS,
+  type DerivedAbilityAcquisitionType,
+  type DerivedAbilityActivationType,
   type DerivedAbilityAttributeKey,
   type DerivedAbilityDefinition,
   type DerivedAbilityTriggerDefinition,
@@ -16,6 +18,8 @@ export type DerivedAbilityQueryRow = {
   name: string;
   description: string;
   mechanicalEffect: string;
+  acquisitionType: DerivedAbilityAcquisitionType;
+  activationType: DerivedAbilityActivationType;
   sourceSystem: string | null;
   sourceExternalId: string | null;
   triggerId: number;
@@ -35,9 +39,15 @@ export function groupDerivedAbilityRows(
       name: row.name,
       description: row.description,
       mechanicalEffect: row.mechanicalEffect,
+      acquisitionType: row.acquisitionType,
+      activationType: row.activationType,
       sourceSystem: row.sourceSystem,
       sourceExternalId: row.sourceExternalId,
       triggers: [],
+      requirements: [],
+      useConditions: [],
+      costs: [],
+      useLimits: [],
     };
     definition.triggers.push({
       id: row.triggerId,
