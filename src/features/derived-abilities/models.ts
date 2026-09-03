@@ -175,3 +175,51 @@ export type DerivedAbilityDefinition = {
   useLimits: DerivedAbilityUseLimitDefinition[];
   effects: MechanicalEffect[];
 };
+
+export const CHARACTER_DERIVED_ABILITY_ACQUISITION_METHODS = [
+  "learned",
+  "awarded",
+] as const;
+
+export type CharacterDerivedAbilityAcquisitionMethod =
+  (typeof CHARACTER_DERIVED_ABILITY_ACQUISITION_METHODS)[number];
+
+export type CharacterDerivedAbilityOwnership = {
+  id: number;
+  characterId: number;
+  derivedAbilityId: number;
+  acquisitionMethod: CharacterDerivedAbilityAcquisitionMethod;
+  acquiredByUserId: string | null;
+  acquisitionNotes: string;
+  acquiredAt: string;
+  revokedAt: string | null;
+  revokedByUserId: string | null;
+  revocationNotes: string;
+};
+
+export const CHARACTER_DERIVED_ABILITY_STATUSES = [
+  "automatic-active",
+  "automatic-inactive",
+  "automatic-manual-review",
+  "owned-available",
+  "owned-unavailable",
+  "owned-manual-review",
+  "eligible-to-learn",
+  "manual-review",
+  "not-eligible",
+  "awarded-not-owned",
+] as const;
+
+export type CharacterDerivedAbilityStatusKind =
+  (typeof CHARACTER_DERIVED_ABILITY_STATUSES)[number];
+
+export type CharacterDerivedAbilityStatus = {
+  abilityId: number;
+  status: CharacterDerivedAbilityStatusKind;
+  ownershipId: number | null;
+  acquisitionMethod: CharacterDerivedAbilityAcquisitionMethod | null;
+  acquisitionResult: DerivedAbilityRequirementResult;
+  liveResult: DerivedAbilityRequirementResult;
+  possessed: boolean;
+  available: boolean;
+};

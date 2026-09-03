@@ -170,6 +170,9 @@ function aggregate(): CharacterAggregate {
     personalSpellbook: [],
     authorizedItems: [],
     derivedAbilities: [],
+    derivedAbilityOwnerships: [],
+    derivedAbilityStatuses: [],
+    effectiveDerivedAbilityIds: [],
   };
 }
 

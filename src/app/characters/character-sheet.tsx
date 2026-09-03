@@ -38,10 +38,7 @@ import {
   getCanonicalCreditsFromHoldings,
   getStoredCampaignMoneyBreakdown,
 } from "@/features/characters/currency-rules";
-import {
-  getActiveDerivedAbilities,
-  getDerivedAbilityRequirementSummary,
-} from "@/features/derived-abilities/derived-ability-rules";
+import { resolveCharacterDerivedAbilities } from "@/features/derived-abilities/character-derived-ability-resolver";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { ActiveManaView } from "@/features/active-state/active-mana";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
@@ -56,6 +53,7 @@ import { CharacterPrintCenter } from "./character-print-center";
 import { ItemUseDialog } from "./item-use-dialog";
 import { EquipmentStatePanel } from "./equipment-state-panel";
 import { ItemChargePanel } from "./item-charge-panel";
+import { DerivedAbilityPanel } from "./derived-ability-panel";
 
 type Props = {
   aggregate: CharacterAggregate;
@@ -70,6 +68,7 @@ type Props = {
   itemUseDisabled: boolean;
   itemUseDisabledReason?: string;
   onItemUseComplete: () => void | Promise<void>;
+  onDerivedAbilityChange: () => void | Promise<void>;
   activeEffects: ActiveEffectsView;
   onActiveEffectsChange: (state: ActiveEffectsView) => void;
   equipmentState: CharacterEquipmentStateView;
@@ -106,7 +105,7 @@ function displayEncumbrance(
     : measured;
 }
 
-export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode }: Props) {
+export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode }: Props) {
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -289,21 +288,13 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
     ["Backstory", draft.profile.backstory],
     ["Motivations", draft.profile.motivations],
   ].filter(([, value]) => value.trim());
-  const activeDerivedAbilities = getActiveDerivedAbilities(
-    aggregate.derivedAbilities,
-    {
-      attributes: draft.attributes,
-      skillPoints: getCharacterSkillPointsById(draft),
-      possessedDerivedAbilityIds: new Set(),
-    },
-    aggregate.campaign.allowedSystems,
-  );
-  const derivedAbilitySummaryReferences = {
-    skillNames: new Map(aggregate.skillCatalog.map((skill) => [skill.id, skill.name])),
-    derivedAbilityNames: new Map(
-      aggregate.derivedAbilities.map((ability) => [ability.id, ability.name]),
-    ),
-  };
+  const derivedAbilityResolution = resolveCharacterDerivedAbilities({
+    catalog: aggregate.derivedAbilities,
+    ownerships: aggregate.derivedAbilityOwnerships,
+    attributes: draft.attributes,
+    skillPoints: getCharacterSkillPointsById(draft),
+    allowedSystems: aggregate.campaign.allowedSystems,
+  });
 
   return (
     <div className="character-sheet-wrap">
@@ -529,20 +520,15 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           </div>
         </section>
 
-        {activeDerivedAbilities.length ? (
-          <section className="character-sheet__section character-sheet__derived-abilities">
-            <div className="character-sheet__section-heading"><p>ACTIVE DERIVED ABILITIES</p><h3>Derived Abilities</h3></div>
-            <div className="character-sheet__derived-ability-grid">
-              {activeDerivedAbilities.map((ability) => (
-                <article key={ability.id}>
-                  <header><h4>{ability.name}</h4><strong>{getDerivedAbilityRequirementSummary(ability, derivedAbilitySummaryReferences)}</strong></header>
-                  {ability.description ? <p>{ability.description}</p> : null}
-                  {ability.mechanicalEffect ? <p><b>Effect:</b> {ability.mechanicalEffect}</p> : null}
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
+        <DerivedAbilityPanel
+          characterId={aggregate.character.id}
+          abilities={aggregate.derivedAbilities}
+          statuses={derivedAbilityResolution.statuses}
+          skillNames={new Map(aggregate.skillCatalog.map((skill) => [skill.id, skill.name]))}
+          godMode={godMode}
+          disabled={activeManaDisabled}
+          onComplete={onDerivedAbilityChange}
+        />
 
         <section className="character-sheet__section character-sheet__inventory">
           <div className="character-sheet__section-heading"><p>POSSESSIONS</p><h3>Inventory & General Equipment</h3></div>

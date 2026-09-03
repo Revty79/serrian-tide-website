@@ -1,5 +1,9 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
-import type { DerivedAbilityDefinition } from "@/features/derived-abilities/models";
+import type {
+  CharacterDerivedAbilityOwnership,
+  CharacterDerivedAbilityStatus,
+  DerivedAbilityDefinition,
+} from "@/features/derived-abilities/models";
 import type { DraftOwnedItemInstance } from "@/features/items/item-ownership";
 import type { ItemRuntimeProfile } from "@/features/items/item-runtime";
 
@@ -270,6 +274,9 @@ export type CharacterAggregate = {
   personalSpellbook: CharacterPersonalSpell[];
   authorizedItems: CharacterAuthorizedItem[];
   derivedAbilities: DerivedAbilityDefinition[];
+  derivedAbilityOwnerships: CharacterDerivedAbilityOwnership[];
+  derivedAbilityStatuses: CharacterDerivedAbilityStatus[];
+  effectiveDerivedAbilityIds: number[];
 };
 
 export type CharacterSkillAllocationDraft = {

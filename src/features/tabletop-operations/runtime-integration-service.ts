@@ -461,6 +461,31 @@ export async function passParticipantInitiativeInTransaction(
   await persistInitiativeEngine(tx, context, state, changed);
 }
 
+/**
+ * Pays an already-preflighted immediate runtime cost through the authoritative
+ * Initiative engine. Derived Ability execution uses this only inside its final
+ * transaction; it does not create a parallel Initiative pool or pending action.
+ */
+export async function spendImmediateInitiativeInTransaction(
+  tx: RuntimeIntegrationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  characterId: number,
+  amount: number,
+): Promise<void> {
+  assertActiveInitiativeHierarchy(context);
+  const cost = positiveAmount(amount, "Initiative Cost");
+  await requireEncounterParticipant(tx, context, characterId, true);
+  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const participant = state.participants.find(
+    (entry) => entry.characterId === characterId,
+  );
+  if (!participant || participant.currentInitiative < cost) {
+    throw new Error("The Character does not have enough Current Initiative for this Derived Ability.");
+  }
+  const changed = applyDirectInitiativeDelta(state, characterId, -cost);
+  await persistInitiativeEngine(tx, context, state, changed);
+}
+
 export async function startAuthoredActionInTransaction(
   tx: RuntimeIntegrationTransaction,
   context: OwnedEncounterRuntimeContext,

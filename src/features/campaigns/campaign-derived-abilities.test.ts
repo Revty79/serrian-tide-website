@@ -73,14 +73,15 @@ test("Campaign editing replaces Allowed Systems and has no per-ability governanc
 test("Character aggregates load the generalized catalog and resolution uses Campaign systems", () => {
   const action = readSource("src/app/characters/actions.ts");
   const resolver = readSource(
-    "src/features/derived-abilities/derived-ability-rules.ts",
+    "src/features/derived-abilities/character-derived-ability-resolver.ts",
   );
 
   assert.match(action, /\.from\(derivedAbility\)/);
   assert.match(action, /\.from\(derivedAbilityRequirement\)/);
   assert.match(action, /assembleDerivedAbilityCatalog/);
   assert.match(action, /\.from\(campaignAllowedDerivedAbility\)[\s\S]*?\.limit\(1\)/);
-  assert.match(action, /allowedSystems: getEffectiveCampaignSystems/);
+  assert.match(action, /const allowedSystems = getEffectiveCampaignSystems/);
+  assert.match(action, /resolveCharacterDerivedAbilities\([\s\S]*allowedSystems/);
   assert.doesNotMatch(
     action,
     /\.from\(campaignAllowedDerivedAbility\)[\s\S]{0,250}\.innerJoin\(derivedAbility/,

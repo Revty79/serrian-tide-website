@@ -36,6 +36,7 @@ import {
   canAdministerCampaign,
 } from "@/features/campaigns/campaign-membership";
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
+import { reconcileCharacterDerivedAbilityPassivesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
 import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
 import { publishChatDirectoryInvalidationInTransaction } from "@/features/chat/chat-live-events";
 import {
@@ -346,7 +347,7 @@ export async function getCampaignMembers(campaignId: number): Promise<CampaignMe
 }
 
 export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<CampaignAdminDraft> {
-  await requireOwner(input.id);
+  const session = await requireOwner(input.id);
   const name = required(input.name, "Campaign Name");
   const allowedSystems = [...new Set(input.allowedSystems)];
   for (const system of allowedSystems) {
@@ -429,6 +430,17 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     if (inventorySelection.tagIds.length) await tx.insert(campaignInventoryTag).values(inventorySelection.tagIds.map((tagId, sortOrder) => ({ campaignId: input.id, tagId, sortOrder })));
     await tx.delete(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, input.id));
     if (inventorySelection.itemIds.length) await tx.insert(campaignInventoryItem).values(inventorySelection.itemIds.map((itemId, sortOrder) => ({ campaignId: input.id, itemId, sortOrder })));
+    const affectedCharacters = await tx.select({ id: campaignCharacter.id })
+      .from(campaignCharacter)
+      .where(eq(campaignCharacter.campaignId, input.id))
+      .orderBy(asc(campaignCharacter.id));
+    for (const character of affectedCharacters) {
+      await reconcileCharacterDerivedAbilityPassivesInTransaction(
+        tx,
+        character.id,
+        session.user.id,
+      );
+    }
   });
 
   revalidatePath("/heavens/campaigns");

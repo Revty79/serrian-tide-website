@@ -20,8 +20,11 @@ import type {
   CharacterRaceAggregate,
 } from "./models";
 import { getItemChargeDisplay } from "@/features/items/item-ownership";
-import { getActiveDerivedAbilities } from "@/features/derived-abilities/derived-ability-rules";
-import type { DerivedAbilityDefinition } from "@/features/derived-abilities/models";
+import { resolveCharacterDerivedAbilities } from "@/features/derived-abilities/character-derived-ability-resolver";
+import type {
+  CharacterDerivedAbilityStatus,
+  DerivedAbilityDefinition,
+} from "@/features/derived-abilities/models";
 
 export const CHARACTER_PRINT_SECTION_KEYS = [
   "quick",
@@ -496,7 +499,10 @@ export type CharacterPrintData = {
   spells: PrintableCharacterSpellRow[];
   supernaturalAbilities: PrintableCharacterAbilityRow[];
   specialAbilities: PrintableCharacterAbilityRow[];
-  derivedAbilities: DerivedAbilityDefinition[];
+  derivedAbilities: Array<{
+    ability: DerivedAbilityDefinition;
+    status: CharacterDerivedAbilityStatus;
+  }>;
   ownedItems: PrintableCharacterOwnedItem[];
   weapons: PrintableCharacterOwnedItem[];
   armor: PrintableCharacterOwnedItem[];
@@ -535,15 +541,22 @@ export function buildCharacterPrintData(
   ];
   const supernaturalAbilities = abilities.filter(({ special }) => !special);
   const specialAbilities = abilities.filter(({ special }) => special);
-  const derivedAbilities = getActiveDerivedAbilities(
-    aggregate.derivedAbilities,
-    {
-      attributes: draft.attributes,
-      skillPoints: getCharacterSkillPointsById(draft),
-      possessedDerivedAbilityIds: new Set(),
-    },
-    aggregate.campaign.allowedSystems,
+  const derivedAbilityResolution = resolveCharacterDerivedAbilities({
+    catalog: aggregate.derivedAbilities,
+    ownerships: aggregate.derivedAbilityOwnerships,
+    attributes: draft.attributes,
+    skillPoints: getCharacterSkillPointsById(draft),
+    allowedSystems: aggregate.campaign.allowedSystems,
+  });
+  const statusById = new Map(
+    derivedAbilityResolution.statuses.map((status) => [status.abilityId, status]),
   );
+  const derivedAbilities = aggregate.derivedAbilities.flatMap((ability) => {
+    const status = statusById.get(ability.id);
+    return status && (status.status === "automatic-active" || status.ownershipId !== null)
+      ? [{ ability, status }]
+      : [];
+  });
 
   return {
     skills,

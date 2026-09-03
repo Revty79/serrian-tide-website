@@ -741,9 +741,10 @@ export function CharacterEditor({
     setFeedback(null);
     try {
       const saved = await saveCharacter(aggregate.character.id, draft, completeCreation, godMode);
-      const [refreshedHealth, refreshedMana, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+      const [refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
         getActiveHealth(aggregate.character.id),
         getActiveMana(aggregate.character.id),
+        getActiveEffects(aggregate.character.id, godMode),
         getCharacterEquipmentState(aggregate.character.id),
         getCharacterItemChargeState(aggregate.character.id),
       ]);
@@ -751,6 +752,7 @@ export function CharacterEditor({
       setAggregate(saved);
       setActiveHealth(refreshedHealth);
       setActiveMana(refreshedMana);
+      setActiveEffects(refreshedEffects);
       setEquipmentState(refreshedEquipmentState);
       setChargeState(refreshedChargeState);
       setSelectedRace(saved.selectedRace);
@@ -774,10 +776,11 @@ export function CharacterEditor({
     }
   }
 
-  async function refreshAfterItemUse() {
-    const [refreshed, refreshedHealth, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+  async function refreshAfterRuntimeMutation() {
+    const [refreshed, refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
       getCharacter(aggregate.character.id, godMode),
       getActiveHealth(aggregate.character.id),
+      getActiveMana(aggregate.character.id),
       getActiveEffects(aggregate.character.id, godMode),
       getCharacterEquipmentState(aggregate.character.id),
       getCharacterItemChargeState(aggregate.character.id),
@@ -785,6 +788,7 @@ export function CharacterEditor({
     const refreshedDraft = characterAggregateToDraft(refreshed);
     setAggregate(refreshed);
     setActiveHealth(refreshedHealth);
+    setActiveMana(refreshedMana);
     setActiveEffects(refreshedEffects);
     setEquipmentState(refreshedEquipmentState);
     setChargeState(refreshedChargeState);
@@ -798,7 +802,7 @@ export function CharacterEditor({
         () => nextDraftId.current--,
       ),
     });
-    setFeedback({ kind: "success", message: "Item use resolved and the Character record was refreshed." });
+    setFeedback({ kind: "success", message: "Character runtime state was refreshed." });
   }
 
   const statusPurse = characterPurse();
@@ -840,7 +844,7 @@ export function CharacterEditor({
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked} onChange={change} /> : null}
           {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={setEquipmentFilter} onSearch={setEquipmentSearch} onQuantityChange={changeItemQuantity} onRemoveInstance={removeItemInstance} campaignMoney={campaignMoney} /> : null}
           {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} /> : null}
-          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked} itemUseDisabledReason={itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterItemUse} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
+          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked} itemUseDisabledReason={itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>

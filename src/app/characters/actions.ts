@@ -21,6 +21,7 @@ import {
 } from "@/db/campaign-schema";
 import {
   campaignAllowedDerivedAbility,
+  characterDerivedAbility,
   derivedAbility,
   derivedAbilityCost,
   derivedAbilityEffect,
@@ -100,6 +101,8 @@ import {
 } from "@/features/characters/quintessence-rules";
 import { assembleDerivedAbilityCatalog } from "@/features/derived-abilities/derived-ability-catalog";
 import { decodeDerivedAbilityEffectRows } from "@/features/derived-abilities/derived-ability-effects";
+import { resolveCharacterDerivedAbilities } from "@/features/derived-abilities/character-derived-ability-resolver";
+import { reconcileCharacterDerivedAbilityPassivesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
 import type {
   DerivedAbilityCostType,
   DerivedAbilityRefreshScope,
@@ -574,6 +577,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     derivedAbilityCostRows,
     derivedAbilityUseLimitRows,
     derivedAbilityEffectRows,
+    derivedAbilityOwnershipRows,
     characterRow,
   ] = await Promise.all([
     db.select().from(campaignCharacterAttribute).where(eq(campaignCharacterAttribute.characterId, characterId)),
@@ -775,6 +779,13 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       asc(derivedAbilityEffect.sortOrder),
       asc(derivedAbilityEffect.id),
     ),
+    db.select().from(characterDerivedAbility)
+      .where(eq(characterDerivedAbility.characterId, characterId))
+      .orderBy(
+        asc(characterDerivedAbility.derivedAbilityId),
+        asc(characterDerivedAbility.acquiredAt),
+        asc(characterDerivedAbility.id),
+      ),
     db.select({
       id: campaignCharacter.id,
       campaignId: campaignCharacter.campaignId,
@@ -831,6 +842,70 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     definitions: [...ownedStackProfiles, ...ownedInstanceProfiles],
     stacks: ownedItems,
     instances: ownedItemInstances,
+  });
+
+  const allowedSystems = getEffectiveCampaignSystems(
+    allowedSystemRows.map(({ system }) => system),
+    {
+      hasLegacyDerivedAbilityConfiguration: legacyDerivedAbilityRows.length > 0,
+      legacyDerivedAbilityCompatibilityResolved:
+        core.legacyDerivedAbilityCompatibilityResolved,
+    },
+  );
+  const derivedAbilityCatalog = assembleDerivedAbilityCatalog({
+    definitions: derivedAbilityRows,
+    triggers: derivedAbilityTriggerRows.map((trigger) => ({
+      id: trigger.triggerId,
+      derivedAbilityId: trigger.derivedAbilityId,
+      triggerType: trigger.triggerType,
+      attributeKey: trigger.attributeKey,
+      minimumScore: trigger.minimumScore,
+      sortOrder: trigger.sortOrder,
+    })),
+    requirements: derivedAbilityRequirementRows.map((requirement) => ({
+      ...requirement,
+      requirementType:
+        requirement.requirementType as DerivedAbilityRequirementType,
+      operator:
+        requirement.operator as DerivedAbilityRequirementOperator | null,
+    })),
+    useConditions: derivedAbilityUseConditionRows.map((condition) => ({
+      ...condition,
+      conditionType:
+        condition.conditionType as DerivedAbilityUseConditionType,
+      operator:
+        condition.operator as DerivedAbilityRequirementOperator | null,
+    })),
+    costs: derivedAbilityCostRows.map((cost) => ({
+      ...cost,
+      costType: cost.costType as DerivedAbilityCostType,
+    })),
+    useLimits: derivedAbilityUseLimitRows.map((limit) => ({
+      ...limit,
+      refreshScope: limit.refreshScope as DerivedAbilityRefreshScope,
+    })),
+    effects: decodeDerivedAbilityEffectRows(derivedAbilityEffectRows),
+  });
+  const ownerships = derivedAbilityOwnershipRows.map((ownership) => ({
+    ...ownership,
+    acquiredAt: ownership.acquiredAt.toISOString(),
+    revokedAt: ownership.revokedAt?.toISOString() ?? null,
+  }));
+  const storedSkillPoints = new Map<number, number>();
+  for (const allocation of allocationRows) {
+    storedSkillPoints.set(
+      allocation.skillId,
+      Math.max(storedSkillPoints.get(allocation.skillId) ?? 0, allocation.points),
+    );
+  }
+  const resolution = resolveCharacterDerivedAbilities({
+    catalog: derivedAbilityCatalog,
+    ownerships,
+    attributes: Object.fromEntries(
+      attributeRows.map(({ attributeKey, value }) => [attributeKey, value]),
+    ),
+    skillPoints: storedSkillPoints,
+    allowedSystems,
   });
 
   const aggregate: CharacterAggregate = {
@@ -934,14 +1009,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       currencySystem: core.currencySystem,
       fatePointMethod: core.fatePointMethod,
       assignedFatePoints: core.assignedFatePoints,
-      allowedSystems: getEffectiveCampaignSystems(
-        allowedSystemRows.map(({ system }) => system),
-        {
-          hasLegacyDerivedAbilityConfiguration: legacyDerivedAbilityRows.length > 0,
-          legacyDerivedAbilityCompatibilityResolved:
-            core.legacyDerivedAbilityCompatibilityResolved,
-        },
-      ),
+      allowedSystems,
       derivedCurrencies: currencies,
     },
     allowedRaces: allowedRaceRows,
@@ -996,40 +1064,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       armorDamageModifiers: entry.armorDamageModifiers,
       armorRulesText: entry.armorRulesText,
     })),
-    derivedAbilities: assembleDerivedAbilityCatalog({
-      definitions: derivedAbilityRows,
-      triggers: derivedAbilityTriggerRows.map((trigger) => ({
-        id: trigger.triggerId,
-        derivedAbilityId: trigger.derivedAbilityId,
-        triggerType: trigger.triggerType,
-        attributeKey: trigger.attributeKey,
-        minimumScore: trigger.minimumScore,
-        sortOrder: trigger.sortOrder,
-      })),
-      requirements: derivedAbilityRequirementRows.map((requirement) => ({
-        ...requirement,
-        requirementType:
-          requirement.requirementType as DerivedAbilityRequirementType,
-        operator:
-          requirement.operator as DerivedAbilityRequirementOperator | null,
-      })),
-      useConditions: derivedAbilityUseConditionRows.map((condition) => ({
-        ...condition,
-        conditionType:
-          condition.conditionType as DerivedAbilityUseConditionType,
-        operator:
-          condition.operator as DerivedAbilityRequirementOperator | null,
-      })),
-      costs: derivedAbilityCostRows.map((cost) => ({
-        ...cost,
-        costType: cost.costType as DerivedAbilityCostType,
-      })),
-      useLimits: derivedAbilityUseLimitRows.map((limit) => ({
-        ...limit,
-        refreshScope: limit.refreshScope as DerivedAbilityRefreshScope,
-      })),
-      effects: decodeDerivedAbilityEffectRows(derivedAbilityEffectRows),
-    }),
+    derivedAbilities: derivedAbilityCatalog,
+    derivedAbilityOwnerships: ownerships,
+    derivedAbilityStatuses: resolution.statuses,
+    effectiveDerivedAbilityIds: resolution.effectiveDerivedAbilityIds,
   };
 
   return aggregate;
@@ -1336,6 +1374,7 @@ export async function saveCharacter(
 
     await tx.delete(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId));
     if (currencyHoldings.length) await tx.insert(campaignCharacterCurrencyHolding).values(currencyHoldings.map((entry) => ({ characterId, ...entry })));
+    await reconcileCharacterDerivedAbilityPassivesInTransaction(tx, characterId);
   });
 
   revalidatePath("/realms");
@@ -1805,6 +1844,11 @@ export async function advanceCharacterSkills(
       .update(campaignCharacter)
       .set({ updatedAt: changedAt })
       .where(eq(campaignCharacter.id, characterId));
+    await reconcileCharacterDerivedAbilityPassivesInTransaction(
+      tx,
+      characterId,
+      session.user.id,
+    );
   });
 
   revalidateCharacterAdvancementPaths(characterId);
@@ -1993,6 +2037,11 @@ export async function spendCharacterQuintessence(
       .update(campaignCharacter)
       .set({ updatedAt: changedAt })
       .where(eq(campaignCharacter.id, characterId));
+    await reconcileCharacterDerivedAbilityPassivesInTransaction(
+      tx,
+      characterId,
+      session.user.id,
+    );
   });
 
   revalidateCharacterAdvancementPaths(characterId);

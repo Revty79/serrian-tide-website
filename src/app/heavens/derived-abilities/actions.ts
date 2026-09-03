@@ -7,6 +7,8 @@ import {
   eq,
   ilike,
   inArray,
+  isNull,
+  ne,
   or,
   type SQL,
 } from "drizzle-orm";
@@ -15,6 +17,9 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
   campaignAllowedDerivedAbility,
+  characterDerivedAbility,
+  characterDerivedAbilityRecharge,
+  characterDerivedAbilityUse,
   derivedAbility,
   derivedAbilityCost,
   derivedAbilityEffect,
@@ -24,6 +29,7 @@ import {
   derivedAbilityUseLimit,
 } from "@/db/derived-ability-schema";
 import { skill } from "@/db/skill-schema";
+import { campaignCharacter } from "@/db/realm-schema";
 import {
   type DerivedAbilityAuthoringAggregate,
   type DerivedAbilityAuthoringDraft,
@@ -31,6 +37,8 @@ import {
   normalizeDerivedAbilityAuthoringDraft,
 } from "@/features/derived-abilities/derived-ability-authoring";
 import { assembleDerivedAbilityCatalog } from "@/features/derived-abilities/derived-ability-catalog";
+import { assertAcyclicDerivedAbilityGraph } from "@/features/derived-abilities/character-derived-ability-resolver";
+import { reconcileCharacterDerivedAbilityPassivesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
 import {
   decodeDerivedAbilityEffects,
   encodeDerivedAbilityEffects,
@@ -382,6 +390,7 @@ export async function saveDerivedAbility(
       const [stored] = await tx.select({
         sourceSystem: derivedAbility.sourceSystem,
         sourceExternalId: derivedAbility.sourceExternalId,
+        acquisitionType: derivedAbility.acquisitionType,
       }).from(derivedAbility).where(eq(derivedAbility.id, id)).limit(1);
       if (!stored) throw new Error("That Derived Ability no longer exists.");
       if (
@@ -389,6 +398,20 @@ export async function saveDerivedAbility(
         stored.sourceExternalId !== normalized.core.sourceExternalId
       ) {
         throw new Error("Canonical Derived Ability source identity cannot be changed.");
+      }
+      if (stored.acquisitionType !== normalized.acquisitionType) {
+        const [activeOwnership] = await tx.select({ id: characterDerivedAbility.id })
+          .from(characterDerivedAbility)
+          .where(and(
+            eq(characterDerivedAbility.derivedAbilityId, id),
+            isNull(characterDerivedAbility.revokedAt),
+          ))
+          .limit(1);
+        if (activeOwnership) {
+          throw new Error(
+            "Revoke or reconcile active Character ownerships before changing this Derived Ability's Acquisition Type.",
+          );
+        }
       }
       await tx.update(derivedAbility).set({
         name: normalized.core.name,
@@ -407,6 +430,37 @@ export async function saveDerivedAbility(
       ...normalized,
       id,
     });
+    const [graphDefinitions, graphRequirementRows] = await Promise.all([
+      tx.select({
+        id: derivedAbility.id,
+        name: derivedAbility.name,
+        description: derivedAbility.description,
+        mechanicalEffect: derivedAbility.mechanicalEffect,
+        acquisitionType: derivedAbility.acquisitionType,
+        activationType: derivedAbility.activationType,
+        sourceSystem: derivedAbility.sourceSystem,
+        sourceExternalId: derivedAbility.sourceExternalId,
+      }).from(derivedAbility).orderBy(asc(derivedAbility.id)),
+      tx.select().from(derivedAbilityRequirement)
+        .where(ne(derivedAbilityRequirement.derivedAbilityId, id))
+        .orderBy(
+          asc(derivedAbilityRequirement.derivedAbilityId),
+          asc(derivedAbilityRequirement.requirementScope),
+          asc(derivedAbilityRequirement.groupNumber),
+          asc(derivedAbilityRequirement.sortOrder),
+          asc(derivedAbilityRequirement.id),
+        ),
+    ]);
+    assertAcyclicDerivedAbilityGraph(assembleDerivedAbilityCatalog({
+      definitions: graphDefinitions,
+      requirements: [
+        ...mapRequirementRows(graphRequirementRows),
+        ...ownedDefinition.requirements.map((requirement) => ({
+          ...requirement,
+          derivedAbilityId: id,
+        })),
+      ],
+    }));
     const requirements = ownedDefinition.requirements.map((requirement) => ({
       derivedAbilityId: id,
       requirementScope: requirement.requirementScope,
@@ -476,6 +530,16 @@ export async function saveDerivedAbility(
         ...legacyMirror,
       });
     }
+    const characters = await tx.select({ id: campaignCharacter.id })
+      .from(campaignCharacter)
+      .orderBy(asc(campaignCharacter.id));
+    for (const character of characters) {
+      await reconcileCharacterDerivedAbilityPassivesInTransaction(
+        tx,
+        character.id,
+        session.user.id,
+      );
+    }
     return id;
   });
 
@@ -497,11 +561,17 @@ export async function deleteDerivedAbility(id: number): Promise<void> {
     if (stored.sourceSystem) {
       throw new Error("Canonical Derived Abilities cannot be deleted.");
     }
-    const [prerequisiteRows, legacyReferenceRows] = await Promise.all([
+    const [prerequisiteRows, legacyReferenceRows, ownershipRows, useRows, rechargeRows] = await Promise.all([
       tx.select({ value: count() }).from(derivedAbilityRequirement)
         .where(eq(derivedAbilityRequirement.requiredDerivedAbilityId, id)),
       tx.select({ value: count() }).from(campaignAllowedDerivedAbility)
         .where(eq(campaignAllowedDerivedAbility.derivedAbilityId, id)),
+      tx.select({ value: count() }).from(characterDerivedAbility)
+        .where(eq(characterDerivedAbility.derivedAbilityId, id)),
+      tx.select({ value: count() }).from(characterDerivedAbilityUse)
+        .where(eq(characterDerivedAbilityUse.derivedAbilityId, id)),
+      tx.select({ value: count() }).from(characterDerivedAbilityRecharge)
+        .where(eq(characterDerivedAbilityRecharge.derivedAbilityId, id)),
     ]);
     if (Number(prerequisiteRows[0]?.value ?? 0) > 0) {
       throw new Error(
@@ -511,6 +581,19 @@ export async function deleteDerivedAbility(id: number): Promise<void> {
     if (Number(legacyReferenceRows[0]?.value ?? 0) > 0) {
       throw new Error(
         "This record still has legacy campaign references. Those references must be reconciled before deletion.",
+      );
+    }
+    if (Number(ownershipRows[0]?.value ?? 0) > 0) {
+      throw new Error(
+        "This Derived Ability has Character ownership history and cannot be deleted.",
+      );
+    }
+    if (
+      Number(useRows[0]?.value ?? 0) > 0
+      || Number(rechargeRows[0]?.value ?? 0) > 0
+    ) {
+      throw new Error(
+        "This Derived Ability has Character use or recharge history and cannot be deleted.",
       );
     }
     await tx.delete(derivedAbility).where(eq(derivedAbility.id, id));

@@ -15,6 +15,7 @@
     "validate:creature-ability": "tsx --test src/features/creatures/creature-ability.test.ts",
     "validate:derived-abilities": "tsx --test src/features/derived-abilities/*.test.ts",
     "validate:derived-ability-effects-db": "node --env-file=.env.local --import tsx --test scripts/derived-ability-effects-db.test.ts",
+    "validate:derived-ability-runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/derived-ability-runtime-db.test.ts",
     "validate:baseline": "node scripts/verify-squashed-baseline.mjs",
     "validate:character": "tsx --test src/features/characters/character-creation.test.ts src/features/characters/attribute-reference.test.ts src/features/characters/character-attribute-card.test.ts src/features/characters/character-print.test.ts",
     "validate:chat": "tsx --test src/features/chat/*.test.ts",

@@ -269,12 +269,16 @@ test("Character Sheet and print use the shared resolver and keep Derived Abiliti
     path.resolve(process.cwd(), "src/app/characters/printable-character-sheet.tsx"),
     "utf8",
   );
-  assert.match(sheet, /getActiveDerivedAbilities/);
+  const panel = readFileSync(
+    path.resolve(process.cwd(), "src/app/characters/derived-ability-panel.tsx"),
+    "utf8",
+  );
+  assert.match(sheet, /resolveCharacterDerivedAbilities/);
   assert.match(sheet, /aggregate\.campaign\.allowedSystems/);
-  assert.match(sheet, />Derived Abilities</);
-  assert.match(sheet, /character-sheet__derived-abilities/);
+  assert.match(sheet, /<DerivedAbilityPanel/);
+  assert.match(panel, /character-sheet__derived-abilities/);
   assert.match(sheet, /skillSections\.map/);
-  assert.match(printRules, /getActiveDerivedAbilities/);
+  assert.match(printRules, /resolveCharacterDerivedAbilities/);
   assert.match(printRules, /aggregate\.campaign\.allowedSystems/);
   assert.match(printable, /function SupplementalDerivedAbilities/);
   assert.match(printable, /title="Derived Abilities"/);

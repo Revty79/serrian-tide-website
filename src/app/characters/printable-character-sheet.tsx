@@ -35,6 +35,7 @@ import {
   getStoredCampaignMoneyBreakdown,
 } from "@/features/characters/currency-rules";
 import { getDerivedAbilityRequirementSummary } from "@/features/derived-abilities/derived-ability-rules";
+import { formatDerivedAbilityMechanicalEffectSummary } from "@/features/derived-abilities/derived-ability-effects";
 
 import { CharacterHitLocationSilhouette } from "./character-hit-location-chart";
 
@@ -708,12 +709,15 @@ function SupplementalDerivedAbilities(props: Props) {
         <table>
           <thead><tr><th>Name</th><th>Requirement</th><th>Description</th><th>Rules Text</th></tr></thead>
           <tbody>
-            {props.data.derivedAbilities.map((ability) => (
+            {props.data.derivedAbilities.map(({ ability, status }) => (
               <tr key={ability.id}>
-                <th>{ability.name}</th>
+                <th>{ability.name}{status.available ? "" : " · KNOWN, UNAVAILABLE"}</th>
                 <td>{getDerivedAbilityRequirementSummary(ability, references)}</td>
                 <td>{ability.description || "—"}</td>
-                <td>{ability.mechanicalEffect || "—"}</td>
+                <td>{[
+                  ability.mechanicalEffect,
+                  ...ability.effects.map(formatDerivedAbilityMechanicalEffectSummary),
+                ].filter(Boolean).join("; ") || "—"}</td>
               </tr>
             ))}
           </tbody>

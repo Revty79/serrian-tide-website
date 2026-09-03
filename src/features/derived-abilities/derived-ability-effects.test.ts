@@ -405,7 +405,7 @@ test("the constructor presents progressive shared fields without raw JSON", () =
   assert.match(editor, /draft\.effects\.filter\(\(_, position\) => position !== index\)/);
 });
 
-test("canonical definitions remain zero-effect compatible and Pass 5 adds no use runtime", () => {
+test("canonical definitions remain zero-effect compatible while Pass 6 adds Character runtime", () => {
   const baseline = source("drizzle/0000_serrian_tide_baseline.sql");
   const migration = source("drizzle/0019_derived_ability_mechanical_effects.sql");
   const canonicalNames = [
@@ -428,6 +428,6 @@ test("canonical definitions remain zero-effect compatible and Pass 5 adds no use
   });
   const action = source("src/app/heavens/derived-abilities/actions.ts");
   const schema = source("src/db/derived-ability-schema.ts");
-  assert.doesNotMatch(`${action}\n${schema}`, /characterDerivedAbility|campaignCharacterDerivedAbility/);
-  assert.doesNotMatch(action, /deduct|consume|spendXp|useCounter|reactionWindow|executeCombat|applyMechanicalEffect/);
+  assert.match(`${action}\n${schema}`, /characterDerivedAbility/);
+  assert.doesNotMatch(action, /spendXp|reactionWindow|executeCombat/);
 });

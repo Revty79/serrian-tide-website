@@ -531,9 +531,11 @@ test("delete errors explain prerequisite and legacy compatibility references", (
   assert.match(action, /Canonical Derived Abilities cannot be deleted/);
 });
 
-test("Pass 5 adds definition effects without ownership, payment, or combat execution", () => {
+test("Pass 6 protects owned classifications and keeps combat-window ownership separate", () => {
   const action = source("src/app/heavens/derived-abilities/actions.ts");
-  assert.doesNotMatch(action, /characterDerivedAbility|campaignCharacterDerivedAbility/);
-  assert.doesNotMatch(action, /activeEffect|initiativeRuntime|deduct|consume|recharge|reactionWindow/);
-  assert.match(source("drizzle/meta/_journal.json"), /0019_derived_ability_mechanical_effects/);
+  assert.match(action, /characterDerivedAbility/);
+  assert.match(action, /Revoke or reconcile active Character ownerships/);
+  assert.match(action, /assertAcyclicDerivedAbilityGraph/);
+  assert.doesNotMatch(action, /reactionWindow/);
+  assert.match(source("drizzle/meta/_journal.json"), /0020_derived_ability_character_runtime/);
 });

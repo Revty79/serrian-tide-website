@@ -141,6 +141,13 @@
       "when": 1788462349479,
       "tag": "0019_derived_ability_mechanical_effects",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788464116353,
+      "tag": "0020_derived_ability_character_runtime",
+      "breakpoints": true
     }
   ]
 }

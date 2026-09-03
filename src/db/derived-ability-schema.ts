@@ -16,7 +16,13 @@ import {
 
 import { user } from "./auth-schema";
 import { campaign } from "./campaign-schema";
+import { campaignCharacter } from "./realm-schema";
 import { skill } from "./skill-schema";
+import {
+  campaignSession,
+  campaignSessionEncounter,
+  campaignSessionScene,
+} from "./tabletop-operations-schema";
 
 export const derivedAbilityAcquisitionType = pgEnum(
   "derived_ability_acquisition_type",
@@ -303,6 +309,179 @@ export const derivedAbilityEffect = pgTable(
     check(
       "derived_ability_effect_json_object",
       sql`jsonb_typeof(${table.effectJson}) = 'object'`,
+    ),
+  ],
+);
+
+export const characterDerivedAbilityAcquisitionMethod = pgEnum(
+  "character_derived_ability_acquisition_method",
+  ["learned", "awarded"],
+);
+
+/**
+ * Auditable Character ownership for non-Automatic Derived Abilities.
+ * Revocation closes a row; reacquisition creates a new row. Automatic
+ * abilities are intentionally calculated and must never be inserted here.
+ *
+ * TODO: If canon later defines an acquisition price, add it as a separate
+ * advancement rule. Learning currently spends no XP, Skill points, Mana,
+ * Quintessence, or other resource.
+ */
+export const characterDerivedAbility = pgTable(
+  "character_derived_ability",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    derivedAbilityId: integer("derived_ability_id")
+      .notNull()
+      .references(() => derivedAbility.id, { onDelete: "restrict" }),
+    acquisitionMethod: characterDerivedAbilityAcquisitionMethod(
+      "acquisition_method",
+    ).notNull(),
+    acquiredByUserId: text("acquired_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    acquisitionNotes: text("acquisition_notes").default("").notNull(),
+    acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at"),
+    revokedByUserId: text("revoked_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    revocationNotes: text("revocation_notes").default("").notNull(),
+  },
+  (table) => [
+    uniqueIndex("character_derived_ability_active_uq")
+      .on(table.characterId, table.derivedAbilityId)
+      .where(sql`${table.revokedAt} IS NULL`),
+    index("character_derived_ability_character_history_idx").on(
+      table.characterId,
+      table.acquiredAt,
+      table.id,
+    ),
+    index("character_derived_ability_definition_history_idx").on(
+      table.derivedAbilityId,
+      table.revokedAt,
+      table.id,
+    ),
+    check(
+      "character_derived_ability_revocation_valid",
+      sql`(${table.revokedAt} IS NULL AND ${table.revokedByUserId} IS NULL AND ${table.revocationNotes} = '') OR (${table.revokedAt} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const characterDerivedAbilityUse = pgTable(
+  "character_derived_ability_use",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    derivedAbilityId: integer("derived_ability_id")
+      .notNull()
+      .references(() => derivedAbility.id, { onDelete: "restrict" }),
+    ownershipId: integer("ownership_id").references(
+      () => characterDerivedAbility.id,
+      { onDelete: "restrict" },
+    ),
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    sessionId: integer("session_id").references(() => campaignSession.id, {
+      onDelete: "restrict",
+    }),
+    sceneId: integer("scene_id").references(() => campaignSessionScene.id, {
+      onDelete: "restrict",
+    }),
+    encounterId: integer("encounter_id").references(
+      () => campaignSessionEncounter.id,
+      { onDelete: "restrict" },
+    ),
+    roundNumber: integer("round_number"),
+    eventKey: text("event_key"),
+    effectSummary: text("effect_summary").default("").notNull(),
+    manualSteps: text("manual_steps").default("").notNull(),
+    useNotes: text("use_notes").default("").notNull(),
+    usedAt: timestamp("used_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("character_derived_ability_use_character_idx").on(
+      table.characterId,
+      table.derivedAbilityId,
+      table.usedAt,
+      table.id,
+    ),
+    index("character_derived_ability_use_encounter_idx").on(
+      table.encounterId,
+      table.roundNumber,
+      table.usedAt,
+    ),
+    index("character_derived_ability_use_scene_idx").on(
+      table.sceneId,
+      table.usedAt,
+    ),
+    check(
+      "character_derived_ability_use_round_valid",
+      sql`${table.roundNumber} IS NULL OR ${table.roundNumber} > 0`,
+    ),
+    check(
+      "character_derived_ability_use_event_key_nonblank",
+      sql`${table.eventKey} IS NULL OR length(trim(${table.eventKey})) > 0`,
+    ),
+  ],
+);
+
+export const characterDerivedAbilityRecharge = pgTable(
+  "character_derived_ability_recharge",
+  {
+    id: serial("id").primaryKey(),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    derivedAbilityId: integer("derived_ability_id")
+      .notNull()
+      .references(() => derivedAbility.id, { onDelete: "restrict" }),
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    refreshScope: text("refresh_scope").notNull(),
+    refreshKey: text("refresh_key"),
+    sessionId: integer("session_id").references(() => campaignSession.id, {
+      onDelete: "restrict",
+    }),
+    sceneId: integer("scene_id").references(() => campaignSessionScene.id, {
+      onDelete: "restrict",
+    }),
+    encounterId: integer("encounter_id").references(
+      () => campaignSessionEncounter.id,
+      { onDelete: "restrict" },
+    ),
+    roundNumber: integer("round_number"),
+    notes: text("notes").default("").notNull(),
+    rechargedAt: timestamp("recharged_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("character_derived_ability_recharge_character_idx").on(
+      table.characterId,
+      table.derivedAbilityId,
+      table.refreshScope,
+      table.refreshKey,
+      table.rechargedAt,
+      table.id,
+    ),
+    check(
+      "character_derived_ability_recharge_scope_valid",
+      sql`${table.refreshScope} IN ('manual','event')`,
+    ),
+    check(
+      "character_derived_ability_recharge_key_valid",
+      sql`(${table.refreshScope} = 'manual' AND ${table.refreshKey} IS NULL) OR (${table.refreshScope} = 'event' AND ${table.refreshKey} IS NOT NULL AND length(trim(${table.refreshKey})) > 0)`,
+    ),
+    check(
+      "character_derived_ability_recharge_round_valid",
+      sql`${table.roundNumber} IS NULL OR ${table.roundNumber} > 0`,
     ),
   ],
 );

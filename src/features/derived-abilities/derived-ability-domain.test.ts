@@ -316,8 +316,8 @@ test("the additive domain retains V1 fallback storage and shared effect source s
   assert.match(schema, /export const derivedAbilityTrigger = pgTable/);
   assert.match(schema, /export const campaignAllowedDerivedAbility = pgTable/);
   assert.match(schema, /mechanicalEffect: text\("mechanical_effect"\)/);
-  assert.doesNotMatch(schema, /character_derived_ability/);
-  assert.match(runtime, /ability\.requirements\.length === 0/);
+  assert.match(schema, /character_derived_ability/);
+  assert.match(runtime, /ability\.requirements\.length > 0/);
   assert.match(runtime, /evaluateLegacyV1Fallback\(ability, context\)/);
   assert.match(runtime, /evaluateDerivedAbilityLiveRequirements/);
   assert.match(mechanicalEffects, /kind: "derived-ability"; id: number; name: string/);

@@ -347,6 +347,19 @@ function evaluateLegacyV1Fallback(
   }
 }
 
+export function evaluateDerivedAbilityLiveAvailability(
+  ability: Pick<DerivedAbilityDefinition, "requirements" | "triggers">,
+  context: DerivedAbilityEvaluationContext,
+): DerivedAbilityRequirementResult {
+  if (ability.requirements.length > 0) {
+    return evaluateDerivedAbilityLiveRequirements(ability, context);
+  }
+  if (ability.triggers.length === 0) return "satisfied";
+  return evaluateLegacyV1Fallback(ability, context)
+    ? "satisfied"
+    : "unsatisfied";
+}
+
 export function getActiveDerivedAbilities(
   catalog: readonly DerivedAbilityDefinition[],
   context: DerivedAbilityEvaluationContext,
@@ -355,12 +368,7 @@ export function getActiveDerivedAbilities(
   if (!allowedSystems.includes("Derived Abilities")) return [];
   return catalog.filter((ability) => {
     if (ability.acquisitionType !== "automatic") return false;
-    if (ability.requirements.length === 0) {
-      return ability.triggers.length === 0
-        ? true
-        : evaluateLegacyV1Fallback(ability, context);
-    }
-    return evaluateDerivedAbilityLiveRequirements(ability, context) === "satisfied";
+    return evaluateDerivedAbilityLiveAvailability(ability, context) === "satisfied";
   });
 }
 
