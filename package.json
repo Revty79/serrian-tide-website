@@ -56,6 +56,8 @@
     "validate:action-declaration-browser": "node --conditions=react-server --import tsx scripts/action-declaration-windows-browser.test.ts",
     "validate:defense-intervention-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/defense-intervention-db.test.ts",
     "validate:defense-intervention-browser": "node --conditions=react-server --import tsx scripts/action-declaration-windows-browser.test.ts",
+    "validate:action-effect-bridge-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/action-effect-bridge-db.test.ts",
+    "validate:action-effect-bridge-browser": "node --conditions=react-server --import tsx scripts/action-effect-bridge-browser.test.ts",
     "validate:spell": "tsx --test src/features/spell-construction/spell-integration.test.ts",
     "validate:spell-effects": "tsx --test src/features/spell-construction/mechanical-effects-adapter.test.ts",
     "validate:spell-runtime": "tsx --test src/features/characters/character-spell-runtime.test.ts",

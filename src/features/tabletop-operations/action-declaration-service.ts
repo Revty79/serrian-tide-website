@@ -9,6 +9,9 @@ import { campaignCharacter } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterActionDeclarationEvent,
+  campaignSessionEncounterEffect,
+  campaignSessionEncounterEffectPlan,
+  campaignSessionEncounterEffectPlanEvent,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
   campaignSessionEncounterResponderOpportunity,
@@ -54,6 +57,7 @@ import {
   type OwnedEncounterRuntimeContext,
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
+import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
 
 export type ActionDeclarationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -274,6 +278,7 @@ function snapshotDraft(snapshot: LockedActionDeclarationSnapshot): ActionDeclara
     sourceKind: snapshot.source.kind,
     sourceRef: snapshot.source.ref,
     sourceInstanceId: snapshot.source.instanceId,
+    sourcePayload: snapshot.source.payload ?? {},
     weaponItemId: snapshot.weapon?.itemId ?? null,
     firingModeId: snapshot.weapon?.firingModeId ?? null,
     attackMode: snapshot.weapon?.attackMode ?? "",
@@ -294,7 +299,7 @@ async function buildAuthoritativeSnapshot(
   context: OwnedEncounterRuntimeContext,
   row: LockedDeclarationRow,
   draftInput: ActionDeclarationDraft,
-  lockingUserId: string,
+  actor: ActionDeclarationActor,
   now: Date,
 ): Promise<LockedActionDeclarationSnapshot> {
   let draft = normalizeActionDeclarationDraft(draftInput);
@@ -322,9 +327,6 @@ async function buildAuthoritativeSnapshot(
   let weapon: LockedActionDeclarationSnapshot["weapon"] = null;
   let governing: LockedActionDeclarationSnapshot["governing"] = null;
   let authoritativeSourceRef = draft.sourceRef;
-  if (draft.sourceKind !== "generic" && draft.sourceKind !== "weapon") {
-    throw new Error("This action source cannot yet be authoritatively locked by the Pass 6 declaration foundation.");
-  }
   if (draft.sourceKind === "generic" && draft.actorCharacterId < 0) {
     governing = {
       status: "needs-god-ruling",
@@ -351,7 +353,7 @@ async function buildAuthoritativeSnapshot(
       ? null
       : equipped.firingModes.find(({ id }) => id === draft.firingModeId) ?? null;
     if (draft.firingModeId !== null && !mode) throw new Error("The declared Firing Mode no longer belongs to that Weapon.");
-    const resolution = await resolveCharacterWeaponGovernanceInTransaction(tx, { userId: lockingUserId }, {
+    const resolution = await resolveCharacterWeaponGovernanceInTransaction(tx, { userId: actor.userId }, {
       campaignId: context.campaignId,
       characterId: draft.actorCharacterId,
       itemId: equipped.itemId,
@@ -383,6 +385,14 @@ async function buildAuthoritativeSnapshot(
           explanation: resolution.explanation,
         };
   }
+  const resolvedSource = await resolveLockedActionSourceInTransaction(tx, context, actor, row.id, draft, {
+    weapon,
+    governing,
+  });
+  governing = resolvedSource.governing;
+  if (resolvedSource.authoritativeInitiativeCost !== null && draft.windowKind !== "firearm-trigger") {
+    draft = { ...draft, initiativeCost: resolvedSource.authoritativeInitiativeCost };
+  }
   return buildLockedActionDeclarationSnapshot({
     draft,
     context: {
@@ -395,9 +405,10 @@ async function buildAuthoritativeSnapshot(
     },
     weapon,
     governing,
+    authoredSource: resolvedSource.snapshot,
     authoritativeSourceRef,
     authorUserId: row.createdByUserId,
-    lockedByUserId: lockingUserId,
+    lockedByUserId: actor.userId,
     authoredAt: row.createdAt,
     lockedAt: now,
   });
@@ -434,6 +445,29 @@ export async function createActionDeclarationDraftInTransaction(
     createdByUserId: actor.userId,
   }).returning({ id: campaignSessionEncounterActionDeclaration.id });
   if (!created) throw new Error("The action declaration draft could not be saved.");
+  if (supersedesDeclarationId !== null) {
+    const [priorPlan] = await tx.select().from(campaignSessionEncounterEffectPlan)
+      .where(eq(campaignSessionEncounterEffectPlan.declarationId, supersedesDeclarationId))
+      .limit(1)
+      .for("update");
+    if (priorPlan && priorPlan.status === "cancelled") {
+      await tx.update(campaignSessionEncounterEffectPlan).set({ status: "superseded", updatedAt: new Date() })
+        .where(eq(campaignSessionEncounterEffectPlan.id, priorPlan.id));
+      await tx.insert(campaignSessionEncounterEffectPlanEvent).values({
+        planId: priorPlan.id,
+        encounterId: context.encounterId,
+        sceneId: context.sceneId,
+        sessionId: context.sessionId,
+        campaignId: context.campaignId,
+        fromStatus: "cancelled",
+        toStatus: "superseded",
+        eventKind: "replacement-declaration-created",
+        reason: "The cancelled declaration received an explicit replacement draft.",
+        metadata: { replacementDeclarationId: created.id },
+        actorUserId: actor.userId,
+      });
+    }
+  }
   await recordEvent(tx, context, created.id, null, "draft", "draft-created", actor.userId);
   return created.id;
 }
@@ -469,7 +503,7 @@ export async function lockActionDeclarationInTransaction(
   await assertActorAuthority(tx, context, actor, row.actorCharacterId);
   assertActionDeclarationTransition("draft", "locked");
   const now = new Date();
-  const snapshot = await buildAuthoritativeSnapshot(tx, context, row, parseActionDeclarationDraft(row.draftJson), actor.userId, now);
+  const snapshot = await buildAuthoritativeSnapshot(tx, context, row, parseActionDeclarationDraft(row.draftJson), actor, now);
   await tx.update(campaignSessionEncounterActionDeclaration).set({
     status: "locked",
     lockedSnapshotJson: snapshot,
@@ -828,6 +862,16 @@ async function transitionCommittedDeclaration(
   const reason = boundedReason(reasonInput, "G.O.D. ruling reason", reasonRequired);
   const notes = boundedReason(notesInput, "G.O.D. ruling notes", false);
   const now = new Date();
+  if (nextStatus === "cancelled" || nextStatus === "abandoned") {
+    const [existingEffectPlan] = await tx.select({ status: campaignSessionEncounterEffectPlan.status })
+      .from(campaignSessionEncounterEffectPlan)
+      .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id))
+      .limit(1)
+      .for("update");
+    if (existingEffectPlan?.status === "partially-applied") {
+      throw new Error("A partially applied Action Effect Plan must be explicitly completed before its declaration can end.");
+    }
+  }
   if (nextStatus === "resolved") {
     if (row.pendingActionId === null) throw new Error("A declaration cannot resolve before Initiative commitment.");
     const [pending] = await tx.select({
@@ -840,17 +884,29 @@ async function transitionCommittedDeclaration(
     if (!pending || pending.status !== "completed" || pending.remaining !== 0) {
       throw new Error("Resolution requires the committed action to reach Initiative completion.");
     }
+    const [effectPlan] = await tx.select({ status: campaignSessionEncounterEffectPlan.status })
+      .from(campaignSessionEncounterEffectPlan)
+      .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id))
+      .limit(1);
+    if (effectPlan && effectPlan.status !== "applied" && effectPlan.status !== "declined") {
+      throw new Error("The Action Effect Plan must be applied or declined before this declaration resolves.");
+    }
   }
   if (row.pendingActionId !== null && (nextStatus === "interrupted" || nextStatus === "cancelled" || nextStatus === "abandoned")) {
     const before = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
     const pending = before.pendingActions.find(({ id }) => id === row.pendingActionId);
     if (!pending) throw new Error("The committed pending action no longer exists.");
-    const after = nextStatus === "interrupted"
-      ? interruptPendingInitiativeAction(before, pending.id)
-      : nextStatus === "abandoned"
-        ? abandonPendingInitiativeAction(before, pending.id)
-        : endPendingInitiativeAction(before, pending.id);
-    await persistInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context, before, after);
+    if (pending.status === "completed" && nextStatus === "interrupted") {
+      throw new Error("A completed Initiative action cannot be interrupted.");
+    }
+    if (pending.status !== "completed") {
+      const after = nextStatus === "interrupted"
+        ? interruptPendingInitiativeAction(before, pending.id)
+        : nextStatus === "abandoned"
+          ? abandonPendingInitiativeAction(before, pending.id)
+          : endPendingInitiativeAction(before, pending.id);
+      await persistInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context, before, after);
+    }
     await tx.update(campaignSessionEncounterResponderOpportunity).set({
       status: "cancelled",
       rulingReason: reason || `Source declaration ${nextStatus}.`,
@@ -871,6 +927,42 @@ async function transitionCommittedDeclaration(
     endedAt: terminal ? now : null,
     updatedAt: now,
   }).where(eq(campaignSessionEncounterActionDeclaration.id, row.id));
+  if (nextStatus === "cancelled" || nextStatus === "abandoned") {
+    const [plan] = await tx.select().from(campaignSessionEncounterEffectPlan)
+      .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id))
+      .limit(1)
+      .for("update");
+    if (plan && !["applied", "declined", "cancelled", "superseded"].includes(plan.status)) {
+      await tx.update(campaignSessionEncounterEffect).set({
+        status: "declined",
+        amendmentReason: reason || `Originating declaration ${nextStatus}.`,
+        amendedByUserId: actor.userId,
+        updatedAt: now,
+      }).where(and(
+        eq(campaignSessionEncounterEffect.planId, plan.id),
+        inArray(campaignSessionEncounterEffect.status, ["calculated", "requires-god-ruling", "approved", "application-failed"]),
+      ));
+      await tx.update(campaignSessionEncounterEffectPlan).set({
+        status: "cancelled",
+        appliedByUserId: null,
+        appliedAt: null,
+        updatedAt: now,
+      }).where(eq(campaignSessionEncounterEffectPlan.id, plan.id));
+      await tx.insert(campaignSessionEncounterEffectPlanEvent).values({
+        planId: plan.id,
+        encounterId: context.encounterId,
+        sceneId: context.sceneId,
+        sessionId: context.sessionId,
+        campaignId: context.campaignId,
+        fromStatus: plan.status,
+        toStatus: "cancelled",
+        eventKind: "originating-declaration-ended",
+        reason: reason || `Originating declaration ${nextStatus}.`,
+        metadata: { declarationStatus: nextStatus },
+        actorUserId: actor.userId,
+      });
+    }
+  }
   await recordEvent(tx, context, row.id, row.status, nextStatus, `declaration-${nextStatus}`, actor.userId, reason, notes ? { notes } : {});
 }
 

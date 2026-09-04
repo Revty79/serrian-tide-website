@@ -166,8 +166,17 @@
 
 .action-declaration-editor > header,
 .action-declaration-editor > footer,
-.action-declaration-editor .is-wide {
+.action-declaration-editor .is-wide,
+.action-declaration-source-note {
   grid-column: 1 / -1;
+}
+
+.action-declaration-source-note {
+  margin: 0;
+  padding: .65rem .75rem;
+  border-left: 2px solid rgb(203 169 101 / 55%);
+  color: var(--tabletop-muted, #aaa297);
+  font-size: .78rem;
 }
 
 .action-declaration-editor label {
@@ -543,6 +552,121 @@
   gap: 5px;
 }
 
+.action-effect-workspace {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgb(198 165 94 / 24%);
+}
+
+.action-effect-workspace > header,
+.action-effect-ready article,
+.action-effect-plan > header,
+.action-effect-list > article > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.action-effect-workspace > header span,
+.action-effect-plan > header span,
+.action-effect-values span {
+  display: block;
+  color: #d4b96f;
+  font-size: .64rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.action-effect-workspace h6 {
+  margin: 3px 0 0;
+  font-size: 1.12rem;
+}
+
+.action-effect-ready,
+.action-effect-plans,
+.action-effect-list {
+  display: grid;
+  gap: 10px;
+}
+
+.action-effect-ready article,
+.action-effect-plan,
+.action-effect-list > article {
+  padding: 13px;
+  border: 1px solid rgb(198 165 94 / 16%);
+  border-radius: 12px;
+  background: rgb(11 14 17 / 52%);
+}
+
+.action-effect-ready small,
+.action-effect-plan small,
+.action-effect-list small {
+  display: block;
+  color: #96a1aa;
+  overflow-wrap: anywhere;
+}
+
+.action-effect-plan {
+  display: grid;
+  gap: 12px;
+}
+
+.action-effect-plan > footer,
+.action-effect-list > article > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-effect-evidence,
+.action-effect-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.action-effect-evidence section,
+.action-effect-values section,
+.action-effect-warning {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: rgb(1 5 9 / 44%);
+}
+
+.action-effect-history {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding-left: 22px;
+}
+
+.action-effect-history small {
+  display: block;
+}
+
+.action-effect-evidence pre,
+.action-effect-values pre,
+.action-effect-warning pre {
+  max-height: 160px;
+  overflow: auto;
+  margin: 6px 0 0;
+  color: #b8c1c8;
+  font: .7rem/1.42 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.action-effect-warning {
+  border-color: rgb(221 166 79 / 35%);
+  color: #e0c98d;
+}
+
 @media(max-width:620px) {
   .defense-declaration-grid {
     grid-template-columns: 1fr;
@@ -557,6 +681,18 @@
   .defense-resolution-list > article > header,
   .defense-reaction-card {
     flex-direction: column;
+  }
+
+  .action-effect-workspace > header,
+  .action-effect-ready article,
+  .action-effect-plan > header,
+  .action-effect-list > article > header {
+    flex-direction: column;
+  }
+
+  .action-effect-evidence,
+  .action-effect-values {
+    grid-template-columns: 1fr;
   }
 
   .tabletop-campaign-intro-control {

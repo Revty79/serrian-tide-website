@@ -1,4 +1,5 @@
 import type { InitiativeParticipantState, PendingInitiativeActionState } from "./initiative-runtime";
+import type { FrozenActionSourceSnapshot } from "./action-effect-bridge";
 
 export const ACTION_DECLARATION_STATUSES = [
   "draft",
@@ -26,7 +27,12 @@ export const ACTION_DECLARATION_SOURCE_KINDS = [
   "creature-attack",
   "spell",
   "item",
+  "derived-ability",
+  "skill",
+  "attribute",
   "creature-ability",
+  "no-roll",
+  "manual",
 ] as const;
 
 export const RESPONDER_OPPORTUNITY_STATUSES = [
@@ -55,6 +61,7 @@ export type ActionDeclarationDraft = Readonly<{
   sourceKind: ActionDeclarationSourceKind;
   sourceRef: string | null;
   sourceInstanceId: number | null;
+  sourcePayload?: Readonly<Record<string, unknown>> | null;
   weaponItemId: number | null;
   firingModeId: number | null;
   attackMode: string;
@@ -91,6 +98,7 @@ export type LockedActionDeclarationSnapshot = Readonly<{
     kind: ActionDeclarationSourceKind;
     ref: string | null;
     instanceId: number | null;
+    payload?: Readonly<Record<string, unknown>>;
   }>;
   weapon: null | Readonly<{
     itemId: number;
@@ -104,6 +112,7 @@ export type LockedActionDeclarationSnapshot = Readonly<{
     rollOverTarget: number | null;
     explanation: string;
   }>;
+  authoredSource?: FrozenActionSourceSnapshot | null;
   initiativeCost: number;
   allowsMultiRound: boolean;
   heldIntervention: boolean;
@@ -237,6 +246,9 @@ export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): 
     sourceKind: input.sourceKind,
     sourceRef: input.sourceRef === null ? null : text(input.sourceRef, "Source identity", 400),
     sourceInstanceId: optionalId(input.sourceInstanceId, "Source instance"),
+    sourcePayload: input.sourcePayload && typeof input.sourcePayload === "object" && !Array.isArray(input.sourcePayload)
+      ? structuredClone(input.sourcePayload)
+      : undefined,
     weaponItemId,
     firingModeId: optionalId(input.firingModeId, "Firing Mode"),
     attackMode: text(input.attackMode, "Attack or firing mode", 160, false),
@@ -273,6 +285,7 @@ export function buildLockedActionDeclarationSnapshot(input: {
   context: LockedActionDeclarationSnapshot["context"];
   weapon: LockedActionDeclarationSnapshot["weapon"];
   governing: LockedActionDeclarationSnapshot["governing"];
+  authoredSource?: FrozenActionSourceSnapshot | null;
   authorUserId: string;
   lockedByUserId: string;
   authoredAt: Date;
@@ -301,12 +314,16 @@ export function buildLockedActionDeclarationSnapshot(input: {
       kind: draft.sourceKind,
       ref: input.authoritativeSourceRef === undefined ? draft.sourceRef : input.authoritativeSourceRef,
       instanceId: draft.sourceInstanceId,
+      ...(draft.sourcePayload && Object.keys(draft.sourcePayload).length > 0
+        ? { payload: structuredClone(draft.sourcePayload) }
+        : {}),
     },
     weapon: input.weapon === null ? null : { ...input.weapon },
     governing: input.governing === null ? null : {
       ...input.governing,
       source: structuredClone(input.governing.source),
     },
+    authoredSource: input.authoredSource ? structuredClone(input.authoredSource) : null,
     initiativeCost: draft.initiativeCost,
     allowsMultiRound: draft.allowsMultiRound,
     heldIntervention: draft.heldIntervention,
@@ -341,6 +358,7 @@ export function parseLockedActionDeclarationSnapshot(value: unknown): LockedActi
       sourceKind: candidate.source.kind,
       sourceRef: candidate.source.ref,
       sourceInstanceId: candidate.source.instanceId,
+      sourcePayload: candidate.source.payload,
       weaponItemId: candidate.weapon?.itemId ?? null,
       firingModeId: candidate.weapon?.firingModeId ?? null,
       attackMode: candidate.weapon?.attackMode ?? "",
@@ -357,6 +375,7 @@ export function parseLockedActionDeclarationSnapshot(value: unknown): LockedActi
     context: candidate.context,
     weapon: candidate.weapon,
     governing: candidate.governing,
+    authoredSource: candidate.authoredSource ?? null,
     authorUserId: candidate.authorUserId,
     lockedByUserId: candidate.lockedByUserId,
     authoredAt: new Date(candidate.authoredAt),

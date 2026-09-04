@@ -12,6 +12,7 @@ import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/
 import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
+import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 
@@ -35,6 +36,7 @@ import { InitiativeTracker } from "./initiative-tracker";
 import { CombatAidWorkspace } from "./combat-aid-workspace";
 import { ActionDeclarationWorkspace } from "./action-declaration-workspace";
 import { DefenseInterventionWorkspace } from "./defense-intervention-workspace";
+import { ActionEffectPlanWorkspace } from "./action-effect-plan-workspace";
 import { EncounterCloseout } from "./encounter-closeout";
 import { CreatureCatalogSpawn } from "./creature-catalog-spawn";
 
@@ -159,6 +161,7 @@ export function EncounterWorkspace({
   initialCombatAid,
   initialActionDeclarations,
   initialDefenseInterventions,
+  initialActionEffects,
   initialCloseout,
   initialRollWorkspace,
   scene,
@@ -168,6 +171,7 @@ export function EncounterWorkspace({
   initialCombatAid: CombatAidEncounterView | null;
   initialActionDeclarations: ActionDeclarationWorkspaceView | null;
   initialDefenseInterventions: DefenseInterventionWorkspaceView | null;
+  initialActionEffects: ActionEffectWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   scene: CampaignSceneDetail;
@@ -392,7 +396,7 @@ export function EncounterWorkspace({
           ? <InitiativeTracker data={initialInitiativeTracker} />
           : <p className="tabletop-empty">Initiative data is unavailable for this Encounter.</p> : null}
         {!creating && selectedEncounter && activeSection === "declarations" ? initialActionDeclarations
-          ? <><ActionDeclarationWorkspace view={initialActionDeclarations} />{initialDefenseInterventions ? <DefenseInterventionWorkspace actions={initialActionDeclarations} defense={initialDefenseInterventions} /> : null}</>
+          ? <><ActionDeclarationWorkspace view={initialActionDeclarations} />{initialDefenseInterventions ? <DefenseInterventionWorkspace actions={initialActionDeclarations} defense={initialDefenseInterventions} /> : null}{initialActionEffects ? <ActionEffectPlanWorkspace encounterId={selectedEncounter.id} view={initialActionEffects} /> : null}</>
           : <p className="tabletop-empty">Initialize Initiative before creating action declarations.</p> : null}
         {!creating && selectedEncounter && activeSection === "combat-aid" ? initialCombatAid
           ? <CombatAidWorkspace data={initialCombatAid} rollWorkspace={initialRollWorkspace} onOpenInitiative={() => setActiveSection("initiative")} />

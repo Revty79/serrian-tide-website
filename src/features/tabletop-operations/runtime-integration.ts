@@ -10,6 +10,11 @@ export const AUTHORED_ACTION_SOURCE_KINDS = [
   "spell",
   "item",
   "creature-ability",
+  "derived-ability",
+  "skill",
+  "attribute",
+  "no-roll",
+  "manual",
 ] as const;
 
 export type AuthoredActionSourceKind = (typeof AUTHORED_ACTION_SOURCE_KINDS)[number];

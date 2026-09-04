@@ -120,7 +120,7 @@ export type CombatAidAuthoredAction = {
   id: number;
   pendingActionId: number;
   sourceCharacterId: number;
-  sourceKind: "weapon" | "creature-attack" | "spell" | "item" | "creature-ability";
+  sourceKind: "weapon" | "creature-attack" | "spell" | "item" | "creature-ability" | "derived-ability" | "skill" | "attribute" | "no-roll" | "manual";
   sourceRef: string;
   sourceInstanceId: number | null;
   targetCharacterIds: number[];

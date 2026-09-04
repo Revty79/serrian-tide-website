@@ -74,7 +74,18 @@ export const campaignSessionEncounterPendingActionStatus = pgEnum(
 
 export const campaignSessionEncounterActionSourceKind = pgEnum(
   "campaign_session_encounter_action_source_kind",
-  ["weapon", "creature-attack", "spell", "item", "creature-ability"],
+  [
+    "weapon",
+    "creature-attack",
+    "spell",
+    "item",
+    "creature-ability",
+    "derived-ability",
+    "skill",
+    "attribute",
+    "no-roll",
+    "manual",
+  ],
 );
 
 export const campaignSessionEncounterActionResolutionStatus = pgEnum(
@@ -116,6 +127,34 @@ export const campaignSessionEncounterResponderOpportunityStatus = pgEnum(
 export const campaignSessionEncounterResponderOpportunitySource = pgEnum(
   "campaign_session_encounter_responder_opportunity_source",
   ["initiative", "god-exception"],
+);
+
+export const campaignSessionEncounterEffectPlanStatus = pgEnum(
+  "campaign_session_encounter_effect_plan_status",
+  [
+    "calculated",
+    "requires-god-ruling",
+    "approved",
+    "applied",
+    "partially-applied",
+    "declined",
+    "cancelled",
+    "superseded",
+    "application-failed",
+  ],
+);
+
+export const campaignSessionEncounterEffectStatus = pgEnum(
+  "campaign_session_encounter_effect_status",
+  [
+    "calculated",
+    "requires-god-ruling",
+    "approved",
+    "applied",
+    "declined",
+    "manual-resolved",
+    "application-failed",
+  ],
 );
 
 export const campaignSessionEffectDurationBindingStatus = pgEnum(
@@ -1146,6 +1185,188 @@ export const campaignSessionEncounterActionDeclarationEvent = pgTable(
     index("campaign_session_encounter_action_declaration_event_history_idx").on(table.declarationId, table.createdAt, table.id),
     check("campaign_session_encounter_action_declaration_event_kind_nonblank", sql`length(trim(${table.eventKind})) > 0`),
     check("campaign_session_encounter_action_declaration_event_metadata_object", sql`jsonb_typeof(${table.metadata}) = 'object'`),
+  ],
+);
+
+export const campaignSessionEncounterEffectPlan = pgTable(
+  "campaign_session_encounter_effect_plan",
+  {
+    id: serial("id").primaryKey(),
+    declarationId: integer("declaration_id").notNull(),
+    pendingActionId: integer("pending_action_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    actorParticipantId: integer("actor_participant_id").notNull(),
+    sourceKind: campaignSessionEncounterActionSourceKind("source_kind").notNull(),
+    sourceIdentity: text("source_identity").notNull(),
+    sourceId: text("source_id"),
+    sourceInstanceId: integer("source_instance_id"),
+    status: campaignSessionEncounterEffectPlanStatus("status").notNull(),
+    targetSnapshotJson: jsonb("target_snapshot_json").notNull(),
+    sourceSnapshotJson: jsonb("source_snapshot_json").notNull(),
+    governingRollSnapshotJson: jsonb("governing_roll_snapshot_json"),
+    defenseResolutionJson: jsonb("defense_resolution_json"),
+    initiativeCommitmentJson: jsonb("initiative_commitment_json").notNull(),
+    resourceCostsJson: jsonb("resource_costs_json").notNull(),
+    sourceDivergenceJson: jsonb("source_divergence_json"),
+    explanation: text("explanation").default("").notNull(),
+    createdByUserId: text("created_by_user_id").notNull(),
+    reviewedByUserId: text("reviewed_by_user_id"),
+    appliedByUserId: text("applied_by_user_id"),
+    reviewedAt: timestamp("reviewed_at"),
+    appliedAt: timestamp("applied_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("campaign_session_encounter_effect_plan_declaration_uq").on(table.declarationId),
+    uniqueIndex("campaign_session_encounter_effect_plan_pending_action_uq").on(table.pendingActionId),
+    unique("campaign_session_encounter_effect_plan_hierarchy_uq").on(
+      table.id,
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+    ),
+    foreignKey({
+      columns: [table.declarationId, table.pendingActionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterActionDeclaration.id,
+        campaignSessionEncounterActionDeclaration.pendingActionId,
+        campaignSessionEncounterActionDeclaration.encounterId,
+        campaignSessionEncounterActionDeclaration.sceneId,
+        campaignSessionEncounterActionDeclaration.sessionId,
+        campaignSessionEncounterActionDeclaration.campaignId,
+      ],
+      name: "campaign_session_encounter_effect_plan_declaration_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.actorParticipantId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_effect_plan_actor_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.createdByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_effect_plan_created_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.reviewedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_effect_plan_reviewed_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.appliedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_effect_plan_applied_by_fk" }).onDelete("restrict"),
+    index("campaign_session_encounter_effect_plan_status_idx").on(table.encounterId, table.status, table.createdAt),
+    check("campaign_session_encounter_effect_plan_source_identity_nonblank", sql`length(trim(${table.sourceIdentity})) > 0`),
+    check("campaign_session_encounter_effect_plan_targets_array", sql`jsonb_typeof(${table.targetSnapshotJson}) = 'array'`),
+    check("campaign_session_encounter_effect_plan_source_object", sql`jsonb_typeof(${table.sourceSnapshotJson}) = 'object'`),
+    check("campaign_session_encounter_effect_plan_roll_object", sql`${table.governingRollSnapshotJson} IS NULL OR jsonb_typeof(${table.governingRollSnapshotJson}) = 'object'`),
+    check("campaign_session_encounter_effect_plan_defense_object", sql`${table.defenseResolutionJson} IS NULL OR jsonb_typeof(${table.defenseResolutionJson}) = 'object'`),
+    check("campaign_session_encounter_effect_plan_initiative_object", sql`jsonb_typeof(${table.initiativeCommitmentJson}) = 'object'`),
+    check("campaign_session_encounter_effect_plan_costs_array", sql`jsonb_typeof(${table.resourceCostsJson}) = 'array'`),
+    check("campaign_session_encounter_effect_plan_divergence_object", sql`${table.sourceDivergenceJson} IS NULL OR jsonb_typeof(${table.sourceDivergenceJson}) = 'object'`),
+    check("campaign_session_encounter_effect_plan_review_state_valid", sql`(${table.reviewedAt} IS NULL AND ${table.reviewedByUserId} IS NULL) OR (${table.reviewedAt} IS NOT NULL AND ${table.reviewedByUserId} IS NOT NULL)`),
+    check("campaign_session_encounter_effect_plan_application_state_valid", sql`(${table.appliedAt} IS NULL AND ${table.appliedByUserId} IS NULL) OR (${table.appliedAt} IS NOT NULL AND ${table.appliedByUserId} IS NOT NULL AND ${table.status} IN ('applied','partially-applied'))`),
+  ],
+);
+
+export const campaignSessionEncounterEffect = pgTable(
+  "campaign_session_encounter_effect",
+  {
+    id: serial("id").primaryKey(),
+    planId: integer("plan_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    targetParticipantId: integer("target_participant_id").notNull(),
+    effectKey: text("effect_key").notNull(),
+    effectType: text("effect_type").notNull(),
+    sourceKind: campaignSessionEncounterActionSourceKind("source_kind").notNull(),
+    sourceIdentity: text("source_identity").notNull(),
+    authoredValueJson: jsonb("authored_value_json").notNull(),
+    calculatedValueJson: jsonb("calculated_value_json"),
+    finalValueJson: jsonb("final_value_json"),
+    unit: text("unit").default("").notNull(),
+    resource: text("resource").default("").notNull(),
+    applicationSupported: boolean("application_supported").default(false).notNull(),
+    godReviewRequired: boolean("god_review_required").default(false).notNull(),
+    status: campaignSessionEncounterEffectStatus("status").notNull(),
+    amendmentReason: text("amendment_reason").default("").notNull(),
+    amendedByUserId: text("amended_by_user_id"),
+    appliedResultJson: jsonb("applied_result_json"),
+    appliedAt: timestamp("applied_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("campaign_session_encounter_effect_key_uq").on(table.planId, table.effectKey),
+    foreignKey({
+      columns: [table.planId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterEffectPlan.id,
+        campaignSessionEncounterEffectPlan.encounterId,
+        campaignSessionEncounterEffectPlan.sceneId,
+        campaignSessionEncounterEffectPlan.sessionId,
+        campaignSessionEncounterEffectPlan.campaignId,
+      ],
+      name: "campaign_session_encounter_effect_plan_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.targetParticipantId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_effect_target_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.amendedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_effect_amended_by_fk" }).onDelete("restrict"),
+    index("campaign_session_encounter_effect_status_idx").on(table.planId, table.status, table.id),
+    index("campaign_session_encounter_effect_target_idx").on(table.encounterId, table.targetParticipantId, table.createdAt),
+    check("campaign_session_encounter_effect_key_nonblank", sql`length(trim(${table.effectKey})) > 0`),
+    check("campaign_session_encounter_effect_type_nonblank", sql`length(trim(${table.effectType})) > 0`),
+    check("campaign_session_encounter_effect_source_nonblank", sql`length(trim(${table.sourceIdentity})) > 0`),
+    check("campaign_session_encounter_effect_amendment_valid", sql`${table.amendedByUserId} IS NULL OR length(trim(${table.amendmentReason})) > 0`),
+    check("campaign_session_encounter_effect_application_valid", sql`(${table.appliedAt} IS NULL AND ${table.appliedResultJson} IS NULL) OR (${table.appliedAt} IS NOT NULL AND ${table.appliedResultJson} IS NOT NULL AND ${table.status} IN ('applied','manual-resolved'))`),
+  ],
+);
+
+export const campaignSessionEncounterEffectPlanEvent = pgTable(
+  "campaign_session_encounter_effect_plan_event",
+  {
+    id: serial("id").primaryKey(),
+    planId: integer("plan_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    fromStatus: campaignSessionEncounterEffectPlanStatus("from_status"),
+    toStatus: campaignSessionEncounterEffectPlanStatus("to_status").notNull(),
+    eventKind: text("event_kind").notNull(),
+    reason: text("reason").default("").notNull(),
+    metadata: jsonb("metadata").default(sql`'{}'::jsonb`).notNull(),
+    actorUserId: text("actor_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.planId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterEffectPlan.id,
+        campaignSessionEncounterEffectPlan.encounterId,
+        campaignSessionEncounterEffectPlan.sceneId,
+        campaignSessionEncounterEffectPlan.sessionId,
+        campaignSessionEncounterEffectPlan.campaignId,
+      ],
+      name: "campaign_session_encounter_effect_plan_event_plan_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.actorUserId], foreignColumns: [user.id], name: "campaign_session_encounter_effect_plan_event_actor_fk" }).onDelete("restrict"),
+    index("campaign_session_encounter_effect_plan_event_history_idx").on(table.planId, table.createdAt, table.id),
+    check("campaign_session_encounter_effect_plan_event_kind_nonblank", sql`length(trim(${table.eventKind})) > 0`),
+    check("campaign_session_encounter_effect_plan_event_metadata_object", sql`jsonb_typeof(${table.metadata}) = 'object'`),
   ],
 );
 
