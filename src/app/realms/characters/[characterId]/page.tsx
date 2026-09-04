@@ -13,6 +13,8 @@ import { getPlayerEncounter } from "./encounter/actions";
 import { ActiveEncounterCard } from "./active-encounter-card";
 import { createPlayerEncounterUiSnapshot } from "@/features/tabletop-operations/player-encounter-notifications";
 import { PlayerLiveNotificationCenter } from "@/features/tabletop-operations/player-live-notification-center";
+import { getPlayerWeaponGovernance } from "./weapon-governance-actions";
+import { PlayerWeaponGovernancePanel } from "./player-weapon-governance-panel";
 
 export default async function PlayerCharacterPage({
   params,
@@ -34,7 +36,11 @@ export default async function PlayerCharacterPage({
     getCharacterItemChargeState(id).catch(() => null),
   ]);
   if (!activeHealth || !activeMana || !activeEffects || !equipmentState || !chargeState) redirect("/realms");
-  const activeEncounter = await getPlayerEncounter(id).catch(() => null);
+  const [activeEncounter, weaponGovernance] = await Promise.all([
+    getPlayerEncounter(id).catch(() => null),
+    getPlayerWeaponGovernance(id).catch(() => null),
+  ]);
+  if (!weaponGovernance) redirect("/realms");
 
   return <>
     <PlayerLiveNotificationCenter
@@ -42,6 +48,7 @@ export default async function PlayerCharacterPage({
       snapshot={activeEncounter ? createPlayerEncounterUiSnapshot(activeEncounter) : null}
     />
     {activeEncounter ? <ActiveEncounterCard characterId={id} encounter={activeEncounter} /> : null}
+    <PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus={!activeEncounter} />
     <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} godMode={false} itemUseTimingBlocked={activeEncounter?.initiativeRuntime?.status === "active"} />
   </>;
 }

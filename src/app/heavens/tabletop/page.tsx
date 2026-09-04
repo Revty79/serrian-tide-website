@@ -9,6 +9,7 @@ import { getEncounterCombatAid } from "./combat-aid-actions";
 import { getEncounterCloseout } from "./closeout-actions";
 import { getGodRollWorkspace } from "./roll-actions";
 import { getSessionCloseout } from "./session-closeout-actions";
+import { getGodWeaponGovernanceWorkspace } from "./weapon-governance-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -20,7 +21,16 @@ import { TabletopWorkspace } from "./tabletop-workspace";
 export default async function TabletopOperationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campaign?: string; session?: string; scene?: string; encounter?: string }>;
+  searchParams: Promise<{
+    campaign?: string;
+    session?: string;
+    scene?: string;
+    encounter?: string;
+    workspace?: string;
+    weaponCharacter?: string;
+    weaponItem?: string;
+    weaponMode?: string;
+  }>;
 }) {
   await requireGod().catch(() => redirect("/access"));
   const query = await searchParams;
@@ -28,6 +38,9 @@ export default async function TabletopOperationsPage({
   const requestedSessionId = Number(query.session);
   const requestedSceneId = Number(query.scene);
   const requestedEncounterId = Number(query.encounter);
+  const requestedWeaponCharacterId = Number(query.weaponCharacter);
+  const requestedWeaponItemId = Number(query.weaponItem);
+  const requestedWeaponModeId = Number(query.weaponMode);
   const workspace = await getTabletopWorkspace(
     Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
       ? requestedCampaignId
@@ -84,6 +97,20 @@ export default async function TabletopOperationsPage({
   const sessionCloseout = selectedSessionId === null
     ? null
     : await getSessionCloseout(selectedSessionId);
+  const weaponGovernance = workspace.selectedCampaignId === null || query.workspace !== "weapons"
+    ? null
+    : await getGodWeaponGovernanceWorkspace({
+        campaignId: workspace.selectedCampaignId,
+        characterId: Number.isInteger(requestedWeaponCharacterId) && requestedWeaponCharacterId > 0
+          ? requestedWeaponCharacterId
+          : null,
+        itemId: Number.isInteger(requestedWeaponItemId) && requestedWeaponItemId > 0
+          ? requestedWeaponItemId
+          : null,
+        firingModeId: Number.isInteger(requestedWeaponModeId) && requestedWeaponModeId > 0
+          ? requestedWeaponModeId
+          : null,
+      });
   return (
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
@@ -96,7 +123,9 @@ export default async function TabletopOperationsPage({
       initialCloseout={closeout}
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}
+      initialWeaponGovernance={weaponGovernance}
       requestedSessionId={selectedSessionId}
+      requestedWorkspace={query.workspace === "weapons" ? "weapons" : null}
     />
   );
 }

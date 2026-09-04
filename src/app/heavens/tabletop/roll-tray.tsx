@@ -15,8 +15,10 @@ import type {
   RollWorkspaceView,
 } from "@/features/tabletop-operations/roll-runtime-service";
 import type { PercentileTargetModifier } from "@/features/tabletop-operations/percentile-resolution";
+import { resolvePercentileCheck } from "@/features/tabletop-operations/percentile-resolution";
+import type { CharacterWeaponGovernanceRequest } from "@/features/items/character-weapon-governance-service";
 
-import { recordGodRoll } from "./roll-actions";
+import { recordGodRoll, recordGodWeaponGovernanceRoll } from "./roll-actions";
 
 export type RollTrayScope = "session" | "scene" | "encounter";
 
@@ -28,6 +30,12 @@ export type RollTrayPrefill = {
   reactionId?: number | null;
   purposeKind?: RollPurpose;
   label?: string;
+  weaponGovernance?: {
+    request: CharacterWeaponGovernanceRequest;
+    sourceLabel: string;
+    sourceDetail: string;
+    originalTarget: number;
+  };
 };
 
 function methodLabel(method: RollMethod): string {
@@ -84,6 +92,23 @@ export function RollTray({
   const [lastRoll, setLastRoll] = useState<RollLedgerEntry | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const targetPreview = useMemo(() => {
+    const originalTarget = prefill.weaponGovernance?.originalTarget
+      ?? (targetNumber === "" ? null : Number(targetNumber));
+    if (originalTarget === null || !Number.isFinite(originalTarget)) return null;
+    try {
+      return resolvePercentileCheck({
+        resultTotal: 50,
+        originalTarget,
+        modifiers: [
+          ...parseModifiers(bonuses, "bonus"),
+          ...parseModifiers(penalties, "penalty"),
+        ],
+      });
+    } catch {
+      return null;
+    }
+  }, [bonuses, penalties, prefill.weaponGovernance?.originalTarget, targetNumber]);
 
   const characters = useMemo(() => workspace.characters.filter((character) => (
     scope === "encounter" ? character.inEncounter : scope === "scene" ? character.inScene : true
@@ -100,7 +125,7 @@ export function RollTray({
     setBusy(true);
     setFeedback(null);
     try {
-      const roll = await recordGodRoll({
+      const rollRequest = {
         sessionId: workspace.session.id,
         sceneId: scope === "session" ? null : workspace.selectedScene?.id ?? null,
         encounterId: scope === "encounter" ? workspace.selectedEncounter?.id ?? null : null,
@@ -113,20 +138,30 @@ export function RollTray({
         purposeKind,
         enteredTotal: method === "entered" ? Number(enteredTotal) : null,
         label,
-        targetNumber: null,
-        mechanical: targetNumber === "" ? null : {
-          governingSource: {
-            kind: "manual",
-            label: targetReason,
-            originalTarget: Number(targetNumber),
-          },
-          modifiers: [
-            ...parseModifiers(bonuses, "bonus"),
-            ...parseModifiers(penalties, "penalty"),
-          ],
-        },
         notes,
-      });
+      };
+      const modifiers = [
+        ...parseModifiers(bonuses, "bonus"),
+        ...parseModifiers(penalties, "penalty"),
+      ];
+      const roll = prefill.weaponGovernance
+        ? await recordGodWeaponGovernanceRoll({
+            ...rollRequest,
+            governance: prefill.weaponGovernance.request,
+            modifiers,
+          })
+        : await recordGodRoll({
+            ...rollRequest,
+            targetNumber: null,
+            mechanical: targetNumber === "" ? null : {
+              governingSource: {
+                kind: "manual",
+                label: targetReason,
+                originalTarget: Number(targetNumber),
+              },
+              modifiers,
+            },
+          });
       setLastRoll(roll);
       setFeedback({ kind: "success", message: roll.mechanicalSnapshot
         ? `Roll #${roll.id} and its objective mechanical snapshot were recorded.`
@@ -170,15 +205,16 @@ export function RollTray({
       <div className="roll-tray-percentile-note"><span>Roll</span><strong>Serrian Tide Percentile</strong><small>One result from 1–100. Attack Hit Location is derived from its ones digit; it is never rolled separately. Damage and Initiative are never rolled here.</small></div>
       {method === "entered" ? <label><span>Result</span><input type="number" min={1} max={100} step="1" value={enteredTotal} onChange={(event) => setEnteredTotal(event.target.value)} placeholder="73" /><small>Enter 100 for a physical percentile 00 result.</small></label> : <div className="roll-tray-random-note"><span>Result</span><strong>Generated securely by the server</strong><small>The browser cannot submit the random result.</small></div>}
       <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as RollVisibility)}><option value="god-only">G.O.D. Only</option><option value="private">Private: Roller + G.O.D.</option><option value="table">Show to Table</option></select></label>
-      <label><span>Character</span><select value={rollerCharacterId} onChange={(event) => setRollerCharacterId(event.target.value)}><option value="">No Character context</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
+      <label><span>Character</span><select disabled={Boolean(prefill.weaponGovernance)} value={rollerCharacterId} onChange={(event) => setRollerCharacterId(event.target.value)}><option value="">No Character context</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
       <label><span>Target Character</span><select value={targetCharacterId} onChange={(event) => setTargetCharacterId(event.target.value)}><option value="">No target Character</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
       {scope === "encounter" ? <label><span>Pending Action</span><select value={pendingActionId} onChange={(event) => { setPendingActionId(event.target.value); if (event.target.value) setReactionId(""); }}><option value="">No action link</option>{workspace.pendingActions.map((action) => <option key={action.id} value={action.id}>#{action.id} · {action.label} · {action.status}</option>)}</select></label> : null}
       {scope === "encounter" ? <label><span>Reaction</span><select value={reactionId} onChange={(event) => { setReactionId(event.target.value); if (event.target.value) setPendingActionId(""); }}><option value="">No Reaction link</option>{workspace.reactions.map((reaction) => <option key={reaction.id} value={reaction.id}>#{reaction.id} · {reaction.reactionType} · {reaction.status}</option>)}</select></label> : null}
       <label className="is-wide"><span>Label</span><input maxLength={200} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Longsword Attack, Stealth, G.O.D. reference…" /></label>
-      <label><span>Manual Roll-over Target</span><input type="number" step="any" value={targetNumber} onChange={(event) => setTargetNumber(event.target.value)} placeholder="Leave blank for a free Roll" /><small>A supplied target is evaluated once by the shared percentile engine.</small></label>
-      {targetNumber !== "" ? <label><span>Target label / reason</span><input maxLength={200} value={targetReason} onChange={(event) => setTargetReason(event.target.value)} placeholder="G.O.D.-set target" /></label> : null}
-      {targetNumber !== "" ? <label><span>Bonuses</span><textarea rows={2} value={bonuses} onChange={(event) => setBonuses(event.target.value)} placeholder={"Cover advantage: 10\nPrepared: 5"} /><small>One Label: magnitude per line. Bonuses lower the target.</small></label> : null}
-      {targetNumber !== "" ? <label><span>Penalties</span><textarea rows={2} value={penalties} onChange={(event) => setPenalties(event.target.value)} placeholder="Darkness: 20" /><small>One Label: magnitude per line. Penalties raise the target.</small></label> : null}
+      {prefill.weaponGovernance ? <div className="roll-tray-governing-source"><span>Authoritative governing source</span><strong>{prefill.weaponGovernance.sourceLabel}</strong><small>{prefill.weaponGovernance.sourceDetail}</small><b>Original roll-over target: {prefill.weaponGovernance.originalTarget}%</b><em>The server reruns weapon governance when this Roll is recorded.</em></div> : <label><span>Manual Roll-over Target</span><input type="number" step="any" value={targetNumber} onChange={(event) => setTargetNumber(event.target.value)} placeholder="Leave blank for a free Roll" /><small>A supplied target is evaluated once by the shared percentile engine.</small></label>}
+      {!prefill.weaponGovernance && targetNumber !== "" ? <label><span>Target label / reason</span><input maxLength={200} value={targetReason} onChange={(event) => setTargetReason(event.target.value)} placeholder="G.O.D.-set target" /></label> : null}
+      {prefill.weaponGovernance || targetNumber !== "" ? <label><span>Bonuses</span><textarea rows={2} value={bonuses} onChange={(event) => setBonuses(event.target.value)} placeholder={"Explicit bonus: 10"} /><small>One Label: magnitude per line. Bonuses lower the target.</small></label> : null}
+      {prefill.weaponGovernance || targetNumber !== "" ? <label><span>Penalties</span><textarea rows={2} value={penalties} onChange={(event) => setPenalties(event.target.value)} placeholder="Explicit penalty: 20" /><small>One Label: magnitude per line. Penalties raise the target.</small></label> : null}
+      {targetPreview ? <div className="roll-tray-target-preview"><span>Target preview</span><strong>{targetPreview.originalTarget} - {targetPreview.totalBonuses} + {targetPreview.totalPenalties} = {targetPreview.finalTarget}</strong><small>Original target - bonuses + penalties = final roll-over target. Pass 1 recalculates the recorded result on the server.</small></div> : null}
       <label className="is-wide"><span>Notes</span><textarea rows={3} maxLength={2000} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional table context." /></label>
     </div>
     <footer><button type="button" className="is-primary" disabled={busy || contextCompleted || method === "entered" && enteredTotal === ""} onClick={() => void submit()}>{busy ? "Recording…" : method === "random" ? "ROLL" : "RECORD PHYSICAL ROLL"}</button><span>Action and Reaction links remain context only; no combat state is changed.</span></footer>

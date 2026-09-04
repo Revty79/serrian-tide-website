@@ -32,6 +32,7 @@ import {
 import {
   readWeaponSkillGovernanceInTransaction,
   type WeaponSkillGovernanceTransaction,
+  type WeaponSkillGovernanceReadModel,
 } from "./weapon-skill-governance-service";
 
 export type CharacterWeaponGovernanceTransaction = WeaponSkillGovernanceTransaction;
@@ -68,6 +69,21 @@ export type CharacterWeaponOverrideScope = Readonly<{
 export type SaveCharacterWeaponOverrideRequest = CharacterWeaponOverrideScope & Readonly<{
   selection: CharacterWeaponGoverningSelection;
   reason: string;
+}>;
+
+export type CharacterWeaponGoverningChoice = Readonly<{
+  key: string;
+  selection: CharacterWeaponGoverningSelection;
+  label: string;
+  detail: string;
+  originalTarget: number;
+}>;
+
+export type CharacterWeaponGovernanceDetail = Readonly<{
+  governance: WeaponSkillGovernanceReadModel;
+  resolution: CharacterWeaponGovernanceResult;
+  persistentOverride: PersistentCharacterWeaponOverride | null;
+  governingChoices: readonly CharacterWeaponGoverningChoice[];
 }>;
 
 type LoadedCharacter = Readonly<{
@@ -280,6 +296,48 @@ async function loadResolutionInput(
   };
 }
 
+function governingChoices(
+  input: ResolveCharacterWeaponGovernanceInput,
+): CharacterWeaponGoverningChoice[] {
+  const candidates: CharacterWeaponGoverningSelection[] = [
+    ...input.allocations.map(({ id }) => ({ kind: "skill" as const, allocationId: id })),
+    ...(["STR", "DEX", "CON", "INT", "WIS", "CHR"] as const).map((attributeKey) => ({
+      kind: "attribute" as const,
+      attributeKey,
+    })),
+  ];
+  return candidates.flatMap((selection): CharacterWeaponGoverningChoice[] => {
+    const preview = resolveCharacterWeaponGovernance({
+      ...input,
+      persistentOverride: null,
+      oneActionOverride: {
+        ...selection,
+        reason: "G.O.D. governing-source preview.",
+      },
+    });
+    if (preview.status !== "resolved-one-action-override") return [];
+    if (preview.source.kind === "skill") {
+      return [{
+        key: `skill:${preview.source.allocationId}`,
+        selection,
+        label: `${preview.source.skillName} - ${preview.source.originalTarget}%`,
+        detail: `${preview.source.allocationPath.map(({ skillName, skillId }) => `${skillName} (#${skillId})`).join(" -> ")} - allocation #${preview.source.allocationId}`,
+        originalTarget: preview.source.originalTarget,
+      }];
+    }
+    if (preview.source.kind === "attribute") {
+      return [{
+        key: `attribute:${preview.source.attributeKey}`,
+        selection,
+        label: `${preview.source.attributeKey} straight Attribute - ${preview.source.originalTarget}%`,
+        detail: `${preview.source.attributeDisplayName}: 100 - ${preview.source.attributeValue}`,
+        originalTarget: preview.source.originalTarget,
+      }];
+    }
+    return [];
+  });
+}
+
 function persistedOverride(row: typeof campaignCharacterWeaponOverride.$inferSelect): PersistentCharacterWeaponOverride {
   const selection: CharacterWeaponGoverningSelection = row.skillAllocationId !== null
     ? { kind: "skill", allocationId: row.skillAllocationId }
@@ -347,6 +405,20 @@ export async function resolveCharacterWeaponGovernanceInTransaction(
   request: CharacterWeaponGovernanceRequest,
 ): Promise<CharacterWeaponGovernanceResult> {
   return resolveCharacterWeaponGovernance(await loadResolutionInput(tx, actor, request));
+}
+
+export async function readCharacterWeaponGovernanceDetailInTransaction(
+  tx: CharacterWeaponGovernanceTransaction,
+  actor: CharacterWeaponGovernanceActor,
+  request: NormalCharacterWeaponGovernanceRequest,
+): Promise<CharacterWeaponGovernanceDetail> {
+  const input = await loadResolutionInput(tx, actor, request);
+  return {
+    governance: input.governance,
+    resolution: resolveCharacterWeaponGovernance(input),
+    persistentOverride: input.persistentOverride ?? null,
+    governingChoices: governingChoices(input),
+  };
 }
 
 export async function resolveNormalCharacterWeaponGovernanceInTransaction(
@@ -460,6 +532,13 @@ export async function resolveNormalCharacterWeaponGovernance(
 ): Promise<CharacterWeaponGovernanceResult> {
   const actor = await authenticatedActor();
   return db.transaction((tx) => resolveNormalCharacterWeaponGovernanceInTransaction(tx, actor, request));
+}
+
+export async function readCharacterWeaponGovernanceDetail(
+  request: NormalCharacterWeaponGovernanceRequest,
+): Promise<CharacterWeaponGovernanceDetail> {
+  const actor = await authenticatedActor();
+  return db.transaction((tx) => readCharacterWeaponGovernanceDetailInTransaction(tx, actor, request));
 }
 
 export async function resolveCharacterWeaponGovernanceWithOneActionOverride(

@@ -122,6 +122,7 @@ import {
   reconcileEquipmentAfterOwnershipMutationInTransaction,
   validateEquipmentOwnershipMutationInTransaction,
 } from "@/features/items/equipment-state-service";
+import { readOverrideIdsForAllocationsInTransaction } from "@/features/items/weapon-governance-management-service";
 import {
   DEFAULT_ITEM_RUNTIME_PROFILE,
   validateItemRuntimeProfile,
@@ -1350,6 +1351,19 @@ export async function saveCharacter(
       .map(({ id }) => id)
       .filter((id) => !retainedAllocationIds.has(id));
     if (removedAllocationIds.length) {
+      const referencedOverrides = await readOverrideIdsForAllocationsInTransaction(
+        tx,
+        characterId,
+        removedAllocationIds,
+      );
+      if (referencedOverrides.length) {
+        const blocker = referencedOverrides[0];
+        const modeQuery = blocker.firingModeId === null ? "" : `&weaponMode=${blocker.firingModeId}`;
+        const reviewPath = `/heavens/tabletop?campaign=${blocker.campaignId}&workspace=weapons&weaponCharacter=${characterId}&weaponItem=${blocker.itemId}${modeQuery}`;
+        throw new Error(
+          `Skill allocation #${blocker.allocationId} is the authoritative source for persistent weapon override #${blocker.overrideId} on ${blocker.weaponName} (${blocker.canonicalId}). Remove or replace that override in G.O.D. Tabletop before deleting the allocation: ${reviewPath}`,
+        );
+      }
       await tx.delete(campaignCharacterSkillAllocation).where(and(
         eq(campaignCharacterSkillAllocation.characterId, characterId),
         inArray(campaignCharacterSkillAllocation.id, removedAllocationIds),

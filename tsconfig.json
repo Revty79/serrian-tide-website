@@ -30,6 +30,8 @@
     ".next/dev/types/**/*.ts",
     ".next-crossroads-navigation-browser/types/**/*.ts",
     ".next-crossroads-navigation-browser/dev/types/**/*.ts",
+    ".next-weapon-governance-browser/types/**/*.ts",
+    ".next-weapon-governance-browser/dev/types/**/*.ts",
     "**/*.mts"
   ],
   "exclude": ["node_modules"]

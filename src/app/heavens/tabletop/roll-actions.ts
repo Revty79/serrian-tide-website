@@ -22,6 +22,10 @@ import {
   type RollRulingRequest,
 } from "@/features/tabletop-operations/roll-runtime-service";
 import type { RollRecordRequest } from "@/features/tabletop-operations/roll-runtime";
+import {
+  recordGodWeaponGovernanceRollInTransaction,
+  type GodWeaponGovernanceRollRequest,
+} from "@/features/items/weapon-governance-management-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 
@@ -95,6 +99,27 @@ export async function recordGodRoll(input: RollRecordRequest): Promise<RollLedge
   });
   refreshRolls();
   return result;
+}
+
+export async function recordGodWeaponGovernanceRoll(
+  input: GodWeaponGovernanceRollRequest,
+): Promise<RollLedgerEntry> {
+  const access = await requireGod();
+  const recorded = await db.transaction(async (tx) => {
+    const actor = await getGodRollActor(tx, input.sessionId, access.user.id);
+    const created = await recordGodWeaponGovernanceRollInTransaction(tx, actor, input);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: actor.campaignId,
+      sessionId: input.sessionId,
+      sceneId: created.sceneId,
+      encounterId: created.encounterId,
+      characterIds: [created.rollerCharacterId, created.targetCharacterId].filter((id): id is number => id !== null),
+      category: "roll",
+    });
+    return created;
+  });
+  refreshRolls();
+  return recorded;
 }
 
 export async function voidGodRoll(
