@@ -1,8 +1,15 @@
+import {
+  PERCENTILE_NUMERIC_BOUND,
+  PERCENTILE_ROLL_LABEL,
+  validateRollResult,
+} from "./percentile-resolution";
+
 export const ROLL_METHODS = ["random", "entered"] as const;
 export const ROLL_VISIBILITIES = ["table", "god-only"] as const;
 export const ROLL_PURPOSES = ["free", "attribute", "skill", "attack", "defense", "ability", "other"] as const;
 export const ROLL_STATUSES = ["recorded", "voided"] as const;
-export const PERCENTILE_ROLL_LABEL = "Percentile / d100";
+
+export { PERCENTILE_ROLL_LABEL, validateRollResult } from "./percentile-resolution";
 
 export type RollMethod = (typeof ROLL_METHODS)[number];
 export type RollVisibility = (typeof ROLL_VISIBILITIES)[number];
@@ -62,14 +69,6 @@ function boundedText(value: string | undefined, label: string, maximum: number):
   return normalized;
 }
 
-export function validateRollResult(resultTotal: number): number {
-  if (!Number.isInteger(resultTotal)) throw new Error("An entered percentile result must be a whole number.");
-  if (resultTotal < 1 || resultTotal > 100) {
-    throw new Error(`${PERCENTILE_ROLL_LABEL} results must be between 1 and 100.`);
-  }
-  return resultTotal;
-}
-
 export function getHitLocationFromPercentile(resultTotal: number): number {
   return validateRollResult(resultTotal) % 10;
 }
@@ -111,7 +110,10 @@ export function normalizeRollRecordRequest(request: RollRecordRequest): Normaliz
   const targetNumber = request.targetNumber === null || request.targetNumber === undefined
     ? null
     : request.targetNumber;
-  if (targetNumber !== null && (!Number.isFinite(targetNumber) || Math.abs(targetNumber) > 1_000_000)) {
+  if (
+    targetNumber !== null
+    && (!Number.isFinite(targetNumber) || Math.abs(targetNumber) > PERCENTILE_NUMERIC_BOUND)
+  ) {
     throw new Error("Target Number must be a finite table reference value.");
   }
   const enteredTotal = request.enteredTotal === null || request.enteredTotal === undefined

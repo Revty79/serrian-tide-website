@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { resolvePercentileCheck } from "./percentile-resolution";
 import {
   canReadRollVisibility,
   generateRandomRoll,
@@ -50,6 +51,17 @@ test("entered physical percentile accepts 1, 73, and physical 00 as 100", () => 
   assert.throws(() => resolveRollOutcome(request({ method: "entered" }), () => 1), /physical percentile result/);
   assert.throws(() => validateRollResult(0), /between 1 and 100/);
   assert.throws(() => validateRollResult(101), /between 1 and 100/);
+});
+
+test("System Random and entered results resolve identically after acquisition", () => {
+  const random = resolveRollOutcome(request(), () => 73);
+  const entered = resolveRollOutcome(request({ method: "entered", enteredTotal: 73 }), () => {
+    throw new Error("must not generate");
+  });
+  assert.deepEqual(
+    resolvePercentileCheck({ ...random, originalTarget: 50 }),
+    resolvePercentileCheck({ ...entered, originalTarget: 50 }),
+  );
 });
 
 test("Hit Location is derived from the ones digit of the one percentile result", () => {

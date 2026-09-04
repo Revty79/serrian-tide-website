@@ -62,6 +62,7 @@ test("all G.O.D. Roll surfaces reuse one tray and quick Rolls remain explicit pr
   const combat = read("src/app/heavens/tabletop/combat-aid-workspace.tsx");
   const operations = read("src/app/heavens/tabletop/combat-aid-operations.tsx");
   const domain = read("src/features/tabletop-operations/roll-runtime.ts");
+  const percentileResolution = read("src/features/tabletop-operations/percentile-resolution.ts");
   assert.match(tray, /recordGodRoll/);
   assert.doesNotMatch(tray, /Math\.random/);
   assert.match(ledger, /<RollTray/);
@@ -73,7 +74,7 @@ test("all G.O.D. Roll surfaces reuse one tray and quick Rolls remain explicit pr
   assert.match(tray, /The Roll never decides or executes an outcome/);
   assert.match(tray, /Random/);
   assert.match(tray, /Enter Physical/);
-  assert.match(`${tray}\n${domain}`, /d100/);
+  assert.match(`${tray}\n${domain}\n${percentileResolution}`, /d100/);
   assert.doesNotMatch(`${tray}\n${domain}`, /d10.*Hit Location|hit-location.*Roll/);
   assert.match(tray, /Target Number/);
   assert.match(tray, /G\.O\.D\. Only/);
