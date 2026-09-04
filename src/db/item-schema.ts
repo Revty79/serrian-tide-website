@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -18,12 +19,16 @@ import {
 
 import { user } from "./auth-schema";
 import { creature } from "./creature-schema";
+import { skill } from "./skill-schema";
 
 export const ITEM_CATALOG_SCOPES = ["equipment", "inventory"] as const;
 export const EQUIPMENT_GROUPS = ["weapon", "armor", "general"] as const;
+export const WEAPON_SKILL_GOVERNANCE_REVIEW_STATES = ["review-required", "approved"] as const;
 
 export type ItemCatalogScope = (typeof ITEM_CATALOG_SCOPES)[number];
 export type EquipmentCatalogGroup = (typeof EQUIPMENT_GROUPS)[number];
+export type WeaponSkillGovernanceReviewState =
+  (typeof WEAPON_SKILL_GOVERNANCE_REVIEW_STATES)[number];
 
 export const item = pgTable(
   "items",
@@ -204,6 +209,7 @@ export const weaponFiringMode = pgTable(
   },
   (table) => [
     uniqueIndex("weapon_firing_modes_profile_name_uq").on(table.weaponProfileId, table.normalizedName),
+    uniqueIndex("weapon_firing_modes_id_profile_uq").on(table.id, table.weaponProfileId),
     index("weapon_firing_modes_profile_order_idx").on(table.weaponProfileId, table.sortOrder, table.id),
     check("weapon_firing_modes_name_nonblank", sql`length(trim(${table.name})) > 0`),
     check("weapon_firing_modes_normalized_name_valid", sql`${table.normalizedName} = lower(trim(${table.name})) AND length(${table.normalizedName}) > 0`),
@@ -216,6 +222,54 @@ export const weaponFiringMode = pgTable(
       "weapon_firing_modes_review_state_valid",
       sql`(${table.mechanicsReviewRequired} AND ${table.baseCyclingInitiativeCost} IS NULL AND ${table.baseRecoilResetInitiativeCost} IS NULL AND ${table.deliveryCadence} IS NULL AND ${table.roundsPerCadence} IS NULL) OR (NOT ${table.mechanicsReviewRequired} AND ${table.baseCyclingInitiativeCost} IS NOT NULL AND ${table.baseRecoilResetInitiativeCost} IS NOT NULL AND ${table.deliveryCadence} IS NOT NULL AND ${table.roundsPerCadence} IS NOT NULL)`,
     ),
+  ],
+);
+
+export const weaponSkillPathMapping = pgTable(
+  "weapon_skill_path_mappings",
+  {
+    id: serial("id").primaryKey(),
+    weaponProfileId: integer("weapon_profile_id").notNull(),
+    firingModeId: integer("firing_mode_id"),
+    endpointSkillId: integer("endpoint_skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+    reviewState: text("review_state").default("review-required").notNull(),
+    notes: text("notes").default("").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    updatedByUserId: text("updated_by_user_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.weaponProfileId],
+      foreignColumns: [weaponProfile.id],
+      name: "weapon_skill_path_mappings_profile_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.firingModeId, table.weaponProfileId],
+      foreignColumns: [weaponFiringMode.id, weaponFiringMode.weaponProfileId],
+      name: "weapon_skill_path_mappings_mode_profile_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("weapon_skill_path_mappings_default_endpoint_uq")
+      .on(table.weaponProfileId, table.endpointSkillId)
+      .where(sql`${table.firingModeId} IS NULL`),
+    uniqueIndex("weapon_skill_path_mappings_mode_endpoint_uq")
+      .on(table.weaponProfileId, table.firingModeId, table.endpointSkillId)
+      .where(sql`${table.firingModeId} IS NOT NULL`),
+    uniqueIndex("weapon_skill_path_mappings_default_order_uq")
+      .on(table.weaponProfileId, table.sortOrder)
+      .where(sql`${table.firingModeId} IS NULL`),
+    uniqueIndex("weapon_skill_path_mappings_mode_order_uq")
+      .on(table.weaponProfileId, table.firingModeId, table.sortOrder)
+      .where(sql`${table.firingModeId} IS NOT NULL`),
+    index("weapon_skill_path_mappings_scope_idx").on(table.weaponProfileId, table.firingModeId, table.sortOrder, table.id),
+    index("weapon_skill_path_mappings_endpoint_idx").on(table.endpointSkillId, table.weaponProfileId),
+    check(
+      "weapon_skill_path_mappings_review_state_valid",
+      sql`${table.reviewState} IN ('review-required', 'approved')`,
+    ),
+    check("weapon_skill_path_mappings_sort_order_valid", sql`${table.sortOrder} >= 0`),
+    check("weapon_skill_path_mappings_notes_length_valid", sql`length(${table.notes}) <= 1000`),
   ],
 );
 

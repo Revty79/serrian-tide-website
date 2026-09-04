@@ -48,6 +48,7 @@
     "validate:item-charge": "tsx --test src/features/items/item-charge.test.ts",
     "validate:equipment-state": "tsx --test src/features/items/equipment-state.test.ts",
     "validate:firearm-timing": "tsx --test src/features/items/firearm-timing.test.ts src/features/items/firearm-timing-integration.test.ts src/features/characters/item-ammunition-parity.test.ts src/features/characters/character-sheet-rules.test.ts src/features/characters/firearm-baseline-migration.test.ts",
+    "validate:weapon-skill-governance-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/weapon-skill-governance-db.test.ts",
     "validate:spell": "tsx --test src/features/spell-construction/spell-integration.test.ts",
     "validate:spell-effects": "tsx --test src/features/spell-construction/mechanical-effects-adapter.test.ts",
     "validate:spell-runtime": "tsx --test src/features/characters/character-spell-runtime.test.ts",

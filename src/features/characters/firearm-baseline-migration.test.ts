@@ -68,12 +68,13 @@ test("Drizzle preserves the consolidated baseline and ordered forward migrations
     "0020_derived_ability_character_runtime.sql",
     "0021_structured_firearm_timing_profiles.sql",
     "0022_immutable_roll_ledger_snapshots.sql",
+    "0023_canonical_weapon_skill_governance.sql",
   ]);
 
   const journal = JSON.parse(
     readFileSync(path.resolve(root, "drizzle", "meta", "_journal.json"), "utf8"),
   ) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 23);
+  assert.equal(journal.entries.length, 24);
   assert.equal(journal.entries[0]?.idx, 0);
   assert.equal(journal.entries[0]?.tag, "0000_serrian_tide_baseline");
   assert.equal(journal.entries[1]?.idx, 1);
@@ -120,6 +121,8 @@ test("Drizzle preserves the consolidated baseline and ordered forward migrations
   assert.equal(journal.entries[21]?.tag, "0021_structured_firearm_timing_profiles");
   assert.equal(journal.entries[22]?.idx, 22);
   assert.equal(journal.entries[22]?.tag, "0022_immutable_roll_ledger_snapshots");
+  assert.equal(journal.entries[23]?.idx, 23);
+  assert.equal(journal.entries[23]?.tag, "0023_canonical_weapon_skill_governance");
 });
 
 test("the baseline migration owns the exact Firearm Skill branch", () => {

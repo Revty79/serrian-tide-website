@@ -31,10 +31,11 @@ import {
   itemTagLink,
   weaponFiringMode,
   weaponProfile,
+  weaponSkillPathMapping,
   type EquipmentCatalogGroup,
   type ItemCatalogScope,
 } from "@/db/item-schema";
-import { skill } from "@/db/skill-schema";
+import { skill, skillRelationship } from "@/db/skill-schema";
 import { campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   copyPassiveItemEffects,
@@ -59,6 +60,16 @@ import {
   type FirearmFiringModeDraft,
   type ResolvedFirearmFiringMode,
 } from "@/features/items/firearm-timing";
+import {
+  validateCanonicalSkillPath,
+  type CanonicalSkillPathValidation,
+} from "@/features/items/weapon-skill-governance";
+import {
+  readWeaponSkillGovernance,
+  saveWeaponSkillGovernance as saveWeaponSkillGovernanceService,
+  type WeaponSkillGovernanceReadModel,
+  type WeaponSkillPathMappingDraft,
+} from "@/features/items/weapon-skill-governance-service";
 import {
   decodeMechanicalEffect,
   encodeMechanicalEffect,
@@ -110,7 +121,15 @@ export type ItemFacets = {
 export type ItemAuthoringReferences = {
   tags: Array<{ name: string; tagGroup: string; description: string }>;
   armorBodyLocations: Array<{ key: string; label: string }>;
-  skills: Array<{ id: number; name: string }>;
+  skills: Array<{
+    id: number;
+    name: string;
+    classification: string;
+    tier: number | null;
+    primaryAttribute: string | null;
+    secondaryAttribute: string | null;
+    canonicalPath: CanonicalSkillPathValidation;
+  }>;
 };
 
 export type RelatedItemCandidate = {
@@ -393,12 +412,52 @@ export async function listItemFacets(catalogScope: ItemCatalogScope): Promise<It
 
 export async function listItemAuthoringReferences(): Promise<ItemAuthoringReferences> {
   await requireGod();
-  const [tags, locations, skills] = await Promise.all([
+  const [tags, locations, skills, relationships] = await Promise.all([
     db.select({ name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),
     db.select({ key: armorLocationReference.locationCode, label: armorLocationReference.locationName }).from(armorLocationReference).orderBy(asc(armorLocationReference.sortOrder)),
-    db.select({ id: skill.id, name: skill.name }).from(skill).orderBy(asc(skill.name), asc(skill.id)),
+    db.select({
+      id: skill.id,
+      name: skill.name,
+      classification: skill.classification,
+      tier: skill.tier,
+      primaryAttribute: skill.primaryAttribute,
+      secondaryAttribute: skill.secondaryAttribute,
+    }).from(skill).orderBy(asc(skill.name), asc(skill.id)),
+    db.select({
+      id: skillRelationship.id,
+      skillId: skillRelationship.skillId,
+      relatedSkillId: skillRelationship.relatedSkillId,
+      relationshipType: skillRelationship.relationshipType,
+      sortOrder: skillRelationship.sortOrder,
+    }).from(skillRelationship).orderBy(asc(skillRelationship.id)),
   ]);
-  return { tags, armorBodyLocations: locations, skills };
+  return {
+    tags,
+    armorBodyLocations: locations,
+    skills: skills.map((candidate) => ({
+      ...candidate,
+      canonicalPath: validateCanonicalSkillPath(candidate.id, skills, relationships),
+    })),
+  };
+}
+
+export async function getWeaponSkillGovernance(itemId: number): Promise<WeaponSkillGovernanceReadModel | null> {
+  await requireGod();
+  return readWeaponSkillGovernance(itemId);
+}
+
+export async function saveCanonicalWeaponSkillGovernance(
+  itemId: number,
+  mappings: readonly WeaponSkillPathMappingDraft[],
+): Promise<WeaponSkillGovernanceReadModel> {
+  const session = await requireGod();
+  const saved = await saveWeaponSkillGovernanceService({
+    userId: session.user.id,
+    canAuthorMasterContent: true,
+  }, itemId, mappings);
+  revalidatePath("/heavens/equipment");
+  revalidatePath("/heavens/inventory");
+  return saved;
 }
 
 export async function getItem(id: number): Promise<ItemAggregate | null> {
@@ -646,7 +705,17 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
     await tx.delete(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id));
     await tx.delete(armorLocation).where(eq(armorLocation.itemId, id));
     await tx.delete(itemProperty).where(eq(itemProperty.itemId, id));
-    if (!normalized.weapon) await tx.delete(weaponProfile).where(eq(weaponProfile.itemId, id));
+    if (!normalized.weapon) {
+      const governedPaths = await tx.select({ id: weaponSkillPathMapping.id })
+        .from(weaponSkillPathMapping)
+        .innerJoin(weaponProfile, eq(weaponProfile.id, weaponSkillPathMapping.weaponProfileId))
+        .where(eq(weaponProfile.itemId, id!))
+        .limit(1);
+      if (governedPaths.length) {
+        throw new Error("Remove this Weapon Profile's Governing Skill Paths before removing the profile.");
+      }
+      await tx.delete(weaponProfile).where(eq(weaponProfile.itemId, id));
+    }
     await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
     await tx.delete(itemEffect).where(eq(itemEffect.itemId, id));
     await tx.delete(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id));
@@ -756,7 +825,16 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         }
       }
       const removedModeIds = storedModes.map(({ id: modeId }) => modeId).filter((modeId) => !submittedModeIds.has(modeId));
-      if (removedModeIds.length) await tx.delete(weaponFiringMode).where(inArray(weaponFiringMode.id, removedModeIds));
+      if (removedModeIds.length) {
+        const governedModes = await tx.select({ id: weaponSkillPathMapping.id })
+          .from(weaponSkillPathMapping)
+          .where(inArray(weaponSkillPathMapping.firingModeId, removedModeIds))
+          .limit(1);
+        if (governedModes.length) {
+          throw new Error("Remove a Firing Mode's Governing Skill Paths before removing that mode.");
+        }
+        await tx.delete(weaponFiringMode).where(inArray(weaponFiringMode.id, removedModeIds));
+      }
       for (const mode of normalized.weapon.firingModes) {
         const values = {
           weaponProfileId,
@@ -831,14 +909,18 @@ export async function createItemVariant(parentItemId: number, variantName: strin
 
 export async function deleteItem(id: number) {
   await requireGod();
-  const [children, ammoRefs, propertyRefs] = await Promise.all([
+  const [children, ammoRefs, propertyRefs, governanceRefs] = await Promise.all([
     db.select({ value: count() }).from(item).where(eq(item.parentItemId, id)),
     db.select({ value: count() }).from(weaponProfile).where(eq(weaponProfile.ammunitionItemId, id)),
     db.select({ value: count() }).from(itemProperty).where(eq(itemProperty.relatedItemId, id)),
+    db.select({ value: count() }).from(weaponSkillPathMapping)
+      .innerJoin(weaponProfile, eq(weaponProfile.id, weaponSkillPathMapping.weaponProfileId))
+      .where(eq(weaponProfile.itemId, id)),
   ]);
   if (Number(children[0]?.value ?? 0)) throw new Error("This Item cannot be deleted while Variants still link to it.");
   if (Number(ammoRefs[0]?.value ?? 0)) throw new Error("This Item cannot be deleted while Weapon Profiles use it as ammunition.");
   if (Number(propertyRefs[0]?.value ?? 0)) throw new Error("This Item cannot be deleted while other Item Properties reference it.");
+  if (Number(governanceRefs[0]?.value ?? 0)) throw new Error("Remove this Item's Governing Skill Paths before deleting it.");
   await db.delete(item).where(eq(item.id, id));
   revalidatePath("/heavens/equipment");
   revalidatePath("/heavens/inventory");

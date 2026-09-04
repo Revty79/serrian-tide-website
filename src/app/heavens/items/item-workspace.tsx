@@ -37,10 +37,12 @@ import {
   findRelatedCreatures,
   findRelatedItems,
   getItem,
+  getWeaponSkillGovernance,
   listItemAuthoringReferences,
   listItemFacets,
   listItems,
   saveItem,
+  saveCanonicalWeaponSkillGovernance,
   type ItemAuthoringReferences,
   type ItemDraft,
   type ItemFacets,
@@ -50,6 +52,10 @@ import {
   type RelatedCreatureCandidate,
   type RelatedItemCandidate,
 } from "./actions";
+import type {
+  WeaponSkillGovernanceReadModel,
+  WeaponSkillPathMappingDraft,
+} from "@/features/items/weapon-skill-governance-service";
 
 type Tab = "overview" | "properties" | "effects" | "weapon" | "armor" | "tags" | "variants" | "preview";
 
@@ -308,7 +314,7 @@ export function ItemWorkspace({
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "effects" ? <Effects draft={draft} skills={references.skills} onChange={change} /> : null}
-          {activeTab === "weapon" ? <Weapon draft={draft} onChange={change} /> : null}
+          {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
@@ -592,7 +598,190 @@ function PassiveEffectsEditor({
   </section>;
 }
 
-function Weapon({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemDraft) => void }) {
+function skillPathSummary(path: ItemAuthoringReferences["skills"][number]["canonicalPath"]): string {
+  if (!path.rootToEndpoint.length) return "No canonical path available.";
+  const chain = path.rootToEndpoint.map(({ id, name }) => `${name} (#${id})`).join(" → ");
+  return `${chain}${path.fallbackAttribute ? ` → fallback Attribute: ${path.fallbackAttribute}` : ""}`;
+}
+
+function WeaponGovernanceEditor({
+  itemId,
+  references,
+  itemDirty,
+  modeIdentitySignature,
+}: {
+  itemId: number | undefined;
+  references: ItemAuthoringReferences;
+  itemDirty: boolean;
+  modeIdentitySignature: string;
+}) {
+  const [governance, setGovernance] = useState<WeaponSkillGovernanceReadModel | null>(null);
+  const [mappings, setMappings] = useState<WeaponSkillPathMappingDraft[]>([]);
+  const [scope, setScope] = useState<string>("weapon");
+  const [skillSearch, setSkillSearch] = useState("");
+  const [selectedSkillId, setSelectedSkillId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+
+  const replaceFromReadModel = useCallback((model: WeaponSkillGovernanceReadModel) => {
+    setGovernance(model);
+    setScope((current) => current === "weapon" || model.modes.some(({ id }) => current === `mode:${id}`)
+      ? current
+      : "weapon");
+    setMappings([
+      ...model.weaponDefault.options,
+      ...model.modes.flatMap(({ scope: modeScope }) => modeScope.options),
+    ].map(({ id, firingModeId, endpointSkillId, reviewState, notes }) => ({
+      id,
+      firingModeId,
+      endpointSkillId,
+      reviewState,
+      notes,
+    })));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!itemId) {
+      return () => { active = false; };
+    }
+    void getWeaponSkillGovernance(itemId).then((model) => {
+      if (!active) return;
+      if (model) {
+        replaceFromReadModel(model);
+        setFeedback(null);
+      }
+      else {
+        setGovernance(null);
+        setMappings([]);
+        setFeedback({ kind: "error", message: "Save the Weapon Profile before authoring canonical Skill eligibility." });
+      }
+    }).catch((error) => {
+      if (active) setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Weapon governance could not be loaded." });
+    });
+    return () => { active = false; };
+  }, [itemId, modeIdentitySignature, replaceFromReadModel]);
+
+  if (!itemId) {
+    return <section className="item-weapon-governance item-field--wide">
+      <SectionHeading eyebrow="CANONICAL ELIGIBILITY" title="Governing Skill Paths" />
+      <p>Save this Weapon Profile first. New profiles begin Unreviewed with a missing path; no Skill is guessed from the weapon or firing-mode name.</p>
+    </section>;
+  }
+  if (!governance) return <section className="item-weapon-governance item-field--wide"><p>{feedback?.message ?? "Loading Governing Skill Paths…"}</p></section>;
+  const persistedItemId = itemId;
+
+  const firingModeId = scope === "weapon" ? null : Number(scope.slice(5));
+  const scopedMappings = mappings.filter((mapping) => mapping.firingModeId === firingModeId);
+  const scopedValidation = scopedMappings.map((mapping) => ({
+    mapping,
+    skill: references.skills.find(({ id }) => id === mapping.endpointSkillId) ?? null,
+  }));
+  const scopeStatus = !scopedMappings.length
+    ? "missing"
+    : scopedValidation.some(({ skill }) => !skill?.canonicalPath.valid)
+      ? "invalid"
+      : scopedMappings.every(({ reviewState }) => reviewState === "approved")
+        ? "approved"
+        : "review-required";
+  const approvedModeOptions = firingModeId === null
+    ? 0
+    : scopedValidation.filter(({ mapping, skill }) => mapping.reviewState === "approved" && skill?.canonicalPath.valid).length;
+  const filteredSkills = references.skills.filter(({ id, name }) => {
+    const needle = skillSearch.trim().toLocaleLowerCase("en-US");
+    return !needle || name.toLocaleLowerCase("en-US").includes(needle) || String(id).includes(needle);
+  }).slice(0, 100);
+
+  function addPath() {
+    const endpointSkillId = Number(selectedSkillId);
+    if (!Number.isSafeInteger(endpointSkillId) || endpointSkillId <= 0) {
+      setFeedback({ kind: "error", message: "Select an exact canonical Skill before adding a path." });
+      return;
+    }
+    if (scopedMappings.some((mapping) => mapping.endpointSkillId === endpointSkillId)) {
+      setFeedback({ kind: "error", message: `Skill #${endpointSkillId} is already present in this scope.` });
+      return;
+    }
+    setMappings((current) => [...current, {
+      id: null,
+      firingModeId,
+      endpointSkillId,
+      reviewState: "review-required",
+      notes: "",
+    }]);
+    setSelectedSkillId("");
+    setFeedback(null);
+  }
+
+  function patchMapping(target: WeaponSkillPathMappingDraft, update: Partial<WeaponSkillPathMappingDraft>) {
+    setMappings((current) => current.map((mapping) => mapping === target ? { ...mapping, ...update } : mapping));
+    setFeedback(null);
+  }
+
+  function removeMapping(target: WeaponSkillPathMappingDraft) {
+    setMappings((current) => current.filter((mapping) => mapping !== target));
+    setFeedback(null);
+  }
+
+  function moveMapping(target: WeaponSkillPathMappingDraft, direction: -1 | 1) {
+    setMappings((current) => {
+      const indexes = current.flatMap((mapping, index) => mapping.firingModeId === firingModeId ? [index] : []);
+      const scopedIndex = indexes.findIndex((index) => current[index] === target);
+      const destination = scopedIndex + direction;
+      if (scopedIndex < 0 || destination < 0 || destination >= indexes.length) return current;
+      const next = [...current];
+      const left = indexes[scopedIndex]!;
+      const right = indexes[destination]!;
+      [next[left], next[right]] = [next[right]!, next[left]!];
+      return next;
+    });
+  }
+
+  async function saveGovernance() {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const saved = await saveCanonicalWeaponSkillGovernance(persistedItemId, mappings);
+      replaceFromReadModel(saved);
+      setFeedback({ kind: "success", message: "Canonical Governing Skill Paths were saved." });
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Weapon governance could not be saved." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <section className="item-weapon-governance item-field--wide">
+    <SectionHeading eyebrow="CANONICAL ELIGIBILITY" title="Governing Skill Paths" />
+    <p>The endpoint identifies one exact authored branch. Parent Skills and the root Attribute are read from the canonical Skill hierarchy; Character ownership and percentages are not evaluated here.</p>
+    <div className="item-governance-toolbar">
+      <Field label="Authoring Scope"><select value={scope} onChange={(event) => setScope(event.target.value)}><option value="weapon">Weapon Profile Default</option>{governance.modes.map((mode) => <option key={mode.id} value={`mode:${mode.id}`}>{mode.name} · Mode #{mode.id}</option>)}</select></Field>
+      <div className={`item-governance-status is-${scopeStatus}`}><span>Review state</span><strong>{scopeStatus}</strong>{firingModeId !== null ? <small>{approvedModeOptions ? "Own approved paths override the weapon default." : "No approved mode path; inherits the weapon default."}</small> : null}</div>
+    </div>
+    <div className="item-governance-add">
+      <Field label="Search canonical Skills"><input type="search" value={skillSearch} onChange={(event) => setSkillSearch(event.target.value)} placeholder="Skill name or exact ID" /></Field>
+      <Field label="Exact endpoint Skill"><select value={selectedSkillId} onChange={(event) => setSelectedSkillId(event.target.value)}><option value="">Select a Skill</option>{filteredSkills.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · #{candidate.id} · Tier {candidate.tier ?? "N/A"}</option>)}</select></Field>
+      <button type="button" onClick={addPath}>Add Path</button>
+    </div>
+    <div className="item-card-list">{scopedValidation.map(({ mapping, skill }, index) => {
+      const path = skill?.canonicalPath;
+      const stored = mapping.id === null ? null : [governance.weaponDefault, ...governance.modes.map(({ scope: modeScope }) => modeScope)]
+        .flatMap(({ options }) => options).find(({ id }) => id === mapping.id) ?? null;
+      return <article className={`item-edit-card item-governance-path${path?.valid ? "" : " is-review-required"}`} key={mapping.id ?? `new-${firingModeId ?? "weapon"}-${mapping.endpointSkillId}`}>
+        <header><div><strong>{skill ? `${skill.name} · Skill #${skill.id}` : `Missing Skill #${mapping.endpointSkillId}`}</strong><span>{mapping.reviewState}</span></div><button className="is-danger" type="button" onClick={() => removeMapping(mapping)}>Remove</button></header>
+        <p>{path ? skillPathSummary(path) : "The endpoint Skill is missing."}</p>
+        {path && !path.valid ? <ul>{path.problems.map((problem) => <li key={`${problem.code}-${problem.skillId}`}>{problem.message}</li>)}</ul> : null}
+        <Field label="Authoring Notes" wide><textarea maxLength={1000} rows={3} value={mapping.notes} onChange={(event) => patchMapping(mapping, { notes: event.target.value })} /></Field>
+        {stored ? <small>Last authored by {stored.updatedByName} · {new Date(stored.updatedAt).toLocaleString()}</small> : <small>New unsaved path.</small>}
+        <footer><div><button type="button" disabled={index === 0} onClick={() => moveMapping(mapping, -1)}>Move Up</button><button type="button" disabled={index === scopedMappings.length - 1} onClick={() => moveMapping(mapping, 1)}>Move Down</button></div><button type="button" disabled={!path?.valid || mapping.reviewState === "approved"} onClick={() => patchMapping(mapping, { reviewState: "approved" })}>Approve Valid Path</button><button type="button" disabled={mapping.reviewState === "review-required"} onClick={() => patchMapping(mapping, { reviewState: "review-required" })}>Return to Review</button></footer>
+      </article>;
+    })}{!scopedMappings.length ? <p className="item-governance-empty">Unreviewed · Missing path · Requires G.O.D. review. No mapping has been inferred.</p> : null}</div>
+    {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
+    <footer className="item-governance-save"><button className="skills-primary-button" type="button" disabled={saving || itemDirty} onClick={() => void saveGovernance()}>{saving ? "Saving…" : "Save Governing Skill Paths"}</button>{itemDirty ? <small>Save pending Item and Firing Mode changes first.</small> : null}</footer>
+  </section>;
+}
+
+function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; itemDirty: boolean; onChange: (draft: ItemDraft) => void }) {
   const [ammoSearch, setAmmoSearch] = useState("");
   const [ammoCandidates, setAmmoCandidates] = useState<RelatedItemCandidate[]>([]);
   const profile = draft.weaponProfile;
@@ -638,6 +827,7 @@ function Weapon({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemD
         })}</div>
       </section>
     </>}
+    {!ammunitionProfile ? <WeaponGovernanceEditor key={`${draft.id ?? "new"}:${profile.firingModes.map(({ id }) => id ?? "new").join(",")}`} itemId={draft.id} references={references} itemDirty={itemDirty} modeIdentitySignature={profile.firingModes.map(({ id }) => id ?? "new").join(",")} /> : null}
     <Field label="Compatibility" wide><textarea rows={3} value={profile.compatibility} onChange={(e) => patch({ compatibility: e.target.value })} /></Field>
     <Field label="Weapon Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field>
   </div>;

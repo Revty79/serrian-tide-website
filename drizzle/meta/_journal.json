@@ -162,6 +162,13 @@
       "when": 1788484132683,
       "tag": "0022_immutable_roll_ledger_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788486648257,
+      "tag": "0023_canonical_weapon_skill_governance",
+      "breakpoints": true
     }
   ]
 }
