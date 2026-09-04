@@ -171,8 +171,8 @@ test("the Pass 9 pure runtime exposes no attack Roll, bullet allocation, or dama
 test("Pass 9 persistence is additive, exact, restrictive, and follows immutable 0027", () => {
   const migration = readFileSync(path.join(process.cwd(), "drizzle/0028_firearm_readiness_ammunition_runtime.sql"), "utf8");
   const journal = JSON.parse(readFileSync(path.join(process.cwd(), "drizzle/meta/_journal.json"), "utf8")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 29);
-  assert.deepEqual(journal.entries.at(-1), { idx: 28, version: "7", when: 1788542229363, tag: "0028_firearm_readiness_ammunition_runtime", breakpoints: true });
+  assert.equal(journal.entries.length, 30);
+  assert.deepEqual(journal.entries[28], { idx: 28, version: "7", when: 1788542229363, tag: "0028_firearm_readiness_ammunition_runtime", breakpoints: true });
   assert.match(migration, /campaign_character_firearm_state_owned_instance_fk/);
   assert.match(migration, /campaign_character_firearm_state_mode_profile_fk/);
   assert.match(migration, /campaign_character_firearm_state_readied_relationship_valid/);

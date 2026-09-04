@@ -14,6 +14,7 @@ import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operati
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
 import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
+import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 
@@ -37,6 +38,7 @@ import { InitiativeTracker } from "./initiative-tracker";
 import { CombatAidWorkspace } from "./combat-aid-workspace";
 import { ActionDeclarationWorkspace } from "./action-declaration-workspace";
 import { FirearmReadinessWorkspace } from "./firearm-readiness-workspace";
+import { FirearmAttackWorkspace } from "./firearm-attack-workspace";
 import { DefenseInterventionWorkspace } from "./defense-intervention-workspace";
 import { ActionEffectPlanWorkspace } from "./action-effect-plan-workspace";
 import { EncounterCloseout } from "./encounter-closeout";
@@ -165,6 +167,7 @@ export function EncounterWorkspace({
   initialDefenseInterventions,
   initialActionEffects,
   initialFirearmReadiness,
+  initialFirearmAttacks,
   initialCloseout,
   initialRollWorkspace,
   scene,
@@ -176,6 +179,7 @@ export function EncounterWorkspace({
   initialDefenseInterventions: DefenseInterventionWorkspaceView | null;
   initialActionEffects: ActionEffectWorkspaceView | null;
   initialFirearmReadiness: FirearmWorkspaceView | null;
+  initialFirearmAttacks: FirearmAttackWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   scene: CampaignSceneDetail;
@@ -400,7 +404,7 @@ export function EncounterWorkspace({
           ? <InitiativeTracker data={initialInitiativeTracker} />
           : <p className="tabletop-empty">Initiative data is unavailable for this Encounter.</p> : null}
         {!creating && selectedEncounter && activeSection === "declarations" ? initialActionDeclarations
-          ? <>{initialFirearmReadiness ? <FirearmReadinessWorkspace view={initialFirearmReadiness} /> : null}<ActionDeclarationWorkspace view={initialActionDeclarations} />{initialDefenseInterventions ? <DefenseInterventionWorkspace actions={initialActionDeclarations} defense={initialDefenseInterventions} /> : null}{initialActionEffects ? <ActionEffectPlanWorkspace encounterId={selectedEncounter.id} view={initialActionEffects} /> : null}</>
+          ? <>{initialFirearmReadiness ? <FirearmReadinessWorkspace view={initialFirearmReadiness} /> : null}{initialFirearmReadiness && initialFirearmAttacks ? <FirearmAttackWorkspace readiness={initialFirearmReadiness} attackView={initialFirearmAttacks} /> : null}<ActionDeclarationWorkspace view={initialActionDeclarations} />{initialDefenseInterventions ? <DefenseInterventionWorkspace actions={initialActionDeclarations} defense={initialDefenseInterventions} /> : null}{initialActionEffects ? <ActionEffectPlanWorkspace encounterId={selectedEncounter.id} view={initialActionEffects} /> : null}</>
           : <p className="tabletop-empty">Initialize Initiative before creating action declarations.</p> : null}
         {!creating && selectedEncounter && activeSection === "combat-aid" ? initialCombatAid
           ? <CombatAidWorkspace data={initialCombatAid} rollWorkspace={initialRollWorkspace} onOpenInitiative={() => setActiveSection("initiative")} />

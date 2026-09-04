@@ -15,6 +15,7 @@ import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operati
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
 import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
+import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
@@ -145,6 +146,7 @@ export function SceneWorkspace({
   initialDefenseInterventions,
   initialActionEffects,
   initialFirearmReadiness,
+  initialFirearmAttacks,
   initialCloseout,
   initialRollWorkspace,
   session,
@@ -158,6 +160,7 @@ export function SceneWorkspace({
   initialDefenseInterventions: DefenseInterventionWorkspaceView | null;
   initialActionEffects: ActionEffectWorkspaceView | null;
   initialFirearmReadiness: FirearmWorkspaceView | null;
+  initialFirearmAttacks: FirearmAttackWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   session: CampaignSessionSummary;
@@ -375,6 +378,7 @@ export function SceneWorkspace({
             initialDefenseInterventions={initialDefenseInterventions}
             initialActionEffects={initialActionEffects}
             initialFirearmReadiness={initialFirearmReadiness}
+            initialFirearmAttacks={initialFirearmAttacks}
             initialCloseout={initialCloseout}
             initialRollWorkspace={initialRollWorkspace}
             scene={selectedScene}

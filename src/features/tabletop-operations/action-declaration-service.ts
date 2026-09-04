@@ -380,11 +380,18 @@ async function buildAuthoritativeSnapshot(
             .limit(1))[0] ?? null
         : equipped!.firingModes.find(({ id }) => id === draft.firingModeId) ?? null;
     if (draft.firingModeId !== null && !mode) throw new Error("The declared Firing Mode no longer belongs to that Weapon.");
+    const requestedWeaponGovernanceOverride = draft.sourcePayload?.weaponGovernanceOverride;
+    if (requestedWeaponGovernanceOverride !== undefined && actor.authority !== "god-owner") {
+      throw new Error("Only the Campaign-owning G.O.D. may supply a one-action Weapon governance ruling.");
+    }
     const resolution = firearmPreparation ? null : await resolveCharacterWeaponGovernanceInTransaction(tx, { userId: actor.userId }, {
       campaignId: context.campaignId,
       characterId: draft.actorCharacterId,
       itemId: equipped!.itemId,
       firingModeId: draft.firingModeId,
+      oneActionOverride: requestedWeaponGovernanceOverride === undefined
+        ? null
+        : requestedWeaponGovernanceOverride as Parameters<typeof resolveCharacterWeaponGovernanceInTransaction>[2]["oneActionOverride"],
     });
     authoritativeSourceRef = firearmPreparation ? `instance:${ownedPreparationSource!.instanceId}` : equipped!.ownershipKey;
     if (!firearmPreparation && draft.windowKind !== "firearm-trigger" && equipped!.initiativeCost !== null) {

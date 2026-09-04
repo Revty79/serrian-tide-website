@@ -733,3 +733,184 @@
     width: 100%;
   }
 }
+
+.firearm-attack-workspace {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgb(205 113 73 / 28%);
+}
+
+.firearm-attack-workspace > header,
+.firearm-attack-compose > header,
+.firearm-attack-preview > header,
+.firearm-attack-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.firearm-attack-workspace > header span,
+.firearm-attack-compose > header span,
+.firearm-attack-preview > header span,
+.firearm-attack-card > header span {
+  display: block;
+  color: #e19b72;
+  font-size: .64rem;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.firearm-attack-workspace h3,
+.firearm-attack-workspace h4,
+.firearm-attack-workspace h5 {
+  margin: 3px 0 0;
+}
+
+.firearm-attack-boundary,
+.firearm-attack-authored,
+.firearm-attack-roll,
+.firearm-attack-result {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgb(205 113 73 / 18%);
+  border-radius: 10px;
+  background: rgb(39 16 10 / 34%);
+  color: #d6c1b4;
+}
+
+.firearm-attack-compose,
+.firearm-attack-preview,
+.firearm-attack-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgb(205 113 73 / 18%);
+  border-radius: 12px;
+  background: rgb(12 9 8 / 55%);
+}
+
+.firearm-attack-preview.requires-ruling,
+.firearm-attack-card.is-requires-god-ruling {
+  border-color: rgb(225 174 74 / 42%);
+}
+
+.firearm-attack-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.firearm-attack-fields label,
+.firearm-attack-roll label {
+  display: grid;
+  gap: 5px;
+}
+
+.firearm-attack-fields .is-wide,
+.firearm-attack-roll .is-wide {
+  grid-column: 1 / -1;
+}
+
+.firearm-attack-check {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.firearm-attack-check input {
+  width: auto;
+}
+
+.firearm-attack-actions,
+.firearm-attack-roll {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 9px;
+}
+
+.firearm-attack-history,
+.firearm-attack-bullets {
+  display: grid;
+  gap: 10px;
+}
+
+.firearm-attack-preview dl,
+.firearm-attack-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.firearm-attack-preview dl > div,
+.firearm-attack-card dl > div,
+.firearm-attack-bullets > article {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: rgb(1 5 9 / 42%);
+}
+
+.firearm-attack-preview dt,
+.firearm-attack-card dt {
+  color: #9daab2;
+  font-size: .65rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.firearm-attack-preview dd,
+.firearm-attack-card dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.firearm-attack-bullets > article,
+.firearm-attack-card details ol {
+  display: grid;
+  gap: 4px;
+}
+
+.firearm-attack-rulings {
+  margin: 0;
+  padding: 10px 10px 10px 30px;
+  border: 1px solid rgb(225 174 74 / 30%);
+  border-radius: 8px;
+  color: #e2c77e;
+}
+
+.firearm-attack-feedback {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+}
+
+.firearm-attack-feedback.is-success {
+  background: rgb(77 156 118 / 18%);
+  color: #a6d8bd;
+}
+
+.firearm-attack-feedback.is-error {
+  background: rgb(180 74 65 / 18%);
+  color: #efa69d;
+}
+
+@media(max-width:760px) {
+  .firearm-attack-workspace > header,
+  .firearm-attack-compose > header,
+  .firearm-attack-preview > header,
+  .firearm-attack-card > header {
+    flex-direction: column;
+  }
+
+  .firearm-attack-fields,
+  .firearm-attack-preview dl,
+  .firearm-attack-card dl {
+    grid-template-columns: 1fr;
+  }
+}

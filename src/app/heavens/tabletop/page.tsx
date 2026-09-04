@@ -14,6 +14,7 @@ import { getActionDeclarationWorkspace } from "./action-declaration-actions";
 import { getDefenseInterventionWorkspace } from "./defense-intervention-actions";
 import { getActionEffectWorkspace } from "./action-effect-plan-actions";
 import { getFirearmReadinessWorkspace } from "./firearm-readiness-actions";
+import { getFirearmAttackWorkspace } from "./firearm-attack-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -108,6 +109,9 @@ export default async function TabletopOperationsPage({
         Number.isInteger(requestedFirearmInstanceId) && requestedFirearmInstanceId > 0 ? requestedFirearmInstanceId : null,
       )
     : null;
+  const firearmAttacks = encounterWorkspace?.selectedEncounter
+    ? await getFirearmAttackWorkspace(encounterWorkspace.selectedEncounter.id)
+    : null;
   const closeout = encounterWorkspace?.selectedEncounter
     ? await getEncounterCloseout(encounterWorkspace.selectedEncounter.id)
     : null;
@@ -148,6 +152,7 @@ export default async function TabletopOperationsPage({
       initialDefenseInterventions={defenseInterventions}
       initialActionEffects={actionEffects}
       initialFirearmReadiness={firearmReadiness}
+      initialFirearmAttacks={firearmAttacks}
       initialCloseout={closeout}
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}

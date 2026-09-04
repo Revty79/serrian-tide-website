@@ -69,6 +69,12 @@ function optionalPositiveId(value: number | null | undefined, label: string): nu
   return value === null || value === undefined ? null : positiveId(value, label);
 }
 
+function optionalParticipantKey(value: number | null | undefined, label: string): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
 function boundedText(value: string | undefined, label: string, maximum: number): string {
   const normalized = (value ?? "").trim();
   if (normalized.length > maximum) throw new Error(`${label} must be ${maximum} characters or fewer.`);
@@ -130,7 +136,7 @@ export function normalizeRollRecordRequest(request: RollRecordRequest): Normaliz
     sceneId,
     encounterId,
     rollerCharacterId: optionalPositiveId(request.rollerCharacterId, "Roller Character"),
-    targetCharacterId: optionalPositiveId(request.targetCharacterId, "Target Character"),
+    targetCharacterId: optionalParticipantKey(request.targetCharacterId, "Target Participant"),
     pendingActionId,
     reactionId,
     enteredTotal,
