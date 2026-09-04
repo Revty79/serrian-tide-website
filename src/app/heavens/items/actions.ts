@@ -197,6 +197,13 @@ export type ItemDraft = {
     ammunitionItemName: string | null;
     compatibility: string;
     capacity: string;
+    capacityRounds: number | null;
+    readinessMode: "draw-is-ready" | "separate-ready-action" | null;
+    drawInitiativeCost: number | null;
+    readyInitiativeCost: number | null;
+    reloadInitiativeCost: number | null;
+    unloadInitiativeCost: number | null;
+    firingModeChangeInitiativeCost: number | null;
     firingModes: FirearmFiringModeDraft[];
     resolvedFiringModes: ResolvedFirearmFiringMode[];
     rateOfFire: string;
@@ -232,6 +239,7 @@ function required(value: string | null | undefined, label: string) { const resul
 function nonNegative(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater, or left blank.`); return value; }
 function positive(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value <= 0) throw new Error(`${label} must be greater than zero, or left blank.`); return value; }
 function positiveInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a whole number greater than zero, or left blank.`); return value; }
+function nonNegativeInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${label} must be a whole number zero or greater, or left blank.`); return value; }
 function wholeInteger(value: number, label: string) { if (!Number.isSafeInteger(value)) throw new Error(`${label} must be a whole number.`); return value; }
 
 function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
@@ -293,6 +301,15 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
     ammunitionItemName: input.weaponProfile.ammunitionItemId ? optionalText(input.weaponProfile.ammunitionItemName) : null,
     compatibility: clean(input.weaponProfile.compatibility),
     capacity: clean(input.weaponProfile.capacity),
+    capacityRounds: positiveInteger(input.weaponProfile.capacityRounds, "Structured firearm capacity"),
+    readinessMode: input.weaponProfile.readinessMode === "draw-is-ready" || input.weaponProfile.readinessMode === "separate-ready-action"
+      ? input.weaponProfile.readinessMode
+      : null,
+    drawInitiativeCost: nonNegativeInteger(input.weaponProfile.drawInitiativeCost, "Draw Initiative Cost"),
+    readyInitiativeCost: nonNegativeInteger(input.weaponProfile.readyInitiativeCost, "Ready Initiative Cost"),
+    reloadInitiativeCost: nonNegativeInteger(input.weaponProfile.reloadInitiativeCost, "Reload Initiative Cost"),
+    unloadInitiativeCost: nonNegativeInteger(input.weaponProfile.unloadInitiativeCost, "Unload Initiative Cost"),
+    firingModeChangeInitiativeCost: nonNegativeInteger(input.weaponProfile.firingModeChangeInitiativeCost, "Firing Mode Change Initiative Cost"),
     firingModes: normalizeFirearmFiringModes(input.weaponProfile.firingModes, { allowUnreviewedNewModes }),
     rateOfFire: clean(input.weaponProfile.rateOfFire),
     reloadInitiative: clean(input.weaponProfile.reloadInitiative),
@@ -572,6 +589,13 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       damageType: weapon.damageType, range: weapon.rangeText,
       reach: weapon.reachText, ammunitionItemId: weapon.ammunitionItemId, ammunitionItemName,
       compatibility: weapon.compatibility, capacity: weapon.capacity,
+      capacityRounds: weapon.capacityRounds,
+      readinessMode: weapon.readinessMode as NonNullable<ItemDraft["weaponProfile"]>["readinessMode"],
+      drawInitiativeCost: weapon.drawInitiativeCost,
+      readyInitiativeCost: weapon.readyInitiativeCost,
+      reloadInitiativeCost: weapon.reloadInitiativeCost,
+      unloadInitiativeCost: weapon.unloadInitiativeCost,
+      firingModeChangeInitiativeCost: weapon.firingModeChangeInitiativeCost,
       firingModes: firingModeRows.map((mode) => ({
         ...mode,
         deliveryCadence: mode.deliveryCadence as FirearmFiringModeDraft["deliveryCadence"],
@@ -789,6 +813,13 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         ammunitionItemId: normalized.weapon.ammunitionItemId,
         compatibility: normalized.weapon.compatibility,
         capacity: normalized.weapon.capacity,
+        capacityRounds: normalized.weapon.capacityRounds,
+        readinessMode: normalized.weapon.readinessMode,
+        drawInitiativeCost: normalized.weapon.drawInitiativeCost,
+        readyInitiativeCost: normalized.weapon.readyInitiativeCost,
+        reloadInitiativeCost: normalized.weapon.reloadInitiativeCost,
+        unloadInitiativeCost: normalized.weapon.unloadInitiativeCost,
+        firingModeChangeInitiativeCost: normalized.weapon.firingModeChangeInitiativeCost,
         fireModes: JSON.stringify(normalized.weapon.firingModes.map(({ name }) => name)),
         rateOfFire: normalized.weapon.rateOfFire,
         reloadInitiative: normalized.weapon.reloadInitiative,

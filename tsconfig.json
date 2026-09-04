@@ -34,7 +34,9 @@
     ".next-weapon-governance-browser/dev/types/**/*.ts",
     ".next-action-declaration-browser/types/**/*.ts",
     ".next-action-declaration-browser/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-firearm-readiness-browser/types/**/*.ts",
+    ".next-firearm-readiness-browser/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

@@ -13,6 +13,7 @@ import { getGodWeaponGovernanceWorkspace } from "./weapon-governance-actions";
 import { getActionDeclarationWorkspace } from "./action-declaration-actions";
 import { getDefenseInterventionWorkspace } from "./defense-intervention-actions";
 import { getActionEffectWorkspace } from "./action-effect-plan-actions";
+import { getFirearmReadinessWorkspace } from "./firearm-readiness-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -33,6 +34,8 @@ export default async function TabletopOperationsPage({
     weaponCharacter?: string;
     weaponItem?: string;
     weaponMode?: string;
+    firearmCharacter?: string;
+    firearmInstance?: string;
   }>;
 }) {
   await requireGod().catch(() => redirect("/access"));
@@ -44,6 +47,8 @@ export default async function TabletopOperationsPage({
   const requestedWeaponCharacterId = Number(query.weaponCharacter);
   const requestedWeaponItemId = Number(query.weaponItem);
   const requestedWeaponModeId = Number(query.weaponMode);
+  const requestedFirearmCharacterId = Number(query.firearmCharacter);
+  const requestedFirearmInstanceId = Number(query.firearmInstance);
   const workspace = await getTabletopWorkspace(
     Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
       ? requestedCampaignId
@@ -96,6 +101,13 @@ export default async function TabletopOperationsPage({
   const actionEffects = encounterWorkspace?.selectedEncounter
     ? await getActionEffectWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
+  const firearmReadiness = encounterWorkspace?.selectedEncounter
+    ? await getFirearmReadinessWorkspace(
+        encounterWorkspace.selectedEncounter.id,
+        Number.isInteger(requestedFirearmCharacterId) && requestedFirearmCharacterId !== 0 ? requestedFirearmCharacterId : null,
+        Number.isInteger(requestedFirearmInstanceId) && requestedFirearmInstanceId > 0 ? requestedFirearmInstanceId : null,
+      )
+    : null;
   const closeout = encounterWorkspace?.selectedEncounter
     ? await getEncounterCloseout(encounterWorkspace.selectedEncounter.id)
     : null;
@@ -135,6 +147,7 @@ export default async function TabletopOperationsPage({
       initialActionDeclarations={actionDeclarations}
       initialDefenseInterventions={defenseInterventions}
       initialActionEffects={actionEffects}
+      initialFirearmReadiness={firearmReadiness}
       initialCloseout={closeout}
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}

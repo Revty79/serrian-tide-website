@@ -89,7 +89,7 @@ function itemDraft(actorCharacterId: number, targetParticipantId: number, itemId
 
 test("guarded Pass 8 plans freeze sources and apply Character or direct-Creature effects atomically once", async () => {
   const ledger = await pool.query<{ count: number }>("select count(*)::int count from drizzle.__drizzle_migrations");
-  assert.equal(ledger.rows[0]?.count, 28);
+  assert.equal(ledger.rows[0]?.count, 29);
 
   await assert.rejects(db.transaction(async (tx) => {
     const base = await insertBuildTenFixture(tx, "action-effect-bridge");

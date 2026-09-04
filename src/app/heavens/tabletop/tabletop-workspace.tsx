@@ -15,6 +15,7 @@ import type { GodWeaponGovernanceWorkspaceView } from "@/features/items/weapon-g
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
 import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
+import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 
 import {
@@ -229,6 +230,7 @@ export function TabletopWorkspace({
   initialActionDeclarations,
   initialDefenseInterventions,
   initialActionEffects,
+  initialFirearmReadiness,
   initialCloseout,
   initialRollWorkspace,
   initialSessionCloseout,
@@ -245,6 +247,7 @@ export function TabletopWorkspace({
   initialActionDeclarations: ActionDeclarationWorkspaceView | null;
   initialDefenseInterventions: DefenseInterventionWorkspaceView | null;
   initialActionEffects: ActionEffectWorkspaceView | null;
+  initialFirearmReadiness: FirearmWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   initialSessionCloseout: SessionCloseoutView | null;
@@ -590,6 +593,7 @@ export function TabletopWorkspace({
             initialActionDeclarations={initialActionDeclarations}
             initialDefenseInterventions={initialDefenseInterventions}
             initialActionEffects={initialActionEffects}
+            initialFirearmReadiness={initialFirearmReadiness}
             initialCloseout={initialCloseout}
             initialRollWorkspace={initialRollWorkspace}
             session={selectedSession}

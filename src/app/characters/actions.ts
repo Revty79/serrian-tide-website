@@ -30,7 +30,7 @@ import {
   derivedAbilityUseCondition,
   derivedAbilityUseLimit,
 } from "@/db/derived-ability-schema";
-import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponProfile } from "@/db/item-schema";
+import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import {
   race,
   raceAttributeCap,
@@ -703,6 +703,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      weaponProfileId: weaponProfile.id,
+      isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
       weaponType: weaponProfile.weaponType,
       handedness: weaponProfile.handedness,
       damageSource: weaponProfile.damageSource,
@@ -831,16 +833,12 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     throw new Error("The Character references a Race that is not allowed by its Campaign.");
   }
 
-  const ownedStackProfiles = ownedItems.map((entry) => ({
-    itemId: entry.itemId,
-    runtimeProfile: readItemRuntimeProfile(entry),
-  }));
-  const ownedInstanceProfiles = ownedItemInstances.map((entry) => ({
-    itemId: entry.itemId,
-    runtimeProfile: readItemRuntimeProfile(entry),
-  }));
   assertNoStackInstanceOwnershipCollision({
-    definitions: [...ownedStackProfiles, ...ownedInstanceProfiles],
+    definitions: authorizedRows.map((entry) => ({
+      itemId: entry.id,
+      runtimeProfile: readItemRuntimeProfile(entry),
+      requiresExactInstance: entry.isFirearm === true,
+    })),
     stacks: ownedItems,
     instances: ownedItemInstances,
   });
@@ -1047,6 +1045,8 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       isMagical: entry.isMagical,
       effectCount: entry.effectCount,
       runtimeProfile: readItemRuntimeProfile(entry),
+      weaponProfileId: entry.weaponProfileId,
+      isFirearm: entry.isFirearm,
       weaponType: entry.weaponType,
       handedness: entry.handedness,
       damageSource: entry.damageSource,
@@ -1120,7 +1120,10 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     if (!Number.isFinite(entry.unitCostCredits) || entry.unitCostCredits < 0) throw new Error("Item unit cost must be zero or greater.");
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
     if (!authorized) throw new Error("Character possessions must be Campaign-authorized Items.");
-    assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name);
+    assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name, {
+      requiresExactInstance: authorized.isFirearm === true,
+      allowLegacyExactStack: true,
+    });
     if (!godMode && (authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
       throw new Error("Starting possessions must be Campaign-authorized and use their canonical price.");
     }
@@ -1146,7 +1149,9 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     }
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
     if (!authorized) throw new Error("Owned Item instances must use Campaign-authorized Items.");
-    assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name);
+    assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name, {
+      requiresExactInstance: authorized.isFirearm === true,
+    });
 
     if (entry.instanceId === null) {
       if (entry.draftId >= 0) throw new Error("An unsaved Item instance needs a temporary draft identity.");
@@ -1175,6 +1180,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     definitions: aggregate.authorizedItems.map((entry) => ({
       itemId: entry.id,
       runtimeProfile: entry.runtimeProfile,
+      requiresExactInstance: entry.isFirearm === true,
     })),
     stacks: items,
     instances: itemInstances,
@@ -1431,7 +1437,10 @@ export async function saveCharacter(
         return {
           characterId,
           itemId: entry.itemId,
-          currentCharges: getStartingItemInstanceCharges(authorized.runtimeProfile),
+          currentCharges: getStartingItemInstanceCharges(
+            authorized.runtimeProfile,
+            authorized.isFirearm === true,
+          ),
           unitCostCredits: entry.unitCostCredits,
         };
       }));

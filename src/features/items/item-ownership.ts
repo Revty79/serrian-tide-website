@@ -31,6 +31,7 @@ export type DraftOwnedItemInstance = {
 export type ItemOwnershipDefinition = {
   itemId: number;
   runtimeProfile: ItemOwnershipRuntimeProfile;
+  requiresExactInstance?: boolean;
 };
 
 function readValidRuntimeProfile(profile: ItemOwnershipRuntimeProfile): ItemRuntimeProfile {
@@ -43,8 +44,9 @@ function readValidRuntimeProfile(profile: ItemOwnershipRuntimeProfile): ItemRunt
 
 export function getItemOwnershipStrategy(
   runtimeProfile: ItemOwnershipRuntimeProfile,
+  requiresExactInstance = false,
 ): ItemOwnershipStrategy {
-  return readValidRuntimeProfile(runtimeProfile).useMode === "charges"
+  return requiresExactInstance || readValidRuntimeProfile(runtimeProfile).useMode === "charges"
     ? "instance"
     : "stack";
 }
@@ -58,20 +60,25 @@ export function validateCurrentItemCharges(currentCharges: unknown): number {
 
 export function getStartingItemInstanceCharges(
   runtimeProfile: ItemOwnershipRuntimeProfile,
+  requiresExactInstance = false,
 ): number {
   const profile = readValidRuntimeProfile(runtimeProfile);
-  if (getItemOwnershipStrategy(profile) !== "instance" || profile.maximumCharges === null) {
-    throw new Error("Only a charged Item can create an owned Item instance.");
+  if (getItemOwnershipStrategy(profile, requiresExactInstance) !== "instance") {
+    throw new Error("Only a charged Item or exact-instance Weapon can create an owned Item instance.");
   }
-  return validateCurrentItemCharges(profile.maximumCharges);
+  return validateCurrentItemCharges(profile.maximumCharges ?? 0);
 }
 
 export function assertItemOwnershipStrategy(
   runtimeProfile: ItemOwnershipRuntimeProfile,
   actualStrategy: ItemOwnershipStrategy,
   label = "Item",
+  options: { requiresExactInstance?: boolean; allowLegacyExactStack?: boolean } = {},
 ): void {
-  const requiredStrategy = getItemOwnershipStrategy(runtimeProfile);
+  const requiredStrategy = getItemOwnershipStrategy(runtimeProfile, options.requiresExactInstance);
+  if (requiredStrategy === "instance" && actualStrategy === "stack" && options.allowLegacyExactStack && options.requiresExactInstance) {
+    return;
+  }
   if (requiredStrategy !== actualStrategy) {
     throw new Error(
       requiredStrategy === "instance"
@@ -86,24 +93,29 @@ export function assertNoStackInstanceOwnershipCollision(input: {
   stacks: readonly OwnedItemStackLike[];
   instances: readonly OwnedItemInstanceLike[];
 }): void {
-  const definitions = new Map(input.definitions.map((entry) => [entry.itemId, entry.runtimeProfile]));
+  const definitions = new Map(input.definitions.map((entry) => [entry.itemId, entry]));
   const stackIds = new Set<number>();
   const instanceIds = new Set<number>();
 
   for (const stack of input.stacks) {
-    const profile = definitions.get(stack.itemId);
-    if (!profile) throw new Error(`Owned Item ${stack.itemId} is missing its runtime definition.`);
-    assertItemOwnershipStrategy(profile, "stack", `Owned Item ${stack.itemId}`);
+    const definition = definitions.get(stack.itemId);
+    if (!definition) throw new Error(`Owned Item ${stack.itemId} is missing its runtime definition.`);
+    assertItemOwnershipStrategy(definition.runtimeProfile, "stack", `Owned Item ${stack.itemId}`, {
+      requiresExactInstance: definition.requiresExactInstance,
+      allowLegacyExactStack: true,
+    });
     stackIds.add(stack.itemId);
   }
   for (const instance of input.instances) {
-    const profile = definitions.get(instance.itemId);
-    if (!profile) throw new Error(`Owned Item ${instance.itemId} is missing its runtime definition.`);
-    assertItemOwnershipStrategy(profile, "instance", `Owned Item ${instance.itemId}`);
+    const definition = definitions.get(instance.itemId);
+    if (!definition) throw new Error(`Owned Item ${instance.itemId} is missing its runtime definition.`);
+    assertItemOwnershipStrategy(definition.runtimeProfile, "instance", `Owned Item ${instance.itemId}`, {
+      requiresExactInstance: definition.requiresExactInstance,
+    });
     instanceIds.add(instance.itemId);
   }
   for (const itemId of stackIds) {
-    if (instanceIds.has(itemId)) {
+    if (instanceIds.has(itemId) && !definitions.get(itemId)?.requiresExactInstance) {
       throw new Error(`Owned Item ${itemId} cannot exist as both a stack and individual instances.`);
     }
   }
@@ -135,9 +147,12 @@ export function createDraftOwnedItemInstances(input: {
   quantity: number;
   unitCostCredits: number;
   runtimeProfile: ItemOwnershipRuntimeProfile;
+  requiresExactInstance?: boolean;
   createDraftId: () => number;
 }): DraftOwnedItemInstance[] {
-  assertItemOwnershipStrategy(input.runtimeProfile, "instance", `Item ${input.itemId}`);
+  assertItemOwnershipStrategy(input.runtimeProfile, "instance", `Item ${input.itemId}`, {
+    requiresExactInstance: input.requiresExactInstance,
+  });
   if (!Number.isSafeInteger(input.quantity) || input.quantity < 0) {
     throw new Error("Owned Item instance quantity must be a whole number zero or greater.");
   }
@@ -158,6 +173,7 @@ export function resizeDraftOwnedItemInstances(input: {
   quantity: number;
   unitCostCredits: number;
   runtimeProfile: ItemOwnershipRuntimeProfile;
+  requiresExactInstance?: boolean;
   createDraftId: () => number;
 }): DraftOwnedItemInstance[] {
   const otherItems = input.current.filter((entry) => entry.itemId !== input.itemId);

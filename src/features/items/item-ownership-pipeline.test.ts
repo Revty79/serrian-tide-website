@@ -38,11 +38,12 @@ test("Character aggregate and draft keep stacks and instances as separate typed 
   assert.match(rules, /getOwnedItemPurchaseCost/);
 });
 
-test("Character save routes new charged copies to inserts and removes only selected stable IDs", () => {
+test("Character save routes charged and firearm copies to exact inserts and removes only selected stable IDs", () => {
   const actions = source("src/app/characters/actions.ts");
   assert.match(actions, /assertItemOwnershipStrategy\(authorized\.runtimeProfile, "stack"/);
   assert.match(actions, /assertItemOwnershipStrategy\(authorized\.runtimeProfile, "instance"/);
-  assert.match(actions, /currentCharges: getStartingItemInstanceCharges\(authorized\.runtimeProfile\)/);
+  assert.match(actions, /currentCharges: getStartingItemInstanceCharges\(\s*authorized\.runtimeProfile,\s*authorized\.isFirearm === true/);
+  assert.match(actions, /requiresExactInstance: authorized\.isFirearm === true/);
   assert.match(actions, /planOwnedItemInstancePersistence\(\{/);
   assert.match(actions, /existingInstanceIds: aggregate\.itemInstances\.map/);
   assert.match(actions, /inArray\(campaignCharacterItemInstance\.id, removedInstanceIds\)/);
@@ -54,7 +55,8 @@ test("Creature NPCs share campaignCharacter instance ownership and preserve curr
   const workspace = source("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx");
   assert.match(actions, /campaignCharacterItemInstance/);
   assert.match(actions, /existing\.currentCharges !== entry\.currentCharges/);
-  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile\)/);
+  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm\)/);
+  assert.match(actions, /requiresExactInstance: source\.isFirearm/);
   assert.match(actions, /existingInstanceIds: current\.itemInstances\.flatMap/);
   assert.match(workspace, /Remove this copy/);
   assert.match(workspace, /getItemChargeDisplay/);

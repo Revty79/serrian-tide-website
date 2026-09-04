@@ -35,6 +35,19 @@ test("ownership strategy centralizes charged instances and leaves other modes st
   assert.equal(getItemOwnershipStrategy(profile("consume-item")), "stack");
   assert.equal(getItemOwnershipStrategy(profile("unlimited")), "stack");
   assert.equal(getItemOwnershipStrategy(profile("none")), "stack");
+  assert.equal(getItemOwnershipStrategy(profile("none"), true), "instance");
+});
+
+test("firearm copies receive exact instance identity without inventing charges", () => {
+  const ordinary = profile("none");
+  assert.equal(getStartingItemInstanceCharges(ordinary, true), 0);
+  assert.doesNotThrow(() => assertItemOwnershipStrategy(ordinary, "instance", "Firearm", { requiresExactInstance: true }));
+  assert.doesNotThrow(() => assertItemOwnershipStrategy(ordinary, "stack", "Legacy firearm", { requiresExactInstance: true, allowLegacyExactStack: true }));
+  assert.doesNotThrow(() => assertNoStackInstanceOwnershipCollision({
+    definitions: [{ itemId: 41, runtimeProfile: ordinary, requiresExactInstance: true }],
+    stacks: [{ itemId: 41, quantity: 1 }],
+    instances: [{ itemId: 41 }],
+  }));
 });
 
 test("charged acquisition creates distinct unsaved instances at the template maximum", () => {

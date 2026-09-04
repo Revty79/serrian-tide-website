@@ -365,6 +365,8 @@ async function persistEngine(
       ));
     }
   }
+  const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("@/features/tabletop-operations/firearm-readiness-service");
+  await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
   await recordActionTimingCompletionsInTransaction(
     tx,
     context,

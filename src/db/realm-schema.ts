@@ -495,6 +495,11 @@ export const campaignCharacterItemInstance = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    unique("campaign_character_item_instance_exact_identity_uq").on(
+      table.id,
+      table.characterId,
+      table.itemId,
+    ),
     index("campaign_character_item_instance_character_idx").on(
       table.characterId,
       table.itemId,

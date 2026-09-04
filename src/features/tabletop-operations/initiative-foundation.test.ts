@@ -138,7 +138,7 @@ test("migration 0009 is additive, relationally strong, and limited to Initiative
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:combat_health|combat_mana|combat_inventory|combat_equipment|combat_character_snapshot|reward|shop|map|token|grid)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0027_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0028_snapshot\.json/);
 });
 
 test("architecture preserves one authoritative Character state and defers polished combat integration", () => {

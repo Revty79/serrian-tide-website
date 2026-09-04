@@ -443,6 +443,8 @@ export async function persistInitiativeEngineInTransaction(
       });
     }
   }
+  const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("./firearm-readiness-service");
+  await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime);
 }
 

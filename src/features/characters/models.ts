@@ -238,6 +238,8 @@ export type CharacterAuthorizedItem = {
   isMagical: boolean;
   effectCount: number;
   runtimeProfile: ItemRuntimeProfile;
+  weaponProfileId?: number | null;
+  isFirearm?: boolean;
   weaponType: string | null;
   handedness: string | null;
   damageSource: string | null;

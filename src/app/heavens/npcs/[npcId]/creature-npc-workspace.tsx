@@ -230,19 +230,20 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
   function addSelectedItem() {
     const selected = draft.authorizedItems.find(({ id }) => id === Number(itemId));
     if (!selected) return;
-    if (getItemOwnershipStrategy(selected.runtimeProfile) === "instance") {
+    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm) === "instance") {
       const [created] = createDraftOwnedItemInstances({
         itemId: selected.id,
         quantity: 1,
         unitCostCredits: selected.credits ?? 0,
         runtimeProfile: selected.runtimeProfile,
+        requiresExactInstance: selected.isFirearm,
         createDraftId: () => nextInstanceDraftId.current--,
       });
       onChange({
         ...draft,
         itemInstances: [...draft.itemInstances, {
           ...created,
-          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile),
+          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm),
           acquiredAt: null,
         }],
       });

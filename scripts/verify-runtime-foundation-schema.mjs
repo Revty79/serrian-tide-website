@@ -13,7 +13,7 @@ if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname)) {
   throw new Error(`Refusing schema verification against non-local host ${url.hostname}.`);
 }
 
-const snapshotName = process.argv[2] ?? "0027_snapshot.json";
+const snapshotName = process.argv[2] ?? "0028_snapshot.json";
 const snapshot = JSON.parse(
   await readFile(new URL(`../drizzle/meta/${snapshotName}`, import.meta.url), "utf8"),
 );
@@ -60,6 +60,12 @@ function normalizeExpression(value) {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function normalizePredicate(value) {
+  return normalizeExpression(value)
+    .replace(/ = any array\[([^\]]*)\]/g, " in $1")
+    .replace(/,\s+/g, ",");
 }
 
 function key(tableName, objectName) {
@@ -267,7 +273,7 @@ try {
         JSON.stringify(index.columns.map((column) => normalizeExpression(column.expression))),
         `${indexKey} columns`,
       );
-      assertEqual(normalizeExpression(actual.predicate), normalizeExpression(index.where), `${indexKey} predicate`);
+      assertEqual(normalizePredicate(actual.predicate), normalizePredicate(index.where), `${indexKey} predicate`);
     }
   }
   assertSet(actualIndexes.keys(), expectedIndexKeys, "explicit indexes, including partial indexes");

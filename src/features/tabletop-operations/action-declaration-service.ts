@@ -4,8 +4,8 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaignPlayer } from "@/db/campaign-schema";
-import { item, weaponProfile } from "@/db/item-schema";
-import { campaignCharacter } from "@/db/realm-schema";
+import { item, weaponFiringMode, weaponProfile } from "@/db/item-schema";
+import { campaignCharacter, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterActionDeclarationEvent,
@@ -327,6 +327,12 @@ async function buildAuthoritativeSnapshot(
   let weapon: LockedActionDeclarationSnapshot["weapon"] = null;
   let governing: LockedActionDeclarationSnapshot["governing"] = null;
   let authoritativeSourceRef = draft.sourceRef;
+  let weaponDisplayName = "Firearm";
+  let weaponSourceItemId: number | null = null;
+  const firearmPreparation = draft.sourceKind === "weapon"
+    && draft.windowKind === "preparation"
+    && draft.actionKind.startsWith("firearm-preparation:")
+    && draft.sourceInstanceId !== null;
   if (draft.sourceKind === "generic" && draft.actorCharacterId < 0) {
     governing = {
       status: "needs-god-ruling",
@@ -336,40 +342,61 @@ async function buildAuthoritativeSnapshot(
     };
   }
   if (draft.sourceKind === "weapon") {
-    const equipment = await readCharacterEquipmentStateInTransaction(tx, draft.actorCharacterId);
-    const equipped = equipment.wieldedWeapons.find((entry) => (
+    const equipment = firearmPreparation ? null : await readCharacterEquipmentStateInTransaction(tx, draft.actorCharacterId);
+    const equipped = equipment?.wieldedWeapons.find((entry) => (
       entry.itemId === draft.weaponItemId && entry.instanceId === draft.sourceInstanceId
-    ));
-    if (!equipped) throw new Error("The declared Weapon is no longer authoritatively wielded by the acting Character.");
+    )) ?? null;
+    const [ownedPreparationSource] = firearmPreparation ? await tx.select({
+      itemId: campaignCharacterItemInstance.itemId,
+      instanceId: campaignCharacterItemInstance.id,
+      equipmentState: campaignCharacterItemInstance.equipmentState,
+    }).from(campaignCharacterItemInstance).where(and(
+      eq(campaignCharacterItemInstance.id, draft.sourceInstanceId!),
+      eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId),
+      eq(campaignCharacterItemInstance.itemId, draft.weaponItemId!),
+    )).limit(1) : [];
+    if (!equipped && !ownedPreparationSource) throw new Error(
+      firearmPreparation
+        ? "The firearm preparation source is not an exact owned Item instance for the acting Character."
+        : "The declared Weapon is no longer authoritatively wielded by the acting Character.",
+    );
+    const sourceItemId = equipped?.itemId ?? ownedPreparationSource!.itemId;
     const [profile] = await tx.select({
       id: weaponProfile.id,
       itemName: item.name,
     }).from(weaponProfile)
       .innerJoin(item, eq(item.id, weaponProfile.itemId))
-      .where(eq(weaponProfile.itemId, equipped.itemId))
+      .where(eq(weaponProfile.itemId, sourceItemId))
       .limit(1);
     if (!profile) throw new Error("The declared Weapon Profile no longer exists.");
+    weaponDisplayName = profile.itemName;
+    weaponSourceItemId = sourceItemId;
     const mode = draft.firingModeId === null
       ? null
-      : equipped.firingModes.find(({ id }) => id === draft.firingModeId) ?? null;
+      : firearmPreparation
+        ? (await tx.select({ id: weaponFiringMode.id, name: weaponFiringMode.name })
+            .from(weaponFiringMode)
+            .where(and(eq(weaponFiringMode.id, draft.firingModeId), eq(weaponFiringMode.weaponProfileId, profile.id)))
+            .limit(1))[0] ?? null
+        : equipped!.firingModes.find(({ id }) => id === draft.firingModeId) ?? null;
     if (draft.firingModeId !== null && !mode) throw new Error("The declared Firing Mode no longer belongs to that Weapon.");
-    const resolution = await resolveCharacterWeaponGovernanceInTransaction(tx, { userId: actor.userId }, {
+    const resolution = firearmPreparation ? null : await resolveCharacterWeaponGovernanceInTransaction(tx, { userId: actor.userId }, {
       campaignId: context.campaignId,
       characterId: draft.actorCharacterId,
-      itemId: equipped.itemId,
+      itemId: equipped!.itemId,
       firingModeId: draft.firingModeId,
     });
-    authoritativeSourceRef = equipped.ownershipKey;
-    if (draft.windowKind !== "firearm-trigger" && equipped.initiativeCost !== null) {
-      draft = { ...draft, initiativeCost: equipped.initiativeCost };
+    authoritativeSourceRef = firearmPreparation ? `instance:${ownedPreparationSource!.instanceId}` : equipped!.ownershipKey;
+    if (!firearmPreparation && draft.windowKind !== "firearm-trigger" && equipped!.initiativeCost !== null) {
+      draft = { ...draft, initiativeCost: equipped!.initiativeCost };
     }
     weapon = {
-      itemId: equipped.itemId,
+      itemId: sourceItemId,
       weaponProfileId: profile.id,
       firingModeId: draft.firingModeId,
       attackMode: mode?.name ?? draft.attackMode,
     };
-    governing = resolution.status === "resolved-normal"
+    governing = resolution === null ? null : resolution.status === "resolved-normal"
       || resolution.status === "resolved-persistent-override"
       || resolution.status === "resolved-one-action-override"
       ? {
@@ -385,7 +412,28 @@ async function buildAuthoritativeSnapshot(
           explanation: resolution.explanation,
         };
   }
-  const resolvedSource = await resolveLockedActionSourceInTransaction(tx, context, actor, row.id, draft, {
+  const resolvedSource = firearmPreparation ? {
+    authoritativeInitiativeCost: null,
+    governing: null,
+    snapshot: {
+      schemaVersion: 1 as const,
+      kind: "weapon" as const,
+      identity: `firearm-instance:${draft.sourceInstanceId};profile:${weapon!.weaponProfileId};mode:${draft.firingModeId ?? "none"}`,
+      sourceId: weapon!.weaponProfileId,
+      sourceInstanceId: draft.sourceInstanceId,
+      ownerParticipantId: draft.actorCharacterId,
+      displayName: `${weaponDisplayName} — ${draft.label}`,
+      authoringHref: weaponSourceItemId === null ? null : "/heavens/equipment",
+      liveRevision: now.toISOString(),
+      resolutionMode: "automatic-no-roll" as const,
+      governingSource: null,
+      governingSnapshot: null,
+      authoredData: structuredClone(draft.sourcePayload ?? {}),
+      resourceCosts: [],
+      effects: [],
+      warnings: ["This declaration changes firearm readiness state only after authoritative Initiative completion."],
+    },
+  } : await resolveLockedActionSourceInTransaction(tx, context, actor, row.id, draft, {
     weapon,
     governing,
   });
@@ -584,10 +632,22 @@ export async function commitActionDeclarationInTransaction(
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
   if (snapshot.source.kind === "weapon") {
-    const equipment = await readCharacterEquipmentStateInTransaction(tx, snapshot.actorCharacterId);
-    if (!equipment.wieldedWeapons.some((weapon) => (
-      weapon.itemId === snapshot.weapon?.itemId && weapon.instanceId === snapshot.source.instanceId
-    ))) throw new Error("The locked Weapon is no longer wielded; commitment was rejected without rewriting the snapshot.");
+    const firearmPreparation = snapshot.windowKind === "preparation"
+      && snapshot.actionKind.startsWith("firearm-preparation:")
+      && snapshot.source.instanceId !== null;
+    if (firearmPreparation) {
+      const [owned] = await tx.select({ id: campaignCharacterItemInstance.id }).from(campaignCharacterItemInstance).where(and(
+        eq(campaignCharacterItemInstance.id, snapshot.source.instanceId!),
+        eq(campaignCharacterItemInstance.characterId, snapshot.actorCharacterId),
+        eq(campaignCharacterItemInstance.itemId, snapshot.weapon!.itemId),
+      )).limit(1);
+      if (!owned) throw new Error("The locked firearm preparation source is no longer an exact owned Item instance.");
+    } else {
+      const equipment = await readCharacterEquipmentStateInTransaction(tx, snapshot.actorCharacterId);
+      if (!equipment.wieldedWeapons.some((weapon) => (
+        weapon.itemId === snapshot.weapon?.itemId && weapon.instanceId === snapshot.source.instanceId
+      ))) throw new Error("The locked Weapon is no longer wielded; commitment was rejected without rewriting the snapshot.");
+    }
   }
   const before = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const sequence = await tx.execute(sql<{ id: number }>`
@@ -793,6 +853,8 @@ export async function reconcileResponderOpportunityInTransaction(
     responderCharacterId: opportunity.responderCharacterId,
   });
   await reconcileRollingReadiness(tx, context, row, actor.userId);
+  const { reconcileFirearmPreparationAfterResponderInTransaction } = await import("./firearm-readiness-service");
+  await reconcileFirearmPreparationAfterResponderInTransaction(tx as RuntimeIntegrationTransaction, row.id, actor.userId);
 }
 
 export async function addExceptionalResponderOpportunityInTransaction(

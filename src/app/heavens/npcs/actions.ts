@@ -9,7 +9,7 @@ import {
   CREATURE_CR_IMPACTS,
   type CreatureCrImpact,
 } from "@/db/creature-schema";
-import { item, itemEffect, itemRuntimeProfile } from "@/db/item-schema";
+import { item, itemEffect, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
   campaignCharacterActiveHealthPool,
@@ -85,6 +85,8 @@ export type CreatureNpcDraft = {
     isMagical: boolean;
     effectCount: number;
     runtimeProfile: ItemRuntimeProfile;
+    weaponProfileId: number | null;
+    isFirearm: boolean;
   }>;
 };
 
@@ -187,10 +189,13 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      weaponProfileId: weaponProfile.id,
+      isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     })
       .from(campaignCharacterItem)
       .innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .where(eq(campaignCharacterItem.characterId, characterId)),
     db.select({
       id: campaignCharacterItemInstance.id,
@@ -205,10 +210,13 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      weaponProfileId: weaponProfile.id,
+      isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     })
       .from(campaignCharacterItemInstance)
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .where(eq(campaignCharacterItemInstance.characterId, characterId))
       .orderBy(asc(campaignCharacterItemInstance.id)),
     db.select({
@@ -228,17 +236,20 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      weaponProfileId: weaponProfile.id,
+      isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, core.campaignId))
       .orderBy(asc(item.name)),
   ]);
 
   assertNoStackInstanceOwnershipCollision({
     definitions: [
-      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry) })),
-      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry) })),
+      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm })),
+      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm })),
     ],
     stacks: ownedItems,
     instances: ownedItemInstances,
@@ -276,6 +287,8 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       isMagical: entry.isMagical,
       effectCount: entry.effectCount,
       runtimeProfile: readItemRuntimeProfile(entry),
+      weaponProfileId: entry.weaponProfileId,
+      isFirearm: entry.isFirearm,
     })),
   };
 }
@@ -352,7 +365,10 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     seenItems.add(entry.itemId);
     const source = authorizedById.get(entry.itemId);
     if (!source) throw new Error("Creature NPC inventory must use Campaign-authorized Items.");
-    assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name);
+    assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
+      requiresExactInstance: source.isFirearm,
+      allowLegacyExactStack: true,
+    });
     const existing = current.items.find((owned) => owned.itemId === entry.itemId);
     return {
       itemId: entry.itemId,
@@ -374,12 +390,14 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     seenDraftIds.add(entry.draftId);
     const source = authorizedById.get(entry.itemId);
     if (!source) throw new Error("Creature NPC Item instances must use Campaign-authorized Items.");
-    assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name);
+    assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
+      requiresExactInstance: source.isFirearm,
+    });
     if (entry.instanceId === null) {
       if (entry.draftId >= 0) throw new Error("An unsaved Creature NPC Item instance needs a temporary draft identity.");
       return {
         ...entry,
-        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile),
+        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm),
         unitCostCredits: source.credits ?? entry.unitCostCredits,
         acquiredAt: null,
       };
@@ -401,7 +419,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     return entry;
   });
   assertNoStackInstanceOwnershipCollision({
-    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile })),
+    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, requiresExactInstance: entry.isFirearm })),
     stacks: items,
     instances: itemInstances,
   });

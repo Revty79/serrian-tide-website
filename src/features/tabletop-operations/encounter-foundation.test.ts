@@ -106,7 +106,9 @@ test("Campaign Character/NPC Participants must be Scene Members and retain stabl
 
 test("Encounter schema is an organizational layer with constrained parent and Participant references", () => {
   const schema = readSource("src/db/tabletop-operations-schema.ts");
-  const encounterSchema = schema.slice(schema.indexOf("export const campaignSessionEncounter ="));
+  const encounterStart = schema.indexOf("export const campaignSessionEncounter =");
+  const encounterEnd = schema.indexOf("export const campaignSessionEncounterInitiative =", encounterStart);
+  const encounterSchema = schema.slice(encounterStart, encounterEnd);
   for (const field of [
     'sceneId: integer("scene_id")',
     'sessionId: integer("session_id")',
@@ -127,7 +129,7 @@ test("Encounter schema is an organizational layer with constrained parent and Pa
   assert.match(encounterSchema, /participantKind: text\("participant_kind"\)/);
   assert.match(encounterSchema, /creatureId: integer\("creature_id"\)/);
   assert.match(encounterSchema, /campaign_session_encounter_participant_source_valid/);
-  assert.match(encounterSchema, /onDelete\("restrict"\)/);
+  assert.match(encounterSchema, /creatureId: integer\("creature_id"\)\.references\(\(\) => creature\.id, \{ onDelete: "restrict" \}\)/);
   for (const copiedField of ["character_name", "player_name", "mana", "inventory", "equipment", "turn_order", "initiative_cost"]) {
     assert.equal(encounterSchema.includes(`"${copiedField}"`), false, `${copiedField} must not be copied into Encounter persistence`);
   }
@@ -202,7 +204,7 @@ test("migration 0008 is additive and contains only Encounter and Participant per
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:encounter_health|encounter_mana|encounter_inventory|encounter_condition|encounter_equipment|encounter_snapshot|initiative|combat_action|turn_state)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0027_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0028_snapshot\.json/);
 });
 
 test("Build 4 Encounter identity remains the foundation used by Build 5 Initiative", () => {
