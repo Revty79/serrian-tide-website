@@ -14,6 +14,7 @@ import {
   campaignSessionEncounterPendingAction,
   campaignSessionEncounterReaction,
   campaignSessionRoll,
+  campaignSessionRollAmendment,
 } from "@/db/tabletop-operations-schema";
 import {
   readRollLedgerInTransaction,
@@ -66,9 +67,11 @@ test("System Random and entered/physical Rolls share one distinguishable ledger 
     assert.equal(random.visibility, "table");
     assert.equal(random.roundNumber, 3);
     assert.equal(random.stepNumber, 7);
+    assert.equal(random.mechanicalSnapshot, null);
     assert.equal(entered.resultTotal, 73);
     assert.equal(entered.method, "entered");
     assert.equal(entered.visibility, "god-only");
+    assert.equal(entered.mechanicalSnapshot, null);
     const ownerPage = await readRollLedgerInTransaction(tx, data.actor, data.sessionId, { limit: 10 });
     assert.deepEqual(ownerPage.rolls.map(({ id }) => id), [entered.id, random.id]);
     const playerPage = await readRollLedgerInTransaction(tx, {
@@ -220,14 +223,19 @@ test("Void preserves original Roll context and rejects a second Void", async () 
       targetNumber: 55,
       label: "Longsword Attack",
     });
-    const voided = await voidRollInTransaction(tx, data.actor, recorded.id, "wrong physical result");
+    const originalRow = (await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.id, recorded.id)))[0]!;
+    const voided = await voidRollInTransaction(tx, data.actor, data.sessionId, recorded.id, "wrong physical result");
     assert.equal(voided.status, "voided");
     assert.equal(voided.voidReason, "wrong physical result");
     for (const field of ["id", "resultTotal", "method", "visibility", "rollerCharacterId", "targetCharacterId", "pendingActionId", "targetNumber", "createdAt"] as const) {
       assert.equal(voided[field], recorded[field]);
     }
     assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.id, recorded.id))).length, 1);
-    await assert.rejects(voidRollInTransaction(tx, data.actor, recorded.id, "again"), /already voided/);
+    assert.deepEqual((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.id, recorded.id)))[0], originalRow);
+    const amendments = await tx.select().from(campaignSessionRollAmendment).where(eq(campaignSessionRollAmendment.rollId, recorded.id));
+    assert.equal(amendments.length, 1);
+    assert.equal(amendments[0]?.kind, "void");
+    await assert.rejects(voidRollInTransaction(tx, data.actor, data.sessionId, recorded.id, "again"), /already voided/);
     throw ROLLBACK;
   }), (error: unknown) => error === ROLLBACK);
 });

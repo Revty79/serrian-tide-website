@@ -13,8 +13,9 @@ if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname)) {
   throw new Error(`Refusing schema verification against non-local host ${url.hostname}.`);
 }
 
+const snapshotName = process.argv[2] ?? "0022_snapshot.json";
 const snapshot = JSON.parse(
-  await readFile(new URL("../drizzle/meta/0021_snapshot.json", import.meta.url), "utf8"),
+  await readFile(new URL(`../drizzle/meta/${snapshotName}`, import.meta.url), "utf8"),
 );
 const expectedTables = Object.values(snapshot.tables).filter(
   (table) => table.schema === "" || table.schema === "public",

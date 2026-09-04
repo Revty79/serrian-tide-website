@@ -9,6 +9,8 @@ import { campaignSession } from "@/db/tabletop-operations-schema";
 import {
   readRollLedgerInTransaction,
   readRollWorkspaceInTransaction,
+  correctRollInTransaction,
+  recordRollRulingInTransaction,
   recordRollInTransaction,
   voidRollInTransaction,
   type AuthorizedRollActor,
@@ -16,6 +18,8 @@ import {
   type RollLedgerPage,
   type RollLedgerEntry,
   type RollWorkspaceView,
+  type RollCorrectionRequest,
+  type RollRulingRequest,
 } from "@/features/tabletop-operations/roll-runtime-service";
 import type { RollRecordRequest } from "@/features/tabletop-operations/roll-runtime";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
@@ -47,6 +51,7 @@ async function getGodRollActor(
     campaignId: context.campaignId,
     readAs: "god-owner",
     canRecordGodOnly: true,
+    characterId: null,
   };
 }
 
@@ -100,7 +105,7 @@ export async function voidGodRoll(
   const access = await requireGod();
   const result = await db.transaction(async (tx) => {
     const actor = await getGodRollActor(tx, sessionId, access.user.id);
-    const voided = await voidRollInTransaction(tx, actor, rollId, reason);
+    const voided = await voidRollInTransaction(tx, actor, sessionId, rollId, reason);
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: actor.campaignId,
       sessionId,
@@ -113,4 +118,34 @@ export async function voidGodRoll(
   });
   refreshRolls();
   return result;
+}
+
+async function publishRollAmendment(
+  sessionId: number,
+  mutate: (tx: Transaction, actor: AuthorizedRollActor) => Promise<RollLedgerEntry>,
+): Promise<RollLedgerEntry> {
+  const access = await requireGod();
+  const result = await db.transaction(async (tx) => {
+    const actor = await getGodRollActor(tx, sessionId, access.user.id);
+    const amended = await mutate(tx, actor);
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: actor.campaignId,
+      sessionId,
+      sceneId: amended.sceneId,
+      encounterId: amended.encounterId,
+      characterIds: [amended.rollerCharacterId, amended.targetCharacterId].filter((id): id is number => id !== null),
+      category: "roll",
+    });
+    return amended;
+  });
+  refreshRolls();
+  return result;
+}
+
+export async function correctGodRoll(input: RollCorrectionRequest): Promise<RollLedgerEntry> {
+  return publishRollAmendment(input.sessionId, (tx, actor) => correctRollInTransaction(tx, actor, input));
+}
+
+export async function recordGodRollRuling(input: RollRulingRequest): Promise<RollLedgerEntry> {
+  return publishRollAmendment(input.sessionId, (tx, actor) => recordRollRulingInTransaction(tx, actor, input));
 }

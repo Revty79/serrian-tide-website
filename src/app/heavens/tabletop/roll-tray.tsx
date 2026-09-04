@@ -14,6 +14,7 @@ import type {
   RollLedgerEntry,
   RollWorkspaceView,
 } from "@/features/tabletop-operations/roll-runtime-service";
+import type { PercentileTargetModifier } from "@/features/tabletop-operations/percentile-resolution";
 
 import { recordGodRoll } from "./roll-actions";
 
@@ -30,7 +31,19 @@ export type RollTrayPrefill = {
 };
 
 function methodLabel(method: RollMethod): string {
-  return method === "random" ? "System Random" : "Entered / Physical";
+  return method === "random" ? "Website Roll" : "Physical Roll";
+}
+
+function parseModifiers(value: string, kind: "bonus" | "penalty"): PercentileTargetModifier[] {
+  return value.split("\n").map((line) => line.trim()).filter(Boolean).map((line, index) => {
+    const separator = line.lastIndexOf(":");
+    const label = separator < 0 ? "" : line.slice(0, separator).trim();
+    const magnitude = separator < 0 ? Number.NaN : Number(line.slice(separator + 1).trim());
+    if (!label || !Number.isFinite(magnitude) || magnitude < 0) {
+      throw new Error(`${kind === "bonus" ? "Bonus" : "Penalty"} line ${index + 1} must use Label: magnitude.`);
+    }
+    return { kind, label, magnitude };
+  });
 }
 
 export function RollTray({
@@ -62,6 +75,9 @@ export function RollTray({
   const [reactionId, setReactionId] = useState(prefill.reactionId ? String(prefill.reactionId) : "");
   const [label, setLabel] = useState(prefill.label ?? "");
   const [targetNumber, setTargetNumber] = useState("");
+  const [targetReason, setTargetReason] = useState("");
+  const [bonuses, setBonuses] = useState("");
+  const [penalties, setPenalties] = useState("");
   const [visibility, setVisibility] = useState<RollVisibility>("god-only");
   const [notes, setNotes] = useState("");
   const [enteredTotal, setEnteredTotal] = useState("");
@@ -97,11 +113,24 @@ export function RollTray({
         purposeKind,
         enteredTotal: method === "entered" ? Number(enteredTotal) : null,
         label,
-        targetNumber: targetNumber === "" ? null : Number(targetNumber),
+        targetNumber: null,
+        mechanical: targetNumber === "" ? null : {
+          governingSource: {
+            kind: "manual",
+            label: targetReason,
+            originalTarget: Number(targetNumber),
+          },
+          modifiers: [
+            ...parseModifiers(bonuses, "bonus"),
+            ...parseModifiers(penalties, "penalty"),
+          ],
+        },
         notes,
       });
       setLastRoll(roll);
-      setFeedback({ kind: "success", message: `Roll #${roll.id} was recorded without adjudicating an outcome.` });
+      setFeedback({ kind: "success", message: roll.mechanicalSnapshot
+        ? `Roll #${roll.id} and its objective mechanical snapshot were recorded.`
+        : `Free Roll #${roll.id} was recorded without a mechanical interpretation.` });
       if (method === "entered") setEnteredTotal("");
       onRecorded?.(roll);
     } catch (error) {
@@ -140,15 +169,18 @@ export function RollTray({
       <label><span>Purpose</span><select value={purposeKind} onChange={(event) => setPurposeKind(event.target.value as RollPurpose)}>{ROLL_PURPOSES.map((purpose) => <option key={purpose} value={purpose}>{purpose[0].toUpperCase() + purpose.slice(1)}</option>)}</select></label>
       <div className="roll-tray-percentile-note"><span>Roll</span><strong>Serrian Tide Percentile</strong><small>One result from 1–100. Attack Hit Location is derived from its ones digit; it is never rolled separately. Damage and Initiative are never rolled here.</small></div>
       {method === "entered" ? <label><span>Result</span><input type="number" min={1} max={100} step="1" value={enteredTotal} onChange={(event) => setEnteredTotal(event.target.value)} placeholder="73" /><small>Enter 100 for a physical percentile 00 result.</small></label> : <div className="roll-tray-random-note"><span>Result</span><strong>Generated securely by the server</strong><small>The browser cannot submit the random result.</small></div>}
-      <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as RollVisibility)}><option value="god-only">G.O.D. Only</option><option value="table">Show to Table</option></select></label>
+      <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as RollVisibility)}><option value="god-only">G.O.D. Only</option><option value="private">Private: Roller + G.O.D.</option><option value="table">Show to Table</option></select></label>
       <label><span>Character</span><select value={rollerCharacterId} onChange={(event) => setRollerCharacterId(event.target.value)}><option value="">No Character context</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
       <label><span>Target Character</span><select value={targetCharacterId} onChange={(event) => setTargetCharacterId(event.target.value)}><option value="">No target Character</option>{characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
       {scope === "encounter" ? <label><span>Pending Action</span><select value={pendingActionId} onChange={(event) => { setPendingActionId(event.target.value); if (event.target.value) setReactionId(""); }}><option value="">No action link</option>{workspace.pendingActions.map((action) => <option key={action.id} value={action.id}>#{action.id} · {action.label} · {action.status}</option>)}</select></label> : null}
       {scope === "encounter" ? <label><span>Reaction</span><select value={reactionId} onChange={(event) => { setReactionId(event.target.value); if (event.target.value) setPendingActionId(""); }}><option value="">No Reaction link</option>{workspace.reactions.map((reaction) => <option key={reaction.id} value={reaction.id}>#{reaction.id} · {reaction.reactionType} · {reaction.status}</option>)}</select></label> : null}
       <label className="is-wide"><span>Label</span><input maxLength={200} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Longsword Attack, Stealth, G.O.D. reference…" /></label>
-      <label><span>Target Number</span><input type="number" step="any" value={targetNumber} onChange={(event) => setTargetNumber(event.target.value)} placeholder="Optional reference only" /><small>No success calculation is performed.</small></label>
+      <label><span>Manual Roll-over Target</span><input type="number" step="any" value={targetNumber} onChange={(event) => setTargetNumber(event.target.value)} placeholder="Leave blank for a free Roll" /><small>A supplied target is evaluated once by the shared percentile engine.</small></label>
+      {targetNumber !== "" ? <label><span>Target label / reason</span><input maxLength={200} value={targetReason} onChange={(event) => setTargetReason(event.target.value)} placeholder="G.O.D.-set target" /></label> : null}
+      {targetNumber !== "" ? <label><span>Bonuses</span><textarea rows={2} value={bonuses} onChange={(event) => setBonuses(event.target.value)} placeholder={"Cover advantage: 10\nPrepared: 5"} /><small>One Label: magnitude per line. Bonuses lower the target.</small></label> : null}
+      {targetNumber !== "" ? <label><span>Penalties</span><textarea rows={2} value={penalties} onChange={(event) => setPenalties(event.target.value)} placeholder="Darkness: 20" /><small>One Label: magnitude per line. Penalties raise the target.</small></label> : null}
       <label className="is-wide"><span>Notes</span><textarea rows={3} maxLength={2000} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional table context." /></label>
     </div>
-    <footer><button type="button" className="is-primary" disabled={busy || contextCompleted || method === "entered" && enteredTotal === ""} onClick={() => void submit()}>{busy ? "Recording…" : method === "random" ? "ROLL" : "RECORD PHYSICAL ROLL"}</button><span>Target Number, action links, and Reaction links are context only.</span></footer>
+    <footer><button type="button" className="is-primary" disabled={busy || contextCompleted || method === "entered" && enteredTotal === ""} onClick={() => void submit()}>{busy ? "Recording…" : method === "random" ? "ROLL" : "RECORD PHYSICAL ROLL"}</button><span>Action and Reaction links remain context only; no combat state is changed.</span></footer>
   </section>;
 }

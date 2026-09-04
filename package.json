@@ -32,6 +32,7 @@
     "validate:tabletop-runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-runtime-integration-db.test.ts",
     "validate:tabletop-closeout-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-closeout-db.test.ts",
     "validate:tabletop-roll-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-roll-runtime-db.test.ts",
+    "validate:tabletop-roll-ledger-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-roll-ledger-db.test.ts",
     "validate:tabletop-session-closeout-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-session-closeout-db.test.ts",
     "validate:tabletop-player-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-player-encounter-db.test.ts",
     "validate:tabletop-player-browser": "node --conditions=react-server --import tsx scripts/tabletop-player-encounter-browser.test.ts",

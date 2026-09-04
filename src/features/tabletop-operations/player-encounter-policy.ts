@@ -97,8 +97,14 @@ export function projectPlayerParticipantSummaries(
   }));
 }
 
-export function assertPlayerRollVisibility(rolls: readonly { visibility: string }[]): void {
-  if (rolls.some(({ visibility }) => visibility !== "table")) {
+export function assertPlayerRollVisibility(
+  rolls: readonly { visibility: string; rollerCharacterId: number | null }[],
+  authorizedCharacterId: number,
+): void {
+  if (rolls.some(({ visibility, rollerCharacterId }) => (
+    visibility !== "table"
+    && !(visibility === "private" && rollerCharacterId === authorizedCharacterId)
+  ))) {
     throw new Error("Player encounter projection cannot contain private Roll history.");
   }
 }

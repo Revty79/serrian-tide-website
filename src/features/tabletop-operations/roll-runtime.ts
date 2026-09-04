@@ -3,9 +3,13 @@ import {
   PERCENTILE_ROLL_LABEL,
   validateRollResult,
 } from "./percentile-resolution";
+import {
+  normalizeRollMechanicalRequest,
+  type RollMechanicalRequest,
+} from "./roll-mechanical-snapshot";
 
 export const ROLL_METHODS = ["random", "entered"] as const;
-export const ROLL_VISIBILITIES = ["table", "god-only"] as const;
+export const ROLL_VISIBILITIES = ["table", "private", "god-only"] as const;
 export const ROLL_PURPOSES = ["free", "attribute", "skill", "attack", "defense", "ability", "other"] as const;
 export const ROLL_STATUSES = ["recorded", "voided"] as const;
 
@@ -34,10 +38,11 @@ export type RollRecordRequest = {
   enteredTotal?: number | null;
   label?: string;
   targetNumber?: number | null;
+  mechanical?: RollMechanicalRequest | null;
   notes?: string;
 };
 
-export type NormalizedRollRecordRequest = Omit<RollRecordRequest, "label" | "notes"> & {
+export type NormalizedRollRecordRequest = Omit<RollRecordRequest, "label" | "notes" | "mechanical"> & {
   sceneId: number | null;
   encounterId: number | null;
   rollerCharacterId: number | null;
@@ -48,6 +53,7 @@ export type NormalizedRollRecordRequest = Omit<RollRecordRequest, "label" | "not
   label: string;
   targetNumber: number | null;
   notes: string;
+  mechanical: RollMechanicalRequest | null;
 };
 
 function hasValue<T extends string>(values: readonly T[], value: unknown): value is T {
@@ -120,7 +126,6 @@ export function normalizeRollRecordRequest(request: RollRecordRequest): Normaliz
     ? null
     : request.enteredTotal;
   return {
-    ...request,
     sessionId: positiveId(request.sessionId, "Session"),
     sceneId,
     encounterId,
@@ -132,6 +137,10 @@ export function normalizeRollRecordRequest(request: RollRecordRequest): Normaliz
     label: boundedText(request.label, "Roll label", 200),
     targetNumber,
     notes: boundedText(request.notes, "Roll notes", 2000),
+    method: request.method,
+    visibility: request.visibility,
+    purposeKind: request.purposeKind,
+    mechanical: normalizeRollMechanicalRequest(request.mechanical),
   };
 }
 
@@ -143,10 +152,28 @@ export function normalizeVoidReason(reason: string): string {
 
 export type RollReadActor = "god-owner" | "player";
 
-export function canReadRollVisibility(actor: RollReadActor, visibility: RollVisibility): boolean {
-  return actor === "god-owner" || visibility === "table";
+export type RollVisibilityContext = Readonly<{
+  authorizedCharacterId: number | null;
+  rollerCharacterId: number | null;
+}>;
+
+export function canReadRollVisibility(
+  actor: RollReadActor,
+  visibility: RollVisibility,
+  context?: RollVisibilityContext,
+): boolean {
+  if (actor === "god-owner") return true;
+  if (visibility === "table") return true;
+  return visibility === "private"
+    && context?.authorizedCharacterId !== null
+    && context?.authorizedCharacterId !== undefined
+    && context.authorizedCharacterId === context.rollerCharacterId;
 }
 
-export function readableRollVisibilities(actor: RollReadActor): RollVisibility[] {
-  return actor === "god-owner" ? ["table", "god-only"] : ["table"];
+export function readableRollVisibilities(
+  actor: RollReadActor,
+  authorizedCharacterId: number | null = null,
+): RollVisibility[] {
+  if (actor === "god-owner") return ["table", "private", "god-only"];
+  return authorizedCharacterId === null ? ["table"] : ["table", "private"];
 }

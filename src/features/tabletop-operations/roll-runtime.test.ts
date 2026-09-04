@@ -104,9 +104,19 @@ test("void reasons are mandatory, trimmed, and bounded", () => {
 
 test("shared visibility policy hides G.O.D.-only Rolls from Player reads", () => {
   assert.equal(canReadRollVisibility("god-owner", "table"), true);
+  assert.equal(canReadRollVisibility("god-owner", "private"), true);
   assert.equal(canReadRollVisibility("god-owner", "god-only"), true);
   assert.equal(canReadRollVisibility("player", "table"), true);
+  assert.equal(canReadRollVisibility("player", "private", {
+    authorizedCharacterId: 7,
+    rollerCharacterId: 7,
+  }), true);
+  assert.equal(canReadRollVisibility("player", "private", {
+    authorizedCharacterId: 8,
+    rollerCharacterId: 7,
+  }), false);
   assert.equal(canReadRollVisibility("player", "god-only"), false);
-  assert.deepEqual(readableRollVisibilities("god-owner"), ["table", "god-only"]);
+  assert.deepEqual(readableRollVisibilities("god-owner"), ["table", "private", "god-only"]);
   assert.deepEqual(readableRollVisibilities("player"), ["table"]);
+  assert.deepEqual(readableRollVisibilities("player", 7), ["table", "private"]);
 });

@@ -19,6 +19,7 @@ import {
   campaignSessionEncounterReaction,
   campaignSessionEncounterReward,
   campaignSessionRoll,
+  campaignSessionRollAmendment,
   campaignSessionRoster,
   campaignSessionScene,
 } from "@/db/tabletop-operations-schema";
@@ -94,6 +95,7 @@ export type SessionCloseoutView = {
     random: number;
     entered: number;
     tableVisible: number;
+    private: number;
     godOnly: number;
     voided: number;
   };
@@ -279,6 +281,7 @@ export async function readSessionCloseoutInTransaction(
     });
   }
   const rollRows = await tx.select({
+    id: campaignSessionRoll.id,
     method: campaignSessionRoll.method,
     visibility: campaignSessionRoll.visibility,
     status: campaignSessionRoll.status,
@@ -286,6 +289,14 @@ export async function readSessionCloseoutInTransaction(
     eq(campaignSessionRoll.sessionId, context.sessionId),
     eq(campaignSessionRoll.campaignId, context.campaignId),
   ));
+  const voidAmendmentRows = await tx.select({ rollId: campaignSessionRollAmendment.rollId })
+    .from(campaignSessionRollAmendment)
+    .where(and(
+      eq(campaignSessionRollAmendment.sessionId, context.sessionId),
+      eq(campaignSessionRollAmendment.campaignId, context.campaignId),
+      eq(campaignSessionRollAmendment.kind, "void"),
+    ));
+  const appendOnlyVoidedRollIds = new Set(voidAmendmentRows.map(({ rollId }) => rollId));
   const blockers = buildSessionCloseoutBlockers({
     scenes,
     encounters,
@@ -341,8 +352,9 @@ export async function readSessionCloseoutInTransaction(
       random: rollRows.filter(({ method }) => method === "random").length,
       entered: rollRows.filter(({ method }) => method === "entered").length,
       tableVisible: rollRows.filter(({ visibility }) => visibility === "table").length,
+      private: rollRows.filter(({ visibility }) => visibility === "private").length,
       godOnly: rollRows.filter(({ visibility }) => visibility === "god-only").length,
-      voided: rollRows.filter(({ status }) => status === "voided").length,
+      voided: rollRows.filter(({ id, status }) => status === "voided" || appendOnlyVoidedRollIds.has(id)).length,
     },
     canFinalize: context.status === "active" && blockers.length === 0,
   };

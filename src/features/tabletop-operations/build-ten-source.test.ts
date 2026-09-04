@@ -76,7 +76,7 @@ test("all G.O.D. Roll surfaces reuse one tray and quick Rolls remain explicit pr
   assert.match(tray, /Enter Physical/);
   assert.match(`${tray}\n${domain}\n${percentileResolution}`, /d100/);
   assert.doesNotMatch(`${tray}\n${domain}`, /d10.*Hit Location|hit-location.*Roll/);
-  assert.match(tray, /Target Number/);
+  assert.match(tray, /Manual Roll-over Target/);
   assert.match(tray, /G\.O\.D\. Only/);
   assert.match(tray, /Show to Table/);
   assert.doesNotMatch(`${combat}\n${operations}`, /Math\.random|randomInt/);
@@ -146,11 +146,12 @@ test("Roll history protects Session, Scene, and Encounter deletion", () => {
   }
 });
 
-test("architecture freezes shared Build 10 authority and no-adjudication boundaries", () => {
+test("architecture freezes shared Roll authority and nonautomation boundaries", () => {
   const architecture = read("docs/architecture/tabletop-operations.md");
   assert.match(architecture, /Build 10 Shared Roll Runtime and Session Closeout/);
-  assert.match(architecture, /later Player controller[\s\S]*same transaction API/);
-  assert.match(architecture, /only `table` visibility to a future authorized Player/);
-  assert.match(architecture, /never adjudicates success/);
+  assert.match(architecture, /Player controller[\s\S]*same transaction API/);
+  assert.match(architecture, /`private` Rolls only when the server-verified Player Character is the rolling Character/);
+  assert.match(architecture, /evaluated exactly once by the shared percentile engine/);
+  assert.match(architecture, /never resolves attack\/defense opposition, Damage, Soak/);
   assert.match(architecture, /Finalizing or reopening a Session changes only organizational lifecycle fields/);
 });

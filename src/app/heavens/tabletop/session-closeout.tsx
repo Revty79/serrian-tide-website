@@ -89,7 +89,7 @@ export function SessionCloseout({
       </article>
       <article>
         <header><span>ROLL HISTORY</span><strong>{data.rolls.total}</strong></header>
-        <dl><div><dt>System Random</dt><dd>{data.rolls.random}</dd></div><div><dt>Entered / Physical</dt><dd>{data.rolls.entered}</dd></div><div><dt>Table-visible</dt><dd>{data.rolls.tableVisible}</dd></div><div><dt>G.O.D.-only</dt><dd>{data.rolls.godOnly}</dd></div><div><dt>Voided</dt><dd>{data.rolls.voided}</dd></div></dl>
+        <dl><div><dt>Website Rolls</dt><dd>{data.rolls.random}</dd></div><div><dt>Physical Rolls</dt><dd>{data.rolls.entered}</dd></div><div><dt>Table-visible</dt><dd>{data.rolls.tableVisible}</dd></div><div><dt>Private</dt><dd>{data.rolls.private}</dd></div><div><dt>G.O.D.-only</dt><dd>{data.rolls.godOnly}</dd></div><div><dt>Voided</dt><dd>{data.rolls.voided}</dd></div></dl>
         <footer><button type="button" onClick={onOpenRolls}>Open Roll Ledger</button></footer>
       </article>
     </div>

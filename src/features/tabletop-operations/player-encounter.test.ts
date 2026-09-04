@@ -44,10 +44,18 @@ test("Player participant projection cannot leak NPC runtime or G.O.D. preparatio
   }
 });
 
-test("Player projection accepts only table-visible Roll history", () => {
-  assert.doesNotThrow(() => assertPlayerRollVisibility([{ visibility: "table" }]));
+test("Player projection accepts table Rolls and only the authorized Character's private Rolls", () => {
+  assert.doesNotThrow(() => assertPlayerRollVisibility([{ visibility: "table", rollerCharacterId: 1 }], 1));
+  assert.doesNotThrow(() => assertPlayerRollVisibility([{ visibility: "private", rollerCharacterId: 1 }], 1));
   assert.throws(
-    () => assertPlayerRollVisibility([{ visibility: "table" }, { visibility: "god-only" }]),
+    () => assertPlayerRollVisibility([{ visibility: "private", rollerCharacterId: 2 }], 1),
+    /private Roll history/,
+  );
+  assert.throws(
+    () => assertPlayerRollVisibility([
+      { visibility: "table", rollerCharacterId: 1 },
+      { visibility: "god-only", rollerCharacterId: 1 },
+    ], 1),
     /private Roll history/,
   );
 });

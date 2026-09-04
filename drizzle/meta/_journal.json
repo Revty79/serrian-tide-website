@@ -155,6 +155,13 @@
       "when": 1788475655445,
       "tag": "0021_structured_firearm_timing_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788484132683,
+      "tag": "0022_immutable_roll_ledger_snapshots",
+      "breakpoints": true
     }
   ]
 }

@@ -153,7 +153,7 @@ export function projectPlayerEncounterView(
     ({ identity }) => identity.characterId === context.characterId && identity.kind === "pc",
   );
   if (!character) throw new Error("The Player Character is no longer an Encounter Participant.");
-  assertPlayerRollVisibility(tableRolls);
+  assertPlayerRollVisibility(tableRolls, context.characterId);
 
   return {
     context: {
@@ -187,6 +187,7 @@ export async function readPlayerEncounterInTransaction(
     campaignId: context.campaignId,
     readAs: "player",
     canRecordGodOnly: false,
+    characterId: context.characterId,
   };
   const rollPage = await readRollLedgerInTransaction(tx, rollActor, context.sessionId, {
     sceneId: context.sceneId,

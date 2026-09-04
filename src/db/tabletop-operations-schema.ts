@@ -7,6 +7,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -104,7 +105,7 @@ export const campaignSessionRollMethod = pgEnum(
 
 export const campaignSessionRollVisibility = pgEnum(
   "campaign_session_roll_visibility",
-  ["table", "god-only"],
+  ["table", "private", "god-only"],
 );
 
 export const campaignSessionRollPurpose = pgEnum(
@@ -115,6 +116,11 @@ export const campaignSessionRollPurpose = pgEnum(
 export const campaignSessionRollStatus = pgEnum(
   "campaign_session_roll_status",
   ["recorded", "voided"],
+);
+
+export const campaignSessionRollAmendmentKind = pgEnum(
+  "campaign_session_roll_amendment_kind",
+  ["correction", "void", "ruling"],
 );
 
 export const campaignSession = pgTable(
@@ -893,6 +899,7 @@ export const campaignSessionRoll = pgTable(
     label: text("label").default("").notNull(),
     resultTotal: integer("result_total").notNull(),
     targetNumber: doublePrecision("target_number"),
+    mechanicalSnapshot: jsonb("mechanical_snapshot"),
     notes: text("notes").default("").notNull(),
     roundNumber: integer("round_number"),
     stepNumber: integer("step_number"),
@@ -982,6 +989,7 @@ export const campaignSessionRoll = pgTable(
     index("campaign_session_roll_action_idx").on(table.pendingActionId, table.createdAt, table.id),
     index("campaign_session_roll_reaction_idx").on(table.reactionId, table.createdAt, table.id),
     index("campaign_session_roll_visibility_status_idx").on(table.sessionId, table.visibility, table.status),
+    uniqueIndex("campaign_session_roll_amendment_owner_uq").on(table.id, table.campaignId, table.sessionId),
     check(
       "campaign_session_roll_result_valid",
       sql`${table.resultTotal} BETWEEN 1 AND 100`,
@@ -1010,6 +1018,10 @@ export const campaignSessionRoll = pgTable(
     check("campaign_session_roll_notes_length_valid", sql`length(${table.notes}) <= 2000`),
     check("campaign_session_roll_void_reason_length_valid", sql`length(${table.voidReason}) <= 500`),
     check(
+      "campaign_session_roll_mechanical_snapshot_valid",
+      sql`${table.mechanicalSnapshot} IS NULL OR jsonb_typeof(${table.mechanicalSnapshot}) = 'object'`,
+    ),
+    check(
       "campaign_session_roll_lifecycle_valid",
       sql`(
         ${table.status} = 'recorded'
@@ -1026,6 +1038,78 @@ export const campaignSessionRoll = pgTable(
   ],
 );
 
+export const campaignSessionRollAmendment = pgTable(
+  "campaign_session_roll_amendment",
+  {
+    id: serial("id").primaryKey(),
+    rollId: integer("roll_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    previousAmendmentId: integer("previous_amendment_id"),
+    kind: campaignSessionRollAmendmentKind("kind").notNull(),
+    reason: text("reason").notNull(),
+    mechanicalSnapshot: jsonb("mechanical_snapshot"),
+    rulingText: text("ruling_text").default("").notNull(),
+    createdByUserId: text("created_by_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.rollId, table.campaignId, table.sessionId],
+      foreignColumns: [campaignSessionRoll.id, campaignSessionRoll.campaignId, campaignSessionRoll.sessionId],
+      name: "campaign_session_roll_amendment_roll_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.previousAmendmentId, table.rollId, table.campaignId, table.sessionId],
+      foreignColumns: [table.id, table.rollId, table.campaignId, table.sessionId],
+      name: "campaign_session_roll_amendment_previous_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.createdByUserId],
+      foreignColumns: [user.id],
+      name: "campaign_session_roll_amendment_created_by_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("campaign_session_roll_amendment_chain_uq").on(
+      table.id,
+      table.rollId,
+      table.campaignId,
+      table.sessionId,
+    ),
+    uniqueIndex("campaign_session_roll_amendment_first_uq")
+      .on(table.rollId)
+      .where(sql`${table.previousAmendmentId} IS NULL`),
+    uniqueIndex("campaign_session_roll_amendment_successor_uq")
+      .on(table.previousAmendmentId)
+      .where(sql`${table.previousAmendmentId} IS NOT NULL`),
+    index("campaign_session_roll_amendment_history_idx").on(table.rollId, table.id),
+    index("campaign_session_roll_amendment_session_idx").on(table.sessionId, table.rollId, table.id),
+    check(
+      "campaign_session_roll_amendment_reason_valid",
+      sql`length(trim(${table.reason})) > 0 AND length(${table.reason}) <= 500`,
+    ),
+    check(
+      "campaign_session_roll_amendment_ruling_length_valid",
+      sql`length(${table.rulingText}) <= 2000`,
+    ),
+    check(
+      "campaign_session_roll_amendment_content_valid",
+      sql`(
+        ${table.kind} = 'correction'
+        AND ${table.mechanicalSnapshot} IS NOT NULL
+        AND jsonb_typeof(${table.mechanicalSnapshot}) = 'object'
+      ) OR (
+        ${table.kind} = 'void'
+        AND ${table.mechanicalSnapshot} IS NULL
+        AND ${table.rulingText} = ''
+      ) OR (
+        ${table.kind} = 'ruling'
+        AND ${table.mechanicalSnapshot} IS NULL
+        AND length(trim(${table.rulingText})) > 0
+      )`,
+    ),
+  ],
+);
+
 export const campaignSessionRelations = relations(campaignSession, ({ one, many }) => ({
   campaign: one(campaign, {
     fields: [campaignSession.campaignId],
@@ -1034,6 +1118,7 @@ export const campaignSessionRelations = relations(campaignSession, ({ one, many 
   roster: many(campaignSessionRoster),
   scenes: many(campaignSessionScene),
   rolls: many(campaignSessionRoll),
+  rollAmendments: many(campaignSessionRollAmendment),
 }));
 
 export const campaignSessionRosterRelations = relations(campaignSessionRoster, ({ one, many }) => ({
@@ -1082,7 +1167,7 @@ export const campaignSessionEncounterRelations = relations(campaignSessionEncoun
   rolls: many(campaignSessionRoll),
 }));
 
-export const campaignSessionRollRelations = relations(campaignSessionRoll, ({ one }) => ({
+export const campaignSessionRollRelations = relations(campaignSessionRoll, ({ one, many }) => ({
   session: one(campaignSession, {
     fields: [campaignSessionRoll.sessionId],
     references: [campaignSession.id],
@@ -1117,6 +1202,28 @@ export const campaignSessionRollRelations = relations(campaignSessionRoll, ({ on
   }),
   voidedBy: one(user, {
     fields: [campaignSessionRoll.voidedByUserId],
+    references: [user.id],
+  }),
+  amendments: many(campaignSessionRollAmendment),
+}));
+
+export const campaignSessionRollAmendmentRelations = relations(campaignSessionRollAmendment, ({ one, many }) => ({
+  roll: one(campaignSessionRoll, {
+    fields: [campaignSessionRollAmendment.rollId],
+    references: [campaignSessionRoll.id],
+  }),
+  session: one(campaignSession, {
+    fields: [campaignSessionRollAmendment.sessionId],
+    references: [campaignSession.id],
+  }),
+  previous: one(campaignSessionRollAmendment, {
+    fields: [campaignSessionRollAmendment.previousAmendmentId],
+    references: [campaignSessionRollAmendment.id],
+    relationName: "rollAmendmentChain",
+  }),
+  next: many(campaignSessionRollAmendment, { relationName: "rollAmendmentChain" }),
+  createdBy: one(user, {
+    fields: [campaignSessionRollAmendment.createdByUserId],
     references: [user.id],
   }),
 }));
@@ -1190,3 +1297,4 @@ export type CampaignSessionRollMethod = (typeof campaignSessionRollMethod.enumVa
 export type CampaignSessionRollVisibility = (typeof campaignSessionRollVisibility.enumValues)[number];
 export type CampaignSessionRollPurpose = (typeof campaignSessionRollPurpose.enumValues)[number];
 export type CampaignSessionRollStatus = (typeof campaignSessionRollStatus.enumValues)[number];
+export type CampaignSessionRollAmendmentKind = (typeof campaignSessionRollAmendmentKind.enumValues)[number];

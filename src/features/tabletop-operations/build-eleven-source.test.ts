@@ -54,7 +54,7 @@ test("Player DTO is a server-side privacy projection rather than the G.O.D. Comb
     assert.doesNotMatch(playerPolicy, new RegExp(forbidden));
   }
   assert.match(playerService, /readAs: "player"/);
-  assert.match(playerPolicy, /visibility !== "table"/);
+  assert.match(playerPolicy, /visibility === "private" && rollerCharacterId === authorizedCharacterId/);
 });
 
 test("Player controllers authorize again and delegate to shared authoritative services", () => {

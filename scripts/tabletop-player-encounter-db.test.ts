@@ -422,7 +422,13 @@ test("Player Hold, Pass, Reaction, and Roll mutate the one shared Initiative and
     ));
     assert.equal(initiativeB?.currentInitiative, 17);
 
-    const playerActor = { userId: data.playerBId, campaignId: data.campaignId, readAs: "player" as const, canRecordGodOnly: false };
+    const playerActor = {
+      userId: data.playerBId,
+      campaignId: data.campaignId,
+      readAs: "player" as const,
+      canRecordGodOnly: false,
+      characterId: data.characterBId,
+    };
     const roll = await recordRollInTransaction(tx, playerActor, {
       sessionId: data.sessionId, sceneId: data.sceneId, encounterId: data.encounterId,
       rollerCharacterId: data.characterBId, reactionId: reaction.id,
