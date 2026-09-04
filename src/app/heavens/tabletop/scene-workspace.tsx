@@ -11,6 +11,7 @@ import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/
 import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
+import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
@@ -137,6 +138,7 @@ export function SceneWorkspace({
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
+  initialActionDeclarations,
   initialCloseout,
   initialRollWorkspace,
   session,
@@ -146,6 +148,7 @@ export function SceneWorkspace({
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
+  initialActionDeclarations: ActionDeclarationWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   session: CampaignSessionSummary;
@@ -359,6 +362,7 @@ export function SceneWorkspace({
             initialData={initialEncounterData}
             initialInitiativeTracker={initialInitiativeTracker}
             initialCombatAid={initialCombatAid}
+            initialActionDeclarations={initialActionDeclarations}
             initialCloseout={initialCloseout}
             initialRollWorkspace={initialRollWorkspace}
             scene={selectedScene}

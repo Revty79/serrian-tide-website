@@ -59,6 +59,10 @@ import {
   type RollMechanicalSnapshot,
 } from "./roll-mechanical-snapshot";
 import type { PercentileTargetModifier } from "./percentile-resolution";
+import {
+  assertActionRollAllowedInTransaction,
+  recordActionRollStateInTransaction,
+} from "./action-declaration-service";
 
 export type RollRuntimeTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -452,6 +456,7 @@ export async function recordRollInTransaction(
     if (request.rollerCharacterId !== null && request.rollerCharacterId !== action.actorCharacterId) {
       throw new Error("A linked action Roll must use that action's actor Character.");
     }
+    await assertActionRollAllowedInTransaction(tx, request.pendingActionId);
   }
 
   if (request.reactionId !== null) {
@@ -516,6 +521,15 @@ export async function recordRollInTransaction(
     stepNumber: initiative?.stepNumber ?? null,
   }).returning({ id: campaignSessionRoll.id });
   if (!created) throw new Error("The Roll could not be recorded.");
+  if (request.pendingActionId !== null) {
+    await recordActionRollStateInTransaction(
+      tx,
+      request.pendingActionId,
+      actor.userId,
+      created.id,
+      outcome.resultTotal === 1 || outcome.resultTotal === 100,
+    );
+  }
   const page = await readRollLedgerInTransaction(tx, actor, session.id, { beforeId: created.id + 1, limit: 1 });
   const entry = page.rolls.find(({ id }) => id === created.id);
   if (!entry) throw new Error("The persisted Roll could not be reloaded.");

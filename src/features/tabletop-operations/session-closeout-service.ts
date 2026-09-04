@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
@@ -13,6 +13,7 @@ import {
   campaignSession,
   campaignSessionEffectDurationBinding,
   campaignSessionEncounter,
+  campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterPendingAction,
   campaignSessionEncounterPendingActionSource,
@@ -183,6 +184,16 @@ export async function readSessionCloseoutInTransaction(
       eq(campaignSessionEncounterPendingAction.sessionId, context.sessionId),
       eq(campaignSessionEncounterPendingAction.campaignId, context.campaignId),
     )).orderBy(asc(campaignSessionEncounterPendingAction.id));
+  const actionDeclarations = await tx.select({
+    encounterId: campaignSessionEncounterActionDeclaration.encounterId,
+    actorCharacterId: campaignSessionEncounterActionDeclaration.actorCharacterId,
+    label: sql<string>`coalesce(${campaignSessionEncounterActionDeclaration.draftJson} ->> 'label', 'Action')`,
+    status: campaignSessionEncounterActionDeclaration.status,
+  }).from(campaignSessionEncounterActionDeclaration)
+    .where(and(
+      eq(campaignSessionEncounterActionDeclaration.sessionId, context.sessionId),
+      eq(campaignSessionEncounterActionDeclaration.campaignId, context.campaignId),
+    )).orderBy(asc(campaignSessionEncounterActionDeclaration.id));
   const authoredActions = await tx.select({
     encounterId: campaignSessionEncounterPendingActionSource.encounterId,
     sourceCharacterId: campaignSessionEncounterPendingActionSource.sourceCharacterId,
@@ -301,6 +312,7 @@ export async function readSessionCloseoutInTransaction(
     scenes,
     encounters,
     initiatives,
+    actionDeclarations,
     pendingActions,
     authoredActions,
     reactions,

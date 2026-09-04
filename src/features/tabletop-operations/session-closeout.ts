@@ -2,6 +2,7 @@ export type SessionCloseoutBlockerCode =
   | "scene-active"
   | "encounter-active"
   | "initiative-active"
+  | "action-declaration-open"
   | "pending-action-active"
   | "pending-action-interrupted"
   | "authored-action-pending"
@@ -26,6 +27,12 @@ export function buildSessionCloseoutBlockers(input: {
   scenes: ReadonlyArray<{ id: number; title: string; status: "planned" | "active" | "completed" }>;
   encounters: ReadonlyArray<{ id: number; sceneId: number; title: string; status: "planned" | "active" | "completed" }>;
   initiatives: ReadonlyArray<{ encounterId: number; status: "active" | "closed" }>;
+  actionDeclarations?: ReadonlyArray<{
+    encounterId: number;
+    actorCharacterId: number;
+    label: string;
+    status: "draft" | "locked" | "committed" | "rolling-ready" | "rolling" | "awaiting-god-ruling" | "resolved" | "cancelled" | "interrupted" | "abandoned";
+  }>;
   pendingActions: ReadonlyArray<{ encounterId: number; actorCharacterId: number; label: string; status: "active" | "interrupted" | "completed" | "abandoned" | "ended" }>;
   authoredActions: ReadonlyArray<{ encounterId: number; sourceCharacterId: number; label: string; resolutionStatus: "pending" | "resolved" | "cancelled" | "needs-ruling" }>;
   reactions: ReadonlyArray<{ encounterId: number; reactorCharacterId: number; reactionType: string; status: "declared" | "resolved" | "cancelled" | "needs-ruling" }>;
@@ -59,6 +66,17 @@ export function buildSessionCloseoutBlockers(input: {
       sceneId: encounter?.sceneId ?? null,
       encounterId: initiative.encounterId,
       characterId: null,
+    });
+  }
+  for (const declaration of input.actionDeclarations ?? []) {
+    if (declaration.status === "resolved" || declaration.status === "cancelled" || declaration.status === "abandoned") continue;
+    const encounter = encounterById.get(declaration.encounterId);
+    blockers.push({
+      code: "action-declaration-open",
+      message: `${declaration.label} has an open ${declaration.status.replaceAll("-", " ")} declaration in ${encounter?.title ?? `Encounter #${declaration.encounterId}`}.`,
+      sceneId: encounter?.sceneId ?? null,
+      encounterId: declaration.encounterId,
+      characterId: declaration.actorCharacterId,
     });
   }
   for (const action of input.pendingActions) {

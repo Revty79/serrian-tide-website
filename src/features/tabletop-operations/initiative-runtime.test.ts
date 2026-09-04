@@ -334,8 +334,8 @@ test("reaction gap detection respects start and completion boundaries", () => {
     expectedCompletionInitiative: 27,
   };
   assert.equal(canParticipantReactToAction(pending, 30), true);
-  assert.equal(canParticipantReactToAction(pending, 35), false);
-  assert.equal(canParticipantReactToAction(pending, 27), false);
+  assert.equal(canParticipantReactToAction(pending, 35), true);
+  assert.equal(canParticipantReactToAction(pending, 27), true);
   assert.equal(canParticipantReactToAction(pending, 26), false);
 });
 

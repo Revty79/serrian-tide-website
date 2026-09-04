@@ -112,6 +112,192 @@
   gap: .75rem;
 }
 
+.action-declaration-workspace {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.action-declaration-heading,
+.action-declaration-editor > header,
+.action-run-grid > header,
+.action-declaration-list summary,
+.action-opportunities article,
+.action-declaration-controls,
+.action-exception {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.action-declaration-heading span,
+.action-declaration-editor header small,
+.action-run-grid header span,
+.action-declaration-list summary span,
+.action-opportunities span {
+  color: var(--tabletop-muted, #9f9688);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+
+.action-declaration-boundary,
+.action-window-math,
+.action-run-grid,
+.action-declaration-editor,
+.action-declaration-list > details {
+  border: 1px solid rgb(203 169 101 / 28%);
+  border-radius: 0.85rem;
+  background: rgb(17 20 24 / 72%);
+}
+
+.action-declaration-boundary,
+.action-window-math {
+  margin: 0;
+  padding: 0.8rem 1rem;
+}
+
+.action-declaration-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.action-declaration-editor > header,
+.action-declaration-editor > footer,
+.action-declaration-editor .is-wide {
+  grid-column: 1 / -1;
+}
+
+.action-declaration-editor label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.action-declaration-editor input,
+.action-declaration-editor select,
+.action-declaration-editor textarea,
+.action-exception select {
+  width: 100%;
+}
+
+.action-declaration-editor .action-declaration-check {
+  display: flex;
+  align-items: center;
+}
+
+.action-declaration-editor .action-declaration-check input {
+  width: auto;
+}
+
+.action-run-grid {
+  padding: 1rem;
+}
+
+.action-run-grid > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.action-run-grid article,
+.action-opportunities article {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 0.65rem;
+}
+
+.action-run-grid article.has-run {
+  border-color: rgb(116 196 154 / 50%);
+}
+
+.action-declaration-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.action-declaration-list summary {
+  cursor: pointer;
+  padding: 0.9rem 1rem;
+}
+
+.action-declaration-list summary > div,
+.action-opportunities article > div,
+.action-window-math {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.action-declaration-detail {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0 1rem 1rem;
+}
+
+.action-declaration-detail dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.5rem;
+}
+
+.action-declaration-detail dl > div {
+  padding: 0.55rem;
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.action-declaration-detail dt {
+  color: var(--tabletop-muted, #9f9688);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.action-opportunities {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.action-opportunities article > div:last-child,
+.action-declaration-controls {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.action-audit ol {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.6rem 0 0;
+  padding-left: 1.4rem;
+}
+
+.action-audit li {
+  display: grid;
+  gap: 0.15rem;
+}
+
+@media (max-width: 48rem) {
+  .action-declaration-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-declaration-editor > header,
+  .action-declaration-editor > footer,
+  .action-declaration-editor .is-wide {
+    grid-column: auto;
+  }
+
+  .action-declaration-list summary,
+  .action-opportunities article,
+  .action-exception {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .tabletop-live-status {
   display: inline-flex;
   align-items: center;

@@ -12,6 +12,7 @@ import type { EncounterCloseoutView } from "@/features/tabletop-operations/encou
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 import type { SessionCloseoutView } from "@/features/tabletop-operations/session-closeout-service";
 import type { GodWeaponGovernanceWorkspaceView } from "@/features/items/weapon-governance-management-service";
+import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 
 import {
@@ -223,6 +224,7 @@ export function TabletopWorkspace({
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
+  initialActionDeclarations,
   initialCloseout,
   initialRollWorkspace,
   initialSessionCloseout,
@@ -236,6 +238,7 @@ export function TabletopWorkspace({
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
+  initialActionDeclarations: ActionDeclarationWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   initialSessionCloseout: SessionCloseoutView | null;
@@ -578,6 +581,7 @@ export function TabletopWorkspace({
             initialEncounterData={initialEncounterData}
             initialInitiativeTracker={initialInitiativeTracker}
             initialCombatAid={initialCombatAid}
+            initialActionDeclarations={initialActionDeclarations}
             initialCloseout={initialCloseout}
             initialRollWorkspace={initialRollWorkspace}
             session={selectedSession}

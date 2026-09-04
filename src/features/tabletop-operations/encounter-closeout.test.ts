@@ -12,6 +12,10 @@ import {
 test("closeout reports every objective unresolved runtime blocker", () => {
   const blockers = buildEncounterCloseoutBlockers({
     initiativeStatus: "active",
+    actionDeclarations: [
+      { status: "rolling-ready", label: "Declared strike", actorCharacterId: 1 },
+      { status: "resolved", label: "Resolved declaration", actorCharacterId: 3 },
+    ],
     pendingActions: [
       { status: "active", label: "Joren attacks", actorCharacterId: 1 },
       { status: "interrupted", label: "Mara casts", actorCharacterId: 2 },
@@ -33,6 +37,7 @@ test("closeout reports every objective unresolved runtime blocker", () => {
   });
   assert.deepEqual(blockers.map(({ code }) => code), [
     "initiative-active",
+    "action-declaration-open",
     "pending-action-active",
     "pending-action-interrupted",
     "authored-action-pending",
@@ -45,6 +50,11 @@ test("closeout reports every objective unresolved runtime blocker", () => {
 test("completed/ended history permits closeout once explicit rulings are complete", () => {
   assert.deepEqual(buildEncounterCloseoutBlockers({
     initiativeStatus: "closed",
+    actionDeclarations: [
+      { status: "resolved", label: "Resolved", actorCharacterId: 1 },
+      { status: "cancelled", label: "Cancelled", actorCharacterId: 2 },
+      { status: "abandoned", label: "Abandoned", actorCharacterId: 3 },
+    ],
     pendingActions: [
       { status: "completed", label: "Complete", actorCharacterId: 1 },
       { status: "abandoned", label: "Abandoned", actorCharacterId: 2 },

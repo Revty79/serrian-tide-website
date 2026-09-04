@@ -176,6 +176,13 @@
       "when": 1788489109832,
       "tag": "0024_character_weapon_governance_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788525219075,
+      "tag": "0025_action_declaration_initiative_windows",
+      "breakpoints": true
     }
   ]
 }

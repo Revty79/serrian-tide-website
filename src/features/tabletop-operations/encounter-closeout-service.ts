@@ -14,6 +14,7 @@ import {
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
@@ -201,6 +202,13 @@ export async function readEncounterCloseoutInTransaction(
     }).from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.encounterId, context.encounterId))
       .orderBy(asc(campaignSessionEncounterPendingAction.id));
+  const declarationRows = await tx.select({
+      status: campaignSessionEncounterActionDeclaration.status,
+      label: sql<string>`coalesce(${campaignSessionEncounterActionDeclaration.draftJson} ->> 'label', 'Action')`,
+      actorCharacterId: campaignSessionEncounterActionDeclaration.actorCharacterId,
+    }).from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId))
+      .orderBy(asc(campaignSessionEncounterActionDeclaration.id));
   const authoredRows = await tx.select({
       resolutionStatus: campaignSessionEncounterPendingActionSource.resolutionStatus,
       label: campaignSessionEncounterPendingAction.label,
@@ -281,6 +289,7 @@ export async function readEncounterCloseoutInTransaction(
   const initiative = initiativeRows[0] ?? null;
   const blockers = buildEncounterCloseoutBlockers({
     initiativeStatus: initiative?.status ?? null,
+    actionDeclarations: declarationRows,
     pendingActions: pendingRows,
     authoredActions: authoredRows,
     reactions: reactionRows,

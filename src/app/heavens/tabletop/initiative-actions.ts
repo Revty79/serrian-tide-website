@@ -8,6 +8,7 @@ import { campaign } from "@/db/campaign-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
@@ -55,6 +56,10 @@ import {
 import { assertCampaignSessionOwner } from "@/features/tabletop-operations/session-foundation";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
+import {
+  recordActionTimingCompletionsInTransaction,
+  recordLongActionRoundContinuationsInTransaction,
+} from "@/features/tabletop-operations/action-declaration-service";
 
 type TabletopTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -331,9 +336,11 @@ async function persistEngine(
   }
 
   const beforeActionById = new Map(before.pendingActions.map((action) => [action.id, action]));
+  const completedActionIds: number[] = [];
   for (const action of after.pendingActions) {
     const prior = beforeActionById.get(action.id);
     if (!prior || prior.status === action.status) continue;
+    if (action.status === "completed") completedActionIds.push(action.id);
     if (action.status === "abandoned" || action.status === "ended") {
       await tx.update(campaignSessionEncounterPendingActionSource).set({
         resolutionStatus: "cancelled",
@@ -358,6 +365,12 @@ async function persistEngine(
       ));
     }
   }
+  await recordActionTimingCompletionsInTransaction(
+    tx,
+    context,
+    completedActionIds,
+    context.ownerUserId,
+  );
 
   await applyInitiativeDurationTransitionInTransaction(
     tx,
@@ -366,6 +379,22 @@ async function persistEngine(
     after.runtime,
     durationPassage,
   );
+}
+
+async function assertLegacyPendingActionControl(
+  tx: TabletopTransaction,
+  encounterId: number,
+  actionId: number,
+): Promise<void> {
+  const [declaration] = await tx.select({ id: campaignSessionEncounterActionDeclaration.id })
+    .from(campaignSessionEncounterActionDeclaration)
+    .where(and(
+      eq(campaignSessionEncounterActionDeclaration.encounterId, encounterId),
+      eq(campaignSessionEncounterActionDeclaration.pendingActionId, actionId),
+    )).limit(1);
+  if (declaration) {
+    throw new Error("Use the Action Declarations workspace for this declared action so its ruling and audit history remain synchronized.");
+  }
 }
 
 async function mutateOwnedInitiative(
@@ -691,27 +720,42 @@ export async function settleEncounterDeferredInitiativeCost(
 
 export async function interruptEncounterPendingAction(encounterId: number, actionId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => interruptPendingInitiativeAction(state, actionId));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return interruptPendingInitiativeAction(state, actionId);
+  });
 }
 
 export async function abandonEncounterPendingAction(encounterId: number, actionId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => abandonPendingInitiativeAction(state, actionId));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return abandonPendingInitiativeAction(state, actionId);
+  });
 }
 
 export async function endEncounterPendingAction(encounterId: number, actionId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => endPendingInitiativeAction(state, actionId));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return endPendingInitiativeAction(state, actionId);
+  });
 }
 
 export async function resumeEncounterPendingAction(encounterId: number, actionId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => resumePendingInitiativeAction(state, actionId));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return resumePendingInitiativeAction(state, actionId);
+  });
 }
 
 export async function restartEncounterPendingAction(encounterId: number, actionId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => restartPendingInitiativeAction(state, actionId));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return restartPendingInitiativeAction(state, actionId);
+  });
 }
 
 export async function adjustEncounterPendingActionRemainingCost(
@@ -720,11 +764,10 @@ export async function adjustEncounterPendingActionRemainingCost(
   remainingInitiativeCost: number,
 ): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => adjustPendingInitiativeActionRemainingCost(
-    state,
-    actionId,
-    remainingInitiativeCost,
-  ));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return adjustPendingInitiativeActionRemainingCost(state, actionId, remainingInitiativeCost);
+  });
 }
 
 export async function resumeEncounterPendingActionWithAdjustedCost(
@@ -733,11 +776,10 @@ export async function resumeEncounterPendingActionWithAdjustedCost(
   remainingInitiativeCost: number,
 ): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => resumePendingInitiativeActionWithAdjustedCost(
-    state,
-    actionId,
-    remainingInitiativeCost,
-  ));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return resumePendingInitiativeActionWithAdjustedCost(state, actionId, remainingInitiativeCost);
+  });
 }
 
 export async function completeEncounterPendingActionManually(
@@ -745,14 +787,28 @@ export async function completeEncounterPendingActionManually(
   actionId: number,
 ): Promise<InitiativeRuntimeView> {
   assertPositiveId(actionId, "Pending Action");
-  return mutateOwnedInitiative(encounterId, (state) => completePendingInitiativeActionManually(state, actionId));
+  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => {
+    await assertLegacyPendingActionControl(tx, encounterId, actionId);
+    return completePendingInitiativeActionManually(state, actionId);
+  });
 }
 
 export async function advanceEncounterInitiativeRound(
   encounterId: number,
   force = false,
 ): Promise<InitiativeRuntimeView> {
-  return mutateOwnedInitiative(encounterId, (state) => advanceInitiativeRound(state, force));
+  return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
+    const changed = advanceInitiativeRound(state, force);
+    await recordLongActionRoundContinuationsInTransaction(
+      tx,
+      context,
+      state.runtime.roundNumber,
+      changed.runtime.roundNumber,
+      changed,
+      context.ownerUserId,
+    );
+    return changed;
+  });
 }
 
 export async function correctEncounterInitiativeRuntime(

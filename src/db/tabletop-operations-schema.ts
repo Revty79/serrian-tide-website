@@ -14,6 +14,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -86,6 +87,32 @@ export const campaignSessionEncounterReactionType = pgEnum(
 export const campaignSessionEncounterReactionStatus = pgEnum(
   "campaign_session_encounter_reaction_status",
   ["declared", "resolved", "cancelled", "needs-ruling"],
+);
+
+export const campaignSessionEncounterActionDeclarationStatus = pgEnum(
+  "campaign_session_encounter_action_declaration_status",
+  [
+    "draft",
+    "locked",
+    "committed",
+    "rolling-ready",
+    "rolling",
+    "awaiting-god-ruling",
+    "resolved",
+    "cancelled",
+    "interrupted",
+    "abandoned",
+  ],
+);
+
+export const campaignSessionEncounterResponderOpportunityStatus = pgEnum(
+  "campaign_session_encounter_responder_opportunity_status",
+  ["pending", "response-declared", "declined", "ineligible", "cancelled"],
+);
+
+export const campaignSessionEncounterResponderOpportunitySource = pgEnum(
+  "campaign_session_encounter_responder_opportunity_source",
+  ["initiative", "god-exception"],
 );
 
 export const campaignSessionEffectDurationBindingStatus = pgEnum(
@@ -706,6 +733,293 @@ export const campaignSessionEncounterReaction = pgTable(
   ],
 );
 
+export const campaignSessionEncounterActionDeclaration = pgTable(
+  "campaign_session_encounter_action_declaration",
+  {
+    id: serial("id").primaryKey(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    actorCharacterId: integer("actor_character_id").notNull(),
+    pendingActionId: integer("pending_action_id"),
+    supersedesDeclarationId: integer("supersedes_declaration_id"),
+    status: campaignSessionEncounterActionDeclarationStatus("status").default("draft").notNull(),
+    versionNumber: integer("version_number").default(1).notNull(),
+    draftJson: jsonb("draft_json").notNull(),
+    lockedSnapshotJson: jsonb("locked_snapshot_json"),
+    rulingReason: text("ruling_reason").default("").notNull(),
+    rulingNotes: text("ruling_notes").default("").notNull(),
+    createdByUserId: text("created_by_user_id").notNull(),
+    lockedByUserId: text("locked_by_user_id"),
+    committedByUserId: text("committed_by_user_id"),
+    endedByUserId: text("ended_by_user_id"),
+    lockedAt: timestamp("locked_at"),
+    committedAt: timestamp("committed_at"),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.actorCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterInitiativeParticipant.encounterId,
+        campaignSessionEncounterInitiativeParticipant.sceneId,
+        campaignSessionEncounterInitiativeParticipant.sessionId,
+        campaignSessionEncounterInitiativeParticipant.campaignId,
+        campaignSessionEncounterInitiativeParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_action_declaration_actor_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.pendingActionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterPendingAction.id,
+        campaignSessionEncounterPendingAction.encounterId,
+        campaignSessionEncounterPendingAction.sceneId,
+        campaignSessionEncounterPendingAction.sessionId,
+        campaignSessionEncounterPendingAction.campaignId,
+      ],
+      name: "campaign_session_encounter_action_declaration_pending_action_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [
+        table.supersedesDeclarationId,
+        table.encounterId,
+        table.sceneId,
+        table.sessionId,
+        table.campaignId,
+      ],
+      foreignColumns: [
+        table.id,
+        table.encounterId,
+        table.sceneId,
+        table.sessionId,
+        table.campaignId,
+      ],
+      name: "campaign_session_encounter_action_declaration_revision_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.createdByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_created_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.lockedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_locked_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.committedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_committed_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.endedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_ended_by_fk" }).onDelete("restrict"),
+    uniqueIndex("campaign_session_encounter_action_declaration_pending_action_uq")
+      .on(table.pendingActionId)
+      .where(sql`${table.pendingActionId} IS NOT NULL`),
+    uniqueIndex("campaign_session_encounter_action_declaration_supersedes_uq")
+      .on(table.supersedesDeclarationId)
+      .where(sql`${table.supersedesDeclarationId} IS NOT NULL`),
+    unique("campaign_session_encounter_action_declaration_hierarchy_uq").on(
+      table.id,
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+    ),
+    unique("campaign_session_encounter_action_declaration_pending_hierarchy_uq").on(
+      table.id,
+      table.pendingActionId,
+      table.encounterId,
+      table.sceneId,
+      table.sessionId,
+      table.campaignId,
+    ),
+    index("campaign_session_encounter_action_declaration_status_idx").on(table.encounterId, table.status, table.createdAt),
+    index("campaign_session_encounter_action_declaration_actor_idx").on(table.encounterId, table.actorCharacterId, table.createdAt),
+    check("campaign_session_encounter_action_declaration_version_positive", sql`${table.versionNumber} > 0`),
+    check("campaign_session_encounter_action_declaration_draft_object", sql`jsonb_typeof(${table.draftJson}) = 'object'`),
+    check("campaign_session_encounter_action_declaration_snapshot_object", sql`${table.lockedSnapshotJson} IS NULL OR jsonb_typeof(${table.lockedSnapshotJson}) = 'object'`),
+    check(
+      "campaign_session_encounter_action_declaration_lifecycle_valid",
+      sql`(
+        ${table.status} = 'draft'
+        AND ${table.pendingActionId} IS NULL
+        AND ${table.lockedSnapshotJson} IS NULL
+        AND ${table.lockedAt} IS NULL
+        AND ${table.lockedByUserId} IS NULL
+        AND ${table.committedAt} IS NULL
+        AND ${table.committedByUserId} IS NULL
+      ) OR (
+        ${table.status} = 'locked'
+        AND ${table.pendingActionId} IS NULL
+        AND ${table.lockedSnapshotJson} IS NOT NULL
+        AND ${table.lockedAt} IS NOT NULL
+        AND ${table.lockedByUserId} IS NOT NULL
+        AND ${table.committedAt} IS NULL
+        AND ${table.committedByUserId} IS NULL
+      ) OR (
+        ${table.status} IN ('committed','rolling-ready','rolling','awaiting-god-ruling','resolved','interrupted','abandoned')
+        AND ${table.pendingActionId} IS NOT NULL
+        AND ${table.lockedSnapshotJson} IS NOT NULL
+        AND ${table.lockedAt} IS NOT NULL
+        AND ${table.lockedByUserId} IS NOT NULL
+        AND ${table.committedAt} IS NOT NULL
+        AND ${table.committedByUserId} IS NOT NULL
+      ) OR (
+        ${table.status} = 'cancelled'
+        AND (
+          (
+            ${table.pendingActionId} IS NULL
+            AND ${table.lockedSnapshotJson} IS NULL
+            AND ${table.lockedAt} IS NULL
+            AND ${table.lockedByUserId} IS NULL
+            AND ${table.committedAt} IS NULL
+            AND ${table.committedByUserId} IS NULL
+          ) OR (
+            ${table.pendingActionId} IS NULL
+            AND ${table.lockedSnapshotJson} IS NOT NULL
+            AND ${table.lockedAt} IS NOT NULL
+            AND ${table.lockedByUserId} IS NOT NULL
+            AND ${table.committedAt} IS NULL
+            AND ${table.committedByUserId} IS NULL
+          ) OR (
+            ${table.pendingActionId} IS NOT NULL
+            AND ${table.lockedSnapshotJson} IS NOT NULL
+            AND ${table.lockedAt} IS NOT NULL
+            AND ${table.lockedByUserId} IS NOT NULL
+            AND ${table.committedAt} IS NOT NULL
+            AND ${table.committedByUserId} IS NOT NULL
+          )
+        )
+      )`,
+    ),
+    check(
+      "campaign_session_encounter_action_declaration_end_valid",
+      sql`(
+        ${table.status} IN ('resolved','cancelled','abandoned')
+        AND ${table.endedAt} IS NOT NULL
+        AND ${table.endedByUserId} IS NOT NULL
+      ) OR (
+        ${table.status} NOT IN ('resolved','cancelled','abandoned')
+        AND ${table.endedAt} IS NULL
+        AND ${table.endedByUserId} IS NULL
+      )`,
+    ),
+  ],
+);
+
+export const campaignSessionEncounterResponderOpportunity = pgTable(
+  "campaign_session_encounter_responder_opportunity",
+  {
+    id: serial("id").primaryKey(),
+    declarationId: integer("declaration_id").notNull(),
+    pendingActionId: integer("pending_action_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    responderCharacterId: integer("responder_character_id").notNull(),
+    reactionId: integer("reaction_id"),
+    source: campaignSessionEncounterResponderOpportunitySource("source").notNull(),
+    status: campaignSessionEncounterResponderOpportunityStatus("status").default("pending").notNull(),
+    windowSequence: integer("window_sequence").default(1).notNull(),
+    reachedAtInitiative: doublePrecision("reached_at_initiative").notNull(),
+    reason: text("reason").notNull(),
+    requiresGodConfirmation: boolean("requires_god_confirmation").default(true).notNull(),
+    responseLabel: text("response_label").default("").notNull(),
+    rulingReason: text("ruling_reason").default("").notNull(),
+    createdByUserId: text("created_by_user_id"),
+    reconciledByUserId: text("reconciled_by_user_id"),
+    reconciledAt: timestamp("reconciled_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.declarationId, table.pendingActionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterActionDeclaration.id,
+        campaignSessionEncounterActionDeclaration.pendingActionId,
+        campaignSessionEncounterActionDeclaration.encounterId,
+        campaignSessionEncounterActionDeclaration.sceneId,
+        campaignSessionEncounterActionDeclaration.sessionId,
+        campaignSessionEncounterActionDeclaration.campaignId,
+      ],
+      name: "campaign_session_encounter_responder_opportunity_declaration_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.responderCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterInitiativeParticipant.encounterId,
+        campaignSessionEncounterInitiativeParticipant.sceneId,
+        campaignSessionEncounterInitiativeParticipant.sessionId,
+        campaignSessionEncounterInitiativeParticipant.campaignId,
+        campaignSessionEncounterInitiativeParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_responder_opportunity_responder_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.reactionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterReaction.id,
+        campaignSessionEncounterReaction.encounterId,
+        campaignSessionEncounterReaction.sceneId,
+        campaignSessionEncounterReaction.sessionId,
+        campaignSessionEncounterReaction.campaignId,
+      ],
+      name: "campaign_session_encounter_responder_opportunity_reaction_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.createdByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_responder_opportunity_created_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.reconciledByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_responder_opportunity_reconciled_by_fk" }).onDelete("restrict"),
+    uniqueIndex("campaign_session_encounter_responder_opportunity_character_uq").on(table.declarationId, table.windowSequence, table.responderCharacterId),
+    index("campaign_session_encounter_responder_opportunity_status_idx").on(table.declarationId, table.status, table.reachedAtInitiative),
+    check("campaign_session_encounter_responder_opportunity_window_positive", sql`${table.windowSequence} > 0`),
+    check("campaign_session_encounter_responder_opportunity_reason_nonblank", sql`length(trim(${table.reason})) > 0`),
+    check(
+      "campaign_session_encounter_responder_opportunity_reconciliation_valid",
+      sql`(
+        ${table.status} = 'pending'
+        AND ${table.reconciledAt} IS NULL
+        AND ${table.reconciledByUserId} IS NULL
+      ) OR (
+        ${table.status} <> 'pending'
+        AND ${table.reconciledAt} IS NOT NULL
+        AND ${table.reconciledByUserId} IS NOT NULL
+      )`,
+    ),
+    check("campaign_session_encounter_responder_opportunity_ineligible_reason", sql`${table.status} <> 'ineligible' OR length(trim(${table.rulingReason})) > 0`),
+    check("campaign_session_encounter_responder_opportunity_exception_reason", sql`${table.source} <> 'god-exception' OR length(trim(${table.rulingReason})) > 0`),
+    check("campaign_session_encounter_responder_opportunity_response_label", sql`${table.status} <> 'response-declared' OR length(trim(${table.responseLabel})) > 0`),
+  ],
+);
+
+export const campaignSessionEncounterActionDeclarationEvent = pgTable(
+  "campaign_session_encounter_action_declaration_event",
+  {
+    id: serial("id").primaryKey(),
+    declarationId: integer("declaration_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    fromStatus: campaignSessionEncounterActionDeclarationStatus("from_status"),
+    toStatus: campaignSessionEncounterActionDeclarationStatus("to_status").notNull(),
+    eventKind: text("event_kind").notNull(),
+    reason: text("reason").default("").notNull(),
+    metadata: jsonb("metadata").default(sql`'{}'::jsonb`).notNull(),
+    actorUserId: text("actor_user_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.declarationId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterActionDeclaration.id,
+        campaignSessionEncounterActionDeclaration.encounterId,
+        campaignSessionEncounterActionDeclaration.sceneId,
+        campaignSessionEncounterActionDeclaration.sessionId,
+        campaignSessionEncounterActionDeclaration.campaignId,
+      ],
+      name: "campaign_session_encounter_action_declaration_event_declaration_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.actorUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_event_actor_fk" }).onDelete("restrict"),
+    index("campaign_session_encounter_action_declaration_event_history_idx").on(table.declarationId, table.createdAt, table.id),
+    check("campaign_session_encounter_action_declaration_event_kind_nonblank", sql`length(trim(${table.eventKind})) > 0`),
+    check("campaign_session_encounter_action_declaration_event_metadata_object", sql`jsonb_typeof(${table.metadata}) = 'object'`),
+  ],
+);
+
 export const campaignSessionEffectDurationBinding = pgTable(
   "campaign_session_effect_duration_binding",
   {
@@ -1291,6 +1605,9 @@ export type CampaignSessionEncounterType = (typeof campaignSessionEncounterType.
 export type CampaignSessionEncounterInitiativeStatus = (typeof campaignSessionEncounterInitiativeStatus.enumValues)[number];
 export type CampaignSessionEncounterInitiativeParticipantStatus = (typeof campaignSessionEncounterInitiativeParticipantStatus.enumValues)[number];
 export type CampaignSessionEncounterPendingActionStatus = (typeof campaignSessionEncounterPendingActionStatus.enumValues)[number];
+export type CampaignSessionEncounterActionDeclarationStatus = (typeof campaignSessionEncounterActionDeclarationStatus.enumValues)[number];
+export type CampaignSessionEncounterResponderOpportunityStatus = (typeof campaignSessionEncounterResponderOpportunityStatus.enumValues)[number];
+export type CampaignSessionEncounterResponderOpportunitySource = (typeof campaignSessionEncounterResponderOpportunitySource.enumValues)[number];
 export type CampaignSessionEffectDurationBindingStatus = (typeof campaignSessionEffectDurationBindingStatus.enumValues)[number];
 export type CampaignSessionEncounterRewardKind = (typeof campaignSessionEncounterRewardKind.enumValues)[number];
 export type CampaignSessionRollMethod = (typeof campaignSessionRollMethod.enumValues)[number];

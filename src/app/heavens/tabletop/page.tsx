@@ -10,6 +10,7 @@ import { getEncounterCloseout } from "./closeout-actions";
 import { getGodRollWorkspace } from "./roll-actions";
 import { getSessionCloseout } from "./session-closeout-actions";
 import { getGodWeaponGovernanceWorkspace } from "./weapon-governance-actions";
+import { getActionDeclarationWorkspace } from "./action-declaration-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -84,6 +85,9 @@ export default async function TabletopOperationsPage({
   const combatAid = encounterWorkspace?.selectedEncounter
     ? await getEncounterCombatAid(encounterWorkspace.selectedEncounter.id)
     : null;
+  const actionDeclarations = encounterWorkspace?.selectedEncounter
+    ? await getActionDeclarationWorkspace(encounterWorkspace.selectedEncounter.id)
+    : null;
   const closeout = encounterWorkspace?.selectedEncounter
     ? await getEncounterCloseout(encounterWorkspace.selectedEncounter.id)
     : null;
@@ -120,6 +124,7 @@ export default async function TabletopOperationsPage({
       initialEncounterData={encounterWorkspace}
       initialInitiativeTracker={initiativeTracker}
       initialCombatAid={combatAid}
+      initialActionDeclarations={actionDeclarations}
       initialCloseout={closeout}
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}

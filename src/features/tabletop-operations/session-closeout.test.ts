@@ -8,6 +8,7 @@ function closeoutInput() {
     scenes: [] as Array<{ id: number; title: string; status: "planned" | "active" | "completed" }>,
     encounters: [] as Array<{ id: number; sceneId: number; title: string; status: "planned" | "active" | "completed" }>,
     initiatives: [] as Array<{ encounterId: number; status: "active" | "closed" }>,
+    actionDeclarations: [] as Array<{ encounterId: number; actorCharacterId: number; label: string; status: "draft" | "locked" | "committed" | "rolling-ready" | "rolling" | "awaiting-god-ruling" | "resolved" | "cancelled" | "interrupted" | "abandoned" }>,
     pendingActions: [] as Array<{ encounterId: number; actorCharacterId: number; label: string; status: "active" | "interrupted" | "completed" | "abandoned" | "ended" }>,
     authoredActions: [] as Array<{ encounterId: number; sourceCharacterId: number; label: string; resolutionStatus: "pending" | "resolved" | "cancelled" | "needs-ruling" }>,
     reactions: [] as Array<{ encounterId: number; reactorCharacterId: number; reactionType: string; status: "declared" | "resolved" | "cancelled" | "needs-ruling" }>,
@@ -19,6 +20,7 @@ test("Session closeout reports every objective unresolved runtime blocker", () =
   input.scenes.push({ id: 1, title: "Road", status: "active" });
   input.encounters.push({ id: 2, sceneId: 1, title: "Ambush", status: "active" });
   input.initiatives.push({ encounterId: 2, status: "active" });
+  input.actionDeclarations.push({ encounterId: 2, actorCharacterId: 10, label: "Declared strike", status: "committed" });
   input.pendingActions.push(
     { encounterId: 2, actorCharacterId: 10, label: "Strike", status: "active" },
     { encounterId: 2, actorCharacterId: 11, label: "Spell", status: "interrupted" },
@@ -35,6 +37,7 @@ test("Session closeout reports every objective unresolved runtime blocker", () =
     "scene-active",
     "encounter-active",
     "initiative-active",
+    "action-declaration-open",
     "pending-action-active",
     "pending-action-interrupted",
     "authored-action-pending",
@@ -49,6 +52,11 @@ test("historical and closed runtime rows do not block Session closeout", () => {
   input.scenes.push({ id: 1, title: "Road", status: "completed" }, { id: 3, title: "Unused", status: "planned" });
   input.encounters.push({ id: 2, sceneId: 1, title: "Ambush", status: "completed" });
   input.initiatives.push({ encounterId: 2, status: "closed" });
+  input.actionDeclarations.push(
+    { encounterId: 2, actorCharacterId: 10, label: "Resolved declaration", status: "resolved" },
+    { encounterId: 2, actorCharacterId: 11, label: "Cancelled declaration", status: "cancelled" },
+    { encounterId: 2, actorCharacterId: 12, label: "Abandoned declaration", status: "abandoned" },
+  );
   input.pendingActions.push({ encounterId: 2, actorCharacterId: 10, label: "Strike", status: "completed" });
   input.authoredActions.push({ encounterId: 2, sourceCharacterId: 10, label: "Strike", resolutionStatus: "resolved" });
   input.reactions.push({ encounterId: 2, reactorCharacterId: 12, reactionType: "dodge", status: "resolved" });
@@ -64,4 +72,3 @@ test("planned content and unbound durations are warnings rather than blockers", 
   assert.deepEqual(warnings.map(({ code }) => code), ["planned-scenes", "planned-encounters", "unbound-duration"]);
   assert.match(warnings[2]!.message, /will not auto-advance and is not being guessed or cleared/);
 });
-

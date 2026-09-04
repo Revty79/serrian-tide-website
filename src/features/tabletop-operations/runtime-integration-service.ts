@@ -296,7 +296,7 @@ async function requireEncounterParticipants(
   }
 }
 
-async function loadInitiativeEngine(
+export async function loadInitiativeEngineInTransaction(
   tx: RuntimeIntegrationTransaction,
   encounterId: number,
 ): Promise<InitiativeEngineState> {
@@ -349,7 +349,7 @@ async function loadInitiativeEngine(
   return { runtime, participants, pendingActions };
 }
 
-async function persistInitiativeEngine(
+export async function persistInitiativeEngineInTransaction(
   tx: RuntimeIntegrationTransaction,
   context: OwnedEncounterRuntimeContext,
   before: InitiativeEngineState,
@@ -443,9 +443,9 @@ export async function holdParticipantInitiativeInTransaction(
 ): Promise<void> {
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, characterId, true);
-  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const changed = holdInitiative(state, characterId);
-  await persistInitiativeEngine(tx, context, state, changed);
+  await persistInitiativeEngineInTransaction(tx, context, state, changed);
 }
 
 /** Player and G.O.D. controllers share the authoritative Initiative engine. */
@@ -456,9 +456,9 @@ export async function passParticipantInitiativeInTransaction(
 ): Promise<void> {
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, characterId, true);
-  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const changed = passInitiative(state, characterId);
-  await persistInitiativeEngine(tx, context, state, changed);
+  await persistInitiativeEngineInTransaction(tx, context, state, changed);
 }
 
 /**
@@ -475,7 +475,7 @@ export async function spendImmediateInitiativeInTransaction(
   assertActiveInitiativeHierarchy(context);
   const cost = positiveAmount(amount, "Initiative Cost");
   await requireEncounterParticipant(tx, context, characterId, true);
-  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const participant = state.participants.find(
     (entry) => entry.characterId === characterId,
   );
@@ -483,7 +483,7 @@ export async function spendImmediateInitiativeInTransaction(
     throw new Error("The Character does not have enough Current Initiative for this Derived Ability.");
   }
   const changed = applyDirectInitiativeDelta(state, characterId, -cost);
-  await persistInitiativeEngine(tx, context, state, changed);
+  await persistInitiativeEngineInTransaction(tx, context, state, changed);
 }
 
 export async function startAuthoredActionInTransaction(
@@ -496,7 +496,7 @@ export async function startAuthoredActionInTransaction(
   await requireEncounterParticipants(tx, context, input.targetCharacterIds);
   assertDurableAuthoredActionPayload(input.payload);
   const sourceRef = cleanText(input.sourceRef, "Authored action source");
-  const state = await loadInitiativeEngine(tx, context.encounterId);
+  const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const actionId = await nextPendingActionId(tx);
   const changed = startInitiativeAction(state, {
     id: actionId,
@@ -507,7 +507,7 @@ export async function startAuthoredActionInTransaction(
     allowsMultiRound: input.allowsMultiRound,
     heldIntervention: input.heldIntervention,
   });
-  await persistInitiativeEngine(tx, context, state, changed);
+  await persistInitiativeEngineInTransaction(tx, context, state, changed);
   const [created] = await tx.insert(campaignSessionEncounterPendingActionSource).values({
     pendingActionId: actionId,
     encounterId: context.encounterId,
@@ -1120,7 +1120,7 @@ export async function declareEncounterReactionInTransaction(
 ): Promise<{ id: number; committedInitiativeCost: number }> {
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, input.reactorCharacterId, true);
-  const engine = await loadInitiativeEngine(tx, context.encounterId);
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const action = engine.pendingActions.find(({ id }) => id === input.pendingActionId);
   if (!action || action.status !== "active") throw new Error("Reaction requires an active Pending Action window.");
   if (action.actorCharacterId === input.reactorCharacterId) throw new Error("An actor cannot react to their own action.");
@@ -1152,7 +1152,7 @@ export async function declareEncounterReactionInTransaction(
   }
   const committedInitiativeCost = getReactionCommitment(input.reactionType, weaponCost);
   const changed = applyDirectInitiativeDelta(engine, input.reactorCharacterId, -committedInitiativeCost);
-  await persistInitiativeEngine(tx, context, engine, changed);
+  await persistInitiativeEngineInTransaction(tx, context, engine, changed);
   const [created] = await tx.insert(campaignSessionEncounterReaction).values({
     encounterId: context.encounterId,
     sceneId: context.sceneId,
@@ -1180,7 +1180,7 @@ export async function resolveEncounterReactionInTransaction(
     eq(campaignSessionEncounterReaction.encounterId, context.encounterId),
   )).limit(1).for("update");
   if (!reaction || reaction.status !== "declared") throw new Error("That Reaction is not awaiting resolution.");
-  const engine = await loadInitiativeEngine(tx, context.encounterId);
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const action = engine.pendingActions.find(({ id }) => id === reaction.pendingActionId);
   if (!action) throw new Error("The Reaction source action no longer exists.");
   if (action.status === "interrupted" || action.status === "abandoned" || action.status === "ended") {
@@ -1206,7 +1206,7 @@ export async function resolveEncounterReactionInTransaction(
   if (result.attackerAdditionalCost > 0) {
     changed = applyDirectInitiativeDelta(changed, action.actorCharacterId, -result.attackerAdditionalCost);
   }
-  await persistInitiativeEngine(tx, context, engine, changed);
+  await persistInitiativeEngineInTransaction(tx, context, engine, changed);
   await tx.update(campaignSessionEncounterReaction).set({
     status: "resolved",
     outcome: succeeded ? "success" : "failure",
@@ -1230,9 +1230,9 @@ export async function ruleOnInterruptedReactionInTransaction(
   )).limit(1).for("update");
   if (!reaction || reaction.status !== "needs-ruling") throw new Error("That Reaction does not need a ruling.");
   if (ruling === "refund") {
-    const engine = await loadInitiativeEngine(tx, context.encounterId);
+    const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
     const changed = applyDirectInitiativeDelta(engine, reaction.reactorCharacterId, reaction.committedInitiativeCost);
-    await persistInitiativeEngine(tx, context, engine, changed);
+    await persistInitiativeEngineInTransaction(tx, context, engine, changed);
   }
   await tx.update(campaignSessionEncounterReaction).set({
     status: "resolved",
@@ -1250,10 +1250,10 @@ export async function enrollSpawnedCreatureInInitiativeInTransaction(
   characterId: number,
   movementMode?: string,
 ): Promise<void> {
-  const engine = await loadInitiativeEngine(tx, context.encounterId);
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const capacity = await resolveInitiativeCapacityInTransaction(tx, characterId, context.campaignId, movementMode);
   const changed = enrollLateInitiativeParticipant(engine, capacity);
-  await persistInitiativeEngine(tx, context, engine, changed);
+  await persistInitiativeEngineInTransaction(tx, context, engine, changed);
 }
 
 export async function applyEncounterDamageInTransaction(

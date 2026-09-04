@@ -1,5 +1,6 @@
 export type EncounterCloseoutBlockerCode =
   | "initiative-active"
+  | "action-declaration-open"
   | "pending-action-active"
   | "pending-action-interrupted"
   | "authored-action-pending"
@@ -20,6 +21,11 @@ export type ExperienceAwardInput = {
 
 export function buildEncounterCloseoutBlockers(input: {
   initiativeStatus: "active" | "closed" | null;
+  actionDeclarations?: ReadonlyArray<{
+    status: "draft" | "locked" | "committed" | "rolling-ready" | "rolling" | "awaiting-god-ruling" | "resolved" | "cancelled" | "interrupted" | "abandoned";
+    label: string;
+    actorCharacterId: number;
+  }>;
   pendingActions: ReadonlyArray<{
     status: "active" | "interrupted" | "completed" | "abandoned" | "ended";
     label: string;
@@ -42,6 +48,14 @@ export function buildEncounterCloseoutBlockers(input: {
       code: "initiative-active",
       message: "Initiative Runtime is still active. Close Initiative before finalizing this Encounter.",
       characterId: null,
+    });
+  }
+  for (const declaration of input.actionDeclarations ?? []) {
+    if (declaration.status === "resolved" || declaration.status === "cancelled" || declaration.status === "abandoned") continue;
+    blockers.push({
+      code: "action-declaration-open",
+      message: `${declaration.label} has an open ${declaration.status.replaceAll("-", " ")} declaration. Resolve, cancel, or abandon it before closeout.`,
+      characterId: declaration.actorCharacterId,
     });
   }
   for (const action of input.pendingActions) {

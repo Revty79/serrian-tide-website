@@ -298,8 +298,8 @@ export function canParticipantReactToAction(
   participantCurrentInitiative: number,
 ): boolean {
   finite(participantCurrentInitiative, "Participant Current Initiative");
-  return participantCurrentInitiative < action.startTimelineInitiative
-    && participantCurrentInitiative > action.expectedCompletionInitiative;
+  return participantCurrentInitiative <= action.startTimelineInitiative
+    && participantCurrentInitiative >= action.expectedCompletionInitiative;
 }
 
 export function canHoldingParticipantIntervene(

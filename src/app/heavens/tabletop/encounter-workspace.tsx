@@ -10,6 +10,7 @@ import {
 } from "@/features/tabletop-operations/encounter-foundation";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
+import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 
@@ -31,6 +32,7 @@ import {
 import type { CampaignSceneDetail } from "./scene-actions";
 import { InitiativeTracker } from "./initiative-tracker";
 import { CombatAidWorkspace } from "./combat-aid-workspace";
+import { ActionDeclarationWorkspace } from "./action-declaration-workspace";
 import { EncounterCloseout } from "./encounter-closeout";
 import { CreatureCatalogSpawn } from "./creature-catalog-spawn";
 
@@ -153,6 +155,7 @@ export function EncounterWorkspace({
   initialData,
   initialInitiativeTracker,
   initialCombatAid,
+  initialActionDeclarations,
   initialCloseout,
   initialRollWorkspace,
   scene,
@@ -160,6 +163,7 @@ export function EncounterWorkspace({
   initialData: EncounterWorkspaceData;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
+  initialActionDeclarations: ActionDeclarationWorkspaceView | null;
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   scene: CampaignSceneDetail;
@@ -167,7 +171,7 @@ export function EncounterWorkspace({
   const router = useRouter();
   const selectedEncounter = initialData.selectedEncounter;
   const [creating, setCreating] = useState(false);
-  const [activeSection, setActiveSection] = useState<"prep" | "initiative" | "combat-aid" | "closeout">("prep");
+  const [activeSection, setActiveSection] = useState<"prep" | "initiative" | "declarations" | "combat-aid" | "closeout">("prep");
   const [draft, setDraft] = useState<EncounterMetadataInput>(() => selectedEncounter
     ? metadataFromEncounter(selectedEncounter)
     : emptyEncounterMetadata(initialData));
@@ -308,6 +312,7 @@ export function EncounterWorkspace({
         {!creating && selectedEncounter ? <nav className="tabletop-encounter-tabs" aria-label="Encounter workspace">
           <button type="button" className={activeSection === "prep" ? "is-selected" : ""} onClick={() => setActiveSection("prep")}>Encounter Prep</button>
           <button type="button" className={activeSection === "initiative" ? "is-selected" : ""} onClick={() => setActiveSection("initiative")}>Initiative Tracker {initialInitiativeTracker?.runtime?.runtime.status === "active" ? <span>Active</span> : null}</button>
+          <button type="button" className={activeSection === "declarations" ? "is-selected" : ""} onClick={() => setActiveSection("declarations")}>Declarations {initialActionDeclarations?.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length ? <span>{initialActionDeclarations.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length}</span> : null}</button>
           <button type="button" className={activeSection === "combat-aid" ? "is-selected" : ""} onClick={() => setActiveSection("combat-aid")}>Combat Aid <span>{initialCombatAid?.participants.length ?? 0}</span></button>
           <button type="button" className={activeSection === "closeout" ? "is-selected" : ""} onClick={() => setActiveSection("closeout")}>Closeout {initialCloseout?.blockers.length ? <span>{initialCloseout.blockers.length}</span> : null}</button>
         </nav> : null}
@@ -382,6 +387,9 @@ export function EncounterWorkspace({
         {!creating && selectedEncounter && activeSection === "initiative" ? initialInitiativeTracker
           ? <InitiativeTracker data={initialInitiativeTracker} />
           : <p className="tabletop-empty">Initiative data is unavailable for this Encounter.</p> : null}
+        {!creating && selectedEncounter && activeSection === "declarations" ? initialActionDeclarations
+          ? <ActionDeclarationWorkspace view={initialActionDeclarations} />
+          : <p className="tabletop-empty">Initialize Initiative before creating action declarations.</p> : null}
         {!creating && selectedEncounter && activeSection === "combat-aid" ? initialCombatAid
           ? <CombatAidWorkspace data={initialCombatAid} rollWorkspace={initialRollWorkspace} onOpenInitiative={() => setActiveSection("initiative")} />
           : <p className="tabletop-empty">Combat Aid state is unavailable for this Encounter.</p> : null}

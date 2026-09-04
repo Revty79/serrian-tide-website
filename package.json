@@ -52,6 +52,8 @@
     "validate:character-weapon-governance-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/character-weapon-governance-db.test.ts",
     "validate:weapon-governance-management-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/weapon-governance-management-db.test.ts",
     "validate:weapon-governance-management-browser": "node --conditions=react-server --import tsx scripts/weapon-governance-management-browser.test.ts",
+    "validate:action-declaration-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/action-declaration-windows-db.test.ts",
+    "validate:action-declaration-browser": "node --conditions=react-server --import tsx scripts/action-declaration-windows-browser.test.ts",
     "validate:spell": "tsx --test src/features/spell-construction/spell-integration.test.ts",
     "validate:spell-effects": "tsx --test src/features/spell-construction/mechanical-effects-adapter.test.ts",
     "validate:spell-runtime": "tsx --test src/features/characters/character-spell-runtime.test.ts",
