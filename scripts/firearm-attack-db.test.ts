@@ -25,7 +25,7 @@ import {
   applyActionEffectPlanInTransaction,
   declineActionEffectPlanInTransaction,
 } from "@/features/tabletop-operations/action-effect-plan-service";
-import { reconcileResponderOpportunityInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import {
   cancelFirearmAttackInTransaction,
   declareFirearmAttackInTransaction,
@@ -254,7 +254,11 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, attackBefore.triggerDeclarationId));
     assert.ok(opportunities.length >= 1);
     for (const opportunity of opportunities) {
-      await reconcileResponderOpportunityInTransaction(tx, context, god, opportunity.id, { status: "declined", reason: "Focused firearm attack fixture declines this opportunity." });
+      await declareDefenseInterventionInTransaction(tx, context, god, {
+        opportunityId: opportunity.id,
+        reactionType: "no-reaction",
+        protectedTargetCharacterId: -1,
+      });
     }
     const beforeTriggerCompletion = await loadInitiativeEngineInTransaction(tx, base.encounterId);
     const triggerAction = beforeTriggerCompletion.pendingActions.find(({ id }) => id === attackBefore.triggerPendingActionId);
@@ -285,9 +289,37 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
     assert.equal(bullet.armor, 2);
     assert.equal(bullet.soak, 1);
     assert.equal(bullet.proposedNetDamage, bullet.grossDamage - 3);
-    const [firedAttack] = await tx.select({ damage: campaignSessionEncounterFirearmAttack.damageResolutionJson })
+    const [firedAttack] = await tx.select({
+      allocation: campaignSessionEncounterFirearmAttack.bulletAllocationJson,
+      damage: campaignSessionEncounterFirearmAttack.damageResolutionJson,
+    })
       .from(campaignSessionEncounterFirearmAttack).where(eq(campaignSessionEncounterFirearmAttack.id, declared.attackId));
     assert.equal((firedAttack?.damage as { calledShotValidAtRoll: boolean }).calledShotValidAtRoll, true);
+    const defenseContributions = (firedAttack?.allocation as {
+      defenseContributions: Array<{
+        reactionId: number;
+        defenderParticipantId: number;
+        defenseRollId: number | null;
+        defenseTotalSuccesses: number | null;
+        applicable: boolean | null;
+        bulletsBefore: number;
+        bulletsCancelled: number;
+        bulletsAfter: number;
+        rulingReasons: string[];
+      }>;
+    }).defenseContributions;
+    assert.equal(defenseContributions.length, opportunities.length);
+    assert.equal(defenseContributions.every((entry) => (
+      Number.isSafeInteger(entry.reactionId)
+      && entry.defenderParticipantId !== 0
+      && entry.defenseRollId === null
+      && entry.defenseTotalSuccesses === null
+      && entry.applicable === false
+      && entry.bulletsBefore === 1
+      && entry.bulletsCancelled === 0
+      && entry.bulletsAfter === 1
+      && entry.rulingReasons.length === 0
+    )), true);
 
     const [creatureBeforeReview] = await tx.select({ localState: campaignSessionEncounterParticipant.localStateJson })
       .from(campaignSessionEncounterParticipant).where(and(

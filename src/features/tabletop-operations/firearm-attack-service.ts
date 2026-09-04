@@ -27,7 +27,9 @@ import {
   campaignSessionEncounterFirearmBullet,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
+  campaignSessionEncounterReaction,
   campaignSessionEncounterResponderOpportunity,
+  campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
 import { getActiveModifierTotal } from "@/features/active-state/active-effects";
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
@@ -68,6 +70,7 @@ import {
   postShotReadinessFromAuthoredTiming,
   type FirearmAttackStatus,
   type FirearmBulletAllocation,
+  type FirearmDefenseAllocationInput,
   type FirearmDeliveryPlan,
 } from "./firearm-attack";
 import { resolvePercentileCheck, type PercentileTargetModifier } from "./percentile-resolution";
@@ -478,7 +481,6 @@ async function loadFoundation(
     throw new Error("The requested Called Shot location is absent from the target's exact authored anatomy and requires a G.O.D. ruling before declaration.");
   }
   const rulingReasons = [...delivery.rulingReasons];
-  if (calledShot.declared && delivery.kind !== "single") rulingReasons.push("Called Shot burst or sustained-fire damage requires a G.O.D. ruling.");
   if (calledShot.declared && calledShot.locationNumber === null) rulingReasons.push("The Called Shot objective does not identify an authored Hit Location.");
   if (!targetHealthAnatomy) rulingReasons.push("The exact target anatomy is unavailable.");
   const damage = getCharacterWeaponDamage({
@@ -1193,6 +1195,46 @@ async function createFirearmEffectPlan(
       amendmentReason: "",
     });
   }
+  if (attack.calledShotDeclared
+    && preview.delivery.kind !== "single"
+    && allocation.survivingBulletHits > 0
+    && preview.dexDamageModifier !== 0) {
+    effects.push({
+      planId: created.id,
+      encounterId: context.encounterId,
+      sceneId: context.sceneId,
+      sessionId: context.sessionId,
+      campaignId: context.campaignId,
+      targetParticipantId: attack.targetParticipantId,
+      effectKey: "firearm-called-automatic-dex",
+      effectType: "manual",
+      sourceKind: "weapon",
+      sourceIdentity,
+      authoredValueJson: {
+        calledShotObjective: attack.calledShotObjective,
+        calledShotLocationNumber: attack.calledShotLocationNumber,
+        dexDamageModifier: preview.dexDamageModifier,
+        appliedPerBullet: false,
+      },
+      calculatedValueJson: preview.dexDamageModifier,
+      finalValueJson: {
+        effect: {
+          kind: "manual",
+          title: "Called burst/automatic DEX damage modifier",
+          description: "The single DEX damage modifier is preserved once for G.O.D. placement and was not applied to each bullet.",
+        },
+        application: attack.calledShotLocationNumber === null
+          ? {}
+          : { hitLocationNumber: attack.calledShotLocationNumber },
+      },
+      unit: "instruction",
+      resource: "",
+      applicationSupported: false,
+      godReviewRequired: true,
+      status: "requires-god-ruling",
+      amendmentReason: "",
+    });
+  }
   if (attackRulings.length) {
     effects.push({
       planId: created.id,
@@ -1253,14 +1295,57 @@ export type FirearmAttackFireResult = Readonly<{
   reused: boolean;
 }>;
 
-function applicableDefenseResults(defense: DefenseGroupOutcome): readonly Readonly<{
-  reactionId: number;
-  defenseSucceeded: boolean;
-}>[] {
-  return defense.outcomes.flatMap((outcome) => outcome.defenseSucceeded === null ? [] : [{
-    reactionId: outcome.reactionId,
-    defenseSucceeded: outcome.defenseSucceeded,
-  }]);
+async function firearmDefenseAllocationInputs(
+  tx: FirearmAttackTransaction,
+  context: OwnedEncounterRuntimeContext,
+  defense: DefenseGroupOutcome,
+): Promise<readonly FirearmDefenseAllocationInput[]> {
+  const reactionIds = defense.outcomes.map(({ reactionId }) => reactionId);
+  if (!reactionIds.length) return [];
+  const reactions = await tx.select({
+    id: campaignSessionEncounterReaction.id,
+    defenderParticipantId: campaignSessionEncounterReaction.reactorCharacterId,
+  }).from(campaignSessionEncounterReaction).where(and(
+    eq(campaignSessionEncounterReaction.encounterId, context.encounterId),
+    eq(campaignSessionEncounterReaction.sceneId, context.sceneId),
+    eq(campaignSessionEncounterReaction.sessionId, context.sessionId),
+    eq(campaignSessionEncounterReaction.campaignId, context.campaignId),
+    inArray(campaignSessionEncounterReaction.id, reactionIds),
+  )).orderBy(asc(campaignSessionEncounterReaction.id));
+  const rolls = await tx.select({
+    id: campaignSessionRoll.id,
+    reactionId: campaignSessionRoll.reactionId,
+  }).from(campaignSessionRoll).where(and(
+    eq(campaignSessionRoll.encounterId, context.encounterId),
+    eq(campaignSessionRoll.sceneId, context.sceneId),
+    eq(campaignSessionRoll.sessionId, context.sessionId),
+    eq(campaignSessionRoll.campaignId, context.campaignId),
+    inArray(campaignSessionRoll.reactionId, reactionIds),
+  )).orderBy(asc(campaignSessionRoll.id));
+  const defenderByReaction = new Map(reactions.map((reaction) => [reaction.id, reaction.defenderParticipantId]));
+  const rollByReaction = new Map(rolls.flatMap((roll) => roll.reactionId === null
+    ? []
+    : [[roll.reactionId, roll.id] as const]));
+  return defense.outcomes.map((outcome) => {
+    const defenderParticipantId = defenderByReaction.get(outcome.reactionId);
+    if (defenderParticipantId === undefined) {
+      throw new Error(`Defense Reaction #${outcome.reactionId} is outside the exact encounter hierarchy.`);
+    }
+    const rulingReasons = outcome.defenseSucceeded === null
+      ? [
+          `Defense Reaction #${outcome.reactionId} is ${outcome.status}; no bullet cancellation was guessed.`,
+          ...(outcome.comparison?.rulingReasons ?? []).map((reason) => `Defense Reaction #${outcome.reactionId}: ${reason}.`),
+        ]
+      : [];
+    return {
+      reactionId: outcome.reactionId,
+      defenderParticipantId,
+      defenseRollId: rollByReaction.get(outcome.reactionId) ?? null,
+      defenseTotalSuccesses: outcome.comparison?.defenseTotalSuccesses ?? null,
+      applicable: outcome.defenseSucceeded,
+      rulingReasons,
+    };
+  });
 }
 
 function unresolvedDefenseReasons(defense: DefenseGroupOutcome): string[] {
@@ -1315,12 +1400,14 @@ export async function fireFirearmAttackInTransaction(
   if (!roll.mechanicalSnapshot) throw new Error("The firearm Roll did not produce an immutable mechanical snapshot.");
   const defense = await resolveDeclaredDefensesInTransaction(tx, context, actor, attack.triggerDeclarationId);
   if (defense.status === "unresolved") throw new Error("All required independent defense Rolls must resolve before the firearm can fire.");
-  const allocation = allocateFirearmBullets({
-    delivery: (attack.frozenSnapshotJson as FirearmAttackPreview).delivery,
-    resolution: roll.mechanicalSnapshot.resolution,
-    applicableDefenses: applicableDefenseResults(defense),
-  });
+  const defenseInputs = await firearmDefenseAllocationInputs(tx, context, defense);
   const preview = attack.frozenSnapshotJson as FirearmAttackPreview;
+  const allocation = allocateFirearmBullets({
+    delivery: preview.delivery,
+    resolution: roll.mechanicalSnapshot.resolution,
+    calledShot: attack.calledShotDeclared,
+    defenses: defenseInputs,
+  });
   const hitLocationNumber = attack.calledShotDeclared
     ? attack.calledShotLocationNumber
     : getHitLocationFromPercentile(roll.mechanicalSnapshot.resolution.resultTotal);
@@ -1334,13 +1421,22 @@ export async function fireFirearmAttackInTransaction(
   });
   const defenseRulings = unresolvedDefenseReasons(defense);
   const locationRulings = hitLocation ? [] : ["The exact frozen target anatomy does not contain the resolved Hit Location."];
+  const calledAutomaticDexRulings = attack.calledShotDeclared
+    && preview.delivery.kind !== "single"
+    && allocation.survivingBulletHits > 0
+    && preview.dexDamageModifier !== 0
+      ? ["The Called burst/automatic DEX damage modifier placement requires G.O.D. review; it was preserved once and was not applied per bullet."]
+      : [];
   const attackRulings = [...new Set([
     ...jsonArray(attack.rulingReasonsJson),
     ...allocation.rulingReasons,
     ...defenseRulings,
     ...locationRulings,
+    ...calledAutomaticDexRulings,
   ])];
-  const cancelledReactionIds = allocation.applicableDefenseReactionIds.slice(0, allocation.bulletsCancelled);
+  const cancelledReactionIds = allocation.defenseContributions.flatMap(({ reactionId, bulletsCancelled }) => (
+    Array.from({ length: bulletsCancelled }, () => reactionId)
+  ));
   const bullets: Array<typeof campaignSessionEncounterFirearmBullet.$inferInsert> = [];
   const damageRows: Array<Record<string, unknown>> = [];
   for (let index = 1; index <= allocation.initialBulletHits; index += 1) {
@@ -1455,6 +1551,16 @@ export async function fireFirearmAttackInTransaction(
     hitLocation: hitLocation === null ? null : { result: hitLocation.result, name: hitLocation.name, poolKey: hitLocation.poolKey },
     authoredDamage: preview.authoredDamage,
     calledShotDexModifierApplied: attack.calledShotDeclared && preview.delivery.kind === "single" ? preview.dexDamageModifier : 0,
+    calledAutomaticDexModifierReview: attack.calledShotDeclared
+      && preview.delivery.kind !== "single"
+      && allocation.survivingBulletHits > 0
+      && preview.dexDamageModifier !== 0
+        ? {
+            amount: preview.dexDamageModifier,
+            placement: "god-review-required",
+            appliedPerBullet: false,
+          }
+        : null,
     additionalSuccessesApplied: attack.calledShotDeclared && preview.delivery.kind === "single" ? roll.mechanicalSnapshot.resolution.additionalSuccesses : 0,
     protection: protection.snapshot,
     bullets: damageRows,

@@ -61,6 +61,14 @@ test("the firearm transaction reuses Rolls, defenses, Initiative, readiness, and
   assert.match(service, /roundsLoadedAfter === 0 \? null/);
   assert.match(service, /attack\.attackRollId !== null/);
   assert.match(service, /participantKind === "creature"/);
+  assert.match(service, /defenseTotalSuccesses/);
+  assert.match(service, /outcome\.comparison\?\.defenseTotalSuccesses/);
+  assert.match(service, /defenderParticipantId/);
+  assert.match(service, /defenseRollId/);
+  assert.match(service, /defenseContributions\.flatMap/);
+  assert.match(service, /firearm-called-automatic-dex/);
+  assert.doesNotMatch(service, /Called Shot burst or sustained-fire damage requires a G\.O\.D\. ruling/);
+  assert.doesNotMatch(service, /\.insert\(campaignSessionRoll\)/);
   assert.doesNotMatch(service, /lockActiveHealthInTransaction|persistPlannedMechanicalEffectInTransaction|Math\.random/);
 });
 

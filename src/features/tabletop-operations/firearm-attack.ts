@@ -29,6 +29,7 @@ export type FirearmBulletAllocation = Readonly<{
   totalSuccesses: number;
   initialBulletHits: number;
   applicableDefenseReactionIds: readonly number[];
+  defenseContributions: readonly FirearmDefenseContribution[];
   defenseSuccesses: number;
   bulletsCancelled: number;
   survivingBulletHits: number;
@@ -39,6 +40,27 @@ export type FirearmBulletAllocation = Readonly<{
   doubleOtt: boolean;
   requiresGodRuling: boolean;
   rulingReasons: readonly string[];
+}>;
+
+export type FirearmDefenseContribution = Readonly<{
+  reactionId: number;
+  defenderParticipantId: number;
+  defenseRollId: number | null;
+  defenseTotalSuccesses: number | null;
+  applicable: boolean | null;
+  bulletsBefore: number;
+  bulletsCancelled: number;
+  bulletsAfter: number;
+  rulingReasons: readonly string[];
+}>;
+
+export type FirearmDefenseAllocationInput = Readonly<{
+  reactionId: number;
+  defenderParticipantId: number;
+  defenseRollId: number | null;
+  defenseTotalSuccesses: number | null;
+  applicable: boolean | null;
+  rulingReasons?: readonly string[];
 }>;
 
 export type FirearmBulletDamage = Readonly<{
@@ -62,6 +84,11 @@ function whole(value: number, label: string, allowZero = false): number {
 
 function nonnegative(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater.`);
+  return value;
+}
+
+function participantKey(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} must be a nonzero whole participant key.`);
   return value;
 }
 
@@ -172,38 +199,80 @@ export function parseAuthoredBulletDamage(value: string | number | null | undefi
 export function allocateFirearmBullets(input: {
   delivery: FirearmDeliveryPlan;
   resolution: PercentileResolution;
-  applicableDefenses: readonly Readonly<{ reactionId: number; defenseSucceeded: boolean }>[];
+  calledShot: boolean;
+  defenses: readonly FirearmDefenseAllocationInput[];
 }): FirearmBulletAllocation {
   const rounds = whole(input.delivery.declaredRounds, "Declared rounds");
-  const applicableDefenseReactionIds = input.applicableDefenses
-    .filter(({ defenseSucceeded }) => defenseSucceeded)
-    .map(({ reactionId }) => whole(reactionId, "Defense Reaction"));
   const initialBulletHits = input.resolution.succeeded
     ? Math.min(input.resolution.totalSuccesses, rounds)
     : 0;
-  const defenseSuccesses = applicableDefenseReactionIds.length;
-  const bulletsCancelled = Math.min(initialBulletHits, defenseSuccesses);
-  const survivingBulletHits = Math.max(0, initialBulletHits - bulletsCancelled);
+  const sortedDefenses = [...input.defenses].sort((left, right) => left.reactionId - right.reactionId);
+  if (new Set(sortedDefenses.map(({ reactionId }) => reactionId)).size !== sortedDefenses.length) {
+    throw new Error("Each defensive Reaction may contribute to firearm allocation only once.");
+  }
+  let remainingBullets = initialBulletHits;
+  let defenseSuccesses = 0;
+  const defenseContributions: FirearmDefenseContribution[] = sortedDefenses.map((defense) => {
+    const reactionId = whole(defense.reactionId, "Defense Reaction");
+    const defenderParticipantId = participantKey(defense.defenderParticipantId, "Defender participant");
+    const defenseRollId = defense.defenseRollId === null ? null : whole(defense.defenseRollId, "Defense Roll");
+    const defenseTotalSuccesses = defense.defenseTotalSuccesses === null
+      ? null
+      : whole(defense.defenseTotalSuccesses, "Defense total successes", true);
+    const rulingReasons = [...(defense.rulingReasons ?? [])];
+    const bulletsBefore = remainingBullets;
+    let bulletsCancelled = 0;
+    if (defense.applicable === true && defenseTotalSuccesses !== null) {
+      defenseSuccesses += defenseTotalSuccesses;
+      bulletsCancelled = Math.min(bulletsBefore, defenseTotalSuccesses);
+      remainingBullets = Math.max(0, bulletsBefore - bulletsCancelled);
+    } else if (defense.applicable === true) {
+      rulingReasons.push("The defense is marked applicable but has no objective Pass 1 success count; no bullet cancellation was guessed.");
+    } else if (defense.applicable === null && rulingReasons.length === 0) {
+      rulingReasons.push("Defense applicability requires a G.O.D. ruling; no bullet cancellation was guessed.");
+    }
+    return {
+      reactionId,
+      defenderParticipantId,
+      defenseRollId,
+      defenseTotalSuccesses,
+      applicable: defense.applicable,
+      bulletsBefore,
+      bulletsCancelled,
+      bulletsAfter: remainingBullets,
+      rulingReasons: [...new Set(rulingReasons)],
+    };
+  });
+  const applicableDefenseReactionIds = defenseContributions
+    .filter(({ applicable, defenseTotalSuccesses }) => applicable === true && defenseTotalSuccesses !== null)
+    .map(({ reactionId }) => reactionId);
+  const bulletsCancelled = initialBulletHits - remainingBullets;
+  const survivingBulletHits = remainingBullets;
   const overflowSuccesses = input.delivery.kind === "single" || !input.resolution.succeeded
     ? 0
     : Math.max(0, input.resolution.totalSuccesses - rounds);
-  const rulingReasons = [...input.resolution.rulingReasons];
+  const rulingReasons = [...new Set([
+    ...input.resolution.rulingReasons,
+    ...defenseContributions.flatMap(({ rulingReasons: defenseRulings }) => defenseRulings),
+    ...input.delivery.rulingReasons,
+  ])];
   return {
     roundsDeclared: rounds,
     roundsFired: rounds,
     totalSuccesses: input.resolution.totalSuccesses,
     initialBulletHits,
     applicableDefenseReactionIds,
+    defenseContributions,
     defenseSuccesses,
     bulletsCancelled,
     survivingBulletHits,
     overflowSuccesses,
-    overflowDamage: survivingBulletHits > 0 ? overflowSuccesses : 0,
+    overflowDamage: input.calledShot && input.delivery.kind !== "single" && survivingBulletHits > 0 ? overflowSuccesses : 0,
     criticalFailure: input.resolution.criticalFailure,
     criticalSuccess: input.resolution.criticalSuccess,
     doubleOtt: input.resolution.doubleOtt,
-    requiresGodRuling: input.resolution.requiresGodRuling || input.delivery.requiresGodRuling,
-    rulingReasons: [...rulingReasons, ...input.delivery.rulingReasons],
+    requiresGodRuling: rulingReasons.length > 0,
+    rulingReasons,
   };
 }
 
@@ -219,9 +288,6 @@ export function calculateFirearmBulletDamage(input: {
   rulingReasons?: readonly string[];
 }): FirearmBulletDamage {
   const reasons = [...(input.rulingReasons ?? [])];
-  if (input.calledShot && input.deliveryKind !== "single") {
-    reasons.push("Called Shot automation is supported only for a single-shot delivery.");
-  }
   const base = input.authoredBulletDamage;
   if (base === null) reasons.push("Authored per-bullet damage is not a positive direct numeric value.");
   const dex = input.calledShot && input.deliveryKind === "single"
