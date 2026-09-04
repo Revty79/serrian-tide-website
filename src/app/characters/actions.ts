@@ -1311,11 +1311,50 @@ export async function saveCharacter(
       updatedAt: new Date(),
     }).where(eq(campaignCharacterProfile.characterId, characterId));
 
-    await tx.delete(campaignCharacterAttribute).where(eq(campaignCharacterAttribute.characterId, characterId));
-    await tx.insert(campaignCharacterAttribute).values(normalized.attributes.map((entry) => ({ characterId, ...entry })));
+    const storedAttributeKeys = new Set(
+      aggregate.attributes.map(({ attributeKey }) => attributeKey),
+    );
+    for (const entry of normalized.attributes) {
+      if (storedAttributeKeys.has(entry.attributeKey)) {
+        await tx.update(campaignCharacterAttribute).set({ value: entry.value }).where(and(
+          eq(campaignCharacterAttribute.characterId, characterId),
+          eq(campaignCharacterAttribute.attributeKey, entry.attributeKey),
+        ));
+      } else {
+        await tx.insert(campaignCharacterAttribute).values({ characterId, ...entry });
+      }
+    }
 
-    await tx.delete(campaignCharacterSkillAllocation).where(eq(campaignCharacterSkillAllocation.characterId, characterId));
     const allocationMap = new Map(draft.skillAllocations.map((entry) => [entry.draftId, entry]));
+    const storedAllocationMap = new Map(
+      aggregate.skillAllocations.map((entry) => [entry.id, entry]),
+    );
+    const retainedAllocationIds = new Set<number>();
+    for (const allocation of draft.skillAllocations) {
+      const stored = storedAllocationMap.get(allocation.draftId);
+      if (!stored) {
+        if (allocation.draftId > 0) {
+          throw new Error("A submitted Skill allocation identity does not belong to this Character.");
+        }
+        continue;
+      }
+      if (
+        stored.skillId !== allocation.skillId
+        || stored.parentAllocationId !== allocation.parentDraftId
+      ) {
+        throw new Error("An existing Skill allocation identity or parent lineage cannot be redirected.");
+      }
+      retainedAllocationIds.add(stored.id);
+    }
+    const removedAllocationIds = aggregate.skillAllocations
+      .map(({ id }) => id)
+      .filter((id) => !retainedAllocationIds.has(id));
+    if (removedAllocationIds.length) {
+      await tx.delete(campaignCharacterSkillAllocation).where(and(
+        eq(campaignCharacterSkillAllocation.characterId, characterId),
+        inArray(campaignCharacterSkillAllocation.id, removedAllocationIds),
+      ));
+    }
     const savedMap = new Map<number, number>();
     const visiting = new Set<number>();
     async function saveAllocation(draftId: number): Promise<number> {
@@ -1326,6 +1365,19 @@ export async function saveCharacter(
       const allocation = allocationMap.get(draftId);
       if (!allocation) throw new Error("Skill allocation path is incomplete.");
       const parentAllocationId = allocation.parentDraftId === null ? null : await saveAllocation(allocation.parentDraftId);
+      const stored = storedAllocationMap.get(draftId);
+      if (stored) {
+        await tx.update(campaignCharacterSkillAllocation).set({
+          points: nonNegative(allocation.points, "Skill points"),
+          updatedAt: new Date(),
+        }).where(and(
+          eq(campaignCharacterSkillAllocation.id, stored.id),
+          eq(campaignCharacterSkillAllocation.characterId, characterId),
+        ));
+        savedMap.set(draftId, stored.id);
+        visiting.delete(draftId);
+        return stored.id;
+      }
       const [created] = await tx.insert(campaignCharacterSkillAllocation).values({
         characterId,
         skillId: allocation.skillId,

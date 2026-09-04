@@ -169,6 +169,13 @@
       "when": 1788486648257,
       "tag": "0023_canonical_weapon_skill_governance",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788489109832,
+      "tag": "0024_character_weapon_governance_overrides",
+      "breakpoints": true
     }
   ]
 }

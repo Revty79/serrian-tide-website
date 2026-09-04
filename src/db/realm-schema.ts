@@ -18,7 +18,12 @@ import {
 import { user } from "./auth-schema";
 import { campaign, campaignDerivedCurrency, campaignPlayer } from "./campaign-schema";
 import { creature } from "./creature-schema";
-import { item, itemTagCatalog } from "./item-schema";
+import {
+  item,
+  itemTagCatalog,
+  weaponFiringMode,
+  weaponProfile,
+} from "./item-schema";
 import { race } from "./race-schema";
 import { skill } from "./skill-schema";
 
@@ -352,6 +357,98 @@ export const campaignCharacterItem = pgTable(
     check(
       "campaign_character_item_cost_valid",
       sql`${table.unitCostCredits} >= 0`,
+    ),
+  ],
+);
+
+export const campaignCharacterWeaponOverride = pgTable(
+  "campaign_character_weapon_override",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    characterId: integer("character_id")
+      .notNull()
+      .references(() => campaignCharacter.id, { onDelete: "cascade" }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "restrict" }),
+    weaponProfileId: integer("weapon_profile_id").notNull(),
+    firingModeId: integer("firing_mode_id"),
+    skillAllocationId: integer("skill_allocation_id"),
+    attributeKey: text("attribute_key"),
+    reason: text("reason").notNull(),
+    updatedByUserId: text("updated_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.characterId, table.campaignId],
+      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
+      name: "campaign_character_weapon_override_character_campaign_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.weaponProfileId, table.itemId],
+      foreignColumns: [weaponProfile.id, weaponProfile.itemId],
+      name: "campaign_character_weapon_override_profile_item_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.firingModeId, table.weaponProfileId],
+      foreignColumns: [weaponFiringMode.id, weaponFiringMode.weaponProfileId],
+      name: "campaign_character_weapon_override_mode_profile_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.skillAllocationId, table.characterId],
+      foreignColumns: [
+        campaignCharacterSkillAllocation.id,
+        campaignCharacterSkillAllocation.characterId,
+      ],
+      name: "campaign_character_weapon_override_allocation_character_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.characterId, table.attributeKey],
+      foreignColumns: [
+        campaignCharacterAttribute.characterId,
+        campaignCharacterAttribute.attributeKey,
+      ],
+      name: "campaign_character_weapon_override_attribute_character_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("campaign_character_weapon_override_weapon_scope_uq")
+      .on(table.campaignId, table.characterId, table.weaponProfileId)
+      .where(sql`${table.firingModeId} IS NULL`),
+    uniqueIndex("campaign_character_weapon_override_mode_scope_uq")
+      .on(
+        table.campaignId,
+        table.characterId,
+        table.weaponProfileId,
+        table.firingModeId,
+      )
+      .where(sql`${table.firingModeId} IS NOT NULL`),
+    index("campaign_character_weapon_override_lookup_idx").on(
+      table.campaignId,
+      table.characterId,
+      table.weaponProfileId,
+      table.firingModeId,
+    ),
+    check(
+      "campaign_character_weapon_override_one_source",
+      sql`(
+        (${table.skillAllocationId} IS NOT NULL AND ${table.attributeKey} IS NULL)
+        OR
+        (${table.skillAllocationId} IS NULL AND ${table.attributeKey} IS NOT NULL)
+      )`,
+    ),
+    check(
+      "campaign_character_weapon_override_attribute_valid",
+      sql`${table.attributeKey} IS NULL OR ${table.attributeKey} IN ('STR','DEX','CON','INT','WIS','CHR')`,
+    ),
+    check(
+      "campaign_character_weapon_override_reason_valid",
+      sql`length(trim(${table.reason})) > 0 AND length(${table.reason}) <= 1000`,
     ),
   ],
 );

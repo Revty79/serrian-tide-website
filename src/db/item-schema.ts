@@ -184,6 +184,7 @@ export const weaponProfile = pgTable(
   },
   (table) => [
     uniqueIndex("weapon_profiles_item_id_uq").on(table.itemId),
+    unique("weapon_profiles_id_item_uq").on(table.id, table.itemId),
     index("weapon_profiles_ammunition_item_id_idx").on(table.ammunitionItemId),
     check("weapon_profiles_fire_modes_json_valid", sql`${table.fireModes}::jsonb IS NOT NULL AND jsonb_typeof(${table.fireModes}::jsonb) = 'array'`),
     check("weapon_profiles_ammo_not_self", sql`${table.ammunitionItemId} IS NULL OR ${table.ammunitionItemId} <> ${table.itemId}`),
