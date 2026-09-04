@@ -219,6 +219,26 @@ export const campaignSessionRollAmendmentKind = pgEnum(
   ["correction", "void", "ruling"],
 );
 
+export const campaignSessionCalledCheckSourceKind = pgEnum(
+  "campaign_session_called_check_source_kind",
+  ["attribute", "skill"],
+);
+
+export const campaignSessionCalledCheckStatus = pgEnum(
+  "campaign_session_called_check_status",
+  ["pending", "answered", "requires-god-ruling", "resolved", "cancelled", "superseded"],
+);
+
+export const campaignSessionHighLowMode = pgEnum(
+  "campaign_session_high_low_mode",
+  ["neutral", "player-calls-rolls", "player-calls-god-rolls"],
+);
+
+export const campaignSessionHighLowSide = pgEnum(
+  "campaign_session_high_low_side",
+  ["low", "high"],
+);
+
 export const campaignSession = pgTable(
   "campaign_session",
   {
@@ -2231,6 +2251,277 @@ export const campaignSessionRollAmendment = pgTable(
         AND length(trim(${table.rulingText})) > 0
       )`,
     ),
+  ],
+);
+
+export const campaignSessionCalledCheckBatch = pgTable(
+  "campaign_session_called_check_batch",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    sceneId: integer("scene_id"),
+    encounterId: integer("encounter_id"),
+    issuedByUserId: text("issued_by_user_id").notNull(),
+    sourceKind: campaignSessionCalledCheckSourceKind("source_kind").notNull(),
+    attributeKey: text("attribute_key"),
+    endpointSkillId: integer("endpoint_skill_id").references(() => skill.id, { onDelete: "restrict" }),
+    selectedSkillPathJson: jsonb("selected_skill_path_json"),
+    purpose: text("purpose").notNull(),
+    instructions: text("instructions").default("").notNull(),
+    recipientScope: text("recipient_scope").notNull(),
+    visibility: campaignSessionRollVisibility("visibility").notNull(),
+    rollMethod: campaignSessionRollMethod("roll_method").notNull(),
+    modifiersJson: jsonb("modifiers_json").default(sql`'[]'::jsonb`).notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.sessionId, table.campaignId],
+      foreignColumns: [campaignSession.id, campaignSession.campaignId],
+      name: "campaign_session_called_check_batch_session_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionScene.id, campaignSessionScene.sessionId, campaignSessionScene.campaignId],
+      name: "campaign_session_called_check_batch_scene_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounter.id, campaignSessionEncounter.sceneId, campaignSessionEncounter.sessionId, campaignSessionEncounter.campaignId],
+      name: "campaign_session_called_check_batch_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.issuedByUserId], foreignColumns: [user.id], name: "campaign_session_called_check_batch_issuer_fk" }).onDelete("restrict"),
+    unique("campaign_session_called_check_batch_hierarchy_uq").on(table.id, table.campaignId, table.sessionId),
+    uniqueIndex("campaign_session_called_check_batch_idempotency_uq").on(table.campaignId, table.issuedByUserId, table.idempotencyKey),
+    index("campaign_session_called_check_batch_history_idx").on(table.sessionId, table.createdAt, table.id),
+    check("campaign_session_called_check_batch_hierarchy_valid", sql`(${table.sceneId} IS NULL AND ${table.encounterId} IS NULL) OR (${table.sceneId} IS NOT NULL)`),
+    check("campaign_session_called_check_batch_source_valid", sql`(${table.sourceKind} = 'attribute' AND ${table.attributeKey} IN ('STR','DEX','CON','INT','WIS','CHR') AND ${table.endpointSkillId} IS NULL AND ${table.selectedSkillPathJson} IS NULL) OR (${table.sourceKind} = 'skill' AND ${table.attributeKey} IS NULL AND ${table.endpointSkillId} IS NOT NULL AND jsonb_typeof(${table.selectedSkillPathJson}) = 'array' AND jsonb_array_length(${table.selectedSkillPathJson}) > 0)`),
+    check("campaign_session_called_check_batch_scope_valid", sql`${table.recipientScope} IN ('one','selected','all-pcs')`),
+    check("campaign_session_called_check_batch_text_valid", sql`length(trim(${table.purpose})) > 0 AND length(${table.purpose}) <= 500 AND length(${table.instructions}) <= 2000 AND length(trim(${table.idempotencyKey})) > 0 AND length(${table.idempotencyKey}) <= 200`),
+    check("campaign_session_called_check_batch_modifiers_valid", sql`jsonb_typeof(${table.modifiersJson}) = 'array'`),
+  ],
+);
+
+export const campaignSessionCalledCheckRequest = pgTable(
+  "campaign_session_called_check_request",
+  {
+    id: serial("id").primaryKey(),
+    batchId: integer("batch_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    sceneId: integer("scene_id"),
+    encounterId: integer("encounter_id"),
+    recipientCharacterId: integer("recipient_character_id").notNull(),
+    recipientKind: text("recipient_kind").notNull(),
+    status: campaignSessionCalledCheckStatus("status").default("pending").notNull(),
+    governingSourceJson: jsonb("governing_source_json"),
+    governingSnapshotJson: jsonb("governing_snapshot_json"),
+    originalTarget: doublePrecision("original_target"),
+    modifiersJson: jsonb("modifiers_json").default(sql`'[]'::jsonb`).notNull(),
+    finalTarget: doublePrecision("final_target"),
+    resolutionJson: jsonb("resolution_json"),
+    rollId: integer("roll_id"),
+    parentRequestId: integer("parent_request_id"),
+    responseIdempotencyKey: text("response_idempotency_key"),
+    cancellationReason: text("cancellation_reason").default("").notNull(),
+    rerollReason: text("reroll_reason").default("").notNull(),
+    rulingText: text("ruling_text").default("").notNull(),
+    revealedVisibility: campaignSessionRollVisibility("revealed_visibility"),
+    revealedByUserId: text("revealed_by_user_id"),
+    issuedAt: timestamp("issued_at").defaultNow().notNull(),
+    respondedAt: timestamp("responded_at"),
+    resolvedAt: timestamp("resolved_at"),
+    cancelledAt: timestamp("cancelled_at"),
+    revealedAt: timestamp("revealed_at"),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.batchId, table.campaignId, table.sessionId],
+      foreignColumns: [campaignSessionCalledCheckBatch.id, campaignSessionCalledCheckBatch.campaignId, campaignSessionCalledCheckBatch.sessionId],
+      name: "campaign_session_called_check_request_batch_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionScene.id, campaignSessionScene.sessionId, campaignSessionScene.campaignId],
+      name: "campaign_session_called_check_request_scene_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounter.id, campaignSessionEncounter.sceneId, campaignSessionEncounter.sessionId, campaignSessionEncounter.campaignId],
+      name: "campaign_session_called_check_request_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.sessionId, table.recipientCharacterId],
+      foreignColumns: [campaignSessionRoster.sessionId, campaignSessionRoster.characterId],
+      name: "campaign_session_called_check_request_roster_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.rollId, table.campaignId, table.sessionId],
+      foreignColumns: [campaignSessionRoll.id, campaignSessionRoll.campaignId, campaignSessionRoll.sessionId],
+      name: "campaign_session_called_check_request_roll_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.parentRequestId, table.campaignId, table.sessionId],
+      foreignColumns: [table.id, table.campaignId, table.sessionId],
+      name: "campaign_session_called_check_request_parent_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.revealedByUserId], foreignColumns: [user.id], name: "campaign_session_called_check_request_revealer_fk" }).onDelete("restrict"),
+    unique("campaign_session_called_check_request_hierarchy_uq").on(table.id, table.campaignId, table.sessionId),
+    uniqueIndex("campaign_session_called_check_request_root_recipient_uq").on(table.batchId, table.recipientCharacterId).where(sql`${table.parentRequestId} IS NULL`),
+    uniqueIndex("campaign_session_called_check_request_successor_uq").on(table.parentRequestId).where(sql`${table.parentRequestId} IS NOT NULL`),
+    uniqueIndex("campaign_session_called_check_request_roll_uq").on(table.rollId).where(sql`${table.rollId} IS NOT NULL`),
+    uniqueIndex("campaign_session_called_check_request_response_idempotency_uq").on(table.responseIdempotencyKey).where(sql`${table.responseIdempotencyKey} IS NOT NULL`),
+    index("campaign_session_called_check_request_pending_idx").on(table.sessionId, table.status, table.recipientCharacterId),
+    index("campaign_session_called_check_request_history_idx").on(table.batchId, table.recipientCharacterId, table.issuedAt, table.id),
+    check("campaign_session_called_check_request_hierarchy_valid", sql`(${table.sceneId} IS NULL AND ${table.encounterId} IS NULL) OR (${table.sceneId} IS NOT NULL)`),
+    check("campaign_session_called_check_request_recipient_valid", sql`${table.recipientCharacterId} > 0 AND ${table.recipientKind} IN ('pc','npc')`),
+    check("campaign_session_called_check_request_snapshot_valid", sql`(${table.governingSourceJson} IS NULL OR jsonb_typeof(${table.governingSourceJson}) = 'object') AND (${table.governingSnapshotJson} IS NULL OR jsonb_typeof(${table.governingSnapshotJson}) = 'object') AND jsonb_typeof(${table.modifiersJson}) = 'array' AND (${table.resolutionJson} IS NULL OR jsonb_typeof(${table.resolutionJson}) = 'object')`),
+    check("campaign_session_called_check_request_reroll_valid", sql`(${table.parentRequestId} IS NULL AND ${table.rerollReason} = '') OR (${table.parentRequestId} IS NOT NULL AND length(trim(${table.rerollReason})) > 0 AND length(${table.rerollReason}) <= 500)`),
+    check("campaign_session_called_check_request_cancellation_valid", sql`(${table.status} = 'cancelled' AND ${table.cancelledAt} IS NOT NULL AND length(trim(${table.cancellationReason})) > 0) OR (${table.status} <> 'cancelled' AND ${table.cancelledAt} IS NULL AND ${table.cancellationReason} = '')`),
+    check("campaign_session_called_check_request_response_valid", sql`(${table.rollId} IS NULL AND ${table.respondedAt} IS NULL AND ${table.resolutionJson} IS NULL AND ${table.responseIdempotencyKey} IS NULL) OR (${table.rollId} IS NOT NULL AND ${table.respondedAt} IS NOT NULL AND ${table.resolutionJson} IS NOT NULL AND ${table.responseIdempotencyKey} IS NOT NULL)`),
+    check("campaign_session_called_check_request_resolution_valid", sql`(${table.status} = 'resolved' AND ${table.resolvedAt} IS NOT NULL) OR (${table.status} IN ('pending','answered','cancelled') AND ${table.resolvedAt} IS NULL) OR (${table.status} IN ('requires-god-ruling','superseded'))`),
+    check("campaign_session_called_check_request_reveal_valid", sql`(${table.revealedAt} IS NULL AND ${table.revealedByUserId} IS NULL AND ${table.revealedVisibility} IS NULL) OR (${table.revealedAt} IS NOT NULL AND ${table.revealedByUserId} IS NOT NULL AND ${table.revealedVisibility} IN ('table','private'))`),
+    check("campaign_session_called_check_request_text_valid", sql`length(${table.cancellationReason}) <= 500 AND length(${table.rulingText}) <= 2000 AND (${table.responseIdempotencyKey} IS NULL OR (length(trim(${table.responseIdempotencyKey})) > 0 AND length(${table.responseIdempotencyKey}) <= 200))`),
+  ],
+);
+
+export const campaignSessionCalledCheckEvent = pgTable(
+  "campaign_session_called_check_event",
+  {
+    id: serial("id").primaryKey(),
+    requestId: integer("request_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    fromStatus: campaignSessionCalledCheckStatus("from_status"),
+    toStatus: campaignSessionCalledCheckStatus("to_status").notNull(),
+    eventKind: text("event_kind").notNull(),
+    reason: text("reason").default("").notNull(),
+    metadataJson: jsonb("metadata_json").default(sql`'{}'::jsonb`).notNull(),
+    actorUserId: text("actor_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.requestId, table.campaignId, table.sessionId],
+      foreignColumns: [campaignSessionCalledCheckRequest.id, campaignSessionCalledCheckRequest.campaignId, campaignSessionCalledCheckRequest.sessionId],
+      name: "campaign_session_called_check_event_request_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.actorUserId], foreignColumns: [user.id], name: "campaign_session_called_check_event_actor_fk" }).onDelete("restrict"),
+    index("campaign_session_called_check_event_history_idx").on(table.requestId, table.createdAt, table.id),
+    check("campaign_session_called_check_event_valid", sql`length(trim(${table.eventKind})) > 0 AND length(${table.eventKind}) <= 100 AND length(${table.reason}) <= 500 AND jsonb_typeof(${table.metadataJson}) = 'object'`),
+  ],
+);
+
+export const campaignSessionHighLowRequest = pgTable(
+  "campaign_session_high_low_request",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    sceneId: integer("scene_id"),
+    encounterId: integer("encounter_id"),
+    mode: campaignSessionHighLowMode("mode").notNull(),
+    participantCharacterId: integer("participant_character_id"),
+    visibility: campaignSessionRollVisibility("visibility").notNull(),
+    rollMethod: campaignSessionRollMethod("roll_method").notNull(),
+    purpose: text("purpose").notNull(),
+    status: campaignSessionCalledCheckStatus("status").default("pending").notNull(),
+    calledSide: campaignSessionHighLowSide("called_side"),
+    callerUserId: text("caller_user_id"),
+    rollId: integer("roll_id"),
+    resultSnapshotJson: jsonb("result_snapshot_json"),
+    parentRequestId: integer("parent_request_id"),
+    issueIdempotencyKey: text("issue_idempotency_key").notNull(),
+    callIdempotencyKey: text("call_idempotency_key"),
+    responseIdempotencyKey: text("response_idempotency_key"),
+    cancellationReason: text("cancellation_reason").default("").notNull(),
+    rerollReason: text("reroll_reason").default("").notNull(),
+    rulingText: text("ruling_text").default("").notNull(),
+    createdByUserId: text("created_by_user_id").notNull(),
+    calledAt: timestamp("called_at"),
+    respondedAt: timestamp("responded_at"),
+    resolvedAt: timestamp("resolved_at"),
+    cancelledAt: timestamp("cancelled_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.sessionId, table.campaignId],
+      foreignColumns: [campaignSession.id, campaignSession.campaignId],
+      name: "campaign_session_high_low_request_session_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionScene.id, campaignSessionScene.sessionId, campaignSessionScene.campaignId],
+      name: "campaign_session_high_low_request_scene_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounter.id, campaignSessionEncounter.sceneId, campaignSessionEncounter.sessionId, campaignSessionEncounter.campaignId],
+      name: "campaign_session_high_low_request_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.sessionId, table.participantCharacterId],
+      foreignColumns: [campaignSessionRoster.sessionId, campaignSessionRoster.characterId],
+      name: "campaign_session_high_low_request_roster_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.rollId, table.campaignId, table.sessionId],
+      foreignColumns: [campaignSessionRoll.id, campaignSessionRoll.campaignId, campaignSessionRoll.sessionId],
+      name: "campaign_session_high_low_request_roll_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.parentRequestId, table.campaignId, table.sessionId],
+      foreignColumns: [table.id, table.campaignId, table.sessionId],
+      name: "campaign_session_high_low_request_parent_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.callerUserId], foreignColumns: [user.id], name: "campaign_session_high_low_request_caller_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.createdByUserId], foreignColumns: [user.id], name: "campaign_session_high_low_request_creator_fk" }).onDelete("restrict"),
+    unique("campaign_session_high_low_request_hierarchy_uq").on(table.id, table.campaignId, table.sessionId),
+    uniqueIndex("campaign_session_high_low_request_issue_idempotency_uq").on(table.campaignId, table.createdByUserId, table.issueIdempotencyKey),
+    uniqueIndex("campaign_session_high_low_request_successor_uq").on(table.parentRequestId).where(sql`${table.parentRequestId} IS NOT NULL`),
+    uniqueIndex("campaign_session_high_low_request_roll_uq").on(table.rollId).where(sql`${table.rollId} IS NOT NULL`),
+    uniqueIndex("campaign_session_high_low_request_call_idempotency_uq").on(table.callIdempotencyKey).where(sql`${table.callIdempotencyKey} IS NOT NULL`),
+    uniqueIndex("campaign_session_high_low_request_response_idempotency_uq").on(table.responseIdempotencyKey).where(sql`${table.responseIdempotencyKey} IS NOT NULL`),
+    index("campaign_session_high_low_request_pending_idx").on(table.sessionId, table.status, table.participantCharacterId),
+    index("campaign_session_high_low_request_history_idx").on(table.sessionId, table.createdAt, table.id),
+    check("campaign_session_high_low_request_hierarchy_valid", sql`(${table.sceneId} IS NULL AND ${table.encounterId} IS NULL) OR (${table.sceneId} IS NOT NULL)`),
+    check("campaign_session_high_low_request_participant_valid", sql`(${table.mode} = 'neutral' AND ${table.participantCharacterId} IS NULL AND ${table.calledSide} IS NULL AND ${table.callerUserId} IS NULL AND ${table.calledAt} IS NULL) OR (${table.mode} IN ('player-calls-rolls','player-calls-god-rolls') AND ${table.participantCharacterId} > 0)`),
+    check("campaign_session_high_low_request_call_valid", sql`(${table.calledSide} IS NULL AND ${table.callerUserId} IS NULL AND ${table.calledAt} IS NULL AND ${table.callIdempotencyKey} IS NULL) OR (${table.calledSide} IS NOT NULL AND ${table.callerUserId} IS NOT NULL AND ${table.calledAt} IS NOT NULL AND ${table.callIdempotencyKey} IS NOT NULL)`),
+    check("campaign_session_high_low_request_response_valid", sql`(${table.rollId} IS NULL AND ${table.resultSnapshotJson} IS NULL AND ${table.respondedAt} IS NULL AND ${table.responseIdempotencyKey} IS NULL) OR (${table.rollId} IS NOT NULL AND jsonb_typeof(${table.resultSnapshotJson}) = 'object' AND ${table.respondedAt} IS NOT NULL AND ${table.responseIdempotencyKey} IS NOT NULL)`),
+    check("campaign_session_high_low_request_reroll_valid", sql`(${table.parentRequestId} IS NULL AND ${table.rerollReason} = '') OR (${table.parentRequestId} IS NOT NULL AND length(trim(${table.rerollReason})) > 0 AND length(${table.rerollReason}) <= 500)`),
+    check("campaign_session_high_low_request_cancellation_valid", sql`(${table.status} = 'cancelled' AND ${table.cancelledAt} IS NOT NULL AND length(trim(${table.cancellationReason})) > 0) OR (${table.status} <> 'cancelled' AND ${table.cancelledAt} IS NULL AND ${table.cancellationReason} = '')`),
+    check("campaign_session_high_low_request_resolution_valid", sql`(${table.status} = 'resolved' AND ${table.resolvedAt} IS NOT NULL) OR (${table.status} IN ('pending','answered','requires-god-ruling','cancelled') AND ${table.resolvedAt} IS NULL) OR (${table.status} = 'superseded')`),
+    check("campaign_session_high_low_request_text_valid", sql`length(trim(${table.purpose})) > 0 AND length(${table.purpose}) <= 500 AND length(${table.cancellationReason}) <= 500 AND length(${table.rulingText}) <= 2000 AND length(trim(${table.issueIdempotencyKey})) > 0 AND length(${table.issueIdempotencyKey}) <= 200 AND (${table.callIdempotencyKey} IS NULL OR length(${table.callIdempotencyKey}) <= 200) AND (${table.responseIdempotencyKey} IS NULL OR length(${table.responseIdempotencyKey}) <= 200)`),
+  ],
+);
+
+export const campaignSessionHighLowEvent = pgTable(
+  "campaign_session_high_low_event",
+  {
+    id: serial("id").primaryKey(),
+    requestId: integer("request_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    fromStatus: campaignSessionCalledCheckStatus("from_status"),
+    toStatus: campaignSessionCalledCheckStatus("to_status").notNull(),
+    eventKind: text("event_kind").notNull(),
+    reason: text("reason").default("").notNull(),
+    metadataJson: jsonb("metadata_json").default(sql`'{}'::jsonb`).notNull(),
+    actorUserId: text("actor_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.requestId, table.campaignId, table.sessionId],
+      foreignColumns: [campaignSessionHighLowRequest.id, campaignSessionHighLowRequest.campaignId, campaignSessionHighLowRequest.sessionId],
+      name: "campaign_session_high_low_event_request_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.actorUserId], foreignColumns: [user.id], name: "campaign_session_high_low_event_actor_fk" }).onDelete("restrict"),
+    index("campaign_session_high_low_event_history_idx").on(table.requestId, table.createdAt, table.id),
+    check("campaign_session_high_low_event_valid", sql`length(trim(${table.eventKind})) > 0 AND length(${table.eventKind}) <= 100 AND length(${table.reason}) <= 500 AND jsonb_typeof(${table.metadataJson}) = 'object'`),
   ],
 );
 

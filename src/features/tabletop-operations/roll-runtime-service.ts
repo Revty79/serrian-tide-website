@@ -378,11 +378,12 @@ async function assertContextCharacters(
   }
 }
 
-export async function recordRollInTransaction(
+async function recordRollInternal(
   tx: RollRuntimeTransaction,
   actor: AuthorizedRollActor,
   input: RollRecordRequest,
-  randomSource: RollRandomSource = secureRandomSource,
+  randomSource: RollRandomSource,
+  frozenGoverningSource: RollGoverningSourceSnapshot | null,
 ): Promise<RollLedgerEntry> {
   const request = normalizeRollRecordRequest(input);
   if (request.visibility === "god-only" && !actor.canRecordGodOnly) {
@@ -516,9 +517,34 @@ export async function recordRollInTransaction(
     eq(campaignSessionEncounterInitiative.status, "active"),
   )).limit(1))[0] ?? null;
   const outcome = resolveRollOutcome(request, randomSource);
+  if (frozenGoverningSource !== null && request.mechanical === null) {
+    throw new Error("A frozen governing source requires locked Roll mechanics.");
+  }
+  if (frozenGoverningSource !== null) {
+    const sourceCharacterId = frozenGoverningSource.kind === "manual" ? null : frozenGoverningSource.characterId;
+    if (sourceCharacterId !== request.rollerCharacterId) {
+      throw new Error("Frozen Roll mechanics do not belong to the authorized rolling Character.");
+    }
+    if (actor.readAs === "player" && sourceCharacterId !== actor.characterId) {
+      throw new Error("A Player cannot use another Character's frozen Roll mechanics.");
+    }
+    const requestedSource = request.mechanical!.governingSource;
+    const sameIdentity = requestedSource.kind === frozenGoverningSource.kind && (
+      requestedSource.kind === "manual" && frozenGoverningSource.kind === "manual"
+        ? requestedSource.label === frozenGoverningSource.label && requestedSource.originalTarget === frozenGoverningSource.originalTarget
+        : requestedSource.kind === "attribute" && frozenGoverningSource.kind === "attribute"
+          ? requestedSource.characterId === frozenGoverningSource.characterId && requestedSource.attributeKey === frozenGoverningSource.attributeKey
+          : requestedSource.kind === "skill" && frozenGoverningSource.kind === "skill"
+            ? requestedSource.characterId === frozenGoverningSource.characterId
+              && requestedSource.allocationId === frozenGoverningSource.allocationId
+              && requestedSource.calculatedPercentage === frozenGoverningSource.calculatedPercentage
+            : false
+    );
+    if (!sameIdentity) throw new Error("The Roll request does not match its frozen governing-source identity.");
+  }
   const governingSource = request.mechanical === null
     ? null
-    : await resolveGoverningSourceSnapshot(
+    : frozenGoverningSource ?? await resolveGoverningSourceSnapshot(
       tx,
       actor,
       request.rollerCharacterId,
@@ -567,6 +593,30 @@ export async function recordRollInTransaction(
   const entry = page.rolls.find(({ id }) => id === created.id);
   if (!entry) throw new Error("The persisted Roll could not be reloaded.");
   return entry;
+}
+
+export async function recordRollInTransaction(
+  tx: RollRuntimeTransaction,
+  actor: AuthorizedRollActor,
+  input: RollRecordRequest,
+  randomSource: RollRandomSource = secureRandomSource,
+): Promise<RollLedgerEntry> {
+  return recordRollInternal(tx, actor, input, randomSource, null);
+}
+
+/**
+ * Records a normal immutable Roll while evaluating against mechanics frozen by
+ * an earlier server-side declaration. This is intentionally an internal
+ * service boundary: browser input never supplies the trusted snapshot.
+ */
+export async function recordFrozenRollInTransaction(
+  tx: RollRuntimeTransaction,
+  actor: AuthorizedRollActor,
+  input: RollRecordRequest,
+  frozenGoverningSource: RollGoverningSourceSnapshot,
+  randomSource: RollRandomSource = secureRandomSource,
+): Promise<RollLedgerEntry> {
+  return recordRollInternal(tx, actor, input, randomSource, frozenGoverningSource);
 }
 
 async function lockRollForAmendment(

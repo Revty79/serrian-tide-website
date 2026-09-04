@@ -8,7 +8,9 @@ export type SessionCloseoutBlockerCode =
   | "authored-action-pending"
   | "authored-action-needs-ruling"
   | "reaction-declared"
-  | "reaction-needs-ruling";
+  | "reaction-needs-ruling"
+  | "called-check-pending"
+  | "high-low-pending";
 
 export type SessionCloseoutBlocker = {
   code: SessionCloseoutBlockerCode;
@@ -36,6 +38,8 @@ export function buildSessionCloseoutBlockers(input: {
   pendingActions: ReadonlyArray<{ encounterId: number; actorCharacterId: number; label: string; status: "active" | "interrupted" | "completed" | "abandoned" | "ended" }>;
   authoredActions: ReadonlyArray<{ encounterId: number; sourceCharacterId: number; label: string; resolutionStatus: "pending" | "resolved" | "cancelled" | "needs-ruling" }>;
   reactions: ReadonlyArray<{ encounterId: number; reactorCharacterId: number; reactionType: string; status: "declared" | "resolved" | "cancelled" | "needs-ruling" }>;
+  calledChecks?: ReadonlyArray<{ sceneId: number | null; encounterId: number | null; recipientCharacterId: number; recipientName: string; purpose: string; visibility: string; issuedAt: Date }>;
+  highLow?: ReadonlyArray<{ sceneId: number | null; encounterId: number | null; participantCharacterId: number | null; participantName: string | null; purpose: string; visibility: string; createdAt: Date }>;
 }): SessionCloseoutBlocker[] {
   const blockers: SessionCloseoutBlocker[] = [];
   const encounterById = new Map(input.encounters.map((encounter) => [encounter.id, encounter]));
@@ -118,6 +122,26 @@ export function buildSessionCloseoutBlockers(input: {
       characterId: reaction.reactorCharacterId,
     });
   }
+  const age = (createdAt: Date): string => {
+    const minutes = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 60_000));
+    if (minutes < 60) return `${minutes}m old`;
+    const hours = Math.floor(minutes / 60);
+    return hours < 48 ? `${hours}h old` : `${Math.floor(hours / 24)}d old`;
+  };
+  for (const request of input.calledChecks ?? []) blockers.push({
+    code: "called-check-pending",
+    message: `${request.recipientName} has an unanswered ${request.visibility} Called Check, “${request.purpose}” (${age(request.issuedAt)}). Resolve or cancel it with a reason before closeout.`,
+    sceneId: request.sceneId,
+    encounterId: request.encounterId,
+    characterId: request.recipientCharacterId,
+  });
+  for (const request of input.highLow ?? []) blockers.push({
+    code: "high-low-pending",
+    message: `${request.participantName ?? "G.O.D."} has an unanswered ${request.visibility} High/Low request, “${request.purpose}” (${age(request.createdAt)}). Resolve or cancel it with a reason before closeout.`,
+    sceneId: request.sceneId,
+    encounterId: request.encounterId,
+    characterId: request.participantCharacterId,
+  });
   return blockers;
 }
 

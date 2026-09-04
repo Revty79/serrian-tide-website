@@ -102,5 +102,6 @@ test("live invalidations contain only bounded identity metadata and filter by au
   assert.equal(eventMatchesPlayerSubscription(event!, { campaignId: 2, encounterId: 5, characterId: 7 }), true);
   assert.equal(eventMatchesPlayerSubscription(event!, { campaignId: 2, encounterId: 5, characterId: 8 }), false);
   assert.equal(eventMatchesPlayerSubscription({ ...event!, characterIds: [] }, { campaignId: 2, encounterId: 5, characterId: 8 }), true);
+  assert.equal(eventMatchesPlayerSubscription({ ...event!, audience: "god-only" }, { campaignId: 2, encounterId: 5, characterId: 7 }), false);
   assert.equal(parseTabletopInvalidation({ campaignId: 2, sessionId: 3, sceneId: null, encounterId: null, characterIds: [], category: "private-state" }), null);
 });

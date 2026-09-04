@@ -17,10 +17,12 @@ export function SessionCloseout({
   data,
   onOpenScenes,
   onOpenRolls,
+  onOpenCalledChecks,
 }: {
   data: SessionCloseoutView;
   onOpenScenes: () => void;
   onOpenRolls: () => void;
+  onOpenCalledChecks: () => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -75,7 +77,7 @@ export function SessionCloseout({
       <article>
         <header><span>OBJECTIVE RUNTIME</span><strong>{data.blockers.length ? "Closeout blocked" : "Ready for review"}</strong></header>
         {data.blockers.length ? <div className="session-closeout-blockers">{data.blockers.map((blocker, index) => <p key={`${blocker.code}:${blocker.encounterId ?? blocker.sceneId ?? index}`}>{blocker.message}</p>)}</div> : <p className="session-closeout-clear">No active Scene, Encounter, Initiative, pending action, authored resolution, or Reaction remains.</p>}
-        <footer><button type="button" onClick={onOpenScenes}>Review Scenes &amp; Encounters</button></footer>
+        <footer><button type="button" onClick={onOpenScenes}>Review Scenes &amp; Encounters</button>{data.blockers.some(({ code }) => code === "called-check-pending" || code === "high-low-pending") ? <button type="button" onClick={onOpenCalledChecks}>Open Called Checks</button> : null}</footer>
       </article>
       <article>
         <header><span>WARNINGS</span><strong>{data.warnings.length}</strong></header>

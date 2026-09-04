@@ -12,6 +12,8 @@ function closeoutInput() {
     pendingActions: [] as Array<{ encounterId: number; actorCharacterId: number; label: string; status: "active" | "interrupted" | "completed" | "abandoned" | "ended" }>,
     authoredActions: [] as Array<{ encounterId: number; sourceCharacterId: number; label: string; resolutionStatus: "pending" | "resolved" | "cancelled" | "needs-ruling" }>,
     reactions: [] as Array<{ encounterId: number; reactorCharacterId: number; reactionType: string; status: "declared" | "resolved" | "cancelled" | "needs-ruling" }>,
+    calledChecks: [] as Array<{ sceneId: number | null; encounterId: number | null; recipientCharacterId: number; recipientName: string; purpose: string; visibility: string; issuedAt: Date }>,
+    highLow: [] as Array<{ sceneId: number | null; encounterId: number | null; participantCharacterId: number | null; participantName: string | null; purpose: string; visibility: string; createdAt: Date }>,
   };
 }
 
@@ -71,4 +73,14 @@ test("planned content and unbound durations are warnings rather than blockers", 
   });
   assert.deepEqual(warnings.map(({ code }) => code), ["planned-scenes", "planned-encounters", "unbound-duration"]);
   assert.match(warnings[2]!.message, /will not auto-advance and is not being guessed or cleared/);
+});
+
+test("unanswered Called Checks and High/Low are explicit closeout blockers, never automatic failures", () => {
+  const input = closeoutInput();
+  input.calledChecks.push({ sceneId: 1, encounterId: null, recipientCharacterId: 10, recipientName: "Joren", purpose: "Notice the wire", visibility: "private", issuedAt: new Date() });
+  input.highLow.push({ sceneId: null, encounterId: null, participantCharacterId: 10, participantName: "Joren", purpose: "Choose the passage", visibility: "table", createdAt: new Date() });
+  const blockers = buildSessionCloseoutBlockers(input);
+  assert.deepEqual(blockers.map(({ code }) => code), ["called-check-pending", "high-low-pending"]);
+  assert.match(blockers[0]!.message, /resolve or cancel/i);
+  assert.doesNotMatch(blockers.map(({ message }) => message).join(" "), /automatic|failed/i);
 });

@@ -193,6 +193,128 @@ export function validateCanonicalSkillPath(
   };
 }
 
+/**
+ * Validates one explicitly selected root-to-endpoint route. Unlike the global
+ * weapon validator, an authored multi-parent Skill is valid here only because
+ * the caller has preserved the exact parent route that was selected.
+ */
+export function validateSelectedCanonicalSkillPath(
+  rootToEndpointIds: readonly number[],
+  skills: readonly CanonicalSkillDefinition[],
+  relationships: readonly CanonicalSkillParentRelationship[],
+): CanonicalSkillPathValidation {
+  const endpointSkillId = rootToEndpointIds.at(-1) ?? 0;
+  if (!rootToEndpointIds.length) return invalidPath(endpointSkillId, [], [{
+    code: "missing-endpoint",
+    message: "An exact canonical Skill route is required.",
+    skillId: null,
+  }]);
+  const skillsById = new Map<number, CanonicalSkillDefinition>();
+  const duplicateIds = new Set<number>();
+  for (const candidate of skills) {
+    if (skillsById.has(candidate.id)) duplicateIds.add(candidate.id);
+    else skillsById.set(candidate.id, candidate);
+  }
+  const nodes: CanonicalSkillDefinition[] = [];
+  const seen = new Set<number>();
+  for (const skillId of rootToEndpointIds) {
+    if (seen.has(skillId)) return invalidPath(endpointSkillId, [...nodes].reverse(), [{
+      code: "cycle",
+      message: `The selected canonical route repeats Skill #${skillId}.`,
+      skillId,
+    }]);
+    seen.add(skillId);
+    if (duplicateIds.has(skillId)) return invalidPath(endpointSkillId, [...nodes].reverse(), [{
+      code: "duplicate-skill-identity",
+      message: `Skill identity #${skillId} appears more than once in the canonical Skill catalog.`,
+      skillId,
+    }]);
+    const node = skillsById.get(skillId);
+    if (!node) return invalidPath(endpointSkillId, [...nodes].reverse(), [{
+      code: "broken-parent",
+      message: `The selected route references missing Skill #${skillId}.`,
+      skillId,
+    }]);
+    nodes.push(node);
+  }
+  const parentEdges = relationships.filter(({ relationshipType }) => (
+    relationshipType.trim().toLocaleLowerCase("en-US") === "parent"
+  ));
+  const rootParents = new Set(parentEdges.filter(({ skillId }) => skillId === nodes[0]!.id).map(({ relatedSkillId }) => relatedSkillId));
+  if (rootParents.size) return invalidPath(endpointSkillId, [...nodes].reverse(), [{
+    code: "broken-parent",
+    message: `The selected route stops before the authored parent of Skill #${nodes[0]!.id} (${nodes[0]!.name}).`,
+    skillId: nodes[0]!.id,
+  }]);
+  for (let index = 1; index < nodes.length; index += 1) {
+    const child = nodes[index]!;
+    const parent = nodes[index - 1]!;
+    if (!parentEdges.some((edge) => edge.skillId === child.id && edge.relatedSkillId === parent.id)) {
+      return invalidPath(endpointSkillId, [...nodes].reverse(), [{
+        code: "broken-parent",
+        message: `Skill #${child.id} (${child.name}) is not authored beneath Skill #${parent.id} (${parent.name}).`,
+        skillId: child.id,
+      }]);
+    }
+  }
+  const root = nodes[0]!;
+  const normalizedRootName = root.name.trim().toLocaleLowerCase("en-US");
+  const rootPrimaryAttribute = normalizedAttribute(root.primaryAttribute);
+  const fallbackAttribute = normalizedRootName === "spellcraft" || normalizedRootName === "talismanism"
+    ? "INT"
+    : normalizedRootName === "faith"
+      ? "WIS"
+      : rootPrimaryAttribute;
+  const authoredAttributes = [...new Set(nodes.flatMap((node) => [
+    normalizedAttribute(node.primaryAttribute),
+    normalizedAttribute(node.secondaryAttribute),
+  ]).filter((value): value is string => value !== null))].sort((left, right) => left.localeCompare(right));
+  const problems: CanonicalSkillPathProblem[] = fallbackAttribute === null ? [{
+    code: "missing-attribute",
+    message: `Root Skill #${root.id} (${root.name}) has no authored primary Attribute for fallback.`,
+    skillId: root.id,
+  }] : [];
+  return {
+    endpointSkillId,
+    valid: problems.length === 0,
+    endpointToRoot: [...nodes].reverse(),
+    rootToEndpoint: nodes,
+    fallbackAttribute: problems.length ? null : fallbackAttribute,
+    authoredAttributes,
+    problems,
+  };
+}
+
+/** Returns every exact canonical ancestry alternative for a broad endpoint. */
+export function enumerateCanonicalSkillPathAlternatives(
+  endpointSkillId: number,
+  skills: readonly CanonicalSkillDefinition[],
+  relationships: readonly CanonicalSkillParentRelationship[],
+): CanonicalSkillPathValidation[] {
+  const parentsBySkill = new Map<number, number[]>();
+  for (const relationship of relationships) {
+    if (relationship.relationshipType.trim().toLocaleLowerCase("en-US") !== "parent") continue;
+    const parents = parentsBySkill.get(relationship.skillId) ?? [];
+    if (!parents.includes(relationship.relatedSkillId)) parents.push(relationship.relatedSkillId);
+    parentsBySkill.set(relationship.skillId, parents);
+  }
+  const routes: number[][] = [];
+  const walk = (current: number, endpointToRoot: number[], seen: ReadonlySet<number>): void => {
+    if (seen.has(current)) return;
+    const nextSeen = new Set(seen).add(current);
+    const route = [...endpointToRoot, current];
+    const parents = parentsBySkill.get(current) ?? [];
+    if (!parents.length) {
+      routes.push([...route].reverse());
+      return;
+    }
+    for (const parentId of parents) walk(parentId, route, nextSeen);
+  };
+  walk(endpointSkillId, [], new Set());
+  if (!routes.length) return [validateCanonicalSkillPath(endpointSkillId, skills, relationships)];
+  return routes.map((route) => validateSelectedCanonicalSkillPath(route, skills, relationships));
+}
+
 export type CanonicalWeaponSkillOption = Readonly<{
   id: number;
   firingModeId: number | null;

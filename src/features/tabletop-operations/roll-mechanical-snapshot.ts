@@ -260,7 +260,7 @@ function parseStoredResolution(value: unknown): PercentileResolution {
   };
 }
 
-function parseStoredGoverningSource(value: unknown): RollGoverningSourceSnapshot {
+export function parseRollGoverningSourceSnapshot(value: unknown): RollGoverningSourceSnapshot {
   if (!isRecord(value)) throw new Error("Stored Roll governing source is invalid.");
   if (value.kind === "manual") {
     return {
@@ -333,7 +333,7 @@ export function parseRollMechanicalSnapshot(value: unknown): RollMechanicalSnaps
   if (value.rawResultSource !== "original-roll" && value.rawResultSource !== "corrected-result") {
     throw new Error("Stored Roll raw-result source is invalid.");
   }
-  const governingSource = parseStoredGoverningSource(value.governingSource);
+  const governingSource = parseRollGoverningSourceSnapshot(value.governingSource);
   const resolution = parseStoredResolution(value.resolution);
   if (resolution.originalTarget !== governingSource.originalTarget) {
     throw new Error("Stored Roll target does not match its governing-source snapshot.");

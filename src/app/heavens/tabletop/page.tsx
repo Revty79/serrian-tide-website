@@ -15,6 +15,7 @@ import { getDefenseInterventionWorkspace } from "./defense-intervention-actions"
 import { getActionEffectWorkspace } from "./action-effect-plan-actions";
 import { getFirearmReadinessWorkspace } from "./firearm-readiness-actions";
 import { getFirearmAttackWorkspace } from "./firearm-attack-actions";
+import { getGodCalledCheckWorkspace } from "./called-check-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -125,6 +126,9 @@ export default async function TabletopOperationsPage({
   const sessionCloseout = selectedSessionId === null
     ? null
     : await getSessionCloseout(selectedSessionId);
+  const calledChecks = selectedSessionId === null
+    ? null
+    : await getGodCalledCheckWorkspace(selectedSessionId);
   const weaponGovernance = workspace.selectedCampaignId === null || query.workspace !== "weapons"
     ? null
     : await getGodWeaponGovernanceWorkspace({
@@ -156,9 +160,10 @@ export default async function TabletopOperationsPage({
       initialCloseout={closeout}
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}
+      initialCalledChecks={calledChecks}
       initialWeaponGovernance={weaponGovernance}
       requestedSessionId={selectedSessionId}
-      requestedWorkspace={query.workspace === "weapons" ? "weapons" : null}
+      requestedWorkspace={query.workspace === "weapons" ? "weapons" : query.workspace === "checks" ? "checks" : null}
     />
   );
 }

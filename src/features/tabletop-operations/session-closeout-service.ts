@@ -19,6 +19,9 @@ import {
   campaignSessionEncounterPendingActionSource,
   campaignSessionEncounterReaction,
   campaignSessionEncounterReward,
+  campaignSessionCalledCheckBatch,
+  campaignSessionCalledCheckRequest,
+  campaignSessionHighLowRequest,
   campaignSessionRoll,
   campaignSessionRollAmendment,
   campaignSessionRoster,
@@ -217,6 +220,37 @@ export async function readSessionCloseoutInTransaction(
       eq(campaignSessionEncounterReaction.sessionId, context.sessionId),
       eq(campaignSessionEncounterReaction.campaignId, context.campaignId),
     )).orderBy(asc(campaignSessionEncounterReaction.id));
+  const calledChecks = await tx.select({
+    sceneId: campaignSessionCalledCheckRequest.sceneId,
+    encounterId: campaignSessionCalledCheckRequest.encounterId,
+    recipientCharacterId: campaignSessionCalledCheckRequest.recipientCharacterId,
+    recipientName: campaignCharacter.name,
+    purpose: campaignSessionCalledCheckBatch.purpose,
+    visibility: campaignSessionCalledCheckBatch.visibility,
+    issuedAt: campaignSessionCalledCheckRequest.issuedAt,
+  }).from(campaignSessionCalledCheckRequest)
+    .innerJoin(campaignSessionCalledCheckBatch, eq(campaignSessionCalledCheckBatch.id, campaignSessionCalledCheckRequest.batchId))
+    .innerJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionCalledCheckRequest.recipientCharacterId))
+    .where(and(
+      eq(campaignSessionCalledCheckRequest.sessionId, context.sessionId),
+      eq(campaignSessionCalledCheckRequest.campaignId, context.campaignId),
+      inArray(campaignSessionCalledCheckRequest.status, ["pending", "requires-god-ruling"]),
+    )).orderBy(asc(campaignSessionCalledCheckRequest.id));
+  const highLow = await tx.select({
+    sceneId: campaignSessionHighLowRequest.sceneId,
+    encounterId: campaignSessionHighLowRequest.encounterId,
+    participantCharacterId: campaignSessionHighLowRequest.participantCharacterId,
+    participantName: campaignCharacter.name,
+    purpose: campaignSessionHighLowRequest.purpose,
+    visibility: campaignSessionHighLowRequest.visibility,
+    createdAt: campaignSessionHighLowRequest.createdAt,
+  }).from(campaignSessionHighLowRequest)
+    .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionHighLowRequest.participantCharacterId))
+    .where(and(
+      eq(campaignSessionHighLowRequest.sessionId, context.sessionId),
+      eq(campaignSessionHighLowRequest.campaignId, context.campaignId),
+      inArray(campaignSessionHighLowRequest.status, ["pending", "requires-god-ruling"]),
+    )).orderBy(asc(campaignSessionHighLowRequest.id));
   const roster = await tx.select({
     characterId: campaignSessionRoster.characterId,
     characterName: campaignCharacter.name,
@@ -316,6 +350,8 @@ export async function readSessionCloseoutInTransaction(
     pendingActions,
     authoredActions,
     reactions,
+    calledChecks,
+    highLow,
   });
   const sceneSummary = statusCounts(scenes);
   const encounterSummary = statusCounts(encounters);

@@ -99,7 +99,7 @@ test("migration 0027 is additive and follows immutable Pass 7", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as {
     entries: Array<{ idx: number; tag: string }>;
   };
-  assert.equal(journal.entries.length, 30);
+  assert.equal(journal.entries.length, 31);
   assert.deepEqual(journal.entries[27], {
     idx: 27,
     version: "7",
@@ -107,13 +107,14 @@ test("migration 0027 is additive and follows immutable Pass 7", () => {
     tag: "0027_action_source_effect_bridge",
     breakpoints: true,
   });
-  assert.deepEqual(journal.entries.at(-1), {
+  assert.deepEqual(journal.entries[29], {
     idx: 29,
     version: "7",
     when: 1788555142922,
     tag: "0029_firearm_attack_runtime",
     breakpoints: true,
   });
+  assert.equal(journal.entries.at(-1)?.tag, "0030_called_checks_high_low");
   assert.match(migration, /CREATE TABLE "campaign_session_encounter_effect_plan"/);
   assert.match(migration, /CREATE TABLE "campaign_session_encounter_effect"/);
   assert.match(migration, /CREATE TABLE "campaign_session_encounter_effect_plan_event"/);

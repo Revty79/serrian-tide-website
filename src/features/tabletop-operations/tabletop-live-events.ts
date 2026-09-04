@@ -9,6 +9,7 @@ export const TABLETOP_INVALIDATION_CATEGORIES = [
   "action",
   "reaction",
   "roll",
+  "called-check",
   "character-state",
 ] as const;
 
@@ -20,6 +21,7 @@ export type TabletopInvalidation = {
   encounterId: number | null;
   characterIds: number[];
   category: TabletopInvalidationCategory;
+  audience?: "all" | "god-only";
 };
 
 type LiveEventTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -45,6 +47,7 @@ export function parseTabletopInvalidation(value: unknown): TabletopInvalidation 
     || (row.encounterId !== null && encounterId === null)
     || typeof row.category !== "string"
     || !TABLETOP_INVALIDATION_CATEGORIES.includes(row.category as TabletopInvalidationCategory)
+    || (row.audience !== undefined && row.audience !== "all" && row.audience !== "god-only")
   ) return null;
   return {
     campaignId,
@@ -53,6 +56,7 @@ export function parseTabletopInvalidation(value: unknown): TabletopInvalidation 
     encounterId,
     characterIds,
     category: row.category as TabletopInvalidationCategory,
+    ...(row.audience === undefined ? {} : { audience: row.audience as "all" | "god-only" }),
   };
 }
 
@@ -64,6 +68,7 @@ export function eventMatchesPlayerSubscription(
   event: TabletopInvalidation,
   subscription: { campaignId: number; encounterId: number | null; characterId: number },
 ): boolean {
+  if (event.audience === "god-only") return false;
   if (event.campaignId !== subscription.campaignId) return false;
   if (
     subscription.encounterId !== null
