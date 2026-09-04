@@ -62,7 +62,7 @@ export function CreatureCatalogSpawn({
       });
       onFeedback({
         kind: "success",
-        message: `${result.created.map(({ name }) => name).join(", ")} added to the Session, Scene, and Encounter${joinInitiative ? " and joined Initiative" : ""}.`,
+        message: `${result.created.map(({ name }) => name).join(", ")} added directly to the Encounter${joinInitiative ? " and joined Initiative" : ""}. No Character, NPC, or roster record was created.`,
       });
       setQuantity(1);
       setJoinInitiative(false);
@@ -76,7 +76,7 @@ export function CreatureCatalogSpawn({
 
   return <section className="tabletop-creature-catalog">
     <header>
-      <div><span>CREATURE CATALOG</span><h6 className="font-sans">Add real Creature NPCs</h6></div>
+      <div><span>CREATURES</span><h6 className="font-sans">Add encounter-scoped Creatures</h6></div>
       <button type="button" disabled={busy} onClick={() => void showCatalog()}>{open ? "Close Catalog" : "Add from Creature Catalog"}</button>
     </header>
     {open ? <div className="tabletop-creature-catalog-body">
@@ -101,7 +101,7 @@ export function CreatureCatalogSpawn({
           {joinInitiative && selected.movementModes.length > 1 ? <label><span>Movement mode</span><select value={movementMode} onChange={(event) => setMovementMode(event.target.value)}><option value="">Choose a mode</option>{selected.movementModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</select></label> : null}
           {joinInitiative && selected.movementModes.length === 1 ? <p>Initiative capacity will use {selected.movementModes[0]}.</p> : null}
           <button type="button" className="is-primary" disabled={busy || quantity < 1 || quantity > 50 || (joinInitiative && selected.movementModes.length > 1 && !movementMode)} onClick={() => void spawn()}>{busy ? "Adding…" : `Add ${quantity} to Encounter`}</button>
-          <small>Each copy becomes an independent Campaign Creature NPC with its own snapshot and live state.</small>
+          <small>Each copy is an independent encounter participant referencing the same canonical Creature. It does not enter the Campaign roster.</small>
         </div> : null}
       </div>
     </div> : null}

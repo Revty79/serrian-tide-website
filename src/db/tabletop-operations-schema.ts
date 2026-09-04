@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   check,
   boolean,
   date,
@@ -20,12 +21,14 @@ import {
 
 import { campaign } from "./campaign-schema";
 import { user } from "./auth-schema";
+import { creature } from "./creature-schema";
 import {
   campaignCharacter,
   campaignCharacterActiveCondition,
   campaignCharacterActiveModifier,
   campaignCharacterProfile,
 } from "./realm-schema";
+import { skill } from "./skill-schema";
 
 export const campaignSessionStatus = pgEnum("campaign_session_status", [
   "planned",
@@ -81,7 +84,7 @@ export const campaignSessionEncounterActionResolutionStatus = pgEnum(
 
 export const campaignSessionEncounterReactionType = pgEnum(
   "campaign_session_encounter_reaction_type",
-  ["dodge", "block", "parry", "no-reaction"],
+  ["dodge", "block", "parry", "no-reaction", "tackle", "intervention"],
 );
 
 export const campaignSessionEncounterReactionStatus = pgEnum(
@@ -123,6 +126,31 @@ export const campaignSessionEffectDurationBindingStatus = pgEnum(
 export const campaignSessionEncounterRewardKind = pgEnum(
   "campaign_session_encounter_reward_kind",
   ["experience"],
+);
+
+export const defenseSkillPathMapping = pgTable(
+  "defense_skill_path_mapping",
+  {
+    id: serial("id").primaryKey(),
+    defenseType: text("defense_type").default("dodge").notNull(),
+    endpointSkillId: integer("endpoint_skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+    conditional: boolean("conditional").default(false).notNull(),
+    circumstanceLabel: text("circumstance_label").default("").notNull(),
+    reviewState: text("review_state").default("review-required").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    notes: text("notes").default("").notNull(),
+    updatedByUserId: text("updated_by_user_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("defense_skill_path_mapping_identity_uq").on(table.defenseType, table.endpointSkillId),
+    index("defense_skill_path_mapping_review_idx").on(table.defenseType, table.reviewState, table.sortOrder, table.id),
+    check("defense_skill_path_mapping_type_valid", sql`${table.defenseType} = 'dodge'`),
+    check("defense_skill_path_mapping_review_valid", sql`${table.reviewState} IN ('review-required','approved')`),
+    check("defense_skill_path_mapping_order_valid", sql`${table.sortOrder} >= 0`),
+    check("defense_skill_path_mapping_condition_valid", sql`(${table.conditional} AND length(trim(${table.circumstanceLabel})) > 0) OR (NOT ${table.conditional} AND ${table.circumstanceLabel} = '')`),
+  ],
 );
 
 export const campaignSessionRollMethod = pgEnum(
@@ -362,11 +390,17 @@ export const campaignSessionEncounter = pgTable(
 export const campaignSessionEncounterParticipant = pgTable(
   "campaign_session_encounter_participant",
   {
+    participantId: serial("participant_id").notNull(),
     encounterId: integer("encounter_id").notNull(),
     sceneId: integer("scene_id").notNull(),
     sessionId: integer("session_id").notNull(),
     campaignId: integer("campaign_id").notNull(),
     characterId: integer("character_id").notNull(),
+    participantKind: text("participant_kind").default("campaign-character").notNull(),
+    creatureId: integer("creature_id").references(() => creature.id, { onDelete: "restrict" }),
+    displayLabel: text("display_label").default("").notNull(),
+    creatureSnapshotJson: jsonb("creature_snapshot_json"),
+    localStateJson: jsonb("local_state_json"),
     sortOrder: integer("sort_order").default(0).notNull(),
     prepNotes: text("prep_notes").default("").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -374,6 +408,7 @@ export const campaignSessionEncounterParticipant = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.encounterId, table.characterId] }),
+    uniqueIndex("campaign_session_encounter_participant_id_uq").on(table.participantId),
     uniqueIndex("campaign_session_encounter_participant_runtime_identity_uq").on(
       table.encounterId,
       table.sceneId,
@@ -391,14 +426,13 @@ export const campaignSessionEncounterParticipant = pgTable(
       ],
       name: "campaign_session_encounter_participant_encounter_fk",
     }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.sceneId, table.characterId],
-      foreignColumns: [campaignSessionSceneMember.sceneId, campaignSessionSceneMember.characterId],
-      name: "campaign_session_encounter_participant_scene_member_fk",
-    }).onDelete("restrict"),
     index("campaign_session_encounter_participant_order_idx").on(table.encounterId, table.sortOrder),
     index("campaign_session_encounter_participant_scene_member_idx").on(table.sceneId, table.characterId),
     check("campaign_session_encounter_participant_sort_order_nonnegative", sql`${table.sortOrder} >= 0`),
+    check("campaign_session_encounter_participant_source_valid", sql`(
+      (${table.participantKind} = 'campaign-character' AND ${table.characterId} > 0 AND ${table.creatureId} IS NULL AND ${table.creatureSnapshotJson} IS NULL)
+      OR (${table.participantKind} = 'creature' AND ${table.characterId} < 0 AND ${table.creatureId} IS NOT NULL AND ${table.creatureSnapshotJson} IS NOT NULL AND length(trim(${table.displayLabel})) > 0)
+    )`),
   ],
 );
 
@@ -523,6 +557,7 @@ export const campaignSessionEncounterPendingAction = pgTable(
     actionKind: text("action_kind").default("generic").notNull(),
     allowsMultiRound: boolean("allows_multi_round").default(false).notNull(),
     originalInitiativeCost: doublePrecision("original_initiative_cost").notNull(),
+    additionalInitiativeCost: doublePrecision("additional_initiative_cost").default(0).notNull(),
     initiativeSpent: doublePrecision("initiative_spent").default(0).notNull(),
     remainingInitiativeCost: doublePrecision("remaining_initiative_cost").notNull(),
     startInitiative: doublePrecision("start_initiative").notNull(),
@@ -576,6 +611,7 @@ export const campaignSessionEncounterPendingAction = pgTable(
     ),
     check("campaign_session_encounter_pending_action_label_nonblank", sql`length(trim(${table.label})) > 0`),
     check("campaign_session_encounter_pending_action_original_cost_positive", sql`${table.originalInitiativeCost} > 0`),
+    check("campaign_session_encounter_pending_action_additional_cost_nonnegative", sql`${table.additionalInitiativeCost} >= 0`),
     check("campaign_session_encounter_pending_action_spent_nonnegative", sql`${table.initiativeSpent} >= 0`),
     check("campaign_session_encounter_pending_action_remaining_nonnegative", sql`${table.remainingInitiativeCost} >= 0`),
     check("campaign_session_encounter_pending_action_start_timeline_nonnegative", sql`${table.startTimelineInitiative} >= 0`),
@@ -663,6 +699,12 @@ export const campaignSessionEncounterReaction = pgTable(
     campaignId: integer("campaign_id").notNull(),
     pendingActionId: integer("pending_action_id").notNull(),
     reactorCharacterId: integer("reactor_character_id").notNull(),
+    protectedTargetCharacterId: integer("protected_target_character_id"),
+    targetCharacterId: integer("target_character_id"),
+    opposesReactionId: integer("opposes_reaction_id").references(
+      (): AnyPgColumn => campaignSessionEncounterReaction.id,
+      { onDelete: "restrict" },
+    ),
     reactionType: campaignSessionEncounterReactionType("reaction_type").notNull(),
     defendingItemId: integer("defending_item_id"),
     defendingInstanceId: integer("defending_instance_id"),
@@ -671,6 +713,18 @@ export const campaignSessionEncounterReaction = pgTable(
     outcome: text("outcome").default("").notNull(),
     defenderFinalCost: doublePrecision("defender_final_cost"),
     attackerAdditionalCost: doublePrecision("attacker_additional_cost"),
+    declarationSnapshotJson: jsonb("declaration_snapshot_json"),
+    objectiveComparisonJson: jsonb("objective_comparison_json"),
+    resolutionSnapshotJson: jsonb("resolution_snapshot_json"),
+    rollRequired: boolean("roll_required"),
+    godApprovalReason: text("god_approval_reason").default("").notNull(),
+    declaredByUserId: text("declared_by_user_id"),
+    godApprovedByUserId: text("god_approved_by_user_id"),
+    rulingReason: text("ruling_reason").default("").notNull(),
+    ruledByUserId: text("ruled_by_user_id"),
+    ruledAt: timestamp("ruled_at"),
+    originalActionDisposition: text("original_action_disposition"),
+    reconciliationAppliedAt: timestamp("reconciliation_applied_at"),
     resolvedAt: timestamp("resolved_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -687,6 +741,31 @@ export const campaignSessionEncounterReaction = pgTable(
       ],
       name: "campaign_session_encounter_reaction_action_fk",
     }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.protectedTargetCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_reaction_protected_target_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.targetCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_encounter_reaction_target_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.declaredByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_reaction_declared_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.godApprovedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_reaction_god_approved_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.ruledByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_reaction_ruled_by_fk" }).onDelete("restrict"),
     foreignKey({
       columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.reactorCharacterId],
       foreignColumns: [
@@ -713,7 +792,7 @@ export const campaignSessionEncounterReaction = pgTable(
       table.pendingActionId,
       table.createdAt,
     ),
-    check("campaign_session_encounter_reaction_cost_positive", sql`${table.committedInitiativeCost} > 0`),
+    check("campaign_session_encounter_reaction_cost_nonnegative", sql`${table.committedInitiativeCost} >= 0`),
     check("campaign_session_encounter_reaction_final_cost_nonnegative", sql`${table.defenderFinalCost} IS NULL OR ${table.defenderFinalCost} >= 0`),
     check("campaign_session_encounter_reaction_attacker_cost_nonnegative", sql`${table.attackerAdditionalCost} IS NULL OR ${table.attackerAdditionalCost} >= 0`),
     check(
@@ -728,8 +807,52 @@ export const campaignSessionEncounterReaction = pgTable(
       sql`(
         (${table.reactionType} IN ('block', 'parry') AND ${table.defendingItemId} IS NOT NULL)
         OR (${table.reactionType} IN ('dodge', 'no-reaction') AND ${table.defendingItemId} IS NULL AND ${table.defendingInstanceId} IS NULL)
+        OR (${table.reactionType} NOT IN ('block', 'parry', 'dodge', 'no-reaction'))
       )`,
     ),
+    check("campaign_session_encounter_reaction_declaration_snapshot_object", sql`${table.declarationSnapshotJson} IS NULL OR jsonb_typeof(${table.declarationSnapshotJson}) = 'object'`),
+    check("campaign_session_encounter_reaction_comparison_snapshot_object", sql`${table.objectiveComparisonJson} IS NULL OR jsonb_typeof(${table.objectiveComparisonJson}) = 'object'`),
+    check("campaign_session_encounter_reaction_resolution_snapshot_object", sql`${table.resolutionSnapshotJson} IS NULL OR jsonb_typeof(${table.resolutionSnapshotJson}) = 'object'`),
+    check("campaign_session_encounter_reaction_pass_seven_identity_valid", sql`${table.declarationSnapshotJson} IS NULL OR (${table.protectedTargetCharacterId} IS NOT NULL AND ${table.declaredByUserId} IS NOT NULL AND ${table.rollRequired} IS NOT NULL)`),
+    check("campaign_session_encounter_reaction_no_defense_cost_valid", sql`${table.declarationSnapshotJson} IS NULL OR ${table.reactionType} <> 'no-reaction' OR (${table.committedInitiativeCost} = 0 AND ${table.rollRequired} = false)`),
+    check("campaign_session_encounter_reaction_ruling_valid", sql`(${table.ruledAt} IS NULL AND ${table.ruledByUserId} IS NULL) OR (${table.ruledAt} IS NOT NULL AND ${table.ruledByUserId} IS NOT NULL AND length(trim(${table.rulingReason})) > 0)`),
+    check("campaign_session_encounter_reaction_disposition_valid", sql`${table.originalActionDisposition} IS NULL OR ${table.originalActionDisposition} IN ('continue','continue-modified','retarget','cancel','stopped','target-removed','awaiting-god-ruling')`),
+  ],
+);
+
+export const campaignSessionEncounterReactionEvent = pgTable(
+  "campaign_session_encounter_reaction_event",
+  {
+    id: serial("id").primaryKey(),
+    reactionId: integer("reaction_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    fromStatus: campaignSessionEncounterReactionStatus("from_status"),
+    toStatus: campaignSessionEncounterReactionStatus("to_status").notNull(),
+    eventKind: text("event_kind").notNull(),
+    reason: text("reason").default("").notNull(),
+    metadata: jsonb("metadata").default(sql`'{}'::jsonb`).notNull(),
+    actorUserId: text("actor_user_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.reactionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [
+        campaignSessionEncounterReaction.id,
+        campaignSessionEncounterReaction.encounterId,
+        campaignSessionEncounterReaction.sceneId,
+        campaignSessionEncounterReaction.sessionId,
+        campaignSessionEncounterReaction.campaignId,
+      ],
+      name: "campaign_session_encounter_reaction_event_reaction_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.actorUserId], foreignColumns: [user.id], name: "campaign_session_encounter_reaction_event_actor_fk" }).onDelete("restrict"),
+    index("campaign_session_encounter_reaction_event_history_idx").on(table.reactionId, table.createdAt, table.id),
+    check("campaign_session_encounter_reaction_event_kind_nonblank", sql`length(trim(${table.eventKind})) > 0`),
+    check("campaign_session_encounter_reaction_event_metadata_object", sql`jsonb_typeof(${table.metadata}) = 'object'`),
   ],
 );
 
@@ -750,6 +873,9 @@ export const campaignSessionEncounterActionDeclaration = pgTable(
     lockedSnapshotJson: jsonb("locked_snapshot_json"),
     rulingReason: text("ruling_reason").default("").notNull(),
     rulingNotes: text("ruling_notes").default("").notNull(),
+    defenseResolutionJson: jsonb("defense_resolution_json"),
+    defenseResolvedByUserId: text("defense_resolved_by_user_id"),
+    defenseResolvedAt: timestamp("defense_resolved_at"),
     createdByUserId: text("created_by_user_id").notNull(),
     lockedByUserId: text("locked_by_user_id"),
     committedByUserId: text("committed_by_user_id"),
@@ -804,6 +930,7 @@ export const campaignSessionEncounterActionDeclaration = pgTable(
     foreignKey({ columns: [table.lockedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_locked_by_fk" }).onDelete("restrict"),
     foreignKey({ columns: [table.committedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_committed_by_fk" }).onDelete("restrict"),
     foreignKey({ columns: [table.endedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_ended_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.defenseResolvedByUserId], foreignColumns: [user.id], name: "campaign_session_encounter_action_declaration_defense_resolved_by_fk" }).onDelete("restrict"),
     uniqueIndex("campaign_session_encounter_action_declaration_pending_action_uq")
       .on(table.pendingActionId)
       .where(sql`${table.pendingActionId} IS NOT NULL`),
@@ -830,6 +957,8 @@ export const campaignSessionEncounterActionDeclaration = pgTable(
     check("campaign_session_encounter_action_declaration_version_positive", sql`${table.versionNumber} > 0`),
     check("campaign_session_encounter_action_declaration_draft_object", sql`jsonb_typeof(${table.draftJson}) = 'object'`),
     check("campaign_session_encounter_action_declaration_snapshot_object", sql`${table.lockedSnapshotJson} IS NULL OR jsonb_typeof(${table.lockedSnapshotJson}) = 'object'`),
+    check("campaign_session_encounter_action_declaration_defense_json_object", sql`${table.defenseResolutionJson} IS NULL OR jsonb_typeof(${table.defenseResolutionJson}) = 'object'`),
+    check("campaign_session_encounter_action_declaration_defense_state_valid", sql`(${table.defenseResolutionJson} IS NULL AND ${table.defenseResolvedByUserId} IS NULL AND ${table.defenseResolvedAt} IS NULL) OR (${table.defenseResolutionJson} IS NOT NULL AND ${table.defenseResolvedByUserId} IS NOT NULL AND ${table.defenseResolvedAt} IS NOT NULL)`),
     check(
       "campaign_session_encounter_action_declaration_lifecycle_valid",
       sql`(
@@ -1249,14 +1378,26 @@ export const campaignSessionRoll = pgTable(
       name: "campaign_session_roll_encounter_fk",
     }).onDelete("restrict"),
     foreignKey({
-      columns: [table.rollerCharacterId, table.campaignId],
-      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
-      name: "campaign_session_roll_roller_character_fk",
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.rollerCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_roll_roller_encounter_participant_fk",
     }).onDelete("restrict"),
     foreignKey({
-      columns: [table.targetCharacterId, table.campaignId],
-      foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId],
-      name: "campaign_session_roll_target_character_fk",
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.targetCharacterId],
+      foreignColumns: [
+        campaignSessionEncounterParticipant.encounterId,
+        campaignSessionEncounterParticipant.sceneId,
+        campaignSessionEncounterParticipant.sessionId,
+        campaignSessionEncounterParticipant.campaignId,
+        campaignSessionEncounterParticipant.characterId,
+      ],
+      name: "campaign_session_roll_target_encounter_participant_fk",
     }).onDelete("restrict"),
     foreignKey({
       columns: [

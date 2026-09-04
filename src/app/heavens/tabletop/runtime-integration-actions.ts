@@ -99,7 +99,7 @@ export async function spawnEncounterCreatures(
   const result = await mutateEncounter(encounterId, (tx, context, actingUserId) => (
     spawnEncounterCreaturesInTransaction(tx, context, actingUserId, input)
   ));
-  refreshRuntime(result.created.map(({ characterId }) => characterId));
+  refreshRuntime([]);
   return result;
 }
 

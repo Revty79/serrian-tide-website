@@ -198,11 +198,20 @@ export type ResolveCharacterWeaponGovernanceInput = Readonly<{
   oneActionOverride?: CharacterWeaponOneActionOverride | null;
 }>;
 
+export type CharacterSkillLineageInput = Readonly<{
+  context: Readonly<{ characterId: number; npcKind?: "race" | "creature" }>;
+  attributes: Readonly<Partial<Record<CharacterAttributeKey, number>>>;
+  allocations: readonly CharacterWeaponAllocation[];
+  skillCatalog: readonly CharacterSkillReference[];
+  skillRelationships: readonly CharacterSkillRelationship[];
+  race?: CharacterRaceAggregate | null;
+}>;
+
 type AllocationPathResult =
   | { valid: true; allocations: CharacterWeaponAllocation[] }
   | { valid: false; explanation: string };
 
-type ResolvedSelection = Readonly<{
+export type CharacterSkillLineageResolvedSelection = Readonly<{
   source: CharacterWeaponResolvedSource;
   rollGoverningSource: RollGoverningSourceRequest;
   rollGoverningSourceSnapshot: RollGoverningSourceSnapshot;
@@ -213,14 +222,14 @@ function exactPathEqual(left: readonly number[], right: readonly number[]): bool
 }
 
 function finiteAttribute(
-  attributes: ResolveCharacterWeaponGovernanceInput["attributes"],
+  attributes: CharacterSkillLineageInput["attributes"],
   key: CharacterAttributeKey,
 ): number | null {
   const value = attributes[key];
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-function characterDraft(input: ResolveCharacterWeaponGovernanceInput): CharacterDraft {
+function characterDraft(input: CharacterSkillLineageInput): CharacterDraft {
   return {
     name: "Weapon governance resolver",
     profile: {
@@ -324,10 +333,10 @@ function skillSnapshotPath(
 }
 
 function resolveAttributeSelection(
-  context: CharacterWeaponGovernanceContext,
-  attributes: ResolveCharacterWeaponGovernanceInput["attributes"],
+  context: Readonly<{ characterId: number }>,
+  attributes: CharacterSkillLineageInput["attributes"],
   attributeKey: CharacterAttributeKey,
-): ResolvedSelection | null {
+): CharacterSkillLineageResolvedSelection | null {
   const value = finiteAttribute(attributes, attributeKey);
   if (value === null) return null;
   const originalTarget = 100 - value;
@@ -353,12 +362,12 @@ function resolveAttributeSelection(
 }
 
 function resolveSkillSelection(
-  input: ResolveCharacterWeaponGovernanceInput,
+  input: CharacterSkillLineageInput,
   allocation: CharacterWeaponAllocation,
   path: readonly CharacterWeaponAllocation[],
   ranks: ReadonlyMap<number, number>,
   skillsById: ReadonlyMap<number, CharacterSkillReference>,
-): ResolvedSelection | null {
+): CharacterSkillLineageResolvedSelection | null {
   const selectedSkill = skillsById.get(allocation.skillId);
   const snapshotPath = skillSnapshotPath(path, skillsById);
   if (!selectedSkill || !snapshotPath) return null;
@@ -411,7 +420,7 @@ function resolveSkillSelection(
 }
 
 function resolveCanonicalOption(
-  input: ResolveCharacterWeaponGovernanceInput,
+  input: CharacterSkillLineageInput,
   option: CanonicalWeaponSkillOption,
   allocationsById: ReadonlyMap<number, CharacterWeaponAllocation>,
   allocationPaths: ReadonlyMap<number, AllocationPathResult>,
@@ -540,6 +549,72 @@ function resolveCanonicalOption(
   };
 }
 
+function prepareCharacterSkillLineage(input: CharacterSkillLineageInput): {
+  allocationsById: Map<number, CharacterWeaponAllocation>;
+  allocationPaths: Map<number, AllocationPathResult>;
+  ranks: Map<number, number>;
+  skillsById: Map<number, CharacterSkillReference>;
+} {
+  const allocationsById = new Map<number, CharacterWeaponAllocation>();
+  const duplicateAllocationIds = new Set<number>();
+  for (const allocation of input.allocations) {
+    if (allocationsById.has(allocation.id)) duplicateAllocationIds.add(allocation.id);
+    else allocationsById.set(allocation.id, allocation);
+  }
+  const parentRelationships = new Set(
+    input.skillRelationships
+      .filter(({ relationshipType }) => relationshipType.trim().toLocaleLowerCase("en-US") === "parent")
+      .map(({ skillId, relatedSkillId }) => `${skillId}:${relatedSkillId}`),
+  );
+  const allocationPaths = new Map<number, AllocationPathResult>();
+  for (const allocation of input.allocations) {
+    allocationPaths.set(
+      allocation.id,
+      duplicateAllocationIds.has(allocation.id)
+        ? { valid: false, explanation: `Allocation identity #${allocation.id} appears more than once.` }
+        : allocationPath(allocation, allocationsById, input.context.characterId, parentRelationships),
+    );
+  }
+  return {
+    allocationsById,
+    allocationPaths,
+    ranks: getCharacterSkillRanks(characterDraft(input), input.skillCatalog, input.race ?? null),
+    skillsById: new Map(input.skillCatalog.map((entry) => [entry.id, entry])),
+  };
+}
+
+/** Shared exact-allocation-lineage resolver used by weapons and defensive paths. */
+export function resolveCharacterSkillLineageOptions(
+  input: CharacterSkillLineageInput,
+  options: readonly CanonicalWeaponSkillOption[],
+): CharacterWeaponCanonicalAlternative[] {
+  const prepared = prepareCharacterSkillLineage(input);
+  return options.map((option) => resolveCanonicalOption(
+    input,
+    option,
+    prepared.allocationsById,
+    prepared.allocationPaths,
+    prepared.ranks,
+    prepared.skillsById,
+  ));
+}
+
+/** Resolves a G.O.D.-selected source without weakening exact parent-allocation identity. */
+export function resolveCharacterSkillLineageSelection(
+  input: CharacterSkillLineageInput,
+  selection: CharacterWeaponGoverningSelection,
+): CharacterSkillLineageResolvedSelection | null {
+  const prepared = prepareCharacterSkillLineage(input);
+  return resolveExplicitSelection(
+    input,
+    selection,
+    prepared.allocationsById,
+    prepared.allocationPaths,
+    prepared.ranks,
+    prepared.skillsById,
+  );
+}
+
 function normalResolution(
   input: ResolveCharacterWeaponGovernanceInput,
   allocationsById: ReadonlyMap<number, CharacterWeaponAllocation>,
@@ -635,13 +710,13 @@ function normalResolution(
 }
 
 function resolveExplicitSelection(
-  input: ResolveCharacterWeaponGovernanceInput,
+  input: CharacterSkillLineageInput,
   selection: CharacterWeaponGoverningSelection,
   allocationsById: ReadonlyMap<number, CharacterWeaponAllocation>,
   allocationPaths: ReadonlyMap<number, AllocationPathResult>,
   ranks: ReadonlyMap<number, number>,
   skillsById: ReadonlyMap<number, CharacterSkillReference>,
-): ResolvedSelection | null {
+): CharacterSkillLineageResolvedSelection | null {
   if (selection.kind === "attribute") {
     return resolveAttributeSelection(input.context, input.attributes, selection.attributeKey);
   }
@@ -672,39 +747,13 @@ export function resolveCharacterWeaponGovernance(
   ) {
     throw new Error("Canonical weapon governance does not match the requested Item and Weapon Profile identity.");
   }
-  const allocationsById = new Map<number, CharacterWeaponAllocation>();
-  const duplicateAllocationIds = new Set<number>();
-  for (const allocation of input.allocations) {
-    if (allocationsById.has(allocation.id)) duplicateAllocationIds.add(allocation.id);
-    else allocationsById.set(allocation.id, allocation);
-  }
-  const parentRelationships = new Set(
-    input.skillRelationships
-      .filter(({ relationshipType }) => relationshipType.trim().toLocaleLowerCase("en-US") === "parent")
-      .map(({ skillId, relatedSkillId }) => `${skillId}:${relatedSkillId}`),
-  );
-  const allocationPaths = new Map<number, AllocationPathResult>();
-  for (const allocation of input.allocations) {
-    allocationPaths.set(
-      allocation.id,
-      duplicateAllocationIds.has(allocation.id)
-        ? { valid: false, explanation: `Allocation identity #${allocation.id} appears more than once.` }
-        : allocationPath(
-            allocation,
-            allocationsById,
-            input.context.characterId,
-            parentRelationships,
-          ),
-    );
-  }
-  const skillsById = new Map(input.skillCatalog.map((entry) => [entry.id, entry]));
-  const ranks = getCharacterSkillRanks(characterDraft(input), input.skillCatalog, input.race ?? null);
+  const { allocationsById, allocationPaths, skillsById, ranks } = prepareCharacterSkillLineage(input);
   const normal = normalResolution(input, allocationsById, allocationPaths, ranks, skillsById);
 
   const oneAction = input.oneActionOverride ?? null;
   if (oneAction) {
     const reason = normalizedReason(oneAction.reason);
-    let resolved: ResolvedSelection | null = null;
+    let resolved: CharacterSkillLineageResolvedSelection | null = null;
     if (reason && oneAction.kind === "manual") {
       const label = typeof oneAction.label === "string" ? oneAction.label.trim() : "";
       if (

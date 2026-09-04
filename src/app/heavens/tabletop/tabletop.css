@@ -439,7 +439,126 @@
   text-transform: uppercase;
 }
 
+.defense-intervention-workspace {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgb(170 215 236 / 18%);
+}
+
+.defense-intervention-workspace > header,
+.defense-opportunity-list article > header,
+.defense-resolution-list > article > header,
+.defense-reaction-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.defense-intervention-workspace > header span,
+.defense-opportunity-list article > header span,
+.defense-resolution-list > article > header span,
+.defense-reaction-card span {
+  display: block;
+  color: #9fc8dc;
+  font-size: .64rem;
+  letter-spacing: .11em;
+}
+
+.defense-intervention-workspace h6 {
+  margin: 3px 0 0;
+  font-size: 1.12rem;
+}
+
+.defense-opportunity-list,
+.defense-resolution-list {
+  display: grid;
+  gap: 12px;
+}
+
+.defense-opportunity-list > article,
+.defense-resolution-list > article {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgb(170 215 236 / 14%);
+  border-radius: 12px;
+  background: rgb(4 14 23 / 45%);
+}
+
+.defense-declaration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.defense-declaration-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.defense-declaration-grid .is-wide {
+  grid-column: 1 / -1;
+}
+
+.defense-roll-controls,
+.defense-reaction-card > div:last-of-type {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.defense-reaction-card {
+  padding: 10px 0;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.defense-reaction-card small {
+  display: block;
+  color: #9ba9b2;
+}
+
+.defense-reaction-card details {
+  flex-basis: 100%;
+}
+
+.defense-mapping-review ul,
+.defense-reaction-card ol {
+  margin: 9px 0 0;
+  padding-left: 20px;
+}
+
+.defense-mapping-editor {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, .7fr) auto;
+  gap: 9px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.defense-mapping-editor label {
+  display: grid;
+  gap: 5px;
+}
+
 @media(max-width:620px) {
+  .defense-declaration-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .defense-mapping-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .defense-intervention-workspace > header,
+  .defense-opportunity-list article > header,
+  .defense-resolution-list > article > header,
+  .defense-reaction-card {
+    flex-direction: column;
+  }
+
   .tabletop-campaign-intro-control {
     align-items: stretch;
     flex-direction: column;

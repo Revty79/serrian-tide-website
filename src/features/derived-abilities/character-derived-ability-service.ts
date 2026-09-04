@@ -96,7 +96,7 @@ type AccessEntity = {
   isCampaignMember: boolean;
 };
 
-type LoadedCharacterDerivedAbilities = {
+export type LoadedCharacterDerivedAbilities = {
   entity: AccessEntity;
   catalog: DerivedAbilityDefinition[];
   ownerships: CharacterDerivedAbilityOwnership[];
@@ -227,7 +227,7 @@ function assertCampaignGod(
   }
 }
 
-async function loadCharacterDerivedAbilitiesInTransaction(
+export async function loadCharacterDerivedAbilitiesInTransaction(
   tx: CharacterDerivedAbilityTransaction,
   characterId: number,
   userId: string,

@@ -42,6 +42,7 @@ import {
   adjustPendingInitiativeActionRemainingCost,
   completePendingInitiativeActionManually,
   endPendingInitiativeAction,
+  extendPendingInitiativeActionCost,
   interruptPendingInitiativeAction,
   restartPendingInitiativeAction,
   resumePendingInitiativeAction,
@@ -101,6 +102,7 @@ export type ActionDeclarationView = Readonly<{
     status: "active" | "interrupted" | "completed" | "abandoned" | "ended";
     startInitiative: number;
     initiativeSpent: number;
+    additionalInitiativeCost: number;
     remainingInitiativeCost: number;
     expectedCompletionInitiative: number;
     startedRound: number;
@@ -155,6 +157,12 @@ function positiveId(value: number, label: string): number {
   return value;
 }
 
+
+function participantKey(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
 function boundedReason(value: string, label: string, required = true): string {
   if (typeof value !== "string") throw new Error(`${label} is invalid.`);
   const reason = value.trim();
@@ -201,7 +209,7 @@ async function assertParticipants(
   context: OwnedEncounterRuntimeContext,
   characterIds: readonly number[],
 ): Promise<void> {
-  const expected = [...new Set(characterIds.map((id) => positiveId(id, "Encounter Participant")))];
+  const expected = [...new Set(characterIds.map((id) => participantKey(id, "Encounter Participant")))];
   const rows = expected.length ? await tx.select({ characterId: campaignSessionEncounterParticipant.characterId })
     .from(campaignSessionEncounterParticipant)
     .where(and(
@@ -316,6 +324,14 @@ async function buildAuthoritativeSnapshot(
   let authoritativeSourceRef = draft.sourceRef;
   if (draft.sourceKind !== "generic" && draft.sourceKind !== "weapon") {
     throw new Error("This action source cannot yet be authoritatively locked by the Pass 6 declaration foundation.");
+  }
+  if (draft.sourceKind === "generic" && draft.actorCharacterId < 0) {
+    governing = {
+      status: "needs-god-ruling",
+      source: null,
+      rollOverTarget: null,
+      explanation: "This encounter Creature action has no selected exact authored source. The G.O.D. must supply an explicit ruling; no Character Skill, inventory, or weapon governance was inferred.",
+    };
   }
   if (draft.sourceKind === "weapon") {
     const equipment = await readCharacterEquipmentStateInTransaction(tx, draft.actorCharacterId);
@@ -496,9 +512,11 @@ async function insertObjectiveOpportunities(
   startInitiative: number,
   participants: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>["participants"],
   windowSequence = 1,
+  excludedResponderIds: ReadonlySet<number> = new Set(),
 ): Promise<number> {
   const window = deriveActionWindow(startInitiative, snapshot);
-  const candidates = deriveResponderCandidates(window, snapshot.actorCharacterId, participants).filter(({ included }) => included);
+  const candidates = deriveResponderCandidates(window, snapshot.actorCharacterId, participants)
+    .filter(({ included, characterId }) => included && !excludedResponderIds.has(characterId));
   if (candidates.length) {
     await tx.insert(campaignSessionEncounterResponderOpportunity).values(candidates.map((candidate) => ({
       declarationId,
@@ -621,6 +639,81 @@ async function reconcileRollingReadiness(
   await recordEvent(tx, context, row.id, "committed", nextStatus, "window-reconciled", actorUserId);
 }
 
+export async function refreshActionDeclarationRollingReadinessInTransaction(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  declarationId: number,
+  actorUserId: string,
+): Promise<void> {
+  await reconcileRollingReadiness(tx, context, await lockDeclaration(tx, context, declarationId), actorUserId);
+}
+
+export async function recordActionDeclarationAuditEventInTransaction(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  declarationId: number,
+  status: ActionDeclarationStatus,
+  eventKind: string,
+  actorUserId: string,
+  reason = "",
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  await recordEvent(tx, context, declarationId, status, status, eventKind, actorUserId, reason, metadata);
+}
+
+export async function extendActionDeclarationCostInTransaction(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  declarationId: number,
+  additionalCost: number,
+  actorUserId: string,
+  reason: string,
+): Promise<{ opportunityCount: number; previousCompletion: number; expectedCompletion: number }> {
+  const row = await lockDeclaration(tx, context, declarationId);
+  if (row.pendingActionId === null || !["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) {
+    throw new Error("Only an active committed declaration may receive a defense cost extension.");
+  }
+  const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
+  const before = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  const prior = before.pendingActions.find(({ id }) => id === row.pendingActionId);
+  if (!prior) throw new Error("The declaration's pending action no longer exists.");
+  const previousCompletion = prior.expectedCompletionInitiative;
+  const after = extendPendingInitiativeActionCost(before, prior.id, additionalCost);
+  await persistInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context, before, after);
+  const changed = after.pendingActions.find(({ id }) => id === prior.id)!;
+  const existing = await tx.select({
+    responderCharacterId: campaignSessionEncounterResponderOpportunity.responderCharacterId,
+    windowSequence: campaignSessionEncounterResponderOpportunity.windowSequence,
+  }).from(campaignSessionEncounterResponderOpportunity).where(
+    eq(campaignSessionEncounterResponderOpportunity.declarationId, row.id),
+  );
+  const windowSequence = Math.max(0, ...existing.map(({ windowSequence }) => windowSequence)) + 1;
+  const opportunityCount = await insertObjectiveOpportunities(
+    tx,
+    context,
+    row.id,
+    prior.id,
+    { ...snapshot, initiativeCost: additionalCost },
+    previousCompletion,
+    after.participants,
+    windowSequence,
+    new Set(existing.map(({ responderCharacterId }) => responderCharacterId)),
+  );
+  const nextStatus = opportunityCount > 0 ? "committed" as const : row.status;
+  if (nextStatus !== row.status) {
+    await tx.update(campaignSessionEncounterActionDeclaration).set({ status: nextStatus, updatedAt: new Date() })
+      .where(eq(campaignSessionEncounterActionDeclaration.id, row.id));
+  }
+  await recordEvent(tx, context, row.id, row.status, nextStatus, "defense-cost-extension", actorUserId, reason, {
+    additionalCost,
+    previousCompletionInitiative: previousCompletion,
+    expectedCompletionInitiative: changed.expectedCompletionInitiative,
+    opportunityCount,
+    windowSequence,
+  });
+  return { opportunityCount, previousCompletion, expectedCompletion: changed.expectedCompletionInitiative };
+}
+
 export async function reconcileResponderOpportunityInTransaction(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -680,7 +773,7 @@ export async function addExceptionalResponderOpportunityInTransaction(
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "committed") throw new Error("Exceptional responders may be added only while the declaration window is open.");
   const reason = boundedReason(reasonInput, "Exceptional responder reason");
-  const responderId = positiveId(responderCharacterId, "Responder Character");
+  const responderId = participantKey(responderCharacterId, "Responder Participant");
   if (responderId === row.actorCharacterId) throw new Error("The acting Character cannot respond to their own action.");
   await assertParticipants(tx, context, [responderId]);
   const [pending] = row.pendingActionId === null ? [] : await tx.select({
@@ -1111,6 +1204,29 @@ export async function assertActionRollAllowedInTransaction(
   return { declarationId: row.id, status: row.status };
 }
 
+export async function assertResponseRollAllowedInTransaction(
+  tx: ActionDeclarationTransaction,
+  declarationId: number,
+): Promise<{ declarationId: number; status: ActionDeclarationStatus }> {
+  const [row] = await tx.select({
+    id: campaignSessionEncounterActionDeclaration.id,
+    status: campaignSessionEncounterActionDeclaration.status,
+  }).from(campaignSessionEncounterActionDeclaration)
+    .where(eq(campaignSessionEncounterActionDeclaration.id, positiveId(declarationId, "Action declaration")))
+    .limit(1)
+    .for("update");
+  if (!row || !["rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) {
+    throw new Error("A response Roll requires a fully reconciled locked action window.");
+  }
+  const opportunities = await tx.select({ status: campaignSessionEncounterResponderOpportunity.status })
+    .from(campaignSessionEncounterResponderOpportunity)
+    .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, row.id));
+  if (!responderOpportunitiesAreReconciled(opportunities)) {
+    throw new Error("Every responder opportunity must be reconciled before any related Roll.");
+  }
+  return { declarationId: row.id, status: row.status };
+}
+
 export async function recordActionRollStateInTransaction(
   tx: ActionDeclarationTransaction,
   pendingActionId: number,
@@ -1215,10 +1331,12 @@ export async function readActionDeclarationWorkspaceInTransaction(
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may review all declarations.");
   const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const identities = await tx.select({
-    characterId: campaignCharacter.id,
+    characterId: campaignSessionEncounterParticipant.characterId,
+    participantKind: campaignSessionEncounterParticipant.participantKind,
+    displayLabel: campaignSessionEncounterParticipant.displayLabel,
     name: campaignCharacter.name,
   }).from(campaignSessionEncounterParticipant)
-    .innerJoin(campaignCharacter, and(
+    .leftJoin(campaignCharacter, and(
       eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId),
       eq(campaignCharacter.campaignId, campaignSessionEncounterParticipant.campaignId),
     ))
@@ -1228,7 +1346,10 @@ export async function readActionDeclarationWorkspaceInTransaction(
       eq(campaignSessionEncounterParticipant.sessionId, context.sessionId),
       eq(campaignSessionEncounterParticipant.campaignId, context.campaignId),
     ));
-  const names = new Map(identities.map((entry) => [entry.characterId, entry.name]));
+  const names = new Map(identities.map((entry) => [
+    entry.characterId,
+    entry.participantKind === "creature" ? entry.displayLabel : entry.name ?? `Character #${entry.characterId}`,
+  ]));
   const declarationRows = await tx.select().from(campaignSessionEncounterActionDeclaration)
     .where(eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclaration.id));
@@ -1257,6 +1378,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
         status: pending.status,
         startInitiative: pending.startInitiative,
         initiativeSpent: pending.initiativeSpent,
+        additionalInitiativeCost: pending.additionalInitiativeCost ?? 0,
         remainingInitiativeCost: pending.remainingInitiativeCost,
         expectedCompletionInitiative: pending.expectedCompletionInitiative,
         startedRound: pending.startedRound,
@@ -1303,6 +1425,10 @@ export async function readActionDeclarationWorkspaceInTransaction(
   const activeIds = new Set(engine.pendingActions.filter(({ status }) => status === "active").map(({ actorCharacterId }) => actorCharacterId));
   const weaponsByCharacter = new Map<number, ActionDeclarationWorkspaceView["participants"][number]["weapons"]>();
   for (const participant of engine.participants) {
+    if (participant.characterId < 0) {
+      weaponsByCharacter.set(participant.characterId, []);
+      continue;
+    }
     try {
       const equipment = await readCharacterEquipmentStateInTransaction(tx, participant.characterId);
       weaponsByCharacter.set(participant.characterId, equipment.wieldedWeapons.map((weapon) => ({

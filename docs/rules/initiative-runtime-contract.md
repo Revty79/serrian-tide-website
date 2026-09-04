@@ -1137,3 +1137,19 @@ That principle explains:
 * tactical timing.
 
 Any future Initiative rule should preserve that principle.
+
+---
+
+# 49. Pass 7 Defense and Intervention Reconciliation
+
+Pass 7 responses consume only persisted Pass 6 responder opportunities. Every opportunity is explicitly reconciled before the original action may Roll. No Defense costs zero and creates no Roll. Dodge costs exactly 1. Parry and Block commit the defending Item's full authored or explicitly ruled Initiative Cost. Tackle costs exactly 3. A general Intervention commits its explicit authored or G.O.D.-assigned cost. Every nonzero commitment is paid atomically before its immutable response Roll and cannot voluntarily overspend Current Initiative.
+
+Dodge resolves configured, approved canonical Skill endpoints through the Character's exact `campaign_character_skill_allocation.parent_allocation_id` chain. It never matches names, tiers, classifications, or sibling branches. Conditional paths require a recorded G.O.D. circumstance approval. If an exact path has no owned allocation, its canonical root Attribute fallback applies. Tied lowest roll-over targets remain visible rather than being combined.
+
+Attack and response Rolls use the immutable Roll ledger. Opposition delegates to `compareAttackAndDefense`; defense-favored ordinary ties and the approved attacker double-ott matching-level exception remain unchanged. Multiple defenders are compared independently. Their successes never stack. A successful Parry or Block refunds the defender to final cost 1 and adds that response's full original Item cost to the attacker's pending action. That addition is recorded separately, extends the existing completion point without rewinding time, and opens only newly crossed responder positions.
+
+Tackle is an intervention against the person being moved. A cooperating target records No Defense; a resisting or unaware target may provide a separately declared opposed response. A successful firearm rescue may record that the original target left the bullet path, but never transfers the bullet to the tackler. Non-firearm Tackles and general Interventions pause for the G.O.D. to continue, modify, retarget, or cancel the original action.
+
+Critical comparisons preserve their objective success counts and pause for an explicit G.O.D. ruling. This layer records comparisons, Initiative reconciliation, and dispositions only. It never applies damage, Health, armor, soak, Conditions, ammunition, movement, tactics, or narrative consequences.
+
+Canonical Creature Catalog entries enter an Encounter as encounter-scoped occurrences, never as automatic Campaign NPCs. Each occurrence retains an exact canonical Creature reference plus its own stable participant identity, display label, frozen snapshot, and mutable local state. Initiative capacity and exact numeric authored defenses resolve from that snapshot. Missing Creature mechanics produce an explicit G.O.D.-ruling state; the runtime never invents Character Skill allocations, inventory, or weapon governance for a Creature.

@@ -226,11 +226,11 @@ Reaction opportunity comes only from the Initiative engine. Dodge commits 1 Init
 
 A successful Block or Parry refunds the defender's committed cost minus 1 and applies only the defending Weapon cost as additional attacker cost, because the attack's own cost has already elapsed. The shared timeline never rewinds. A failed defense keeps its committed cost and adds no attacker cost. If its source action is interrupted or ended first, the Reaction becomes `needs-ruling` so the G.O.D. explicitly keeps or refunds the commitment.
 
-### Creature Catalog spawning
+### Creature Catalog encounter occurrences
 
-Creature Catalog spawning creates real Creature NPC `campaign_character` records through the same canonical constructor used by NPC management. A single caller-owned transaction loads the master Creature, builds the canonical snapshot, creates each independent NPC, and inserts Session Roster, Scene Member, and Encounter Participant references. Quantity naming is deterministic within the batch. Optional active-Initiative enrollment uses late-entry rules and never changes the shared timeline; it is never implied by merely adding the Creature.
+The Campaign roster remains limited to Player Characters and deliberately persistent Campaign NPCs. Creature Catalog selection instead creates only an Encounter Participant occurrence: it stores a stable encounter-participant identity, the exact canonical Creature ID, a frozen encounter snapshot, an encounter-local display label, and mutable encounter-local state. It creates no `campaign_character`, Creature NPC profile, Session Roster, or Scene Member row. Multiple occurrences may reference one canonical Creature without duplicating or mutating it.
 
-Master Creature records remain reusable templates and never participate directly. Spawned Creature NPCs own independent Active Health and current snapshots. Any failure rolls back the entire batch and all membership/enrollment writes.
+The compatibility runtime key used by existing Initiative, pending-action, Reaction, and Roll records is negative and scoped through the Encounter Participant record; it is never a Character ID and never has a `campaign_character` row. Optional active-Initiative enrollment derives capacity from the occurrence snapshot, uses late-entry rules, and never moves the shared timeline. Deleting an eligible occurrence cascades only encounter-owned state; canonical Creature data remains restricted and untouched. Persistent Creature NPCs created deliberately through NPC management retain their existing Character/NPC/roster path and history.
 
 ### Tabletop-aid authority
 
@@ -340,3 +340,29 @@ The G.O.D. Tabletop declaration workspace is the only new mutation surface in th
 The pure `calculateHasTheRun` result reports the nearest mechanically capable interferer, the exclusive maximum cost that stays ahead, the next reached Character, per-Participant inclusion explanations, active-action conflicts, and whether fiction still needs G.O.D. judgment. Holding remains capable; Passed and suspended state follow the authoritative Initiative engine. It selects no action and makes no tactical decision.
 
 Open draft, locked, committed, rolling, ruling, or interrupted declarations block Encounter and Session closeout. Resolved, cancelled, and abandoned history remains readable. Pass 6 performs no Dodge, Parry, Block, Tackle, defense comparison, damage, Health, armor, ammunition, readiness, Aim calculation, Called Shot calculation, tactical selection, condition application, or automatic Reaction.
+
+## Pass 7 Defense and Intervention Runtime
+
+Pass 7 extends the existing `campaign_session_encounter_reaction` record rather than creating a second Reaction system. A Pass 7 row points back through an exact persisted responder opportunity to the locked action declaration and pending action. Its versioned declaration snapshot freezes responder, protected target, opposed Tackle identity, response type, exact source, governing Roll target, modifiers, cost, purpose, approval, author, and timestamp. Nullable additions keep legacy Reaction history readable. Append-only Reaction events preserve declaration, Roll, objective resolution, cancellation, cost reconciliation, and G.O.D. ruling history.
+
+```text
+Pass 6 locked action and pending action
+                  |
+      persisted responder opportunity
+                  |
+      existing Reaction plus frozen source
+            /                 \
+ immutable Roll ledger    append-only events
+            \                 /
+       Pass 1 objective comparison
+                  |
+ Initiative refund / pending-action extension
+                  |
+      explicit original-action disposition
+```
+
+Global `defense_skill_path_mapping` rows author approved Dodge endpoint Skills without hard-coded combat Skill names. Character resolution shares the exact weapon-governance allocation-lineage implementation, including canonical root-Attribute fallback and branch-ambiguity rejection. Parry and Block reload exact currently wielded ownership, Character weapon governance, and authoritative Item cost before commitment. Missing Item cost is never guessed.
+
+The Roll barrier rejects initial response declarations after a related Roll and rejects any Roll until every Pass 6 opportunity is reconciled. One immutable attack slot belongs to the pending action; one immutable response slot belongs to each rolling Reaction. The server reloads their effective amendment history before comparison. A stored Roll alone performs no resolution.
+
+Objective reconciliation is idempotent. Successful Parry/Block refunds are applied once; their full committed Item costs extend the one existing pending action through the shared Initiative engine. Original and additional costs remain separate, the timeline does not rewind, and prior responder opportunities are not duplicated. Critical collisions and general Interventions remain paused until an owning G.O.D. records a disposition. Service authorization permits a Player to declare or Roll only their assigned non-NPC Character's response; fictional eligibility, exceptional responders, Intervention adjudication, and critical rulings remain G.O.D.-only. The current UI exposes those governance controls only in G.O.D. Tabletop; a complete Player combat surface remains future work.

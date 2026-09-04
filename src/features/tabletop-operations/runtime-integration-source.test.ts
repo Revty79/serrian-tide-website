@@ -39,16 +39,20 @@ test("Encounter authorization and idempotency are enforced server-side", () => {
   assert.match(service, /markBindingFinished/);
 });
 
-test("Creature Catalog spawning creates real NPCs and all membership inside one caller transaction", () => {
+test("Creature Catalog spawning creates only direct encounter-scoped occurrences", () => {
   const spawn = read("src/features/tabletop-operations/creature-spawn-service.ts");
-  const constructor = read("src/features/creatures/creature-npc-constructor-service.ts");
   const action = read("src/app/heavens/tabletop/runtime-integration-actions.ts");
-  assert.match(spawn, /createCreatureNpcInTransaction/);
-  assert.match(spawn, /campaignSessionRoster/);
-  assert.match(spawn, /campaignSessionSceneMember/);
+  assert.doesNotMatch(spawn, /createCreatureNpcInTransaction/);
+  assert.doesNotMatch(spawn, /campaignSessionRoster/);
+  assert.doesNotMatch(spawn, /campaignSessionSceneMember/);
   assert.match(spawn, /campaignSessionEncounterParticipant/);
+  assert.match(spawn, /participantKind: "creature"/);
+  assert.match(spawn, /creatureSnapshotJson: snapshot/);
   assert.match(spawn, /enrollSpawnedCreatureInInitiativeInTransaction/);
-  assert.match(constructor, /campaignCreatureNpcProfile/);
+  const runtime = read("src/features/tabletop-operations/runtime-integration-service.ts");
+  assert.match(runtime, /DirectCreatureAbilityRuling/);
+  assert.match(runtime, /sourceKind: "creature-ability"/);
+  assert.match(runtime, /no Character Skill, inventory, weapon governance, or Health state was inferred/);
   assert.match(action, /spawnEncounterCreaturesInTransaction\(tx, context/);
 });
 

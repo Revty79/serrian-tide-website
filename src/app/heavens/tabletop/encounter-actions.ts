@@ -60,7 +60,16 @@ export type CampaignEncounterSummary = {
   participantCount: number;
 };
 
-export type EncounterParticipantView = SceneMemberView & {
+export type EncounterParticipantView = {
+  participantId: number;
+  characterId: number;
+  creatureId: number | null;
+  name: string;
+  kind: SceneMemberView["kind"] | "creature";
+  kindLabel: string;
+  playerName: string | null;
+  creatureTemplateName: string | null;
+  sortOrder: number;
   prepNotes: string;
 };
 
@@ -123,6 +132,10 @@ type TabletopTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function assertPositiveId(value: number, label: string): void {
   if (!Number.isInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
+}
+
+function assertParticipantKey(value: number): void {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error("Encounter Participant is invalid.");
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -277,8 +290,12 @@ export async function getSceneEncounterWorkspace(
       .orderBy(asc(campaignSessionEncounter.sequenceNumber), asc(campaignSessionEncounter.id)),
     db
       .select({
+        participantId: campaignSessionEncounterParticipant.participantId,
         encounterId: campaignSessionEncounterParticipant.encounterId,
         characterId: campaignSessionEncounterParticipant.characterId,
+        participantKind: campaignSessionEncounterParticipant.participantKind,
+        creatureId: campaignSessionEncounterParticipant.creatureId,
+        displayLabel: campaignSessionEncounterParticipant.displayLabel,
         sortOrder: campaignSessionEncounterParticipant.sortOrder,
         prepNotes: campaignSessionEncounterParticipant.prepNotes,
       })
@@ -320,11 +337,25 @@ export async function getSceneEncounterWorkspace(
   const scene = sceneWorkspace.selectedScene;
   if (!scene || scene.id !== sceneId) throw new Error("That Scene is no longer available.");
   const membersByCharacterId = new Map(scene.members.map((entry) => [entry.characterId, entry]));
-  const participants = participantRows
-    .filter(({ encounterId }) => encounterId === selectedEncounterId)
+  const selectedParticipantRows = participantRows.filter(({ encounterId }) => encounterId === selectedEncounterId);
+  const participants = selectedParticipantRows
     .flatMap((row): EncounterParticipantView[] => {
+      if (row.participantKind === "creature" && row.creatureId !== null) {
+        return [{
+          participantId: row.participantId,
+          characterId: row.characterId,
+          creatureId: row.creatureId,
+          name: row.displayLabel,
+          kind: "creature",
+          kindLabel: "Encounter Creature",
+          playerName: null,
+          creatureTemplateName: row.displayLabel.replace(/ \d+$/, ""),
+          sortOrder: row.sortOrder,
+          prepNotes: row.prepNotes,
+        }];
+      }
       const member = membersByCharacterId.get(row.characterId);
-      return member ? [{ ...member, sortOrder: row.sortOrder, prepNotes: row.prepNotes }] : [];
+      return member ? [{ participantId: row.participantId, creatureId: null, ...member, sortOrder: row.sortOrder, prepNotes: row.prepNotes }] : [];
     });
   const participantIds = new Set(participants.map(({ characterId }) => characterId));
   const selectedSummary = encounters.find(({ id }) => id === selectedEncounterId)!;
@@ -583,7 +614,7 @@ export async function removeCampaignSessionEncounterParticipant(
 ): Promise<void> {
   const access = await requireGod();
   assertPositiveId(encounterId, "Encounter");
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId);
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertEncounterIsEditable(locked.status, locked.sessionStatus, locked.sceneStatus);
@@ -607,7 +638,7 @@ export async function removeCampaignSessionEncounterParticipant(
       .returning({ characterId: campaignSessionEncounterParticipant.characterId });
     if (!removed.length) throw new Error("That Character or NPC is not an Encounter Participant.");
     await normalizePersistedParticipantOrder(tx, encounterId);
-    await publishEncounterHierarchy(tx, locked, [characterId]);
+    await publishEncounterHierarchy(tx, locked, characterId > 0 ? [characterId] : []);
   });
   refreshEncounters();
 }
@@ -619,7 +650,7 @@ export async function moveCampaignSessionEncounterParticipant(
 ): Promise<void> {
   const access = await requireGod();
   assertPositiveId(encounterId, "Encounter");
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId);
   if (direction !== "up" && direction !== "down") throw new Error("Encounter Participant movement is invalid.");
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
@@ -651,7 +682,7 @@ export async function updateEncounterParticipantPrepNotes(
 ): Promise<void> {
   const access = await requireGod();
   assertPositiveId(encounterId, "Encounter");
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId);
   const normalizedNotes = normalizeParticipantPrepNotes(prepNotes);
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);

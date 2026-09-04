@@ -22,7 +22,7 @@ export type InitiativeTrackerRuntimeInput = {
 export type InitiativeTrackerIdentityInput = {
   characterId: number;
   name: string;
-  kind: SessionRosterEntityKind;
+  kind: SessionRosterEntityKind | "creature";
   kindLabel: string;
   playerName: string | null;
   creatureTemplateName: string | null;

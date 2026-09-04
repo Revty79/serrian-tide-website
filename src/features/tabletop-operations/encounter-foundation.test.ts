@@ -82,7 +82,7 @@ test("Session and Scene lifecycle jointly govern preparation and live Encounter 
   assert.throws(() => assertParentsAllowLiveEncounter("active", "planned"), /Session and Scene are active/);
 });
 
-test("Participants must be Scene Members and maintain stable preparation order and notes", () => {
+test("Campaign Character/NPC Participants must be Scene Members and retain stable preparation order and notes", () => {
   assert.doesNotThrow(() => assertParticipantBelongsToScene(3, 3));
   assert.throws(() => assertParticipantBelongsToScene(3, 4), /must already belong/);
   const unordered = [
@@ -123,10 +123,12 @@ test("Encounter schema is an organizational layer with constrained parent and Pa
     'prepNotes: text("prep_notes")',
   ]) assert.ok(encounterSchema.includes(field), `Encounter schema is missing ${field}`);
   assert.match(encounterSchema, /campaign_session_encounter_one_active_per_scene_uq/);
-  assert.match(encounterSchema, /campaign_session_encounter_participant_scene_member_fk/);
-  assert.match(encounterSchema, /foreignColumns: \[campaignSessionSceneMember\.sceneId, campaignSessionSceneMember\.characterId\]/);
+  assert.match(encounterSchema, /participantId: serial\("participant_id"\)/);
+  assert.match(encounterSchema, /participantKind: text\("participant_kind"\)/);
+  assert.match(encounterSchema, /creatureId: integer\("creature_id"\)/);
+  assert.match(encounterSchema, /campaign_session_encounter_participant_source_valid/);
   assert.match(encounterSchema, /onDelete\("restrict"\)/);
-  for (const copiedField of ["character_name", "player_name", "health", "mana", "condition", "inventory", "equipment", "snapshot", "initiative", "turn_order", "initiative_cost"]) {
+  for (const copiedField of ["character_name", "player_name", "mana", "inventory", "equipment", "turn_order", "initiative_cost"]) {
     assert.equal(encounterSchema.includes(`"${copiedField}"`), false, `${copiedField} must not be copied into Encounter persistence`);
   }
 });
@@ -200,7 +202,7 @@ test("migration 0008 is additive and contains only Encounter and Participant per
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
   assert.doesNotMatch(migration, /CREATE TABLE "(?:encounter_health|encounter_mana|encounter_inventory|encounter_condition|encounter_equipment|encounter_snapshot|initiative|combat_action|turn_state)/i);
-  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0025_snapshot\.json/);
+  assert.match(readSource("scripts/verify-runtime-foundation-schema.mjs"), /0026_snapshot\.json/);
 });
 
 test("Build 4 Encounter identity remains the foundation used by Build 5 Initiative", () => {

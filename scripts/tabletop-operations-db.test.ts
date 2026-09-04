@@ -585,18 +585,7 @@ test("the database prevents two active Encounters in one Scene", async () => {
   }), (error: unknown) => /campaign_session_encounter_one_active_per_scene_uq|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
 });
 
-test("the database rejects non-Scene, duplicate, and cross-Scene/Session/Campaign Encounter Participants", async () => {
-  await assert.rejects(db.transaction(async (tx) => {
-    const fixture = await insertEncounterFixture(tx);
-    await tx.insert(campaignSessionEncounterParticipant).values({
-      encounterId: fixture.encounterId,
-      sceneId: fixture.sceneId,
-      sessionId: fixture.sessionId,
-      campaignId: fixture.campaignId,
-      characterId: fixture.rosterOnlyId,
-    });
-  }), (error: unknown) => /campaign_session_encounter_participant_scene_member_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
-
+test("the database rejects duplicate and cross-Scene/Session/Campaign Encounter Participants", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const fixture = await insertEncounterFixture(tx);
     const participant = {
@@ -703,7 +692,7 @@ test("the database rejects non-Scene, duplicate, and cross-Scene/Session/Campaig
   }), (error: unknown) => /campaign_session_encounter_participant_encounter_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
 });
 
-test("Encounter Participant history restricts Scene-member deletion", async () => {
+test("Encounter Participant history remains stable when Scene membership changes", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const fixture = await insertEncounterFixture(tx);
     await tx.insert(campaignSessionEncounterParticipant).values({
@@ -717,7 +706,22 @@ test("Encounter Participant history restricts Scene-member deletion", async () =
       eq(campaignSessionSceneMember.sceneId, fixture.sceneId),
       eq(campaignSessionSceneMember.characterId, fixture.participantId),
     ));
-  }), (error: unknown) => /campaign_session_encounter_participant_scene_member_fk|foreign key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+    const [participantCount] = await tx.select({ value: count() })
+      .from(campaignSessionEncounterParticipant)
+      .where(and(
+        eq(campaignSessionEncounterParticipant.encounterId, fixture.encounterId),
+        eq(campaignSessionEncounterParticipant.characterId, fixture.participantId),
+      ));
+    const [memberCount] = await tx.select({ value: count() })
+      .from(campaignSessionSceneMember)
+      .where(and(
+        eq(campaignSessionSceneMember.sceneId, fixture.sceneId),
+        eq(campaignSessionSceneMember.characterId, fixture.participantId),
+      ));
+    assert.equal(Number(participantCount?.value ?? 0), 1);
+    assert.equal(Number(memberCount?.value ?? 0), 0);
+    throw ROLLBACK;
+  }), (error: unknown) => error === ROLLBACK);
 });
 
 test("deleting a planned Encounter cascades only its Participants", async () => {

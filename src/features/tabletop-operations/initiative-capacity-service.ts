@@ -3,6 +3,9 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { raceMovementMode } from "@/db/race-schema";
 import {
+  campaignSessionEncounterParticipant,
+} from "@/db/tabletop-operations-schema";
+import {
   campaignCharacter,
   campaignCharacterAttribute,
   campaignCharacterProfile,
@@ -58,13 +61,10 @@ function selectMovementMode(
   return selected;
 }
 
-function parseCreatureSnapshot(value: string): CreatureStatisticsSource {
+function parseCreatureSnapshot(value: unknown): CreatureStatisticsSource {
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(value);
-  } catch {
-    throw new Error("The Creature NPC current snapshot is not valid JSON.");
-  }
+  try { parsed = typeof value === "string" ? JSON.parse(value) : value; }
+  catch { throw new Error("The Creature current snapshot is not valid JSON."); }
   if (typeof parsed !== "object" || parsed === null) {
     throw new Error("The Creature NPC current snapshot is invalid.");
   }
@@ -96,6 +96,29 @@ export async function resolveInitiativeCapacityOptionsInTransaction(
   characterId: number,
   expectedCampaignId: number,
 ): Promise<ResolvedInitiativeCapacityOptions> {
+  if (Number.isSafeInteger(characterId) && characterId < 0) {
+    const [occurrence] = await tx.select({
+      campaignId: campaignSessionEncounterParticipant.campaignId,
+      participantKind: campaignSessionEncounterParticipant.participantKind,
+      snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson,
+    }).from(campaignSessionEncounterParticipant).where(and(
+      eq(campaignSessionEncounterParticipant.characterId, characterId),
+      eq(campaignSessionEncounterParticipant.campaignId, expectedCampaignId),
+    )).limit(1);
+    if (!occurrence || occurrence.participantKind !== "creature" || occurrence.snapshot === null) {
+      throw new Error("The Initiative Creature does not belong to this Campaign encounter.");
+    }
+    const effective = resolveEffectiveCreatureStatistics(parseCreatureSnapshot(occurrence.snapshot));
+    const dexterity = effective.attributeValues.Dexterity;
+    if (dexterity === null || !Number.isFinite(dexterity)) {
+      throw new Error("The encounter Creature snapshot has no usable effective Dexterity.");
+    }
+    const movementModes = effective.movement.flatMap(({ movementMode, effectiveValue }) => effectiveValue !== null && Number.isFinite(effectiveValue) && effectiveValue > 0
+      ? [{ movementMode, baseMovement: effectiveValue, normalTotalInitiative: calculateNormalTotalInitiative(dexterity, effectiveValue) }]
+      : []);
+    if (!movementModes.length) throw new Error("The Initiative Creature has no usable authored Movement mode.");
+    return { characterId, sourceKind: "creature-npc", dexterity, movementModes };
+  }
   const [character] = await tx
     .select({
       id: campaignCharacter.id,

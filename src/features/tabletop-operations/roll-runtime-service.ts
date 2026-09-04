@@ -61,8 +61,10 @@ import {
 import type { PercentileTargetModifier } from "./percentile-resolution";
 import {
   assertActionRollAllowedInTransaction,
+  assertResponseRollAllowedInTransaction,
   recordActionRollStateInTransaction,
 } from "./action-declaration-service";
+import { parseDefenseInterventionSnapshot } from "./defense-intervention";
 
 export type RollRuntimeTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -456,11 +458,22 @@ export async function recordRollInTransaction(
     if (request.rollerCharacterId !== null && request.rollerCharacterId !== action.actorCharacterId) {
       throw new Error("A linked action Roll must use that action's actor Character.");
     }
-    await assertActionRollAllowedInTransaction(tx, request.pendingActionId);
+    const declaration = await assertActionRollAllowedInTransaction(tx, request.pendingActionId);
+    if (declaration) {
+      const existing = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll).where(
+        eq(campaignSessionRoll.pendingActionId, request.pendingActionId),
+      ).limit(1);
+      if (existing[0]) throw new Error("This declaration's attack Roll slot already has immutable history.");
+    }
   }
 
   if (request.reactionId !== null) {
-    const [reaction] = await tx.select({ reactorCharacterId: campaignSessionEncounterReaction.reactorCharacterId })
+    const [reaction] = await tx.select({
+      reactorCharacterId: campaignSessionEncounterReaction.reactorCharacterId,
+      status: campaignSessionEncounterReaction.status,
+      declarationSnapshotJson: campaignSessionEncounterReaction.declarationSnapshotJson,
+      rollRequired: campaignSessionEncounterReaction.rollRequired,
+    })
       .from(campaignSessionEncounterReaction)
       .where(and(
         eq(campaignSessionEncounterReaction.id, request.reactionId),
@@ -472,6 +485,26 @@ export async function recordRollInTransaction(
     if (!reaction) throw new Error("That Reaction does not belong to the exact Roll Encounter.");
     if (request.rollerCharacterId === null || request.rollerCharacterId !== reaction.reactorCharacterId) {
       throw new Error("A linked Reaction Roll must use the reacting Character.");
+    }
+    if (reaction.declarationSnapshotJson !== null) {
+      const snapshot = parseDefenseInterventionSnapshot(reaction.declarationSnapshotJson);
+      if (reaction.status !== "declared" || reaction.rollRequired !== true || !snapshot.rollRequired) {
+        throw new Error("That defense/intervention declaration has no open Roll slot.");
+      }
+      await assertResponseRollAllowedInTransaction(tx, snapshot.actionDeclarationId);
+      const existing = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll)
+        .where(eq(campaignSessionRoll.reactionId, request.reactionId)).limit(1);
+      if (existing[0]) throw new Error("This response Roll slot already has immutable history.");
+      if (request.targetCharacterId !== snapshot.targetCharacterId) {
+        throw new Error("A response Roll must retain its locked target identity.");
+      }
+      const expectedMechanical = snapshot.source.governingSource === null ? null : normalizeRollMechanicalRequest({
+        governingSource: snapshot.source.governingSource,
+        modifiers: snapshot.explicitModifiers,
+      });
+      if (JSON.stringify(request.mechanical) !== JSON.stringify(expectedMechanical)) {
+        throw new Error("A response Roll must use its locked server-authoritative governing source and modifiers.");
+      }
     }
   }
 
@@ -682,6 +715,47 @@ export async function recordRollRulingInTransaction(
     { kind: "ruling", reason, rulingText },
   );
   return reloadAmendedRoll(tx, actor, locked.sessionId, locked.id);
+}
+
+export async function readEffectiveRollSnapshotInTransaction(
+  tx: RollRuntimeTransaction,
+  actor: AuthorizedRollActor,
+  rollId: number,
+): Promise<Readonly<{
+  id: number;
+  rollerCharacterId: number | null;
+  targetCharacterId: number | null;
+  pendingActionId: number | null;
+  reactionId: number | null;
+  status: "recorded" | "voided";
+  mechanicalSnapshot: RollMechanicalSnapshot | null;
+}>> {
+  const [row] = await tx.select().from(campaignSessionRoll).where(and(
+    eq(campaignSessionRoll.id, positiveId(rollId, "Roll")),
+    eq(campaignSessionRoll.campaignId, actor.campaignId),
+  )).limit(1);
+  if (!row) throw new Error("That immutable Roll does not belong to the authorized Campaign.");
+  if (actor.readAs === "player" && actor.characterId !== row.rollerCharacterId) {
+    throw new Error("A Player cannot inspect another Character's private Roll mechanics.");
+  }
+  const amendments = await tx.select().from(campaignSessionRollAmendment)
+    .where(and(
+      eq(campaignSessionRollAmendment.rollId, row.id),
+      eq(campaignSessionRollAmendment.campaignId, actor.campaignId),
+      eq(campaignSessionRollAmendment.sessionId, row.sessionId),
+    ))
+    .orderBy(asc(campaignSessionRollAmendment.id));
+  const correction = [...amendments].reverse().find(({ kind }) => kind === "correction");
+  const voided = row.status === "voided" || amendments.some(({ kind }) => kind === "void");
+  return {
+    id: row.id,
+    rollerCharacterId: row.rollerCharacterId,
+    targetCharacterId: row.targetCharacterId,
+    pendingActionId: row.pendingActionId,
+    reactionId: row.reactionId,
+    status: voided ? "voided" : "recorded",
+    mechanicalSnapshot: parseRollMechanicalSnapshot(correction?.mechanicalSnapshot ?? row.mechanicalSnapshot),
+  };
 }
 
 export async function readRollLedgerInTransaction(

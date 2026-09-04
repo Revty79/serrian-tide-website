@@ -38,6 +38,7 @@ export type PendingInitiativeActionState = {
   actionKind: string;
   allowsMultiRound: boolean;
   originalInitiativeCost: number;
+  additionalInitiativeCost?: number;
   initiativeSpent: number;
   remainingInitiativeCost: number;
   startInitiative: number;
@@ -89,6 +90,11 @@ function nonNegative(value: number, label: string): number {
 
 function positiveWhole(value: number, label: string): number {
   if (!Number.isInteger(value) || value <= 0) throw new Error(`${label} must be a positive whole number.`);
+  return value;
+}
+
+function participantKey(value: number): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error("Participant identity must be a nonzero whole number.");
   return value;
 }
 
@@ -182,7 +188,7 @@ export function initializeInitiativeRuntime(
   if (!entrants.length) throw new Error("Initiative requires at least one Encounter Participant.");
   const seen = new Set<number>();
   const participants = entrants.map((entry): InitiativeParticipantState => {
-    positiveWhole(entry.characterId, "Character");
+    participantKey(entry.characterId);
     if (seen.has(entry.characterId)) throw new Error("Initiative Participants must be unique.");
     seen.add(entry.characterId);
     const normal = positive(entry.normalTotalInitiative, "Normal Total Initiative");
@@ -217,7 +223,7 @@ export function enrollLateInitiativeParticipant(
   entrant: { characterId: number; normalTotalInitiative: number; movementMode: string },
 ): InitiativeEngineState {
   requireActiveRuntime(state);
-  positiveWhole(entrant.characterId, "Character");
+  participantKey(entrant.characterId);
   if (state.participants.some(({ characterId }) => characterId === entrant.characterId)) {
     throw new Error("That Character is already enrolled in Initiative.");
   }
@@ -358,6 +364,7 @@ export function startInitiativeAction(
     actionKind: input.actionKind?.trim() || "generic",
     allowsMultiRound: input.allowsMultiRound,
     originalInitiativeCost: initiativeCost,
+    additionalInitiativeCost: 0,
     initiativeSpent: 0,
     remainingInitiativeCost: initiativeCost,
     startInitiative: participant.currentInitiative,
@@ -678,6 +685,32 @@ export function adjustPendingInitiativeActionRemainingCost(
     expectedCompletionInitiative: action.status === "active"
       ? actor.currentInitiative - remaining
       : action.expectedCompletionInitiative,
+  });
+}
+
+/**
+ * Adds a forced, already-adjudicated cost to an existing action without
+ * rewriting its authored original cost or rewinding the shared timeline.
+ */
+export function extendPendingInitiativeActionCost(
+  state: InitiativeEngineState,
+  actionId: number,
+  additionalInitiativeCost: number,
+): InitiativeEngineState {
+  requireActiveRuntime(state);
+  const addition = positive(additionalInitiativeCost, "Additional Initiative Cost");
+  const action = actionById(state, actionId);
+  if (action.status !== "active" && action.status !== "completed") {
+    throw new Error("Only an active or just-completed action may receive a forced cost extension.");
+  }
+  const actor = participantById(state, action.actorCharacterId);
+  return replaceAction(state, {
+    ...action,
+    additionalInitiativeCost: (action.additionalInitiativeCost ?? 0) + addition,
+    remainingInitiativeCost: action.remainingInitiativeCost + addition,
+    expectedCompletionInitiative: actor.currentInitiative - (action.remainingInitiativeCost + addition),
+    status: "active",
+    completedRound: null,
   });
 }
 

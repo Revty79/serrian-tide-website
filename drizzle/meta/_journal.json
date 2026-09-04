@@ -183,6 +183,13 @@
       "when": 1788525219075,
       "tag": "0025_action_declaration_initiative_windows",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788531140976,
+      "tag": "0026_defense_intervention_runtime",
+      "breakpoints": true
     }
   ]
 }

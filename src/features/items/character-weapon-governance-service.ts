@@ -23,6 +23,7 @@ import { requireSession } from "@/lib/server-access";
 
 import {
   resolveCharacterWeaponGovernance,
+  type CharacterSkillLineageInput,
   type CharacterWeaponGovernanceResult,
   type CharacterWeaponGoverningSelection,
   type CharacterWeaponOneActionOverride,
@@ -164,7 +165,7 @@ async function assertCampaignOwnerGod(
   }
 }
 
-async function loadRaceAggregate(
+export async function loadCharacterRaceAggregateInTransaction(
   tx: CharacterWeaponGovernanceTransaction,
   characterId: number,
 ): Promise<CharacterRaceAggregate | null> {
@@ -224,11 +225,53 @@ async function loadResolutionInput(
   ) {
     throw new Error("The selected firing mode does not belong to the selected Weapon Profile.");
   }
+  const lineage = await loadCharacterSkillLineageInputInTransaction(tx, loaded.characterId);
+  const persistentOverride = await readApplicableOverrideForLoaded(
+    tx,
+    loaded,
+    governance.itemId,
+    governance.weaponProfileId,
+    request.firingModeId,
+  );
+  return {
+    ...lineage,
+    context: {
+      campaignId: loaded.campaignId,
+      characterId: loaded.characterId,
+      isNpc: loaded.isNpc,
+      npcKind: loaded.npcKind,
+      itemId: governance.itemId,
+      weaponCanonicalId: governance.weaponCanonicalId,
+      weaponName: governance.weaponName,
+      weaponProfileId: governance.weaponProfileId,
+      firingModeId: request.firingModeId,
+    },
+    governance,
+    persistentOverride,
+    oneActionOverride: request.oneActionOverride ?? null,
+  };
+}
+
+/**
+ * Loads the exact Character allocation identities and parent-allocation chain
+ * used by weapon governance. Other combat governance must use this shared
+ * input instead of matching Skill names or rebuilding ancestry.
+ */
+export async function loadCharacterSkillLineageInputInTransaction(
+  tx: CharacterWeaponGovernanceTransaction,
+  characterId: number,
+): Promise<CharacterSkillLineageInput> {
+  const normalizedCharacterId = positiveId(characterId, "Character");
+  const [character] = await tx.select({
+    id: campaignCharacter.id,
+    npcKind: campaignCharacter.npcKind,
+  }).from(campaignCharacter).where(eq(campaignCharacter.id, normalizedCharacterId)).limit(1);
+  if (!character) throw new Error("Character not found for Skill lineage resolution.");
   const attributeRows = await tx.select({
       attributeKey: campaignCharacterAttribute.attributeKey,
       value: campaignCharacterAttribute.value,
     }).from(campaignCharacterAttribute)
-      .where(eq(campaignCharacterAttribute.characterId, loaded.characterId));
+      .where(eq(campaignCharacterAttribute.characterId, normalizedCharacterId));
   const allocationRows = await tx.select({
       id: campaignCharacterSkillAllocation.id,
       characterId: campaignCharacterSkillAllocation.characterId,
@@ -236,7 +279,7 @@ async function loadResolutionInput(
       parentAllocationId: campaignCharacterSkillAllocation.parentAllocationId,
       points: campaignCharacterSkillAllocation.points,
     }).from(campaignCharacterSkillAllocation)
-      .where(eq(campaignCharacterSkillAllocation.characterId, loaded.characterId))
+      .where(eq(campaignCharacterSkillAllocation.characterId, normalizedCharacterId))
       .orderBy(asc(campaignCharacterSkillAllocation.id));
   const skillRows = await tx.select({
       id: skill.id,
@@ -253,7 +296,7 @@ async function loadResolutionInput(
     relationshipType: skillRelationship.relationshipType,
     sortOrder: skillRelationship.sortOrder,
   }).from(skillRelationship).orderBy(asc(skillRelationship.id));
-  const selectedRace = await loadRaceAggregate(tx, loaded.characterId);
+  const selectedRace = await loadCharacterRaceAggregateInTransaction(tx, normalizedCharacterId);
   const attributes: Partial<Record<CharacterAttributeKey, number>> = {};
   for (const row of attributeRows) {
     if (["STR", "DEX", "CON", "INT", "WIS", "CHR"].includes(row.attributeKey)) {
@@ -266,33 +309,16 @@ async function loadResolutionInput(
     manaCost: null,
     spellDocumentJson: null,
   }));
-  const persistentOverride = await readApplicableOverrideForLoaded(
-    tx,
-    loaded,
-    governance.itemId,
-    governance.weaponProfileId,
-    request.firingModeId,
-  );
   return {
     context: {
-      campaignId: loaded.campaignId,
-      characterId: loaded.characterId,
-      isNpc: loaded.isNpc,
-      npcKind: loaded.npcKind,
-      itemId: governance.itemId,
-      weaponCanonicalId: governance.weaponCanonicalId,
-      weaponName: governance.weaponName,
-      weaponProfileId: governance.weaponProfileId,
-      firingModeId: request.firingModeId,
+      characterId: normalizedCharacterId,
+      npcKind: character.npcKind === "creature" ? "creature" : "race",
     },
-    governance,
     attributes,
     allocations: allocationRows,
     skillCatalog,
     skillRelationships: relationshipRows,
     race: selectedRace,
-    persistentOverride,
-    oneActionOverride: request.oneActionOverride ?? null,
   };
 }
 

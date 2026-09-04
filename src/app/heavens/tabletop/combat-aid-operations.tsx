@@ -141,7 +141,7 @@ export function CombatAidOperations({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [lastRuntimeResult, setLastRuntimeResult] = useState<RuntimeResult | null>(null);
   const [runtimePanel, setRuntimePanel] = useState<RuntimePanel>("damage");
-  const [actionPanel, setActionPanel] = useState<ActionPanel>(participant.identity.kind === "creature-npc" ? "creature-attack" : "weapon");
+  const [actionPanel, setActionPanel] = useState<ActionPanel>(participant.identity.kind === "creature-npc" || participant.identity.kind === "creature" ? "creature-attack" : "weapon");
   const [targetId, setTargetId] = useState(characterId);
   const [amount, setAmount] = useState("1");
   const [selectionMode, setSelectionMode] = useState<"pool" | "hit-location">("pool");
@@ -179,11 +179,11 @@ export function CombatAidOperations({
   const [declinedReactionKeys, setDeclinedReactionKeys] = useState<Set<string>>(() => new Set());
   const applicableActionPanels: ActionPanel[] = [
     ...(participant.equipment?.wieldedWeapons.length ? ["weapon" as const] : []),
-    ...(participant.identity.kind === "creature-npc" && participant.creatureAttacks.length ? ["creature-attack" as const] : []),
+    ...((participant.identity.kind === "creature-npc" || participant.identity.kind === "creature") && participant.creatureAttacks.length ? ["creature-attack" as const] : []),
     ...(participant.spellSources.length ? ["spell" as const] : []),
     ...(participant.resources?.stacks.some(({ runtime }) => runtime.useMode !== "none")
       || participant.resources?.chargedInstances.length ? ["item" as const] : []),
-    ...(participant.identity.kind === "creature-npc" && participant.creatureAbilities.length ? ["creature-ability" as const] : []),
+    ...((participant.identity.kind === "creature-npc" || participant.identity.kind === "creature") && participant.creatureAbilities.length ? ["creature-ability" as const] : []),
   ];
   const activeActionPanel = applicableActionPanels.includes(actionPanel)
     ? actionPanel
@@ -206,6 +206,8 @@ export function CombatAidOperations({
   const selectedAttack = participant.creatureAttacks.find(({ canonicalId }) => canonicalId === selectedAttackId) ?? null;
   const selectedSpell = participant.spellSources.find((entry) => spellSourceKey(entry) === selectedSpellKey) ?? null;
   const selectedAbility = participant.creatureAbilities.find(({ canonicalId }) => canonicalId === selectedAbilityId) ?? null;
+  const abilityRuling = abilityPreview && "status" in abilityPreview ? abilityPreview : null;
+  const abilityPlan = abilityPreview && "plan" in abilityPreview ? abilityPreview.plan : null;
   const enteredInitiativeCost = Number(initiativeCost);
   const actionInitiativeCost = activeActionPanel === "weapon"
     ? selectedWeapon?.initiativeCost ?? enteredInitiativeCost
@@ -321,7 +323,7 @@ export function CombatAidOperations({
       abilityCanonicalId: selectedAbilityId,
       targetCharacterIds: abilityTargetIds,
       effectSelections: abilitySelections,
-      previewFingerprint: abilityPreview?.plan.fingerprint ?? null,
+      previewFingerprint: abilityPlan?.fingerprint ?? null,
     };
   }
 
@@ -342,7 +344,7 @@ export function CombatAidOperations({
   }
 
   return <section className="combat-aid-operations">
-    <header><div><span>G.O.D. OPERATIONS</span><h6 className="font-sans">Authoritative Runtime Controller</h6></div><small>All changes write to Character #{characterId}&apos;s existing live state.</small></header>
+    <header><div><span>G.O.D. OPERATIONS</span><h6 className="font-sans">Authoritative Runtime Controller</h6></div><small>{participant.identity.kind === "creature" ? "Direct Creature controls use only this encounter occurrence and its canonical snapshot." : `All changes write to Character #${characterId}'s existing live state.`}</small></header>
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
     {lastRuntimeResult ? <aside className="combat-aid-runtime-result"><strong>{lastRuntimeResult.summary}</strong>{lastRuntimeResult.manualEffects.length ? <><span>Manual G.O.D. resolution required:</span><ul>{lastRuntimeResult.manualEffects.map((effect, index) => <li key={`${effect}:${index}`}>{effect}</li>)}</ul></> : <small>No manual effects were returned.</small>}</aside> : null}
 
@@ -446,9 +448,9 @@ export function CombatAidOperations({
           {activeActionPanel === "creature-ability" ? <><label><span>Creature Ability</span><select value={selectedAbilityId} onChange={(event) => { setSelectedAbilityId(event.target.value); setAbilityPreview(null); setAbilitySelections({}); }}>{participant.creatureAbilities.map((ability) => <option key={ability.canonicalId} value={ability.canonicalId}>{ability.abilityName} · {ability.activation || "Activation unstructured"}</option>)}</select></label><label><span>Affected Encounter Participants</span><select multiple value={abilityTargetIds.map(String)} onChange={(event) => setAbilityTargetIds(selectedNumbers(event.target))}>{targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</select></label>{initiativeActive ? <label><span>Initiative Cost</span><input type="number" min="0.01" step="0.01" value={initiativeCost} onChange={(event) => setInitiativeCost(event.target.value)} /></label> : null}<button type="button" disabled={busy || !selectedAbilityId} onClick={() => {
             const request = abilityRequest(); if (!request) return;
             void perform(async () => setAbilityPreview(await prepareEncounterCreatureAbilityAction(encounterId, request)), "Creature Ability preview refreshed.");
-          }}>Preview Ability</button>{abilityPreview ? <div className="combat-aid-action-preview"><strong>{abilityPreview.plan.ability.abilityName}</strong><span>{abilityPreview.plan.status} · {abilityPreview.plan.ability.activation || "No structured cost"}</span>{abilityPreview.plan.automaticApplications.filter(({ plan }) => plan.missingSelections.length).map((application) => <label key={application.applicationKey}><span>{application.targetName} · {application.plan.missingSelections.join(", ")}</span><select value={abilitySelections[application.applicationKey]?.poolKey ?? ""} onChange={(event) => setAbilitySelections((current) => ({ ...current, [application.applicationKey]: { poolKey: event.target.value || null } }))}><option value="">Choose HP Pool</option>{abilityPreview.plan.targets.find(({ characterId: id }) => id === application.targetCharacterId)?.anatomy.pools.map((pool) => <option key={pool.key} value={pool.key}>{pool.name}</option>)}</select></label>)}{abilityPreview.plan.issues.map((issue) => <small key={issue}>{issue}</small>)}</div> : null}<button type="button" className="is-primary" disabled={busy || !abilityPreview?.plan.ready} onClick={() => {
+          }}>Preview Ability</button>{abilityRuling ? <div className="combat-aid-action-preview"><strong>{abilityRuling.ability.abilityName}</strong><span>G.O.D. RULING REQUIRED · {abilityRuling.sourceRef}</span><small>{abilityRuling.explanation}</small></div> : abilityPlan ? <div className="combat-aid-action-preview"><strong>{abilityPlan.ability.abilityName}</strong><span>{abilityPlan.status} · {abilityPlan.ability.activation || "No structured cost"}</span>{abilityPlan.automaticApplications.filter(({ plan }) => plan.missingSelections.length).map((application) => <label key={application.applicationKey}><span>{application.targetName} · {application.plan.missingSelections.join(", ")}</span><select value={abilitySelections[application.applicationKey]?.poolKey ?? ""} onChange={(event) => setAbilitySelections((current) => ({ ...current, [application.applicationKey]: { poolKey: event.target.value || null } }))}><option value="">Choose HP Pool</option>{abilityPlan.targets.find(({ characterId: id }) => id === application.targetCharacterId)?.anatomy.pools.map((pool) => <option key={pool.key} value={pool.key}>{pool.name}</option>)}</select></label>)}{abilityPlan.issues.map((issue) => <small key={issue}>{issue}</small>)}</div> : null}<button type="button" className="is-primary" disabled={busy || !abilityPlan?.ready} onClick={() => {
             const request = abilityRequest(); if (!request) return;
-            const authoritative = { ...request, previewFingerprint: abilityPreview!.plan.fingerprint };
+            const authoritative = { ...request, previewFingerprint: abilityPlan!.fingerprint };
             if (initiativeActive) {
               void perform(() => startEncounterCreatureAbilityAction(encounterId, authoritative, Number(initiativeCost)), "Creature Ability action started; effects wait for completion.");
             } else {

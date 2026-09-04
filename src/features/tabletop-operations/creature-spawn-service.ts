@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   CREATURE_CR_IMPACTS,
@@ -21,8 +21,6 @@ import { skill } from "@/db/skill-schema";
 import {
   campaignSessionEncounterInitiative,
   campaignSessionEncounterParticipant,
-  campaignSessionRoster,
-  campaignSessionSceneMember,
 } from "@/db/tabletop-operations-schema";
 import type { CreatureAggregate } from "@/app/heavens/creatures/actions";
 import {
@@ -30,7 +28,6 @@ import {
 } from "@/features/creatures/creature-ability";
 import {
   buildCreatureNpcSnapshot,
-  createCreatureNpcInTransaction,
 } from "@/features/creatures/creature-npc-constructor-service";
 
 import {
@@ -38,7 +35,6 @@ import {
   type OwnedEncounterRuntimeContext,
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
-import { buildCreatureSpawnNames } from "./runtime-integration";
 
 export type CreatureCatalogEntry = {
   id: number;
@@ -60,7 +56,7 @@ export type SpawnEncounterCreaturesInput = {
 export type SpawnEncounterCreaturesResult = {
   creatureId: number;
   templateName: string;
-  created: Array<{ characterId: number; name: string; joinedInitiative: boolean }>;
+  created: Array<{ participantId: number; runtimeParticipantKey: number; name: string; joinedInitiative: boolean }>;
 };
 
 function positiveId(value: number, label: string): number {
@@ -225,17 +221,32 @@ export async function spawnEncounterCreaturesInTransaction(
   actingUserId: string,
   input: SpawnEncounterCreaturesInput,
 ): Promise<SpawnEncounterCreaturesResult> {
+  if (actingUserId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may add encounter Creatures.");
   if (context.encounterStatus === "completed") throw new Error("Completed Encounters cannot receive new Creatures.");
   if (context.sessionStatus === "completed" || context.sceneStatus === "completed") {
     throw new Error("Completed Session or Scene history cannot receive new Creatures.");
   }
   const template = await loadCreatureAggregateInTransaction(tx, input.creatureId);
-  const spawnNames = buildCreatureSpawnNames(template.core.canonicalName, input.quantity);
   const snapshot = buildCreatureNpcSnapshot(template);
-  const lastRoster = await tx.select({ sortOrder: campaignSessionRoster.sortOrder }).from(campaignSessionRoster)
-    .where(eq(campaignSessionRoster.sessionId, context.sessionId)).orderBy(desc(campaignSessionRoster.sortOrder)).limit(1).for("update");
-  const lastScene = await tx.select({ sortOrder: campaignSessionSceneMember.sortOrder }).from(campaignSessionSceneMember)
-    .where(eq(campaignSessionSceneMember.sceneId, context.sceneId)).orderBy(desc(campaignSessionSceneMember.sortOrder)).limit(1).for("update");
+  await tx.execute(sql`select pg_advisory_xact_lock(${context.encounterId}, ${template.id})`);
+  const existingOccurrences = await tx.select({
+    participantId: campaignSessionEncounterParticipant.participantId,
+    localState: campaignSessionEncounterParticipant.localStateJson,
+  })
+    .from(campaignSessionEncounterParticipant)
+    .where(and(
+      eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
+      eq(campaignSessionEncounterParticipant.creatureId, template.id),
+    )).for("update");
+  const greatestOccurrenceNumber = Math.max(0, existingOccurrences.length, ...existingOccurrences.map(({ localState }) => {
+    if (!localState || typeof localState !== "object" || Array.isArray(localState)) return 0;
+    const occurrenceNumber = (localState as { occurrenceNumber?: unknown }).occurrenceNumber;
+    return Number.isSafeInteger(occurrenceNumber) && (occurrenceNumber as number) > 0 ? occurrenceNumber as number : 0;
+  }));
+  const spawnNames = Array.from(
+    { length: input.quantity },
+    (_, index) => `${template.core.canonicalName} ${greatestOccurrenceNumber + index + 1}`,
+  );
   const lastEncounter = await tx.select({ sortOrder: campaignSessionEncounterParticipant.sortOrder }).from(campaignSessionEncounterParticipant)
     .where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId)).orderBy(desc(campaignSessionEncounterParticipant.sortOrder)).limit(1).for("update");
   const runtime = await tx.select({ status: campaignSessionEncounterInitiative.status }).from(campaignSessionEncounterInitiative)
@@ -247,38 +258,34 @@ export async function spawnEncounterCreaturesInTransaction(
   const created: SpawnEncounterCreaturesResult["created"] = [];
   for (let index = 0; index < spawnNames.length; index += 1) {
     const name = spawnNames[index];
-    const characterId = await createCreatureNpcInTransaction(tx, {
-      campaignId: context.campaignId,
-      controllerUserId: actingUserId,
-      creatureId: template.id,
-      name,
-      snapshot,
-    });
-    await tx.insert(campaignSessionRoster).values({
-      sessionId: context.sessionId,
-      campaignId: context.campaignId,
-      characterId,
-      sortOrder: (lastRoster[0]?.sortOrder ?? -1) + index + 1,
-    });
-    await tx.insert(campaignSessionSceneMember).values({
-      sceneId: context.sceneId,
-      sessionId: context.sessionId,
-      campaignId: context.campaignId,
-      characterId,
-      sortOrder: (lastScene[0]?.sortOrder ?? -1) + index + 1,
-    });
+    const sequence = await tx.execute(sql<{ participant_id: number }>`
+      select nextval(pg_get_serial_sequence('campaign_session_encounter_participant', 'participant_id'))::integer as participant_id
+    `);
+    const participantId = positiveId(Number(sequence.rows[0]?.participant_id), "Encounter Creature Participant");
+    const runtimeParticipantKey = -participantId;
     await tx.insert(campaignSessionEncounterParticipant).values({
+      participantId,
       encounterId: context.encounterId,
       sceneId: context.sceneId,
       sessionId: context.sessionId,
       campaignId: context.campaignId,
-      characterId,
+      characterId: runtimeParticipantKey,
+      participantKind: "creature",
+      creatureId: template.id,
+      displayLabel: name,
+      creatureSnapshotJson: snapshot,
+      localStateJson: {
+        occurrenceNumber: greatestOccurrenceNumber + index + 1,
+        health: { totalDamage: 0, poolDamage: {} },
+        conditions: [],
+        reactions: [],
+      },
       sortOrder: (lastEncounter[0]?.sortOrder ?? -1) + index + 1,
     });
     if (input.joinInitiative) {
-      await enrollSpawnedCreatureInInitiativeInTransaction(tx, context, characterId, input.movementMode);
+      await enrollSpawnedCreatureInInitiativeInTransaction(tx, context, runtimeParticipantKey, input.movementMode);
     }
-    created.push({ characterId, name, joinedInitiative: input.joinInitiative });
+    created.push({ participantId, runtimeParticipantKey, name, joinedInitiative: input.joinInitiative });
   }
   return { creatureId: template.id, templateName: template.core.canonicalName, created };
 }

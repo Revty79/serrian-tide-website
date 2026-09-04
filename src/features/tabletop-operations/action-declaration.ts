@@ -188,6 +188,12 @@ function positiveId(value: number, label: string): number {
   return value;
 }
 
+
+function participantKey(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
 function text(value: unknown, label: string, maximum: number, required = true): string {
   if (typeof value !== "string") throw new Error(`${label} is invalid.`);
   const normalized = value.trim();
@@ -207,7 +213,7 @@ export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): 
   if (input.windowKind === "firearm-trigger" && initiativeCost !== 1) {
     throw new Error("A firearm trigger window must cost exactly 1 Initiative.");
   }
-  const targetCharacterIds = [...new Set(input.targetCharacterIds.map((id) => positiveId(id, "Target Character")))];
+  const targetCharacterIds = [...new Set(input.targetCharacterIds.map((id) => participantKey(id, "Target Participant")))];
   const calledShotDeclared = input.calledShot.declared === true;
   const assignedPenalty = input.calledShot.assignedPenalty === null
     ? null
@@ -224,7 +230,7 @@ export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): 
     throw new Error("A Weapon declaration requires an exact Item identity.");
   }
   return {
-    actorCharacterId: positiveId(input.actorCharacterId, "Acting Character"),
+    actorCharacterId: participantKey(input.actorCharacterId, "Acting Participant"),
     targetCharacterIds,
     label: text(input.label, "Action label", 240),
     actionKind: text(input.actionKind, "Action kind", 120),

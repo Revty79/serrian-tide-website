@@ -51,6 +51,7 @@ import type {
 import {
   executeCreatureAbilityUseInCallerTransaction,
   prepareCreatureAbilityUseInTransaction,
+  type CreatureAbilityUsePreparation,
 } from "@/features/creatures/creature-ability-runtime-service";
 import type {
   CreatureAbilityUseRequest,
@@ -190,8 +191,21 @@ export type EncounterCreatureAbility = {
   usesRecharge: string;
 };
 
+export type DirectCreatureAbilityRuling = {
+  status: "needs-god-ruling";
+  sourceKind: "creature-ability";
+  sourceRef: string;
+  ability: EncounterCreatureAbility;
+  explanation: string;
+};
+
 function positiveId(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
+function runtimeParticipantKey(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
   return value;
 }
 
@@ -259,13 +273,15 @@ async function requireEncounterParticipant(
   characterIdInput: number,
   lock = false,
 ): Promise<{ characterId: number; npcKind: "race" | "creature"; name: string }> {
-  const characterId = positiveId(characterIdInput, "Encounter Participant");
+  const characterId = runtimeParticipantKey(characterIdInput, "Encounter Participant");
   const query = tx.select({
-    characterId: campaignCharacter.id,
+    characterId: campaignSessionEncounterParticipant.characterId,
+    participantKind: campaignSessionEncounterParticipant.participantKind,
+    displayLabel: campaignSessionEncounterParticipant.displayLabel,
     npcKind: campaignCharacter.npcKind,
     name: campaignCharacter.name,
   }).from(campaignSessionEncounterParticipant)
-    .innerJoin(campaignCharacter, and(
+    .leftJoin(campaignCharacter, and(
       eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId),
       eq(campaignCharacter.campaignId, campaignSessionEncounterParticipant.campaignId),
     ))
@@ -281,8 +297,8 @@ async function requireEncounterParticipant(
   if (!participant) throw new Error("Source and target Characters must be current Encounter Participants.");
   return {
     characterId: participant.characterId,
-    npcKind: participant.npcKind === "creature" ? "creature" : "race",
-    name: participant.name,
+    npcKind: participant.participantKind === "creature" || participant.npcKind === "creature" ? "creature" : "race",
+    name: participant.participantKind === "creature" ? participant.displayLabel : participant.name ?? `Character #${participant.characterId}`,
   };
 }
 
@@ -334,6 +350,7 @@ export async function loadInitiativeEngineInTransaction(
       actionKind: campaignSessionEncounterPendingAction.actionKind,
       allowsMultiRound: campaignSessionEncounterPendingAction.allowsMultiRound,
       originalInitiativeCost: campaignSessionEncounterPendingAction.originalInitiativeCost,
+      additionalInitiativeCost: campaignSessionEncounterPendingAction.additionalInitiativeCost,
       initiativeSpent: campaignSessionEncounterPendingAction.initiativeSpent,
       remainingInitiativeCost: campaignSessionEncounterPendingAction.remainingInitiativeCost,
       startInitiative: campaignSessionEncounterPendingAction.startInitiative,
@@ -398,6 +415,7 @@ export async function persistInitiativeEngineInTransaction(
       actionKind: action.actionKind,
       allowsMultiRound: action.allowsMultiRound,
       originalInitiativeCost: action.originalInitiativeCost,
+      additionalInitiativeCost: action.additionalInitiativeCost ?? 0,
       initiativeSpent: action.initiativeSpent,
       remainingInitiativeCost: action.remainingInitiativeCost,
       startInitiative: action.startInitiative,
@@ -608,31 +626,43 @@ function parseCreatureAttacks(snapshotJson: string): EncounterCreatureAttack[] {
   });
 }
 
+async function readEncounterCreatureSnapshotInTransaction(
+  tx: RuntimeIntegrationTransaction,
+  characterId: number,
+  lock = false,
+): Promise<unknown> {
+  const query = characterId < 0
+    ? tx.select({ snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson })
+      .from(campaignSessionEncounterParticipant)
+      .where(and(
+        eq(campaignSessionEncounterParticipant.characterId, runtimeParticipantKey(characterId, "Encounter Creature")),
+        eq(campaignSessionEncounterParticipant.participantKind, "creature"),
+      )).limit(1)
+    : tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson })
+      .from(campaignCreatureNpcProfile)
+      .where(eq(campaignCreatureNpcProfile.characterId, positiveId(characterId, "Creature NPC")))
+      .limit(1);
+  const rows = lock ? await query.for("update") : await query;
+  if (!rows[0]?.snapshot) throw new Error("Creature encounter snapshot was not found.");
+  return rows[0].snapshot;
+}
+
 export async function readEncounterCreatureAttacksInTransaction(
   tx: RuntimeIntegrationTransaction,
   characterId: number,
   lock = false,
 ): Promise<EncounterCreatureAttack[]> {
-  const query = tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson })
-    .from(campaignCreatureNpcProfile)
-    .where(eq(campaignCreatureNpcProfile.characterId, positiveId(characterId, "Creature NPC")))
-    .limit(1);
-  const rows = lock ? await query.for("update") : await query;
-  if (!rows[0]) throw new Error("Creature NPC current snapshot was not found.");
-  return parseCreatureAttacks(rows[0].snapshot);
+  const snapshot = await readEncounterCreatureSnapshotInTransaction(tx, characterId, lock);
+  return parseCreatureAttacks(typeof snapshot === "string" ? snapshot : JSON.stringify(snapshot));
 }
 
 export async function readEncounterCreatureAbilitiesInTransaction(
   tx: RuntimeIntegrationTransaction,
   characterId: number,
 ): Promise<EncounterCreatureAbility[]> {
-  const [profile] = await tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson })
-    .from(campaignCreatureNpcProfile)
-    .where(eq(campaignCreatureNpcProfile.characterId, positiveId(characterId, "Creature NPC")))
-    .limit(1);
-  if (!profile) throw new Error("Creature NPC current snapshot was not found.");
+  const snapshot = await readEncounterCreatureSnapshotInTransaction(tx, characterId);
   let parsed: unknown;
-  try { parsed = JSON.parse(profile.snapshot); } catch { throw new Error("Creature NPC current snapshot is invalid JSON."); }
+  try { parsed = typeof snapshot === "string" ? JSON.parse(snapshot) : snapshot; } catch { throw new Error("Creature encounter snapshot is invalid JSON."); }
   const abilities = typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
     ? (parsed as { abilities?: unknown }).abilities
     : null;
@@ -791,6 +821,10 @@ export async function startCreatureAbilityActionInTransaction(
   actingUserId: string,
   heldIntervention = false,
 ): Promise<{ binding: AuthoredActionBinding<CreatureAbilityUseRequest>; preview: Awaited<ReturnType<typeof prepareCreatureAbilityUseInTransaction>> }> {
+  if (request.sourceCharacterId < 0) {
+    const ruling = await prepareEncounterCreatureAbilityActionInTransaction(tx, context, request, actingUserId);
+    if ("status" in ruling) throw new Error(`CREATURE_GOD_RULING_REQUIRED: ${ruling.explanation}`);
+  }
   const preview = await prepareCreatureAbilityUseInTransaction(tx, request, actingUserId);
   if (preview.plan.status !== "ready") throw new Error(preview.plan.issues[0] ?? "The Creature Ability is not ready.");
   const durableRequest: CreatureAbilityUseRequest = {
@@ -816,9 +850,21 @@ export async function prepareEncounterCreatureAbilityActionInTransaction(
   context: OwnedEncounterRuntimeContext,
   request: CreatureAbilityUseRequest,
   actingUserId: string,
-) {
+): Promise<CreatureAbilityUsePreparation | DirectCreatureAbilityRuling> {
   assertLiveEncounter(context);
   await requireEncounterParticipants(tx, context, [request.sourceCharacterId, ...request.targetCharacterIds]);
+  if (request.sourceCharacterId < 0) {
+    const abilities = await readEncounterCreatureAbilitiesInTransaction(tx, request.sourceCharacterId);
+    const ability = abilities.find(({ canonicalId }) => canonicalId === request.abilityCanonicalId);
+    if (!ability) throw new Error("The selected authored Creature Ability is no longer present in this encounter snapshot.");
+    return {
+      status: "needs-god-ruling",
+      sourceKind: "creature-ability",
+      sourceRef: ability.canonicalId,
+      ability,
+      explanation: "The exact authored Creature Ability is preserved, but this direct encounter Creature has no Character-backed ability executor. The G.O.D. must rule its governing Roll and effects; no Character Skill, inventory, weapon governance, or Health state was inferred.",
+    };
+  }
   const preparation = await prepareCreatureAbilityUseInTransaction(tx, request, actingUserId);
   const allowed = new Set((await tx.select({ characterId: campaignSessionEncounterParticipant.characterId })
     .from(campaignSessionEncounterParticipant)
@@ -1113,7 +1159,7 @@ export async function declareEncounterReactionInTransaction(
   input: {
     pendingActionId: number;
     reactorCharacterId: number;
-    reactionType: Exclude<EncounterReactionType, "no-reaction">;
+    reactionType: Extract<EncounterReactionType, "dodge" | "block" | "parry">;
     defendingItemId?: number | null;
     defendingInstanceId?: number | null;
   },

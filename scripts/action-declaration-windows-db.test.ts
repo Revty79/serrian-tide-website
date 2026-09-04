@@ -301,7 +301,7 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
     assert.equal((await tx.select().from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.id, pendingActionId)))[0]?.status, "active");
 
-    await recordRollInTransaction(tx, base.actor, {
+    await assert.rejects(recordRollInTransaction(tx, base.actor, {
       sessionId: base.sessionId,
       sceneId: base.sceneId,
       encounterId: base.encounterId,
@@ -311,9 +311,9 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
       visibility: "table",
       purposeKind: "attack",
       enteredTotal: 100,
-    });
+    }), /attack Roll slot already has immutable history/);
     assert.equal((await tx.select().from(campaignSessionEncounterActionDeclaration)
-      .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId)))[0]?.status, "awaiting-god-ruling");
+      .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId)))[0]?.status, "rolling");
 
     let beforeEngine = await loadInitiativeEngineInTransaction(tx, base.encounterId);
     let afterEngine = advanceInitiativeTimeline(beforeEngine, 17);
@@ -475,7 +475,7 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
     assert.equal((await tx.select().from(campaignSessionRoll).where(and(
       eq(campaignSessionRoll.pendingActionId, pendingActionId),
       eq(campaignSessionRoll.purposeKind, "attack"),
-    ))).length, 2);
+    ))).length, 1);
     assert.ok((await tx.select().from(campaignSessionEncounterActionDeclarationEvent)
       .where(eq(campaignSessionEncounterActionDeclarationEvent.declarationId, declarationId))).length >= 10);
 

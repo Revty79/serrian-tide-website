@@ -147,6 +147,7 @@ async function cleanupFixture(pool: pg.Pool): Promise<void> {
     const campaigns = await client.query<{ id: number }>("select id from campaign where name=$1", [MARKER]);
     for (const { id } of campaigns.rows) {
       for (const table of [
+        "campaign_session_encounter_reaction_event",
         "campaign_session_encounter_responder_opportunity",
         "campaign_session_encounter_action_declaration_event",
         "campaign_session_encounter_action_declaration",
@@ -254,28 +255,42 @@ async function main(): Promise<void> {
     assert.match(await workspace.innerText(), /Campaign \d+ .* Session \d+ .* Round 1 .* Step 1/);
     await workspace.getByRole("button", { name: "Commit Initiative" }).click();
     await workspace.getByText(/Declaration committed/).waitFor();
-    await workspace.getByRole("button", { name: "Decline", exact: true }).waitFor();
+    const defenseWorkspace = godPage.getByRole("region", { name: "Declare first, then Roll" });
+    await defenseWorkspace.waitFor();
+    await defenseWorkspace.getByRole("button", { name: "Lock Response Declaration" }).waitFor();
     assert.match(await workspace.innerText(), /35.*27/);
     assert.match(await workspace.innerText(), /Browser Window Responder[\s\S]*pending/);
     assert.match(await workspace.innerText(), /REACHED AT 30/);
 
-    const beforeDecline = await pool.query<{ status: string }>(
+    const beforeResponse = await pool.query<{ status: string }>(
       "select status from campaign_session_encounter_action_declaration where campaign_id=$1 order by id desc limit 1",
       [fixture.campaignId],
     );
-    assert.equal(beforeDecline.rows[0]?.status, "committed");
-    await workspace.getByRole("button", { name: "Decline", exact: true }).click();
-    await workspace.getByText(/declined/).waitFor();
+    assert.equal(beforeResponse.rows[0]?.status, "committed");
+    await defenseWorkspace.getByRole("button", { name: "Lock Response Declaration" }).click();
+    await defenseWorkspace.getByText(/no-reaction declaration was locked/).waitFor();
     await workspace.getByText("ROLLING-READY", { exact: true }).waitFor();
-    const afterDecline = await pool.query<{ status: string; pending: string }>(
+    const afterResponse = await pool.query<{ status: string; pending: string; response: string; cost: number; roll_required: boolean }>(
       `select d.status, p.status as pending
+             , r.outcome as response, r.committed_initiative_cost as cost, r.roll_required
        from campaign_session_encounter_action_declaration d
        join campaign_session_encounter_pending_action p on p.id=d.pending_action_id
+       join campaign_session_encounter_reaction r on r.pending_action_id=p.id
        where d.campaign_id=$1 order by d.id desc limit 1`,
       [fixture.campaignId],
     );
-    assert.deepEqual(afterDecline.rows[0], { status: "rolling-ready", pending: "active" });
+    assert.deepEqual(afterResponse.rows[0], { status: "rolling-ready", pending: "active", response: "no-defense", cost: 0, roll_required: false });
     assert.equal((await pool.query("select count(*)::int as count from campaign_session_roll where campaign_id=$1", [fixture.campaignId])).rows[0]?.count, 0);
+    const promptAnswers = ["Browser explicit attack target", "50"];
+    const answerDialogs = async (dialog: { accept: (value?: string) => Promise<void> }) => dialog.accept(promptAnswers.shift() ?? "");
+    godPage.on("dialog", answerDialogs);
+    await defenseWorkspace.getByRole("button", { name: "Roll Attack" }).click();
+    await defenseWorkspace.getByText(/Website attack Roll recorded immutably/).waitFor();
+    godPage.off("dialog", answerDialogs);
+    assert.equal((await pool.query("select count(*)::int as count from campaign_session_roll where campaign_id=$1 and pending_action_id is not null", [fixture.campaignId])).rows[0]?.count, 1);
+    await defenseWorkspace.getByRole("button", { name: "Resolve Opposition" }).click();
+    await defenseWorkspace.getByText(/No damage was applied/).waitFor();
+    assert.equal((await pool.query("select count(*)::int as count from campaign_session_encounter_action_declaration where campaign_id=$1 and defense_resolution_json is not null", [fixture.campaignId])).rows[0]?.count, 1);
     assert.equal((await pool.query("select total_damage from campaign_character_active_health where character_id in (select character_id from campaign_session_roster where campaign_id=$1) order by character_id", [fixture.campaignId])).rows.every(({ total_damage }) => total_damage === 0), true);
     assert.equal(await godPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
 
@@ -299,7 +314,8 @@ async function main(): Promise<void> {
         "draft lock and separate Initiative commitment",
         "inclusive 35 to 27 responder window",
         "durable opportunity reconciliation",
-        "rolling-ready without automatic Roll or outcome",
+        "No Defense history at zero cost without a response Roll",
+        "server-authoritative attack Roll and objective resolution without damage",
         "Player and administrator-only denial plus responsive layout",
       ],
     }, null, 2));

@@ -9,8 +9,10 @@ import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import {
   creature,
+  creatureAbility,
   creatureAttack,
   creatureAttribute,
+  creatureDefense,
   creatureHitLocation,
   creatureHpPool,
   creatureMovement,
@@ -29,10 +31,13 @@ import { skill } from "@/db/skill-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
+  campaignSessionEncounterReaction,
+  campaignSessionEncounterResponderOpportunity,
   campaignSessionEffectDurationBinding,
   campaignSessionRoster,
   campaignSessionScene,
@@ -46,12 +51,20 @@ import { readCharacterEquipmentStateInTransaction } from "@/features/items/equip
 import { readCombatAidEncounterInTransaction } from "@/features/tabletop-operations/combat-aid-service";
 import { spawnEncounterCreaturesInTransaction } from "@/features/tabletop-operations/creature-spawn-service";
 import {
+  commitActionDeclarationInTransaction,
+  createActionDeclarationDraftInTransaction,
+  lockActionDeclarationInTransaction,
+} from "@/features/tabletop-operations/action-declaration-service";
+import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
+import { parseLockedActionDeclarationSnapshot } from "@/features/tabletop-operations/action-declaration";
+import {
   applyEncounterDamageInTransaction,
   addEncounterConditionInTransaction,
   declareEncounterReactionInTransaction,
   executeImmediateEncounterItemInTransaction,
   lockOwnedEncounterRuntimeInTransaction,
   mutateEncounterManaInTransaction,
+  prepareEncounterCreatureAbilityActionInTransaction,
   resolveAuthoredActionInTransaction,
   resolveEncounterReactionInTransaction,
   setEncounterEquipmentStateInTransaction,
@@ -208,6 +221,22 @@ async function fixture(tx: Tx, label: string) {
     damageType: "Piercing",
     sortOrder: 0,
   });
+  await tx.insert(creatureDefense).values({
+    creatureId: master.id,
+    seedIdentity: `${canonicalPrefix}-DODGE`,
+    defenseType: "Dodge",
+    value: "42",
+    sortOrder: 0,
+  });
+  await tx.insert(creatureAbility).values({
+    canonicalId: `${canonicalPrefix}-HOWL`,
+    creatureId: master.id,
+    abilityName: "Warning Howl",
+    abilityType: "Encounter",
+    activation: "G.O.D. ruling",
+    description: "An authored test ability with no safe Character-backed execution path.",
+    sortOrder: 0,
+  });
   const context = await lockOwnedEncounterRuntimeInTransaction(tx, encounter.id, godId);
   return {
     suffix,
@@ -219,6 +248,7 @@ async function fixture(tx: Tx, label: string) {
     targetCharacterId: target.id,
     masterCreatureId: master.id,
     attackCanonicalId: `${canonicalPrefix}-BITE`,
+    abilityCanonicalId: `${canonicalPrefix}-HOWL`,
     context,
   };
 }
@@ -233,7 +263,7 @@ async function addInitiative(tx: Tx, data: Awaited<ReturnType<typeof fixture>>, 
   });
 }
 
-test("Creature Catalog batch spawn creates independent real NPCs and all three memberships", async () => {
+test("Creature Catalog adds independent encounter occurrences without Character, NPC, roster, or Scene membership", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const data = await fixture(tx, "Spawn");
     const result = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
@@ -242,32 +272,38 @@ test("Creature Catalog batch spawn creates independent real NPCs and all three m
       joinInitiative: false,
     });
     assert.deepEqual(result.created.map(({ name }) => name), ["Spawn Beast 1", "Spawn Beast 2", "Spawn Beast 3"]);
-    const ids = result.created.map(({ characterId }) => characterId);
+    const ids = result.created.map(({ runtimeParticipantKey }) => runtimeParticipantKey);
+    const participantIds = result.created.map(({ participantId }) => participantId);
+    assert.ok(ids.every((id) => id < 0));
+    assert.equal(new Set(participantIds).size, 3);
+    const characters = await tx.select().from(campaignCharacter).where(inArray(campaignCharacter.id, ids));
     const profiles = await tx.select().from(campaignCreatureNpcProfile).where(inArray(campaignCreatureNpcProfile.characterId, ids));
     const roster = await tx.select().from(campaignSessionRoster).where(inArray(campaignSessionRoster.characterId, ids));
     const sceneMembers = await tx.select().from(campaignSessionSceneMember).where(inArray(campaignSessionSceneMember.characterId, ids));
     const encounterParticipants = await tx.select().from(campaignSessionEncounterParticipant).where(inArray(campaignSessionEncounterParticipant.characterId, ids));
-    assert.equal(profiles.length, 3);
-    assert.equal(roster.length, 3);
-    assert.equal(sceneMembers.length, 3);
+    assert.equal(characters.length, 0);
+    assert.equal(profiles.length, 0);
+    assert.equal(roster.length, 0);
+    assert.equal(sceneMembers.length, 0);
     assert.equal(encounterParticipants.length, 3);
-
-    const first = await readActiveHealthInTransaction(tx, ids[0]!, "creature");
-    await applyEncounterDamageInTransaction(tx, data.context, {
-      targetCharacterId: ids[0]!,
-      amount: 5,
-      poolKey: first.anatomy.pools[0]!.key,
+    assert.ok(encounterParticipants.every((entry) => entry.creatureId === data.masterCreatureId && entry.participantKind === "creature"));
+    const canonicalBefore = await tx.select().from(creature).where(eq(creature.id, data.masterCreatureId));
+    await tx.update(campaignSessionEncounterParticipant).set({ localStateJson: { health: { totalDamage: 5 }, conditions: ["test-only"] } })
+      .where(eq(campaignSessionEncounterParticipant.participantId, participantIds[0]!));
+    const independent = await tx.select({ participantId: campaignSessionEncounterParticipant.participantId, state: campaignSessionEncounterParticipant.localStateJson })
+      .from(campaignSessionEncounterParticipant).where(inArray(campaignSessionEncounterParticipant.participantId, participantIds));
+    assert.deepEqual(independent.find(({ participantId }) => participantId === participantIds[0])?.state, { health: { totalDamage: 5 }, conditions: ["test-only"] });
+    assert.notDeepEqual(independent.find(({ participantId }) => participantId === participantIds[1])?.state, { health: { totalDamage: 5 }, conditions: ["test-only"] });
+    assert.deepEqual(await tx.select().from(creature).where(eq(creature.id, data.masterCreatureId)), canonicalBefore);
+    await tx.delete(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.participantId, participantIds[1]!));
+    assert.equal((await tx.select().from(creature).where(eq(creature.id, data.masterCreatureId))).length, 1);
+    const replacement = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+      creatureId: data.masterCreatureId,
+      quantity: 1,
+      joinInitiative: false,
     });
-    assert.equal((await readActiveHealthInTransaction(tx, ids[0]!, "creature")).view.totalDamage, 5);
-    assert.equal((await readActiveHealthInTransaction(tx, ids[1]!, "creature")).view.totalDamage, 0);
-
-    const player = await readActiveHealthInTransaction(tx, data.targetCharacterId, "race");
-    await applyEncounterDamageInTransaction(tx, data.context, {
-      targetCharacterId: data.targetCharacterId,
-      amount: 3,
-      poolKey: player.anatomy.pools[0]!.key,
-    });
-    assert.equal((await readActiveHealthInTransaction(tx, data.targetCharacterId, "race")).view.totalDamage, 3);
+    assert.equal(replacement.created[0]?.name, "Spawn Beast 4");
+    assert.equal((await tx.select().from(campaignCharacter).where(eq(campaignCharacter.id, replacement.created[0]!.runtimeParticipantKey))).length, 0);
     throw ROLLBACK;
   }), (error: unknown) => error === ROLLBACK);
 });
@@ -423,9 +459,109 @@ test("Creature spawn can explicitly late-enroll without moving the shared timeli
       .where(eq(campaignSessionEncounterInitiative.encounterId, data.encounterId));
     assert.equal(runtime?.timelineInitiative, 20);
     const joined = await tx.select().from(campaignSessionEncounterInitiativeParticipant)
-      .where(inArray(campaignSessionEncounterInitiativeParticipant.characterId, result.created.map(({ characterId }) => characterId)));
+      .where(inArray(campaignSessionEncounterInitiativeParticipant.characterId, result.created.map(({ runtimeParticipantKey }) => runtimeParticipantKey)));
     assert.equal(joined.length, 2);
     assert.ok(joined.every((entry) => entry.currentInitiative === entry.normalTotalInitiative));
+    throw ROLLBACK;
+  }), (error: unknown) => error === ROLLBACK);
+});
+
+test("direct Creatures participate in Pass 6 windows, use exact authored Dodge, and preserve unsupported-action rulings", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const data = await fixture(tx, "DirectRuntime");
+    await addInitiative(tx, data, 30);
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: data.encounterId, sceneId: data.sceneId, sessionId: data.sessionId,
+      campaignId: data.campaignId, characterId: data.targetCharacterId,
+      normalTotalInitiative: 30, currentInitiative: 30, movementMode: "Land",
+    });
+    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+      creatureId: data.masterCreatureId,
+      quantity: 1,
+      joinInitiative: true,
+      movementMode: "Land",
+    });
+    const creatureKey = spawned.created[0]!.runtimeParticipantKey;
+    await tx.update(campaignSessionEncounterInitiativeParticipant).set({ currentInitiative: 20 })
+      .where(and(
+        eq(campaignSessionEncounterInitiativeParticipant.encounterId, data.encounterId),
+        eq(campaignSessionEncounterInitiativeParticipant.characterId, creatureKey),
+      ));
+    const god = { authority: "god-owner" as const, userId: data.godId };
+    const attackId = await createActionDeclarationDraftInTransaction(tx, data.context, god, {
+      actorCharacterId: data.targetCharacterId,
+      targetCharacterIds: [creatureKey],
+      label: "Direct Creature window test",
+      actionKind: "test",
+      sourceKind: "generic",
+      sourceRef: null,
+      sourceInstanceId: null,
+      weaponItemId: null,
+      firingModeId: null,
+      attackMode: "",
+      initiativeCost: 29,
+      allowsMultiRound: false,
+      heldIntervention: false,
+      windowKind: "ordinary",
+      aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null },
+      explicitModifiers: [],
+      preparesForDeclarationId: null,
+      godNotes: "",
+    });
+    await lockActionDeclarationInTransaction(tx, data.context, god, attackId);
+    await commitActionDeclarationInTransaction(tx, data.context, god, attackId);
+    const [opportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
+      eq(campaignSessionEncounterResponderOpportunity.declarationId, attackId),
+      eq(campaignSessionEncounterResponderOpportunity.responderCharacterId, creatureKey),
+    ));
+    assert.ok(opportunity);
+    await declareDefenseInterventionInTransaction(tx, data.context, god, {
+      opportunityId: opportunity.id,
+      reactionType: "dodge",
+      protectedTargetCharacterId: creatureKey,
+    });
+    const [reaction] = await tx.select().from(campaignSessionEncounterReaction)
+      .where(eq(campaignSessionEncounterReaction.reactorCharacterId, creatureKey));
+    assert.equal(reaction?.committedInitiativeCost, 1);
+    assert.equal((reaction?.declarationSnapshotJson as { source?: { kind?: string; governingSnapshot?: { originalTarget?: number } } }).source?.kind, "creature-defense");
+    assert.equal((reaction?.declarationSnapshotJson as { source?: { governingSnapshot?: { originalTarget?: number } } }).source?.governingSnapshot?.originalTarget, 42);
+
+    const unsupportedId = await createActionDeclarationDraftInTransaction(tx, data.context, god, {
+      actorCharacterId: creatureKey,
+      targetCharacterIds: [data.targetCharacterId],
+      label: "Unsupported Creature action",
+      actionKind: "unknown-creature-action",
+      sourceKind: "generic",
+      sourceRef: null,
+      sourceInstanceId: null,
+      weaponItemId: null,
+      firingModeId: null,
+      attackMode: "",
+      initiativeCost: 2,
+      allowsMultiRound: false,
+      heldIntervention: false,
+      windowKind: "ordinary",
+      aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null },
+      explicitModifiers: [],
+      preparesForDeclarationId: null,
+      godNotes: "",
+    });
+    await lockActionDeclarationInTransaction(tx, data.context, god, unsupportedId);
+    const [unsupported] = await tx.select({ snapshot: campaignSessionEncounterActionDeclaration.lockedSnapshotJson })
+      .from(campaignSessionEncounterActionDeclaration).where(eq(campaignSessionEncounterActionDeclaration.id, unsupportedId));
+    assert.equal(parseLockedActionDeclarationSnapshot(unsupported?.snapshot).governing?.status, "needs-god-ruling");
+    const abilityRuling = await prepareEncounterCreatureAbilityActionInTransaction(tx, data.context, {
+      sourceCharacterId: creatureKey,
+      abilityCanonicalId: data.abilityCanonicalId,
+      targetCharacterIds: [data.targetCharacterId],
+      effectSelections: {},
+      previewFingerprint: null,
+    }, data.godId);
+    assert.equal("status" in abilityRuling ? abilityRuling.status : null, "needs-god-ruling");
+    assert.equal("sourceRef" in abilityRuling ? abilityRuling.sourceRef : null, data.abilityCanonicalId);
+    assert.match("explanation" in abilityRuling ? abilityRuling.explanation : "", /no Character Skill, inventory, weapon governance, or Health state was inferred/);
     throw ROLLBACK;
   }), (error: unknown) => error === ROLLBACK);
 });
@@ -439,7 +575,7 @@ test("authored Creature attacks defer damage, reconcile Dodge, preserve history,
       quantity: 1,
       joinInitiative: false,
     });
-    const attackerId = spawned.created[0]!.characterId;
+    const attackerId = spawned.created[0]!.runtimeParticipantKey;
     await tx.insert(campaignSessionEncounterInitiativeParticipant).values([
       {
         encounterId: data.encounterId, sceneId: data.sceneId, sessionId: data.sessionId,
@@ -533,7 +669,7 @@ test("authored Creature attacks defer damage, reconcile Dodge, preserve history,
   }), (error: unknown) => error === ROLLBACK);
 });
 
-test("a mid-batch Creature constructor failure rolls back every spawned NPC and membership", async () => {
+test("a mid-batch encounter-Creature failure rolls back every occurrence", async () => {
   const marker = crypto.randomUUID();
   const functionName = `build8_fail_${marker.replaceAll("-", "")}`;
   const label = `Rollback${marker.slice(0, 8)}`;
@@ -542,12 +678,12 @@ test("a mid-batch Creature constructor failure rolls back every spawned NPC and 
     await tx.execute(sql.raw(`
       create function ${functionName}() returns trigger language plpgsql as $$
       begin
-        if new.name like '${label} Beast 2%' then raise exception 'BUILD8_INTENTIONAL_BATCH_FAILURE'; end if;
+        if new.display_label like '${label} Beast 2%' then raise exception 'BUILD8_INTENTIONAL_BATCH_FAILURE'; end if;
         return new;
       end $$
     `));
     await tx.execute(sql.raw(`
-      create trigger ${functionName}_trigger before insert on campaign_character
+      create trigger ${functionName}_trigger before insert on campaign_session_encounter_participant
       for each row execute function ${functionName}();
     `));
     await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
@@ -561,7 +697,7 @@ test("a mid-batch Creature constructor failure rolls back every spawned NPC and 
       : null;
     return cause instanceof Error && /BUILD8_INTENTIONAL_BATCH_FAILURE/.test(cause.message);
   });
-  const [remaining] = await db.select({ value: count() }).from(campaignCharacter)
-    .where(like(campaignCharacter.name, `${label} Beast %`));
+  const [remaining] = await db.select({ value: count() }).from(campaignSessionEncounterParticipant)
+    .where(like(campaignSessionEncounterParticipant.displayLabel, `${label} Beast %`));
   assert.equal(Number(remaining?.value ?? 0), 0);
 });

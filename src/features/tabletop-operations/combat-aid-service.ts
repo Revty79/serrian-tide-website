@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { user } from "@/db/auth-schema";
@@ -94,7 +94,7 @@ export type CombatAidParticipant = {
   identity: {
     characterId: number;
     name: string;
-    kind: SessionRosterEntityKind;
+    kind: SessionRosterEntityKind | "creature";
     kindLabel: string;
     playerName: string | null;
     creatureTemplateName: string | null;
@@ -133,7 +133,7 @@ export type CombatAidReaction = {
   id: number;
   pendingActionId: number;
   reactorCharacterId: number;
-  reactionType: "dodge" | "block" | "parry" | "no-reaction";
+  reactionType: "dodge" | "block" | "parry" | "no-reaction" | "tackle" | "intervention";
   committedInitiativeCost: number;
   status: "declared" | "resolved" | "cancelled" | "needs-ruling";
   outcome: string;
@@ -205,7 +205,9 @@ export async function readCombatAidEncounterInTransaction(
   assertCampaignSessionOwner(context.ownerUserId, actingUserId);
 
   const participantRows = await tx.select({
-      characterId: campaignCharacter.id,
+      characterId: campaignSessionEncounterParticipant.characterId,
+      participantKind: campaignSessionEncounterParticipant.participantKind,
+      displayLabel: campaignSessionEncounterParticipant.displayLabel,
       name: campaignCharacter.name,
       isNpc: campaignCharacter.isNpc,
       npcKind: campaignCharacter.npcKind,
@@ -213,10 +215,13 @@ export async function readCombatAidEncounterInTransaction(
       playerUsername: user.username,
       creatureTemplateName: creature.canonicalName,
     }).from(campaignSessionEncounterParticipant)
-      .innerJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
-      .innerJoin(user, eq(user.id, campaignCharacter.playerUserId))
+      .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
+      .leftJoin(user, eq(user.id, campaignCharacter.playerUserId))
       .leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
-      .leftJoin(creature, eq(creature.id, campaignCreatureNpcProfile.creatureId))
+      .leftJoin(creature, or(
+        eq(creature.id, campaignCreatureNpcProfile.creatureId),
+        eq(creature.id, campaignSessionEncounterParticipant.creatureId),
+      ))
       .where(eq(campaignSessionEncounterParticipant.encounterId, encounterId))
       .orderBy(asc(campaignSessionEncounterParticipant.sortOrder), asc(campaignSessionEncounterParticipant.characterId));
   const runtimeRows = await tx.select({
@@ -295,7 +300,7 @@ export async function readCombatAidEncounterInTransaction(
   const actionByCharacter = new Map(actionRows
     .filter((row) => row.status === "active" || row.status === "interrupted" || unresolvedAuthoredActionIds.has(row.id))
     .map((row) => [row.actorCharacterId, row]));
-  const characterIds = participantRows.map(({ characterId }) => characterId);
+  const characterIds = participantRows.filter(({ participantKind }) => participantKind === "campaign-character").map(({ characterId }) => characterId);
   const personalSpells = characterIds.length ? await tx.select({
       characterId: campaignCharacterSpellDocument.characterId,
       savedSpellId: campaignCharacterSpellDocument.id,
@@ -327,14 +332,14 @@ export async function readCombatAidEncounterInTransaction(
     sessionStatus: context.sessionStatus,
     sceneStatus: context.sceneStatus,
     identities: participantRows.map((row) => {
-      const kind = classifySessionRosterEntity(row);
+      const kind = row.participantKind === "creature" ? "creature" as const : classifySessionRosterEntity({ isNpc: row.isNpc ?? false, npcKind: row.npcKind ?? "race" });
       return {
         characterId: row.characterId,
-        name: row.name,
+        name: row.participantKind === "creature" ? row.displayLabel : row.name ?? `Character #${row.characterId}`,
         kind,
-        kindLabel: getSessionRosterEntityLabel(kind),
+        kindLabel: kind === "creature" ? "Encounter Creature" : getSessionRosterEntityLabel(kind),
         playerName: kind === "pc" ? row.playerUsername ?? row.playerName : null,
-        creatureTemplateName: kind === "creature-npc" ? row.creatureTemplateName : null,
+        creatureTemplateName: kind === "creature-npc" || kind === "creature" ? row.creatureTemplateName : null,
       };
     }),
     capacities: [],
@@ -360,36 +365,37 @@ export async function readCombatAidEncounterInTransaction(
   const participants: CombatAidParticipant[] = [];
   for (const row of participantRows) {
     const errors: CombatAidParticipant["errors"] = [];
-    const kind = classifySessionRosterEntity(row);
+    const directCreature = row.participantKind === "creature";
+    const kind = directCreature ? "creature" as const : classifySessionRosterEntity({ isNpc: row.isNpc ?? false, npcKind: row.npcKind ?? "race" });
     const initiative = initiativeByCharacter.get(row.characterId);
     const trackerParticipant = trackerParticipants.get(row.characterId);
     const action = actionByCharacter.get(row.characterId);
-    const effects = await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false));
-    const durationBindings = await readCharacterDurationBindingsInTransaction(tx, row.characterId, false).catch((error) => {
+    const effects = directCreature ? null : await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false));
+    const durationBindings = directCreature ? [] : await readCharacterDurationBindingsInTransaction(tx, row.characterId, false).catch((error) => {
       errors.push({ section: "effects", message: error instanceof Error ? error.message : "Duration lifecycle state is unavailable." });
       return [];
     });
     participants.push({
       identity: {
         characterId: row.characterId,
-        name: row.name,
+        name: directCreature ? row.displayLabel : row.name ?? `Character #${row.characterId}`,
         kind,
-        kindLabel: getSessionRosterEntityLabel(kind),
+        kindLabel: kind === "creature" ? "Encounter Creature" : getSessionRosterEntityLabel(kind),
         playerName: kind === "pc" ? row.playerUsername ?? row.playerName : null,
-        creatureTemplateName: kind === "creature-npc" ? row.creatureTemplateName : null,
+        creatureTemplateName: kind === "creature-npc" || kind === "creature" ? row.creatureTemplateName : null,
       },
-      health: await readSection("health", errors, async () => (
-        await readActiveHealthInTransaction(tx, row.characterId, row.npcKind)
+      health: directCreature ? null : await readSection("health", errors, async () => (
+        await readActiveHealthInTransaction(tx, row.characterId, row.npcKind === "creature" ? "creature" : "race")
       ).view),
-      mana: await readSection("mana", errors, () => readActiveManaInTransaction(tx, row.characterId)),
+      mana: directCreature ? null : await readSection("mana", errors, () => readActiveManaInTransaction(tx, row.characterId)),
       effects,
       durationBindings,
-      equipment: await readSection("equipment", errors, () => readCharacterEquipmentStateInTransaction(tx, row.characterId)),
-      resources: await readSection("resources", errors, () => readCharacterOperationalItemsInTransaction(tx, row.characterId)),
-      creatureAttacks: kind === "creature-npc"
+      equipment: directCreature ? null : await readSection("equipment", errors, () => readCharacterEquipmentStateInTransaction(tx, row.characterId)),
+      resources: directCreature ? null : await readSection("resources", errors, () => readCharacterOperationalItemsInTransaction(tx, row.characterId)),
+      creatureAttacks: kind === "creature-npc" || kind === "creature"
         ? await readEncounterCreatureAttacksInTransaction(tx, row.characterId).catch(() => [])
         : [],
-      creatureAbilities: kind === "creature-npc"
+      creatureAbilities: kind === "creature-npc" || kind === "creature"
         ? await readEncounterCreatureAbilitiesInTransaction(tx, row.characterId).catch(() => [])
         : [],
       spellSources: [

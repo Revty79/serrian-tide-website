@@ -14,7 +14,7 @@ export const AUTHORED_ACTION_SOURCE_KINDS = [
 
 export type AuthoredActionSourceKind = (typeof AUTHORED_ACTION_SOURCE_KINDS)[number];
 export type AuthoredActionResolutionStatus = "pending" | "resolved" | "cancelled" | "needs-ruling";
-export type EncounterReactionType = "dodge" | "block" | "parry" | "no-reaction";
+export type EncounterReactionType = "dodge" | "block" | "parry" | "no-reaction" | "tackle" | "intervention";
 export type EncounterReactionStatus = "declared" | "resolved" | "cancelled" | "needs-ruling";
 
 export type AuthoredActionBinding<TPayload = unknown> = {
@@ -141,8 +141,12 @@ export function getReactionCommitment(
   defendingWeaponInitiativeCost?: number | null,
 ): number {
   if (reactionType === "dodge") return getDodgeInitiativeCost();
+  if (reactionType === "tackle") return 3;
   if (reactionType === "block" || reactionType === "parry") {
     return positive(defendingWeaponInitiativeCost ?? 0, "Defending Weapon Initiative Cost");
+  }
+  if (reactionType === "intervention") {
+    return positive(defendingWeaponInitiativeCost ?? 0, "Intervention Initiative Cost");
   }
   throw new Error("No Reaction does not create an Initiative commitment.");
 }
@@ -162,6 +166,14 @@ export function reconcileReaction(input: {
       defenderRefund: 0,
       attackerAdditionalCost: 0,
       attackPrevented: input.succeeded,
+    };
+  }
+  if (input.reactionType === "tackle" || input.reactionType === "intervention") {
+    return {
+      defenderFinalCost: committed,
+      defenderRefund: 0,
+      attackerAdditionalCost: 0,
+      attackPrevented: false,
     };
   }
   const costs = resolveBlockParryInitiativeCosts(
