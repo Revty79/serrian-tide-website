@@ -785,7 +785,7 @@ export async function readEffectiveRollSnapshotInTransaction(
     eq(campaignSessionRoll.campaignId, actor.campaignId),
   )).limit(1);
   if (!row) throw new Error("That immutable Roll does not belong to the authorized Campaign.");
-  if (actor.readAs === "player" && actor.characterId !== row.rollerCharacterId) {
+  if (actor.readAs === "player" && actor.characterId !== row.rollerCharacterId && row.visibility !== "table") {
     throw new Error("A Player cannot inspect another Character's private Roll mechanics.");
   }
   const amendments = await tx.select().from(campaignSessionRollAmendment)

@@ -125,19 +125,10 @@ test("the Player live endpoint rechecks role, assignment, and membership", () =>
   assert.match(liveRoute, /campaignPlayer\.userId, session\.user\.id/);
 });
 
-test("Pass 13 combat mutations never render in the console", () => {
-  for (const mutation of [
-    "declareAction",
-    "firearmAttack",
-    "reloadFirearm",
-    "declareDodge",
-    "declareParry",
-    "declareBlock",
-    "holdInitiative",
-    "passInitiative",
-    "applyEncounterDamage",
-  ]) assert.doesNotMatch(workspace + clientActions + serverActions, new RegExp(mutation));
-  assert.match(workspace, /Combat state is read-only in Pass 12/);
+test("Pass 13 combat controls extend the accepted console without exposing effect application", () => {
+  assert.match(workspace, /PlayerCombatConsole/);
+  assert.match(workspace, /TabletopLiveRefresh mode="player"/);
+  assert.doesNotMatch(workspace + clientActions + serverActions, /applyEncounterDamage|approveActionEffect|correctInitiative/);
 });
 
 test("G.O.D. and authoring controls never render", () => {

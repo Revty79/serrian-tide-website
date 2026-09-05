@@ -17,6 +17,7 @@ import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-opera
 import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
 import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
+import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { CalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 
@@ -235,6 +236,7 @@ export function TabletopWorkspace({
   initialActionEffects,
   initialFirearmReadiness,
   initialFirearmAttacks,
+  initialPlayerCombatRulings,
   initialCloseout,
   initialRollWorkspace,
   initialSessionCloseout,
@@ -254,6 +256,7 @@ export function TabletopWorkspace({
   initialActionEffects: ActionEffectWorkspaceView | null;
   initialFirearmReadiness: FirearmWorkspaceView | null;
   initialFirearmAttacks: FirearmAttackWorkspaceView | null;
+  initialPlayerCombatRulings: readonly PlayerCombatRulingRequestView[];
   initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   initialSessionCloseout: SessionCloseoutView | null;
@@ -609,6 +612,7 @@ export function TabletopWorkspace({
             initialActionEffects={initialActionEffects}
             initialFirearmReadiness={initialFirearmReadiness}
             initialFirearmAttacks={initialFirearmAttacks}
+            initialPlayerCombatRulings={initialPlayerCombatRulings}
             initialCloseout={initialCloseout}
             initialRollWorkspace={initialRollWorkspace}
             session={selectedSession}

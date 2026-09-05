@@ -239,6 +239,16 @@ export const campaignSessionHighLowSide = pgEnum(
   ["low", "high"],
 );
 
+export const campaignSessionPlayerRulingRequestStatus = pgEnum(
+  "campaign_session_player_ruling_request_status",
+  ["pending", "clarification-requested", "approved", "rejected", "cancelled"],
+);
+
+export const campaignSessionPlayerRulingRequestType = pgEnum(
+  "campaign_session_player_ruling_request_type",
+  ["manual-action", "called-shot", "ally-defense", "tackle", "intervention", "firearm-preparation"],
+);
+
 export const campaignSession = pgTable(
   "campaign_session",
   {
@@ -2525,6 +2535,124 @@ export const campaignSessionHighLowEvent = pgTable(
   ],
 );
 
+export const campaignSessionPlayerRulingRequest = pgTable(
+  "campaign_session_player_ruling_request",
+  {
+    id: serial("id").primaryKey(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    characterId: integer("character_id").notNull(),
+    targetParticipantId: integer("target_participant_id"),
+    requestType: campaignSessionPlayerRulingRequestType("request_type").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceRef: text("source_ref").default("").notNull(),
+    sourceInstanceId: integer("source_instance_id"),
+    intent: text("intent").notNull(),
+    requestedTiming: text("requested_timing").default("").notNull(),
+    blockedReason: text("blocked_reason").notNull(),
+    frozenRequestJson: jsonb("frozen_request_json").notNull(),
+    status: campaignSessionPlayerRulingRequestStatus("status").default("pending").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    godResponse: text("god_response").default("").notNull(),
+    rulingJson: jsonb("ruling_json").default(sql`'{}'::jsonb`).notNull(),
+    linkedDeclarationId: integer("linked_declaration_id"),
+    linkedReactionId: integer("linked_reaction_id"),
+    linkedFirearmAttackId: integer("linked_firearm_attack_id"),
+    requestedByUserId: text("requested_by_user_id").notNull(),
+    resolvedByUserId: text("resolved_by_user_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounter.id, campaignSessionEncounter.sceneId, campaignSessionEncounter.sessionId, campaignSessionEncounter.campaignId],
+      name: "campaign_session_player_ruling_request_encounter_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.characterId],
+      foreignColumns: [campaignSessionEncounterInitiativeParticipant.encounterId, campaignSessionEncounterInitiativeParticipant.sceneId, campaignSessionEncounterInitiativeParticipant.sessionId, campaignSessionEncounterInitiativeParticipant.campaignId, campaignSessionEncounterInitiativeParticipant.characterId],
+      name: "campaign_session_player_ruling_request_character_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.targetParticipantId],
+      foreignColumns: [campaignSessionEncounterParticipant.encounterId, campaignSessionEncounterParticipant.sceneId, campaignSessionEncounterParticipant.sessionId, campaignSessionEncounterParticipant.campaignId, campaignSessionEncounterParticipant.characterId],
+      name: "campaign_session_player_ruling_request_target_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.linkedDeclarationId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounterActionDeclaration.id, campaignSessionEncounterActionDeclaration.encounterId, campaignSessionEncounterActionDeclaration.sceneId, campaignSessionEncounterActionDeclaration.sessionId, campaignSessionEncounterActionDeclaration.campaignId],
+      name: "campaign_session_player_ruling_request_declaration_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.linkedReactionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounterReaction.id, campaignSessionEncounterReaction.encounterId, campaignSessionEncounterReaction.sceneId, campaignSessionEncounterReaction.sessionId, campaignSessionEncounterReaction.campaignId],
+      name: "campaign_session_player_ruling_request_reaction_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.linkedFirearmAttackId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounterFirearmAttack.id, campaignSessionEncounterFirearmAttack.encounterId, campaignSessionEncounterFirearmAttack.sceneId, campaignSessionEncounterFirearmAttack.sessionId, campaignSessionEncounterFirearmAttack.campaignId],
+      name: "campaign_session_player_ruling_request_firearm_attack_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.requestedByUserId], foreignColumns: [user.id], name: "campaign_session_player_ruling_request_requested_by_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.resolvedByUserId], foreignColumns: [user.id], name: "campaign_session_player_ruling_request_resolved_by_fk" }).onDelete("restrict"),
+    unique("campaign_session_player_ruling_request_hierarchy_uq").on(table.id, table.encounterId, table.sceneId, table.sessionId, table.campaignId),
+    uniqueIndex("campaign_session_player_ruling_request_idempotency_uq").on(table.campaignId, table.requestedByUserId, table.idempotencyKey),
+    index("campaign_session_player_ruling_request_encounter_status_idx").on(table.encounterId, table.status, table.createdAt, table.id),
+    index("campaign_session_player_ruling_request_character_idx").on(table.characterId, table.createdAt, table.id),
+    check("campaign_session_player_ruling_request_character_positive", sql`${table.characterId} > 0`),
+    check("campaign_session_player_ruling_request_source_kind_nonblank", sql`length(trim(${table.sourceKind})) > 0`),
+    check("campaign_session_player_ruling_request_intent_nonblank", sql`length(trim(${table.intent})) > 0`),
+    check("campaign_session_player_ruling_request_blocked_reason_nonblank", sql`length(trim(${table.blockedReason})) > 0`),
+    check("campaign_session_player_ruling_request_idempotency_nonblank", sql`length(trim(${table.idempotencyKey})) > 0`),
+    check("campaign_session_player_ruling_request_frozen_object", sql`jsonb_typeof(${table.frozenRequestJson}) = 'object'`),
+    check("campaign_session_player_ruling_request_ruling_object", sql`jsonb_typeof(${table.rulingJson}) = 'object'`),
+    check("campaign_session_player_ruling_request_resolution_valid", sql`(
+      ${table.status} IN ('pending','clarification-requested','cancelled')
+      AND ${table.resolvedAt} IS NULL
+      AND ${table.resolvedByUserId} IS NULL
+    ) OR (
+      ${table.status} IN ('approved','rejected')
+      AND ${table.resolvedAt} IS NOT NULL
+      AND ${table.resolvedByUserId} IS NOT NULL
+      AND length(trim(${table.godResponse})) > 0
+    )`),
+  ],
+);
+
+export const campaignSessionPlayerRulingRequestEvent = pgTable(
+  "campaign_session_player_ruling_request_event",
+  {
+    id: serial("id").primaryKey(),
+    requestId: integer("request_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    fromStatus: campaignSessionPlayerRulingRequestStatus("from_status"),
+    toStatus: campaignSessionPlayerRulingRequestStatus("to_status").notNull(),
+    eventKind: text("event_kind").notNull(),
+    reason: text("reason").default("").notNull(),
+    metadataJson: jsonb("metadata_json").default(sql`'{}'::jsonb`).notNull(),
+    actorUserId: text("actor_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.requestId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionPlayerRulingRequest.id, campaignSessionPlayerRulingRequest.encounterId, campaignSessionPlayerRulingRequest.sceneId, campaignSessionPlayerRulingRequest.sessionId, campaignSessionPlayerRulingRequest.campaignId],
+      name: "campaign_session_player_ruling_request_event_request_fk",
+    }).onDelete("restrict"),
+    foreignKey({ columns: [table.actorUserId], foreignColumns: [user.id], name: "campaign_session_player_ruling_request_event_actor_fk" }).onDelete("restrict"),
+    index("campaign_session_player_ruling_request_event_history_idx").on(table.requestId, table.createdAt, table.id),
+    check("campaign_session_player_ruling_request_event_kind_nonblank", sql`length(trim(${table.eventKind})) > 0`),
+    check("campaign_session_player_ruling_request_event_metadata_object", sql`jsonb_typeof(${table.metadataJson}) = 'object'`),
+  ],
+);
+
 export const campaignSessionRelations = relations(campaignSession, ({ one, many }) => ({
   campaign: one(campaign, {
     fields: [campaignSession.campaignId],
@@ -2716,3 +2844,5 @@ export type CampaignSessionRollVisibility = (typeof campaignSessionRollVisibilit
 export type CampaignSessionRollPurpose = (typeof campaignSessionRollPurpose.enumValues)[number];
 export type CampaignSessionRollStatus = (typeof campaignSessionRollStatus.enumValues)[number];
 export type CampaignSessionRollAmendmentKind = (typeof campaignSessionRollAmendmentKind.enumValues)[number];
+export type CampaignSessionPlayerRulingRequestStatus = (typeof campaignSessionPlayerRulingRequestStatus.enumValues)[number];
+export type CampaignSessionPlayerRulingRequestType = (typeof campaignSessionPlayerRulingRequestType.enumValues)[number];

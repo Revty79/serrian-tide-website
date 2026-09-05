@@ -43,6 +43,8 @@
     "validate:player-tabletop": "tsx --test src/features/tabletop-operations/player-tabletop-console.test.ts src/features/tabletop-operations/player-tabletop-console-source.test.ts",
     "validate:player-tabletop-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/player-tabletop-console-db.test.ts",
     "validate:player-tabletop-browser": "node --conditions=react-server --import tsx scripts/player-tabletop-console-browser.test.ts",
+    "validate:player-combat-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/player-combat-console-db.test.ts",
+    "validate:player-combat-browser": "node --conditions=react-server --import tsx scripts/player-combat-console-browser.test.ts",
     "validate:random": "tsx --test src/features/characters/random-character.test.ts",
     "validate:realms": "tsx --test src/features/characters/*.test.ts",
     "validate:active-state": "tsx --test src/features/active-state/*.test.ts",

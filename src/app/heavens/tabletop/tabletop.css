@@ -734,6 +734,20 @@
   }
 }
 
+.tabletop-player-rulings { margin-bottom: 16px; }
+.tabletop-player-ruling-list { display: grid; gap: 10px; }
+.tabletop-player-ruling-list > article { display: grid; gap: 8px; border: 1px solid rgb(205 174 112 / 22%); border-radius: 8px; background: rgb(19 16 13 / 46%); padding: 12px; }
+.tabletop-player-ruling-list > article > header { display: flex; justify-content: space-between; gap: 10px; }
+.tabletop-player-ruling-list > article > header div { display: grid; gap: 3px; }
+.tabletop-player-ruling-list small { color: var(--tabletop-muted); overflow-wrap: anywhere; }
+.tabletop-player-ruling-list form { display: grid; grid-template-columns: minmax(150px, .45fr) minmax(240px, 1fr); gap: 8px; align-items: end; }
+.tabletop-player-ruling-list form label { display: grid; gap: 4px; }
+.tabletop-player-ruling-list form textarea { min-height: 72px; resize: vertical; }
+@media(max-width:620px) {
+  .tabletop-player-ruling-list > article > header { flex-direction: column; }
+  .tabletop-player-ruling-list form { grid-template-columns: 1fr; }
+}
+
 .firearm-attack-workspace {
   display: grid;
   gap: 14px;

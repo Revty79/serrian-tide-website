@@ -218,6 +218,13 @@
       "when": 1788561124817,
       "tag": "0030_called_checks_high_low",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788567910178,
+      "tag": "0031_player_combat_ruling_requests",
+      "breakpoints": true
     }
   ]
 }

@@ -78,10 +78,11 @@ test("Player controllers authorize again and delegate to shared authoritative se
   assert.doesNotMatch(playerActions, /godSuppliedInitiativeCost|beginGenericInitiativeAction|applyEncounterDamage|resolveEncounterReaction/);
 });
 
-test("Player UI exposes the active table without forcing the normal Character Sheet away", () => {
+test("the accepted Player Encounter implementation remains covered while its route consolidates into Player Tabletop", () => {
   assert.match(characterPage, /ActiveEncounterCard/);
   assert.match(characterPage, /CharacterEditor/);
-  assert.match(playerPage, /PlayerEncounterConsole/);
+  assert.match(playerPage, /redirect\(`\/realms\/tabletop\?character=\$\{id\}`\)/);
+  assert.doesNotMatch(playerPage, /PlayerEncounterConsole|getPlayerEncounter/);
   for (const label of ["Your Initiative", "Hold", "Pass", "Actions", "Reaction", "Percentile Roll", "Your State"]) {
     assert.match(playerUi, new RegExp(label));
   }

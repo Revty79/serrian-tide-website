@@ -75,6 +75,7 @@ import {
   type OwnedEncounterRuntimeContext,
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
+import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 
 export type DefenseInterventionTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1006,11 +1007,11 @@ async function applyTackleAttackerCost(
 export async function resolveDeclaredDefensesInTransaction(
   tx: DefenseInterventionTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
+  actor: ActionDeclarationActor,
   declarationId: number,
 ): Promise<DefenseGroupOutcome> {
-  if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may resolve defenses and interventions.");
   const { row: declaration, snapshot: actionSnapshot } = await lockedActionForRoll(tx, context, declarationId);
+  await assertActorAuthority(tx, context, actor, declaration.actorCharacterId);
   if (declaration.defenseResolutionJson !== null) throw new Error("Defense reconciliation has already been applied to this declaration.");
   if (!declaration.pendingActionId) throw new Error("The action declaration has no pending action.");
   const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity)
@@ -1395,9 +1396,13 @@ export async function cancelDeclaredResponseInTransaction(
 export async function readDefenseInterventionWorkspaceInTransaction(
   tx: DefenseInterventionTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
+  actor: ActionDeclarationActor,
 ): Promise<DefenseInterventionWorkspaceView> {
-  if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may read the governance workspace.");
+  if (actor.authority === "god-owner") {
+    if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may read the governance workspace.");
+  } else {
+    await lockPlayerCombatContextInTransaction(tx, context.encounterId, actor.characterId, actor.userId);
+  }
   const participants = await tx.select({
     characterId: campaignSessionEncounterInitiativeParticipant.characterId,
     currentInitiative: campaignSessionEncounterInitiativeParticipant.currentInitiative,
@@ -1410,7 +1415,12 @@ export async function readDefenseInterventionWorkspaceInTransaction(
       eq(campaignSessionEncounterParticipant.characterId, campaignSessionEncounterInitiativeParticipant.characterId),
     ))
     .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterInitiativeParticipant.characterId))
-    .where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, context.encounterId))
+    .where(and(
+      eq(campaignSessionEncounterInitiativeParticipant.encounterId, context.encounterId),
+      actor.authority === "player"
+        ? eq(campaignSessionEncounterInitiativeParticipant.characterId, actor.characterId)
+        : undefined,
+    ))
     .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));
   const participantViews = [] as DefenseInterventionWorkspaceView["participants"][number][];
   for (const participant of participants) {
@@ -1495,6 +1505,9 @@ export async function readDefenseInterventionWorkspaceInTransaction(
     .where(and(
       eq(campaignSessionEncounterReaction.encounterId, context.encounterId),
       eq(campaignSessionEncounterReaction.campaignId, context.campaignId),
+      actor.authority === "player"
+        ? eq(campaignSessionEncounterReaction.reactorCharacterId, actor.characterId)
+        : undefined,
     )).orderBy(asc(campaignSessionEncounterReaction.id));
   const targetIds = [...new Set(reactions.flatMap(({ row }) => row.protectedTargetCharacterId === null ? [] : [row.protectedTargetCharacterId]))];
   const targets = targetIds.length ? await tx.select({
@@ -1537,7 +1550,11 @@ export async function readDefenseInterventionWorkspaceInTransaction(
       originalActionDisposition: entry.row.originalActionDisposition,
       rulingReason: entry.row.rulingReason,
       createdAt: entry.row.createdAt.toISOString(),
-      events: events.map((event) => ({ ...event, createdAt: event.createdAt.toISOString() })),
+      events: events.map((event) => ({
+        ...event,
+        actorUserId: actor.authority === "god-owner" ? event.actorUserId : null,
+        createdAt: event.createdAt.toISOString(),
+      })),
     });
   }
   return {

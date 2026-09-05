@@ -105,6 +105,7 @@ export default async function PlayerTabletopPage({
     rolls: boundPlayerRollHistory(runtime.rolls),
     recentSessions: runtime.recentSessions,
     derivedAbilityUses: runtime.derivedAbilityUses,
+    combat: runtime.combat,
   };
 
   return <PlayerTabletopWorkspace characters={characters} view={view} />;

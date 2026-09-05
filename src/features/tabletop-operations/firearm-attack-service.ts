@@ -29,6 +29,7 @@ import {
   campaignSessionEncounterPendingAction,
   campaignSessionEncounterReaction,
   campaignSessionEncounterResponderOpportunity,
+  campaignSessionPlayerRulingRequest,
   campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
 import { getActiveModifierTotal } from "@/features/active-state/active-effects";
@@ -77,9 +78,12 @@ import { resolvePercentileCheck, type PercentileTargetModifier } from "./percent
 import { getHitLocationFromPercentile, type RollMethod, type RollVisibility } from "./roll-runtime";
 import type { RollGoverningSourceRequest, RollGoverningSourceSnapshot, RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 
 export type FirearmAttackTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type GodActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
+type FirearmAttackActor = ActionDeclarationActor;
+type FirearmAttackActorInput = string | FirearmAttackActor;
 
 export type FirearmAttackCommand = Readonly<{
   actorParticipantId: number;
@@ -97,6 +101,7 @@ export type FirearmAttackCommand = Readonly<{
   }>;
   otherModifiers?: readonly Readonly<{ label: string; value: number }>[];
   manualGovernance?: Readonly<{ label: string; originalTarget: number; reason: string }> | null;
+  playerRulingRequestId?: number | null;
 }>;
 
 export type DeclareFirearmAttackCommand = FirearmAttackCommand & Readonly<{ idempotencyKey: string }>;
@@ -229,6 +234,7 @@ export type FirearmAttackWorkspaceView = Readonly<{
 }>;
 
 type LoadedFoundation = Readonly<{
+  actor: FirearmAttackActor;
   preview: FirearmAttackPreview;
   state: typeof campaignCharacterFirearmState.$inferSelect;
   mode: typeof weaponFiringMode.$inferSelect;
@@ -271,6 +277,26 @@ function assertGod(context: OwnedEncounterRuntimeContext, actorUserId: string): 
   return { authority: "god-owner", userId: actorUserId };
 }
 
+async function resolveFirearmActor(
+  tx: FirearmAttackTransaction,
+  context: OwnedEncounterRuntimeContext,
+  input: FirearmAttackActorInput,
+  actorParticipantId: number,
+): Promise<FirearmAttackActor> {
+  const actor = typeof input === "string" ? assertGod(context, input) : input;
+  if (actor.authority === "god-owner") return assertGod(context, actor.userId);
+  if (actor.characterId !== actorParticipantId) {
+    throw new Error("A Player may declare firearm actions only for their own exact assigned Character.");
+  }
+  const playerContext = await lockPlayerCombatContextInTransaction(tx, context.encounterId, actor.characterId, actor.userId);
+  if (playerContext.campaignId !== context.campaignId
+    || playerContext.sessionId !== context.sessionId
+    || playerContext.sceneId !== context.sceneId) {
+    throw new Error("The Player firearm action does not belong to the exact active Encounter hierarchy.");
+  }
+  return actor;
+}
+
 async function targetAnatomy(
   tx: FirearmAttackTransaction,
   participant: { id: number; participantKind: string; npcKind: string | null; creatureSnapshot: unknown },
@@ -309,12 +335,13 @@ async function targetAnatomy(
 async function loadFoundation(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: FirearmAttackActorInput,
   command: FirearmAttackCommand,
   lock: boolean,
 ): Promise<LoadedFoundation> {
-  assertGod(context, actorUserId);
   const actorParticipantId = positiveId(command.actorParticipantId, "Attacking participant");
+  const actor = await resolveFirearmActor(tx, context, actorInput, actorParticipantId);
+  const actorUserId = actor.userId;
   const targetParticipantId = participantKey(command.targetParticipantId, "Target participant");
   if (actorParticipantId === targetParticipantId) throw new Error("A firearm attack requires a distinct target participant.");
   const participants = await tx.select({
@@ -455,6 +482,36 @@ async function loadFoundation(
     penalty: command.calledShot.declared ? command.calledShot.penalty : null,
     reason: command.calledShot.declared ? boundedText(command.calledShot.reason, "Called Shot reason") : "",
   };
+  if (actor.authority === "player" && command.manualGovernance) {
+    throw new Error("A Player cannot supply a one-action weapon-governance ruling.");
+  }
+  if (actor.authority === "player" && calledShot.declared) {
+    const rulingRequestId = positiveId(command.playerRulingRequestId ?? 0, "Approved Called Shot request");
+    const [request] = await tx.select({
+      ruling: campaignSessionPlayerRulingRequest.rulingJson,
+      frozenRequest: campaignSessionPlayerRulingRequest.frozenRequestJson,
+    }).from(campaignSessionPlayerRulingRequest).where(and(
+      eq(campaignSessionPlayerRulingRequest.id, rulingRequestId),
+      eq(campaignSessionPlayerRulingRequest.encounterId, context.encounterId),
+      eq(campaignSessionPlayerRulingRequest.sceneId, context.sceneId),
+      eq(campaignSessionPlayerRulingRequest.sessionId, context.sessionId),
+      eq(campaignSessionPlayerRulingRequest.campaignId, context.campaignId),
+      eq(campaignSessionPlayerRulingRequest.characterId, actor.characterId),
+      eq(campaignSessionPlayerRulingRequest.targetParticipantId, targetParticipantId),
+      eq(campaignSessionPlayerRulingRequest.sourceInstanceId, state.itemInstanceId),
+      eq(campaignSessionPlayerRulingRequest.requestType, "called-shot"),
+      eq(campaignSessionPlayerRulingRequest.status, "approved"),
+    )).limit(1);
+    const ruling = isRecord(request?.ruling) ? request.ruling : null;
+    const frozen = isRecord(request?.frozenRequest) ? request.frozenRequest : null;
+    if (!ruling
+      || ruling.penalty !== calledShot.penalty
+      || ruling.reason !== calledShot.reason
+      || frozen?.objective !== calledShot.objective
+      || (frozen.locationNumber ?? null) !== calledShot.locationNumber) {
+      throw new Error("The Called Shot must exactly match its approved persistent G.O.D. ruling.");
+    }
+  }
   const modifiers = firearmDeclarationModifiers({ aimInitiative, calledShot: { declared: calledShot.declared, penalty: calledShot.penalty, reason: calledShot.reason }, other: command.otherModifiers });
   const oneActionOverride: CharacterWeaponOneActionOverride | null = command.manualGovernance ? {
     kind: "manual",
@@ -502,6 +559,7 @@ async function loadFoundation(
   const originalTarget = governance.originalTarget;
   const finalTarget = resolvePercentileCheck({ resultTotal: 50, originalTarget, modifiers }).finalTarget;
   return {
+    actor,
     state,
     mode,
     profile,
@@ -556,10 +614,10 @@ async function loadFoundation(
 export async function previewFirearmAttackInTransaction(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actor: FirearmAttackActorInput,
   command: FirearmAttackCommand,
 ): Promise<FirearmAttackPreview> {
-  return (await loadFoundation(tx, context, actorUserId, command, false)).preview;
+  return (await loadFoundation(tx, context, actor, command, false)).preview;
 }
 
 function draftModifiers(modifiers: readonly PercentileTargetModifier[]): ActionDeclarationDraft["explicitModifiers"] {
@@ -608,10 +666,9 @@ async function assertNoOpenActorAction(
 export async function declareFirearmAttackInTransaction(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: FirearmAttackActorInput,
   command: DeclareFirearmAttackCommand,
 ): Promise<{ attackId: number; status: FirearmAttackStatus; reused: boolean }> {
-  const actor = assertGod(context, actorUserId);
   const idempotencyKey = boundedText(command.idempotencyKey, "Firearm attack request ID", true, 200);
   const [existing] = await tx.select({
     id: campaignSessionEncounterFirearmAttack.id,
@@ -631,7 +688,9 @@ export async function declareFirearmAttackInTransaction(
     return { attackId: existing.id, status: existing.status as FirearmAttackStatus, reused: true };
   }
   await assertNoOpenActorAction(tx, context, command.actorParticipantId);
-  const foundation = await loadFoundation(tx, context, actorUserId, command, true);
+  const foundation = await loadFoundation(tx, context, actorInput, command, true);
+  const actor = foundation.actor;
+  const actorUserId = actor.userId;
   const preview = foundation.preview;
   const sequence = await tx.execute(sql<{ id: number }>`select nextval(pg_get_serial_sequence('campaign_session_encounter_firearm_attack', 'id'))::integer as id`);
   const attackId = positiveId(Number(sequence.rows[0]?.id), "Firearm Attack");
@@ -767,7 +826,7 @@ async function lockAttack(
 async function cancellationTransition(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: GodActor,
+  actor: FirearmAttackActor,
   attack: LockedAttack,
   reason: string,
 ): Promise<void> {
@@ -797,12 +856,12 @@ async function cancellationTransition(
 export async function cancelFirearmAttackInTransaction(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: FirearmAttackActorInput,
   attackId: number,
   reasonInput: string,
 ): Promise<void> {
-  const actor = assertGod(context, actorUserId);
   const attack = await lockAttack(tx, context, attackId);
+  const actor = await resolveFirearmActor(tx, context, actorInput, attack.actorParticipantId);
   if (attack.status === "cancelled") return;
   await cancellationTransition(tx, context, actor, attack, boundedText(reasonInput, "Cancellation reason"));
 }
@@ -810,11 +869,11 @@ export async function cancelFirearmAttackInTransaction(
 export async function commitFirearmAttackTriggerInTransaction(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: FirearmAttackActorInput,
   attackId: number,
 ): Promise<number> {
-  const actor = assertGod(context, actorUserId);
   const attack = await lockAttack(tx, context, attackId);
+  const actor = await resolveFirearmActor(tx, context, actorInput, attack.actorParticipantId);
   if (attack.triggerPendingActionId !== null) return attack.triggerPendingActionId;
   if (attack.status !== "aiming" || attack.aimDeclarationId === null || attack.aimPendingActionId === null) {
     throw new Error("Only an attack with completed declared Aim may commit its trigger pull.");
@@ -1362,12 +1421,13 @@ function unresolvedDefenseReasons(defense: DefenseGroupOutcome): string[] {
 export async function fireFirearmAttackInTransaction(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: FirearmAttackActorInput,
   attackId: number,
   input: FirearmAttackRollCommand,
 ): Promise<FirearmAttackFireResult> {
-  const actor = assertGod(context, actorUserId);
   const attack = await lockAttack(tx, context, attackId);
+  const actor = await resolveFirearmActor(tx, context, actorInput, attack.actorParticipantId);
+  const actorUserId = actor.userId;
   if (attack.attackRollId !== null) {
     return {
       attackId: attack.id,
@@ -1621,9 +1681,11 @@ export async function finalizeFirearmAttackConsequencesInTransaction(
 export async function readFirearmAttackWorkspaceInTransaction(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: FirearmAttackActorInput,
 ): Promise<FirearmAttackWorkspaceView> {
-  assertGod(context, actorUserId);
+  const actor = typeof actorInput === "string" ? assertGod(context, actorInput) : actorInput;
+  if (actor.authority === "god-owner") assertGod(context, actor.userId);
+  else await resolveFirearmActor(tx, context, actor, actor.characterId);
   const participantRows = await tx.select({
     id: campaignSessionEncounterParticipant.characterId,
     participantKind: campaignSessionEncounterParticipant.participantKind,
@@ -1659,6 +1721,9 @@ export async function readFirearmAttackWorkspaceInTransaction(
       eq(campaignSessionEncounterFirearmAttack.sceneId, context.sceneId),
       eq(campaignSessionEncounterFirearmAttack.sessionId, context.sessionId),
       eq(campaignSessionEncounterFirearmAttack.campaignId, context.campaignId),
+      actor.authority === "player"
+        ? eq(campaignSessionEncounterFirearmAttack.actorParticipantId, actor.characterId)
+        : undefined,
     ))
     .orderBy(desc(campaignSessionEncounterFirearmAttack.createdAt), desc(campaignSessionEncounterFirearmAttack.id));
   if (!attacks.length) return {
@@ -1773,10 +1838,10 @@ export async function readFirearmAttackWorkspaceInTransaction(
         id: event.id,
         eventKind: event.eventKind,
         reason: event.reason,
-        actorUserId: event.actorUserId,
+        actorUserId: actor.authority === "god-owner" ? event.actorUserId : "",
         createdAt: event.createdAt.toISOString(),
       })),
-      createdByUserId: attack.createdByUserId,
+      createdByUserId: actor.authority === "god-owner" ? attack.createdByUserId : "",
       createdAt: attack.createdAt.toISOString(),
       firedAt: attack.firedAt?.toISOString() ?? null,
     };

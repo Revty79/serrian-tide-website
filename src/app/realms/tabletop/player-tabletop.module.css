@@ -16,9 +16,10 @@
 .hero p { margin: .35rem 0; color: #cfc4d8; }
 .eyebrow { margin: 0; color: #d9b5ff !important; font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
 .characterSelect { align-items: end; gap: .55rem; flex-wrap: wrap; max-width: 34rem; }
-.characterSelect label, .diceForm label { display: grid; gap: .35rem; color: #d8cfdf; font-size: .78rem; font-weight: 700; }
+.characterSelect label, .diceForm label, .combatWorkspace label, .compactAction label { display: grid; gap: .35rem; color: #d8cfdf; font-size: .78rem; font-weight: 700; }
 .characterSelect select { min-width: min(22rem, 75vw); }
-.characterSelect select, .diceForm select, .diceForm input { border: 1px solid #665474; border-radius: .7rem; background: #17121d; color: #fff; min-height: 2.75rem; padding: .65rem .75rem; }
+.characterSelect select, .diceForm select, .diceForm input, .combatWorkspace select, .combatWorkspace input, .combatWorkspace textarea, .compactAction input { border: 1px solid #665474; border-radius: .7rem; background: #17121d; color: #fff; min-height: 2.75rem; min-width: 0; max-width: 100%; padding: .65rem .75rem; }
+.combatWorkspace textarea { min-height: 6rem; resize: vertical; }
 .page button, .page a { min-height: 2.75rem; }
 .page button { border: 1px solid #b987e5; border-radius: .7rem; background: #38224d; color: #fff; cursor: pointer; padding: .65rem 1rem; font-weight: 750; }
 .page button:hover { background: #50306e; }
@@ -70,6 +71,23 @@
 .historyGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .historyGrid ol { max-height: 30rem; overflow: auto; padding-right: .35rem; }
 
+.combatWorkspace { display: grid; gap: 1rem; margin: 1rem 0; min-width: 0; }
+.combatPriority, .combatSection { min-width: 0; border: 1px solid #604775; border-radius: 1.05rem; background: linear-gradient(145deg, rgb(34 22 43 / 96%), rgb(18 14 24 / 96%)); padding: clamp(1rem, 2.5vw, 1.4rem); }
+.combatPriority { border-color: #d8a3ff; box-shadow: 0 0 0 2px rgb(185 135 229 / 15%), 0 1rem 2.5rem rgb(0 0 0 / 25%); }
+.combatPriority > h2, .combatSection h2 { margin: .25rem 0 .8rem; }
+.combatSection > header, .combatCard > header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.combatSection > header > strong { color: #e8ceff; font-size: clamp(1.5rem, 4vw, 2.5rem); }
+.combatCard, .lockedReview { display: grid; gap: .55rem; min-width: 0; border: 1px solid #4e3a5d; border-radius: .8rem; background: #141019; padding: .85rem; margin-top: .7rem; overflow-wrap: anywhere; }
+.combatCard h3, .lockedReview strong { margin: 0; }
+.combatCard p, .lockedReview span, .lockedReview small { margin: 0; color: #c9bfd0; line-height: 1.45; }
+.combatStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; margin: .75rem 0; }
+.combatStats span { display: grid; gap: .2rem; border: 1px solid #493853; border-radius: .7rem; padding: .7rem; color: #bdb4c5; }
+.combatStats strong { color: #fff; }
+.actionRow { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
+.actionRow select, .actionRow input { flex: 1 1 12rem; }
+.blockers { margin: .7rem 0; padding-left: 1.25rem; color: #dbcce4; }
+.compactAction { display: grid; gap: .55rem; margin-top: .75rem; }
+
 .emptyState { width: min(48rem, 100%); margin: 8vh auto; border: 1px solid #59496a; border-radius: 1.25rem; background: rgb(20 16 27 / 92%); padding: clamp(1.25rem, 5vw, 3rem); }
 .emptyState h1 { font-size: clamp(2rem, 6vw, 4rem); }
 .emptyState > p { color: #c8becf; line-height: 1.6; }
@@ -90,9 +108,11 @@
   .sectionHeader > p { text-align: left; }
   .characterSelect { display: grid; max-width: none; }
   .characterSelect select { min-width: 0; width: 100%; }
-  .statusStrip, .contextGrid, .cardGrid, .resourceList, .effectGrid, .historyGrid, .formGrid { grid-template-columns: 1fr; }
+  .statusStrip, .contextGrid, .cardGrid, .resourceList, .effectGrid, .historyGrid, .formGrid, .combatStats { grid-template-columns: 1fr; }
   .wideField { grid-column: auto; }
   .sourceCard > header { align-items: start; flex-direction: column; }
+  .combatSection > header, .combatCard > header { align-items: start; flex-direction: column; }
+  .actionRow > button, .actionRow > select, .actionRow > input { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

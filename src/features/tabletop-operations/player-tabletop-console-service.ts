@@ -33,6 +33,10 @@ import { readCharacterEquipmentStateInTransaction } from "@/features/items/equip
 import { readCharacterItemChargeStateInTransaction } from "@/features/items/item-charge-service";
 import { decodeItemEffects } from "@/features/items/item-runtime";
 import { formatMechanicalEffectSummary } from "@/features/mechanical-effects";
+import {
+  readPlayerWeaponGovernanceInTransaction,
+  type PlayerWeaponGovernanceView,
+} from "@/features/items/weapon-governance-management-service";
 import { requirePlayer } from "@/lib/server-access";
 
 import {
@@ -40,6 +44,17 @@ import {
   readPlayerCalledCheckWorkspaceInTransaction,
   type PlayerCalledCheckWorkspaceView,
 } from "./called-check-service";
+import { readActionEffectWorkspaceInTransaction, type ActionEffectWorkspaceView } from "./action-effect-plan-service";
+import { readActionDeclarationWorkspaceInTransaction, type ActionDeclarationWorkspaceView } from "./action-declaration-service";
+import { readDefenseInterventionWorkspaceInTransaction, type DefenseInterventionWorkspaceView } from "./defense-intervention-service";
+import { readFirearmAttackWorkspaceInTransaction, type FirearmAttackWorkspaceView } from "./firearm-attack-service";
+import { readFirearmWorkspaceInTransaction, type FirearmWorkspaceView } from "./firearm-readiness-service";
+import { getNextInitiativeTimelineEvent } from "./initiative-runtime";
+import {
+  lockPlayerCombatContextInTransaction,
+  readPlayerCombatRulingRequestsInTransaction,
+  type PlayerCombatRulingRequestView,
+} from "./player-combat-ruling-service";
 import type {
   PlayerTabletopCharacterOption,
   PlayerTabletopFirearmState,
@@ -51,6 +66,7 @@ import {
   type AuthorizedRollActor,
   type RollLedgerEntry,
 } from "./roll-runtime-service";
+import { loadInitiativeEngineInTransaction } from "./runtime-integration-service";
 
 export type PlayerTabletopConsoleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -125,7 +141,42 @@ export type PlayerTabletopRuntimeData = {
     usedAt: string;
   }>;
   calledCheckHistory: PlayerCalledCheckWorkspaceView[];
+  combat: PlayerCombatConsoleData | null;
 };
+
+export type PlayerCombatConsoleData = Readonly<{
+  context: { campaignId: number; sessionId: number; sceneId: number; encounterId: number };
+  initiative: {
+    roundNumber: number;
+    stepNumber: number;
+    timelineInitiative: number;
+    normalTotalInitiative: number;
+    currentInitiative: number;
+    participationStatus: string;
+    deferredInitiativeCost: number;
+    canDeclareAction: boolean;
+    blockers: readonly string[];
+    pendingAction: null | {
+      id: number;
+      label: string;
+      status: string;
+      originalInitiativeCost: number;
+      initiativeSpent: number;
+      additionalInitiativeCost: number;
+      remainingInitiativeCost: number;
+      expectedCompletionInitiative: number;
+      allowsMultiRound: boolean;
+    };
+  };
+  targets: readonly { participantId: number; name: string; currentInitiative: number; participationStatus: string }[];
+  declarations: ActionDeclarationWorkspaceView;
+  defenses: DefenseInterventionWorkspaceView;
+  firearms: Pick<FirearmWorkspaceView, "legacyStacks" | "firearms">;
+  weaponGovernance: PlayerWeaponGovernanceView;
+  firearmAttacks: FirearmAttackWorkspaceView;
+  effects: ActionEffectWorkspaceView;
+  rulingRequests: readonly PlayerCombatRulingRequestView[];
+}>;
 
 function positiveId(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
@@ -621,6 +672,122 @@ export async function listPlayerTabletopCharacters(): Promise<PlayerTabletopChar
   return db.transaction((tx) => listPlayerTabletopCharactersInTransaction(tx, access.user.id));
 }
 
+async function readPlayerCombatConsole(
+  tx: PlayerTabletopConsoleTransaction,
+  character: PlayerCharacterContext,
+  hierarchy: PlayerTabletopHierarchy,
+  playerUserId: string,
+): Promise<PlayerCombatConsoleData | null> {
+  if (!hierarchy.encounter?.participating) return null;
+  const context = await lockPlayerCombatContextInTransaction(
+    tx,
+    hierarchy.encounter.id,
+    character.characterId,
+    playerUserId,
+  );
+  const actor = { authority: "player" as const, userId: playerUserId, characterId: character.characterId };
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const participant = engine.participants.find(({ characterId }) => characterId === character.characterId);
+  if (!participant) return null;
+  const pendingAction = engine.pendingActions.find(({ actorCharacterId, status }) => (
+    actorCharacterId === character.characterId && status === "active"
+  )) ?? null;
+  const next = getNextInitiativeTimelineEvent(engine);
+  const blockers: string[] = [];
+  if (participant.participationStatus !== "active") blockers.push(`Initiative status is ${participant.participationStatus}.`);
+  if (pendingAction) blockers.push("An authored action is already in progress.");
+  if (next.kind === "pending-completion") blockers.push("A pending action completion has priority at this Initiative.");
+  if (next.kind !== "normal-opportunity" || !next.characterIds.includes(character.characterId)) {
+    blockers.push("This Character does not have the next normal Initiative opportunity.");
+  }
+  const declarations = await readActionDeclarationWorkspaceInTransaction(tx, context, actor);
+  const defenses = await readDefenseInterventionWorkspaceInTransaction(tx, context, actor);
+  const firearmWorkspace = await readFirearmWorkspaceInTransaction(tx, context, character.characterId, null);
+  const weaponGovernance = await readPlayerWeaponGovernanceInTransaction(tx, { userId: playerUserId }, character.characterId);
+  const firearmAttacks = await readFirearmAttackWorkspaceInTransaction(tx, context, actor);
+  const allEffects = await readActionEffectWorkspaceInTransaction(tx, context);
+  const visiblePlans = allEffects.plans.filter((plan) => (
+    plan.actorParticipantId === character.characterId
+    || plan.effects.some(({ targetParticipantId }) => targetParticipantId === character.characterId)
+  )).map((plan) => {
+    const ownsPlan = plan.actorParticipantId === character.characterId;
+    return {
+      ...plan,
+      sourceSnapshot: ownsPlan ? plan.sourceSnapshot : {
+        ...plan.sourceSnapshot,
+        governingSource: null,
+        governingSnapshot: null,
+        authoredData: { redacted: true },
+      },
+      governingRollSnapshot: ownsPlan ? plan.governingRollSnapshot : null,
+      defenseResolution: ownsPlan ? plan.defenseResolution : null,
+      sourceDivergence: ownsPlan ? plan.sourceDivergence : null,
+      effects: ownsPlan ? plan.effects : plan.effects.filter(({ targetParticipantId }) => targetParticipantId === character.characterId),
+      createdByUserId: "",
+      reviewedByUserId: null,
+      appliedByUserId: null,
+      events: plan.events.map((event) => ({ ...event, actorUserId: "" })),
+    };
+  });
+  const effects: ActionEffectWorkspaceView = {
+    plans: visiblePlans,
+    eligibleDeclarations: allEffects.eligibleDeclarations.filter(({ actorParticipantId }) => actorParticipantId === character.characterId),
+    participants: allEffects.participants.filter(({ id }) => (
+      id === character.characterId
+      || visiblePlans.some((plan) => plan.effects.some(({ targetParticipantId }) => targetParticipantId === id))
+    )),
+  };
+  const rulingRequests = await readPlayerCombatRulingRequestsInTransaction(
+    tx,
+    context.encounterId,
+    character.characterId,
+    playerUserId,
+  );
+  return {
+    context: { campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId },
+    initiative: {
+      roundNumber: engine.runtime.roundNumber,
+      stepNumber: engine.runtime.stepNumber,
+      timelineInitiative: engine.runtime.timelineInitiative,
+      normalTotalInitiative: participant.normalTotalInitiative,
+      currentInitiative: participant.currentInitiative,
+      participationStatus: participant.participationStatus,
+      deferredInitiativeCost: participant.deferredInitiativeCost,
+      canDeclareAction: blockers.length === 0,
+      blockers,
+      pendingAction: pendingAction ? {
+        id: pendingAction.id,
+        label: pendingAction.label,
+        status: pendingAction.status,
+        originalInitiativeCost: pendingAction.originalInitiativeCost,
+        initiativeSpent: pendingAction.initiativeSpent,
+        additionalInitiativeCost: pendingAction.additionalInitiativeCost ?? 0,
+        remainingInitiativeCost: pendingAction.remainingInitiativeCost,
+        expectedCompletionInitiative: pendingAction.expectedCompletionInitiative,
+        allowsMultiRound: pendingAction.allowsMultiRound,
+      } : null,
+    },
+    targets: declarations.participants
+      .filter(({ characterId }) => characterId !== character.characterId)
+      .map((entry) => ({
+        participantId: entry.characterId,
+        name: entry.name,
+        currentInitiative: entry.currentInitiative,
+        participationStatus: entry.participationStatus,
+      })),
+    declarations,
+    defenses,
+    firearms: { legacyStacks: firearmWorkspace.legacyStacks, firearms: firearmWorkspace.firearms.map((firearm) => ({
+      ...firearm,
+      history: firearm.history.map((event) => ({ ...event, actorUserId: "" })),
+    })) },
+    weaponGovernance,
+    firearmAttacks,
+    effects,
+    rulingRequests,
+  };
+}
+
 export async function readPlayerTabletopRuntimeInTransaction(
   tx: PlayerTabletopConsoleTransaction,
   characterId: number,
@@ -637,6 +804,7 @@ export async function readPlayerTabletopRuntimeInTransaction(
     const firearmStates = await readFirearmStates(tx, identity);
     const calledChecks = await readPlayerCalledCheckWorkspaceInTransaction(tx, identity.characterId, playerUserId);
     const history = await readHistory(tx, identity, playerUserId);
+    const combat = await readPlayerCombatConsole(tx, identity, hierarchy, playerUserId);
     return {
       identity,
       hierarchy,
@@ -648,6 +816,7 @@ export async function readPlayerTabletopRuntimeInTransaction(
       itemEffects,
       firearmStates,
       calledChecks,
+      combat,
       ...history,
     };
 }

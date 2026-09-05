@@ -12,6 +12,7 @@ import {
   PlayerTabletopItemUse,
   PlayerTabletopSpellUse,
 } from "./player-tabletop-actions";
+import { PlayerCombatConsole, PlayerCombatIntentButton } from "./player-combat-console";
 import styles from "./player-tabletop.module.css";
 
 function dateTime(value: string): string {
@@ -100,8 +101,10 @@ export function PlayerTabletopWorkspace({
           <article><span>Scene</span><h3>{view.scene?.title ?? "No active Scene"}</h3><p>{view.scene ? [view.scene.locationLabel, view.scene.description].filter(Boolean).join(" · ") || "No public Scene description" : "This Character has no active Scene membership."}</p></article>
           <article><span>Encounter</span><h3>{view.encounter?.title ?? "No active Encounter"}</h3>{view.encounter ? <p>{titleCase(view.encounter.encounterType)} · {view.encounter.participating ? titleCase(view.encounter.participationStatus) : "Not participating"}{view.encounter.roundNumber !== null ? ` · Round ${view.encounter.roundNumber}, Step ${view.encounter.stepNumber}` : ""}{view.encounter.currentInitiative !== null ? ` · Initiative ${view.encounter.currentInitiative}` : ""}</p> : <p>No Encounter is attached to this Character&apos;s active Scene.</p>}</article>
         </div>
-        {view.encounter ? <p className={styles.boundaryNotice}>Combat state is read-only in Pass 12. Attack, Aim, Called Shot, reload, defense, and other Encounter controls arrive with the Player Combat Workspace in Pass 13.</p> : null}
+        {view.encounter && !view.combat ? <p className={styles.boundaryNotice}>This Character does not have an active Initiative entry, so combat controls remain unavailable.</p> : null}
       </Section>
+
+      {view.combat ? <PlayerCombatConsole characterId={view.identity.characterId} combat={view.combat} /> : null}
 
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
 
@@ -132,6 +135,7 @@ export function PlayerTabletopWorkspace({
           {item.legacyAggregateFirearm ? <p className={styles.ruling}>Legacy aggregate firearm · exact per-copy readiness is unavailable and no conversion was attempted.</p> : null}
           {item.requiresGodRuling ? <p className={styles.ruling}>G.O.D. ruling required before use.</p> : null}
           {item.canUseSafely ? <PlayerTabletopItemUse characterId={view.identity.characterId} item={item} disabled={!view.presence.noncombatSourceUseAllowed} /> : null}
+          {view.combat ? <PlayerCombatIntentButton characterId={view.identity.characterId} combat={view.combat} sourceKind="item" sourceRef={item.ownershipKey} sourceInstanceId={item.instanceId} label={item.name} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No owned Items are recorded for this Character.</p>}
       </Section>
 
@@ -145,6 +149,7 @@ export function PlayerTabletopWorkspace({
           {!spell.available ? <p className={styles.ruling}>This Character does not currently resolve the required casting source.</p> : null}
           {spell.requiresGodRuling ? <p className={styles.ruling}>Missing or manual mechanics require a G.O.D. ruling.</p> : null}
           {spell.canUseSafely && spell.castSource && view.presence.noncombatSourceUseAllowed ? <PlayerTabletopSpellUse characterId={view.identity.characterId} source={spell.castSource} label={spell.name} /> : null}
+          {view.combat ? <PlayerCombatIntentButton characterId={view.identity.characterId} combat={view.combat} sourceKind="spell" sourceRef={spell.key} label={spell.name} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No known or personal Spells are recorded for this Character.</p>}
       </Section>
 
@@ -154,6 +159,7 @@ export function PlayerTabletopWorkspace({
           <p>{ability.description}</p>
           {[...ability.requirements, ...ability.costs, ...ability.limits, ...ability.effects].length ? <ul>{[...ability.requirements, ...ability.costs, ...ability.limits, ...ability.effects].map((detail, index) => <li key={index}>{detail}</li>)}</ul> : null}
           {ability.requiresGodRuling ? <p className={styles.ruling}>Manual mechanics require a G.O.D. ruling.</p> : null}
+          {view.combat ? <PlayerCombatIntentButton characterId={view.identity.characterId} combat={view.combat} sourceKind="derived-ability" sourceRef={`derived-ability:${ability.id}`} label={ability.name} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No Derived Abilities are currently possessed.</p>}
       </Section>
 

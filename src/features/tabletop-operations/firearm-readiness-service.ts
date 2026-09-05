@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { item, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
+import { campaignPlayer } from "@/db/campaign-schema";
 import {
   campaignCharacter,
   campaignCharacterItem,
@@ -234,6 +235,35 @@ async function assertPersistentParticipant(
       eq(campaignSessionEncounterParticipant.characterId, characterId),
     )).limit(1);
   if (!participant) throw new Error("Firearm state requires a persistent Character or NPC in the exact Encounter context.");
+}
+
+async function resolvePreparationActor(
+  tx: FirearmReadinessTransaction,
+  context: OwnedEncounterRuntimeContext,
+  input: string | ActionDeclarationActor,
+  characterId: number,
+): Promise<ActionDeclarationActor> {
+  const actor: ActionDeclarationActor = typeof input === "string"
+    ? { authority: "god-owner", userId: input }
+    : input;
+  if (actor.authority === "god-owner") {
+    if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may govern another participant's firearm preparation.");
+    return actor;
+  }
+  if (actor.characterId !== characterId) throw new Error("A Player may prepare only their own exact firearm instance.");
+  const [owned] = await tx.select({ id: campaignCharacter.id }).from(campaignCharacter)
+    .innerJoin(campaignPlayer, and(
+      eq(campaignPlayer.campaignId, campaignCharacter.campaignId),
+      eq(campaignPlayer.userId, actor.userId),
+    ))
+    .where(and(
+      eq(campaignCharacter.id, characterId),
+      eq(campaignCharacter.campaignId, context.campaignId),
+      eq(campaignCharacter.playerUserId, actor.userId),
+      eq(campaignCharacter.isNpc, false),
+    )).limit(1);
+  if (!owned) throw new Error("A Player may prepare only their assigned non-NPC Character's firearm.");
+  return actor;
 }
 
 async function lockState(
@@ -636,10 +666,15 @@ async function completeFirearmPreparationById(
 export async function startFirearmPreparationInTransaction(
   tx: FirearmReadinessTransaction,
   context: OwnedEncounterRuntimeContext,
-  actorUserId: string,
+  actorInput: string | ActionDeclarationActor,
   command: StartFirearmPreparationCommand,
 ): Promise<{ preparationId: number; status: string; pendingActionId: number | null; reused: boolean }> {
   await assertPersistentParticipant(tx, context, command.characterId);
+  const actor = await resolvePreparationActor(tx, context, actorInput, command.characterId);
+  const actorUserId = actor.userId;
+  if (actor.authority === "player" && command.godInitiativeCost !== undefined && command.godInitiativeCost !== null) {
+    throw new Error("A Player cannot supply a missing firearm Initiative Cost.");
+  }
   const idempotencyKey = boundedText(command.idempotencyKey, "Firearm preparation request ID", true, 200);
   const [reused] = await tx.select({
     id: campaignCharacterFirearmPreparation.id,
@@ -767,7 +802,6 @@ export async function startFirearmPreparationInTransaction(
       createActionDeclarationDraftInTransaction,
       lockActionDeclarationInTransaction,
     } = await import("./action-declaration-service");
-    const actor: ActionDeclarationActor = { authority: "god-owner", userId: actorUserId };
     actionDeclarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, {
       actorCharacterId: state.characterId,
       targetCharacterIds: [],

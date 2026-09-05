@@ -16,6 +16,7 @@ import { getActionEffectWorkspace } from "./action-effect-plan-actions";
 import { getFirearmReadinessWorkspace } from "./firearm-readiness-actions";
 import { getFirearmAttackWorkspace } from "./firearm-attack-actions";
 import { getGodCalledCheckWorkspace } from "./called-check-actions";
+import { getGodPlayerCombatRulingRequests } from "./player-combat-ruling-actions";
 import {
   getEncounterInitiativeCapacityOptions,
   getEncounterInitiativeRuntime,
@@ -113,6 +114,9 @@ export default async function TabletopOperationsPage({
   const firearmAttacks = encounterWorkspace?.selectedEncounter
     ? await getFirearmAttackWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
+  const playerCombatRulings = encounterWorkspace?.selectedEncounter
+    ? await getGodPlayerCombatRulingRequests(encounterWorkspace.selectedEncounter.id)
+    : [];
   const closeout = encounterWorkspace?.selectedEncounter
     ? await getEncounterCloseout(encounterWorkspace.selectedEncounter.id)
     : null;
@@ -157,6 +161,7 @@ export default async function TabletopOperationsPage({
       initialActionEffects={actionEffects}
       initialFirearmReadiness={firearmReadiness}
       initialFirearmAttacks={firearmAttacks}
+      initialPlayerCombatRulings={playerCombatRulings}
       initialCloseout={closeout}
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}

@@ -58,6 +58,7 @@ import {
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
 import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
+import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 
 export type ActionDeclarationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -916,14 +917,17 @@ export async function addExceptionalResponderOpportunityInTransaction(
 async function transitionCommittedDeclaration(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
+  actor: ActionDeclarationActor,
   declarationId: number,
   nextStatus: Extract<ActionDeclarationStatus, "awaiting-god-ruling" | "rolling-ready" | "resolved" | "interrupted" | "cancelled" | "abandoned">,
   reasonInput: string,
   notesInput = "",
 ): Promise<void> {
-  if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may adjudicate this declaration.");
   const row = await lockDeclaration(tx, context, declarationId);
+  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  if (actor.authority === "player" && nextStatus !== "resolved") {
+    throw new Error("A Player may only complete their own objectively finished declaration; other dispositions require the G.O.D.");
+  }
   assertActionDeclarationTransition(row.status, nextStatus);
   const reasonRequired = nextStatus === "awaiting-god-ruling"
     || row.status === "awaiting-god-ruling"
@@ -1112,7 +1116,7 @@ export async function abandonActionDeclarationInTransaction(
 export async function resolveActionDeclarationInTransaction(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
+  actor: ActionDeclarationActor,
   declarationId: number,
   reason = "",
 ): Promise<void> {
@@ -1487,9 +1491,13 @@ export async function recordLongActionRoundContinuationsInTransaction(
 export async function readActionDeclarationWorkspaceInTransaction(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
+  actor: ActionDeclarationActor,
 ): Promise<ActionDeclarationWorkspaceView> {
-  if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may review all declarations.");
+  if (actor.authority === "god-owner") {
+    if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may review all declarations.");
+  } else {
+    await lockPlayerCombatContextInTransaction(tx, context.encounterId, actor.characterId, actor.userId);
+  }
   const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const identities = await tx.select({
     characterId: campaignSessionEncounterParticipant.characterId,
@@ -1511,7 +1519,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     entry.characterId,
     entry.participantKind === "creature" ? entry.displayLabel : entry.name ?? `Character #${entry.characterId}`,
   ]));
-  const declarationRows = await tx.select().from(campaignSessionEncounterActionDeclaration)
+  const allDeclarationRows = await tx.select().from(campaignSessionEncounterActionDeclaration)
     .where(eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclaration.id));
   const opportunityRows = await tx.select().from(campaignSessionEncounterResponderOpportunity)
@@ -1520,10 +1528,30 @@ export async function readActionDeclarationWorkspaceInTransaction(
   const eventRows = await tx.select().from(campaignSessionEncounterActionDeclarationEvent)
     .where(eq(campaignSessionEncounterActionDeclarationEvent.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclarationEvent.id));
+  const visibleDeclarationIds = actor.authority === "god-owner"
+    ? null
+    : new Set([
+        ...allDeclarationRows.filter(({ actorCharacterId }) => actorCharacterId === actor.characterId).map(({ id }) => id),
+        ...opportunityRows.filter(({ responderCharacterId }) => responderCharacterId === actor.characterId).map(({ declarationId }) => declarationId),
+      ]);
+  const declarationRows = visibleDeclarationIds === null
+    ? allDeclarationRows
+    : allDeclarationRows.filter(({ id }) => visibleDeclarationIds.has(id));
   const pendingById = new Map(engine.pendingActions.map((entry) => [entry.id, entry]));
   const declarations = declarationRows.map((row): ActionDeclarationView => {
-    const draft = parseActionDeclarationDraft(row.draftJson);
-    const lockedSnapshot = row.lockedSnapshotJson === null ? null : parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
+    const parsedDraft = parseActionDeclarationDraft(row.draftJson);
+    const ownsDeclaration = actor.authority === "god-owner" || row.actorCharacterId === actor.characterId;
+    const draft = ownsDeclaration ? parsedDraft : { ...parsedDraft, sourcePayload: null, godNotes: "" };
+    const parsedSnapshot = row.lockedSnapshotJson === null ? null : parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
+    const lockedSnapshot = parsedSnapshot === null || ownsDeclaration ? parsedSnapshot : {
+      ...parsedSnapshot,
+      source: { ...parsedSnapshot.source, payload: undefined },
+      governing: null,
+      authoredSource: null,
+      godNotes: "",
+      authorUserId: "",
+      lockedByUserId: "",
+    };
     const pending = row.pendingActionId === null ? null : pendingById.get(row.pendingActionId) ?? null;
     return {
       id: row.id,
@@ -1572,11 +1600,11 @@ export async function readActionDeclarationWorkspaceInTransaction(
         toStatus: event.toStatus,
         eventKind: event.eventKind,
         reason: event.reason,
-        actorUserId: event.actorUserId,
+        actorUserId: actor.authority === "god-owner" ? event.actorUserId : null,
         createdAt: event.createdAt.toISOString(),
       })),
       rulingReason: row.rulingReason,
-      rulingNotes: row.rulingNotes,
+      rulingNotes: actor.authority === "god-owner" ? row.rulingNotes : "",
       createdAt: row.createdAt.toISOString(),
       lockedAt: row.lockedAt?.toISOString() ?? null,
       committedAt: row.committedAt?.toISOString() ?? null,
@@ -1592,7 +1620,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     }
     try {
       const equipment = await readCharacterEquipmentStateInTransaction(tx, participant.characterId);
-      weaponsByCharacter.set(participant.characterId, equipment.wieldedWeapons.map((weapon) => ({
+      weaponsByCharacter.set(participant.characterId, actor.authority === "player" && participant.characterId !== actor.characterId ? [] : equipment.wieldedWeapons.map((weapon) => ({
         ownershipKey: weapon.ownershipKey,
         itemId: weapon.itemId,
         instanceId: weapon.instanceId,

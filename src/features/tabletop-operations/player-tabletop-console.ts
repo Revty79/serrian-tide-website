@@ -17,6 +17,7 @@ import { parseSpellDocument } from "@/features/spell-construction/spellDocumentC
 
 import type { PlayerCalledCheckWorkspaceView } from "./called-check-service";
 import type { RollLedgerEntry } from "./roll-runtime-service";
+import type { PlayerCombatConsoleData } from "./player-tabletop-console-service";
 
 export const PLAYER_TABLETOP_HISTORY_LIMIT = 30;
 
@@ -538,4 +539,5 @@ export type PlayerTabletopConsoleView = Readonly<{
     manualSteps: string;
     usedAt: string;
   }[];
+  combat: PlayerCombatConsoleData | null;
 }>;
