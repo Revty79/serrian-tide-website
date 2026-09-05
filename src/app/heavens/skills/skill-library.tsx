@@ -1,271 +1,270 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import type {
-  SkillFilterOptions,
-  SkillLibraryFilters,
-  SkillLibraryItem,
-  SkillLibraryResult,
-} from "./actions";
-import { skillAttributeOptions } from "./skill-attributes";
-
-type LibraryView = "list" | "tree";
+import {
+  getRecursiveSkillChildren,
+  getRecursiveSkillPath,
+  searchRecursiveSkillLibrary,
+  type RecursiveSkillLibrary,
+  type RecursiveSkillNode,
+  type RecursiveSkillPath,
+} from "@/features/skills/recursive-skill-library";
 
 type SkillLibraryProps = {
-  page: SkillLibraryResult;
-  filters: SkillLibraryFilters;
-  filterOptions: SkillFilterOptions;
-  selectedSkillId?: number;
-  view: LibraryView;
+  library: RecursiveSkillLibrary;
+  selectedPathKey: string | null;
   loading: boolean;
-  onViewChange: (view: LibraryView) => void;
-  onFiltersChange: (filters: SkillLibraryFilters) => void;
-  onSelect: (skill: SkillLibraryItem) => void;
-  onNewSkill: () => void;
+  onSelect: (skill: RecursiveSkillNode, path: RecursiveSkillPath) => void;
+  onNewRoot: () => void;
+  onNewChild: (parent: RecursiveSkillNode, path: RecursiveSkillPath) => void;
+  onBackToOverview: () => void;
 };
 
-type DisplayRow = { skill: SkillLibraryItem; depth: number };
-
-function createTreeRows(page: SkillLibraryResult): DisplayRow[] {
-  const byId = new Map(page.items.map((skill) => [skill.id, skill]));
-  const children = new Map<number, number[]>();
-  const hasVisibleParent = new Set<number>();
-
-  for (const edge of page.relationships) {
-    if (
-      edge.relationshipType.toLowerCase() !== "parent" ||
-      !byId.has(edge.skillId) ||
-      !byId.has(edge.relatedSkillId)
-    ) {
-      continue;
-    }
-
-    const current = children.get(edge.relatedSkillId) ?? [];
-    current.push(edge.skillId);
-    children.set(edge.relatedSkillId, current);
-    hasVisibleParent.add(edge.skillId);
-  }
-
-  const order = new Map(page.items.map((skill, index) => [skill.id, index]));
-  for (const ids of children.values()) {
-    ids.sort((left, right) => (order.get(left) ?? 0) - (order.get(right) ?? 0));
-  }
-
-  const rows: DisplayRow[] = [];
-  const visited = new Set<number>();
-
-  const visit = (skillId: number, depth: number) => {
-    if (visited.has(skillId)) return;
-    const skill = byId.get(skillId);
-    if (!skill) return;
-    visited.add(skillId);
-    rows.push({ skill, depth });
-    for (const childId of children.get(skillId) ?? []) visit(childId, depth + 1);
-  };
-
-  for (const skill of page.items) {
-    if (!hasVisibleParent.has(skill.id)) visit(skill.id, 0);
-  }
-  for (const skill of page.items) visit(skill.id, 0);
-
-  return rows;
+function metadata(skill: RecursiveSkillNode): string {
+  return [
+    skill.classification,
+    skill.tier === null ? "Tier N/A" : `Tier ${skill.tier}`,
+    skill.primaryAttribute ? `Authored ${skill.primaryAttribute}` : "No authored Attribute",
+  ].join(" · ");
 }
 
 export function SkillLibrary({
-  page,
-  filters,
-  filterOptions,
-  selectedSkillId,
-  view,
+  library,
+  selectedPathKey,
   loading,
-  onViewChange,
-  onFiltersChange,
   onSelect,
-  onNewSkill,
+  onNewRoot,
+  onNewChild,
+  onBackToOverview,
 }: SkillLibraryProps) {
-  const primaryAttributeOptions = skillAttributeOptions(filterOptions.primaryAttributes);
-  const secondaryAttributeOptions = skillAttributeOptions(filterOptions.secondaryAttributes);
-  const rows = useMemo(
-    () =>
-      view === "tree"
-        ? createTreeRows(page)
-        : page.items.map((skill) => ({ skill, depth: 0 })),
-    [page, view],
+  const [search, setSearch] = useState("");
+  const skillsById = useMemo(
+    () => new Map(library.skills.map((skill) => [skill.id, skill])),
+    [library.skills],
   );
-
-  const changeFilter = (
-    update: Partial<SkillLibraryFilters>,
-    resetPage = true,
-  ) =>
-    onFiltersChange({
-      ...filters,
-      ...update,
-      page: resetPage ? 1 : filters.page,
-    });
+  const rootsById = useMemo(
+    () => new Map(library.roots.map((root) => [root.skillId, root])),
+    [library.roots],
+  );
+  const selectedPath = selectedPathKey
+    ? library.paths.find((path) => path.key === selectedPathKey) ?? null
+    : null;
+  const selectedSkill = selectedPath
+    ? skillsById.get(selectedPath.endpointSkillId) ?? null
+    : null;
+  const searchResults = useMemo(
+    () => searchRecursiveSkillLibrary(library, search),
+    [library, search],
+  );
+  const children = selectedPath ? getRecursiveSkillChildren(library, selectedPath) : [];
+  const parentPath = selectedPath && selectedPath.rootToEndpointIds.length > 1
+    ? getRecursiveSkillPath(library, selectedPath.rootToEndpointIds.slice(0, -1))
+    : null;
+  const siblings = parentPath
+    ? getRecursiveSkillChildren(library, parentPath).filter(({ key }) => key !== selectedPath?.key)
+    : [];
 
   return (
-    <aside className="skill-library" aria-label="Skill Library">
+    <aside className={`skill-library${loading ? " is-loading" : ""}`} aria-label="Recursive Skill Library">
       <div className="skill-library__heading">
         <div>
           <p>MASTER CONTENT</p>
           <h2>Skill Library</h2>
         </div>
-        <button className="skills-primary-button" type="button" onClick={onNewSkill}>
-          New Skill
+        <button className="skills-primary-button" type="button" onClick={onNewRoot}>
+          New Root Skill
         </button>
       </div>
 
       <div className="skill-library__search">
-        <label htmlFor="skill-search">Search</label>
+        <label htmlFor="skill-search">Search every depth</label>
         <input
           id="skill-search"
           type="search"
-          value={filters.search ?? ""}
-          placeholder="Search by name"
-          onChange={(event) => changeFilter({ search: event.target.value })}
+          value={search}
+          placeholder="Name, exact ID, classification, or Attribute"
+          onChange={(event) => setSearch(event.target.value)}
         />
       </div>
 
-      <div className="skill-library__filters">
-        <label>
-          <span>Classification</span>
-          <select
-            value={filters.classification ?? ""}
-            onChange={(event) =>
-              changeFilter({ classification: event.target.value || undefined })
-            }
-          >
-            <option value="">All</option>
-            {filterOptions.classifications.map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          <span>Tier</span>
-          <select
-            value={filters.tier ?? ""}
-            onChange={(event) =>
-              changeFilter({
-                tier: event.target.value ? Number(event.target.value) : undefined,
-              })
-            }
-          >
-            <option value="">All</option>
-            {filterOptions.tiers.map((value) => (
-              <option key={value} value={value}>Tier {value}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          <span>Primary</span>
-          <select
-            value={filters.primaryAttribute ?? ""}
-            onChange={(event) =>
-              changeFilter({ primaryAttribute: event.target.value || undefined })
-            }
-          >
-            <option value="">All</option>
-            {primaryAttributeOptions.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          <span>Secondary</span>
-          <select
-            value={filters.secondaryAttribute ?? ""}
-            onChange={(event) =>
-              changeFilter({ secondaryAttribute: event.target.value || undefined })
-            }
-          >
-            <option value="">All</option>
-            {secondaryAttributeOptions.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="skill-library__toolbar">
-        <div className="skill-library__view-toggle" aria-label="Library view">
-          <button
-            type="button"
-            className={view === "list" ? "is-active" : ""}
-            aria-pressed={view === "list"}
-            onClick={() => onViewChange("list")}
-          >
-            List View
-          </button>
-          <button
-            type="button"
-            className={view === "tree" ? "is-active" : ""}
-            aria-pressed={view === "tree"}
-            onClick={() => onViewChange("tree")}
-          >
-            Tree View
-          </button>
-        </div>
-        <span>{page.total.toLocaleString()} skills</span>
-      </div>
-
-      <div className={`skill-library__results${loading ? " is-loading" : ""}`}>
-        {rows.length === 0 && !loading ? (
-          <p className="skill-library__empty">No skills match this library view.</p>
-        ) : (
-          rows.map(({ skill, depth }) => (
+      {search.trim() ? (
+        <section className="skill-library__search-results" aria-label="Skill search results">
+          <header>
+            <strong>{searchResults.length} exact path {searchResults.length === 1 ? "match" : "matches"}</strong>
+            <button type="button" onClick={() => setSearch("")}>Clear Search</button>
+          </header>
+          {searchResults.length ? searchResults.map((result) => (
             <button
-              key={skill.id}
-              className={`skill-library__row${selectedSkillId === skill.id ? " is-selected" : ""}`}
+              className="skill-library__search-result"
               type="button"
-              aria-pressed={selectedSkillId === skill.id}
-              style={{ "--skill-depth": depth } as React.CSSProperties}
-              onClick={() => onSelect(skill)}
+              key={result.path.key}
+              onClick={() => {
+                onSelect(result.skill, result.path);
+                setSearch("");
+              }}
             >
-              <span className="skill-library__row-name">
-                {view === "tree" && (depth > 0 || skill.parentNames.length > 0) ? (
-                  <span aria-hidden="true">↳</span>
-                ) : null}
-                {skill.name}
-              </span>
-              <span className="skill-library__row-meta">
-                {skill.classification}
-                {skill.tier ? ` · Tier ${skill.tier}` : " · N/A"}
-                {skill.hasSpellConstruction ? " · Spell Construction" : ""}
-              </span>
-              {skill.parentNames.length > 0 ? (
-                <span className="skill-library__row-parents">
-                  {skill.parentNames.length === 1 ? "Parent" : "Parents"}: {skill.parentNames.join(", ")}
-                </span>
-              ) : (
-                <span className="skill-library__row-parents is-root">Root Skill</span>
-              )}
+              <span><strong>{result.skill.name}</strong> <code>#{result.skill.id}</code></span>
+              <small>{result.path.attributeGroupKey === "REVIEW_REQUIRED" ? "Review Required" : result.path.attributeGroupKey}</small>
+              <span>{result.lineageLabel}</span>
+              {result.path.reviewReasons.length ? <em>{result.path.reviewReasons.length} review warning{result.path.reviewReasons.length === 1 ? "" : "s"}</em> : null}
             </button>
-          ))
-        )}
-      </div>
+          )) : <p className="skill-library__empty">No exact Skill identity matches this search.</p>}
+        </section>
+      ) : selectedPath && selectedSkill ? (
+        <div className="skill-library__navigator">
+          <nav className="skill-library__navigation-actions" aria-label="Skill hierarchy navigation">
+            <button type="button" onClick={onBackToOverview}>Attribute Overview</button>
+            <button
+              type="button"
+              disabled={selectedPath.rootToEndpointIds.length === 1}
+              onClick={() => {
+                const rootPath = getRecursiveSkillPath(library, [selectedPath.rootSkillId]);
+                const root = skillsById.get(selectedPath.rootSkillId);
+                if (rootPath && root) onSelect(root, rootPath);
+              }}
+            >
+              Back to Root
+            </button>
+            <button
+              type="button"
+              disabled={!parentPath}
+              onClick={() => {
+                if (!parentPath) return;
+                const parent = skillsById.get(parentPath.endpointSkillId);
+                if (parent) onSelect(parent, parentPath);
+              }}
+            >
+              Up One Level
+            </button>
+          </nav>
 
-      <nav className="skill-library__pagination" aria-label="Skill pages">
-        <button
-          type="button"
-          disabled={page.page <= 1 || loading}
-          onClick={() => onFiltersChange({ ...filters, page: page.page - 1 })}
-        >
-          Previous
-        </button>
-        <span>Page {page.page} of {page.pageCount}</span>
-        <button
-          type="button"
-          disabled={page.page >= page.pageCount || loading}
-          onClick={() => onFiltersChange({ ...filters, page: page.page + 1 })}
-        >
-          Next
-        </button>
-      </nav>
+          <nav className="skill-library__breadcrumbs" aria-label="Selected Skill lineage">
+            {selectedPath.rootToEndpointIds.map((skillId, index) => {
+              const node = skillsById.get(skillId)!;
+              const path = getRecursiveSkillPath(library, selectedPath.rootToEndpointIds.slice(0, index + 1));
+              const current = index === selectedPath.rootToEndpointIds.length - 1;
+              return (
+                <span key={`${selectedPath.key}:${skillId}`}>
+                  {index > 0 ? <i aria-hidden="true">/</i> : null}
+                  <button
+                    type="button"
+                    aria-current={current ? "page" : undefined}
+                    disabled={current}
+                    onClick={() => path && onSelect(node, path)}
+                  >
+                    {node.name} <code>#{node.id}</code>
+                  </button>
+                </span>
+              );
+            })}
+          </nav>
+
+          <article className="skill-library__selected-detail">
+            <header>
+              <div>
+                <p>SELECTED IDENTITY</p>
+                <h3>{selectedSkill.name}</h3>
+                <code>Skill #{selectedSkill.id}</code>
+              </div>
+              <button
+                className="skills-secondary-button"
+                type="button"
+                onClick={() => onNewChild(selectedSkill, selectedPath)}
+              >
+                Create Child
+              </button>
+            </header>
+            <dl>
+              <div><dt>Governing root</dt><dd>{skillsById.get(selectedPath.rootSkillId)?.name} <code>#{selectedPath.rootSkillId}</code></dd></div>
+              <div><dt>Effective Attribute</dt><dd>{selectedPath.effectiveAttribute ?? "Review Required"}</dd></div>
+              <div><dt>Authored Attribute</dt><dd>{selectedSkill.primaryAttribute ?? "Missing"}{selectedSkill.secondaryAttribute ? ` / ${selectedSkill.secondaryAttribute}` : ""}</dd></div>
+              <div><dt>Classification</dt><dd>{selectedSkill.classification}</dd></div>
+              <div><dt>Authored tier</dt><dd>{selectedSkill.tier ?? "N/A"}</dd></div>
+              <div><dt>Parent identity</dt><dd>{parentPath ? `${skillsById.get(parentPath.endpointSkillId)?.name} (#${parentPath.endpointSkillId})` : "Root Skill"}</dd></div>
+            </dl>
+            <div className="skill-library__path-preview">
+              <strong>Complete path</strong>
+              <span>{selectedPath.rootToEndpointIds.map((id) => `${skillsById.get(id)?.name} (#${id})`).join(" → ")}</span>
+              <code>{selectedPath.rootToEndpointIds.join(" → ")}</code>
+            </div>
+            {selectedPath.reviewReasons.length ? (
+              <div className="skill-library__warnings" role="status" aria-live="polite">
+                <strong>Review warnings</strong>
+                <ul>{selectedPath.reviewReasons.map((reason, index) => <li key={`${reason.code}:${reason.skillId}:${index}`}>{reason.message}</li>)}</ul>
+              </div>
+            ) : null}
+          </article>
+
+          {siblings.length ? (
+            <section className="skill-library__siblings">
+              <h3>Sibling Skills</h3>
+              <div>{siblings.map((path) => {
+                const sibling = skillsById.get(path.endpointSkillId)!;
+                return <button type="button" key={path.key} onClick={() => onSelect(sibling, path)}>{sibling.name} <code>#{sibling.id}</code></button>;
+              })}</div>
+            </section>
+          ) : null}
+
+          <section className="skill-library__children">
+            <header>
+              <div><p>NEXT LEVEL</p><h3>Immediate Children</h3></div>
+              <span>{children.length}</span>
+            </header>
+            {children.length ? children.map((path) => {
+              const child = skillsById.get(path.endpointSkillId)!;
+              return (
+                <button type="button" key={path.key} onClick={() => onSelect(child, path)}>
+                  <span><strong>{child.name}</strong> <code>#{child.id}</code></span>
+                  <small>{metadata(child)}</small>
+                  {child.reviewReasons.length ? <em>Review required</em> : null}
+                </button>
+              );
+            }) : <p className="skill-library__empty">This exact Skill identity has no immediate children.</p>}
+          </section>
+        </div>
+      ) : (
+        <div className="skill-library__attribute-overview">
+          <header>
+            <p>GOVERNING ATTRIBUTES</p>
+            <strong>{library.skills.length.toLocaleString()} Skills · {library.roots.length.toLocaleString()} roots</strong>
+          </header>
+          {library.reviewReasons.length ? (
+            <details className="skill-library__review-ledger">
+              <summary>Hierarchy review ledger · {library.reviewReasons.length.toLocaleString()} findings</summary>
+              <p>Exact data findings are shown for review; this interface does not repair or infer canonical records.</p>
+              <ul>
+                {library.reviewReasons.map((reason, index) => (
+                  <li key={`${reason.code}:${reason.skillId}:${reason.relationshipIds.join(",")}:${index}`}>
+                    <strong>{reason.code.replaceAll("-", " ")}</strong>
+                    <span>{reason.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+          {library.attributeGroups.map((group) => (
+            <section className={group.key === "REVIEW_REQUIRED" ? "is-review" : ""} key={group.key}>
+              <header><h3>{group.label}</h3><span>{group.rootSkillIds.length}</span></header>
+              <div>
+                {group.rootSkillIds.map((rootId) => {
+                  const root = skillsById.get(rootId)!;
+                  const rootSummary = rootsById.get(rootId)!;
+                  const path = getRecursiveSkillPath(library, [rootId]);
+                  return (
+                    <button type="button" key={rootId} onClick={() => path && onSelect(root, path)}>
+                      <span><strong>{root.name}</strong> <code>#{root.id}</code></span>
+                      <small>{metadata(root)}</small>
+                      <em>{rootSummary.immediateChildCount} immediate {rootSummary.immediateChildCount === 1 ? "child" : "children"}</em>
+                      {rootSummary.reviewReasons.length ? <b>Review</b> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </aside>
   );
 }

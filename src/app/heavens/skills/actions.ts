@@ -27,6 +27,16 @@ import {
 } from "@/features/spell-construction/models/spell";
 import { withCalculationSnapshot } from "@/features/spell-construction/utilities/spellFactory";
 import { auth } from "@/lib/auth";
+import {
+  previewSkillStructureChange,
+  type RecursiveSkillLibrary,
+  type SkillStructureChangePreview,
+} from "@/features/skills/recursive-skill-library";
+import {
+  loadRecursiveSkillLibrary,
+  loadSkillConsumerImpact,
+  type SkillConsumerImpact,
+} from "@/features/skills/recursive-skill-library-service";
 
 import {
   SPECIAL_ABILITY_CLASSIFICATION,
@@ -120,6 +130,11 @@ export type SpellFrameworkSkill = {
   tier: number | null;
 };
 
+export type SkillMutationPreview = SkillStructureChangePreview & {
+  affectedSkills: Array<{ id: number; name: string }>;
+  consumers: SkillConsumerImpact;
+};
+
 async function requireGod() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -147,6 +162,45 @@ async function requireGod() {
   }
 
   return session;
+}
+
+export async function getRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary> {
+  await requireGod();
+  return loadRecursiveSkillLibrary();
+}
+
+async function buildSkillMutationPreview(
+  input: SkillDraft,
+  loadedLibrary?: RecursiveSkillLibrary,
+): Promise<SkillMutationPreview> {
+  const library = loadedLibrary ?? await loadRecursiveSkillLibrary();
+  const proposedParentIds = input.relationships
+    .filter(({ relationshipType }) => relationshipType.trim().toLocaleLowerCase("en-US") === "parent")
+    .map(({ relatedSkillId }) => relatedSkillId);
+  const structure = previewSkillStructureChange(library, {
+    skillId: input.id,
+    skillName: input.core.name.trim() || "Untitled Skill",
+    proposedParentIds,
+    proposedSkill: input.core,
+  });
+  const affected = new Set(structure.affectedSkillIds);
+  return {
+    ...structure,
+    affectedSkills: library.skills
+      .filter(({ id }) => affected.has(id))
+      .map(({ id, name }) => ({ id, name }))
+      .sort((left, right) => left.name.localeCompare(right.name) || left.id - right.id),
+    consumers: await loadSkillConsumerImpact(structure.affectedSkillIds),
+  };
+}
+
+export async function previewSkillMutation(
+  input: SkillDraft,
+): Promise<SkillMutationPreview> {
+  await requireGod();
+  const core = normalizeCore(input.core);
+  const relationships = normalizeRelationships(input.id, input.relationships);
+  return buildSkillMutationPreview({ ...input, core, relationships });
 }
 
 function optionalText(
@@ -1181,6 +1235,7 @@ export async function listSpellFrameworkSkills(
 
 export async function saveSkill(
   input: SkillDraft,
+  confirmation: { structuralChangeConfirmed?: boolean } = {},
 ): Promise<SkillAggregate> {
   const session =
     await requireGod();
@@ -1193,6 +1248,27 @@ export async function saveSkill(
       input.id,
       input.relationships,
     );
+
+  const library = await loadRecursiveSkillLibrary();
+  const knownSkillIds = new Set(library.skills.map(({ id }) => id));
+  for (const relationship of relationships) {
+    if (!knownSkillIds.has(relationship.relatedSkillId)) {
+      throw new Error(`Related Skill #${relationship.relatedSkillId} no longer exists.`);
+    }
+  }
+  const mutationPreview = await buildSkillMutationPreview({
+    ...input,
+    core,
+    relationships,
+  }, library);
+  if (mutationPreview.validationErrors.length > 0) {
+    throw new Error(mutationPreview.validationErrors.join(" "));
+  }
+  if (mutationPreview.requiresConfirmation && !confirmation.structuralChangeConfirmed) {
+    throw new Error(
+      "This structural Skill change must be reviewed and explicitly confirmed before it can be saved.",
+    );
+  }
 
   if (input.id !== undefined) {
     for (

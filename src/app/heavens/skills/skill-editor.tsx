@@ -3,11 +3,11 @@
 import { useState } from "react";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
+import type { RecursiveSkillLibrary } from "@/features/skills/recursive-skill-library";
 
 import type {
   SkillDraft,
   SkillFilterOptions,
-  SkillLibraryItem,
   SpellFrameworkSkill,
 } from "./actions";
 import { skillAttributeOptions } from "./skill-attributes";
@@ -19,6 +19,7 @@ type SkillEditorTab = "core" | "pathing" | "construction" | "preview";
 
 type SkillEditorProps = {
   draft: SkillDraft | null;
+  hierarchy: RecursiveSkillLibrary;
   filterOptions: SkillFilterOptions;
   saving: boolean;
   dirty: boolean;
@@ -26,15 +27,6 @@ type SkillEditorProps = {
   onChange: (draft: SkillDraft) => void;
   onSave: () => void;
   onDelete: () => void;
-  findCandidates: (
-    search: string,
-    context: {
-      tier: number | null;
-      primaryAttribute: string | null;
-      secondaryAttribute: string | null;
-    },
-    excludeId?: number,
-  ) => Promise<SkillLibraryItem[]>;
   findFrameworkSkills: (tradition: Tradition) => Promise<SpellFrameworkSkill[]>;
 };
 
@@ -92,6 +84,7 @@ function updateSkillAttribute(
 
 export function SkillEditor({
   draft,
+  hierarchy,
   filterOptions,
   saving,
   dirty,
@@ -99,7 +92,6 @@ export function SkillEditor({
   onChange,
   onSave,
   onDelete,
-  findCandidates,
   findFrameworkSkills,
 }: SkillEditorProps) {
   const [activeTab, setActiveTab] = useState<SkillEditorTab>("core");
@@ -194,7 +186,7 @@ export function SkillEditor({
       )}
 
       {feedback && (
-        <p className={`skill-editor__feedback is-${feedback.kind}`} role="status">
+        <p className={`skill-editor__feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>
           {feedback.message}
         </p>
       )}
@@ -316,10 +308,11 @@ export function SkillEditor({
         {activeTab === "pathing" && (
           <SkillPathEditor
             skillId={draft.id}
-            context={draft.core}
+            skillName={draft.core.name}
+            proposedSkill={draft.core}
+            hierarchy={hierarchy}
             relationships={draft.relationships}
             onChange={(relationships) => onChange({ ...draft, relationships })}
-            findCandidates={findCandidates}
           />
         )}
 

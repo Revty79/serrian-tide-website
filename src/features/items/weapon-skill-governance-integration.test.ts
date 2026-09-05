@@ -9,6 +9,7 @@ function source(path: string): string {
 const schema = source("src/db/item-schema.ts");
 const migration = source("drizzle/0023_canonical_weapon_skill_governance.sql");
 const domain = source("src/features/items/weapon-skill-governance.ts");
+const sharedHierarchy = source("src/features/skills/recursive-skill-library.ts");
 const service = source("src/features/items/weapon-skill-governance-service.ts");
 const actions = source("src/app/heavens/items/actions.ts");
 const editor = source("src/app/heavens/items/item-workspace.tsx");
@@ -36,13 +37,14 @@ test("migration is additive and assigns no guessed weapon mappings", () => {
 });
 
 test("path validation follows exact relationships without tier, name, or Character logic", () => {
-  assert.match(domain, /validateCanonicalSkillPath/);
-  assert.match(domain, /ambiguous-parent/);
-  assert.match(domain, /broken-parent/);
-  assert.match(domain, /normalizedRootName === "spellcraft"/);
-  assert.match(domain, /normalizedRootName === "talismanism"/);
-  assert.match(domain, /normalizedRootName === "faith"/);
-  assert.doesNotMatch(domain, /tier\s*[<>]=?|tier\s*[+-]/i);
+  const pathDomain = `${domain}\n${sharedHierarchy}`;
+  assert.match(pathDomain, /validateCanonicalSkillPath/);
+  assert.match(pathDomain, /ambiguous-parent/);
+  assert.match(pathDomain, /broken-parent/);
+  assert.match(pathDomain, /normalizedRootName === "spellcraft"/);
+  assert.match(pathDomain, /normalizedRootName === "talismanism"/);
+  assert.match(pathDomain, /normalizedRootName === "faith"/);
+  assert.doesNotMatch(pathDomain, /tier\s*[<>]=?|tier\s*[+-]/i);
   assert.doesNotMatch(service, /campaignCharacter|SkillAllocation|calculatedPercentage|resolvePercentileCheck/);
 });
 

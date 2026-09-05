@@ -7,8 +7,8 @@ import { userRole } from "@/db/authorization-schema";
 import { auth } from "@/lib/auth";
 
 import {
+  getRecursiveSkillLibrary,
   getSkillFilterOptions,
-  listSkills,
 } from "./actions";
 import "./skills.css";
 import { SkillsWorkspace } from "./skills-workspace";
@@ -37,14 +37,14 @@ export default async function SkillsPage() {
     redirect("/access");
   }
 
-  const [initialLibrary, initialFilterOptions] = await Promise.all([
-    listSkills({ page: 1, pageSize: 40 }),
+  const [initialHierarchy, initialFilterOptions] = await Promise.all([
+    getRecursiveSkillLibrary(),
     getSkillFilterOptions(),
   ]);
 
   return (
     <SkillsWorkspace
-      initialLibrary={initialLibrary}
+      initialHierarchy={initialHierarchy}
       initialFilterOptions={initialFilterOptions}
       username={session.user.username ?? session.user.name ?? "G.O.D."}
     />

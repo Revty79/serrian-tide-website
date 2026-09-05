@@ -86,6 +86,8 @@
     "db:seed:runtime-dev": "tsx scripts/seed-runtime-foundation-dev.ts",
     "db:backfill:creature-hp": "tsx scripts/backfill-creature-hp.ts",
     "audit:firearm-skills": "node scripts/audit-firearm-skills.mjs",
+    "audit:recursive-skills": "node --env-file=.env.local --import tsx scripts/recursive-skill-library-audit.ts",
+    "validate:recursive-skills-browser": "node --import tsx scripts/recursive-skill-library-browser.test.ts",
     "db:import:canon": "node scripts/import-ststandalone-skills.mjs && node scripts/import-ststandalone-canon.mjs"
   },
   "dependencies": {
