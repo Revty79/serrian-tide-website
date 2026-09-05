@@ -134,12 +134,12 @@ export function CalledCheckWorkspace({
   return <section className="called-check-workspace">
     <header className="called-check-heading">
       <div><span>LIVE TABLE SERVICE</span><h3 className="font-sans">Called Checks &amp; High/Low</h3><p>Issue exact, persistent requests. Objective results are recorded; fictional consequences remain a G.O.D. ruling.</p></div>
-      <strong>{view.batches.reduce((count, batch) => count + batch.summary.pending, 0)} pending</strong>
+      <strong className="called-check-pending-count"><span>{view.batches.reduce((count, batch) => count + batch.summary.pending, 0)}</span> pending</strong>
     </header>
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
 
     <div className="called-check-compose-grid">
-      <section className="called-check-compose">
+      <section className="called-check-compose called-check-compose--check">
         <header><span>CALLED CHECK</span><strong>Issue to the Session roster</strong></header>
         <div className="called-check-form-grid">
           <label><span>Source type</span><select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as typeof sourceKind)}><option value="attribute">Attribute</option><option value="skill">Exact Skill path</option></select></label>
@@ -155,10 +155,10 @@ export function CalledCheckWorkspace({
           <label><span>Penalty</span><input type="number" min="0" value={penaltyMagnitude} onChange={(event) => setPenaltyMagnitude(event.target.value)} /></label>
         </div>
         {recipientScope !== "all-pcs" ? <fieldset className="called-check-recipients"><legend>Exact recipients</legend>{view.recipients.map((recipient) => <label key={recipient.characterId}><input type={recipientScope === "one" ? "radio" : "checkbox"} checked={recipientIds.includes(recipient.characterId)} onChange={() => toggleRecipient(recipient.characterId)} /><span>{recipient.name}</span><small>{recipient.kind === "pc" ? "Player Character" : "Persistent NPC — G.O.D. controlled"}</small></label>)}</fieldset> : <p className="tabletop-readonly-notice">Every eligible Player Character currently on this Session roster will receive an independent request.</p>}
-        <button type="button" className="is-primary" disabled={busy || !purpose.trim() || (recipientScope !== "all-pcs" && recipientIds.length === 0) || (sourceKind === "skill" && !skillPathKey)} onClick={issue}>{busy ? "Issuing…" : "Issue Called Check"}</button>
+        <button type="button" className="is-primary called-check-submit" disabled={busy || !purpose.trim() || (recipientScope !== "all-pcs" && recipientIds.length === 0) || (sourceKind === "skill" && !skillPathKey)} onClick={issue}>{busy ? "Issuing…" : "Issue Called Check"}</button>
       </section>
 
-      <section className="called-check-compose">
+      <section className="called-check-compose called-check-compose--high-low">
         <header><span>HIGH / LOW</span><strong>One percentile result</strong></header>
         <div className="called-check-form-grid">
           <label><span>Mode</span><select value={highLowMode} onChange={(event) => {
@@ -174,7 +174,7 @@ export function CalledCheckWorkspace({
           <label className="is-wide"><span>Purpose</span><input value={highLowPurpose} onChange={(event) => setHighLowPurpose(event.target.value)} /></label>
         </div>
         <p className="tabletop-readonly-notice">01–50 is Low; 51–100 is High. High/Low has no target or normal success count.</p>
-        <button type="button" className="is-primary" disabled={busy || !highLowPurpose.trim() || (highLowMode !== "neutral" && highLowCharacterId === null)} onClick={() => run("High/Low request issued.", () => issueHighLow({ sessionId: view.session.id, sceneId, encounterId, mode: highLowMode, participantCharacterId: highLowCharacterId, visibility: highLowVisibility, rollMethod: highLowMethod, purpose: highLowPurpose, idempotencyKey: idempotencyKey() }))}>{busy ? "Issuing…" : "Issue High / Low"}</button>
+        <button type="button" className="is-primary called-check-submit" disabled={busy || !highLowPurpose.trim() || (highLowMode !== "neutral" && highLowCharacterId === null)} onClick={() => run("High/Low request issued.", () => issueHighLow({ sessionId: view.session.id, sceneId, encounterId, mode: highLowMode, participantCharacterId: highLowCharacterId, visibility: highLowVisibility, rollMethod: highLowMethod, purpose: highLowPurpose, idempotencyKey: idempotencyKey() }))}>{busy ? "Issuing…" : "Issue High / Low"}</button>
       </section>
     </div>
 
@@ -189,9 +189,9 @@ export function CalledCheckWorkspace({
           {request.rulingText ? <p className="tabletop-readonly-notice">{request.rulingText}</p> : null}
           <div className="called-check-controls">
             {request.status === "pending" && (batch.visibility === "god-only" || request.recipientKind === "npc") ? <button disabled={busy} onClick={() => godRollCalled(request.id, batch.rollMethod)}>Record {batch.rollMethod === "random" ? "Secret / NPC Roll" : "Physical Result"}</button> : null}
-            {(request.status === "pending" || request.status === "requires-god-ruling" && request.rollId === null) ? <button disabled={busy} onClick={() => reasoned("Cancellation", (reason) => cancelCalledCheck(view.session.id, request.id, reason))}>Cancel</button> : null}
+            {(request.status === "pending" || request.status === "requires-god-ruling" && request.rollId === null) ? <button className="is-danger" disabled={busy} onClick={() => reasoned("Cancellation", (reason) => cancelCalledCheck(view.session.id, request.id, reason))}>Cancel</button> : null}
             {request.status === "resolved" || request.status === "requires-god-ruling" && request.rollId !== null ? <button disabled={busy} onClick={() => reasoned("Reroll", (reason) => rerollCalledCheck(view.session.id, request.id, reason))}>Order Reroll</button> : null}
-            {request.status === "requires-god-ruling" ? <button disabled={busy} onClick={() => reasoned("G.O.D. ruling", (ruling) => ruleCalledCheck(view.session.id, request.id, ruling))}>Record Ruling</button> : null}
+            {request.status === "requires-god-ruling" ? <button className="is-ruling" disabled={busy} onClick={() => reasoned("G.O.D. ruling", (ruling) => ruleCalledCheck(view.session.id, request.id, ruling))}>Record Ruling</button> : null}
             {batch.visibility === "god-only" && request.rollId && !request.revealedVisibility ? <><button disabled={busy} onClick={() => run("Secret Called Check revealed privately.", () => revealCalledCheck(view.session.id, request.id, "private"))}>Reveal to Recipient</button><button disabled={busy} onClick={() => run("Secret Called Check revealed to the table.", () => revealCalledCheck(view.session.id, request.id, "table"))}>Reveal to Table</button></> : null}
           </div>
           <details><summary>Complete audit history ({request.events.length})</summary><ol>{request.events.map((event) => <li key={event.id}>{displayTime(event.createdAt)} · {event.eventKind} · {event.fromStatus ?? "created"} → {event.toStatus}{event.reason ? ` · ${event.reason}` : ""}</li>)}</ol></details>
@@ -211,9 +211,9 @@ export function CalledCheckWorkspace({
             if (request.rollMethod === "entered" && entered === null) return;
             run("High/Low Roll recorded.", () => answerGodHighLow(view.session.id, { requestId: request.id, enteredTotal: request.rollMethod === "entered" ? Number(entered) : null, idempotencyKey: idempotencyKey() }));
           }}>G.O.D. {request.rollMethod === "random" ? "Roll" : "Enter Result"}</button> : null}
-          {request.status === "pending" ? <button disabled={busy} onClick={() => reasoned("Cancellation", (reason) => cancelHighLow(view.session.id, request.id, reason))}>Cancel</button> : null}
+          {request.status === "pending" ? <button className="is-danger" disabled={busy} onClick={() => reasoned("Cancellation", (reason) => cancelHighLow(view.session.id, request.id, reason))}>Cancel</button> : null}
           {request.status === "resolved" || request.status === "requires-god-ruling" ? <button disabled={busy} onClick={() => reasoned("Reroll", (reason) => rerollHighLow(view.session.id, request.id, reason))}>Order Reroll</button> : null}
-          {request.status === "requires-god-ruling" ? <button disabled={busy} onClick={() => reasoned("G.O.D. ruling", (ruling) => ruleHighLow(view.session.id, request.id, ruling))}>Record Ruling</button> : null}
+          {request.status === "requires-god-ruling" ? <button className="is-ruling" disabled={busy} onClick={() => reasoned("G.O.D. ruling", (ruling) => ruleHighLow(view.session.id, request.id, ruling))}>Record Ruling</button> : null}
         </div>
         <details><summary>Audit history ({request.events.length})</summary><ol>{request.events.map((event) => <li key={event.id}>{displayTime(event.createdAt)} · {event.eventKind} · {event.fromStatus ?? "created"} → {event.toStatus}</li>)}</ol></details>
       </article>)}</div>

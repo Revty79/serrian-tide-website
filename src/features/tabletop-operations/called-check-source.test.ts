@@ -98,6 +98,31 @@ test("G.O.D. and minimal Player surfaces expose the required workflow without gl
   assert.doesNotMatch(tabletop, /key=\{`\$\{initialCalledChecks\.(?:batches|highLow)/);
 });
 
+test("Called Checks use the Heavens tabletop visual hierarchy and collapse cleanly on narrow screens", () => {
+  const god = read("src/app/heavens/tabletop/called-check-workspace.tsx");
+  const css = read("src/app/heavens/tabletop/tabletop.css");
+
+  for (const className of [
+    "called-check-pending-count",
+    "called-check-compose--check",
+    "called-check-compose--high-low",
+    "called-check-submit",
+    "is-danger",
+    "is-ruling",
+  ]) assert.match(god, new RegExp(`className=\\"[^\\"]*${className}`));
+
+  for (const selector of [
+    ".called-check-heading",
+    ".called-check-compose::before",
+    ".called-check-form-grid input:focus-visible",
+    ".called-check-recipients input:focus-visible",
+    ".called-check-attempt.is-resolved > header em",
+    ".called-check-attempt.is-requires-god-ruling > header em",
+  ]) assert.match(css, new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+  assert.match(css, /@media\(max-width:620px\) \{[\s\S]*\.called-check-controls button \{ width: 100%; \}/);
+});
+
 test("secret live invalidations are G.O.D.-only and Player reads filter visibility before returning data", () => {
   const live = read("src/features/tabletop-operations/tabletop-live-events.ts");
   const actions = read("src/app/heavens/tabletop/called-check-actions.ts");
