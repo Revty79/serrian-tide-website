@@ -5,12 +5,17 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatCampaignMoney } from "@/features/characters/currency-rules";
+import { getCharacterWeaponDamage } from "@/features/characters/character-sheet-rules";
+import { compareCampaignInventoryItems } from "@/features/campaigns/campaign-inventory";
 import {
+  SHOP_CATALOG_FILTER_OPTIONS,
   filterShopCatalogItems,
   getEffectiveShopPrice,
+  matchesShopCatalogFilter,
   matchesShopSearch,
   moveOrderedId,
   type ShopArchiveStatus,
+  type ShopCatalogItem,
   type ShopCatalogFilter,
   type ShopChangedSaleConfirmationMode,
   type ShopCharacterPurchaseMode,
@@ -25,6 +30,7 @@ import {
   addShopStaff,
   archiveShop,
   createShop,
+  deleteShop,
   getShop,
   listShops,
   removeShopOffering,
@@ -51,14 +57,6 @@ const EMPTY_CREATE = {
   balanceCredits: 0,
 };
 
-const CATALOG_FILTERS: Array<[ShopCatalogFilter, string]> = [
-  ["all", "All"],
-  ["weapon", "Weapons"],
-  ["armor", "Armor"],
-  ["general", "General"],
-  ["inventory", "Inventory"],
-];
-
 function messageFrom(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -69,6 +67,34 @@ function optionalNumber(value: string): number | null {
 
 function numberValue(value: string): number {
   return value.trim() === "" ? 0 : Number(value);
+}
+
+function displayNumber(value: number): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function getCatalogItemDetails(catalogItem: ShopCatalogItem): Array<[string, string]> {
+  const details: Array<[string, string]> = [];
+  const damageProfile = getCharacterWeaponDamage(catalogItem);
+  if (catalogItem.weaponType) details.push(["Weapon", catalogItem.weaponType]);
+  if (catalogItem.handedness) details.push(["Hands", catalogItem.handedness]);
+  if (damageProfile.damage) {
+    details.push(["Damage", `${damageProfile.damage}${damageProfile.damageType ? ` ${damageProfile.damageType}` : ""}`]);
+  }
+  if (damageProfile.sourceName) details.push(["Ammunition", damageProfile.sourceName]);
+  if (catalogItem.rangeText) details.push(["Range", catalogItem.rangeText]);
+  if (catalogItem.reachText) details.push(["Reach", catalogItem.reachText]);
+  if (catalogItem.armorType) details.push(["Armor", catalogItem.armorType]);
+  if (catalogItem.coverage) details.push(["Coverage", catalogItem.coverage]);
+  if (catalogItem.baseSoak !== null) details.push(["Base Soak", displayNumber(catalogItem.baseSoak)]);
+  if (catalogItem.armorDamageModifiers) details.push(["Damage Modifiers", catalogItem.armorDamageModifiers]);
+  if (catalogItem.weight !== null) {
+    details.push(["Weight", `${displayNumber(catalogItem.weight)} ${catalogItem.weightUnit}`.trim()]);
+  }
+  if (catalogItem.durability !== null) details.push(["Durability", displayNumber(catalogItem.durability)]);
+  return details;
 }
 
 export function ShopWorkspace({
@@ -82,10 +108,12 @@ export function ShopWorkspace({
   const preserveScroll = useInPlaceScrollPreservation();
   const createDialogRef = useRef<HTMLDialogElement>(null);
   const archiveDialogRef = useRef<HTMLDialogElement>(null);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const initialCampaign = searchParams.get("campaign") ?? "";
   const initialStatus: ShopArchiveStatus = searchParams.get("status") === "archived"
     ? "archived"
     : "active";
+  const activeCampaignRef = useRef(initialCampaign);
   const [campaignId, setCampaignId] = useState(initialCampaign);
   const [status, setStatus] = useState<ShopArchiveStatus>(initialStatus);
   const [shops, setShops] = useState<ShopSummary[]>([]);
@@ -94,10 +122,14 @@ export function ShopWorkspace({
   const [npcSearch, setNpcSearch] = useState("");
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogFilter, setCatalogFilter] = useState<ShopCatalogFilter>("all");
+  const [activeAvailableItemId, setActiveAvailableItemId] = useState<number | null>(null);
+  const [activeListedItemId, setActiveListedItemId] = useState<number | null>(null);
   const [selectedNpcId, setSelectedNpcId] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
   const [createDraft, setCreateDraft] = useState(EMPTY_CREATE);
   const [archiveReason, setArchiveReason] = useState("");
+  const [deleteTargetName, setDeleteTargetName] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [loading, setLoading] = useState(Boolean(initialCampaign));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -112,22 +144,43 @@ export function ShopWorkspace({
     return !search || [npc.name, npc.roleLabel, npc.npcKind, npc.npcBuildMode]
       .some((value) => value.toLocaleLowerCase("en-US").includes(search));
   }), [assignedNpcIds, detail, npcSearch]);
-  const visibleCatalog = useMemo(() => detail ? filterShopCatalogItems(
-    detail.authorizedItems,
-    detail.offerings.map(({ itemId }) => itemId),
-    catalogFilter,
-    catalogSearch,
-  ) : [], [catalogFilter, catalogSearch, detail]);
+  const listedItemIds = useMemo(
+    () => new Set(detail?.offerings.map(({ itemId }) => itemId) ?? []),
+    [detail],
+  );
+  const visibleCatalog = useMemo(() => detail
+    ? filterShopCatalogItems(detail.authorizedItems, catalogFilter, catalogSearch)
+      .filter(({ id }) => !listedItemIds.has(id))
+      .sort(compareCampaignInventoryItems)
+    : [], [catalogFilter, catalogSearch, detail, listedItemIds]);
+  const previewCatalogItem = useMemo(() => {
+    const previewId = activeAvailableItemId ?? activeListedItemId;
+    return detail?.authorizedItems.find(({ id }) => id === previewId) ?? null;
+  }, [activeAvailableItemId, activeListedItemId, detail]);
+  const previewCatalogDetails = useMemo(
+    () => previewCatalogItem ? getCatalogItemDetails(previewCatalogItem) : [],
+    [previewCatalogItem],
+  );
+  const activeListedOffering = useMemo(
+    () => detail?.offerings.find(({ itemId }) => itemId === activeListedItemId) ?? null,
+    [activeListedItemId, detail],
+  );
 
   useEffect(() => {
     if (!initialCampaign) return;
     let active = true;
     listShops(Number(initialCampaign), initialStatus)
-      .then((records) => { if (active) setShops(records); })
-      .catch((error) => {
-        if (active) setFeedback({ kind: "error", message: messageFrom(error, "Shops could not be loaded.") });
+      .then((records) => {
+        if (active && activeCampaignRef.current === initialCampaign) setShops(records);
       })
-      .finally(() => { if (active) setLoading(false); });
+      .catch((error) => {
+        if (active && activeCampaignRef.current === initialCampaign) {
+          setFeedback({ kind: "error", message: messageFrom(error, "Shops could not be loaded.") });
+        }
+      })
+      .finally(() => {
+        if (active && activeCampaignRef.current === initialCampaign) setLoading(false);
+      });
     return () => { active = false; };
   }, [initialCampaign, initialStatus]);
 
@@ -139,26 +192,35 @@ export function ShopWorkspace({
   }
 
   async function changeCampaign(nextCampaignId: string): Promise<void> {
+    activeCampaignRef.current = nextCampaignId;
     await preserveScroll(async () => {
       setCampaignId(nextCampaignId);
       setDetail(null);
       setFeedback(null);
       setShops([]);
+      setCatalogSearch("");
+      setCatalogFilter("all");
+      setActiveAvailableItemId(null);
+      setActiveListedItemId(null);
       replaceUrl(nextCampaignId, status);
       if (!nextCampaignId) return;
       setLoading(true);
       try {
-        setShops(await listShops(Number(nextCampaignId), status));
+        const records = await listShops(Number(nextCampaignId), status);
+        if (activeCampaignRef.current === nextCampaignId) setShops(records);
       } catch (error) {
-        setFeedback({ kind: "error", message: messageFrom(error, "Shops could not be loaded.") });
+        if (activeCampaignRef.current === nextCampaignId) {
+          setFeedback({ kind: "error", message: messageFrom(error, "Shops could not be loaded.") });
+        }
       } finally {
-        setLoading(false);
+        if (activeCampaignRef.current === nextCampaignId) setLoading(false);
       }
     });
   }
 
   async function changeStatus(nextStatus: ShopArchiveStatus): Promise<void> {
     if (!campaignId || nextStatus === status) return;
+    const requestedCampaignId = campaignId;
     await preserveScroll(async () => {
       setStatus(nextStatus);
       setDetail(null);
@@ -166,46 +228,72 @@ export function ShopWorkspace({
       replaceUrl(campaignId, nextStatus);
       setLoading(true);
       try {
-        setShops(await listShops(Number(campaignId), nextStatus));
+        const records = await listShops(Number(requestedCampaignId), nextStatus);
+        if (activeCampaignRef.current === requestedCampaignId) setShops(records);
       } catch (error) {
-        setFeedback({ kind: "error", message: messageFrom(error, "Shops could not be loaded.") });
+        if (activeCampaignRef.current === requestedCampaignId) {
+          setFeedback({ kind: "error", message: messageFrom(error, "Shops could not be loaded.") });
+        }
       } finally {
-        setLoading(false);
+        if (activeCampaignRef.current === requestedCampaignId) setLoading(false);
       }
     });
   }
 
   async function openShop(shopId: number): Promise<void> {
     if (!campaignId) return;
+    const requestedCampaignId = campaignId;
+    const changesShop = detail?.shop.id !== shopId;
     await preserveScroll(async () => {
       setBusy(true);
       setFeedback(null);
       try {
-        setDetail(await getShop(shopId, Number(campaignId)));
-        setNpcSearch("");
-        setCatalogSearch("");
-        setSelectedNpcId("");
-        setNewStaffRole("");
+        const nextDetail = await getShop(shopId, Number(requestedCampaignId));
+        if (activeCampaignRef.current === requestedCampaignId) {
+          setDetail(nextDetail);
+          setNpcSearch("");
+          if (changesShop) {
+            setCatalogSearch("");
+            setCatalogFilter("all");
+            setActiveAvailableItemId(null);
+            setActiveListedItemId(null);
+          }
+          setSelectedNpcId("");
+          setNewStaffRole("");
+        }
       } catch (error) {
-        setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be opened.") });
+        if (activeCampaignRef.current === requestedCampaignId) {
+          setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be opened.") });
+        }
       } finally {
         setBusy(false);
       }
     });
   }
 
-  async function acceptMutation(operation: () => Promise<ShopDetail>, success: string): Promise<void> {
+  async function acceptMutation(
+    operation: () => Promise<ShopDetail>,
+    success: string,
+    onSuccess?: () => void,
+  ): Promise<void> {
     if (!campaignId) return;
+    const requestedCampaignId = campaignId;
     await preserveScroll(async () => {
       setBusy(true);
       setFeedback(null);
       try {
         const updated = await operation();
+        if (activeCampaignRef.current !== requestedCampaignId) return;
         setDetail(updated);
-        setShops(await listShops(Number(campaignId), status));
+        onSuccess?.();
+        const records = await listShops(Number(requestedCampaignId), status);
+        if (activeCampaignRef.current !== requestedCampaignId) return;
+        setShops(records);
         setFeedback({ kind: "success", message: success });
       } catch (error) {
-        setFeedback({ kind: "error", message: messageFrom(error, "The Shop change could not be saved.") });
+        if (activeCampaignRef.current === requestedCampaignId) {
+          setFeedback({ kind: "error", message: messageFrom(error, "The Shop change could not be saved.") });
+        }
       } finally {
         setBusy(false);
       }
@@ -227,6 +315,10 @@ export function ShopWorkspace({
       replaceUrl(campaignId, "active");
       setShops(await listShops(Number(campaignId), "active"));
       setDetail(created);
+      setCatalogSearch("");
+      setCatalogFilter("all");
+      setActiveAvailableItemId(null);
+      setActiveListedItemId(null);
       setFeedback({ kind: "success", message: `${created.shop.name} was created with its storefront closed.` });
     } catch (error) {
       setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be created.") });
@@ -279,7 +371,7 @@ export function ShopWorkspace({
   }
 
   async function addOffering(itemId: number): Promise<void> {
-    if (!detail) return;
+    if (!detail || readOnly) return;
     const catalogItem = detail.authorizedItems.find(({ id }) => id === itemId);
     await acceptMutation(() => addShopOffering({
       shopId: detail.shop.id,
@@ -292,7 +384,22 @@ export function ShopWorkspace({
       sellingPriceOverrideCredits: null,
       buyingPriceOverrideCredits: null,
       shopNote: "",
-    }), `${catalogItem?.name ?? "Item"} was added to ${detail.shop.name}.`);
+    }), `${catalogItem?.name ?? "Item"} was added to ${detail.shop.name}.`, () => {
+      setActiveAvailableItemId(null);
+      setActiveListedItemId(itemId);
+    });
+  }
+
+  async function removeOffering(offering: ShopOfferingRecord): Promise<void> {
+    if (!detail || readOnly) return;
+    await acceptMutation(
+      () => removeShopOffering(detail.shop.id, detail.shop.campaignId, offering.id),
+      `${offering.itemName} was removed from this Shop.`,
+      () => {
+        setActiveListedItemId(null);
+        setActiveAvailableItemId(offering.itemId);
+      },
+    );
   }
 
   async function saveOffering(offering: ShopOfferingRecord): Promise<void> {
@@ -356,6 +463,52 @@ export function ShopWorkspace({
         setFeedback({ kind: "success", message: `${name} was restored with its storefront closed.` });
       } catch (error) {
         setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be restored.") });
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
+
+  async function openDeleteDialog(): Promise<void> {
+    if (!detail) return;
+    const requestedCampaignId = detail.shop.campaignId;
+    const requestedShopId = detail.shop.id;
+    await preserveScroll(async () => {
+      setBusy(true);
+      setFeedback(null);
+      try {
+        const current = await getShop(requestedShopId, requestedCampaignId);
+        if (activeCampaignRef.current !== String(requestedCampaignId)) return;
+        setDeleteTargetName(current.shop.name);
+        setDeleteConfirmation("");
+        deleteDialogRef.current?.showModal();
+      } catch (error) {
+        setFeedback({ kind: "error", message: messageFrom(error, "The Shop deletion review could not be opened.") });
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
+
+  async function submitDelete(): Promise<void> {
+    if (!detail || !campaignId || !deleteTargetName) return;
+    const requestedCampaignId = detail.shop.campaignId;
+    const requestedShopId = detail.shop.id;
+    await preserveScroll(async () => {
+      setBusy(true);
+      setFeedback(null);
+      try {
+        await deleteShop(requestedShopId, requestedCampaignId, deleteConfirmation);
+        deleteDialogRef.current?.close();
+        setDeleteTargetName("");
+        setDeleteConfirmation("");
+        setDetail(null);
+        setActiveAvailableItemId(null);
+        setActiveListedItemId(null);
+        setShops(await listShops(Number(campaignId), status));
+        setFeedback({ kind: "success", message: `${deleteTargetName} was permanently deleted.` });
+      } catch (error) {
+        setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be permanently deleted.") });
       } finally {
         setBusy(false);
       }
@@ -451,6 +604,7 @@ export function ShopWorkspace({
             <div className="shops-editor__actions">
               {detail.shop.archivedAt ? <button type="button" disabled={busy || detail.campaign.archived} onClick={() => void submitRestore()}>Restore Shop</button>
                 : <button className="is-danger" type="button" disabled={busy} onClick={() => { setFeedback(null); archiveDialogRef.current?.showModal(); }}>Archive Shop</button>}
+              <button className="is-danger" type="button" disabled={busy} onClick={() => void openDeleteDialog()}>Delete Shop</button>
             </div>
           </header>
           {readOnly ? <p className="shops-readonly">{detail.campaign.archived ? "This Campaign is archived. Its Shop records are read-only." : "This Shop is archived and read-only. Restore it before making changes."}</p> : null}
@@ -495,16 +649,40 @@ export function ShopWorkspace({
           </section>
 
           <section className="shops-panel">
-            <header><div><p>CAMPAIGN-AUTHORIZED CATALOG</p><h3>Add Equipment or Inventory offerings</h3></div><span>{visibleCatalog.length} available</span></header>
+            <header><div><p>CAMPAIGN-AUTHORIZED CATALOG</p><h3>Add Equipment or Inventory offerings</h3></div><span>{visibleCatalog.length} shown</span></header>
             <div className="shops-catalog-tools">
-              <label className="shops-field"><span>Search permitted Items</span><input type="search" disabled={readOnly} value={catalogSearch} placeholder="Name, ID, category, description, or type" onChange={(event) => setCatalogSearch(event.target.value)} /></label>
-              <nav aria-label="Offering catalog filters">{CATALOG_FILTERS.map(([value, label]) => <button type="button" key={value} aria-pressed={catalogFilter === value} disabled={readOnly} onClick={() => void preserveScroll(() => setCatalogFilter(value))}>{label}</button>)}</nav>
+              <label className="shops-field"><span>Search permitted Items</span><input type="search" value={catalogSearch} placeholder="Name, ID, category, damage, armor, or type" onChange={(event) => setCatalogSearch(event.target.value)} /></label>
+              <nav aria-label="Offering catalog filters">{SHOP_CATALOG_FILTER_OPTIONS.map(([value, label]) => <button type="button" key={value} className={catalogFilter === value ? "is-active" : ""} aria-pressed={catalogFilter === value} onClick={() => void preserveScroll(() => setCatalogFilter(value))}><span>{label}</span><strong>{detail.authorizedItems.filter((catalogItem) => !catalogItem.archived && matchesShopCatalogFilter(catalogItem, value)).length}</strong></button>)}</nav>
             </div>
-            {visibleCatalog.length ? <div className="shops-catalog" data-preserve-scroll="shop-catalog">{visibleCatalog.map((catalogItem) => <article key={catalogItem.id}>
-              <div><p>{catalogItem.canonicalId} · {catalogItem.recordType}</p><h4>{catalogItem.name}</h4><span>{catalogItem.category}{catalogItem.equipmentGroup ? ` · ${catalogItem.equipmentGroup}` : " · Inventory"}</span>{catalogItem.description ? <small>{catalogItem.description}</small> : null}</div>
-              <div className="shops-price"><span>Canonical price</span><strong>{catalogItem.credits === null ? "Not priced" : formatMoney(catalogItem.credits)}</strong><small>{catalogItem.priceBasis}</small></div>
-              <button type="button" disabled={busy || readOnly} onClick={() => void addOffering(catalogItem.id)}>Add Offering</button>
-            </article>)}</div> : <p className="shops-empty">No unlisted Campaign-authorized Items match this catalog view.</p>}
+            <div className="shops-catalog-transfer">
+              <section className="shops-catalog-column">
+                <header><h4>Available Campaign Items</h4><span>{visibleCatalog.length} shown</span></header>
+                <div className="shops-catalog-pool" data-preserve-scroll="shop-catalog-available">
+                  {visibleCatalog.length ? visibleCatalog.map((catalogItem) => <button type="button" key={catalogItem.id} className={activeAvailableItemId === catalogItem.id ? "is-active" : ""} aria-pressed={activeAvailableItemId === catalogItem.id} title={`Double-click to add ${catalogItem.name} to this Shop`} onClick={() => { setActiveAvailableItemId(catalogItem.id); setActiveListedItemId(null); }} onDoubleClick={() => void addOffering(catalogItem.id)}>
+                    <strong>{catalogItem.name}</strong><span>{catalogItem.canonicalId} · {catalogItem.equipmentGroup ?? "Inventory"} · {catalogItem.category}</span>
+                  </button>) : <p>{catalogSearch ? "No Campaign Items match the active category and search." : "Every Campaign Item in this category is already listed."}</p>}
+                </div>
+              </section>
+              <div className="shops-transfer-actions">
+                <button type="button" disabled={busy || readOnly || activeAvailableItemId === null} onClick={() => activeAvailableItemId !== null && void addOffering(activeAvailableItemId)}>Add Selected →</button>
+                <button type="button" disabled={busy || readOnly || activeListedOffering === null} onClick={() => activeListedOffering && void removeOffering(activeListedOffering)}>← Remove Selected</button>
+              </div>
+              <section className="shops-catalog-column">
+                <header><h4>Listed in Shop</h4><span>{detail.offerings.length} listed</span></header>
+                <div className="shops-catalog-pool" data-preserve-scroll="shop-catalog-listed">
+                  {detail.offerings.length ? detail.offerings.map((offering) => <button type="button" key={offering.id} className={activeListedItemId === offering.itemId ? "is-active" : ""} aria-pressed={activeListedItemId === offering.itemId} title={`Double-click to remove ${offering.itemName} from this Shop`} onClick={() => { setActiveListedItemId(offering.itemId); setActiveAvailableItemId(null); }} onDoubleClick={() => void removeOffering(offering)}>
+                    <strong>{offering.itemName}</strong><span>{offering.canonicalId} · Already Listed</span>
+                  </button>) : <p>Double-click an Item on the left or use Add Selected.</p>}
+                </div>
+              </section>
+            </div>
+            <p className="shops-catalog-hint">Available Items use the Campaign creator’s natural name order. Double-click to transfer without leaving this position.</p>
+            {previewCatalogItem ? <article className={`shops-catalog-preview ${listedItemIds.has(previewCatalogItem.id) ? "is-listed" : ""}`}>
+              <div className="shops-catalog__identity"><p>{previewCatalogItem.canonicalId} · {previewCatalogItem.recordType}</p><h4>{previewCatalogItem.name}</h4><span>{previewCatalogItem.category}{previewCatalogItem.equipmentGroup ? ` · ${previewCatalogItem.equipmentGroup}` : " · Inventory"}{previewCatalogItem.isMagical ? " · Magical" : ""}</span>{previewCatalogItem.description ? <small>{previewCatalogItem.description}</small> : null}</div>
+              {previewCatalogDetails.length ? <dl>{previewCatalogDetails.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="shops-catalog__empty">No additional mechanics recorded.</p>}
+              {previewCatalogItem.weaponRulesText || previewCatalogItem.armorRulesText ? <p className="shops-catalog__rules">{previewCatalogItem.weaponRulesText || previewCatalogItem.armorRulesText}</p> : null}
+              <div className="shops-catalog__action"><div><span>Canonical price</span><strong>{previewCatalogItem.credits === null ? "Not priced" : formatMoney(previewCatalogItem.credits)}</strong><small>{previewCatalogItem.priceBasis}</small></div><button type="button" disabled={busy || readOnly || listedItemIds.has(previewCatalogItem.id)} onClick={() => void addOffering(previewCatalogItem.id)}>{listedItemIds.has(previewCatalogItem.id) ? "Already Listed" : "Add to Shop"}</button></div>
+            </article> : <p className="shops-empty">Select an available or listed Item to inspect its full catalog details.</p>}
           </section>
 
           <section className="shops-panel">
@@ -524,7 +702,7 @@ export function ShopWorkspace({
                   <label className="shops-field is-wide"><span>Shop-Facing Note</span><textarea rows={2} maxLength={1000} disabled={readOnly} value={offering.shopNote} onChange={(event) => updateOfferingDraft(offering.id, { shopNote: event.target.value })} /></label>
                 </div>
                 <label className="shops-check"><input type="checkbox" disabled={readOnly || (offering.enabled === false && (offering.itemArchived || !offering.campaignAuthorized))} checked={offering.enabled} onChange={(event) => updateOfferingDraft(offering.id, { enabled: event.target.checked })} /><span>Listing enabled</span></label>
-                <div className="shops-row-actions"><button type="button" disabled={busy || readOnly} onClick={() => void saveOffering(offering)}>Save Offering</button><button className="is-danger" type="button" disabled={busy || readOnly} onClick={() => void acceptMutation(() => removeShopOffering(detail.shop.id, detail.shop.campaignId, offering.id), `${offering.itemName} was removed from this Shop.`)}>Remove</button></div>
+                <div className="shops-row-actions"><button type="button" disabled={busy || readOnly} onClick={() => void saveOffering(offering)}>Save Offering</button><button className="is-danger" type="button" disabled={busy || readOnly} onClick={() => void removeOffering(offering)}>Remove</button></div>
               </article>;
             })}</div> : <p className="shops-empty">No offerings yet. Add Items from the Campaign-authorized catalog above.</p>}
           </section>
@@ -553,6 +731,16 @@ export function ShopWorkspace({
         {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
         <label className="shops-field"><span>Archive Reason (optional)</span><textarea rows={3} maxLength={1000} value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} /></label>
         <footer><button type="button" disabled={busy} onClick={() => { archiveDialogRef.current?.close(); setArchiveReason(""); }}>Cancel</button><button className="is-danger" type="button" disabled={busy} onClick={() => void submitArchive()}>{busy ? "Archiving…" : "Archive Shop"}</button></footer>
+      </section>
+    </dialog>
+
+    <dialog ref={deleteDialogRef} className="shops-dialog" onCancel={() => { setDeleteTargetName(""); setDeleteConfirmation(""); }}>
+      <section>
+        <header><p>PERMANENTLY DELETE SHOP</p><h2 className="font-sans">{deleteTargetName || "Shop"}</h2><span>This removes the Shop, its staff assignments, and all offering settings. The deletion audit remains.</span></header>
+        {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
+        <label className="shops-field"><span>Type the exact Shop name <strong>{deleteTargetName}</strong> to confirm</span><input autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label>
+        <p className="shops-help">This cannot be undone. Production recovery protection must also permit permanent deletion.</p>
+        <footer><button type="button" disabled={busy} onClick={() => { deleteDialogRef.current?.close(); setDeleteTargetName(""); setDeleteConfirmation(""); }}>Cancel</button><button className="is-danger" type="button" disabled={busy || !deleteTargetName || deleteConfirmation !== deleteTargetName} onClick={() => void submitDelete()}>{busy ? "Deleting…" : "Permanently Delete Shop"}</button></footer>
       </section>
     </dialog>
   </main>;

@@ -79,7 +79,7 @@
 .shops-panel > header p,
 .shops-dialog header p,
 .shops-card-identity p,
-.shops-catalog article p {
+.shops-catalog__identity p {
   color: #d8b4fe;
   font-size: 0.7rem;
   letter-spacing: 0.13em;
@@ -93,7 +93,7 @@
 .shops-panel h3,
 .shops-dialog h2,
 .shops-card-identity h4,
-.shops-catalog article h4 {
+.shops-catalog__identity h4 {
   margin: 0.25rem 0 0;
   color: #f8fafc;
 }
@@ -262,7 +262,7 @@
 
 .shops-field small,
 .shops-card-identity small,
-.shops-catalog small,
+.shops-catalog-preview small,
 .shops-price small,
 .shops-price-grid small {
   color: #8e9aac;
@@ -410,7 +410,7 @@
 
 .shops-staff-list > article,
 .shops-offerings > article,
-.shops-catalog > article {
+.shops-catalog-preview {
   border: 1px solid rgb(148 163 184 / 16%);
   border-radius: 0.9rem;
   background: rgb(2 6 23 / 54%);
@@ -425,7 +425,7 @@
 }
 
 .shops-card-identity span,
-.shops-catalog article span {
+.shops-catalog__identity > span {
   display: block;
   margin-top: 0.2rem;
   color: #94a3b8;
@@ -457,27 +457,230 @@
 
 .shops-catalog-tools {
   display: grid;
-  grid-template-columns: minmax(15rem, 1fr) minmax(14rem, auto);
-  align-items: end;
-  gap: 0.8rem;
+  gap: 10px;
   margin-top: 0.9rem;
 }
 
-.shops-catalog {
+.shops-catalog-tools > .shops-field {
+  max-width: 620px;
+}
+
+.shops-catalog-tools nav {
+  gap: 7px;
+}
+
+.shops-catalog-tools nav button {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  border-color: rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 20%);
+  padding: 6px 10px;
+  color: #8d98a3;
+}
+
+.shops-catalog-tools nav button.is-active {
+  border-color: rgb(245 202 115 / 72%);
+  background: rgb(75 61 35 / 28%);
+  color: #eed9a5;
+}
+
+.shops-catalog-tools nav strong {
+  min-width: 22px;
+  border-radius: 10px;
+  background: rgb(245 202 115 / 8%);
+  padding: 2px 5px;
+  font-size: 0.75rem;
+}
+
+.shops-catalog-transfer {
   display: grid;
-  gap: 0.6rem;
-  max-height: 26rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.8rem;
   margin-top: 0.8rem;
-  overflow: auto;
+}
+
+.shops-catalog-column {
+  min-width: 0;
+  border: 1px solid rgb(148 163 184 / 16%);
+  border-radius: 0.9rem;
+  background: rgb(2 6 23 / 38%);
+  padding: 0.8rem;
+}
+
+.shops-catalog-column > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  padding-bottom: 0.65rem;
+}
+
+.shops-catalog-column > header h4 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.shops-catalog-column > header span {
+  color: #aeb9ca;
+  font-size: 0.72rem;
+}
+
+.shops-catalog-pool {
+  display: flex;
+  min-height: 16rem;
+  max-height: 26rem;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  overflow-y: auto;
   padding-right: 0.2rem;
   scrollbar-color: rgb(252 211 77 / 32%) transparent;
 }
 
-.shops-catalog > article {
+.shops-catalog-pool button {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) auto;
+  gap: 0.25rem;
+  border-color: rgb(148 163 184 / 16%);
+  border-radius: 0.7rem;
+  background: rgb(2 6 23 / 54%);
+  padding: 0.7rem;
+  text-align: left;
+}
+
+.shops-catalog-pool button.is-active {
+  border-color: rgb(245 202 115 / 58%);
+  background: rgb(75 61 35 / 26%);
+}
+
+.shops-catalog-pool button strong {
+  color: #f8fafc;
+  font-size: 0.8rem;
+}
+
+.shops-catalog-pool button span,
+.shops-catalog-pool > p,
+.shops-catalog-hint {
+  color: #9da9b7;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.shops-catalog-pool > p {
+  margin: 0;
+  padding: 0.7rem;
+}
+
+.shops-transfer-actions {
+  display: flex;
+  width: 9rem;
+  flex-direction: column;
   align-items: center;
-  gap: 0.8rem;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.shops-transfer-actions button {
+  width: 100%;
+}
+
+.shops-catalog-hint {
+  margin: 0.7rem 0 0;
+}
+
+.shops-catalog-preview {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.1fr) auto;
+  align-items: start;
+  gap: 14px;
+  margin-top: 0.8rem;
+  padding: 14px;
+}
+
+.shops-catalog-preview.is-listed {
+  border-color: rgb(245 202 115 / 72%);
+  background: linear-gradient(90deg, rgb(75 61 35 / 20%), rgb(2 6 23 / 54%));
+}
+
+.shops-catalog__identity > span,
+.shops-catalog__identity > small {
+  display: block;
+  color: #9da9b7;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.shops-catalog__identity > small {
+  margin-top: 7px;
+}
+
+.shops-catalog-preview dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.shops-catalog-preview dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  padding: 3px 0;
+}
+
+.shops-catalog-preview dt,
+.shops-catalog-preview dd,
+.shops-catalog__empty,
+.shops-catalog__rules {
+  color: #9da9b7;
+  font-size: 0.75rem;
+}
+
+.shops-catalog-preview dd {
+  margin: 0;
+  color: #ccd0cb;
+  text-align: right;
+}
+
+.shops-catalog__empty,
+.shops-catalog__rules {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.shops-catalog__rules {
+  grid-column: 1 / 3;
+}
+
+.shops-catalog__action {
+  display: grid;
+  min-width: 132px;
+  gap: 7px;
+}
+
+.shops-catalog__action > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shops-catalog__action span,
+.shops-catalog__action small {
+  color: #9da9b7;
+  font-size: 0.75rem;
+}
+
+.shops-catalog__action strong {
+  color: #dec99a;
+  font-size: 0.75rem;
+}
+
+.shops-catalog__action button {
+  min-height: 38px;
 }
 
 .shops-price,
@@ -583,6 +786,10 @@
   .shops-add-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .shops-catalog-preview {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 42rem) {
@@ -617,13 +824,30 @@
   .shops-add-row,
   .shops-staff-list > article,
   .shops-catalog-tools,
-  .shops-catalog > article,
+  .shops-catalog-transfer,
+  .shops-catalog-preview,
   .shops-price-grid {
     grid-template-columns: 1fr;
   }
 
   .shops-field.is-wide {
     grid-column: auto;
+  }
+
+  .shops-catalog__rules {
+    grid-column: auto;
+  }
+
+  .shops-catalog-preview dl {
+    grid-template-columns: 1fr;
+  }
+
+  .shops-catalog-pool {
+    max-height: 70vh;
+  }
+
+  .shops-transfer-actions {
+    width: auto;
   }
 }
 

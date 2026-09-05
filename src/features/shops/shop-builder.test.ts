@@ -4,11 +4,13 @@ import test from "node:test";
 import { formatCampaignMoney } from "@/features/characters/currency-rules";
 
 import {
+  SHOP_CATALOG_FILTER_OPTIONS,
   assertShopEditable,
   canManageShop,
   filterShopCatalogItems,
   getEffectiveShopPrice,
   isEligibleShopNpc,
+  matchesShopCatalogFilter,
   matchesShopSearch,
   moveOrderedId,
   normalizeShopCoreValues,
@@ -19,6 +21,42 @@ import {
   type ShopCoreValues,
   type ShopOfferingValues,
 } from "./shop-builder";
+
+function catalogItem(overrides: Partial<ShopCatalogItem> & Pick<ShopCatalogItem, "id" | "canonicalId" | "name">): ShopCatalogItem {
+  return {
+    catalogScope: "equipment",
+    equipmentGroup: "general",
+    recordType: "Equipment",
+    family: "General",
+    category: "General",
+    description: "",
+    credits: 1,
+    priceBasis: "each",
+    weight: null,
+    weightUnit: "",
+    durability: null,
+    isMagical: false,
+    weaponType: null,
+    handedness: null,
+    damageSource: null,
+    damage: null,
+    damageType: null,
+    ammunitionItemId: null,
+    ammunitionItemName: null,
+    ammunitionDamage: null,
+    ammunitionDamageType: null,
+    rangeText: null,
+    reachText: null,
+    weaponRulesText: null,
+    armorType: null,
+    coverage: null,
+    baseSoak: null,
+    armorDamageModifiers: null,
+    armorRulesText: null,
+    archived: false,
+    ...overrides,
+  };
+}
 
 const validCore: ShopCoreValues = {
   campaignId: 7,
@@ -142,14 +180,21 @@ test("price overrides are nonnegative and canonical prices remain the buying and
 
 test("Campaign-authorized catalog filtering follows Equipment and Inventory store concepts", () => {
   const items: ShopCatalogItem[] = [
-    { id: 1, canonicalId: "ITEM-0001", name: "Iron Sword", catalogScope: "equipment", equipmentGroup: "weapon", recordType: "Weapon", family: "Blades", category: "Sword", description: "Sharp.", credits: 10, priceBasis: "each", archived: false },
-    { id: 2, canonicalId: "ITEM-0002", name: "Field Kit", catalogScope: "equipment", equipmentGroup: "general", recordType: "Gear", family: "Kits", category: "Travel", description: "Useful.", credits: 4, priceBasis: "each", archived: false },
-    { id: 3, canonicalId: "ITEM-0003", name: "Ferry Passage", catalogScope: "inventory", equipmentGroup: null, recordType: "Service", family: "Travel", category: "Passage", description: "River crossing.", credits: 2, priceBasis: "trip", archived: false },
-    { id: 4, canonicalId: "ITEM-0004", name: "Old Stock", catalogScope: "inventory", equipmentGroup: null, recordType: "Supply", family: "Old", category: "Old", description: "Archived.", credits: 1, priceBasis: "each", archived: true },
+    catalogItem({ id: 1, canonicalId: "ITEM-0001", name: "Iron Sword", equipmentGroup: "weapon", recordType: "Weapon", family: "Blades", category: "Sword", description: "Sharp.", credits: 10, damageType: "Slashing", ammunitionItemName: "Needle Cartridge", ammunitionDamageType: "Piercing" }),
+    catalogItem({ id: 2, canonicalId: "ITEM-0002", name: "Field Kit", recordType: "Gear", family: "Kits", category: "Travel", description: "Useful.", credits: 4 }),
+    catalogItem({ id: 3, canonicalId: "ITEM-0003", name: "Ferry Passage", catalogScope: "inventory", equipmentGroup: null, recordType: "Service", family: "Travel", category: "Passage", description: "River crossing.", credits: 2, priceBasis: "trip" }),
+    catalogItem({ id: 4, canonicalId: "ITEM-0004", name: "Old Stock", catalogScope: "inventory", equipmentGroup: null, recordType: "Supply", family: "Old", category: "Old", description: "Archived.", archived: true }),
+    catalogItem({ id: 5, canonicalId: "ITEM-0005", name: "Guard Plate", equipmentGroup: "armor", recordType: "Armor", armorType: "Plate", coverage: "Torso and arms" }),
   ];
-  assert.deepEqual(filterShopCatalogItems(items, [2], "all", "").map(({ id }) => id), [1, 3]);
-  assert.deepEqual(filterShopCatalogItems(items, [], "weapon", "iron").map(({ id }) => id), [1]);
-  assert.deepEqual(filterShopCatalogItems(items, [], "inventory", "river").map(({ id }) => id), [3]);
+  assert.deepEqual(SHOP_CATALOG_FILTER_OPTIONS.map(([, label]) => label), [
+    "All Items", "Weapons", "Armor", "General Equipment", "Inventory",
+  ]);
+  assert.deepEqual(filterShopCatalogItems(items, "all", "").map(({ id }) => id), [1, 2, 3, 5]);
+  assert.deepEqual(filterShopCatalogItems(items, "weapon", "piercing").map(({ id }) => id), [1]);
+  assert.deepEqual(filterShopCatalogItems(items, "inventory", "river").map(({ id }) => id), [3]);
+  assert.deepEqual(filterShopCatalogItems(items, "armor", "torso").map(({ id }) => id), [5]);
+  assert.equal(matchesShopCatalogFilter(items[1]!, "general"), true);
+  assert.equal(matchesShopCatalogFilter(items[2]!, "general"), false);
 });
 
 test("Shop search and ordering support the critical library and offering interactions", () => {

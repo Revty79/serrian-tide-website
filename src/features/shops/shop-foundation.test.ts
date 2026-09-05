@@ -68,6 +68,7 @@ test("every Shop action authenticates and scopes mutations to Campaign and Shop 
     "updateShopOffering",
     "removeShopOffering",
     "reorderShopOfferings",
+    "deleteShop",
     "archiveShop",
     "restoreShop",
   ]) assert.match(actions, new RegExp(`export async function ${exportedAction}`));
@@ -117,6 +118,22 @@ test("archive and restore preserve children, close the storefront, and write lif
   assert.doesNotMatch(archive, /delete\(shop|delete\(shopOffering|delete\(shopStaffAssignment/);
 });
 
+test("permanent Shop deletion is guarded, exact-confirmed, audited, and limited to the Shop aggregate", () => {
+  const deletion = actions.slice(
+    actions.indexOf("export async function deleteShop"),
+    actions.indexOf("export async function archiveShop"),
+  );
+  assert.ok((deletion.match(/assertPermanentDeletionEnabled\(\)/g) ?? []).length >= 2);
+  assert.match(deletion, /requireCampaignManager\(campaignId\)/);
+  assert.match(deletion, /assertExactConfirmation\(current\.name, confirmationName\)/);
+  assert.match(deletion, /action: "delete"/);
+  assert.match(deletion, /entityKind: "shop"/);
+  assert.match(deletion, /staffAssignments:/);
+  assert.match(deletion, /offerings:/);
+  assert.match(deletion, /tx\.delete\(shop\)/);
+  assert.doesNotMatch(deletion, /delete\(campaign\)|delete\(item\)|delete\(campaignCharacter\)/);
+});
+
 test("The Heavens exposes a dedicated Shop Builder card, route, and navigation destination", () => {
   const heavens = read("src/app/heavens/page.tsx");
   const navigation = read("src/features/navigation/authenticated-navigation.ts");
@@ -127,10 +144,22 @@ test("The Heavens exposes a dedicated Shop Builder card, route, and navigation d
   assert.match(page, /<ShopWorkspace/);
 });
 
-test("Shop Builder covers search, pricing, stock, staff, ordering, lifecycle, and scroll preservation", () => {
+test("Shop Builder covers Character-store browsing, pricing, stock, staff, ordering, lifecycle, and scroll preservation", () => {
   for (const seam of [
     "matchesShopSearch",
     "filterShopCatalogItems",
+    "SHOP_CATALOG_FILTER_OPTIONS",
+    "matchesShopCatalogFilter",
+    "compareCampaignInventoryItems",
+    "getCharacterWeaponDamage",
+    "armorType",
+    "coverage",
+    "Already Listed",
+    "Add to Shop",
+    "Add Selected",
+    "Remove Selected",
+    "Available Campaign Items",
+    "Listed in Shop",
     "formatCampaignMoney",
     "Canonical fallback",
     "Effective buying price",
@@ -143,9 +172,22 @@ test("Shop Builder covers search, pricing, stock, staff, ordering, lifecycle, an
     "reorderShopOfferings",
     "archiveShop",
     "restoreShop",
+    "deleteShop",
+    "Permanently Delete Shop",
     "useInPlaceScrollPreservation",
-    `data-preserve-scroll="shop-catalog"`,
+    `data-preserve-scroll="shop-catalog-available"`,
+    `data-preserve-scroll="shop-catalog-listed"`,
   ]) assert.match(workspace, new RegExp(seam));
+  for (const browseField of [
+    "weaponType",
+    "damageType",
+    "ammunitionItemName",
+    "ammunitionDamageType",
+    "armorType",
+    "coverage",
+  ]) assert.match(actions, new RegExp(`${browseField}:`));
+  assert.match(actions, /leftJoin\(weaponProfile/);
+  assert.match(actions, /leftJoin\(armorProfile/);
   assert.match(workspace, /Archived NPC · retained for history/);
   assert.match(workspace, /This Shop is archived and read-only/);
   assert.doesNotMatch(workspace, /Checkout|Purchase Request|Complete Sale|Buy Now/);

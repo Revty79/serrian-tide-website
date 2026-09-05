@@ -3,23 +3,29 @@
 import {
   and,
   asc,
+  count,
   eq,
   inArray,
   isNotNull,
   isNull,
   max,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { campaign, campaignDerivedCurrency } from "@/db/campaign-schema";
-import { item } from "@/db/item-schema";
+import { armorProfile, item, weaponProfile } from "@/db/item-schema";
 import { lifecycleAuditEvent } from "@/db/lifecycle-schema";
 import { campaignCharacter, campaignInventoryItem } from "@/db/realm-schema";
 import { shop, shopOffering, shopStaffAssignment } from "@/db/shop-schema";
 import { buildCampaignAccessDesignation } from "@/features/campaigns/campaign-access-designation";
-import { assertOwnedRootManager } from "@/features/lifecycle/policy";
+import {
+  assertExactConfirmation,
+  assertOwnedRootManager,
+  assertPermanentDeletionEnabled,
+} from "@/features/lifecycle/policy";
 import {
   assertShopEditable,
   isEligibleShopNpc,
@@ -39,6 +45,9 @@ import {
   type ShopStorefrontState,
 } from "@/features/shops/shop-builder";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+
+const shopAmmunitionItem = alias(item, "shop_ammunition_item");
+const shopAmmunitionWeaponProfile = alias(weaponProfile, "shop_ammunition_weapon_profile");
 
 export type ShopCampaignSummary = {
   id: number;
@@ -403,9 +412,34 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
       description: item.description,
       credits: item.credits,
       priceBasis: item.priceBasis,
+      weight: item.weight,
+      weightUnit: item.weightUnit,
+      durability: item.durability,
+      isMagical: item.isMagical,
+      weaponType: weaponProfile.weaponType,
+      handedness: weaponProfile.handedness,
+      damageSource: weaponProfile.damageSource,
+      damage: weaponProfile.damage,
+      damageType: weaponProfile.damageType,
+      ammunitionItemId: weaponProfile.ammunitionItemId,
+      ammunitionItemName: shopAmmunitionItem.name,
+      ammunitionDamage: shopAmmunitionWeaponProfile.damage,
+      ammunitionDamageType: shopAmmunitionWeaponProfile.damageType,
+      rangeText: weaponProfile.rangeText,
+      reachText: weaponProfile.reachText,
+      weaponRulesText: weaponProfile.rulesText,
+      armorType: armorProfile.armorType,
+      coverage: armorProfile.coverage,
+      baseSoak: armorProfile.baseSoak,
+      armorDamageModifiers: armorProfile.damageModifiersSourceText,
+      armorRulesText: armorProfile.rulesText,
       archivedAt: item.archivedAt,
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
+      .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+      .leftJoin(shopAmmunitionItem, eq(shopAmmunitionItem.id, weaponProfile.ammunitionItemId))
+      .leftJoin(shopAmmunitionWeaponProfile, eq(shopAmmunitionWeaponProfile.itemId, shopAmmunitionItem.id))
+      .leftJoin(armorProfile, eq(armorProfile.itemId, item.id))
       .where(and(
         eq(campaignInventoryItem.campaignId, campaignId),
         isNull(item.archivedAt),
@@ -501,6 +535,27 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
       description: row.description,
       credits: row.credits,
       priceBasis: row.priceBasis,
+      weight: row.weight,
+      weightUnit: row.weightUnit,
+      durability: row.durability,
+      isMagical: row.isMagical,
+      weaponType: row.weaponType,
+      handedness: row.handedness,
+      damageSource: row.damageSource,
+      damage: row.damage,
+      damageType: row.damageType,
+      ammunitionItemId: row.ammunitionItemId,
+      ammunitionItemName: row.ammunitionItemName,
+      ammunitionDamage: row.ammunitionDamage,
+      ammunitionDamageType: row.ammunitionDamageType,
+      rangeText: row.rangeText,
+      reachText: row.reachText,
+      weaponRulesText: row.weaponRulesText,
+      armorType: row.armorType,
+      coverage: row.coverage,
+      baseSoak: row.baseSoak,
+      armorDamageModifiers: row.armorDamageModifiers,
+      armorRulesText: row.armorRulesText,
       archived: false,
     })),
   };
@@ -773,6 +828,54 @@ export async function reorderShopOfferings(
   });
   revalidateShopPaths();
   return getShop(shopId, campaignId);
+}
+
+export async function deleteShop(
+  shopId: number,
+  campaignId: number,
+  confirmationName?: string,
+): Promise<void> {
+  assertPermanentDeletionEnabled();
+  const manager = await requireCampaignManager(campaignId);
+  await db.transaction(async (tx) => {
+    assertPermanentDeletionEnabled();
+    const [current] = await tx.select({
+      id: shop.id,
+      name: shop.name,
+    }).from(shop).where(and(
+      eq(shop.id, positiveId(shopId, "Shop")),
+      eq(shop.campaignId, campaignId),
+    )).limit(1).for("update");
+    if (!current) throw new Error("Shop not found in this Campaign.");
+    assertExactConfirmation(current.name, confirmationName);
+
+    const [staffDependency] = await tx.select({ value: count() })
+      .from(shopStaffAssignment)
+      .where(eq(shopStaffAssignment.shopId, current.id));
+    const [offeringDependency] = await tx.select({ value: count() })
+      .from(shopOffering)
+      .where(eq(shopOffering.shopId, current.id));
+    await tx.insert(lifecycleAuditEvent).values({
+      action: "delete",
+      entityKind: "shop",
+      targetId: String(current.id),
+      targetName: current.name,
+      campaignIdSnapshot: campaignId,
+      ownerUserIdSnapshot: manager.ownerUserId,
+      actorUserId: manager.actorUserId,
+      reason: "",
+      dependencySummaryJson: {
+        staffAssignments: Number(staffDependency?.value ?? 0),
+        offerings: Number(offeringDependency?.value ?? 0),
+      },
+    });
+    const removed = await tx.delete(shop).where(and(
+      eq(shop.id, current.id),
+      eq(shop.campaignId, campaignId),
+    )).returning({ id: shop.id });
+    if (removed.length !== 1) throw new Error("Shop could not be permanently deleted.");
+  });
+  revalidateShopPaths();
 }
 
 export async function archiveShop(

@@ -21,6 +21,13 @@ export const SHOP_FULFILLMENT_KINDS = [
   "service-narrative",
 ] as const;
 export const SHOP_ARCHIVE_STATUSES = ["active", "archived"] as const;
+export const SHOP_CATALOG_FILTER_OPTIONS = [
+  ["all", "All Items"],
+  ["weapon", "Weapons"],
+  ["armor", "Armor"],
+  ["general", "General Equipment"],
+  ["inventory", "Inventory"],
+] as const;
 
 export type ShopStorefrontState = (typeof SHOP_STOREFRONT_STATES)[number];
 export type ShopCharacterPurchaseMode = (typeof SHOP_CHARACTER_PURCHASE_MODES)[number];
@@ -77,6 +84,27 @@ export type ShopCatalogItem = {
   description: string;
   credits: number | null;
   priceBasis: string;
+  weight: number | null;
+  weightUnit: string;
+  durability: number | null;
+  isMagical: boolean;
+  weaponType: string | null;
+  handedness: string | null;
+  damageSource: string | null;
+  damage: string | null;
+  damageType: string | null;
+  ammunitionItemId: number | null;
+  ammunitionItemName: string | null;
+  ammunitionDamage: string | null;
+  ammunitionDamageType: string | null;
+  rangeText: string | null;
+  reachText: string | null;
+  weaponRulesText: string | null;
+  armorType: string | null;
+  coverage: string | null;
+  baseSoak: number | null;
+  armorDamageModifiers: string | null;
+  armorRulesText: string | null;
   archived: boolean;
 };
 
@@ -236,30 +264,45 @@ export function matchesShopSearch(
     .some((value) => value.toLocaleLowerCase("en-US").includes(search));
 }
 
+export function matchesShopCatalogFilter(
+  catalogItem: ShopCatalogItem,
+  filter: ShopCatalogFilter,
+): boolean {
+  return filter === "all"
+    || (filter === "inventory" && catalogItem.catalogScope.toLowerCase() === "inventory")
+    || catalogItem.equipmentGroup?.toLowerCase() === filter;
+}
+
+export function matchesShopCatalogSearch(
+  catalogItem: ShopCatalogItem,
+  rawSearch: string,
+): boolean {
+  const search = rawSearch.trim().toLocaleLowerCase("en-US");
+  if (!search) return true;
+  return [
+    catalogItem.name,
+    catalogItem.canonicalId,
+    catalogItem.category,
+    catalogItem.recordType,
+    catalogItem.description,
+    catalogItem.weaponType,
+    catalogItem.damageType,
+    catalogItem.ammunitionItemName,
+    catalogItem.ammunitionDamageType,
+    catalogItem.armorType,
+    catalogItem.coverage,
+  ].some((value) => value?.toLocaleLowerCase("en-US").includes(search));
+}
+
 export function filterShopCatalogItems(
   items: readonly ShopCatalogItem[],
-  listedItemIds: readonly number[],
   filter: ShopCatalogFilter,
   rawSearch: string,
 ): ShopCatalogItem[] {
-  const listed = new Set(listedItemIds);
-  const search = rawSearch.trim().toLocaleLowerCase("en-US");
   return items.filter((catalogItem) => {
-    if (catalogItem.archived || listed.has(catalogItem.id)) return false;
-    const matchesFilter = filter === "all"
-      || (filter === "inventory" && catalogItem.catalogScope === "inventory")
-      || (catalogItem.catalogScope === "equipment" && catalogItem.equipmentGroup === filter);
-    if (!matchesFilter) return false;
-    if (!search) return true;
-    return [
-      catalogItem.name,
-      catalogItem.canonicalId,
-      catalogItem.recordType,
-      catalogItem.family,
-      catalogItem.category,
-      catalogItem.description,
-      catalogItem.equipmentGroup ?? "",
-    ].some((value) => value.toLocaleLowerCase("en-US").includes(search));
+    return !catalogItem.archived
+      && matchesShopCatalogFilter(catalogItem, filter)
+      && matchesShopCatalogSearch(catalogItem, rawSearch);
   });
 }
 
