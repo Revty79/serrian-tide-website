@@ -75,6 +75,13 @@ export function RealmsDashboard({
 
   const actions = [
     {
+      title: "TABLETOP CONSOLE",
+      subtitle: "Live Session Workspace",
+      description: "Open current table state, requests, sources, Rolls, and recent history.",
+      href: selectedCharacter ? `/realms/tabletop?character=${selectedCharacter.id}` : null,
+      enabled: Boolean(selectedCharacter),
+    },
+    {
       title: "CHARACTER SHEET",
       subtitle: "Identity & Record",
       description: selectedCharacter?.creationCompletedAt

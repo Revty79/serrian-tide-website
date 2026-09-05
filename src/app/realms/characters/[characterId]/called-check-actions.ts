@@ -14,6 +14,7 @@ import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-op
 import { requirePlayer } from "@/lib/server-access";
 
 function refreshCharacter(characterId: number): void {
+  revalidatePath("/realms/tabletop");
   revalidatePath(`/realms/characters/${characterId}`);
   revalidatePath(`/realms/characters/${characterId}/encounter`);
 }

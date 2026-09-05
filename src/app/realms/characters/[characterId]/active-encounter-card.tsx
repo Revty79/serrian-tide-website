@@ -28,7 +28,7 @@ export function ActiveEncounterCard({
       </div>
       <div className={styles.actions}>
         <TabletopLiveRefresh mode="player" characterId={characterId} />
-        <Link href={`/realms/characters/${characterId}/encounter`}>Open Active Encounter</Link>
+        <Link href={`/realms/tabletop?character=${characterId}`}>Open Player Tabletop</Link>
       </div>
     </aside>
   );

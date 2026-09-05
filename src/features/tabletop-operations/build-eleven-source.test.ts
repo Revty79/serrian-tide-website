@@ -95,7 +95,7 @@ test("Player UI exposes the active table without forcing the normal Character Sh
 
 test("Player UX establishes prominent Encounter, opportunity, Initiative, action, state, Roll, and timeline regions", () => {
   assert.match(activeEncounterCard, /ACTIVE ENCOUNTER/);
-  assert.match(activeEncounterCard, /Open Active Encounter/);
+  assert.match(activeEncounterCard, /Open Player Tabletop/);
   assert.match(activeEncounterCard, /YOUR INITIATIVE/);
   assert.match(activeEncounterCardCss, /border: 1px solid rgb\(245 202 115 \/ 48%\)/);
   assert.match(activeEncounterCardCss, /backdrop-filter: blur\(16px\)/);

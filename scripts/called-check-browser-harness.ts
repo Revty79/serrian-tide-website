@@ -198,7 +198,7 @@ async function godWorkflow(page: Page, fixture: Fixture, baseUrl: string, pool: 
 async function playerWorkflow(godPage: Page, playerPage: Page, fixture: Fixture, baseUrl: string, pool: pg.Pool): Promise<void> {
   await godPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&workspace=checks`);
   await godPage.getByRole("heading", { name: "Called Checks & High/Low" }).waitFor();
-  await playerPage.goto(`${baseUrl}/realms/characters/${fixture.characterId}`);
+  await playerPage.goto(`${baseUrl}/realms/tabletop?character=${fixture.characterId}`);
   assert.equal(await playerPage.getByText("Private browser Called Check").count(), 0);
 
   let compose = godPage.locator(".called-check-compose").first();

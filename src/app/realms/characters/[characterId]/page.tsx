@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { getCharacter } from "@/app/characters/actions";
 import { CharacterEditor } from "@/app/characters/character-editor";
@@ -15,8 +16,6 @@ import { createPlayerEncounterUiSnapshot } from "@/features/tabletop-operations/
 import { PlayerLiveNotificationCenter } from "@/features/tabletop-operations/player-live-notification-center";
 import { getPlayerWeaponGovernance } from "./weapon-governance-actions";
 import { PlayerWeaponGovernancePanel } from "./player-weapon-governance-panel";
-import { getPlayerCalledCheckWorkspace } from "./called-check-actions";
-import { PlayerCalledCheckPanel } from "./player-called-check-panel";
 
 export default async function PlayerCharacterPage({
   params,
@@ -38,10 +37,9 @@ export default async function PlayerCharacterPage({
     getCharacterItemChargeState(id).catch(() => null),
   ]);
   if (!activeHealth || !activeMana || !activeEffects || !equipmentState || !chargeState) redirect("/realms");
-  const [activeEncounter, weaponGovernance, calledChecks] = await Promise.all([
+  const [activeEncounter, weaponGovernance] = await Promise.all([
     getPlayerEncounter(id).catch(() => null),
     getPlayerWeaponGovernance(id).catch(() => null),
-    getPlayerCalledCheckWorkspace(id).catch(() => null),
   ]);
   if (!weaponGovernance) redirect("/realms");
 
@@ -51,7 +49,10 @@ export default async function PlayerCharacterPage({
       snapshot={activeEncounter ? createPlayerEncounterUiSnapshot(activeEncounter) : null}
     />
     {activeEncounter ? <ActiveEncounterCard characterId={id} encounter={activeEncounter} /> : null}
-    {calledChecks ? <PlayerCalledCheckPanel view={calledChecks} /> : null}
+    {!activeEncounter ? <aside className="mx-auto mb-4 flex w-[min(88rem,calc(100%-2rem))] flex-wrap items-center justify-between gap-4 rounded-2xl border border-purple-300/25 bg-black/40 p-4 text-slate-100">
+      <div><p className="m-0 text-xs font-bold tracking-[.14em] text-purple-200">LIVE TABLETOP</p><strong className="mt-1 block">Requests and Session state now live in one dedicated console.</strong></div>
+      <Link className="inline-flex min-h-11 items-center rounded-xl border border-purple-300/60 bg-purple-950/60 px-4 font-bold text-purple-50" href={`/realms/tabletop?character=${id}`}>Open Player Tabletop</Link>
+    </aside> : null}
     <PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus={!activeEncounter} />
     <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} godMode={false} itemUseTimingBlocked={activeEncounter?.initiativeRuntime?.status === "active"} />
   </>;

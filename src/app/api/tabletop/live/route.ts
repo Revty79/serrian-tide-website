@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Client, type Notification } from "pg";
 
 import { db } from "@/db";
-import { campaign } from "@/db/campaign-schema";
+import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { campaignCharacter } from "@/db/realm-schema";
 import { userRole } from "@/db/authorization-schema";
 import { resolveActivePlayerEncounterInTransaction } from "@/features/tabletop-operations/player-encounter-service";
@@ -44,22 +44,29 @@ export async function GET(request: Request): Promise<Response> {
   } else if (mode === "player") {
     if (!roles.some(({ role }) => role === "player")) return new Response("Forbidden", { status: 403 });
     const characterId = positiveQueryId(url.searchParams.get("characterId"), "Character");
-    const context = await db.transaction((tx) => resolveActivePlayerEncounterInTransaction(
+    const consoleScope = url.searchParams.get("scope") === "console";
+    const [ownedCharacter] = await db.select({
+      campaignId: campaignCharacter.campaignId,
+    }).from(campaignCharacter)
+      .innerJoin(campaignPlayer, and(
+        eq(campaignPlayer.campaignId, campaignCharacter.campaignId),
+        eq(campaignPlayer.userId, campaignCharacter.playerUserId),
+      ))
+      .where(and(
+      eq(campaignCharacter.id, characterId),
+      eq(campaignCharacter.playerUserId, session.user.id),
+      eq(campaignPlayer.userId, session.user.id),
+      eq(campaignCharacter.isNpc, false),
+    )).limit(1);
+    if (!ownedCharacter) return new Response("Forbidden", { status: 403 });
+    const context = consoleScope ? null : await db.transaction((tx) => resolveActivePlayerEncounterInTransaction(
       tx,
       characterId,
       session.user.id,
     ));
-    const [ownedCharacter] = context ? [] : await db.select({
-      campaignId: campaignCharacter.campaignId,
-    }).from(campaignCharacter).where(and(
-      eq(campaignCharacter.id, characterId),
-      eq(campaignCharacter.playerUserId, session.user.id),
-      eq(campaignCharacter.isNpc, false),
-    )).limit(1);
-    if (!context && !ownedCharacter) return new Response("Forbidden", { status: 403 });
     const subscription = {
-      campaignId: context?.campaignId ?? ownedCharacter!.campaignId,
-      encounterId: context?.encounterId ?? null,
+      campaignId: ownedCharacter.campaignId,
+      encounterId: consoleScope ? null : context?.encounterId ?? null,
       characterId,
     };
     accepts = (event) => eventMatchesPlayerSubscription(event, subscription);

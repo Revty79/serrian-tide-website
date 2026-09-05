@@ -38,6 +38,7 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
   ],
   realms: [
     { label: "Realms Dashboard", href: "/realms" },
+    { label: "Player Tabletop", href: "/realms/tabletop" },
     CROSSROADS_ITEM,
   ],
 };
@@ -157,6 +158,8 @@ export function getNavigationBreadcrumbs(
       );
       if (active && active.href !== contextRoot.href) breadcrumbs.push(active);
     }
+  } else if (context === "realms" && pathname.startsWith("/realms/tabletop")) {
+    breadcrumbs.push({ label: "Player Tabletop", href: "/realms/tabletop" });
   } else if (context === "realms" && pathname.startsWith("/realms/characters/")) {
     const parts = pathname.split("/").filter(Boolean);
     const characterHref = `/${parts.slice(0, 3).join("/")}`;

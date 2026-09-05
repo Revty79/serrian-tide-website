@@ -39,6 +39,7 @@ test("Realms exposes the complete tool set while working inside a Character", ()
     items.map(({ label }) => label),
     [
       "Realms Dashboard",
+      "Player Tabletop",
       "Crossroads",
       "Character Sheet",
       "Advancement",
@@ -62,6 +63,7 @@ test("Realms exposes the complete tool set while working inside a Character", ()
   );
   assert.deepEqual(getContextNavigationItems("realms"), [
     { label: "Realms Dashboard", href: "/realms" },
+    { label: "Player Tabletop", href: "/realms/tabletop" },
     { label: "Crossroads", href: "/chat" },
   ]);
 });
@@ -169,6 +171,16 @@ test("role destinations expose only authorized application contexts", () => {
     false,
   );
   assert.equal(getContextHomeHref("heavens"), "/heavens");
+});
+
+test("Player Tabletop is a stable Realms destination with its own breadcrumb", () => {
+  const item = getContextNavigationItems("realms").find(({ href }) => href === "/realms/tabletop");
+  assert.ok(item);
+  assert.equal(isNavigationItemActive("/realms/tabletop", item), true);
+  assert.deepEqual(
+    getNavigationBreadcrumbs("/realms/tabletop", "realms").map(({ label }) => label),
+    ["Realms Dashboard", "Player Tabletop"],
+  );
 });
 
 test("library pages breadcrumb directly back to their Heavens library context", () => {

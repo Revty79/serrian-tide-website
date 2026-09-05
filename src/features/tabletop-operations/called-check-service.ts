@@ -1003,29 +1003,12 @@ export async function readGodCalledCheckWorkspaceInTransaction(
   };
 }
 
-export async function readPlayerCalledCheckWorkspaceInTransaction(
-  tx: CalledCheckTransaction,
+function projectPlayerCalledCheckWorkspace(
   characterId: number,
-  actorUserId: string,
-): Promise<PlayerCalledCheckWorkspaceView | null> {
-  const character = await assertPlayerCharacter(tx, characterId, actorUserId);
-  const [active] = await tx.select({
-    id: campaignSession.id,
-    campaignId: campaignSession.campaignId,
-    title: campaignSession.title,
-    status: campaignSession.status,
-  }).from(campaignSessionRoster)
-    .innerJoin(campaignSession, and(
-      eq(campaignSession.id, campaignSessionRoster.sessionId),
-      eq(campaignSession.campaignId, campaignSessionRoster.campaignId),
-    ))
-    .where(and(
-      eq(campaignSessionRoster.characterId, character.characterId),
-      eq(campaignSessionRoster.campaignId, character.campaignId),
-      eq(campaignSession.status, "active"),
-    )).limit(1);
-  if (!active) return null;
-  const data = await readCalledCheckData(tx, active);
+  session: PlayerCalledCheckWorkspaceView["session"],
+  data: Awaited<ReturnType<typeof readCalledCheckData>>,
+): PlayerCalledCheckWorkspaceView {
+  const character = { characterId };
   const calledChecks = data.batches.flatMap((batch) => batch.requests.flatMap((request) => {
     const visible = batch.visibility === "table"
       || batch.visibility === "private" && request.recipientCharacterId === character.characterId
@@ -1047,5 +1030,61 @@ export async function readPlayerCalledCheckWorkspaceInTransaction(
   const highLow = data.highLow.filter((request) => request.visibility === "table"
     || request.visibility === "private" && request.participantCharacterId === character.characterId)
     .map((request) => ({ ...request, events: [] }));
-  return { characterId: character.characterId, session: active, calledChecks, highLow };
+  return { characterId, session, calledChecks, highLow };
+}
+
+export async function readPlayerCalledCheckSessionWorkspaceInTransaction(
+  tx: CalledCheckTransaction,
+  sessionId: number,
+  characterId: number,
+  actorUserId: string,
+): Promise<PlayerCalledCheckWorkspaceView | null> {
+  const character = await assertPlayerCharacter(tx, characterId, actorUserId);
+  const [session] = await tx.select({
+    id: campaignSession.id,
+    campaignId: campaignSession.campaignId,
+    title: campaignSession.title,
+    status: campaignSession.status,
+  }).from(campaignSessionRoster)
+    .innerJoin(campaignSession, and(
+      eq(campaignSession.id, campaignSessionRoster.sessionId),
+      eq(campaignSession.campaignId, campaignSessionRoster.campaignId),
+    ))
+    .where(and(
+      eq(campaignSessionRoster.characterId, character.characterId),
+      eq(campaignSessionRoster.campaignId, character.campaignId),
+      eq(campaignSession.id, positiveId(sessionId, "Called Check Session")),
+      inArray(campaignSession.status, ["active", "completed"]),
+    )).limit(1);
+  if (!session) return null;
+  return projectPlayerCalledCheckWorkspace(
+    character.characterId,
+    session,
+    await readCalledCheckData(tx, session),
+  );
+}
+
+export async function readPlayerCalledCheckWorkspaceInTransaction(
+  tx: CalledCheckTransaction,
+  characterId: number,
+  actorUserId: string,
+): Promise<PlayerCalledCheckWorkspaceView | null> {
+  const character = await assertPlayerCharacter(tx, characterId, actorUserId);
+  const [active] = await tx.select({ id: campaignSession.id }).from(campaignSessionRoster)
+    .innerJoin(campaignSession, and(
+      eq(campaignSession.id, campaignSessionRoster.sessionId),
+      eq(campaignSession.campaignId, campaignSessionRoster.campaignId),
+    ))
+    .where(and(
+      eq(campaignSessionRoster.characterId, character.characterId),
+      eq(campaignSessionRoster.campaignId, character.campaignId),
+      eq(campaignSession.status, "active"),
+    )).limit(1);
+  if (!active) return null;
+  return readPlayerCalledCheckSessionWorkspaceInTransaction(
+    tx,
+    active.id,
+    character.characterId,
+    actorUserId,
+  );
 }
