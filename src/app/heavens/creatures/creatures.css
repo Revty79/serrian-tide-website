@@ -10,6 +10,7 @@
 }
 .creatures-page .skills-page__navigation a { min-height: 38px; padding: 9px 13px; border: 1px solid rgb(143 164 161 / 26%); border-radius: 4px; color: rgb(235 231 220 / 78%); background: rgb(6 13 17 / 64%); font-size: .75rem; text-decoration: none; }
 .creatures-workspace { grid-template-columns: minmax(310px, .62fr) minmax(650px, 1.75fr); }
+.creature-workspace__feedback { grid-column: 1 / -1; border: 1px solid currentColor; border-radius: 4px; }
 .creature-library-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .creature-editor__content { padding: 20px; }
 .creature-section { display: grid; gap: 16px; }

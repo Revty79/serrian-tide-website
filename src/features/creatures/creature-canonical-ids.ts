@@ -2,9 +2,22 @@ export type CreatureCanonicalIdKind = "CREATURE" | "HP" | "ATK" | "ABL";
 
 const DRAFT_PREFIX = "DRAFT-";
 
+export function createCreatureCanonicalIdentity(cryptoApi: Crypto | undefined = globalThis.crypto): string {
+  if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+  if (typeof cryptoApi?.getRandomValues !== "function") {
+    throw new Error("This browser cannot create a temporary Creature ID. Reload in a browser with Web Crypto support.");
+  }
+  const bytes = new Uint8Array(16);
+  cryptoApi.getRandomValues(bytes);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 function randomIdentity(kind: CreatureCanonicalIdKind, draft: boolean): string {
   const prefix = draft ? `${DRAFT_PREFIX}${kind}` : kind;
-  return `${prefix}-${globalThis.crypto.randomUUID().toLocaleUpperCase("en-US")}`;
+  return `${prefix}-${createCreatureCanonicalIdentity().toLocaleUpperCase("en-US")}`;
 }
 
 export function createCreatureDraftCanonicalId(kind: CreatureCanonicalIdKind): string {

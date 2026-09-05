@@ -4,9 +4,28 @@ import test from "node:test";
 import {
   assertCreatureCanonicalIdsSystemOwned,
   createCreatureDraftCanonicalId,
+  createCreatureCanonicalIdentity,
   isCreatureDraftCanonicalId,
   resolveSystemAssignedCreatureIds,
 } from "./creature-canonical-ids";
+
+test("temporary IDs use getRandomValues when randomUUID is unavailable", () => {
+  const bytes = Uint8Array.from({ length: 16 }, (_, index) => index);
+  const identity = createCreatureCanonicalIdentity({
+    getRandomValues: <T extends ArrayBufferView | null>(target: T): T => {
+      if (!(target instanceof Uint8Array)) throw new Error("Expected UUID bytes.");
+      target.set(bytes);
+      return target as T;
+    },
+  } as Crypto);
+
+  assert.equal(identity, "00010203-0405-4607-8809-0a0b0c0d0e0f");
+  assert.match(`DRAFT-CREATURE-${identity.toUpperCase()}`, /^DRAFT-CREATURE-[0-9A-F-]{36}$/);
+  assert.throws(
+    () => createCreatureCanonicalIdentity({} as Crypto),
+    /browser cannot create a temporary Creature ID/,
+  );
+});
 
 test("Creature editors receive opaque temporary IDs without user-authored values", () => {
   const ids = [

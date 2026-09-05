@@ -266,6 +266,7 @@ export function CreatureWorkspace({
     </header>
 
     <div className="skills-workspace creatures-workspace">
+      {feedback ? <p className={`skill-editor__feedback creature-workspace__feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
       <aside className="skill-library">
         <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>Bestiary</h2></div><button className="skills-primary-button" type="button" onClick={beginNew}>New Creature</button></div>
         <div className="skill-library__search"><label htmlFor="creature-search">Search</label><input id="creature-search" type="search" value={filters.search ?? ""} placeholder="Search by name" onChange={(event) => setFilters({ ...filters, search: event.target.value, page: 1 })} /></div>
@@ -290,7 +291,6 @@ export function CreatureWorkspace({
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING CREATURE</p></section> : draft ? <section className="skill-editor creature-editor">
         <header className="skill-editor__header"><div><p>{draft.id ? `CREATURE ${draft.id}` : "NEW CREATURE DRAFT"}</p><h2>{draft.core.canonicalName || "Untitled Creature"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
         {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.canonicalName}?</strong><span>Derived Creatures must be deleted first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeCreature()}>Confirm Delete</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></div> : null}
-        {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
         {liveChallengeRating.error ? <p className="skill-editor__feedback is-error">{liveChallengeRating.error}</p> : null}
         <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
         <div className="skill-editor__content creature-editor__content">

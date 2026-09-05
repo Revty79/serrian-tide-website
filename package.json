@@ -12,6 +12,7 @@
     "validate:canon": "node scripts/import-ststandalone-canon.mjs --validate-only",
     "validate:campaign": "tsx --test src/features/campaigns/*.test.ts",
     "validate:creatures": "tsx --test src/features/creatures/*.test.ts",
+    "validate:creature-browser": "node --env-file=.env.local --conditions=react-server --import tsx scripts/creature-new-draft-browser.test.ts",
     "validate:creature-ability": "tsx --test src/features/creatures/creature-ability.test.ts",
     "validate:derived-abilities": "tsx --test src/features/derived-abilities/*.test.ts",
     "validate:derived-ability-effects-db": "node --env-file=.env.local --import tsx --test scripts/derived-ability-effects-db.test.ts",
