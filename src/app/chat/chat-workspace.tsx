@@ -288,8 +288,8 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setOlderCursor(result.data.olderCursor);
     setRoomLoadState("ready");
     requestAnimationFrame(() => {
-      if (focusComposer && !result.data.room.archived) composerRef.current?.focus();
-      else conversationHeadingRef.current?.focus();
+      if (focusComposer && !result.data.room.archived) composerRef.current?.focus({ preventScroll: true });
+      else conversationHeadingRef.current?.focus({ preventScroll: true });
     });
   }
 
@@ -394,8 +394,8 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     setOlderCursor(result.data.olderCursor);
     setRoomLoadState("ready");
     requestAnimationFrame(() => {
-      if (focusComposer && !result.data.room.archived) composerRef.current?.focus();
-      else conversationHeadingRef.current?.focus();
+      if (focusComposer && !result.data.room.archived) composerRef.current?.focus({ preventScroll: true });
+      else conversationHeadingRef.current?.focus({ preventScroll: true });
     });
   }
 
@@ -522,7 +522,7 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
       submissionIdentityRef.current = null;
       draftRef.current = "";
       setDraft("");
-      requestAnimationFrame(() => composerRef.current?.focus());
+      requestAnimationFrame(() => composerRef.current?.focus({ preventScroll: true }));
     } catch {
       if (activeRoomSlugRef.current === roomSlug) {
         setComposerError("The message could not be sent. Check your connection and try again.");
@@ -582,14 +582,14 @@ export function ChatWorkspace({ initialBootstrap }: { initialBootstrap: ChatWork
     directTriggerRef.current = event.currentTarget;
     setDirectPanelOpen(true);
     setDirectError(null);
-    requestAnimationFrame(() => directSearchRef.current?.focus());
+    requestAnimationFrame(() => directSearchRef.current?.focus({ preventScroll: true }));
   }
 
   function closeDirectPanel() {
     if (directSearching || directOpeningUserId) return;
     setDirectPanelOpen(false);
     setDirectError(null);
-    requestAnimationFrame(() => directTriggerRef.current?.focus());
+    requestAnimationFrame(() => directTriggerRef.current?.focus({ preventScroll: true }));
   }
 
   async function searchDirectUsers(event: FormEvent<HTMLFormElement>) {

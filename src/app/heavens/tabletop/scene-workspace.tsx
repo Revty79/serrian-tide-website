@@ -206,7 +206,7 @@ export function SceneWorkspace({
     setCreating(false);
     if (selectedScene?.id === sceneId) setDraft(metadataFromScene(selectedScene));
     setFeedback(null);
-    router.push(sceneHref(sceneId));
+    router.push(sceneHref(sceneId), { scroll: false });
   }
 
   async function saveScene(): Promise<void> {
@@ -215,7 +215,7 @@ export function SceneWorkspace({
         const created = await createCampaignSessionScene({ sessionId: initialData.sessionId, ...draft });
         setCreating(false);
         setFeedback({ kind: "success", message: `Scene ${created.sequenceNumber} was created.` });
-        router.push(sceneHref(created.id));
+        router.push(sceneHref(created.id), { scroll: false });
         return;
       }
       if (!selectedScene) return;
@@ -258,7 +258,7 @@ export function SceneWorkspace({
     await perform(async () => {
       await deleteCampaignSessionScene(selectedScene.id);
       setFeedback({ kind: "success", message: `Scene ${selectedScene.sequenceNumber} was deleted.` });
-      router.push(sceneHref());
+      router.push(sceneHref(), { scroll: false });
     });
   }
 

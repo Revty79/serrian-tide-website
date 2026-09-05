@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
 import type { RecursiveSkillLibrary } from "@/features/skills/recursive-skill-library";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import type {
   SkillDraft,
@@ -96,6 +97,7 @@ export function SkillEditor({
 }: SkillEditorProps) {
   const [activeTab, setActiveTab] = useState<SkillEditorTab>("core");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   if (!draft) {
     return (
@@ -153,7 +155,7 @@ export function SkillEditor({
             <button
               className="skills-danger-button"
               type="button"
-              onClick={() => setConfirmDelete(true)}
+              onClick={() => void preserveScroll(() => setConfirmDelete(true))}
             >
               Delete
             </button>
@@ -181,7 +183,7 @@ export function SkillEditor({
           <button className="skills-danger-button" type="button" onClick={onDelete}>
             Confirm Delete
           </button>
-          <button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+          <button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button>
         </div>
       )}
 
@@ -198,7 +200,7 @@ export function SkillEditor({
             type="button"
             className={activeTab === tab.id ? "is-active" : ""}
             aria-pressed={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => void preserveScroll(() => setActiveTab(tab.id))}
           >
             {tab.label}
           </button>

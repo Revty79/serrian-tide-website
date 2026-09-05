@@ -36,7 +36,7 @@ export function PlayerCombatRulingWorkspace({ encounterId, requests }: { encount
         <label><span>Disposition</span><select name="status" defaultValue="approved"><option value="approved">Approve</option><option value="clarification-requested">Request clarification</option><option value="rejected">Reject</option></select></label>
         <label><span>Response / reason</span><textarea name="response" required maxLength={2000} /></label>
         {request.requestType === "called-shot" ? <><label><span>Called Shot penalty</span><input name="penalty" type="number" min={0} /></label><label><span>Penalty reason</span><input name="rulingReason" maxLength={2000} /></label></> : <label><span>Structured ruling note, if approved</span><input name="rulingReason" maxLength={2000} /></label>}
-        <button disabled={busy}>Save ruling</button>
+        <button type="submit" disabled={busy}>Save ruling</button>
       </form> : null}
     </article>)}</div>
     {message ? <p className={message.error ? "tabletop-error" : "tabletop-success"} role={message.error ? "alert" : "status"}>{message.text}</p> : null}

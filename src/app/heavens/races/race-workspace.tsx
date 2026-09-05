@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   deleteRace,
@@ -99,6 +100,7 @@ export function RaceWorkspace({
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; race: RaceSummary } | { kind: "new" } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const loadLibrary = useCallback(async (next: RaceLibraryFilters) => {
     setLoadingLibrary(true);
@@ -117,24 +119,26 @@ export function RaceWorkspace({
   }, [filters, loadLibrary]);
 
   async function openRace(summary: RaceSummary) {
-    setLoadingEditor(true);
-    setFeedback(null);
-    try {
-      const aggregate = await getRace(summary.id);
-      if (!aggregate) throw new Error("Race not found.");
-      setDraft(aggregate);
-      setDirty(false);
-      setActiveTab("overview");
-      setConfirmDelete(false);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Race could not be loaded." });
-    } finally {
-      setLoadingEditor(false);
-    }
+    await preserveScroll(async () => {
+      setLoadingEditor(true);
+      setFeedback(null);
+      try {
+        const aggregate = await getRace(summary.id);
+        if (!aggregate) throw new Error("Race not found.");
+        setDraft(aggregate);
+        setDirty(false);
+        setActiveTab("overview");
+        setConfirmDelete(false);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Race could not be loaded." });
+      } finally {
+        setLoadingEditor(false);
+      }
+    });
   }
 
   function chooseRace(summary: RaceSummary) {
-    if (dirty) setPending({ kind: "open", race: summary });
+    if (dirty) void preserveScroll(() => setPending({ kind: "open", race: summary }));
     else void openRace(summary);
   }
 
@@ -147,8 +151,8 @@ export function RaceWorkspace({
   }
 
   function beginNew() {
-    if (dirty) setPending({ kind: "new" });
-    else createNew();
+    if (dirty) void preserveScroll(() => setPending({ kind: "new" }));
+    else void preserveScroll(createNew);
   }
 
   function discardAndContinue() {
@@ -167,37 +171,42 @@ export function RaceWorkspace({
 
   async function persist() {
     if (!draft) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const saved = await saveRace(draft);
-      setDraft(saved);
-      setDirty(false);
-      setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
-      await loadLibrary(filters);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race could not be saved." });
-    } finally {
-      setSaving(false);
-    }
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const saved = await saveRace(draft);
+        setDraft(saved);
+        setDirty(false);
+        setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
+        await loadLibrary(filters);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race could not be saved." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function removeRace() {
     if (!draft?.id) return;
-    setSaving(true);
-    try {
-      const name = draft.core.name;
-      await deleteRace(draft.id);
-      setDraft(null);
-      setDirty(false);
-      setConfirmDelete(false);
-      setFeedback({ kind: "success", message: `${name} was deleted.` });
-      await loadLibrary(filters);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race could not be deleted." });
-    } finally {
-      setSaving(false);
-    }
+    const raceId = draft.id;
+    await preserveScroll(async () => {
+      setSaving(true);
+      try {
+        const name = draft.core.name;
+        await deleteRace(raceId);
+        setDraft(null);
+        setDirty(false);
+        setConfirmDelete(false);
+        setFeedback({ kind: "success", message: `${name} was deleted.` });
+        await loadLibrary(filters);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race could not be deleted." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   return (
@@ -228,7 +237,7 @@ export function RaceWorkspace({
             <label><span>Size</span><select value={filters.size ?? ""} onChange={(event) => setFilters({ ...filters, size: event.target.value as RaceLibraryFilters["size"], page: 1 })}><option value="">All</option>{RACE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></label>
           </div>
           <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} races</span></div>
-          <div className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
+          <div data-preserve-scroll="race-library-results" className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
             {library.items.map((entry) => (
               <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseRace(entry)}>
                 <span className="skill-library__row-name">{entry.name}</span>
@@ -252,13 +261,13 @@ export function RaceWorkspace({
             <header className="skill-editor__header">
               <div><p>{draft.id ? `RACE ${draft.id}` : "NEW RACE DRAFT"}</p><h2>{draft.core.name || "Untitled Race"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div>
               <div className="skill-editor__actions">
-                {draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button> : null}
+                {draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button> : null}
                 <button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Race"}</button>
               </div>
             </header>
-            {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.name || "this Race"}?</strong><span>Race-owned caps, movement, and Skill links will be removed.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeRace()}>Confirm Delete</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></div> : null}
+            {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.name || "this Race"}?</strong><span>Race-owned caps, movement, and Skill links will be removed.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeRace()}>Confirm Delete</button><button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button></div> : null}
             {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-            <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
+            <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
             <div className="skill-editor__content race-editor__content">
               {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}
@@ -273,7 +282,7 @@ export function RaceWorkspace({
         )}
       </div>
 
-      {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Race draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => setPending(null)}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button></div></div> : null}
+      {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Race draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => void preserveScroll(() => setPending(null))}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(discardAndContinue)}>Discard Changes</button></div></div> : null}
     </main>
   );
 }
@@ -298,19 +307,20 @@ function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Rac
 }
 
 function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceDraft) => void }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   return <div className="race-section">
-    <div className="race-subheading"><div><p>RACIAL LIMITS</p><h3>Attribute Caps</h3></div><button type="button" onClick={() => onChange({ ...draft, attributeCaps: [...draft.attributeCaps, { attributeKey: "", maxValue: 50, sortOrder: draft.attributeCaps.length }] })}>Add Attribute</button></div>
+    <div className="race-subheading"><div><p>RACIAL LIMITS</p><h3>Attribute Caps</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, attributeCaps: [...draft.attributeCaps, { attributeKey: "", maxValue: 50, sortOrder: draft.attributeCaps.length }] }))}>Add Attribute</button></div>
     <div className="race-row-list">{draft.attributeCaps.map((cap, index) => <div className="race-repeat-row" key={`${cap.attributeKey}-${index}`}>
       <input placeholder="Attribute" value={cap.attributeKey} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, attributeKey: e.target.value } : entry) })} />
       <input type="number" value={cap.maxValue} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, maxValue: Number(e.target.value) } : entry) })} />
-      <button className="is-danger" type="button" onClick={() => onChange({ ...draft, attributeCaps: draft.attributeCaps.filter((_, i) => i !== index) })}>Remove</button>
+      <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, attributeCaps: draft.attributeCaps.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
-    <div className="race-subheading race-subheading--spaced"><div><p>MOVEMENT</p><h3>Movement Modes</h3></div><button type="button" onClick={() => onChange({ ...draft, movementModes: [...draft.movementModes, { movementMode: "Land", baseValue: 0, notes: "", sortOrder: draft.movementModes.length }] })}>Add Movement</button></div>
+    <div className="race-subheading race-subheading--spaced"><div><p>MOVEMENT</p><h3>Movement Modes</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: [...draft.movementModes, { movementMode: "Land", baseValue: 0, notes: "", sortOrder: draft.movementModes.length }] }))}>Add Movement</button></div>
     <div className="race-row-list">{draft.movementModes.map((movement, index) => <div className="race-repeat-row race-repeat-row--movement" key={`${movement.movementMode}-${index}`}>
       <input placeholder="Mode" value={movement.movementMode} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, movementMode: e.target.value } : entry) })} />
       <input type="number" placeholder="Base" value={movement.baseValue} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, baseValue: Number(e.target.value) } : entry) })} />
       <input placeholder="Notes" value={movement.notes} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} />
-      <button className="is-danger" type="button" onClick={() => onChange({ ...draft, movementModes: draft.movementModes.filter((_, i) => i !== index) })}>Remove</button>
+      <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: draft.movementModes.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
   </div>;
 }
@@ -332,6 +342,7 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
   const [selectedId, setSelectedId] = useState("");
   const [linkType, setLinkType] = useState("Skill");
   const [loading, setLoading] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   useEffect(() => {
     let active = true;
@@ -368,13 +379,13 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
       <Field label="Classification"><select value={classification} onChange={(e) => setClassification(e.target.value)}>{classifications.map((value) => <option value={value} key={value}>{value || "All"}</option>)}</select></Field>
       <Field label="Matching Skills"><select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}><option value="">{loading ? "Searching…" : "Select a Skill"}</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.classification}{candidate.tier ? ` · T${candidate.tier}` : ""}</option>)}</select></Field>
       <Field label="Link Type"><select value={linkType} onChange={(e) => setLinkType(e.target.value)}><option>Skill</option><option>Granted</option></select></Field>
-      <button className="skills-primary-button race-add-link" type="button" disabled={!selectedId} onClick={addLink}>Add Link</button>
+      <button className="skills-primary-button race-add-link" type="button" disabled={!selectedId} onClick={() => void preserveScroll(addLink)}>Add Link</button>
     </div>
     <div className="race-row-list race-skill-links">{draft.skillLinks.map((link, index) => <article className="race-skill-link" key={`${link.skillId}-${link.linkType}-${index}`}>
       <div><strong>{link.skillName}</strong><span>{link.skillClassification}</span></div>
       <select value={link.linkType} onChange={(e) => onChange({ ...draft, skillLinks: draft.skillLinks.map((entry, i) => i === index ? { ...entry, linkType: e.target.value } : entry) })}><option>Skill</option><option>Granted</option></select>
       <input type="number" placeholder="Value" value={link.value ?? ""} onChange={(e) => onChange({ ...draft, skillLinks: draft.skillLinks.map((entry, i) => i === index ? { ...entry, value: e.target.value === "" ? null : Number(e.target.value) } : entry) })} />
-      <button className="is-danger" type="button" onClick={() => onChange({ ...draft, skillLinks: draft.skillLinks.filter((_, i) => i !== index) })}>Remove</button>
+      <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, skillLinks: draft.skillLinks.filter((_, i) => i !== index) }))}>Remove</button>
     </article>)}</div>
   </div>;
 }

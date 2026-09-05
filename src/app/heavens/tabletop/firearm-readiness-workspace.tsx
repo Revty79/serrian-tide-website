@@ -165,7 +165,7 @@ export function FirearmReadinessWorkspace({ view }: { view: FirearmWorkspaceView
     params.set("firearmCharacter", String(characterId));
     if (itemInstanceId) params.set("firearmInstance", String(itemInstanceId));
     else params.delete("firearmInstance");
-    router.push(`/heavens/tabletop?${params}`);
+    router.push(`/heavens/tabletop?${params}`, { scroll: false });
   }
 
   return <section className="firearm-readiness-workspace" aria-label="Firearm readiness and ammunition state">

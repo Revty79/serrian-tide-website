@@ -11,6 +11,7 @@ import type {
 } from "@/features/spell-construction/models/spell";
 import { createContainer } from "@/features/spell-construction/utilities/spellFactory";
 import { createStableId } from "@/features/spell-construction/utilities/ids";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 type SpellContainerEditorProps = {
   container: SpellContainer;
@@ -33,6 +34,7 @@ function EffectSelectionEditor({
   onChange: (effect: SpellContainer["effects"][number]) => void;
   onRemove: () => void;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   const rule = serrianTideRules.effects.find(({ id }) => id === effect.ruleId);
   if (!rule) return null;
 
@@ -91,7 +93,7 @@ function EffectSelectionEditor({
         />
       </label>
 
-      <button className="spell-builder__remove" type="button" onClick={onRemove}>
+      <button className="spell-builder__remove" type="button" onClick={() => void preserveScroll(onRemove)}>
         Remove Effect
       </button>
     </article>
@@ -111,6 +113,7 @@ function AddOnSelectionEditor({
   onChange: (selection: ScaledAddOnSelection) => void;
   onRemove: () => void;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   return (
     <article className="spell-builder__selection">
       <div className="spell-builder__selection-heading">
@@ -151,7 +154,7 @@ function AddOnSelectionEditor({
         />
       </label>
 
-      <button className="spell-builder__remove" type="button" onClick={onRemove}>
+      <button className="spell-builder__remove" type="button" onClick={() => void preserveScroll(onRemove)}>
         Remove {label}
       </button>
     </article>
@@ -168,6 +171,7 @@ export function SpellContainerEditor({
   const [collapsed, setCollapsed] = useState(false);
   const [effectRuleId, setEffectRuleId] = useState("");
   const [durationRuleId, setDurationRuleId] = useState("");
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const rule = serrianTideRules.containers.find(
     ({ id }) => id === container.containerRuleId,
@@ -224,12 +228,12 @@ export function SpellContainerEditor({
       style={{ "--container-depth": depth } as CSSProperties}
     >
       <header className="spell-container__header">
-        <button type="button" onClick={() => setCollapsed((value) => !value)}>
+        <button type="button" onClick={() => void preserveScroll(() => setCollapsed((value) => !value))}>
           <span>CONTAINER {ordinal} · DEPTH {depth}</span>
           <strong>{collapsed ? "▸" : "▾"} {rule?.name ?? "Unknown Container"}</strong>
         </button>
 
-        <button className="spell-builder__remove" type="button" onClick={onRemove}>
+        <button className="spell-builder__remove" type="button" onClick={() => void preserveScroll(onRemove)}>
           Remove
         </button>
       </header>
@@ -263,7 +267,7 @@ export function SpellContainerEditor({
                     <option key={effect.id} value={effect.id}>{effect.name}</option>
                   ))}
                 </select>
-                <button type="button" disabled={!effectRuleId} onClick={addEffect}>Add</button>
+                <button type="button" disabled={!effectRuleId} onClick={() => void preserveScroll(addEffect)}>Add</button>
               </div>
             </div>
 
@@ -387,7 +391,7 @@ export function SpellContainerEditor({
                     <option key={duration.id} value={duration.id}>{duration.name}</option>
                   ))}
                 </select>
-                <button type="button" disabled={!durationRuleId} onClick={addDuration}>Add</button>
+                <button type="button" disabled={!durationRuleId} onClick={() => void preserveScroll(addDuration)}>Add</button>
               </div>
             </div>
 
@@ -487,12 +491,12 @@ export function SpellContainerEditor({
               <h5>Child Containers</h5>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => void preserveScroll(() =>
                   onChange({
                     ...container,
                     children: [...container.children, createContainer()],
                   })
-                }
+                )}
               >
                 Add Child Container
               </button>

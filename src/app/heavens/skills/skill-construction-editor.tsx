@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { SpellDocument, Tradition } from "@/features/spell-construction/models/spell";
 import { createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import type { SkillDraft, SpellFrameworkSkill } from "./actions";
 import { SPELL_CONSTRUCTION_EXTENSION } from "./constants";
@@ -19,6 +20,7 @@ export function SkillConstructionEditor({
   findFrameworkSkills: (tradition: Tradition) => Promise<SpellFrameworkSkill[]>;
 }) {
   const [confirmDetach, setConfirmDetach] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const extensionIndex = draft.extensions.findIndex(
     ({ extensionType }) => extensionType === SPELL_CONSTRUCTION_EXTENSION,
@@ -67,7 +69,7 @@ export function SkillConstructionEditor({
         <button
           className="skills-primary-button"
           type="button"
-          onClick={attachSpellConstruction}
+          onClick={() => void preserveScroll(attachSpellConstruction)}
         >
           Attach Spell Construction
         </button>
@@ -92,7 +94,7 @@ export function SkillConstructionEditor({
             <button
               className="skills-danger-button"
               type="button"
-              onClick={() => {
+              onClick={() => void preserveScroll(() => {
                 onChange({
                   ...draft,
                   extensions: draft.extensions.filter(
@@ -101,11 +103,11 @@ export function SkillConstructionEditor({
                   ),
                 });
                 setConfirmDetach(false);
-              }}
+              })}
             >
               Confirm Remove
             </button>
-            <button type="button" onClick={() => setConfirmDetach(false)}>
+            <button type="button" onClick={() => void preserveScroll(() => setConfirmDetach(false))}>
               Keep It
             </button>
           </div>
@@ -113,7 +115,7 @@ export function SkillConstructionEditor({
           <button
             className="skills-danger-button"
             type="button"
-            onClick={() => setConfirmDetach(true)}
+            onClick={() => void preserveScroll(() => setConfirmDetach(true))}
           >
             Detach Construction
           </button>

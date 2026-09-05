@@ -7,6 +7,7 @@ import {
   searchRecursiveSkillLibrary,
   type RecursiveSkillLibrary,
 } from "@/features/skills/recursive-skill-library";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import type { SkillDraft, SkillRelationshipDraft } from "./actions";
 
@@ -40,6 +41,7 @@ export function SkillPathEditor({
 }: SkillPathEditorProps) {
   const [search, setSearch] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
+  const preserveScroll = useInPlaceScrollPreservation();
   const candidates = useMemo(() => {
     const matchingIds = search.trim()
       ? searchRecursiveSkillLibrary(hierarchy, search, 120).map(({ skill }) => skill.id)
@@ -112,7 +114,7 @@ export function SkillPathEditor({
             ))}
           </select>
         </label>
-        <button className="skills-secondary-button" type="button" disabled={!selectedCandidateId} onClick={addRelationship}>
+        <button className="skills-secondary-button" type="button" disabled={!selectedCandidateId} onClick={() => void preserveScroll(addRelationship)}>
           Add as Parent
         </button>
       </div>
@@ -131,9 +133,9 @@ export function SkillPathEditor({
               </label>
             </div>
             <div className="skill-path-editor__order">
-              <button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move Up</button>
-              <button type="button" disabled={index === relationships.length - 1} onClick={() => move(index, 1)}>Move Down</button>
-              <button className="is-danger" type="button" onClick={() => onChange(relationships.filter((_, current) => current !== index))}>Remove</button>
+              <button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => move(index, -1))}>Move Up</button>
+              <button type="button" disabled={index === relationships.length - 1} onClick={() => void preserveScroll(() => move(index, 1))}>Move Down</button>
+              <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange(relationships.filter((_, current) => current !== index)))}>Remove</button>
             </div>
           </article>
         ))}

@@ -12,6 +12,7 @@ import {
   type TemporaryModifierChannel,
 } from "@/features/mechanical-effects";
 import { formatDerivedAbilityMechanicalEffectSummary } from "@/features/derived-abilities/derived-ability-effects";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import type {
   DerivedAbilityDraft,
@@ -202,6 +203,7 @@ export function DerivedAbilityEffectsEditor({
   references: DerivedAbilityEditorReferences;
   onChange: (draft: DerivedAbilityDraft) => void;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   const setEffects = (effects: MechanicalEffect[]) => onChange({ ...draft, effects });
   const replace = (index: number, effect: MechanicalEffect) => setEffects(
     draft.effects.map((entry, position) => position === index ? effect : entry),
@@ -227,7 +229,7 @@ export function DerivedAbilityEffectsEditor({
         </div>
         <button
           type="button"
-          onClick={() => setEffects([...draft.effects, createEffect("health.heal")])}
+          onClick={() => void preserveScroll(() => setEffects([...draft.effects, createEffect("health.heal")]))}
         >
           Add Effect
         </button>
@@ -252,9 +254,9 @@ export function DerivedAbilityEffectsEditor({
                   <span>Effect {index + 1}</span>
                 </div>
                 <div className="derived-ability-row-actions">
-                  <button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move Up</button>
-                  <button type="button" disabled={index === draft.effects.length - 1} onClick={() => move(index, 1)}>Move Down</button>
-                  <button className="is-danger" type="button" onClick={() => setEffects(draft.effects.filter((_, position) => position !== index))}>Remove</button>
+                  <button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => move(index, -1))}>Move Up</button>
+                  <button type="button" disabled={index === draft.effects.length - 1} onClick={() => void preserveScroll(() => move(index, 1))}>Move Down</button>
+                  <button className="is-danger" type="button" onClick={() => void preserveScroll(() => setEffects(draft.effects.filter((_, position) => position !== index)))}>Remove</button>
                 </div>
               </header>
               <div className="derived-ability-form-grid">

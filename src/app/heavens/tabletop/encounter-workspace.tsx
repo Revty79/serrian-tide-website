@@ -228,7 +228,7 @@ export function EncounterWorkspace({
     if (selectedEncounter?.id === encounterId) setDraft(metadataFromEncounter(selectedEncounter));
     setFeedback(null);
     setActiveSection("prep");
-    router.push(encounterHref(encounterId));
+    router.push(encounterHref(encounterId), { scroll: false });
   }
 
   async function saveEncounter(): Promise<void> {
@@ -237,7 +237,7 @@ export function EncounterWorkspace({
         const created = await createCampaignSessionEncounter({ sceneId: initialData.sceneId, ...draft });
         setCreating(false);
         setFeedback({ kind: "success", message: `Encounter ${created.sequenceNumber} was created.` });
-        router.push(encounterHref(created.id));
+        router.push(encounterHref(created.id), { scroll: false });
         return;
       }
       if (!selectedEncounter) return;
@@ -272,7 +272,7 @@ export function EncounterWorkspace({
     await perform(async () => {
       await deleteCampaignSessionEncounter(selectedEncounter.id);
       setFeedback({ kind: "success", message: `Encounter ${selectedEncounter.sequenceNumber} was deleted.` });
-      router.push(encounterHref());
+      router.push(encounterHref(), { scroll: false });
     });
   }
 

@@ -141,7 +141,7 @@ export function WeaponGovernanceWorkspace({
     params.set("weaponCharacter", String(characterId));
     if (itemId === null) params.delete("weaponItem"); else params.set("weaponItem", String(itemId));
     if (firingModeId === null) params.delete("weaponMode"); else params.set("weaponMode", String(firingModeId));
-    router.push(`/heavens/tabletop?${params}`);
+    router.push(`/heavens/tabletop?${params}`, { scroll: false });
   }
 
   function baseRequest() {

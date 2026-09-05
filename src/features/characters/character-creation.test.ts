@@ -7,6 +7,7 @@ import {
   canAccessSupernaturalSkillAtLevel,
   canAccessSpellAtLevel,
   characterAggregateToDraft,
+  evaluateCharacterReadiness,
   getBaseInitiative,
   getCharacterManaProfiles,
   getCharacterBaseMagic,
@@ -31,6 +32,7 @@ import {
 } from "./character-creation";
 import type {
   CharacterAggregate,
+  CharacterDraft,
   CharacterRaceAggregate,
   CharacterSkillReference,
 } from "./models";
@@ -273,6 +275,87 @@ test("Base Magic quarter-steps feed the existing mana calculation", () => {
   assert.equal(profiles[0]?.baseMagic, 2.5);
   assert.equal(profiles[0]?.sourceSkillPoints, 16);
   assert.equal(profiles[0]?.manaPool, 40);
+});
+
+test("an exact-instance firearm purchased in the Starting Equipment Store permits completion", () => {
+  const selectedRace = race();
+  const runtimeProfile = {
+    useMode: "none" as const,
+    quantityPerUse: null,
+    maximumCharges: null,
+    chargesPerUse: null,
+    rechargeNotes: "",
+    activationLabel: "Use",
+    useNotes: "",
+  };
+  const draft = {
+    name: "Ready Adventurer",
+    profile: {
+      raceId: selectedRace.race.id,
+      age: 30,
+      sex: "Human",
+      heightFeet: 6,
+      heightInches: 0,
+      weight: 180,
+      skinColor: "Brown",
+      eyeColor: "Green",
+      hairColor: "Black",
+      deity: "None",
+      definingMarks: "None",
+      personality: "Steady",
+      goals: "Explore",
+      secrets: "None",
+      backstory: "Prepared for the road.",
+      motivations: "Discovery",
+      fame: 0,
+      experience: 0,
+      totalExperience: 0,
+      quintessence: 0,
+      totalQuintessence: 0,
+      hpMultiplierSteps: 0,
+      baseMovementSteps: 0,
+      baseMagicSteps: 0,
+      fatePoints: 0,
+      creditsRemaining: 90,
+    },
+    attributes: { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHR: 0 },
+    skillAllocations: [],
+    items: [],
+    itemInstances: [{
+      draftId: -1,
+      instanceId: null,
+      itemId: 81,
+      unitCostCredits: 10,
+    }],
+    currencyHoldings: [],
+  } satisfies CharacterDraft;
+  const aggregate = {
+    campaign: {
+      attributePoints: 0,
+      skillPoints: 0,
+      maxStartingSkill: 25,
+      pointsToUnlockNextTier: 5,
+      maxPointsInSkill: 75,
+      startingCreditAmount: 100,
+      fatePointMethod: "Assigned",
+      allowedSystems: [],
+    },
+    skillCatalog: [],
+    skillRelationships: [],
+    authorizedItems: [{
+      id: 81,
+      name: "Exact Test Firearm",
+      catalogScope: "equipment",
+      credits: 10,
+      runtimeProfile,
+      isFirearm: true,
+    }],
+  } as unknown as CharacterAggregate;
+
+  const readiness = evaluateCharacterReadiness(draft, aggregate, selectedRace);
+  assert.equal(readiness.equipmentComplete, true);
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.issues.includes("Starting possessions must be priced and authorized by this Campaign."), false);
 });
 
 test("a saved aggregate reopens as the same editable draft record", () => {

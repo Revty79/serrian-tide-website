@@ -6,6 +6,7 @@ import { serrianTideRules } from "@/features/spell-construction/data/spellRules"
 import { calculateModifierCost } from "@/features/spell-construction/engine/calculateSpell";
 import type { ModifierSelection } from "@/features/spell-construction/models/spell";
 import { createModifierSelection } from "@/features/spell-construction/utilities/spellFactory";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 type SpellModifierEditorProps = {
   selections: ModifierSelection[];
@@ -19,6 +20,7 @@ export function SpellModifierEditor({
   onChange,
 }: SpellModifierEditorProps) {
   const [ruleId, setRuleId] = useState("");
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const availableRules = serrianTideRules.modifiers.filter(
     (rule) =>
@@ -67,7 +69,7 @@ export function SpellModifierEditor({
               <option key={rule.id} value={rule.id}>{rule.name}</option>
             ))}
           </select>
-          <button type="button" disabled={!ruleId} onClick={addModifier}>Add</button>
+          <button type="button" disabled={!ruleId} onClick={() => void preserveScroll(addModifier)}>Add</button>
         </div>
       </div>
 
@@ -139,8 +141,8 @@ export function SpellModifierEditor({
                 <button
                   className="spell-builder__remove"
                   type="button"
-                  onClick={() =>
-                    onChange(selections.filter((item) => item.id !== selection.id))
+                  onClick={() => void preserveScroll(() =>
+                    onChange(selections.filter((item) => item.id !== selection.id)))
                   }
                 >
                   Remove Modifier

@@ -9,6 +9,7 @@ import type {
   RecursiveSkillNode,
   RecursiveSkillPath,
 } from "@/features/skills/recursive-skill-library";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   deleteSkill,
@@ -116,6 +117,7 @@ export function SkillsWorkspace({
     useState<PendingEditorChange | null>(null);
   const [structuralPreview, setStructuralPreview] =
     useState<SkillMutationPreview | null>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const loadList = useCallback(async (nextFilters: SkillLibraryFilters) => {
     setLoadingLibrary(true);
@@ -161,31 +163,33 @@ export function SkillsWorkspace({
   }
 
   async function openSkill(skillId: number, pathKey: string | null) {
-    setLoadingEditor(true);
-    setFeedback(null);
-    try {
-      const aggregate = await getSkill(skillId);
-      if (!aggregate) throw new Error("That exact Skill identity no longer exists.");
-      setDraft(aggregate);
-      setSelectedPathKey(pathKey);
-      if (pathKey) {
-        const path = hierarchy.paths.find(({ key }) => key === pathKey);
-        if (path) setSelectedAttributeKey(path.attributeGroupKey);
+    await preserveScroll(async () => {
+      setLoadingEditor(true);
+      setFeedback(null);
+      try {
+        const aggregate = await getSkill(skillId);
+        if (!aggregate) throw new Error("That exact Skill identity no longer exists.");
+        setDraft(aggregate);
+        setSelectedPathKey(pathKey);
+        if (pathKey) {
+          const path = hierarchy.paths.find(({ key }) => key === pathKey);
+          if (path) setSelectedAttributeKey(path.attributeGroupKey);
+        }
+        setDirty(false);
+      } catch (error) {
+        setFeedback({
+          kind: "error",
+          message: error instanceof Error ? error.message : "That Skill could not be loaded.",
+        });
+      } finally {
+        setLoadingEditor(false);
       }
-      setDirty(false);
-    } catch (error) {
-      setFeedback({
-        kind: "error",
-        message: error instanceof Error ? error.message : "That Skill could not be loaded.",
-      });
-    } finally {
-      setLoadingEditor(false);
-    }
+    });
   }
 
   function requestOpen(skillId: number, pathKey: string | null) {
     if (dirty) {
-      setPendingEditorChange({ kind: "open", skillId, pathKey });
+      void preserveScroll(() => setPendingEditorChange({ kind: "open", skillId, pathKey }));
       return;
     }
     void openSkill(skillId, pathKey);
@@ -210,10 +214,10 @@ export function SkillsWorkspace({
 
   function beginNewSkill() {
     if (dirty) {
-      setPendingEditorChange({ kind: "new" });
+      void preserveScroll(() => setPendingEditorChange({ kind: "new" }));
       return;
     }
-    createNewSkill();
+    void preserveScroll(createNewSkill);
   }
 
   function discardAndContinue() {
@@ -229,47 +233,51 @@ export function SkillsWorkspace({
 
   function changeView(nextView: SkillLibraryView) {
     if (nextView === view) return;
-    setView(nextView);
-    if (nextView === "tree") {
-      setSelectedPathKey(null);
-      setSelectedAttributeKey(null);
-    }
+    void preserveScroll(() => {
+      setView(nextView);
+      if (nextView === "tree") {
+        setSelectedPathKey(null);
+        setSelectedAttributeKey(null);
+      }
+    });
   }
 
   async function persistCurrentSkill(structuralChangeConfirmed: boolean) {
     if (!draft) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const saved = await saveSkill(draft, { structuralChangeConfirmed });
-      const nextHierarchy = await refreshLibraries();
-      const selectedPath = preferredSavedPath(
-        nextHierarchy,
-        saved,
-        selectedPathKey,
-        selectedAttributeKey,
-      );
-      setDraft(saved);
-      if (view === "tree") {
-        setSelectedPathKey(selectedPath?.key ?? null);
-        setSelectedAttributeKey(selectedPath?.attributeGroupKey ?? null);
-      } else {
-        setSelectedPathKey(null);
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const saved = await saveSkill(draft, { structuralChangeConfirmed });
+        const nextHierarchy = await refreshLibraries();
+        const selectedPath = preferredSavedPath(
+          nextHierarchy,
+          saved,
+          selectedPathKey,
+          selectedAttributeKey,
+        );
+        setDraft(saved);
+        if (view === "tree") {
+          setSelectedPathKey(selectedPath?.key ?? null);
+          setSelectedAttributeKey(selectedPath?.attributeGroupKey ?? null);
+        } else {
+          setSelectedPathKey(null);
+        }
+        setDirty(false);
+        setStructuralPreview(null);
+        setFeedback({
+          kind: "success",
+          message: `${saved.core.name} (#${saved.id}) was saved and placed from its canonical relationships.`,
+        });
+      } catch (error) {
+        setFeedback({
+          kind: "error",
+          message: error instanceof Error ? error.message : "The Skill could not be saved. Existing data was left intact.",
+        });
+      } finally {
+        setSaving(false);
       }
-      setDirty(false);
-      setStructuralPreview(null);
-      setFeedback({
-        kind: "success",
-        message: `${saved.core.name} (#${saved.id}) was saved and placed from its canonical relationships.`,
-      });
-    } catch (error) {
-      setFeedback({
-        kind: "error",
-        message: error instanceof Error ? error.message : "The Skill could not be saved. Existing data was left intact.",
-      });
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function reviewAndSaveCurrentSkill() {
@@ -299,24 +307,27 @@ export function SkillsWorkspace({
 
   async function deleteCurrentSkill() {
     if (!draft?.id) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const deletedName = draft.core.name;
-      await deleteSkill(draft.id);
-      setDraft(null);
-      setSelectedPathKey(null);
-      setDirty(false);
-      setFeedback({ kind: "success", message: `${deletedName} was deleted.` });
-      await refreshLibraries();
-    } catch (error) {
-      setFeedback({
-        kind: "error",
-        message: error instanceof Error ? error.message : "The Skill could not be deleted.",
-      });
-    } finally {
-      setSaving(false);
-    }
+    const skillId = draft.id;
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const deletedName = draft.core.name;
+        await deleteSkill(skillId);
+        setDraft(null);
+        setSelectedPathKey(null);
+        setDirty(false);
+        setFeedback({ kind: "success", message: `${deletedName} was deleted.` });
+        await refreshLibraries();
+      } catch (error) {
+        setFeedback({
+          kind: "error",
+          message: error instanceof Error ? error.message : "The Skill could not be deleted.",
+        });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   const consumerRows = structuralPreview ? [
@@ -360,12 +371,14 @@ export function SkillsWorkspace({
           onFiltersChange={setFilters}
           onSelectList={selectListSkill}
           onSelectTree={selectTreeSkill}
-          onSelectAttribute={setSelectedAttributeKey}
+          onSelectAttribute={(key) => void preserveScroll(() => setSelectedAttributeKey(key))}
           onBackToAttributes={() => {
-            setSelectedPathKey(null);
-            setSelectedAttributeKey(null);
+            void preserveScroll(() => {
+              setSelectedPathKey(null);
+              setSelectedAttributeKey(null);
+            });
           }}
-          onBackToRoots={() => setSelectedPathKey(null)}
+          onBackToRoots={() => void preserveScroll(() => setSelectedPathKey(null))}
           onNewSkill={beginNewSkill}
         />
 
@@ -386,7 +399,7 @@ export function SkillsWorkspace({
               setFeedback(null);
               setStructuralPreview(null);
             }}
-            onSave={() => void reviewAndSaveCurrentSkill()}
+            onSave={() => void preserveScroll(reviewAndSaveCurrentSkill)}
             onDelete={() => void deleteCurrentSkill()}
             findFrameworkSkills={findFrameworkSkills}
           />
@@ -397,8 +410,8 @@ export function SkillsWorkspace({
         <div className="skills-page__discard-confirm" role="alertdialog" aria-modal="true" aria-labelledby="discard-changes-title">
           <div><p id="discard-changes-title">Unsaved changes</p><span>Leave this draft and discard the changes you have not saved?</span></div>
           <div className="skills-page__discard-actions">
-            <button type="button" onClick={() => setPendingEditorChange(null)}>Keep Editing</button>
-            <button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button>
+            <button type="button" onClick={() => void preserveScroll(() => setPendingEditorChange(null))}>Keep Editing</button>
+            <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(discardAndContinue)}>Discard Changes</button>
           </div>
         </div>
       ) : null}
@@ -408,7 +421,7 @@ export function SkillsWorkspace({
           <section>
             <header>
               <div><p>STRUCTURAL CONFIRMATION</p><h2 id="structure-confirm-title">Confirm exact lineage change</h2></div>
-              <button type="button" onClick={() => setStructuralPreview(null)}>Close</button>
+              <button type="button" onClick={() => void preserveScroll(() => setStructuralPreview(null))}>Close</button>
             </header>
             <p>This preserves the Skill identity and does not rewrite any consumer. Review every affected path before saving.</p>
             <div className="skills-page__path-comparison">
@@ -421,7 +434,7 @@ export function SkillsWorkspace({
               <section><strong>Canonical consumers (unchanged)</strong><span>{structuralPreview.consumers.total}</span><ul>{consumerRows.map(([label, value]) => <li key={label}>{label}: {value}</li>)}</ul></section>
             </div>
             <footer>
-              <button type="button" onClick={() => setStructuralPreview(null)}>Return to Editing</button>
+              <button type="button" onClick={() => void preserveScroll(() => setStructuralPreview(null))}>Return to Editing</button>
               <button className="skills-primary-button" disabled={saving} type="button" onClick={() => void persistCurrentSkill(true)}>{saving ? "Saving…" : "Confirm Structural Change"}</button>
             </footer>
           </section>

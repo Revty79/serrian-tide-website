@@ -25,6 +25,7 @@ import type { ActiveManaView } from "@/features/active-state/active-mana";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
 import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
 import type { CharacterItemChargeStateView } from "@/features/items/item-charge";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import {
   getCharacterCreationTabs,
   type CharacterCreationTab,
@@ -464,6 +465,7 @@ export function CharacterEditor({
   const [equipmentSearch, setEquipmentSearch] = useState("");
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>("all");
   const [activeSkillGroup, setActiveSkillGroup] = useState("STR");
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const playerLocked = !godMode && Boolean(aggregate.profile.creationCompletedAt);
   const enforceCampaignTierLimits = !godMode && !aggregate.profile.creationCompletedAt;
@@ -558,38 +560,40 @@ export function CharacterEditor({
 
   async function chooseRace(value: string) {
     if (playerLocked) return;
-    if (!value) {
-      setSelectedRace(null);
-      change((current) => ({
-        ...current,
-        profile: { ...current.profile, raceId: null },
-        skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, null, aggregate.skillRelationships, () => nextDraftId.current--),
-      }));
-      return;
-    }
-    setRaceLoading(true);
-    setFeedback(null);
-    try {
-      const race = await getAllowedRaceForCharacter(aggregate.character.id, Number(value), godMode);
-      setSelectedRace(race);
-      change((current) => {
-        const attributes = { ...current.attributes };
-        for (const key of CHARACTER_ATTRIBUTE_KEYS) {
-          const cap = getRaceAttributeCap(race, key);
-          if (cap !== null) attributes[key] = Math.min(attributes[key], cap);
-        }
-        return {
+    await preserveScroll(async () => {
+      if (!value) {
+        setSelectedRace(null);
+        change((current) => ({
           ...current,
-          attributes,
-          profile: { ...current.profile, raceId: race.race.id },
-          skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, race, aggregate.skillRelationships, () => nextDraftId.current--),
-        };
-      });
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The selected Race could not be loaded." });
-    } finally {
-      setRaceLoading(false);
-    }
+          profile: { ...current.profile, raceId: null },
+          skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, null, aggregate.skillRelationships, () => nextDraftId.current--),
+        }));
+        return;
+      }
+      setRaceLoading(true);
+      setFeedback(null);
+      try {
+        const race = await getAllowedRaceForCharacter(aggregate.character.id, Number(value), godMode);
+        setSelectedRace(race);
+        change((current) => {
+          const attributes = { ...current.attributes };
+          for (const key of CHARACTER_ATTRIBUTE_KEYS) {
+            const cap = getRaceAttributeCap(race, key);
+            if (cap !== null) attributes[key] = Math.min(attributes[key], cap);
+          }
+          return {
+            ...current,
+            attributes,
+            profile: { ...current.profile, raceId: race.race.id },
+            skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, race, aggregate.skillRelationships, () => nextDraftId.current--),
+          };
+        });
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The selected Race could not be loaded." });
+      } finally {
+        setRaceLoading(false);
+      }
+    });
   }
 
   function setAttribute(key: CharacterAttributeKey, requested: number) {
@@ -739,72 +743,76 @@ export function CharacterEditor({
 
   async function persist(completeCreation = false) {
     if (saving || playerLocked) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const saved = await saveCharacter(aggregate.character.id, draft, completeCreation, godMode);
-      const [refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const saved = await saveCharacter(aggregate.character.id, draft, completeCreation, godMode);
+        const [refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+          getActiveHealth(aggregate.character.id),
+          getActiveMana(aggregate.character.id),
+          getActiveEffects(aggregate.character.id, godMode),
+          getCharacterEquipmentState(aggregate.character.id),
+          getCharacterItemChargeState(aggregate.character.id),
+        ]);
+        const savedDraft = characterAggregateToDraft(saved);
+        setAggregate(saved);
+        setActiveHealth(refreshedHealth);
+        setActiveMana(refreshedMana);
+        setActiveEffects(refreshedEffects);
+        setEquipmentState(refreshedEquipmentState);
+        setChargeState(refreshedChargeState);
+        setSelectedRace(saved.selectedRace);
+        setDraft({
+          ...savedDraft,
+          skillAllocations: reconcileRacialSkillAnchors(savedDraft.skillAllocations, saved.selectedRace, saved.skillRelationships, () => nextDraftId.current--),
+        });
+        setDirty(false);
+        setConfirmCompletion(false);
+        if (completeCreation) setActiveTab("sheet");
+        setFeedback({
+          kind: "success",
+          message: completeCreation
+            ? "Character creation is complete. The Player creation record is now permanently locked."
+            : godMode ? "G.O.D. changes were saved to the Character record." : "Character draft saved.",
+        });
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Character could not be saved." });
+      } finally {
+        setSaving(false);
+      }
+    });
+  }
+
+  async function refreshAfterRuntimeMutation() {
+    await preserveScroll(async () => {
+      const [refreshed, refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
+        getCharacter(aggregate.character.id, godMode),
         getActiveHealth(aggregate.character.id),
         getActiveMana(aggregate.character.id),
         getActiveEffects(aggregate.character.id, godMode),
         getCharacterEquipmentState(aggregate.character.id),
         getCharacterItemChargeState(aggregate.character.id),
       ]);
-      const savedDraft = characterAggregateToDraft(saved);
-      setAggregate(saved);
+      const refreshedDraft = characterAggregateToDraft(refreshed);
+      setAggregate(refreshed);
       setActiveHealth(refreshedHealth);
       setActiveMana(refreshedMana);
       setActiveEffects(refreshedEffects);
       setEquipmentState(refreshedEquipmentState);
       setChargeState(refreshedChargeState);
-      setSelectedRace(saved.selectedRace);
+      setSelectedRace(refreshed.selectedRace);
       setDraft({
-        ...savedDraft,
-        skillAllocations: reconcileRacialSkillAnchors(savedDraft.skillAllocations, saved.selectedRace, saved.skillRelationships, () => nextDraftId.current--),
+        ...refreshedDraft,
+        skillAllocations: reconcileRacialSkillAnchors(
+          refreshedDraft.skillAllocations,
+          refreshed.selectedRace,
+          refreshed.skillRelationships,
+          () => nextDraftId.current--,
+        ),
       });
-      setDirty(false);
-      setConfirmCompletion(false);
-      if (completeCreation) setActiveTab("sheet");
-      setFeedback({
-        kind: "success",
-        message: completeCreation
-          ? "Character creation is complete. The Player creation record is now permanently locked."
-          : godMode ? "G.O.D. changes were saved to the Character record." : "Character draft saved.",
-      });
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Character could not be saved." });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function refreshAfterRuntimeMutation() {
-    const [refreshed, refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
-      getCharacter(aggregate.character.id, godMode),
-      getActiveHealth(aggregate.character.id),
-      getActiveMana(aggregate.character.id),
-      getActiveEffects(aggregate.character.id, godMode),
-      getCharacterEquipmentState(aggregate.character.id),
-      getCharacterItemChargeState(aggregate.character.id),
-    ]);
-    const refreshedDraft = characterAggregateToDraft(refreshed);
-    setAggregate(refreshed);
-    setActiveHealth(refreshedHealth);
-    setActiveMana(refreshedMana);
-    setActiveEffects(refreshedEffects);
-    setEquipmentState(refreshedEquipmentState);
-    setChargeState(refreshedChargeState);
-    setSelectedRace(refreshed.selectedRace);
-    setDraft({
-      ...refreshedDraft,
-      skillAllocations: reconcileRacialSkillAnchors(
-        refreshedDraft.skillAllocations,
-        refreshed.selectedRace,
-        refreshed.skillRelationships,
-        () => nextDraftId.current--,
-      ),
+      setFeedback({ kind: "success", message: "Character runtime state was refreshed." });
     });
-    setFeedback({ kind: "success", message: "Character runtime state was refreshed." });
   }
 
   const statusPurse = characterPurse();
@@ -812,13 +820,13 @@ export function CharacterEditor({
   return (
     <main className="character-page">
       <header className="character-header">
-        <Link href={returnHref} className="font-evanescent character-logo" onClick={(event) => { if (dirty) { event.preventDefault(); setConfirmExit(true); } }}>SERRIAN<br />TIDE</Link>
+        <Link href={returnHref} className="font-evanescent character-logo" onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>SERRIAN<br />TIDE</Link>
         <div className="character-header__identity">
           <p>{isNpc ? "THE HEAVENS / NPC ADMINISTRATION" : godMode ? "THE HEAVENS / CHARACTER ADMINISTRATION" : "THE REALMS / CHARACTER CREATION"}</p>
           <h1 className="font-sans">{isNpc ? "Edit NPC" : godMode ? "Edit Character" : "Character Creation"}</h1>
           <span>Campaign: {aggregate.campaign.name} · {isNpc ? "Record: NPC" : `Player: ${aggregate.character.playerUsername}`} · Character: {draft.name || "New Character"}</span>
         </div>
-        <div className="character-header__actions"><Link href={returnHref} onClick={(event) => { if (dirty) { event.preventDefault(); setConfirmExit(true); } }}>← {backLabel}</Link></div>
+        <div className="character-header__actions"><Link href={returnHref} onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>← {backLabel}</Link></div>
       </header>
 
       <section className="character-status-strip" aria-live="polite">
@@ -829,31 +837,31 @@ export function CharacterEditor({
         <div><span>Equipment</span><strong>{readiness.equipmentComplete ? "✓" : "—"}</strong></div>
         <div><span>{godMode ? "Current Funds" : "Starting Funds"}</span><strong>{statusPurse.formatted}</strong></div>
         <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? "G.O.D. Full Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? "Unsaved changes" : "Saved record"}</small></div>
-        {!playerLocked ? <div className="character-status-strip__actions"><button type="button" disabled={saving || !dirty} onClick={() => void persist(false)}>{saving ? "Saving…" : isNpc ? "Save NPC" : "Save Character"}</button>{!isNpc && readiness.ready && !aggregate.profile.creationCompletedAt ? <button type="button" className="is-primary" disabled={saving} onClick={() => setConfirmCompletion(true)}>Complete Character</button> : null}</div> : null}
+        {!playerLocked ? <div className="character-status-strip__actions"><button type="button" disabled={saving || !dirty} onClick={() => void persist(false)}>{saving ? "Saving…" : isNpc ? "Save NPC" : "Save Character"}</button>{!isNpc && readiness.ready && !aggregate.profile.creationCompletedAt ? <button type="button" className="is-primary" disabled={saving} onClick={() => void preserveScroll(() => setConfirmCompletion(true))}>Complete Character</button> : null}</div> : null}
       </section>
 
       {feedback ? <p className={`character-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
       <div className="character-workspace">
         <nav className="character-tabs" aria-label="Character creation sections">
-          {visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => setActiveTab(tab.id)}><span>{tab.label}</span>{tabStatus(tab.id, readiness) ? <i>✓</i> : null}</button>)}
+          {visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}><span>{tab.label}</span>{tabStatus(tab.id, readiness) ? <i>✓</i> : null}</button>)}
         </nav>
         <section className="character-editor">
           {godMode ? <aside className="character-admin-notice"><strong>G.O.D. administrative access is active.</strong><span>You may edit the full record even after Player creation is complete.</span></aside> : playerLocked ? <aside className="character-admin-notice is-locked"><strong>Character creation is complete.</strong><span>Identity, Attributes, starting Skills, Story, and starting Equipment are read-only.</span></aside> : null}
           {activeTab === "identity" ? <IdentityTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} disabled={playerLocked} godMode={godMode} raceLoading={raceLoading} onChange={change} onChooseRace={chooseRace} /> : null}
           {activeTab === "attributes" ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked} godMode={godMode} onSetAttribute={setAttribute} /> : null}
-          {activeTab === "skills" ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={setActiveSkillGroup} onSetSkillPoints={setSkillPoints} onShowDescription={setDescribedSkill} /> : null}
+          {activeTab === "skills" ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked} onChange={change} /> : null}
-          {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={setEquipmentFilter} onSearch={setEquipmentSearch} onQuantityChange={changeItemQuantity} onRemoveInstance={removeItemInstance} campaignMoney={campaignMoney} /> : null}
+          {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
           {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} /> : null}
           {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked} itemUseDisabledReason={itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>
 
-      {confirmCompletion ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="complete-character-title"><h2 id="complete-character-title">Complete this Character?</h2><p>This permanently locks Player Character creation. Later changes use their controlled workflows.</p><div><button type="button" onClick={() => setConfirmCompletion(false)}>Keep Editing</button><button type="button" className="is-primary" disabled={saving} onClick={() => void persist(true)}>Complete Character</button></div></section></div> : null}
-      {confirmExit ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="exit-character-title"><h2 id="exit-character-title">Unsaved changes</h2><p>Leave this Character and discard the changes you have not saved?</p><div><button type="button" onClick={() => setConfirmExit(false)}>Keep Editing</button><Link href={returnHref}>Discard Changes</Link></div></section></div> : null}
-      {describedSkill ? <div className="character-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDescribedSkill(null); }}><section className="character-skill-description" role="dialog" aria-modal="true" aria-labelledby="skill-description-title"><header><div><p>SKILL DESCRIPTION</p><h2 id="skill-description-title">{describedSkill.name}</h2></div><button type="button" aria-label="Close Skill description" onClick={() => setDescribedSkill(null)}>×</button></header><div className="character-skill-description__facts"><span>{getSkillTierLabel(describedSkill)}</span>{describedSkill.primaryAttribute ? <span>Primary: {normalizeSkillAttributeKey(describedSkill.primaryAttribute) ?? describedSkill.primaryAttribute}</span> : null}{describedSkill.secondaryAttribute ? <span>Secondary: {normalizeSkillAttributeKey(describedSkill.secondaryAttribute) ?? describedSkill.secondaryAttribute}</span> : null}{describedSkill.spellLevel ? <span>Spell Level: {describedSkill.spellLevel}</span> : null}{describedSkill.manaCost !== null ? <span>Mana Cost: {displayNumber(describedSkill.manaCost)}</span> : null}</div><p>{describedSkill.definition.trim() || "No description is currently recorded for this Skill."}</p><footer><button type="button" onClick={() => setDescribedSkill(null)}>Close</button></footer></section></div> : null}
+      {confirmCompletion ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="complete-character-title"><h2 id="complete-character-title">Complete this Character?</h2><p>This permanently locks Player Character creation. Later changes use their controlled workflows.</p><div><button type="button" onClick={() => void preserveScroll(() => setConfirmCompletion(false))}>Keep Editing</button><button type="button" className="is-primary" disabled={saving} onClick={() => void persist(true)}>Complete Character</button></div></section></div> : null}
+      {confirmExit ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="exit-character-title"><h2 id="exit-character-title">Unsaved changes</h2><p>Leave this Character and discard the changes you have not saved?</p><div><button type="button" onClick={() => void preserveScroll(() => setConfirmExit(false))}>Keep Editing</button><Link href={returnHref}>Discard Changes</Link></div></section></div> : null}
+      {describedSkill ? <div className="character-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) void preserveScroll(() => setDescribedSkill(null)); }}><section className="character-skill-description" role="dialog" aria-modal="true" aria-labelledby="skill-description-title"><header><div><p>SKILL DESCRIPTION</p><h2 id="skill-description-title">{describedSkill.name}</h2></div><button type="button" aria-label="Close Skill description" onClick={() => void preserveScroll(() => setDescribedSkill(null))}>×</button></header><div className="character-skill-description__facts"><span>{getSkillTierLabel(describedSkill)}</span>{describedSkill.primaryAttribute ? <span>Primary: {normalizeSkillAttributeKey(describedSkill.primaryAttribute) ?? describedSkill.primaryAttribute}</span> : null}{describedSkill.secondaryAttribute ? <span>Secondary: {normalizeSkillAttributeKey(describedSkill.secondaryAttribute) ?? describedSkill.secondaryAttribute}</span> : null}{describedSkill.spellLevel ? <span>Spell Level: {describedSkill.spellLevel}</span> : null}{describedSkill.manaCost !== null ? <span>Mana Cost: {displayNumber(describedSkill.manaCost)}</span> : null}</div><p>{describedSkill.definition.trim() || "No description is currently recorded for this Skill."}</p><footer><button type="button" onClick={() => void preserveScroll(() => setDescribedSkill(null))}>Close</button></footer></section></div> : null}
     </main>
   );
 }

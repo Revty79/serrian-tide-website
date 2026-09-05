@@ -209,7 +209,7 @@ export function SkillLibrary({
             </label>
           </div>
 
-          <div className={`skill-library__results${loading ? " is-loading" : ""}`}>
+          <div data-preserve-scroll="skill-library-list-results" className={`skill-library__results${loading ? " is-loading" : ""}`}>
             {!page.items.length && !loading ? (
               <p className="skill-library__empty">No skills match this library view.</p>
             ) : page.items.map((skill) => (
@@ -265,7 +265,7 @@ export function SkillLibrary({
           </div>
 
           {treeSearch.trim() ? (
-            <section className="skill-library__search-results" aria-label="Skill search results">
+            <section data-preserve-scroll="skill-library-search-results" className="skill-library__search-results" aria-label="Skill search results">
               <header>
                 <strong>{searchResults.length} exact path {searchResults.length === 1 ? "match" : "matches"}</strong>
                 <button type="button" onClick={() => setTreeSearch("")}>Clear Search</button>
@@ -395,7 +395,7 @@ export function SkillLibrary({
               </section>
             </div>
           ) : selectedAttribute ? (
-            <section className={`skill-library__attribute-roots${selectedAttribute.key === REVIEW_REQUIRED_ATTRIBUTE_KEY ? " is-review" : ""}`} aria-label={`${attributeLabel(selectedAttribute.key, selectedAttribute.label)} roots`}>
+            <section data-preserve-scroll="skill-library-tree-results" className={`skill-library__attribute-roots${selectedAttribute.key === REVIEW_REQUIRED_ATTRIBUTE_KEY ? " is-review" : ""}`} aria-label={`${attributeLabel(selectedAttribute.key, selectedAttribute.label)} roots`}>
               <header>
                 <div>
                   <p>SELECTED ATTRIBUTE</p>

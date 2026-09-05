@@ -342,7 +342,7 @@ export function TabletopWorkspace({
         const created = await createCampaignSession({ campaignId: initialData.selectedCampaignId!, ...draft });
         setFeedback({ kind: "success", message: `Session ${created.sequenceNumber} was created.` });
         setCreating(false);
-        router.push(sessionHref(created.id));
+        router.push(sessionHref(created.id), { scroll: false });
       } else if (selectedSession) {
         const updated = await updateCampaignSession({ id: selectedSession.id, ...draft });
         setDraft(metadataFromSession(updated));
@@ -368,7 +368,7 @@ export function TabletopWorkspace({
     await perform(async () => {
       await deleteCampaignSession(selectedSession.id);
       setFeedback({ kind: "success", message: `Session ${selectedSession.sequenceNumber} was deleted.` });
-      router.push(campaignHref(selectedSession.campaignId));
+      router.push(campaignHref(selectedSession.campaignId), { scroll: false });
     });
   }
 
@@ -402,7 +402,7 @@ export function TabletopWorkspace({
     if (selectedSession) params.set("session", String(selectedSession.id));
     if (initialSceneData?.selectedSceneId) params.set("scene", String(initialSceneData.selectedSceneId));
     if (initialEncounterData?.selectedEncounterId) params.set("encounter", String(initialEncounterData.selectedEncounterId));
-    router.push(`/heavens/tabletop?${params}`);
+    router.push(`/heavens/tabletop?${params}`, { scroll: false });
   }
 
   function openCalledChecks(): void {
@@ -431,7 +431,7 @@ export function TabletopWorkspace({
       </div>
       {initialData.campaigns.length ? <select
         value={initialData.selectedCampaignId ?? ""}
-        onChange={(event) => router.push(campaignHref(Number(event.target.value)))}
+        onChange={(event) => router.push(campaignHref(Number(event.target.value)), { scroll: false })}
       >
         {initialData.campaigns.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
       </select> : <p className="tabletop-empty-inline">Create a Campaign before planning Sessions.</p>}
@@ -481,7 +481,7 @@ export function TabletopWorkspace({
         <div><span>Initiative</span><strong>{initialSessionCloseout.activeContext.initiative ? `Round ${initialSessionCloseout.activeContext.initiative.roundNumber} / Step ${initialSessionCloseout.activeContext.initiative.stepNumber}` : "Not active"}</strong></div>
         <footer>{initialSessionCloseout.activeContext.encounterId && initialSessionCloseout.activeContext.sceneId ? <button type="button" onClick={() => {
           setActiveTab("scenes");
-          router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}`);
+          router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}`, { scroll: false });
         }}>Go to Active Encounter</button> : null}<button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button><button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
       </section> : null}
 

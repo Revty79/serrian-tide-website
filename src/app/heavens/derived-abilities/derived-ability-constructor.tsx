@@ -20,6 +20,7 @@ import {
   type DerivedAbilityUseConditionType,
   type DerivedAbilityUseLimitDefinition,
 } from "@/features/derived-abilities/models";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import type {
   DerivedAbilityDraft,
@@ -85,11 +86,12 @@ function RowActions({
   upDisabled: boolean;
   downDisabled: boolean;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   return (
     <div className="derived-ability-row-actions">
-      <button type="button" disabled={upDisabled} onClick={onUp}>Move Up</button>
-      <button type="button" disabled={downDisabled} onClick={onDown}>Move Down</button>
-      <button type="button" className="is-danger" onClick={onRemove}>Remove</button>
+      <button type="button" disabled={upDisabled} onClick={() => void preserveScroll(onUp)}>Move Up</button>
+      <button type="button" disabled={downDisabled} onClick={() => void preserveScroll(onDown)}>Move Down</button>
+      <button type="button" className="is-danger" onClick={() => void preserveScroll(onRemove)}>Remove</button>
     </div>
   );
 }
@@ -407,6 +409,7 @@ function RequirementScopeEditor({
   references: DerivedAbilityEditorReferences;
   onChange: (draft: DerivedAbilityDraft) => void;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   const scoped = draft.requirements
     .map((requirement, index) => ({ requirement, index }))
     .filter(({ requirement }) => requirement.requirementScope === scope)
@@ -493,7 +496,7 @@ function RequirementScopeEditor({
             : "What must continue to be true for this ability to remain available."}</p>
         </div>
         {!groups.length ? (
-          <button type="button" onClick={addGroup}>Add Requirement</button>
+          <button type="button" onClick={() => void preserveScroll(addGroup)}>Add Requirement</button>
         ) : null}
       </header>
       {!groups.length ? <p className="derived-ability-empty">No requirements · no restriction.</p> : null}
@@ -510,9 +513,9 @@ function RequirementScopeEditor({
                   <span>ALL OF THESE</span>
                 </div>
                 <div>
-                  <button type="button" disabled={groupIndex === 0} onClick={() => moveGroup(groupNumber, -1)}>Move Group Up</button>
-                  <button type="button" disabled={groupIndex === groups.length - 1} onClick={() => moveGroup(groupNumber, 1)}>Move Group Down</button>
-                  <button type="button" className="is-danger" onClick={() => removeGroup(groupNumber)}>Remove Group</button>
+                  <button type="button" disabled={groupIndex === 0} onClick={() => void preserveScroll(() => moveGroup(groupNumber, -1))}>Move Group Up</button>
+                  <button type="button" disabled={groupIndex === groups.length - 1} onClick={() => void preserveScroll(() => moveGroup(groupNumber, 1))}>Move Group Down</button>
+                  <button type="button" className="is-danger" onClick={() => void preserveScroll(() => removeGroup(groupNumber))}>Remove Group</button>
                 </div>
               </header>
               <div className="derived-ability-row-list">
@@ -533,12 +536,12 @@ function RequirementScopeEditor({
                   </div>
                 ))}
               </div>
-              <button className="derived-ability-add" type="button" onClick={() => addRequirement(groupNumber)}>+ Add Requirement</button>
+              <button className="derived-ability-add" type="button" onClick={() => void preserveScroll(() => addRequirement(groupNumber))}>+ Add Requirement</button>
             </section>
           </div>
         );
       })}
-      {groups.length ? <button className="derived-ability-add-or" type="button" onClick={addGroup}>+ Add OR Group</button> : null}
+      {groups.length ? <button className="derived-ability-add-or" type="button" onClick={() => void preserveScroll(addGroup)}>+ Add OR Group</button> : null}
     </section>
   );
 }
@@ -550,6 +553,7 @@ function UseConditionsEditor({
   draft: DerivedAbilityDraft;
   onChange: (draft: DerivedAbilityDraft) => void;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   function setRows(useConditions: DerivedAbilityUseConditionDefinition[]) {
     onChange({ ...draft, useConditions });
   }
@@ -585,7 +589,7 @@ function UseConditionsEditor({
     <section className="derived-ability-card">
       <header className="derived-ability-card-heading">
         <div><p>WHEN IT CAN BE USED</p><h3>Use Conditions</h3><span>Definition metadata only; Pass 4 does not enforce these conditions.</span></div>
-        <button type="button" onClick={() => setRows([...draft.useConditions, {
+        <button type="button" onClick={() => void preserveScroll(() => setRows([...draft.useConditions, {
           conditionType: "event",
           conditionKey: "",
           operator: null,
@@ -593,7 +597,7 @@ function UseConditionsEditor({
           textValue: null,
           notes: "",
           sortOrder: draft.useConditions.length,
-        }])}>Add Condition</button>
+        }]))}>Add Condition</button>
       </header>
       {!draft.useConditions.length ? <p className="derived-ability-empty">No use conditions.</p> : null}
       <div className="derived-ability-row-list">
@@ -622,12 +626,13 @@ function UseConditionsEditor({
 }
 
 function CostsEditor({ draft, onChange }: { draft: DerivedAbilityDraft; onChange: (draft: DerivedAbilityDraft) => void }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   function setRows(costs: DerivedAbilityCostDefinition[]) { onChange({ ...draft, costs }); }
   function patch(index: number, update: Partial<DerivedAbilityCostDefinition>) { setRows(draft.costs.map((entry, position) => position === index ? { ...entry, ...update } : entry)); }
   function move(index: number, direction: -1 | 1) { const rows = [...draft.costs]; const target = index + direction; if (!rows[target]) return; [rows[index], rows[target]] = [rows[target]!, rows[index]!]; setRows(rows.map((entry, sortOrder) => ({ ...entry, sortOrder }))); }
   return (
     <section className="derived-ability-card">
-      <header className="derived-ability-card-heading"><div><p>COSTS</p><h3>Resource Costs</h3><span>Zero rows means no cost. Resources are not deducted in this pass.</span></div><button type="button" onClick={() => setRows([...draft.costs, { costType: "initiative", amount: 1, resourceKey: null, notes: "", sortOrder: draft.costs.length }])}>Add Cost</button></header>
+      <header className="derived-ability-card-heading"><div><p>COSTS</p><h3>Resource Costs</h3><span>Zero rows means no cost. Resources are not deducted in this pass.</span></div><button type="button" onClick={() => void preserveScroll(() => setRows([...draft.costs, { costType: "initiative", amount: 1, resourceKey: null, notes: "", sortOrder: draft.costs.length }]))}>Add Cost</button></header>
       {!draft.costs.length ? <p className="derived-ability-empty">No costs.</p> : null}
       <div className="derived-ability-row-list">
         {draft.costs.map((cost, index) => {
@@ -640,12 +645,13 @@ function CostsEditor({ draft, onChange }: { draft: DerivedAbilityDraft; onChange
 }
 
 function UseLimitsEditor({ draft, onChange }: { draft: DerivedAbilityDraft; onChange: (draft: DerivedAbilityDraft) => void }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   function setRows(useLimits: DerivedAbilityUseLimitDefinition[]) { onChange({ ...draft, useLimits }); }
   function patch(index: number, update: Partial<DerivedAbilityUseLimitDefinition>) { setRows(draft.useLimits.map((entry, position) => position === index ? { ...entry, ...update } : entry)); }
   function move(index: number, direction: -1 | 1) { const rows = [...draft.useLimits]; const target = index + direction; if (!rows[target]) return; [rows[index], rows[target]] = [rows[target]!, rows[index]!]; setRows(rows.map((entry, sortOrder) => ({ ...entry, sortOrder }))); }
   return (
     <section className="derived-ability-card">
-      <header className="derived-ability-card-heading"><div><p>USES AND REFRESH</p><h3>Use Limits / Recharge</h3><span>Definition metadata only; no counters or automatic recharge run yet.</span></div><button type="button" onClick={() => setRows([...draft.useLimits, { maximumUses: 1, refreshScope: "round", refreshKey: null, notes: "", sortOrder: draft.useLimits.length }])}>Add Limit</button></header>
+      <header className="derived-ability-card-heading"><div><p>USES AND REFRESH</p><h3>Use Limits / Recharge</h3><span>Definition metadata only; no counters or automatic recharge run yet.</span></div><button type="button" onClick={() => void preserveScroll(() => setRows([...draft.useLimits, { maximumUses: 1, refreshScope: "round", refreshKey: null, notes: "", sortOrder: draft.useLimits.length }]))}>Add Limit</button></header>
       {!draft.useLimits.length ? <p className="derived-ability-empty">No use limits.</p> : null}
       <div className="derived-ability-row-list">
         {draft.useLimits.map((limit, index) => <article className="derived-ability-edit-row" key={limit.id ?? `limit-${index}`}><header><strong>{limit.maximumUses} use{limit.maximumUses === 1 ? "" : "s"} · {limit.refreshScope}</strong><RowActions onUp={() => move(index, -1)} onDown={() => move(index, 1)} onRemove={() => setRows(draft.useLimits.filter((_, position) => position !== index))} upDisabled={index === 0} downDisabled={index === draft.useLimits.length - 1} /></header><div className="derived-ability-form-grid"><Field label="Maximum Uses"><input type="number" min={1} step={1} value={limit.maximumUses} onChange={(event) => patch(index, { maximumUses: Number(event.target.value) })} /></Field><Field label="Refresh Scope"><select value={limit.refreshScope} onChange={(event) => patch(index, { refreshScope: event.target.value as DerivedAbilityRefreshScope, refreshKey: null })}>{DERIVED_ABILITY_REFRESH_SCOPES.map((scope) => <option key={scope} value={scope}>{scope[0]!.toUpperCase() + scope.slice(1)}</option>)}</select></Field>{limit.refreshScope === "event" ? <Field label="Refresh Event Key" wide><input value={limit.refreshKey ?? ""} placeholder="appropriate-event" onChange={(event) => patch(index, { refreshKey: event.target.value || null })} /></Field> : null}<Field label="Notes" wide><textarea rows={2} value={limit.notes} onChange={(event) => patch(index, { notes: event.target.value })} /></Field></div></article>)}

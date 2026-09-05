@@ -18,6 +18,7 @@ import type {
   SpellDocument,
 } from "@/features/spell-construction/models/spell";
 import { createContainer } from "@/features/spell-construction/utilities/spellFactory";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import { SpellContainerEditor } from "./spell-container-editor";
 import { SpellModifierEditor } from "./spell-modifier-editor";
@@ -32,6 +33,7 @@ export function ProgressiveSpellEditor({
   const [level, setLevel] = useState<PractitionerLevel>(
     spell.practitionerLevel ?? "Apprentice",
   );
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const resolution = useMemo(
     () => resolveProgressiveSpellForLevel(spell, level),
@@ -83,7 +85,7 @@ export function ProgressiveSpellEditor({
             role="tab"
             aria-selected={level === candidate}
             className={level === candidate ? "is-active" : ""}
-            onClick={() => setLevel(candidate)}
+            onClick={() => void preserveScroll(() => setLevel(candidate))}
           >
             {candidate}
           </button>
@@ -180,8 +182,8 @@ export function ProgressiveSpellEditor({
                   <button
                     className="spell-builder__remove"
                     type="button"
-                    onClick={() =>
-                      updateTier(level, (current) => ({ ...current, changes: [] }))
+                    onClick={() => void preserveScroll(() =>
+                      updateTier(level, (current) => ({ ...current, changes: [] })))
                     }
                   >
                     Reset Tier
@@ -189,7 +191,7 @@ export function ProgressiveSpellEditor({
                 )}
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => void preserveScroll(() =>
                     updateResolvedStructure({
                       ...resolution.resolvedStructure,
                       containers: [
@@ -197,7 +199,7 @@ export function ProgressiveSpellEditor({
                         createContainer(),
                       ],
                     })
-                  }
+                  )}
                 >
                   Add Container
                 </button>

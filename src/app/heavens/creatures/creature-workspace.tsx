@@ -15,6 +15,7 @@ import {
   resolveEffectiveCreatureStatistics,
 } from "@/features/creatures/creature-size-rules";
 import { createCreatureDraftCanonicalId } from "@/features/creatures/creature-canonical-ids";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   createDerivedCreature,
@@ -124,6 +125,7 @@ export function CreatureWorkspace({
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; creature: CreatureSummary } | { kind: "new" } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
   const liveChallengeRating = useMemo(() => {
     if (!draft) return { draft: null, error: null };
     try {
@@ -171,24 +173,26 @@ export function CreatureWorkspace({
   }
 
   async function openCreature(summary: CreatureSummary) {
-    setLoadingEditor(true);
-    setFeedback(null);
-    try {
-      const aggregate = await getCreature(summary.id);
-      if (!aggregate) throw new Error("Creature not found.");
-      setDraft(aggregate);
-      setDirty(false);
-      setActiveTab("overview");
-      setConfirmDelete(false);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Creature could not be loaded." });
-    } finally {
-      setLoadingEditor(false);
-    }
+    await preserveScroll(async () => {
+      setLoadingEditor(true);
+      setFeedback(null);
+      try {
+        const aggregate = await getCreature(summary.id);
+        if (!aggregate) throw new Error("Creature not found.");
+        setDraft(aggregate);
+        setDirty(false);
+        setActiveTab("overview");
+        setConfirmDelete(false);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Creature could not be loaded." });
+      } finally {
+        setLoadingEditor(false);
+      }
+    });
   }
 
   function chooseCreature(summary: CreatureSummary) {
-    if (dirty) setPending({ kind: "open", creature: summary });
+    if (dirty) void preserveScroll(() => setPending({ kind: "open", creature: summary }));
     else void openCreature(summary);
   }
 
@@ -205,8 +209,8 @@ export function CreatureWorkspace({
   }
 
   function beginNew() {
-    if (dirty) setPending({ kind: "new" });
-    else createNew();
+    if (dirty) void preserveScroll(() => setPending({ kind: "new" }));
+    else void preserveScroll(createNew);
   }
 
   function discardAndContinue() {
@@ -225,37 +229,42 @@ export function CreatureWorkspace({
 
   async function persist() {
     if (!draft) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const saved = await saveCreature(draft);
-      setDraft(saved);
-      setDirty(false);
-      setFeedback({ kind: "success", message: `${saved.core.canonicalName} was saved.` });
-      await Promise.all([loadLibrary(filters), refreshReferences()]);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature could not be saved." });
-    } finally {
-      setSaving(false);
-    }
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const saved = await saveCreature(draft);
+        setDraft(saved);
+        setDirty(false);
+        setFeedback({ kind: "success", message: `${saved.core.canonicalName} was saved.` });
+        await Promise.all([loadLibrary(filters), refreshReferences()]);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature could not be saved." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function removeCreature() {
     if (!draft?.id) return;
-    setSaving(true);
-    try {
-      const name = draft.core.canonicalName;
-      await deleteCreature(draft.id);
-      setDraft(null);
-      setDirty(false);
-      setConfirmDelete(false);
-      setFeedback({ kind: "success", message: `${name} was deleted.` });
-      await loadLibrary(filters);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature could not be deleted." });
-    } finally {
-      setSaving(false);
-    }
+    const creatureId = draft.id;
+    await preserveScroll(async () => {
+      setSaving(true);
+      try {
+        const name = draft.core.canonicalName;
+        await deleteCreature(creatureId);
+        setDraft(null);
+        setDirty(false);
+        setConfirmDelete(false);
+        setFeedback({ kind: "success", message: `${name} was deleted.` });
+        await loadLibrary(filters);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature could not be deleted." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   return <main className="skills-page creatures-page">
@@ -277,7 +286,7 @@ export function CreatureWorkspace({
           <label><span>CR</span><select value={filters.challengeRating ?? ""} onChange={(e) => setFilters({ ...filters, challengeRating: e.target.value ? Number(e.target.value) : null, page: 1 })}><option value="">All</option>{references.map((row) => <option key={row.challengeRating} value={row.challengeRating}>{row.challengeRating}</option>)}</select></label>
         </div>
         <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} creatures</span></div>
-        <div className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
+        <div data-preserve-scroll="creature-library-results" className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
           {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseCreature(entry)}>
             <span className="skill-library__row-name">{entry.canonicalName}</span>
             <span className="skill-library__row-meta">{entry.family || "Unclassified"} · {entry.creatureType || "Creature"} · {entry.size}</span>
@@ -289,10 +298,10 @@ export function CreatureWorkspace({
       </aside>
 
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING CREATURE</p></section> : draft ? <section className="skill-editor creature-editor">
-        <header className="skill-editor__header"><div><p>{draft.id ? `CREATURE ${draft.id}` : "NEW CREATURE DRAFT"}</p><h2>{draft.core.canonicalName || "Untitled Creature"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
-        {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.canonicalName}?</strong><span>Derived Creatures must be deleted first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeCreature()}>Confirm Delete</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></div> : null}
+        <header className="skill-editor__header"><div><p>{draft.id ? `CREATURE ${draft.id}` : "NEW CREATURE DRAFT"}</p><h2>{draft.core.canonicalName || "Untitled Creature"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
+        {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.canonicalName}?</strong><span>Derived Creatures must be deleted first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeCreature()}>Confirm Delete</button><button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button></div> : null}
         {liveChallengeRating.error ? <p className="skill-editor__feedback is-error">{liveChallengeRating.error}</p> : null}
-        <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
+        <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
         <div className="skill-editor__content creature-editor__content">
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "stats" ? <Stats draft={draft} onChange={change} /> : null}
@@ -305,7 +314,7 @@ export function CreatureWorkspace({
       </section> : <section className="skill-editor skill-editor--empty"><p>CREATURE EDITOR</p><h2>Select a Creature or begin a new one.</h2><span>Full bestiary aggregates open here.</span></section>}
     </div>
 
-    {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Creature draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => setPending(null)}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button></div></div> : null}
+    {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Creature draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => void preserveScroll(() => setPending(null))}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(discardAndContinue)}>Discard Changes</button></div></div> : null}
   </main>;
 }
 
@@ -414,6 +423,7 @@ function CreatureSkills({ draft, onChange }: { draft: CreatureDraft; onChange: (
   const [search, setSearch] = useState("");
   const [candidates, setCandidates] = useState<CreatureSkillCandidate[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const preserveScroll = useInPlaceScrollPreservation();
   useEffect(() => {
     let active = true;
     const timer = window.setTimeout(() => listCreatureSkillCandidates(search).then((rows) => { if (active) setCandidates(rows); }), 180);
@@ -427,7 +437,7 @@ function CreatureSkills({ draft, onChange }: { draft: CreatureDraft; onChange: (
   };
   return <>
     <SectionHeading eyebrow="SHARED SKILL LIBRARY" title="Creature Skills" />
-    <div className="creature-skill-picker"><Field label="Search"><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} /></Field><Field label="Matching Skill"><select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}><option value="">Select a Skill</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.classification}</option>)}</select></Field><button className="skills-primary-button" type="button" disabled={!selectedId} onClick={add}>Add Skill</button></div>
+    <div className="creature-skill-picker"><Field label="Search"><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} /></Field><Field label="Matching Skill"><select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}><option value="">Select a Skill</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.classification}</option>)}</select></Field><button className="skills-primary-button" type="button" disabled={!selectedId} onClick={() => void preserveScroll(add)}>Add Skill</button></div>
     <div className="creature-row-list">{draft.skillLinks.map((row, index) => <div className="creature-repeat-row creature-skill-row" key={`${row.skillId}-${index}`}><div><strong>{row.skillName}</strong><span>{row.skillClassification}</span></div><input placeholder="Rank" value={row.rank ?? ""} onChange={(e) => patchArray(draft, onChange, "skillLinks", index, { rank: e.target.value || null })} /><input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "skillLinks", index, { notes: e.target.value })} /><RemoveButton onClick={() => removeArray(draft, onChange, "skillLinks", index)} /></div>)}</div>
   </>;
 }
@@ -448,16 +458,20 @@ function Special({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: 
 function VariantsAndCr({ draft, references, onChange, onOpen, onSaved }: { draft: CreatureDraft; references: ChallengeRatingReference[]; onChange: (draft: CreatureDraft) => void; onOpen: (summary: CreatureSummary) => void; onSaved: (saved: CreatureDraft) => void }) {
   const [variantName, setVariantName] = useState("");
   const [cloning, setCloning] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
   const core = draft.core;
   const reference = references.find(({ challengeRating }) => challengeRating === core.challengeRating);
   async function clone() {
     if (!draft.id || !variantName.trim()) return;
-    setCloning(true);
-    try {
-      const saved = await createDerivedCreature(draft.id, variantName);
-      onSaved(saved);
-      setVariantName("");
-    } finally { setCloning(false); }
+    const creatureId = draft.id;
+    await preserveScroll(async () => {
+      setCloning(true);
+      try {
+        const saved = await createDerivedCreature(creatureId, variantName);
+        onSaved(saved);
+        setVariantName("");
+      } finally { setCloning(false); }
+    });
   }
   return <div className="creature-section">
     <SectionHeading eyebrow="AUTOMATED THREAT MODEL" title="Challenge Rating" />
@@ -481,10 +495,14 @@ function Preview({ draft }: { draft: CreatureDraft }) {
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
-  return <div className="creature-subheading"><div><p>{eyebrow}</p><h3>{title}</h3></div>{action && onAction ? <button type="button" onClick={onAction}>{action}</button> : null}</div>;
+  const preserveScroll = useInPlaceScrollPreservation();
+  return <div className="creature-subheading"><div><p>{eyebrow}</p><h3>{title}</h3></div>{action && onAction ? <button type="button" onClick={() => void preserveScroll(onAction)}>{action}</button> : null}</div>;
 }
 function CardHeader({ title, onRemove }: { title: string; onRemove: () => void }) { return <header className="creature-edit-card__header"><strong>{title}</strong><RemoveButton onClick={onRemove} /></header>; }
-function RemoveButton({ onClick }: { onClick: () => void }) { return <button className="is-danger" type="button" onClick={onClick}>Remove</button>; }
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  const preserveScroll = useInPlaceScrollPreservation();
+  return <button className="is-danger" type="button" onClick={() => void preserveScroll(onClick)}>Remove</button>;
+}
 function CrImpact({ value, onChange }: { value: CreatureCrImpact; onChange: (value: CreatureCrImpact) => void }) { return <select value={value} onChange={(e) => onChange(e.target.value as CreatureCrImpact)}>{CREATURE_CR_IMPACTS.map((impact) => <option key={impact}>{impact}</option>)}</select>; }
 
 function patchArray<K extends "movement" | "hpPools" | "hitLocations" | "attacks" | "skillLinks" | "abilities" | "defenses" | "uses">(

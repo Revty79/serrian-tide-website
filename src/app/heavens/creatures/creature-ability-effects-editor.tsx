@@ -13,6 +13,7 @@ import {
   reorderCreatureAbilityEffects,
   type CreatureAbilityDefinition,
 } from "@/features/creatures/creature-ability";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import "./creature-ability-effects-editor.css";
 
@@ -39,6 +40,7 @@ function durationFor(kind: DurationKind) {
 }
 
 export function CreatureAbilityEffectsEditor({ ability, skillOptions = [], onChange }: Props) {
+  const preserveScroll = useInPlaceScrollPreservation();
   function add() {
     const effectKey = createCreatureAbilityEffectKey(ability.effects);
     onChange({
@@ -71,14 +73,14 @@ export function CreatureAbilityEffectsEditor({ ability, skillOptions = [], onCha
   }
 
   return <section className="creature-ability-effects">
-    <header><div><p>COMMON RUNTIME CONTRACT</p><h4>Structured Effects</h4></div><button type="button" onClick={add}>Add Effect</button></header>
+    <header><div><p>COMMON RUNTIME CONTRACT</p><h4>Structured Effects</h4></div><button type="button" onClick={() => void preserveScroll(add)}>Add Effect</button></header>
     <p className="creature-ability-effects__note">Structured Effects use the shared Active State bridge. Mechanical Notes above remain descriptive and are never parsed.</p>
     {!ability.effects.length ? <p className="creature-ability-effects__empty">No structured effects. At runtime, existing descriptive instructions become one temporary Manual instruction.</p> : null}
     {ability.effects.map((entry, index) => {
       const effect = entry.effect;
       const validation = validateMechanicalEffect(effect);
       return <article key={entry.effectKey}>
-        <header><div><strong>{validation.valid ? formatMechanicalEffectSummary(validation.effect) : `Effect ${index + 1}`}</strong><span>{entry.effectKey} · Order {index + 1}</span></div><div><button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Up</button><button type="button" disabled={index === ability.effects.length - 1} onClick={() => move(index, 1)}>Down</button><button type="button" className="is-danger" onClick={() => onChange({ ...ability, effects: reorderCreatureAbilityEffects(ability.effects.filter((_, effectIndex) => effectIndex !== index)) })}>Remove</button></div></header>
+        <header><div><strong>{validation.valid ? formatMechanicalEffectSummary(validation.effect) : `Effect ${index + 1}`}</strong><span>{entry.effectKey} · Order {index + 1}</span></div><div><button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => move(index, -1))}>Up</button><button type="button" disabled={index === ability.effects.length - 1} onClick={() => void preserveScroll(() => move(index, 1))}>Down</button><button type="button" className="is-danger" onClick={() => void preserveScroll(() => onChange({ ...ability, effects: reorderCreatureAbilityEffects(ability.effects.filter((_, effectIndex) => effectIndex !== index)) }))}>Remove</button></div></header>
         <div className="creature-ability-effects__grid">
           <label><span>Effect</span><select value={effect.kind} onChange={(event) => replace(index, newEffect(event.target.value as MechanicalEffect["kind"]))}><option value="health.damage">Health Damage</option><option value="health.heal">Health Healing</option><option value="condition.apply">Apply Condition</option><option value="modifier.apply">Apply Temporary Modifier</option><option value="manual">Manual / G.O.D. Resolution</option></select></label>
           {effect.kind === "health.damage" ? <><label><span>Amount</span><input type="number" min={0} step="any" value={effect.amount} onChange={(event) => replace(index, { ...effect, amount: Number(event.target.value) })} /></label><label><span>Application</span><input disabled value="Localized · runtime anatomy selection" /></label></> : null}

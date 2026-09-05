@@ -263,7 +263,7 @@ export function ActionDeclarationWorkspace({ view }: { view: ActionDeclarationWo
       {editor.calledShotDeclared ? <><label><span>Called Shot</span><input disabled={busy} value={editor.calledShotLabel} onChange={(event) => setEditor({ ...editor, calledShotLabel: event.target.value })} /></label><label><span>Assigned Penalty</span><input required type="number" step="any" disabled={busy} value={editor.calledShotPenalty} onChange={(event) => setEditor({ ...editor, calledShotPenalty: event.target.value })} /></label></> : null}
       <label className="is-wide"><span>Explicit Modifiers</span><textarea disabled={busy} rows={3} value={editor.explicitModifiers} onChange={(event) => setEditor({ ...editor, explicitModifiers: event.target.value })} placeholder={"One per line, Label: number\nCover: 10"} /></label>
       <label className="is-wide"><span>G.O.D. Notes / Ruling Context</span><textarea disabled={busy} rows={3} value={editor.godNotes} onChange={(event) => setEditor({ ...editor, godNotes: event.target.value })} /></label>
-      <footer><button disabled={busy}>{editor.declarationId === null ? "Create Draft" : "Save Draft"}</button>{editor.declarationId !== null ? <button type="button" disabled={busy} onClick={() => setEditor(initialEditor(view))}>Stop Editing</button> : null}</footer>
+      <footer><button type="submit" disabled={busy}>{editor.declarationId === null ? "Create Draft" : "Save Draft"}</button>{editor.declarationId !== null ? <button type="button" disabled={busy} onClick={() => setEditor(initialEditor(view))}>Stop Editing</button> : null}</footer>
     </form>
 
     <section className="action-run-grid">

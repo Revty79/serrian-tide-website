@@ -30,6 +30,7 @@ import {
   validateMechanicalEffect,
   type MechanicalEffect,
 } from "@/features/mechanical-effects";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   createItemVariant,
@@ -161,6 +162,7 @@ export function ItemWorkspace({
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; item: ItemSummary } | { kind: "new" } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const loadLibrary = useCallback(async (next: ItemLibraryFilters) => {
     setLoadingLibrary(true);
@@ -188,24 +190,26 @@ export function ItemWorkspace({
   }
 
   async function openItem(summary: Pick<ItemSummary, "id">) {
-    setLoadingEditor(true);
-    setFeedback(null);
-    try {
-      const aggregate = await getItem(summary.id);
-      if (!aggregate) throw new Error("Item not found.");
-      setDraft(aggregate);
-      setDirty(false);
-      setActiveTab("overview");
-      setConfirmDelete(false);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Item could not be loaded." });
-    } finally {
-      setLoadingEditor(false);
-    }
+    await preserveScroll(async () => {
+      setLoadingEditor(true);
+      setFeedback(null);
+      try {
+        const aggregate = await getItem(summary.id);
+        if (!aggregate) throw new Error("Item not found.");
+        setDraft(aggregate);
+        setDirty(false);
+        setActiveTab("overview");
+        setConfirmDelete(false);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Item could not be loaded." });
+      } finally {
+        setLoadingEditor(false);
+      }
+    });
   }
 
   function chooseItem(summary: ItemSummary) {
-    if (dirty) setPending({ kind: "open", item: summary });
+    if (dirty) void preserveScroll(() => setPending({ kind: "open", item: summary }));
     else void openItem(summary);
   }
 
@@ -218,8 +222,8 @@ export function ItemWorkspace({
   }
 
   function beginNew() {
-    if (dirty) setPending({ kind: "new" });
-    else createNew();
+    if (dirty) void preserveScroll(() => setPending({ kind: "new" }));
+    else void preserveScroll(createNew);
   }
 
   function discardAndContinue() {
@@ -238,37 +242,42 @@ export function ItemWorkspace({
 
   async function persist() {
     if (!draft) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const saved = await saveItem(draft);
-      setDraft(saved);
-      setDirty(false);
-      setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
-      await Promise.all([loadLibrary(filters), refreshReferences()]);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be saved." });
-    } finally {
-      setSaving(false);
-    }
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const saved = await saveItem(draft);
+        setDraft(saved);
+        setDirty(false);
+        setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
+        await Promise.all([loadLibrary(filters), refreshReferences()]);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be saved." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function removeItem() {
     if (!draft?.id) return;
-    setSaving(true);
-    try {
-      const name = draft.core.name;
-      await deleteItem(draft.id);
-      setDraft(null);
-      setDirty(false);
-      setConfirmDelete(false);
-      setFeedback({ kind: "success", message: `${name} was deleted.` });
-      await loadLibrary(filters);
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be deleted." });
-    } finally {
-      setSaving(false);
-    }
+    const itemId = draft.id;
+    await preserveScroll(async () => {
+      setSaving(true);
+      try {
+        const name = draft.core.name;
+        await deleteItem(itemId);
+        setDraft(null);
+        setDirty(false);
+        setConfirmDelete(false);
+        setFeedback({ kind: "success", message: `${name} was deleted.` });
+        await loadLibrary(filters);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be deleted." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   const visibleTabs = TABS.filter((tab) => {
@@ -294,7 +303,7 @@ export function ItemWorkspace({
           <label><span>Tag</span><select value={filters.tag ?? ""} onChange={(e) => setFilters({ ...filters, tag: e.target.value || undefined, page: 1 })}><option value="">All</option>{facets.tags.map((value) => <option key={value}>{value}</option>)}</select></label>
         </div>
         <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} records</span></div>
-        <div className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
+        <div data-preserve-scroll={`${scope}-library-results`} className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
           {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
             <span className="skill-library__row-name">{entry.name}</span>
             <span className="skill-library__row-meta">{entry.recordType} · {entry.category}{entry.equipmentGroup ? ` · ${entry.equipmentGroup}` : ""}</span>
@@ -306,10 +315,10 @@ export function ItemWorkspace({
       </aside>
 
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING ITEM</p></section> : draft ? <section className="skill-editor item-editor">
-        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Item"}</button></div></header>
-        {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.name || "this Item"}?</strong><span>Variants and references must be removed first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeItem()}>Confirm Delete</button><button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button></div> : null}
+        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Item"}</button></div></header>
+        {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.name || "this Item"}?</strong><span>Variants and references must be removed first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeItem()}>Confirm Delete</button><button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button></div> : null}
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-        <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
+        <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
         <div className="skill-editor__content item-editor__content">
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
@@ -323,7 +332,7 @@ export function ItemWorkspace({
       </section> : <section className="skill-editor skill-editor--empty"><p>{label.toUpperCase()} EDITOR</p><h2>Select a record or begin a new one.</h2><span>The shared Item engine powers both authoring libraries.</span></section>}
     </div>
 
-    {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Item draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => setPending(null)}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={discardAndContinue}>Discard Changes</button></div></div> : null}
+    {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Item draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => void preserveScroll(() => setPending(null))}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(discardAndContinue)}>Discard Changes</button></div></div> : null}
   </main>;
 }
 
@@ -354,6 +363,7 @@ function Properties({ draft, onChange }: { draft: ItemDraft; onChange: (draft: I
   const [relationSearch, setRelationSearch] = useState<Record<number, string>>({});
   const [itemCandidates, setItemCandidates] = useState<Record<number, RelatedItemCandidate[]>>({});
   const [creatureCandidates, setCreatureCandidates] = useState<Record<number, RelatedCreatureCandidate[]>>({});
+  const preserveScroll = useInPlaceScrollPreservation();
 
   useEffect(() => {
     const timers = draft.properties.map((property, index) => window.setTimeout(() => {
@@ -372,7 +382,7 @@ function Properties({ draft, onChange }: { draft: ItemDraft; onChange: (draft: I
   return <div className="item-section">
     <SectionHeading eyebrow="STRUCTURED DETAILS" title="Properties" action="Add Property" onAction={() => onChange({ ...draft, properties: [...draft.properties, { propertyName: "", value: "", unit: "", quantity: null, relationKind: "none", relatedItemId: null, relatedItemName: null, relatedCreatureCanonicalId: null, relatedCreatureName: null, notes: "", sortOrder: draft.properties.length }] })} />
     <div className="item-card-list">{draft.properties.map((property, index) => <article className="item-edit-card" key={index}>
-      <header><strong>{property.propertyName || `Property ${index + 1}`}</strong><button className="is-danger" type="button" onClick={() => onChange({ ...draft, properties: draft.properties.filter((_, i) => i !== index) })}>Remove</button></header>
+      <header><strong>{property.propertyName || `Property ${index + 1}`}</strong><button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, properties: draft.properties.filter((_, i) => i !== index) }))}>Remove</button></header>
       <div className="item-form-grid">
         <Field label="Property Name"><input value={property.propertyName} onChange={(e) => patchProperty(draft, onChange, index, { propertyName: e.target.value })} /></Field>
         <Field label="Value"><input value={property.value} onChange={(e) => patchProperty(draft, onChange, index, { value: e.target.value })} /></Field>
@@ -441,6 +451,7 @@ function newMechanicalEffect(kind: MechanicalEffect["kind"]): MechanicalEffect {
 }
 
 function Effects({ draft, skills, onChange }: { draft: ItemDraft; skills: ItemAuthoringReferences["skills"]; onChange: (draft: ItemDraft) => void }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   const profile = draft.runtimeProfile;
   const profileValidation = validateItemRuntimeProfile(profile);
   const patchProfile = (update: Partial<ItemRuntimeProfile>) => onChange({
@@ -477,7 +488,7 @@ function Effects({ draft, skills, onChange }: { draft: ItemDraft; skills: ItemAu
     <div className="item-card-list">{draft.effects.map((effect, index) => {
       const validation = validateMechanicalEffect(effect);
       return <article className="item-edit-card item-effect-card" key={index}>
-        <header><div><strong>{validation.valid ? formatMechanicalEffectSummary(validation.effect) : `Effect ${index + 1}`}</strong><span>Effect {index + 1}</span></div><div className="item-effect-card__actions"><button type="button" disabled={index === 0} onClick={() => moveEffect(index, -1)}>Up</button><button type="button" disabled={index === draft.effects.length - 1} onClick={() => moveEffect(index, 1)}>Down</button><button className="is-danger" type="button" onClick={() => onChange({ ...draft, effects: draft.effects.filter((_, effectIndex) => effectIndex !== index) })}>Remove</button></div></header>
+        <header><div><strong>{validation.valid ? formatMechanicalEffectSummary(validation.effect) : `Effect ${index + 1}`}</strong><span>Effect {index + 1}</span></div><div className="item-effect-card__actions"><button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => moveEffect(index, -1))}>Up</button><button type="button" disabled={index === draft.effects.length - 1} onClick={() => void preserveScroll(() => moveEffect(index, 1))}>Down</button><button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, effects: draft.effects.filter((_, effectIndex) => effectIndex !== index) }))}>Remove</button></div></header>
         <div className="item-form-grid">
           <Field label="Effect"><select value={effect.kind} onChange={(event) => replaceEffect(index, newMechanicalEffect(event.target.value as MechanicalEffect["kind"]))}><option value="health.heal">Health Healing</option><option value="health.damage">Health Damage</option><option value="condition.apply">Apply Condition</option><option value="modifier.apply">Apply Temporary Modifier</option><option value="manual">Manual / G.O.D. Resolution</option></select></Field>
           {effect.kind === "health.heal" ? <><Field label="Amount"><input type="number" min={0} step="any" value={effect.amount} onChange={(event) => replaceEffect(index, { ...effect, amount: Number(event.target.value) })} /></Field><Field label="Application"><select value={effect.scope} onChange={(event) => replaceEffect(index, { ...effect, scope: event.target.value as "full-body" | "area" })}><option value="full-body">Full Body</option><option value="area">Area Applied</option></select></Field></> : null}
@@ -539,6 +550,7 @@ function PassiveEffectsEditor({
   skills: ItemAuthoringReferences["skills"];
   onChange: (draft: ItemDraft) => void;
 }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   if (draft.core.catalogScope !== "equipment") {
     return <section className="item-passive-effects"><SectionHeading eyebrow="PASSIVE EFFECTS" title="Equipment State Passives" /><p className="item-runtime-note">Inventory-only Items cannot define Equipment State passives.</p></section>;
   }
@@ -569,7 +581,7 @@ function PassiveEffectsEditor({
       try { validatePassiveItemEffect(entry); } catch (error) { validationMessage = error instanceof Error ? error.message : "Passive Effect is invalid."; }
       const effect = entry.effect;
       return <article className="item-edit-card item-effect-card" key={entry.id ?? `new-${index}`}>
-        <header><div><strong>{effect.kind === "manual" ? effect.title || `Passive ${index + 1}` : formatMechanicalEffectSummary(effect)}</strong><span>{passiveLifecycleLabel(entry.requiredEquipmentState)} · {entry.id ? `Stable effect #${entry.id}` : "New definition"}</span></div><div className="item-effect-card__actions"><button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Up</button><button type="button" disabled={index === draft.passiveEffects.length - 1} onClick={() => move(index, 1)}>Down</button><button className="is-danger" type="button" onClick={() => onChange({ ...draft, passiveEffects: draft.passiveEffects.filter((_, effectIndex) => effectIndex !== index) })}>Remove</button></div></header>
+        <header><div><strong>{effect.kind === "manual" ? effect.title || `Passive ${index + 1}` : formatMechanicalEffectSummary(effect)}</strong><span>{passiveLifecycleLabel(entry.requiredEquipmentState)} · {entry.id ? `Stable effect #${entry.id}` : "New definition"}</span></div><div className="item-effect-card__actions"><button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => move(index, -1))}>Up</button><button type="button" disabled={index === draft.passiveEffects.length - 1} onClick={() => void preserveScroll(() => move(index, 1))}>Down</button><button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, passiveEffects: draft.passiveEffects.filter((_, effectIndex) => effectIndex !== index) }))}>Remove</button></div></header>
         <div className="item-form-grid">
           <Field label="Required Equipment State"><select value={entry.requiredEquipmentState} onChange={(event) => {
             const requiredEquipmentState = event.target.value as PassiveRequiredEquipmentState;
@@ -622,6 +634,7 @@ function WeaponGovernanceEditor({
   const [selectedSkillId, setSelectedSkillId] = useState("");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   const replaceFromReadModel = useCallback((model: WeaponSkillGovernanceReadModel) => {
     setGovernance(model);
@@ -738,17 +751,19 @@ function WeaponGovernanceEditor({
   }
 
   async function saveGovernance() {
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const saved = await saveCanonicalWeaponSkillGovernance(persistedItemId, mappings);
-      replaceFromReadModel(saved);
-      setFeedback({ kind: "success", message: "Canonical Governing Skill Paths were saved." });
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Weapon governance could not be saved." });
-    } finally {
-      setSaving(false);
-    }
+    await preserveScroll(async () => {
+      setSaving(true);
+      setFeedback(null);
+      try {
+        const saved = await saveCanonicalWeaponSkillGovernance(persistedItemId, mappings);
+        replaceFromReadModel(saved);
+        setFeedback({ kind: "success", message: "Canonical Governing Skill Paths were saved." });
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Weapon governance could not be saved." });
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   return <section className="item-weapon-governance item-field--wide">
@@ -761,19 +776,19 @@ function WeaponGovernanceEditor({
     <div className="item-governance-add">
       <Field label="Search canonical Skills"><input type="search" value={skillSearch} onChange={(event) => setSkillSearch(event.target.value)} placeholder="Skill name or exact ID" /></Field>
       <Field label="Exact endpoint Skill"><select value={selectedSkillId} onChange={(event) => setSelectedSkillId(event.target.value)}><option value="">Select a Skill</option>{filteredSkills.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · #{candidate.id} · Tier {candidate.tier ?? "N/A"}</option>)}</select></Field>
-      <button type="button" onClick={addPath}>Add Path</button>
+      <button type="button" onClick={() => void preserveScroll(addPath)}>Add Path</button>
     </div>
     <div className="item-card-list">{scopedValidation.map(({ mapping, skill }, index) => {
       const path = skill?.canonicalPath;
       const stored = mapping.id === null ? null : [governance.weaponDefault, ...governance.modes.map(({ scope: modeScope }) => modeScope)]
         .flatMap(({ options }) => options).find(({ id }) => id === mapping.id) ?? null;
       return <article className={`item-edit-card item-governance-path${path?.valid ? "" : " is-review-required"}`} key={mapping.id ?? `new-${firingModeId ?? "weapon"}-${mapping.endpointSkillId}`}>
-        <header><div><strong>{skill ? `${skill.name} · Skill #${skill.id}` : `Missing Skill #${mapping.endpointSkillId}`}</strong><span>{mapping.reviewState}</span></div><button className="is-danger" type="button" onClick={() => removeMapping(mapping)}>Remove</button></header>
+        <header><div><strong>{skill ? `${skill.name} · Skill #${skill.id}` : `Missing Skill #${mapping.endpointSkillId}`}</strong><span>{mapping.reviewState}</span></div><button className="is-danger" type="button" onClick={() => void preserveScroll(() => removeMapping(mapping))}>Remove</button></header>
         <p>{path ? skillPathSummary(path) : "The endpoint Skill is missing."}</p>
         {path && !path.valid ? <ul>{path.problems.map((problem) => <li key={`${problem.code}-${problem.skillId}`}>{problem.message}</li>)}</ul> : null}
         <Field label="Authoring Notes" wide><textarea maxLength={1000} rows={3} value={mapping.notes} onChange={(event) => patchMapping(mapping, { notes: event.target.value })} /></Field>
         {stored ? <small>Last authored by {stored.updatedByName} · {new Date(stored.updatedAt).toLocaleString()}</small> : <small>New unsaved path.</small>}
-        <footer><div><button type="button" disabled={index === 0} onClick={() => moveMapping(mapping, -1)}>Move Up</button><button type="button" disabled={index === scopedMappings.length - 1} onClick={() => moveMapping(mapping, 1)}>Move Down</button></div><button type="button" disabled={!path?.valid || mapping.reviewState === "approved"} onClick={() => patchMapping(mapping, { reviewState: "approved" })}>Approve Valid Path</button><button type="button" disabled={mapping.reviewState === "review-required"} onClick={() => patchMapping(mapping, { reviewState: "review-required" })}>Return to Review</button></footer>
+        <footer><div><button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => moveMapping(mapping, -1))}>Move Up</button><button type="button" disabled={index === scopedMappings.length - 1} onClick={() => void preserveScroll(() => moveMapping(mapping, 1))}>Move Down</button></div><button type="button" disabled={!path?.valid || mapping.reviewState === "approved"} onClick={() => patchMapping(mapping, { reviewState: "approved" })}>Approve Valid Path</button><button type="button" disabled={mapping.reviewState === "review-required"} onClick={() => patchMapping(mapping, { reviewState: "review-required" })}>Return to Review</button></footer>
       </article>;
     })}{!scopedMappings.length ? <p className="item-governance-empty">Unreviewed · Missing path · Requires G.O.D. review. No mapping has been inferred.</p> : null}</div>
     {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
@@ -784,6 +799,7 @@ function WeaponGovernanceEditor({
 function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; itemDirty: boolean; onChange: (draft: ItemDraft) => void }) {
   const [ammoSearch, setAmmoSearch] = useState("");
   const [ammoCandidates, setAmmoCandidates] = useState<RelatedItemCandidate[]>([]);
+  const preserveScroll = useInPlaceScrollPreservation();
   const profile = draft.weaponProfile;
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -791,11 +807,11 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
     }, 180);
     return () => window.clearTimeout(timer);
   }, [ammoSearch, draft.id]);
-  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", capacityRounds: null, readinessMode: null, drawInitiativeCost: null, readyInitiativeCost: null, reloadInitiativeCost: null, unloadInitiativeCost: null, firingModeChangeInitiativeCost: null, firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } })}>Add Weapon / Ammunition Profile</button></div>;
+  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", capacityRounds: null, readinessMode: null, drawInitiativeCost: null, readyInitiativeCost: null, reloadInitiativeCost: null, unloadInitiativeCost: null, firingModeChangeInitiativeCost: null, firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } }))}>Add Weapon / Ammunition Profile</button></div>;
   const patch = (update: Partial<NonNullable<ItemDraft["weaponProfile"]>>) => onChange({ ...draft, weaponProfile: { ...profile, ...update } });
   const ammunitionProfile = profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition";
   return <div className="item-section item-form-grid">
-    <div className="item-profile-banner item-field--wide"><div><p>WEAPON / AMMUNITION PROFILE</p><h3>{ammunitionProfile ? "Ammunition Damage & Mechanics" : "Combat Equipment"}</h3></div><button className="skills-danger-button" type="button" onClick={() => onChange({ ...draft, weaponProfile: null })}>Remove Profile</button></div>
+    <div className="item-profile-banner item-field--wide"><div><p>WEAPON / AMMUNITION PROFILE</p><h3>{ammunitionProfile ? "Ammunition Damage & Mechanics" : "Combat Equipment"}</h3></div><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: null }))}>Remove Profile</button></div>
     <Field label="Profile Record Type"><input value={profile.profileRecordType} onChange={(e) => patch({ profileRecordType: e.target.value })} /></Field>
     <Field label="Weapon Type"><input value={profile.weaponType} onChange={(e) => patch({ weaponType: e.target.value })} /></Field><Field label="Handedness"><input value={profile.handedness} onChange={(e) => patch({ handedness: e.target.value })} /></Field>
     <Field label="Damage Source"><input value={profile.damageSource} onChange={(e) => patch({ damageSource: e.target.value })} /></Field><Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
@@ -833,9 +849,9 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
           const baseTiming = ready ? resolveFirearmFiringMode(mode).timing : null;
           const replace = (update: Partial<FirearmFiringModeDraft>) => patch({ firingModes: profile.firingModes.map((entry, i) => i === index ? { ...entry, ...update } : entry) });
           return <article className={mode.mechanicsReviewRequired && !ready ? "item-edit-card item-firearm-mode is-review-required" : "item-edit-card item-firearm-mode"} key={mode.id ?? `new-${index}`}>
-            <header><div><strong>Mode {index + 1}</strong>{mode.mechanicsReviewRequired && !ready ? <span>Mechanical review required</span> : null}</div><button className="is-danger" type="button" onClick={() => patch({ firingModes: profile.firingModes.filter((_, i) => i !== index).map((entry, sortOrder) => ({ ...entry, sortOrder })) })}>Remove</button></header>
+            <header><div><strong>Mode {index + 1}</strong>{mode.mechanicsReviewRequired && !ready ? <span>Mechanical review required</span> : null}</div><button className="is-danger" type="button" onClick={() => void preserveScroll(() => patch({ firingModes: profile.firingModes.filter((_, i) => i !== index).map((entry, sortOrder) => ({ ...entry, sortOrder })) }))}>Remove</button></header>
             <div className="item-form-grid"><Field label="Mode Name" wide><input value={mode.name} placeholder="Single, Burst, or another authored mode" onChange={(e) => replace({ name: e.target.value })} /></Field><Field label="Cycling Initiative Cost"><OptionalNumber value={mode.baseCyclingInitiativeCost} min={0} step={1} onChange={(baseCyclingInitiativeCost) => replace({ baseCyclingInitiativeCost })} /></Field><Field label="Recoil Reset Initiative Cost"><OptionalNumber value={mode.baseRecoilResetInitiativeCost} min={0} step={1} onChange={(baseRecoilResetInitiativeCost) => replace({ baseRecoilResetInitiativeCost })} /></Field><Field label="Delivery Cadence"><select value={mode.deliveryCadence ?? ""} onChange={(e) => replace({ deliveryCadence: e.target.value ? e.target.value as FirearmFiringModeDraft["deliveryCadence"] : null })}><option value="">Choose cadence</option>{FIREARM_DELIVERY_CADENCES.map((cadence) => <option key={cadence} value={cadence}>{cadence === "per-trigger" ? "Per trigger" : "Sustained per Initiative"}</option>)}</select></Field><Field label="Rounds Per Cadence"><OptionalNumber value={mode.roundsPerCadence} min={1} step={1} onChange={(roundsPerCadence) => replace({ roundsPerCadence })} /></Field></div>
-            <footer><span>Base follow-up preparation: <strong>{baseTiming?.followUpPreparationInitiativeCost ?? "Review required"}</strong>{ready ? <> · Delivery: <strong>{mode.roundsPerCadence} {mode.roundsPerCadence === 1 ? "round" : "rounds"} {mode.deliveryCadence === "per-trigger" ? "per trigger" : "per Initiative"}</strong></> : null}</span><div><button type="button" disabled={index === 0} onClick={() => patch({ firingModes: moveFiringMode(profile.firingModes, index, -1) })}>Move Up</button><button type="button" disabled={index === profile.firingModes.length - 1} onClick={() => patch({ firingModes: moveFiringMode(profile.firingModes, index, 1) })}>Move Down</button></div></footer>
+            <footer><span>Base follow-up preparation: <strong>{baseTiming?.followUpPreparationInitiativeCost ?? "Review required"}</strong>{ready ? <> · Delivery: <strong>{mode.roundsPerCadence} {mode.roundsPerCadence === 1 ? "round" : "rounds"} {mode.deliveryCadence === "per-trigger" ? "per trigger" : "per Initiative"}</strong></> : null}</span><div><button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => patch({ firingModes: moveFiringMode(profile.firingModes, index, -1) }))}>Move Up</button><button type="button" disabled={index === profile.firingModes.length - 1} onClick={() => void preserveScroll(() => patch({ firingModes: moveFiringMode(profile.firingModes, index, 1) }))}>Move Down</button></div></footer>
           </article>;
         })}</div>
       </section>
@@ -848,15 +864,16 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
 
 function Armor({ draft, references, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; onChange: (draft: ItemDraft) => void }) {
   const profile = draft.armorProfile;
-  if (!profile) return <div className="item-section item-empty-profile"><p>ARMOR PROFILE</p><h3>This Item is not configured as armor.</h3><button className="skills-primary-button" type="button" onClick={() => onChange({ ...draft, core: { ...draft.core, equipmentGroup: "armor" }, armorProfile: { armorType: "", coverage: "", baseSoak: null, damageModifiersSourceText: "", damageModifiers: [], coveredBodyLocationKeys: [], rulesText: "" } })}>Add Armor Profile</button></div>;
+  const preserveScroll = useInPlaceScrollPreservation();
+  if (!profile) return <div className="item-section item-empty-profile"><p>ARMOR PROFILE</p><h3>This Item is not configured as armor.</h3><button className="skills-primary-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, core: { ...draft.core, equipmentGroup: "armor" }, armorProfile: { armorType: "", coverage: "", baseSoak: null, damageModifiersSourceText: "", damageModifiers: [], coveredBodyLocationKeys: [], rulesText: "" } }))}>Add Armor Profile</button></div>;
   const patch = (update: Partial<NonNullable<ItemDraft["armorProfile"]>>) => onChange({ ...draft, core: { ...draft.core, equipmentGroup: "armor" }, armorProfile: { ...profile, ...update } });
   return <div className="item-section">
-    <div className="item-profile-banner"><div><p>ARMOR PROFILE</p><h3>Protection & Coverage</h3></div><button className="skills-danger-button" type="button" onClick={() => onChange({ ...draft, armorProfile: null })}>Remove Profile</button></div>
+    <div className="item-profile-banner"><div><p>ARMOR PROFILE</p><h3>Protection & Coverage</h3></div><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, armorProfile: null }))}>Remove Profile</button></div>
     <div className="item-form-grid"><Field label="Armor Type"><input value={profile.armorType} onChange={(e) => patch({ armorType: e.target.value })} /></Field><Field label="Base Soak"><OptionalNumber value={profile.baseSoak} min={0} onChange={(baseSoak) => patch({ baseSoak })} /></Field><Field label="Coverage" wide><input value={profile.coverage} onChange={(e) => patch({ coverage: e.target.value })} /></Field></div>
     <SectionHeading eyebrow="HIT LOCATION COVERAGE" title="Covered Body Locations" />
     <div className="item-location-grid">{references.armorBodyLocations.map((location) => <label key={location.key} className={profile.coveredBodyLocationKeys.includes(location.key) ? "is-selected" : ""}><input type="checkbox" checked={profile.coveredBodyLocationKeys.includes(location.key)} onChange={(e) => patch({ coveredBodyLocationKeys: e.target.checked ? [...profile.coveredBodyLocationKeys, location.key] : profile.coveredBodyLocationKeys.filter((key) => key !== location.key) })} /><span>{location.key}</span><strong>{location.label}</strong></label>)}</div>
     <SectionHeading eyebrow="DAMAGE INTERACTIONS" title="Damage Modifiers" action="Add Modifier" onAction={() => patch({ damageModifiers: [...profile.damageModifiers, { modifierText: "", damageType: "", modifier: "", notes: "", sortOrder: profile.damageModifiers.length }] })} />
-    <div className="item-row-list">{profile.damageModifiers.map((row, index) => <div className="item-repeat-row item-modifier-row" key={index}><input placeholder="Damage Type" value={row.damageType} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, damageType: e.target.value } : entry) })} /><input placeholder="Modifier" value={row.modifier} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifier: e.target.value } : entry) })} /><input placeholder="Source Text" value={row.modifierText} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifierText: e.target.value } : entry) })} /><input placeholder="Notes" value={row.notes} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} /><button className="is-danger" type="button" onClick={() => patch({ damageModifiers: profile.damageModifiers.filter((_, i) => i !== index) })}>Remove</button></div>)}</div>
+    <div className="item-row-list">{profile.damageModifiers.map((row, index) => <div className="item-repeat-row item-modifier-row" key={index}><input placeholder="Damage Type" value={row.damageType} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, damageType: e.target.value } : entry) })} /><input placeholder="Modifier" value={row.modifier} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifier: e.target.value } : entry) })} /><input placeholder="Source Text" value={row.modifierText} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifierText: e.target.value } : entry) })} /><input placeholder="Notes" value={row.notes} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} /><button className="is-danger" type="button" onClick={() => void preserveScroll(() => patch({ damageModifiers: profile.damageModifiers.filter((_, i) => i !== index) }))}>Remove</button></div>)}</div>
     <div className="item-form-grid"><Field label="Damage Modifier Source" wide><textarea rows={4} value={profile.damageModifiersSourceText} onChange={(e) => patch({ damageModifiersSourceText: e.target.value })} /></Field><Field label="Armor Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field></div>
   </div>;
 }
@@ -901,7 +918,8 @@ function Preview({ draft }: { draft: ItemDraft }) {
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
-  return <div className="item-subheading"><div><p>{eyebrow}</p><h3>{title}</h3></div>{action && onAction ? <button type="button" onClick={onAction}>{action}</button> : null}</div>;
+  const preserveScroll = useInPlaceScrollPreservation();
+  return <div className="item-subheading"><div><p>{eyebrow}</p><h3>{title}</h3></div>{action && onAction ? <button type="button" onClick={() => void preserveScroll(onAction)}>{action}</button> : null}</div>;
 }
 
 function patchProperty(draft: ItemDraft, onChange: (draft: ItemDraft) => void, index: number, update: Partial<ItemDraft["properties"][number]>) {

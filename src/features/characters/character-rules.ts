@@ -1059,7 +1059,10 @@ export function evaluateCharacterReadiness(
         return false;
       }
       try {
-        assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name);
+        assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
+          requiresExactInstance: source.isFirearm === true,
+          allowLegacyExactStack: true,
+        });
       } catch {
         return false;
       }
@@ -1075,7 +1078,9 @@ export function evaluateCharacterReadiness(
         return false;
       }
       try {
-        assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name);
+        assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
+          requiresExactInstance: source.isFirearm === true,
+        });
       } catch {
         return false;
       }

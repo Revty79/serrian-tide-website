@@ -190,7 +190,7 @@ export function CampaignInventorySelector({
         the records you want into this Campaign.
       </p>
 
-      <div className="mt-5 grid max-h-[24rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3" aria-label="Item genres">
+      <div data-preserve-scroll="campaign-inventory-genres" className="mt-5 grid max-h-[24rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3" aria-label="Item genres">
         {tags.map((tag) => {
           const selected = selectedTagIds.includes(tag.id);
           return (
@@ -268,9 +268,10 @@ export function CampaignInventorySelector({
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <InventoryList
+          preserveKey="campaign-inventory-available"
           heading="Available Items"
           count={`${availableItems.length} shown`}
-          items={selectedTagIds.length > 0 && !loading ? availableItems : []}
+          items={selectedTagIds.length > 0 ? availableItems : []}
           activeId={activeAvailableId}
           emptyMessage={
             selectedTagIds.length === 0
@@ -313,6 +314,7 @@ export function CampaignInventorySelector({
         </div>
 
         <InventoryList
+          preserveKey="campaign-inventory-selected"
           heading="Available in Campaign"
           count={`${selectedItemIds.length} selected`}
           items={selectedItems}
@@ -335,6 +337,7 @@ export function CampaignInventorySelector({
 }
 
 function InventoryList({
+  preserveKey,
   heading,
   count,
   items,
@@ -343,6 +346,7 @@ function InventoryList({
   onSelect,
   onActivate,
 }: {
+  preserveKey: string;
   heading: string;
   count: string;
   items: readonly CampaignInventoryPoolItem[];
@@ -357,7 +361,7 @@ function InventoryList({
         <h3 className="font-sans text-xl text-slate-100">{heading}</h3>
         <span className="text-xs text-slate-300">{count}</span>
       </header>
-      <div className="mt-3 flex max-h-[32rem] min-h-64 flex-col gap-2 overflow-y-auto pr-1">
+      <div data-preserve-scroll={preserveKey} className="mt-3 flex max-h-[32rem] min-h-64 flex-col gap-2 overflow-y-auto pr-1">
         {items.length === 0 ? (
           <p className="p-3 text-sm leading-6 text-slate-300">{emptyMessage}</p>
         ) : (

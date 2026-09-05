@@ -18,6 +18,7 @@ import {
   createContainer,
   createModifierSelection,
 } from "@/features/spell-construction/utilities/spellFactory";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import type { SpellFrameworkSkill } from "./actions";
 import { ProgressiveSpellEditor } from "./spell/progressive-spell-editor";
@@ -38,6 +39,7 @@ export function SpellConstructionEditor({
     options: SpellFrameworkSkill[];
     state: "ready" | "error";
   }>({ tradition: null, options: [], state: "ready" });
+  const preserveScroll = useInPlaceScrollPreservation();
   const baseCalculation = useMemo(() => calculateSpell(document), [document]);
   const progressiveEnabled = hasProgressiveSpellModifier(document);
   const activeValidation = useMemo(
@@ -225,7 +227,7 @@ export function SpellConstructionEditor({
           </div>
           <button
             type="button"
-            onClick={() => update({ containers: [...document.containers, createContainer()] })}
+            onClick={() => void preserveScroll(() => update({ containers: [...document.containers, createContainer()] }))}
           >
             Add Root Container
           </button>
