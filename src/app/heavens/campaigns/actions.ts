@@ -36,6 +36,11 @@ import {
 import {
   buildCampaignPlayerCandidates,
 } from "@/features/campaigns/campaign-membership";
+import {
+  buildCampaignAccessDesignation,
+  sortCampaignsByAccess,
+  type CampaignAccessDesignation,
+} from "@/features/campaigns/campaign-access-designation";
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import { reconcileCharacterDerivedAbilityPassivesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
 import { publishLiveSessionRevocationInTransaction } from "@/features/authorization/live-session-revocation";
@@ -50,7 +55,7 @@ import {
 } from "@/db/realm-schema";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
-export type CampaignAdminSummary = {
+export type CampaignAdminSummary = CampaignAccessDesignation & {
   id: number;
   name: string;
   overview: string;
@@ -152,7 +157,13 @@ export async function listCampaignsForGod(
     currencySystem: campaign.currencySystem,
     updatedAt: campaign.updatedAt,
     archivedAt: campaign.archivedAt,
-  }).from(campaign).where(and(
+    ownerUserId: campaign.createdByUserId,
+    ownerName: user.name,
+    ownerUsername: user.username,
+    ownerDisplayUsername: user.displayUsername,
+  }).from(campaign)
+    .innerJoin(user, eq(user.id, campaign.createdByUserId))
+    .where(and(
     roles.includes("admin") ? undefined : eq(campaign.createdByUserId, session.user.id),
     filters.archived ? isNotNull(campaign.archivedAt) : isNull(campaign.archivedAt),
   )).orderBy(asc(campaign.name), asc(campaign.id));
@@ -171,7 +182,7 @@ export async function listCampaignsForGod(
     const map = row.isNpc ? npcCount : characterCount;
     map.set(row.campaignId, (map.get(row.campaignId) ?? 0) + 1);
   }
-  return rows.map((row) => ({
+  return sortCampaignsByAccess(rows.map((row) => ({
     id: row.id,
     name: row.name,
     overview: row.overview,
@@ -181,7 +192,14 @@ export async function listCampaignsForGod(
     characterCount: characterCount.get(row.id) ?? 0,
     npcCount: npcCount.get(row.id) ?? 0,
     archivedAt: row.archivedAt?.toISOString() ?? null,
-  }));
+    ...buildCampaignAccessDesignation({
+      actingUserId: session.user.id,
+      ownerUserId: row.ownerUserId,
+      ownerName: row.ownerName,
+      ownerUsername: row.ownerUsername,
+      ownerDisplayUsername: row.ownerDisplayUsername,
+    }),
+  })));
 }
 
 export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdminDraft> {

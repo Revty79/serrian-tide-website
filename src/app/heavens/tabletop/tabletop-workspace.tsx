@@ -19,6 +19,7 @@ import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firear
 import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { CalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
+import { campaignAccessLabel } from "@/features/campaigns/campaign-access-designation";
 import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
@@ -477,13 +478,13 @@ export function TabletopWorkspace({
         value={initialData.selectedCampaignId ?? ""}
         onChange={(event) => router.push(campaignHref(Number(event.target.value)), { scroll: false })}
       >
-        {initialData.campaigns.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+        {initialData.campaigns.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} — {campaignAccessLabel(entry, "Admin view")}</option>)}
       </select> : <p className="tabletop-empty-inline">Create a Campaign before planning Sessions.</p>}
     </section>
 
     {selectedCampaign ? <>
       <section className="tabletop-campaign-context">
-        <div><span>Selected Campaign</span><strong>{selectedCampaign.name}</strong></div>
+        <div><span>Selected Campaign</span><strong>{selectedCampaign.name}</strong><small className={`tabletop-campaign-access is-${selectedCampaign.accessKind}`}>{campaignAccessLabel(selectedCampaign, "Admin view")}</small></div>
         <div className="tabletop-campaign-intro-control">
           <button
             type="button"

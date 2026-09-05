@@ -13,6 +13,7 @@ import { CampaignPlayerPanel } from "@/app/heavens/campaigns/campaign-player-pan
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { scopeCampaignCharacters } from "@/features/campaigns/campaign-membership";
 import { getCampaignSettingsHref } from "@/features/campaigns/campaign-workflow";
+import { campaignAccessLabel } from "@/features/campaigns/campaign-access-designation";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 const EMPTY_MEMBERS: CampaignMemberData = {
@@ -135,7 +136,7 @@ export function HeavensCampaignControl({
           className="h-11 w-full rounded-xl border border-white/15 bg-black/50 px-4 text-sm text-slate-300 outline-none backdrop-blur-sm"
         >
           <option value="">{campaigns.length ? "No Campaign Selected" : "No Campaigns Yet"}</option>
-          {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+          {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} — {campaignAccessLabel(campaign)}</option>)}
         </select>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" disabled={!selectedCampaign} onClick={() => setInformationOpen((current) => !current)} className="min-h-10 rounded-full border border-white/15 bg-black/20 px-4 py-2.5 text-sm text-slate-300 disabled:opacity-40">Campaign Information</button>
@@ -147,7 +148,7 @@ export function HeavensCampaignControl({
       {informationOpen && selectedCampaign ? (
         <section className="mb-2 rounded-2xl border border-white/10 bg-black/25 p-5">
           <header className="flex items-start justify-between gap-4">
-            <div><p className="text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Information</p><h3 className="font-sans mt-1 text-2xl text-slate-100">{selectedCampaign.name}</h3></div>
+            <div><p className="text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Information</p><h3 className="font-sans mt-1 text-2xl text-slate-100">{selectedCampaign.name}</h3><span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs ${selectedCampaign.accessKind === "owner" ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100" : "border-purple-300/25 bg-purple-300/10 text-purple-100"}`}>{campaignAccessLabel(selectedCampaign)}</span></div>
             <button type="button" onClick={() => setInformationOpen(false)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-slate-400">Close</button>
           </header>
           <div className="mt-4 border-t border-white/10 pt-4">

@@ -1263,3 +1263,27 @@
   .called-check-controls { align-items: stretch; flex-direction: column; }
   .called-check-controls button { width: 100%; }
 }
+
+.tabletop-campaign-access {
+  display: block;
+  width: fit-content;
+  margin-top: 5px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: .6rem;
+  letter-spacing: .05em;
+  line-height: 1.35;
+}
+
+.tabletop-campaign-access.is-owner {
+  border-color: rgb(94 234 212 / 24%);
+  background: rgb(13 148 136 / 10%);
+  color: #a7f3d0;
+}
+
+.tabletop-campaign-access.is-administrator {
+  border-color: rgb(192 132 252 / 24%);
+  background: rgb(126 34 206 / 10%);
+  color: #d8b4fe;
+}

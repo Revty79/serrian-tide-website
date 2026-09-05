@@ -37,6 +37,11 @@ import {
   type SessionRosterEntityKind,
 } from "@/features/tabletop-operations/session-roster";
 import { readSessionCloseoutInTransaction } from "@/features/tabletop-operations/session-closeout-service";
+import {
+  buildCampaignAccessDesignation,
+  sortCampaignsByAccess,
+  type CampaignAccessDesignation,
+} from "@/features/campaigns/campaign-access-designation";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import {
   assertOwnedRootManager,
@@ -53,7 +58,7 @@ import {
   requireGodOrAdminAccessContext,
 } from "@/lib/server-access";
 
-export type TabletopCampaignSummary = {
+export type TabletopCampaignSummary = CampaignAccessDesignation & {
   id: number;
   name: string;
   overview: string;
@@ -246,8 +251,12 @@ export async function getTabletopWorkspace(
       name: campaign.name,
       overview: campaign.overview,
       ownerUserId: campaign.createdByUserId,
+      ownerName: user.name,
+      ownerUsername: user.username,
+      ownerDisplayUsername: user.displayUsername,
     })
     .from(campaign)
+    .innerJoin(user, eq(user.id, campaign.createdByUserId))
     .where(actor.roles.includes("admin")
       ? isNull(campaign.archivedAt)
       : and(
@@ -255,7 +264,18 @@ export async function getTabletopWorkspace(
           isNull(campaign.archivedAt),
         ))
     .orderBy(asc(campaign.name), asc(campaign.id));
-  const campaigns = campaignRows.map(({ id, name, overview }) => ({ id, name, overview }));
+  const campaigns = sortCampaignsByAccess(campaignRows.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    overview: entry.overview,
+    ...buildCampaignAccessDesignation({
+      actingUserId: actor.userId,
+      ownerUserId: entry.ownerUserId,
+      ownerName: entry.ownerName,
+      ownerUsername: entry.ownerUsername,
+      ownerDisplayUsername: entry.ownerDisplayUsername,
+    }),
+  })));
   const selectedCampaignId = campaigns.some(({ id }) => id === requestedCampaignId)
     ? requestedCampaignId
     : campaigns[0]?.id ?? null;
