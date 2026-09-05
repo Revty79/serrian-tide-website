@@ -290,6 +290,15 @@ async function runConsoleWorkflows(page: Page, fixture: Fixture, pool: pg.Pool):
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${BASE_URL}/realms/tabletop?character=${fixture.activeCharacterId}`);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
+  const brand = page.getByRole("link", { name: "Return to the Realms", exact: true });
+  await brand.waitFor();
+  assert.match(await brand.innerText(), /SERRIAN\s+TIDE/);
+  const heroSurface = await page.locator("header").first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { backdrop: style.backdropFilter, radius: style.borderRadius };
+  });
+  assert.notEqual(heroSurface.backdrop, "none");
+  assert.notEqual(heroSurface.radius, "0px");
 
   // 11. Narrow phone layout has touch controls and no document-level overflow.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -297,6 +306,8 @@ async function runConsoleWorkflows(page: Page, fixture: Fixture, pool: pg.Pool):
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
   const rollButtonBox = await page.getByRole("button", { name: "Roll percentile" }).boundingBox();
   assert.ok(rollButtonBox && rollButtonBox.height >= 44);
+  const brandBox = await brand.boundingBox();
+  assert.ok(brandBox && brandBox.width <= 390);
 
   // 12. Keyboard and screen-reader landmarks remain operable at the phone breakpoint.
   assert.equal(await page.getByRole("main").count(), 1);
@@ -341,10 +352,13 @@ async function main(): Promise<void> {
         server!.once("exit", () => { clearTimeout(timeout); resolveStop(); });
       });
     }
-    await cleanupFixture(pool, fixture).catch((error) => console.error(error));
-    await pool.end();
-    await rm(distPath, { recursive: true, force: true });
-    await writeFile(tsconfigPath, tsconfigBefore);
+    try {
+      await cleanupFixture(pool, fixture);
+    } finally {
+      await pool.end();
+      await rm(distPath, { recursive: true, force: true });
+      await writeFile(tsconfigPath, tsconfigBefore);
+    }
   }
 
   // Re-run the accepted Pass 11 live request surface through the consolidated route.

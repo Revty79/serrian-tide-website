@@ -32,7 +32,7 @@ test("roster campaign integrity is explicit and server-authoritative", () => {
 
   const actions = readSource("src/app/heavens/tabletop/actions.ts");
   assert.match(actions, /const access = await requireGod\(\)/);
-  assert.match(actions, /assertCampaignSessionOwner\(context\.ownerUserId, access\.user\.id\)/);
+  assert.match(actions, /assertOwnedRootManager\(actor, context\.ownerUserId, "Session"\)/);
   assert.match(actions, /assertRosterCampaignIntegrity\(locked\.campaignId, characterRow\.campaignId\)/);
   assert.match(actions, /lockOwnedEditableSession\(tx, sessionId, access\.user\.id\)/);
 });

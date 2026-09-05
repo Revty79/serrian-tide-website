@@ -5,6 +5,7 @@ import {
   asc,
   eq,
   inArray,
+  isNull,
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -86,7 +87,8 @@ import {
   type CharacterSkillAdvancementRequest,
 } from "@/features/characters/character-advancement-rules";
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
-import { authorizePlayerCharacterDeletion } from "@/features/characters/character-deletion";
+import { permanentlyDeleteLifecycleEntityForActor } from "@/features/lifecycle/lifecycle-service";
+import { assertOwnedRootManager } from "@/features/lifecycle/policy";
 import {
   getCampaignMoneyBreakdown,
   getCanonicalCreditsFromHoldings,
@@ -129,7 +131,7 @@ import {
   type ItemRuntimeProfile,
   type ItemUseMode,
 } from "@/features/items/item-runtime";
-import { requireGod, requirePlayer, requireSession } from "@/lib/server-access";
+import { requireGod, requireGodOrAdminAccessContext, requirePlayer, requireSession } from "@/lib/server-access";
 
 const ammunitionItem = alias(item, "ammunition_item");
 const ammunitionWeaponProfile = alias(weaponProfile, "ammunition_weapon_profile");
@@ -223,7 +225,12 @@ async function isCampaignMember(campaignId: number, userId: string) {
   const [row] = await db
     .select({ campaignId: campaignPlayer.campaignId })
     .from(campaignPlayer)
-    .where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.userId, userId)))
+    .innerJoin(campaign, eq(campaign.id, campaignPlayer.campaignId))
+    .where(and(
+      eq(campaignPlayer.campaignId, campaignId),
+      eq(campaignPlayer.userId, userId),
+      isNull(campaign.archivedAt),
+    ))
     .limit(1);
   return Boolean(row);
 }
@@ -236,6 +243,7 @@ async function requireCharacterAccess(characterId: number, godMode: boolean) {
       campaignId: campaignCharacter.campaignId,
       playerUserId: campaignCharacter.playerUserId,
       isNpc: campaignCharacter.isNpc,
+      archivedAt: campaignCharacter.archivedAt,
     })
     .from(campaignCharacter)
     .where(eq(campaignCharacter.id, characterId))
@@ -244,13 +252,19 @@ async function requireCharacterAccess(characterId: number, godMode: boolean) {
   if (!row) throw new Error("Character not found.");
 
   if (godMode) {
-    await requireGod();
-    if (!(await isCampaignOwner(row.campaignId, session.user.id))) {
-      throw new Error("Only the Campaign creator can administratively edit this Character.");
-    }
+    const access = await requireGodOrAdminAccessContext();
+    const [campaignRow] = await db.select({
+      createdByUserId: campaign.createdByUserId,
+    }).from(campaign).where(eq(campaign.id, row.campaignId)).limit(1);
+    if (!campaignRow) throw new Error("Campaign not found.");
+    assertOwnedRootManager(
+      { userId: access.session.user.id, roles: access.roles },
+      campaignRow.createdByUserId,
+      "Campaign",
+    );
   } else {
     await requirePlayer();
-    if (row.isNpc || row.playerUserId !== session.user.id) {
+    if (row.archivedAt || row.isNpc || row.playerUserId !== session.user.id) {
       throw new Error("A Player may only access their own Character.");
     }
     if (!(await isCampaignMember(row.campaignId, session.user.id))) {
@@ -327,7 +341,10 @@ export async function listPlayerCampaigns(): Promise<PlayerCampaignSummary[]> {
     .select({ id: campaign.id, name: campaign.name, overview: campaign.overview })
     .from(campaignPlayer)
     .innerJoin(campaign, eq(campaign.id, campaignPlayer.campaignId))
-    .where(eq(campaignPlayer.userId, session.user.id))
+    .where(and(
+      eq(campaignPlayer.userId, session.user.id),
+      isNull(campaign.archivedAt),
+    ))
     .orderBy(asc(campaign.name), asc(campaign.id));
 }
 
@@ -336,7 +353,10 @@ export async function listGodCampaigns(): Promise<GodCampaignSummary[]> {
   return db
     .select({ id: campaign.id, name: campaign.name })
     .from(campaign)
-    .where(eq(campaign.createdByUserId, session.user.id))
+    .where(and(
+      eq(campaign.createdByUserId, session.user.id),
+      isNull(campaign.archivedAt),
+    ))
     .orderBy(asc(campaign.name), asc(campaign.id));
 }
 
@@ -381,6 +401,7 @@ export async function listCharactersForCampaign(
 
   const ownerId = godMode && playerUserId ? playerUserId : session.user.id;
   const conditions = [eq(campaignCharacter.campaignId, campaignId)];
+  conditions.push(isNull(campaignCharacter.archivedAt));
   if (includeNpcs && godMode) {
     conditions.push(eq(campaignCharacter.isNpc, true));
   } else {
@@ -399,6 +420,10 @@ export async function listCharactersForCampaign(
       creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
       isNpc: campaignCharacter.isNpc,
       npcKind: campaignCharacter.npcKind,
+      npcBuildMode: campaignCharacter.npcBuildMode,
+      npcRoleLabel: campaignCharacter.npcRoleLabel,
+      archivedAt: campaignCharacter.archivedAt,
+      archiveReason: campaignCharacter.archiveReason,
       creatureTemplateName: creature.canonicalName,
     })
     .from(campaignCharacter)
@@ -433,9 +458,15 @@ export async function createCharacterForPlayer(
   }
 
   const [campaignRow] = await db
-    .select({ startingCreditAmount: campaign.startingCreditAmount, fatePointMethod: campaign.fatePointMethod, assignedFatePoints: campaign.assignedFatePoints })
-    .from(campaign).where(eq(campaign.id, campaignId)).limit(1);
-  if (!campaignRow) throw new Error("Campaign not found.");
+    .select({
+      startingCreditAmount: campaign.startingCreditAmount,
+      fatePointMethod: campaign.fatePointMethod,
+      assignedFatePoints: campaign.assignedFatePoints,
+    })
+    .from(campaign)
+    .where(and(eq(campaign.id, campaignId), isNull(campaign.archivedAt)))
+    .limit(1);
+  if (!campaignRow) throw new Error("That Campaign is archived or no longer exists.");
 
   const characterId = await db.transaction(async (tx) => {
     const [created] = await tx.insert(campaignCharacter).values({
@@ -471,82 +502,25 @@ export async function deleteCharacterAsGod(characterId: number): Promise<{
     throw new Error("A saved player Character must be selected for deletion.");
   }
 
-  const session = await requireGod();
-  const deleted = await db.transaction(async (tx) => {
-    const [context] = await tx
-      .select({
-        id: campaignCharacter.id,
-        campaignId: campaignCharacter.campaignId,
-        name: campaignCharacter.name,
-        isNpc: campaignCharacter.isNpc,
-        campaignOwnerUserId: campaign.createdByUserId,
-      })
-      .from(campaignCharacter)
-      .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
-      .where(eq(campaignCharacter.id, characterId))
-      .limit(1)
-      .for("update", { of: campaignCharacter });
-    const authorized = authorizePlayerCharacterDeletion(
-      context ?? null,
-      session.user.id,
-    );
-
-    const [removed] = await tx
-      .delete(campaignCharacter)
-      .where(
-        and(
-          eq(campaignCharacter.id, authorized.id),
-          eq(campaignCharacter.campaignId, authorized.campaignId),
-          eq(campaignCharacter.isNpc, false),
-        ),
-      )
-      .returning({
-        id: campaignCharacter.id,
-        name: campaignCharacter.name,
-        campaignId: campaignCharacter.campaignId,
-      });
-    if (!removed) {
-      throw new Error(
-        "Only a player Character from one of your Campaigns can be deleted.",
-      );
-    }
-    return removed;
-  });
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const deleted = await permanentlyDeleteLifecycleEntityForActor(
+    { entityKind: "player-character", entityId: characterId },
+    { userId: session.user.id, roles },
+  );
+  if (deleted.campaignId === undefined) {
+    throw new Error("Deleted Character Campaign context is missing.");
+  }
 
   revalidatePath("/heavens");
   revalidatePath("/heavens/campaigns");
-  revalidatePath(`/heavens/characters/${deleted.id}`);
+  revalidatePath(`/heavens/characters/${deleted.entityId}`);
   revalidatePath("/realms");
-  revalidatePath(`/realms/characters/${deleted.id}`);
-  return deleted;
-}
-
-export async function createRaceNpc(campaignId: number): Promise<CharacterAggregate> {
-  const session = await requireGod();
-  if (!(await isCampaignOwner(campaignId, session.user.id))) {
-    throw new Error("Only the Campaign creator can create its NPCs.");
-  }
-
-  const [campaignRow] = await db.select({ startingCreditAmount: campaign.startingCreditAmount }).from(campaign).where(eq(campaign.id, campaignId)).limit(1);
-  if (!campaignRow) throw new Error("Campaign not found.");
-
-  await db.insert(campaignPlayer).values({ campaignId, userId: session.user.id, isNpcController: true }).onConflictDoNothing();
-
-  const characterId = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(campaignCharacter).values({
-      campaignId,
-      playerUserId: session.user.id,
-      name: "New NPC",
-      isNpc: true,
-      npcKind: "race",
-    }).returning({ id: campaignCharacter.id });
-    await tx.insert(campaignCharacterProfile).values({ characterId: created.id, creditsRemaining: campaignRow.startingCreditAmount });
-    await tx.insert(campaignCharacterAttribute).values(CHARACTER_ATTRIBUTE_KEYS.map((attributeKey) => ({ characterId: created.id, attributeKey, value: 25 })));
-    return created.id;
-  });
-
-  revalidatePath("/heavens/npcs");
-  return getCharacter(characterId, true);
+  revalidatePath(`/realms/characters/${deleted.entityId}`);
+  return {
+    id: deleted.entityId,
+    name: deleted.entityName,
+    campaignId: deleted.campaignId,
+  };
 }
 
 export async function getCharacter(characterId: number, godMode = false): Promise<CharacterAggregate> {
@@ -663,7 +637,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       .where(eq(campaignAllowedDerivedAbility.campaignId, row.campaignId))
       .limit(1),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, row.campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder)),
-    db.select({ id: race.id, name: race.name }).from(campaignAllowedRace).innerJoin(race, eq(race.id, campaignAllowedRace.raceId)).where(eq(campaignAllowedRace.campaignId, row.campaignId)).orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name)),
+    db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(campaignAllowedRace).innerJoin(race, eq(race.id, campaignAllowedRace.raceId)).where(eq(campaignAllowedRace.campaignId, row.campaignId)).orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name)),
     db.select().from(skill).orderBy(asc(skill.name), asc(skill.id)),
     db.select({ skillId: skillRelationship.skillId, relatedSkillId: skillRelationship.relatedSkillId, relationshipType: skillRelationship.relationshipType, sortOrder: skillRelationship.sortOrder }).from(skillRelationship).where(eq(skillRelationship.relationshipType, "parent")).orderBy(asc(skillRelationship.skillId), asc(skillRelationship.sortOrder)),
     db.select({ skillId: skillExtension.skillId, extensionType: skillExtension.extensionType, dataJson: skillExtension.dataJson }).from(skillExtension).where(inArray(skillExtension.extensionType, ["spell-import-source", "spell-construction"])),
@@ -687,6 +661,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       equipmentGroup: item.equipmentGroup,
       recordType: item.recordType,
       category: item.category,
+      archivedAt: item.archivedAt,
       credits: item.credits,
       priceBasis: item.priceBasis,
       description: item.description,
@@ -740,6 +715,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       activationType: derivedAbility.activationType,
       sourceSystem: derivedAbility.sourceSystem,
       sourceExternalId: derivedAbility.sourceExternalId,
+      archivedAt: derivedAbility.archivedAt,
     }).from(derivedAbility)
       .orderBy(asc(derivedAbility.name), asc(derivedAbility.id)),
     db.select({
@@ -801,6 +777,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       updatedAt: campaignCharacter.updatedAt,
       isNpc: campaignCharacter.isNpc,
       npcKind: campaignCharacter.npcKind,
+      npcBuildMode: campaignCharacter.npcBuildMode,
+      npcRoleLabel: campaignCharacter.npcRoleLabel,
+      archivedAt: campaignCharacter.archivedAt,
+      archiveReason: campaignCharacter.archiveReason,
       attributePoints: campaign.attributePoints,
       skillPoints: campaign.skillPoints,
       maxStartingSkill: campaign.maxStartingSkill,
@@ -852,7 +832,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     },
   );
   const derivedAbilityCatalog = assembleDerivedAbilityCatalog({
-    definitions: derivedAbilityRows,
+    definitions: derivedAbilityRows.map(({ archivedAt, ...definition }) => ({
+      ...definition,
+      archived: archivedAt !== null,
+    })),
     triggers: derivedAbilityTriggerRows.map((trigger) => ({
       id: trigger.triggerId,
       derivedAbilityId: trigger.derivedAbilityId,
@@ -919,6 +902,14 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       updatedAt: core.updatedAt.toISOString(),
       isNpc: core.isNpc,
       npcKind: core.npcKind === "creature" ? "creature" : "race",
+      npcBuildMode: core.npcBuildMode === "simple"
+        ? "simple"
+        : core.npcBuildMode === "detailed"
+          ? "detailed"
+          : null,
+      npcRoleLabel: core.npcRoleLabel,
+      archivedAt: core.archivedAt?.toISOString() ?? null,
+      archiveReason: core.archiveReason,
     },
     profile: {
       characterId: profileRow.characterId,
@@ -1011,7 +1002,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       allowedSystems,
       derivedCurrencies: currencies,
     },
-    allowedRaces: allowedRaceRows,
+    allowedRaces: allowedRaceRows.map(({ archivedAt, ...entry }) => ({
+      ...entry,
+      archived: archivedAt !== null,
+    })),
     selectedRace,
     skillCatalog: skillRows.map((skillRow) => ({
       id: skillRow.id,
@@ -1024,6 +1018,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       spellLevel: importMap.get(skillRow.id)?.spellLevel ?? null,
       manaCost: importMap.get(skillRow.id)?.manaCost ?? null,
       spellDocumentJson: spellDocuments.get(skillRow.id) ?? null,
+      archived: skillRow.archivedAt !== null,
     })),
     skillRelationships: relationshipRows,
     personalSpellbook: personalSpellRows,
@@ -1064,6 +1059,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       baseSoak: entry.baseSoak,
       armorDamageModifiers: entry.armorDamageModifiers,
       armorRulesText: entry.armorRulesText,
+      archived: entry.archivedAt !== null,
     })),
     derivedAbilities: derivedAbilityCatalog,
     derivedAbilityOwnerships: ownerships,
@@ -1086,10 +1082,12 @@ export async function getAllowedRaceForCharacter(
   const [allowed] = await db
     .select({ raceId: campaignAllowedRace.raceId })
     .from(campaignAllowedRace)
+    .innerJoin(race, eq(race.id, campaignAllowedRace.raceId))
     .where(
       and(
         eq(campaignAllowedRace.campaignId, row.campaignId),
         eq(campaignAllowedRace.raceId, raceId),
+        isNull(race.archivedAt),
       ),
     )
     .limit(1);
@@ -1103,8 +1101,11 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
   const heightFeet = optionalWholeNonNegative(draft.profile.heightFeet, "Height feet");
   const heightInches = optionalWholeNonNegative(draft.profile.heightInches, "Height inches");
   if (heightInches !== null && heightInches > 11) throw new Error("Height inches must be between 0 and 11.");
-  if (draft.profile.raceId !== null && !aggregate.allowedRaces.some(({ id }) => id === draft.profile.raceId)) {
-    throw new Error("Choose a Race allowed by this Campaign.");
+  if (draft.profile.raceId !== null) {
+    const selected = aggregate.allowedRaces.find(({ id }) => id === draft.profile.raceId);
+    if (!selected || (selected.archived && draft.profile.raceId !== aggregate.profile.raceId)) {
+      throw new Error("Choose an active Race allowed by this Campaign.");
+    }
   }
 
   const attributes = CHARACTER_ATTRIBUTE_KEYS.map((attributeKey) => ({
@@ -1120,6 +1121,10 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     if (!Number.isFinite(entry.unitCostCredits) || entry.unitCostCredits < 0) throw new Error("Item unit cost must be zero or greater.");
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
     if (!authorized) throw new Error("Character possessions must be Campaign-authorized Items.");
+    const existingItem = aggregate.items.find(({ itemId }) => itemId === entry.itemId);
+    if (authorized.archived && (!existingItem || entry.quantity > existingItem.quantity)) {
+      throw new Error("Archived Items cannot be added to or increased in Character possessions.");
+    }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name, {
       requiresExactInstance: authorized.isFirearm === true,
       allowLegacyExactStack: true,
@@ -1149,6 +1154,9 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     }
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
     if (!authorized) throw new Error("Owned Item instances must use Campaign-authorized Items.");
+    if (authorized.archived && entry.instanceId === null) {
+      throw new Error("Archived Items cannot be added as new owned instances.");
+    }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name, {
       requiresExactInstance: authorized.isFirearm === true,
     });
@@ -1197,7 +1205,10 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       })
     : [];
 
-  const name = required(draft.name, "Character Name");
+  const name = required(draft.name, aggregate.character.isNpc ? "NPC Name" : "Character Name");
+  const npcRoleLabel = aggregate.character.isNpc
+    ? required(draft.npcRoleLabel ?? "", "NPC Role / Label")
+    : aggregate.character.npcRoleLabel ?? "";
   const profile = {
     raceId: draft.profile.raceId,
     age: draft.profile.age === null ? null : Math.trunc(nonNegative(draft.profile.age, "Age")),
@@ -1235,7 +1246,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     creditsRemaining: nonNegative(draft.profile.creditsRemaining, "Current funds"),
   };
 
-  return { name, profile, attributes, items, itemInstances, currencyHoldings };
+  return { name, npcRoleLabel, profile, attributes, items, itemInstances, currencyHoldings };
 }
 
 export async function saveCharacter(
@@ -1246,6 +1257,14 @@ export async function saveCharacter(
 ): Promise<CharacterAggregate> {
   await requireCharacterAccess(characterId, godMode);
   const aggregate = await getCharacter(characterId, godMode);
+  if (aggregate.character.isNpc && aggregate.character.npcBuildMode === "simple") {
+    throw new Error("Use the Simple NPC editor until this NPC is upgraded.");
+  }
+  if (aggregate.character.archivedAt) {
+    throw new Error(aggregate.character.isNpc
+      ? "Archived NPCs are read-only. Restore this NPC before you save it."
+      : "Archived Characters are read-only. Restore this Character before you save it.");
+  }
   if (!godMode && aggregate.profile.creationCompletedAt) {
     throw new Error("Character creation is complete and its creation record is permanently locked.");
   }
@@ -1310,7 +1329,28 @@ export async function saveCharacter(
   }
 
   await db.transaction(async (tx) => {
-    await tx.update(campaignCharacter).set({ name: normalized.name, updatedAt: new Date() }).where(eq(campaignCharacter.id, characterId));
+    const [lockedCharacter] = await tx.select({
+      isNpc: campaignCharacter.isNpc,
+      npcBuildMode: campaignCharacter.npcBuildMode,
+      archivedAt: campaignCharacter.archivedAt,
+    }).from(campaignCharacter)
+      .where(eq(campaignCharacter.id, characterId))
+      .limit(1)
+      .for("update");
+    if (!lockedCharacter) throw new Error("Character not found.");
+    if (lockedCharacter.isNpc && lockedCharacter.npcBuildMode === "simple") {
+      throw new Error("Use the Simple NPC editor until this NPC is upgraded.");
+    }
+    if (lockedCharacter.archivedAt) {
+      throw new Error(lockedCharacter.isNpc
+        ? "Archived NPCs are read-only. Restore this NPC before you save it."
+        : "Archived Characters are read-only. Restore this Character before you save it.");
+    }
+    await tx.update(campaignCharacter).set({
+      name: normalized.name,
+      npcRoleLabel: normalized.npcRoleLabel,
+      updatedAt: new Date(),
+    }).where(eq(campaignCharacter.id, characterId));
     await tx.update(campaignCharacterProfile).set({
       ...normalized.profile,
       creditsRemaining,
@@ -1397,6 +1437,10 @@ export async function saveCharacter(
         savedMap.set(draftId, stored.id);
         visiting.delete(draftId);
         return stored.id;
+      }
+      const selectedSkill = aggregate.skillCatalog.find(({ id }) => id === allocation.skillId);
+      if (!selectedSkill || selectedSkill.archived) {
+        throw new Error("Archived Skills cannot be added to a Character.");
       }
       const [created] = await tx.insert(campaignCharacterSkillAllocation).values({
         characterId,
@@ -1520,7 +1564,11 @@ export async function advanceCharacterSkills(
           eq(campaignPlayer.userId, session.user.id),
         ),
       )
-      .where(eq(campaignCharacter.id, characterId))
+      .where(and(
+        eq(campaignCharacter.id, characterId),
+        isNull(campaignCharacter.archivedAt),
+        isNull(campaign.archivedAt),
+      ))
       .limit(1)
       .for("update", { of: campaignCharacter });
     if (!characterContext) throw new Error("Character not found.");
@@ -1599,6 +1647,7 @@ export async function advanceCharacterSkills(
       spellLevel: importMap.get(skillRow.id)?.spellLevel ?? null,
       manaCost: importMap.get(skillRow.id)?.manaCost ?? null,
       spellDocumentJson: null,
+      archived: skillRow.archivedAt !== null,
     }));
     const catalogById = new Map(
       skillCatalog.map((catalogSkill) => [catalogSkill.id, catalogSkill]),
@@ -1745,6 +1794,7 @@ export async function advanceCharacterSkills(
     for (const resolved of resolvedRequests) {
       const target = catalogById.get(resolved.request.skillId);
       if (!target) throw new Error("A planned Skill could not be found.");
+      if (target.archived) throw new Error(`${target.name} is archived and cannot receive new advancement.`);
       if (
         !canPlayerAdvanceSkillWithExperience(
           target,

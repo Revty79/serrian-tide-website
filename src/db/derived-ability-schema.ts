@@ -59,14 +59,31 @@ export const derivedAbility = pgTable(
     sourceExternalId: text("source_external_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedByUserId: text("archived_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
     check("derived_ability_name_nonblank", sql`length(trim(${table.name})) > 0`),
     index("derived_ability_name_idx").on(table.name, table.id),
     index("derived_ability_created_by_user_idx").on(table.createdByUserId),
+    index("derived_ability_archive_idx").on(
+      table.archivedAt,
+      table.name,
+      table.id,
+    ),
     uniqueIndex("derived_ability_source_identity_uq")
       .on(table.sourceSystem, table.sourceExternalId)
       .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),
+    check(
+      "derived_ability_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
+    ),
   ],
 );
 

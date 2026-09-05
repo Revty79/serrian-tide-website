@@ -234,7 +234,8 @@ function generateSkills(
     aggregate.skillRelationships,
     () => nextDraftId--,
   );
-  const skillsById = new Map(aggregate.skillCatalog.map((skill) => [skill.id, skill]));
+  const activeSkills = aggregate.skillCatalog.filter(({ archived }) => !archived);
+  const skillsById = new Map(activeSkills.map((skill) => [skill.id, skill]));
   const childIds = new Set(aggregate.skillRelationships
     .filter(({ relationshipType }) => relationshipType.toLowerCase() === "parent")
     .map(({ skillId }) => skillId));
@@ -269,7 +270,7 @@ function generateSkills(
       draft.profile.baseMagicSteps,
     );
     const candidates: SkillCandidate[] = [];
-    const roots = aggregate.skillCatalog.filter((skill) =>
+    const roots = activeSkills.filter((skill) =>
       !childIds.has(skill.id) && (skill.tier === null || skill.tier === 1));
 
     for (const skill of roots) {
@@ -384,7 +385,8 @@ function generateItems(
 ): Pick<CharacterDraft, "items" | "itemInstances"> {
   const budget = Math.max(0, aggregate.campaign.startingCreditAmount);
   const equipment = aggregate.authorizedItems.filter((item) =>
-    item.catalogScope.toLowerCase() === "equipment"
+    !item.archived
+    && item.catalogScope.toLowerCase() === "equipment"
     && item.credits !== null
     && item.credits >= 0
     && item.credits <= budget);

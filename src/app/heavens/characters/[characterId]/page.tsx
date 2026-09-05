@@ -8,7 +8,7 @@ import { getActiveMana } from "@/features/active-state/active-mana-service";
 import { getActiveEffects } from "@/features/active-state/active-effects-service";
 import { getCharacterEquipmentState } from "@/features/items/equipment-state-service";
 import { getCharacterItemChargeState } from "@/features/items/item-charge-service";
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { getGodCharacterReturnHref } from "@/features/navigation/authenticated-navigation";
 
 export default async function GodCharacterPage({
@@ -18,13 +18,16 @@ export default async function GodCharacterPage({
   params: Promise<{ characterId: string }>;
   searchParams: Promise<{ source?: string }>;
 }) {
-  await requireGod().catch(() => redirect("/access"));
+  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const { characterId } = await params;
   const id = Number(characterId);
   if (!Number.isInteger(id) || id <= 0) redirect("/heavens");
 
   const aggregate = await getCharacter(id, true).catch(() => null);
   if (!aggregate) redirect("/heavens");
+  if (aggregate.character.isNpc && aggregate.character.npcBuildMode === "simple") {
+    redirect(`/heavens/npcs?campaign=${aggregate.campaign.id}`);
+  }
   const [activeHealth, activeMana, activeEffects, equipmentState, chargeState] = await Promise.all([
     getActiveHealth(id).catch(() => null),
     getActiveMana(id).catch(() => null),

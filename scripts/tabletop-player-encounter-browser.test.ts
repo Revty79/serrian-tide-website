@@ -85,7 +85,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     await client.query("insert into campaign_player (campaign_id,user_id,is_npc_controller) values ($1,$2,true),($1,$3,false),($1,$4,false)", [campaign.id, GOD_ID, PLAYER_A_ID, PLAYER_B_ID]);
     const characterA = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Browser Hero A') returning id", [campaign.id, PLAYER_A_ID]);
     const characterB = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Browser Hero B') returning id", [campaign.id, PLAYER_B_ID]);
-    const npc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind) values ($1,$2,'Browser Hidden NPC',true,'race') returning id", [campaign.id, GOD_ID]);
+    const npc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values ($1,$2,'Browser Hidden NPC',true,'race','detailed') returning id", [campaign.id, GOD_ID]);
     for (const characterId of [characterA.id, characterB.id, npc.id]) {
       await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,4)", [characterId]);
       for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) {

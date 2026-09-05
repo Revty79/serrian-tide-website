@@ -18,10 +18,11 @@ import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
+import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   addCampaignSessionEncounterParticipant,
-  completeCampaignSessionEncounter,
   createCampaignSessionEncounter,
   deleteCampaignSessionEncounter,
   moveCampaignSessionEncounterParticipant,
@@ -45,6 +46,8 @@ import { DefenseInterventionWorkspace } from "./defense-intervention-workspace";
 import { ActionEffectPlanWorkspace } from "./action-effect-plan-workspace";
 import { EncounterCloseout } from "./encounter-closeout";
 import { CreatureCatalogSpawn } from "./creature-catalog-spawn";
+import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
+import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -198,6 +201,11 @@ export function EncounterWorkspace({
   const [participantSearch, setParticipantSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<TabletopLifecyclePreview | null>(null);
+  const [transitionMode, setTransitionMode] = useState<"start" | "reopen" | null>(null);
+  const [transitionPreview, setTransitionPreview] = useState<TabletopLifecyclePreview | null>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   function encounterHref(encounterId?: number): string {
     const base = `/heavens/tabletop?campaign=${initialData.campaignId}&session=${initialData.sessionId}&scene=${initialData.sceneId}`;
@@ -254,26 +262,52 @@ export function EncounterWorkspace({
     });
   }
 
-  async function lifecycle(action: "start" | "complete" | "reopen"): Promise<void> {
+  async function lifecycle(action: "start" | "reopen"): Promise<void> {
     if (!selectedEncounter) return;
     await perform(async () => {
       const updated = action === "start"
         ? await startCampaignSessionEncounter(selectedEncounter.id)
-        : action === "complete"
-          ? await completeCampaignSessionEncounter(selectedEncounter.id)
-          : await reopenCampaignSessionEncounter(selectedEncounter.id);
+        : await reopenCampaignSessionEncounter(selectedEncounter.id);
       setFeedback({ kind: "success", message: `Encounter ${updated.sequenceNumber} is now ${updated.status}.` });
+      setTransitionMode(null);
+      setTransitionPreview(null);
       router.refresh();
     });
   }
 
+  async function openTransitionConfirmation(action: "start" | "reopen"): Promise<void> {
+    if (!selectedEncounter) return;
+    await preserveScroll(() => perform(async () => {
+      const preview = await previewTabletopLifecycleEntity({
+        entityKind: "encounter",
+        entityId: selectedEncounter.id,
+      });
+      setTransitionPreview(preview);
+      setTransitionMode(action);
+    }));
+  }
+
   async function removeEncounter(): Promise<void> {
-    if (!selectedEncounter || !window.confirm(`Delete planned Encounter ${selectedEncounter.sequenceNumber}? Its participant references will also be removed.`)) return;
+    if (!selectedEncounter) return;
     await perform(async () => {
       await deleteCampaignSessionEncounter(selectedEncounter.id);
+      setDeleteConfirmationOpen(false);
+      setDeletePreview(null);
       setFeedback({ kind: "success", message: `Encounter ${selectedEncounter.sequenceNumber} was deleted.` });
       router.push(encounterHref(), { scroll: false });
     });
+  }
+
+  async function openDeleteConfirmation(): Promise<void> {
+    if (!selectedEncounter) return;
+    await preserveScroll(() => perform(async () => {
+      const preview = await previewTabletopLifecycleEntity({
+        entityKind: "encounter",
+        entityId: selectedEncounter.id,
+      });
+      setDeletePreview(preview);
+      setDeleteConfirmationOpen(true);
+    }));
   }
 
   async function addParticipant(characterId: number, name: string): Promise<void> {
@@ -362,10 +396,10 @@ export function EncounterWorkspace({
               if (selectedEncounter) setDraft(metadataFromEncounter(selectedEncounter));
               setFeedback(null);
             }}>Cancel</button> : null}
-            {!creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" disabled={busy} onClick={() => void lifecycle("start")}>Start Encounter</button> : null}
+            {!creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Encounter</button> : null}
             {!creating && selectedEncounter?.status === "active" && parentsActive ? <button type="button" disabled={busy} onClick={() => setActiveSection("closeout")}>Review Closeout</button> : null}
-            {!creating && selectedEncounter?.status === "completed" && parentsActive ? <button type="button" disabled={busy} onClick={() => void lifecycle("reopen")}>Reopen Encounter</button> : null}
-            {!creating && selectedEncounter?.status === "planned" && initialData.canCreate ? <button type="button" className="is-danger" disabled={busy} onClick={() => void removeEncounter()}>Delete Planned Encounter</button> : null}
+            {!creating && selectedEncounter?.status === "completed" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Encounter</button> : null}
+            {!creating && selectedEncounter?.status === "planned" && initialData.canCreate ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Encounter</button> : null}
           </div>
 
           {!creating && selectedEncounter ? <section className="tabletop-encounter-participants">
@@ -422,5 +456,53 @@ export function EncounterWorkspace({
           : <p className="tabletop-empty">Closeout state is unavailable for this Encounter.</p> : null}
       </section>
     </div>
+    {selectedEncounter ? <LifecycleConfirmationDialog
+      open={transitionMode !== null}
+      titleId="transition-tabletop-encounter-title"
+      eyebrow="Encounter Lifecycle"
+      title={transitionMode === "start"
+        ? `Start Encounter ${selectedEncounter.sequenceNumber}?`
+        : `Reopen Encounter ${selectedEncounter.sequenceNumber}?`}
+      entityType="Encounter"
+      preview={transitionPreview}
+      consequence={transitionMode === "start"
+        ? "This activates the planned Encounter inside its active Scene and Session. Participants and living Character state are preserved."
+        : "This returns the completed Encounter to active for corrections without erasing its rewards or deeper history."}
+      dependencies={(transitionPreview?.dependencies ?? [])
+        .filter(({ count }) => count > 0)
+        .map(({ label, count }) => `${label}: ${count}`)}
+      notice={transitionPreview && transitionMode === "reopen" && !transitionPreview.canReopen
+        ? "The current server state does not allow this transition. Reopen the parent Session and Scene first."
+        : "Cancel makes no changes. The server locks and rechecks the Encounter and its Campaign before applying this transition."}
+      confirmLabel={transitionMode === "start" ? "Start Encounter" : "Reopen Encounter"}
+      confirmDisabled={!transitionPreview || (transitionMode === "start"
+        ? transitionPreview.status !== "planned"
+        : !transitionPreview.canReopen)}
+      busy={busy}
+      error={feedback?.kind === "error" ? feedback.message : undefined}
+      onCancel={() => { setTransitionMode(null); setTransitionPreview(null); setFeedback(null); }}
+      onConfirm={() => transitionMode ? lifecycle(transitionMode) : undefined}
+    /> : null}
+    {selectedEncounter ? <LifecycleConfirmationDialog
+      open={deleteConfirmationOpen}
+      titleId="delete-tabletop-encounter-title"
+      eyebrow="Permanent Encounter Deletion"
+      title={`Delete planned Encounter ${selectedEncounter.sequenceNumber}?`}
+      entityType="Encounter"
+      preview={deletePreview}
+      consequence="The planned Encounter and its preparation-only participant references will be permanently removed. Initiative, Roll, or combat history blocks this operation."
+      dependencies={(deletePreview?.dependencies ?? [])
+        .filter(({ count }) => count > 0)
+        .map(({ label, count, blocking }) => `${label}: ${count}${blocking ? " (blocks deletion)" : ""}`)}
+      notice={deletePreview?.blockers.length
+        ? deletePreview.blockers.join(" ")
+        : "Cancel makes no changes. The server locks and rechecks the complete dependency graph before deletion."}
+      confirmLabel="Permanently Delete Encounter"
+      confirmDisabled={!deletePreview?.canDelete}
+      busy={busy}
+      error={feedback?.kind === "error" ? feedback.message : undefined}
+      onCancel={() => { setDeleteConfirmationOpen(false); setDeletePreview(null); setFeedback(null); }}
+      onConfirm={removeEncounter}
+    /> : null}
   </section>;
 }

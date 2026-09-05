@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import "../skills/skills.css";
 import {
@@ -13,7 +13,7 @@ import "../items/item-runtime.css";
 import { ItemWorkspace } from "../items/item-workspace";
 
 export default async function InventoryPage() {
-  const session = await requireGod().catch(() => redirect("/access"));
+  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const [initialLibrary, initialFacets, initialReferences] = await Promise.all([
     listItems({ catalogScope: "inventory", page: 1, pageSize: 40 }),
     listItemFacets("inventory"),

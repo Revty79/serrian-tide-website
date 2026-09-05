@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { getActiveHealth } from "@/features/active-state/active-health-service";
 import { getActiveEffects } from "@/features/active-state/active-effects-service";
 import { getCharacterEquipmentState } from "@/features/items/equipment-state-service";
@@ -15,12 +15,15 @@ export default async function CreatureNpcPage({
 }: {
   params: Promise<{ npcId: string }>;
 }) {
-  await requireGod().catch(() => redirect("/access"));
+  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const { npcId } = await params;
   const id = Number(npcId);
   if (!Number.isInteger(id) || id <= 0) redirect("/heavens/npcs");
   const draft = await getCreatureNpc(id).catch(() => null);
   if (!draft) redirect("/heavens/npcs");
+  if (draft.buildMode !== "detailed") {
+    redirect(`/heavens/npcs?campaign=${draft.campaignId}`);
+  }
   const [activeHealth, activeEffects, equipmentState, chargeState] = await Promise.all([
     getActiveHealth(id).catch(() => null),
     getActiveEffects(id, true).catch(() => null),

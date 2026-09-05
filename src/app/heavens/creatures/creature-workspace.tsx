@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { CREATURE_CR_IMPACTS, CREATURE_SIZE_OPTIONS, type CreatureCrImpact } from "@/db/creature-schema";
 import {
   calculateCreatureChallengeRating,
@@ -19,7 +20,6 @@ import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   createDerivedCreature,
-  deleteCreature,
   getCreature,
   listChallengeRatingReferences,
   listCreatureFacets,
@@ -27,6 +27,7 @@ import {
   listCreatures,
   saveCreature,
   type ChallengeRatingReference,
+  type CreatureAggregate,
   type CreatureDraft,
   type CreatureFacets,
   type CreatureLibraryFilters,
@@ -116,7 +117,7 @@ export function CreatureWorkspace({
   const [library, setLibrary] = useState(initialLibrary);
   const [facets, setFacets] = useState(initialFacets);
   const [references, setReferences] = useState(initialReferences);
-  const [draft, setDraft] = useState<CreatureDraft | null>(null);
+  const [draft, setDraft] = useState<CreatureDraft | CreatureAggregate | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
@@ -124,8 +125,10 @@ export function CreatureWorkspace({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; creature: CreatureSummary } | { kind: "new" } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const preserveScroll = useInPlaceScrollPreservation();
+  const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
+  const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
+  const isArchived = Boolean(archivedAt);
   const liveChallengeRating = useMemo(() => {
     if (!draft) return { draft: null, error: null };
     try {
@@ -162,12 +165,12 @@ export function CreatureWorkspace({
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadLibrary(filters), 180);
+    const timer = window.setTimeout(() => void preserveScroll(() => loadLibrary(filters)), 180);
     return () => window.clearTimeout(timer);
-  }, [filters, loadLibrary]);
+  }, [filters, loadLibrary, preserveScroll]);
 
   async function refreshReferences() {
-    const [nextFacets, nextReferences] = await Promise.all([listCreatureFacets(), listChallengeRatingReferences()]);
+    const [nextFacets, nextReferences] = await Promise.all([listCreatureFacets(Boolean(filters.archived)), listChallengeRatingReferences()]);
     setFacets(nextFacets);
     setReferences(nextReferences);
   }
@@ -182,7 +185,6 @@ export function CreatureWorkspace({
         setDraft(aggregate);
         setDirty(false);
         setActiveTab("overview");
-        setConfirmDelete(false);
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Creature could not be loaded." });
       } finally {
@@ -199,9 +201,9 @@ export function CreatureWorkspace({
   function createNew() {
     try {
       setDraft(newCreatureDraft(references));
+      setFilters((current) => ({ ...current, archived: false, page: 1 }));
       setDirty(false);
       setActiveTab("overview");
-      setConfirmDelete(false);
       setFeedback(null);
     } catch (error) {
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Creature CR reward data is unavailable." });
@@ -246,25 +248,33 @@ export function CreatureWorkspace({
     });
   }
 
-  async function removeCreature() {
-    if (!draft?.id) return;
-    const creatureId = draft.id;
-    await preserveScroll(async () => {
-      setSaving(true);
+  function changeArchiveView(archived: boolean) {
+    void preserveScroll(async () => {
+      setFilters((current) => ({ ...current, archived, page: 1 }));
+      setDraft(null);
+      setDirty(false);
+      setFeedback(null);
       try {
-        const name = draft.core.canonicalName;
-        await deleteCreature(creatureId);
-        setDraft(null);
-        setDirty(false);
-        setConfirmDelete(false);
-        setFeedback({ kind: "success", message: `${name} was deleted.` });
-        await loadLibrary(filters);
+        setFacets(await listCreatureFacets(archived));
       } catch (error) {
-        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature could not be deleted." });
-      } finally {
-        setSaving(false);
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Creature filters could not be loaded." });
       }
     });
+  }
+
+  async function lifecycleCompleted(event: { action: "archive" | "restore" | "delete" }) {
+    const name = draft?.core.canonicalName || "Creature";
+    setDraft(null);
+    setDirty(false);
+    setFeedback({
+      kind: "success",
+      message: event.action === "archive"
+        ? `${name} was archived.`
+        : event.action === "restore"
+          ? `${name} was restored.`
+          : `${name} was permanently deleted.`,
+    });
+    await Promise.all([loadLibrary(filters), refreshReferences()]);
   }
 
   return <main className="skills-page creatures-page">
@@ -285,10 +295,17 @@ export function CreatureWorkspace({
           <label><span>Size</span><select value={filters.size ?? ""} onChange={(e) => setFilters({ ...filters, size: e.target.value as CreatureLibraryFilters["size"], page: 1 })}><option value="">All</option>{CREATURE_SIZE_OPTIONS.map((value) => <option key={value}>{value}</option>)}</select></label>
           <label><span>CR</span><select value={filters.challengeRating ?? ""} onChange={(e) => setFilters({ ...filters, challengeRating: e.target.value ? Number(e.target.value) : null, page: 1 })}><option value="">All</option>{references.map((row) => <option key={row.challengeRating} value={row.challengeRating}>{row.challengeRating}</option>)}</select></label>
         </div>
-        <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} creatures</span></div>
+        <div className="skill-library__toolbar">
+          <div className="skill-library__view-toggle" aria-label="Creature lifecycle view">
+            <button type="button" className={!filters.archived ? "is-active" : ""} aria-pressed={!filters.archived} disabled={dirty} onClick={() => changeArchiveView(false)}>Active</button>
+            <button type="button" className={filters.archived ? "is-active" : ""} aria-pressed={Boolean(filters.archived)} disabled={dirty} onClick={() => changeArchiveView(true)}>Archived</button>
+          </div>
+          <span>{library.total.toLocaleString()} creatures</span>
+        </div>
         <div data-preserve-scroll="creature-library-results" className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
           {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseCreature(entry)}>
             <span className="skill-library__row-name">{entry.canonicalName}</span>
+            {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
             <span className="skill-library__row-meta">{entry.family || "Unclassified"} · {entry.creatureType || "Creature"} · {entry.size}</span>
             <span className="skill-library__row-parents">CR {entry.challengeRating ?? "?"} · {entry.killXp ?? "?"} XP</span>
           </button>)}
@@ -298,11 +315,10 @@ export function CreatureWorkspace({
       </aside>
 
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING CREATURE</p></section> : draft ? <section className="skill-editor creature-editor">
-        <header className="skill-editor__header"><div><p>{draft.id ? `CREATURE ${draft.id}` : "NEW CREATURE DRAFT"}</p><h2>{draft.core.canonicalName || "Untitled Creature"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
-        {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.canonicalName}?</strong><span>Derived Creatures must be deleted first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeCreature()}>Confirm Delete</button><button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button></div> : null}
+        <header className="skill-editor__header"><div><p>{draft.id ? `CREATURE ${draft.id}` : "NEW CREATURE DRAFT"}</p><h2>{draft.core.canonicalName || "Untitled Creature"}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id ? <LifecycleControls target={{ entityKind: "creature", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
         {liveChallengeRating.error ? <p className="skill-editor__feedback is-error">{liveChallengeRating.error}</p> : null}
         <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
-        <div className="skill-editor__content creature-editor__content">
+        <fieldset className="skill-editor__content creature-editor__content lifecycle-editor-fields" disabled={isArchived}>
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "stats" ? <Stats draft={draft} onChange={change} /> : null}
           {activeTab === "hp" ? <HpAndLocations draft={draft} onChange={change} /> : null}
@@ -310,7 +326,7 @@ export function CreatureWorkspace({
           {activeTab === "special" ? <Special draft={draft} onChange={change} /> : null}
           {activeTab === "cr" ? <VariantsAndCr draft={liveChallengeRating.draft ?? draft} references={references} onChange={change} onOpen={(summary) => void openCreature(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
           {activeTab === "preview" ? <Preview draft={liveChallengeRating.draft ?? draft} /> : null}
-        </div>
+        </fieldset>
       </section> : <section className="skill-editor skill-editor--empty"><p>CREATURE EDITOR</p><h2>Select a Creature or begin a new one.</h2><span>Full bestiary aggregates open here.</span></section>}
     </div>
 
@@ -482,7 +498,7 @@ function VariantsAndCr({ draft, references, onChange, onOpen, onSaved }: { draft
     {reference ? <article className="creature-cr-reference"><h4>CR {reference.challengeRating} · {reference.threatBand}</h4><dl><div><dt>Attack</dt><dd>{reference.attackTargetGuidance}</dd></div><div><dt>Damage</dt><dd>{reference.damageGuidance}</dd></div><div><dt>Initiative</dt><dd>{reference.initiativeGuidance}</dd></div><div><dt>Soak</dt><dd>{reference.soakGuidance}</dd></div><div><dt>HP / Toughness</dt><dd>{reference.hpToughnessGuidance}</dd></div></dl></article> : <p className="skill-library__empty">CR reference rows will appear after the canon import.</p>}
     <SectionHeading eyebrow="INHERITANCE" title="Derived Creatures / Variants" />
     {draft.id ? <div className="creature-variant-create"><input placeholder="Variant name" value={variantName} onChange={(e) => setVariantName(e.target.value)} /><button className="skills-primary-button" type="button" disabled={!variantName.trim() || cloning} onClick={() => void clone()}>{cloning ? "Cloning…" : "Clone as Variant"}</button></div> : <p className="skill-library__empty">Save this Creature before creating variants.</p>}
-    <div className="creature-derived-list">{draft.derivedCreatures.map((child) => <button type="button" key={child.id} onClick={() => onOpen({ ...child, family: "", creatureType: "" })}><strong>{child.canonicalName}</strong><span>{child.size} · CR {child.challengeRating ?? "?"} · {child.killXp ?? "?"} XP</span></button>)}</div>
+    <div className="creature-derived-list">{draft.derivedCreatures.map((child) => <button type="button" key={child.id} onClick={() => onOpen({ ...child, family: "", creatureType: "" })}><strong>{child.canonicalName}</strong><span>{child.archivedAt ? "Archived · " : ""}{child.size} · CR {child.challengeRating ?? "?"} · {child.killXp ?? "?"} XP</span></button>)}</div>
   </div>;
 }
 

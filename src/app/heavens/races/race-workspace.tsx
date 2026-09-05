@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
-  deleteRace,
   getRace,
   listRaceSkillCandidates,
   listRaces,
   saveRace,
+  type RaceAggregate,
   type RaceDraft,
   type RaceLibraryFilters,
   type RaceLibraryResult,
@@ -91,7 +92,7 @@ export function RaceWorkspace({
 }) {
   const [filters, setFilters] = useState<RaceLibraryFilters>({ page: 1, pageSize: 40 });
   const [library, setLibrary] = useState(initialLibrary);
-  const [draft, setDraft] = useState<RaceDraft | null>(null);
+  const [draft, setDraft] = useState<RaceDraft | RaceAggregate | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
@@ -99,8 +100,10 @@ export function RaceWorkspace({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; race: RaceSummary } | { kind: "new" } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const preserveScroll = useInPlaceScrollPreservation();
+  const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
+  const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
+  const isArchived = Boolean(archivedAt);
 
   const loadLibrary = useCallback(async (next: RaceLibraryFilters) => {
     setLoadingLibrary(true);
@@ -114,9 +117,9 @@ export function RaceWorkspace({
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadLibrary(filters), 180);
+    const timer = window.setTimeout(() => void preserveScroll(() => loadLibrary(filters)), 180);
     return () => window.clearTimeout(timer);
-  }, [filters, loadLibrary]);
+  }, [filters, loadLibrary, preserveScroll]);
 
   async function openRace(summary: RaceSummary) {
     await preserveScroll(async () => {
@@ -128,7 +131,6 @@ export function RaceWorkspace({
         setDraft(aggregate);
         setDirty(false);
         setActiveTab("overview");
-        setConfirmDelete(false);
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Race could not be loaded." });
       } finally {
@@ -144,10 +146,10 @@ export function RaceWorkspace({
 
   function createNew() {
     setDraft(newRaceDraft());
+    setFilters((current) => ({ ...current, archived: false, page: 1 }));
     setDirty(false);
     setFeedback(null);
     setActiveTab("overview");
-    setConfirmDelete(false);
   }
 
   function beginNew() {
@@ -188,25 +190,28 @@ export function RaceWorkspace({
     });
   }
 
-  async function removeRace() {
-    if (!draft?.id) return;
-    const raceId = draft.id;
-    await preserveScroll(async () => {
-      setSaving(true);
-      try {
-        const name = draft.core.name;
-        await deleteRace(raceId);
-        setDraft(null);
-        setDirty(false);
-        setConfirmDelete(false);
-        setFeedback({ kind: "success", message: `${name} was deleted.` });
-        await loadLibrary(filters);
-      } catch (error) {
-        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race could not be deleted." });
-      } finally {
-        setSaving(false);
-      }
+  function changeArchiveView(archived: boolean) {
+    void preserveScroll(() => {
+      setFilters((current) => ({ ...current, archived, page: 1 }));
+      setDraft(null);
+      setDirty(false);
+      setFeedback(null);
     });
+  }
+
+  async function lifecycleCompleted(event: { action: "archive" | "restore" | "delete" }) {
+    const name = draft?.core.name || "Race";
+    setDraft(null);
+    setDirty(false);
+    setFeedback({
+      kind: "success",
+      message: event.action === "archive"
+        ? `${name} was archived.`
+        : event.action === "restore"
+          ? `${name} was restored.`
+          : `${name} was permanently deleted.`,
+    });
+    await loadLibrary(filters);
   }
 
   return (
@@ -236,11 +241,18 @@ export function RaceWorkspace({
           <div className="skill-library__filters race-library-filters">
             <label><span>Size</span><select value={filters.size ?? ""} onChange={(event) => setFilters({ ...filters, size: event.target.value as RaceLibraryFilters["size"], page: 1 })}><option value="">All</option>{RACE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></label>
           </div>
-          <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} races</span></div>
+          <div className="skill-library__toolbar">
+            <div className="skill-library__view-toggle" aria-label="Race lifecycle view">
+              <button type="button" className={!filters.archived ? "is-active" : ""} aria-pressed={!filters.archived} disabled={dirty} onClick={() => changeArchiveView(false)}>Active</button>
+              <button type="button" className={filters.archived ? "is-active" : ""} aria-pressed={Boolean(filters.archived)} disabled={dirty} onClick={() => changeArchiveView(true)}>Archived</button>
+            </div>
+            <span>{library.total.toLocaleString()} races</span>
+          </div>
           <div data-preserve-scroll="race-library-results" className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
             {library.items.map((entry) => (
               <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseRace(entry)}>
                 <span className="skill-library__row-name">{entry.name}</span>
+                {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="skill-library__row-meta">{entry.size || "Size N/A"}{entry.ageRangeText ? ` · ${entry.ageRangeText}` : ""}</span>
                 <span className="skill-library__row-parents">{entry.attributeCapCount} caps · {entry.movementModeCount} movement · {entry.skillLinkCount} skill links</span>
               </button>
@@ -259,23 +271,22 @@ export function RaceWorkspace({
         ) : draft ? (
           <section className="skill-editor race-editor">
             <header className="skill-editor__header">
-              <div><p>{draft.id ? `RACE ${draft.id}` : "NEW RACE DRAFT"}</p><h2>{draft.core.name || "Untitled Race"}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div>
+              <div><p>{draft.id ? `RACE ${draft.id}` : "NEW RACE DRAFT"}</p><h2>{draft.core.name || "Untitled Race"}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div>
               <div className="skill-editor__actions">
-                {draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button> : null}
-                <button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Race"}</button>
+                {draft.id ? <LifecycleControls target={{ entityKind: "race", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}
+                <button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Race"}</button>
               </div>
             </header>
-            {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.name || "this Race"}?</strong><span>Race-owned caps, movement, and Skill links will be removed.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeRace()}>Confirm Delete</button><button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button></div> : null}
             {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
             <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
-            <div className="skill-editor__content race-editor__content">
+            <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived}>
               {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}
               {activeTab === "quirk" ? <Quirk draft={draft} onChange={change} /> : null}
               {activeTab === "skills" ? <Skills draft={draft} onChange={change} /> : null}
               {activeTab === "culture" ? <Culture draft={draft} onChange={change} /> : null}
               {activeTab === "preview" ? <Preview draft={draft} /> : null}
-            </div>
+            </fieldset>
           </section>
         ) : (
           <section className="skill-editor skill-editor--empty"><p>RACE EDITOR</p><h2>Select a Race or begin a new one.</h2><span>Complete Race aggregates open here.</span></section>

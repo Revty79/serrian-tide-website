@@ -524,18 +524,20 @@ test("constructor component renders complex fields and Automatic warnings", () =
   assert.match(warningHtml, /This Automatic ability has no Live requirements/);
 });
 
-test("delete errors explain prerequisite and legacy compatibility references", () => {
-  const action = source("src/app/heavens/derived-abilities/actions.ts");
-  assert.match(action, /required by another Derived Ability/);
-  assert.match(action, /legacy campaign references/);
-  assert.match(action, /Canonical Derived Abilities cannot be deleted/);
+test("central lifecycle previews explain prerequisite, legacy, and protected-record blockers", () => {
+  const lifecycle = source("src/features/lifecycle/lifecycle-service.ts");
+  assert.match(lifecycle, /Other Derived Ability prerequisites/);
+  assert.match(lifecycle, /Legacy Campaign allowlists/);
+  assert.match(lifecycle, /Canonical, imported, system-owned, and ambiguous legacy records are protected/);
 });
 
 test("Pass 6 protects owned classifications and keeps combat-window ownership separate", () => {
   const action = source("src/app/heavens/derived-abilities/actions.ts");
+  const lifecycle = source("src/features/lifecycle/lifecycle-service.ts");
   assert.match(action, /characterDerivedAbility/);
-  assert.match(action, /Revoke or reconcile active Character ownerships/);
+  assert.match(lifecycle, /Character ownership history/);
+  assert.match(lifecycle, /character_derived_ability/);
   assert.match(action, /assertAcyclicDerivedAbilityGraph/);
-  assert.doesNotMatch(action, /reactionWindow/);
+  assert.doesNotMatch(action + lifecycle, /reactionWindow/);
   assert.match(source("drizzle/meta/_journal.json"), /0020_derived_ability_character_runtime/);
 });

@@ -79,3 +79,13 @@ test("management code does not automate combat consequences", () => {
   assert.doesNotMatch(files, /currentCharges|consumeAmmunition|ammunition.*update/i);
   assert.doesNotMatch(files, /update\(campaignSessionEncounterPendingAction\)|update\(campaignSessionEncounterReaction\)/);
 });
+
+test("weapon governance rejects authoring against an archived Campaign", () => {
+  const service = source("src/features/items/weapon-governance-management-service.ts");
+  const authorizationStart = service.indexOf("async function assertCampaignOwnerGod");
+  assert.notEqual(authorizationStart, -1);
+  assert.match(
+    service.slice(authorizationStart, authorizationStart + 900),
+    /isNull\(campaign\.archivedAt\)/,
+  );
+});

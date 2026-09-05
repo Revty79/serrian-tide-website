@@ -67,6 +67,7 @@ import {
   type EquipmentState,
   type WieldedWeaponRuntimeContext,
 } from "@/features/items/equipment-state";
+import { lockActiveItemRootInTransaction } from "@/features/items/active-item-root-service";
 import type { ItemUseExecutionResult, ItemUseRequest } from "@/features/items/item-use";
 import type { RuntimeDuration, TemporaryModifierChannel } from "@/features/mechanical-effects";
 import {
@@ -777,6 +778,7 @@ export async function startItemActionInTransaction(
   actingUserId: string,
   heldIntervention = false,
 ): Promise<{ binding: AuthoredActionBinding<ItemUseRequest>; preview: Awaited<ReturnType<typeof prepareCharacterItemUseInTransaction>> }> {
+  await lockActiveItemRootInTransaction(tx, request.itemId);
   const targetCharacterId = request.targetCharacterId ?? request.sourceCharacterId;
   await requireEncounterParticipants(tx, context, [request.sourceCharacterId, targetCharacterId]);
   const preview = await prepareCharacterItemUseInTransaction(tx, request, actingUserId);
@@ -1193,6 +1195,7 @@ export async function declareEncounterReactionInTransaction(
   if (input.reactionType === "block" || input.reactionType === "parry") {
     defendingItemId = positiveId(input.defendingItemId ?? 0, "Defending Weapon");
     defendingInstanceId = input.defendingInstanceId ?? null;
+    await lockActiveItemRootInTransaction(tx, defendingItemId);
     const equipment = await readCharacterEquipmentStateInTransaction(tx, input.reactorCharacterId);
     const weapon = requireWieldedWeapon(equipment.wieldedWeapons, defendingItemId, defendingInstanceId);
     if (weapon.initiativeCost === null) throw new Error("The defending Weapon needs an authored Initiative Cost.");

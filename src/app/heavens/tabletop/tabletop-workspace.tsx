@@ -19,7 +19,9 @@ import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firear
 import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { CalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
+import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   addSessionRosterMember,
@@ -43,6 +45,8 @@ import { SessionRollWorkspace } from "./roll-ledger";
 import { SessionCloseout } from "./session-closeout";
 import { WeaponGovernanceWorkspace } from "./weapon-governance-workspace";
 import { CalledCheckWorkspace } from "./called-check-workspace";
+import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
+import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
 type WorkspaceTab = "record" | "prep" | "scenes" | "rolls" | "checks" | "weapons" | "closeout";
@@ -274,7 +278,10 @@ export function TabletopWorkspace({
     ? metadataFromSession(selectedSession)
     : emptyMetadata(initialData.sessions));
   const [creating, setCreating] = useState(
-    initialData.sessions.length === 0 && selectedCampaign !== null && requestedWorkspace !== "weapons",
+    initialData.canAuthor
+      && initialData.sessions.length === 0
+      && selectedCampaign !== null
+      && requestedWorkspace !== "weapons",
   );
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(requestedWorkspace === "weapons" ? "weapons" : requestedWorkspace === "checks" ? "checks" : "record");
   const [rollNavigationRequest, setRollNavigationRequest] = useState(0);
@@ -282,7 +289,12 @@ export function TabletopWorkspace({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [campaignIntroOpen, setCampaignIntroOpen] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<TabletopLifecyclePreview | null>(null);
+  const [transitionMode, setTransitionMode] = useState<"start" | "reopen" | null>(null);
+  const [transitionPreview, setTransitionPreview] = useState<TabletopLifecyclePreview | null>(null);
   const rollWorkspaceRef = useRef<HTMLDivElement>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   useEffect(() => {
     if (activeTab !== "rolls" || rollNavigationRequest === 0) return;
@@ -306,7 +318,8 @@ export function TabletopWorkspace({
       .filter(Boolean)
       .some((value) => value!.toLocaleLowerCase().includes(search));
   }) ?? [];
-  const sessionEditable = creating || selectedSession?.status !== "completed";
+  const sessionEditable = initialData.canAuthor
+    && (creating || selectedSession?.status !== "completed");
 
   function campaignHref(campaignId: number): string {
     return `/heavens/tabletop?campaign=${campaignId}`;
@@ -317,6 +330,7 @@ export function TabletopWorkspace({
   }
 
   function beginCreate(): void {
+    if (!initialData.canAuthor) return;
     setDraft(emptyMetadata(initialData.sessions));
     setCreating(true);
     setActiveTab("record");
@@ -359,17 +373,45 @@ export function TabletopWorkspace({
         ? await startCampaignSession(selectedSession.id)
         : await reopenCampaignSession(selectedSession.id);
       setFeedback({ kind: "success", message: `Session ${updated.sequenceNumber} is now ${updated.status}.` });
+      setTransitionMode(null);
+      setTransitionPreview(null);
       router.refresh();
     });
   }
 
+  async function openTransitionConfirmation(action: "start" | "reopen"): Promise<void> {
+    if (!selectedSession) return;
+    await preserveScroll(() => perform(async () => {
+      const preview = await previewTabletopLifecycleEntity({
+        entityKind: "campaign-session",
+        entityId: selectedSession.id,
+      });
+      setTransitionPreview(preview);
+      setTransitionMode(action);
+    }));
+  }
+
   async function removeSelected(): Promise<void> {
-    if (!selectedSession || !window.confirm(`Delete planned Session ${selectedSession.sequenceNumber}? This cannot be undone.`)) return;
+    if (!selectedSession) return;
     await perform(async () => {
       await deleteCampaignSession(selectedSession.id);
+      setDeleteConfirmationOpen(false);
+      setDeletePreview(null);
       setFeedback({ kind: "success", message: `Session ${selectedSession.sequenceNumber} was deleted.` });
       router.push(campaignHref(selectedSession.campaignId), { scroll: false });
     });
+  }
+
+  async function openDeleteConfirmation(): Promise<void> {
+    if (!selectedSession) return;
+    await preserveScroll(() => perform(async () => {
+      const preview = await previewTabletopLifecycleEntity({
+        entityKind: "campaign-session",
+        entityId: selectedSession.id,
+      });
+      setDeletePreview(preview);
+      setDeleteConfirmationOpen(true);
+    }));
   }
 
   async function addRosterMember(characterId: number, name: string): Promise<void> {
@@ -391,6 +433,7 @@ export function TabletopWorkspace({
   }
 
   function openWeaponGovernance(): void {
+    if (!initialData.canAuthor) return;
     setCreating(false);
     setActiveTab("weapons");
     setFeedback(null);
@@ -406,6 +449,7 @@ export function TabletopWorkspace({
   }
 
   function openCalledChecks(): void {
+    if (!initialData.canAuthor) return;
     setCreating(false);
     setActiveTab("checks");
     setFeedback(null);
@@ -419,7 +463,7 @@ export function TabletopWorkspace({
         <span>Organize the table. Preserve the living state of the world.</span>
       </div>
       <div className="tabletop-hero__actions">
-        {initialData.selectedCampaignId ? <TabletopLiveRefresh mode="god" campaignId={initialData.selectedCampaignId} /> : null}
+        {initialData.canAuthor && initialData.selectedCampaignId ? <TabletopLiveRefresh mode="god" campaignId={initialData.selectedCampaignId} /> : null}
         <Link href="/heavens">Return to The Heavens</Link>
       </div>
     </header>
@@ -451,14 +495,14 @@ export function TabletopWorkspace({
           >View Campaign Intro</button>
           <small>{selectedCampaign.overview.trim() ? "Opens the full introduction" : "No introduction has been written yet"}</small>
         </div>
-        <div className="tabletop-campaign-intro-control">
+        {initialData.canAuthor ? <div className="tabletop-campaign-intro-control">
           <button
             type="button"
             className="tabletop-campaign-intro-button"
             onClick={openWeaponGovernance}
           >Weapon Governance</button>
           <small>Review Character assignments and exceptions</small>
-        </div>
+        </div> : null}
         <dl>
           <div><dt>Planned</dt><dd>{statusCounts.planned}</dd></div>
           <div><dt>Active</dt><dd>{statusCounts.active}</dd></div>
@@ -482,12 +526,12 @@ export function TabletopWorkspace({
         <footer>{initialSessionCloseout.activeContext.encounterId && initialSessionCloseout.activeContext.sceneId ? <button type="button" onClick={() => {
           setActiveTab("scenes");
           router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}`, { scroll: false });
-        }}>Go to Active Encounter</button> : null}<button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button><button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
+        }}>Go to Active Encounter</button> : null}{initialData.canAuthor ? <><button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button></> : null}<button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
       </section> : null}
 
       <div className="tabletop-workspace">
         <aside className="tabletop-session-library">
-          <header><div><p>SESSION LIBRARY</p><h2 className="font-sans">Campaign Sessions</h2></div><button type="button" onClick={beginCreate}>New Session</button></header>
+          <header><div><p>SESSION LIBRARY</p><h2 className="font-sans">Campaign Sessions</h2></div>{initialData.canAuthor ? <button type="button" onClick={beginCreate}>New Session</button> : null}</header>
           <div className="tabletop-session-list">
             {initialData.sessions.map((entry) => <Link
               href={sessionHref(entry.id)}
@@ -512,14 +556,16 @@ export function TabletopWorkspace({
             <button type="button" className={activeTab === "record" ? "is-selected" : ""} onClick={() => setActiveTab("record")}>Session Record</button>
             <button type="button" className={activeTab === "prep" ? "is-selected" : ""} onClick={() => setActiveTab("prep")}>Roster &amp; Prep <span>{initialPrepData?.roster.length ?? 0}</span></button>
             <button type="button" className={activeTab === "scenes" ? "is-selected" : ""} onClick={() => setActiveTab("scenes")}>Scenes <span>{initialSceneData?.scenes.length ?? 0}</span></button>
-            <button type="button" className={activeTab === "rolls" ? "is-selected" : ""} onClick={openRollWorkspace}>Rolls <span>{initialSessionCloseout?.rolls.total ?? 0}</span></button>
+            {initialData.canAuthor ? <><button type="button" className={activeTab === "rolls" ? "is-selected" : ""} onClick={openRollWorkspace}>Rolls <span>{initialSessionCloseout?.rolls.total ?? 0}</span></button>
             <button type="button" className={activeTab === "checks" ? "is-selected" : ""} onClick={openCalledChecks}>Called Checks <span>{initialCalledChecks?.batches.reduce((count, batch) => count + batch.summary.pending, 0) ?? 0}</span></button>
-            <button type="button" className={activeTab === "weapons" ? "is-selected" : ""} onClick={openWeaponGovernance}>Weapon Governance</button>
+            <button type="button" className={activeTab === "weapons" ? "is-selected" : ""} onClick={openWeaponGovernance}>Weapon Governance</button></> : null}
             <button type="button" className={activeTab === "closeout" ? "is-selected" : ""} onClick={() => setActiveTab("closeout")}>Closeout {initialSessionCloseout?.blockers.length ? <span>{initialSessionCloseout.blockers.length}</span> : null}</button>
           </nav> : null}
 
           {(creating || selectedSession) && (creating || activeTab === "record") ? <>
-            {!sessionEditable ? <p className="tabletop-readonly-notice">This completed Session is historical and read-only. Reopen it to edit the record or roster.</p> : null}
+            {!sessionEditable ? <p className="tabletop-readonly-notice">{initialData.canAuthor
+              ? "This completed Session is historical and read-only. Reopen it to edit the record or roster."
+              : "Administrative lifecycle view. Session authoring and runtime controls remain with the Campaign's G.O.D.; lifecycle transitions remain available below."}</p> : null}
             <div className="tabletop-form-grid">
               <label><span>Session Number</span><input disabled={!sessionEditable || busy} type="number" min={1} step={1} value={draft.sequenceNumber} onChange={(event) => setDraft({ ...draft, sequenceNumber: Number(event.target.value) })} /></label>
               <label><span>Planned Date</span><input disabled={!sessionEditable || busy} type="date" value={draft.plannedFor ?? ""} onChange={(event) => setDraft({ ...draft, plannedFor: event.target.value || null })} /></label>
@@ -538,10 +584,10 @@ export function TabletopWorkspace({
                 if (selectedSession) setDraft(metadataFromSession(selectedSession));
                 setFeedback(null);
               }}>Cancel</button> : null}
-              {!creating && selectedSession?.status === "planned" ? <button type="button" disabled={busy} onClick={() => void lifecycle("start")}>Start Session</button> : null}
+              {!creating && selectedSession?.status === "planned" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Session</button> : null}
               {!creating && selectedSession?.status === "active" ? <button type="button" disabled={busy} onClick={() => setActiveTab("closeout")}>Review Session Closeout</button> : null}
-              {!creating && selectedSession?.status === "completed" ? <button type="button" disabled={busy} onClick={() => void lifecycle("reopen")}>Reopen Session</button> : null}
-              {!creating && selectedSession?.status === "planned" ? <button type="button" className="is-danger" disabled={busy} onClick={() => void removeSelected()}>Delete Planned Session</button> : null}
+              {!creating && selectedSession?.status === "completed" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Session</button> : null}
+              {!creating && selectedSession?.status === "planned" ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Session</button> : null}
             </div>
           </> : null}
 
@@ -622,7 +668,7 @@ export function TabletopWorkspace({
           {!creating && selectedSession && activeTab === "rolls" && initialRollWorkspace ? <div ref={rollWorkspaceRef} id="session-roll-workspace" tabIndex={-1} aria-label="Session Roll Tray and Ledger"><SessionRollWorkspace key={`${initialRollWorkspace.initialHistory.rolls[0]?.id ?? "empty"}:${initialRollWorkspace.initialHistory.rolls.length}`} workspace={initialRollWorkspace} /></div> : null}
 
           {!creating && selectedSession && activeTab === "checks" && initialCalledChecks ? <CalledCheckWorkspace
-            key={`${initialCalledChecks.batches[0]?.id ?? "empty"}:${initialCalledChecks.highLow[0]?.id ?? "empty"}`}
+            key={selectedSession.id}
             view={initialCalledChecks}
             sceneId={initialSceneData?.selectedSceneId ?? null}
             encounterId={initialEncounterData?.selectedEncounterId ?? null}
@@ -647,6 +693,50 @@ export function TabletopWorkspace({
         <strong>The roster references living Campaign Characters.</strong>
         <span>Completing a Session preserves its roster and never resets Health, Mana, Conditions, Injuries, Inventory, Charges, Equipment, spells, or Creature NPC snapshots.</span>
       </aside>
+      {selectedSession ? <LifecycleConfirmationDialog
+        open={transitionMode !== null}
+        titleId="transition-tabletop-session-title"
+        eyebrow="Session Lifecycle"
+        title={transitionMode === "start" ? `Start Session ${selectedSession.sequenceNumber}?` : `Reopen Session ${selectedSession.sequenceNumber}?`}
+        entityType="Campaign Session"
+        preview={transitionPreview}
+        consequence={transitionMode === "start"
+          ? "This changes the planned Session to active so its table runtime can begin. Existing Campaign and Character state is preserved."
+          : "This changes the completed Session back to active for corrections. Its deeper history and living Character state are preserved."}
+        dependencies={(transitionPreview?.dependencies ?? [])
+          .filter(({ count }) => count > 0)
+          .map(({ label, count }) => `${label}: ${count}`)}
+        notice="Cancel makes no changes. The server locks and rechecks the Session and its Campaign before applying this transition."
+        confirmLabel={transitionMode === "start" ? "Start Session" : "Reopen Session"}
+        confirmDisabled={!transitionPreview || (transitionMode === "start"
+          ? transitionPreview.status !== "planned"
+          : !transitionPreview.canReopen)}
+        busy={busy}
+        error={feedback?.kind === "error" ? feedback.message : undefined}
+        onCancel={() => { setTransitionMode(null); setTransitionPreview(null); setFeedback(null); }}
+        onConfirm={() => transitionMode ? lifecycle(transitionMode) : undefined}
+      /> : null}
+      {selectedSession ? <LifecycleConfirmationDialog
+        open={deleteConfirmationOpen}
+        titleId="delete-tabletop-session-title"
+        eyebrow="Permanent Session Deletion"
+        title={`Delete planned Session ${selectedSession.sequenceNumber}?`}
+        entityType="Campaign Session"
+        preview={deletePreview}
+        consequence="The planned Session and its preparation-only children will be permanently removed. Roll or runtime history blocks this operation."
+        dependencies={(deletePreview?.dependencies ?? [])
+          .filter(({ count }) => count > 0)
+          .map(({ label, count, blocking }) => `${label}: ${count}${blocking ? " (blocks deletion)" : ""}`)}
+        notice={deletePreview?.blockers.length
+          ? deletePreview.blockers.join(" ")
+          : "Cancel makes no changes. The server locks and rechecks the complete dependency graph before deletion."}
+        confirmLabel="Permanently Delete Session"
+        confirmDisabled={!deletePreview?.canDelete}
+        busy={busy}
+        error={feedback?.kind === "error" ? feedback.message : undefined}
+        onCancel={() => { setDeleteConfirmationOpen(false); setDeletePreview(null); setFeedback(null); }}
+        onConfirm={removeSelected}
+      /> : null}
     </> : <section className="tabletop-no-campaign"><h2 className="font-sans">No Campaigns available</h2><p>Tabletop Operations begins with a Campaign owned by this G.O.D.</p><Link href="/heavens/campaigns/new">Create Campaign</Link></section>}
   </main>;
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { EQUIPMENT_GROUPS, type EquipmentCatalogGroup, type ItemCatalogScope } from "@/db/item-schema";
 import {
   DEFAULT_ITEM_RUNTIME_PROFILE,
@@ -34,7 +35,6 @@ import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   createItemVariant,
-  deleteItem,
   findRelatedCreatures,
   findRelatedItems,
   getItem,
@@ -45,6 +45,7 @@ import {
   saveItem,
   saveCanonicalWeaponSkillGovernance,
   type ItemAuthoringReferences,
+  type ItemAggregate,
   type ItemDraft,
   type ItemFacets,
   type ItemLibraryFilters,
@@ -153,7 +154,7 @@ export function ItemWorkspace({
   const [library, setLibrary] = useState(initialLibrary);
   const [facets, setFacets] = useState(initialFacets);
   const [references, setReferences] = useState(initialReferences);
-  const [draft, setDraft] = useState<ItemDraft | null>(null);
+  const [draft, setDraft] = useState<ItemDraft | ItemAggregate | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
@@ -161,8 +162,10 @@ export function ItemWorkspace({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<{ kind: "open"; item: ItemSummary } | { kind: "new" } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const preserveScroll = useInPlaceScrollPreservation();
+  const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
+  const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
+  const isArchived = Boolean(archivedAt);
 
   const loadLibrary = useCallback(async (next: ItemLibraryFilters) => {
     setLoadingLibrary(true);
@@ -176,14 +179,14 @@ export function ItemWorkspace({
   }, [label]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadLibrary(filters), 180);
+    const timer = window.setTimeout(() => void preserveScroll(() => loadLibrary(filters)), 180);
     return () => window.clearTimeout(timer);
-  }, [filters, loadLibrary]);
+  }, [filters, loadLibrary, preserveScroll]);
 
-  async function refreshReferences() {
+  async function refreshReferences(forItemId?: number) {
     const [nextFacets, nextReferences] = await Promise.all([
-      listItemFacets(scope),
-      listItemAuthoringReferences(),
+      listItemFacets(scope, Boolean(filters.archived)),
+      listItemAuthoringReferences(forItemId),
     ]);
     setFacets(nextFacets);
     setReferences(nextReferences);
@@ -194,12 +197,15 @@ export function ItemWorkspace({
       setLoadingEditor(true);
       setFeedback(null);
       try {
-        const aggregate = await getItem(summary.id);
+        const [aggregate, nextReferences] = await Promise.all([
+          getItem(summary.id),
+          listItemAuthoringReferences(summary.id),
+        ]);
         if (!aggregate) throw new Error("Item not found.");
         setDraft(aggregate);
+        setReferences(nextReferences);
         setDirty(false);
         setActiveTab("overview");
-        setConfirmDelete(false);
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Item could not be loaded." });
       } finally {
@@ -213,12 +219,18 @@ export function ItemWorkspace({
     else void openItem(summary);
   }
 
-  function createNew() {
-    setDraft(newItemDraft(scope));
-    setDirty(false);
-    setFeedback(null);
-    setConfirmDelete(false);
-    setActiveTab("overview");
+  async function createNew() {
+    try {
+      const nextReferences = await listItemAuthoringReferences();
+      setDraft(newItemDraft(scope));
+      setFilters((current) => ({ ...current, archived: false, page: 1 }));
+      setReferences(nextReferences);
+      setDirty(false);
+      setFeedback(null);
+      setActiveTab("overview");
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Item authoring references could not be loaded." });
+    }
   }
 
   function beginNew() {
@@ -230,7 +242,7 @@ export function ItemWorkspace({
     const next = pending;
     setPending(null);
     if (!next) return;
-    if (next.kind === "new") createNew();
+    if (next.kind === "new") void createNew();
     else void openItem(next.item);
   }
 
@@ -250,7 +262,7 @@ export function ItemWorkspace({
         setDraft(saved);
         setDirty(false);
         setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
-        await Promise.all([loadLibrary(filters), refreshReferences()]);
+        await Promise.all([loadLibrary(filters), refreshReferences(saved.id)]);
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be saved." });
       } finally {
@@ -259,25 +271,38 @@ export function ItemWorkspace({
     });
   }
 
-  async function removeItem() {
-    if (!draft?.id) return;
-    const itemId = draft.id;
-    await preserveScroll(async () => {
-      setSaving(true);
+  function changeArchiveView(archived: boolean) {
+    void preserveScroll(async () => {
+      setFilters((current) => ({ ...current, archived, page: 1 }));
+      setDraft(null);
+      setDirty(false);
+      setFeedback(null);
       try {
-        const name = draft.core.name;
-        await deleteItem(itemId);
-        setDraft(null);
-        setDirty(false);
-        setConfirmDelete(false);
-        setFeedback({ kind: "success", message: `${name} was deleted.` });
-        await loadLibrary(filters);
+        const [nextFacets, nextReferences] = await Promise.all([
+          listItemFacets(scope, archived),
+          listItemAuthoringReferences(),
+        ]);
+        setFacets(nextFacets);
+        setReferences(nextReferences);
       } catch (error) {
-        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be deleted." });
-      } finally {
-        setSaving(false);
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Item filters could not be loaded." });
       }
     });
+  }
+
+  async function lifecycleCompleted(event: { action: "archive" | "restore" | "delete" }) {
+    const name = draft?.core.name || "Item";
+    setDraft(null);
+    setDirty(false);
+    setFeedback({
+      kind: "success",
+      message: event.action === "archive"
+        ? `${name} was archived.`
+        : event.action === "restore"
+          ? `${name} was restored.`
+          : `${name} was permanently deleted.`,
+    });
+    await Promise.all([loadLibrary(filters), refreshReferences()]);
   }
 
   const visibleTabs = TABS.filter((tab) => {
@@ -302,10 +327,17 @@ export function ItemWorkspace({
           <label><span>Category</span><select value={filters.category ?? ""} onChange={(e) => setFilters({ ...filters, category: e.target.value || undefined, page: 1 })}><option value="">All</option>{facets.categories.map((value) => <option key={value}>{value}</option>)}</select></label>
           <label><span>Tag</span><select value={filters.tag ?? ""} onChange={(e) => setFilters({ ...filters, tag: e.target.value || undefined, page: 1 })}><option value="">All</option>{facets.tags.map((value) => <option key={value}>{value}</option>)}</select></label>
         </div>
-        <div className="skill-library__toolbar"><span>{library.total.toLocaleString()} records</span></div>
+        <div className="skill-library__toolbar">
+          <div className="skill-library__view-toggle" aria-label={`${label} lifecycle view`}>
+            <button type="button" className={!filters.archived ? "is-active" : ""} aria-pressed={!filters.archived} disabled={dirty} onClick={() => changeArchiveView(false)}>Active</button>
+            <button type="button" className={filters.archived ? "is-active" : ""} aria-pressed={Boolean(filters.archived)} disabled={dirty} onClick={() => changeArchiveView(true)}>Archived</button>
+          </div>
+          <span>{library.total.toLocaleString()} records</span>
+        </div>
         <div data-preserve-scroll={`${scope}-library-results`} className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
           {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
             <span className="skill-library__row-name">{entry.name}</span>
+            {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
             <span className="skill-library__row-meta">{entry.recordType} · {entry.category}{entry.equipmentGroup ? ` · ${entry.equipmentGroup}` : ""}</span>
             <span className="skill-library__row-parents">{entry.canonicalId}{entry.tags.length ? ` · ${entry.tags.join(", ")}` : ""}{itemRuntimeIndicators(entry).length ? ` · ${itemRuntimeIndicators(entry).join(" · ")}` : ""}</span>
           </button>)}
@@ -315,11 +347,10 @@ export function ItemWorkspace({
       </aside>
 
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING ITEM</p></section> : draft ? <section className="skill-editor item-editor">
-        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id && !confirmDelete ? <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button> : null}<button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Item"}</button></div></header>
-        {confirmDelete ? <div className="skill-editor__delete-confirm"><div><strong>Delete {draft.core.name || "this Item"}?</strong><span>Variants and references must be removed first.</span></div><button className="skills-danger-button" type="button" onClick={() => void removeItem()}>Confirm Delete</button><button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button></div> : null}
+        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id ? <LifecycleControls target={{ entityKind: "item", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Item"}</button></div></header>
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
         <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
-        <div className="skill-editor__content item-editor__content">
+        <fieldset className="skill-editor__content item-editor__content lifecycle-editor-fields" disabled={isArchived}>
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "effects" ? <Effects draft={draft} skills={references.skills} onChange={change} /> : null}
@@ -328,7 +359,7 @@ export function ItemWorkspace({
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
           {activeTab === "preview" ? <Preview draft={draft} /> : null}
-        </div>
+        </fieldset>
       </section> : <section className="skill-editor skill-editor--empty"><p>{label.toUpperCase()} EDITOR</p><h2>Select a record or begin a new one.</h2><span>The shared Item engine powers both authoring libraries.</span></section>}
     </div>
 
@@ -895,7 +926,7 @@ function Variants({ draft, onOpen, onSaved }: { draft: ItemDraft; onOpen: (summa
     setCloning(true);
     try { const saved = await createItemVariant(draft.id, variantName); onSaved(saved); setVariantName(""); } finally { setCloning(false); }
   }
-  return <div className="item-section"><SectionHeading eyebrow="INHERITANCE" title="Item Variants" />{draft.id ? <div className="item-variant-create"><input placeholder="Variant name" value={variantName} onChange={(e) => setVariantName(e.target.value)} /><button className="skills-primary-button" type="button" disabled={!variantName.trim() || cloning} onClick={() => void clone()}>{cloning ? "Cloning…" : "Clone as Variant"}</button></div> : <p className="skill-library__empty">Save this Item before creating variants.</p>}<div className="item-variant-list">{draft.variants.map((variant) => <button key={variant.id} type="button" onClick={() => onOpen(variant)}><strong>{variant.name}</strong><span>{variant.canonicalId} · {variant.catalogScope}</span></button>)}</div></div>;
+  return <div className="item-section"><SectionHeading eyebrow="INHERITANCE" title="Item Variants" />{draft.id ? <div className="item-variant-create"><input placeholder="Variant name" value={variantName} onChange={(e) => setVariantName(e.target.value)} /><button className="skills-primary-button" type="button" disabled={!variantName.trim() || cloning} onClick={() => void clone()}>{cloning ? "Cloning…" : "Clone as Variant"}</button></div> : <p className="skill-library__empty">Save this Item before creating variants.</p>}<div className="item-variant-list">{draft.variants.map((variant) => <button key={variant.id} type="button" onClick={() => onOpen(variant)}><strong>{variant.name}</strong><span>{variant.archivedAt ? "Archived · " : ""}{variant.canonicalId} · {variant.catalogScope}</span></button>)}</div></div>;
 }
 
 function Preview({ draft }: { draft: ItemDraft }) {

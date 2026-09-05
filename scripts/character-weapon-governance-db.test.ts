@@ -401,6 +401,7 @@ test("guarded Character weapon overrides enforce scope, precedence, authorizatio
       name: "Manufactured Weapon Creature",
       isNpc: true,
       npcKind: "creature",
+      npcBuildMode: "detailed",
     }).returning({ id: campaignCharacter.id });
     assert.ok(creature);
     await tx.insert(campaignCharacterProfile).values({ characterId: creature.id });

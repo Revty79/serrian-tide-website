@@ -73,18 +73,30 @@ export function PlayerTabletopWorkspace({
     <div className={styles.shell}>
       <TabletopLiveRefresh mode="player" characterId={view.identity.characterId} scope="console" />
       <header className={styles.hero}>
-        <div>
-          <p className={styles.eyebrow}>PLAYER TABLETOP CONSOLE</p>
-          <h1>{view.identity.characterName}</h1>
-          <p>{view.identity.campaignName} · {view.identity.playerUsername}</p>
+        <Link className={styles.brandMark} href="/realms" aria-label="Return to the Realms">
+          <span>SERRIAN</span>
+          <span>TIDE</span>
+        </Link>
+        <div className={styles.heroBody}>
+          <div className={styles.heroTopline}>
+            <div>
+              <p className={styles.eyebrow}>PLAYER TABLETOP CONSOLE</p>
+              <h1>{view.identity.characterName}</h1>
+              <p>{view.identity.campaignName} · {view.identity.playerUsername}</p>
+            </div>
+            <nav className={styles.heroNav} aria-label="Player tabletop navigation">
+              <Link href="/realms">Realms</Link>
+              <Link href={`/realms/characters/${view.identity.characterId}`}>Character Sheet</Link>
+            </nav>
+          </div>
+          <form action="/realms/tabletop" method="get" className={styles.characterSelect}>
+            <label htmlFor="tabletop-character">Campaign Character</label>
+            <select id="tabletop-character" name="character" defaultValue={view.identity.characterId}>
+              {characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.characterName} — {character.campaignName}</option>)}
+            </select>
+            <button type="submit">Open</button>
+          </form>
         </div>
-        <form action="/realms/tabletop" method="get" className={styles.characterSelect}>
-          <label htmlFor="tabletop-character">Campaign Character</label>
-          <select id="tabletop-character" name="character" defaultValue={view.identity.characterId}>
-            {characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.characterName} — {character.campaignName}</option>)}
-          </select>
-          <button type="submit">Open</button>
-        </form>
       </header>
 
       <section className={styles.statusStrip} aria-label="Current Character and Session status">

@@ -7,13 +7,13 @@ import {
   eq,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
   sql,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import { db } from "@/db";
-import { userRole } from "@/db/authorization-schema";
 import {
   skill,
   skillExtension,
@@ -26,8 +26,10 @@ import {
   type Tradition,
 } from "@/features/spell-construction/models/spell";
 import { withCalculationSnapshot } from "@/features/spell-construction/utilities/spellFactory";
-import { auth } from "@/lib/auth";
+import { lockSpellFrameworkSkillReferenceInTransaction } from "@/features/skills/skill-framework-reference-service";
+import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import {
+  buildRecursiveSkillLibrary,
   previewSkillStructureChange,
   type RecursiveSkillLibrary,
   type SkillStructureChangePreview,
@@ -37,6 +39,7 @@ import {
   loadSkillConsumerImpact,
   type SkillConsumerImpact,
 } from "@/features/skills/recursive-skill-library-service";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import {
   SPECIAL_ABILITY_CLASSIFICATION,
@@ -51,6 +54,7 @@ export type SkillLibraryFilters = {
   secondaryAttribute?: string;
   page?: number;
   pageSize?: number;
+  archived?: boolean;
 };
 
 export type SkillLibraryItem = {
@@ -63,6 +67,7 @@ export type SkillLibraryItem = {
   relationshipCount: number;
   parentNames: string[];
   hasSpellConstruction: boolean;
+  archivedAt: string | null;
 };
 
 export type SkillRelationshipEdge = {
@@ -119,6 +124,9 @@ export type SkillDraft = {
 
 export type SkillAggregate = SkillDraft & {
   id: number;
+  createdByUserId: string | null;
+  archivedAt: string | null;
+  archiveReason: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -135,38 +143,19 @@ export type SkillMutationPreview = SkillStructureChangePreview & {
   consumers: SkillConsumerImpact;
 };
 
-async function requireGod() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    throw new Error("You must be signed in.");
-  }
-
-  const access = await db
-    .select({
-      role: userRole.role,
-    })
-    .from(userRole)
-    .where(
-      and(
-        eq(userRole.userId, session.user.id),
-        eq(userRole.role, "god"),
-      ),
-    )
-    .limit(1);
-
-  if (access.length === 0) {
-    throw new Error("G.O.D. access is required.");
-  }
-
-  return session;
-}
-
 export async function getRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary> {
-  await requireGod();
-  return loadRecursiveSkillLibrary();
+  await requireGodOrAdminAccessContext();
+  const library = await loadRecursiveSkillLibrary();
+  const activeRows = await db
+    .select({ id: skill.id })
+    .from(skill)
+    .where(isNull(skill.archivedAt));
+  const activeIds = new Set(activeRows.map(({ id }) => id));
+  return buildRecursiveSkillLibrary(
+    library.skills.filter(({ id }) => activeIds.has(id)),
+    library.relationships.filter(({ skillId, relatedSkillId }) =>
+      activeIds.has(skillId) && activeIds.has(relatedSkillId)),
+  );
 }
 
 async function buildSkillMutationPreview(
@@ -197,7 +186,7 @@ async function buildSkillMutationPreview(
 export async function previewSkillMutation(
   input: SkillDraft,
 ): Promise<SkillMutationPreview> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const core = normalizeCore(input.core);
   const relationships = normalizeRelationships(input.id, input.relationships);
   return buildSkillMutationPreview({ ...input, core, relationships });
@@ -402,9 +391,12 @@ async function querySpellFrameworkSkills(
     })
     .from(skill)
     .where(
-      inArray(
-        skill.name,
-        [...identity.parentSkillNames],
+      and(
+        isNull(skill.archivedAt),
+        inArray(
+          skill.name,
+          [...identity.parentSkillNames],
+        ),
       ),
     );
 
@@ -449,6 +441,7 @@ async function querySpellFrameworkSkills(
   }
 
   const conditions = [
+    isNull(skill.archivedAt),
     inArray(
       skill.id,
       childIds,
@@ -485,7 +478,7 @@ async function querySpellFrameworkSkills(
 export async function listSkills(
   filters: SkillLibraryFilters = {},
 ): Promise<SkillLibraryResult> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
 
   const page = Math.max(
     1,
@@ -504,7 +497,9 @@ export async function listSkills(
     ),
   );
 
-  const conditions = [];
+  const conditions = [
+    filters.archived ? isNotNull(skill.archivedAt) : isNull(skill.archivedAt),
+  ];
 
   const search =
     filters.search?.trim();
@@ -590,6 +585,8 @@ export async function listSkills(
         skill.primaryAttribute,
       secondaryAttribute:
         skill.secondaryAttribute,
+      archivedAt:
+        skill.archivedAt,
     })
     .from(skill)
     .where(where)
@@ -760,6 +757,9 @@ export async function listSkills(
         return {
           ...row,
 
+          archivedAt:
+            row.archivedAt?.toISOString() ?? null,
+
           relationshipCount:
             relationships.length,
 
@@ -811,9 +811,10 @@ export async function listSkills(
   };
 }
 
-export async function getSkillFilterOptions():
+export async function getSkillFilterOptions(archived = false):
 Promise<SkillFilterOptions> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
+  const archiveCondition = archived ? isNotNull(skill.archivedAt) : isNull(skill.archivedAt);
 
   const [
     classifications,
@@ -827,6 +828,7 @@ Promise<SkillFilterOptions> {
           skill.classification,
       })
       .from(skill)
+      .where(archiveCondition)
       .orderBy(
         asc(
           skill.classification,
@@ -840,7 +842,10 @@ Promise<SkillFilterOptions> {
       })
       .from(skill)
       .where(
-        sql`${skill.tier} IS NOT NULL`,
+        and(
+          archiveCondition,
+          sql`${skill.tier} IS NOT NULL`,
+        ),
       )
       .orderBy(
         asc(skill.tier),
@@ -853,7 +858,10 @@ Promise<SkillFilterOptions> {
       })
       .from(skill)
       .where(
-        sql`${skill.primaryAttribute} IS NOT NULL`,
+        and(
+          archiveCondition,
+          sql`${skill.primaryAttribute} IS NOT NULL`,
+        ),
       )
       .orderBy(
         asc(
@@ -868,7 +876,10 @@ Promise<SkillFilterOptions> {
       })
       .from(skill)
       .where(
-        sql`${skill.secondaryAttribute} IS NOT NULL`,
+        and(
+          archiveCondition,
+          sql`${skill.secondaryAttribute} IS NOT NULL`,
+        ),
       )
       .orderBy(
         asc(
@@ -926,7 +937,7 @@ Promise<SkillFilterOptions> {
 export async function getSkill(
   id: number,
 ): Promise<SkillAggregate | null> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
 
   const [row] = await db
     .select()
@@ -1065,6 +1076,15 @@ export async function getSkill(
   return {
     id: row.id,
 
+    createdByUserId:
+      row.createdByUserId,
+
+    archivedAt:
+      row.archivedAt?.toISOString() ?? null,
+
+    archiveReason:
+      row.archiveReason,
+
     core: {
       name: row.name,
       classification:
@@ -1116,7 +1136,7 @@ export async function listRelationshipCandidates(
   },
   excludeId?: number,
 ): Promise<SkillLibraryItem[]> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
 
   const attributes = [
     context.primaryAttribute,
@@ -1162,9 +1182,12 @@ export async function listRelationshipCandidates(
     })
     .from(skill)
     .where(
-      eq(
-        skill.tier,
-        context.tier - 1,
+      and(
+        isNull(skill.archivedAt),
+        eq(
+          skill.tier,
+          context.tier - 1,
+        ),
       ),
     )
     .orderBy(
@@ -1219,6 +1242,7 @@ export async function listRelationshipCandidates(
         parentNames: [],
         hasSpellConstruction:
           false,
+        archivedAt: null,
       }),
     );
 }
@@ -1226,7 +1250,7 @@ export async function listRelationshipCandidates(
 export async function listSpellFrameworkSkills(
   tradition: Tradition,
 ): Promise<SpellFrameworkSkill[]> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
 
   return querySpellFrameworkSkills(
     tradition,
@@ -1237,8 +1261,8 @@ export async function saveSkill(
   input: SkillDraft,
   confirmation: { structuralChangeConfirmed?: boolean } = {},
 ): Promise<SkillAggregate> {
-  const session =
-    await requireGod();
+  const { session, roles } =
+    await requireGodOrAdminAccessContext();
 
   const core =
     normalizeCore(input.core);
@@ -1299,6 +1323,11 @@ export async function saveSkill(
       dataJson: string;
     }> = [];
 
+  let spellFrameworkReference: {
+    frameworkSkillId: number;
+    tradition: Tradition;
+  } | null = null;
+
   for (
     const extension
     of input.extensions
@@ -1349,30 +1378,11 @@ export async function saveSkill(
           name: core.name,
         });
 
-      if (
-        document.frameworkSkillId
-      ) {
-        const eligible =
-          await querySpellFrameworkSkills(
-            document.tradition,
-          );
-
-        if (
-          !eligible.some(
-            ({ id }) =>
-              id ===
-              document.frameworkSkillId,
-          )
-        ) {
-          const identity =
-            SPELL_IDENTITY_BY_TRADITION[
-              document.tradition
-            ];
-
-          throw new Error(
-            `The selected ${identity.label} is no longer attached to the required Skill tree.`,
-          );
-        }
+      if (document.frameworkSkillId) {
+        spellFrameworkReference = {
+          frameworkSkillId: document.frameworkSkillId,
+          tradition: document.tradition,
+        };
       }
 
       extensions.push({
@@ -1416,7 +1426,42 @@ export async function saveSkill(
   const savedId =
     await db.transaction(
       async (tx) => {
+        if (spellFrameworkReference) {
+          await lockSpellFrameworkSkillReferenceInTransaction(
+            tx,
+            spellFrameworkReference.frameworkSkillId,
+            spellFrameworkReference.tradition,
+          );
+        }
+
         let id = input.id;
+
+        const existingRelationshipRows = input.id === undefined
+          ? []
+          : await tx
+              .select({ relatedSkillId: skillRelationship.relatedSkillId })
+              .from(skillRelationship)
+              .where(eq(skillRelationship.skillId, input.id));
+        const previouslyRelatedSkillIds = new Set(
+          existingRelationshipRows.map(({ relatedSkillId }) => relatedSkillId),
+        );
+        const submittedRelatedSkillIds = [
+          ...new Set(relationships.map(({ relatedSkillId }) => relatedSkillId)),
+        ];
+        if (submittedRelatedSkillIds.length) {
+          const relatedSkillRows = await tx
+            .select({ id: skill.id, archivedAt: skill.archivedAt })
+            .from(skill)
+            .where(inArray(skill.id, submittedRelatedSkillIds));
+          if (relatedSkillRows.length !== submittedRelatedSkillIds.length) {
+            throw new Error("One or more related Skills no longer exist.");
+          }
+          if (relatedSkillRows.some(
+            (candidate) => candidate.archivedAt && !previouslyRelatedSkillIds.has(candidate.id),
+          )) {
+            throw new Error("Archived Skills cannot be added to a Skill path. Restore the Skill first.");
+          }
+        }
 
         if (
           id === undefined
@@ -1426,6 +1471,10 @@ export async function saveSkill(
               .insert(skill)
               .values({
                 ...core,
+
+                sourceSystem: null,
+
+                sourceExternalId: null,
 
                 createdByUserId:
                   session.user.id,
@@ -1439,10 +1488,14 @@ export async function saveSkill(
           const [stored] =
             await tx
               .select({
+                createdByUserId:
+                  skill.createdByUserId,
                 sourceSystem:
                   skill.sourceSystem,
                 sourceExternalId:
                   skill.sourceExternalId,
+                archivedAt:
+                  skill.archivedAt,
               })
               .from(skill)
               .where(
@@ -1453,6 +1506,18 @@ export async function saveSkill(
           if (!stored) {
             throw new Error(
               "That Skill no longer exists.",
+            );
+          }
+
+          assertCanEditSharedLibraryRoot(
+            { userId: session.user.id, roles },
+            stored,
+            "Skill",
+          );
+
+          if (stored.archivedAt) {
+            throw new Error(
+              "Restore this Skill before editing it.",
             );
           }
 
@@ -1588,23 +1653,4 @@ export async function saveSkill(
   }
 
   return saved;
-}
-
-export async function deleteSkill(
-  id: number,
-): Promise<void> {
-  await requireGod();
-
-  await db
-    .delete(skill)
-    .where(
-      eq(
-        skill.id,
-        id,
-      ),
-    );
-
-  revalidatePath(
-    "/heavens/skills",
-  );
 }

@@ -55,6 +55,11 @@ export const race = pgTable(
     sourceExternalId: text("source_external_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedByUserId: text("archived_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
     uniqueIndex("races_source_identity_uq")
@@ -62,10 +67,22 @@ export const race = pgTable(
       .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),
     index("races_name_idx").on(table.name),
     index("races_size_idx").on(table.size),
+    index("races_archive_idx").on(
+      table.archivedAt,
+      table.name,
+      table.id,
+    ),
     check("races_name_nonblank", sql`length(trim(${table.name})) > 0`),
     check("races_age_min_valid", sql`${table.ageMin} IS NULL OR ${table.ageMin} >= 0`),
     check("races_age_max_valid", sql`${table.ageMax} IS NULL OR ${table.ageMax} >= 0`),
     check("races_age_order_valid", sql`${table.ageMin} IS NULL OR ${table.ageMax} IS NULL OR ${table.ageMin} <= ${table.ageMax}`),
+    check(
+      "races_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
+    ),
   ],
 );
 
@@ -118,7 +135,7 @@ export const raceSkillLink = pgTable(
       .references(() => race.id, { onDelete: "cascade" }),
     skillId: integer("skill_id")
       .notNull()
-      .references(() => skill.id, { onDelete: "cascade" }),
+      .references(() => skill.id, { onDelete: "restrict" }),
     linkType: text("link_type").notNull(),
     value: doublePrecision("value"),
     sortOrder: integer("sort_order").default(0).notNull(),

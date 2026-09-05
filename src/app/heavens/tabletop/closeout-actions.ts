@@ -18,7 +18,15 @@ import {
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import type { DurationEffectKind } from "@/features/tabletop-operations/duration-lifecycle";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
-import { requireGod } from "@/lib/server-access";
+import {
+  prepareTabletopLifecycleMutationInTransaction,
+  recordTabletopLifecycleAuditInTransaction,
+} from "@/features/lifecycle/tabletop-lifecycle-service";
+import type { LifecycleActor } from "@/features/lifecycle/types";
+import {
+  requireGod,
+  requireGodOrAdminAccessContext,
+} from "@/lib/server-access";
 
 function refreshCloseout(characterIds: readonly number[] = []): void {
   revalidatePath("/heavens/tabletop");
@@ -31,9 +39,13 @@ function refreshCloseout(characterIds: readonly number[] = []): void {
 }
 
 export async function getEncounterCloseout(encounterId: number): Promise<EncounterCloseoutView> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   return db.transaction(async (tx) => {
-    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, access.user.id);
+    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, actor);
     return readEncounterCloseoutInTransaction(tx, context);
   });
 }
@@ -42,9 +54,18 @@ export async function finalizeEncounterCloseout(
   encounterId: number,
   input: FinalizeEncounterCloseoutInput,
 ): Promise<EncounterCloseoutView> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   const result = await db.transaction(async (tx) => {
-    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, access.user.id);
+    const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+      tx,
+      { entityKind: "encounter", entityId: encounterId },
+      actor,
+    );
+    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, actor);
     const finalized = await finalizeEncounterCloseoutInTransaction(tx, context, input);
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: context.campaignId,
@@ -54,6 +75,13 @@ export async function finalizeEncounterCloseout(
       characterIds: [],
       category: "hierarchy",
     });
+    await recordTabletopLifecycleAuditInTransaction(
+      tx,
+      actor,
+      "archive",
+      lifecycle.root,
+      lifecycle.preview,
+    );
     return finalized;
   });
   refreshCloseout(input.awards.map(({ characterId }) => characterId));

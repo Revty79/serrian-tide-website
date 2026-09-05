@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
+import { campaignCharacter } from "@/db/realm-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
@@ -38,7 +39,20 @@ import {
   lockEncounterCloseoutContextInTransaction,
 } from "@/features/tabletop-operations/encounter-closeout-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
-import { requireGod } from "@/lib/server-access";
+import {
+  assertOwnedRootManager,
+  assertPermanentDeletionEnabled,
+} from "@/features/lifecycle/policy";
+import {
+  assertTabletopPermanentDeletionAllowed,
+  prepareTabletopLifecycleMutationInTransaction,
+  recordTabletopLifecycleAuditInTransaction,
+} from "@/features/lifecycle/tabletop-lifecycle-service";
+import type { LifecycleActor } from "@/features/lifecycle/types";
+import {
+  requireGod,
+  requireGodOrAdminAccessContext,
+} from "@/lib/server-access";
 
 import { getSessionSceneWorkspace, type SceneMemberView } from "./scene-actions";
 
@@ -203,7 +217,11 @@ async function lockOwnedScene(tx: TabletopTransaction, sceneId: number, actingUs
   return locked;
 }
 
-async function lockOwnedEncounter(tx: TabletopTransaction, encounterId: number, actingUserId: string) {
+async function lockOwnedEncounter(
+  tx: TabletopTransaction,
+  encounterId: number,
+  actor: string | LifecycleActor,
+) {
   const [locked] = await tx
     .select({
       ...encounterFields,
@@ -226,7 +244,11 @@ async function lockOwnedEncounter(tx: TabletopTransaction, encounterId: number, 
     .limit(1)
     .for("update");
   if (!locked) throw new Error("That Encounter no longer exists.");
-  assertCampaignSessionOwner(locked.ownerUserId, actingUserId);
+  if (typeof actor === "string") {
+    assertCampaignSessionOwner(locked.ownerUserId, actor);
+  } else {
+    assertOwnedRootManager(actor, locked.ownerUserId, "Encounter");
+  }
   return locked;
 }
 
@@ -256,7 +278,11 @@ export async function getSceneEncounterWorkspace(
   sceneId: number,
   requestedEncounterId: number | null,
 ): Promise<EncounterWorkspaceData> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sceneId, "Scene");
   const [context] = await db
     .select({
@@ -276,7 +302,8 @@ export async function getSceneEncounterWorkspace(
     .where(eq(campaignSessionScene.id, sceneId))
     .limit(1);
   if (!context) throw new Error("That Scene no longer exists.");
-  assertCampaignSessionOwner(context.ownerUserId, access.user.id);
+  assertOwnedRootManager(actor, context.ownerUserId, "Scene");
+  const canAuthor = actor.roles.includes("god") && context.ownerUserId === actor.userId;
 
   const [encounterRows, participantRows] = await Promise.all([
     db
@@ -326,7 +353,9 @@ export async function getSceneEncounterWorkspace(
       campaignId: context.campaignId,
       sceneStatus: context.sceneStatus,
       sessionStatus: context.sessionStatus,
-      canCreate: context.sessionStatus !== "completed" && context.sceneStatus !== "completed",
+      canCreate: canAuthor
+        && context.sessionStatus !== "completed"
+        && context.sceneStatus !== "completed",
       encounters,
       selectedEncounterId: null,
       selectedEncounter: null,
@@ -365,16 +394,21 @@ export async function getSceneEncounterWorkspace(
     campaignId: context.campaignId,
     sceneStatus: context.sceneStatus,
     sessionStatus: context.sessionStatus,
-    canCreate: context.sessionStatus !== "completed" && context.sceneStatus !== "completed",
+    canCreate: canAuthor
+      && context.sessionStatus !== "completed"
+      && context.sceneStatus !== "completed",
     encounters,
     selectedEncounterId,
     selectedEncounter: {
       ...selectedSummary,
-      editable: context.sessionStatus !== "completed"
+      editable: canAuthor
+        && context.sessionStatus !== "completed"
         && context.sceneStatus !== "completed"
         && selectedSummary.status !== "completed",
       participants,
-      availableSceneMembers: scene.members.filter(({ characterId }) => !participantIds.has(characterId)),
+      availableSceneMembers: scene.members.filter(({ characterId, archived }) => (
+        !archived && !participantIds.has(characterId)
+      )),
     },
   };
 }
@@ -447,11 +481,20 @@ async function applyEncounterLifecycleTransition(
   encounterId: number,
   transition: EncounterTransition,
 ): Promise<CampaignEncounterSummary> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(encounterId, "Encounter");
   try {
     const updated = await db.transaction(async (tx) => {
-      const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
+      const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+        tx,
+        { entityKind: "encounter", entityId: encounterId },
+        actor,
+      );
+      const locked = await lockOwnedEncounter(tx, encounterId, actor);
       assertParentsAllowLiveEncounter(locked.sessionStatus, locked.sceneStatus);
       const next = transitionEncounter(locked, transition);
       if (next.status === "active") {
@@ -487,6 +530,15 @@ async function applyEncounterLifecycleTransition(
         .returning(encounterFields);
       if (!row) throw new Error("The Encounter changed before this action completed. Refresh and try again.");
       await publishEncounterHierarchy(tx, locked);
+      if (transition === "complete" || transition === "reopen") {
+        await recordTabletopLifecycleAuditInTransaction(
+          tx,
+          actor,
+          transition === "complete" ? "archive" : "restore",
+          lifecycle.root,
+          lifecycle.preview,
+        );
+      }
       return row;
     });
     refreshEncounters();
@@ -504,12 +556,28 @@ export async function startCampaignSessionEncounter(encounterId: number): Promis
 }
 
 export async function completeCampaignSessionEncounter(encounterId: number): Promise<CampaignEncounterSummary> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(encounterId, "Encounter");
   const completed = await db.transaction(async (tx) => {
-    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, access.user.id);
+    const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+      tx,
+      { entityKind: "encounter", entityId: encounterId },
+      actor,
+    );
+    const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, actor);
     await finalizeEncounterCloseoutInTransaction(tx, context, { awards: [] });
     await publishEncounterHierarchy(tx, context);
+    await recordTabletopLifecycleAuditInTransaction(
+      tx,
+      actor,
+      "archive",
+      lifecycle.root,
+      lifecycle.preview,
+    );
     const [row] = await tx.select(encounterFields).from(campaignSessionEncounter)
       .where(eq(campaignSessionEncounter.id, encounterId)).limit(1);
     if (!row) throw new Error("That Encounter no longer exists.");
@@ -526,10 +594,22 @@ export async function reopenCampaignSessionEncounter(encounterId: number): Promi
 export async function deleteCampaignSessionEncounter(
   encounterId: number,
 ): Promise<{ id: number; sceneId: number }> {
-  const access = await requireGod();
+  assertPermanentDeletionEnabled();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(encounterId, "Encounter");
   const deleted = await db.transaction(async (tx) => {
-    const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
+    assertPermanentDeletionEnabled();
+    const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+      tx,
+      { entityKind: "encounter", entityId: encounterId },
+      actor,
+    );
+    assertTabletopPermanentDeletionAllowed(lifecycle.preview);
+    const locked = await lockOwnedEncounter(tx, encounterId, actor);
     assertParentsAllowEncounterPreparation(locked.sessionStatus, locked.sceneStatus);
     assertEncounterMayBeDeleted(locked.status);
     const [initiativeHistory] = await tx
@@ -545,6 +625,13 @@ export async function deleteCampaignSessionEncounter(
       .where(eq(campaignSessionRoll.encounterId, encounterId))
       .limit(1);
     if (rollHistory) throw new Error("This Encounter contains Roll history and cannot be deleted.");
+    await recordTabletopLifecycleAuditInTransaction(
+      tx,
+      actor,
+      "delete",
+      lifecycle.root,
+      lifecycle.preview,
+    );
     const [row] = await tx
       .delete(campaignSessionEncounter)
       .where(and(
@@ -570,8 +657,15 @@ export async function addCampaignSessionEncounterParticipant(
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertEncounterIsEditable(locked.status, locked.sessionStatus, locked.sceneStatus);
     const [sceneMember] = await tx
-      .select({ characterId: campaignSessionSceneMember.characterId })
+      .select({
+        characterId: campaignSessionSceneMember.characterId,
+        archivedAt: campaignCharacter.archivedAt,
+      })
       .from(campaignSessionSceneMember)
+      .innerJoin(campaignCharacter, and(
+        eq(campaignCharacter.id, campaignSessionSceneMember.characterId),
+        eq(campaignCharacter.campaignId, campaignSessionSceneMember.campaignId),
+      ))
       .where(and(
         eq(campaignSessionSceneMember.sceneId, locked.sceneId),
         eq(campaignSessionSceneMember.sessionId, locked.sessionId),
@@ -580,6 +674,9 @@ export async function addCampaignSessionEncounterParticipant(
       ))
       .limit(1);
     if (!sceneMember) throw new Error("An Encounter Participant must already belong to that Scene.");
+    if (sceneMember.archivedAt) {
+      throw new Error("Archived Characters and NPCs cannot be added to an Encounter. Restore this record first.");
+    }
     const [existing] = await tx
       .select({ characterId: campaignSessionEncounterParticipant.characterId })
       .from(campaignSessionEncounterParticipant)

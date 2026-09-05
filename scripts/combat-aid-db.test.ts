@@ -91,7 +91,7 @@ test("Combat Aid rereads authoritative Health, Mana, effects, Equipment, Charges
 
     const [pc, creatureNpc] = await tx.insert(campaignCharacter).values([
       { campaignId: createdCampaign.id, playerUserId: godId, name: "Combat Aid Hero" },
-      { campaignId: createdCampaign.id, playerUserId: godId, name: "Combat Aid Hydra", isNpc: true, npcKind: "creature" },
+      { campaignId: createdCampaign.id, playerUserId: godId, name: "Combat Aid Hydra", isNpc: true, npcKind: "creature", npcBuildMode: "detailed" },
     ]).returning({ id: campaignCharacter.id });
     assert.ok(pc && creatureNpc);
     await tx.insert(campaignCharacterProfile).values([

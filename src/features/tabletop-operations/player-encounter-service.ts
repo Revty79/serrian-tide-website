@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
@@ -133,6 +133,8 @@ export async function resolveActivePlayerEncounterInTransaction(
       eq(campaignCharacter.id, characterId),
       eq(campaignCharacter.playerUserId, playerUserId),
       eq(campaignCharacter.isNpc, false),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
     ))
     .orderBy(asc(campaignSession.id), asc(campaignSessionScene.id), asc(campaignSessionEncounter.id))
     .limit(2);

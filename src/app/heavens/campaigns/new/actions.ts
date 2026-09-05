@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -242,7 +242,10 @@ export async function createCampaign(formData: FormData) {
 
   const [validRaces, validTags, validItems] = await Promise.all([
     allowedRaceIds.length
-      ? db.select({ id: race.id }).from(race).where(inArray(race.id, allowedRaceIds))
+      ? db.select({ id: race.id }).from(race).where(and(
+          inArray(race.id, allowedRaceIds),
+          isNull(race.archivedAt),
+        ))
       : [],
     inventoryTagIds.length
       ? db
@@ -254,7 +257,10 @@ export async function createCampaign(formData: FormData) {
       ? db
           .select({ id: item.id })
           .from(item)
-          .where(inArray(item.id, explicitInventoryItemIds))
+          .where(and(
+            inArray(item.id, explicitInventoryItemIds),
+            isNull(item.archivedAt),
+          ))
       : [],
   ]);
 

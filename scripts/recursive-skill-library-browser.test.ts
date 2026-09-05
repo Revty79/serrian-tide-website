@@ -133,6 +133,12 @@ async function cleanupFixture(pool: pg.Pool): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query(
+      `delete from skill_relationship
+       where skill_id in (select id from skill where created_by_user_id=$1)
+          or related_skill_id in (select id from skill where created_by_user_id=$1)`,
+      [GOD_ID],
+    );
     await client.query("delete from skill where created_by_user_id=$1", [GOD_ID]);
     await client.query("delete from account where user_id=any($1::text[])", [[GOD_ID, PLAYER_ID]]);
     await client.query("delete from user_role where user_id=any($1::text[])", [[GOD_ID, PLAYER_ID]]);
@@ -159,6 +165,12 @@ async function cleanupStaleFixtures(pool: pg.Pool): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query(
+      `delete from skill_relationship
+       where skill_id in (select id from skill where created_by_user_id=any($1::text[]))
+          or related_skill_id in (select id from skill where created_by_user_id=any($1::text[]))`,
+      [ids],
+    );
     await client.query("delete from skill where created_by_user_id=any($1::text[])", [ids]);
     await client.query("delete from account where user_id=any($1::text[])", [ids]);
     await client.query("delete from user_role where user_id=any($1::text[])", [ids]);
@@ -226,8 +238,13 @@ async function main(): Promise<void> {
     const godPage = await login(godContext, fixture.godEmail);
     const playerPage = await login(playerContext, fixture.playerEmail);
 
+    const initialListRefresh = godPage.waitForResponse(
+      (response) => response.request().method() === "POST"
+        && new URL(response.url()).pathname === "/heavens/skills",
+    );
     await godPage.goto(`${BASE_URL}/heavens/skills`);
     await godPage.getByRole("heading", { name: "Skill Library" }).waitFor();
+    await initialListRefresh;
     assert.equal(await godPage.getByRole("button", { name: "List View" }).getAttribute("aria-pressed"), "true");
     const pagination = godPage.getByRole("navigation", { name: "Skill pages" });
     await pagination.getByRole("button", { name: "Next" }).click();
@@ -293,6 +310,7 @@ async function main(): Promise<void> {
     const createdRootName = `UI Root ${MARKER}`;
     const createdChildName = `UI Child ${MARKER}`;
     await godPage.getByRole("button", { name: "New Skill", exact: true }).click();
+    await godPage.getByText("NEW SKILL DRAFT", { exact: true }).waitFor();
     await godPage.getByLabel("Name *").fill(createdRootName);
     await godPage.getByLabel("Primary Attribute").selectOption("DEX");
     await godPage.getByRole("button", { name: "Save Skill" }).click();
@@ -304,6 +322,7 @@ async function main(): Promise<void> {
     await dexterityRoots.getByRole("button", { name: new RegExp(createdRootName) }).click();
 
     await godPage.getByRole("button", { name: "New Skill", exact: true }).click();
+    await godPage.getByText("NEW SKILL DRAFT", { exact: true }).waitFor();
     await godPage.getByLabel("Name *").fill(createdChildName);
     await godPage.getByLabel("Primary Attribute").selectOption("DEX");
     await godPage.getByRole("button", { name: "Pathing" }).click();

@@ -50,7 +50,8 @@ test("path validation follows exact relationships without tier, name, or Charact
 
 test("Heavens authoring reauthorizes and offers review, path, order, notes, and mode inheritance controls", () => {
   assert.match(actions, /export async function saveCanonicalWeaponSkillGovernance/);
-  assert.match(actions, /const session = await requireGod\(\)/);
+  assert.match(actions, /const \{ session, roles \} = await requireGodOrAdminAccessContext\(\)/);
+  assert.match(actions, /assertCanEditSharedLibraryRoot/);
   assert.match(editor, /Governing Skill Paths/);
   assert.match(editor, /Search canonical Skills/);
   assert.match(editor, /Exact endpoint Skill/);

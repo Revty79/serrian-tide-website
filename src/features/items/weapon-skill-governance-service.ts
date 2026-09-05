@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
@@ -100,7 +100,7 @@ function normalizeReviewState(value: unknown): WeaponSkillGovernanceReviewState 
   return value as WeaponSkillGovernanceReviewState;
 }
 
-async function readCanonicalSkillGraph(tx: WeaponSkillGovernanceTransaction): Promise<{
+async function readCanonicalSkillGraph(tx: WeaponSkillGovernanceTransaction, activeOnly = false): Promise<{
   skills: CanonicalSkillDefinition[];
   relationships: CanonicalSkillParentRelationship[];
 }> {
@@ -111,7 +111,9 @@ async function readCanonicalSkillGraph(tx: WeaponSkillGovernanceTransaction): Pr
     tier: skill.tier,
     primaryAttribute: skill.primaryAttribute,
     secondaryAttribute: skill.secondaryAttribute,
-  }).from(skill).orderBy(asc(skill.name), asc(skill.id));
+  }).from(skill)
+    .where(activeOnly ? isNull(skill.archivedAt) : undefined)
+    .orderBy(asc(skill.name), asc(skill.id));
   const relationships = await tx.select({
     id: skillRelationship.id,
     skillId: skillRelationship.skillId,
@@ -241,7 +243,7 @@ export async function saveWeaponSkillGovernanceInTransaction(
   })
     .from(weaponProfile)
     .innerJoin(item, eq(item.id, weaponProfile.itemId))
-    .where(eq(item.id, normalizedItemId))
+    .where(and(eq(item.id, normalizedItemId), isNull(item.archivedAt)))
     .limit(1)
     .for("update");
   if (!profile) throw new Error("That Item does not have a persisted Weapon Profile.");
@@ -285,8 +287,13 @@ export async function saveWeaponSkillGovernanceInTransaction(
   });
 
   const graph = await readCanonicalSkillGraph(tx);
+  const activeGraph = await readCanonicalSkillGraph(tx, true);
   for (const mapping of normalized) {
-    const validation = validateCanonicalSkillPath(mapping.endpointSkillId, graph.skills, graph.relationships);
+    const validation = validateCanonicalSkillPath(
+      mapping.endpointSkillId,
+      mapping.id === null ? activeGraph.skills : graph.skills,
+      mapping.id === null ? activeGraph.relationships : graph.relationships,
+    );
     if (mapping.reviewState === "approved" && !validation.valid) {
       throw new Error(`Skill #${mapping.endpointSkillId} cannot be approved: ${validation.problems.map(({ message }) => message).join(" ")}`);
     }
@@ -366,6 +373,6 @@ export async function readCanonicalSkillPathPreview(
   tx: WeaponSkillGovernanceTransaction,
   endpointSkillId: number,
 ): Promise<CanonicalSkillPathValidation> {
-  const graph = await readCanonicalSkillGraph(tx);
+  const graph = await readCanonicalSkillGraph(tx, true);
   return validateCanonicalSkillPath(endpointSkillId, graph.skills, graph.relationships);
 }

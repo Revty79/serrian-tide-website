@@ -4,6 +4,8 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
+import { assertOwnedRootManager } from "@/features/lifecycle/policy";
+import type { LifecycleActor } from "@/features/lifecycle/types";
 import {
   campaignCharacter,
   campaignCharacterActiveCondition,
@@ -123,7 +125,7 @@ function statusCounts(rows: ReadonlyArray<{ status: "planned" | "active" | "comp
 export async function lockSessionCloseoutContextInTransaction(
   tx: SessionCloseoutTransaction,
   sessionId: number,
-  actingUserId: string,
+  actor: string | LifecycleActor,
 ): Promise<SessionCloseoutContext> {
   const [context] = await tx.select({
     sessionId: campaignSession.id,
@@ -140,7 +142,11 @@ export async function lockSessionCloseoutContextInTransaction(
     .limit(1)
     .for("update", { of: campaignSession });
   if (!context) throw new Error("That Session no longer exists.");
-  assertCampaignSessionOwner(context.ownerUserId, actingUserId);
+  if (typeof actor === "string") {
+    assertCampaignSessionOwner(context.ownerUserId, actor);
+  } else {
+    assertOwnedRootManager(actor, context.ownerUserId, "Session");
+  }
   return context;
 }
 

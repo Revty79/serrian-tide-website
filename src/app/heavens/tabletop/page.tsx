@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { buildInitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 
 import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
@@ -41,7 +41,7 @@ export default async function TabletopOperationsPage({
     firearmInstance?: string;
   }>;
 }) {
-  await requireGod().catch(() => redirect("/access"));
+  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const query = await searchParams;
   const requestedCampaignId = Number(query.campaign);
   const requestedSessionId = Number(query.session);
@@ -57,6 +57,7 @@ export default async function TabletopOperationsPage({
       ? requestedCampaignId
       : null,
   );
+  const canOperateTable = workspace.canAuthor;
   const selectedSessionId = workspace.sessions.some(({ id }) => id === requestedSessionId)
     ? requestedSessionId
     : workspace.sessions[0]?.id ?? null;
@@ -75,7 +76,7 @@ export default async function TabletopOperationsPage({
         Number.isInteger(requestedEncounterId) && requestedEncounterId > 0 ? requestedEncounterId : null,
       )
     : null;
-  const initiativeTracker = encounterWorkspace?.selectedEncounter
+  const initiativeTracker = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await Promise.all([
         getEncounterInitiativeRuntime(encounterWorkspace.selectedEncounter.id),
         getEncounterInitiativeCapacityOptions(encounterWorkspace.selectedEncounter.id),
@@ -92,35 +93,35 @@ export default async function TabletopOperationsPage({
         runtime,
       }))
     : null;
-  const combatAid = encounterWorkspace?.selectedEncounter
+  const combatAid = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getEncounterCombatAid(encounterWorkspace.selectedEncounter.id)
     : null;
-  const actionDeclarations = encounterWorkspace?.selectedEncounter
+  const actionDeclarations = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getActionDeclarationWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
-  const defenseInterventions = encounterWorkspace?.selectedEncounter
+  const defenseInterventions = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getDefenseInterventionWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
-  const actionEffects = encounterWorkspace?.selectedEncounter
+  const actionEffects = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getActionEffectWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
-  const firearmReadiness = encounterWorkspace?.selectedEncounter
+  const firearmReadiness = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getFirearmReadinessWorkspace(
         encounterWorkspace.selectedEncounter.id,
         Number.isInteger(requestedFirearmCharacterId) && requestedFirearmCharacterId !== 0 ? requestedFirearmCharacterId : null,
         Number.isInteger(requestedFirearmInstanceId) && requestedFirearmInstanceId > 0 ? requestedFirearmInstanceId : null,
       )
     : null;
-  const firearmAttacks = encounterWorkspace?.selectedEncounter
+  const firearmAttacks = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getFirearmAttackWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
-  const playerCombatRulings = encounterWorkspace?.selectedEncounter
+  const playerCombatRulings = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getGodPlayerCombatRulingRequests(encounterWorkspace.selectedEncounter.id)
     : [];
   const closeout = encounterWorkspace?.selectedEncounter
     ? await getEncounterCloseout(encounterWorkspace.selectedEncounter.id)
     : null;
-  const rollWorkspace = selectedSessionId === null
+  const rollWorkspace = !canOperateTable || selectedSessionId === null
     ? null
     : await getGodRollWorkspace(
         selectedSessionId,
@@ -130,10 +131,10 @@ export default async function TabletopOperationsPage({
   const sessionCloseout = selectedSessionId === null
     ? null
     : await getSessionCloseout(selectedSessionId);
-  const calledChecks = selectedSessionId === null
+  const calledChecks = !canOperateTable || selectedSessionId === null
     ? null
     : await getGodCalledCheckWorkspace(selectedSessionId);
-  const weaponGovernance = workspace.selectedCampaignId === null || query.workspace !== "weapons"
+  const weaponGovernance = !canOperateTable || workspace.selectedCampaignId === null || query.workspace !== "weapons"
     ? null
     : await getGodWeaponGovernanceWorkspace({
         campaignId: workspace.selectedCampaignId,
@@ -168,7 +169,13 @@ export default async function TabletopOperationsPage({
       initialCalledChecks={calledChecks}
       initialWeaponGovernance={weaponGovernance}
       requestedSessionId={selectedSessionId}
-      requestedWorkspace={query.workspace === "weapons" ? "weapons" : query.workspace === "checks" ? "checks" : null}
+      requestedWorkspace={canOperateTable
+        ? query.workspace === "weapons"
+          ? "weapons"
+          : query.workspace === "checks"
+            ? "checks"
+            : null
+        : null}
     />
   );
 }

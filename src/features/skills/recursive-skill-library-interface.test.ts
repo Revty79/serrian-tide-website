@@ -98,18 +98,24 @@ test("structural confirmation reports descendants and canonical consumers withou
   assert.doesNotMatch(service, /\.update\(|\.delete\(|\.insert\(/);
 });
 
-test("every Skill read and mutation retains G.O.D. master-content authorization", () => {
-  assert.match(page, /eq\(userRole\.role, "god"\)/);
+test("Skill authoring uses shared G.O.D.-or-administrator access with server ownership checks", () => {
+  assert.match(page, /requireGodOrAdminAccessContext\(\)/);
   for (const actionName of [
     "getRecursiveSkillLibrary",
     "previewSkillMutation",
     "saveSkill",
-    "deleteSkill",
   ]) {
     const actionStart = actions.indexOf(`export async function ${actionName}`);
     assert.notEqual(actionStart, -1);
-    assert.match(actions.slice(actionStart, actionStart + 900), /requireGod\(\)/);
+    assert.match(
+      actions.slice(actionStart, actionStart + 900),
+      /requireGodOrAdminAccessContext\(\)/,
+    );
   }
+  assert.match(actions, /assertCanEditSharedLibraryRoot/);
+  assert.match(actions, /createdByUserId:\s*skill\.createdByUserId/);
+  assert.match(workspace, /<LifecycleControls/);
+  assert.doesNotMatch(actions, /export async function deleteSkill/);
   assert.doesNotMatch(library, /administrator|campaign owner|player mutation/i);
 });
 

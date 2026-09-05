@@ -1,6 +1,7 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -95,10 +96,33 @@ export const campaign = pgTable(
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .notNull(),
+
+    archivedAt: timestamp("archived_at"),
+
+    archivedByUserId: text("archived_by_user_id")
+      .references(() => user.id, {
+        onDelete: "set null",
+      }),
+
+    archiveReason: text("archive_reason")
+      .default("")
+      .notNull(),
   },
   (table) => [
     index("campaign_created_by_user_id_idx").on(
       table.createdByUserId,
+    ),
+    index("campaign_archive_idx").on(
+      table.archivedAt,
+      table.name,
+      table.id,
+    ),
+    check(
+      "campaign_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
     ),
   ],
 );

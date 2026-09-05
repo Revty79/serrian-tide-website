@@ -7,9 +7,13 @@ import {
   getSuggestedCreatureXpTotal,
   splitSuggestedExperience,
 } from "@/features/tabletop-operations/encounter-closeout";
+import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import { finalizeEncounterCloseout } from "./closeout-actions";
+import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
+import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -43,6 +47,9 @@ export function EncounterCloseout({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [finalizeConfirmationOpen, setFinalizeConfirmationOpen] = useState(false);
+  const [lifecyclePreview, setLifecyclePreview] = useState<TabletopLifecyclePreview | null>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
   const selectedCreatureIds = useMemo(() => [...selectedCreatures], [selectedCreatures]);
   const suggestedTotal = getSuggestedCreatureXpTotal(data.creatureRewardReferences, selectedCreatureIds);
   const historical = data.encounter.status === "completed";
@@ -64,7 +71,6 @@ export function EncounterCloseout({
   }
 
   async function finalize(): Promise<void> {
-    if (!window.confirm("Finalize this Encounter and grant the entered spendable XP? This reward history cannot be edited in Build 9.")) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -73,6 +79,8 @@ export function EncounterCloseout({
         amount: Number(amounts[characterId] ?? 0),
       }));
       await finalizeEncounterCloseout(data.encounter.id, { awards, rewardNote: note });
+      setFinalizeConfirmationOpen(false);
+      setLifecyclePreview(null);
       setFeedback({ kind: "success", message: "Encounter finalized. XP and Encounter completion committed together." });
       router.refresh();
     } catch (error) {
@@ -80,6 +88,25 @@ export function EncounterCloseout({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function openFinalizeConfirmation(): Promise<void> {
+    await preserveScroll(async () => {
+      setBusy(true);
+      setFeedback(null);
+      try {
+        const preview = await previewTabletopLifecycleEntity({
+          entityKind: "encounter",
+          entityId: data.encounter.id,
+        });
+        setLifecyclePreview(preview);
+        setFinalizeConfirmationOpen(true);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Encounter lifecycle preview could not be loaded." });
+      } finally {
+        setBusy(false);
+      }
+    });
   }
 
   return <section className="encounter-closeout">
@@ -138,7 +165,28 @@ export function EncounterCloseout({
 
     {!historical ? <footer className="encounter-closeout-finalize">
       <div><strong>{data.canFinalize ? "Ready to finalize" : "Resolve every blocker first"}</strong><span>Zero XP is valid. Finalization does not heal, restore, delete, or reset Character state.</span></div>
-      <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void finalize()}>{busy ? "Finalizing…" : "Finalize Encounter"}</button>
+      <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void openFinalizeConfirmation()}>{busy ? "Finalizing…" : "Finalize Encounter"}</button>
     </footer> : null}
+    <LifecycleConfirmationDialog
+      open={finalizeConfirmationOpen}
+      titleId="finalize-tabletop-encounter-title"
+      eyebrow="Encounter Lifecycle"
+      title={`Finalize ${data.encounter.title}?`}
+      entityType="Encounter"
+      preview={lifecyclePreview}
+      consequence="This completes the Encounter and atomically records the entered spendable XP awards. It does not heal, restore, delete, or reset Character state."
+      dependencies={(lifecyclePreview?.dependencies ?? [])
+        .filter(({ count }) => count > 0)
+        .map(({ label, count }) => `${label}: ${count}`)}
+      notice={lifecyclePreview && !lifecyclePreview.canComplete
+        ? "The current server state does not allow completion. Resolve its lifecycle prerequisites and try again."
+        : "Cancel makes no changes. Award records created by finalization are immutable even if the Encounter is later reopened."}
+      confirmLabel="Finalize Encounter"
+      confirmDisabled={!lifecyclePreview?.canComplete}
+      busy={busy}
+      error={feedback?.kind === "error" ? feedback.message : undefined}
+      onCancel={() => { setFinalizeConfirmationOpen(false); setLifecyclePreview(null); setFeedback(null); }}
+      onConfirm={finalize}
+    />
   </section>;
 }

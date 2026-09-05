@@ -74,7 +74,9 @@ export async function listCreatureCatalogInTransaction(
     family: creature.family,
     creatureType: creature.creatureType,
     challengeRating: creature.challengeRating,
-  }).from(creature).orderBy(asc(creature.canonicalName), asc(creature.id));
+  }).from(creature)
+    .where(isNull(creature.archivedAt))
+    .orderBy(asc(creature.canonicalName), asc(creature.id));
   const movementRows = await tx.select({
     creatureId: creatureMovement.creatureId,
     movementMode: creatureMovement.movementMode,
@@ -117,9 +119,15 @@ async function loadCreatureAggregateInTransaction(
     habitatEcology: creature.habitatEcology,
     notes: creature.notes,
     sourceSystem: creature.sourceSystem,
+    createdByUserId: creature.createdByUserId,
+    archivedAt: creature.archivedAt,
+    archiveReason: creature.archiveReason,
     createdAt: creature.createdAt,
     updatedAt: creature.updatedAt,
-  }).from(creature).where(eq(creature.id, positiveId(creatureId, "Creature"))).limit(1).for("update");
+  }).from(creature).where(and(
+    eq(creature.id, positiveId(creatureId, "Creature")),
+    isNull(creature.archivedAt),
+  )).limit(1).for("update");
   if (!row) throw new Error("The selected master Creature no longer exists.");
 
   const attributes = await tx.select({ attributeKey: creatureAttribute.attributeKey, value: creatureAttribute.value, notes: creatureAttribute.notes, sortOrder: creatureAttribute.sortOrder })
@@ -156,6 +164,9 @@ async function loadCreatureAggregateInTransaction(
   const poolCanonicalById = new Map(pools.map((pool) => [pool.id, pool.canonicalId]));
   return {
     id: row.id,
+    createdByUserId: row.createdByUserId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    archiveReason: row.archiveReason,
     core: {
       canonicalId: row.canonicalId,
       canonicalName: row.canonicalName,

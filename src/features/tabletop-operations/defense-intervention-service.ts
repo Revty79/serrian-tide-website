@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaignPlayer } from "@/db/campaign-schema";
@@ -22,6 +22,7 @@ import {
   defenseSkillPathMapping,
 } from "@/db/tabletop-operations-schema";
 import { loadCharacterDerivedAbilitiesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
+import { lockActiveItemRootInTransaction } from "@/features/items/active-item-root-service";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 import {
   loadCharacterSkillLineageInputInTransaction,
@@ -337,11 +338,14 @@ export async function saveDodgeSkillPathMappingInTransaction(
 ): Promise<number> {
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may author Dodge paths.");
   const endpointSkillId = positiveId(input.endpointSkillId, "Dodge endpoint Skill");
+  const id = optionalPositiveId(input.id, "Dodge path mapping");
   const mappings = await loadDodgeMappings(tx);
-  const path = mappings.find(({ endpointSkillId: candidate }) => candidate === endpointSkillId)?.path ?? (() => null)();
+  const storedMapping = id === null ? null : mappings.find((mapping) => mapping.id === id) ?? null;
+  if (id !== null && !storedMapping) throw new Error("That Dodge path mapping no longer exists.");
+  const path = storedMapping?.endpointSkillId === endpointSkillId ? storedMapping.path : null;
   let validation = path;
   if (!validation) {
-    const skills = await tx.select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier, primaryAttribute: skill.primaryAttribute, secondaryAttribute: skill.secondaryAttribute }).from(skill);
+    const skills = await tx.select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier, primaryAttribute: skill.primaryAttribute, secondaryAttribute: skill.secondaryAttribute }).from(skill).where(isNull(skill.archivedAt));
     const relationships = await tx.select({ id: skillRelationship.id, skillId: skillRelationship.skillId, relatedSkillId: skillRelationship.relatedSkillId, relationshipType: skillRelationship.relationshipType, sortOrder: skillRelationship.sortOrder }).from(skillRelationship);
     validation = validateCanonicalSkillPath(endpointSkillId, skills, relationships);
   }
@@ -352,7 +356,6 @@ export async function saveDodgeSkillPathMappingInTransaction(
     ? boundedText(input.circumstanceLabel, "Conditional Dodge circumstance", 500, true)
     : "";
   const notes = boundedText(input.notes, "Dodge mapping notes", 1000);
-  const id = optionalPositiveId(input.id, "Dodge path mapping");
   const now = new Date();
   if (id !== null) {
     const [updated] = await tx.update(defenseSkillPathMapping).set({
@@ -776,6 +779,9 @@ export async function declareDefenseInterventionInTransaction(
     if (!tackle) throw new Error("The response does not oppose an exact declared Tackle against this Character.");
   }
   const prepared = await buildSourceAndCost(tx, context, actor, loaded, input);
+  if (prepared.source.itemId !== null) {
+    await lockActiveItemRootInTransaction(tx, prepared.source.itemId);
+  }
   const intendedMechanicalPurpose = boundedText(
     input.intendedMechanicalPurpose,
     "Intended mechanical purpose",
@@ -1480,7 +1486,7 @@ export async function readDefenseInterventionWorkspaceInTransaction(
     tier: skill.tier,
     primaryAttribute: skill.primaryAttribute,
     secondaryAttribute: skill.secondaryAttribute,
-  }).from(skill).orderBy(asc(skill.name), asc(skill.id));
+  }).from(skill).where(isNull(skill.archivedAt)).orderBy(asc(skill.name), asc(skill.id));
   const allRelationships = await tx.select({
     id: skillRelationship.id,
     skillId: skillRelationship.skillId,

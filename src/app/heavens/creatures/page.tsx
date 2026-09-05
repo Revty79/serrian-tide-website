@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import "../skills/skills.css";
 import {
@@ -12,7 +12,7 @@ import "./creatures.css";
 import { CreatureWorkspace } from "./creature-workspace";
 
 export default async function CreaturesPage() {
-  const session = await requireGod().catch(() => redirect("/access"));
+  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const [initialLibrary, initialFacets, initialReferences] = await Promise.all([
     listCreatures({ page: 1, pageSize: 40 }),
     listCreatureFacets(),

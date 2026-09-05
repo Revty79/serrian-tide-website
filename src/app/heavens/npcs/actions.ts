@@ -1,28 +1,31 @@
 "use server";
 
-import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { campaign } from "@/db/campaign-schema";
+import { userRole } from "@/db/authorization-schema";
+import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import {
   CREATURE_CR_IMPACTS,
+  creature,
   type CreatureCrImpact,
 } from "@/db/creature-schema";
 import { item, itemEffect, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
+import { race } from "@/db/race-schema";
 import {
+  campaignAllowedRace,
   campaignCharacter,
   campaignCharacterActiveHealthPool,
+  campaignCharacterAttribute,
   campaignCharacterInjury,
   campaignCharacterItem,
   campaignCharacterItemInstance,
+  campaignCharacterProfile,
   campaignCreatureNpcProfile,
   campaignInventoryItem,
 } from "@/db/realm-schema";
-import {
-  getCreature,
-  type CreatureDraft,
-} from "@/app/heavens/creatures/actions";
+import type { CreatureDraft } from "@/app/heavens/creatures/actions";
 import {
   normalizeCreatureSnapshotAbilities,
 } from "@/features/creatures/creature-ability";
@@ -36,7 +39,10 @@ import {
   normalizeCreatureNpcSnapshot,
   normalizeCreatureNpcSnapshotCore,
   parseCreatureNpcSnapshot,
+  readCreatureNpcTemplateInTransaction,
+  type CreatureNpcConstructorTransaction,
 } from "@/features/creatures/creature-npc-constructor-service";
+import { CHARACTER_ATTRIBUTE_KEYS } from "@/features/characters/models";
 import {
   assertItemOwnershipStrategy,
   assertNoStackInstanceOwnershipCollision,
@@ -55,7 +61,19 @@ import {
   reconcileEquipmentAfterOwnershipMutationInTransaction,
   validateEquipmentOwnershipMutationInTransaction,
 } from "@/features/items/equipment-state-service";
-import { requireGod } from "@/lib/server-access";
+import { assertOwnedRootManager } from "@/features/lifecycle/policy";
+import {
+  assertNpcCanBeChanged,
+  getDetailedNpcHref,
+  needsNpcUpgrade,
+  normalizeCreateNpcValues,
+  normalizeSimpleNpcValues,
+  type CreateNpcValues,
+  type NpcArchiveStatus,
+  type NpcBuildMode,
+  type NpcOrigin,
+} from "@/features/npcs/npc-workflow";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type CreatureNpcDraft = {
   characterId: number;
@@ -64,6 +82,11 @@ export type CreatureNpcDraft = {
   creatureName: string;
   campaignName: string;
   name: string;
+  roleLabel: string;
+  buildMode: NpcBuildMode;
+  status: NpcArchiveStatus;
+  archivedAt: string | null;
+  archiveReason: string;
   personality: string;
   instanceNotes: string;
   hpAdjustment: number;
@@ -87,7 +110,47 @@ export type CreatureNpcDraft = {
     runtimeProfile: ItemRuntimeProfile;
     weaponProfileId: number | null;
     isFirearm: boolean;
+    archived: boolean;
   }>;
+};
+
+export type NpcOriginOption = {
+  id: number;
+  origin: NpcOrigin;
+  name: string;
+  detail: string;
+};
+
+export type NpcCampaignSummary = {
+  id: number;
+  name: string;
+};
+
+export type NpcArchiveRecord = {
+  id: number;
+  campaignId: number;
+  name: string;
+  roleLabel: string;
+  npcKind: NpcOrigin;
+  buildMode: NpcBuildMode;
+  status: NpcArchiveStatus;
+  archivedAt: string | null;
+  archiveReason: string;
+  sourceId: number | null;
+  sourceName: string;
+};
+
+export type SimpleNpcDraft = NpcArchiveRecord & {
+  personalityDescription: string;
+  notes: string;
+};
+
+export type CreateNpcResult = {
+  characterId: number;
+  campaignId: number;
+  origin: NpcOrigin;
+  buildMode: NpcBuildMode;
+  href: string | null;
 };
 
 type ItemRuntimeColumns = {
@@ -118,15 +181,74 @@ function readItemRuntimeProfile(row: ItemRuntimeColumns): ItemRuntimeProfile {
   return validation.profile;
 }
 
-async function requireOwner(campaignId: number) {
-  const session = await requireGod();
-  const [owned] = await db
-    .select({ id: campaign.id })
+type NpcManagerContext = {
+  actorUserId: string;
+  campaignOwnerUserId: string;
+  campaignName: string;
+  startingCredits: number;
+  campaignArchivedAt: Date | null;
+};
+
+async function requireOwner(campaignId: number): Promise<NpcManagerContext> {
+  const access = await requireGodOrAdminAccessContext();
+  const [campaignRow] = await db
+    .select({
+      createdByUserId: campaign.createdByUserId,
+      name: campaign.name,
+      startingCredits: campaign.startingCreditAmount,
+      archivedAt: campaign.archivedAt,
+    })
     .from(campaign)
-    .where(and(eq(campaign.id, campaignId), eq(campaign.createdByUserId, session.user.id)))
+    .where(eq(campaign.id, campaignId))
     .limit(1);
-  if (!owned) throw new Error("Only the Campaign creator can manage its NPCs.");
-  return session;
+  if (!campaignRow) throw new Error("Campaign not found.");
+  assertOwnedRootManager(
+    { userId: access.session.user.id, roles: access.roles },
+    campaignRow.createdByUserId,
+    "Campaign",
+  );
+  return {
+    actorUserId: access.session.user.id,
+    campaignOwnerUserId: campaignRow.createdByUserId,
+    campaignName: campaignRow.name,
+    startingCredits: campaignRow.startingCredits,
+    campaignArchivedAt: campaignRow.archivedAt,
+  };
+}
+
+async function requireOwnerInTransaction(
+  tx: CreatureNpcConstructorTransaction,
+  campaignId: number,
+  actorUserId: string,
+): Promise<NpcManagerContext> {
+  const [campaignRow] = await tx
+    .select({
+      createdByUserId: campaign.createdByUserId,
+      name: campaign.name,
+      startingCredits: campaign.startingCreditAmount,
+      archivedAt: campaign.archivedAt,
+    })
+    .from(campaign)
+    .where(eq(campaign.id, campaignId))
+    .limit(1)
+    .for("update");
+  if (!campaignRow) throw new Error("Campaign not found.");
+  const roleRows = await tx
+    .select({ role: userRole.role })
+    .from(userRole)
+    .where(eq(userRole.userId, actorUserId));
+  assertOwnedRootManager(
+    { userId: actorUserId, roles: roleRows.map(({ role }) => role) },
+    campaignRow.createdByUserId,
+    "Campaign",
+  );
+  return {
+    actorUserId,
+    campaignOwnerUserId: campaignRow.createdByUserId,
+    campaignName: campaignRow.name,
+    startingCredits: campaignRow.startingCredits,
+    campaignArchivedAt: campaignRow.archivedAt,
+  };
 }
 
 function parseSnapshot(value: string, label: string, hpAdjustment = 0): CreatureDraft {
@@ -137,20 +259,410 @@ export async function createCreatureNpc(
   campaignId: number,
   creatureId: number,
 ): Promise<CreatureNpcDraft> {
-  const session = await requireOwner(campaignId);
-  const template = await getCreature(creatureId);
-  if (!template) throw new Error("The selected master Creature no longer exists.");
-  const snapshot = buildCreatureNpcSnapshot(template);
-  const characterId = await db.transaction((tx) => createCreatureNpcInTransaction(tx, {
+  const manager = await requireOwner(campaignId);
+  if (manager.campaignArchivedAt) {
+    throw new Error("Restore this Campaign before creating an NPC.");
+  }
+  const [source] = await db.select({
+    name: creature.canonicalName,
+    roleLabel: creature.creatureType,
+    fallbackRoleLabel: creature.family,
+  }).from(creature).where(and(
+    eq(creature.id, creatureId),
+    isNull(creature.archivedAt),
+  )).limit(1);
+  if (!source) throw new Error("The selected master Creature is archived or no longer exists.");
+  const created = await createNpc({
     campaignId,
-    controllerUserId: session.user.id,
-    creatureId,
-    name: template.core.canonicalName,
-    snapshot,
-  }));
+    origin: "creature",
+    buildMode: "detailed",
+    sourceId: creatureId,
+    name: source.name,
+    roleLabel: source.roleLabel.trim() || source.fallbackRoleLabel.trim() || "Creature",
+  });
 
   revalidatePath("/heavens/npcs");
-  return getCreatureNpc(characterId);
+  return getCreatureNpc(created.characterId);
+}
+
+export async function listNpcOrigins(campaignId: number): Promise<NpcOriginOption[]> {
+  const manager = await requireOwner(campaignId);
+  if (manager.campaignArchivedAt) return [];
+  const raceRows = await db.select({
+    id: race.id,
+    name: race.name,
+    detail: race.size,
+  }).from(campaignAllowedRace)
+    .innerJoin(race, eq(race.id, campaignAllowedRace.raceId))
+    .where(and(
+      eq(campaignAllowedRace.campaignId, campaignId),
+      isNull(race.archivedAt),
+    ))
+    .orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name), asc(race.id));
+  const creatureRows = await db.select({
+    id: creature.id,
+    name: creature.canonicalName,
+    family: creature.family,
+    creatureType: creature.creatureType,
+  }).from(creature)
+    .where(isNull(creature.archivedAt))
+    .orderBy(asc(creature.canonicalName), asc(creature.id));
+  return [
+    ...raceRows.map((entry) => ({
+      id: entry.id,
+      origin: "race" as const,
+      name: entry.name,
+      detail: entry.detail || "Race",
+    })),
+    ...creatureRows.map((entry) => ({
+      id: entry.id,
+      origin: "creature" as const,
+      name: entry.name,
+      detail: entry.creatureType || entry.family || "Creature",
+    })),
+  ];
+}
+
+export async function listNpcCampaigns(): Promise<NpcCampaignSummary[]> {
+  const access = await requireGodOrAdminAccessContext();
+  return db.select({ id: campaign.id, name: campaign.name })
+    .from(campaign)
+    .where(and(
+      isNull(campaign.archivedAt),
+      access.roles.includes("admin")
+        ? undefined
+        : eq(campaign.createdByUserId, access.session.user.id),
+    ))
+    .orderBy(asc(campaign.name), asc(campaign.id));
+}
+
+export async function createNpc(input: CreateNpcValues): Promise<CreateNpcResult> {
+  const normalized = normalizeCreateNpcValues(input);
+  const access = await requireGodOrAdminAccessContext();
+  const characterId = await db.transaction(async (tx) => {
+    const manager = await requireOwnerInTransaction(
+      tx,
+      normalized.campaignId,
+      access.session.user.id,
+    );
+    if (manager.campaignArchivedAt) {
+      throw new Error("Restore this Campaign before creating an NPC.");
+    }
+    await tx.insert(campaignPlayer).values({
+      campaignId: normalized.campaignId,
+      userId: manager.campaignOwnerUserId,
+      isNpcController: true,
+    }).onConflictDoNothing();
+
+    if (normalized.origin === "race") {
+      const [source] = await tx.select({ id: race.id })
+        .from(race)
+        .where(and(eq(race.id, normalized.sourceId), isNull(race.archivedAt)))
+        .limit(1)
+        .for("update");
+      if (!source) {
+        throw new Error("The selected origin Race is archived or no longer exists.");
+      }
+      const [allowed] = await tx.select({ raceId: campaignAllowedRace.raceId })
+        .from(campaignAllowedRace)
+        .where(and(
+          eq(campaignAllowedRace.campaignId, normalized.campaignId),
+          eq(campaignAllowedRace.raceId, normalized.sourceId),
+        ))
+        .limit(1);
+      if (!allowed) throw new Error("The selected origin Race is not allowed in this Campaign.");
+      const [created] = await tx.insert(campaignCharacter).values({
+        campaignId: normalized.campaignId,
+        playerUserId: manager.campaignOwnerUserId,
+        name: normalized.name,
+        isNpc: true,
+        npcKind: "race",
+        npcBuildMode: normalized.buildMode,
+        npcRoleLabel: normalized.roleLabel,
+      }).returning({ id: campaignCharacter.id });
+      if (!created) throw new Error("Race NPC could not be created.");
+      await tx.insert(campaignCharacterProfile).values({
+        characterId: created.id,
+        raceId: normalized.sourceId,
+        personality: normalized.personalityDescription,
+        backstory: normalized.notes,
+        creditsRemaining: manager.startingCredits,
+      });
+      await tx.insert(campaignCharacterAttribute).values(
+        CHARACTER_ATTRIBUTE_KEYS.map((attributeKey) => ({
+          characterId: created.id,
+          attributeKey,
+          value: 25,
+        })),
+      );
+      return created.id;
+    }
+
+    const template = await readCreatureNpcTemplateInTransaction(
+      tx,
+      normalized.sourceId,
+      { activeOnly: true },
+    );
+    if (!template) {
+      throw new Error("The selected master Creature is archived or no longer exists.");
+    }
+    return createCreatureNpcInTransaction(tx, {
+      campaignId: normalized.campaignId,
+      controllerUserId: manager.campaignOwnerUserId,
+      creatureId: normalized.sourceId,
+      name: normalized.name,
+      roleLabel: normalized.roleLabel,
+      buildMode: normalized.buildMode,
+      personalityDescription: normalized.personalityDescription,
+      notes: normalized.notes,
+      snapshot: buildCreatureNpcSnapshot(template),
+    });
+  });
+
+  revalidatePath("/heavens/npcs");
+  revalidatePath("/heavens");
+  return {
+    characterId,
+    campaignId: normalized.campaignId,
+    origin: normalized.origin,
+    buildMode: normalized.buildMode,
+    href: normalized.buildMode === "detailed"
+      ? getDetailedNpcHref({
+          campaignId: normalized.campaignId,
+          characterId,
+          origin: normalized.origin,
+        })
+      : null,
+  };
+}
+
+export async function listNpcArchive(
+  campaignId: number,
+  status: NpcArchiveStatus = "active",
+): Promise<NpcArchiveRecord[]> {
+  await requireOwner(campaignId);
+  const rows = await db.select({
+    id: campaignCharacter.id,
+    campaignId: campaignCharacter.campaignId,
+    name: campaignCharacter.name,
+    roleLabel: campaignCharacter.npcRoleLabel,
+    npcKind: campaignCharacter.npcKind,
+    buildMode: campaignCharacter.npcBuildMode,
+    archivedAt: campaignCharacter.archivedAt,
+    archiveReason: campaignCharacter.archiveReason,
+    raceId: campaignCharacterProfile.raceId,
+    raceName: race.name,
+    creatureId: campaignCreatureNpcProfile.creatureId,
+    creatureName: creature.canonicalName,
+  }).from(campaignCharacter)
+    .leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id))
+    .leftJoin(race, eq(race.id, campaignCharacterProfile.raceId))
+    .leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
+    .leftJoin(creature, eq(creature.id, campaignCreatureNpcProfile.creatureId))
+    .where(and(
+      eq(campaignCharacter.campaignId, campaignId),
+      eq(campaignCharacter.isNpc, true),
+      status === "archived"
+        ? isNotNull(campaignCharacter.archivedAt)
+        : isNull(campaignCharacter.archivedAt),
+    ))
+    .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));
+
+  return rows.map((row) => {
+    const npcKind: NpcOrigin = row.npcKind === "creature" ? "creature" : "race";
+    const sourceId = npcKind === "creature" ? row.creatureId : row.raceId;
+    const sourceName = npcKind === "creature"
+      ? row.creatureName ?? "Creature source unavailable"
+      : row.raceName ?? "Race source unavailable";
+    return {
+      id: row.id,
+      campaignId: row.campaignId,
+      name: row.name,
+      roleLabel: row.roleLabel,
+      npcKind,
+      buildMode: row.buildMode === "simple" ? "simple" : "detailed",
+      status,
+      archivedAt: row.archivedAt?.toISOString() ?? null,
+      archiveReason: row.archiveReason,
+      sourceId,
+      sourceName,
+    };
+  });
+}
+
+export async function getSimpleNpc(characterId: number): Promise<SimpleNpcDraft> {
+  const [row] = await db.select({
+    id: campaignCharacter.id,
+    campaignId: campaignCharacter.campaignId,
+    name: campaignCharacter.name,
+    roleLabel: campaignCharacter.npcRoleLabel,
+    npcKind: campaignCharacter.npcKind,
+    buildMode: campaignCharacter.npcBuildMode,
+    archivedAt: campaignCharacter.archivedAt,
+    archiveReason: campaignCharacter.archiveReason,
+    raceId: campaignCharacterProfile.raceId,
+    raceName: race.name,
+    racePersonality: campaignCharacterProfile.personality,
+    raceNotes: campaignCharacterProfile.backstory,
+    creatureId: campaignCreatureNpcProfile.creatureId,
+    creatureName: creature.canonicalName,
+    creaturePersonality: campaignCreatureNpcProfile.personality,
+    creatureNotes: campaignCreatureNpcProfile.instanceNotes,
+  }).from(campaignCharacter)
+    .leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id))
+    .leftJoin(race, eq(race.id, campaignCharacterProfile.raceId))
+    .leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
+    .leftJoin(creature, eq(creature.id, campaignCreatureNpcProfile.creatureId))
+    .where(and(eq(campaignCharacter.id, characterId), eq(campaignCharacter.isNpc, true)))
+    .limit(1);
+  if (!row || row.buildMode !== "simple") throw new Error("Simple NPC not found.");
+  await requireOwner(row.campaignId);
+  const npcKind: NpcOrigin = row.npcKind === "creature" ? "creature" : "race";
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    name: row.name,
+    roleLabel: row.roleLabel,
+    npcKind,
+    buildMode: "simple",
+    status: row.archivedAt ? "archived" : "active",
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    archiveReason: row.archiveReason,
+    sourceId: npcKind === "creature" ? row.creatureId : row.raceId,
+    sourceName: npcKind === "creature"
+      ? row.creatureName ?? "Creature source unavailable"
+      : row.raceName ?? "Race source unavailable",
+    personalityDescription: npcKind === "creature"
+      ? row.creaturePersonality ?? ""
+      : row.racePersonality ?? "",
+    notes: npcKind === "creature" ? row.creatureNotes ?? "" : row.raceNotes ?? "",
+  };
+}
+
+export async function saveSimpleNpc(input: SimpleNpcDraft): Promise<SimpleNpcDraft> {
+  const normalized = normalizeSimpleNpcValues({
+    characterId: input.id,
+    campaignId: input.campaignId,
+    name: input.name,
+    roleLabel: input.roleLabel,
+    personalityDescription: input.personalityDescription,
+    notes: input.notes,
+  });
+  const access = await requireGodOrAdminAccessContext();
+  await db.transaction(async (tx) => {
+    await requireOwnerInTransaction(tx, normalized.campaignId, access.session.user.id);
+    const [locked] = await tx.select({
+      id: campaignCharacter.id,
+      npcKind: campaignCharacter.npcKind,
+      buildMode: campaignCharacter.npcBuildMode,
+      archivedAt: campaignCharacter.archivedAt,
+    }).from(campaignCharacter).where(and(
+      eq(campaignCharacter.id, normalized.characterId),
+      eq(campaignCharacter.campaignId, normalized.campaignId),
+      eq(campaignCharacter.isNpc, true),
+    )).limit(1).for("update");
+    if (!locked || locked.buildMode !== "simple") throw new Error("Simple NPC not found.");
+    assertNpcCanBeChanged({ archivedAt: locked.archivedAt, operation: "save" });
+    await tx.update(campaignCharacter).set({
+      name: normalized.name,
+      npcRoleLabel: normalized.roleLabel,
+      updatedAt: new Date(),
+    }).where(eq(campaignCharacter.id, normalized.characterId));
+    if (locked.npcKind === "creature") {
+      const updated = await tx.update(campaignCreatureNpcProfile).set({
+        personality: normalized.personalityDescription,
+        instanceNotes: normalized.notes,
+        updatedAt: new Date(),
+      }).where(eq(campaignCreatureNpcProfile.characterId, normalized.characterId))
+        .returning({ characterId: campaignCreatureNpcProfile.characterId });
+      if (!updated.length) throw new Error("Creature NPC profile is missing.");
+    } else {
+      const updated = await tx.update(campaignCharacterProfile).set({
+        personality: normalized.personalityDescription,
+        backstory: normalized.notes,
+        updatedAt: new Date(),
+      }).where(eq(campaignCharacterProfile.characterId, normalized.characterId))
+        .returning({ characterId: campaignCharacterProfile.characterId });
+      if (!updated.length) throw new Error("Race NPC profile is missing.");
+    }
+  });
+  revalidatePath("/heavens/npcs");
+  return getSimpleNpc(normalized.characterId);
+}
+
+export async function upgradeNpcToDetailed(characterId: number): Promise<CreateNpcResult> {
+  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
+    throw new Error("A saved NPC must be selected for upgrade.");
+  }
+  const access = await requireGodOrAdminAccessContext();
+  const [target] = await db.select({ campaignId: campaignCharacter.campaignId })
+    .from(campaignCharacter)
+    .where(and(eq(campaignCharacter.id, characterId), eq(campaignCharacter.isNpc, true)))
+    .limit(1);
+  if (!target) throw new Error("NPC not found.");
+  const upgraded = await db.transaction(async (tx) => {
+    await requireOwnerInTransaction(tx, target.campaignId, access.session.user.id);
+    const [locked] = await tx.select({
+      id: campaignCharacter.id,
+      campaignId: campaignCharacter.campaignId,
+      npcKind: campaignCharacter.npcKind,
+      buildMode: campaignCharacter.npcBuildMode,
+      archivedAt: campaignCharacter.archivedAt,
+    }).from(campaignCharacter).where(and(
+      eq(campaignCharacter.id, characterId),
+      eq(campaignCharacter.campaignId, target.campaignId),
+      eq(campaignCharacter.isNpc, true),
+    )).limit(1).for("update");
+    if (!locked) throw new Error("NPC not found.");
+    assertNpcCanBeChanged({ archivedAt: locked.archivedAt, operation: "upgrade" });
+    const origin: NpcOrigin = locked.npcKind === "creature" ? "creature" : "race";
+    const buildMode: NpcBuildMode = locked.buildMode === "simple" ? "simple" : "detailed";
+    if (needsNpcUpgrade(buildMode)) {
+      const [profile] = await tx.select({
+        characterId: campaignCharacterProfile.characterId,
+        raceId: campaignCharacterProfile.raceId,
+      }).from(campaignCharacterProfile)
+        .where(eq(campaignCharacterProfile.characterId, locked.id))
+        .limit(1)
+        .for("update");
+      if (!profile) throw new Error("NPC Character profile is missing.");
+      if (origin === "race" && profile.raceId === null) {
+        throw new Error("Select a valid origin Race before upgrading this NPC.");
+      }
+      if (origin === "creature") {
+        const [creatureProfile] = await tx.select({ characterId: campaignCreatureNpcProfile.characterId })
+          .from(campaignCreatureNpcProfile)
+          .where(eq(campaignCreatureNpcProfile.characterId, locked.id))
+          .limit(1)
+          .for("update");
+        if (!creatureProfile) throw new Error("Creature NPC profile is missing.");
+      }
+      await tx.insert(campaignCharacterAttribute).values(
+        CHARACTER_ATTRIBUTE_KEYS.map((attributeKey) => ({
+          characterId: locked.id,
+          attributeKey,
+          value: 25,
+        })),
+      ).onConflictDoNothing();
+      await tx.update(campaignCharacter).set({
+        npcBuildMode: "detailed",
+        updatedAt: new Date(),
+      }).where(eq(campaignCharacter.id, locked.id));
+    }
+    return {
+      characterId: locked.id,
+      campaignId: locked.campaignId,
+      origin,
+    };
+  });
+  revalidatePath("/heavens/npcs");
+  revalidatePath(`/heavens/npcs/${upgraded.characterId}`);
+  revalidatePath(`/heavens/characters/${upgraded.characterId}`);
+  return {
+    ...upgraded,
+    buildMode: "detailed",
+    href: getDetailedNpcHref(upgraded),
+  };
 }
 
 export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDraft> {
@@ -160,6 +672,10 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       campaignId: campaignCharacter.campaignId,
       name: campaignCharacter.name,
       npcKind: campaignCharacter.npcKind,
+      roleLabel: campaignCharacter.npcRoleLabel,
+      buildMode: campaignCharacter.npcBuildMode,
+      archivedAt: campaignCharacter.archivedAt,
+      archiveReason: campaignCharacter.archiveReason,
       campaignName: campaign.name,
     })
     .from(campaignCharacter)
@@ -170,14 +686,23 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
   await requireOwner(core.campaignId);
 
   const [profile] = await db
-    .select()
+    .select({
+      characterId: campaignCreatureNpcProfile.characterId,
+      creatureId: campaignCreatureNpcProfile.creatureId,
+      creatureName: creature.canonicalName,
+      personality: campaignCreatureNpcProfile.personality,
+      instanceNotes: campaignCreatureNpcProfile.instanceNotes,
+      hpAdjustment: campaignCreatureNpcProfile.hpAdjustment,
+      baselineSnapshotJson: campaignCreatureNpcProfile.baselineSnapshotJson,
+      currentSnapshotJson: campaignCreatureNpcProfile.currentSnapshotJson,
+    })
     .from(campaignCreatureNpcProfile)
+    .innerJoin(creature, eq(creature.id, campaignCreatureNpcProfile.creatureId))
     .where(eq(campaignCreatureNpcProfile.characterId, characterId))
     .limit(1);
   if (!profile) throw new Error("Creature NPC profile is missing.");
 
-  const [template, ownedItems, ownedItemInstances, authorizedItems] = await Promise.all([
-    getCreature(profile.creatureId),
+  const [ownedItems, ownedItemInstances, authorizedItems] = await Promise.all([
     db.select({
       itemId: campaignCharacterItem.itemId,
       quantity: campaignCharacterItem.quantity,
@@ -226,6 +751,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       catalogScope: item.catalogScope,
       equipmentGroup: item.equipmentGroup,
       category: item.category,
+      archivedAt: item.archivedAt,
       credits: item.credits,
       isMagical: item.isMagical,
       effectCount: sql<number>`(select count(*)::int from ${itemEffect} where ${itemEffect.itemId} = ${item.id})`,
@@ -259,9 +785,14 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
     characterId,
     campaignId: core.campaignId,
     creatureId: profile.creatureId,
-    creatureName: template?.core.canonicalName ?? `Creature ${profile.creatureId}`,
+    creatureName: profile.creatureName,
     campaignName: core.campaignName,
     name: core.name,
+    roleLabel: core.roleLabel,
+    buildMode: core.buildMode === "simple" ? "simple" : "detailed",
+    status: core.archivedAt ? "archived" : "active",
+    archivedAt: core.archivedAt?.toISOString() ?? null,
+    archiveReason: core.archiveReason,
     personality: profile.personality,
     instanceNotes: profile.instanceNotes,
     hpAdjustment: profile.hpAdjustment,
@@ -289,18 +820,25 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeProfile: readItemRuntimeProfile(entry),
       weaponProfileId: entry.weaponProfileId,
       isFirearm: entry.isFirearm,
+      archived: entry.archivedAt !== null,
     })),
   };
 }
 
 export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<CreatureNpcDraft> {
-  await requireOwner(input.campaignId);
+  const access = await requireGodOrAdminAccessContext();
   const current = await getCreatureNpc(input.characterId);
   if (current.campaignId !== input.campaignId || current.creatureId !== input.creatureId) {
     throw new Error("Creature NPC identity cannot be changed.");
   }
   const name = input.name.trim();
+  const roleLabel = input.roleLabel.trim();
   if (!name) throw new Error("Creature NPC Name is required.");
+  if (!roleLabel) throw new Error("NPC Role / Label is required.");
+  if (current.buildMode !== "detailed") {
+    throw new Error("Use the Simple NPC editor until this NPC is upgraded.");
+  }
+  assertNpcCanBeChanged({ archivedAt: current.archivedAt, operation: "save" });
   if (!Number.isFinite(input.hpAdjustment)) throw new Error("HP Adjustment must be a number.");
   if (input.currentSnapshot.core.canonicalId !== current.baselineSnapshot.core.canonicalId) {
     throw new Error("The Creature template identity cannot be changed on an individual NPC.");
@@ -365,11 +903,14 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     seenItems.add(entry.itemId);
     const source = authorizedById.get(entry.itemId);
     if (!source) throw new Error("Creature NPC inventory must use Campaign-authorized Items.");
+    const existing = current.items.find((owned) => owned.itemId === entry.itemId);
+    if (source.archived && (!existing || entry.quantity > existing.quantity)) {
+      throw new Error("Archived Items cannot be added to or increased in Creature NPC inventory.");
+    }
     assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
       requiresExactInstance: source.isFirearm,
       allowLegacyExactStack: true,
     });
-    const existing = current.items.find((owned) => owned.itemId === entry.itemId);
     return {
       itemId: entry.itemId,
       quantity: entry.quantity,
@@ -395,6 +936,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     });
     if (entry.instanceId === null) {
       if (entry.draftId >= 0) throw new Error("An unsaved Creature NPC Item instance needs a temporary draft identity.");
+      if (source.archived) throw new Error("Archived Items cannot be added as new Creature NPC instances.");
       return {
         ...entry,
         currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm),
@@ -438,12 +980,15 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     derivedCreatures: [],
   }, input.hpAdjustment);
   await db.transaction(async (tx) => {
-    await tx
-      .select({ id: campaignCharacter.id })
+    await requireOwnerInTransaction(tx, input.campaignId, access.session.user.id);
+    const [lockedCharacter] = await tx
+      .select({ archivedAt: campaignCharacter.archivedAt })
       .from(campaignCharacter)
       .where(eq(campaignCharacter.id, input.characterId))
       .limit(1)
       .for("update");
+    if (!lockedCharacter) throw new Error("Creature NPC not found.");
+    assertNpcCanBeChanged({ archivedAt: lockedCharacter.archivedAt, operation: "save" });
     const [lockedProfile] = await tx
       .select({
         currentSnapshotJson: campaignCreatureNpcProfile.currentSnapshotJson,
@@ -494,7 +1039,11 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
         );
       }
     }
-    await tx.update(campaignCharacter).set({ name, updatedAt: new Date() }).where(eq(campaignCharacter.id, input.characterId));
+    await tx.update(campaignCharacter).set({
+      name,
+      npcRoleLabel: roleLabel,
+      updatedAt: new Date(),
+    }).where(eq(campaignCharacter.id, input.characterId));
     await tx.update(campaignCreatureNpcProfile).set({
       personality: input.personality.trim(),
       instanceNotes: input.instanceNotes.trim(),

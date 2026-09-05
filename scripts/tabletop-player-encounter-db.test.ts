@@ -111,8 +111,8 @@ async function fixture(tx: Tx, label: string) {
   const characters = await tx.insert(campaignCharacter).values([
     { campaignId: createdCampaign.id, playerUserId: playerAId, name: "Player A Character" },
     { campaignId: createdCampaign.id, playerUserId: playerBId, name: "Player B Character" },
-    { campaignId: createdCampaign.id, playerUserId: godId, name: "Private NPC", isNpc: true, npcKind: "race" },
-    { campaignId: createdCampaign.id, playerUserId: godId, name: "Private Creature", isNpc: true, npcKind: "creature" },
+    { campaignId: createdCampaign.id, playerUserId: godId, name: "Private NPC", isNpc: true, npcKind: "race", npcBuildMode: "detailed" },
+    { campaignId: createdCampaign.id, playerUserId: godId, name: "Private Creature", isNpc: true, npcKind: "creature", npcBuildMode: "detailed" },
   ]).returning({ id: campaignCharacter.id, isNpc: campaignCharacter.isNpc });
   const [characterA, characterB, npc, creatureNpc] = characters;
   assert.ok(characterA && characterB && npc && creatureNpc);

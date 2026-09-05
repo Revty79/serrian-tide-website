@@ -7,6 +7,7 @@ import {
   eq,
   ilike,
   inArray,
+  isNotNull,
   isNull,
   ne,
   or,
@@ -18,8 +19,6 @@ import { db } from "@/db";
 import {
   campaignAllowedDerivedAbility,
   characterDerivedAbility,
-  characterDerivedAbilityRecharge,
-  characterDerivedAbilityUse,
   derivedAbility,
   derivedAbilityCost,
   derivedAbilityEffect,
@@ -57,10 +56,15 @@ import type {
   DerivedAbilityRequirementType,
   DerivedAbilityUseConditionType,
 } from "@/features/derived-abilities/models";
-import { requireGod } from "@/lib/server-access";
+import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type DerivedAbilityDraft = DerivedAbilityAuthoringDraft;
-export type DerivedAbilityAggregate = DerivedAbilityAuthoringAggregate;
+export type DerivedAbilityAggregate = DerivedAbilityAuthoringAggregate & {
+  createdByUserId: string | null;
+  archivedAt: string | null;
+  archiveReason: string;
+};
 
 export type DerivedAbilityLibraryFilters = {
   search?: string;
@@ -68,6 +72,7 @@ export type DerivedAbilityLibraryFilters = {
   activationType?: DerivedAbilityActivationType | "";
   page?: number;
   pageSize?: number;
+  archived?: boolean;
 };
 
 export type DerivedAbilitySummary = {
@@ -80,6 +85,7 @@ export type DerivedAbilitySummary = {
   activationType: DerivedAbilityActivationType;
   effectCount: number;
   sourceSystem: string | null;
+  archivedAt: string | null;
 };
 
 export type DerivedAbilityLibraryResult = {
@@ -202,29 +208,57 @@ function mapLimitRows(rows: Awaited<ReturnType<typeof loadLimitRows>>) {
   }));
 }
 
-export async function getDerivedAbilityEditorReferences(): Promise<DerivedAbilityEditorReferences> {
-  await requireGod();
+export async function getDerivedAbilityEditorReferences(
+  forDerivedAbilityId?: number,
+): Promise<DerivedAbilityEditorReferences> {
+  await requireGodOrAdminAccessContext();
+  const storedReferences = forDerivedAbilityId
+    ? await db
+        .select({
+          skillId: derivedAbilityRequirement.skillId,
+          requiredDerivedAbilityId: derivedAbilityRequirement.requiredDerivedAbilityId,
+        })
+        .from(derivedAbilityRequirement)
+        .where(eq(derivedAbilityRequirement.derivedAbilityId, forDerivedAbilityId))
+    : [];
+  const storedSkillIds = new Set(
+    storedReferences.flatMap(({ skillId }) => skillId === null ? [] : [skillId]),
+  );
+  const storedAbilityIds = new Set(
+    storedReferences.flatMap(({ requiredDerivedAbilityId }) =>
+      requiredDerivedAbilityId === null ? [] : [requiredDerivedAbilityId]),
+  );
   const [skills, abilities] = await Promise.all([
     db.select({
       id: skill.id,
       name: skill.name,
       tier: skill.tier,
       classification: skill.classification,
+      archivedAt: skill.archivedAt,
     }).from(skill).orderBy(asc(skill.name), asc(skill.id)),
-    db.select({ id: derivedAbility.id, name: derivedAbility.name })
+    db.select({ id: derivedAbility.id, name: derivedAbility.name, archivedAt: derivedAbility.archivedAt })
       .from(derivedAbility)
       .orderBy(asc(derivedAbility.name), asc(derivedAbility.id)),
   ]);
-  return { skills, abilities };
+  return {
+    skills: skills
+      .filter((entry) => entry.archivedAt === null || storedSkillIds.has(entry.id))
+      .map(({ id, name, tier, classification }) => ({ id, name, tier, classification })),
+    abilities: abilities
+      .filter((entry) => entry.archivedAt === null || storedAbilityIds.has(entry.id))
+      .map(({ id, name }) => ({ id, name })),
+  };
 }
 
 export async function listDerivedAbilities(
   filters: DerivedAbilityLibraryFilters = {},
 ): Promise<DerivedAbilityLibraryResult> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [
+    filters.archived ? isNotNull(derivedAbility.archivedAt) : isNull(derivedAbility.archivedAt),
+  ];
   const search = clean(filters.search);
   if (search) {
     conditions.push(or(
@@ -251,6 +285,7 @@ export async function listDerivedAbilities(
     activationType: derivedAbility.activationType,
     sourceSystem: derivedAbility.sourceSystem,
     sourceExternalId: derivedAbility.sourceExternalId,
+    archivedAt: derivedAbility.archivedAt,
   }).from(derivedAbility)
     .where(where)
     .orderBy(asc(derivedAbility.name), asc(derivedAbility.id))
@@ -311,6 +346,7 @@ export async function listDerivedAbilities(
       activationType: ability.activationType,
       effectCount: effectCounts.get(ability.id) ?? 0,
       sourceSystem: ability.sourceSystem,
+      archivedAt: rows.find(({ id }) => id === ability.id)?.archivedAt?.toISOString() ?? null,
     })),
     total,
     page,
@@ -322,7 +358,7 @@ export async function listDerivedAbilities(
 export async function getDerivedAbility(
   id: number,
 ): Promise<DerivedAbilityAggregate | null> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const [row] = await db.select().from(derivedAbility)
     .where(eq(derivedAbility.id, id)).limit(1);
   if (!row) return null;
@@ -361,6 +397,9 @@ export async function getDerivedAbility(
   return {
     ...definitionToDerivedAbilityDraft(definition),
     id: definition.id,
+    createdByUserId: row.createdByUserId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    archiveReason: row.archiveReason,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     legacyCampaignReferenceCount: Number(legacyReferenceRows[0]?.value ?? 0),
@@ -370,7 +409,7 @@ export async function getDerivedAbility(
 export async function saveDerivedAbility(
   input: DerivedAbilityDraft,
 ): Promise<DerivedAbilityAggregate> {
-  const session = await requireGod();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const normalized = normalizeDerivedAbilityAuthoringDraft(input);
   const savedId = await db.transaction(async (tx) => {
     let id = normalized.id;
@@ -388,11 +427,21 @@ export async function saveDerivedAbility(
       id = created.id;
     } else {
       const [stored] = await tx.select({
+        createdByUserId: derivedAbility.createdByUserId,
         sourceSystem: derivedAbility.sourceSystem,
         sourceExternalId: derivedAbility.sourceExternalId,
         acquisitionType: derivedAbility.acquisitionType,
+        archivedAt: derivedAbility.archivedAt,
       }).from(derivedAbility).where(eq(derivedAbility.id, id)).limit(1);
       if (!stored) throw new Error("That Derived Ability no longer exists.");
+      assertCanEditSharedLibraryRoot(
+        { userId: session.user.id, roles },
+        stored,
+        "Derived Ability",
+      );
+      if (stored.archivedAt) {
+        throw new Error("Restore this Derived Ability before editing it.");
+      }
       if (
         stored.sourceSystem !== normalized.core.sourceSystem ||
         stored.sourceExternalId !== normalized.core.sourceExternalId
@@ -430,6 +479,51 @@ export async function saveDerivedAbility(
       ...normalized,
       id,
     });
+    const storedRequirementRows = input.id === undefined
+      ? []
+      : await tx
+          .select({
+            skillId: derivedAbilityRequirement.skillId,
+            requiredDerivedAbilityId: derivedAbilityRequirement.requiredDerivedAbilityId,
+          })
+          .from(derivedAbilityRequirement)
+          .where(eq(derivedAbilityRequirement.derivedAbilityId, id));
+    const storedSkillIds = new Set(storedRequirementRows.flatMap(({ skillId }) => (
+      skillId === null ? [] : [skillId]
+    )));
+    const storedAbilityIds = new Set(storedRequirementRows.flatMap(({ requiredDerivedAbilityId }) => (
+      requiredDerivedAbilityId === null ? [] : [requiredDerivedAbilityId]
+    )));
+    const submittedSkillIds = [...new Set(ownedDefinition.requirements.flatMap(({ skillId }) => (
+      skillId === null ? [] : [skillId]
+    )))];
+    const submittedAbilityIds = [...new Set(ownedDefinition.requirements.flatMap(({ requiredDerivedAbilityId }) => (
+      requiredDerivedAbilityId === null ? [] : [requiredDerivedAbilityId]
+    )))];
+    if (submittedSkillIds.length) {
+      const referencedSkills = await tx
+        .select({ id: skill.id, archivedAt: skill.archivedAt })
+        .from(skill)
+        .where(inArray(skill.id, submittedSkillIds));
+      if (referencedSkills.length !== submittedSkillIds.length) {
+        throw new Error("One or more required Skills no longer exist.");
+      }
+      if (referencedSkills.some((entry) => entry.archivedAt && !storedSkillIds.has(entry.id))) {
+        throw new Error("Archived Skills cannot be added as requirements. Restore the Skill first.");
+      }
+    }
+    if (submittedAbilityIds.length) {
+      const referencedAbilities = await tx
+        .select({ id: derivedAbility.id, archivedAt: derivedAbility.archivedAt })
+        .from(derivedAbility)
+        .where(inArray(derivedAbility.id, submittedAbilityIds));
+      if (referencedAbilities.length !== submittedAbilityIds.length) {
+        throw new Error("One or more prerequisite Derived Abilities no longer exist.");
+      }
+      if (referencedAbilities.some((entry) => entry.archivedAt && !storedAbilityIds.has(entry.id))) {
+        throw new Error("Archived Derived Abilities cannot be added as prerequisites. Restore the ability first.");
+      }
+    }
     const [graphDefinitions, graphRequirementRows] = await Promise.all([
       tx.select({
         id: derivedAbility.id,
@@ -549,55 +643,4 @@ export async function saveDerivedAbility(
   const saved = await getDerivedAbility(savedId);
   if (!saved) throw new Error("The saved Derived Ability could not be reloaded.");
   return saved;
-}
-
-export async function deleteDerivedAbility(id: number): Promise<void> {
-  await requireGod();
-  await db.transaction(async (tx) => {
-    const [stored] = await tx.select({
-      sourceSystem: derivedAbility.sourceSystem,
-    }).from(derivedAbility).where(eq(derivedAbility.id, id)).limit(1);
-    if (!stored) throw new Error("That Derived Ability no longer exists.");
-    if (stored.sourceSystem) {
-      throw new Error("Canonical Derived Abilities cannot be deleted.");
-    }
-    const [prerequisiteRows, legacyReferenceRows, ownershipRows, useRows, rechargeRows] = await Promise.all([
-      tx.select({ value: count() }).from(derivedAbilityRequirement)
-        .where(eq(derivedAbilityRequirement.requiredDerivedAbilityId, id)),
-      tx.select({ value: count() }).from(campaignAllowedDerivedAbility)
-        .where(eq(campaignAllowedDerivedAbility.derivedAbilityId, id)),
-      tx.select({ value: count() }).from(characterDerivedAbility)
-        .where(eq(characterDerivedAbility.derivedAbilityId, id)),
-      tx.select({ value: count() }).from(characterDerivedAbilityUse)
-        .where(eq(characterDerivedAbilityUse.derivedAbilityId, id)),
-      tx.select({ value: count() }).from(characterDerivedAbilityRecharge)
-        .where(eq(characterDerivedAbilityRecharge.derivedAbilityId, id)),
-    ]);
-    if (Number(prerequisiteRows[0]?.value ?? 0) > 0) {
-      throw new Error(
-        "This Derived Ability is required by another Derived Ability and cannot be deleted until that prerequisite is removed.",
-      );
-    }
-    if (Number(legacyReferenceRows[0]?.value ?? 0) > 0) {
-      throw new Error(
-        "This record still has legacy campaign references. Those references must be reconciled before deletion.",
-      );
-    }
-    if (Number(ownershipRows[0]?.value ?? 0) > 0) {
-      throw new Error(
-        "This Derived Ability has Character ownership history and cannot be deleted.",
-      );
-    }
-    if (
-      Number(useRows[0]?.value ?? 0) > 0
-      || Number(rechargeRows[0]?.value ?? 0) > 0
-    ) {
-      throw new Error(
-        "This Derived Ability has Character use or recharge history and cannot be deleted.",
-      );
-    }
-    await tx.delete(derivedAbility).where(eq(derivedAbility.id, id));
-  });
-  revalidatePath("/heavens/derived-abilities");
-  revalidatePath("/heavens/campaigns");
 }

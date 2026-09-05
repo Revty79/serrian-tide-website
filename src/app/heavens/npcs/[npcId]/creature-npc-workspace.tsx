@@ -47,6 +47,7 @@ import { ItemChargePanel } from "@/app/characters/item-charge-panel";
 import { getCharacterItemChargeState } from "@/app/characters/item-charge-actions";
 import type { CharacterItemChargeStateView } from "@/features/items/item-charge";
 import { CreatureAbilityEffectsEditor } from "@/app/heavens/creatures/creature-ability-effects-editor";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import { CreatureAbilityUseDialog } from "../creature-ability-use-dialog";
 
 type Tab = "identity" | "current" | "stats" | "hp" | "combat" | "special" | "inventory" | "preview";
@@ -74,6 +75,7 @@ function formatCreatureNumber(value: number | null) {
 }
 
 export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initialActiveEffects, initialEquipmentState, initialChargeState }: { initialDraft: CreatureNpcDraft; initialActiveHealth: ActiveHealthView; initialActiveEffects: ActiveEffectsView; initialEquipmentState: CharacterEquipmentStateView; initialChargeState: CharacterItemChargeStateView }) {
+  const preserveScroll = useInPlaceScrollPreservation();
   const [draft, setDraft] = useState(initialDraft);
   const [activeHealth, setActiveHealth] = useState(initialActiveHealth);
   const [activeEffects, setActiveEffects] = useState(initialActiveEffects);
@@ -141,47 +143,52 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
     }));
   }
   async function persist() {
-    setSaving(true); setFeedback(null);
-    try {
-      const saved = await saveCreatureNpc(draft);
-      const [refreshedHealth, refreshedEquipment, refreshedCharges] = await Promise.all([
-        getActiveHealth(draft.characterId),
-        getCharacterEquipmentState(draft.characterId),
-        getCharacterItemChargeState(draft.characterId),
-      ]);
-      setDraft(saved);
-      setActiveHealth(refreshedHealth);
-      setEquipmentState(refreshedEquipment);
-      setChargeState(refreshedCharges);
-      setDirty(false);
-      setFeedback({ kind: "success", message: `${saved.name} was saved. The ${saved.creatureName} master Creature was not changed.` });
-    } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature NPC could not be saved." });
-    } finally { setSaving(false); }
+    await preserveScroll(async () => {
+      setSaving(true); setFeedback(null);
+      try {
+        const saved = await saveCreatureNpc(draft);
+        const [refreshedHealth, refreshedEquipment, refreshedCharges] = await Promise.all([
+          getActiveHealth(draft.characterId),
+          getCharacterEquipmentState(draft.characterId),
+          getCharacterItemChargeState(draft.characterId),
+        ]);
+        setDraft(saved);
+        setActiveHealth(refreshedHealth);
+        setEquipmentState(refreshedEquipment);
+        setChargeState(refreshedCharges);
+        setDirty(false);
+        setFeedback({ kind: "success", message: `${saved.name} was saved. The ${saved.creatureName} master Creature was not changed.` });
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Creature NPC could not be saved." });
+      } finally { setSaving(false); }
+    });
   }
 
   async function refreshRuntimeState() {
-    const [refreshed, refreshedHealth, refreshedEffects, refreshedEquipment, refreshedCharges] = await Promise.all([
-      getCreatureNpc(draft.characterId),
-      getActiveHealth(draft.characterId),
-      getActiveEffects(draft.characterId, true),
-      getCharacterEquipmentState(draft.characterId),
-      getCharacterItemChargeState(draft.characterId),
-    ]);
-    setDraft(refreshed);
-    setActiveHealth(refreshedHealth);
-    setActiveEffects(refreshedEffects);
-    setEquipmentState(refreshedEquipment);
-    setChargeState(refreshedCharges);
-    setDirty(false);
-    setFeedback({ kind: "success", message: "The Creature NPC and its Active State were refreshed." });
+    await preserveScroll(async () => {
+      const [refreshed, refreshedHealth, refreshedEffects, refreshedEquipment, refreshedCharges] = await Promise.all([
+        getCreatureNpc(draft.characterId),
+        getActiveHealth(draft.characterId),
+        getActiveEffects(draft.characterId, true),
+        getCharacterEquipmentState(draft.characterId),
+        getCharacterItemChargeState(draft.characterId),
+      ]);
+      setDraft(refreshed);
+      setActiveHealth(refreshedHealth);
+      setActiveEffects(refreshedEffects);
+      setEquipmentState(refreshedEquipment);
+      setChargeState(refreshedCharges);
+      setDirty(false);
+      setFeedback({ kind: "success", message: "The Creature NPC and its Active State were refreshed." });
+    });
   }
 
   return <main className="creature-npc-page">
-    <header className="creature-npc-header"><Link href={`/heavens/npcs?campaign=${draft.campaignId}`} className="font-evanescent creature-npc-logo">SERRIAN<br />TIDE</Link><div><p>THE HEAVENS / NPCS / CREATURE INDIVIDUAL</p><h1 className="font-sans">{draft.name}</h1><span>{draft.campaignName} · Template: {draft.creatureName}</span></div><nav><Link href={`/heavens/npcs?campaign=${draft.campaignId}`}>← NPC Master Sheet</Link><button type="button" disabled={!dirty || saving} onClick={() => void persist()}>{saving ? "Saving…" : "Save Individual"}</button></nav></header>
-    {feedback ? <p className={`creature-npc-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
+    <header className="creature-npc-header"><Link href={`/heavens/npcs?campaign=${draft.campaignId}`} className="font-evanescent creature-npc-logo">SERRIAN<br />TIDE</Link><div><p>THE HEAVENS / NPCS / CREATURE INDIVIDUAL</p><h1 className="font-sans">{draft.name}</h1><span>{draft.roleLabel} · {draft.campaignName} · Template: {draft.creatureName} · {draft.status}</span></div><nav><Link href={`/heavens/npcs?campaign=${draft.campaignId}`}>← NPC Master Sheet</Link><button type="button" disabled={!dirty || saving || draft.status === "archived"} onClick={() => void persist()}>{saving ? "Saving…" : "Save Individual"}</button></nav></header>
+    {feedback ? <p className={`creature-npc-feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
+    {draft.status === "archived" ? <p className="creature-npc-feedback is-error">This NPC is archived and read-only. Restore it from the NPC Master Sheet before saving changes.</p> : null}
     <section className="creature-npc-warning"><strong>Independent Creature NPC</strong><span>This record began as a snapshot of <b>{draft.creatureName}</b>. Changes here never alter the master Creature library.</span></section>
-    <div className="creature-npc-layout"><nav className="creature-npc-tabs">{TABS.map((entry) => <button type="button" key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => setTab(entry.id)}>{entry.label}</button>)}</nav><section className="creature-npc-editor">
+    <div className="creature-npc-layout"><nav className="creature-npc-tabs">{TABS.map((entry) => <button type="button" key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><section className="creature-npc-editor">
       {tab === "identity" ? <Identity draft={draft} onChange={change} /> : null}
       {tab === "current" ? <><ActiveHealthPanel health={activeHealth} onHealthChange={setActiveHealth} context="creature" /><ActiveEffectsPanel state={activeEffects} godMode skillOptions={draft.currentSnapshot.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} movementModes={draft.currentSnapshot.movement.map(({ movementMode }) => movementMode)} onChange={setActiveEffects} /><EquipmentStatePanel state={equipmentState} disabled={dirty || saving} includeEffectHistory onChange={setEquipmentState} onActiveEffectsChange={setActiveEffects} /><ItemChargePanel state={chargeState} disabled={dirty || saving} onChange={acceptChargeState} /></> : null}
       {tab === "stats" ? <Stats snapshot={draft.currentSnapshot} onChange={changeSnapshot} /> : null}
@@ -196,7 +203,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
 
 function Identity({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (draft: CreatureNpcDraft) => void }) {
   const core = draft.currentSnapshot.core;
-  return <div className="creature-npc-section creature-npc-form-grid"><SectionHeading eyebrow="INDIVIDUAL RECORD" title="Identity & Personality" wide /><Field label="NPC Name" wide><input value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} /></Field><Field label="Master Creature"><input disabled value={draft.creatureName} /></Field><Field label="Final Individual HP Adjustment"><input type="number" value={draft.hpAdjustment} onChange={(e) => onChange({ ...draft, hpAdjustment: Number(e.target.value) })} /></Field><Field label="Size"><select value={core.size} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, size: e.target.value } } })}>{CREATURE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field><Field label="HP Multiplier Steps"><input type="number" min={0} step={1} value={core.hpMultiplierSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, hpMultiplierSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Movement Steps"><input type="number" min={0} step={1} value={core.baseMovementSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMovementSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Magic Steps"><input type="number" min={0} step={1} value={core.baseMagicSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMagicSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Family"><input value={core.family} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, family: e.target.value } } })} /></Field><Field label="Creature Type"><input value={core.creatureType} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, creatureType: e.target.value } } })} /></Field><p className="creature-npc-field--wide creature-npc-runtime-note">Size scales the six effective Attributes. Exceptional steps remain independent and use the established Character quarter-step rules; HP Adjustment is applied last to this NPC only.</p><Field label="Personality" wide><textarea rows={6} value={draft.personality} onChange={(e) => onChange({ ...draft, personality: e.target.value })} /></Field><Field label="Instance Notes" wide><textarea rows={6} value={draft.instanceNotes} onChange={(e) => onChange({ ...draft, instanceNotes: e.target.value })} /></Field><Field label="Individual Description" wide><textarea rows={6} value={core.description} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, description: e.target.value } } })} /></Field></div>;
+  return <div className="creature-npc-section creature-npc-form-grid"><SectionHeading eyebrow="INDIVIDUAL RECORD" title="Identity & Personality" wide /><Field label="NPC Name"><input value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} /></Field><Field label="Role / Label"><input value={draft.roleLabel} onChange={(e) => onChange({ ...draft, roleLabel: e.target.value })} /></Field><Field label="Master Creature"><input disabled value={draft.creatureName} /></Field><Field label="Final Individual HP Adjustment"><input type="number" value={draft.hpAdjustment} onChange={(e) => onChange({ ...draft, hpAdjustment: Number(e.target.value) })} /></Field><Field label="Size"><select value={core.size} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, size: e.target.value } } })}>{CREATURE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field><Field label="HP Multiplier Steps"><input type="number" min={0} step={1} value={core.hpMultiplierSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, hpMultiplierSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Movement Steps"><input type="number" min={0} step={1} value={core.baseMovementSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMovementSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Base Magic Steps"><input type="number" min={0} step={1} value={core.baseMagicSteps} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, baseMagicSteps: Math.max(0, Math.trunc(Number(e.target.value))) } } })} /></Field><Field label="Family"><input value={core.family} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, family: e.target.value } } })} /></Field><Field label="Creature Type"><input value={core.creatureType} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, creatureType: e.target.value } } })} /></Field><p className="creature-npc-field--wide creature-npc-runtime-note">Size scales the six effective Attributes. Exceptional steps remain independent and use the established Character quarter-step rules; HP Adjustment is applied last to this NPC only.</p><Field label="Personality" wide><textarea rows={6} value={draft.personality} onChange={(e) => onChange({ ...draft, personality: e.target.value })} /></Field><Field label="Instance Notes" wide><textarea rows={6} value={draft.instanceNotes} onChange={(e) => onChange({ ...draft, instanceNotes: e.target.value })} /></Field><Field label="Individual Description" wide><textarea rows={6} value={core.description} onChange={(e) => onChange({ ...draft, currentSnapshot: { ...draft.currentSnapshot, core: { ...core, description: e.target.value } } })} /></Field></div>;
 }
 
 function Stats({ snapshot, onChange }: { snapshot: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
@@ -226,7 +233,7 @@ function Special({ characterId, snapshot, disabled, onChange, onComplete }: { ch
 function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (draft: CreatureNpcDraft) => void }) {
   const [search, setSearch] = useState(""); const [itemId, setItemId] = useState("");
   const nextInstanceDraftId = useRef(-3_000_000);
-  const visible = useMemo(() => draft.authorizedItems.filter((entry) => !search || [entry.name, entry.category, entry.canonicalId].some((value) => value.toLowerCase().includes(search.toLowerCase()))).slice(0, 100), [draft.authorizedItems, search]);
+  const visible = useMemo(() => draft.authorizedItems.filter((entry) => !entry.archived && (!search || [entry.name, entry.category, entry.canonicalId].some((value) => value.toLowerCase().includes(search.toLowerCase())))).slice(0, 100), [draft.authorizedItems, search]);
   function addSelectedItem() {
     const selected = draft.authorizedItems.find(({ id }) => id === Number(itemId));
     if (!selected) return;

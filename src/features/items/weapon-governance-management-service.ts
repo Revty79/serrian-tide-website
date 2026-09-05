@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { user } from "@/db/auth-schema";
@@ -131,6 +131,7 @@ async function assertCampaignOwnerGod(
     .where(and(
       eq(campaign.id, positiveId(campaignId, "Campaign")),
       eq(campaign.createdByUserId, actor.userId),
+      isNull(campaign.archivedAt),
     ))
     .limit(1);
   if (!authorized) throw new Error("Only the Campaign-owning G.O.D. may manage Character weapon governance.");
@@ -149,7 +150,10 @@ async function readCharacters(
     playerUsername: user.username,
   }).from(campaignCharacter)
     .innerJoin(user, eq(user.id, campaignCharacter.playerUserId))
-    .where(eq(campaignCharacter.campaignId, campaignId))
+    .where(and(
+      eq(campaignCharacter.campaignId, campaignId),
+      isNull(campaignCharacter.archivedAt),
+    ))
     .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));
   return rows.map((row) => ({
     id: row.id,

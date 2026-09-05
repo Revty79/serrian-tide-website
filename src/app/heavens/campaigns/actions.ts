@@ -6,6 +6,8 @@ import {
   count,
   eq,
   inArray,
+  isNotNull,
+  isNull,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -33,7 +35,6 @@ import {
 } from "@/features/campaigns/campaign-inventory";
 import {
   buildCampaignPlayerCandidates,
-  canAdministerCampaign,
 } from "@/features/campaigns/campaign-membership";
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import { reconcileCharacterDerivedAbilityPassivesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
@@ -46,7 +47,7 @@ import {
   campaignInventoryItem,
   campaignInventoryTag,
 } from "@/db/realm-schema";
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type CampaignAdminSummary = {
   id: number;
@@ -57,6 +58,11 @@ export type CampaignAdminSummary = {
   playerCount: number;
   characterCount: number;
   npcCount: number;
+  archivedAt: string | null;
+};
+
+export type CampaignLibraryFilters = {
+  archived?: boolean;
 };
 
 export type CampaignAdminDraft = {
@@ -111,6 +117,7 @@ export type CampaignMemberData = {
     playerName: string;
     name: string;
     creationCompletedAt: string | null;
+    archivedAt: string | null;
   }>;
   npcs: Array<{
     id: number;
@@ -125,21 +132,29 @@ function required(value: string, label: string) { const result = clean(value); i
 function nonNegative(value: number, label: string) { if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater.`); return value; }
 
 async function requireOwner(campaignId: number) {
-  const session = await requireGod();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const [owned] = await db.select({ id: campaign.id, createdByUserId: campaign.createdByUserId }).from(campaign).where(eq(campaign.id, campaignId)).limit(1);
-  if (!owned || !canAdministerCampaign(owned.createdByUserId, session.user.id)) throw new Error("Only the Campaign creator can manage this Campaign.");
+  if (!owned || (owned.createdByUserId !== session.user.id && !roles.includes("admin"))) {
+    throw new Error("Only the Campaign creator or an administrator can manage this Campaign.");
+  }
   return session;
 }
 
-export async function listCampaignsForGod(): Promise<CampaignAdminSummary[]> {
-  const session = await requireGod();
+export async function listCampaignsForGod(
+  filters: CampaignLibraryFilters = {},
+): Promise<CampaignAdminSummary[]> {
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const rows = await db.select({
     id: campaign.id,
     name: campaign.name,
     overview: campaign.overview,
     currencySystem: campaign.currencySystem,
     updatedAt: campaign.updatedAt,
-  }).from(campaign).where(eq(campaign.createdByUserId, session.user.id)).orderBy(asc(campaign.name), asc(campaign.id));
+    archivedAt: campaign.archivedAt,
+  }).from(campaign).where(and(
+    roles.includes("admin") ? undefined : eq(campaign.createdByUserId, session.user.id),
+    filters.archived ? isNotNull(campaign.archivedAt) : isNull(campaign.archivedAt),
+  )).orderBy(asc(campaign.name), asc(campaign.id));
 
   const ids = rows.map(({ id }) => id);
   if (!ids.length) return [];
@@ -164,6 +179,7 @@ export async function listCampaignsForGod(): Promise<CampaignAdminSummary[]> {
     playerCount: playerCount.get(row.id) ?? 0,
     characterCount: characterCount.get(row.id) ?? 0,
     npcCount: npcCount.get(row.id) ?? 0,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
   }));
 }
 
@@ -217,13 +233,16 @@ export async function getCampaignReferenceData(campaignId: number): Promise<Camp
 }
 
 export async function getCampaignCreationReferenceData(): Promise<CampaignReferenceData> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   return readCampaignReferenceData();
 }
 
 async function readCampaignReferenceData(): Promise<CampaignReferenceData> {
   const [races, tags] = await Promise.all([
-    db.select({ id: race.id, name: race.name, size: race.size }).from(race).orderBy(asc(race.name), asc(race.id)),
+    db.select({ id: race.id, name: race.name, size: race.size })
+      .from(race)
+      .where(isNull(race.archivedAt))
+      .orderBy(asc(race.name), asc(race.id)),
     db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog),
   ]);
   return { races, tags: sortCampaignInventoryTags(tags) };
@@ -280,7 +299,7 @@ export async function getCampaignInventoryItems(input: {
   selectedItemIds: number[];
 }): Promise<CampaignInventoryPoolItem[]> {
   if (input.campaignId === null) {
-    await requireGod();
+    await requireGodOrAdminAccessContext();
   } else {
     if (!Number.isInteger(input.campaignId) || input.campaignId <= 0) {
       throw new Error("Campaign is invalid.");
@@ -298,7 +317,10 @@ export async function getCampaignInventoryItems(input: {
           .select({ tagId: itemTagLink.tagId, ...campaignInventoryItemFields })
           .from(itemTagLink)
           .innerJoin(item, eq(item.id, itemTagLink.itemId))
-          .where(inArray(itemTagLink.tagId, selection.tagIds))
+          .where(and(
+            inArray(itemTagLink.tagId, selection.tagIds),
+            isNull(item.archivedAt),
+          ))
       : [],
     selection.itemIds.length
       ? db
@@ -321,13 +343,16 @@ export async function getCampaignInventoryItems(input: {
   );
 }
 
-export async function getCampaignMembers(campaignId: number): Promise<CampaignMemberData> {
+export async function getCampaignMembers(
+  campaignId: number,
+  options: { archivedCharacters?: boolean } = {},
+): Promise<CampaignMemberData> {
   const session = await requireOwner(campaignId);
   const [playerRows, identityRoleRows, characterRows, npcRows] = await Promise.all([
     db.select({ userId: user.id, username: user.username, displayName: user.name, addedAt: campaignPlayer.createdAt }).from(campaignPlayer).innerJoin(user, eq(user.id, campaignPlayer.userId)).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.isNpcController, false))).orderBy(asc(user.username), asc(user.name)),
     db.select({ userId: user.id, username: user.username, displayName: user.name, role: userRole.role }).from(user).leftJoin(userRole, eq(userRole.userId, user.id)).orderBy(asc(user.username), asc(user.name)),
-    db.select({ id: campaignCharacter.id, campaignId: campaignCharacter.campaignId, playerUserId: campaignCharacter.playerUserId, playerName: user.username, displayName: user.name, name: campaignCharacter.name, creationCompletedAt: campaignCharacterProfile.creationCompletedAt }).from(campaignCharacter).innerJoin(user, eq(user.id, campaignCharacter.playerUserId)).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, false))).orderBy(asc(user.username), asc(campaignCharacter.name)),
-    db.select({ id: campaignCharacter.id, name: campaignCharacter.name, npcKind: campaignCharacter.npcKind, creationCompletedAt: campaignCharacterProfile.creationCompletedAt }).from(campaignCharacter).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, true))).orderBy(asc(campaignCharacter.name)),
+    db.select({ id: campaignCharacter.id, campaignId: campaignCharacter.campaignId, playerUserId: campaignCharacter.playerUserId, playerName: user.username, displayName: user.name, name: campaignCharacter.name, creationCompletedAt: campaignCharacterProfile.creationCompletedAt, archivedAt: campaignCharacter.archivedAt }).from(campaignCharacter).innerJoin(user, eq(user.id, campaignCharacter.playerUserId)).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, false), options.archivedCharacters ? isNotNull(campaignCharacter.archivedAt) : isNull(campaignCharacter.archivedAt))).orderBy(asc(user.username), asc(campaignCharacter.name)),
+    db.select({ id: campaignCharacter.id, name: campaignCharacter.name, npcKind: campaignCharacter.npcKind, creationCompletedAt: campaignCharacterProfile.creationCompletedAt }).from(campaignCharacter).leftJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id)).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.isNpc, true), isNull(campaignCharacter.archivedAt))).orderBy(asc(campaignCharacter.name)),
   ]);
   const memberIds = new Set(playerRows.map(({ userId }) => userId));
   const candidates = buildCampaignPlayerCandidates(
@@ -341,7 +366,7 @@ export async function getCampaignMembers(campaignId: number): Promise<CampaignMe
   return {
     players: playerRows.map((row) => ({ userId: row.userId, username: row.username ?? row.displayName, displayName: row.displayName, addedAt: row.addedAt.toISOString() })),
     candidates,
-    characters: characterRows.map((row) => ({ id: row.id, campaignId: row.campaignId, playerUserId: row.playerUserId, playerName: row.playerName ?? row.displayName, name: row.name, creationCompletedAt: row.creationCompletedAt?.toISOString() ?? null })),
+    characters: characterRows.map((row) => ({ id: row.id, campaignId: row.campaignId, playerUserId: row.playerUserId, playerName: row.playerName ?? row.displayName, name: row.name, creationCompletedAt: row.creationCompletedAt?.toISOString() ?? null, archivedAt: row.archivedAt?.toISOString() ?? null })),
     npcs: npcRows.map((row) => ({ id: row.id, name: row.name, npcKind: row.npcKind === "creature" ? "creature" : "race", creationCompletedAt: row.creationCompletedAt?.toISOString() ?? null })),
   };
 }
@@ -371,18 +396,49 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
   }) : [];
   if (input.currencySystem === "Derived Currency" && !currencies.length) throw new Error("Derived Currency requires at least one currency.");
 
-  const [validTags, validItems] = await Promise.all([
+  const validTags = await (
     inventorySelection.tagIds.length
       ? db.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(inArray(itemTagCatalog.id, inventorySelection.tagIds))
-      : [],
-    inventorySelection.itemIds.length
-      ? db.select({ id: item.id }).from(item).where(inArray(item.id, inventorySelection.itemIds))
-      : [],
-  ]);
+      : Promise.resolve([])
+  );
   if (validTags.length !== inventorySelection.tagIds.length) throw new Error("An Inventory Tag is no longer available.");
-  if (validItems.length !== inventorySelection.itemIds.length) throw new Error("An Equipment or Inventory record is no longer available.");
 
   await db.transaction(async (tx) => {
+    const existingRaceRows = await tx.select({ id: campaignAllowedRace.raceId })
+      .from(campaignAllowedRace)
+      .where(eq(campaignAllowedRace.campaignId, input.id));
+    const activeRaceRows = raceIds.length
+      ? await tx.select({ id: race.id })
+          .from(race)
+          .where(and(inArray(race.id, raceIds), isNull(race.archivedAt)))
+      : [];
+    const allowedRaceIds = new Set([
+      ...existingRaceRows.map(({ id }) => id),
+      ...activeRaceRows.map(({ id }) => id),
+    ]);
+    if (raceIds.some((id) => !allowedRaceIds.has(id))) {
+      throw new Error("An archived or unavailable Race cannot be newly authorized for a Campaign.");
+    }
+
+    const existingItemRows = await tx.select({ id: campaignInventoryItem.itemId })
+      .from(campaignInventoryItem)
+      .where(eq(campaignInventoryItem.campaignId, input.id));
+    const activeItemRows = inventorySelection.itemIds.length
+      ? await tx.select({ id: item.id })
+          .from(item)
+          .where(and(
+            inArray(item.id, inventorySelection.itemIds),
+            isNull(item.archivedAt),
+          ))
+      : [];
+    const allowedItemIds = new Set([
+      ...existingItemRows.map(({ id }) => id),
+      ...activeItemRows.map(({ id }) => id),
+    ]);
+    if (inventorySelection.itemIds.some((id) => !allowedItemIds.has(id))) {
+      throw new Error("An archived or unavailable Item cannot be newly authorized for a Campaign.");
+    }
+
     await tx.update(campaign).set({
       name,
       overview: clean(input.overview),
@@ -469,8 +525,18 @@ export async function addCampaignPlayer(campaignId: number, userId: string) {
 export async function removeCampaignPlayer(campaignId: number, userId: string) {
   await requireOwner(campaignId);
   await db.transaction(async (tx) => {
-    const [characters] = await tx.select({ value: count() }).from(campaignCharacter).where(and(eq(campaignCharacter.campaignId, campaignId), eq(campaignCharacter.playerUserId, userId), eq(campaignCharacter.isNpc, false)));
-    if (Number(characters?.value ?? 0) > 0) throw new Error("A Player cannot be removed while they still have Characters in the Campaign.");
+    const [characters] = await tx
+      .select({ value: count() })
+      .from(campaignCharacter)
+      .where(and(
+        eq(campaignCharacter.campaignId, campaignId),
+        eq(campaignCharacter.playerUserId, userId),
+      ));
+    if (Number(characters?.value ?? 0) > 0) {
+      throw new Error(
+        "A Campaign membership cannot be removed while it still controls Characters or NPCs.",
+      );
+    }
     const removed = await tx.delete(campaignPlayer).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.userId, userId), eq(campaignPlayer.isNpcController, false))).returning({ userId: campaignPlayer.userId });
     if (removed.length > 0) await publishChatDirectoryInvalidationInTransaction(tx);
   });

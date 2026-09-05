@@ -658,6 +658,7 @@ test("authored Creature attacks defer damage, reconcile Dodge, preserve history,
       playerUserId: data.godId,
       name: `Outside Encounter ${data.suffix}`,
       isNpc: true,
+      npcBuildMode: "detailed",
     }).returning({ id: campaignCharacter.id });
     assert.ok(outsider);
     await assert.rejects(startCreatureAttackInTransaction(tx, data.context, {

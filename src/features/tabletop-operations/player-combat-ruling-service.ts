@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
@@ -157,7 +157,11 @@ export async function lockPlayerCombatContextInTransaction(
       eq(campaignSessionEncounterInitiativeParticipant.encounterId, campaignSessionEncounter.id),
       eq(campaignSessionEncounterInitiativeParticipant.characterId, characterId),
     ))
-    .where(eq(campaignSessionEncounter.id, encounterId))
+    .where(and(
+      eq(campaignSessionEncounter.id, encounterId),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
+    ))
     .limit(1)
     .for("update", { of: campaignSessionEncounter });
   if (!context) throw new Error("The assigned Player Character is not an exact active Initiative participant in this Encounter.");

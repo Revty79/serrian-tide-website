@@ -225,6 +225,13 @@
       "when": 1788567910178,
       "tag": "0031_player_combat_ruling_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788596779359,
+      "tag": "0032_safe_entity_lifecycles",
+      "breakpoints": true
     }
   ]
 }

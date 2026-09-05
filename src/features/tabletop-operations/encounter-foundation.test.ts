@@ -135,12 +135,15 @@ test("Encounter schema is an organizational layer with constrained parent and Pa
   }
 });
 
-test("Encounter actions authorize every operation and reload authoritative parents and Scene membership", () => {
+test("Encounter actions reload authoritative parents and permit only DB-authorized lifecycle overrides", () => {
   const actions = readSource("src/app/heavens/tabletop/encounter-actions.ts");
   assert.match(actions, /const access = await requireGod\(\)/);
-  assert.match(actions, /assertCampaignSessionOwner\(context\.ownerUserId, access\.user\.id\)/);
+  assert.match(actions, /assertOwnedRootManager\(actor, context\.ownerUserId, "Scene"\)/);
   assert.match(actions, /lockOwnedScene\(tx, input\.sceneId, access\.user\.id\)/);
-  assert.ok((actions.match(/lockOwnedEncounter\(tx, (?:input\.id|encounterId), access\.user\.id\)/g) ?? []).length >= 6);
+  assert.ok((actions.match(/lockOwnedEncounter\(tx, (?:input\.id|encounterId), access\.user\.id\)/g) ?? []).length >= 5);
+  assert.equal((actions.match(/lockOwnedEncounter\(tx, encounterId, actor\)/g) ?? []).length, 2);
+  assert.match(actions, /requireGodOrAdminAccessContext\(\)/);
+  assert.match(actions, /prepareTabletopLifecycleMutationInTransaction/);
   assert.match(actions, /eq\(campaignSessionSceneMember\.sceneId, locked\.sceneId\)/);
   assert.match(actions, /eq\(campaignSessionSceneMember\.sessionId, locked\.sessionId\)/);
   assert.match(actions, /eq\(campaignSessionSceneMember\.campaignId, locked\.campaignId\)/);

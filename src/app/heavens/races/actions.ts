@@ -7,6 +7,8 @@ import {
   eq,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
   type SQL,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -21,13 +23,15 @@ import {
   type RaceSize,
 } from "@/db/race-schema";
 import { skill } from "@/db/skill-schema";
-import { requireGod } from "@/lib/server-access";
+import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type RaceLibraryFilters = {
   search?: string;
   size?: RaceSize | "";
   page?: number;
   pageSize?: number;
+  archived?: boolean;
 };
 
 export type RaceSummary = {
@@ -39,6 +43,7 @@ export type RaceSummary = {
   attributeCapCount: number;
   movementModeCount: number;
   skillLinkCount: number;
+  archivedAt: string | null;
 };
 
 export type RaceLibraryResult = {
@@ -102,6 +107,9 @@ export type RaceDraft = {
 
 export type RaceAggregate = RaceDraft & {
   id: number;
+  createdByUserId: string | null;
+  archivedAt: string | null;
+  archiveReason: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -225,11 +233,12 @@ function normalizeRace(input: RaceDraft) {
 export async function listRaces(
   filters: RaceLibraryFilters = {},
 ): Promise<RaceLibraryResult> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
 
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: SQL[] = [];
+  conditions.push(filters.archived ? isNotNull(race.archivedAt) : isNull(race.archivedAt));
   const search = cleanText(filters.search);
   const size = cleanText(filters.size);
   if (search) conditions.push(ilike(race.name, `%${search}%`));
@@ -245,6 +254,7 @@ export async function listRaces(
       size: race.size,
       ageRangeText: race.ageRangeText,
       baseMagic: race.baseMagic,
+      archivedAt: race.archivedAt,
     })
     .from(race)
     .where(where)
@@ -275,6 +285,7 @@ export async function listRaces(
   return {
     items: baseRows.map((row) => ({
       ...row,
+      archivedAt: row.archivedAt?.toISOString() ?? null,
       attributeCapCount: capCounts.get(row.id) ?? 0,
       movementModeCount: movementCounts.get(row.id) ?? 0,
       skillLinkCount: linkCounts.get(row.id) ?? 0,
@@ -287,7 +298,7 @@ export async function listRaces(
 }
 
 export async function getRace(id: number): Promise<RaceAggregate | null> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const [row] = await db.select().from(race).where(eq(race.id, id)).limit(1);
   if (!row) return null;
 
@@ -311,6 +322,9 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
 
   return {
     id: row.id,
+    createdByUserId: row.createdByUserId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    archiveReason: row.archiveReason,
     core: {
       name: row.name,
       legacyDescription: row.legacyDescription,
@@ -344,9 +358,10 @@ export async function listRaceSkillCandidates(
   search = "",
   classification?: string,
 ): Promise<RaceSkillCandidate[]> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const conditions: SQL[] = [];
   const needle = cleanText(search);
+  conditions.push(isNull(skill.archivedAt));
   if (needle) conditions.push(ilike(skill.name, `%${needle}%`));
   if (cleanText(classification)) conditions.push(eq(skill.classification, cleanText(classification)));
   return db
@@ -358,7 +373,7 @@ export async function listRaceSkillCandidates(
 }
 
 export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
-  const session = await requireGod();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const normalized = normalizeRace(input);
 
   const savedId = await db.transaction(async (tx) => {
@@ -366,19 +381,34 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     if (id === undefined) {
       const [created] = await tx
         .insert(race)
-        .values({ ...normalized.core, createdByUserId: session.user.id })
+        .values({
+          ...normalized.core,
+          sourceSystem: null,
+          sourceExternalId: null,
+          createdByUserId: session.user.id,
+        })
         .returning({ id: race.id });
       id = created.id;
     } else {
       const [stored] = await tx
         .select({
+          createdByUserId: race.createdByUserId,
           sourceSystem: race.sourceSystem,
           sourceExternalId: race.sourceExternalId,
+          archivedAt: race.archivedAt,
         })
         .from(race)
         .where(eq(race.id, id))
         .limit(1);
       if (!stored) throw new Error("That Race no longer exists.");
+      assertCanEditSharedLibraryRoot(
+        { userId: session.user.id, roles },
+        stored,
+        "Race",
+      );
+      if (stored.archivedAt) {
+        throw new Error("Restore this Race before editing it.");
+      }
       if (
         stored.sourceSystem !== normalized.core.sourceSystem ||
         stored.sourceExternalId !== normalized.core.sourceExternalId
@@ -393,6 +423,13 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
       if (!updated.length) throw new Error("That Race no longer exists.");
     }
 
+    const existingSkillLinks = input.id === undefined
+      ? []
+      : await tx
+          .select({ skillId: raceSkillLink.skillId })
+          .from(raceSkillLink)
+          .where(eq(raceSkillLink.raceId, id));
+
     await tx.delete(raceAttributeCap).where(eq(raceAttributeCap.raceId, id));
     await tx.delete(raceMovementMode).where(eq(raceMovementMode.raceId, id));
     await tx.delete(raceSkillLink).where(eq(raceSkillLink.raceId, id));
@@ -405,8 +442,22 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     }
     if (normalized.skillLinks.length) {
       const skillIds = [...new Set(normalized.skillLinks.map((link) => link.skillId))];
-      const existingSkills = await tx.select({ id: skill.id, classification: skill.classification }).from(skill).where(inArray(skill.id, skillIds));
+      const existingSkills = await tx
+        .select({
+          id: skill.id,
+          classification: skill.classification,
+          archivedAt: skill.archivedAt,
+        })
+        .from(skill)
+        .where(inArray(skill.id, skillIds));
       if (existingSkills.length !== skillIds.length) throw new Error("One or more linked Skills no longer exist.");
+      const previouslyLinkedSkillIds = new Set(existingSkillLinks.map(({ skillId }) => skillId));
+      const newlyArchivedLink = existingSkills.find(
+        (candidate) => candidate.archivedAt && !previouslyLinkedSkillIds.has(candidate.id),
+      );
+      if (newlyArchivedLink) {
+        throw new Error("Archived Skills cannot be added to a Race. Restore the Skill first.");
+      }
       const classifications = new Map(existingSkills.map((candidate) => [candidate.id, candidate.classification.toLowerCase()]));
       for (const link of normalized.skillLinks) {
         if (link.linkType.toLowerCase() === "granted" && classifications.get(link.skillId) !== "special ability") {
@@ -429,10 +480,4 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
   const saved = await getRace(savedId);
   if (!saved) throw new Error("The saved Race could not be reloaded.");
   return saved;
-}
-
-export async function deleteRace(id: number) {
-  await requireGod();
-  await db.delete(race).where(eq(race.id, id));
-  revalidatePath("/heavens/races");
 }

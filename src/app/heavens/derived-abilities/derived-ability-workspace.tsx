@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { createDefaultDerivedAbilityDraft } from "@/features/derived-abilities/derived-ability-authoring";
 import {
   DERIVED_ABILITY_ACQUISITION_TYPES,
@@ -11,10 +12,11 @@ import {
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
-  deleteDerivedAbility,
   getDerivedAbility,
+  getDerivedAbilityEditorReferences,
   listDerivedAbilities,
   saveDerivedAbility,
+  type DerivedAbilityAggregate,
   type DerivedAbilityDraft,
   type DerivedAbilityEditorReferences,
   type DerivedAbilityLibraryFilters,
@@ -38,7 +40,7 @@ export function DerivedAbilityWorkspace({
   });
   const [library, setLibrary] = useState(initialLibrary);
   const [editorReferences, setEditorReferences] = useState(references);
-  const [draft, setDraft] = useState<DerivedAbilityDraft | null>(null);
+  const [draft, setDraft] = useState<DerivedAbilityDraft | DerivedAbilityAggregate | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingEditor, setLoadingEditor] = useState(false);
@@ -50,8 +52,10 @@ export function DerivedAbilityWorkspace({
   const [pending, setPending] = useState<
     { kind: "open"; ability: DerivedAbilitySummary } | { kind: "new" } | null
   >(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const preserveScroll = useInPlaceScrollPreservation();
+  const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
+  const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
+  const isArchived = Boolean(archivedAt);
 
   const loadLibrary = useCallback(async (next: DerivedAbilityLibraryFilters) => {
     setLoadingLibrary(true);
@@ -70,20 +74,23 @@ export function DerivedAbilityWorkspace({
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadLibrary(filters), 180);
+    const timer = window.setTimeout(() => void preserveScroll(() => loadLibrary(filters)), 180);
     return () => window.clearTimeout(timer);
-  }, [filters, loadLibrary]);
+  }, [filters, loadLibrary, preserveScroll]);
 
   async function openAbility(summary: DerivedAbilitySummary) {
     await preserveScroll(async () => {
       setLoadingEditor(true);
       setFeedback(null);
       try {
-        const aggregate = await getDerivedAbility(summary.id);
+        const [aggregate, nextReferences] = await Promise.all([
+          getDerivedAbility(summary.id),
+          getDerivedAbilityEditorReferences(summary.id),
+        ]);
         if (!aggregate) throw new Error("Derived Ability not found.");
         setDraft(aggregate);
+        setEditorReferences(nextReferences);
         setDirty(false);
-        setConfirmDelete(false);
       } catch (error) {
         setFeedback({
           kind: "error",
@@ -102,11 +109,20 @@ export function DerivedAbilityWorkspace({
     else void openAbility(summary);
   }
 
-  function createNew() {
-    setDraft(createDefaultDerivedAbilityDraft());
-    setDirty(false);
-    setFeedback(null);
-    setConfirmDelete(false);
+  async function createNew() {
+    try {
+      const nextReferences = await getDerivedAbilityEditorReferences();
+      setDraft(createDefaultDerivedAbilityDraft());
+      setFilters((current) => ({ ...current, archived: false, page: 1 }));
+      setEditorReferences(nextReferences);
+      setDirty(false);
+      setFeedback(null);
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Derived Ability references could not be loaded.",
+      });
+    }
   }
 
   function change(next: DerivedAbilityDraft) {
@@ -123,14 +139,7 @@ export function DerivedAbilityWorkspace({
       try {
         const saved = await saveDerivedAbility(draft);
         setDraft(saved);
-        setEditorReferences((current) => ({
-          ...current,
-          abilities: [
-            ...current.abilities.filter((ability) => ability.id !== saved.id),
-            { id: saved.id, name: saved.core.name },
-          ].sort((left, right) =>
-            left.name.localeCompare(right.name) || left.id - right.id),
-        }));
+        setEditorReferences(await getDerivedAbilityEditorReferences(saved.id));
         setDirty(false);
         setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
         await loadLibrary(filters);
@@ -147,41 +156,44 @@ export function DerivedAbilityWorkspace({
     });
   }
 
-  async function remove() {
-    if (!draft?.id) return;
-    const abilityId = draft.id;
-    await preserveScroll(async () => {
-      setSaving(true);
+  function changeArchiveView(archived: boolean) {
+    void preserveScroll(async () => {
+      setFilters((current) => ({ ...current, archived, page: 1 }));
+      setDraft(null);
+      setDirty(false);
+      setFeedback(null);
       try {
-        const name = draft.core.name;
-        await deleteDerivedAbility(abilityId);
-        setEditorReferences((current) => ({
-          ...current,
-          abilities: current.abilities.filter((ability) => ability.id !== abilityId),
-        }));
-        setDraft(null);
-        setDirty(false);
-        setConfirmDelete(false);
-        setFeedback({ kind: "success", message: `${name} was deleted.` });
-        await loadLibrary(filters);
+        setEditorReferences(await getDerivedAbilityEditorReferences());
       } catch (error) {
         setFeedback({
           kind: "error",
-          message: error instanceof Error
-            ? error.message
-            : "The Derived Ability could not be deleted.",
+          message: error instanceof Error ? error.message : "Derived Ability references could not be loaded.",
         });
-      } finally {
-        setSaving(false);
       }
     });
+  }
+
+  async function lifecycleCompleted(event: { action: "archive" | "restore" | "delete" }) {
+    const name = draft?.core.name || "Derived Ability";
+    setDraft(null);
+    setDirty(false);
+    setEditorReferences(await getDerivedAbilityEditorReferences());
+    setFeedback({
+      kind: "success",
+      message: event.action === "archive"
+        ? `${name} was archived.`
+        : event.action === "restore"
+          ? `${name} was restored.`
+          : `${name} was permanently deleted.`,
+    });
+    await loadLibrary(filters);
   }
 
   function discardAndContinue() {
     const next = pending;
     setPending(null);
     if (!next) return;
-    if (next.kind === "new") createNew();
+    if (next.kind === "new") void createNew();
     else void openAbility(next.ability);
   }
 
@@ -267,6 +279,10 @@ export function DerivedAbilityWorkspace({
             </label>
           </div>
           <div className="skill-library__toolbar">
+            <div className="skill-library__view-toggle" aria-label="Derived Ability lifecycle view">
+              <button type="button" className={!filters.archived ? "is-active" : ""} aria-pressed={!filters.archived} disabled={dirty} onClick={() => changeArchiveView(false)}>Active</button>
+              <button type="button" className={filters.archived ? "is-active" : ""} aria-pressed={Boolean(filters.archived)} disabled={dirty} onClick={() => changeArchiveView(true)}>Archived</button>
+            </div>
             <span>{library.total.toLocaleString()} abilities</span>
           </div>
           <div data-preserve-scroll="derived-ability-library-results" className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
@@ -278,6 +294,7 @@ export function DerivedAbilityWorkspace({
                 onClick={() => choose(entry)}
               >
                 <span className="skill-library__row-name">{entry.name}</span>
+                {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="derived-ability-library-badges">
                   <em>{entry.acquisitionType}</em>
                   <em>{entry.activationType}</em>
@@ -318,35 +335,25 @@ export function DerivedAbilityWorkspace({
               <div>
                 <p>{draft.id ? `DERIVED ABILITY ${draft.id}` : "NEW DERIVED ABILITY"}</p>
                 <h2>{draft.core.name || "Untitled Ability"}</h2>
-                <span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span>
+                <span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span>
               </div>
               <div className="skill-editor__actions">
-                {draft.id && !confirmDelete ? (
-                  <button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => setConfirmDelete(true))}>Delete</button>
-                ) : null}
-                <button className="skills-primary-button" type="button" disabled={saving} onClick={() => void persist()}>
+                {draft.id ? <LifecycleControls target={{ entityKind: "derived-ability", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}
+                <button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>
                   {saving ? "Saving…" : "Save Ability"}
                 </button>
               </div>
             </header>
-            {confirmDelete ? (
-              <div className="skill-editor__delete-confirm">
-                <div>
-                  <strong>Delete {draft.core.name}?</strong>
-                  <span>Canonical abilities, prerequisite targets, and records with legacy campaign references are protected.</span>
-                </div>
-                <button className="skills-danger-button" type="button" onClick={() => void remove()}>Confirm Delete</button>
-                <button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button>
-              </div>
-            ) : null}
             {feedback ? (
               <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p>
             ) : null}
-            <DerivedAbilityConstructor
-              draft={draft}
-              references={editorReferences}
-              onChange={change}
-            />
+            <fieldset className="lifecycle-editor-fields" disabled={isArchived}>
+              <DerivedAbilityConstructor
+                draft={draft}
+                references={editorReferences}
+                onChange={change}
+              />
+            </fieldset>
           </section>
         ) : (
           <section className="skill-editor skill-editor--empty">

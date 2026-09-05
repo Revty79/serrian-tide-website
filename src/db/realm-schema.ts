@@ -119,6 +119,13 @@ export const campaignCharacter = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     isNpc: boolean("is_npc").default(false).notNull(),
     npcKind: text("npc_kind").default("race").notNull(),
+    npcBuildMode: text("npc_build_mode"),
+    npcRoleLabel: text("npc_role_label").default("").notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedByUserId: text("archived_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
     foreignKey({
@@ -134,6 +141,13 @@ export const campaignCharacter = pgTable(
       table.campaignId,
       table.isNpc,
     ),
+    index("campaign_character_campaign_archive_idx").on(
+      table.campaignId,
+      table.isNpc,
+      table.archivedAt,
+      table.name,
+      table.id,
+    ),
     check(
       "campaign_character_name_nonblank",
       sql`length(trim(${table.name})) > 0`,
@@ -141,6 +155,24 @@ export const campaignCharacter = pgTable(
     check(
       "campaign_character_npc_kind_valid",
       sql`${table.npcKind} IN ('race', 'creature')`,
+    ),
+    check(
+      "campaign_character_npc_build_mode_valid",
+      sql`${table.npcBuildMode} IS NULL OR ${table.npcBuildMode} IN ('simple', 'detailed')`,
+    ),
+    check(
+      "campaign_character_npc_build_mode_presence",
+      sql`(
+        (${table.isNpc} = true AND ${table.npcBuildMode} IS NOT NULL)
+        OR (${table.isNpc} = false AND ${table.npcBuildMode} IS NULL)
+      )`,
+    ),
+    check(
+      "campaign_character_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
     ),
   ],
 );

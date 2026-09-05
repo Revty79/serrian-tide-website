@@ -43,6 +43,7 @@ import {
 } from "@/features/characters/models";
 import { decodeMechanicalEffect, planMechanicalEffect } from "@/features/mechanical-effects";
 import { requireSession } from "@/lib/server-access";
+import { lockActiveItemRootInTransaction } from "./active-item-root-service";
 import { resolveFirearmFiringMode } from "./firearm-timing";
 
 import {
@@ -522,6 +523,7 @@ export async function reconcileItemPassiveEffectsInTransaction(
     if (entry.effect.kind !== "condition.apply" && entry.effect.kind !== "modifier.apply") continue;
     const alreadyActive = entry.effect.kind === "condition.apply" ? keptConditions.has(key) : keptModifiers.has(key);
     if (alreadyActive) continue;
+    await lockActiveItemRootInTransaction(tx, entry.itemId);
     const plan = planMechanicalEffect({
       effect: entry.effect,
       source: { kind: "item", id: entry.itemId, name: entry.itemName },

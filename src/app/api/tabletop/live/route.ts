@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Client, type Notification } from "pg";
 
 import { db } from "@/db";
@@ -38,6 +38,7 @@ export async function GET(request: Request): Promise<Response> {
     const [authorized] = await db.select({ id: campaign.id }).from(campaign).where(and(
       eq(campaign.id, campaignId),
       eq(campaign.createdByUserId, session.user.id),
+      isNull(campaign.archivedAt),
     )).limit(1);
     if (!authorized) return new Response("Forbidden", { status: 403 });
     accepts = (event) => eventMatchesGodSubscription(event, campaignId);
@@ -48,6 +49,7 @@ export async function GET(request: Request): Promise<Response> {
     const [ownedCharacter] = await db.select({
       campaignId: campaignCharacter.campaignId,
     }).from(campaignCharacter)
+      .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
       .innerJoin(campaignPlayer, and(
         eq(campaignPlayer.campaignId, campaignCharacter.campaignId),
         eq(campaignPlayer.userId, campaignCharacter.playerUserId),
@@ -57,6 +59,8 @@ export async function GET(request: Request): Promise<Response> {
       eq(campaignCharacter.playerUserId, session.user.id),
       eq(campaignPlayer.userId, session.user.id),
       eq(campaignCharacter.isNpc, false),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
     )).limit(1);
     if (!ownedCharacter) return new Response("Forbidden", { status: 403 });
     const context = consoleScope ? null : await db.transaction((tx) => resolveActivePlayerEncounterInTransaction(

@@ -1,7 +1,9 @@
 "use client";
 
+import "./campaign-lifecycle.css";
+
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CAMPAIGN_SETTINGS_TABS,
@@ -9,9 +11,11 @@ import {
   type CampaignSettingsTab,
 } from "@/features/campaigns/campaign-workflow";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
+import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import {
   getCampaignAdmin,
   getCampaignReferenceData,
+  listCampaignsForGod,
   saveCampaignAdmin,
   type CampaignAdminDraft,
   type CampaignAdminSummary,
@@ -32,7 +36,8 @@ export function CampaignWorkspace({
   initialCampaigns: CampaignAdminSummary[];
   initialCampaignId: number | null;
 }) {
-  const [campaigns] = useState(initialCampaigns);
+  const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [libraryView, setLibraryView] = useState<"active" | "archived">("active");
   const [selectedId, setSelectedId] = useState<number | null>(initialCampaignId);
   const [draft, setDraft] = useState<CampaignAdminDraft | null>(null);
   const [references, setReferences] = useState<CampaignReferenceData | null>(null);
@@ -42,7 +47,14 @@ export function CampaignWorkspace({
   const [dirty, setDirty] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [raceSearch, setRaceSearch] = useState("");
+  const [pendingCampaignId, setPendingCampaignId] = useState<number | null>(null);
+  const discardDialogRef = useRef<HTMLDialogElement>(null);
   const preserveScroll = useInPlaceScrollPreservation();
+
+  useEffect(() => {
+    const dialog = discardDialogRef.current;
+    if (pendingCampaignId !== null && dialog && !dialog.open) dialog.showModal();
+  }, [pendingCampaignId]);
 
   useEffect(() => {
     if (!initialCampaignId) return;
@@ -73,8 +85,7 @@ export function CampaignWorkspace({
     };
   }, [initialCampaignId]);
 
-  async function openCampaign(id: number) {
-    if (dirty && !window.confirm("Discard unsaved Campaign changes?")) return;
+  async function loadCampaign(id: number) {
     await preserveScroll(async () => {
       setSelectedId(id);
       setLoading(true);
@@ -91,6 +102,70 @@ export function CampaignWorkspace({
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Campaign could not be loaded." });
       } finally { setLoading(false); }
+    });
+  }
+
+  async function openCampaign(id: number) {
+    if (dirty) {
+      await preserveScroll(() => setPendingCampaignId(id));
+      return;
+    }
+    await loadCampaign(id);
+  }
+
+  async function closeDiscardDialog(): Promise<void> {
+    await preserveScroll(() => {
+      discardDialogRef.current?.close();
+      setPendingCampaignId(null);
+    });
+  }
+
+  async function discardAndOpen(): Promise<void> {
+    const nextId = pendingCampaignId;
+    if (nextId === null) return;
+    await preserveScroll(async () => {
+      discardDialogRef.current?.close();
+      setPendingCampaignId(null);
+      setDirty(false);
+      await loadCampaign(nextId);
+    });
+  }
+
+  async function changeLibraryView(nextView: "active" | "archived"): Promise<void> {
+    if (nextView === libraryView || dirty) return;
+    await preserveScroll(async () => {
+      setLoading(true);
+      setFeedback(null);
+      try {
+        const nextCampaigns = await listCampaignsForGod({ archived: nextView === "archived" });
+        setCampaigns(nextCampaigns);
+        setLibraryView(nextView);
+        setSelectedId(null);
+        setDraft(null);
+        setReferences(null);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Campaign archive could not be loaded." });
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
+
+  async function handleLifecycleCompleted(action: "archive" | "restore" | "delete"): Promise<void> {
+    const affectedName = draft?.name ?? "Campaign";
+    const nextCampaigns = await listCampaignsForGod({ archived: libraryView === "archived" });
+    setCampaigns(nextCampaigns);
+    setSelectedId(null);
+    setDraft(null);
+    setReferences(null);
+    setDirty(false);
+    setFeedback({
+      kind: "success",
+      message: action === "delete"
+        ? `${affectedName} was permanently deleted.`
+        : action === "archive"
+          ? `${affectedName} was archived.`
+          : `${affectedName} was restored.`,
     });
   }
 
@@ -117,18 +192,20 @@ export function CampaignWorkspace({
   }
 
   const filteredRaces = useMemo(() => references?.races.filter((race) => !raceSearch || race.name.toLowerCase().includes(raceSearch.toLowerCase())) ?? [], [references, raceSearch]);
+  const selectedSummary = campaigns.find(({ id }) => id === selectedId) ?? null;
 
   return <main className="campaign-page">
     <header className="campaign-header"><Link href={getCampaignControlHref({ campaignId: selectedId })} className="font-evanescent campaign-logo">SERRIAN<br />TIDE</Link><div><p>THE HEAVENS / CAMPAIGN SETTINGS</p><h1 className="font-sans">Edit Campaign</h1><span>Creator-owned rules, access, currency, and authorized content.</span></div><nav><Link href={getCampaignControlHref({ campaignId: selectedId })}>← Return to Campaign Control</Link><Link className="is-primary" href="/heavens/campaigns/new">New Campaign</Link></nav></header>
     {feedback ? <p className={`campaign-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
     <div className="campaign-workspace">
-      <aside className="campaign-library"><header><p>YOUR WORLDS</p><h2>Campaign Library</h2></header><div>{campaigns.map((entry) => <button key={entry.id} type="button" className={selectedId === entry.id ? "is-selected" : ""} onClick={() => void openCampaign(entry.id)}><strong>{entry.name}</strong><span>{entry.playerCount} Players · {entry.characterCount} Characters · {entry.npcCount} NPCs</span><small>{entry.currencySystem}</small></button>)}{!campaigns.length ? <p>No Campaigns yet.</p> : null}</div></aside>
-      {loading ? <section className="campaign-editor campaign-empty"><p>LOADING CAMPAIGN SETTINGS</p></section> : draft && references ? <section className="campaign-editor"><header className="campaign-editor-header"><div><p>CAMPAIGN {draft.id}</p><h2>{draft.name}</h2><span>{dirty ? "Unsaved changes" : "Saved"}</span></div><button type="button" disabled={saving || !dirty} onClick={() => void persist()}>{saving ? "Saving…" : "Save Campaign"}</button></header><nav className="campaign-tabs">{CAMPAIGN_SETTINGS_TABS.map((entry) => <button key={entry.id} type="button" className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><div className="campaign-editor-content">
+      <aside className="campaign-library"><header><div><p>YOUR WORLDS</p><h2>Campaign Library</h2></div><div className="campaign-library-filters" aria-label="Campaign lifecycle view"><button type="button" className={libraryView === "active" ? "is-active" : ""} disabled={dirty || loading} onClick={() => void changeLibraryView("active")}>Active</button><button type="button" className={libraryView === "archived" ? "is-active" : ""} disabled={dirty || loading} onClick={() => void changeLibraryView("archived")}>Archived</button></div></header><div>{campaigns.map((entry) => <button key={entry.id} type="button" className={selectedId === entry.id ? "is-selected" : ""} onClick={() => void openCampaign(entry.id)}><strong>{entry.name}</strong><span>{entry.playerCount} Players · {entry.characterCount} Characters · {entry.npcCount} NPCs</span><small>{entry.archivedAt ? "Archived · " : ""}{entry.currencySystem}</small></button>)}{!campaigns.length ? <p>No {libraryView} Campaigns.</p> : null}</div></aside>
+      {loading ? <section className="campaign-editor campaign-empty"><p>LOADING CAMPAIGN SETTINGS</p></section> : draft && references ? <section className="campaign-editor"><header className="campaign-editor-header"><div><p>CAMPAIGN {draft.id}</p><h2>{draft.name}</h2><span>{selectedSummary?.archivedAt ? "Archived" : dirty ? "Unsaved changes" : "Saved"}</span></div><div className="campaign-editor-actions"><button type="button" disabled={saving || !dirty} onClick={() => void persist()}>{saving ? "Saving…" : "Save Campaign"}</button>{selectedSummary ? <LifecycleControls target={{ entityKind: "campaign", entityId: draft.id }} archived={Boolean(selectedSummary.archivedAt)} disabled={saving || dirty} onCompleted={({ action }) => handleLifecycleCompleted(action)} /> : null}</div></header><nav className="campaign-tabs">{CAMPAIGN_SETTINGS_TABS.map((entry) => <button key={entry.id} type="button" className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><div className="campaign-editor-content">
         {tab === "rules" ? <Rules draft={draft} onChange={change} /> : null}
         {tab === "races" ? <Races draft={draft} races={filteredRaces} search={raceSearch} onSearch={setRaceSearch} onChange={change} /> : null}
         {tab === "inventory" ? <CampaignInventorySelector key={draft.id} campaignId={draft.id} tags={references.tags} selectedTagIds={draft.inventoryTagIds} selectedItemIds={draft.inventoryItemIds} onSelectedTagIdsChange={(inventoryTagIds) => void preserveScroll(() => change({ ...draft, inventoryTagIds }))} onSelectedItemIdsChange={(inventoryItemIds) => void preserveScroll(() => change({ ...draft, inventoryItemIds }))} /> : null}
       </div></section> : <section className="campaign-editor campaign-empty"><p>CAMPAIGN SETTINGS</p><h2>Select a Campaign to edit, or create a new one.</h2></section>}
     </div>
+    {pendingCampaignId !== null ? <dialog ref={discardDialogRef} className="campaign-discard-dialog" aria-labelledby="campaign-discard-title" onCancel={(event) => { event.preventDefault(); void closeDiscardDialog(); }} onMouseDown={(event) => { if (event.target === event.currentTarget) void closeDiscardDialog(); }}><section><p>UNSAVED CAMPAIGN</p><h2 id="campaign-discard-title">Discard unsaved changes?</h2><span>Opening another Campaign will discard changes that have not been saved.</span><footer><button type="button" onClick={() => void closeDiscardDialog()}>Keep Editing</button><button type="button" className="is-danger" onClick={() => void discardAndOpen()}>Discard Changes</button></footer></section></dialog> : null}
   </main>;
 }
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
@@ -258,6 +258,7 @@ export async function listAccessibleChatRoomsInTransaction(
     ))
     .where(and(
       eq(chatRoom.scope, "campaign"),
+      isNull(campaign.archivedAt),
       or(
         eq(campaign.createdByUserId, actor.userId),
         eq(campaignPlayer.userId, actor.userId),

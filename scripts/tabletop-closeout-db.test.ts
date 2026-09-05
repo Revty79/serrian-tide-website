@@ -82,7 +82,7 @@ async function fixture(tx: Tx, label: string) {
   await tx.insert(campaignPlayer).values({ campaignId: createdCampaign.id, userId: godId });
   const [hero, ally] = await tx.insert(campaignCharacter).values([
     { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 9 Hero" },
-    { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 9 Ally", isNpc: true, npcKind: "race" },
+    { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 9 Ally", isNpc: true, npcKind: "race", npcBuildMode: "detailed" },
   ]).returning({ id: campaignCharacter.id });
   assert.ok(hero && ally);
   await tx.insert(campaignCharacterProfile).values([

@@ -22,9 +22,10 @@ export async function requireRole(role: "admin" | "god" | "player") {
   return (await requireAccessContext(role)).session;
 }
 
-export async function requireAccessContext(
-  role: "admin" | "god" | "player",
-): Promise<{ session: Awaited<ReturnType<typeof requireSession>>; roles: SerrianRole[] }> {
+async function loadAccessContext(): Promise<{
+  session: Awaited<ReturnType<typeof requireSession>>;
+  roles: SerrianRole[];
+}> {
   const session = await requireSession();
 
   const access = await db
@@ -33,11 +34,30 @@ export async function requireAccessContext(
     .where(eq(userRole.userId, session.user.id));
   const roles = access.map(({ role: assignedRole }) => assignedRole);
 
-  if (!roles.includes(role)) {
+  return { session, roles };
+}
+
+export async function requireAccessContext(
+  role: "admin" | "god" | "player",
+): Promise<{ session: Awaited<ReturnType<typeof requireSession>>; roles: SerrianRole[] }> {
+  const context = await loadAccessContext();
+
+  if (!context.roles.includes(role)) {
     throw new Error(`${role === "god" ? "G.O.D." : role} access is required.`);
   }
 
-  return { session, roles };
+  return context;
+}
+
+export async function requireGodOrAdminAccessContext(): Promise<{
+  session: Awaited<ReturnType<typeof requireSession>>;
+  roles: SerrianRole[];
+}> {
+  const context = await loadAccessContext();
+  if (!context.roles.includes("god") && !context.roles.includes("admin")) {
+    throw new Error("G.O.D. or administrator access is required.");
+  }
+  return context;
 }
 
 export function requireAdmin() {

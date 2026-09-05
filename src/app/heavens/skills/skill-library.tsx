@@ -32,7 +32,9 @@ type SkillLibraryProps = {
   selectedAttributeKey: string | null;
   view: SkillLibraryView;
   loading: boolean;
+  archiveViewDisabled: boolean;
   onViewChange: (view: SkillLibraryView) => void;
+  onArchiveViewChange: (archived: boolean) => void;
   onFiltersChange: (filters: SkillLibraryFilters) => void;
   onSelectList: (skill: SkillLibraryItem) => void;
   onSelectTree: (skill: RecursiveSkillNode, path: RecursiveSkillPath) => void;
@@ -69,7 +71,9 @@ export function SkillLibrary({
   selectedAttributeKey,
   view,
   loading,
+  archiveViewDisabled,
   onViewChange,
+  onArchiveViewChange,
   onFiltersChange,
   onSelectList,
   onSelectTree,
@@ -132,6 +136,27 @@ export function SkillLibrary({
       </div>
 
       <div className="skill-library__toolbar">
+        <div className="skill-library__toolbar-groups">
+        <div className="skill-library__view-toggle" aria-label="Skill lifecycle view">
+          <button
+            type="button"
+            className={!filters.archived ? "is-active" : ""}
+            aria-pressed={!filters.archived}
+            disabled={archiveViewDisabled}
+            onClick={() => onArchiveViewChange(false)}
+          >
+            Active
+          </button>
+          <button
+            type="button"
+            className={filters.archived ? "is-active" : ""}
+            aria-pressed={Boolean(filters.archived)}
+            disabled={archiveViewDisabled}
+            onClick={() => onArchiveViewChange(true)}
+          >
+            Archived
+          </button>
+        </div>
         <div className="skill-library__view-toggle" aria-label="Library view">
           <button
             type="button"
@@ -145,10 +170,12 @@ export function SkillLibrary({
             type="button"
             className={view === "tree" ? "is-active" : ""}
             aria-pressed={view === "tree"}
+            disabled={Boolean(filters.archived)}
             onClick={() => onViewChange("tree")}
           >
             Tree View
           </button>
+        </div>
         </div>
         <span>{(view === "list" ? page.total : library.skills.length).toLocaleString()} skills</span>
       </div>
@@ -221,6 +248,7 @@ export function SkillLibrary({
                 onClick={() => onSelectList(skill)}
               >
                 <span className="skill-library__row-name">{skill.name} <code>#{skill.id}</code></span>
+                {skill.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="skill-library__row-meta">
                   {skill.classification}{skill.tier ? ` · Tier ${skill.tier}` : " · N/A"}{skill.hasSpellConstruction ? " · Spell Construction" : ""}
                 </span>

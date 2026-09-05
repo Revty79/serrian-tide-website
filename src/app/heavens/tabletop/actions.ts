@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -37,7 +37,20 @@ import {
 } from "@/features/tabletop-operations/session-roster";
 import { readSessionCloseoutInTransaction } from "@/features/tabletop-operations/session-closeout-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
-import { requireGod } from "@/lib/server-access";
+import {
+  assertOwnedRootManager,
+  assertPermanentDeletionEnabled,
+} from "@/features/lifecycle/policy";
+import {
+  assertTabletopPermanentDeletionAllowed,
+  prepareTabletopLifecycleMutationInTransaction,
+  recordTabletopLifecycleAuditInTransaction,
+} from "@/features/lifecycle/tabletop-lifecycle-service";
+import type { LifecycleActor } from "@/features/lifecycle/types";
+import {
+  requireGod,
+  requireGodOrAdminAccessContext,
+} from "@/lib/server-access";
 
 export type TabletopCampaignSummary = {
   id: number;
@@ -62,12 +75,14 @@ export type CampaignSessionSummary = {
 export type TabletopWorkspaceData = {
   campaigns: TabletopCampaignSummary[];
   selectedCampaignId: number | null;
+  canAuthor: boolean;
   sessions: CampaignSessionSummary[];
 };
 
 export type SessionRosterEntityView = {
   characterId: number;
   name: string;
+  archived: boolean;
   kind: SessionRosterEntityKind;
   kindLabel: string;
   playerName: string | null;
@@ -202,23 +217,47 @@ async function requireOwnedCampaign(campaignId: number, userId: string): Promise
   const [owned] = await db
     .select({ id: campaign.id })
     .from(campaign)
-    .where(and(eq(campaign.id, campaignId), eq(campaign.createdByUserId, userId)))
+    .where(and(
+      eq(campaign.id, campaignId),
+      eq(campaign.createdByUserId, userId),
+      isNull(campaign.archivedAt),
+    ))
     .limit(1);
-  if (!owned) throw new Error("Only the Campaign creator can manage its Sessions.");
+  if (!owned) {
+    throw new Error(
+      "Only the Campaign creator can manage Sessions in an active Campaign.",
+    );
+  }
 }
 
 export async function getTabletopWorkspace(
   requestedCampaignId: number | null,
 ): Promise<TabletopWorkspaceData> {
-  const access = await requireGod();
-  const campaigns = await db
-    .select({ id: campaign.id, name: campaign.name, overview: campaign.overview })
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
+  const campaignRows = await db
+    .select({
+      id: campaign.id,
+      name: campaign.name,
+      overview: campaign.overview,
+      ownerUserId: campaign.createdByUserId,
+    })
     .from(campaign)
-    .where(eq(campaign.createdByUserId, access.user.id))
+    .where(actor.roles.includes("admin")
+      ? isNull(campaign.archivedAt)
+      : and(
+          eq(campaign.createdByUserId, actor.userId),
+          isNull(campaign.archivedAt),
+        ))
     .orderBy(asc(campaign.name), asc(campaign.id));
+  const campaigns = campaignRows.map(({ id, name, overview }) => ({ id, name, overview }));
   const selectedCampaignId = campaigns.some(({ id }) => id === requestedCampaignId)
     ? requestedCampaignId
     : campaigns[0]?.id ?? null;
+  const selectedCampaign = campaignRows.find(({ id }) => id === selectedCampaignId) ?? null;
   const sessions = selectedCampaignId === null
     ? []
     : await db
@@ -229,6 +268,11 @@ export async function getTabletopWorkspace(
   return {
     campaigns,
     selectedCampaignId,
+    canAuthor: Boolean(
+      selectedCampaign
+      && selectedCampaign.ownerUserId === actor.userId
+      && actor.roles.includes("god"),
+    ),
     sessions: sessions.map(toSessionSummary),
   };
 }
@@ -236,7 +280,11 @@ export async function getTabletopWorkspace(
 export async function getSessionPrepWorkspace(
   sessionId: number,
 ): Promise<SessionPrepWorkspaceData> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sessionId, "Session");
   const [context] = await db
     .select({
@@ -250,13 +298,15 @@ export async function getSessionPrepWorkspace(
     .where(eq(campaignSession.id, sessionId))
     .limit(1);
   if (!context) throw new Error("That Session no longer exists.");
-  assertCampaignSessionOwner(context.ownerUserId, access.user.id);
+  assertOwnedRootManager(actor, context.ownerUserId, "Session");
+  const canAuthor = actor.roles.includes("god") && context.ownerUserId === actor.userId;
 
   const [entityRows, rosterRows] = await Promise.all([
     db
       .select({
         characterId: campaignCharacter.id,
         name: campaignCharacter.name,
+        archivedAt: campaignCharacter.archivedAt,
         isNpc: campaignCharacter.isNpc,
         npcKind: campaignCharacter.npcKind,
         playerName: user.name,
@@ -284,6 +334,7 @@ export async function getSessionPrepWorkspace(
     return {
       characterId: row.characterId,
       name: row.name,
+      archived: row.archivedAt !== null,
       kind,
       kindLabel: getSessionRosterEntityLabel(kind),
       playerName: kind === "pc" ? row.playerUsername ?? row.playerName : null,
@@ -300,9 +351,11 @@ export async function getSessionPrepWorkspace(
     sessionId,
     campaignId: context.campaignId,
     status: context.status,
-    editable: context.status !== "completed",
+    editable: canAuthor && context.status !== "completed",
     roster,
-    available: entities.filter(({ characterId }) => !rosteredIds.has(characterId)),
+    available: entities.filter(({ characterId, archived }) => (
+      !archived && !rosteredIds.has(characterId)
+    )),
   };
 }
 
@@ -378,11 +431,18 @@ export async function addSessionRosterMember(
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEditableSession(tx, sessionId, access.user.id);
     const [characterRow] = await tx
-      .select({ id: campaignCharacter.id, campaignId: campaignCharacter.campaignId })
+      .select({
+        id: campaignCharacter.id,
+        campaignId: campaignCharacter.campaignId,
+        archivedAt: campaignCharacter.archivedAt,
+      })
       .from(campaignCharacter)
       .where(eq(campaignCharacter.id, characterId))
       .limit(1);
     if (!characterRow) throw new Error("That Character or NPC no longer exists.");
+    if (characterRow.archivedAt) {
+      throw new Error("Archived Characters and NPCs cannot be added to a Session roster. Restore this record first.");
+    }
     assertRosterCampaignIntegrity(locked.campaignId, characterRow.campaignId);
     const [existing] = await tx
       .select({ characterId: campaignSessionRoster.characterId })
@@ -514,10 +574,19 @@ async function applyLifecycleTransition(
   sessionId: number,
   transition: SessionTransition,
 ): Promise<CampaignSessionSummary> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sessionId, "Session");
   try {
     const updated = await db.transaction(async (tx) => {
+      const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+        tx,
+        { entityKind: "campaign-session", entityId: sessionId },
+        actor,
+      );
       const [locked] = await tx
         .select({ ...sessionFields, ownerUserId: campaign.createdByUserId })
         .from(campaignSession)
@@ -526,7 +595,7 @@ async function applyLifecycleTransition(
         .limit(1)
         .for("update");
       if (!locked) throw new Error("That Session no longer exists.");
-      assertCampaignSessionOwner(locked.ownerUserId, access.user.id);
+      assertOwnedRootManager(actor, locked.ownerUserId, "Session");
       const next = transitionSession(locked, transition);
       if (transition === "complete") {
         const closeout = await readSessionCloseoutInTransaction(tx, {
@@ -570,6 +639,15 @@ async function applyLifecycleTransition(
         characterIds: [],
         category: "hierarchy",
       });
+      if (transition === "complete" || transition === "reopen") {
+        await recordTabletopLifecycleAuditInTransaction(
+          tx,
+          actor,
+          transition === "complete" ? "archive" : "restore",
+          lifecycle.root,
+          lifecycle.preview,
+        );
+      }
       return saved;
     });
     refreshTabletop();
@@ -595,9 +673,21 @@ export async function reopenCampaignSession(sessionId: number): Promise<Campaign
 }
 
 export async function deleteCampaignSession(sessionId: number): Promise<{ id: number; campaignId: number }> {
-  const access = await requireGod();
+  assertPermanentDeletionEnabled();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sessionId, "Session");
   const deleted = await db.transaction(async (tx) => {
+    assertPermanentDeletionEnabled();
+    const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+      tx,
+      { entityKind: "campaign-session", entityId: sessionId },
+      actor,
+    );
+    assertTabletopPermanentDeletionAllowed(lifecycle.preview);
     const [locked] = await tx
       .select({
         id: campaignSession.id,
@@ -611,13 +701,20 @@ export async function deleteCampaignSession(sessionId: number): Promise<{ id: nu
       .limit(1)
       .for("update");
     if (!locked) throw new Error("That Session no longer exists.");
-    assertCampaignSessionOwner(locked.ownerUserId, access.user.id);
+    assertOwnedRootManager(actor, locked.ownerUserId, "Session");
     assertSessionMayBeDeleted(locked.status);
     const [rollHistory] = await tx.select({ id: campaignSessionRoll.id })
       .from(campaignSessionRoll)
       .where(eq(campaignSessionRoll.sessionId, sessionId))
       .limit(1);
     if (rollHistory) throw new Error("This Session contains Roll history and cannot be deleted.");
+    await recordTabletopLifecycleAuditInTransaction(
+      tx,
+      actor,
+      "delete",
+      lifecycle.root,
+      lifecycle.preview,
+    );
     const [removed] = await tx
       .delete(campaignSession)
       .where(and(eq(campaignSession.id, sessionId), eq(campaignSession.status, "planned")))

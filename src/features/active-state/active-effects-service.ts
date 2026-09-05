@@ -132,7 +132,10 @@ async function requireModifierTarget(
 ): Promise<void> {
   if (effect.channel === "skill") {
     const skillId = Number(effect.targetKey.slice("skill:".length));
-    const found = await tx.select({ id: skill.id }).from(skill).where(eq(skill.id, skillId)).limit(1);
+    const found = await tx.select({ id: skill.id }).from(skill).where(and(
+      eq(skill.id, skillId),
+      isNull(skill.archivedAt),
+    )).limit(1);
     const creatureProfile = await tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, characterId)).limit(1);
     if (!found) throw new Error("Temporary Skill Modifier target does not exist in the Skill catalog.");
     if (creatureProfile[0]) {

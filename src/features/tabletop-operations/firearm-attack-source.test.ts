@@ -25,9 +25,9 @@ test("Pass 10 owns one exact attack, bullet, and event persistence model", () =>
   assert.doesNotMatch(migration, /^\s*(?:DROP|DELETE|TRUNCATE|UPDATE|INSERT)\b/im);
 });
 
-test("migration 0029 remains after immutable 0028 in the 32-entry ledger", () => {
+test("migration 0029 remains after immutable 0028 in the forward-only ledger", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<Record<string, unknown>> };
-  assert.equal(journal.entries.length, 32);
+  assert.equal(journal.entries.length, 33);
   assert.deepEqual(journal.entries[28], {
     idx: 28,
     version: "7",
@@ -44,6 +44,7 @@ test("migration 0029 remains after immutable 0028 in the 32-entry ledger", () =>
   });
   assert.equal(journal.entries[30]?.tag, "0030_called_checks_high_low");
   assert.equal(journal.entries[31]?.tag, "0031_player_combat_ruling_requests");
+  assert.equal(journal.entries[32]?.tag, "0032_safe_entity_lifecycles");
 });
 
 test("the firearm transaction reuses Rolls, defenses, Initiative, readiness, and Pass 8 plans", () => {

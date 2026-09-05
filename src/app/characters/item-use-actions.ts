@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -30,6 +30,7 @@ import {
   readItemChargeStateInTransaction,
   spendItemChargesInTransaction,
 } from "@/features/items/item-charge-service";
+import { lockActiveItemRootInTransaction } from "@/features/items/active-item-root-service";
 import {
   canExecuteItemUse,
   executeItemUseInTransaction,
@@ -165,7 +166,11 @@ async function loadAccessEntity(
         eq(campaignPlayer.userId, userId),
       ),
     )
-    .where(eq(campaignCharacter.id, characterId))
+    .where(and(
+      eq(campaignCharacter.id, characterId),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
+    ))
     .limit(1);
   const rows = lock
     ? await query.for("update", { of: campaignCharacter })
@@ -207,6 +212,7 @@ async function loadDefinition(
     .where(and(
       eq(campaignInventoryItem.campaignId, campaignId),
       eq(campaignInventoryItem.itemId, itemId),
+      isNull(item.archivedAt),
     ))
     .limit(1);
   if (!row) throw new Error("That Item is not authorized for the source Character's Campaign.");
@@ -336,7 +342,10 @@ async function listTargetOptions(
       npcKind: campaignCharacter.npcKind,
     })
     .from(campaignCharacter)
-    .where(eq(campaignCharacter.campaignId, source.campaignId))
+    .where(and(
+      eq(campaignCharacter.campaignId, source.campaignId),
+      isNull(campaignCharacter.archivedAt),
+    ))
     .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));
   return {
     canChooseTarget: true,
@@ -416,6 +425,7 @@ export async function executeCharacterItemUseInCallerTransaction(
   const result = await executeItemUseInTransaction(async (execute) => execute({
     loadAndPlan: async () => {
       await lockEquipmentStateCharacterInTransaction(tx, request.sourceCharacterId);
+      await lockActiveItemRootInTransaction(tx, request.itemId);
       loaded = await loadUse(tx, request, actingUserId, true);
       return loaded.plan;
     },

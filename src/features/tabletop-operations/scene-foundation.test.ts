@@ -129,11 +129,14 @@ test("Scene and member schema carry only organizational references and metadata"
   }
 });
 
-test("Scene actions independently resolve G.O.D. ownership and authoritative parents", () => {
+test("Scene actions resolve authoritative parents and permit only DB-authorized lifecycle overrides", () => {
   const actions = readSource("src/app/heavens/tabletop/scene-actions.ts");
   assert.match(actions, /const access = await requireGod\(\)/);
-  assert.match(actions, /assertCampaignSessionOwner\(context\.ownerUserId, access\.user\.id\)/);
-  assert.equal((actions.match(/lockOwnedScene\(tx, (?:input\.id|sceneId), access\.user\.id\)/g) ?? []).length, 6);
+  assert.match(actions, /assertOwnedRootManager\(actor, context\.ownerUserId, "Session"\)/);
+  assert.equal((actions.match(/lockOwnedScene\(tx, (?:input\.id|sceneId), access\.user\.id\)/g) ?? []).length, 4);
+  assert.equal((actions.match(/lockOwnedScene\(tx, sceneId, actor\)/g) ?? []).length, 2);
+  assert.match(actions, /requireGodOrAdminAccessContext\(\)/);
+  assert.match(actions, /prepareTabletopLifecycleMutationInTransaction/);
   assert.match(actions, /lockOwnedSession\(tx, input\.sessionId, access\.user\.id\)/);
   assert.match(actions, /eq\(campaignSessionRoster\.sessionId, locked\.sessionId\)/);
   assert.match(actions, /eq\(campaignSessionRoster\.campaignId, locked\.campaignId\)/);

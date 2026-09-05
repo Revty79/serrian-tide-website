@@ -289,12 +289,12 @@ try {
     }
 
     const playerCharacter = await one<{ id: number }>(client, `
-      insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind)
-      values ($1,$2,'Mara Tidewright',false,'race') returning id
+      insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode)
+      values ($1,$2,'Mara Tidewright',false,'race',null) returning id
     `, [campaign.id, PLAYER_ID]);
     const raceNpc = await one<{ id: number }>(client, `
-      insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind)
-      values ($1,$2,'Archivist Rowan',true,'race') returning id
+      insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode)
+      values ($1,$2,'Archivist Rowan',true,'race','detailed') returning id
     `, [campaign.id, GOD_ID]);
 
     const challenge = await one<{ xp: number }>(client, "select kill_xp as xp from challenge_rating_reference where challenge_rating=1");
@@ -407,8 +407,8 @@ try {
       derivedCreatures: [],
     };
     const creatureNpc = await one<{ id: number }>(client, `
-      insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind)
-      values ($1,$2,'Brine, the Review Beast',true,'creature') returning id
+      insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode)
+      values ($1,$2,'Brine, the Review Beast',true,'creature','detailed') returning id
     `, [campaign.id, GOD_ID]);
 
     for (const character of [

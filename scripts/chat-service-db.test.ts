@@ -190,7 +190,8 @@ before(async () => {
       create table campaign (
         id serial primary key,
         name text not null,
-        created_by_user_id text not null references "user"(id)
+        created_by_user_id text not null references "user"(id),
+        archived_at timestamp
       );
       create table campaign_player (
         campaign_id integer not null references campaign(id) on delete cascade,

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { listCampaignsForGod } from "@/app/heavens/campaigns/actions";
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import { HeavensCampaignControl } from "./heavens-campaign-control";
 
@@ -57,7 +57,7 @@ export default async function HeavensPage({
 }: {
   searchParams: Promise<{ campaign?: string; player?: string }>;
 }) {
-  const session = await requireGod().catch(() => redirect("/access"));
+  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const campaigns = await listCampaignsForGod();
   const query = await searchParams;
   const requestedCampaignId = Number(query.campaign);

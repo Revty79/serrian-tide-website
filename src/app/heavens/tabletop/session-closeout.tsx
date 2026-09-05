@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import type { SessionCloseoutView } from "@/features/tabletop-operations/session-closeout-service";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import { reopenCampaignSession } from "./actions";
 import { finalizeSessionCloseout } from "./session-closeout-actions";
+import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
+import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 function timestamp(value: string | null): string {
   if (!value) return "—";
@@ -27,14 +31,18 @@ export function SessionCloseout({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const [confirmationMode, setConfirmationMode] = useState<"finalize" | "reopen" | null>(null);
+  const [lifecyclePreview, setLifecyclePreview] = useState<TabletopLifecyclePreview | null>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
   const historical = data.session.status === "completed";
 
   async function finalize(): Promise<void> {
-    if (!window.confirm("Finalize this Session? This is organizational only and will not reset any living Character state or history.")) return;
     setBusy(true);
     setFeedback(null);
     try {
       await finalizeSessionCloseout(data.session.id);
+      setConfirmationMode(null);
+      setLifecyclePreview(null);
       setFeedback({ kind: "success", message: "Session finalized. Character state, rewards, durations, and Rolls were preserved." });
       router.refresh();
     } catch (error) {
@@ -49,6 +57,8 @@ export function SessionCloseout({
     setFeedback(null);
     try {
       await reopenCampaignSession(data.session.id);
+      setConfirmationMode(null);
+      setLifecyclePreview(null);
       setFeedback({ kind: "success", message: "Session reopened organizationally. Deeper history and Character state were not altered." });
       router.refresh();
     } catch (error) {
@@ -56,6 +66,25 @@ export function SessionCloseout({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function openConfirmation(mode: "finalize" | "reopen"): Promise<void> {
+    await preserveScroll(async () => {
+      setBusy(true);
+      setFeedback(null);
+      try {
+        const preview = await previewTabletopLifecycleEntity({
+          entityKind: "campaign-session",
+          entityId: data.session.id,
+        });
+        setLifecyclePreview(preview);
+        setConfirmationMode(mode);
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Session lifecycle preview could not be loaded." });
+      } finally {
+        setBusy(false);
+      }
+    });
   }
 
   return <section className="session-closeout">
@@ -98,7 +127,32 @@ export function SessionCloseout({
 
     <footer className="session-closeout-finalize">
       <div><strong>{historical ? "Session history preserved" : data.canFinalize ? "Ready to finalize" : "Resolve every blocker first"}</strong><span>Finalization never heals, restores, clears, deletes, awards, or resets Character state.</span></div>
-      {historical ? <button type="button" disabled={busy} onClick={() => void reopen()}>{busy ? "Reopening…" : "Reopen Session"}</button> : <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void finalize()}>{busy ? "Finalizing…" : "Finalize Session"}</button>}
+      {historical ? <button type="button" disabled={busy} onClick={() => void openConfirmation("reopen")}>{busy ? "Reopening…" : "Reopen Session"}</button> : <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void openConfirmation("finalize")}>{busy ? "Finalizing…" : "Finalize Session"}</button>}
     </footer>
+    <LifecycleConfirmationDialog
+      open={confirmationMode !== null}
+      titleId="finalize-tabletop-session-title"
+      eyebrow="Session Lifecycle"
+      title={confirmationMode === "reopen" ? `Reopen Session ${data.session.sequenceNumber}?` : `Finalize Session ${data.session.sequenceNumber}?`}
+      entityType="Campaign Session"
+      preview={lifecyclePreview}
+      consequence={confirmationMode === "reopen"
+        ? "This returns the completed Session to active for corrections. It does not erase its deeper history or alter living Character state."
+        : "This makes the Session organizationally historical. It does not reset or delete living Character state, rewards, durations, or Rolls."}
+      dependencies={(lifecyclePreview?.dependencies ?? [])
+        .filter(({ count }) => count > 0)
+        .map(({ label, count }) => `${label}: ${count}`)}
+      notice={lifecyclePreview && (confirmationMode === "reopen" ? !lifecyclePreview.canReopen : !lifecyclePreview.canComplete)
+        ? "The current server state does not allow this transition. Resolve its lifecycle prerequisites and try again."
+        : "Cancel makes no changes. A completed Session can be reopened without erasing its deeper history."}
+      confirmLabel={confirmationMode === "reopen" ? "Reopen Session" : "Finalize Session"}
+      confirmDisabled={!lifecyclePreview || (confirmationMode === "reopen"
+        ? !lifecyclePreview.canReopen
+        : !lifecyclePreview.canComplete)}
+      busy={busy}
+      error={feedback?.kind === "error" ? feedback.message : undefined}
+      onCancel={() => { setConfirmationMode(null); setLifecyclePreview(null); setFeedback(null); }}
+      onConfirm={() => confirmationMode === "reopen" ? reopen() : finalize()}
+    />
   </section>;
 }

@@ -89,12 +89,14 @@ export function DerivedAbilityPanel({
   });
   const learnable = abilities.filter((ability) => {
     const status = statusById.get(ability.id);
-    return ability.acquisitionType === "learned"
+    return !ability.archived
+      && ability.acquisitionType === "learned"
       && (status?.status === "eligible-to-learn" || status?.status === "manual-review");
   });
   const awardable = godMode
     ? abilities.filter((ability) =>
-        ability.acquisitionType === "awarded"
+        !ability.archived
+        && ability.acquisitionType === "awarded"
         && statusById.get(ability.id)?.status === "awarded-not-owned")
     : [];
 

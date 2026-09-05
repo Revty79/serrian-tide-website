@@ -283,15 +283,16 @@ async function main(): Promise<void> {
 
     await godPage.goto(`${BASE_URL}/heavens/campaigns?campaign=${fixture.campaignId}`);
     await godPage.getByRole("heading", { name: `Scroll Campaign ${MARKER}` }).waitFor();
+    const saveCampaignButton = godPage.getByRole("button", { name: "Save Campaign", exact: true });
     await godPage.getByLabel("Campaign Overview").fill(`Updated ${MARKER}`);
     let before = await scrollWindow(godPage);
-    await clickWithoutAutoScroll(godPage, ".campaign-editor-header button");
+    await saveCampaignButton.evaluate((element) => (element as HTMLElement).click());
     await godPage.getByText(new RegExp(`Scroll Campaign ${MARKER}.*was saved`)).waitFor();
     assertPosition(await windowScroll(godPage), before, "Campaign update");
 
     await godPage.getByLabel("Campaign Name").fill("");
     before = await scrollWindow(godPage);
-    await clickWithoutAutoScroll(godPage, ".campaign-editor-header button");
+    await saveCampaignButton.evaluate((element) => (element as HTMLElement).click());
     await godPage.locator(".campaign-feedback.is-error").waitFor();
     assertPosition(await windowScroll(godPage), before, "Campaign validation error");
     await godPage.getByLabel("Campaign Name").fill(`Scroll Campaign ${MARKER}`);
@@ -310,7 +311,7 @@ async function main(): Promise<void> {
     assertPosition(await windowScroll(godPage), before, "Campaign inventory add");
     const panelAfterAdd = await availablePanel.evaluate((element) => element.scrollTop);
     assert.ok(Math.abs(panelAfterAdd - panelBefore) <= 12, `Nested inventory panel moved from ${panelBefore}px to ${panelAfterAdd}px.`);
-    await clickWithoutAutoScroll(godPage, ".campaign-editor-header button");
+    await saveCampaignButton.evaluate((element) => (element as HTMLElement).click());
     await godPage.locator(".campaign-feedback.is-success").waitFor();
     assertPosition(await windowScroll(godPage), before, "Campaign inventory save");
 
@@ -333,20 +334,28 @@ async function main(): Promise<void> {
     for (let index = 0; index < await movementModes.count(); index += 1) {
       await movementModes.nth(index).fill(`Mode ${index}`);
     }
+    const savedRaceName = `Browser Saved Race ${MARKER}`;
     await godPage.getByRole("button", { name: "Overview" }).click();
-    await godPage.getByLabel("Name").fill(`Browser Saved Race ${MARKER}`);
+    await godPage.getByLabel("Name").fill(savedRaceName);
     await godPage.getByRole("button", { name: "Attributes & Movement" }).click();
     before = await scrollWindow(godPage, 680);
     await clickWithoutAutoScroll(godPage, ".skill-editor__actions .skills-primary-button");
     await godPage.locator(".skill-editor__feedback.is-success").waitFor();
     assertPosition(await windowScroll(godPage), before, "Race long-editor save");
 
+    const reviewRaceDeletionButton = godPage
+      .locator('.skill-editor__actions [aria-label="Race lifecycle controls"]')
+      .getByRole("button", { name: "Review permanent deletion", exact: true });
+    await reviewRaceDeletionButton.click({ trial: true });
     before = await scrollWindow(godPage, 680);
-    await clickWithoutAutoScroll(godPage, ".skill-editor__actions .skills-danger-button");
-    await godPage.locator(".skill-editor__delete-confirm").waitFor();
+    await reviewRaceDeletionButton.evaluate((element) => (element as HTMLElement).click());
+    const raceLifecycleDialog = godPage.getByRole("dialog");
+    await raceLifecycleDialog.getByRole("heading", { name: savedRaceName, exact: true }).waitFor();
     assertPosition(await windowScroll(godPage), before, "Delete confirmation open");
-    await clickWithoutAutoScroll(godPage, ".skill-editor__delete-confirm button:last-child");
-    await godPage.locator(".skill-editor__delete-confirm").waitFor({ state: "detached" });
+    await raceLifecycleDialog
+      .getByRole("button", { name: "Cancel", exact: true })
+      .evaluate((element) => (element as HTMLElement).click());
+    await raceLifecycleDialog.waitFor({ state: "detached" });
     assertPosition(await windowScroll(godPage), before, "Delete confirmation cancel");
 
     await godPage.goto(`${BASE_URL}/heavens/skills`);

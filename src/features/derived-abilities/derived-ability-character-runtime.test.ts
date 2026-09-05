@@ -141,6 +141,29 @@ test("resolver never persists or infers Automatic ownership and preserves canoni
   assert.equal(at40.statuses[0]?.ownershipId, null);
 });
 
+test("archived definitions remain readable through ownership but are not selectable or usable", () => {
+  const archived = ability(1, { archived: true });
+  const unowned = resolveCharacterDerivedAbilities({
+    catalog: [archived],
+    ownerships: [],
+    attributes: { STR: 40 },
+    allowedSystems: enabled,
+  });
+  assert.equal(unowned.statuses[0]?.status, "not-eligible");
+  assert.equal(unowned.statuses[0]?.available, false);
+
+  const owned = resolveCharacterDerivedAbilities({
+    catalog: [archived],
+    ownerships: [ownership(1, archived.id)],
+    attributes: { STR: 40 },
+    allowedSystems: enabled,
+  });
+  assert.equal(owned.statuses[0]?.status, "owned-unavailable");
+  assert.equal(owned.statuses[0]?.ownershipId, 1);
+  assert.equal(owned.statuses[0]?.possessed, false);
+  assert.deepEqual(owned.effectiveDerivedAbilityIds, []);
+});
+
 test("owned unavailable prerequisites remain possessed while revoked and inactive Automatic prerequisites do not", () => {
   const prerequisite = ability(1, {
     requirements: [requirement({ requirementScope: "live", requiredValue: 100 })],
@@ -447,7 +470,8 @@ test("Pass 6 server boundaries preserve no-XP acquisition, authoritative recheck
   assert.match(schema, /character_derived_ability_active_uq/);
   assert.match(schema, /where\(sql`\$\{table\.revokedAt\} IS NULL`\)/);
   assert.match(actions, /active Character ownerships before changing/);
-  assert.match(actions, /Character ownership history and cannot be deleted/);
+  assert.match(actions, /Restore this Derived Ability before editing/);
+  assert.doesNotMatch(actions, /export async function deleteDerivedAbility/);
   assert.match(migration, /ON DELETE restrict/);
   assert.match(migration, /ON DELETE cascade/);
   assert.match(migration, /derived-ability/);

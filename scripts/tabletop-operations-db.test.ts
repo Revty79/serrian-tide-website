@@ -70,6 +70,7 @@ async function insertTemporaryCharacter(
     name: input.name,
     isNpc: input.isNpc ?? false,
     npcKind: input.npcKind ?? "race",
+    npcBuildMode: input.isNpc ? "detailed" : null,
   }).returning({ id: campaignCharacter.id });
   assert.ok(created);
   return created.id;

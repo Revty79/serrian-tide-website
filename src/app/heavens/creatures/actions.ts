@@ -7,6 +7,7 @@ import {
   eq,
   ilike,
   inArray,
+  isNotNull,
   isNull,
   sql,
   type SQL,
@@ -47,7 +48,8 @@ import {
   resolveSystemAssignedCreatureIds,
 } from "@/features/creatures/creature-canonical-ids";
 import { resolveCreatureHpModel } from "@/features/creatures/creature-size-rules";
-import { requireGod } from "@/lib/server-access";
+import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type CreatureLibraryFilters = {
   search?: string;
@@ -57,6 +59,7 @@ export type CreatureLibraryFilters = {
   challengeRating?: number | null;
   page?: number;
   pageSize?: number;
+  archived?: boolean;
 };
 
 export type CreatureSummary = {
@@ -68,6 +71,7 @@ export type CreatureSummary = {
   size: string;
   challengeRating: number | null;
   killXp: number | null;
+  archivedAt: string | null;
 };
 
 export type CreatureLibraryResult = {
@@ -110,6 +114,7 @@ export type CreatureLineageSummary = {
   size: string;
   challengeRating: number | null;
   killXp: number | null;
+  archivedAt: string | null;
 };
 
 export type CreatureDraft = {
@@ -151,6 +156,9 @@ export type CreatureDraft = {
 
 export type CreatureAggregate = CreatureDraft & {
   id: number;
+  createdByUserId: string | null;
+  archivedAt: string | null;
+  archiveReason: string;
   createdAt: string;
   updatedAt: string;
   challengeRatingBreakdown?: ChallengeRatingBreakdown;
@@ -351,10 +359,11 @@ function normalize(input: CreatureDraft) {
 export async function listCreatures(
   filters: CreatureLibraryFilters = {},
 ): Promise<CreatureLibraryResult> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: SQL[] = [];
+  conditions.push(filters.archived ? isNotNull(creature.archivedAt) : isNull(creature.archivedAt));
   if (clean(filters.search)) conditions.push(ilike(creature.canonicalName, `%${clean(filters.search)}%`));
   if (clean(filters.family)) conditions.push(eq(creature.family, clean(filters.family)));
   if (clean(filters.creatureType)) conditions.push(eq(creature.creatureType, clean(filters.creatureType)));
@@ -372,15 +381,26 @@ export async function listCreatures(
     size: creature.size,
     challengeRating: creature.challengeRating,
     killXp: creature.killXp,
+    archivedAt: creature.archivedAt,
   }).from(creature).where(where).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(pageSize).offset((page - 1) * pageSize);
-  return { items, total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
+  return {
+    items: items.map((entry) => ({
+      ...entry,
+      archivedAt: entry.archivedAt?.toISOString() ?? null,
+    })),
+    total,
+    page,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
-export async function listCreatureFacets(): Promise<CreatureFacets> {
-  await requireGod();
+export async function listCreatureFacets(archived = false): Promise<CreatureFacets> {
+  await requireGodOrAdminAccessContext();
+  const archiveCondition = archived ? isNotNull(creature.archivedAt) : isNull(creature.archivedAt);
   const [families, types] = await Promise.all([
-    db.selectDistinct({ value: creature.family }).from(creature).orderBy(asc(creature.family)),
-    db.selectDistinct({ value: creature.creatureType }).from(creature).orderBy(asc(creature.creatureType)),
+    db.selectDistinct({ value: creature.family }).from(creature).where(archiveCondition).orderBy(asc(creature.family)),
+    db.selectDistinct({ value: creature.creatureType }).from(creature).where(archiveCondition).orderBy(asc(creature.creatureType)),
   ]);
   return {
     families: families.map(({ value }) => value.trim()).filter(Boolean),
@@ -389,21 +409,23 @@ export async function listCreatureFacets(): Promise<CreatureFacets> {
 }
 
 export async function listChallengeRatingReferences(): Promise<ChallengeRatingReference[]> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   return db.select().from(challengeRatingReference).orderBy(asc(challengeRatingReference.challengeRating));
 }
 
 export async function listCreatureSkillCandidates(search = ""): Promise<CreatureSkillCandidate[]> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
+  const conditions: SQL[] = [isNull(skill.archivedAt)];
+  if (clean(search)) conditions.push(ilike(skill.name, `%${clean(search)}%`));
   return db.select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
     .from(skill)
-    .where(clean(search) ? ilike(skill.name, `%${clean(search)}%`) : undefined)
+    .where(and(...conditions))
     .orderBy(asc(skill.name), asc(skill.id))
     .limit(30);
 }
 
 export async function getCreature(id: number): Promise<CreatureAggregate | null> {
-  await requireGod();
+  await requireGodOrAdminAccessContext();
   const [row] = await db.select({
     id: creature.id,
     canonicalId: creature.canonicalId,
@@ -427,6 +449,9 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     habitatEcology: creature.habitatEcology,
     notes: creature.notes,
     sourceSystem: creature.sourceSystem,
+    createdByUserId: creature.createdByUserId,
+    archivedAt: creature.archivedAt,
+    archiveReason: creature.archiveReason,
     createdAt: creature.createdAt,
     updatedAt: creature.updatedAt,
   }).from(creature).where(eq(creature.id, id)).limit(1);
@@ -448,7 +473,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     db.select({ id: creatureAbility.id, canonicalId: creatureAbility.canonicalId, abilityName: creatureAbility.abilityName, abilityType: creatureAbility.abilityType, activation: creatureAbility.activation, requirements: creatureAbility.requirements, usesRecharge: creatureAbility.usesRecharge, description: creatureAbility.description, mechanicalEffect: creatureAbility.mechanicalEffect, notes: creatureAbility.notes, sortOrder: creatureAbility.sortOrder, crImpact: creatureAbility.crImpact }).from(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId))).orderBy(asc(creatureAbility.sortOrder), asc(creatureAbility.id)),
     db.select({ seedIdentity: creatureDefense.seedIdentity, defenseType: creatureDefense.defenseType, against: creatureDefense.against, value: creatureDefense.value, notes: creatureDefense.notes, sortOrder: creatureDefense.sortOrder, crImpact: creatureDefense.crImpact }).from(creatureDefense).where(and(eq(creatureDefense.creatureId, id), isNull(creatureDefense.variantId))).orderBy(asc(creatureDefense.sortOrder), asc(creatureDefense.id)),
     db.select({ seedIdentity: creatureUse.seedIdentity, useName: creatureUse.useName, notes: creatureUse.notes, sortOrder: creatureUse.sortOrder }).from(creatureUse).where(and(eq(creatureUse.creatureId, id), isNull(creatureUse.variantId))).orderBy(asc(creatureUse.sortOrder), asc(creatureUse.id)),
-    db.select({ id: creature.id, canonicalId: creature.canonicalId, canonicalName: creature.canonicalName, size: creature.size, challengeRating: creature.challengeRating, killXp: creature.killXp }).from(creature).where(eq(creature.parentCreatureId, id)).orderBy(asc(creature.canonicalName), asc(creature.id)),
+    db.select({ id: creature.id, canonicalId: creature.canonicalId, canonicalName: creature.canonicalName, size: creature.size, challengeRating: creature.challengeRating, killXp: creature.killXp, archivedAt: creature.archivedAt }).from(creature).where(eq(creature.parentCreatureId, id)).orderBy(asc(creature.canonicalName), asc(creature.id)),
     db.select().from(challengeRatingReference).orderBy(asc(challengeRatingReference.challengeRating)),
   ]);
 
@@ -471,6 +496,9 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
   const poolIdToCanonical = new Map(pools.map((pool) => [pool.id, pool.canonicalId]));
   const draft: CreatureAggregate = {
     id: row.id,
+    createdByUserId: row.createdByUserId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    archiveReason: row.archiveReason,
     core: {
       canonicalId: row.canonicalId,
       canonicalName: row.canonicalName,
@@ -514,7 +542,10 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     })),
     defenses: defenses.map((defense) => ({ ...defense, crImpact: CREATURE_CR_IMPACTS.includes(defense.crImpact as CreatureCrImpact) ? defense.crImpact as CreatureCrImpact : "None" })),
     uses,
-    derivedCreatures,
+    derivedCreatures: derivedCreatures.map((entry) => ({
+      ...entry,
+      archivedAt: entry.archivedAt?.toISOString() ?? null,
+    })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -523,7 +554,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
 }
 
 export async function saveCreature(input: CreatureDraft): Promise<CreatureAggregate> {
-  const session = await requireGod();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const normalized = normalize(input);
   const assignedIds = resolveSystemAssignedCreatureIds(normalized, input.id === undefined);
   normalized.core.canonicalId = assignedIds.coreCanonicalId;
@@ -555,19 +586,33 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
   const savedId = await db.transaction(async (tx) => {
     let id = input.id;
     if (id === undefined) {
-      const [created] = await tx.insert(creature).values({ ...normalized.core, createdByUserId: session.user.id }).returning({ id: creature.id });
+      const [created] = await tx.insert(creature).values({
+        ...normalized.core,
+        sourceSystem: null,
+        createdByUserId: session.user.id,
+      }).returning({ id: creature.id });
       id = created.id;
     } else {
       const [stored] = await tx
         .select({
           canonicalId: creature.canonicalId,
           parentCreatureId: creature.parentCreatureId,
+          createdByUserId: creature.createdByUserId,
           sourceSystem: creature.sourceSystem,
+          archivedAt: creature.archivedAt,
         })
         .from(creature)
         .where(eq(creature.id, id))
         .limit(1);
       if (!stored) throw new Error("That Creature no longer exists.");
+      assertCanEditSharedLibraryRoot(
+        { userId: session.user.id, roles },
+        stored,
+        "Creature",
+      );
+      if (stored.archivedAt) {
+        throw new Error("Restore this Creature before editing it.");
+      }
       if (stored.canonicalId !== normalized.core.canonicalId) {
         throw new Error("Canonical Creature IDs are generated by the system and cannot be changed after creation.");
       }
@@ -581,7 +626,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
       if (!updated.length) throw new Error("That Creature no longer exists.");
     }
 
-    const [storedAbilities, storedPools, storedAttacks] = await Promise.all([
+    const [storedAbilities, storedPools, storedAttacks, storedSkillLinks] = await Promise.all([
       tx.select({
         id: creatureAbility.id,
         canonicalId: creatureAbility.canonicalId,
@@ -596,6 +641,10 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
       tx.select({ canonicalId: creatureAttack.canonicalId }).from(creatureAttack).where(and(
         eq(creatureAttack.creatureId, id),
         isNull(creatureAttack.variantId),
+      )),
+      tx.select({ skillId: creatureSkillLink.skillId }).from(creatureSkillLink).where(and(
+        eq(creatureSkillLink.creatureId, id),
+        isNull(creatureSkillLink.variantId),
       )),
     ]);
     if (input.id !== undefined) {
@@ -644,8 +693,15 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
     if (normalized.attacks.length) await tx.insert(creatureAttack).values(normalized.attacks.map((row) => ({ creatureId: id!, variantId: null, ...row })));
     if (normalized.skillLinks.length) {
       const skillIds = [...new Set(normalized.skillLinks.map(({ skillId }) => skillId))];
-      const existing = await tx.select({ id: skill.id }).from(skill).where(inArray(skill.id, skillIds));
+      const existing = await tx
+        .select({ id: skill.id, archivedAt: skill.archivedAt })
+        .from(skill)
+        .where(inArray(skill.id, skillIds));
       if (existing.length !== skillIds.length) throw new Error("One or more linked Skills no longer exist.");
+      const previouslyLinkedSkillIds = new Set(storedSkillLinks.map(({ skillId }) => skillId));
+      if (existing.some((candidate) => candidate.archivedAt && !previouslyLinkedSkillIds.has(candidate.id))) {
+        throw new Error("Archived Skills cannot be added to a Creature. Restore the Skill first.");
+      }
       await tx.insert(creatureSkillLink).values(normalized.skillLinks.map(({ skillId, rank, notes, sortOrder }) => ({
         creatureId: id!,
         variantId: null,
@@ -712,7 +768,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
 }
 
 export async function createDerivedCreature(parentCreatureId: number, variantName: string): Promise<CreatureAggregate> {
-  const session = await requireGod();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const name = required(variantName, "Variant Name");
   const savedId = await db.transaction(async (tx) => {
     const [parent] = await tx
@@ -721,6 +777,12 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       .where(eq(creature.id, parentCreatureId))
       .limit(1);
     if (!parent) throw new Error("Parent Creature not found.");
+    assertCanEditSharedLibraryRoot(
+      { userId: session.user.id, roles },
+      parent,
+      "Creature",
+    );
+    if (parent.archivedAt) throw new Error("Restore the parent Creature before creating a derived Creature.");
     if (parent.challengeRating === null) {
       throw new Error("The parent Creature has no final Challenge Rating.");
     }
@@ -952,12 +1014,4 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
   const saved = await getCreature(savedId);
   if (!saved) throw new Error("The derived Creature could not be reloaded.");
   return saved;
-}
-
-export async function deleteCreature(id: number) {
-  await requireGod();
-  const [children] = await db.select({ value: count() }).from(creature).where(eq(creature.parentCreatureId, id));
-  if (Number(children?.value ?? 0) > 0) throw new Error("This Creature cannot be deleted while derived Creatures still link to it.");
-  await db.delete(creature).where(eq(creature.id, id));
-  revalidatePath("/heavens/creatures");
 }

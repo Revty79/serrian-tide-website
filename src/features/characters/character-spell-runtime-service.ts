@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -179,7 +179,11 @@ async function loadAccessEntity(
         eq(campaignPlayer.userId, userId),
       ),
     )
-    .where(eq(campaignCharacter.id, characterId))
+    .where(and(
+      eq(campaignCharacter.id, characterId),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
+    ))
     .limit(1);
   const rows = lock
     ? await query.for("update", { of: campaignCharacter })
@@ -220,7 +224,10 @@ async function loadSpellTree(
     })
     .from(campaignCharacterSkillAllocation)
     .innerJoin(skill, eq(skill.id, campaignCharacterSkillAllocation.skillId))
-    .where(eq(campaignCharacterSkillAllocation.characterId, characterId))
+    .where(and(
+      eq(campaignCharacterSkillAllocation.characterId, characterId),
+      isNull(skill.archivedAt),
+    ))
     .orderBy(asc(campaignCharacterSkillAllocation.id));
   const catalog = new Map<number, CharacterSkillReference>();
   const allocations: CharacterSkillAllocation[] = rows.map((row) => {
@@ -520,6 +527,7 @@ async function listTargetOptions(
     .from(campaignCharacter)
     .where(and(
       eq(campaignCharacter.campaignId, caster.campaignId),
+      isNull(campaignCharacter.archivedAt),
       ...(godMode ? [] : [eq(campaignCharacter.isNpc, false)]),
     ))
     .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));

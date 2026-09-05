@@ -342,7 +342,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
 
         <ActiveHealthPanel health={activeHealth} onHealthChange={onActiveHealthChange} />
         <ActiveManaPanel mana={activeMana} disabled={activeManaDisabled} onManaChange={onActiveManaChange} />
-        <ActiveEffectsPanel state={activeEffects} godMode={godMode} skillOptions={aggregate.skillCatalog.map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
+        <ActiveEffectsPanel state={activeEffects} godMode={godMode} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
         <EquipmentStatePanel state={equipmentState} disabled={equipmentStateDisabled} includeEffectHistory={godMode} onChange={onEquipmentStateChange} onActiveEffectsChange={onActiveEffectsChange} />
         <ItemChargePanel state={chargeState} disabled={chargeStateDisabled} onChange={onChargeStateChange} />
 

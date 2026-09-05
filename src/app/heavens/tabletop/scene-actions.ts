@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
+import { campaignCharacter } from "@/db/realm-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
@@ -34,7 +35,20 @@ import {
   assertCampaignSessionOwner,
   type SessionStatus,
 } from "@/features/tabletop-operations/session-foundation";
-import { requireGod } from "@/lib/server-access";
+import {
+  assertOwnedRootManager,
+  assertPermanentDeletionEnabled,
+} from "@/features/lifecycle/policy";
+import {
+  assertTabletopPermanentDeletionAllowed,
+  prepareTabletopLifecycleMutationInTransaction,
+  recordTabletopLifecycleAuditInTransaction,
+} from "@/features/lifecycle/tabletop-lifecycle-service";
+import type { LifecycleActor } from "@/features/lifecycle/types";
+import {
+  requireGod,
+  requireGodOrAdminAccessContext,
+} from "@/lib/server-access";
 import { expireSceneDurationsInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 
@@ -177,7 +191,7 @@ async function lockOwnedSession(
 async function lockOwnedScene(
   tx: TabletopTransaction,
   sceneId: number,
-  actingUserId: string,
+  actor: string | LifecycleActor,
 ) {
   const [locked] = await tx
     .select({
@@ -195,7 +209,11 @@ async function lockOwnedScene(
     .limit(1)
     .for("update");
   if (!locked) throw new Error("That Scene no longer exists.");
-  assertCampaignSessionOwner(locked.ownerUserId, actingUserId);
+  if (typeof actor === "string") {
+    assertCampaignSessionOwner(locked.ownerUserId, actor);
+  } else {
+    assertOwnedRootManager(actor, locked.ownerUserId, "Scene");
+  }
   return locked;
 }
 
@@ -222,7 +240,11 @@ export async function getSessionSceneWorkspace(
   sessionId: number,
   requestedSceneId: number | null,
 ): Promise<SceneWorkspaceData> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sessionId, "Session");
   const [context] = await db
     .select({
@@ -236,7 +258,8 @@ export async function getSessionSceneWorkspace(
     .where(eq(campaignSession.id, sessionId))
     .limit(1);
   if (!context) throw new Error("That Session no longer exists.");
-  assertCampaignSessionOwner(context.ownerUserId, access.user.id);
+  assertOwnedRootManager(actor, context.ownerUserId, "Session");
+  const canAuthor = actor.roles.includes("god") && context.ownerUserId === actor.userId;
 
   const [sceneRows, allMemberRows] = await Promise.all([
     db
@@ -275,7 +298,7 @@ export async function getSessionSceneWorkspace(
       sessionId,
       campaignId: context.campaignId,
       sessionStatus: context.sessionStatus,
-      canCreate: context.sessionStatus !== "completed",
+      canCreate: canAuthor && context.sessionStatus !== "completed",
       scenes,
       selectedSceneId: null,
       selectedScene: null,
@@ -297,6 +320,7 @@ export async function getSessionSceneWorkspace(
       kindLabel: rosterEntity.kindLabel,
       playerName: rosterEntity.playerName,
       creatureTemplateName: rosterEntity.creatureTemplateName,
+      archived: rosterEntity.archived,
       sortOrder: row.sortOrder,
     }];
   });
@@ -306,18 +330,21 @@ export async function getSessionSceneWorkspace(
     sessionId,
     campaignId: context.campaignId,
     sessionStatus: context.sessionStatus,
-    canCreate: context.sessionStatus !== "completed",
+    canCreate: canAuthor && context.sessionStatus !== "completed",
     scenes,
     selectedSceneId,
     selectedScene: {
       ...selectedSummary,
-      editable: context.sessionStatus !== "completed" && selectedSummary.status !== "completed",
+      editable: canAuthor
+        && context.sessionStatus !== "completed"
+        && selectedSummary.status !== "completed",
       members,
       availableRosterMembers: rosterWorkspace.roster
-        .filter(({ characterId }) => !memberIds.has(characterId))
+        .filter(({ characterId, archived }) => !archived && !memberIds.has(characterId))
         .map((entry) => ({
           characterId: entry.characterId,
           name: entry.name,
+          archived: entry.archived,
           kind: entry.kind,
           kindLabel: entry.kindLabel,
           playerName: entry.playerName,
@@ -394,11 +421,20 @@ async function applySceneLifecycleTransition(
   sceneId: number,
   transition: SceneTransition,
 ): Promise<CampaignSceneSummary> {
-  const access = await requireGod();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sceneId, "Scene");
   try {
     const updated = await db.transaction(async (tx) => {
-      const locked = await lockOwnedScene(tx, sceneId, access.user.id);
+      const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+        tx,
+        { entityKind: "scene", entityId: sceneId },
+        actor,
+      );
+      const locked = await lockOwnedScene(tx, sceneId, actor);
       if (transition === "start") assertSceneMayStart(locked.sessionStatus);
       if (transition === "complete") {
         assertSceneMayComplete(locked.sessionStatus);
@@ -446,6 +482,15 @@ async function applySceneLifecycleTransition(
         characterIds: [],
         category: "hierarchy",
       });
+      if (transition === "complete" || transition === "reopen") {
+        await recordTabletopLifecycleAuditInTransaction(
+          tx,
+          actor,
+          transition === "complete" ? "archive" : "restore",
+          lifecycle.root,
+          lifecycle.preview,
+        );
+      }
       return row;
     });
     refreshScenes();
@@ -471,10 +516,22 @@ export async function reopenCampaignSessionScene(sceneId: number): Promise<Campa
 }
 
 export async function deleteCampaignSessionScene(sceneId: number): Promise<{ id: number; sessionId: number }> {
-  const access = await requireGod();
+  assertPermanentDeletionEnabled();
+  const access = await requireGodOrAdminAccessContext();
+  const actor: LifecycleActor = {
+    userId: access.session.user.id,
+    roles: access.roles,
+  };
   assertPositiveId(sceneId, "Scene");
   const deleted = await db.transaction(async (tx) => {
-    const locked = await lockOwnedScene(tx, sceneId, access.user.id);
+    assertPermanentDeletionEnabled();
+    const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+      tx,
+      { entityKind: "scene", entityId: sceneId },
+      actor,
+    );
+    assertTabletopPermanentDeletionAllowed(lifecycle.preview);
+    const locked = await lockOwnedScene(tx, sceneId, actor);
     assertParentSessionAllowsScenePreparation(locked.sessionStatus);
     assertSceneMayBeDeleted(locked.status);
     const [rollHistory] = await tx.select({ id: campaignSessionRoll.id })
@@ -482,6 +539,13 @@ export async function deleteCampaignSessionScene(sceneId: number): Promise<{ id:
       .where(eq(campaignSessionRoll.sceneId, sceneId))
       .limit(1);
     if (rollHistory) throw new Error("This Scene contains Roll history and cannot be deleted.");
+    await recordTabletopLifecycleAuditInTransaction(
+      tx,
+      actor,
+      "delete",
+      lifecycle.root,
+      lifecycle.preview,
+    );
     const [row] = await tx
       .delete(campaignSessionScene)
       .where(and(
@@ -507,8 +571,15 @@ export async function addCampaignSessionSceneMember(
     const locked = await lockOwnedScene(tx, sceneId, access.user.id);
     assertSceneIsEditable(locked.status, locked.sessionStatus);
     const [rosterEntry] = await tx
-      .select({ characterId: campaignSessionRoster.characterId })
+      .select({
+        characterId: campaignSessionRoster.characterId,
+        archivedAt: campaignCharacter.archivedAt,
+      })
       .from(campaignSessionRoster)
+      .innerJoin(campaignCharacter, and(
+        eq(campaignCharacter.id, campaignSessionRoster.characterId),
+        eq(campaignCharacter.campaignId, campaignSessionRoster.campaignId),
+      ))
       .where(and(
         eq(campaignSessionRoster.sessionId, locked.sessionId),
         eq(campaignSessionRoster.campaignId, locked.campaignId),
@@ -516,6 +587,9 @@ export async function addCampaignSessionSceneMember(
       ))
       .limit(1);
     if (!rosterEntry) throw new Error("A Scene member must already belong to that Session's Roster.");
+    if (rosterEntry.archivedAt) {
+      throw new Error("Archived Characters and NPCs cannot be added to a Scene. Restore this record first.");
+    }
     const [existing] = await tx
       .select({ characterId: campaignSessionSceneMember.characterId })
       .from(campaignSessionSceneMember)

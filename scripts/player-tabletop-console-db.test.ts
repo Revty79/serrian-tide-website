@@ -78,6 +78,7 @@ async function addCharacter(tx: Tx, campaignId: number, playerId: string, name: 
     name,
     isNpc,
     npcKind: "race",
+    npcBuildMode: isNpc ? "detailed" : null,
   }).returning({ id: campaignCharacter.id });
   assert.ok(created);
   await tx.insert(campaignCharacterProfile).values({ characterId: created.id, hpMultiplierSteps: 0, baseMagicSteps: 0 });

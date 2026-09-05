@@ -4,6 +4,8 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
+import { assertOwnedRootManager } from "@/features/lifecycle/policy";
+import type { LifecycleActor } from "@/features/lifecycle/types";
 import {
   campaignCharacter,
   campaignCharacterActiveCondition,
@@ -124,7 +126,7 @@ function positiveId(value: number, label: string): number {
 export async function lockEncounterCloseoutContextInTransaction(
   tx: EncounterCloseoutTransaction,
   encounterId: number,
-  actingUserId: string,
+  actor: string | LifecycleActor,
 ): Promise<EncounterCloseoutContext> {
   const [row] = await tx.select({
     encounterId: campaignSessionEncounter.id,
@@ -153,7 +155,11 @@ export async function lockEncounterCloseoutContextInTransaction(
     .limit(1)
     .for("update", { of: campaignSessionEncounter });
   if (!row) throw new Error("That Encounter no longer exists.");
-  assertCampaignSessionOwner(row.ownerUserId, actingUserId);
+  if (typeof actor === "string") {
+    assertCampaignSessionOwner(row.ownerUserId, actor);
+  } else {
+    assertOwnedRootManager(actor, row.ownerUserId, "Encounter");
+  }
   return row;
 }
 

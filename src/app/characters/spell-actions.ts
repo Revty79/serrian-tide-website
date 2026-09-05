@@ -5,6 +5,7 @@ import {
   asc,
   eq,
   inArray,
+  isNull,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -27,6 +28,7 @@ import {
 } from "@/features/spell-construction/utilities/spellFactory";
 import { createStableId } from "@/features/spell-construction/utilities/ids";
 import { getCharacterManaProfiles } from "@/features/characters/character-rules";
+import { lockSpellFrameworkSkillReferenceInTransaction } from "@/features/skills/skill-framework-reference-service";
 
 export type CharacterSavedSpell = {
   id: number;
@@ -133,31 +135,38 @@ export async function saveCharacterSpell(
   if (!document.id.trim()) throw new Error("Spell document ID is required.");
   const name = document.name.trim() || "Untitled Spell";
 
-  const [existing] = await db
-    .select({ id: campaignCharacterSpellDocument.id, inSpellbook: campaignCharacterSpellDocument.inSpellbook })
-    .from(campaignCharacterSpellDocument)
-    .where(and(
-      eq(campaignCharacterSpellDocument.characterId, characterId),
-      eq(campaignCharacterSpellDocument.documentId, document.id),
-    ))
-    .limit(1);
+  const savedId = await db.transaction(async (tx) => {
+    await lockSpellFrameworkSkillReferenceInTransaction(
+      tx,
+      document.frameworkSkillId,
+      document.tradition,
+    );
 
-  let savedId: number;
-  if (existing) {
-    const [saved] = await db
-      .update(campaignCharacterSpellDocument)
-      .set({
-        name,
-        tradition: document.tradition,
-        documentJson: JSON.stringify(document),
-        inSpellbook: addToSpellbook ? true : existing.inSpellbook,
-        updatedAt: new Date(),
-      })
-      .where(eq(campaignCharacterSpellDocument.id, existing.id))
-      .returning({ id: campaignCharacterSpellDocument.id });
-    savedId = saved.id;
-  } else {
-    const [saved] = await db
+    const [existing] = await tx
+      .select({ id: campaignCharacterSpellDocument.id, inSpellbook: campaignCharacterSpellDocument.inSpellbook })
+      .from(campaignCharacterSpellDocument)
+      .where(and(
+        eq(campaignCharacterSpellDocument.characterId, characterId),
+        eq(campaignCharacterSpellDocument.documentId, document.id),
+      ))
+      .limit(1);
+
+    if (existing) {
+      const [saved] = await tx
+        .update(campaignCharacterSpellDocument)
+        .set({
+          name,
+          tradition: document.tradition,
+          documentJson: JSON.stringify(document),
+          inSpellbook: addToSpellbook ? true : existing.inSpellbook,
+          updatedAt: new Date(),
+        })
+        .where(eq(campaignCharacterSpellDocument.id, existing.id))
+        .returning({ id: campaignCharacterSpellDocument.id });
+      return saved.id;
+    }
+
+    const [saved] = await tx
       .insert(campaignCharacterSpellDocument)
       .values({
         characterId,
@@ -168,8 +177,8 @@ export async function saveCharacterSpell(
         inSpellbook: addToSpellbook,
       })
       .returning({ id: campaignCharacterSpellDocument.id });
-    savedId = saved.id;
-  }
+    return saved.id;
+  });
 
   revalidatePath(`/realms/characters/${characterId}/spellbook`);
   revalidatePath(`/realms/characters/${characterId}/magic`);
@@ -258,7 +267,10 @@ export async function listPlayerSpellFrameworkSkills(
   const parentRows = await db
     .select({ id: skill.id })
     .from(skill)
-    .where(inArray(skill.name, [...identity.parentSkillNames]));
+    .where(and(
+      inArray(skill.name, [...identity.parentSkillNames]),
+      isNull(skill.archivedAt),
+    ));
   const parentIds = parentRows.map(({ id }) => id);
   if (!parentIds.length) return [];
 
@@ -272,9 +284,17 @@ export async function listPlayerSpellFrameworkSkills(
   const childIds = [...new Set(childRows.map(({ childId }) => childId))];
   if (!childIds.length) return [];
 
+  const conditions = [
+    inArray(skill.id, childIds),
+    isNull(skill.archivedAt),
+  ];
+  if (identity.tier !== undefined) {
+    conditions.push(eq(skill.tier, identity.tier));
+  }
+
   return db
     .select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
     .from(skill)
-    .where(inArray(skill.id, childIds))
+    .where(and(...conditions))
     .orderBy(asc(skill.name), asc(skill.id));
 }

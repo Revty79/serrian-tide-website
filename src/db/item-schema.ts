@@ -63,6 +63,11 @@ export const item = pgTable(
     sourceExternalId: text("source_external_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedByUserId: text("archived_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
     uniqueIndex("items_source_identity_uq")
@@ -73,6 +78,11 @@ export const item = pgTable(
     index("items_equipment_group_idx").on(table.equipmentGroup),
     index("items_record_type_idx").on(table.recordType),
     index("items_category_idx").on(table.category),
+    index("items_archive_idx").on(
+      table.archivedAt,
+      table.name,
+      table.id,
+    ),
     check("items_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("items_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
     check("items_name_nonblank", sql`length(trim(${table.name})) > 0`),
@@ -84,6 +94,13 @@ export const item = pgTable(
     check("items_durability_valid", sql`${table.durability} IS NULL OR ${table.durability} >= 0`),
     check("items_credits_valid", sql`${table.credits} IS NULL OR ${table.credits} >= 0`),
     check("items_parent_not_self", sql`${table.parentItemId} IS NULL OR ${table.parentItemId} <> ${table.id}`),
+    check(
+      "items_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
+    ),
   ],
 );
 

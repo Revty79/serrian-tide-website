@@ -168,6 +168,7 @@ export type DerivedAbilityDefinition = {
   activationType: DerivedAbilityActivationType;
   sourceSystem: string | null;
   sourceExternalId: string | null;
+  archived?: boolean;
   triggers: DerivedAbilityTriggerDefinition[];
   requirements: DerivedAbilityRequirementDefinition[];
   useConditions: DerivedAbilityUseConditionDefinition[];

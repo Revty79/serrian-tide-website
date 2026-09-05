@@ -101,7 +101,7 @@ test("guarded Called Checks and High/Low persist exact, idempotent, visibility-a
     const characters = await tx.insert(campaignCharacter).values([
       { campaignId, playerUserId: playerAId, name: "Exact Player A" },
       { campaignId, playerUserId: playerBId, name: "Exact Player B" },
-      { campaignId, playerUserId: godId, name: "Persistent G.O.D. NPC", isNpc: true, npcKind: "race" },
+      { campaignId, playerUserId: godId, name: "Persistent G.O.D. NPC", isNpc: true, npcKind: "race", npcBuildMode: "detailed" },
     ]).returning({ id: campaignCharacter.id });
     const [characterA, characterB, npc] = characters;
     assert.ok(characterA && characterB && npc);

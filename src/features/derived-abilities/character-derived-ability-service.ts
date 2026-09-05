@@ -94,6 +94,8 @@ type AccessEntity = {
   isNpc: boolean;
   npcKind: "race" | "creature";
   isCampaignMember: boolean;
+  characterArchivedAt: Date | null;
+  campaignArchivedAt: Date | null;
 };
 
 export type LoadedCharacterDerivedAbilities = {
@@ -182,6 +184,8 @@ async function loadAccessEntity(
     isNpc: campaignCharacter.isNpc,
     npcKind: campaignCharacter.npcKind,
     memberUserId: campaignPlayer.userId,
+    characterArchivedAt: campaignCharacter.archivedAt,
+    campaignArchivedAt: campaign.archivedAt,
   }).from(campaignCharacter)
     .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
     .leftJoin(campaignPlayer, and(
@@ -204,6 +208,8 @@ async function loadAccessEntity(
     isNpc: row.isNpc,
     npcKind: row.npcKind === "creature" ? "creature" : "race",
     isCampaignMember: row.memberUserId === userId,
+    characterArchivedAt: row.characterArchivedAt,
+    campaignArchivedAt: row.campaignArchivedAt,
   };
 }
 
@@ -212,6 +218,9 @@ function assertCharacterControl(
   userId: string,
   roles: readonly string[],
 ): void {
+  if (entity.characterArchivedAt || entity.campaignArchivedAt) {
+    throw new Error("Archived Characters and Campaigns cannot mutate Derived Abilities.");
+  }
   if (!canMutateActiveHealth({ userId, roles }, entity)) {
     throw new Error("You do not have permission to control this Character's Derived Abilities.");
   }
@@ -222,6 +231,9 @@ function assertCampaignGod(
   userId: string,
   roles: readonly string[],
 ): void {
+  if (entity.characterArchivedAt || entity.campaignArchivedAt) {
+    throw new Error("Archived Characters and Campaigns cannot mutate Derived Abilities.");
+  }
   if (!roles.includes("god") || entity.campaignOwnerUserId !== userId) {
     throw new Error("Only the owning G.O.D. may grant, revoke, or recharge Derived Abilities.");
   }
@@ -245,6 +257,7 @@ export async function loadCharacterDerivedAbilitiesInTransaction(
     activationType: derivedAbility.activationType,
     sourceSystem: derivedAbility.sourceSystem,
     sourceExternalId: derivedAbility.sourceExternalId,
+    archivedAt: derivedAbility.archivedAt,
   }).from(derivedAbility).orderBy(asc(derivedAbility.name), asc(derivedAbility.id));
   const triggers = await tx.select().from(derivedAbilityTrigger).orderBy(
     asc(derivedAbilityTrigger.derivedAbilityId),
@@ -305,7 +318,10 @@ export async function loadCharacterDerivedAbilitiesInTransaction(
     .where(eq(campaign.id, entity.campaignId))
     .limit(1);
   const catalog = assembleDerivedAbilityCatalog({
-    definitions,
+    definitions: definitions.map(({ archivedAt, ...definition }) => ({
+      ...definition,
+      archived: archivedAt !== null,
+    })),
     triggers,
     requirements: requirements.map((requirement) => ({
       ...requirement,
@@ -390,6 +406,7 @@ async function acquireInTransaction(input: {
     const ability = state.catalog.find(({ id }) => id === abilityId);
     const status = state.resolution.statuses.find(({ abilityId: id }) => id === abilityId);
     if (!ability || !status) throw new Error("Derived Ability not found.");
+    if (ability.archived) throw new Error("Archived Derived Abilities cannot be acquired.");
     if (ability.acquisitionType !== input.expectedMethod) {
       throw new Error(`Only ${input.expectedMethod} Derived Abilities may use this acquisition action.`);
     }
@@ -590,6 +607,7 @@ async function loadUsePlanInTransaction(
       }).from(campaignCharacter).where(and(
         eq(campaignCharacter.campaignId, state.entity.campaignId),
         inArray(campaignCharacter.id, targetIds),
+        isNull(campaignCharacter.archivedAt),
       )).orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id))
     : [];
   if (targetRows.length !== targetIds.length) {
@@ -650,7 +668,10 @@ async function loadUsePlanInTransaction(
         isNpc: campaignCharacter.isNpc,
         npcKind: campaignCharacter.npcKind,
       }).from(campaignCharacter)
-        .where(eq(campaignCharacter.campaignId, state.entity.campaignId))
+        .where(and(
+          eq(campaignCharacter.campaignId, state.entity.campaignId),
+          isNull(campaignCharacter.archivedAt),
+        ))
         .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id))
     : [{
         characterId: state.entity.characterId,

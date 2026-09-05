@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
 import type { RecursiveSkillLibrary } from "@/features/skills/recursive-skill-library";
@@ -24,10 +24,12 @@ type SkillEditorProps = {
   filterOptions: SkillFilterOptions;
   saving: boolean;
   dirty: boolean;
+  archived: boolean;
+  archiveReason: string;
   feedback: { kind: "success" | "error"; message: string } | null;
   onChange: (draft: SkillDraft) => void;
   onSave: () => void;
-  onDelete: () => void;
+  lifecycleControls: ReactNode;
   findFrameworkSkills: (tradition: Tradition) => Promise<SpellFrameworkSkill[]>;
 };
 
@@ -89,14 +91,15 @@ export function SkillEditor({
   filterOptions,
   saving,
   dirty,
+  archived,
+  archiveReason,
   feedback,
   onChange,
   onSave,
-  onDelete,
+  lifecycleControls,
   findFrameworkSkills,
 }: SkillEditorProps) {
   const [activeTab, setActiveTab] = useState<SkillEditorTab>("core");
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const preserveScroll = useInPlaceScrollPreservation();
 
   if (!draft) {
@@ -147,45 +150,22 @@ export function SkillEditor({
         <div>
           <p>{draft.id ? `SKILL ${draft.id}` : "NEW SKILL DRAFT"}</p>
           <h2>{draft.core.name || "Untitled Skill"}</h2>
-          <span>{dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span>
+          <span>{archived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span>
         </div>
 
         <div className="skill-editor__actions">
-          {draft.id && !confirmDelete ? (
-            <button
-              className="skills-danger-button"
-              type="button"
-              onClick={() => void preserveScroll(() => setConfirmDelete(true))}
-            >
-              Delete
-            </button>
-          ) : null}
+          {lifecycleControls}
 
           <button
             className="skills-primary-button"
             type="button"
-            disabled={saving}
+            disabled={saving || archived}
             onClick={onSave}
           >
             {saving ? "Saving…" : "Save Skill"}
           </button>
         </div>
       </header>
-
-      {confirmDelete && (
-        <div className="skill-editor__delete-confirm" role="alert">
-          <div>
-            <strong>Delete {draft.core.name || "this Skill"}?</strong>
-            <span>
-              Relationships and extensions will be removed. Connected Skills will remain.
-            </span>
-          </div>
-          <button className="skills-danger-button" type="button" onClick={onDelete}>
-            Confirm Delete
-          </button>
-          <button type="button" onClick={() => void preserveScroll(() => setConfirmDelete(false))}>Cancel</button>
-        </div>
-      )}
 
       {feedback && (
         <p className={`skill-editor__feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>
@@ -207,7 +187,7 @@ export function SkillEditor({
         ))}
       </nav>
 
-      <div className="skill-editor__content">
+      <fieldset className="skill-editor__content lifecycle-editor-fields" disabled={archived}>
         {activeTab === "core" && (
           <div className="skill-core-editor">
             <div className="skill-editor__intro">
@@ -327,7 +307,7 @@ export function SkillEditor({
         )}
 
         {activeTab === "preview" && <SkillPreview draft={draft} />}
-      </div>
+      </fieldset>
     </section>
   );
 }

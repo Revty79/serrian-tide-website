@@ -271,6 +271,14 @@
   display: flex;
 }
 
+.skill-library__toolbar-groups {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .skill-library__view-toggle button,
 .skill-editor__tabs button {
   padding: 7px 10px;
@@ -345,6 +353,21 @@
   font-size: 0.98rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.skill-library__row-status {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border: 1px solid rgb(251 191 36 / 38%);
+  border-radius: 999px;
+  color: #fde68a;
+  background: rgb(120 53 15 / 20%);
+  font-size: .64rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 .skill-library__row-name > span {
@@ -491,6 +514,16 @@
   padding: 20px;
   overflow: auto;
   flex: 1;
+}
+
+.lifecycle-editor-fields {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+}
+
+.lifecycle-editor-fields:disabled {
+  opacity: .72;
 }
 
 .skill-editor__intro {

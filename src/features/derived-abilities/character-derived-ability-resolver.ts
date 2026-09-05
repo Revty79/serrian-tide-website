@@ -104,12 +104,14 @@ export function resolveCharacterDerivedAbilities(input: {
   const dependencyOrder = getDerivedAbilityDependencyOrder(input.catalog);
   const byId = new Map(input.catalog.map((ability) => [ability.id, ability]));
   const ownershipByAbility = activeOwnerships(input.catalog, input.ownerships);
-  const possessed = new Set<number>(ownershipByAbility.keys());
+  const possessed = new Set<number>(
+    [...ownershipByAbility.keys()].filter((abilityId) => !byId.get(abilityId)?.archived),
+  );
   const enabled = input.allowedSystems.includes("Derived Abilities");
 
   for (const abilityId of dependencyOrder) {
     const ability = byId.get(abilityId)!;
-    if (ability.acquisitionType !== "automatic" || !enabled) continue;
+    if (ability.acquisitionType !== "automatic" || !enabled || ability.archived) continue;
     const live = evaluateDerivedAbilityLiveAvailability(ability, {
       attributes: input.attributes,
       skillPoints: input.skillPoints,
@@ -119,6 +121,7 @@ export function resolveCharacterDerivedAbilities(input: {
   }
 
   const statuses = input.catalog.map((ability): CharacterDerivedAbilityStatus => {
+    const abilityEnabled = enabled && !ability.archived;
     const ownership = ownershipByAbility.get(ability.id) ?? null;
     const context: DerivedAbilityEvaluationContext = {
       attributes: input.attributes,
@@ -129,17 +132,17 @@ export function resolveCharacterDerivedAbilities(input: {
       ability,
       context,
     );
-    const liveResult = enabled
+    const liveResult = abilityEnabled
       ? evaluateDerivedAbilityLiveAvailability(ability, context)
       : "unsatisfied";
 
     if (ability.acquisitionType === "automatic") {
-      const available = enabled && liveResult === "satisfied";
+      const available = abilityEnabled && liveResult === "satisfied";
       return {
         abilityId: ability.id,
         status: available
           ? "automatic-active"
-          : liveResult === "manual" && enabled
+          : liveResult === "manual" && abilityEnabled
             ? "automatic-manual-review"
             : "automatic-inactive",
         ownershipId: null,
@@ -152,19 +155,19 @@ export function resolveCharacterDerivedAbilities(input: {
     }
 
     if (ownership) {
-      const available = enabled && liveResult === "satisfied";
+      const available = abilityEnabled && liveResult === "satisfied";
       return {
         abilityId: ability.id,
         status: available
           ? "owned-available"
-          : liveResult === "manual" && enabled
+          : liveResult === "manual" && abilityEnabled
             ? "owned-manual-review"
             : "owned-unavailable",
         ownershipId: ownership.id,
         acquisitionMethod: ownership.acquisitionMethod,
         acquisitionResult,
         liveResult,
-        possessed: true,
+        possessed: !ability.archived,
         available,
       };
     }
@@ -173,9 +176,9 @@ export function resolveCharacterDerivedAbilities(input: {
       abilityId: ability.id,
       status: ability.acquisitionType === "awarded"
         ? "awarded-not-owned"
-        : acquisitionResult === "satisfied" && enabled
+        : acquisitionResult === "satisfied" && abilityEnabled
           ? "eligible-to-learn"
-          : acquisitionResult === "manual" && enabled
+          : acquisitionResult === "manual" && abilityEnabled
             ? "manual-review"
             : "not-eligible",
       ownershipId: null,

@@ -54,8 +54,8 @@ export async function insertBuildTenFixture(
   await tx.insert(campaignPlayer).values({ campaignId: createdCampaign.id, userId: godId });
   const [hero, defender, rosterOnly] = await tx.insert(campaignCharacter).values([
     { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 10 Hero" },
-    { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 10 Defender", isNpc: true, npcKind: "race" },
-    { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 10 Roster Only", isNpc: true, npcKind: "race" },
+    { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 10 Defender", isNpc: true, npcKind: "race", npcBuildMode: "detailed" },
+    { campaignId: createdCampaign.id, playerUserId: godId, name: "Build 10 Roster Only", isNpc: true, npcKind: "race", npcBuildMode: "detailed" },
   ]).returning({ id: campaignCharacter.id });
   assert.ok(hero && defender && rosterOnly);
   await tx.insert(campaignCharacterProfile).values([

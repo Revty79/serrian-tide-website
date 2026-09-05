@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -278,6 +278,7 @@ async function sessionRecipients(
   const conditions = [
     eq(campaignSessionRoster.sessionId, context.id),
     eq(campaignSessionRoster.campaignId, context.campaignId),
+    isNull(campaignCharacter.archivedAt),
   ];
   if (scope === "all-pcs") conditions.push(eq(campaignCharacter.isNpc, false));
   else conditions.push(inArray(campaignSessionRoster.characterId, ids));
@@ -967,7 +968,11 @@ export async function readGodCalledCheckWorkspaceInTransaction(
     isNpc: campaignCharacter.isNpc,
   }).from(campaignSessionRoster)
     .innerJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionRoster.characterId))
-    .where(and(eq(campaignSessionRoster.sessionId, context.id), eq(campaignSessionRoster.campaignId, context.campaignId)))
+    .where(and(
+      eq(campaignSessionRoster.sessionId, context.id),
+      eq(campaignSessionRoster.campaignId, context.campaignId),
+      isNull(campaignCharacter.archivedAt),
+    ))
     .orderBy(asc(campaignSessionRoster.sortOrder), asc(campaignCharacter.id));
   const [skills, relationships] = await Promise.all([
     tx.select({
@@ -978,7 +983,7 @@ export async function readGodCalledCheckWorkspaceInTransaction(
       primaryAttribute: skill.primaryAttribute,
       secondaryAttribute: skill.secondaryAttribute,
       definition: skill.definition,
-    }).from(skill).orderBy(asc(skill.name), asc(skill.id)),
+    }).from(skill).where(isNull(skill.archivedAt)).orderBy(asc(skill.name), asc(skill.id)),
     tx.select({
       skillId: skillRelationship.skillId,
       relatedSkillId: skillRelationship.relatedSkillId,

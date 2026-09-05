@@ -62,7 +62,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     ) values ($1,'Isolated Pass 10 browser fixture.',0,0,0,0,100,0,'Credits','Assigned',0,$2) returning id`, [MARKER, GOD_ID]);
     await client.query("insert into campaign_player (campaign_id,user_id) values ($1,$2)", [campaign.id, GOD_ID]);
     const actor = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Browser Firearm Operator') returning id", [campaign.id, GOD_ID]);
-    const target = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind) values ($1,$2,'Browser Persistent Target',true,'race') returning id", [campaign.id, GOD_ID]);
+    const target = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values ($1,$2,'Browser Persistent Target',true,'race','detailed') returning id", [campaign.id, GOD_ID]);
     await client.query("insert into campaign_character_profile (character_id) values ($1),($2)", [actor.id, target.id]);
     await client.query("insert into campaign_character_attribute (character_id,attribute_key,value) values ($1,'DEX',30),($2,'CON',30)", [actor.id, target.id]);
     await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [target.id]);

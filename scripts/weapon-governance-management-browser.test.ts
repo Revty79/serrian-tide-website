@@ -243,6 +243,11 @@ async function cleanupMarker(pool: pg.Pool, marker: string): Promise<void> {
     const playerId = `${marker}-player`;
     await client.query("delete from weapon_skill_path_mappings where updated_by_user_id=$1", [godId]);
     await client.query("delete from items where source_system=$1", [marker]);
+    await client.query(`
+      delete from skill_relationship
+      where skill_id in (select id from skill where source_system=$1)
+         or related_skill_id in (select id from skill where source_system=$1)
+    `, [marker]);
     await client.query("delete from skill where source_system=$1", [marker]);
     await client.query("delete from creatures where source_system=$1", [marker]);
     await client.query("delete from \"user\" where id=any($1::text[])", [[godId, playerId]]);
@@ -450,9 +455,12 @@ async function main(): Promise<void> {
         });
       });
     }
-    await cleanupFixture(pool).catch((error) => console.error("Weapon governance browser fixture cleanup failed.", error));
-    await pool.end();
-    await rm(TEST_DIST_PATH, { recursive: true, force: true }).catch(() => undefined);
+    try {
+      await cleanupFixture(pool);
+    } finally {
+      await pool.end();
+      await rm(TEST_DIST_PATH, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
 }
 

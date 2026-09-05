@@ -84,7 +84,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     await client.query("insert into campaign_player (campaign_id,user_id,is_npc_controller) values ($1,$2,true),($1,$3,false),($1,$4,false)", [campaign.id, godId, playerId, targetPlayerId]);
     const playerCharacter = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Player Console Hero') returning id", [campaign.id, playerId]);
     const targetCharacter = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Another Player Character') returning id", [campaign.id, targetPlayerId]);
-    const persistentNpc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind) values ($1,$2,'Browser Sentry NPC',true,'race') returning id", [campaign.id, godId]);
+    const persistentNpc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values ($1,$2,'Browser Sentry NPC',true,'race','detailed') returning id", [campaign.id, godId]);
     for (const characterId of [playerCharacter.id, targetCharacter.id, persistentNpc.id]) {
       await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,0)", [characterId]);
       await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [characterId]);
@@ -661,10 +661,13 @@ async function main(): Promise<void> {
         server!.once("exit", () => { clearTimeout(timeout); resolveStop(); });
       });
     }
-    await cleanupFixture(pool, fixture).catch((error) => console.error(error));
-    await pool.end();
-    await rm(distPath, { recursive: true, force: true });
-    await writeFile(tsconfigPath, tsconfigBefore);
+    try {
+      await cleanupFixture(pool, fixture);
+    } finally {
+      await pool.end();
+      await rm(distPath, { recursive: true, force: true });
+      await writeFile(tsconfigPath, tsconfigBefore);
+    }
   }
 }
 

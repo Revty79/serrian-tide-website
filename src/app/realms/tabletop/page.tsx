@@ -44,6 +44,7 @@ export default async function PlayerTabletopPage({
   if (selection.kind !== "selected") {
     return <main className={styles.page}>
       <section className={styles.emptyState} aria-labelledby="player-tabletop-title">
+        <a className={styles.emptyBrand} href="/realms" aria-label="Return to the Realms">SERRIAN TIDE</a>
         <p className={styles.eyebrow}>PLAYER TABLETOP</p>
         <h1 id="player-tabletop-title">Choose your Character</h1>
         <p>

@@ -85,7 +85,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       [campaign.id, PLAYER_ID],
     );
     const defender = await one<{ id: number }>(client,
-      "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind) values ($1,$2,'Browser Window Responder',true,'race') returning id",
+      "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values ($1,$2,'Browser Window Responder',true,'race','detailed') returning id",
       [campaign.id, GOD_ID],
     );
     await client.query("insert into campaign_character_profile (character_id) values ($1),($2)", [hero.id, defender.id]);

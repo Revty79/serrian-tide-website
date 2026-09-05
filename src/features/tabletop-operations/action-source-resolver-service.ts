@@ -31,6 +31,7 @@ import {
   resolveCharacterSkillLineageSelection,
   type CharacterWeaponGoverningSelection,
 } from "@/features/items/character-weapon-governance";
+import { lockActiveItemRootInTransaction } from "@/features/items/active-item-root-service";
 import { loadCharacterSkillLineageInputInTransaction } from "@/features/items/character-weapon-governance-service";
 import {
   prepareCharacterSpellCastInTransaction,
@@ -320,6 +321,7 @@ async function resolveItem(
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Item use");
   const itemId = refId(draft.sourceRef, ["item:"], "Item");
+  await lockActiveItemRootInTransaction(tx, itemId);
   const [row] = await tx.select({
     id: item.id,
     canonicalId: item.canonicalId,

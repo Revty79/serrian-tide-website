@@ -59,7 +59,7 @@ async function seedFixture(pool: pg.Pool, mode: WorkflowMode): Promise<Fixture> 
     ) values ($1,'Pass 11 isolated browser fixture.',0,0,0,0,100,0,'Credits','Assigned',0,$2) returning id`, [marker, godId]);
     await client.query("insert into campaign_player (campaign_id,user_id,is_npc_controller) values ($1,$2,true),($1,$3,false)", [campaign.id, godId, playerId]);
     const character = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Persistent Browser Hero') returning id", [campaign.id, playerId]);
-    const npc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind) values ($1,$2,'Persistent Browser NPC',true,'race') returning id", [campaign.id, godId]);
+    const npc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values ($1,$2,'Persistent Browser NPC',true,'race','detailed') returning id", [campaign.id, godId]);
     for (const id of [character.id, npc.id]) {
       await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,0)", [id]);
       await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [id]);
@@ -133,8 +133,8 @@ async function login(context: BrowserContext, baseUrl: string, email: string): P
   return page;
 }
 
-async function eventually(check: () => Promise<boolean>, message: string): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+async function eventually(check: () => Promise<boolean>, message: string, attempts = 100): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (await check()) return;
     await new Promise((resolveWait) => setTimeout(resolveWait, 125));
   }
@@ -221,7 +221,13 @@ async function playerWorkflow(godPage: Page, playerPage: Page, fixture: Fixture,
   await highLowCompose.getByLabel("Visibility").selectOption("private");
   await highLowCompose.getByLabel("Roll method").selectOption("entered");
   await highLowCompose.getByLabel("Purpose").fill("Player browser High Low");
-  await highLowCompose.getByRole("button", { name: "Issue High / Low" }).click();
+  const issueHighLowButton = highLowCompose.getByRole("button", { name: "Issue High / Low" });
+  await eventually(
+    async () => issueHighLowButton.isEnabled(),
+    "The G.O.D. Called Check transition did not release the High/Low controls.",
+    480,
+  );
+  await issueHighLowButton.click();
   await eventually(async () => await playerPage.getByText("Player browser High Low").count() === 1, "Live High/Low delivery did not reach the Player surface.");
   const playerHighLow = playerPage.locator("article").filter({ hasText: "Player browser High Low" });
   await playerHighLow.getByRole("button", { name: "Call High" }).click();
@@ -234,6 +240,7 @@ async function playerWorkflow(godPage: Page, playerPage: Page, fixture: Fixture,
   compose = godPage.locator(".called-check-compose").first();
   await selectRecipient(compose, "Persistent Browser Hero");
   await compose.getByLabel("Visibility").selectOption("god-only");
+  await compose.getByLabel("Roll method").selectOption("random");
   await compose.getByLabel("Purpose").fill("INVISIBLE SECRET BROWSER CHECK");
   await compose.getByRole("button", { name: "Issue Called Check" }).click();
   const secret = godPage.locator(".called-check-batch").filter({ hasText: "INVISIBLE SECRET BROWSER CHECK" });
@@ -295,9 +302,12 @@ export async function runCalledCheckBrowserWorkflow(mode: WorkflowMode): Promise
         server!.once("exit", () => { clearTimeout(timeout); resolveStop(); });
       });
     }
-    await cleanupFixture(pool, fixture).catch((error) => console.error(error));
-    await pool.end();
-    await rm(distPath, { recursive: true, force: true });
-    await writeFile(tsconfigPath, tsconfigBefore);
+    try {
+      await cleanupFixture(pool, fixture);
+    } finally {
+      await pool.end();
+      await rm(distPath, { recursive: true, force: true });
+      await writeFile(tsconfigPath, tsconfigBefore);
+    }
   }
 }

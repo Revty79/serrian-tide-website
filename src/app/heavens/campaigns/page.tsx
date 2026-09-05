@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import { listCampaignsForGod } from "./actions";
 import "./campaigns.css";
@@ -11,7 +11,7 @@ export default async function CampaignsPage({
 }: {
   searchParams: Promise<{ campaign?: string }>;
 }) {
-  await requireGod().catch(() => redirect("/access"));
+  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const query = await searchParams;
   const requestedCampaignId = Number(query.campaign);
   const initialCampaignId = Number.isInteger(requestedCampaignId) && requestedCampaignId > 0

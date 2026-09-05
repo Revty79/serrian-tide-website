@@ -90,6 +90,11 @@ export const creature = pgTable(
     sourceSystem: text("source_system"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedByUserId: text("archived_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    archiveReason: text("archive_reason").default("").notNull(),
     parentCreatureId: integer("parent_creature_id").references(
       (): AnyPgColumn => creature.id,
       { onDelete: "restrict" },
@@ -103,6 +108,11 @@ export const creature = pgTable(
     index("creatures_family_idx").on(table.family),
     index("creatures_type_idx").on(table.creatureType),
     index("creatures_size_idx").on(table.size),
+    index("creatures_archive_idx").on(
+      table.archivedAt,
+      table.canonicalName,
+      table.id,
+    ),
     check("creatures_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("creatures_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
     check("creatures_name_nonblank", sql`length(trim(${table.canonicalName})) > 0`),
@@ -116,6 +126,13 @@ export const creature = pgTable(
     check("creatures_calculated_cr_valid", sql`${table.calculatedChallengeRating} IS NULL OR ${table.calculatedChallengeRating} BETWEEN 1 AND 50`),
     check("creatures_xp_valid", sql`${table.killXp} IS NULL OR ${table.killXp} >= 0`),
     check("creatures_adjustment_valid", sql`${table.challengeRatingAdjustment} BETWEEN -49 AND 49`),
+    check(
+      "creatures_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
+    ),
   ],
 );
 

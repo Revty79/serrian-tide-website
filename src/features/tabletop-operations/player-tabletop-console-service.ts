@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
@@ -203,6 +203,8 @@ export async function listPlayerTabletopCharactersInTransaction(
       eq(campaignCharacter.playerUserId, playerUserId),
       eq(campaignPlayer.userId, playerUserId),
       eq(campaignCharacter.isNpc, false),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
     ))
     .orderBy(asc(campaign.name), asc(campaignCharacter.name), asc(campaignCharacter.id));
 }
@@ -237,6 +239,8 @@ async function loadPlayerCharacterContext(
       eq(campaignCharacter.playerUserId, playerUserId),
       eq(campaignPlayer.userId, playerUserId),
       eq(campaignCharacter.isNpc, false),
+      isNull(campaignCharacter.archivedAt),
+      isNull(campaign.archivedAt),
     ))
     .limit(1);
   if (!row) throw new Error("That Character is not assigned to this Player.");

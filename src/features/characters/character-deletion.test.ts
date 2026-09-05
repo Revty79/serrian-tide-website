@@ -12,11 +12,30 @@ const actionStart = actionsSource.indexOf(
   "export async function deleteCharacterAsGod(",
 );
 const actionEnd = actionsSource.indexOf(
-  "export async function createRaceNpc(",
+  "export async function getCharacter(",
   actionStart,
 );
 const actionSource = actionsSource.slice(actionStart, actionEnd);
 const schemaSource = readFileSync("src/db/realm-schema.ts", "utf8");
+const lifecycleSource = readFileSync(
+  "src/features/lifecycle/lifecycle-service.ts",
+  "utf8",
+);
+const lifecycleControlsSource = readFileSync(
+  "src/app/heavens/lifecycle-controls.tsx",
+  "utf8",
+);
+const nonCampaignDeleteStart = lifecycleSource.indexOf(
+  "async function deleteNonCampaignRoot(",
+);
+const nonCampaignDeleteEnd = lifecycleSource.indexOf(
+  "export async function previewLifecycleEntityForActor(",
+  nonCampaignDeleteStart,
+);
+const nonCampaignDeleteSource = lifecycleSource.slice(
+  nonCampaignDeleteStart,
+  nonCampaignDeleteEnd,
+);
 
 function characterContext(
   values: Partial<PlayerCharacterDeletionContext> = {},
@@ -38,21 +57,18 @@ function schemaBlock(tableName: string) {
   return schemaSource.slice(start, end < 0 ? undefined : end);
 }
 
-test("the owning G.O.D. is authorized before one player Character root is deleted", () => {
+test("the Character wrapper delegates one exact player Character to the server-authorized lifecycle service", () => {
   assert.deepEqual(
     authorizePlayerCharacterDeletion(characterContext(), "god-owner"),
     characterContext(),
   );
   assert.ok(actionStart >= 0 && actionEnd > actionStart);
-  assert.match(actionSource, /const session = await requireGod\(\)/);
-  assert.match(actionSource, /campaignId: campaignCharacter\.campaignId/);
-  assert.match(actionSource, /campaignOwnerUserId: campaign\.createdByUserId/);
-  assert.match(actionSource, /isNpc: campaignCharacter\.isNpc/);
-  assert.match(actionSource, /\.delete\(campaignCharacter\)/);
-  assert.ok(
-    actionSource.indexOf("authorizePlayerCharacterDeletion(") <
-      actionSource.indexOf(".delete(campaignCharacter)"),
-  );
+  assert.match(actionSource, /requireGodOrAdminAccessContext\(\)/);
+  assert.match(actionSource, /permanentlyDeleteLifecycleEntityForActor/);
+  assert.match(actionSource, /entityKind: "player-character"/);
+  assert.match(actionSource, /userId: session\.user\.id, roles/);
+  assert.match(lifecycleSource, /assertMutationAuthorization\(actor, target, current\.root\)/);
+  assert.match(lifecycleSource, /buildPreview\(tx, actor, target, true\)/);
 });
 
 test("every normal player Character-owned table cascades from campaign_character", () => {
@@ -79,19 +95,26 @@ test("every normal player Character-owned table cascades from campaign_character
 
 test("deleting a Character does not delete its Campaign", () => {
   assert.doesNotMatch(actionSource, /\.delete\(campaign\)/);
-  assert.equal((actionSource.match(/\.delete\(/g) ?? []).length, 1);
+  assert.equal((actionSource.match(/\.delete\(/g) ?? []).length, 0);
+  assert.match(nonCampaignDeleteSource, /tx\.delete\(campaignCharacter\)/);
+  assert.doesNotMatch(nonCampaignDeleteSource, /tx\.delete\(campaign\)/);
 });
 
 test("deleting a Character does not delete the Player account or Campaign membership", () => {
-  assert.doesNotMatch(actionSource, /\.delete\(user\)/);
-  assert.doesNotMatch(actionSource, /\.delete\(campaignPlayer\)/);
+  assert.doesNotMatch(nonCampaignDeleteSource, /\.delete\(user\)/);
+  assert.doesNotMatch(nonCampaignDeleteSource, /\.delete\(campaignPlayer\)/);
 });
 
 test("deleting a Character does not delete shared Race, Skill, Item, or Creature masters", () => {
-  assert.doesNotMatch(actionSource, /\.delete\(race\)/);
-  assert.doesNotMatch(actionSource, /\.delete\(skill\)/);
-  assert.doesNotMatch(actionSource, /\.delete\(item\)/);
-  assert.doesNotMatch(actionSource, /\.delete\(creature\)/);
+  const characterBranch = nonCampaignDeleteSource.slice(
+    nonCampaignDeleteSource.indexOf('case "player-character"'),
+    nonCampaignDeleteSource.indexOf('case "race":'),
+  );
+  assert.match(characterBranch, /tx\.delete\(campaignCharacter\)/);
+  assert.doesNotMatch(characterBranch, /\.delete\(race\)/);
+  assert.doesNotMatch(characterBranch, /\.delete\(skill\)/);
+  assert.doesNotMatch(characterBranch, /\.delete\(item\)/);
+  assert.doesNotMatch(characterBranch, /\.delete\(creature\)/);
 });
 
 test("another G.O.D. is rejected and failed authorization leaves all records untouched", () => {
@@ -112,12 +135,10 @@ test("another G.O.D. is rejected and failed authorization leaves all records unt
 });
 
 test("Players cannot invoke the G.O.D.-only delete action", () => {
-  assert.match(actionSource, /const session = await requireGod\(\)/);
+  assert.match(actionSource, /requireGodOrAdminAccessContext\(\)/);
   assert.doesNotMatch(actionSource, /requirePlayer\(/);
-  assert.match(
-    readFileSync("src/lib/server-access.ts", "utf8"),
-    /export function requireGod\(\) \{\s*return requireRole\("god"\)/,
-  );
+  assert.match(lifecycleSource, /if \(!isLifecycleActor\(actor\)\)/);
+  assert.match(lifecycleSource, /G\.O\.D\. or administrator access is required/);
 });
 
 test("the player Character delete workflow rejects NPCs", () => {
@@ -128,41 +149,37 @@ test("the player Character delete workflow rejects NPCs", () => {
     ),
     /player Character/,
   );
-  assert.match(actionSource, /eq\(campaignCharacter\.isNpc, false\)/);
+  assert.match(actionSource, /entityKind: "player-character"/);
+  assert.match(lifecycleSource, /c\.is_npc = false/);
 });
 
-test("the Heavens control requires confirmation and refreshes without clearing Campaign or Player", () => {
+test("the Heavens control uses the shared impact dialog and refreshes without clearing Campaign or Player", () => {
   const uiSource = readFileSync(
     "src/app/heavens/heavens-campaign-control.tsx",
     "utf8",
   );
-  const deleteFlowStart = uiSource.indexOf(
-    "async function permanentlyDeleteCharacter()",
+  const lifecycleFlowStart = uiSource.indexOf(
+    "async function characterLifecycleCompleted(",
   );
-  const deleteFlowEnd = uiSource.indexOf("\n  return (", deleteFlowStart);
-  const deleteFlow = uiSource.slice(deleteFlowStart, deleteFlowEnd);
+  const lifecycleFlowEnd = uiSource.indexOf("\n\n  return (", lifecycleFlowStart);
+  const lifecycleFlow = uiSource.slice(lifecycleFlowStart, lifecycleFlowEnd);
 
-  assert.match(
-    uiSource,
-    /selectedCharacter \? <button[\s\S]*?>Delete Character<\/button>/,
-  );
-  assert.match(uiSource, /Permanently delete \{selectedCharacter\.name\}\?/);
-  assert.match(uiSource, />Character<\/dt>/);
-  assert.match(uiSource, />Player<\/dt>/);
-  assert.match(uiSource, />Campaign<\/dt>/);
-  assert.match(uiSource, /This cannot be undone\./);
-  assert.match(uiSource, />Cancel<\/button>/);
-  assert.match(uiSource, /Permanently Delete Character/);
-  assert.match(deleteFlow, /await deleteCharacterAsGod\(selectedCharacter\.id\)/);
-  assert.match(deleteFlow, /setCharacterId\(""\)/);
-  assert.match(deleteFlow, /await getCampaignMembers\(Number\(campaignId\)\)/);
-  assert.doesNotMatch(deleteFlow, /setCampaignId\(/);
-  assert.doesNotMatch(deleteFlow, /setPlayerId\(/);
+  assert.match(uiSource, /<LifecycleControls/);
+  assert.match(uiSource, /entityKind: "player-character"/);
+  assert.match(lifecycleControlsSource, /aria-label="Dependency summary"/);
+  assert.match(lifecycleControlsSource, /Owner:/);
+  assert.match(lifecycleControlsSource, /Campaign:/);
+  assert.match(lifecycleControlsSource, />Cancel<\/button>/);
+  assert.match(lifecycleControlsSource, /Type the exact name/);
+  assert.match(lifecycleFlow, /setCharacterId\(""\)/);
+  assert.match(lifecycleFlow, /await getCampaignMembers\(Number\(campaignId\)/);
+  assert.doesNotMatch(lifecycleFlow, /setCampaignId\(/);
+  assert.doesNotMatch(lifecycleFlow, /setPlayerId\(/);
 });
 
 test("successful deletion revalidates Heavens and Realms Character paths", () => {
   assert.match(actionSource, /revalidatePath\("\/heavens"\)/);
-  assert.match(actionSource, /revalidatePath\(`\/heavens\/characters\/\$\{deleted\.id\}`\)/);
+  assert.match(actionSource, /revalidatePath\(`\/heavens\/characters\/\$\{deleted\.entityId\}`\)/);
   assert.match(actionSource, /revalidatePath\("\/realms"\)/);
-  assert.match(actionSource, /revalidatePath\(`\/realms\/characters\/\$\{deleted\.id\}`\)/);
+  assert.match(actionSource, /revalidatePath\(`\/realms\/characters\/\$\{deleted\.entityId\}`\)/);
 });

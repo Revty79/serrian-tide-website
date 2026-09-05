@@ -59,6 +59,17 @@ export const skill = pgTable(
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .notNull(),
+
+    archivedAt: timestamp("archived_at"),
+
+    archivedByUserId: text("archived_by_user_id")
+      .references(() => user.id, {
+        onDelete: "set null",
+      }),
+
+    archiveReason: text("archive_reason")
+      .default("")
+      .notNull(),
   },
   (table) => [
     check(
@@ -84,6 +95,12 @@ export const skill = pgTable(
 
     index("skill_created_by_user_idx").on(
       table.createdByUserId,
+      table.name,
+      table.id,
+    ),
+
+    index("skill_archive_idx").on(
+      table.archivedAt,
       table.name,
       table.id,
     ),
@@ -122,6 +139,14 @@ export const skill = pgTable(
           AND ${table.sourceExternalId} IS NOT NULL
         `,
       ),
+
+    check(
+      "skill_archive_state_valid",
+      sql`(
+        (${table.archivedAt} IS NULL AND ${table.archivedByUserId} IS NULL AND ${table.archiveReason} = '')
+        OR ${table.archivedAt} IS NOT NULL
+      )`,
+    ),
   ],
 );
 
@@ -133,13 +158,13 @@ export const skillRelationship = pgTable(
     skillId: integer("skill_id")
       .notNull()
       .references(() => skill.id, {
-        onDelete: "cascade",
+        onDelete: "restrict",
       }),
 
     relatedSkillId: integer("related_skill_id")
       .notNull()
       .references(() => skill.id, {
-        onDelete: "cascade",
+        onDelete: "restrict",
       }),
 
     relationshipType: text("relationship_type")

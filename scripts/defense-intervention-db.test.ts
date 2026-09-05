@@ -69,7 +69,7 @@ after(async () => {
 
 test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, and non-automating", async () => {
   const ledgerBefore = await pool.query<{ count: number }>("select count(*)::int count from drizzle.__drizzle_migrations");
-  assert.equal(ledgerBefore.rows[0]?.count, 32);
+  assert.equal(ledgerBefore.rows[0]?.count, 33);
 
   await assert.rejects(db.transaction(async (tx) => {
     const base = await insertBuildTenFixture(tx, "defense-intervention");

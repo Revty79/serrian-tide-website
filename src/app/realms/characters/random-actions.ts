@@ -1,6 +1,6 @@
 "use server";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { getCharacter, saveCharacter } from "@/app/characters/actions";
 import { db } from "@/db";
@@ -52,7 +52,7 @@ async function readRaceAggregate(raceId: number): Promise<CharacterRaceAggregate
       quirkFailureEffect: race.quirkFailureEffect,
     })
     .from(race)
-    .where(eq(race.id, raceId))
+    .where(and(eq(race.id, raceId), isNull(race.archivedAt)))
     .limit(1);
   if (!raceRow) throw new Error("The selected Race is no longer available.");
 
@@ -114,10 +114,17 @@ async function generateAndSave(
   if (!aggregate.allowedRaces.length) {
     throw new Error("This Campaign has no allowed Races, so a legal random Character cannot be generated.");
   }
+  const activeRaces = aggregate.allowedRaces.filter(({ archived }) => !archived);
+  if (!activeRaces.length) {
+    throw new Error("This Campaign has no active allowed Races, so a legal random Character cannot be generated.");
+  }
 
-  const requestedAnswers = answers ?? createCompletelyRandomAnswers(aggregate);
+  const requestedAnswers = answers ?? createCompletelyRandomAnswers({
+    ...aggregate,
+    allowedRaces: activeRaces,
+  });
   const raceId = resolveRandomCharacterRaceId(
-    aggregate.allowedRaces,
+    activeRaces,
     requestedAnswers.raceId,
   );
   if (requestedAnswers.raceId !== null && raceId === null) {

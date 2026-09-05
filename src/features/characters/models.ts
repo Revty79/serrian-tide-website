@@ -30,6 +30,10 @@ export type CharacterCore = {
   updatedAt: string;
   isNpc: boolean;
   npcKind: "race" | "creature";
+  npcBuildMode?: "simple" | "detailed" | null;
+  npcRoleLabel?: string;
+  archivedAt?: string | null;
+  archiveReason?: string;
 };
 
 export type CharacterProfile = {
@@ -165,7 +169,7 @@ export type CharacterCampaignRules = {
   }>;
 };
 
-export type CharacterRaceSummary = { id: number; name: string };
+export type CharacterRaceSummary = { id: number; name: string; archived?: boolean };
 
 export type CharacterRaceAggregate = {
   race: {
@@ -203,6 +207,7 @@ export type CharacterSkillReference = {
   spellLevel: string | null;
   manaCost: number | null;
   spellDocumentJson: string | null;
+  archived?: boolean;
 };
 
 export type CharacterSkillRelationship = {
@@ -257,6 +262,7 @@ export type CharacterAuthorizedItem = {
   baseSoak: number | null;
   armorDamageModifiers: string | null;
   armorRulesText: string | null;
+  archived?: boolean;
 };
 
 export type CharacterAggregate = {
@@ -290,6 +296,7 @@ export type CharacterSkillAllocationDraft = {
 
 export type CharacterDraft = {
   name: string;
+  npcRoleLabel?: string;
   profile: Omit<CharacterProfile, "characterId" | "creationCompletedAt" | "createdAt" | "updatedAt">;
   attributes: Record<CharacterAttributeKey, number>;
   skillAllocations: CharacterSkillAllocationDraft[];

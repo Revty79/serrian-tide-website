@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import type { Tradition } from "@/features/spell-construction/models/spell";
 import type {
   RecursiveSkillLibrary,
@@ -12,7 +13,6 @@ import type {
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
-  deleteSkill,
   getRecursiveSkillLibrary,
   getSkill,
   getSkillFilterOptions,
@@ -20,6 +20,7 @@ import {
   listSpellFrameworkSkills,
   previewSkillMutation,
   saveSkill,
+  type SkillAggregate,
   type SkillDraft,
   type SkillFilterOptions,
   type SkillLibraryFilters,
@@ -104,7 +105,7 @@ export function SkillsWorkspace({
   const [view, setView] = useState<SkillLibraryView>("list");
   const [selectedPathKey, setSelectedPathKey] = useState<string | null>(null);
   const [selectedAttributeKey, setSelectedAttributeKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<SkillDraft | null>(null);
+  const [draft, setDraft] = useState<SkillDraft | SkillAggregate | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingEditor, setLoadingEditor] = useState(false);
@@ -118,6 +119,9 @@ export function SkillsWorkspace({
   const [structuralPreview, setStructuralPreview] =
     useState<SkillMutationPreview | null>(null);
   const preserveScroll = useInPlaceScrollPreservation();
+  const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
+  const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
+  const isArchived = Boolean(archivedAt);
 
   const loadList = useCallback(async (nextFilters: SkillLibraryFilters) => {
     setLoadingLibrary(true);
@@ -135,9 +139,9 @@ export function SkillsWorkspace({
 
   useEffect(() => {
     if (view !== "list") return;
-    const timeout = window.setTimeout(() => void loadList(filters), 180);
+    const timeout = window.setTimeout(() => void preserveScroll(() => loadList(filters)), 180);
     return () => window.clearTimeout(timeout);
-  }, [filters, loadList, view]);
+  }, [filters, loadList, preserveScroll, view]);
 
   const findFrameworkSkills = useCallback(
     (tradition: Tradition): Promise<SpellFrameworkSkill[]> =>
@@ -150,7 +154,7 @@ export function SkillsWorkspace({
     try {
       const [nextHierarchy, nextFilterOptions, nextList] = await Promise.all([
         getRecursiveSkillLibrary(),
-        getSkillFilterOptions(),
+        getSkillFilterOptions(Boolean(filters.archived)),
         listSkills(filters),
       ]);
       setHierarchy(nextHierarchy);
@@ -204,12 +208,22 @@ export function SkillsWorkspace({
     requestOpen(skill.id, path.key);
   }
 
-  function createNewSkill() {
-    setDraft(newSkillDraft());
-    setSelectedPathKey(null);
-    setDirty(false);
-    setFeedback(null);
-    setStructuralPreview(null);
+  async function createNewSkill() {
+    try {
+      const nextFilterOptions = await getSkillFilterOptions();
+      setDraft(newSkillDraft());
+      setFilters((current) => ({ ...current, archived: false, page: 1 }));
+      setFilterOptions(nextFilterOptions);
+      setSelectedPathKey(null);
+      setDirty(false);
+      setFeedback(null);
+      setStructuralPreview(null);
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Skill filter options could not be loaded.",
+      });
+    }
   }
 
   function beginNewSkill() {
@@ -225,7 +239,7 @@ export function SkillsWorkspace({
     setPendingEditorChange(null);
     if (!pending) return;
     if (pending.kind === "new") {
-      createNewSkill();
+      void createNewSkill();
       return;
     }
     void openSkill(pending.skillId, pending.pathKey);
@@ -305,29 +319,41 @@ export function SkillsWorkspace({
     await persistCurrentSkill(false);
   }
 
-  async function deleteCurrentSkill() {
-    if (!draft?.id) return;
-    const skillId = draft.id;
-    await preserveScroll(async () => {
-      setSaving(true);
+  function changeArchiveView(archived: boolean) {
+    void preserveScroll(async () => {
+      setFilters((current) => ({ ...current, archived, page: 1 }));
+      setView("list");
+      setDraft(null);
+      setSelectedPathKey(null);
+      setSelectedAttributeKey(null);
+      setDirty(false);
       setFeedback(null);
       try {
-        const deletedName = draft.core.name;
-        await deleteSkill(skillId);
-        setDraft(null);
-        setSelectedPathKey(null);
-        setDirty(false);
-        setFeedback({ kind: "success", message: `${deletedName} was deleted.` });
-        await refreshLibraries();
+        setFilterOptions(await getSkillFilterOptions(archived));
       } catch (error) {
         setFeedback({
           kind: "error",
-          message: error instanceof Error ? error.message : "The Skill could not be deleted.",
+          message: error instanceof Error ? error.message : "Skill filter options could not be loaded.",
         });
-      } finally {
-        setSaving(false);
       }
     });
+  }
+
+  async function lifecycleCompleted(event: { action: "archive" | "restore" | "delete" }) {
+    const name = draft?.core.name || "Skill";
+    setDraft(null);
+    setSelectedPathKey(null);
+    setSelectedAttributeKey(null);
+    setDirty(false);
+    setFeedback({
+      kind: "success",
+      message: event.action === "archive"
+        ? `${name} was archived.`
+        : event.action === "restore"
+          ? `${name} was restored.`
+          : `${name} was permanently deleted.`,
+    });
+    await refreshLibraries();
   }
 
   const consumerRows = structuralPreview ? [
@@ -367,7 +393,9 @@ export function SkillsWorkspace({
           selectedAttributeKey={selectedAttributeKey}
           view={view}
           loading={loadingLibrary}
+          archiveViewDisabled={dirty}
           onViewChange={changeView}
+          onArchiveViewChange={changeArchiveView}
           onFiltersChange={setFilters}
           onSelectList={selectListSkill}
           onSelectTree={selectTreeSkill}
@@ -392,6 +420,7 @@ export function SkillsWorkspace({
             filterOptions={filterOptions}
             saving={saving}
             dirty={dirty}
+            archived={isArchived}
             feedback={feedback}
             onChange={(next) => {
               setDraft(next);
@@ -400,7 +429,15 @@ export function SkillsWorkspace({
               setStructuralPreview(null);
             }}
             onSave={() => void preserveScroll(reviewAndSaveCurrentSkill)}
-            onDelete={() => void deleteCurrentSkill()}
+            lifecycleControls={draft?.id ? (
+              <LifecycleControls
+                target={{ entityKind: "skill", entityId: draft.id }}
+                archived={isArchived}
+                disabled={saving || dirty}
+                onCompleted={lifecycleCompleted}
+              />
+            ) : null}
+            archiveReason={archiveReason}
             findFrameworkSkills={findFrameworkSkills}
           />
         )}

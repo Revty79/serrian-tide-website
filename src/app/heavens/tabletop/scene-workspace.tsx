@@ -17,10 +17,14 @@ import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/a
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
 import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
+import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
+import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
 import { EncounterWorkspace } from "./encounter-workspace";
+import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
+import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 import {
   addCampaignSessionSceneMember,
   completeCampaignSessionScene,
@@ -37,6 +41,7 @@ import {
 } from "./scene-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
+type TransitionMode = "start" | "complete" | "reopen" | "start-parent";
 
 function metadataFromScene(scene: CampaignSceneDetail): SceneMetadataInput {
   return {
@@ -178,6 +183,11 @@ export function SceneWorkspace({
   const [memberSearch, setMemberSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<TabletopLifecyclePreview | null>(null);
+  const [transitionMode, setTransitionMode] = useState<TransitionMode | null>(null);
+  const [transitionPreview, setTransitionPreview] = useState<TabletopLifecyclePreview | null>(null);
+  const preserveScroll = useInPlaceScrollPreservation();
 
   function sceneHref(sceneId?: number): string {
     const base = `/heavens/tabletop?campaign=${initialData.campaignId}&session=${initialData.sessionId}`;
@@ -241,6 +251,8 @@ export function SceneWorkspace({
           ? await completeCampaignSessionScene(selectedScene.id)
           : await reopenCampaignSessionScene(selectedScene.id);
       setFeedback({ kind: "success", message: `Scene ${updated.sequenceNumber} is now ${updated.status}.` });
+      setTransitionMode(null);
+      setTransitionPreview(null);
       router.refresh();
     });
   }
@@ -249,17 +261,53 @@ export function SceneWorkspace({
     await perform(async () => {
       await startCampaignSession(initialData.sessionId);
       setFeedback({ kind: "success", message: "The Session is active. Planned Scenes may now be started." });
+      setTransitionMode(null);
+      setTransitionPreview(null);
       router.refresh();
     });
   }
 
+  async function openTransitionConfirmation(action: TransitionMode): Promise<void> {
+    if (!selectedScene) return;
+    await preserveScroll(() => perform(async () => {
+      const preview = await previewTabletopLifecycleEntity(action === "start-parent"
+        ? { entityKind: "campaign-session", entityId: initialData.sessionId }
+        : { entityKind: "scene", entityId: selectedScene.id });
+      setTransitionPreview(preview);
+      setTransitionMode(action);
+    }));
+  }
+
+  async function confirmTransition(): Promise<void> {
+    if (!transitionMode) return;
+    if (transitionMode === "start-parent") {
+      await startParentSession();
+      return;
+    }
+    await lifecycle(transitionMode);
+  }
+
   async function removeScene(): Promise<void> {
-    if (!selectedScene || !window.confirm(`Delete planned Scene ${selectedScene.sequenceNumber}? Its Scene-member references will also be removed.`)) return;
+    if (!selectedScene) return;
     await perform(async () => {
       await deleteCampaignSessionScene(selectedScene.id);
+      setDeleteConfirmationOpen(false);
+      setDeletePreview(null);
       setFeedback({ kind: "success", message: `Scene ${selectedScene.sequenceNumber} was deleted.` });
       router.push(sceneHref(), { scroll: false });
     });
+  }
+
+  async function openDeleteConfirmation(): Promise<void> {
+    if (!selectedScene) return;
+    await preserveScroll(() => perform(async () => {
+      const preview = await previewTabletopLifecycleEntity({
+        entityKind: "scene",
+        entityId: selectedScene.id,
+      });
+      setDeletePreview(preview);
+      setDeleteConfirmationOpen(true);
+    }));
   }
 
   async function addMember(characterId: number, name: string): Promise<void> {
@@ -338,11 +386,11 @@ export function SceneWorkspace({
               if (selectedScene) setDraft(metadataFromScene(selectedScene));
               setFeedback(null);
             }}>Cancel</button> : null}
-            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void lifecycle("start")}>Start Scene</button> : null}
-            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus === "planned" ? <button type="button" disabled={busy} onClick={() => void startParentSession()}>Start Session</button> : null}
-            {!creating && selectedScene?.status === "active" ? <button type="button" disabled={busy} onClick={() => void lifecycle("complete")}>Complete Scene</button> : null}
-            {!creating && selectedScene?.status === "completed" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void lifecycle("reopen")}>Reopen Scene</button> : null}
-            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus !== "completed" ? <button type="button" className="is-danger" disabled={busy} onClick={() => void removeScene()}>Delete Planned Scene</button> : null}
+            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Scene</button> : null}
+            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus === "planned" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start-parent")}>Start Session</button> : null}
+            {!creating && selectedScene?.status === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("complete")}>Complete Scene</button> : null}
+            {!creating && selectedScene?.status === "completed" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Scene</button> : null}
+            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus !== "completed" ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Scene</button> : null}
           </div>
 
           {!creating && selectedScene ? <section className="tabletop-scene-members">
@@ -390,5 +438,72 @@ export function SceneWorkspace({
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}
       </section>
     </div>
+    {selectedScene ? <LifecycleConfirmationDialog
+      open={transitionMode !== null}
+      titleId="transition-tabletop-scene-title"
+      eyebrow={transitionMode === "start-parent" ? "Session Lifecycle" : "Scene Lifecycle"}
+      title={transitionMode === "start-parent"
+        ? `Start Session ${session.sequenceNumber}?`
+        : transitionMode === "start"
+          ? `Start Scene ${selectedScene.sequenceNumber}?`
+          : transitionMode === "complete"
+            ? `Complete Scene ${selectedScene.sequenceNumber}?`
+            : `Reopen Scene ${selectedScene.sequenceNumber}?`}
+      entityType={transitionMode === "start-parent" ? "Campaign Session" : "Scene"}
+      preview={transitionPreview}
+      consequence={transitionMode === "start-parent"
+        ? "This activates the planned Session so its Scenes can begin. Existing Campaign and Character state is preserved."
+        : transitionMode === "start"
+          ? "This activates the planned Scene inside its active Session. Existing members and Campaign state are preserved."
+          : transitionMode === "complete"
+            ? "This makes the Scene organizationally historical. Its members, Encounters, and deeper history remain preserved."
+            : "This returns the completed Scene to active for corrections without erasing its deeper history."}
+      dependencies={(transitionPreview?.dependencies ?? [])
+        .filter(({ count }) => count > 0)
+        .map(({ label, count }) => `${label}: ${count}`)}
+      notice={transitionPreview && (
+        (transitionMode === "complete" && !transitionPreview.canComplete)
+        || (transitionMode === "reopen" && !transitionPreview.canReopen)
+      )
+        ? "The current server state does not allow this transition. Reopen the parent lifecycle first or resolve the active context."
+        : "Cancel makes no changes. The server locks and rechecks the entity and its Campaign before applying this transition."}
+      confirmLabel={transitionMode === "start-parent"
+        ? "Start Session"
+        : transitionMode === "start"
+          ? "Start Scene"
+          : transitionMode === "complete"
+            ? "Complete Scene"
+            : "Reopen Scene"}
+      confirmDisabled={!transitionPreview || (transitionMode === "complete"
+        ? !transitionPreview.canComplete
+        : transitionMode === "reopen"
+          ? !transitionPreview.canReopen
+          : transitionPreview.status !== "planned")}
+      busy={busy}
+      error={feedback?.kind === "error" ? feedback.message : undefined}
+      onCancel={() => { setTransitionMode(null); setTransitionPreview(null); setFeedback(null); }}
+      onConfirm={confirmTransition}
+    /> : null}
+    {selectedScene ? <LifecycleConfirmationDialog
+      open={deleteConfirmationOpen}
+      titleId="delete-tabletop-scene-title"
+      eyebrow="Permanent Scene Deletion"
+      title={`Delete planned Scene ${selectedScene.sequenceNumber}?`}
+      entityType="Scene"
+      preview={deletePreview}
+      consequence="The planned Scene and its preparation-only member and Encounter records will be permanently removed. Roll or runtime history blocks this operation."
+      dependencies={(deletePreview?.dependencies ?? [])
+        .filter(({ count }) => count > 0)
+        .map(({ label, count, blocking }) => `${label}: ${count}${blocking ? " (blocks deletion)" : ""}`)}
+      notice={deletePreview?.blockers.length
+        ? deletePreview.blockers.join(" ")
+        : "Cancel makes no changes. The server locks and rechecks the complete dependency graph before deletion."}
+      confirmLabel="Permanently Delete Scene"
+      confirmDisabled={!deletePreview?.canDelete}
+      busy={busy}
+      error={feedback?.kind === "error" ? feedback.message : undefined}
+      onCancel={() => { setDeleteConfirmationOpen(false); setDeletePreview(null); setFeedback(null); }}
+      onConfirm={removeScene}
+    /> : null}
   </div>;
 }

@@ -107,8 +107,20 @@ test("Pass 14 guide is complete and migration 0031 and earlier remain untouched"
     "never run", "Exact route sequence", "Exact automated validation sequence", "Deferred findings",
   ]) assert.match(guide, new RegExp(required, "i"));
 
-  const changedMigrations = execFileSync("git", ["diff", "--name-only", "c0608bcc98dd98d06821437be1265842cadc78dc", "--", "drizzle"], { encoding: "utf8" }).trim();
-  assert.equal(changedMigrations, "");
+  const changedMigrations = execFileSync("git", ["diff", "--name-only", "c0608bcc98dd98d06821437be1265842cadc78dc", "--", "drizzle"], { encoding: "utf8" })
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
+  const allowedForwardFiles = new Set([
+    "drizzle/0032_safe_entity_lifecycles.sql",
+    "drizzle/meta/0032_snapshot.json",
+    "drizzle/meta/_journal.json",
+  ]);
+  assert.deepEqual(
+    changedMigrations.filter((file) => !allowedForwardFiles.has(file)),
+    [],
+    "0031 and earlier migration artifacts must remain byte-for-byte unchanged",
+  );
 
   const validationWorkflow = readFileSync(".github/workflows/validate.yml", "utf8");
   assert.match(validationWorkflow, /uses:\s*actions\/checkout@v4[\s\S]*fetch-depth:\s*0/);

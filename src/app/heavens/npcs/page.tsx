@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 
-import { listCampaignsForGod } from "@/app/heavens/campaigns/actions";
-import { requireGod } from "@/lib/server-access";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import "./npcs.css";
+import { listNpcCampaigns } from "./actions";
 import { NpcWorkspace } from "./npc-workspace";
 
 export default async function NpcsPage() {
-  await requireGod().catch(() => redirect("/access"));
-  const campaigns = await listCampaignsForGod();
+  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const campaigns = await listNpcCampaigns();
   return <NpcWorkspace campaigns={campaigns} />;
 }

@@ -720,6 +720,7 @@ export function characterAggregateToDraft(
 
   return {
     name: aggregate.character.name,
+    npcRoleLabel: aggregate.character.npcRoleLabel ?? "",
     profile,
     attributes,
     skillAllocations: aggregate.skillAllocations.map((allocation) => ({
