@@ -312,7 +312,9 @@ test("guarded Character weapon overrides enforce scope, precedence, authorizatio
     });
     assert.equal(oneAction.status, "resolved-one-action-override");
     assert.equal(oneAction.persistentOverrideId, modeOverride.id);
-    const [overrideCount] = await tx.select({ value: count() }).from(campaignCharacterWeaponOverride);
+    const [overrideCount] = await tx.select({ value: count() })
+      .from(campaignCharacterWeaponOverride)
+      .where(eq(campaignCharacterWeaponOverride.characterId, base.heroId));
     assert.equal(overrideCount?.value, 2);
 
     assert.equal(await removeCharacterWeaponOverrideInTransaction(tx, actor, {

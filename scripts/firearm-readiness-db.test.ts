@@ -108,10 +108,24 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     assert.notEqual(first.itemInstanceId, second.itemInstanceId);
     assert.equal((await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, base.heroId), eq(campaignCharacterItem.itemId, firearmItem.id)))).length, 0);
     const exactStates = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.characterId, base.heroId));
-    assert.deepEqual(exactStates.map(({ itemInstanceId, selectedFiringModeId, loadedRounds }) => ({ itemInstanceId, selectedFiringModeId, loadedRounds })), [
+    assert.equal(exactStates.length, 2);
+    const exactStatesByInstance = new Map(exactStates.map((state) => [state.itemInstanceId, state]));
+    assert.deepEqual(
+      exactStatesByInstance.get(first.itemInstanceId) && {
+        itemInstanceId: exactStatesByInstance.get(first.itemInstanceId)!.itemInstanceId,
+        selectedFiringModeId: exactStatesByInstance.get(first.itemInstanceId)!.selectedFiringModeId,
+        loadedRounds: exactStatesByInstance.get(first.itemInstanceId)!.loadedRounds,
+      },
       { itemInstanceId: first.itemInstanceId, selectedFiringModeId: singleMode.id, loadedRounds: 0 },
+    );
+    assert.deepEqual(
+      exactStatesByInstance.get(second.itemInstanceId) && {
+        itemInstanceId: exactStatesByInstance.get(second.itemInstanceId)!.itemInstanceId,
+        selectedFiringModeId: exactStatesByInstance.get(second.itemInstanceId)!.selectedFiringModeId,
+        loadedRounds: exactStatesByInstance.get(second.itemInstanceId)!.loadedRounds,
+      },
       { itemInstanceId: second.itemInstanceId, selectedFiringModeId: burstMode.id, loadedRounds: 0 },
-    ]);
+    );
     await tx.execute(sql.raw("savepoint firearm_readiness_constraint"));
     await assert.rejects(tx.update(campaignCharacterFirearmState).set({
       readinessMode: null,

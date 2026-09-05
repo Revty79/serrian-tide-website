@@ -123,7 +123,11 @@ async function loadFixtures(): Promise<Fixtures> {
     where c.name=$1
     group by c.id
   `, [CAMPAIGN_NAME]);
-  assert.equal(result.rows.length, 1, "Step 13 development fixtures must be seeded first.");
+  if (result.rows.length !== 1) {
+    throw new Error(
+      "Runtime Foundation prerequisite unavailable: the intentionally absent Step 13 development fixture set is required. The prohibited legacy fixture seed was not run.",
+    );
+  }
   const row = result.rows[0]!;
   for (const [key, value] of Object.entries(row)) {
     assert.ok(Number.isInteger(value) && value > 0, `Fixture ${key} is missing.`);
@@ -431,14 +435,15 @@ after(async () => {
 });
 
 test("Runtime Foundation real PostgreSQL freeze", { concurrency: false }, async (t) => {
-  await t.test("connection is loopback-only and development fixtures authenticate structurally", async () => {
-    const identity = await pool.query<{ address: string; port: number; database: string }>(
-      "select inet_server_addr()::text as address,inet_server_port() as port,current_database() as database",
-    );
-    assert.ok(["127.0.0.1/32", "::1/128"].includes(identity.rows[0]!.address));
-    assert.equal(identity.rows[0]!.port, Number(databaseUrl.port || 5432));
-    assert.equal(identity.rows[0]!.database, databaseUrl.pathname.slice(1));
-    fixtures = await loadFixtures();
+  const identity = await pool.query<{ address: string; port: number; database: string }>(
+    "select inet_server_addr()::text as address,inet_server_port() as port,current_database() as database",
+  );
+  assert.ok(["127.0.0.1/32", "::1/128"].includes(identity.rows[0]!.address));
+  assert.equal(identity.rows[0]!.port, Number(databaseUrl.port || 5432));
+  assert.equal(identity.rows[0]!.database, databaseUrl.pathname.slice(1));
+  fixtures = await loadFixtures();
+
+  await t.test("development fixtures authenticate structurally", async () => {
     const authRows = await pool.query<{ id: string; roles: string[] }>(`
       select u.id,array_agg(ur.role order by ur.role) roles from "user" u
       join user_role ur on ur.user_id=u.id

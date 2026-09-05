@@ -35,7 +35,10 @@ const PLAYER_ID = `${MARKER}-player`;
 type Fixture = {
   campaignId: number;
   sessionId: number;
+  sceneId: number;
+  encounterId: number;
   characterId: number;
+  creatureId: number;
   weaponItemId: number;
   rootAllocationId: number;
   godEmail: string;
@@ -96,10 +99,12 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     const weapon = await one<{ id: number }>(client, `insert into items (
       canonical_id,name,catalog_scope,equipment_group,record_type,family,category,price_basis,created_by_user_id,source_system,source_external_id
     ) values ($1,'Browser Service Pistol','equipment','weapon','Weapon','Browser','Handgun','per item',$2,$3,$1) returning id`, [MARKER.toUpperCase(), GOD_ID, MARKER]);
+    await client.query("insert into item_runtime_profiles (item_id,use_mode,activation_label) values ($1,'none','Use')", [weapon.id]);
     const profile = await one<{ id: number }>(client,
       "insert into weapon_profiles (item_id,profile_record_type,weapon_type) values ($1,'Weapon','Handgun') returning id",
       [weapon.id],
     );
+    await client.query("insert into campaign_inventory_item (campaign_id,item_id,sort_order) values ($1,$2,0)", [campaign.id, weapon.id]);
     const rootName = `Browser Precision Ranged ${MARKER}`;
     const endpointName = `Browser Handgun Mastery ${MARKER}`;
     const root = await one<{ id: number }>(client,
@@ -137,11 +142,43 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       "insert into campaign_session_roster (session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,0)",
       [session.id, campaign.id, character.id],
     );
+    const scene = await one<{ id: number }>(client,
+      "insert into campaign_session_scene (session_id,campaign_id,sequence_number,title,status,started_at) values ($1,$2,1,'Weapon Governance Browser Scene','active',now()) returning id",
+      [session.id, campaign.id],
+    );
+    await client.query(
+      "insert into campaign_session_scene_member (scene_id,session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,$4,0)",
+      [scene.id, session.id, campaign.id, character.id],
+    );
+    const creature = await one<{ id: number }>(client, `insert into creatures (
+      canonical_id,canonical_name,family,creature_type,size,description,created_by_user_id,source_system
+    ) values ($1,'Weapon Governance Target','Browser fixtures','Creature','Medium','An isolated direct Encounter target.',$2,$3) returning id`, [`WGB-${Date.now()}`, GOD_ID, MARKER]);
+    const encounter = await one<{ id: number }>(client,
+      "insert into campaign_session_encounter (scene_id,session_id,campaign_id,sequence_number,title,status,encounter_type,started_at) values ($1,$2,$3,1,'Weapon Governance Browser Encounter','active','combat',now()) returning id",
+      [scene.id, session.id, campaign.id],
+    );
+    await client.query(`insert into campaign_session_encounter_participant
+      (encounter_id,scene_id,session_id,campaign_id,character_id,participant_kind,creature_id,display_label,creature_snapshot_json,local_state_json,sort_order)
+      values ($1,$2,$3,$4,$5,'campaign-character',null,'',null,null,0),
+             ($1,$2,$3,$4,-1,'creature',$6,'Weapon Governance Target',$7::jsonb,'{}'::jsonb,1)`, [
+      encounter.id, scene.id, session.id, campaign.id, character.id, creature.id,
+      JSON.stringify({ canonicalId: `WGB-${creature.id}`, canonicalName: "Weapon Governance Target", attacks: [], abilities: [] }),
+    ]);
+    await client.query(
+      "insert into campaign_session_encounter_initiative (encounter_id,scene_id,session_id,campaign_id,timeline_initiative) values ($1,$2,$3,$4,20)",
+      [encounter.id, scene.id, session.id, campaign.id],
+    );
+    await client.query(`insert into campaign_session_encounter_initiative_participant
+      (encounter_id,scene_id,session_id,campaign_id,character_id,normal_total_initiative,current_initiative,movement_mode)
+      values ($1,$2,$3,$4,$5,20,20,'Walk'),($1,$2,$3,$4,-1,16,16,'Walk')`, [encounter.id, scene.id, session.id, campaign.id, character.id]);
     await client.query("commit");
     return {
       campaignId: campaign.id,
       sessionId: session.id,
+      sceneId: scene.id,
+      encounterId: encounter.id,
       characterId: character.id,
+      creatureId: creature.id,
       weaponItemId: weapon.id,
       rootAllocationId: rootAllocation.id,
       godEmail: users[0]!.email,
@@ -157,15 +194,58 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
   }
 }
 
-async function cleanupFixture(pool: pg.Pool): Promise<void> {
+async function cleanupMarker(pool: pg.Pool, marker: string): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await client.query("delete from campaign where name=$1", [MARKER]);
-    await client.query("delete from weapon_skill_path_mappings where updated_by_user_id=$1", [GOD_ID]);
-    await client.query("delete from items where source_system=$1", [MARKER]);
-    await client.query("delete from skill where source_system=$1", [MARKER]);
-    await client.query("delete from \"user\" where id=any($1::text[])", [[GOD_ID, PLAYER_ID]]);
+    const campaignRows = await client.query<{ id: number }>("select id from campaign where name=$1", [marker]);
+    const campaignIds = campaignRows.rows.map(({ id }) => id);
+    if (campaignIds.length) {
+      for (const table of [
+        "campaign_session_player_ruling_request_event",
+        "campaign_session_player_ruling_request",
+        "campaign_session_encounter_effect_plan_event",
+        "campaign_session_encounter_effect",
+        "campaign_session_encounter_firearm_bullet",
+        "campaign_session_encounter_firearm_attack_event",
+        "campaign_session_encounter_firearm_attack",
+        "campaign_session_encounter_effect_plan",
+        "campaign_session_roll_amendment",
+        "campaign_session_roll",
+        "campaign_session_encounter_responder_opportunity",
+        "campaign_session_encounter_reaction_event",
+        "campaign_session_encounter_reaction",
+        "campaign_session_encounter_action_declaration_event",
+        "campaign_session_encounter_action_declaration",
+        "campaign_session_encounter_pending_action_source",
+        "campaign_session_encounter_pending_action",
+        "campaign_character_firearm_event",
+        "campaign_character_firearm_preparation",
+        "campaign_character_firearm_state",
+        "campaign_session_encounter_initiative_participant",
+        "campaign_session_encounter_initiative",
+        "campaign_session_encounter_participant",
+        "campaign_session_encounter",
+        "campaign_session_called_check_event",
+        "campaign_session_high_low_event",
+        "campaign_session_called_check_request",
+        "campaign_session_called_check_batch",
+        "campaign_session_high_low_request",
+        "campaign_session_scene_member",
+        "campaign_session_scene",
+        "campaign_session_roster",
+        "campaign_session",
+      ]) await client.query(`delete from ${table} where campaign_id=any($1::int[])`, [campaignIds]);
+      await client.query("delete from campaign_character_weapon_override where campaign_id=any($1::int[])", [campaignIds]);
+      await client.query("delete from campaign where id=any($1::int[])", [campaignIds]);
+    }
+    const godId = `${marker}-god`;
+    const playerId = `${marker}-player`;
+    await client.query("delete from weapon_skill_path_mappings where updated_by_user_id=$1", [godId]);
+    await client.query("delete from items where source_system=$1", [marker]);
+    await client.query("delete from skill where source_system=$1", [marker]);
+    await client.query("delete from creatures where source_system=$1", [marker]);
+    await client.query("delete from \"user\" where id=any($1::text[])", [[godId, playerId]]);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
@@ -173,6 +253,15 @@ async function cleanupFixture(pool: pg.Pool): Promise<void> {
   } finally {
     client.release();
   }
+}
+
+async function cleanupFixture(pool: pg.Pool): Promise<void> {
+  await cleanupMarker(pool, MARKER);
+}
+
+async function cleanupStaleFixtures(pool: pg.Pool): Promise<void> {
+  const rows = await pool.query<{ name: string }>("select name from campaign where name like 'weapon-governance-browser-%'");
+  for (const { name } of rows.rows) await cleanupMarker(pool, name);
 }
 
 async function waitForServer(server: ChildProcess): Promise<void> {
@@ -212,6 +301,7 @@ async function main(): Promise<void> {
   let server: ChildProcess | null = null;
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
   try {
+    await cleanupStaleFixtures(pool);
     const fixture = await seedFixture(pool);
     await rm(TEST_DIST_PATH, { recursive: true, force: true });
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", String(PORT)], {
@@ -257,14 +347,25 @@ async function main(): Promise<void> {
     await governance.getByRole("button", { name: "Save Persistent Override" }).click();
     await governance.getByText(/Persistent weapon override saved/).waitFor();
     await eventually(async () => /Current target: roll over 65%/.test(await governance.innerText()), "Persistent override did not refresh in G.O.D. Tabletop.");
+    assert.equal((await pool.query(
+      `select id from campaign_character_weapon_override
+       where character_id=$1 and weapon_profile_id=(select id from weapon_profiles where item_id=$2)`,
+      [fixture.characterId, fixture.weaponItemId],
+    )).rowCount, 1);
 
-    await playerPage.goto(`${BASE_URL}/realms/characters/${fixture.characterId}`);
-    const playerPanel = playerPage.getByRole("region", { name: "Weapon Governance" });
+    await playerPage.goto(`${BASE_URL}/realms/tabletop?character=${fixture.characterId}`);
+    const playerPanel = playerPage.getByRole("region", { name: "Melee and authored weapons" });
     await playerPanel.waitFor();
-    assert.match(await playerPanel.innerText(), /Persistent G\.O\.D\. override/);
-    assert.match(await playerPanel.innerText(), /STR straight Attribute check/);
+    assert.match(await playerPanel.innerText(), /Character fallback: STR straight Attribute.*65%/);
     assert.match(await playerPanel.innerText(), /Roll over 65%/);
-    assert.equal(await playerPanel.locator("button,input,select,textarea").count(), 0);
+    const playerGovernanceText = await playerPanel.innerText();
+    const pathStart = playerGovernanceText.indexOf("Global canonical path:");
+    const rootPosition = playerGovernanceText.indexOf(fixture.rootName, pathStart);
+    const endpointPosition = playerGovernanceText.indexOf(fixture.endpointName, rootPosition);
+    assert.ok(pathStart >= 0 && rootPosition > pathStart && endpointPosition > rootPosition);
+    assert.equal(await playerPanel.getByLabel("Exact source").count(), 0);
+    assert.equal(await playerPanel.getByLabel("Source type").count(), 0);
+    assert.equal(await playerPanel.getByRole("button", { name: /Override|ruling/i }).count(), 0);
     assert.equal(await playerPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
 
     const playerForbidden = await playerContext.newPage();
@@ -311,9 +412,15 @@ async function main(): Promise<void> {
     await governance.getByRole("button", { name: "Remove Override" }).click();
     await governance.getByText(/Persistent weapon override removed/).waitFor();
     await eventually(async () => /Normal governance/.test(await governance.innerText()), "Normal resolution did not return after override removal.");
+    assert.equal((await pool.query(
+      `select id from campaign_character_weapon_override
+       where character_id=$1 and weapon_profile_id=(select id from weapon_profiles where item_id=$2)`,
+      [fixture.characterId, fixture.weaponItemId],
+    )).rowCount, 0);
     await playerPage.reload();
     await playerPanel.waitFor();
-    assert.match(await playerPanel.innerText(), /Normal canonical governance/);
+    assert.match(await playerPanel.innerText(), new RegExp(`Character fallback: ${fixture.rootName}`));
+    assert.doesNotMatch(await playerPanel.innerText(), /Roll over 65%/);
     await godPage.setViewportSize({ width: 390, height: 844 });
     assert.equal(await godPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
 
@@ -343,7 +450,7 @@ async function main(): Promise<void> {
         });
       });
     }
-    await cleanupFixture(pool).catch(() => undefined);
+    await cleanupFixture(pool).catch((error) => console.error("Weapon governance browser fixture cleanup failed.", error));
     await pool.end();
     await rm(TEST_DIST_PATH, { recursive: true, force: true }).catch(() => undefined);
   }

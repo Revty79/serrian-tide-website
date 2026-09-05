@@ -34,6 +34,7 @@ type Fixture = {
   encounterId: number;
   playerCharacterId: number;
   targetCharacterId: number;
+  persistentNpcId: number;
   creatureId: number;
   weaponItemId: number;
   firearmItemId: number;
@@ -83,7 +84,8 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     await client.query("insert into campaign_player (campaign_id,user_id,is_npc_controller) values ($1,$2,true),($1,$3,false),($1,$4,false)", [campaign.id, godId, playerId, targetPlayerId]);
     const playerCharacter = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Player Console Hero') returning id", [campaign.id, playerId]);
     const targetCharacter = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Another Player Character') returning id", [campaign.id, targetPlayerId]);
-    for (const characterId of [playerCharacter.id, targetCharacter.id]) {
+    const persistentNpc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind) values ($1,$2,'Browser Sentry NPC',true,'race') returning id", [campaign.id, godId]);
+    for (const characterId of [playerCharacter.id, targetCharacter.id, persistentNpc.id]) {
       await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,0)", [characterId]);
       await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [characterId]);
       for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) {
@@ -145,22 +147,24 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       canonical_id,canonical_name,family,creature_type,size,description,created_by_user_id,source_system
     ) values ($1,'Tide Maw','Browser fixtures','Creature','Medium','An exact direct Encounter Creature target.',$2,$3) returning id`, [`PASS13-${Date.now()}`, godId, marker]);
     const session = await one<{ id: number }>(client, "insert into campaign_session (campaign_id,sequence_number,title,status,started_at) values ($1,1,'Pass 13 Live Session','active',now()) returning id", [campaign.id]);
-    await client.query("insert into campaign_session_roster (session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,0),($1,$2,$4,1)", [session.id, campaign.id, playerCharacter.id, targetCharacter.id]);
+    await client.query("insert into campaign_session_roster (session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,0),($1,$2,$4,1),($1,$2,$5,2)", [session.id, campaign.id, playerCharacter.id, targetCharacter.id, persistentNpc.id]);
     const scene = await one<{ id: number }>(client, "insert into campaign_session_scene (session_id,campaign_id,sequence_number,title,status,started_at,god_notes) values ($1,$2,1,'Pass 13 Scene','active',now(),'PRIVATE SCENE NOTE') returning id", [session.id, campaign.id]);
-    await client.query("insert into campaign_session_scene_member (scene_id,session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,$4,0),($1,$2,$3,$5,1)", [scene.id, session.id, campaign.id, playerCharacter.id, targetCharacter.id]);
+    await client.query("insert into campaign_session_scene_member (scene_id,session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,$4,0),($1,$2,$3,$5,1),($1,$2,$3,$6,2)", [scene.id, session.id, campaign.id, playerCharacter.id, targetCharacter.id, persistentNpc.id]);
     const encounter = await one<{ id: number }>(client, "insert into campaign_session_encounter (scene_id,session_id,campaign_id,sequence_number,title,status,encounter_type,started_at,god_notes) values ($1,$2,$3,1,'Pass 13 Encounter','active','combat',now(),'PRIVATE ENCOUNTER NOTE') returning id", [scene.id, session.id, campaign.id]);
     await client.query(`insert into campaign_session_encounter_participant
       (encounter_id,scene_id,session_id,campaign_id,character_id,participant_kind,creature_id,display_label,creature_snapshot_json,local_state_json,sort_order)
       values ($1,$2,$3,$4,$5,'campaign-character',null,'',null,null,0),
              ($1,$2,$3,$4,$6,'campaign-character',null,'',null,null,1),
-             ($1,$2,$3,$4,-1,'creature',$7,'Tide Maw',$8::jsonb,'{}'::jsonb,2)`, [
-      encounter.id, scene.id, session.id, campaign.id, playerCharacter.id, targetCharacter.id, creature.id,
+             ($1,$2,$3,$4,$7,'campaign-character',null,'',null,null,2),
+             ($1,$2,$3,$4,-1,'creature',$8,'Tide Maw',$9::jsonb,'{"wounds":1}'::jsonb,3),
+             ($1,$2,$3,$4,-2,'creature',$8,'Tide Maw II',$9::jsonb,'{"wounds":3}'::jsonb,4)`, [
+      encounter.id, scene.id, session.id, campaign.id, playerCharacter.id, targetCharacter.id, persistentNpc.id, creature.id,
       JSON.stringify({ canonicalId: `PASS13-${creature.id}`, canonicalName: "Tide Maw", attacks: [], abilities: [] }),
     ]);
     await client.query("insert into campaign_session_encounter_initiative (encounter_id,scene_id,session_id,campaign_id,timeline_initiative) values ($1,$2,$3,$4,20)", [encounter.id, scene.id, session.id, campaign.id]);
     await client.query(`insert into campaign_session_encounter_initiative_participant
       (encounter_id,scene_id,session_id,campaign_id,character_id,normal_total_initiative,current_initiative,movement_mode)
-      values ($1,$2,$3,$4,$5,20,20,'Walk'),($1,$2,$3,$4,$6,18,18,'Walk'),($1,$2,$3,$4,-1,16,16,'Walk')`, [encounter.id, scene.id, session.id, campaign.id, playerCharacter.id, targetCharacter.id]);
+      values ($1,$2,$3,$4,$5,20,20,'Walk'),($1,$2,$3,$4,$6,18,18,'Walk'),($1,$2,$3,$4,-1,16,16,'Walk'),($1,$2,$3,$4,-2,15,15,'Walk')`, [encounter.id, scene.id, session.id, campaign.id, playerCharacter.id, targetCharacter.id]);
     await client.query("commit");
     return {
       marker,
@@ -173,6 +177,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       encounterId: encounter.id,
       playerCharacterId: playerCharacter.id,
       targetCharacterId: targetCharacter.id,
+      persistentNpcId: persistentNpc.id,
       creatureId: creature.id,
       weaponItemId: weapon.id,
       firearmItemId: firearm.id,
@@ -352,6 +357,18 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
   await targetPlayer.getByRole("heading", { name: "Round 1 · Step 1" }).waitFor();
   const playerText = await player.locator("main").innerText();
   for (const secret of ["PRIVATE SCENE NOTE", "PRIVATE ENCOUNTER NOTE"]) assert.equal(playerText.includes(secret), false);
+  const participantProof = await pool.query<{ participant_kind: string; character_id: number; local_state_json: { wounds?: number } }>(
+    "select participant_kind,character_id,local_state_json from campaign_session_encounter_participant where encounter_id=$1 order by sort_order",
+    [fixture.encounterId],
+  );
+  assert.deepEqual(participantProof.rows.filter(({ participant_kind }) => participant_kind === "creature").map(({ character_id, local_state_json }) => ({ characterId: character_id, wounds: local_state_json.wounds })), [
+    { characterId: -1, wounds: 1 },
+    { characterId: -2, wounds: 3 },
+  ]);
+  assert.equal(participantProof.rows.some(({ participant_kind, character_id }) => participant_kind === "campaign-character" && character_id === fixture.persistentNpcId), true);
+  assert.equal((await pool.query("select id from campaign_character where campaign_id=$1 and id in (-1,-2)", [fixture.campaignId])).rowCount, 0);
+  assert.equal((await pool.query("select character_id from campaign_character_active_health where character_id in (-1,-2)")).rowCount, 0);
+  assert.equal((await pool.query("select character_id from campaign_character_item where character_id in (-1,-2)")).rowCount, 0);
 
   let weaponPanel = player.getByRole("region", { name: "Melee and authored weapons" });
   let responsePanel = targetPlayer.getByRole("region", { name: "Choose a response before the action can Roll" });
@@ -458,6 +475,30 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
 
   await god.goto(`${BASE_URL}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
   await god.getByRole("button", { name: /^Scenes/ }).click();
+  const godSurface = await god.locator("main").innerText();
+  assert.match(godSurface, /Browser Sentry NPC/);
+  assert.match(godSurface, /Tide Maw/);
+  assert.match(godSurface, /Tide Maw II/);
+  const creatureOccurrencesBefore = await pool.query<{ character_id: number }>(
+    "select character_id from campaign_session_encounter_participant where encounter_id=$1 and participant_kind='creature' order by character_id",
+    [fixture.encounterId],
+  );
+  await god.getByRole("button", { name: "Add from Creature Catalog" }).click();
+  await god.getByRole("searchbox", { name: "Search master Creatures" }).fill("Tide Maw");
+  await god.getByRole("button", { name: /^Tide Maw/ }).last().click();
+  await god.getByRole("button", { name: "Add 1 to Encounter" }).click();
+  await god.getByText(/added directly to the Encounter.*No Character, NPC, or roster record was created\./).waitFor();
+  const creatureOccurrencesAfter = await pool.query<{ character_id: number }>(
+    "select character_id from campaign_session_encounter_participant where encounter_id=$1 and participant_kind='creature' order by character_id",
+    [fixture.encounterId],
+  );
+  assert.equal(creatureOccurrencesAfter.rows.length, creatureOccurrencesBefore.rows.length + 1);
+  const existingOccurrenceKeys = new Set(creatureOccurrencesBefore.rows.map(({ character_id }) => character_id));
+  const addedOccurrence = creatureOccurrencesAfter.rows.find(({ character_id }) => !existingOccurrenceKeys.has(character_id));
+  assert.ok(addedOccurrence && addedOccurrence.character_id < 0);
+  assert.equal((await pool.query("select id from campaign_character where campaign_id=$1 and id=$2", [fixture.campaignId, addedOccurrence.character_id])).rowCount, 0);
+  assert.equal((await pool.query("select character_id from campaign_character_active_health where character_id=$1", [addedOccurrence.character_id])).rowCount, 0);
+  assert.equal((await pool.query("select character_id from campaign_character_item where character_id=$1", [addedOccurrence.character_id])).rowCount, 0);
   await god.getByRole("button", { name: /^Declarations/ }).click();
   const godPanel = god.getByRole("region", { name: "Ruling requests" });
   const calledShotRequest = godPanel.getByRole("article").filter({ hasText: "Disable the Tide Maw's grasping limb." });
@@ -609,7 +650,7 @@ async function main(): Promise<void> {
     await runWorkflow(player, targetPlayer, god, fixture, pool);
     console.log(JSON.stringify({
       pass: 13,
-      workflows: ["exact weapon governance", "locked Player weapon declaration", "independent Player No Defense", "Dodge", "Parry cost and refund", "website and physical bound Rolls", "Player firearm reload", "Aim", "G.O.D.-approved Called Shot", "firearm attack and exact ammunition consumption", "critical ruling state", "Player direct-Creature intent", "ally-defense request and ruling", "Tackle request and ruling", "exact Item request and ruling", "G.O.D. ruling", "live refresh", "reload recovery", "responsive and keyboard Player console", "legacy route consolidation", "unauthorized Character denial", "Player G.O.D. denial"],
+      workflows: ["exact weapon governance", "locked Player weapon declaration", "independent Player No Defense", "Dodge", "Parry cost and refund", "website and physical bound Rolls", "Player firearm reload", "Aim", "G.O.D.-approved Called Shot", "firearm attack and exact ammunition consumption", "critical ruling state", "Player direct-Creature intent", "two isolated direct-Creature occurrences", "G.O.D. Creature Catalog direct add", "persistent NPC identity", "ally-defense request and ruling", "Tackle request and ruling", "exact Item request and ruling", "G.O.D. ruling", "live refresh", "reload recovery", "responsive and keyboard Player console", "legacy route consolidation", "unauthorized Character denial", "Player G.O.D. denial"],
     }, null, 2));
   } finally {
     if (browser) await browser.close().catch(() => undefined);
