@@ -40,6 +40,9 @@ type Fixture = {
   branchAName: string;
   levelThreeAName: string;
   duplicateName: string;
+  sharedId: number;
+  sharedName: string;
+  reviewRootName: string;
 };
 
 async function one<T extends pg.QueryResultRow>(
@@ -54,7 +57,7 @@ async function one<T extends pg.QueryResultRow>(
 
 async function insertSkill(
   client: pg.PoolClient,
-  input: { name: string; tier: number; attribute: string; externalId: string },
+  input: { name: string; tier: number | null; attribute: string | null; externalId: string },
 ): Promise<number> {
   const row = await one<{ id: number }>(client, `insert into skill
     (name,classification,tier,primary_attribute,definition,created_by_user_id,source_system,source_external_id)
@@ -92,6 +95,8 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     const branchAName = `Branch A ${MARKER}`;
     const levelThreeAName = `Level Three A ${MARKER}`;
     const duplicateName = `Duplicate Endpoint ${MARKER}`;
+    const sharedName = `Shared Route ${MARKER}`;
+    const reviewRootName = `Unlinked Review ${MARKER}`;
     const rootAId = await insertSkill(client, { name: rootAName, tier: 1, attribute: "STR", externalId: "root-a" });
     const branchAId = await insertSkill(client, { name: branchAName, tier: 8, attribute: "DEX", externalId: "branch-a" });
     const levelThreeAId = await insertSkill(client, { name: levelThreeAName, tier: 19, attribute: "CON", externalId: "level-three-a" });
@@ -100,6 +105,8 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     const branchBId = await insertSkill(client, { name: `Branch B ${MARKER}`, tier: 2, attribute: "DEX", externalId: "branch-b" });
     const levelThreeBId = await insertSkill(client, { name: `Level Three B ${MARKER}`, tier: 3, attribute: "DEX", externalId: "level-three-b" });
     const endpointBId = await insertSkill(client, { name: duplicateName, tier: 4, attribute: "DEX", externalId: "endpoint-b" });
+    const sharedId = await insertSkill(client, { name: sharedName, tier: 42, attribute: "WIS", externalId: "shared-route" });
+    await insertSkill(client, { name: reviewRootName, tier: null, attribute: null, externalId: "review-root" });
     for (const [childId, parentId, sortOrder] of [
       [branchAId, rootAId, 0],
       [levelThreeAId, branchAId, 0],
@@ -107,11 +114,13 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       [branchBId, rootBId, 0],
       [levelThreeBId, branchBId, 0],
       [endpointBId, levelThreeBId, 0],
+      [sharedId, levelThreeAId, 1],
+      [sharedId, levelThreeBId, 1],
     ]) {
       await client.query("insert into skill_relationship (skill_id,related_skill_id,relationship_type,sort_order) values ($1,$2,'parent',$3)", [childId, parentId, sortOrder]);
     }
     await client.query("commit");
-    return { godEmail, playerEmail, rootAId, endpointAId, rootAName, endpointBId, rootBName, branchAName, levelThreeAName, duplicateName };
+    return { godEmail, playerEmail, rootAId, endpointAId, rootAName, endpointBId, rootBName, branchAName, levelThreeAName, duplicateName, sharedId, sharedName, reviewRootName };
   } catch (error) {
     await client.query("rollback");
     throw error;
@@ -219,8 +228,29 @@ async function main(): Promise<void> {
 
     await godPage.goto(`${BASE_URL}/heavens/skills`);
     await godPage.getByRole("heading", { name: "Skill Library" }).waitFor();
-    await godPage.getByRole("heading", { name: "STR", exact: true }).waitFor();
-    await godPage.getByRole("button", { name: new RegExp(fixture.rootAName) }).click();
+    assert.equal(await godPage.getByRole("button", { name: "List View" }).getAttribute("aria-pressed"), "true");
+    const pagination = godPage.getByRole("navigation", { name: "Skill pages" });
+    await pagination.getByRole("button", { name: "Next" }).click();
+    await pagination.getByText(/Page 2 of/).waitFor();
+    await pagination.getByRole("button", { name: "Previous" }).click();
+    await pagination.getByText(/Page 1 of/).waitFor();
+    await godPage.getByLabel("Search", { exact: true }).fill(fixture.duplicateName);
+    const listRows = godPage.locator(".skill-library__row");
+    await godPage.waitForFunction(() => document.querySelectorAll(".skill-library__row").length === 2);
+    assert.equal(await listRows.count(), 2, "List View should return both exact duplicate-name identities.");
+    await listRows.filter({ hasText: `#${fixture.endpointAId}` }).click();
+    await godPage.getByText(`SKILL ${fixture.endpointAId}`, { exact: true }).waitFor();
+    await godPage.getByLabel("Search", { exact: true }).fill("");
+
+    await godPage.getByRole("button", { name: "Tree View" }).click();
+    await godPage.getByRole("heading", { name: "Choose an Attribute" }).waitFor();
+    assert.equal(await godPage.getByRole("button", { name: new RegExp(fixture.rootAName) }).count(), 0, "Tree roots must stay hidden until an Attribute is selected.");
+    const attributeSelector = godPage.getByRole("group", { name: "Skill Attribute selector" });
+    await attributeSelector.getByRole("button", { name: /STR.*Strength/ }).click();
+    const strengthRoots = godPage.getByRole("region", { name: /STR.*Strength roots/ });
+    await strengthRoots.getByRole("button", { name: new RegExp(fixture.rootAName) }).waitFor();
+    assert.equal(await strengthRoots.getByRole("button", { name: new RegExp(fixture.rootBName) }).count(), 0, "Only the selected Attribute's roots should be rendered.");
+    await strengthRoots.getByRole("button", { name: new RegExp(fixture.rootAName) }).click();
     await godPage.getByRole("heading", { name: "Immediate Children" }).waitFor();
     await godPage.getByRole("button", { name: new RegExp(fixture.branchAName) }).click();
     await godPage.getByRole("button", { name: new RegExp(fixture.levelThreeAName) }).click();
@@ -245,18 +275,47 @@ async function main(): Promise<void> {
     await godPage.getByText(`Skill #${fixture.endpointBId}`, { exact: true }).waitFor();
     assert.match(await godPage.locator(".skill-library__path-preview").innerText(), new RegExp(fixture.rootBName));
 
+    await godPage.getByLabel("Search every depth").fill(fixture.sharedName);
+    const sharedResults = godPage
+      .getByRole("region", { name: "Skill search results" })
+      .locator(".skill-library__search-result");
+    await sharedResults.filter({ hasText: fixture.sharedName }).first().waitFor();
+    assert.equal(await sharedResults.count(), 2, "A multiple-parent Skill should expose both exact routes.");
+    assert.equal(await sharedResults.filter({ hasText: `#${fixture.sharedId}` }).count(), 2);
+    await sharedResults.filter({ hasText: fixture.rootBName }).click();
+    await godPage.getByText(`Skill #${fixture.sharedId}`, { exact: true }).waitFor();
+    assert.match(await godPage.locator(".skill-library__path-preview").innerText(), new RegExp(fixture.rootBName));
+
+    await godPage.getByRole("button", { name: "Choose Attribute" }).click();
+    await godPage.getByRole("group", { name: "Skill Attribute selector" }).getByRole("button", { name: /Review \/ Unlinked/ }).click();
+    await godPage.getByRole("region", { name: "Review / Unlinked roots" }).getByRole("button", { name: new RegExp(fixture.reviewRootName) }).waitFor();
+
     const createdRootName = `UI Root ${MARKER}`;
     const createdChildName = `UI Child ${MARKER}`;
-    await godPage.getByRole("button", { name: "New Root Skill" }).click();
+    await godPage.getByRole("button", { name: "New Skill", exact: true }).click();
     await godPage.getByLabel("Name *").fill(createdRootName);
     await godPage.getByLabel("Primary Attribute").selectOption("DEX");
     await godPage.getByRole("button", { name: "Save Skill" }).click();
     await godPage.getByText(new RegExp(`${createdRootName}.*was saved and placed`)).waitFor();
-    await godPage.getByRole("button", { name: "Attribute Overview" }).click();
-    const dexGroup = godPage.getByRole("heading", { name: "DEX", exact: true }).locator("..").locator("..");
-    await dexGroup.getByRole("button", { name: new RegExp(createdRootName) }).click();
-    await godPage.getByRole("button", { name: "Create Child" }).click();
+    assert.match(await godPage.locator(".skill-library__path-preview").innerText(), new RegExp(createdRootName));
+    assert.match(await godPage.locator(".skill-library__selected-detail").innerText(), /effective attribute\s+DEX/i);
+    await godPage.getByRole("button", { name: "Attribute Roots" }).click();
+    const dexterityRoots = godPage.getByRole("region", { name: /DEX.*Dexterity roots/ });
+    await dexterityRoots.getByRole("button", { name: new RegExp(createdRootName) }).click();
+
+    await godPage.getByRole("button", { name: "New Skill", exact: true }).click();
     await godPage.getByLabel("Name *").fill(createdChildName);
+    await godPage.getByLabel("Primary Attribute").selectOption("DEX");
+    await godPage.getByRole("button", { name: "Pathing" }).click();
+    await godPage.getByLabel("Find an exact parent at any depth").fill(createdRootName);
+    const createdRootOptionValue = await godPage
+      .getByLabel("Matching Skill identity")
+      .locator("option")
+      .filter({ hasText: createdRootName })
+      .getAttribute("value");
+    assert.ok(createdRootOptionValue, "Expected the new root Skill in the ordinary parent selector.");
+    await godPage.getByLabel("Matching Skill identity").selectOption(createdRootOptionValue);
+    await godPage.getByRole("button", { name: "Add as Parent" }).click();
     await godPage.getByRole("button", { name: "Save Skill" }).click();
     await godPage.getByText(new RegExp(`${createdChildName}.*was saved and placed`)).waitFor();
     assert.match(await godPage.locator(".skill-library__path-preview").innerText(), new RegExp(`${createdRootName}[\\s\\S]*${createdChildName}`));
@@ -277,12 +336,12 @@ async function main(): Promise<void> {
 
     await godPage.setViewportSize({ width: 360, height: 800 });
     assert.equal(await godPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
-    await godPage.getByRole("button", { name: "Attribute Overview" }).focus();
-    assert.equal(await godPage.getByRole("button", { name: "Attribute Overview" }).evaluate((element) => element === document.activeElement), true);
+    await godPage.getByRole("button", { name: "Choose Attribute" }).focus();
+    assert.equal(await godPage.getByRole("button", { name: "Choose Attribute" }).evaluate((element) => element === document.activeElement), true);
 
     await playerPage.goto(`${BASE_URL}/heavens/skills`);
     await playerPage.waitForURL((url) => url.pathname === "/access");
-    assert.equal(await playerPage.getByRole("button", { name: "New Root Skill" }).count(), 0);
+    assert.equal(await playerPage.getByRole("button", { name: "New Skill", exact: true }).count(), 0);
     await playerPage.goto(`${BASE_URL}/realms`);
     await playerPage.getByRole("heading", { name: "The Realms", exact: true }).waitFor();
     await playerPage.goto(`${BASE_URL}/realms/tabletop`);
@@ -293,12 +352,17 @@ async function main(): Promise<void> {
       passed: true,
       verified: [
         "G.O.D. existing Skills workspace",
-        "Attribute-grouped roots",
+        "restored paginated List View",
+        "duplicate-name exact List selection",
+        "Attribute-first Tree View",
+        "single-Attribute root visibility",
         "three descendant drill levels",
         "exact breadcrumb navigation",
         "duplicate-name exact search lineage",
-        "root creation and automatic grouping",
-        "child creation and automatic nesting",
+        "multiple-parent exact route selection",
+        "Review / Unlinked discovery",
+        "ordinary New Skill root creation and automatic grouping",
+        "ordinary New Skill child creation and automatic nesting",
         "cyclic reparent rejection",
         "Player mutation-control denial",
         "Player Realms access",

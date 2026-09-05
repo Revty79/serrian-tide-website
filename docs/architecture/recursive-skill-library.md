@@ -76,7 +76,9 @@ Broken child and parent references, duplicate Skill identities, and duplicate re
 
 ## Heavens interface
 
-The existing Skills route now opens on an Attribute overview. Each group lists only root identities. Selecting a root opens its immediate children; selecting a child repeats the same operation at any depth. The workspace deliberately does not render the entire database as one permanently expanded tree.
+The existing Skills route retains two presentations over the same exact Skill identities. List View is the default and preserves the paginated complete-library search and metadata filters. Tree View begins with the Character-style Attribute names in STR, DEX, CON, INT, WIS, and Charisma order, followed by any custom authored groups and the explicit Review / Unlinked group. It does not show any roots until one group is selected, and then shows only that group's roots.
+
+Selecting a root opens its immediate children; selecting a child repeats the same operation at any depth. The workspace deliberately does not render the entire database as one permanently expanded tree. Switching into Tree View starts at its Attribute selector, while List View selection continues to load the same right-side viewer/editor without forcing a hierarchy presentation.
 
 The selected view includes:
 
@@ -94,7 +96,7 @@ Search covers every depth in the loaded graph and matches name, exact numeric ID
 
 ## Creation and reparenting
 
-`New Root Skill` creates a draft with no parent. `Create Child` creates a draft with an exact `parent` edge to the selected identity. Placement is never separately stored: after save, the shared model derives the Attribute group and lineage from canonical rows.
+`New Skill` always opens the ordinary existing editor with no preselected structural decision. The author chooses Attribute and tier metadata in Core Details and adds any exact parent relationships in Pathing. A draft with no parent becomes a root; a draft with an authored `parent` edge becomes a child. Placement is never separately stored: after save, the shared model derives the Attribute group and every lineage from canonical rows. The saved identity stays selected, and a Tree View save opens one exact derived path immediately.
 
 The path editor searches all Skill depths, labels each parent candidate with exact ID and every complete lineage, and preserves non-parent relationship types. The editor shows current and proposed paths continuously.
 

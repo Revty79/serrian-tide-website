@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
 import type {
@@ -15,23 +15,26 @@ import {
   getRecursiveSkillLibrary,
   getSkill,
   getSkillFilterOptions,
+  listSkills,
   listSpellFrameworkSkills,
   previewSkillMutation,
   saveSkill,
   type SkillDraft,
   type SkillFilterOptions,
+  type SkillLibraryFilters,
+  type SkillLibraryItem,
+  type SkillLibraryResult,
   type SkillMutationPreview,
   type SpellFrameworkSkill,
 } from "./actions";
 import { SkillEditor } from "./skill-editor";
-import { SkillLibrary } from "./skill-library";
+import { SkillLibrary, type SkillLibraryView } from "./skill-library";
 
 type PendingEditorChange =
-  | { kind: "open"; skillId: number; pathKey: string }
-  | { kind: "new-root" }
-  | { kind: "new-child"; parentId: number; parentName: string; pathKey: string };
+  | { kind: "open"; skillId: number; pathKey: string | null }
+  | { kind: "new" };
 
-function newSkillDraft(parent?: { id: number; name: string }): SkillDraft {
+function newSkillDraft(): SkillDraft {
   return {
     core: {
       name: "",
@@ -43,12 +46,7 @@ function newSkillDraft(parent?: { id: number; name: string }): SkillDraft {
       sourceSystem: null,
       sourceExternalId: null,
     },
-    relationships: parent ? [{
-      relatedSkillId: parent.id,
-      relatedSkillName: parent.name,
-      relationshipType: "parent",
-      sortOrder: 0,
-    }] : [],
+    relationships: [],
     extensions: [],
   };
 }
@@ -59,19 +57,52 @@ function pathLabel(path: RecursiveSkillPath): string {
     .join(" → ");
 }
 
+function preferredSavedPath(
+  library: RecursiveSkillLibrary,
+  saved: SkillDraft & { id: number },
+  previousPathKey: string | null,
+  preferredAttributeKey: string | null,
+): RecursiveSkillPath | null {
+  const paths = library.paths.filter(({ endpointSkillId }) => endpointSkillId === saved.id);
+  const previousPath = paths.find(({ key }) => key === previousPathKey);
+  if (previousPath) return previousPath;
+
+  const parentIds = saved.relationships
+    .filter(({ relationshipType }) => relationshipType.trim().toLocaleLowerCase("en-US") === "parent")
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map(({ relatedSkillId }) => relatedSkillId);
+  const preferredPaths = preferredAttributeKey
+    ? paths.filter(({ attributeGroupKey }) => attributeGroupKey === preferredAttributeKey)
+    : paths;
+
+  for (const parentId of parentIds) {
+    const throughParent = preferredPaths.find((path) => (
+      path.rootToEndpointIds.at(-2) === parentId
+    ));
+    if (throughParent) return throughParent;
+  }
+
+  return preferredPaths[0] ?? paths[0] ?? null;
+}
+
 export function SkillsWorkspace({
   initialHierarchy,
   initialFilterOptions,
+  initialLibrary,
   username,
 }: {
   initialHierarchy: RecursiveSkillLibrary;
   initialFilterOptions: SkillFilterOptions;
+  initialLibrary: SkillLibraryResult;
   username: string;
 }) {
   const [hierarchy, setHierarchy] = useState(initialHierarchy);
   const [filterOptions, setFilterOptions] = useState(initialFilterOptions);
+  const [filters, setFilters] = useState<SkillLibraryFilters>({ page: 1, pageSize: 40 });
+  const [library, setLibrary] = useState(initialLibrary);
+  const [view, setView] = useState<SkillLibraryView>("list");
   const [selectedPathKey, setSelectedPathKey] = useState<string | null>(null);
-  const [creationParentPathKey, setCreationParentPathKey] = useState<string | null>(null);
+  const [selectedAttributeKey, setSelectedAttributeKey] = useState<string | null>(null);
   const [draft, setDraft] = useState<SkillDraft | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
@@ -86,28 +117,50 @@ export function SkillsWorkspace({
   const [structuralPreview, setStructuralPreview] =
     useState<SkillMutationPreview | null>(null);
 
+  const loadList = useCallback(async (nextFilters: SkillLibraryFilters) => {
+    setLoadingLibrary(true);
+    try {
+      setLibrary(await listSkills(nextFilters));
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "The Skill Library could not be read from PostgreSQL.",
+      });
+    } finally {
+      setLoadingLibrary(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view !== "list") return;
+    const timeout = window.setTimeout(() => void loadList(filters), 180);
+    return () => window.clearTimeout(timeout);
+  }, [filters, loadList, view]);
+
   const findFrameworkSkills = useCallback(
     (tradition: Tradition): Promise<SpellFrameworkSkill[]> =>
       listSpellFrameworkSkills(tradition),
     [],
   );
 
-  async function refreshHierarchy(): Promise<RecursiveSkillLibrary> {
+  async function refreshLibraries(): Promise<RecursiveSkillLibrary> {
     setLoadingLibrary(true);
     try {
-      const [nextHierarchy, nextFilterOptions] = await Promise.all([
+      const [nextHierarchy, nextFilterOptions, nextList] = await Promise.all([
         getRecursiveSkillLibrary(),
         getSkillFilterOptions(),
+        listSkills(filters),
       ]);
       setHierarchy(nextHierarchy);
       setFilterOptions(nextFilterOptions);
+      setLibrary(nextList);
       return nextHierarchy;
     } finally {
       setLoadingLibrary(false);
     }
   }
 
-  async function openSkill(skillId: number, pathKey: string) {
+  async function openSkill(skillId: number, pathKey: string | null) {
     setLoadingEditor(true);
     setFeedback(null);
     try {
@@ -115,7 +168,10 @@ export function SkillsWorkspace({
       if (!aggregate) throw new Error("That exact Skill identity no longer exists.");
       setDraft(aggregate);
       setSelectedPathKey(pathKey);
-      setCreationParentPathKey(null);
+      if (pathKey) {
+        const path = hierarchy.paths.find(({ key }) => key === pathKey);
+        if (path) setSelectedAttributeKey(path.attributeGroupKey);
+      }
       setDirty(false);
     } catch (error) {
       setFeedback({
@@ -127,64 +183,57 @@ export function SkillsWorkspace({
     }
   }
 
-  function selectSkill(skill: RecursiveSkillNode, path: RecursiveSkillPath) {
+  function requestOpen(skillId: number, pathKey: string | null) {
     if (dirty) {
-      setPendingEditorChange({ kind: "open", skillId: skill.id, pathKey: path.key });
+      setPendingEditorChange({ kind: "open", skillId, pathKey });
       return;
     }
-    void openSkill(skill.id, path.key);
+    void openSkill(skillId, pathKey);
   }
 
-  function createRoot() {
+  function selectListSkill(skill: SkillLibraryItem) {
+    requestOpen(skill.id, null);
+  }
+
+  function selectTreeSkill(skill: RecursiveSkillNode, path: RecursiveSkillPath) {
+    setSelectedAttributeKey(path.attributeGroupKey);
+    requestOpen(skill.id, path.key);
+  }
+
+  function createNewSkill() {
     setDraft(newSkillDraft());
     setSelectedPathKey(null);
-    setCreationParentPathKey(null);
     setDirty(false);
     setFeedback(null);
+    setStructuralPreview(null);
   }
 
-  function createChild(parentId: number, parentName: string, pathKey: string) {
-    setDraft(newSkillDraft({ id: parentId, name: parentName }));
-    setSelectedPathKey(pathKey);
-    setCreationParentPathKey(pathKey);
-    setDirty(false);
-    setFeedback(null);
-  }
-
-  function beginNewRoot() {
+  function beginNewSkill() {
     if (dirty) {
-      setPendingEditorChange({ kind: "new-root" });
+      setPendingEditorChange({ kind: "new" });
       return;
     }
-    createRoot();
-  }
-
-  function beginNewChild(parent: RecursiveSkillNode, path: RecursiveSkillPath) {
-    if (dirty) {
-      setPendingEditorChange({
-        kind: "new-child",
-        parentId: parent.id,
-        parentName: parent.name,
-        pathKey: path.key,
-      });
-      return;
-    }
-    createChild(parent.id, parent.name, path.key);
+    createNewSkill();
   }
 
   function discardAndContinue() {
     const pending = pendingEditorChange;
     setPendingEditorChange(null);
     if (!pending) return;
-    if (pending.kind === "new-root") {
-      createRoot();
-      return;
-    }
-    if (pending.kind === "new-child") {
-      createChild(pending.parentId, pending.parentName, pending.pathKey);
+    if (pending.kind === "new") {
+      createNewSkill();
       return;
     }
     void openSkill(pending.skillId, pending.pathKey);
+  }
+
+  function changeView(nextView: SkillLibraryView) {
+    if (nextView === view) return;
+    setView(nextView);
+    if (nextView === "tree") {
+      setSelectedPathKey(null);
+      setSelectedAttributeKey(null);
+    }
   }
 
   async function persistCurrentSkill(structuralChangeConfirmed: boolean) {
@@ -193,21 +242,26 @@ export function SkillsWorkspace({
     setFeedback(null);
     try {
       const saved = await saveSkill(draft, { structuralChangeConfirmed });
-      const nextHierarchy = await refreshHierarchy();
-      const preferredIds = creationParentPathKey
-        ? [...creationParentPathKey.split(">").map(Number), saved.id]
-        : [saved.id];
-      const selectedPath = nextHierarchy.paths.find((path) => (
-        path.endpointSkillId === saved.id &&
-        path.rootToEndpointIds.length === preferredIds.length &&
-        path.rootToEndpointIds.every((id, index) => id === preferredIds[index])
-      )) ?? nextHierarchy.paths.find(({ endpointSkillId }) => endpointSkillId === saved.id) ?? null;
+      const nextHierarchy = await refreshLibraries();
+      const selectedPath = preferredSavedPath(
+        nextHierarchy,
+        saved,
+        selectedPathKey,
+        selectedAttributeKey,
+      );
       setDraft(saved);
-      setSelectedPathKey(selectedPath?.key ?? null);
-      setCreationParentPathKey(null);
+      if (view === "tree") {
+        setSelectedPathKey(selectedPath?.key ?? null);
+        setSelectedAttributeKey(selectedPath?.attributeGroupKey ?? null);
+      } else {
+        setSelectedPathKey(null);
+      }
       setDirty(false);
       setStructuralPreview(null);
-      setFeedback({ kind: "success", message: `${saved.core.name} (#${saved.id}) was saved and placed from its canonical relationships.` });
+      setFeedback({
+        kind: "success",
+        message: `${saved.core.name} (#${saved.id}) was saved and placed from its canonical relationships.`,
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -252,10 +306,9 @@ export function SkillsWorkspace({
       await deleteSkill(draft.id);
       setDraft(null);
       setSelectedPathKey(null);
-      setCreationParentPathKey(null);
       setDirty(false);
       setFeedback({ kind: "success", message: `${deletedName} was deleted.` });
-      await refreshHierarchy();
+      await refreshLibraries();
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -294,20 +347,33 @@ export function SkillsWorkspace({
 
       <div className="skills-workspace">
         <SkillLibrary
+          page={library}
+          filters={filters}
+          filterOptions={filterOptions}
           library={hierarchy}
+          selectedSkillId={draft?.id}
           selectedPathKey={selectedPathKey}
+          selectedAttributeKey={selectedAttributeKey}
+          view={view}
           loading={loadingLibrary}
-          onSelect={selectSkill}
-          onNewRoot={beginNewRoot}
-          onNewChild={beginNewChild}
-          onBackToOverview={() => setSelectedPathKey(null)}
+          onViewChange={changeView}
+          onFiltersChange={setFilters}
+          onSelectList={selectListSkill}
+          onSelectTree={selectTreeSkill}
+          onSelectAttribute={setSelectedAttributeKey}
+          onBackToAttributes={() => {
+            setSelectedPathKey(null);
+            setSelectedAttributeKey(null);
+          }}
+          onBackToRoots={() => setSelectedPathKey(null)}
+          onNewSkill={beginNewSkill}
         />
 
         {loadingEditor ? (
           <section className="skill-editor skill-editor--empty"><p>LOADING SKILL</p></section>
         ) : (
           <SkillEditor
-            key={draft?.id ?? `new-skill:${creationParentPathKey ?? "root"}`}
+            key={draft?.id ?? "new-skill"}
             draft={draft}
             hierarchy={hierarchy}
             filterOptions={filterOptions}
@@ -347,7 +413,7 @@ export function SkillsWorkspace({
             <p>This preserves the Skill identity and does not rewrite any consumer. Review every affected path before saving.</p>
             <div className="skills-page__path-comparison">
               <div><strong>Current paths</strong>{structuralPreview.oldPaths.length ? structuralPreview.oldPaths.map((path) => <span key={path.key}>{pathLabel(path)}</span>) : <span>New Skill · no existing path</span>}</div>
-              <div><strong>Proposed paths</strong>{structuralPreview.proposedPaths.length ? structuralPreview.proposedPaths.map((path) => <span key={path.key}>{pathLabel(path)}</span>) : <span>Review Required · no complete root path</span>}</div>
+              <div><strong>Proposed paths</strong>{structuralPreview.proposedPaths.length ? structuralPreview.proposedPaths.map((path) => <span key={path.key}>{pathLabel(path)}</span>) : <span>Review / Unlinked · no complete root path</span>}</div>
             </div>
             {structuralPreview.ambiguousMultipleParents ? <p className="skills-page__structure-warning" role="status">This Skill will have multiple genuinely different parents. Every route remains exact and the Skill will be marked for explicit review.</p> : null}
             <div className="skills-page__impact-grid">

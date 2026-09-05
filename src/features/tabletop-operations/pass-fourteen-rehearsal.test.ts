@@ -109,4 +109,7 @@ test("Pass 14 guide is complete and migration 0031 and earlier remain untouched"
 
   const changedMigrations = execFileSync("git", ["diff", "--name-only", "c0608bcc98dd98d06821437be1265842cadc78dc", "--", "drizzle"], { encoding: "utf8" }).trim();
   assert.equal(changedMigrations, "");
+
+  const validationWorkflow = readFileSync(".github/workflows/validate.yml", "utf8");
+  assert.match(validationWorkflow, /uses:\s*actions\/checkout@v4[\s\S]*fetch-depth:\s*0/);
 });
