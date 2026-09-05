@@ -118,6 +118,8 @@ test("Pass 14 guide is complete and migration 0031 and earlier remain untouched"
     "drizzle/meta/0033_snapshot.json",
     "drizzle/0034_verification_user_delete_guard.sql",
     "drizzle/meta/0034_snapshot.json",
+    "drizzle/0035_campaign_shop_foundation.sql",
+    "drizzle/meta/0035_snapshot.json",
     "drizzle/meta/_journal.json",
   ]);
   assert.deepEqual(

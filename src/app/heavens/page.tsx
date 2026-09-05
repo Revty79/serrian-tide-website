@@ -48,7 +48,12 @@ const coreTools = [
     subtitle: "Characters",
     description: "Create Race NPCs and independent Creature NPC individuals inside Campaigns.",
     href: "/heavens/npcs",
-    wide: true,
+  },
+  {
+    title: "SHOP BUILDER",
+    subtitle: "Campaign Commerce",
+    description: "Create Campaign Shops, assign persistent NPC staff, and curate authorized Equipment and Inventory offerings.",
+    href: "/heavens/shops",
   },
 ];
 

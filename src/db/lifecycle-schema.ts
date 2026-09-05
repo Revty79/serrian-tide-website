@@ -33,6 +33,7 @@ export const LIFECYCLE_ENTITY_KINDS = [
   "encounter",
   "campaign-player",
   "user-account",
+  "shop",
 ] as const;
 
 export type LifecycleAuditAction =
@@ -104,7 +105,8 @@ export const lifecycleAuditEvent = pgTable(
         'scene',
         'encounter',
         'campaign-player',
-        'user-account'
+        'user-account',
+        'shop'
       )`,
     ),
     check(

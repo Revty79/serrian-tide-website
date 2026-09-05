@@ -18,7 +18,7 @@ type SnapshotTable = {
 };
 
 const snapshot = JSON.parse(
-  readFileSync("drizzle/meta/0034_snapshot.json", "utf8"),
+  readFileSync("drizzle/meta/0035_snapshot.json", "utf8"),
 ) as { tables: Record<string, SnapshotTable> };
 
 function campaignOwnedClosure(): Set<string> {

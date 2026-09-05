@@ -27,7 +27,7 @@ type SnapshotTable = {
 };
 
 const snapshot = JSON.parse(
-  readFileSync("drizzle/meta/0034_snapshot.json", "utf8"),
+  readFileSync("drizzle/meta/0035_snapshot.json", "utf8"),
 ) as { tables: Record<string, SnapshotTable> };
 const serviceSource = readFileSync(
   "src/features/lifecycle/admin-account-lifecycle-service.ts",
@@ -61,7 +61,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the exact 67-FK User closure", () => {
+test("the account plan classifies the exact 68-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -80,8 +80,8 @@ test("the account plan classifies the exact 67-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 67);
-  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 67);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 68);
+  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 68);
   assert.deepEqual(planned, actual);
 });
 
@@ -101,7 +101,7 @@ test("only authentication and membership associations are cleanup FKs", () => {
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    62,
+    63,
   );
   assert.ok(
     USER_ACCOUNT_FOREIGN_KEY_PLAN

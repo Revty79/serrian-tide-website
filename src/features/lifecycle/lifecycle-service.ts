@@ -276,7 +276,9 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
     { label: "Campaign chat rooms", blocking: false, query: sql<CountRow>`select count(*)::int as value from chat_room where campaign_id = ${campaignId}` },
     { label: "Campaign chat memberships", blocking: false, query: sql<CountRow>`select count(*)::int as value from chat_room_member m inner join chat_room r on r.id = m.room_id where r.campaign_id = ${campaignId}` },
     { label: "Campaign chat messages", blocking: false, query: sql<CountRow>`select count(*)::int as value from chat_message m inner join chat_room r on r.id = m.room_id where r.campaign_id = ${campaignId}` },
-    { label: "Shops and shop inventories (not implemented)", blocking: false, query: sql<CountRow>`select 0::int as value` },
+    { label: "Shops", blocking: false, query: sql<CountRow>`select count(*)::int as value from shop where campaign_id = ${campaignId}` },
+    { label: "Shop staff assignments", blocking: false, query: sql<CountRow>`select count(*)::int as value from shop_staff_assignment where campaign_id = ${campaignId}` },
+    { label: "Shop offerings", blocking: false, query: sql<CountRow>`select count(*)::int as value from shop_offering where campaign_id = ${campaignId}` },
   ];
 }
 

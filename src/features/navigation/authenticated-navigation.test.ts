@@ -29,6 +29,7 @@ test("Heavens exposes one consistent set of major destinations", () => {
       "Equipment",
       "Inventory",
       "NPCs",
+      "Shops",
     ],
   );
 });

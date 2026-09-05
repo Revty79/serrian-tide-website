@@ -8,6 +8,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  sql,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -53,6 +54,7 @@ import {
   campaignInventoryItem,
   campaignInventoryTag,
 } from "@/db/realm-schema";
+import { shop, shopOffering } from "@/db/shop-schema";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type CampaignAdminSummary = CampaignAccessDesignation & {
@@ -439,7 +441,10 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
       throw new Error("An archived or unavailable Race cannot be newly authorized for a Campaign.");
     }
 
-    const existingItemRows = await tx.select({ id: campaignInventoryItem.itemId })
+    const existingItemRows = await tx.select({
+      id: campaignInventoryItem.itemId,
+      sortOrder: campaignInventoryItem.sortOrder,
+    })
       .from(campaignInventoryItem)
       .where(eq(campaignInventoryItem.campaignId, input.id));
     const activeItemRows = inventorySelection.itemIds.length
@@ -456,6 +461,30 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     ]);
     if (inventorySelection.itemIds.some((id) => !allowedItemIds.has(id))) {
       throw new Error("An archived or unavailable Item cannot be newly authorized for a Campaign.");
+    }
+    const incomingItemIds = new Set(inventorySelection.itemIds);
+    const removedItemIds = existingItemRows
+      .map(({ id }) => id)
+      .filter((id) => !incomingItemIds.has(id));
+    if (removedItemIds.length) {
+      const shopDependencies = await tx.select({
+        itemName: item.name,
+        shopName: shop.name,
+      }).from(shopOffering)
+        .innerJoin(shop, eq(shop.id, shopOffering.shopId))
+        .innerJoin(item, eq(item.id, shopOffering.itemId))
+        .where(and(
+          eq(shopOffering.campaignId, input.id),
+          inArray(shopOffering.itemId, removedItemIds),
+          eq(shopOffering.enabled, true),
+          isNull(shop.archivedAt),
+        ));
+      if (shopDependencies.length) {
+        const dependency = shopDependencies[0]!;
+        throw new Error(
+          `${dependency.itemName} cannot be removed from Campaign Inventory while it is enabled in the active Shop ${dependency.shopName}. Disable or remove the Shop offering first.`,
+        );
+      }
     }
 
     await tx.update(campaign).set({
@@ -503,8 +532,30 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     if (raceIds.length) await tx.insert(campaignAllowedRace).values(raceIds.map((raceId, sortOrder) => ({ campaignId: input.id, raceId, sortOrder })));
     await tx.delete(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, input.id));
     if (inventorySelection.tagIds.length) await tx.insert(campaignInventoryTag).values(inventorySelection.tagIds.map((tagId, sortOrder) => ({ campaignId: input.id, tagId, sortOrder })));
-    await tx.delete(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, input.id));
-    if (inventorySelection.itemIds.length) await tx.insert(campaignInventoryItem).values(inventorySelection.itemIds.map((itemId, sortOrder) => ({ campaignId: input.id, itemId, sortOrder })));
+    const temporarySortOffset = Math.max(-1, ...existingItemRows.map(({ sortOrder }) => sortOrder))
+      + inventorySelection.itemIds.length
+      + 1;
+    if (existingItemRows.length) {
+      await tx.update(campaignInventoryItem)
+        .set({ sortOrder: sql`${campaignInventoryItem.sortOrder} + ${temporarySortOffset}` })
+        .where(eq(campaignInventoryItem.campaignId, input.id));
+    }
+    if (removedItemIds.length) {
+      await tx.delete(campaignInventoryItem).where(and(
+        eq(campaignInventoryItem.campaignId, input.id),
+        inArray(campaignInventoryItem.itemId, removedItemIds),
+      ));
+    }
+    for (let sortOrder = 0; sortOrder < inventorySelection.itemIds.length; sortOrder += 1) {
+      await tx.insert(campaignInventoryItem).values({
+        campaignId: input.id,
+        itemId: inventorySelection.itemIds[sortOrder]!,
+        sortOrder,
+      }).onConflictDoUpdate({
+        target: [campaignInventoryItem.campaignId, campaignInventoryItem.itemId],
+        set: { sortOrder },
+      });
+    }
     const affectedCharacters = await tx.select({ id: campaignCharacter.id })
       .from(campaignCharacter)
       .where(eq(campaignCharacter.campaignId, input.id))

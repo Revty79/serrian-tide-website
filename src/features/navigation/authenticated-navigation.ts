@@ -35,6 +35,7 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
     { label: "Equipment", href: "/heavens/equipment" },
     { label: "Inventory", href: "/heavens/inventory" },
     { label: "NPCs", href: "/heavens/npcs" },
+    { label: "Shops", href: "/heavens/shops" },
   ],
   realms: [
     { label: "Realms Dashboard", href: "/realms" },

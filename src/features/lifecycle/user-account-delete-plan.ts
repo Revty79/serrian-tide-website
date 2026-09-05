@@ -24,6 +24,7 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "lifecycle_audit_event", columnName: "actor_user_id", constraintName: "lifecycle_audit_event_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Lifecycle audit history" },
   { tableName: "campaign", columnName: "created_by_user_id", constraintName: "campaign_created_by_user_id_user_id_fk", onDelete: "no action", disposition: "block", label: "Owned Campaigns" },
   { tableName: "campaign", columnName: "archived_by_user_id", constraintName: "campaign_archived_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Campaign archive attribution" },
+  { tableName: "shop", columnName: "archived_by_user_id", constraintName: "shop_archived_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Shop archive attribution" },
   { tableName: "campaign_player", columnName: "user_id", constraintName: "campaign_player_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Campaign memberships" },
   { tableName: "skill", columnName: "created_by_user_id", constraintName: "skill_created_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Authored Skills" },
   { tableName: "skill", columnName: "archived_by_user_id", constraintName: "skill_archived_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Skill archive attribution" },
@@ -87,4 +88,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "chat_room_member", columnName: "user_id", constraintName: "chat_room_member_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Chat room memberships" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 67;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 68;
