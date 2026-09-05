@@ -107,6 +107,21 @@ test("recursive traversal exceeds three levels and preserves authored child orde
   assert.deepEqual(getRecursiveSkillPath(library, [1, 2, 3, 4, 5])?.endpointToRootIds, [5, 4, 3, 2, 1]);
 });
 
+test("one exact path stays complete when its names would fall on different alphabetical pages", () => {
+  const library = buildRecursiveSkillLibrary(
+    [
+      skill(101, "Zulu Root", "INT", 1),
+      skill(202, "Middle Branch", "DEX", 7),
+      skill(303, "Alpha Endpoint", "WIS", 22),
+    ],
+    [parent(401, 202, 101), parent(402, 303, 202)],
+  );
+
+  const path = getRecursiveSkillPath(library, [101, 202, 303]);
+  assert.deepEqual(path?.rootToEndpointNames, ["Zulu Root", "Middle Branch", "Alpha Endpoint"]);
+  assert.equal(searchRecursiveSkillLibrary(library, "Alpha Endpoint")[0]?.path.key, path?.key);
+});
+
 test("fallback ordering is deterministic when authored order ties", () => {
   const library = buildRecursiveSkillLibrary(
     [skill(1, "Root", "DEX"), skill(2, "Zulu", "DEX", 2), skill(3, "Alpha", "DEX", 2), skill(4, "Alpha", "DEX", 2)],

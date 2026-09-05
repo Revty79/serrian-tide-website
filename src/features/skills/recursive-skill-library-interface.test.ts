@@ -20,28 +20,47 @@ const raceSchema = source("src/db/race-schema.ts");
 
 test("the existing Heavens Skills route loads one shared recursive hierarchy", () => {
   assert.match(page, /getRecursiveSkillLibrary/);
+  assert.match(page, /listSkills\(\{ page: 1, pageSize: 40 \}\)/);
   assert.match(page, /<SkillsWorkspace/);
   assert.match(workspace, /initialHierarchy/);
+  assert.match(workspace, /initialLibrary/);
   assert.doesNotMatch(workspace, /Tier 1[\s\S]*Tier 2[\s\S]*Tier 3/);
 });
 
-test("the library groups roots and drills one exact path instead of expanding the database", () => {
-  assert.match(library, /GOVERNING ATTRIBUTES/);
-  assert.match(library, /Hierarchy review ledger/);
-  assert.match(library, /library\.reviewReasons/);
-  assert.match(library, /Immediate Children/);
-  assert.match(library, /getRecursiveSkillChildren/);
-  assert.match(library, /rootToEndpointIds/);
+test("List View retains the paginated library, filters, and exact-ID selection", () => {
+  for (const label of ["List View", "Tree View", "Classification", "Tier", "Primary", "Secondary", "Previous", "Next"]) {
+    assert.match(library, new RegExp(label));
+  }
+  assert.match(workspace, /listSkills\(nextFilters\)/);
+  assert.match(library, /skill\.name\} <code>#\{skill\.id\}<\/code>/);
+  assert.match(library, /onSelectList\(skill\)/);
   assert.doesNotMatch(library, /createTreeRows/);
 });
 
-test("breadcrumbs, parent, root, overview, sibling, and child navigation remain exact-ID based", () => {
+test("Tree View chooses one Attribute before showing only that group's roots", () => {
+  assert.match(library, /Choose an Attribute/);
+  assert.match(library, /Skill Attribute selector/);
+  assert.match(library, /selectedAttribute\.rootSkillIds\.map/);
+  assert.match(library, /onSelectAttribute\(group\.key\)/);
+  assert.match(library, /Review \/ Unlinked/);
+  assert.match(library, /Hierarchy review ledger/);
+  assert.match(library, /library\.reviewReasons/);
+  assert.doesNotMatch(library, /library\.attributeGroups\.map[\s\S]*group\.rootSkillIds\.map/);
+});
+
+test("the recursive navigator reveals immediate children without expanding the database", () => {
+  assert.match(library, /Immediate Children/);
+  assert.match(library, /getRecursiveSkillChildren/);
+  assert.match(library, /rootToEndpointIds/);
+});
+
+test("breadcrumbs, parent, root, Attribute, sibling, and child navigation remain exact-ID based", () => {
   for (const label of [
-    "Attribute Overview",
+    "Choose Attribute",
+    "Attribute Roots",
     "Back to Root",
     "Up One Level",
     "Sibling Skills",
-    "Create Child",
   ]) assert.match(library, new RegExp(label));
   assert.match(library, /Selected Skill lineage/);
   assert.match(library, /Skill #\{selectedSkill\.id\}/);
@@ -54,9 +73,13 @@ test("search disambiguates duplicate names with exact identities and complete li
   assert.match(library, /result\.path\.key/);
 });
 
-test("creation and reparenting preview canonical placement and reject invalid cycles", () => {
-  assert.match(workspace, /newSkillDraft\(\{ id: parentId, name: parentName \}\)/);
+test("New Skill uses the ordinary editor while Pathing controls canonical placement", () => {
+  assert.match(library, />\s*New Skill\s*</);
+  assert.doesNotMatch(library, /New Root Skill|Create Child/);
+  assert.match(workspace, /function newSkillDraft\(\)/);
+  assert.match(workspace, /setDraft\(newSkillDraft\(\)\)/);
   assert.match(pathEditor, /previewSkillStructureChange/);
+  assert.match(pathEditor, /Add as Parent/);
   assert.match(pathEditor, /Current path/);
   assert.match(pathEditor, /Proposed path/);
   assert.match(pathEditor, /validationErrors/);
@@ -103,6 +126,8 @@ test("desktop and narrow-phone layouts prevent page-level horizontal overflow", 
   assert.match(styles, /\.skills-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(320px/);
   assert.match(styles, /\.skills-page\s*\{\s*overflow-x:\s*clip;/);
   assert.match(styles, /@media \(max-width: 680px\)[\s\S]*\.skill-library__navigation-actions[\s\S]*grid-template-columns: 1fr/);
+  assert.match(styles, /\.skill-library__attribute-selector > div/);
+  assert.match(styles, /\.skill-library__attribute-roots > div/);
   assert.match(styles, /overflow-wrap:\s*anywhere/);
   assert.match(styles, /button:focus-visible/);
 });
