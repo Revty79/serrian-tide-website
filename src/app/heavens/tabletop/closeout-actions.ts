@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { assertCampaignRuntimeOperator } from "@/features/active-state/authorization";
 import {
   finalizeEncounterCloseoutInTransaction,
   lockEncounterCloseoutContextInTransaction,
@@ -66,6 +67,7 @@ export async function finalizeEncounterCloseout(
       actor,
     );
     const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, actor);
+    assertCampaignRuntimeOperator(actor, context.ownerUserId, "Encounter closeout");
     const finalized = await finalizeEncounterCloseoutInTransaction(tx, context, input);
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: context.campaignId,

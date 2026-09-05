@@ -54,6 +54,6 @@ export default async function PlayerCharacterPage({
       <Link className="inline-flex min-h-11 items-center rounded-xl border border-purple-300/60 bg-purple-950/60 px-4 font-bold text-purple-50" href={`/realms/tabletop?character=${id}`}>Open Player Tabletop</Link>
     </aside> : null}
     <PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus={!activeEncounter} />
-    <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} godMode={false} itemUseTimingBlocked={activeEncounter?.initiativeRuntime?.status === "active"} />
+    <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} godMode={false} canOperateRuntime itemUseTimingBlocked={activeEncounter?.initiativeRuntime?.status === "active"} />
   </>;
 }

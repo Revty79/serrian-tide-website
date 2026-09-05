@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { serrianRole, userRole, type SerrianRole } from "@/db/authorization-schema";
+import { lockAdministratorRosterInTransaction } from "@/features/authorization/admin-roster-lock";
+import { publishLiveSessionRevocationInTransaction } from "@/features/authorization/live-session-revocation";
 import { publishChatDirectoryInvalidationInTransaction } from "@/features/chat/chat-live-events";
 
 export type UserRoleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -19,6 +21,7 @@ export async function setUserRoleInTransaction(
   actingUserId: string,
   input: SetUserRoleInput,
 ): Promise<{ changed: boolean; role: SerrianRole; enabled: boolean }> {
+  await lockAdministratorRosterInTransaction(tx);
   const [adminAccess] = await tx
     .select({ role: userRole.role })
     .from(userRole)
@@ -56,6 +59,7 @@ export async function setUserRoleInTransaction(
 
   if (changedRows.length > 0) {
     await publishChatDirectoryInvalidationInTransaction(tx);
+    await publishLiveSessionRevocationInTransaction(tx, changedRows[0]!.userId);
   }
   return { changed: changedRows.length > 0, role, enabled };
 }

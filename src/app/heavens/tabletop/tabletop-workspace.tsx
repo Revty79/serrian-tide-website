@@ -367,7 +367,7 @@ export function TabletopWorkspace({
   }
 
   async function lifecycle(action: "start" | "reopen"): Promise<void> {
-    if (!selectedSession) return;
+    if (!initialData.canOperate || !selectedSession) return;
     await perform(async () => {
       const updated = action === "start"
         ? await startCampaignSession(selectedSession.id)
@@ -380,7 +380,7 @@ export function TabletopWorkspace({
   }
 
   async function openTransitionConfirmation(action: "start" | "reopen"): Promise<void> {
-    if (!selectedSession) return;
+    if (!initialData.canOperate || !selectedSession) return;
     await preserveScroll(() => perform(async () => {
       const preview = await previewTabletopLifecycleEntity({
         entityKind: "campaign-session",
@@ -563,9 +563,9 @@ export function TabletopWorkspace({
           </nav> : null}
 
           {(creating || selectedSession) && (creating || activeTab === "record") ? <>
-            {!sessionEditable ? <p className="tabletop-readonly-notice">{initialData.canAuthor
+            {!sessionEditable ? <p className="tabletop-readonly-notice">{initialData.canOperate
               ? "This completed Session is historical and read-only. Reopen it to edit the record or roster."
-              : "Administrative lifecycle view. Session authoring and runtime controls remain with the Campaign's G.O.D.; lifecycle transitions remain available below."}</p> : null}
+              : "Administrative read-only live view. Starting, completing, reopening, and operating this Session remain with the Campaign-owning G.O.D."}</p> : null}
             <div className="tabletop-form-grid">
               <label><span>Session Number</span><input disabled={!sessionEditable || busy} type="number" min={1} step={1} value={draft.sequenceNumber} onChange={(event) => setDraft({ ...draft, sequenceNumber: Number(event.target.value) })} /></label>
               <label><span>Planned Date</span><input disabled={!sessionEditable || busy} type="date" value={draft.plannedFor ?? ""} onChange={(event) => setDraft({ ...draft, plannedFor: event.target.value || null })} /></label>
@@ -584,9 +584,9 @@ export function TabletopWorkspace({
                 if (selectedSession) setDraft(metadataFromSession(selectedSession));
                 setFeedback(null);
               }}>Cancel</button> : null}
-              {!creating && selectedSession?.status === "planned" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Session</button> : null}
-              {!creating && selectedSession?.status === "active" ? <button type="button" disabled={busy} onClick={() => setActiveTab("closeout")}>Review Session Closeout</button> : null}
-              {!creating && selectedSession?.status === "completed" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Session</button> : null}
+              {initialData.canOperate && !creating && selectedSession?.status === "planned" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Session</button> : null}
+              {initialData.canOperate && !creating && selectedSession?.status === "active" ? <button type="button" disabled={busy} onClick={() => setActiveTab("closeout")}>Review Session Closeout</button> : null}
+              {initialData.canOperate && !creating && selectedSession?.status === "completed" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Session</button> : null}
               {!creating && selectedSession?.status === "planned" ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Session</button> : null}
             </div>
           </> : null}
@@ -683,7 +683,7 @@ export function TabletopWorkspace({
             encounterId={initialEncounterData?.selectedEncounterId ?? null}
           /> : null}
 
-          {!creating && selectedSession && activeTab === "closeout" && initialSessionCloseout ? <SessionCloseout data={initialSessionCloseout} onOpenScenes={() => setActiveTab("scenes")} onOpenRolls={openRollWorkspace} onOpenCalledChecks={openCalledChecks} /> : null}
+          {!creating && selectedSession && activeTab === "closeout" && initialSessionCloseout ? <SessionCloseout canOperate={initialData.canOperate} data={initialSessionCloseout} onOpenScenes={() => setActiveTab("scenes")} onOpenRolls={openRollWorkspace} onOpenCalledChecks={openCalledChecks} /> : null}
 
           {!creating && !selectedSession && activeTab !== "weapons" ? <p className="tabletop-empty">Select or create a Session to begin.</p> : null}
         </section>
@@ -694,7 +694,7 @@ export function TabletopWorkspace({
         <span>Completing a Session preserves its roster and never resets Health, Mana, Conditions, Injuries, Inventory, Charges, Equipment, spells, or Creature NPC snapshots.</span>
       </aside>
       {selectedSession ? <LifecycleConfirmationDialog
-        open={transitionMode !== null}
+        open={initialData.canOperate && transitionMode !== null}
         titleId="transition-tabletop-session-title"
         eyebrow="Session Lifecycle"
         title={transitionMode === "start" ? `Start Session ${selectedSession.sequenceNumber}?` : `Reopen Session ${selectedSession.sequenceNumber}?`}

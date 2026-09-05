@@ -21,7 +21,7 @@ import {
   resolveHumanoidHealthAnatomy,
   type CreatureHealthSnapshot,
 } from "./anatomy";
-import { canMutateActiveHealth } from "./authorization";
+import { canMutateActiveHealth, canReadActiveState } from "./authorization";
 import {
   createEmptyActiveHealthState,
   resolveActiveHealthView,
@@ -385,6 +385,7 @@ export async function persistActiveHealthStateInTransaction(
 
 async function withAuthorizedHealthTransaction<T>(
   characterId: number,
+  access: "read" | "mutate",
   operation: (context: MutationContext) => Promise<T>,
 ): Promise<T> {
   assertCharacterId(characterId);
@@ -416,20 +417,36 @@ async function withAuthorizedHealthTransaction<T>(
       .limit(1)
       .for("update", { of: campaignCharacter });
     if (!entity) throw new Error("Character not found.");
-    if (!canMutateActiveHealth(
-      { userId: session.user.id, roles: roles.map(({ role }) => role) },
-      {
-        playerUserId: entity.playerUserId,
-        campaignOwnerUserId: entity.campaignOwnerUserId,
-        isNpc: entity.isNpc,
-        isCampaignMember: entity.membershipUserId === session.user.id,
-      },
-    )) {
-      throw new Error("You do not have permission to manage this Character's Active Health.");
+    const subject = { userId: session.user.id, roles: roles.map(({ role }) => role) };
+    const accessEntity = {
+      playerUserId: entity.playerUserId,
+      campaignOwnerUserId: entity.campaignOwnerUserId,
+      isNpc: entity.isNpc,
+      isCampaignMember: entity.membershipUserId === session.user.id,
+    };
+    const authorized = access === "read"
+      ? canReadActiveState(subject, accessEntity)
+      : canMutateActiveHealth(subject, accessEntity);
+    if (!authorized) {
+      throw new Error(`You do not have permission to ${access === "read" ? "view" : "manage"} this Character's Active Health.`);
     }
     const anatomy = await loadAnatomy(tx, characterId, entity.npcKind);
     return operation({ tx, characterId, anatomy });
   });
+}
+
+function withAuthorizedHealthReadTransaction<T>(
+  characterId: number,
+  operation: (context: MutationContext) => Promise<T>,
+): Promise<T> {
+  return withAuthorizedHealthTransaction(characterId, "read", operation);
+}
+
+function withAuthorizedHealthMutationTransaction<T>(
+  characterId: number,
+  operation: (context: MutationContext) => Promise<T>,
+): Promise<T> {
+  return withAuthorizedHealthTransaction(characterId, "mutate", operation);
 }
 
 async function readView(context: MutationContext): Promise<ActiveHealthView> {
@@ -440,7 +457,7 @@ async function readView(context: MutationContext): Promise<ActiveHealthView> {
 }
 
 export async function getActiveHealth(characterId: number): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(characterId, readView);
+  return withAuthorizedHealthReadTransaction(characterId, readView);
 }
 
 /** Transaction-capable Health mutations for trusted orchestration callers. */
@@ -584,7 +601,7 @@ export async function resolveInjuryInTransaction(
 export async function applyLocalizedDamageToCharacter(
   command: ApplyLocalizedDamageCommand,
 ): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(command.characterId, (context) => applyLocalizedDamageInTransaction(
+  return withAuthorizedHealthMutationTransaction(command.characterId, (context) => applyLocalizedDamageInTransaction(
     context.tx,
     command,
     context.anatomy.kind === "creature" ? "creature" : "race",
@@ -595,7 +612,7 @@ export async function healCharacterFullBody(
   characterId: number,
   amountInput: number,
 ): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(characterId, (context) => healFullBodyInTransaction(
+  return withAuthorizedHealthMutationTransaction(characterId, (context) => healFullBodyInTransaction(
     context.tx,
     characterId,
     context.anatomy.kind === "creature" ? "creature" : "race",
@@ -608,7 +625,7 @@ export async function healCharacterArea(
   poolKey: string,
   amountInput: number,
 ): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(characterId, (context) => healAreaInTransaction(
+  return withAuthorizedHealthMutationTransaction(characterId, (context) => healAreaInTransaction(
     context.tx,
     characterId,
     context.anatomy.kind === "creature" ? "creature" : "race",
@@ -618,7 +635,7 @@ export async function healCharacterArea(
 }
 
 export async function addCharacterInjury(command: AddInjuryCommand): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(command.characterId, (context) => addInjuryInTransaction(
+  return withAuthorizedHealthMutationTransaction(command.characterId, (context) => addInjuryInTransaction(
     context.tx,
     command,
     context.anatomy.kind === "creature" ? "creature" : "race",
@@ -629,7 +646,7 @@ export async function resolveCharacterInjury(
   characterId: number,
   injuryId: number,
 ): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(characterId, (context) => resolveInjuryInTransaction(
+  return withAuthorizedHealthMutationTransaction(characterId, (context) => resolveInjuryInTransaction(
     context.tx,
     characterId,
     context.anatomy.kind === "creature" ? "creature" : "race",
@@ -638,7 +655,7 @@ export async function resolveCharacterInjury(
 }
 
 export async function restoreCharacterHealth(characterId: number): Promise<ActiveHealthView> {
-  return withAuthorizedHealthTransaction(characterId, async (context) => {
+  return withAuthorizedHealthMutationTransaction(characterId, async (context) => {
     const now = new Date();
     await ensureHealthRow(context.tx, context.characterId);
     await context.tx

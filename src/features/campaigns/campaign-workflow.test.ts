@@ -72,7 +72,8 @@ test("Realms opens the selected assigned Character and cannot create or self-ass
   assert.equal(dashboardSource.includes("createCharacter"), false);
 
   assert.match(actionSource, /export async function createCharacterForPlayer\(\s*campaignId: number,\s*playerUserId: string/);
-  assert.match(actionSource, /const session = await requireGod\(\)/);
+  assert.match(actionSource, /const \{ session, roles \} = await requireGodOrAdminAccessContext\(\)/);
+  assert.match(actionSource, /assertOwnedRootManager\(\s*\{ userId: session\.user\.id, roles \}/);
   assert.equal(actionSource.includes("playerUserId ?? session.user.id"), false);
 });
 

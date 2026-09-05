@@ -7,6 +7,7 @@
 }
 
 .npcs-header,
+.npcs-scope-banner,
 .npcs-control,
 .npcs-master,
 .npcs-simple-editor {
@@ -23,6 +24,48 @@
   align-items: center;
   overflow: hidden;
   border-radius: 22px;
+}
+
+.npcs-scope-banner {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(320px, 1.3fr);
+  gap: 18px;
+  align-items: center;
+  margin-top: 10px;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.npcs-scope-banner.is-admin {
+  border-color: rgb(216 180 254 / 28%);
+  background: linear-gradient(110deg, rgb(88 28 135 / 24%), rgb(0 0 0 / 38%));
+}
+
+.npcs-scope-banner.is-god {
+  border-color: rgb(94 234 212 / 22%);
+  background: linear-gradient(110deg, rgb(17 94 89 / 20%), rgb(0 0 0 / 38%));
+}
+
+.npcs-scope-banner p {
+  margin: 0;
+  color: #cbb9f2;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+
+.npcs-scope-banner.is-god p { color: #99e6d7; }
+
+.npcs-scope-banner h2 {
+  margin: 4px 0 0;
+  color: #f2eee5;
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.npcs-scope-banner > span {
+  color: #b4bdc7;
+  font-size: 0.8rem;
+  line-height: 1.55;
 }
 
 .npcs-logo {
@@ -320,6 +363,7 @@
   .npcs-header { grid-template-columns: 1fr; }
   .npcs-header > div { border-top: 1px solid rgb(255 255 255 / 8%); border-left: 0; }
   .npcs-control,
+  .npcs-scope-banner,
   .npcs-grid,
   .npcs-form-grid,
   .npcs-dialog-body { grid-template-columns: 1fr; }

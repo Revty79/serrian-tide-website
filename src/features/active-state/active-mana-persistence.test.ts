@@ -56,6 +56,14 @@ test("transaction-aware mutations are exported below the authorized public trans
   assert.match(service, /return db\.transaction\(async \(tx\) =>/);
 });
 
+test("the public Active Mana getter uses read authorization while every public mutation uses live authorization", () => {
+  assert.match(service, /getActiveMana[\s\S]*withAuthorizedManaReadTransaction/);
+  assert.match(service, /spendCharacterMana[\s\S]*withAuthorizedManaMutationTransaction/);
+  assert.match(service, /restoreCharacterMana[\s\S]*withAuthorizedManaMutationTransaction/);
+  assert.match(service, /restoreCharacterManaPool[\s\S]*withAuthorizedManaMutationTransaction/);
+  assert.match(service, /restoreAllCharacterMana[\s\S]*withAuthorizedManaMutationTransaction/);
+});
+
 test("normal Character persistence never resets Active Mana", () => {
   assert.doesNotMatch(characterActions, /campaignCharacterActiveMana/);
 });

@@ -114,6 +114,10 @@ test("Pass 14 guide is complete and migration 0031 and earlier remain untouched"
   const allowedForwardFiles = new Set([
     "drizzle/0032_safe_entity_lifecycles.sql",
     "drizzle/meta/0032_snapshot.json",
+    "drizzle/0033_admin_account_lifecycle.sql",
+    "drizzle/meta/0033_snapshot.json",
+    "drizzle/0034_verification_user_delete_guard.sql",
+    "drizzle/meta/0034_snapshot.json",
     "drizzle/meta/_journal.json",
   ]);
   assert.deepEqual(

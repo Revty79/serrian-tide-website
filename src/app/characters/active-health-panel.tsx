@@ -28,6 +28,7 @@ type Props = {
   health: ActiveHealthView;
   onHealthChange: (health: ActiveHealthView) => void;
   context?: "character" | "creature";
+  disabled?: boolean;
 };
 
 type Feedback = { kind: "success" | "error"; message: string } | null;
@@ -69,8 +70,8 @@ function formatTimestamp(value: string) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
-export function ActiveHealthPanel({ health, onHealthChange, context = "character" }: Props) {
-  const [managing, setManaging] = useState(context === "creature");
+export function ActiveHealthPanel({ health, onHealthChange, context = "character", disabled = false }: Props) {
+  const [managing, setManaging] = useState(context === "creature" && !disabled);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [damageAmount, setDamageAmount] = useState("1");
@@ -132,7 +133,7 @@ export function ActiveHealthPanel({ health, onHealthChange, context = "character
   }, [areaHealAmount, areaHealPool, health]);
 
   async function run(label: string, operation: () => Promise<ActiveHealthView>) {
-    if (busy) return false;
+    if (busy || disabled) return false;
     setBusy(true);
     setFeedback(null);
     try {
@@ -202,7 +203,7 @@ export function ActiveHealthPanel({ health, onHealthChange, context = "character
           <h3 id={`active-health-${health.characterId}`}>Current State</h3>
           <span>Persistent Campaign health · Damage is stored independently from permanent maximums.</span>
         </div>
-        <button type="button" onClick={() => setManaging((value) => !value)}>
+        <button type="button" disabled={disabled} onClick={() => setManaging((value) => !value)}>
           {managing ? "Close Health Manager" : "Manage Health"}
         </button>
       </header>
@@ -228,7 +229,7 @@ export function ActiveHealthPanel({ health, onHealthChange, context = "character
       </div>
       {health.anatomy.maximumHpNote ? <p className="active-health__canon-note">{health.anatomy.maximumHpNote}</p> : null}
 
-      {managing ? (
+      {managing && !disabled ? (
         <div className="active-health__manager">
           {feedback ? <p className={`active-health__feedback is-${feedback.kind}`} aria-live="polite">{feedback.message}</p> : null}
 

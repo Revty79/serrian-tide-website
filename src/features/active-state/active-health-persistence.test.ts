@@ -38,6 +38,16 @@ test("health mutations lock the entity and use atomic arithmetic", () => {
   assert.match(service, /await tx\.insert\(campaignCharacterInjury\)/);
 });
 
+test("the public Active Health getter uses read authorization while every public mutation uses live authorization", () => {
+  assert.match(service, /getActiveHealth[\s\S]*withAuthorizedHealthReadTransaction/);
+  assert.match(service, /applyLocalizedDamageToCharacter[\s\S]*withAuthorizedHealthMutationTransaction/);
+  assert.match(service, /healCharacterFullBody[\s\S]*withAuthorizedHealthMutationTransaction/);
+  assert.match(service, /healCharacterArea[\s\S]*withAuthorizedHealthMutationTransaction/);
+  assert.match(service, /addCharacterInjury[\s\S]*withAuthorizedHealthMutationTransaction/);
+  assert.match(service, /resolveCharacterInjury[\s\S]*withAuthorizedHealthMutationTransaction/);
+  assert.match(service, /restoreCharacterHealth[\s\S]*withAuthorizedHealthMutationTransaction/);
+});
+
 test("Creature anatomy edits cannot silently remove referenced active Pools", () => {
   assert.match(creatureNpcActions, /removedPoolKeys/);
   assert.match(creatureNpcActions, /campaignCharacterActiveHealthPool\.damage/);

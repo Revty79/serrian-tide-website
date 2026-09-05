@@ -449,16 +449,11 @@ export async function createCharacterForPlayer(
   campaignId: number,
   playerUserId: string,
 ): Promise<CharacterAggregate> {
-  const session = await requireGod();
-  const ownerMode = await isCampaignOwner(campaignId, session.user.id);
-  if (!ownerMode) throw new Error("Only the Campaign creator can create a Character for a Player.");
-
-  if (!(await isCampaignMember(campaignId, playerUserId))) {
-    throw new Error("The selected Player must belong to this Campaign before a Character can be created.");
-  }
+  const { session, roles } = await requireGodOrAdminAccessContext();
 
   const [campaignRow] = await db
     .select({
+      createdByUserId: campaign.createdByUserId,
       startingCreditAmount: campaign.startingCreditAmount,
       fatePointMethod: campaign.fatePointMethod,
       assignedFatePoints: campaign.assignedFatePoints,
@@ -467,6 +462,15 @@ export async function createCharacterForPlayer(
     .where(and(eq(campaign.id, campaignId), isNull(campaign.archivedAt)))
     .limit(1);
   if (!campaignRow) throw new Error("That Campaign is archived or no longer exists.");
+  assertOwnedRootManager(
+    { userId: session.user.id, roles },
+    campaignRow.createdByUserId,
+    "Campaign",
+  );
+
+  if (!(await isCampaignMember(campaignId, playerUserId))) {
+    throw new Error("The selected Player must belong to this Campaign before a Character can be created.");
+  }
 
   const characterId = await db.transaction(async (tx) => {
     const [created] = await tx.insert(campaignCharacter).values({
@@ -490,7 +494,7 @@ export async function createCharacterForPlayer(
 
   revalidatePath("/realms");
   revalidatePath("/heavens");
-  return getCharacter(characterId, ownerMode);
+  return getCharacter(characterId, true);
 }
 
 export async function deleteCharacterAsGod(characterId: number): Promise<{

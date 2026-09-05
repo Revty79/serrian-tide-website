@@ -35,20 +35,24 @@ test("Tabletop lifecycle preview accepts identity only and resolves actor roles 
   assert.doesNotMatch(types, /ownerUserId|actorUserId|roles:/);
 });
 
-test("every Session, Scene, and Encounter lifecycle mutation uses locked owner-or-admin authorization", () => {
-  for (const [source, entityKind] of [
-    [sessionActions, "campaign-session"],
-    [sceneActions, "scene"],
-    [encounterActions, "encounter"],
+test("live Session, Scene, and Encounter transitions require the Campaign-owning G.O.D. under lock", () => {
+  for (const [source, entityKind, start, end] of [
+    [sessionActions, "campaign-session", "async function applyLifecycleTransition", "export async function startCampaignSession"],
+    [sceneActions, "scene", "async function applySceneLifecycleTransition", "export async function startCampaignSessionScene"],
+    [encounterActions, "encounter", "async function applyEncounterLifecycleTransition", "export async function startCampaignSessionEncounter"],
   ] as const) {
-    assert.match(source, /requireGodOrAdminAccessContext\(\)/);
+    const transition = source.slice(source.indexOf(start), source.indexOf(end));
+    assert.ok(source.indexOf(start) >= 0, `${entityKind} transition helper must exist`);
+    assert.ok(source.indexOf(end) > source.indexOf(start), `${entityKind} transition helper must be bounded`);
+    assert.match(transition, /requireGodOrAdminAccessContext\(\)/);
     assert.match(
-      source,
+      transition,
       new RegExp(`entityKind: "${entityKind}"`),
     );
-    assert.match(source, /prepareTabletopLifecycleMutationInTransaction/);
-    assert.match(source, /assertOwnedRootManager/);
-    assert.match(source, /recordTabletopLifecycleAuditInTransaction/);
+    assert.match(transition, /prepareTabletopLifecycleMutationInTransaction/);
+    assert.match(transition, /\.for\("update"\)|lockOwned(?:Scene|Encounter)\(tx/);
+    assert.match(transition, /assertCampaignRuntimeOperator\(actor, locked\.ownerUserId/);
+    assert.match(transition, /recordTabletopLifecycleAuditInTransaction/);
   }
   assert.match(service, /for update of t/);
   assert.match(service, /assertOwnedRootManager\(actor, root\.owner_user_id/);
@@ -61,9 +65,15 @@ test("completion, reopen, and deletion use durable audit action mappings", () =>
   }
   for (const source of [sessionCloseoutActions, encounterCloseoutActions]) {
     assert.match(source, /requireGodOrAdminAccessContext\(\)/);
+    assert.match(source, /assertCampaignRuntimeOperator\(actor, context\.ownerUserId/);
     assert.match(source, /recordTabletopLifecycleAuditInTransaction/);
     assert.match(source, /"archive",\s*lifecycle\.root,\s*lifecycle\.preview/);
   }
+  const completeEncounter = encounterActions.slice(
+    encounterActions.indexOf("export async function completeCampaignSessionEncounter"),
+    encounterActions.indexOf("export async function reopenCampaignSessionEncounter"),
+  );
+  assert.match(completeEncounter, /assertCampaignRuntimeOperator\(actor, context\.ownerUserId, "Encounter closeout"\)/);
   assert.match(service, /tx\.insert\(lifecycleAuditEvent\)/);
   assert.match(service, /dependencySummaryJson/);
 });
@@ -76,16 +86,29 @@ test("closeout locks accept only a trusted server actor or the established inter
   }
 });
 
-test("the Tabletop route exposes lifecycle controls to administrators without broadening authoring mutations", () => {
+test("the Tabletop route is site-wide read-only for foreign administrators and operable only by the Campaign-owning G.O.D.", () => {
   assert.match(tabletopPage, /requireGodOrAdminAccessContext\(\)/);
-  assert.match(tabletopPage, /const canOperateTable = workspace\.canAuthor/);
+  assert.match(tabletopPage, /const canOperateTable = workspace\.canOperate/);
   assert.match(tabletopPage, /canOperateTable && encounterWorkspace\?\.selectedEncounter/);
   assert.match(sessionActions, /actor\.roles\.includes\("admin"\)/);
-  assert.match(sessionActions, /canAuthor: Boolean/);
+  assert.match(sessionActions, /canAuthor: canOperate/);
+  assert.match(sessionActions, /canOperate,/);
   assert.match(sessionActions, /editable: canAuthor && context\.status !== "completed"/);
   assert.match(sceneActions, /assertOwnedRootManager\(actor, context\.ownerUserId, "Session"\)/);
   assert.match(encounterActions, /assertOwnedRootManager\(actor, context\.ownerUserId, "Scene"\)/);
   assert.match(tabletopWorkspace, /initialData\.canAuthor \? <button type="button" onClick=\{beginCreate\}>New Session/);
+  assert.match(tabletopWorkspace, /initialData\.canOperate && !creating && selectedSession\?\.status === "planned"/);
+  assert.match(sceneWorkspace, /initialData\.canOperate && !creating && selectedScene\?\.status === "active"/);
+  assert.match(encounterWorkspace, /initialData\.canOperate && !creating && selectedEncounter\?\.status === "active"/);
+  assert.match(encounterActions, /canManagePersistent: canManageOwnedRoot\(actor, context\.ownerUserId\)/);
+  assert.match(encounterWorkspace, /selectedEncounter\?\.status === "planned" && initialData\.canManagePersistent && parentsPermitPreparation/);
+  assert.match(tabletopWorkspace, /<SessionCloseout canOperate=\{initialData\.canOperate\}/);
+  assert.match(encounterWorkspace, /<EncounterCloseout[\s\S]*?canOperate=\{initialData\.canOperate\}/);
+  assert.match(sessionCloseout, /canOperate \? historical \? <button[\s\S]*?Reopen Session/);
+  assert.match(encounterCloseout, /canOperate && !historical \? <footer className="encounter-closeout-finalize"/);
+  for (const source of [tabletopWorkspace, sceneWorkspace, encounterWorkspace, sessionCloseout, encounterCloseout]) {
+    assert.match(source, /Campaign-owning G\.O\.D\./);
+  }
   for (const source of [sessionActions, sceneActions, encounterActions]) {
     assert.match(source, /const access = await requireGod\(\)/);
   }

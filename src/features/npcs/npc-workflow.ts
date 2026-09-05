@@ -137,6 +137,19 @@ export function getDetailedNpcHref(input: {
     : `/heavens/characters/${characterId}?source=npcs&campaign=${campaignId}`;
 }
 
+export function getSimpleNpcHref(input: {
+  campaignId: number;
+  characterId: number;
+  status: NpcArchiveStatus;
+}): string {
+  const campaignId = positiveId(input.campaignId, "Campaign");
+  const characterId = positiveId(input.characterId, "NPC");
+  if (!NPC_ARCHIVE_STATUSES.includes(input.status)) {
+    throw new Error("NPC archive status must be active or archived.");
+  }
+  return `/heavens/npcs?campaign=${campaignId}&status=${input.status}&npc=${characterId}`;
+}
+
 export function assertNpcCanBeChanged(input: {
   archivedAt: Date | string | null;
   operation: "save" | "upgrade";

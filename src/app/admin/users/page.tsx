@@ -25,7 +25,11 @@ const allRoles: SerrianRole[] = [
   "player",
 ];
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deleted?: string }>;
+}) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -50,6 +54,8 @@ export default async function AdminUsersPage() {
   if (adminAccess.length === 0) {
     redirect("/access");
   }
+
+  const query = await searchParams;
 
   const users = await db
     .select({
@@ -136,6 +142,12 @@ export default async function AdminUsersPage() {
             </div>
           </div>
         </header>
+
+        {query.deleted === "1" ? (
+          <p role="status" className="mt-6 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-5 py-4 text-sm text-emerald-100">
+            The User account was permanently deleted.
+          </p>
+        ) : null}
 
         <section className="mt-8">
           <div>

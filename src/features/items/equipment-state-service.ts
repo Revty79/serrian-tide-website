@@ -29,7 +29,10 @@ import {
   type ActiveEffectsTransaction,
 } from "@/features/active-state/active-effects-service";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
-import { canMutateActiveHealth } from "@/features/active-state/authorization";
+import {
+  canMutateActiveHealth,
+  canReadActiveState,
+} from "@/features/active-state/authorization";
 import { persistPlannedMechanicalEffectInTransaction } from "@/features/active-state/mechanical-effect-service";
 import {
   getCharacterWeaponDamage,
@@ -610,7 +613,11 @@ export async function assertConsumableHasInactiveQuantityInTransaction(
 }
 
 type Access = { tx: EquipmentStateTransaction };
-async function withEquipmentAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+async function withEquipmentAccess<T>(
+  characterId: number,
+  access: "read" | "mutate",
+  operation: (authorized: Access) => Promise<T>,
+): Promise<T> {
   const session = await requireSession();
   return db.transaction(async (tx) => {
     const roles = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, session.user.id));
@@ -621,16 +628,31 @@ async function withEquipmentAccess<T>(characterId: number, operation: (access: A
     const entity = entities[0];
     if (!entity) throw new Error("Character not found.");
     const roleNames = roles.map(({ role }) => role);
-    if (!canMutateActiveHealth(
-      { userId: session.user.id, roles: roleNames },
-      { playerUserId: entity.playerUserId, campaignOwnerUserId: entity.owner, isNpc: entity.isNpc, isCampaignMember: entity.member === session.user.id },
-    )) throw new Error("You do not have permission to manage this entity's Equipment State.");
+    const subject = { userId: session.user.id, roles: roleNames };
+    const accessEntity = {
+      playerUserId: entity.playerUserId,
+      campaignOwnerUserId: entity.owner,
+      isNpc: entity.isNpc,
+      isCampaignMember: entity.member === session.user.id,
+    };
+    const authorized = access === "read"
+      ? canReadActiveState(subject, accessEntity)
+      : canMutateActiveHealth(subject, accessEntity);
+    if (!authorized) throw new Error(`You do not have permission to ${access === "read" ? "view" : "manage"} this entity's Equipment State.`);
     return operation({ tx });
   });
 }
 
+function withEquipmentReadAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+  return withEquipmentAccess(characterId, "read", operation);
+}
+
+function withEquipmentMutationAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+  return withEquipmentAccess(characterId, "mutate", operation);
+}
+
 export function getCharacterEquipmentState(characterId: number): Promise<CharacterEquipmentStateView> {
-  return withEquipmentAccess(characterId, ({ tx }) => readCharacterEquipmentStateInTransaction(tx, characterId));
+  return withEquipmentReadAccess(characterId, ({ tx }) => readCharacterEquipmentStateInTransaction(tx, characterId));
 }
 
 export async function setStackEquipmentStateInTransaction(
@@ -678,7 +700,7 @@ export async function setStackEquipmentStateInTransaction(
 }
 
 export function setStackEquipmentState(command: SetStackEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
-  return withEquipmentAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command));
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command));
 }
 
 export async function setInstanceEquipmentStateInTransaction(
@@ -706,5 +728,5 @@ export async function setInstanceEquipmentStateInTransaction(
 }
 
 export function setInstanceEquipmentState(command: SetInstanceEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
-  return withEquipmentAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command));
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command));
 }

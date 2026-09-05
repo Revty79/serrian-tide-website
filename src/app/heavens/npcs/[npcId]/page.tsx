@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { getActiveHealth } from "@/features/active-state/active-health-service";
 import { getActiveEffects } from "@/features/active-state/active-effects-service";
 import { getCharacterEquipmentState } from "@/features/items/equipment-state-service";
 import { getCharacterItemChargeState } from "@/features/items/item-charge-service";
+import { getManagedCharacterCapabilities } from "@/features/authorization/managed-character-capability-service";
+import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import { getCreatureNpc } from "../actions";
 import "./creature-npc.css";
@@ -19,6 +20,8 @@ export default async function CreatureNpcPage({
   const { npcId } = await params;
   const id = Number(npcId);
   if (!Number.isInteger(id) || id <= 0) redirect("/heavens/npcs");
+  const capabilities = await getManagedCharacterCapabilities(id).catch(() => null);
+  if (!capabilities?.canManageRecord) redirect("/heavens/npcs");
   const draft = await getCreatureNpc(id).catch(() => null);
   if (!draft) redirect("/heavens/npcs");
   if (draft.buildMode !== "detailed") {
@@ -31,5 +34,5 @@ export default async function CreatureNpcPage({
     getCharacterItemChargeState(id).catch(() => null),
   ]);
   if (!activeHealth || !activeEffects || !equipmentState || !chargeState) redirect("/heavens/npcs");
-  return <CreatureNpcWorkspace initialDraft={draft} initialActiveHealth={activeHealth} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} />;
+  return <CreatureNpcWorkspace initialDraft={draft} initialActiveHealth={activeHealth} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} canOperateRuntime={capabilities.canOperateRuntime} />;
 }

@@ -57,7 +57,7 @@ export default async function TabletopOperationsPage({
       ? requestedCampaignId
       : null,
   );
-  const canOperateTable = workspace.canAuthor;
+  const canOperateTable = workspace.canOperate;
   const selectedSessionId = workspace.sessions.some(({ id }) => id === requestedSessionId)
     ? requestedSessionId
     : workspace.sessions[0]?.id ?? null;

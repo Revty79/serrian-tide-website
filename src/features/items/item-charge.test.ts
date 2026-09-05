@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { canMutateActiveHealth } from "@/features/active-state/authorization";
+import {
+  canMutateActiveHealth,
+  canReadActiveState,
+} from "@/features/active-state/authorization";
 
 import {
   createItemChargeState,
@@ -206,8 +209,12 @@ test("39-43: Player and G.O.D. Charge authorization retains Character, Campaign,
   assert.equal(canMutateActiveHealth({ userId: "player-a", roles: ["player"] }, otherPc), false);
   assert.equal(canMutateActiveHealth({ userId: "god-a", roles: ["god"] }, npc), true);
   assert.equal(canMutateActiveHealth({ userId: "god-b", roles: ["god"] }, npc), false);
+  assert.equal(canMutateActiveHealth({ userId: "admin-a", roles: ["admin"] }, npc), false);
+  assert.equal(canReadActiveState({ userId: "admin-a", roles: ["admin"] }, npc), true);
   assert.match(service, /eq\(campaignCharacterItemInstance\.id, identity\.instanceId\)[\s\S]*eq\(campaignCharacterItemInstance\.characterId, identity\.characterId\)[\s\S]*eq\(campaignCharacterItemInstance\.itemId, identity\.itemId\)/);
   assert.match(service, /canMutateActiveHealth/);
+  assert.match(service, /getCharacterItemChargeState[\s\S]*withChargeReadAccess/);
+  assert.match(service, /mutateAndRead[\s\S]*withChargeMutationAccess/);
 });
 
 test("44-45: current non-charged definitions are surfaced and rejected without magical assumptions", () => {

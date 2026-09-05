@@ -4,6 +4,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { assertCampaignRuntimeOperator } from "@/features/active-state/authorization";
 import { campaign } from "@/db/campaign-schema";
 import { campaignCharacter } from "@/db/realm-schema";
 import {
@@ -42,6 +43,7 @@ import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-op
 import {
   assertOwnedRootManager,
   assertPermanentDeletionEnabled,
+  canManageOwnedRoot,
 } from "@/features/lifecycle/policy";
 import {
   assertTabletopPermanentDeletionAllowed,
@@ -100,6 +102,8 @@ export type EncounterWorkspaceData = {
   sceneStatus: SceneStatus;
   sessionStatus: SessionStatus;
   canCreate: boolean;
+  canManagePersistent: boolean;
+  canOperate: boolean;
   encounters: CampaignEncounterSummary[];
   selectedEncounterId: number | null;
   selectedEncounter: CampaignEncounterDetail | null;
@@ -356,6 +360,8 @@ export async function getSceneEncounterWorkspace(
       canCreate: canAuthor
         && context.sessionStatus !== "completed"
         && context.sceneStatus !== "completed",
+      canManagePersistent: canManageOwnedRoot(actor, context.ownerUserId),
+      canOperate: canAuthor,
       encounters,
       selectedEncounterId: null,
       selectedEncounter: null,
@@ -397,6 +403,8 @@ export async function getSceneEncounterWorkspace(
     canCreate: canAuthor
       && context.sessionStatus !== "completed"
       && context.sceneStatus !== "completed",
+    canManagePersistent: canManageOwnedRoot(actor, context.ownerUserId),
+    canOperate: canAuthor,
     encounters,
     selectedEncounterId,
     selectedEncounter: {
@@ -495,6 +503,7 @@ async function applyEncounterLifecycleTransition(
         actor,
       );
       const locked = await lockOwnedEncounter(tx, encounterId, actor);
+      assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Encounter");
       assertParentsAllowLiveEncounter(locked.sessionStatus, locked.sceneStatus);
       const next = transitionEncounter(locked, transition);
       if (next.status === "active") {
@@ -569,6 +578,7 @@ export async function completeCampaignSessionEncounter(encounterId: number): Pro
       actor,
     );
     const context = await lockEncounterCloseoutContextInTransaction(tx, encounterId, actor);
+    assertCampaignRuntimeOperator(actor, context.ownerUserId, "Encounter closeout");
     await finalizeEncounterCloseoutInTransaction(tx, context, { awards: [] });
     await publishEncounterHierarchy(tx, context);
     await recordTabletopLifecycleAuditInTransaction(

@@ -201,14 +201,15 @@ test("a fake combined transaction commits or rolls back Mana, Health, Condition,
   assert.deepEqual(state, { mana: 7, health: 2, conditions: 1, modifiers: 1 });
 });
 
-test("authorization exposes player view-only state and G.O.D.-only manual mutation", () => {
+test("authorization exposes Player and administrator reads while preserving G.O.D.-only manual mutation", () => {
   const service = readFileSync("src/features/active-state/active-effects-service.ts", "utf8");
   const panel = readFileSync("src/app/characters/active-effects-panel.tsx", "utf8");
-  assert.match(service, /getActiveEffects[\s\S]*withAccess\(characterId, false/);
-  assert.match(service, /addManualCondition[\s\S]*withAccess\(command\.characterId, true/);
-  assert.match(service, /addManualModifier[\s\S]*withAccess\(command\.characterId, true/);
-  assert.match(service, /ownsCampaign/);
-  assert.match(panel, /\{godMode \? <div className="active-effects-panel__controls"/);
+  assert.match(service, /getActiveEffects[\s\S]*withEffectsReadAccess/);
+  assert.match(service, /addManualCondition[\s\S]*withManualEffectsMutationAccess/);
+  assert.match(service, /addManualModifier[\s\S]*withManualEffectsMutationAccess/);
+  assert.match(service, /canReadActiveState/);
+  assert.match(service, /canOperateCampaignState/);
+  assert.match(panel, /\{godMode && !disabled \? <div className="active-effects-panel__controls"/);
 });
 
 test("Character and Creature NPC views reuse the shared Active State panel", () => {

@@ -32,7 +32,10 @@ import {
   type ActiveModifier,
 } from "./active-effects";
 import type { ActiveHealthTransaction } from "./active-health-service";
-import { canMutateActiveHealth } from "./authorization";
+import {
+  canOperateCampaignState,
+  canReadActiveState,
+} from "./authorization";
 
 export type ActiveEffectsTransaction = ActiveHealthTransaction;
 
@@ -244,7 +247,11 @@ export async function endModifierInTransaction(
 }
 
 type Access = { tx: ActiveEffectsTransaction; userId: string; roles: string[]; ownsCampaign: boolean };
-async function withAccess<T>(characterId: number, godOnly: boolean, operation: (access: Access) => Promise<T>): Promise<T> {
+async function withAccess<T>(
+  characterId: number,
+  access: "read" | "god-mutate",
+  operation: (authorized: Access) => Promise<T>,
+): Promise<T> {
   const session = await requireSession();
   return db.transaction(async (tx) => {
     const roles = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, session.user.id));
@@ -255,39 +262,57 @@ async function withAccess<T>(characterId: number, godOnly: boolean, operation: (
     const entity = entities[0];
     if (!entity) throw new Error("Character not found.");
     const roleNames = roles.map(({ role }) => role);
-    const ownsCampaign = roleNames.includes("god") && entity.owner === session.user.id;
-    if (godOnly ? !ownsCampaign : !canMutateActiveHealth(
-      { userId: session.user.id, roles: roleNames },
-      { playerUserId: entity.playerUserId, campaignOwnerUserId: entity.owner, isNpc: entity.isNpc, isCampaignMember: entity.member === session.user.id },
-    )) throw new Error("You do not have permission to access this entity's Active Conditions and Modifiers.");
+    const subject = { userId: session.user.id, roles: roleNames };
+    const accessEntity = {
+      playerUserId: entity.playerUserId,
+      campaignOwnerUserId: entity.owner,
+      isNpc: entity.isNpc,
+      isCampaignMember: entity.member === session.user.id,
+    };
+    const ownsCampaign = canOperateCampaignState(
+      subject,
+      entity.owner,
+    );
+    const authorized = access === "read"
+      ? canReadActiveState(subject, accessEntity)
+      : ownsCampaign;
+    if (!authorized) throw new Error("You do not have permission to access this entity's Active Conditions and Modifiers.");
     return operation({ tx, userId: session.user.id, roles: roleNames, ownsCampaign });
   });
 }
 
+function withEffectsReadAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+  return withAccess(characterId, "read", operation);
+}
+
+function withManualEffectsMutationAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+  return withAccess(characterId, "god-mutate", operation);
+}
+
 export function getActiveEffects(characterId: number, includeHistory = false): Promise<ActiveEffectsView> {
-  return withAccess(characterId, false, ({ tx }) => readActiveEffectsInTransaction(tx, characterId, includeHistory));
+  return withEffectsReadAccess(characterId, ({ tx }) => readActiveEffectsInTransaction(tx, characterId, includeHistory));
 }
 
 export function addManualCondition(command: AddManualConditionCommand): Promise<ActiveEffectsView> {
-  return withAccess(command.characterId, true, async ({ tx, userId }) => {
+  return withManualEffectsMutationAccess(command.characterId, async ({ tx, userId }) => {
     await applyConditionInTransaction(tx, { characterId: command.characterId, effect: { kind: "condition.apply", name: command.name, description: command.description, duration: command.duration }, source: { kind: "god", id: userId, name: "G.O.D. Manual Adjustment" } });
     return readActiveEffectsInTransaction(tx, command.characterId, true);
   });
 }
 
 export function addManualModifier(command: AddManualModifierCommand): Promise<ActiveEffectsView> {
-  return withAccess(command.characterId, true, async ({ tx, userId }) => {
+  return withManualEffectsMutationAccess(command.characterId, async ({ tx, userId }) => {
     await applyModifierInTransaction(tx, { characterId: command.characterId, effect: { kind: "modifier.apply", label: command.label, channel: command.channel, targetKey: command.targetKey, amount: command.amount, duration: command.duration }, source: { kind: "god", id: userId, name: "G.O.D. Manual Adjustment" } });
     return readActiveEffectsInTransaction(tx, command.characterId, true);
   });
 }
 
 export function resolveManualCondition(characterId: number, conditionId: number, note = ""): Promise<ActiveEffectsView> {
-  return withAccess(characterId, true, async ({ tx }) => { await resolveConditionInTransaction(tx, characterId, conditionId, note); return readActiveEffectsInTransaction(tx, characterId, true); });
+  return withManualEffectsMutationAccess(characterId, async ({ tx }) => { await resolveConditionInTransaction(tx, characterId, conditionId, note); return readActiveEffectsInTransaction(tx, characterId, true); });
 }
 
 export function endManualModifier(characterId: number, modifierId: number, note = ""): Promise<ActiveEffectsView> {
-  return withAccess(characterId, true, async ({ tx }) => { await endModifierInTransaction(tx, characterId, modifierId, note); return readActiveEffectsInTransaction(tx, characterId, true); });
+  return withManualEffectsMutationAccess(characterId, async ({ tx }) => { await endModifierInTransaction(tx, characterId, modifierId, note); return readActiveEffectsInTransaction(tx, characterId, true); });
 }
 
 export async function getActiveModifierTotalInTransaction(tx: ActiveEffectsTransaction, characterId: number, channel: TemporaryModifierChannel, targetKey: string): Promise<number> {

@@ -232,6 +232,20 @@
       "when": 1788596779359,
       "tag": "0032_safe_entity_lifecycles",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788618487176,
+      "tag": "0033_admin_account_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788621231695,
+      "tag": "0034_verification_user_delete_guard",
+      "breakpoints": true
     }
   ]
 }

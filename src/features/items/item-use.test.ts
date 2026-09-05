@@ -286,6 +286,21 @@ test("G.O.D. authorization covers PC, Race NPC, and Creature NPC in owned Campai
   assert.equal(canExecuteItemUse(god, { ...pc, campaignOwnerUserId: "g2" }, raceNpc), false);
 });
 
+test("administrator role alone never grants live Item Use authority", () => {
+  const admin = { userId: "admin", roles: ["admin"] };
+  const pc = { characterId: 1, campaignId: 7, playerUserId: "p1", campaignOwnerUserId: "g1", isNpc: false, isCampaignMember: false };
+  const npc = { ...pc, characterId: 2, playerUserId: "g1", isNpc: true };
+  assert.equal(canExecuteItemUse(admin, pc, npc), false);
+  assert.equal(canExecuteItemUse(admin, pc, { ...npc, campaignId: 8 }), false);
+
+  const adminPlayer = { userId: "p1", roles: ["admin", "player"] };
+  assert.equal(canExecuteItemUse(
+    adminPlayer,
+    { ...pc, isCampaignMember: true },
+    { ...pc, isCampaignMember: true },
+  ), true);
+});
+
 type FakeStore = { quantity: number; charges: Record<number, number>; totalDamage: number };
 
 async function fakeAtomicExecution(input: {

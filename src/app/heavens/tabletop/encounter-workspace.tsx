@@ -263,7 +263,7 @@ export function EncounterWorkspace({
   }
 
   async function lifecycle(action: "start" | "reopen"): Promise<void> {
-    if (!selectedEncounter) return;
+    if (!initialData.canOperate || !selectedEncounter) return;
     await perform(async () => {
       const updated = action === "start"
         ? await startCampaignSessionEncounter(selectedEncounter.id)
@@ -276,7 +276,7 @@ export function EncounterWorkspace({
   }
 
   async function openTransitionConfirmation(action: "start" | "reopen"): Promise<void> {
-    if (!selectedEncounter) return;
+    if (!initialData.canOperate || !selectedEncounter) return;
     await preserveScroll(() => perform(async () => {
       const preview = await previewTabletopLifecycleEntity({
         entityKind: "encounter",
@@ -328,6 +328,7 @@ export function EncounterWorkspace({
   const editorVisible = creating || selectedEncounter !== null;
   const editorEditable = creating || selectedEncounter?.editable === true;
   const parentsActive = initialData.sessionStatus === "active" && initialData.sceneStatus === "active";
+  const parentsPermitPreparation = initialData.sessionStatus !== "completed" && initialData.sceneStatus !== "completed";
 
   return <section className="tabletop-encounters-workspace">
     <header className="tabletop-encounters-heading">
@@ -372,7 +373,9 @@ export function EncounterWorkspace({
         </nav> : null}
 
         {editorVisible && (creating || activeSection === "prep") ? <>
-          {!creating && !selectedEncounter?.editable ? <p className="tabletop-readonly-notice">This Encounter or one of its parents is historical and read-only. Reopen the parent records and then the Encounter to make corrections.</p> : null}
+          {!creating && !selectedEncounter?.editable ? <p className="tabletop-readonly-notice">{initialData.canOperate
+            ? "This Encounter or one of its parents is historical and read-only. Reopen the parent records and then the Encounter to make corrections."
+            : "Administrative read-only live view. Starting, completing, reopening, closing out, and operating this Encounter remain with the Campaign-owning G.O.D."}</p> : null}
           {!parentsActive && selectedEncounter?.status === "planned" ? <p className="tabletop-encounter-guidance">Activate both the Session and this Scene before starting the Encounter. Preparation remains available while the parents are planned.</p> : null}
           <div className="tabletop-encounter-form">
             <label><span>Encounter Number</span><input disabled={!editorEditable || busy} type="number" min={1} step={1} value={draft.sequenceNumber} onChange={(event) => setDraft({ ...draft, sequenceNumber: Number(event.target.value) })} /></label>
@@ -396,10 +399,10 @@ export function EncounterWorkspace({
               if (selectedEncounter) setDraft(metadataFromEncounter(selectedEncounter));
               setFeedback(null);
             }}>Cancel</button> : null}
-            {!creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Encounter</button> : null}
-            {!creating && selectedEncounter?.status === "active" && parentsActive ? <button type="button" disabled={busy} onClick={() => setActiveSection("closeout")}>Review Closeout</button> : null}
-            {!creating && selectedEncounter?.status === "completed" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Encounter</button> : null}
-            {!creating && selectedEncounter?.status === "planned" && initialData.canCreate ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Encounter</button> : null}
+            {initialData.canOperate && !creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Encounter</button> : null}
+            {initialData.canOperate && !creating && selectedEncounter?.status === "active" && parentsActive ? <button type="button" disabled={busy} onClick={() => setActiveSection("closeout")}>Review Closeout</button> : null}
+            {initialData.canOperate && !creating && selectedEncounter?.status === "completed" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Encounter</button> : null}
+            {!creating && selectedEncounter?.status === "planned" && initialData.canManagePersistent && parentsPermitPreparation ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Encounter</button> : null}
           </div>
 
           {!creating && selectedEncounter ? <section className="tabletop-encounter-participants">
@@ -449,6 +452,7 @@ export function EncounterWorkspace({
           : <p className="tabletop-empty">Combat Aid state is unavailable for this Encounter.</p> : null}
         {!creating && selectedEncounter && activeSection === "closeout" ? initialCloseout
           ? <EncounterCloseout
+            canOperate={initialData.canOperate}
             data={initialCloseout}
             onOpenInitiative={() => setActiveSection("initiative")}
             onOpenCombatAid={() => setActiveSection("combat-aid")}
@@ -457,7 +461,7 @@ export function EncounterWorkspace({
       </section>
     </div>
     {selectedEncounter ? <LifecycleConfirmationDialog
-      open={transitionMode !== null}
+      open={initialData.canOperate && transitionMode !== null}
       titleId="transition-tabletop-encounter-title"
       eyebrow="Encounter Lifecycle"
       title={transitionMode === "start"

@@ -51,7 +51,10 @@ test("posting, deletion, room creation, renaming, and membership changes publish
   assert.match(service, /if \(created\) \{\s*await publishChatDirectoryInvalidationInTransaction\(tx\)/);
   assert.match(service, /if \(createdRoom \|\| room\.name !== name\)/);
   assert.match(campaignActions, /db\.transaction\(async \(tx\) => \{[\s\S]*publishChatDirectoryInvalidationInTransaction\(tx\)/);
-  assert.match(campaignActions, /if \(removed\.length > 0\) await publishChatDirectoryInvalidationInTransaction\(tx\)/);
+  assert.match(
+    campaignActions,
+    /if \(removed\.length > 0\) \{[\s\S]*publishChatDirectoryInvalidationInTransaction\(tx\)[\s\S]*publishLiveSessionRevocationInTransaction\(tx, removed\[0\]!\.userId\)/,
+  );
   assert.match(roleActions, /db\.transaction\(\(tx\) => setUserRoleInTransaction/);
   assert.match(roleService, /if \(changedRows\.length > 0\)[\s\S]*publishChatDirectoryInvalidationInTransaction\(tx\)/);
 });

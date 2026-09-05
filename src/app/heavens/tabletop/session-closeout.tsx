@@ -18,11 +18,13 @@ function timestamp(value: string | null): string {
 }
 
 export function SessionCloseout({
+  canOperate,
   data,
   onOpenScenes,
   onOpenRolls,
   onOpenCalledChecks,
 }: {
+  canOperate: boolean;
   data: SessionCloseoutView;
   onOpenScenes: () => void;
   onOpenRolls: () => void;
@@ -37,6 +39,7 @@ export function SessionCloseout({
   const historical = data.session.status === "completed";
 
   async function finalize(): Promise<void> {
+    if (!canOperate) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -53,6 +56,7 @@ export function SessionCloseout({
   }
 
   async function reopen(): Promise<void> {
+    if (!canOperate) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -69,6 +73,7 @@ export function SessionCloseout({
   }
 
   async function openConfirmation(mode: "finalize" | "reopen"): Promise<void> {
+    if (!canOperate) return;
     await preserveScroll(async () => {
       setBusy(true);
       setFeedback(null);
@@ -89,7 +94,7 @@ export function SessionCloseout({
 
   return <section className="session-closeout">
     <header>
-      <div><span>G.O.D. SESSION AUTHORITY</span><h3 className="font-sans">Session Closeout</h3><p>Review the whole table before making the Session organizationally historical.</p></div>
+      <div><span>G.O.D. SESSION AUTHORITY</span><h3 className="font-sans">Session Closeout</h3><p>{canOperate ? "Review the whole table before making the Session organizationally historical." : "Administrative read-only review. Finalization and reopening remain with the Campaign-owning G.O.D."}</p></div>
       <em className={`tabletop-status is-${data.session.status}`}>{data.session.status}</em>
     </header>
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
@@ -106,7 +111,7 @@ export function SessionCloseout({
       <article>
         <header><span>OBJECTIVE RUNTIME</span><strong>{data.blockers.length ? "Closeout blocked" : "Ready for review"}</strong></header>
         {data.blockers.length ? <div className="session-closeout-blockers">{data.blockers.map((blocker, index) => <p key={`${blocker.code}:${blocker.encounterId ?? blocker.sceneId ?? index}`}>{blocker.message}</p>)}</div> : <p className="session-closeout-clear">No active Scene, Encounter, Initiative, pending action, authored resolution, or Reaction remains.</p>}
-        <footer><button type="button" onClick={onOpenScenes}>Review Scenes &amp; Encounters</button>{data.blockers.some(({ code }) => code === "called-check-pending" || code === "high-low-pending") ? <button type="button" onClick={onOpenCalledChecks}>Open Called Checks</button> : null}</footer>
+        <footer><button type="button" onClick={onOpenScenes}>Review Scenes &amp; Encounters</button>{canOperate && data.blockers.some(({ code }) => code === "called-check-pending" || code === "high-low-pending") ? <button type="button" onClick={onOpenCalledChecks}>Open Called Checks</button> : null}</footer>
       </article>
       <article>
         <header><span>WARNINGS</span><strong>{data.warnings.length}</strong></header>
@@ -121,16 +126,16 @@ export function SessionCloseout({
       <article>
         <header><span>ROLL HISTORY</span><strong>{data.rolls.total}</strong></header>
         <dl><div><dt>Website Rolls</dt><dd>{data.rolls.random}</dd></div><div><dt>Physical Rolls</dt><dd>{data.rolls.entered}</dd></div><div><dt>Table-visible</dt><dd>{data.rolls.tableVisible}</dd></div><div><dt>Private</dt><dd>{data.rolls.private}</dd></div><div><dt>G.O.D.-only</dt><dd>{data.rolls.godOnly}</dd></div><div><dt>Voided</dt><dd>{data.rolls.voided}</dd></div></dl>
-        <footer><button type="button" onClick={onOpenRolls}>Open Roll Ledger</button></footer>
+        {canOperate ? <footer><button type="button" onClick={onOpenRolls}>Open Roll Ledger</button></footer> : null}
       </article>
     </div>
 
     <footer className="session-closeout-finalize">
       <div><strong>{historical ? "Session history preserved" : data.canFinalize ? "Ready to finalize" : "Resolve every blocker first"}</strong><span>Finalization never heals, restores, clears, deletes, awards, or resets Character state.</span></div>
-      {historical ? <button type="button" disabled={busy} onClick={() => void openConfirmation("reopen")}>{busy ? "Reopening…" : "Reopen Session"}</button> : <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void openConfirmation("finalize")}>{busy ? "Finalizing…" : "Finalize Session"}</button>}
+      {canOperate ? historical ? <button type="button" disabled={busy} onClick={() => void openConfirmation("reopen")}>{busy ? "Reopening…" : "Reopen Session"}</button> : <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void openConfirmation("finalize")}>{busy ? "Finalizing…" : "Finalize Session"}</button> : <span className="tabletop-readonly-notice">Read-only for administrators who do not own this Campaign as its G.O.D.</span>}
     </footer>
     <LifecycleConfirmationDialog
-      open={confirmationMode !== null}
+      open={canOperate && confirmationMode !== null}
       titleId="finalize-tabletop-session-title"
       eyebrow="Session Lifecycle"
       title={confirmationMode === "reopen" ? `Reopen Session ${data.session.sequenceNumber}?` : `Finalize Session ${data.session.sequenceNumber}?`}

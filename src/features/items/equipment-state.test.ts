@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { getActiveModifierTotal, type ActiveModifier } from "@/features/active-state/active-effects";
-import { canMutateActiveHealth } from "@/features/active-state/authorization";
+import {
+  canMutateActiveHealth,
+  canReadActiveState,
+} from "@/features/active-state/authorization";
 import type { MechanicalEffect } from "@/features/mechanical-effects";
 
 import {
@@ -63,7 +66,7 @@ test("1-2: stack-owned and charged-instance Equipment default inactive", () => {
   assert.deepEqual(EQUIPMENT_STATES, ["inactive", "equipped", "worn", "wielded"]);
 });
 
-test("3-10: state service persists all roles and enforces ownership plus Player/G.O.D. authorization", () => {
+test("3-10: state service permits administrator reads but keeps mutation with Players and the owning G.O.D.", () => {
   assert.deepEqual(ACTIVE_EQUIPMENT_STATES, ["equipped", "worn", "wielded"]);
   assert.match(service, /setStackEquipmentState[\s\S]*onConflictDoUpdate/);
   assert.match(service, /setInstanceEquipmentState[\s\S]*equipmentState: state/);
@@ -80,7 +83,18 @@ test("3-10: state service persists all roles and enforces ownership plus Player/
     { userId: "god-b", roles: ["god"] },
     { playerUserId: "player-a", campaignOwnerUserId: "god-a", isNpc: true, isCampaignMember: false },
   ), false);
+  assert.equal(canMutateActiveHealth(
+    { userId: "admin-a", roles: ["admin"] },
+    { playerUserId: "player-a", campaignOwnerUserId: "god-a", isNpc: true, isCampaignMember: false },
+  ), false);
+  assert.equal(canReadActiveState(
+    { userId: "admin-a", roles: ["admin"] },
+    { playerUserId: "player-a", campaignOwnerUserId: "god-a", isNpc: true, isCampaignMember: false },
+  ), true);
   assert.match(service, /canMutateActiveHealth/);
+  assert.match(service, /getCharacterEquipmentState[\s\S]*withEquipmentReadAccess/);
+  assert.match(service, /setStackEquipmentState[\s\S]*withEquipmentMutationAccess/);
+  assert.match(service, /setInstanceEquipmentState[\s\S]*withEquipmentMutationAccess/);
 });
 
 test("7 and 11-14: active stack quantities cannot exceed ownership and never force instance conversion", () => {

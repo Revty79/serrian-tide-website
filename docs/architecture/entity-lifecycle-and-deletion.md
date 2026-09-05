@@ -5,9 +5,11 @@ content records. Archive is the normal reversible action. Permanent deletion is
 reserved for records whose ownership and complete dependency graph have been
 verified on the server inside the deleting transaction.
 
-Authentication accounts, credentials, migration history, canonical/system
-references, lifecycle audit events, and standalone combat/roll history are not
-ordinary deletable content.
+Authentication credentials, migration history, canonical/system references,
+lifecycle audit events, and standalone combat/roll history are not ordinary
+deletable content. A User account has a separate administrator-only permanent
+deletion workflow and can be deleted only when it has no content, ownership,
+attribution, or historical dependencies.
 
 ## Common policy
 
@@ -68,15 +70,49 @@ roles from the database. Rendering a control is never treated as authorization.
 | Skill — `skill` | `/heavens/skills`; user-created records owned by creator | Creator or administrator for user-created roots. Archive preserves the recursive graph for historical display but excludes new allocations/links. | Delete only with zero parent edges, child edges, Race grants, Creature links, Character allocations, saved Character spell documents or other `spell-construction` Skill extensions naming it as `frameworkSkillId`, Derived Ability requirements, weapon/defense mappings, and called-check history. The target Skill's own extensions are owned children. Both Skill relationship FKs and Race-grant Skill FK use `RESTRICT`. | Audit persists; recursive topology and spell-framework references cannot be silently detached. Protected Skills cannot be lifecycle-mutated. |
 | Item — `items` | `/heavens/equipment` and `/heavens/inventory`; both are catalog scopes over one Item root; variants are created from the same workspace | Creator or administrator for user-created roots. Archived Items cannot be newly authorized/acquired but existing ownership and history resolve. | Delete only with zero child variants, ammunition links, related Item properties, Campaign authorizations, Character stacks/instances/overrides, weapon governance, firearm runtime/history, active or historical Item-sourced Conditions/Modifiers, pending Item action sources, Item effect plans, and defending-Item reaction history. Runtime/effect/weapon/armor/property/tag rows are owned children. | Audit persists. Campaigns, Characters, and Item-linked history are never silently rewritten. Protected Items cannot be lifecycle-mutated. |
 | Derived Ability — `derived_ability` | `/heavens/derived-abilities`; user-created records owned by creator | Creator or administrator for user-created roots. Archived abilities cannot be newly learned/allowed but existing ownership/runtime remains readable. | Delete only with zero inbound Derived Ability prerequisites, legacy Campaign links, Character ownership, use, and recharge records. Requirement/condition/cost/limit/effect/trigger definitions are owned children. | Audit persists. Canonical/imported/ambiguous abilities are protected. Historical ownership/use is never silently removed by deleting the shared definition. |
-| Campaign Session — `campaign_session` | `/heavens/tabletop`; owned through the parent Campaign | `complete` is the domain archive transition and `reopen` is restore. The Campaign owner or administrator may start, complete, or reopen after a locked server authorization check. | Planned-only. Server preview counts roster, Scenes, Encounters, participants, Initiative, actions/reactions/effects, rewards, Rolls/checks/rulings, firearm records, and Derived Ability uses. Preparation-only descendants may cascade; any non-planned child or runtime/history row blocks deletion. | Complete records an `archive` audit, reopen records `restore`, and deletion records `delete`, all with the locked dependency snapshot. Completed Session history remains readable. |
-| Scene — `campaign_session_scene` | Created within a Session in `/heavens/tabletop`; owned through the parent Campaign | Same domain complete/reopen mapping and owner-or-administrator authorization. Parent Session state remains authoritative. | Planned-only while the parent is not completed. Scene members and planned Encounter preparation may cascade. Active/completed Encounters and all runtime/history references block deletion. | Audit snapshots retain Campaign, owner, Scene name/status, actor, action, and dependencies. Completing or reopening never erases Encounter or Character state. |
-| Encounter — `campaign_session_encounter` | Created within a Scene in `/heavens/tabletop`; owned through the parent Campaign | Same domain complete/reopen mapping and owner-or-administrator authorization. Completion continues through authoritative closeout; reopen preserves rewards and history. | Planned-only while parent Session and Scene permit preparation. Participant preparation may cascade. Initiative, action/reaction/effect, duration, reward, Roll/check/ruling, firearm, or Derived Ability history blocks deletion. | Both completion entry points write one `archive` lifecycle audit in their transaction. Reopen writes `restore`; guarded deletion writes `delete`. Historical runtime rows are never erased by ordinary root deletion. |
+| Campaign Session — `campaign_session` | `/heavens/tabletop`; owned through the parent Campaign | `complete` is the domain archive transition and `reopen` is restore. Only the Campaign-owning G.O.D. may start, complete/finalize, or reopen after a locked server authorization check; administrators may review the live state but cannot operate it. | Owner or administrator, planned-only. Server preview counts roster, Scenes, Encounters, participants, Initiative, actions/reactions/effects, rewards, Rolls/checks/rulings, firearm records, and Derived Ability uses. Preparation-only descendants may cascade; any non-planned child or runtime/history row blocks deletion. | Complete records an `archive` audit, reopen records `restore`, and deletion records `delete`, all with the locked dependency snapshot. Completed Session history remains readable. |
+| Scene — `campaign_session_scene` | Created within a Session in `/heavens/tabletop`; owned through the parent Campaign | Same domain complete/reopen mapping, but live start/complete/reopen authority belongs only to the Campaign-owning G.O.D. Parent Session state remains authoritative. | Owner or administrator, planned-only while the parent is not completed. Scene members and planned Encounter preparation may cascade. Active/completed Encounters and all runtime/history references block deletion. | Audit snapshots retain Campaign, owner, Scene name/status, actor, action, and dependencies. Completing or reopening never erases Encounter or Character state. |
+| Encounter — `campaign_session_encounter` | Created within a Scene in `/heavens/tabletop`; owned through the parent Campaign | Only the Campaign-owning G.O.D. may start, complete/finalize, or reopen. Completion continues through authoritative closeout; reopen preserves rewards and history. Administrators receive read-only closeout state and cannot grant XP. | Owner or administrator, planned-only while parent Session and Scene permit preparation. Participant preparation may cascade. Initiative, action/reaction/effect, duration, reward, Roll/check/ruling, firearm, or Derived Ability history blocks deletion. | Both completion entry points write one `archive` lifecycle audit in their transaction. Reopen writes `restore`; guarded deletion writes `delete`. Historical runtime rows are never erased by ordinary root deletion. |
+
+## Administrator User-account deletion
+
+User-account deletion is a separate clean-account operation, not a cascade over
+game content. Only a database-confirmed administrator may request it. An
+administrator cannot delete their own account or the last administrator. The
+operator must provide a nonblank reason and type the exact confirmation
+`DELETE <email>` resolved from the locked target row.
+
+The complete `user.id` inbound-FK closure is maintained in
+`src/features/lifecycle/user-account-delete-plan.ts`. Campaigns, Characters,
+NPCs, authored shared-library roots, archive/acquisition attribution, lifecycle
+audit, Chat messages, governance, and Tabletop/runtime history all block
+account deletion. This remains true for database FKs configured with `CASCADE`
+or `SET NULL`; account deletion never silently removes a Character or turns
+user-created content into ambiguous protected content.
+
+Only authentication provider/credential accounts, sessions, role assignments,
+Campaign memberships, Chat memberships, and Better Auth verification rows
+whose `value` is the target User ID are cleanup children. Membership cleanup is
+allowed only after the Character/NPC blocker is zero. The deletion transaction
+performs a cheap database Admin check before feature-gate or input validation,
+then locks the actor and target Users plus the administrator roster and repeats
+authorization under that lock. Because Better Auth's polymorphic
+`verification.value` has no User FK, migration `0034` installs a database
+trigger for both inserts and value updates. A value matching a live User takes
+a `FOR KEY SHARE` lock, while a value matching a retained `user-account` delete
+audit is rejected with a foreign-key violation; unrelated polymorphic values
+remain valid. A verification write therefore commits before deletion and is
+included in cleanup, or waits behind deletion and fails afterward. The
+transaction records its `user-account` lifecycle audit, removes only the
+allowlisted cleanup rows, and deletes the User. The audit targets the deleted
+identity by snapshots and references the surviving administrator actor, so it
+commits or rolls back with the deletion.
 
 ## Campaign-owned child/configuration records
 
 | Record | Lifecycle decision |
 | --- | --- |
-| Campaign membership — `campaign_player` | Association only: add/remove, never user-account deletion. Removal must be blocked while **any** Campaign Character (PC or NPC) uses the composite membership key; counting only PCs can cascade-delete NPCs. |
+| Campaign membership — `campaign_player` | Association only: add/remove. Clean-account deletion may remove it only after proving that **no** Campaign Character (PC or NPC) uses the composite membership key; counting only PCs can cascade-delete NPCs. |
 | Campaign currencies — `campaign_derived_currency` | Campaign-owned authoring child. Detach/delete only when no Character holding references it; it is deleted with the whole Campaign. A future standalone currency archive control may use the same parent policy if required. |
 | Allowed systems, Races, Items, tags, and legacy Derived Abilities | Explicit attach/detach configuration managed by the Campaign editor; no separate global archive control. Detaching never deletes the shared master. |
 | Character profile, attributes, Skills, inventory stacks, exact instances, equipment, spells, active health/mana/effects, and Creature snapshot | Owned aggregate children, managed through Character/NPC editors. They have no independent global lifecycle. |
@@ -91,26 +127,31 @@ Campaign Sessions, Scenes, and Encounters already have the domain lifecycle
 `planned`, `active`, and `completed`, with an explicit reopen transition.
 Completed is historical, not a physical `archived_at` flag. For audit parity,
 completion maps to lifecycle action `archive`, reopening maps to `restore`, and
-planned-root permanent deletion maps to `delete`. Every mutation resolves the
-actor's current G.O.D./administrator roles from the database, locks and reloads
-the root, verifies Campaign ownership or administrator override, and records
-the audit in the same transaction. Delete dialogs obtain their counts and
+planned-root permanent deletion maps to `delete`. Every request resolves the
+actor's current G.O.D./administrator roles from the database and locks and reloads
+the root. Live start, complete/finalize, and reopen paths then require both the
+G.O.D. role and exact Campaign ownership; planned-root deletion retains the
+Campaign-owner-or-administrator persistent-lifecycle policy. Audited mutations
+record the audit in the same transaction. Delete dialogs obtain their counts and
 blockers from `previewTabletopLifecycleEntity`; deletion repeats that preview
 after locking and applies the central production safety gate at the service
-boundary. Start, complete, reopen, and delete controls all open an accessible
+boundary. Available start, complete, reopen, and delete controls open an accessible
 confirmation dialog that presents the server-resolved entity, Campaign,
 ownership, dependency, and consequence context before mutation.
 
 The Tabletop page admits both G.O.D. and administrator roles through a
 database-resolved access context. A Campaign's G.O.D. retains its authoring and
 runtime controls. An administrator can select any active Campaign and receives
-a read-only authoring/runtime view with the Session, Scene, and Encounter
-lifecycle controls still available. Permanent deletion remains visually
-separated as the destructive operation. Session and Encounter completion retain
-their existing closeout review before the lifecycle confirmation, while Scene
-completion and every start/reopen action use the same preview-backed confirmation
-boundary. Every path still performs the same locked authorization/dependency
-recheck and writes its lifecycle audit inside the transaction.
+a read-only live view of its Sessions, Scenes, Encounters, and closeout state.
+Start, complete/finalize, reopen, XP-award, and other live runtime controls are
+not exposed to a foreign administrator and remain protected by the owner-G.O.D.
+server guard. Eligible planned-root permanent deletion remains available to
+administrators as a visually separated persistent lifecycle operation. Session
+and Encounter completion retain their existing closeout review before the
+lifecycle confirmation, while Scene completion and every start/reopen action use
+the same preview-backed confirmation boundary. Every mutation still performs its
+locked authorization/dependency recheck and writes its lifecycle audit inside the
+transaction.
 
 Roster members, scene members, encounter participants, Initiative, pending
 actions, declarations, reactions, effect plans/effects, duration bindings,
@@ -145,10 +186,11 @@ outside the Campaign predicate and remain unchanged.
 ## System/reference records
 
 `challenge_rating_reference`, `attribute_score_reference`, Item tag catalog,
-armor-location reference, Item rules, authentication/user/role/session tables,
-and migration ledgers are system or reference data. Defense Skill-path mappings
-are global canonical configuration rather than Campaign content. None receives
-an ordinary archive/delete control in this pass.
+armor-location reference, Item rules, and migration ledgers are system or
+reference data. Defense Skill-path mappings are global canonical configuration
+rather than Campaign content. Authentication credential/session/role rows are
+managed only as allowlisted children of the clean-account workflow; they do not
+receive independent archive/delete controls.
 
 ## Production recovery boundary
 
@@ -170,8 +212,9 @@ proven.
 
 `lifecycle_audit_event` is append-only lifecycle history. Target, Campaign, and
 owner identity are snapshots rather than foreign keys, so a successful delete
-cannot erase its audit evidence. The actor remains a restrictive User FK;
-ordinary user-account deletion is outside this lifecycle.
+cannot erase its audit evidence. The actor remains a restrictive User FK, so
+any User with prior lifecycle-audit attribution is not a clean deletable
+account.
 
 Campaign deletion uses the explicit plan in
 `src/features/lifecycle/campaign-delete-plan.ts`. Every Campaign-owned table in

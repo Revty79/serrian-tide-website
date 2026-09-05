@@ -263,8 +263,10 @@ test("11.25 Persisted effect order is preserved", () => {
   if (adapted.valid) assert.deepEqual(adapted.effects.map(({ effectKey }) => effectKey), ["first", "second"]);
 });
 
-test("11.26 Campaign-owning G.O.D. is the runtime authority", () => {
+test("11.26 Campaign-owning G.O.D. is the runtime authority and administrator alone is not", () => {
   assert.match(serviceSource, /Only a G\.O\.D\. may use Creature NPC Abilities/);
+  assert.match(serviceSource, /roles\.some\(\(\{ role \}\) => role === "god"\)/);
+  assert.doesNotMatch(serviceSource, /role === "admin"|roles\.includes\("admin"\)/);
   assert.match(serviceSource, /campaignOwnerUserId !== userId/);
 });
 

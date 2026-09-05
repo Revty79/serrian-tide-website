@@ -1,6 +1,13 @@
+import { and, eq } from "drizzle-orm";
 import { Client, type Notification } from "pg";
 
 import { db } from "@/db";
+import { session as authSession } from "@/db/auth-schema";
+import {
+  LIVE_SESSION_REVOCATION_CHANNEL,
+  liveSessionRevocationMatchesUser,
+  parseLiveSessionRevocationPayload,
+} from "@/features/authorization/live-session-revocation";
 import { ChatError } from "@/features/chat/chat";
 import {
   CHAT_LIVE_CHANNEL,
@@ -15,6 +22,9 @@ export const dynamic = "force-dynamic";
 
 function authorizationFailure(error: unknown): Response | null {
   if (!(error instanceof ChatError)) return null;
+  if (error.code === "AUTH_REQUIRED") {
+    return new Response("Unauthorized", { status: 401 });
+  }
   if (error.code === "INVALID_INPUT") {
     return new Response("Chat room is invalid.", { status: 400 });
   }
@@ -53,18 +63,53 @@ export async function GET(request: Request): Promise<Response> {
     application_name: process.env.CHAT_LIVE_APPLICATION_NAME?.trim()
       || "serrian-tide-chat-live-sse",
   });
+  let revocationObserved = false;
+  let closeClient: (() => Promise<void>) | null = null;
+  const onRevocationNotification = (notification: Notification) => {
+    if (notification.channel !== LIVE_SESSION_REVOCATION_CHANNEL) return;
+    const event = parseLiveSessionRevocationPayload(notification.payload);
+    if (!event || !liveSessionRevocationMatchesUser(event, session.user.id)) return;
+    revocationObserved = true;
+    void closeClient?.();
+  };
+  const closeUnstartedClient = async () => {
+    client.off("notification", onRevocationNotification);
+    await client.query(`UNLISTEN ${CHAT_LIVE_CHANNEL}`).catch(() => undefined);
+    await client.query(`UNLISTEN ${LIVE_SESSION_REVOCATION_CHANNEL}`).catch(() => undefined);
+    await client.end().catch(() => undefined);
+  };
+  client.on("notification", onRevocationNotification);
+
+  let sessionStillActive = false;
   try {
     await client.connect();
     await client.query(`LISTEN ${CHAT_LIVE_CHANNEL}`);
-  } catch {
-    await client.end().catch(() => undefined);
+    await client.query(`LISTEN ${LIVE_SESSION_REVOCATION_CHANNEL}`);
+    const [activeSession] = await db.select({ id: authSession.id })
+      .from(authSession)
+      .where(and(
+        eq(authSession.id, session.session.id),
+        eq(authSession.userId, session.user.id),
+      ))
+      .limit(1);
+    const confirmedRoomSlug = await db.transaction((tx) => (
+      authorizeChatRoomSubscriptionInTransaction(tx, session.user.id, roomSlug)
+    ));
+    sessionStillActive = Boolean(activeSession) && confirmedRoomSlug === roomSlug;
+  } catch (error) {
+    await closeUnstartedClient();
+    const response = authorizationFailure(error);
+    if (response) return response;
     return new Response("Live synchronization is unavailable.", { status: 503 });
+  }
+  if (!sessionStillActive || revocationObserved) {
+    await closeUnstartedClient();
+    return new Response("Unauthorized", { status: 401 });
   }
 
   const encoder = new TextEncoder();
   let closed = false;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
-  let closeClient: (() => Promise<void>) | null = null;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (name: "ready" | "message" | "directory", data: unknown) => {
@@ -87,9 +132,11 @@ export async function GET(request: Request): Promise<Response> {
         if (closed) return;
         closed = true;
         if (heartbeat) clearInterval(heartbeat);
+        client.off("notification", onRevocationNotification);
         client.off("notification", onNotification);
         client.off("error", onError);
         await client.query(`UNLISTEN ${CHAT_LIVE_CHANNEL}`).catch(() => undefined);
+        await client.query(`UNLISTEN ${LIVE_SESSION_REVOCATION_CHANNEL}`).catch(() => undefined);
         await client.end().catch(() => undefined);
         try { controller.close(); } catch { /* stream already closed */ }
       };
@@ -98,7 +145,7 @@ export async function GET(request: Request): Promise<Response> {
       client.on("notification", onNotification);
       client.on("error", onError);
       request.signal.addEventListener("abort", () => void cleanup(), { once: true });
-      if (request.signal.aborted) {
+      if (request.signal.aborted || revocationObserved) {
         void cleanup();
         return;
       }

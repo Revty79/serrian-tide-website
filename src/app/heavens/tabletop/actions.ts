@@ -4,6 +4,7 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { assertCampaignRuntimeOperator } from "@/features/active-state/authorization";
 import { user } from "@/db/auth-schema";
 import { campaign } from "@/db/campaign-schema";
 import { creature } from "@/db/creature-schema";
@@ -76,6 +77,7 @@ export type TabletopWorkspaceData = {
   campaigns: TabletopCampaignSummary[];
   selectedCampaignId: number | null;
   canAuthor: boolean;
+  canOperate: boolean;
   sessions: CampaignSessionSummary[];
 };
 
@@ -265,14 +267,16 @@ export async function getTabletopWorkspace(
         .from(campaignSession)
         .where(eq(campaignSession.campaignId, selectedCampaignId))
         .orderBy(asc(campaignSession.sequenceNumber), asc(campaignSession.id));
+  const canOperate = Boolean(
+    selectedCampaign
+    && selectedCampaign.ownerUserId === actor.userId
+    && actor.roles.includes("god"),
+  );
   return {
     campaigns,
     selectedCampaignId,
-    canAuthor: Boolean(
-      selectedCampaign
-      && selectedCampaign.ownerUserId === actor.userId
-      && actor.roles.includes("god"),
-    ),
+    canAuthor: canOperate,
+    canOperate,
     sessions: sessions.map(toSessionSummary),
   };
 }
@@ -596,6 +600,7 @@ async function applyLifecycleTransition(
         .for("update");
       if (!locked) throw new Error("That Session no longer exists.");
       assertOwnedRootManager(actor, locked.ownerUserId, "Session");
+      assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Session");
       const next = transitionSession(locked, transition);
       if (transition === "complete") {
         const closeout = await readSessionCloseoutInTransaction(tx, {

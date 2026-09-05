@@ -7,7 +7,7 @@ import { listNpcCampaigns } from "./actions";
 import { NpcWorkspace } from "./npc-workspace";
 
 export default async function NpcsPage() {
-  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const access = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const campaigns = await listNpcCampaigns();
-  return <NpcWorkspace campaigns={campaigns} />;
+  return <NpcWorkspace campaigns={campaigns} isAdmin={access.roles.includes("admin")} />;
 }

@@ -32,6 +32,7 @@ export const LIFECYCLE_ENTITY_KINDS = [
   "scene",
   "encounter",
   "campaign-player",
+  "user-account",
 ] as const;
 
 export type LifecycleAuditAction =
@@ -44,7 +45,8 @@ export type LifecycleEntityKind =
  * Append-only lifecycle history. Target, Campaign, and owner identities are
  * deliberate snapshots rather than foreign keys so a deletion event survives
  * the entity graph it records. Only the acting User remains referentially
- * protected; ordinary account deletion is outside the product lifecycle.
+ * protected. A separately guarded administrator workflow can delete only a
+ * clean User account with no prior audit attribution.
  */
 export const lifecycleAuditEvent = pgTable(
   "lifecycle_audit_event",
@@ -101,7 +103,8 @@ export const lifecycleAuditEvent = pgTable(
         'campaign-session',
         'scene',
         'encounter',
-        'campaign-player'
+        'campaign-player',
+        'user-account'
       )`,
     ),
     check(

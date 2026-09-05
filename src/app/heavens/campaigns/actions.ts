@@ -38,6 +38,7 @@ import {
 } from "@/features/campaigns/campaign-membership";
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import { reconcileCharacterDerivedAbilityPassivesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
+import { publishLiveSessionRevocationInTransaction } from "@/features/authorization/live-session-revocation";
 import { synchronizeCampaignGeneralChatRoomInTransaction } from "@/features/chat/chat-service";
 import { publishChatDirectoryInvalidationInTransaction } from "@/features/chat/chat-live-events";
 import {
@@ -538,7 +539,10 @@ export async function removeCampaignPlayer(campaignId: number, userId: string) {
       );
     }
     const removed = await tx.delete(campaignPlayer).where(and(eq(campaignPlayer.campaignId, campaignId), eq(campaignPlayer.userId, userId), eq(campaignPlayer.isNpcController, false))).returning({ userId: campaignPlayer.userId });
-    if (removed.length > 0) await publishChatDirectoryInvalidationInTransaction(tx);
+    if (removed.length > 0) {
+      await publishChatDirectoryInvalidationInTransaction(tx);
+      await publishLiveSessionRevocationInTransaction(tx, removed[0]!.userId);
+    }
   });
   revalidatePath("/heavens/campaigns");
   revalidatePath("/heavens");

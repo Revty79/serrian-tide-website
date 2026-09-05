@@ -17,6 +17,7 @@ import "./active-mana-panel.css";
 type Props = {
   mana: ActiveManaView;
   disabled?: boolean;
+  disabledReason?: string;
   onManaChange: (mana: ActiveManaView) => void;
 };
 
@@ -29,7 +30,7 @@ function inputAmount(value: string): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-export function ActiveManaPanel({ mana, disabled = false, onManaChange }: Props) {
+export function ActiveManaPanel({ mana, disabled = false, disabledReason, onManaChange }: Props) {
   const [managing, setManaging] = useState(false);
   const [amounts, setAmounts] = useState<Partial<Record<CharacterMagicSystem, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -57,7 +58,7 @@ export function ActiveManaPanel({ mana, disabled = false, onManaChange }: Props)
       <div><p>ACTIVE RESOURCES</p><h3 id="active-mana-title">Current Mana</h3><span>Maximum Mana remains derived from permanent Character mechanics. Only Mana Spent is stored.</span></div>
       <button type="button" disabled={busy || disabled} onClick={() => setManaging((current) => !current)}>{managing ? "Hide Controls" : "Manage Mana"}</button>
     </header>
-    {disabled ? <p className="active-mana-panel__notice">Save or discard pending Character edits before changing runtime Mana.</p> : null}
+    {disabled ? <p className="active-mana-panel__notice">{disabledReason ?? "Save or discard pending Character edits before changing runtime Mana."}</p> : null}
     {feedback ? <p className={`active-mana-panel__feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
     <div className="active-mana-panel__grid">
       {mana.pools.map((pool) => {

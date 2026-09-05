@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { canMutateActiveHealth } from "@/features/active-state/authorization";
+import {
+  canManageCampaignRecords,
+  canMutateActiveHealth,
+  canOperateCampaignState,
+} from "@/features/active-state/authorization";
 
 import {
   getDerivedAbilityDependencyOrder,
@@ -440,7 +444,7 @@ test("Reaction and Triggered opportunities surface matching events without execu
   assert.deepEqual(getDerivedAbilityOpportunities(character, {}), []);
 });
 
-test("Derived Ability control reuses Character owner and owning G.O.D. authorization", () => {
+test("Derived Ability runtime control stays with the Character owner or owning G.O.D., separate from administrator record authority", () => {
   const entity = {
     playerUserId: "player",
     campaignOwnerUserId: "god",
@@ -451,6 +455,9 @@ test("Derived Ability control reuses Character owner and owning G.O.D. authoriza
   assert.equal(canMutateActiveHealth({ userId: "god", roles: ["god"] }, entity), true);
   assert.equal(canMutateActiveHealth({ userId: "stranger", roles: ["player"] }, entity), false);
   assert.equal(canMutateActiveHealth({ userId: "other-god", roles: ["god"] }, entity), false);
+  assert.equal(canMutateActiveHealth({ userId: "admin", roles: ["admin"] }, entity), false);
+  assert.equal(canManageCampaignRecords({ userId: "admin", roles: ["admin"] }, entity.campaignOwnerUserId), true);
+  assert.equal(canOperateCampaignState({ userId: "admin", roles: ["admin"] }, entity.campaignOwnerUserId), false);
 });
 
 test("Pass 6 server boundaries preserve no-XP acquisition, authoritative rechecks, history, and shared effect execution", () => {
@@ -465,6 +472,10 @@ test("Pass 6 server boundaries preserve no-XP acquisition, authoritative recheck
   assert.match(service, /spendImmediateInitiativeInTransaction/);
   assert.match(service, /characterDerivedAbilityUse/);
   assert.match(service, /reconcileCharacterDerivedAbilityPassivesInTransaction/);
+  assert.match(service, /if \(input\.godOnly\) assertCampaignRecordManager/);
+  assert.match(service, /const canChooseTarget = canOperateCampaignState/);
+  assert.match(service, /rechargeCharacterDerivedAbility[\s\S]*assertCampaignRuntimeManager/);
+  assert.match(service, /loadUsePlanInTransaction[\s\S]*assertCharacterControl/);
   assert.doesNotMatch(service, /spendXp|experience:\s*.*-/i);
   assert.match(schema, /TODO: If canon later defines an acquisition price/);
   assert.match(schema, /character_derived_ability_active_uq/);

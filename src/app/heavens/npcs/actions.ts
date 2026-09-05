@@ -4,6 +4,7 @@ import { and, asc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import {
@@ -124,6 +125,8 @@ export type NpcOriginOption = {
 export type NpcCampaignSummary = {
   id: number;
   name: string;
+  archived: boolean;
+  ownerLabel?: string;
 };
 
 export type NpcArchiveRecord = {
@@ -325,15 +328,39 @@ export async function listNpcOrigins(campaignId: number): Promise<NpcOriginOptio
 
 export async function listNpcCampaigns(): Promise<NpcCampaignSummary[]> {
   const access = await requireGodOrAdminAccessContext();
-  return db.select({ id: campaign.id, name: campaign.name })
+  if (!access.roles.includes("admin")) {
+    const rows = await db.select({ id: campaign.id, name: campaign.name })
+      .from(campaign)
+      .where(and(
+        isNull(campaign.archivedAt),
+        eq(campaign.createdByUserId, access.session.user.id),
+      ))
+      .orderBy(asc(campaign.name), asc(campaign.id));
+    return rows.map((entry) => ({ ...entry, archived: false }));
+  }
+
+  const rows = await db.select({
+    id: campaign.id,
+    name: campaign.name,
+    archivedAt: campaign.archivedAt,
+    ownerName: user.name,
+    ownerUsername: user.username,
+    ownerDisplayUsername: user.displayUsername,
+  })
     .from(campaign)
-    .where(and(
-      isNull(campaign.archivedAt),
-      access.roles.includes("admin")
-        ? undefined
-        : eq(campaign.createdByUserId, access.session.user.id),
-    ))
+    .innerJoin(user, eq(user.id, campaign.createdByUserId))
     .orderBy(asc(campaign.name), asc(campaign.id));
+  return rows.map((entry) => {
+    const ownerHandle = entry.ownerDisplayUsername?.trim() || entry.ownerUsername?.trim();
+    return {
+      id: entry.id,
+      name: entry.name,
+      archived: entry.archivedAt !== null,
+      ownerLabel: ownerHandle && ownerHandle !== entry.ownerName
+        ? `${entry.ownerName} (${ownerHandle})`
+        : entry.ownerName,
+    };
+  });
 }
 
 export async function createNpc(input: CreateNpcValues): Promise<CreateNpcResult> {

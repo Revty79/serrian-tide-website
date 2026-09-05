@@ -16,6 +16,13 @@ const adminSections = [
     href: "/admin/users",
   },
   {
+    title: "CONTENT OVERVIEW",
+    subtitle: "Site-wide Content",
+    description:
+      "Review active and archived Campaigns, Characters, NPCs, ownership, and shared catalog totals.",
+    href: "/admin/content",
+  },
+  {
     title: "ROLE MANAGEMENT",
     subtitle: "Permissions",
     description:
@@ -124,12 +131,12 @@ export default async function AdminPage() {
             </h2>
 
             <p className="mt-2 max-w-2xl text-slate-400">
-              Manage the accounts and permissions that control access to
-              Serrian Tide.
+              Manage accounts, permissions, and site-wide content oversight
+              for Serrian Tide.
             </p>
           </div>
 
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
+          <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {adminSections.map((section) =>
               section.href ? (
                 <Link

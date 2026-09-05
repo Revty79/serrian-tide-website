@@ -49,7 +49,11 @@ import {
   readActiveManaInTransaction,
   spendActiveManaInTransaction,
 } from "@/features/active-state/active-mana-service";
-import { canMutateActiveHealth } from "@/features/active-state/authorization";
+import {
+  canManageCampaignRecords,
+  canMutateActiveHealth,
+  canOperateCampaignState,
+} from "@/features/active-state/authorization";
 import { persistPlannedMechanicalEffectInTransaction } from "@/features/active-state/mechanical-effect-service";
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import type { CharacterMagicSystem } from "@/features/characters/character-rules";
@@ -226,7 +230,7 @@ function assertCharacterControl(
   }
 }
 
-function assertCampaignGod(
+function assertCharacterRecordControl(
   entity: AccessEntity,
   userId: string,
   roles: readonly string[],
@@ -234,8 +238,38 @@ function assertCampaignGod(
   if (entity.characterArchivedAt || entity.campaignArchivedAt) {
     throw new Error("Archived Characters and Campaigns cannot mutate Derived Abilities.");
   }
-  if (!roles.includes("god") || entity.campaignOwnerUserId !== userId) {
-    throw new Error("Only the owning G.O.D. may grant, revoke, or recharge Derived Abilities.");
+  if (!roles.includes("admin") && !canMutateActiveHealth({ userId, roles }, entity)) {
+    throw new Error("You do not have permission to manage this Character's Derived Ability records.");
+  }
+}
+
+function assertCampaignRecordManager(
+  entity: AccessEntity,
+  userId: string,
+  roles: readonly string[],
+): void {
+  if (entity.characterArchivedAt || entity.campaignArchivedAt) {
+    throw new Error("Archived Characters and Campaigns cannot mutate Derived Abilities.");
+  }
+  const canManage = canManageCampaignRecords(
+    { userId, roles },
+    entity.campaignOwnerUserId,
+  );
+  if (!canManage) {
+    throw new Error("Only the owning G.O.D. or an administrator may manage awarded or manually confirmed Derived Ability records.");
+  }
+}
+
+function assertCampaignRuntimeManager(
+  entity: AccessEntity,
+  userId: string,
+  roles: readonly string[],
+): void {
+  if (entity.characterArchivedAt || entity.campaignArchivedAt) {
+    throw new Error("Archived Characters and Campaigns cannot mutate Derived Abilities.");
+  }
+  if (!canOperateCampaignState({ userId, roles }, entity.campaignOwnerUserId)) {
+    throw new Error("Only the Campaign-owning G.O.D. may recharge Derived Abilities.");
   }
 }
 
@@ -400,8 +434,8 @@ async function acquireInTransaction(input: {
       session.user.id,
       true,
     );
-    if (input.godOnly) assertCampaignGod(state.entity, session.user.id, roles);
-    else assertCharacterControl(state.entity, session.user.id, roles);
+    if (input.godOnly) assertCampaignRecordManager(state.entity, session.user.id, roles);
+    else assertCharacterRecordControl(state.entity, session.user.id, roles);
     const abilityId = positiveId(input.derivedAbilityId, "Derived Ability");
     const ability = state.catalog.find(({ id }) => id === abilityId);
     const status = state.resolution.statuses.find(({ abilityId: id }) => id === abilityId);
@@ -420,7 +454,7 @@ async function acquireInTransaction(input: {
       throw new Error("G.O.D. confirmation is required for Manual Acquisition Requirements.");
     }
     if (status.acquisitionResult === "manual") {
-      assertCampaignGod(state.entity, session.user.id, roles);
+      assertCampaignRecordManager(state.entity, session.user.id, roles);
     }
     const [created] = await tx.insert(characterDerivedAbility).values({
       characterId: state.entity.characterId,
@@ -472,7 +506,7 @@ export async function revokeCharacterDerivedAbility(input: {
       session.user.id,
       true,
     );
-    assertCampaignGod(state.entity, session.user.id, roles);
+    assertCampaignRecordManager(state.entity, session.user.id, roles);
     const abilityId = positiveId(input.derivedAbilityId, "Derived Ability");
     const [updated] = await tx.update(characterDerivedAbility).set({
       revokedAt: new Date(),
@@ -593,8 +627,10 @@ async function loadUsePlanInTransaction(
   const targetIds = [...new Set([...applications.values()].flatMap((application) =>
     application.targetCharacterId == null ? [] : [application.targetCharacterId],
   ))];
-  const canChooseTarget = roles.includes("god")
-    && state.entity.campaignOwnerUserId === userId;
+  const canChooseTarget = canOperateCampaignState(
+    { userId, roles },
+    state.entity.campaignOwnerUserId,
+  );
   if (!canChooseTarget && targetIds.some((id) => id !== state.entity.characterId)) {
     throw new Error("A Player may only target their own Character from this Character sheet.");
   }
@@ -806,7 +842,7 @@ export async function rechargeCharacterDerivedAbility(input: {
       session.user.id,
       true,
     );
-    assertCampaignGod(state.entity, session.user.id, roles);
+    assertCampaignRuntimeManager(state.entity, session.user.id, roles);
     const ability = state.catalog.find(({ id }) => id === input.derivedAbilityId);
     if (!ability) throw new Error("Derived Ability not found.");
     const key = cleanEventKey(input.refreshKey);

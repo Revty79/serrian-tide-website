@@ -121,8 +121,12 @@ test("one console-scoped event stream reloads authoritative state and cleans up"
 
 test("the Player live endpoint rechecks role, assignment, and membership", () => {
   assert.match(liveRoute, /role === "player"/);
-  assert.match(liveRoute, /campaignCharacter\.playerUserId, session\.user\.id/);
-  assert.match(liveRoute, /campaignPlayer\.userId, session\.user\.id/);
+  assert.match(liveRoute, /campaignCharacter\.playerUserId, authenticatedUserId/);
+  assert.match(liveRoute, /campaignPlayer\.userId, authenticatedUserId/);
+  assert.equal(
+    (liveRoute.match(/await resolveTabletopSubscriptionAuthorization\(/g) ?? []).length,
+    2,
+  );
 });
 
 test("Pass 13 combat controls extend the accepted console without exposing effect application", () => {

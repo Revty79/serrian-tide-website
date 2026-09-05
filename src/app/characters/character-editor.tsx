@@ -397,6 +397,7 @@ export function CharacterEditor({
   initialEquipmentState,
   initialChargeState,
   godMode,
+  canOperateRuntime,
   itemUseTimingBlocked = false,
   backHref,
   backLabel = "Back",
@@ -408,6 +409,7 @@ export function CharacterEditor({
   initialEquipmentState: CharacterEquipmentStateView;
   initialChargeState: CharacterItemChargeStateView;
   godMode: boolean;
+  canOperateRuntime: boolean;
   itemUseTimingBlocked?: boolean;
   backHref?: string;
   backLabel?: string;
@@ -839,7 +841,7 @@ export function CharacterEditor({
         <div><span>Story</span><strong>{readiness.storyComplete ? "✓" : "—"}</strong></div>
         <div><span>Equipment</span><strong>{readiness.equipmentComplete ? "✓" : "—"}</strong></div>
         <div><span>{godMode ? "Current Funds" : "Starting Funds"}</span><strong>{statusPurse.formatted}</strong></div>
-        <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? "G.O.D. Full Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? "Unsaved changes" : "Saved record"}</small></div>
+        <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? canOperateRuntime ? "G.O.D. Full Access" : "Admin Record Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? "Unsaved changes" : "Saved record"}</small></div>
         {!playerLocked ? <div className="character-status-strip__actions"><button type="button" disabled={saving || !dirty || archivedNpc} onClick={() => void persist(false)}>{saving ? "Saving…" : isNpc ? "Save NPC" : "Save Character"}</button>{!isNpc && readiness.ready && !aggregate.profile.creationCompletedAt ? <button type="button" className="is-primary" disabled={saving} onClick={() => void preserveScroll(() => setConfirmCompletion(true))}>Complete Character</button> : null}</div> : null}
       </section>
 
@@ -851,14 +853,14 @@ export function CharacterEditor({
           {visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}><span>{tab.label}</span>{tabStatus(tab.id, readiness) ? <i>✓</i> : null}</button>)}
         </nav>
         <section className="character-editor">
-          {godMode ? <aside className="character-admin-notice"><strong>G.O.D. administrative access is active.</strong><span>You may edit the full record even after Player creation is complete.</span></aside> : playerLocked ? <aside className="character-admin-notice is-locked"><strong>Character creation is complete.</strong><span>Identity, Attributes, starting Skills, Story, and starting Equipment are read-only.</span></aside> : null}
+          {godMode ? canOperateRuntime ? <aside className="character-admin-notice"><strong>G.O.D. administrative access is active.</strong><span>You may edit the full record even after Player creation is complete.</span></aside> : <aside className="character-admin-notice is-locked"><strong>Administrator record access is active.</strong><span>Live Campaign state is read-only. Only a G.O.D. who owns this Campaign can operate Health, Mana, effects, Equipment State, Item Charges, Items, or Abilities.</span></aside> : playerLocked ? <aside className="character-admin-notice is-locked"><strong>Character creation is complete.</strong><span>Identity, Attributes, starting Skills, Story, and starting Equipment are read-only.</span></aside> : null}
           {activeTab === "identity" ? <IdentityTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} raceLoading={raceLoading} onChange={change} onChooseRace={chooseRace} /> : null}
           {activeTab === "attributes" ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} onSetAttribute={setAttribute} /> : null}
           {activeTab === "skills" ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked || archivedNpc} onChange={change} /> : null}
           {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked || archivedNpc} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
           {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} /> : null}
-          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked} itemUseDisabledReason={itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} /> : null}
+          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked || !canOperateRuntime} itemUseDisabledReason={!canOperateRuntime ? "Live Campaign state is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} canOperateRuntime={canOperateRuntime} /> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>

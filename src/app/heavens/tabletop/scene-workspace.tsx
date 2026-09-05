@@ -243,6 +243,7 @@ export function SceneWorkspace({
   }
 
   async function lifecycle(action: "start" | "complete" | "reopen"): Promise<void> {
+    if (!initialData.canOperate) return;
     if (!selectedScene) return;
     await perform(async () => {
       const updated = action === "start"
@@ -258,6 +259,7 @@ export function SceneWorkspace({
   }
 
   async function startParentSession(): Promise<void> {
+    if (!initialData.canOperate) return;
     await perform(async () => {
       await startCampaignSession(initialData.sessionId);
       setFeedback({ kind: "success", message: "The Session is active. Planned Scenes may now be started." });
@@ -268,7 +270,7 @@ export function SceneWorkspace({
   }
 
   async function openTransitionConfirmation(action: TransitionMode): Promise<void> {
-    if (!selectedScene) return;
+    if (!initialData.canOperate || !selectedScene) return;
     await preserveScroll(() => perform(async () => {
       const preview = await previewTabletopLifecycleEntity(action === "start-parent"
         ? { entityKind: "campaign-session", entityId: initialData.sessionId }
@@ -364,7 +366,9 @@ export function SceneWorkspace({
         </header>
 
         {editorVisible ? <>
-          {!creating && !selectedScene?.editable ? <p className="tabletop-readonly-notice">This Scene or its parent Session is historical and read-only. Reopen the parent Session and then the Scene to make corrections.</p> : null}
+          {!creating && !selectedScene?.editable ? <p className="tabletop-readonly-notice">{initialData.canOperate
+            ? "This Scene or its parent Session is historical and read-only. Reopen the parent Session and then the Scene to make corrections."
+            : "Administrative read-only live view. Starting, completing, reopening, and operating this Scene remain with the Campaign-owning G.O.D."}</p> : null}
           <div className="tabletop-scene-form">
             <label><span>Scene Number</span><input disabled={!editorEditable || busy} type="number" min={1} step={1} value={draft.sequenceNumber} onChange={(event) => setDraft({ ...draft, sequenceNumber: Number(event.target.value) })} /></label>
             <label><span>Location / Setting</span><input disabled={!editorEditable || busy} value={draft.locationLabel} placeholder="Abandoned Highway Bridge" onChange={(event) => setDraft({ ...draft, locationLabel: event.target.value })} /></label>
@@ -386,10 +390,10 @@ export function SceneWorkspace({
               if (selectedScene) setDraft(metadataFromScene(selectedScene));
               setFeedback(null);
             }}>Cancel</button> : null}
-            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Scene</button> : null}
-            {!creating && selectedScene?.status === "planned" && initialData.sessionStatus === "planned" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start-parent")}>Start Session</button> : null}
-            {!creating && selectedScene?.status === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("complete")}>Complete Scene</button> : null}
-            {!creating && selectedScene?.status === "completed" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Scene</button> : null}
+            {initialData.canOperate && !creating && selectedScene?.status === "planned" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Scene</button> : null}
+            {initialData.canOperate && !creating && selectedScene?.status === "planned" && initialData.sessionStatus === "planned" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start-parent")}>Start Session</button> : null}
+            {initialData.canOperate && !creating && selectedScene?.status === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("complete")}>Complete Scene</button> : null}
+            {initialData.canOperate && !creating && selectedScene?.status === "completed" && initialData.sessionStatus === "active" ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Scene</button> : null}
             {!creating && selectedScene?.status === "planned" && initialData.sessionStatus !== "completed" ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Scene</button> : null}
           </div>
 
@@ -439,7 +443,7 @@ export function SceneWorkspace({
       </section>
     </div>
     {selectedScene ? <LifecycleConfirmationDialog
-      open={transitionMode !== null}
+      open={initialData.canOperate && transitionMode !== null}
       titleId="transition-tabletop-scene-title"
       eyebrow={transitionMode === "start-parent" ? "Session Lifecycle" : "Scene Lifecycle"}
       title={transitionMode === "start-parent"

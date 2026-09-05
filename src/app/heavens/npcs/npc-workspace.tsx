@@ -46,14 +46,27 @@ function messageFrom(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function NpcWorkspace({ campaigns }: { campaigns: NpcCampaignSummary[] }) {
+export function NpcWorkspace({
+  campaigns,
+  isAdmin,
+}: {
+  campaigns: NpcCampaignSummary[];
+  isAdmin: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preserveScroll = useInPlaceScrollPreservation();
   const createDialogRef = useRef<HTMLDialogElement>(null);
   const initialCampaign = searchParams.get("campaign") ?? "";
+  const initialStatus: NpcArchiveStatus = searchParams.get("status") === "archived"
+    ? "archived"
+    : "active";
+  const requestedNpcId = Number(searchParams.get("npc"));
+  const initialSimpleNpcId = Number.isSafeInteger(requestedNpcId) && requestedNpcId > 0
+    ? requestedNpcId
+    : null;
   const [campaignId, setCampaignId] = useState(initialCampaign);
-  const [status, setStatus] = useState<NpcArchiveStatus>("active");
+  const [status, setStatus] = useState<NpcArchiveStatus>(initialStatus);
   const [records, setRecords] = useState<NpcArchiveRecord[]>([]);
   const [origins, setOrigins] = useState<NpcOriginOption[]>([]);
   const [search, setSearch] = useState("");
@@ -77,13 +90,23 @@ export function NpcWorkspace({ campaigns }: { campaigns: NpcCampaignSummary[] })
     if (!initialCampaign) return;
     let active = true;
     Promise.all([
-      listNpcArchive(Number(initialCampaign), "active"),
+      listNpcArchive(Number(initialCampaign), initialStatus),
       listNpcOrigins(Number(initialCampaign)),
+      initialSimpleNpcId === null ? Promise.resolve(null) : getSimpleNpc(initialSimpleNpcId),
     ])
-      .then(([nextRecords, nextOrigins]) => {
+      .then(([nextRecords, nextOrigins, requestedSimpleNpc]) => {
         if (!active) return;
         setRecords(nextRecords);
         setOrigins(nextOrigins);
+        if (requestedSimpleNpc) {
+          if (
+            requestedSimpleNpc.campaignId !== Number(initialCampaign)
+            || requestedSimpleNpc.status !== initialStatus
+          ) {
+            throw new Error("The requested Simple NPC is not in this Campaign archive.");
+          }
+          setSimpleDraft(requestedSimpleNpc);
+        }
       })
       .catch((error) => {
         if (active) setFeedback({ kind: "error", message: messageFrom(error, "NPC archive could not be loaded.") });
@@ -277,12 +300,29 @@ export function NpcWorkspace({ campaigns }: { campaigns: NpcCampaignSummary[] })
       <nav><Link href="/heavens">← The Heavens</Link></nav>
     </header>
 
+    <aside
+      className={`npcs-scope-banner ${isAdmin ? "is-admin" : "is-god"}`}
+      aria-label="NPC campaign scope"
+    >
+      <div>
+        <p>{isAdmin ? "ADMINISTRATOR SITE-WIDE SCOPE" : "G.O.D. OWNER SCOPE"}</p>
+        <h2 className="font-sans">
+          {isAdmin ? "NPCs across all Campaigns" : "NPCs in Campaigns you own"}
+        </h2>
+      </div>
+      <span>
+        {isAdmin
+          ? "You can select and manage NPCs in active or archived Campaigns. The Administrator override does not change who owns each Campaign."
+          : "Only active Campaigns you own are listed. Other G.O.D.s' Campaigns remain outside your scope."}
+      </span>
+    </aside>
+
     {feedback ? <p className={`npcs-feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
 
     <section className="npcs-control">
       <div><p>CAMPAIGN CONTEXT</p><h2 className="font-sans">Choose the NPC archive</h2></div>
-      <label><span>Campaign</span><select value={campaignId} onChange={(event) => void changeCampaign(event.target.value)}><option value="">No Campaign Selected</option>{campaigns.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
-      <button type="button" disabled={!campaignId || busy} onClick={openCreator}>Create NPC</button>
+      <label><span>Campaign</span><select value={campaignId} onChange={(event) => void changeCampaign(event.target.value)}><option value="">No Campaign Selected</option>{campaigns.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.archived ? " [Archived]" : ""}{isAdmin && entry.ownerLabel ? ` — Owner: ${entry.ownerLabel}` : ""}</option>)}</select></label>
+      <button type="button" disabled={!campaignId || busy || selectedCampaign?.archived} onClick={openCreator}>Create NPC</button>
     </section>
 
     <section className="npcs-master">

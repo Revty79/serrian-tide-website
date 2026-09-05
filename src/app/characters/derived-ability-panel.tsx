@@ -29,6 +29,7 @@ type Props = {
   skillNames: ReadonlyMap<number, string>;
   godMode: boolean;
   disabled: boolean;
+  runtimeDisabled: boolean;
   onComplete: () => void | Promise<void>;
 };
 
@@ -65,6 +66,7 @@ export function DerivedAbilityPanel({
   skillNames,
   godMode,
   disabled,
+  runtimeDisabled,
   onComplete,
 }: Props) {
   const [busy, setBusy] = useState(false);
@@ -115,6 +117,7 @@ export function DerivedAbilityPanel({
   }
 
   function beginUse(ability: DerivedAbilityDefinition) {
+    if (runtimeDisabled) return;
     setUsingId(ability.id);
     setSelections(abilityEffectSelections(ability, characterId));
     setPreparation(null);
@@ -123,7 +126,7 @@ export function DerivedAbilityPanel({
   }
 
   async function planUse(confirmManual = manualConfirmed) {
-    if (usingId === null) return;
+    if (usingId === null || runtimeDisabled) return;
     setBusy(true);
     setFeedback("");
     try {
@@ -143,7 +146,7 @@ export function DerivedAbilityPanel({
   }
 
   async function confirmUse() {
-    if (usingId === null || preparation?.plan.status !== "ready") return;
+    if (usingId === null || runtimeDisabled || preparation?.plan.status !== "ready") return;
     await mutate(async () => {
       await executeDerivedAbilityUse({
         characterId,
@@ -184,14 +187,14 @@ export function DerivedAbilityPanel({
         {ability.mechanicalEffect ? <p><b>Effect:</b> {ability.mechanicalEffect}</p> : null}
         {renderStructuredEffects(ability)}
         {actions ? <div className="character-sheet__derived-actions">
-          {canUse ? <button type="button" disabled={disabled || busy} onClick={() => beginUse(ability)}>Use Ability</button> : null}
+          {canUse ? <button type="button" disabled={disabled || runtimeDisabled || busy} onClick={() => beginUse(ability)}>Use Ability</button> : null}
           {godMode && status.ownershipId !== null ? <button type="button" disabled={disabled || busy} onClick={() => {
             if (window.confirm(`Revoke ${ability.name}? Ownership history and use history will remain.`)) {
               void mutate(() => revokeDerivedAbility({ characterId, derivedAbilityId: ability.id }), `${ability.name} was revoked.`);
             }
           }}>Revoke</button> : null}
           {godMode ? ability.useLimits.filter((limit) => limit.refreshScope === "manual" || limit.refreshScope === "event").map((limit) => (
-            <button key={`${limit.refreshScope}:${limit.sortOrder}`} type="button" disabled={disabled || busy} onClick={() => void mutate(() => rechargeDerivedAbility({
+            <button key={`${limit.refreshScope}:${limit.sortOrder}`} type="button" disabled={disabled || runtimeDisabled || busy} onClick={() => void mutate(() => rechargeDerivedAbility({
               characterId,
               derivedAbilityId: ability.id,
               refreshScope: limit.refreshScope as "manual" | "event",

@@ -4,6 +4,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { assertCampaignRuntimeOperator } from "@/features/active-state/authorization";
 import { campaign } from "@/db/campaign-schema";
 import { campaignCharacter } from "@/db/realm-schema";
 import {
@@ -89,6 +90,7 @@ export type SceneWorkspaceData = {
   campaignId: number;
   sessionStatus: SessionStatus;
   canCreate: boolean;
+  canOperate: boolean;
   scenes: CampaignSceneSummary[];
   selectedSceneId: number | null;
   selectedScene: CampaignSceneDetail | null;
@@ -299,6 +301,7 @@ export async function getSessionSceneWorkspace(
       campaignId: context.campaignId,
       sessionStatus: context.sessionStatus,
       canCreate: canAuthor && context.sessionStatus !== "completed",
+      canOperate: canAuthor,
       scenes,
       selectedSceneId: null,
       selectedScene: null,
@@ -331,6 +334,7 @@ export async function getSessionSceneWorkspace(
     campaignId: context.campaignId,
     sessionStatus: context.sessionStatus,
     canCreate: canAuthor && context.sessionStatus !== "completed",
+    canOperate: canAuthor,
     scenes,
     selectedSceneId,
     selectedScene: {
@@ -435,6 +439,7 @@ async function applySceneLifecycleTransition(
         actor,
       );
       const locked = await lockOwnedScene(tx, sceneId, actor);
+      assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Scene");
       if (transition === "start") assertSceneMayStart(locked.sessionStatus);
       if (transition === "complete") {
         assertSceneMayComplete(locked.sessionStatus);

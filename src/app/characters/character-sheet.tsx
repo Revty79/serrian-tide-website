@@ -78,6 +78,7 @@ type Props = {
   onChargeStateChange: (state: CharacterItemChargeStateView) => void;
   chargeStateDisabled: boolean;
   godMode: boolean;
+  canOperateRuntime: boolean;
 };
 
 function displayNumber(value: number): string {
@@ -105,7 +106,7 @@ function displayEncumbrance(
     : measured;
 }
 
-export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode }: Props) {
+export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode, canOperateRuntime }: Props) {
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -318,6 +319,8 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           <strong>{ready ? "CHARACTER READY" : "CHARACTER RECORD"}</strong>
         </header>
 
+        {!canOperateRuntime ? <aside className="character-sheet__runtime-notice character-sheet__web-only-reference" role="note"><strong>Live state is read-only.</strong><span>You may edit and save this permanent Character record, but only the Campaign-owning G.O.D. can operate its active state.</span></aside> : null}
+
         <section className="character-sheet__identity" aria-label="Character identity">
           {[
             ["Age", draft.profile.age ?? "—"],
@@ -340,11 +343,11 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           ))}
         </section>
 
-        <ActiveHealthPanel health={activeHealth} onHealthChange={onActiveHealthChange} />
-        <ActiveManaPanel mana={activeMana} disabled={activeManaDisabled} onManaChange={onActiveManaChange} />
-        <ActiveEffectsPanel state={activeEffects} godMode={godMode} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
-        <EquipmentStatePanel state={equipmentState} disabled={equipmentStateDisabled} includeEffectHistory={godMode} onChange={onEquipmentStateChange} onActiveEffectsChange={onActiveEffectsChange} />
-        <ItemChargePanel state={chargeState} disabled={chargeStateDisabled} onChange={onChargeStateChange} />
+        <ActiveHealthPanel health={activeHealth} disabled={!canOperateRuntime} onHealthChange={onActiveHealthChange} />
+        <ActiveManaPanel mana={activeMana} disabled={activeManaDisabled || !canOperateRuntime} disabledReason={!canOperateRuntime ? "Live Mana is read-only; only the Campaign-owning G.O.D. can change it." : undefined} onManaChange={onActiveManaChange} />
+        <ActiveEffectsPanel state={activeEffects} godMode={godMode} disabled={!canOperateRuntime} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
+        <EquipmentStatePanel state={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} includeEffectHistory={godMode} onChange={onEquipmentStateChange} onActiveEffectsChange={onActiveEffectsChange} />
+        <ItemChargePanel state={chargeState} disabled={chargeStateDisabled || !canOperateRuntime} onChange={onChargeStateChange} />
 
         <section className="character-sheet__summary-grid" aria-label="Core character record">
           <article>
@@ -527,6 +530,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           skillNames={new Map(aggregate.skillCatalog.map((skill) => [skill.id, skill.name]))}
           godMode={godMode}
           disabled={activeManaDisabled}
+          runtimeDisabled={!canOperateRuntime}
           onComplete={onDerivedAbilityChange}
         />
 
@@ -544,15 +548,15 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
         {activatedStacks.length || activatedInstances.length || unavailableActivatedItems.length ? (
           <section className="character-sheet__section character-sheet__activated-items">
             <div className="character-sheet__section-heading"><p>ACTIVE POSSESSIONS</p><h3>Activated Items</h3><span>Preview the exact resource and health changes before confirming.</span></div>
-            {itemUseDisabled ? <p className="character-sheet__item-use-note">{itemUseDisabledReason ?? "Save or discard pending Character edits before using an Item."}</p> : null}
+            {itemUseDisabled || !canOperateRuntime ? <p className="character-sheet__item-use-note">{!canOperateRuntime ? "Live Item use is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseDisabledReason ?? "Save or discard pending Character edits before using an Item."}</p> : null}
             <div className="character-sheet__activated-item-grid">
-              {activatedStacks.map(({ owned, definition }) => <article key={`stack-${owned.itemId}`}><div><strong>{definition.name}</strong><span>{owned.quantity} owned · {definition.runtimeProfile.useMode === "unlimited" ? "Unlimited" : `${definition.runtimeProfile.quantityPerUse} per use`}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={null} itemName={definition.name} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled} onComplete={onItemUseComplete} /></article>)}
+              {activatedStacks.map(({ owned, definition }) => <article key={`stack-${owned.itemId}`}><div><strong>{definition.name}</strong><span>{owned.quantity} owned · {definition.runtimeProfile.useMode === "unlimited" ? "Unlimited" : `${definition.runtimeProfile.quantityPerUse} per use`}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={null} itemName={definition.name} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled || !canOperateRuntime} onComplete={onItemUseComplete} /></article>)}
               {activatedInstances.map(({ owned, definition, persisted }) => {
                 const chargeDisplay = getItemChargeDisplay({
                   currentCharges: persisted.currentCharges,
                   maximumCharges: definition.runtimeProfile.maximumCharges,
                 });
-                return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled} onComplete={onItemUseComplete} /></article>;
+                return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled || !canOperateRuntime} onComplete={onItemUseComplete} /></article>;
               })}
               {unavailableActivatedItems.map((definition) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>Not executable: this activated profile has no Mechanical Effects. Add a Manual effect for descriptive resolution.</span></div></article>)}
             </div>

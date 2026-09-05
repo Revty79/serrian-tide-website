@@ -50,7 +50,7 @@ async function findLoopbackPort(): Promise<number> {
   return port;
 }
 
-test("0032 upgrades populated 0031 data and the complete migration chain replays cleanly", async () => {
+test("0032 upgrades populated 0031 data and subsequent migrations replay cleanly", async () => {
   const marker = `lifecycle-migration-${Date.now()}-${process.pid}`;
   const temporaryMigrations = await mkdtemp(path.join(tmpdir(), "serrian-lifecycle-migrations-"));
   const temporaryCluster = await mkdtemp(path.join(tmpdir(), "serrian-lifecycle-postgres-"));
@@ -87,7 +87,7 @@ test("0032 upgrades populated 0031 data and the complete migration chain replays
     });
     clusterStarted = true;
 
-    const journal = JSON.parse(
+    const fullJournal = JSON.parse(
       await readFile(path.join(migrationRoot, "meta", "_journal.json"), "utf8"),
     ) as {
       version: string;
@@ -99,6 +99,14 @@ test("0032 upgrades populated 0031 data and the complete migration chain replays
         tag: string;
         breakpoints: boolean;
       }>;
+    };
+    const lifecycleMigrationIndex = fullJournal.entries.findIndex(
+      ({ tag }) => tag === expectedMigration,
+    );
+    assert.ok(lifecycleMigrationIndex > 0);
+    const journal = {
+      ...fullJournal,
+      entries: fullJournal.entries.slice(0, lifecycleMigrationIndex + 1),
     };
     assert.equal(journal.entries.at(-1)?.tag, expectedMigration);
     const priorEntries = journal.entries.slice(0, -1);
@@ -242,10 +250,60 @@ test("0032 upgrades populated 0031 data and the complete migration chain replays
       "select to_regclass('public.lifecycle_audit_event')::text as value",
     );
     assert.equal(auditTable.rows[0]?.value, "lifecycle_audit_event");
+    const accountLifecycleConstraint = await targetPool.query<{
+      value: string;
+    }>(
+      `select pg_get_constraintdef(oid) as value
+       from pg_constraint
+       where conname = 'lifecycle_audit_event_entity_kind_valid'`,
+    );
+    assert.match(
+      accountLifecycleConstraint.rows[0]?.value ?? "",
+      /'user-account'/,
+    );
+    const verificationGuard = await targetPool.query<{
+      enabled: string;
+      trigger_definition: string;
+      function_definition: string;
+    }>(
+      `select
+         trigger.tgenabled as enabled,
+         pg_get_triggerdef(trigger.oid) as trigger_definition,
+         pg_get_functiondef(trigger.tgfoid) as function_definition
+       from pg_trigger as trigger
+       inner join pg_class as relation on relation.oid = trigger.tgrelid
+       inner join pg_namespace as namespace on namespace.oid = relation.relnamespace
+       where not trigger.tgisinternal
+         and namespace.nspname = 'public'
+         and relation.relname = 'verification'
+         and trigger.tgname = 'verification_deleted_user_reference_guard'`,
+    );
+    assert.equal(verificationGuard.rows.length, 1);
+    assert.equal(verificationGuard.rows[0]?.enabled, "O");
+    assert.match(
+      verificationGuard.rows[0]?.trigger_definition ?? "",
+      /BEFORE INSERT OR UPDATE OF value ON public\.verification/,
+    );
+    assert.match(
+      verificationGuard.rows[0]?.function_definition ?? "",
+      /FOR KEY SHARE/,
+    );
+    assert.match(
+      verificationGuard.rows[0]?.function_definition ?? "",
+      /entity_kind[^\n]+user-account/,
+    );
+    assert.match(
+      verificationGuard.rows[0]?.function_definition ?? "",
+      /action[^\n]+delete/,
+    );
+    assert.match(
+      verificationGuard.rows[0]?.function_definition ?? "",
+      /target_id[^\n]+NEW\."value"/,
+    );
     const ledger = await targetPool.query<{ value: number }>(
       "select count(*)::int as value from drizzle.__drizzle_migrations",
     );
-    assert.equal(Number(ledger.rows[0]?.value), journal.entries.length);
+    assert.equal(Number(ledger.rows[0]?.value), fullJournal.entries.length);
   } finally {
     if (targetPool) await targetPool.end().catch(() => undefined);
     if (clusterStarted && existsSync(path.join(dataDirectory, "postmaster.pid"))) {

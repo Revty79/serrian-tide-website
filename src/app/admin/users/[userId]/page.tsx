@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { getAdminUserAccountSummary } from "@/features/authorization/admin-user-account-service";
+import { previewAdminAccountDeletion } from "@/features/lifecycle/admin-account-lifecycle-service";
 import { requireAdmin } from "@/lib/server-access";
+
+import { AccountDeletionControl } from "./account-deletion-control";
 
 const roleLabels = {
   admin: "ADMIN",
@@ -23,12 +26,14 @@ export default async function AdminUserAccountPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
-  await requireAdmin().catch(() => redirect("/access"));
+  const session = await requireAdmin().catch(() => redirect("/access"));
 
   const { userId } = await params;
   const summary = await getAdminUserAccountSummary(userId);
 
   if (!summary) notFound();
+
+  const deletionPreview = await previewAdminAccountDeletion(session.user.id, userId);
 
   const { account } = summary;
   const username = account.displayUsername ?? account.username ?? "Not set";
@@ -196,6 +201,8 @@ export default async function AdminUserAccountPage({
             ))}
           </RecordSection>
         </div>
+
+        <AccountDeletionControl preview={deletionPreview} />
       </div>
     </main>
   );

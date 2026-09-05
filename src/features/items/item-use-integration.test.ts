@@ -32,6 +32,12 @@ test("Item Use supports both its route-owned transaction and a reusable caller-o
   assert.match(actions, /persistPlannedMechanicalEffectInTransaction\(/);
 });
 
+test("Item Use target selection and live timing never use administrator authority", () => {
+  assert.match(actions, /const canChooseTarget = roles\.includes\("god"\) && source\.campaignOwnerUserId === userId/);
+  assert.match(actions, /if \(roles\.some\(\(\{ role \}\) => role === "god"\)\) return null/);
+  assert.doesNotMatch(actions, /role === "god" \|\| role === "admin"/);
+});
+
 test("stack and instance resources are locked, reread, and zero stacks are deleted", () => {
   assert.ok((actions.match(/\.for\("update"\)/g) ?? []).length >= 1);
   assert.match(actions, /readItemChargeStateInTransaction/);

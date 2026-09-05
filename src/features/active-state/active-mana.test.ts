@@ -14,7 +14,7 @@ import {
   spendActiveManaPool,
   type PersistedActiveManaState,
 } from "./active-mana";
-import { canMutateActiveHealth } from "./authorization";
+import { canMutateActiveHealth, canReadActiveState } from "./authorization";
 
 function profile(
   system: CharacterMagicSystem,
@@ -163,7 +163,7 @@ test("Mana mutations require positive finite amounts", () => {
   assert.equal(spendActiveManaPool(pool, 0.5).currentMana, 9.5);
 });
 
-test("Player and G.O.D. Active Mana authorization mirrors established Active Health scope", () => {
+test("Active Mana mutation stays with Players and the owning G.O.D. while administrators retain read access", () => {
   const pc = {
     playerUserId: "player-one",
     campaignOwnerUserId: "god-one",
@@ -176,6 +176,10 @@ test("Player and G.O.D. Active Mana authorization mirrors established Active Hea
   assert.equal(canMutateActiveHealth({ userId: "god-one", roles: ["god"] }, pc), true);
   assert.equal(canMutateActiveHealth({ userId: "god-one", roles: ["god"] }, { ...pc, isNpc: true }), true);
   assert.equal(canMutateActiveHealth({ userId: "god-two", roles: ["god"] }, pc), false);
+  assert.equal(canMutateActiveHealth({ userId: "admin-one", roles: ["admin"] }, pc), false);
+  assert.equal(canMutateActiveHealth({ userId: "admin-one", roles: ["admin"] }, { ...pc, isNpc: true }), false);
+  assert.equal(canReadActiveState({ userId: "admin-one", roles: ["admin"] }, pc), true);
+  assert.equal(canReadActiveState({ userId: "admin-one", roles: ["admin"] }, { ...pc, isNpc: true }), true);
 });
 
 class FakeManaStore {

@@ -31,10 +31,12 @@ function bindingLabel(binding: EncounterCloseoutView["durations"]["bindings"][nu
 }
 
 export function EncounterCloseout({
+  canOperate,
   data,
   onOpenInitiative,
   onOpenCombatAid,
 }: {
+  canOperate: boolean;
   data: EncounterCloseoutView;
   onOpenInitiative: () => void;
   onOpenCombatAid: () => void;
@@ -56,6 +58,7 @@ export function EncounterCloseout({
   const rewardLocked = data.hasRewardHistory;
 
   function toggleCreature(characterId: number): void {
+    if (!canOperate) return;
     setSelectedCreatures((current) => {
       const next = new Set(current);
       if (next.has(characterId)) next.delete(characterId);
@@ -65,12 +68,14 @@ export function EncounterCloseout({
   }
 
   function splitSuggestion(): void {
+    if (!canOperate) return;
     const split = splitSuggestedExperience(suggestedTotal, data.recipients.length);
     if (split === null) return;
     setAmounts(Object.fromEntries(data.recipients.map(({ characterId }) => [characterId, String(split)])));
   }
 
   async function finalize(): Promise<void> {
+    if (!canOperate) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -91,6 +96,7 @@ export function EncounterCloseout({
   }
 
   async function openFinalizeConfirmation(): Promise<void> {
+    if (!canOperate) return;
     await preserveScroll(async () => {
       setBusy(true);
       setFeedback(null);
@@ -111,7 +117,7 @@ export function EncounterCloseout({
 
   return <section className="encounter-closeout">
     <header className="encounter-closeout-heading">
-      <div><span>G.O.D. AUTHORITY</span><h6 className="font-sans">Encounter Closeout</h6><p>Review objective runtime state, choose any XP awards, then finalize once.</p></div>
+      <div><span>G.O.D. AUTHORITY</span><h6 className="font-sans">Encounter Closeout</h6><p>{canOperate ? "Review objective runtime state, choose any XP awards, then finalize once." : "Administrative read-only review. XP awards and finalization remain with the Campaign-owning G.O.D."}</p></div>
       <em className={`tabletop-status is-${data.encounter.status}`}>{data.encounter.status}</em>
     </header>
 
@@ -127,7 +133,7 @@ export function EncounterCloseout({
           <li className={data.blockers.some(({ code }) => code.includes("reaction")) ? "is-blocked" : "is-clear"}>No unresolved Reactions</li>
         </ul>
         {data.blockers.length ? <div className="encounter-closeout-blockers">{data.blockers.map((blocker, index) => <p key={`${blocker.code}:${blocker.characterId ?? "encounter"}:${index}`}>{blocker.message}</p>)}</div> : null}
-        <footer><button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button><button type="button" onClick={onOpenCombatAid}>Open Combat Aid</button></footer>
+        {canOperate ? <footer><button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button><button type="button" onClick={onOpenCombatAid}>Open Combat Aid</button></footer> : null}
       </article>
 
       <article>
@@ -145,7 +151,7 @@ export function EncounterCloseout({
         <header><span>CREATURE REWARD REFERENCES</span><strong>Suggested only</strong></header>
         <p className="encounter-closeout-guidance">Unchecked by default. Health never decides whether a Creature counts.</p>
         <div className="encounter-closeout-creatures">{data.creatureRewardReferences.map((creature) => <label key={creature.characterId}>
-          <input type="checkbox" disabled={historical || rewardLocked} checked={selectedCreatures.has(creature.characterId)} onChange={() => toggleCreature(creature.characterId)} />
+          <input type="checkbox" disabled={!canOperate || historical || rewardLocked} checked={selectedCreatures.has(creature.characterId)} onChange={() => toggleCreature(creature.characterId)} />
           <span><b>{creature.name}</b><small>{creature.suggestedXp === null ? "No authored killXp suggestion" : `${creature.suggestedXp} XP authored suggestion`}</small></span>
         </label>)}{!data.creatureRewardReferences.length ? <p className="encounter-closeout-empty">No Creature Participant snapshots provide reward references.</p> : null}</div>
         <div className="encounter-closeout-total"><span>Selected suggested total</span><strong>{suggestedTotal} XP</strong></div>
@@ -155,20 +161,20 @@ export function EncounterCloseout({
         <header><span>RECIPIENTS</span><strong>{rewardLocked ? "Previously awarded" : "Manual G.O.D. award"}</strong></header>
         {data.rewards.length ? <div className="encounter-closeout-rewards">{data.rewards.map((reward) => <div key={reward.id}><span><b>{reward.characterName}</b><small>{timestamp(reward.awardedAt)}</small></span><strong>+{reward.amount} XP</strong>{reward.note ? <p>{reward.note}</p> : null}</div>)}</div> : <div className="encounter-closeout-recipients">{data.recipients.map((recipient) => <label key={recipient.characterId}>
           <span><b>{recipient.name}</b><small>{recipient.kindLabel} · {recipient.currentExperience} spendable XP · {recipient.totalExperience} lifetime spent</small></span>
-          <input type="number" min="0" step="1" disabled={historical || busy} value={amounts[recipient.characterId] ?? "0"} onChange={(event) => setAmounts((current) => ({ ...current, [recipient.characterId]: event.target.value }))} aria-label={`XP award for ${recipient.name}`} />
+          <input type="number" min="0" step="1" disabled={!canOperate || historical || busy} value={amounts[recipient.characterId] ?? "0"} onChange={(event) => setAmounts((current) => ({ ...current, [recipient.characterId]: event.target.value }))} aria-label={`XP award for ${recipient.name}`} />
         </label>)}</div>}
-        {!rewardLocked && !historical ? <button type="button" disabled={busy || !data.recipients.length} onClick={splitSuggestion}>Split Suggested XP</button> : null}
-        {!rewardLocked && !historical ? <label className="encounter-closeout-note"><span>Private Reward Note</span><textarea rows={4} value={note} disabled={busy} onChange={(event) => setNote(event.target.value)} placeholder="Why this award was chosen, if useful." /></label> : null}
+        {canOperate && !rewardLocked && !historical ? <button type="button" disabled={busy || !data.recipients.length} onClick={splitSuggestion}>Split Suggested XP</button> : null}
+        {canOperate && !rewardLocked && !historical ? <label className="encounter-closeout-note"><span>Private Reward Note</span><textarea rows={4} value={note} disabled={busy} onChange={(event) => setNote(event.target.value)} placeholder="Why this award was chosen, if useful." /></label> : null}
         {rewardLocked && !historical ? <p className="encounter-closeout-warning">This reopened Encounter already has immutable reward history. Re-completing it will grant no additional XP.</p> : null}
       </article>
     </div>
 
-    {!historical ? <footer className="encounter-closeout-finalize">
+    {canOperate && !historical ? <footer className="encounter-closeout-finalize">
       <div><strong>{data.canFinalize ? "Ready to finalize" : "Resolve every blocker first"}</strong><span>Zero XP is valid. Finalization does not heal, restore, delete, or reset Character state.</span></div>
       <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void openFinalizeConfirmation()}>{busy ? "Finalizing…" : "Finalize Encounter"}</button>
     </footer> : null}
     <LifecycleConfirmationDialog
-      open={finalizeConfirmationOpen}
+      open={canOperate && finalizeConfirmationOpen}
       titleId="finalize-tabletop-encounter-title"
       eyebrow="Encounter Lifecycle"
       title={`Finalize ${data.encounter.title}?`}

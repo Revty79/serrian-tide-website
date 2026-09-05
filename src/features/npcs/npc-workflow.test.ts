@@ -6,6 +6,7 @@ import {
   assertNpcCanBeChanged,
   canManageNpc,
   getDetailedNpcHref,
+  getSimpleNpcHref,
   matchesNpcSearch,
   needsNpcUpgrade,
   normalizeCreateNpcValues,
@@ -87,6 +88,17 @@ test("NPC archive search matches name, role label, or source master", () => {
 test("detailed editors retain their established Race and Creature routes", () => {
   assert.equal(getDetailedNpcHref({ campaignId: 4, characterId: 9, origin: "race" }), "/heavens/characters/9?source=npcs&campaign=4");
   assert.equal(getDetailedNpcHref({ campaignId: 4, characterId: 9, origin: "creature" }), "/heavens/npcs/9");
+});
+
+test("simple NPC links retain the exact record and active or archived archive", () => {
+  assert.equal(
+    getSimpleNpcHref({ campaignId: 4, characterId: 9, status: "active" }),
+    "/heavens/npcs?campaign=4&status=active&npc=9",
+  );
+  assert.equal(
+    getSimpleNpcHref({ campaignId: 4, characterId: 10, status: "archived" }),
+    "/heavens/npcs?campaign=4&status=archived&npc=10",
+  );
 });
 
 test("upgrade is one-way and archived records remain read-only until restored", () => {

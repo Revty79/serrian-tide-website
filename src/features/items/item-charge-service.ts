@@ -7,7 +7,10 @@ import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { item, itemRuntimeProfile } from "@/db/item-schema";
 import { campaignCharacter, campaignCharacterItemInstance } from "@/db/realm-schema";
-import { canMutateActiveHealth } from "@/features/active-state/authorization";
+import {
+  canMutateActiveHealth,
+  canReadActiveState,
+} from "@/features/active-state/authorization";
 import { requireSession } from "@/lib/server-access";
 
 import { lockEquipmentStateCharacterInTransaction, type EquipmentStateTransaction } from "./equipment-state-service";
@@ -206,7 +209,11 @@ export function setItemCurrentChargesInTransaction(
 }
 
 type Access = { tx: ItemChargeTransaction };
-async function withChargeAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+async function withChargeAccess<T>(
+  characterId: number,
+  access: "read" | "mutate",
+  operation: (authorized: Access) => Promise<T>,
+): Promise<T> {
   const session = await requireSession();
   return db.transaction(async (tx) => {
     const roles = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, session.user.id));
@@ -216,23 +223,38 @@ async function withChargeAccess<T>(characterId: number, operation: (access: Acce
         .where(eq(campaignCharacter.id, characterId)).limit(1);
     const entity = entities[0];
     if (!entity) throw new Error("Character not found.");
-    if (!canMutateActiveHealth(
-      { userId: session.user.id, roles: roles.map(({ role }) => role) },
-      { playerUserId: entity.playerUserId, campaignOwnerUserId: entity.owner, isNpc: entity.isNpc, isCampaignMember: entity.member === session.user.id },
-    )) throw new Error("You do not have permission to manage this entity's Item Charges.");
+    const subject = { userId: session.user.id, roles: roles.map(({ role }) => role) };
+    const accessEntity = {
+      playerUserId: entity.playerUserId,
+      campaignOwnerUserId: entity.owner,
+      isNpc: entity.isNpc,
+      isCampaignMember: entity.member === session.user.id,
+    };
+    const authorized = access === "read"
+      ? canReadActiveState(subject, accessEntity)
+      : canMutateActiveHealth(subject, accessEntity);
+    if (!authorized) throw new Error(`You do not have permission to ${access === "read" ? "view" : "manage"} this entity's Item Charges.`);
     return operation({ tx });
   });
 }
 
+function withChargeReadAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+  return withChargeAccess(characterId, "read", operation);
+}
+
+function withChargeMutationAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
+  return withChargeAccess(characterId, "mutate", operation);
+}
+
 export function getCharacterItemChargeState(characterId: number): Promise<CharacterItemChargeStateView> {
-  return withChargeAccess(characterId, ({ tx }) => readCharacterItemChargeStateInTransaction(tx, characterId));
+  return withChargeReadAccess(characterId, ({ tx }) => readCharacterItemChargeStateInTransaction(tx, characterId));
 }
 
 async function mutateAndRead(
   characterId: number,
   mutation: (tx: ItemChargeTransaction) => Promise<ItemChargeState>,
 ): Promise<CharacterItemChargeStateView> {
-  return withChargeAccess(characterId, async ({ tx }) => {
+  return withChargeMutationAccess(characterId, async ({ tx }) => {
     await mutation(tx);
     return readCharacterItemChargeStateInTransaction(tx, characterId);
   });

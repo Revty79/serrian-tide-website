@@ -145,7 +145,7 @@ test("terminal authorization failures clear Chat state before navigation and eve
   assert.match(workspace, /"\/access"/);
 });
 
-test("role changes are transactional and publish only generic committed directory invalidations", () => {
+test("role changes transactionally publish generic committed directory invalidations", () => {
   assert.match(roleActions, /db\.transaction\(\(tx\) => setUserRoleInTransaction/);
   assert.doesNotMatch(roleActions, /\.insert\(userRole\)|\.delete\(userRole\)/);
   assert.match(roleService, /onConflictDoNothing\(\)[\s\S]*returning/);
