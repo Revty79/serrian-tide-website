@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { assertCampaignRuntimeOperator } from "@/features/active-state/authorization";
 import { campaign } from "@/db/campaign-schema";
 import { campaignCharacter } from "@/db/realm-schema";
+import { campaignSessionSceneTownNpc } from "@/db/tabletop-location-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
@@ -649,6 +650,17 @@ export async function removeCampaignSessionSceneMember(
       .limit(1);
     if (encounterUse) {
       throw new Error("This Scene member is used by an Encounter. Remove them from editable Encounters first; completed Encounter history cannot be erased.");
+    }
+    const [locationUse] = await tx.select({ townId: campaignSessionSceneTownNpc.townId })
+      .from(campaignSessionSceneTownNpc)
+      .where(and(
+        eq(campaignSessionSceneTownNpc.sceneId, sceneId),
+        eq(campaignSessionSceneTownNpc.npcCharacterId, characterId),
+        eq(campaignSessionSceneTownNpc.included, true),
+      ))
+      .limit(1);
+    if (locationUse) {
+      throw new Error("This NPC is included by a Town placement. Exclude or detach that Town content before removing the Scene member.");
     }
     const removed = await tx
       .delete(campaignSessionSceneMember)

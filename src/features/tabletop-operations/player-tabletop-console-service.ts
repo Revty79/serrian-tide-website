@@ -67,6 +67,10 @@ import {
   type RollLedgerEntry,
 } from "./roll-runtime-service";
 import { loadInitiativeEngineInTransaction } from "./runtime-integration-service";
+import {
+  readPublicSceneLocationDirectoryInTransaction,
+  type PublicSceneLocationDirectory,
+} from "./location-public-projection";
 
 export type PlayerTabletopConsoleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -114,6 +118,7 @@ export type PlayerTabletopHierarchy = {
 export type PlayerTabletopRuntimeData = {
   identity: PlayerCharacterContext;
   hierarchy: PlayerTabletopHierarchy;
+  locations: PublicSceneLocationDirectory;
   health: Awaited<ReturnType<typeof readActiveHealthInTransaction>>["view"];
   mana: Awaited<ReturnType<typeof readActiveManaInTransaction>>;
   effects: Awaited<ReturnType<typeof readActiveEffectsInTransaction>>;
@@ -799,6 +804,13 @@ export async function readPlayerTabletopRuntimeInTransaction(
 ): Promise<PlayerTabletopRuntimeData> {
     const identity = await loadPlayerCharacterContext(tx, characterId, playerUserId);
     const hierarchy = await readActiveHierarchy(tx, identity);
+    const locations = hierarchy.session && hierarchy.scene
+      ? await readPublicSceneLocationDirectoryInTransaction(tx, {
+          sceneId: hierarchy.scene.id,
+          sessionId: hierarchy.session.id,
+          campaignId: identity.campaignId,
+        })
+      : { towns: [], shops: [] };
     const health = (await readActiveHealthInTransaction(tx, identity.characterId, identity.npcKind)).view;
     const mana = await readActiveManaInTransaction(tx, identity.characterId);
     const effects = await readActiveEffectsInTransaction(tx, identity.characterId, true);
@@ -812,6 +824,7 @@ export async function readPlayerTabletopRuntimeInTransaction(
     return {
       identity,
       hierarchy,
+      locations,
       health,
       mana,
       effects,

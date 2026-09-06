@@ -19,6 +19,7 @@ import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
+import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/location-placement-service";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
@@ -39,6 +40,7 @@ import {
   type SceneMemberView,
   type SceneWorkspaceData,
 } from "./scene-actions";
+import { SceneLocationWorkspace } from "./location-workspace";
 
 type Feedback = { kind: "success" | "error"; message: string };
 type TransitionMode = "start" | "complete" | "reopen" | "start-parent";
@@ -145,6 +147,7 @@ function SceneMemberCard({
 
 export function SceneWorkspace({
   initialData,
+  initialLocationData,
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
@@ -160,6 +163,7 @@ export function SceneWorkspace({
   campaignName,
 }: {
   initialData: SceneWorkspaceData;
+  initialLocationData: LocationPlacementWorkspace | null;
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
@@ -442,6 +446,7 @@ export function SceneWorkspace({
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}
       </section>
     </div>
+    {initialLocationData ? <SceneLocationWorkspace data={initialLocationData} canOperate={initialData.canOperate} /> : null}
     {selectedScene ? <LifecycleConfirmationDialog
       open={initialData.canOperate && transitionMode !== null}
       titleId="transition-tabletop-scene-title"

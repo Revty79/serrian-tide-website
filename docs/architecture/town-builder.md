@@ -15,6 +15,6 @@ Composite foreign keys and database triggers enforce same-Campaign identity and 
 
 Campaign deletion removes Town NPC associations, Town Places, and Town Shop memberships before their referenced NPC, Shop, and Town parents. User deletion treats Town and Place archive attribution as retained-history blockers. Shop and NPC deletion previews report Town relationships; they must be detached or removed before those records can be permanently deleted.
 
-## Deferred runtime integration
+## Tabletop placement boundary
 
-Entering or using a Shop from a Town during live Tabletop activity is intentionally deferred. A future runtime design must let a G.O.D. or authorized participant open and use a linked Shop without interrupting another active Tabletop task, and must define navigation continuity, authorization, concurrency, and transaction semantics before adding any in-play behavior. This Town Builder does not create that runtime path.
+Sessions and Scenes may now reference Towns and their eligible contents through the normalized placement model in `docs/architecture/tabletop-location-placement.md`. Builder changes remain authoritative for Campaign content but never silently rewrite an existing Scene placement; the G.O.D. uses an explicit refresh preview. Entering or using a Shop, participant visit membership, independent leaving, purchasing, selling, approvals, inventory changes, and money transfers remain deferred.

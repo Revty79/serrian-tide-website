@@ -89,7 +89,7 @@ test("Shop and NPC deletion surfaces Town dependencies and Campaign deletion is 
   assert.ok(place >= 0 && place < town);
 });
 
-test("Town lifecycle preserves referenced records, audits destructive work, and defers runtime Shop entry", () => {
+test("Town lifecycle preserves placement references, audits destructive work, and defers runtime Shop entry", () => {
   assert.match(actions, /Attached Shops \(survive as standalone Shops\)/);
   assert.match(actions, /Associated NPCs \(survive\)/);
   assert.match(actions, /Active Town-owned places \(deleted\)/);
@@ -97,10 +97,11 @@ test("Town lifecycle preserves referenced records, audits destructive work, and 
   assert.match(actions, /assertPermanentDeletionEnabled\(\)/);
   assert.match(actions, /entityKind: "town"/);
   assert.match(actions, /entityKind: "town-place"/);
-  assert.match(handoff, /without interrupting another active Tabletop task/);
-  assert.match(handoff, /intentionally deferred/);
-  const combined = `${schema}\n${actions}\n${workspace}`;
-  for (const forbidden of [/townSession|town_session/i, /sceneTown|scene_town/i, /populationSimulation/i, /operatingSchedule/i, /shopTransaction/i]) {
+  assert.match(actions, /Scene placements \(block deletion\)/);
+  assert.match(handoff, /Entering or using a Shop/);
+  assert.match(handoff, /deferred/);
+  const combined = `${schema}\n${workspace}`;
+  for (const forbidden of [/townSession|town_session/i, /populationSimulation/i, /operatingSchedule/i, /shopTransaction/i]) {
     assert.doesNotMatch(combined, forbidden);
   }
 });
@@ -114,7 +115,7 @@ test("Town Builder is reachable and 0036 follows the exact 0035 tail", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as {
     entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;
   };
-  assert.equal(journal.entries.length, 38);
+  assert.equal(journal.entries.length, 39);
   assert.equal(journal.entries[35]?.tag, "0035_campaign_shop_foundation");
   assert.deepEqual(journal.entries[36], {
     idx: 36,
@@ -124,4 +125,5 @@ test("Town Builder is reachable and 0036 follows the exact 0035 tail", () => {
     breakpoints: true,
   });
   assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
+  assert.equal(journal.entries[38]?.tag, "0038_tabletop_location_placement");
 });

@@ -40,6 +40,7 @@ import {
   type TabletopWorkspaceData,
 } from "./actions";
 import type { SceneWorkspaceData } from "./scene-actions";
+import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/location-placement-service";
 import type { EncounterWorkspaceData } from "./encounter-actions";
 import { SceneWorkspace } from "./scene-workspace";
 import { SessionRollWorkspace } from "./roll-ledger";
@@ -47,6 +48,7 @@ import { SessionCloseout } from "./session-closeout";
 import { WeaponGovernanceWorkspace } from "./weapon-governance-workspace";
 import { CalledCheckWorkspace } from "./called-check-workspace";
 import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
+import { SessionLocationPreparation } from "./location-workspace";
 import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
@@ -233,6 +235,7 @@ export function TabletopWorkspace({
   initialData,
   initialPrepData,
   initialSceneData,
+  initialLocationData,
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
@@ -253,6 +256,7 @@ export function TabletopWorkspace({
   initialData: TabletopWorkspaceData;
   initialPrepData: SessionPrepWorkspaceData | null;
   initialSceneData: SceneWorkspaceData | null;
+  initialLocationData: LocationPlacementWorkspace | null;
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
@@ -612,6 +616,8 @@ export function TabletopWorkspace({
               />
             </section>
 
+            {initialLocationData ? <SessionLocationPreparation data={initialLocationData} canOperate={initialData.canOperate} /> : null}
+
             <section className="tabletop-roster-section">
               <header>
                 <div><span>SESSION ROSTER</span><h3 className="font-sans">At this table</h3></div>
@@ -651,6 +657,7 @@ export function TabletopWorkspace({
           {!creating && selectedSession && activeTab === "scenes" && initialSceneData ? <SceneWorkspace
             key={initialSceneData.selectedSceneId ?? "no-scene"}
             initialData={initialSceneData}
+            initialLocationData={initialLocationData}
             initialEncounterData={initialEncounterData}
             initialInitiativeTracker={initialInitiativeTracker}
             initialCombatAid={initialCombatAid}

@@ -20,6 +20,11 @@ import { lifecycleAuditEvent } from "@/db/lifecycle-schema";
 import { campaignCharacter } from "@/db/realm-schema";
 import { shop, shopStaffAssignment } from "@/db/shop-schema";
 import {
+  campaignSessionPreparedTown,
+  campaignSessionSceneTown,
+  campaignSessionSceneTownPlace,
+} from "@/db/tabletop-location-schema";
+import {
   town,
   townNpcAssociation,
   townPlace,
@@ -759,6 +764,11 @@ export async function deleteTownPlace(townId: number, campaignId: number, placeI
     )).limit(1).for("update");
     if (!current) throw new Error("Town place not found.");
     assertExactConfirmation(current.name, confirmationName);
+    const [placement] = await tx.select({ sceneId: campaignSessionSceneTownPlace.sceneId })
+      .from(campaignSessionSceneTownPlace)
+      .where(eq(campaignSessionSceneTownPlace.placeId, current.id))
+      .limit(1);
+    if (placement) throw new Error("This Place is retained by a Scene placement. Refresh or detach that Town placement before permanent deletion.");
     await tx.insert(lifecycleAuditEvent).values({ action: "delete", entityKind: "town-place", targetId: String(current.id), targetName: current.name, campaignIdSnapshot: campaignId, ownerUserIdSnapshot: manager.ownerUserId, actorUserId: manager.actorUserId, reason: "", dependencySummaryJson: { townId } });
     const removed = await tx.delete(townPlace).where(and(eq(townPlace.id, current.id), eq(townPlace.townId, townId))).returning({ id: townPlace.id });
     if (removed.length !== 1) throw new Error("Town place could not be permanently deleted.");
@@ -776,7 +786,10 @@ export async function previewTownLifecycle(townId: number, campaignId: number): 
   const [npcs] = await db.select({ value: count() }).from(townNpcAssociation).where(eq(townNpcAssociation.townId, current.id));
   const [activePlaces] = await db.select({ value: count() }).from(townPlace).where(and(eq(townPlace.townId, current.id), isNull(townPlace.archivedAt)));
   const [archivedPlaces] = await db.select({ value: count() }).from(townPlace).where(and(eq(townPlace.townId, current.id), isNotNull(townPlace.archivedAt)));
+  const [preparedSessions] = await db.select({ value: count() }).from(campaignSessionPreparedTown).where(eq(campaignSessionPreparedTown.townId, current.id));
+  const [scenePlacements] = await db.select({ value: count() }).from(campaignSessionSceneTown).where(eq(campaignSessionSceneTown.townId, current.id));
   const permanentDeletionEnabled = isPermanentDeletionEnabled();
+  const retainedReferences = Number(preparedSessions?.value ?? 0) + Number(scenePlacements?.value ?? 0);
   return {
     townId: current.id,
     townName: current.name,
@@ -784,12 +797,14 @@ export async function previewTownLifecycle(townId: number, campaignId: number): 
     permanentDeletionEnabled,
     canArchive: manager.campaignArchivedAt === null && current.archivedAt === null,
     canRestore: manager.campaignArchivedAt === null && current.archivedAt !== null,
-    canDelete: permanentDeletionEnabled,
+    canDelete: permanentDeletionEnabled && retainedReferences === 0,
     dependencies: [
       { label: "Attached Shops (survive as standalone Shops)", count: Number(shops?.value ?? 0) },
       { label: "Associated NPCs (survive)", count: Number(npcs?.value ?? 0) },
       { label: "Active Town-owned places (deleted)", count: Number(activePlaces?.value ?? 0) },
       { label: "Archived Town-owned places (deleted)", count: Number(archivedPlaces?.value ?? 0) },
+      { label: "Prepared Session references (block deletion)", count: Number(preparedSessions?.value ?? 0) },
+      { label: "Scene placements (block deletion)", count: Number(scenePlacements?.value ?? 0) },
     ],
   };
 }
@@ -835,6 +850,13 @@ export async function deleteTown(townId: number, campaignId: number, confirmatio
     )).limit(1).for("update");
     if (!current) throw new Error("Town not found in this Campaign.");
     assertExactConfirmation(current.name, confirmationName);
+    const [preparedReference] = await tx.select({ sessionId: campaignSessionPreparedTown.sessionId })
+      .from(campaignSessionPreparedTown).where(eq(campaignSessionPreparedTown.townId, current.id)).limit(1);
+    const [sceneReference] = await tx.select({ sceneId: campaignSessionSceneTown.sceneId })
+      .from(campaignSessionSceneTown).where(eq(campaignSessionSceneTown.townId, current.id)).limit(1);
+    if (preparedReference || sceneReference) {
+      throw new Error("This Town is retained by Session preparation or a Scene placement. Detach those references before permanent deletion.");
+    }
     const [shops] = await tx.select({ value: count() }).from(townShopMembership).where(eq(townShopMembership.townId, current.id));
     const [npcs] = await tx.select({ value: count() }).from(townNpcAssociation).where(eq(townNpcAssociation.townId, current.id));
     const [places] = await tx.select({ value: count() }).from(townPlace).where(eq(townPlace.townId, current.id));

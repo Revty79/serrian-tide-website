@@ -19,6 +19,8 @@ Campaign
 
 Build 2 establishes the Session Roster as references to existing Campaign Characters. Build 3 establishes Scenes and Scene membership beneath Sessions. Build 4 establishes Encounters and Encounter Participants. Build 5 establishes the persistent Initiative Runtime attached to that Participant identity. Authored attack, reaction, spell, Item, Creature Ability, and Active State integration remain later additions.
 
+Saved Town and Shop placement is an additional descriptive layer beneath Session preparation and Scenes. Its normalized reference, reveal, refresh, and lifecycle contract is defined in `docs/architecture/tabletop-location-placement.md`. It does not change the one-active-Scene rule or add Shop visits and transactions.
+
 ## Session Roster boundary
 
 The Session Roster identifies the existing entities expected or available for one Session:

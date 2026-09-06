@@ -33,6 +33,7 @@ import {
   deleteShop,
   getShop,
   listShops,
+  previewShopPlacementDependencies,
   removeShopOffering,
   removeShopStaff,
   reorderShopOfferings,
@@ -131,6 +132,12 @@ export function ShopWorkspace({
   const [archiveReason, setArchiveReason] = useState("");
   const [deleteTargetName, setDeleteTargetName] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletePlacementDependencies, setDeletePlacementDependencies] = useState<{
+    preparedSessions: number;
+    independentPlacements: number;
+    townPlacements: number;
+    blocking: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(Boolean(initialCampaign));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -488,10 +495,14 @@ export function ShopWorkspace({
       setBusy(true);
       setFeedback(null);
       try {
-        const current = await getShop(requestedShopId, requestedCampaignId);
+        const [current, placementDependencies] = await Promise.all([
+          getShop(requestedShopId, requestedCampaignId),
+          previewShopPlacementDependencies(requestedShopId, requestedCampaignId),
+        ]);
         if (activeCampaignRef.current !== String(requestedCampaignId)) return;
         setDeleteTargetName(current.shop.name);
         setDeleteConfirmation("");
+        setDeletePlacementDependencies(placementDependencies);
         deleteDialogRef.current?.showModal();
       } catch (error) {
         setFeedback({ kind: "error", message: messageFrom(error, "The Shop deletion review could not be opened.") });
@@ -513,6 +524,7 @@ export function ShopWorkspace({
         deleteDialogRef.current?.close();
         setDeleteTargetName("");
         setDeleteConfirmation("");
+        setDeletePlacementDependencies(null);
         setDetail(null);
         setActiveAvailableItemId(null);
         setActiveListedItemId(null);
@@ -745,14 +757,15 @@ export function ShopWorkspace({
       </section>
     </dialog>
 
-    <dialog ref={deleteDialogRef} className="shops-dialog" onCancel={() => { setDeleteTargetName(""); setDeleteConfirmation(""); }}>
+    <dialog ref={deleteDialogRef} className="shops-dialog" onCancel={() => { setDeleteTargetName(""); setDeleteConfirmation(""); setDeletePlacementDependencies(null); }}>
       <section>
         <header><p>PERMANENTLY DELETE SHOP</p><h2 className="font-sans">{deleteTargetName || "Shop"}</h2><span>This removes the Shop, its staff assignments, and all offering settings. The deletion audit remains.</span></header>
         {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
         {detail?.townAssignment ? <p className="shops-feedback is-error" role="alert">This Shop is attached to <strong>{detail.townAssignment.townName}</strong>. <Link href={`/heavens/towns?campaign=${detail.shop.campaignId}&town=${detail.townAssignment.townId}`}>Open the Town Builder</Link> and detach or reassign it before deleting the Shop.</p> : null}
+        {deletePlacementDependencies?.blocking ? <p className="shops-feedback is-error" role="alert">Tabletop placement retains this Shop: {deletePlacementDependencies.preparedSessions} prepared Session references, {deletePlacementDependencies.independentPlacements} independent Scene placements, and {deletePlacementDependencies.townPlacements} Town-derived Scene references. Detach them in Tabletop Operations before deletion.</p> : null}
         <label className="shops-field"><span>Type the exact Shop name <strong>{deleteTargetName}</strong> to confirm</span><input autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label>
         <p className="shops-help">This cannot be undone. Production recovery protection must also permit permanent deletion.</p>
-        <footer><button type="button" disabled={busy} onClick={() => { deleteDialogRef.current?.close(); setDeleteTargetName(""); setDeleteConfirmation(""); }}>Cancel</button><button className="is-danger" type="button" disabled={busy || Boolean(detail?.townAssignment) || !deleteTargetName || deleteConfirmation !== deleteTargetName} onClick={() => void submitDelete()}>{busy ? "Deleting…" : "Permanently Delete Shop"}</button></footer>
+        <footer><button type="button" disabled={busy} onClick={() => { deleteDialogRef.current?.close(); setDeleteTargetName(""); setDeleteConfirmation(""); setDeletePlacementDependencies(null); }}>Cancel</button><button className="is-danger" type="button" disabled={busy || Boolean(detail?.townAssignment) || Boolean(deletePlacementDependencies?.blocking) || !deleteTargetName || deleteConfirmation !== deleteTargetName} onClick={() => void submitDelete()}>{busy ? "Deleting…" : "Permanently Delete Shop"}</button></footer>
       </section>
     </dialog>
   </main>;

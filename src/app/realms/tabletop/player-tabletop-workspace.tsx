@@ -116,6 +116,33 @@ export function PlayerTabletopWorkspace({
         {view.encounter && !view.combat ? <p className={styles.boundaryNotice}>This Character does not have an active Initiative entry, so combat controls remain unavailable.</p> : null}
       </Section>
 
+      {view.scene ? <Section
+        id="tabletop-scene-locations"
+        eyebrow="SCENE DIRECTORY"
+        title="Revealed locations"
+        detail="Only descriptive details revealed by the G.O.D. for this Character's active Scene appear here."
+      >
+        {view.locations.towns.length || view.locations.shops.length ? <div className={styles.locationDirectory}>
+          {view.locations.towns.map((town) => <article className={styles.locationTown} key={town.id}>
+            <header><div><span>{town.category}</span><h3>{town.name}</h3></div><strong>{town.shops.length + town.places.length + town.npcs.length} revealed</strong></header>
+            {town.overview ? <p>{town.overview}</p> : null}
+            <div className={styles.locationColumns}>
+              <section><h4>Shops</h4>{town.shops.length ? town.shops.map((shop) => <div className={styles.locationEntry} key={shop.id}>
+                <div><strong>{shop.name}</strong><span>{shop.category} · {titleCase(shop.storefrontState)}</span></div>
+                {shop.description ? <p>{shop.description}</p> : null}
+                {shop.staff.length ? <ul>{shop.staff.map((member) => <li key={member.npcCharacterId}><strong>{member.name}</strong>{[member.roleLabel, member.responsibilityLabel, member.isPrimaryContact ? "Primary contact" : null].filter(Boolean).join(" · ")}</li>)}</ul> : null}
+              </div>) : <p>No Shops have been revealed.</p>}</section>
+              <section><h4>Places of interest</h4>{town.places.length ? town.places.map((place) => <div className={styles.locationEntry} key={place.id}><div><strong>{place.name}</strong><span>{place.category || "Place"}</span></div>{place.description ? <p>{place.description}</p> : null}</div>) : <p>No places have been revealed.</p>}</section>
+              <section><h4>People</h4>{town.npcs.length ? town.npcs.map((npc) => <div className={styles.locationEntry} key={npc.id}><div><strong>{npc.name}</strong><span>{npc.roleLabel || "Associated NPC"}</span></div></div>) : <p>No associated NPCs have been revealed.</p>}</section>
+            </div>
+          </article>)}
+          {view.locations.shops.length ? <article className={styles.locationTown}>
+            <header><div><span>INDEPENDENT PLACEMENTS</span><h3>Other Shops</h3></div><strong>{view.locations.shops.length}</strong></header>
+            <div className={styles.locationColumns}>{view.locations.shops.map((shop) => <section className={styles.locationEntry} key={shop.id}><div><strong>{shop.name}</strong><span>{shop.category} · {titleCase(shop.storefrontState)}</span></div>{shop.description ? <p>{shop.description}</p> : null}</section>)}</div>
+          </article> : null}
+        </div> : <p className={styles.emptyCopy}>No Scene locations have been revealed to players.</p>}
+      </Section> : null}
+
       {view.combat ? <PlayerCombatConsole characterId={view.identity.characterId} combat={view.combat} /> : null}
 
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}

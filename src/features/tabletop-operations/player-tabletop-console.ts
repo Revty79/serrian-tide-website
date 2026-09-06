@@ -18,6 +18,7 @@ import { parseSpellDocument } from "@/features/spell-construction/spellDocumentC
 import type { PlayerCalledCheckWorkspaceView } from "./called-check-service";
 import type { RollLedgerEntry } from "./roll-runtime-service";
 import type { PlayerCombatConsoleData } from "./player-tabletop-console-service";
+import type { PublicSceneLocationDirectory } from "./location-public-projection";
 
 export const PLAYER_TABLETOP_HISTORY_LIMIT = 30;
 
@@ -502,6 +503,7 @@ export type PlayerTabletopConsoleView = Readonly<{
     locationLabel: string;
     description: string;
   };
+  locations: PublicSceneLocationDirectory;
   encounter: null | {
     id: number;
     title: string;

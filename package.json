@@ -29,6 +29,8 @@
     "validate:crossroads-navigation-browser": "node --import tsx scripts/crossroads-navigation-browser.test.ts",
     "validate:tabletop": "tsx --test src/features/tabletop-operations/*.test.ts",
     "validate:tabletop-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-operations-db.test.ts",
+    "validate:tabletop-locations-db": "node --conditions=react-server --import tsx --test scripts/tabletop-location-placement-db.test.ts",
+    "validate:tabletop-locations-browser": "node --conditions=react-server --import tsx scripts/tabletop-location-placement-browser.test.ts",
     "validate:combat-aid-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/combat-aid-db.test.ts",
     "validate:tabletop-runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-runtime-integration-db.test.ts",
     "validate:tabletop-closeout-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-closeout-db.test.ts",

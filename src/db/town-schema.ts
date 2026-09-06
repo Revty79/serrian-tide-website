@@ -142,6 +142,7 @@ export const townPlace = pgTable(
     archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
+    unique("town_place_id_town_campaign_uq").on(table.id, table.townId, table.campaignId),
     foreignKey({
       columns: [table.townId, table.campaignId],
       foreignColumns: [town.id, town.campaignId],

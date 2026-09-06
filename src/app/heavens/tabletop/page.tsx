@@ -22,6 +22,7 @@ import {
   getEncounterInitiativeRuntime,
 } from "./initiative-actions";
 import { getSessionSceneWorkspace } from "./scene-actions";
+import { getLocationPlacementWorkspace } from "./location-actions";
 import "./tabletop.css";
 import { TabletopWorkspace } from "./tabletop-workspace";
 
@@ -70,6 +71,9 @@ export default async function TabletopOperationsPage({
         selectedSessionId,
         Number.isInteger(requestedSceneId) && requestedSceneId > 0 ? requestedSceneId : null,
       );
+  const locationWorkspace = selectedSessionId === null
+    ? null
+    : await getLocationPlacementWorkspace(selectedSessionId, sceneWorkspace?.selectedSceneId ?? null);
   const encounterWorkspace = sceneWorkspace?.selectedSceneId
     ? await getSceneEncounterWorkspace(
         sceneWorkspace.selectedSceneId,
@@ -154,6 +158,7 @@ export default async function TabletopOperationsPage({
       initialData={workspace}
       initialPrepData={prepWorkspace}
       initialSceneData={sceneWorkspace}
+      initialLocationData={locationWorkspace}
       initialEncounterData={encounterWorkspace}
       initialInitiativeTracker={initiativeTracker}
       initialCombatAid={combatAid}

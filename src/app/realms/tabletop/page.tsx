@@ -85,6 +85,7 @@ export default async function PlayerTabletopPage({
       rostered: runtime.hierarchy.rostered,
     } : null,
     scene: runtime.hierarchy.scene,
+    locations: runtime.locations,
     encounter: runtime.hierarchy.encounter,
     health: runtime.health,
     mana: runtime.mana,

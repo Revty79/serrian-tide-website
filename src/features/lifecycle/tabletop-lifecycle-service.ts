@@ -270,6 +270,8 @@ function preparationDependencySpecs(
       { label: "Encounters", blocking: false, query: sumCountQuery([directCountPart("campaign_session_encounter", "session_id", id)]) },
       { label: "Active or completed Encounters", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_encounter where session_id = ${id} and status <> 'planned'` },
       { label: "Encounter participant references", blocking: false, query: sumCountQuery([directCountPart("campaign_session_encounter_participant", "session_id", id)]) },
+      { label: "Prepared Town and Shop references", blocking: false, query: countTables(["campaign_session_prepared_town", "campaign_session_prepared_shop"], "campaign-session", id) },
+      { label: "Scene location placements", blocking: false, query: countTables(["campaign_session_scene_town", "campaign_session_scene_shop", "campaign_session_scene_town_shop", "campaign_session_scene_town_place", "campaign_session_scene_town_npc"], "campaign-session", id) },
     ];
   }
   if (target.entityKind === "scene") {
@@ -278,6 +280,7 @@ function preparationDependencySpecs(
       { label: "Encounters", blocking: false, query: sumCountQuery([directCountPart("campaign_session_encounter", "scene_id", id)]) },
       { label: "Active or completed Encounters", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_encounter where scene_id = ${id} and status <> 'planned'` },
       { label: "Encounter participant references", blocking: false, query: sumCountQuery([directCountPart("campaign_session_encounter_participant", "scene_id", id)]) },
+      { label: "Scene location placements", blocking: false, query: countTables(["campaign_session_scene_town", "campaign_session_scene_shop", "campaign_session_scene_town_shop", "campaign_session_scene_town_place", "campaign_session_scene_town_npc"], "scene", id) },
     ];
   }
   return [

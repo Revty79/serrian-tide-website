@@ -283,6 +283,8 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
     { label: "Town Shop memberships", blocking: false, query: sql<CountRow>`select count(*)::int as value from town_shop_membership where campaign_id = ${campaignId}` },
     { label: "Town NPC associations", blocking: false, query: sql<CountRow>`select count(*)::int as value from town_npc_association where campaign_id = ${campaignId}` },
     { label: "Town places", blocking: false, query: sql<CountRow>`select count(*)::int as value from town_place where campaign_id = ${campaignId}` },
+    { label: "Prepared Town and Shop references", blocking: false, query: sql<CountRow>`select ((select count(*) from campaign_session_prepared_town where campaign_id = ${campaignId}) + (select count(*) from campaign_session_prepared_shop where campaign_id = ${campaignId}))::int as value` },
+    { label: "Scene Town and Shop placements", blocking: false, query: sql<CountRow>`select ((select count(*) from campaign_session_scene_town where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_shop where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_town_shop where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_town_place where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_town_npc where campaign_id = ${campaignId}))::int as value` },
   ];
 }
 
@@ -314,6 +316,7 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
     { label: "Player ruling requests", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_player_ruling_request where campaign_id = ${campaignId} and (character_id = ${characterId} or target_participant_id = ${characterId})` },
     { label: "Firearm preparation and event history", blocking: true, query: sql<CountRow>`select ((select count(*) from campaign_character_firearm_preparation where campaign_id = ${campaignId} and character_id = ${characterId}) + (select count(*) from campaign_character_firearm_event where campaign_id = ${campaignId} and character_id = ${characterId}) + (select count(*) from campaign_session_encounter_firearm_attack where campaign_id = ${campaignId} and (actor_participant_id = ${characterId} or target_participant_id = ${characterId})))::int as value` },
     { label: "Town associations", blocking: true, query: sql<CountRow>`select count(*)::int as value from town_npc_association where campaign_id = ${campaignId} and npc_character_id = ${characterId}` },
+    { label: "Scene Town placement references", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_scene_town_npc where campaign_id = ${campaignId} and npc_character_id = ${characterId}` },
   ];
 }
 

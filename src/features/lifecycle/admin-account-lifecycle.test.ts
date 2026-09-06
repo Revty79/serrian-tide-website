@@ -91,8 +91,8 @@ test("the account plan classifies the current 71-FK User closure", () => {
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 71);
   assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 71);
   assert.deepEqual(planned, actual);
-  assert.equal(currentMigration.tag, "0037_site_appearance");
-  assert.equal(snapshotPath, "drizzle/meta/0037_snapshot.json");
+  assert.equal(currentMigration.tag, "0038_tabletop_location_placement");
+  assert.equal(snapshotPath, "drizzle/meta/0038_snapshot.json");
 });
 
 test("only authentication and membership associations are cleanup FKs", () => {

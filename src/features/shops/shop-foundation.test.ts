@@ -193,11 +193,11 @@ test("Shop Builder covers Character-store browsing, pricing, stock, staff, order
   assert.doesNotMatch(workspace, /Checkout|Purchase Request|Complete Sale|Buy Now/);
 });
 
-test("the Shop foundation remains free of placement, transaction, and automated economy state", () => {
+test("the Shop authoring foundation remains normalized while placement is lifecycle-aware", () => {
   assert.doesNotMatch(schema, /townId|shopTown|shop_town/i);
-  const combined = `${schema}\n${actions}`;
+  assert.match(actions, /previewShopPlacementDependencies/);
+  const combined = schema;
   for (const forbidden of [
-    /shopSession|shop_session|sceneShop|scene_shop/i,
     /shopTransaction|shop_transaction|transactionLedger/i,
     /profit|payroll|tax|automaticRestock|operatingSchedule/i,
   ]) assert.doesNotMatch(combined, forbidden);
@@ -205,7 +205,7 @@ test("the Shop foundation remains free of placement, transaction, and automated 
 
 test("0035 remains the exact Shop migration and 0036 follows it", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 38);
+  assert.equal(journal.entries.length, 39);
   assert.equal(journal.entries[34]?.tag, "0034_verification_user_delete_guard");
   assert.deepEqual(journal.entries[35], {
     idx: 35,
@@ -216,4 +216,5 @@ test("0035 remains the exact Shop migration and 0036 follows it", () => {
   });
   assert.equal(journal.entries[36]?.tag, "0036_campaign_town_builder");
   assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
+  assert.equal(journal.entries[38]?.tag, "0038_tabletop_location_placement");
 });

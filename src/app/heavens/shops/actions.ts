@@ -20,6 +20,11 @@ import { armorProfile, item, weaponProfile } from "@/db/item-schema";
 import { lifecycleAuditEvent } from "@/db/lifecycle-schema";
 import { campaignCharacter, campaignInventoryItem } from "@/db/realm-schema";
 import { shop, shopOffering, shopStaffAssignment } from "@/db/shop-schema";
+import {
+  campaignSessionPreparedShop,
+  campaignSessionSceneShop,
+  campaignSessionSceneTownShop,
+} from "@/db/tabletop-location-schema";
 import { town, townShopMembership } from "@/db/town-schema";
 import { buildCampaignAccessDesignation } from "@/features/campaigns/campaign-access-designation";
 import {
@@ -871,6 +876,21 @@ export async function deleteShop(
     if (townDependency) {
       throw new Error(`${current.name} cannot be permanently deleted while attached to ${townDependency.townName}. Detach it in the Town Builder first.`);
     }
+    const [preparedDependency] = await tx.select({ value: count() })
+      .from(campaignSessionPreparedShop)
+      .where(eq(campaignSessionPreparedShop.shopId, current.id));
+    const [independentPlacementDependency] = await tx.select({ value: count() })
+      .from(campaignSessionSceneShop)
+      .where(eq(campaignSessionSceneShop.shopId, current.id));
+    const [townPlacementDependency] = await tx.select({ value: count() })
+      .from(campaignSessionSceneTownShop)
+      .where(eq(campaignSessionSceneTownShop.shopId, current.id));
+    const retainedPlacementCount = Number(preparedDependency?.value ?? 0)
+      + Number(independentPlacementDependency?.value ?? 0)
+      + Number(townPlacementDependency?.value ?? 0);
+    if (retainedPlacementCount > 0) {
+      throw new Error(`${current.name} cannot be permanently deleted while retained by Session preparation or Scene placement (${retainedPlacementCount} references). Detach those references in Tabletop Operations first.`);
+    }
 
     const [staffDependency] = await tx.select({ value: count() })
       .from(shopStaffAssignment)
@@ -899,6 +919,30 @@ export async function deleteShop(
     if (removed.length !== 1) throw new Error("Shop could not be permanently deleted.");
   });
   revalidateShopPaths();
+}
+
+export async function previewShopPlacementDependencies(
+  shopId: number,
+  campaignId: number,
+): Promise<{ preparedSessions: number; independentPlacements: number; townPlacements: number; blocking: boolean }> {
+  await requireCampaignManager(campaignId);
+  const normalizedShopId = positiveId(shopId, "Shop");
+  const [current] = await db.select({ id: shop.id }).from(shop).where(and(
+    eq(shop.id, normalizedShopId),
+    eq(shop.campaignId, campaignId),
+  )).limit(1);
+  if (!current) throw new Error("Shop not found in this Campaign.");
+  const [prepared, independent, fromTown] = await Promise.all([
+    db.select({ value: count() }).from(campaignSessionPreparedShop).where(eq(campaignSessionPreparedShop.shopId, normalizedShopId)),
+    db.select({ value: count() }).from(campaignSessionSceneShop).where(eq(campaignSessionSceneShop.shopId, normalizedShopId)),
+    db.select({ value: count() }).from(campaignSessionSceneTownShop).where(eq(campaignSessionSceneTownShop.shopId, normalizedShopId)),
+  ]);
+  const result = {
+    preparedSessions: Number(prepared[0]?.value ?? 0),
+    independentPlacements: Number(independent[0]?.value ?? 0),
+    townPlacements: Number(fromTown[0]?.value ?? 0),
+  };
+  return { ...result, blocking: result.preparedSessions + result.independentPlacements + result.townPlacements > 0 };
 }
 
 export async function archiveShop(
