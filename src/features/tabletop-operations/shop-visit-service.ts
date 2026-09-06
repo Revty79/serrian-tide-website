@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { campaign, campaignPlayer } from "@/db/campaign-schema";
+import { campaign, campaignDerivedCurrency, campaignPlayer } from "@/db/campaign-schema";
 import { user } from "@/db/auth-schema";
 import { item } from "@/db/item-schema";
 import { campaignCharacter } from "@/db/realm-schema";
@@ -63,6 +63,16 @@ export type ShopVisitPublicShopView = Readonly<{
   offerings: readonly ShopVisitOfferingView[];
 }>;
 
+export type ShopVisitCurrencyView = Readonly<{
+  currencySystem: "Credits" | "Derived Currency";
+  derivedCurrencies: readonly {
+    id: number;
+    name: string;
+    creditsPerUnit: number;
+    sortOrder: number;
+  }[];
+}>;
+
 export type ShopVisitView = Readonly<{
   id: number;
   campaignId: number;
@@ -71,6 +81,7 @@ export type ShopVisitView = Readonly<{
   placement: ShopVisitPlacement;
   mode: ShopVisitMode;
   startedAt: string;
+  currency: ShopVisitCurrencyView;
   shop: ShopVisitPublicShopView;
   visitors: readonly {
     characterId: number;
@@ -117,6 +128,7 @@ type VisitContext = {
   storefrontState: "open" | "closed";
   shopArchivedAt: Date | null;
   campaignArchivedAt: Date | null;
+  currencySystem: "Credits" | "Derived Currency";
 };
 
 function positiveId(value: number, label: string): number {
@@ -151,6 +163,7 @@ async function loadVisitContext(
     sessionStatus: campaignSession.status,
     ownerUserId: campaign.createdByUserId,
     campaignArchivedAt: campaign.archivedAt,
+    currencySystem: campaign.currencySystem,
     shopId: shop.id,
     shopName: shop.name,
     shopCategory: shop.category,
@@ -366,6 +379,16 @@ async function readVisit(
       eq(campaignSessionSceneShopVisitMember.visitId, row.id),
       eq(campaignSessionSceneShopVisitMember.status, "active"),
     )).orderBy(asc(campaignSessionSceneShopVisitMember.enteredAt), asc(campaignCharacter.name));
+  const derivedCurrencies = context.currencySystem === "Derived Currency"
+    ? await tx.select({
+        id: campaignDerivedCurrency.id,
+        name: campaignDerivedCurrency.name,
+        creditsPerUnit: campaignDerivedCurrency.creditsPerUnit,
+        sortOrder: campaignDerivedCurrency.sortOrder,
+      }).from(campaignDerivedCurrency)
+        .where(eq(campaignDerivedCurrency.campaignId, row.campaignId))
+        .orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id))
+    : [];
   return {
     id: row.id,
     campaignId: row.campaignId,
@@ -374,6 +397,10 @@ async function readVisit(
     placement,
     mode: row.mode,
     startedAt: row.startedAt.toISOString(),
+    currency: {
+      currencySystem: context.currencySystem,
+      derivedCurrencies,
+    },
     shop: await readPublicShop(tx, context, placement),
     visitors: visitors.map((entry) => ({
       ...entry,
@@ -527,13 +554,6 @@ export async function startOrAddShopVisitInTransaction(
   if (input.mode !== "roleplay" && input.mode !== "shopping") throw new Error("Shop visit mode is invalid.");
   const requestedIds = [...new Set(input.characterIds.map((id) => positiveId(id, "Character")))].sort((a, b) => a - b);
   if (!requestedIds.length) throw new Error("Select at least one Player Character to enter the Shop.");
-  const eligible = await loadEligiblePlayers(tx, context);
-  const eligibleIds = new Set(eligible.map(({ characterId }) => characterId));
-  if (requestedIds.some((id) => !eligibleIds.has(id))) {
-    throw new Error("Shop visitors must be active Player Characters on this Scene's Session roster and Scene membership.");
-  }
-  await tx.select({ id: campaignCharacter.id }).from(campaignCharacter)
-    .where(inArray(campaignCharacter.id, requestedIds)).orderBy(asc(campaignCharacter.id)).for("update");
   const overrideReason = context.storefrontState === "closed"
     ? normalizedReason(input.closedShopOverrideReason, "Closed-Shop override reason")
     : "";
@@ -569,13 +589,20 @@ export async function startOrAddShopVisitInTransaction(
       throw new Error("This Shop already has an active visit through a different Scene placement.");
     }
   }
+  await tx.select({ id: campaignCharacter.id }).from(campaignCharacter)
+    .where(inArray(campaignCharacter.id, requestedIds)).orderBy(asc(campaignCharacter.id)).for("update");
+  const eligible = await loadEligiblePlayers(tx, context);
+  const eligibleIds = new Set(eligible.map(({ characterId }) => characterId));
+  if (requestedIds.some((id) => !eligibleIds.has(id))) {
+    throw new Error("Shop visitors must be active Player Characters on this Scene's Session roster and Scene membership.");
+  }
   const existing = await tx.select({
     characterId: campaignSessionSceneShopVisitMember.characterId,
     visitId: campaignSessionSceneShopVisitMember.visitId,
   }).from(campaignSessionSceneShopVisitMember).where(and(
     inArray(campaignSessionSceneShopVisitMember.characterId, requestedIds),
     eq(campaignSessionSceneShopVisitMember.status, "active"),
-  ));
+  )).for("update");
   const wrongVisit = existing.find(({ visitId }) => visitId !== visit.id);
   if (wrongVisit) {
     throw new Error("A selected Character is already in another active Shop visit. Leave or remove them before moving Shops.");
@@ -669,13 +696,16 @@ async function lockOwnedVisit(tx: ShopVisitTransaction, visitId: number, actor: 
     campaignId: campaignSessionSceneShopVisit.campaignId,
     shopId: campaignSessionSceneShopVisit.shopId,
     status: campaignSessionSceneShopVisit.status,
-    ownerUserId: campaign.createdByUserId,
   }).from(campaignSessionSceneShopVisit)
-    .innerJoin(campaign, eq(campaign.id, campaignSessionSceneShopVisit.campaignId))
     .where(eq(campaignSessionSceneShopVisit.id, positiveId(visitId, "Shop visit")))
     .limit(1).for("update");
   if (!visit) throw new Error("That Shop visit no longer exists.");
-  assertOwner(actor, visit.ownerUserId);
+  const [owner] = await tx.select({ ownerUserId: campaign.createdByUserId })
+    .from(campaign)
+    .where(eq(campaign.id, visit.campaignId))
+    .limit(1);
+  if (!owner) throw new Error("That Shop visit's Campaign no longer exists.");
+  assertOwner(actor, owner.ownerUserId);
   return visit;
 }
 
@@ -747,6 +777,21 @@ export async function leaveOwnShopVisitInTransaction(
   sessionId: number | null;
   affectedCharacterIds: number[];
 }> {
+  const validatedCharacterId = positiveId(characterId, "Character");
+  const [candidate] = await tx.select({
+    visitId: campaignSessionSceneShopVisitMember.visitId,
+  }).from(campaignSessionSceneShopVisitMember)
+    .where(and(
+      eq(campaignSessionSceneShopVisitMember.characterId, validatedCharacterId),
+      eq(campaignSessionSceneShopVisitMember.status, "active"),
+    )).limit(1);
+  if (!candidate) return { visitId: null, sceneId: null, campaignId: null, sessionId: null, affectedCharacterIds: [] };
+  const [lockedVisit] = await tx.select({ id: campaignSessionSceneShopVisit.id })
+    .from(campaignSessionSceneShopVisit)
+    .where(eq(campaignSessionSceneShopVisit.id, candidate.visitId))
+    .limit(1)
+    .for("update");
+  if (!lockedVisit) return { visitId: null, sceneId: null, campaignId: null, sessionId: null, affectedCharacterIds: [] };
   const [membership] = await tx.select({
     visitId: campaignSessionSceneShopVisitMember.visitId,
     sceneId: campaignSessionSceneShopVisitMember.sceneId,
@@ -759,7 +804,8 @@ export async function leaveOwnShopVisitInTransaction(
       eq(campaignCharacter.campaignId, campaignSessionSceneShopVisitMember.campaignId),
     ))
     .where(and(
-      eq(campaignSessionSceneShopVisitMember.characterId, positiveId(characterId, "Character")),
+      eq(campaignSessionSceneShopVisitMember.visitId, lockedVisit.id),
+      eq(campaignSessionSceneShopVisitMember.characterId, validatedCharacterId),
       eq(campaignSessionSceneShopVisitMember.status, "active"),
     )).limit(1).for("update");
   if (!membership) return { visitId: null, sceneId: null, campaignId: null, sessionId: null, affectedCharacterIds: [] };
@@ -769,7 +815,7 @@ export async function leaveOwnShopVisitInTransaction(
       eq(campaignSessionSceneShopVisitMember.visitId, membership.visitId),
       eq(campaignSessionSceneShopVisitMember.status, "active"),
     ));
-  await endMembership(tx, membership.visitId, characterId, playerUserId, "player-left");
+  await endMembership(tx, membership.visitId, validatedCharacterId, playerUserId, "player-left");
   await closeVisitIfEmpty(tx, membership.visitId, playerUserId);
   return { ...membership, affectedCharacterIds: affected.map(({ characterId: affectedCharacterId }) => affectedCharacterId) };
 }
@@ -872,7 +918,7 @@ export async function endActiveShopVisitsForSceneInTransaction(
     .from(campaignSessionSceneShopVisit).where(and(
       eq(campaignSessionSceneShopVisit.sceneId, positiveId(sceneId, "Scene")),
       eq(campaignSessionSceneShopVisit.status, "active"),
-    )).for("update");
+    )).orderBy(asc(campaignSessionSceneShopVisit.id)).for("update");
   await endVisits(tx, rows.map(({ id }) => id), actorUserId, "The Scene was completed.");
 }
 
@@ -885,7 +931,7 @@ export async function endActiveShopVisitsForSessionInTransaction(
     .from(campaignSessionSceneShopVisit).where(and(
       eq(campaignSessionSceneShopVisit.sessionId, positiveId(sessionId, "Session")),
       eq(campaignSessionSceneShopVisit.status, "active"),
-    )).for("update");
+    )).orderBy(asc(campaignSessionSceneShopVisit.id)).for("update");
   await endVisits(tx, rows.map(({ id }) => id), actorUserId, "The Session was completed.");
 }
 

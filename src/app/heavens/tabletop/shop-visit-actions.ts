@@ -27,6 +27,17 @@ function refreshShopVisits(): void {
   revalidatePath("/realms/tabletop");
 }
 
+export type ShopVisitActionResult<T = undefined> =
+  | { ok: true; value: T }
+  | { ok: false; error: string };
+
+function actionFailure(error: unknown): { ok: false; error: string } {
+  return {
+    ok: false,
+    error: error instanceof Error ? error.message : "The Shop visit action failed.",
+  };
+}
+
 export async function getGodShopVisitWorkspace(sceneId: number): Promise<GodShopVisitWorkspace> {
   const access = await requireGodOrAdminAccessContext();
   return db.transaction((tx) => readGodShopVisitWorkspaceInTransaction(tx, sceneId, actorFrom(access)));
@@ -39,24 +50,28 @@ export async function enterShopVisit(input: {
   characterIds: number[];
   mode: ShopVisitMode;
   closedShopOverrideReason: string;
-}): Promise<{ visitId: number; addedCharacterIds: number[] }> {
-  const access = await requireGodOrAdminAccessContext();
-  const result = await db.transaction(async (tx) => {
-    const mutation = await startOrAddShopVisitInTransaction(tx, input, actorFrom(access));
-    const workspace = await readGodShopVisitWorkspaceInTransaction(tx, input.sceneId, actorFrom(access));
-    const visit = workspace.activeVisits.find(({ id }) => id === mutation.visitId);
-    await publishTabletopInvalidationInTransaction(tx, {
-      campaignId: workspace.campaignId,
-      sessionId: workspace.sessionId,
-      sceneId: workspace.sceneId,
-      encounterId: null,
-      characterIds: visit?.visitors.map(({ characterId }) => characterId) ?? [...new Set(input.characterIds)],
-      category: "shop-visit",
+}): Promise<ShopVisitActionResult<{ visitId: number; addedCharacterIds: number[] }>> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    const result = await db.transaction(async (tx) => {
+      const mutation = await startOrAddShopVisitInTransaction(tx, input, actorFrom(access));
+      const workspace = await readGodShopVisitWorkspaceInTransaction(tx, input.sceneId, actorFrom(access));
+      const visit = workspace.activeVisits.find(({ id }) => id === mutation.visitId);
+      await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: workspace.campaignId,
+        sessionId: workspace.sessionId,
+        sceneId: workspace.sceneId,
+        encounterId: null,
+        characterIds: visit?.visitors.map(({ characterId }) => characterId) ?? [...new Set(input.characterIds)],
+        category: "shop-visit",
+      });
+      return mutation;
     });
-    return mutation;
-  });
-  refreshShopVisits();
-  return result;
+    refreshShopVisits();
+    return { ok: true, value: result };
+  } catch (error) {
+    return actionFailure(error);
+  }
 }
 
 async function activeVisitAudience(visitId: number) {
@@ -79,53 +94,68 @@ async function activeVisitAudience(visitId: number) {
   });
 }
 
-export async function setShopVisitMode(visitId: number, mode: ShopVisitMode): Promise<void> {
-  const access = await requireGodOrAdminAccessContext();
-  const audience = await activeVisitAudience(visitId);
-  await db.transaction(async (tx) => {
-    await setShopVisitModeInTransaction(tx, visitId, mode, actorFrom(access));
-    if (audience.campaignId && audience.sessionId && audience.sceneId) await publishTabletopInvalidationInTransaction(tx, {
-      campaignId: audience.campaignId,
-      sessionId: audience.sessionId,
-      sceneId: audience.sceneId,
-      encounterId: null,
-      characterIds: audience.characterIds,
-      category: "shop-visit",
+export async function setShopVisitMode(visitId: number, mode: ShopVisitMode): Promise<ShopVisitActionResult> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    const audience = await activeVisitAudience(visitId);
+    await db.transaction(async (tx) => {
+      await setShopVisitModeInTransaction(tx, visitId, mode, actorFrom(access));
+      if (audience.campaignId && audience.sessionId && audience.sceneId) await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: audience.campaignId,
+        sessionId: audience.sessionId,
+        sceneId: audience.sceneId,
+        encounterId: null,
+        characterIds: audience.characterIds,
+        category: "shop-visit",
+      });
     });
-  });
-  refreshShopVisits();
+    refreshShopVisits();
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return actionFailure(error);
+  }
 }
 
-export async function removeShopVisitor(visitId: number, characterId: number): Promise<void> {
-  const access = await requireGodOrAdminAccessContext();
-  const audience = await activeVisitAudience(visitId);
-  await db.transaction(async (tx) => {
-    await removeShopVisitorInTransaction(tx, visitId, characterId, actorFrom(access));
-    if (audience.campaignId && audience.sessionId && audience.sceneId) await publishTabletopInvalidationInTransaction(tx, {
-      campaignId: audience.campaignId,
-      sessionId: audience.sessionId,
-      sceneId: audience.sceneId,
-      encounterId: null,
-      characterIds: audience.characterIds,
-      category: "shop-visit",
+export async function removeShopVisitor(visitId: number, characterId: number): Promise<ShopVisitActionResult> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    const audience = await activeVisitAudience(visitId);
+    await db.transaction(async (tx) => {
+      await removeShopVisitorInTransaction(tx, visitId, characterId, actorFrom(access));
+      if (audience.campaignId && audience.sessionId && audience.sceneId) await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: audience.campaignId,
+        sessionId: audience.sessionId,
+        sceneId: audience.sceneId,
+        encounterId: null,
+        characterIds: audience.characterIds,
+        category: "shop-visit",
+      });
     });
-  });
-  refreshShopVisits();
+    refreshShopVisits();
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return actionFailure(error);
+  }
 }
 
-export async function endShopVisit(visitId: number, reason: string): Promise<void> {
-  const access = await requireGodOrAdminAccessContext();
-  const audience = await activeVisitAudience(visitId);
-  await db.transaction(async (tx) => {
-    await endShopVisitInTransaction(tx, visitId, reason, actorFrom(access));
-    if (audience.campaignId && audience.sessionId && audience.sceneId) await publishTabletopInvalidationInTransaction(tx, {
-      campaignId: audience.campaignId,
-      sessionId: audience.sessionId,
-      sceneId: audience.sceneId,
-      encounterId: null,
-      characterIds: audience.characterIds,
-      category: "shop-visit",
+export async function endShopVisit(visitId: number, reason: string): Promise<ShopVisitActionResult> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    const audience = await activeVisitAudience(visitId);
+    await db.transaction(async (tx) => {
+      await endShopVisitInTransaction(tx, visitId, reason, actorFrom(access));
+      if (audience.campaignId && audience.sessionId && audience.sceneId) await publishTabletopInvalidationInTransaction(tx, {
+        campaignId: audience.campaignId,
+        sessionId: audience.sessionId,
+        sceneId: audience.sceneId,
+        encounterId: null,
+        characterIds: audience.characterIds,
+        category: "shop-visit",
+      });
     });
-  });
-  refreshShopVisits();
+    refreshShopVisits();
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return actionFailure(error);
+  }
 }

@@ -44,6 +44,13 @@ test("Credits are used only when they are the Campaign currency", () => {
   assert.equal(convertCreditsToDerivedUnits(400, 5), 80);
 });
 
+test("public price formatting needs only denomination identity, name, rate, and order", () => {
+  assert.equal(formatCampaignMoney(7, "Derived Currency", [
+    { id: 1, name: "Crowns", creditsPerUnit: 2.5, sortOrder: 0 },
+    { id: 2, name: "Bits", creditsPerUnit: 0.25, sortOrder: 1 },
+  ]), "2 Crowns, 8 Bits");
+});
+
 test("a denomination gap is reported instead of inventing fractional coins", () => {
   const result = getCampaignMoneyBreakdown(
     0.03,

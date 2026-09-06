@@ -52,6 +52,7 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
   const port = await loopbackPort();
   let seedPool: pg.Pool | null = null;
   let applicationPool: { end(): Promise<void> } | null = null;
+  const concurrencyPools: pg.Pool[] = [];
   let started = false;
   try {
     execFileSync(initdbExecutable, ["--auth=trust", "--encoding=UTF8", "--no-locale", "--username=postgres", "-D", dataDirectory], { stdio: "pipe", windowsHide: true });
@@ -103,9 +104,17 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
       (canonical_id,name,catalog_scope,equipment_group,record_type,family,category,description,credits,price_basis)
       values ('VISIT-ITEM-0001','Voyage Kit','equipment','general','gear','Travel','Supplies','A public voyage kit.',12,'Each') returning id`)).rows[0].id);
     await seedPool.query("insert into campaign_inventory_item (campaign_id,item_id,sort_order) values ($1,$2,0)", [campaignId, itemId]);
+    const unpricedItemId = Number((await seedPool.query(`insert into items
+      (canonical_id,name,catalog_scope,equipment_group,record_type,family,category,description,credits,price_basis)
+      values ('VISIT-ITEM-0002','Unpriced Favor','inventory',null,'misc','Services','Services','A service whose price is intentionally not listed.',null,'Each') returning id`)).rows[0].id);
+    const zeroPriceItemId = Number((await seedPool.query(`insert into items
+      (canonical_id,name,catalog_scope,equipment_group,record_type,family,category,description,credits,price_basis)
+      values ('VISIT-ITEM-0003','Complimentary Token','inventory',null,'misc','Travel','Supplies','A free public token.',0,'Each') returning id`)).rows[0].id);
+    await seedPool.query("insert into campaign_inventory_item (campaign_id,item_id,sort_order) values ($1,$2,1)", [campaignId, unpricedItemId]);
+    await seedPool.query("insert into campaign_inventory_item (campaign_id,item_id,sort_order) values ($1,$2,2)", [campaignId, zeroPriceItemId]);
     await seedPool.query(`insert into shop_offering
-      (shop_id,campaign_id,item_id,fulfillment_kind,enabled,unlimited_stock,selling_price_override_credits,buying_price_override_credits)
-      values ($1,$2,$3,'inventory-transfer',true,true,10,6)`, [townShopB, campaignId, itemId]);
+      (shop_id,campaign_id,item_id,fulfillment_kind,enabled,unlimited_stock,selling_price_override_credits,buying_price_override_credits,sort_order)
+      values ($1,$2,$3,'inventory-transfer',true,true,10,6,0),($1,$2,$4,'service-narrative',true,true,null,null,1),($1,$2,$5,'inventory-transfer',true,true,null,null,2)`, [townShopB, campaignId, itemId, unpricedItemId, zeroPriceItemId]);
     await seedPool.query("insert into campaign_session_prepared_town (session_id,campaign_id,town_id,sort_order) values ($1,$2,$3,0),($1,$2,$4,1)", [sessionId, campaignId, townA, townB]);
     await seedPool.query("insert into campaign_session_prepared_shop (session_id,campaign_id,shop_id,sort_order) values ($1,$2,$3,0),($1,$2,$4,1),($1,$2,$5,2)", [sessionId, campaignId, independentShop, closedShop, archivedShop]);
     await seedPool.query("insert into campaign_session_scene_town (scene_id,session_id,campaign_id,town_id,sort_order,revealed) values ($1,$2,$3,$4,0,true),($1,$2,$3,$5,1,true)", [sceneId, sessionId, campaignId, townA, townB]);
@@ -142,9 +151,14 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     const hiddenStaffView = await dbModule.db.transaction((tx) => visit.readPlayerShopVisitInTransaction(tx, characterIds[0]!, players[0]!));
     assert.ok(hiddenStaffView);
     assert.deepEqual(hiddenStaffView.shop.staff, [], "Town A reveal must not expose the same NPC's staff assignment in Town B");
+    assert.deepEqual(hiddenStaffView.currency, { currencySystem: "Credits", derivedCurrencies: [] });
     assert.deepEqual(hiddenStaffView.shop.offerings.map(({ name, sellingPriceCredits, buyingPriceCredits }) => ({ name, sellingPriceCredits, buyingPriceCredits })), [
       { name: "Voyage Kit", sellingPriceCredits: 10, buyingPriceCredits: 6 },
+      { name: "Unpriced Favor", sellingPriceCredits: null, buyingPriceCredits: null },
+      { name: "Complimentary Token", sellingPriceCredits: 0, buyingPriceCredits: 0 },
     ]);
+    const currencyRules = await import("@/features/characters/currency-rules");
+    assert.equal(currencyRules.formatCampaignMoney(10, hiddenStaffView.currency.currencySystem, hiddenStaffView.currency.derivedCurrencies), "10 Credits");
     assert.equal(JSON.stringify(hiddenStaffView).includes("shopNote"), false);
     assert.equal(JSON.stringify(hiddenStaffView).includes("closedShopOverrideReason"), false);
     assert.equal(await dbModule.db.transaction((tx) => visit.readPlayerShopVisitInTransaction(tx, characterIds[2]!, players[2]!)), null, "an unselected Player must stay outside the Shop view");
@@ -155,6 +169,20 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     await seedPool.query("update campaign_session_scene_town_npc set included=true,revealed=true where scene_id=$1 and town_id=$2 and npc_character_id=$3", [sceneId, townB, npcId]);
     const revealedStaffView = await dbModule.db.transaction((tx) => visit.readPlayerShopVisitInTransaction(tx, characterIds[0]!, players[0]!));
     assert.deepEqual(revealedStaffView?.shop.staff.map(({ npcCharacterId, responsibilityLabel }) => ({ npcCharacterId, responsibilityLabel })), [{ npcCharacterId: npcId, responsibilityLabel: "Keeper B" }]);
+    await seedPool.query("update campaign set currency_system='Derived Currency' where id=$1", [campaignId]);
+    await seedPool.query(`insert into campaign_derived_currency (campaign_id,name,description,credits_per_unit,sort_order)
+      values ($1,'Crowns','Large trade coin',2.5,0),($1,'Bits','Fractional trade coin',0.25,1)`, [campaignId]);
+    const derivedPlayerView = await dbModule.db.transaction((tx) => visit.readPlayerShopVisitInTransaction(tx, characterIds[0]!, players[0]!));
+    const derivedGodView = (await dbModule.db.transaction((tx) => visit.readGodShopVisitWorkspaceInTransaction(tx, sceneId, ownerActor)))
+      .activeVisits.find(({ id }) => id === startedVisit.visitId);
+    assert.ok(derivedPlayerView && derivedGodView);
+    assert.equal(derivedPlayerView.currency.currencySystem, "Derived Currency");
+    assert.deepEqual(derivedPlayerView.currency, derivedGodView.currency, "G.O.D. and Player visits must receive the same narrow currency rules");
+    assert.equal(currencyRules.formatCampaignMoney(10, derivedPlayerView.currency.currencySystem, derivedPlayerView.currency.derivedCurrencies), "4 Crowns");
+    assert.equal(currencyRules.formatCampaignMoney(6, derivedPlayerView.currency.currencySystem, derivedPlayerView.currency.derivedCurrencies), "2 Crowns, 4 Bits");
+    assert.equal(derivedPlayerView.shop.offerings.find(({ name }) => name === "Unpriced Favor")?.sellingPriceCredits, null, "a missing price must remain distinct from zero");
+    assert.equal(derivedPlayerView.shop.offerings.find(({ name }) => name === "Complimentary Token")?.sellingPriceCredits, 0, "a zero price must remain a formatted amount");
+    assert.equal(currencyRules.formatCampaignMoney(0, derivedPlayerView.currency.currencySystem, derivedPlayerView.currency.derivedCurrencies), "0 Bits");
 
     await assert.rejects(dbModule.db.transaction((tx) => visit.startOrAddShopVisitInTransaction(tx, {
       sceneId, shopId: independentShop, placement: { kind: "independent" }, characterIds: [characterIds[0]!], mode: "roleplay", closedShopOverrideReason: "",
@@ -164,6 +192,57 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     assert.equal((await seedPool.query("select status from campaign_session_scene_shop_visit where id=$1", [startedVisit.visitId])).rows[0].status, "active");
     await dbModule.db.transaction((tx) => visit.removeShopVisitorInTransaction(tx, startedVisit.visitId, characterIds[1]!, ownerActor));
     assert.equal((await seedPool.query("select status from campaign_session_scene_shop_visit where id=$1", [startedVisit.visitId])).rows[0].status, "ended", "the final visitor must close the visit");
+
+    const departurePoolA = new pg.Pool({ connectionString, max: 1 });
+    const departurePoolB = new pg.Pool({ connectionString, max: 1 });
+    concurrencyPools.push(departurePoolA, departurePoolB);
+    const departureDbA = drizzle(departurePoolA);
+    const departureDbB = drizzle(departurePoolB);
+    assert.notEqual(
+      Number((await departurePoolA.query("select pg_backend_pid() pid")).rows[0].pid),
+      Number((await departurePoolB.query("select pg_backend_pid() pid")).rows[0].pid),
+      "concurrency rehearsal requires separate PostgreSQL connections",
+    );
+    const concurrentDepartureVisit = await dbModule.db.transaction((tx) => visit.startOrAddShopVisitInTransaction(tx, {
+      sceneId, shopId: townShopB, placement: { kind: "town", townId: townB }, characterIds: characterIds.slice(0, 2), mode: "shopping", closedShopOverrideReason: "",
+    }, ownerActor));
+    const departureResults = await Promise.allSettled([
+      departureDbA.transaction((tx) => visit.leaveOwnShopVisitInTransaction(tx, characterIds[0]!, players[0]!)),
+      departureDbB.transaction((tx) => visit.leaveOwnShopVisitInTransaction(tx, characterIds[1]!, players[1]!)),
+    ]);
+    assert.deepEqual(departureResults.map(({ status }) => status), ["fulfilled", "fulfilled"]);
+    assert.equal(Number((await seedPool.query("select count(*)::int value from campaign_session_scene_shop_visit_member where visit_id=$1 and status='active'", [concurrentDepartureVisit.visitId])).rows[0].value), 0);
+    const departedVisitRow = (await seedPool.query("select status,end_reason,ended_by_user_id,ended_at from campaign_session_scene_shop_visit where id=$1", [concurrentDepartureVisit.visitId])).rows[0];
+    assert.equal(departedVisitRow.status, "ended", "concurrent final departures must close their shared visit");
+    assert.equal(departedVisitRow.end_reason, "The final visitor left the Shop.");
+    assert.ok(players.includes(String(departedVisitRow.ended_by_user_id)));
+    assert.ok(departedVisitRow.ended_at);
+    const departedMemberships = (await seedPool.query("select character_id,status,exit_kind,exited_by_user_id,exited_at from campaign_session_scene_shop_visit_member where visit_id=$1 order by character_id", [concurrentDepartureVisit.visitId])).rows;
+    assert.deepEqual(departedMemberships.map((row) => ({ characterId: Number(row.character_id), status: row.status, exitKind: row.exit_kind, exitedBy: row.exited_by_user_id, exited: Boolean(row.exited_at) })), [
+      { characterId: characterIds[0], status: "ended", exitKind: "player-left", exitedBy: players[0], exited: true },
+      { characterId: characterIds[1], status: "ended", exitKind: "player-left", exitedBy: players[1], exited: true },
+    ]);
+
+    const departureAdditionRaceVisit = await dbModule.db.transaction((tx) => visit.startOrAddShopVisitInTransaction(tx, {
+      sceneId, shopId: townShopB, placement: { kind: "town", townId: townB }, characterIds: [characterIds[0]!], mode: "roleplay", closedShopOverrideReason: "",
+    }, ownerActor));
+    const departureAdditionResults = await Promise.allSettled([
+      departureDbA.transaction((tx) => visit.leaveOwnShopVisitInTransaction(tx, characterIds[0]!, players[0]!)),
+      departureDbB.transaction((tx) => visit.startOrAddShopVisitInTransaction(tx, {
+        sceneId, shopId: townShopB, placement: { kind: "town", townId: townB }, characterIds: [characterIds[1]!], mode: "roleplay", closedShopOverrideReason: "",
+      }, ownerActor)),
+    ]);
+    assert.deepEqual(departureAdditionResults.map(({ status }) => status), ["fulfilled", "fulfilled"]);
+    const activeRaceVisits = await seedPool.query<{ id: number; active_members: number }>(`select v.id,count(m.id)::int active_members
+      from campaign_session_scene_shop_visit v
+      left join campaign_session_scene_shop_visit_member m on m.visit_id=v.id and m.status='active'
+      where v.scene_id=$1 and v.shop_id=$2 and v.status='active'
+      group by v.id`, [sceneId, townShopB]);
+    assert.equal(activeRaceVisits.rows.length, 1, "departure/addition race must leave exactly one active visit");
+    assert.equal(activeRaceVisits.rows[0]!.active_members, 1, "an active visit must retain an active member after the race");
+    assert.equal(Number((await seedPool.query("select count(*)::int value from campaign_session_scene_shop_visit_member where character_id=$1 and status='active'", [characterIds[0]])).rows[0].value), 0);
+    assert.equal(Number((await seedPool.query("select count(*)::int value from campaign_session_scene_shop_visit_member where character_id=$1 and status='active'", [characterIds[1]])).rows[0].value), 1);
+    await dbModule.db.transaction((tx) => visit.endShopVisitInTransaction(tx, activeRaceVisits.rows[0]!.id, `Race resolved after visit ${departureAdditionRaceVisit.visitId}`, ownerActor));
 
     await assert.rejects(dbModule.db.transaction((tx) => visit.startOrAddShopVisitInTransaction(tx, {
       sceneId, shopId: closedShop, placement: { kind: "independent" }, characterIds: [characterIds[0]!], mode: "roleplay", closedShopOverrideReason: "",
@@ -218,6 +297,7 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     const state = (await seedPool.query("select s.status session_status,sc.status scene_status from campaign_session s join campaign_session_scene sc on sc.session_id=s.id where sc.id=$1", [sceneId])).rows[0];
     assert.deepEqual(state, { session_status: "active", scene_status: "active" });
   } finally {
+    await Promise.all(concurrencyPools.map((pool) => pool.end().catch(() => undefined)));
     if (applicationPool) await applicationPool.end().catch(() => undefined);
     if (seedPool) await seedPool.end().catch(() => undefined);
     if (started) execFileSync(pgCtlExecutable, ["-D", dataDirectory, "-m", "fast", "-w", "stop"], { stdio: "ignore", windowsHide: true });

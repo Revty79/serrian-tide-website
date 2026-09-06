@@ -33,6 +33,8 @@ Apply the class to the native control or button itself; do not rely on a distant
 
 Native select popups are partly browser-owned. The shared `select`, `option`, and `optgroup` rule declares the dark color scheme plus `--st-input` and `--st-text`, which prevents bright option menus in supporting browsers while leaving the native arrow and accessibility behavior intact. Page CSS may control layout and width but must not replace these appearance roles. Validate computed select and option colors under the saved appearance and at least one scoped alternate preset when changing this pattern.
 
+Confirmation overlays should use the native `dialog` element and `showModal()` so focus containment, Escape dismissal, and focus restoration remain browser-managed. Keep validation and server feedback inside the open dialog, preserve entered values after failure, and disable dismissal or duplicate submission only while an action is pending. Dialog fields and actions use the same `.st-field`, `.st-control`, and `.st-button` variants as the underlying workspace.
+
 ## Intentional exceptions
 
 `--st-health`, `--st-mana`, `--st-success`, `--st-warning`, `--st-danger`, and `--st-info` remain stable semantic signals rather than administrator-adjustable brand colors. Their tinted backgrounds and borders must still be derived with `color-mix`. Dedicated print/export rules remain fixed black, gray, and white for legible physical output and are excluded from screen-theme conversion.

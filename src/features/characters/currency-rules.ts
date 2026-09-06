@@ -2,6 +2,11 @@ import type { CharacterCampaignRules } from "./models";
 
 type CurrencyDefinition = CharacterCampaignRules["derivedCurrencies"][number];
 
+export type CampaignMoneyFormatCurrency = Pick<
+  CurrencyDefinition,
+  "id" | "name" | "creditsPerUnit" | "sortOrder"
+> & Partial<Pick<CurrencyDefinition, "campaignId" | "description">>;
+
 export type CampaignMoneyEntry = CurrencyDefinition & {
   quantity: number;
 };
@@ -200,11 +205,15 @@ export function getStoredCampaignMoneyBreakdown(
 export function formatCampaignMoney(
   canonicalCredits: number,
   currencySystem: CharacterCampaignRules["currencySystem"],
-  currencies: readonly CurrencyDefinition[],
+  currencies: readonly CampaignMoneyFormatCurrency[],
 ): string {
   return getCampaignMoneyBreakdown(
     canonicalCredits,
     currencySystem,
-    currencies,
+    currencies.map((currency) => ({
+      ...currency,
+      campaignId: 0,
+      description: "",
+    })),
   ).formatted;
 }

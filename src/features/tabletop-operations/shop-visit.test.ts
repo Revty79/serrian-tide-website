@@ -20,6 +20,7 @@ const sceneActions = read("src/app/heavens/tabletop/scene-actions.ts");
 const sessionActions = read("src/app/heavens/tabletop/actions.ts");
 const placementService = read("src/features/tabletop-operations/location-placement-service.ts");
 const globals = read("src/app/globals.css");
+const currencyRules = read("src/features/characters/currency-rules.ts");
 
 test("0039 adds normalized Shop visits and membership without changing earlier migrations", () => {
   assert.match(migration, /CREATE TABLE "campaign_session_scene_shop_visit"/);
@@ -63,6 +64,15 @@ test("entry is repeat-safe and concurrent membership is constrained in both sche
   assert.match(service, /entered another Shop concurrently/);
   assert.match(schema, /campaign_session_scene_shop_visit_member_one_active_character_uq/);
   assert.match(schema, /campaign_session_scene_shop_visit_member_one_active_visit_character_uq/);
+  const entry = service.slice(service.indexOf("export async function startOrAddShopVisitInTransaction"), service.indexOf("async function endMembership"));
+  assert.ok(entry.indexOf("campaignSessionSceneShopVisit.status, \"active\"") < entry.indexOf("campaignCharacter.id, requestedIds"), "entry must lock the shared visit before Character and membership rows");
+});
+
+test("departures serialize on the shared visit before membership mutation and lifecycle locks use stable order", () => {
+  const departure = service.slice(service.indexOf("export async function leaveOwnShopVisitInTransaction"), service.indexOf("export async function readPlayerShopVisitInTransaction"));
+  assert.ok(departure.indexOf("campaignSessionSceneShopVisit.id, candidate.visitId") < departure.indexOf("campaignSessionSceneShopVisitMember.visitId, lockedVisit.id"));
+  assert.match(departure, /\.for\("update"\)/);
+  assert.match(service, /orderBy\(asc\(campaignSessionSceneShopVisit\.id\)\)\.for\("update"\)/);
 });
 
 test("the Player projection is scoped to owned membership and omits management-only data", () => {
@@ -77,6 +87,8 @@ test("the Player projection is scoped to owned membership and omits management-o
   assert.match(service, /readPlayerShopVisitInTransaction/);
   assert.match(service, /campaignSessionSceneTownNpc[\s\S]*?eq\(campaignSessionSceneTownNpc\.townId, placement\.townId\)[\s\S]*?eq\(campaignSessionSceneTownNpc\.included, true\)[\s\S]*?eq\(campaignSessionSceneTownNpc\.revealed, true\)/);
   assert.doesNotMatch(playerWorkspace, /closed-Shop override|closedShopOverrideReason/);
+  assert.match(publicType, /currency: ShopVisitCurrencyView/);
+  assert.doesNotMatch(publicType, /currency[\s\S]*(?:description|overview|startingCreditAmount)/);
 });
 
 test("individual departure, G.O.D. controls, and final-visitor closure are explicit", () => {
@@ -121,6 +133,30 @@ test("visit views browse public offerings but expose no transaction-shaped contr
   for (const forbidden of ["Buy now", "Checkout", "Approve purchase", "Grant money", "Sell item"]) {
     assert.doesNotMatch(godWorkspace + playerWorkspace, new RegExp(forbidden, "i"));
   }
+});
+
+test("G.O.D. and Player visit prices use the shared Campaign currency formatter", () => {
+  assert.match(currencyRules, /export function formatCampaignMoney/);
+  assert.match(service, /campaignDerivedCurrency/);
+  assert.match(service, /creditsPerUnit: campaignDerivedCurrency\.creditsPerUnit/);
+  assert.match(godWorkspace, /formatCampaignMoney\(value, currency\.currencySystem, currency\.derivedCurrencies\)/);
+  assert.match(playerWorkspace, /formatCampaignMoney\(value, currency\.currencySystem, currency\.derivedCurrencies\)/);
+  assert.doesNotMatch(godWorkspace + playerWorkspace, /toLocaleString\("en-US"\).*Credits/);
+  assert.match(godWorkspace + playerWorkspace, /value === null[\s\S]*Price not listed/);
+});
+
+test("visible action feedback and the themed End Visit dialog replace prompt-based input", () => {
+  assert.doesNotMatch(godWorkspace, /window\.prompt/);
+  assert.match(godWorkspace, /<dialog/);
+  assert.match(godWorkspace, /Visit end reason is required/);
+  assert.match(godWorkspace, /Visit end reason cannot exceed 1,000 characters/);
+  assert.match(godWorkspace, /autoFocus className="st-control"[\s\S]*maxLength=\{1000\}/);
+  assert.match(godWorkspace, /onCancel=\{\(event\)/);
+  assert.match(godWorkspace, /disabled=\{busy\}/);
+  assert.match(godWorkspace, /className="st-button is-danger"/);
+  assert.match(godWorkspace, /feedback\.kind === "error" \? "alert" : "status"/);
+  assert.match(godActions, /ShopVisitActionResult/);
+  assert.match(godActions, /return actionFailure\(error\)/);
 });
 
 test("the shared semantic control pattern covers native dropdown content and action roles", () => {

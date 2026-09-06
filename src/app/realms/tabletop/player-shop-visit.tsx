@@ -3,13 +3,16 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { ShopVisitView } from "@/features/tabletop-operations/shop-visit-service";
+import { formatCampaignMoney } from "@/features/characters/currency-rules";
+import type { ShopVisitCurrencyView, ShopVisitView } from "@/features/tabletop-operations/shop-visit-service";
 
 import { leaveShopVisit } from "./shop-visit-actions";
 import styles from "./player-tabletop.module.css";
 
-function credits(value: number | null): string {
-  return value === null ? "Price not listed" : `${value.toLocaleString("en-US")} Credits`;
+function money(value: number | null, currency: ShopVisitCurrencyView): string {
+  return value === null
+    ? "Price not listed"
+    : formatCampaignMoney(value, currency.currencySystem, currency.derivedCurrencies);
 }
 
 export function PlayerShopVisit({ characterId, visit }: { characterId: number; visit: ShopVisitView }) {
@@ -52,7 +55,7 @@ export function PlayerShopVisit({ characterId, visit }: { characterId: number; v
     </div>
     <section className={styles.shopVisitCatalog}>
       <header><div><p className={styles.eyebrow}>PUBLIC CATALOG</p><h3>Offerings</h3></div><div className={styles.shopVisitFilters}><label className="st-field"><span>Search</span><input className="st-control" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, family, or category" /></label><label className="st-field"><span>Category</span><select className="st-control" value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">All categories</option>{categories.map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div></header>
-      {offerings.length ? <div className={styles.shopVisitOfferings}>{offerings.map((offering) => <article key={offering.id}><header><div><span>{offering.category} · {offering.canonicalId}</span><h4>{offering.name}</h4></div><strong>{credits(offering.sellingPriceCredits)}</strong></header>{offering.description ? <p>{offering.description}</p> : null}<footer><span>{offering.fulfillmentKind === "service-narrative" ? "Service / narrative" : "Inventory item"}</span><span>{offering.unlimitedStock ? "Unlimited" : `${offering.limitedQuantity ?? 0} available`}</span>{offering.buyingPriceCredits !== offering.sellingPriceCredits ? <span>Shop buys for {credits(offering.buyingPriceCredits)}</span> : null}</footer></article>)}</div> : <p className={styles.emptyCopy}>No enabled offerings match these filters.</p>}
+      {offerings.length ? <div className={styles.shopVisitOfferings}>{offerings.map((offering) => <article key={offering.id}><header><div><span>{offering.category} · {offering.canonicalId}</span><h4>{offering.name}</h4></div><strong>{money(offering.sellingPriceCredits, visit.currency)}</strong></header>{offering.description ? <p>{offering.description}</p> : null}<footer><span>{offering.fulfillmentKind === "service-narrative" ? "Service / narrative" : "Inventory item"}</span><span>{offering.unlimitedStock ? "Unlimited" : `${offering.limitedQuantity ?? 0} available`}</span>{offering.buyingPriceCredits !== offering.sellingPriceCredits ? <span>Shop buys for {money(offering.buyingPriceCredits, visit.currency)}</span> : null}</footer></article>)}</div> : <p className={styles.emptyCopy}>No enabled offerings match these filters.</p>}
     </section>
     <p className={styles.boundaryNotice}>This visit is an additional live context. It does not change the active Scene, Encounter, Initiative, Character state, or the Shop&apos;s saved transaction policies.</p>
   </section>;

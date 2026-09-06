@@ -854,6 +854,65 @@
   box-shadow: 0 28px 90px var(--st-shadow);
 }
 
+.tabletop-shop-end-dialog {
+  width: min(38rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  margin: auto;
+  overflow: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--st-text);
+}
+
+.tabletop-shop-end-dialog::backdrop {
+  background: color-mix(in srgb, var(--st-page) 80%, transparent);
+  backdrop-filter: blur(7px);
+}
+
+.tabletop-shop-end-dialog > section {
+  display: grid;
+  gap: 13px;
+  border: 1px solid color-mix(in srgb, var(--st-danger) 38%, var(--st-border));
+  border-radius: 15px;
+  background: var(--st-surface-raised);
+  padding: 18px;
+  box-shadow: 0 28px 90px var(--st-shadow);
+}
+
+.tabletop-shop-end-dialog header h4 {
+  margin: 3px 0 0;
+  color: var(--st-text);
+}
+
+.tabletop-shop-end-dialog header span {
+  display: block;
+  color: var(--st-danger);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.tabletop-shop-end-dialog header p,
+.tabletop-shop-end-dialog > section > small {
+  margin: 4px 0 0;
+  color: var(--st-muted);
+  font-size: .72rem;
+}
+
+.tabletop-shop-end-dialog textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.tabletop-shop-end-dialog footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .tabletop-shop-entry-dialog fieldset {
   display: grid;
   gap: 7px;
