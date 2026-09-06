@@ -594,7 +594,7 @@ export function ShopWorkspace({
 
     <section className="shops-context">
       <div><p>CAMPAIGN CONTEXT</p><h2 className="font-sans">Choose the Shop archive</h2></div>
-      <label><span>Campaign</span><select value={campaignId} onChange={(event) => void changeCampaign(event.target.value)}>
+      <label className="shops-field"><span>Campaign</span><select value={campaignId} onChange={(event) => void changeCampaign(event.target.value)}>
         <option value="">No Campaign Selected</option>
         {campaigns.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.archived ? " [Archived]" : ""}{isAdmin && entry.ownerLabel ? ` — Owner: ${entry.ownerLabel}` : ""}</option>)}
       </select></label>

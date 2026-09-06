@@ -190,6 +190,7 @@ test("Shop Builder covers Character-store browsing, pricing, stock, staff, order
   assert.match(actions, /leftJoin\(armorProfile/);
   assert.match(workspace, /Archived NPC · retained for history/);
   assert.match(workspace, /This Shop is archived and read-only/);
+  assert.match(workspace, /<label className="shops-field"><span>Campaign<\/span><select/);
   assert.doesNotMatch(workspace, /Checkout|Purchase Request|Complete Sale|Buy Now/);
 });
 
