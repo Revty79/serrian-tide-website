@@ -23,6 +23,13 @@ const adminSections = [
     href: "/admin/content",
   },
   {
+    title: "APPEARANCE",
+    subtitle: "Site Theme",
+    description:
+      "Choose the site-wide color preset or publish a readable custom palette.",
+    href: "/admin/appearance",
+  },
+  {
     title: "ROLE MANAGEMENT",
     subtitle: "Permissions",
     description:
@@ -94,7 +101,7 @@ export default async function AdminPage() {
                     text-4xl
                     tracking-tight
                     text-transparent
-                    drop-shadow-[0_0_14px_rgba(251,191,36,0.25)]
+                    drop-shadow-lg
                     sm:text-5xl
                   "
                 >
@@ -160,7 +167,7 @@ export default async function AdminPage() {
                     hover:-translate-y-1
                     hover:border-amber-300/40
                     hover:bg-black/45
-                    hover:shadow-[0_0_40px_rgba(139,92,246,0.12)]
+                    hover:shadow-2xl
                   "
                 >
                   <div>

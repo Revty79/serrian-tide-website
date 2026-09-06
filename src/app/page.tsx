@@ -22,7 +22,7 @@ export default function Home() {
               to-purple-500
               bg-clip-text
               text-transparent
-              drop-shadow-[0_0_18px_rgba(251,191,36,0.28)]
+              drop-shadow-lg
             "
           >
             SERRIAN TIDE
@@ -48,12 +48,12 @@ export default function Home() {
               py-4
               font-semibold
               text-amber-100
-              shadow-[0_0_30px_rgba(251,191,36,0.08)]
+              shadow-2xl
               backdrop-blur-sm
               transition
               hover:border-amber-300/80
               hover:bg-amber-300/20
-              hover:shadow-[0_0_35px_rgba(251,191,36,0.18)]
+              hover:shadow-2xl
             "
           >
             Enter Your Imagination

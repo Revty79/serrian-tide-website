@@ -1,5 +1,5 @@
 .derived-ability-brand {
-  color: rgb(253 230 138);
+  color: var(--st-secondary-soft-text);
   font-size: clamp(1.45rem, 4vw, 2.1rem);
   line-height: 0.9;
   text-align: center;
@@ -26,10 +26,10 @@
 }
 
 .derived-ability-library-badges em {
-  border: 1px solid rgba(167, 139, 250, 0.24);
+  border: 1px solid var(--st-primary-border);
   border-radius: 999px;
-  background: rgba(124, 58, 237, 0.1);
-  color: rgb(221 214 254);
+  background: var(--st-primary-soft);
+  color: var(--st-primary-soft-text);
   font-size: 0.58rem;
   font-style: normal;
   letter-spacing: 0.06em;
@@ -38,14 +38,14 @@
 }
 
 .derived-ability-card {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--st-border);
   border-radius: 1rem;
-  background: rgba(2, 6, 23, 0.46);
+  background: var(--st-surface-soft);
   padding: 1.25rem;
 }
 
 .derived-ability-card > header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--st-border);
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
 }
@@ -60,7 +60,7 @@
 .derived-ability-card-heading > div > span {
   display: block;
   margin-top: 0.3rem;
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.72rem;
 }
 
@@ -73,13 +73,13 @@
 }
 
 .derived-ability-card > header p {
-  color: rgb(216 180 254);
+  color: var(--st-primary-soft-text);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
 }
 
 .derived-ability-card > header h3 {
-  color: rgb(241 245 249);
+  color: var(--st-text-strong);
   font-size: 1.25rem;
   margin-top: 0.25rem;
 }
@@ -100,12 +100,12 @@
 }
 
 .derived-ability-field > span {
-  color: rgb(203 213 225);
+  color: var(--st-text-soft);
   font-size: 0.78rem;
 }
 
 .derived-ability-field > small {
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.67rem;
   line-height: 1.4;
 }
@@ -113,10 +113,10 @@
 .derived-ability-field input,
 .derived-ability-field select,
 .derived-ability-field textarea {
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--st-border-strong);
   border-radius: 0.75rem;
-  background: rgba(0, 0, 0, 0.35);
-  color: rgb(241 245 249);
+  background: var(--st-input);
+  color: var(--st-text-strong);
   padding: 0.75rem;
 }
 
@@ -128,17 +128,17 @@
 
 .derived-ability-metadata div {
   border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--st-surface-raised);
   padding: 0.75rem;
 }
 
 .derived-ability-metadata dt {
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.7rem;
 }
 
 .derived-ability-metadata dd {
-  color: rgb(241 245 249);
+  color: var(--st-text-strong);
   margin-top: 0.25rem;
   overflow-wrap: anywhere;
 }
@@ -147,10 +147,10 @@
   align-self: end;
   min-height: 40px;
   margin: 0;
-  border: 1px solid rgba(141, 211, 204, 0.14);
+  border: 1px solid var(--st-primary-border);
   border-radius: 0.75rem;
-  background: rgba(13, 148, 136, 0.06);
-  color: rgb(153 208 201);
+  background: var(--st-primary-soft);
+  color: var(--st-primary-soft-text);
   font-size: 0.74rem;
   line-height: 1.5;
   padding: 0.65rem 0.75rem;
@@ -158,17 +158,17 @@
 
 .derived-ability-warning {
   margin: 0.85rem 0 0;
-  border: 1px solid rgba(251, 191, 36, 0.2);
+  border: 1px solid color-mix(in srgb, var(--st-warning) 35%, transparent);
   border-radius: 0.75rem;
-  background: rgba(120, 53, 15, 0.1);
-  color: rgb(203 190 156);
+  background: color-mix(in srgb, var(--st-warning) 10%, transparent);
+  color: var(--st-text-soft);
   font-size: 0.74rem;
   line-height: 1.55;
   padding: 0.75rem;
 }
 
 .derived-ability-warning strong {
-  color: rgb(253 230 138);
+  color: var(--st-warning);
 }
 
 .derived-ability-requirements-card {
@@ -177,9 +177,9 @@
 }
 
 .derived-ability-requirement-scope {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--st-border);
   border-radius: 0.85rem;
-  background: rgba(15, 23, 42, 0.3);
+  background: var(--st-surface-soft);
   padding: 0.9rem;
 }
 
@@ -194,27 +194,27 @@
 
 .derived-ability-requirement-scope > header h4 {
   margin: 0;
-  color: rgb(241 245 249);
+  color: var(--st-text-strong);
   font-size: 1rem;
 }
 
 .derived-ability-requirement-scope > header p {
   margin: 0.25rem 0 0;
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.7rem;
 }
 
 .derived-ability-requirement-group {
   margin-top: 0.8rem;
-  border: 1px solid rgba(167, 139, 250, 0.15);
+  border: 1px solid var(--st-primary-border);
   border-radius: 0.75rem;
-  background: rgba(2, 6, 23, 0.45);
+  background: var(--st-surface-soft);
   padding: 0.75rem;
 }
 
 .derived-ability-requirement-group > header {
   align-items: flex-start;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--st-border);
   padding-bottom: 0.65rem;
 }
 
@@ -231,14 +231,14 @@
 }
 
 .derived-ability-requirement-group > header strong {
-  color: rgb(221 214 254);
+  color: var(--st-primary-soft-text);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
 }
 
 .derived-ability-requirement-group > header span {
   margin-top: 0.15rem;
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.62rem;
 }
 
@@ -249,9 +249,9 @@
 }
 
 .derived-ability-edit-row {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--st-border);
   border-radius: 0.72rem;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--st-surface-deep);
   padding: 0.75rem;
 }
 
@@ -260,7 +260,7 @@
 }
 
 .derived-ability-edit-row > header strong {
-  color: rgb(226 232 240);
+  color: var(--st-text);
   font-size: 0.74rem;
   text-transform: capitalize;
 }
@@ -268,7 +268,7 @@
 .derived-ability-effect-row > header > div:first-child span {
   display: block;
   margin-top: 0.15rem;
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.62rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -277,14 +277,14 @@
 .derived-ability-effect-note {
   grid-column: 1 / -1;
   margin: 0;
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.72rem;
   line-height: 1.5;
 }
 
 .derived-ability-validation-list {
   margin: 0.65rem 0 0;
-  color: rgb(253 164 175);
+  color: var(--st-danger);
   font-size: 0.72rem;
 }
 
@@ -296,7 +296,7 @@
 
 .derived-ability-and,
 .derived-ability-or {
-  color: rgb(196 181 253);
+  color: var(--st-primary-soft-text);
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -323,9 +323,9 @@
 
 .derived-ability-empty {
   margin: 0.8rem 0 0;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border: 1px dashed var(--st-border);
   border-radius: 0.7rem;
-  color: rgb(148 163 184);
+  color: var(--st-muted);
   font-size: 0.72rem;
   padding: 0.75rem;
 }

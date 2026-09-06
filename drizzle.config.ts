@@ -11,6 +11,7 @@ if (!process.env.DATABASE_URL) {
 export default defineConfig({
   schema: [
     "./src/db/auth-schema.ts",
+    "./src/db/appearance-schema.ts",
     "./src/db/authorization-schema.ts",
     "./src/db/lifecycle-schema.ts",
     "./src/db/campaign-schema.ts",

@@ -1,5 +1,50 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-slate-50: var(--st-text-strong);
+  --color-slate-100: var(--st-text);
+  --color-slate-200: var(--st-text-soft);
+  --color-slate-300: var(--st-text-secondary);
+  --color-slate-400: var(--st-muted);
+  --color-slate-500: var(--st-text-dim);
+  --color-slate-600: var(--st-text-dim);
+  --color-slate-700: var(--st-border-strong);
+  --color-slate-800: var(--st-surface-raised);
+  --color-slate-900: var(--st-surface);
+  --color-slate-950: var(--st-page);
+  --color-gray-100: var(--st-text);
+  --color-gray-200: var(--st-text-soft);
+  --color-gray-300: var(--st-text-secondary);
+  --color-gray-400: var(--st-muted);
+  --color-gray-500: var(--st-text-dim);
+  --color-gray-600: var(--st-text-dim);
+  --color-gray-700: var(--st-border-strong);
+  --color-gray-800: var(--st-surface-raised);
+  --color-gray-900: var(--st-surface);
+  --color-purple-50: var(--st-primary-bright);
+  --color-purple-100: var(--st-primary-bright);
+  --color-purple-200: var(--st-primary-soft-text);
+  --color-purple-300: var(--st-primary-soft-text);
+  --color-purple-400: var(--st-primary);
+  --color-purple-500: var(--st-primary);
+  --color-purple-600: var(--st-primary-deep);
+  --color-purple-700: var(--st-primary-deep);
+  --color-purple-800: var(--st-primary-deep);
+  --color-purple-900: var(--st-primary-deep);
+  --color-amber-50: var(--st-secondary-bright);
+  --color-amber-100: var(--st-secondary-bright);
+  --color-amber-200: var(--st-secondary-soft-text);
+  --color-amber-300: var(--st-secondary);
+  --color-amber-400: var(--st-secondary);
+  --color-amber-500: var(--st-secondary-deep);
+  --color-amber-600: var(--st-secondary-deep);
+  --color-amber-700: var(--st-secondary-deep);
+  --color-amber-800: var(--st-secondary-deep);
+  --color-amber-900: var(--st-secondary-deep);
+  --color-black: var(--st-page);
+  --color-white: var(--st-text);
+}
+
 @font-face {
   font-family: "Evanescent";
   src: url("/evanescent.ttf") format("truetype");
@@ -9,9 +54,49 @@
 }
 
 :root {
-  --st-deep: #06080f;
-  --st-top: #0a0f1e;
-  --st-foreground: #e2e8f0;
+  color-scheme: dark;
+  --st-page: #04030c;
+  --st-surface: #0b1018;
+  --st-primary: #4da97d;
+  --st-secondary: #f9d34e;
+  --st-text: #e7ead9;
+  --st-muted: #9eada4;
+  --st-on-primary: var(--st-page);
+  --st-on-secondary: var(--st-page);
+  --st-page-top: color-mix(in srgb, var(--st-surface) 72%, var(--st-primary) 28%);
+  --st-surface-raised: color-mix(in srgb, var(--st-surface) 88%, var(--st-text) 12%);
+  --st-surface-soft: color-mix(in srgb, var(--st-surface) 82%, transparent);
+  --st-surface-deep: color-mix(in srgb, var(--st-page) 88%, var(--st-surface) 12%);
+  --st-input: color-mix(in srgb, var(--st-page) 78%, var(--st-surface) 22%);
+  --st-text-strong: color-mix(in srgb, var(--st-text) 90%, white 10%);
+  --st-text-soft: color-mix(in srgb, var(--st-text) 72%, var(--st-muted) 28%);
+  --st-text-secondary: color-mix(in srgb, var(--st-text) 52%, var(--st-muted) 48%);
+  --st-text-dim: color-mix(in srgb, var(--st-muted) 68%, var(--st-page) 32%);
+  --st-border: color-mix(in srgb, var(--st-text) 12%, transparent);
+  --st-border-strong: color-mix(in srgb, var(--st-text) 22%, transparent);
+  --st-primary-bright: color-mix(in srgb, var(--st-primary) 72%, white 28%);
+  --st-primary-soft-text: color-mix(in srgb, var(--st-primary) 64%, var(--st-text) 36%);
+  --st-primary-deep: color-mix(in srgb, var(--st-primary) 58%, var(--st-page) 42%);
+  --st-primary-soft: color-mix(in srgb, var(--st-primary) 15%, transparent);
+  --st-primary-border: color-mix(in srgb, var(--st-primary) 42%, transparent);
+  --st-secondary-bright: color-mix(in srgb, var(--st-secondary) 72%, white 28%);
+  --st-secondary-soft-text: color-mix(in srgb, var(--st-secondary) 70%, var(--st-text) 30%);
+  --st-secondary-deep: color-mix(in srgb, var(--st-secondary) 62%, var(--st-page) 38%);
+  --st-secondary-soft: color-mix(in srgb, var(--st-secondary) 13%, transparent);
+  --st-secondary-border: color-mix(in srgb, var(--st-secondary) 42%, transparent);
+  --st-brand-gradient: linear-gradient(100deg, var(--st-primary), var(--st-secondary) 52%, var(--st-primary));
+  --st-focus: color-mix(in srgb, var(--st-secondary) 88%, white 12%);
+  --st-selection: color-mix(in srgb, var(--st-primary) 35%, transparent);
+  --st-shadow: rgb(0 0 0 / 38%);
+  --st-success: #6bd49f;
+  --st-warning: #f0bd5e;
+  --st-danger: #f18b98;
+  --st-info: #79b8e8;
+
+  /* Compatibility aliases retained for existing screens. */
+  --st-deep: var(--st-page);
+  --st-top: var(--st-page-top);
+  --st-foreground: var(--st-text);
 }
 
 * {
@@ -33,9 +118,12 @@ body {
   line-height: 1.5;
 
   background-image:
-    linear-gradient(rgba(3, 6, 14, 0.55), rgba(3, 6, 14, 0.55)),
+    linear-gradient(
+      color-mix(in srgb, var(--st-page) 34%, transparent),
+      color-mix(in srgb, var(--st-page) 46%, transparent)
+    ),
     url("/nebula.png"),
-    linear-gradient(to bottom, var(--st-top), var(--st-deep));
+    linear-gradient(to bottom, var(--st-page-top), var(--st-page));
 
   background-position: center;
   background-repeat: no-repeat;
@@ -53,7 +141,7 @@ body::before {
   height: min(90vw, 90vh, 1300px);
 
   background: url("/alchemy.png") center / contain no-repeat;
-  opacity: 0.26;
+  opacity: 0.23;
 
   pointer-events: none;
   animation: st-spin 120s linear infinite;
@@ -77,6 +165,30 @@ body::before {
 
 .font-evanescent {
   font-family: "Evanescent", Georgia, serif;
+}
+
+.st-brand {
+  background: var(--st-brand-gradient);
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 1.5rem color-mix(in srgb, var(--st-secondary) 20%, transparent);
+}
+
+.st-surface-soft-bg {
+  background: var(--st-surface-soft);
+}
+
+.st-surface-raised-bg {
+  background: var(--st-surface-raised);
+}
+
+::selection {
+  background: var(--st-selection);
+  color: var(--st-text-strong);
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline-color: var(--st-focus);
 }
 
 button,

@@ -48,7 +48,7 @@ export default async function AccessPage() {
                 text-5xl
                 tracking-tight
                 text-transparent
-                drop-shadow-[0_0_16px_rgba(251,191,36,0.25)]
+                drop-shadow-lg
                 sm:text-6xl
               "
             >
@@ -89,7 +89,7 @@ export default async function AccessPage() {
                   hover:-translate-y-1
                   hover:border-amber-300/40
                   hover:bg-black/45
-                  hover:shadow-[0_0_40px_rgba(139,92,246,0.12)]
+                  hover:shadow-2xl
                 "
               >
                 <div>

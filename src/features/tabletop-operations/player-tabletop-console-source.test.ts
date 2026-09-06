@@ -148,13 +148,13 @@ test("responsive CSS prevents page overflow and preserves accessible controls", 
   assert.match(css, /@media \(max-width: 42rem\)/);
 });
 
-test("the Player Tabletop uses the shared Realms glass, gold, and branded visual language", () => {
+test("the Player Tabletop uses the shared Realms glass and site-wide branded visual language", () => {
   assert.match(workspace, /className=\{styles\.brandMark\}/);
   assert.match(workspace, /aria-label="Player tabletop navigation"/);
   assert.match(css, /font-family: "Evanescent"/);
   assert.match(css, /backdrop-filter: blur\(16px\)/);
-  assert.match(css, /rgb\(245 202 115/);
-  assert.match(css, /linear-gradient\(90deg, #a855f7, #fde68a, #a855f7\)/);
+  assert.match(css, /--tabletop-gold: var\(--st-secondary\)/);
+  assert.match(css, /linear-gradient\(90deg, var\(--st-primary\), var\(--st-secondary\), var\(--st-primary\)\)/);
 });
 
 test("forms and live feedback carry accessible labels and status semantics", () => {

@@ -114,7 +114,7 @@ test("Town Builder is reachable and 0036 follows the exact 0035 tail", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as {
     entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;
   };
-  assert.equal(journal.entries.length, 37);
+  assert.equal(journal.entries.length, 38);
   assert.equal(journal.entries[35]?.tag, "0035_campaign_shop_foundation");
   assert.deepEqual(journal.entries[36], {
     idx: 36,
@@ -123,4 +123,5 @@ test("Town Builder is reachable and 0036 follows the exact 0035 tail", () => {
     tag: "0036_campaign_town_builder",
     breakpoints: true,
   });
+  assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
 });

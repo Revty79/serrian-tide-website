@@ -205,7 +205,7 @@ test("the Shop foundation remains free of placement, transaction, and automated 
 
 test("0035 remains the exact Shop migration and 0036 follows it", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 37);
+  assert.equal(journal.entries.length, 38);
   assert.equal(journal.entries[34]?.tag, "0034_verification_user_delete_guard");
   assert.deepEqual(journal.entries[35], {
     idx: 35,
@@ -215,4 +215,5 @@ test("0035 remains the exact Shop migration and 0036 follows it", () => {
     breakpoints: true,
   });
   assert.equal(journal.entries[36]?.tag, "0036_campaign_town_builder");
+  assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
 });

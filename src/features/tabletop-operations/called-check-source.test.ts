@@ -8,7 +8,7 @@ const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf
 test("migration 0030 is additive, follows immutable 0029, and adds normalized audit-safe identity", () => {
   const migration = read("drizzle/0030_called_checks_high_low.sql");
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<Record<string, unknown>> };
-  assert.equal(journal.entries.length, 37);
+  assert.equal(journal.entries.length, 38);
   assert.deepEqual(journal.entries[29], { idx: 29, version: "7", when: 1788555142922, tag: "0029_firearm_attack_runtime", breakpoints: true });
   assert.deepEqual(journal.entries[30], { idx: 30, version: "7", when: 1788561124817, tag: "0030_called_checks_high_low", breakpoints: true });
   assert.equal(journal.entries[31]?.tag, "0031_player_combat_ruling_requests");
@@ -17,6 +17,7 @@ test("migration 0030 is additive, follows immutable 0029, and adds normalized au
   assert.equal(journal.entries[34]?.tag, "0034_verification_user_delete_guard");
   assert.equal(journal.entries[35]?.tag, "0035_campaign_shop_foundation");
   assert.equal(journal.entries[36]?.tag, "0036_campaign_town_builder");
+  assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
   for (const table of [
     "campaign_session_called_check_batch",
     "campaign_session_called_check_request",

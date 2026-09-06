@@ -3,7 +3,7 @@
   z-index: 10;
   min-height: 100vh;
   padding: 2rem clamp(1rem, 3vw, 2.5rem) 4rem;
-  color: #e8edf7;
+  color: var(--st-text);
 }
 
 .shops-page button,
@@ -14,18 +14,18 @@
 }
 
 .shops-page button {
-  border: 1px solid rgb(252 211 77 / 32%);
+  border: 1px solid var(--st-secondary-border);
   border-radius: 0.75rem;
-  background: rgb(120 53 15 / 24%);
-  color: #fde7a7;
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary-soft-text);
   cursor: pointer;
   padding: 0.65rem 0.9rem;
   transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
 .shops-page button:hover:not(:disabled) {
-  border-color: rgb(252 211 77 / 70%);
-  background: rgb(146 64 14 / 34%);
+  border-color: var(--st-secondary);
+  background: color-mix(in srgb, var(--st-secondary) 22%, transparent);
 }
 
 .shops-page button:disabled {
@@ -55,16 +55,16 @@
   align-items: center;
   gap: 1.5rem;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--st-border);
   border-radius: 1.5rem;
-  background: rgb(0 0 0 / 38%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 35%);
+  background: var(--st-surface-soft);
+  box-shadow: 0 24px 70px var(--st-shadow);
   padding: 1.5rem 1.75rem;
   backdrop-filter: blur(16px);
 }
 
 .shops-logo {
-  background: linear-gradient(90deg, #a855f7, #fcd34d, #a855f7);
+  background: var(--st-brand-gradient);
   background-clip: text;
   color: transparent;
   font-size: 2rem;
@@ -80,7 +80,7 @@
 .shops-dialog header p,
 .shops-card-identity p,
 .shops-catalog__identity p {
-  color: #d8b4fe;
+  color: var(--st-primary-soft-text);
   font-size: 0.7rem;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -95,19 +95,19 @@
 .shops-card-identity h4,
 .shops-catalog__identity h4 {
   margin: 0.25rem 0 0;
-  color: #f8fafc;
+  color: var(--st-text-strong);
 }
 
 .shops-header span,
 .shops-context span,
 .shops-editor__header span,
 .shops-dialog header span {
-  color: #aeb9ca;
+  color: var(--st-muted);
   font-size: 0.86rem;
 }
 
 .shops-header nav a {
-  color: #fde68a;
+  color: var(--st-secondary-soft-text);
   font-size: 0.85rem;
 }
 
@@ -116,17 +116,17 @@
   gap: 0.7rem 1rem;
   align-items: baseline;
   margin-top: 0.9rem;
-  border: 1px solid rgb(168 85 247 / 20%);
+  border: 1px solid var(--st-primary-border);
   border-radius: 1rem;
-  background: rgb(46 16 101 / 20%);
+  background: var(--st-primary-soft);
   padding: 0.75rem 1rem;
-  color: #cbd5e1;
+  color: var(--st-text-soft);
   font-size: 0.8rem;
 }
 
 .shops-scope.is-admin {
-  border-color: rgb(45 212 191 / 24%);
-  background: rgb(19 78 74 / 20%);
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
 }
 
 .shops-feedback,
@@ -135,17 +135,17 @@
 .shops-help {
   margin: 0.9rem auto 0;
   max-width: 96rem;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--st-border);
   border-radius: 0.85rem;
-  background: rgb(15 23 42 / 72%);
+  background: var(--st-surface-raised);
   padding: 0.75rem 1rem;
-  color: #cbd5e1;
+  color: var(--st-text-soft);
   font-size: 0.84rem;
 }
 
 .shops-feedback.is-success {
-  border-color: rgb(52 211 153 / 40%);
-  color: #a7f3d0;
+  border-color: color-mix(in srgb, var(--st-primary) 40%, transparent);
+  color: var(--st-primary-soft-text);
 }
 
 .shops-feedback.is-error,
@@ -160,9 +160,9 @@
   align-items: end;
   gap: 1rem;
   margin-top: 1rem;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--st-border);
   border-radius: 1.25rem;
-  background: rgb(0 0 0 / 34%);
+  background: var(--st-surface-soft);
   padding: 1rem 1.25rem;
   backdrop-filter: blur(14px);
 }
@@ -179,10 +179,10 @@
 .shops-library,
 .shops-editor {
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--st-border);
   border-radius: 1.25rem;
-  background: rgb(0 0 0 / 38%);
-  box-shadow: 0 22px 58px rgb(0 0 0 / 28%);
+  background: var(--st-surface-soft);
+  box-shadow: 0 22px 58px var(--st-shadow);
   backdrop-filter: blur(16px);
 }
 
@@ -219,9 +219,9 @@
 
 .shops-segmented button[aria-pressed="true"],
 .shops-catalog-tools button[aria-pressed="true"] {
-  border-color: rgb(252 211 77 / 65%);
-  background: rgb(120 53 15 / 46%);
-  color: #fef3c7;
+  border-color: var(--st-secondary);
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary-soft-text);
 }
 
 .shops-field {
@@ -234,7 +234,7 @@
 .shops-check span,
 .shops-price span,
 .shops-price-grid span {
-  color: #cbd5e1;
+  color: var(--st-text-soft);
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.035em;
@@ -245,19 +245,19 @@
 .shops-field textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid var(--st-border-strong);
   border-radius: 0.7rem;
-  background: rgb(2 6 23 / 72%);
+  background: var(--st-input);
   padding: 0.65rem 0.72rem;
-  color: #f8fafc;
+  color: var(--st-text);
   outline: none;
 }
 
 .shops-field input:focus,
 .shops-field select:focus,
 .shops-field textarea:focus {
-  border-color: rgb(252 211 77 / 60%);
-  box-shadow: 0 0 0 3px rgb(252 211 77 / 8%);
+  border-color: var(--st-secondary);
+  box-shadow: 0 0 0 3px var(--st-secondary-soft);
 }
 
 .shops-field small,
@@ -265,7 +265,7 @@
 .shops-catalog-preview small,
 .shops-price small,
 .shops-price-grid small {
-  color: #8e9aac;
+  color: var(--st-muted);
   font-size: 0.72rem;
 }
 
@@ -284,15 +284,15 @@
   justify-content: space-between;
   gap: 0.75rem;
   width: 100%;
-  border-color: rgb(148 163 184 / 18%);
-  background: rgb(15 23 42 / 58%);
+  border-color: var(--st-border);
+  background: var(--st-surface-raised);
   padding: 0.75rem;
   text-align: left;
 }
 
 .shops-index > button.is-selected {
-  border-color: rgb(252 211 77 / 52%);
-  background: rgb(120 53 15 / 24%);
+  border-color: var(--st-secondary-border);
+  background: var(--st-secondary-soft);
 }
 
 .shops-index > button > span {
@@ -301,11 +301,11 @@
 }
 
 .shops-index strong {
-  color: #f8fafc;
+  color: var(--st-text);
 }
 
 .shops-index small {
-  color: #94a3b8;
+  color: var(--st-muted);
   font-size: 0.72rem;
 }
 
@@ -318,26 +318,26 @@
 .shops-index em {
   width: fit-content;
   border-radius: 999px;
-  background: rgb(71 85 105 / 50%);
+  background: var(--st-surface-raised);
   padding: 0.15rem 0.45rem;
-  color: #cbd5e1;
+  color: var(--st-text-soft);
   font-size: 0.66rem;
   font-style: normal;
   text-transform: capitalize;
 }
 
 .shops-index em.is-open {
-  background: rgb(6 78 59 / 60%);
-  color: #a7f3d0;
+  background: color-mix(in srgb, var(--st-primary) 60%, transparent);
+  color: var(--st-primary-soft-text);
 }
 
 .shops-empty,
 .shops-editor-empty {
   margin: 1rem 0 0;
-  border: 1px dashed rgb(148 163 184 / 24%);
+  border: 1px dashed var(--st-border-strong);
   border-radius: 0.9rem;
   padding: 1rem;
-  color: #94a3b8;
+  color: var(--st-muted);
   font-size: 0.84rem;
 }
 
@@ -352,7 +352,7 @@
 }
 
 .shops-editor__header {
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid var(--st-border);
   padding-bottom: 1rem;
 }
 
@@ -362,19 +362,19 @@
 
 .shops-panel {
   margin-top: 1rem;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid var(--st-border);
   border-radius: 1rem;
-  background: rgb(15 23 42 / 48%);
+  background: var(--st-surface-raised);
   padding: 1rem;
 }
 
 .shops-panel > header {
   padding-bottom: 0.8rem;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid var(--st-border);
 }
 
 .shops-panel > header > span {
-  color: #fcd34d;
+  color: var(--st-secondary);
   font-size: 0.75rem;
 }
 
@@ -411,9 +411,9 @@
 .shops-staff-list > article,
 .shops-offerings > article,
 .shops-catalog-preview {
-  border: 1px solid rgb(148 163 184 / 16%);
+  border: 1px solid var(--st-border);
   border-radius: 0.9rem;
-  background: rgb(2 6 23 / 54%);
+  background: var(--st-surface-deep);
   padding: 0.9rem;
 }
 
@@ -428,7 +428,7 @@
 .shops-catalog__identity > span {
   display: block;
   margin-top: 0.2rem;
-  color: #94a3b8;
+  color: var(--st-muted);
   font-size: 0.76rem;
 }
 
@@ -440,7 +440,7 @@
 }
 
 .shops-check input {
-  accent-color: #fbbf24;
+  accent-color: var(--st-secondary);
 }
 
 .shops-row-actions,
@@ -474,23 +474,23 @@
   min-height: 36px;
   align-items: center;
   gap: 8px;
-  border-color: rgb(255 255 255 / 10%);
+  border-color: var(--st-border);
   border-radius: 999px;
-  background: rgb(0 0 0 / 20%);
+  background: var(--st-surface-deep);
   padding: 6px 10px;
-  color: #8d98a3;
+  color: var(--st-muted);
 }
 
 .shops-catalog-tools nav button.is-active {
-  border-color: rgb(245 202 115 / 72%);
-  background: rgb(75 61 35 / 28%);
-  color: #eed9a5;
+  border-color: var(--st-secondary);
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary-soft-text);
 }
 
 .shops-catalog-tools nav strong {
   min-width: 22px;
   border-radius: 10px;
-  background: rgb(245 202 115 / 8%);
+  background: var(--st-secondary-soft);
   padding: 2px 5px;
   font-size: 0.75rem;
 }
@@ -504,9 +504,9 @@
 
 .shops-catalog-column {
   min-width: 0;
-  border: 1px solid rgb(148 163 184 / 16%);
+  border: 1px solid var(--st-border);
   border-radius: 0.9rem;
-  background: rgb(2 6 23 / 38%);
+  background: var(--st-surface-deep);
   padding: 0.8rem;
 }
 
@@ -515,17 +515,17 @@
   align-items: end;
   justify-content: space-between;
   gap: 0.7rem;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid var(--st-border);
   padding-bottom: 0.65rem;
 }
 
 .shops-catalog-column > header h4 {
   margin: 0;
-  color: #f8fafc;
+  color: var(--st-text);
 }
 
 .shops-catalog-column > header span {
-  color: #aeb9ca;
+  color: var(--st-muted);
   font-size: 0.72rem;
 }
 
@@ -538,33 +538,33 @@
   margin-top: 0.65rem;
   overflow-y: auto;
   padding-right: 0.2rem;
-  scrollbar-color: rgb(252 211 77 / 32%) transparent;
+  scrollbar-color: var(--st-secondary-border) transparent;
 }
 
 .shops-catalog-pool button {
   display: grid;
   gap: 0.25rem;
-  border-color: rgb(148 163 184 / 16%);
+  border-color: var(--st-border);
   border-radius: 0.7rem;
-  background: rgb(2 6 23 / 54%);
+  background: var(--st-surface-deep);
   padding: 0.7rem;
   text-align: left;
 }
 
 .shops-catalog-pool button.is-active {
-  border-color: rgb(245 202 115 / 58%);
-  background: rgb(75 61 35 / 26%);
+  border-color: var(--st-secondary-border);
+  background: var(--st-secondary-soft);
 }
 
 .shops-catalog-pool button strong {
-  color: #f8fafc;
+  color: var(--st-text);
   font-size: 0.8rem;
 }
 
 .shops-catalog-pool button span,
 .shops-catalog-pool > p,
 .shops-catalog-hint {
-  color: #9da9b7;
+  color: var(--st-muted);
   font-size: 0.72rem;
   line-height: 1.45;
 }
@@ -601,14 +601,14 @@
 }
 
 .shops-catalog-preview.is-listed {
-  border-color: rgb(245 202 115 / 72%);
-  background: linear-gradient(90deg, rgb(75 61 35 / 20%), rgb(2 6 23 / 54%));
+  border-color: var(--st-secondary);
+  background: linear-gradient(90deg, var(--st-secondary-soft), var(--st-surface-deep));
 }
 
 .shops-catalog__identity > span,
 .shops-catalog__identity > small {
   display: block;
-  color: #9da9b7;
+  color: var(--st-muted);
   font-size: 0.75rem;
   line-height: 1.45;
 }
@@ -636,13 +636,13 @@
 .shops-catalog-preview dd,
 .shops-catalog__empty,
 .shops-catalog__rules {
-  color: #9da9b7;
+  color: var(--st-muted);
   font-size: 0.75rem;
 }
 
 .shops-catalog-preview dd {
   margin: 0;
-  color: #ccd0cb;
+  color: var(--st-text-soft);
   text-align: right;
 }
 
@@ -670,12 +670,12 @@
 
 .shops-catalog__action span,
 .shops-catalog__action small {
-  color: #9da9b7;
+  color: var(--st-muted);
   font-size: 0.75rem;
 }
 
 .shops-catalog__action strong {
-  color: #dec99a;
+  color: var(--st-secondary-soft-text);
   font-size: 0.75rem;
 }
 
@@ -691,7 +691,7 @@
 
 .shops-price strong,
 .shops-price-grid strong {
-  color: #fde68a;
+  color: var(--st-secondary);
   font-size: 0.85rem;
 }
 
@@ -733,10 +733,10 @@
 .shops-dialog {
   width: min(42rem, calc(100vw - 2rem));
   max-height: calc(100vh - 2rem);
-  border: 1px solid rgb(252 211 77 / 25%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 25%, transparent);
   border-radius: 1.25rem;
-  background: #070b15;
-  color: #e8edf7;
+  background: var(--st-page);
+  color: var(--st-text);
   box-shadow: 0 30px 90px rgb(0 0 0 / 65%);
   padding: 0;
 }
@@ -761,11 +761,11 @@
 }
 
 .shops-dialog button {
-  border: 1px solid rgb(252 211 77 / 32%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 32%, transparent);
   border-radius: 0.75rem;
   background: rgb(120 53 15 / 24%);
   padding: 0.65rem 0.9rem;
-  color: #fde7a7;
+  color: var(--st-secondary-soft-text);
 }
 
 @media (max-width: 68rem) {

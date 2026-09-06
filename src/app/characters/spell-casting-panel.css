@@ -2,7 +2,7 @@
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid rgb(245 202 115 / 18%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 18%, transparent);
   border-radius: 12px;
   background: rgb(12 10 16 / 56%);
 }
@@ -20,19 +20,19 @@
 }
 
 .spell-casting-panel > header p {
-  color: #cbb9f2;
+  color: var(--st-primary-soft-text);
   font-size: 0.75rem;
   letter-spacing: 0.14em;
 }
 
 .spell-casting-panel > header h3 {
   margin-top: 3px;
-  color: #eee7da;
+  color: var(--st-text);
   font: 400 1rem Arial, Helvetica, sans-serif;
 }
 
 .spell-casting-panel > header > span {
-  color:#9da9b7;
+  color:var(--st-muted);
   font-size: 0.75rem;
   text-align: right;
 }
@@ -66,28 +66,28 @@
 
 .spell-casting-panel__base span,
 .spell-casting-panel__results span {
-  color:#9da9b7;
+  color:var(--st-muted);
   font-size: 0.75rem;
 }
 
 .spell-casting-panel__base strong,
 .spell-casting-panel__results strong {
   margin-top: 3px;
-  color: #e9d7a6;
+  color: var(--st-secondary-soft-text);
 }
 
 .spell-casting-panel__results small {
   margin-top: 3px;
-  color:#9da9b7;
+  color:var(--st-muted);
   font-size: 0.75rem;
 }
 
 .spell-casting-panel__note {
   margin: 0;
   padding: 8px 10px;
-  border-left: 2px solid rgb(94 234 212 / 35%);
-  background: rgb(20 83 75 / 10%);
-  color: #a9b7b6;
+  border-left: 2px solid color-mix(in srgb, var(--st-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--st-primary) 10%, transparent);
+  color: var(--st-text);
   font-size: 0.75rem;
   line-height: 1.5;
 }
@@ -113,7 +113,7 @@
 
 .spell-casting-panel__controls legend {
   padding: 0 5px;
-  color: #8b96a3;
+  color: var(--st-muted);
   font-size: 0.75rem;
 }
 
@@ -128,15 +128,15 @@
   border-radius: 999px;
   background: rgb(255 255 255 / 3%);
   padding: 6px 9px;
-  color: #aab2bb;
+  color: var(--st-muted);
   font-size: 0.75rem;
   cursor: pointer;
 }
 
 .spell-casting-panel__choices button.is-active {
-  border-color: rgb(245 202 115 / 72%);
-  background: rgb(245 202 115 / 10%);
-  color: #efd99f;
+  border-color: color-mix(in srgb, var(--st-secondary) 72%, transparent);
+  background: color-mix(in srgb, var(--st-secondary) 10%, transparent);
+  color: var(--st-secondary-soft-text);
 }
 
 @media (max-width: 560px) {

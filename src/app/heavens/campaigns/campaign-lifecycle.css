@@ -13,14 +13,14 @@
   min-height: 34px;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 999px;
-  color: #9da9b7;
+  color: var(--st-muted);
   background: rgb(2 8 13 / 52%);
 }
 
 .campaign-library-filters button.is-active {
-  border-color: rgb(245 202 115 / 72%);
-  color: #efd99f;
-  background: rgb(75 61 35 / 24%);
+  border-color: color-mix(in srgb, var(--st-secondary) 72%, transparent);
+  color: var(--st-secondary-soft-text);
+  background: color-mix(in srgb, var(--st-secondary) 24%, transparent);
 }
 
 .campaign-editor-actions {
@@ -34,11 +34,11 @@
 .campaign-discard-dialog {
   width: min(30rem, calc(100vw - 2rem));
   margin: auto;
-  border: 1px solid rgb(245 202 115 / 35%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 35%, transparent);
   border-radius: 1rem;
   padding: 0;
-  color: #e8e4da;
-  background: #101827;
+  color: var(--st-text);
+  background: var(--st-surface);
 }
 
 .campaign-discard-dialog::backdrop {
@@ -59,13 +59,13 @@
 }
 
 .campaign-discard-dialog p {
-  color: #cbb9f2;
+  color: var(--st-primary-soft-text);
   font-size: 0.75rem;
   letter-spacing: 0.14em;
 }
 
 .campaign-discard-dialog span {
-  color: #9da9b7;
+  color: var(--st-muted);
   line-height: 1.5;
 }
 
@@ -78,11 +78,11 @@
 
 .campaign-discard-dialog button {
   min-height: 38px;
-  border: 1px solid rgb(245 202 115 / 30%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 30%, transparent);
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
-  color: #efd99f;
-  background: rgb(245 202 115 / 8%);
+  color: var(--st-secondary-soft-text);
+  background: color-mix(in srgb, var(--st-secondary) 8%, transparent);
 }
 
 .campaign-discard-dialog button.is-danger {

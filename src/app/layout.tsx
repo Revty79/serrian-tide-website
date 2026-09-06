@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+
+import { getAppearanceCssVariables } from "@/features/appearance/appearance";
+import { getPublicSiteAppearance } from "@/features/appearance/appearance-service";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,11 +23,15 @@ export const metadata: Metadata = {
 
 type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const appearance = await getPublicSiteAppearance();
+  const themeStyle = getAppearanceCssVariables(appearance) as CSSProperties;
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-appearance-preset={appearance.presetId}
+      style={themeStyle}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

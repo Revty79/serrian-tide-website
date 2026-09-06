@@ -85,10 +85,10 @@ export function AuthenticatedNavigation({
   );
 
   return (
-    <div className="authenticated-navigation sticky top-0 z-50 border-b border-white/10 bg-[#070a13]/92 shadow-2xl backdrop-blur-xl">
+    <div className="authenticated-navigation st-surface-soft-bg sticky top-0 z-50 border-b border-white/10 shadow-2xl backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1500px] items-center gap-4 px-4 py-3 sm:px-6">
         <Link href={contextHomeHref} className="shrink-0 border-r border-white/10 pr-4" aria-label={`${contextNames[context]} dashboard`}>
-          <strong className="font-evanescent block bg-gradient-to-r from-purple-400 via-amber-200 to-purple-400 bg-clip-text text-lg text-transparent">
+          <strong className="font-evanescent st-brand block text-lg">
             SERRIAN TIDE
           </strong>
           <span className="mt-0.5 block text-xs uppercase tracking-[0.14em] text-purple-200/85">
@@ -104,7 +104,7 @@ export function AuthenticatedNavigation({
           <summary className="cursor-pointer list-none rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm text-slate-200">
             Navigate
           </summary>
-          <nav className="absolute right-0 top-12 grid w-[min(88vw,22rem)] gap-1 rounded-2xl border border-white/15 bg-[#080b15] p-3 shadow-2xl" aria-label={`${contextNames[context]} mobile navigation`}>
+          <nav className="st-surface-raised-bg absolute right-0 top-12 grid w-[min(88vw,22rem)] gap-1 rounded-2xl border border-white/15 p-3 shadow-2xl" aria-label={`${contextNames[context]} mobile navigation`}>
             {links}
             {alternateRoleDestinations.length > 0 ? (
               <>
@@ -128,7 +128,7 @@ export function AuthenticatedNavigation({
               <summary className="cursor-pointer list-none rounded-full border border-purple-300/20 px-3 py-2 text-xs text-purple-100">
                 Switch Path
               </summary>
-              <div className="absolute right-0 top-11 grid min-w-40 gap-1 rounded-xl border border-white/15 bg-[#080b15] p-2 shadow-2xl">
+              <div className="st-surface-raised-bg absolute right-0 top-11 grid min-w-40 gap-1 rounded-xl border border-white/15 p-2 shadow-2xl">
                 <Link href="/access" onClick={closeDisclosure} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">All Paths</Link>
                 {alternateRoleDestinations.map((destination) => (
                   <Link key={destination.href} href={destination.href} onClick={closeDisclosure} className="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/5">

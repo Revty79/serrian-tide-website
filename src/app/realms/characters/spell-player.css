@@ -1,14 +1,14 @@
 .spell-player-page {
-  --spell-gold: #d8bd83;
-  --spell-teal: #91b9b7;
+  --spell-gold: var(--st-secondary);
+  --spell-teal: var(--st-primary);
   position: relative;
   width: 100%;
   min-height: 100vh;
   isolation: isolate;
-  color: #eee9df;
+  color: var(--st-text);
   background:
-    radial-gradient(ellipse at 82% 0%, rgb(42 90 94 / 28%), transparent 42%),
-    linear-gradient(150deg, #05080b, #09161b 58%, #05090c);
+    radial-gradient(ellipse at 82% 0%, color-mix(in srgb, var(--st-primary) 28%, transparent), transparent 42%),
+    linear-gradient(150deg, var(--st-page), var(--st-input) 58%, var(--st-page));
   font-family: Arial, Helvetica, sans-serif;
   line-height: 1.5;
 }
@@ -29,7 +29,7 @@
   width: min(100% - clamp(30px, 5vw, 76px), 1500px);
   margin: 0 auto;
   padding: 25px 0 22px;
-  border-bottom: 1px solid rgb(216 189 131 / 35%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-secondary) 35%, transparent);
   grid-template-columns: minmax(220px, 0.72fr) minmax(420px, 1.5fr) auto;
   align-items: center;
   gap: clamp(22px, 4vw, 54px);
@@ -40,7 +40,7 @@
   min-height: 86px;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(90deg, #a855f7, #fde68a, #a855f7);
+  background: linear-gradient(90deg, var(--st-primary), var(--st-secondary), var(--st-primary));
   background-clip: text;
   color: transparent;
   font-size: clamp(2.5rem, 4.2vw, 3.9rem);
@@ -51,13 +51,13 @@
 
 .spell-player-header__title {
   padding-left: clamp(22px, 3vw, 42px);
-  border-left: 1px solid rgb(216 189 131 / 34%);
+  border-left: 1px solid color-mix(in srgb, var(--st-secondary) 34%, transparent);
 }
 
 .spell-player-header__title p,
 .spell-player-section-heading p {
   margin: 0 0 6px;
-  color: #d6be87;
+  color: var(--st-secondary-soft-text);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -65,7 +65,7 @@
 
 .spell-player-header__title h1 {
   margin: 0;
-  color: #f5efe4;
+  color: var(--st-secondary-soft-text);
   font: 600 clamp(2rem, 4vw, 3.3rem)/1.1 Arial, Helvetica, sans-serif;
   letter-spacing: 0.01em;
 }
@@ -73,7 +73,7 @@
 .spell-player-header__title > span {
   display: block;
   margin-top: 10px;
-  color: #c8c5bd;
+  color: var(--st-text-soft);
   font-size: 0.82rem;
 }
 
@@ -89,11 +89,11 @@
   display: inline-flex;
   min-height: 40px;
   padding: 8px 14px;
-  border: 1px solid rgb(216 189 131 / 52%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 52%, transparent);
   border-radius: 5px;
   align-items: center;
   justify-content: center;
-  color: #f3ead8;
+  color: var(--st-secondary-soft-text);
   background: linear-gradient(180deg, rgb(39 57 61 / 96%), rgb(18 29 34 / 98%));
   font: 600 0.82rem/1.25 Arial, Helvetica, sans-serif;
   text-decoration: none;
@@ -103,8 +103,8 @@
 .spell-player-page button:hover:not(:disabled),
 .spell-player-header__actions a:hover,
 .spell-player-empty--large a:hover {
-  border-color: rgb(232 204 145 / 82%);
-  background: linear-gradient(180deg, rgb(49 70 73 / 98%), rgb(22 35 40));
+  border-color: color-mix(in srgb, var(--st-secondary) 82%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--st-primary) 98%, transparent), rgb(22 35 40));
 }
 
 .spell-player-page button:disabled { opacity: 0.52; cursor: not-allowed; }
@@ -127,7 +127,7 @@
   width: min(100% - clamp(30px, 5vw, 76px), 1500px);
   margin: 26px auto 0;
   padding: 5px;
-  border: 1px solid rgb(216 189 131 / 34%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 34%, transparent);
   border-radius: 7px;
   background: rgb(5 13 18 / 94%);
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -139,8 +139,8 @@
   min-width: 0;
   min-height: 50px;
   padding: 9px 11px;
-  border-color: rgb(145 185 183 / 72%);
-  color: #cbc8c0;
+  border-color: color-mix(in srgb, var(--st-primary) 72%, transparent);
+  color: var(--st-text);
   background: rgb(7 18 22 / 72%);
   align-items: center;
   justify-content: center;
@@ -148,8 +148,8 @@
 }
 
 .spellbook-system-tabs button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.spellbook-system-tabs button strong { display: inline-grid; min-width: 24px; height: 24px; padding: 0 5px; border: 1px solid rgb(216 189 131 / 38%); border-radius: 50%; color: #e1ca96; font-size: 0.75rem; place-items: center; }
-.spellbook-system-tabs button.is-active { border-color: rgb(225 197 137 / 76%); color: #fff0cd; background: linear-gradient(135deg, rgb(84 69 39 / 72%), rgb(20 41 44 / 94%)); }
+.spellbook-system-tabs button strong { display: inline-grid; min-width: 24px; height: 24px; padding: 0 5px; border: 1px solid color-mix(in srgb, var(--st-secondary) 38%, transparent); border-radius: 50%; color: var(--st-secondary-soft-text); font-size: 0.75rem; place-items: center; }
+.spellbook-system-tabs button.is-active { border-color: color-mix(in srgb, var(--st-secondary) 76%, transparent); color: var(--st-text-strong); background: linear-gradient(135deg, color-mix(in srgb, var(--st-secondary) 72%, transparent), rgb(20 41 44 / 94%)); }
 .spellbook-system-layout .spell-player-workspace--book { padding-top: 16px; }
 
 .spellbook-library,
@@ -158,17 +158,17 @@
   top: 18px;
   max-height: calc(100dvh - 36px);
   padding: 18px;
-  border: 1px solid rgb(216 189 131 / 36%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 36%, transparent);
   border-radius: 7px;
   background: rgb(6 15 20 / 96%);
   overflow: auto;
 }
 
 .spell-player-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
-.spell-player-section-heading h3 { margin: 0; color: #f3eadb; font: 600 1.35rem Arial, Helvetica, sans-serif; }
+.spell-player-section-heading h3 { margin: 0; color: var(--st-text-strong); font: 600 1.35rem Arial, Helvetica, sans-serif; }
 .spell-player-search { display: flex; margin: 17px 0 13px; flex-direction: column; gap: 6px; }
 .spell-player-search > span,
-.spell-calculator-name > span { color: #c5b99d; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.spell-calculator-name > span { color: var(--st-text-soft); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
 
 .spell-player-search input,
 .spell-calculator-name input,
@@ -177,9 +177,9 @@
 .spell-player-page .spell-builder textarea {
   min-height: 42px;
   padding: 9px 11px;
-  border: 1px solid rgb(145 185 183 / 38%);
+  border: 1px solid color-mix(in srgb, var(--st-primary) 38%, transparent);
   border-radius: 5px;
-  color: #f1eadf;
+  color: var(--st-text);
   background: rgb(5 13 17 / 90%);
   font: 400 0.88rem Arial, Helvetica, sans-serif;
 }
@@ -187,7 +187,7 @@
 .spell-player-page .spell-builder textarea { resize: vertical; }
 .spellbook-library__list,
 .spell-calculator-library__list { display: flex; flex-direction: column; gap: 7px; }
-.spellbook-library__warning { margin: 0 0 12px; padding: 10px 11px; border-left: 3px solid #d1b776; color: #e4d5aa; background: rgb(85 70 42 / 28%); font-size: 0.78rem; line-height: 1.5; }
+.spellbook-library__warning { margin: 0 0 12px; padding: 10px 11px; border-left: 3px solid var(--st-secondary-soft-text); color: var(--st-secondary-soft-text); background: color-mix(in srgb, var(--st-secondary) 28%, transparent); font-size: 0.78rem; line-height: 1.5; }
 
 .spellbook-library__list > button,
 .spell-calculator-library__list > button {
@@ -195,71 +195,71 @@
   width: 100%;
   min-height: 88px;
   padding: 12px;
-  border-color: rgb(145 185 183 / 72%);
+  border-color: color-mix(in srgb, var(--st-primary) 72%, transparent);
   text-align: left;
   flex-direction: column;
   align-items: flex-start;
 }
 
 .spellbook-library__list > button.is-active,
-.spell-calculator-library__list > button.is-active { border-color: rgb(225 197 137 / 78%); background: linear-gradient(135deg, rgb(69 63 43 / 82%), rgb(18 38 42 / 98%)); }
+.spell-calculator-library__list > button.is-active { border-color: color-mix(in srgb, var(--st-secondary) 78%, transparent); background: linear-gradient(135deg, rgb(69 63 43 / 82%), rgb(18 38 42 / 98%)); }
 .spellbook-library__list button > span,
-.spell-calculator-library__list button > span { color: #d7bc80; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; }
+.spell-calculator-library__list button > span { color: var(--st-secondary-soft-text); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; }
 .spellbook-library__list button > strong,
-.spell-calculator-library__list button > strong { margin-top: 5px; color: #f3eadb; font: 600 1rem Arial, Helvetica, sans-serif; }
+.spell-calculator-library__list button > strong { margin-top: 5px; color: var(--st-text-strong); font: 600 1rem Arial, Helvetica, sans-serif; }
 .spellbook-library__list button > small,
-.spell-calculator-library__list button > small { margin-top: 5px; color: #c5c2ba; font-size: 0.76rem; line-height: 1.4; }
+.spell-calculator-library__list button > small { margin-top: 5px; color: var(--st-text-soft); font-size: 0.76rem; line-height: 1.4; }
 
-.spell-player-empty { margin: 0; padding: 25px 14px; border: 1px dashed rgb(216 189 131 / 36%); color: #c8c5bd; text-align: center; font-size: 0.82rem; line-height: 1.55; }
+.spell-player-empty { margin: 0; padding: 25px 14px; border: 1px dashed color-mix(in srgb, var(--st-secondary) 36%, transparent); color: var(--st-text-soft); text-align: center; font-size: 0.82rem; line-height: 1.55; }
 .spell-player-empty--large { display: flex; min-height: 50vh; flex-direction: column; align-items: center; justify-content: center; }
-.spell-player-empty--large h2 { margin: 0; color: #f1e8d8; font: 600 2rem Arial, Helvetica, sans-serif; }
+.spell-player-empty--large h2 { margin: 0; color: var(--st-secondary-soft-text); font: 600 2rem Arial, Helvetica, sans-serif; }
 .spell-player-empty--large p { max-width: 520px; }
 .spellbook-detail,
 .spell-calculator-editor { min-width: 0; }
 .spellbook-detail { display: grid; gap: 16px; }
-.spellbook-detail__source { display: flex; padding: 16px 20px; border: 1px solid rgb(216 189 131 / 34%); border-radius: 6px; background: rgb(8 19 24 / 88%); flex-direction: column; }
-.spellbook-detail__source span { color: #d7bc80; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; }
-.spellbook-detail__source strong { margin-top: 4px; color: #f5ecdc; font: 600 1.55rem Arial, Helvetica, sans-serif; }
-.spellbook-runtime-cast { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid rgb(92 178 167 / 38%); border-radius: 6px; background: rgb(20 83 75 / 13%); }
+.spellbook-detail__source { display: flex; padding: 16px 20px; border: 1px solid color-mix(in srgb, var(--st-secondary) 34%, transparent); border-radius: 6px; background: rgb(8 19 24 / 88%); flex-direction: column; }
+.spellbook-detail__source span { color: var(--st-secondary-soft-text); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; }
+.spellbook-detail__source strong { margin-top: 4px; color: var(--st-secondary-soft-text); font: 600 1.55rem Arial, Helvetica, sans-serif; }
+.spellbook-runtime-cast { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--st-primary) 38%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--st-primary) 13%, transparent); }
 .spellbook-runtime-cast div { display: flex; flex-direction: column; gap: 3px; }
-.spellbook-runtime-cast span { color: #81c8bc; font-size: .7rem; font-weight: 800; letter-spacing: .09em; }
-.spellbook-runtime-cast strong { color: #e9e1d3; font-size: .88rem; }
-.spellbook-runtime-cast button { border: 1px solid rgb(216 189 131 / 72%); border-radius: 5px; background: rgb(216 189 131 / 13%); padding: 9px 14px; color: #f1dcae; font-weight: 800; cursor: pointer; }
+.spellbook-runtime-cast span { color: var(--st-primary-soft-text); font-size: .7rem; font-weight: 800; letter-spacing: .09em; }
+.spellbook-runtime-cast strong { color: var(--st-text); font-size: .88rem; }
+.spellbook-runtime-cast button { border: 1px solid color-mix(in srgb, var(--st-secondary) 72%, transparent); border-radius: 5px; background: color-mix(in srgb, var(--st-secondary) 13%, transparent); padding: 9px 14px; color: var(--st-secondary-soft-text); font-weight: 800; cursor: pointer; }
 .spellbook-runtime-cast button:disabled { cursor: not-allowed; opacity: .45; }
 .spellbook-detail__preview { width: 100%; }
 
 .spell-calculator-editor { display: grid; gap: 14px; }
-.spell-player-feedback { margin: 0; padding: 11px 14px; border: 1px solid rgb(126 166 149 / 55%); border-radius: 5px; color: #c9ead8; background: rgb(29 65 55 / 52%); font-size: 0.82rem; }
+.spell-player-feedback { margin: 0; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--st-primary) 55%, transparent); border-radius: 5px; color: #c9ead8; background: rgb(29 65 55 / 52%); font-size: 0.82rem; }
 .spell-player-feedback.is-error { border-color: rgb(210 119 104 / 72%); color: #f2bbb1; background: rgb(80 31 28 / 52%); }
-.spell-calculator-toolbar { display: flex; padding: 14px 16px; border: 1px solid rgb(216 189 131 / 36%); border-radius: 6px; background: rgb(7 17 22 / 96%); align-items: center; justify-content: space-between; gap: 15px; }
+.spell-calculator-toolbar { display: flex; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--st-secondary) 36%, transparent); border-radius: 6px; background: rgb(7 17 22 / 96%); align-items: center; justify-content: space-between; gap: 15px; }
 .spell-calculator-toolbar > div:first-child { display: flex; flex-direction: column; }
-.spell-calculator-toolbar > div:first-child span { color: #d7bc80; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; }
-.spell-calculator-toolbar > div:first-child strong { margin-top: 3px; color: #ece4d6; font: 600 0.88rem Arial, Helvetica, sans-serif; }
+.spell-calculator-toolbar > div:first-child span { color: var(--st-secondary-soft-text); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; }
+.spell-calculator-toolbar > div:first-child strong { margin-top: 3px; color: var(--st-secondary-soft-text); font: 600 0.88rem Arial, Helvetica, sans-serif; }
 .spell-calculator-toolbar > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 .spell-calculator-toolbar button,
 .spell-calculator-save-footer button { min-height: 38px; padding: 7px 11px; font-size: 0.78rem; }
 .spell-calculator-toolbar button.is-danger { border-color: rgb(205 102 92 / 72%); color: #efb1aa; }
-.spell-runtime-launch { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid rgb(92 178 167 / 38%); border-radius: 6px; background: rgb(20 83 75 / 13%); }
+.spell-runtime-launch { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--st-primary) 38%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--st-primary) 13%, transparent); }
 .spell-runtime-launch > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
-.spell-runtime-launch span { color: #81c8bc; font-size: .7rem; font-weight: 800; letter-spacing: .09em; }
-.spell-runtime-launch strong { color: #e9e1d3; font-size: .88rem; }
-.spell-runtime-launch small { color: #aebfbd; line-height: 1.45; }
-.spell-runtime-launch button { flex: 0 0 auto; border: 1px solid rgb(216 189 131 / 72%); border-radius: 5px; background: rgb(216 189 131 / 13%); padding: 10px 14px; color: #f1dcae; font-weight: 800; cursor: pointer; }
+.spell-runtime-launch span { color: var(--st-primary-soft-text); font-size: .7rem; font-weight: 800; letter-spacing: .09em; }
+.spell-runtime-launch strong { color: var(--st-text); font-size: .88rem; }
+.spell-runtime-launch small { color: var(--st-text); line-height: 1.45; }
+.spell-runtime-launch button { flex: 0 0 auto; border: 1px solid color-mix(in srgb, var(--st-secondary) 72%, transparent); border-radius: 5px; background: color-mix(in srgb, var(--st-secondary) 13%, transparent); padding: 10px 14px; color: var(--st-secondary-soft-text); font-weight: 800; cursor: pointer; }
 .spell-runtime-launch button:disabled { cursor: not-allowed; opacity: .45; }
 
 .spell-calculator-name,
-.spell-calculator-casting-system { display: flex; padding: 15px 17px; border: 1px solid rgb(216 189 131 / 34%); border-radius: 6px; background: rgb(7 17 22 / 88%); flex-direction: column; gap: 6px; }
+.spell-calculator-casting-system { display: flex; padding: 15px 17px; border: 1px solid color-mix(in srgb, var(--st-secondary) 34%, transparent); border-radius: 6px; background: rgb(7 17 22 / 88%); flex-direction: column; gap: 6px; }
 .spell-calculator-name input { font: 600 1.08rem Arial, Helvetica, sans-serif; }
-.spell-calculator-casting-system > span { color: #c5b99d; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
-.spell-calculator-casting-system select { min-height: 42px; padding: 9px 11px; border: 1px solid rgb(145 185 183 / 38%); border-radius: 5px; color: #f1eadf; background: rgb(5 13 17 / 90%); font-size: 0.88rem; }
-.spell-calculator-casting-system strong { color: #ead59f; font: 600 1rem Arial, Helvetica, sans-serif; }
-.spell-calculator-casting-system small { color: #c5c2ba; font-size: 0.78rem; line-height: 1.5; }
-.spell-calculator-editor__builder { padding: 16px; border: 1px solid rgb(216 189 131 / 34%); border-radius: 6px; background: rgb(7 17 22 / 84%); }
+.spell-calculator-casting-system > span { color: var(--st-text-soft); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.spell-calculator-casting-system select { min-height: 42px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--st-primary) 38%, transparent); border-radius: 5px; color: var(--st-text); background: rgb(5 13 17 / 90%); font-size: 0.88rem; }
+.spell-calculator-casting-system strong { color: var(--st-secondary-soft-text); font: 600 1rem Arial, Helvetica, sans-serif; }
+.spell-calculator-casting-system small { color: var(--st-text-soft); font-size: 0.78rem; line-height: 1.5; }
+.spell-calculator-editor__builder { padding: 16px; border: 1px solid color-mix(in srgb, var(--st-secondary) 34%, transparent); border-radius: 6px; background: rgb(7 17 22 / 84%); }
 .spell-player-page .spell-builder__section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.spell-player-page .spell-builder label > span { display: block; margin-bottom: 5px; color: #c5b99d; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.spell-calculator-save-footer { display: flex; position: sticky; z-index: 5; bottom: 0; padding: 13px 15px; border: 1px solid rgb(216 189 131 / 40%); border-radius: 5px; background: rgb(5 14 19 / 98%); box-shadow: 0 -10px 26px rgb(0 0 0 / 35%); align-items: center; justify-content: flex-end; gap: 7px; }
-.spell-calculator-save-footer > span { margin-right: auto; color: #cbc7bd; font-size: 0.78rem; }
-.spell-calculator-save-footer strong { color: #e6d19b; }
+.spell-player-page .spell-builder label > span { display: block; margin-bottom: 5px; color: var(--st-text-soft); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.spell-calculator-save-footer { display: flex; position: sticky; z-index: 5; bottom: 0; padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--st-secondary) 40%, transparent); border-radius: 5px; background: rgb(5 14 19 / 98%); box-shadow: 0 -10px 26px rgb(0 0 0 / 35%); align-items: center; justify-content: flex-end; gap: 7px; }
+.spell-calculator-save-footer > span { margin-right: auto; color: var(--st-text); font-size: 0.78rem; }
+.spell-calculator-save-footer strong { color: var(--st-secondary-soft-text); }
 
 @media (max-width: 1080px) {
   .spell-player-header { grid-template-columns: 1fr auto; }

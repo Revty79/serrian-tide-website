@@ -71,7 +71,7 @@ export default async function NewCampaignPage() {
                     text-4xl
                     tracking-tight
                     text-transparent
-                    drop-shadow-[0_0_14px_rgba(251,191,36,0.25)]
+                    drop-shadow-lg
                     sm:text-5xl
                   "
                 >

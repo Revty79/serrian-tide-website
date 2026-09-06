@@ -98,7 +98,7 @@ test("Player UX establishes prominent Encounter, opportunity, Initiative, action
   assert.match(activeEncounterCard, /ACTIVE ENCOUNTER/);
   assert.match(activeEncounterCard, /Open Player Tabletop/);
   assert.match(activeEncounterCard, /YOUR INITIATIVE/);
-  assert.match(activeEncounterCardCss, /border: 1px solid rgb\(245 202 115 \/ 48%\)/);
+  assert.match(activeEncounterCardCss, /border: 1px solid color-mix\(in srgb, var\(--st-secondary\) 48%, transparent\)/);
   assert.match(activeEncounterCardCss, /backdrop-filter: blur\(16px\)/);
   assert.match(activeEncounterCardCss, /\.runtime/);
   for (const structuralClass of [

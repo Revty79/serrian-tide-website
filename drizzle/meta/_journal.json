@@ -260,6 +260,13 @@
       "when": 1788652007266,
       "tag": "0036_campaign_town_builder",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788655270661,
+      "tag": "0037_site_appearance",
+      "breakpoints": true
     }
   ]
 }

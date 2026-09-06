@@ -151,7 +151,7 @@ export function RealmsDashboard({
         </section>
 
         {selectedCampaign ? (
-          <section className="mt-6 rounded-[26px] border border-white/10 bg-black/35 p-6 shadow-[0_22px_55px_rgb(0_0_0/22%)] backdrop-blur-2xl">
+          <section className="mt-6 rounded-[26px] border border-white/10 bg-black/35 p-6 shadow-2xl backdrop-blur-2xl">
             <div className="border-b border-white/10 pb-4">
               <p className="m-0 text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Overview</p>
               <h2 className="font-sans mt-2 text-3xl font-normal text-slate-100">{selectedCampaign.name}</h2>

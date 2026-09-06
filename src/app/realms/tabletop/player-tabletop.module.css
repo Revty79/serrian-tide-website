@@ -1,13 +1,13 @@
 .page {
-  --tabletop-gold: #f5ca73;
-  --tabletop-gold-soft: #e8d19a;
-  --tabletop-violet: #c9aff4;
-  --tabletop-teal: #9ed8d1;
-  --tabletop-copy: #e9e5dc;
-  --tabletop-muted: #9da9b7;
-  --tabletop-line: rgb(255 255 255 / 10%);
-  --tabletop-panel: rgb(0 0 0 / 36%);
-  --tabletop-panel-deep: rgb(2 8 13 / 68%);
+  --tabletop-gold: var(--st-secondary);
+  --tabletop-gold-soft: var(--st-secondary-soft-text);
+  --tabletop-violet: var(--st-primary-soft-text);
+  --tabletop-teal: var(--st-primary);
+  --tabletop-copy: var(--st-text);
+  --tabletop-muted: var(--st-muted);
+  --tabletop-line: var(--st-border);
+  --tabletop-panel: var(--st-surface-soft);
+  --tabletop-panel-deep: var(--st-surface-deep);
   position: relative;
   z-index: 10;
   min-height: 100vh;
@@ -15,8 +15,8 @@
   padding: clamp(0.75rem, 2.4vw, 2rem) clamp(0.7rem, 2.2vw, 1.4rem) 3rem;
   color: var(--tabletop-copy);
   background:
-    radial-gradient(circle at 8% 0%, rgb(126 74 163 / 14%), transparent 34rem),
-    radial-gradient(circle at 92% 8%, rgb(43 122 129 / 10%), transparent 30rem),
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--st-primary) 14%, transparent), transparent 34rem),
+    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--st-primary) 10%, transparent), transparent 30rem),
     linear-gradient(180deg, rgb(4 7 14 / 10%), rgb(4 7 14 / 42%));
 }
 
@@ -43,7 +43,7 @@
   min-height: 11.5rem;
   padding: 1.5rem;
   border-right: 1px solid var(--tabletop-line);
-  background: linear-gradient(145deg, rgb(89 49 116 / 20%), rgb(16 43 48 / 16%));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 20%, transparent), rgb(16 43 48 / 16%));
   place-content: center;
   color: transparent;
   font-family: "Evanescent", Georgia, serif;
@@ -54,7 +54,7 @@
 }
 
 .brandMark span {
-  background: linear-gradient(90deg, #a855f7, #fde68a, #a855f7);
+  background: linear-gradient(90deg, var(--st-primary), var(--st-secondary), var(--st-primary));
   background-clip: text;
 }
 
@@ -79,7 +79,7 @@
 .section h2,
 .emptyState h1 {
   margin: 0.3rem 0;
-  color: #f3eee5;
+  color: var(--st-text);
   font-family: Arial, Helvetica, sans-serif;
   font-weight: 400;
   line-height: 1.08;
@@ -119,11 +119,11 @@
   min-height: 2.5rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(245 202 115 / 34%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 34%, transparent);
   border-radius: 999px;
-  background: rgb(245 202 115 / 8%);
+  background: color-mix(in srgb, var(--st-secondary) 8%, transparent);
   padding: 0.5rem 0.85rem;
-  color: #f4dfaa;
+  color: var(--st-secondary-soft-text);
   font-size: 0.75rem;
   font-weight: 700;
   text-decoration: none;
@@ -131,8 +131,8 @@
 
 .heroNav a:hover,
 .backLink:hover {
-  border-color: rgb(245 202 115 / 66%);
-  background: rgb(245 202 115 / 13%);
+  border-color: color-mix(in srgb, var(--st-secondary) 66%, transparent);
+  background: color-mix(in srgb, var(--st-secondary) 13%, transparent);
 }
 
 .characterSelect {
@@ -157,7 +157,7 @@
   display: grid;
   gap: 0.35rem;
   min-width: 0;
-  color: #d8d1c5;
+  color: var(--st-text);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -177,7 +177,7 @@
   border-radius: 0.7rem;
   background: rgb(2 8 13 / 78%);
   padding: 0.65rem 0.75rem;
-  color: #edf0f2;
+  color: var(--st-text-strong);
 }
 
 .combatWorkspace textarea {
@@ -189,24 +189,24 @@
   width: 1.1rem;
   height: 1.1rem;
   min-height: auto;
-  accent-color: #cba85e;
+  accent-color: var(--st-secondary-soft-text);
 }
 
 .page button {
   min-height: 2.75rem;
-  border: 1px solid rgb(245 202 115 / 44%);
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 44%, transparent);
   border-radius: 0.7rem;
-  background: rgb(245 202 115 / 11%);
+  background: color-mix(in srgb, var(--st-secondary) 11%, transparent);
   padding: 0.62rem 0.95rem;
-  color: #fde9b4;
+  color: var(--st-secondary-soft-text);
   font-weight: 750;
   cursor: pointer;
   transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
 
 .page button:hover:not(:disabled) {
-  border-color: rgb(245 202 115 / 72%);
-  background: rgb(245 202 115 / 17%);
+  border-color: color-mix(in srgb, var(--st-secondary) 72%, transparent);
+  background: color-mix(in srgb, var(--st-secondary) 17%, transparent);
   transform: translateY(-1px);
 }
 
@@ -216,7 +216,7 @@
 }
 
 .page :focus-visible {
-  outline: 3px solid #f2d58f;
+  outline: 3px solid var(--st-secondary-soft-text);
   outline-offset: 3px;
 }
 
@@ -245,17 +245,17 @@
 }
 
 .statusStrip > div:nth-child(2) {
-  box-shadow: inset 0 3px rgb(164 128 217 / 68%);
+  box-shadow: inset 0 3px color-mix(in srgb, var(--st-primary) 68%, transparent);
 }
 
 .statusStrip > div:nth-child(3) {
-  box-shadow: inset 0 3px rgb(80 177 165 / 58%);
+  box-shadow: inset 0 3px color-mix(in srgb, var(--st-primary) 58%, transparent);
 }
 
 .statusStrip span,
 .contextGrid span,
 .sourceCard header span {
-  color: #aab3be;
+  color: var(--st-text);
   font-size: 0.67rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -263,7 +263,7 @@
 }
 
 .statusStrip strong {
-  color: #f2eadc;
+  color: var(--st-secondary-soft-text);
   font-size: 1.05rem;
   overflow-wrap: anywhere;
 }
@@ -339,7 +339,7 @@
 }
 
 .contextGrid article {
-  border-top-color: rgb(201 175 244 / 28%);
+  border-top-color: color-mix(in srgb, var(--st-primary) 28%, transparent);
 }
 
 .contextGrid h3,
@@ -348,14 +348,14 @@
 .effectGrid h3,
 .historyGrid h3 {
   margin: 0.3rem 0;
-  color: #eee8dc;
+  color: var(--st-text);
   font-weight: 650;
   overflow-wrap: anywhere;
 }
 
 .contextGrid p,
 .sourceCard p {
-  color: #aeb6bf;
+  color: var(--st-muted);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -363,7 +363,7 @@
 .contextGrid a {
   display: inline-flex;
   align-items: center;
-  color: #e8ce8c;
+  color: var(--st-secondary-soft-text);
   font-size: 0.78rem;
   font-weight: 750;
 }
@@ -372,18 +372,18 @@
 .ruling,
 .notice,
 .error {
-  border-left: 3px solid #c8a65c;
-  background: rgb(91 67 23 / 22%);
+  border-left: 3px solid var(--st-secondary);
+  background: color-mix(in srgb, var(--st-secondary) 22%, transparent);
   padding: 0.7rem 0.85rem;
-  color: #e4d5aa !important;
+  color: var(--st-secondary-soft-text) !important;
   font-size: 0.78rem;
   line-height: 1.45;
 }
 
 .notice {
-  border-color: #55a99c;
-  background: rgb(20 83 75 / 19%);
-  color: #bfe2d9 !important;
+  border-color: var(--st-primary);
+  background: color-mix(in srgb, var(--st-primary) 19%, transparent);
+  color: var(--st-primary-soft-text) !important;
 }
 
 .error {
@@ -411,7 +411,7 @@
 }
 
 .resourceList article > strong {
-  color: #ead59f;
+  color: var(--st-secondary-soft-text);
 }
 
 .resourceList span,
@@ -479,7 +479,7 @@
 }
 
 .sourceCard:hover {
-  border-color: rgb(245 202 115 / 28%);
+  border-color: color-mix(in srgb, var(--st-secondary) 28%, transparent);
   background: rgb(3 10 15 / 78%);
 }
 
@@ -491,7 +491,7 @@
 
 .sourceCard > header > strong {
   flex: 0 0 auto;
-  color: #e5cc8e;
+  color: var(--st-secondary-soft-text);
   font-size: 0.8rem;
 }
 
@@ -503,11 +503,11 @@
 
 .sourceCard dl div {
   padding-left: 0.55rem;
-  border-left: 2px solid rgb(245 202 115 / 32%);
+  border-left: 2px solid color-mix(in srgb, var(--st-secondary) 32%, transparent);
 }
 
 .sourceCard dt {
-  color: #939eaa;
+  color: var(--st-text-soft);
   font-size: 0.65rem;
   text-transform: uppercase;
 }
@@ -522,7 +522,7 @@
 }
 
 .lineage {
-  color: #dfcc9e !important;
+  color: var(--st-secondary-soft-text) !important;
   font-weight: 700;
 }
 
@@ -530,13 +530,13 @@
   display: grid;
   gap: 0.2rem;
   padding: 0.7rem;
-  border: 1px solid rgb(94 234 212 / 20%);
+  border: 1px solid color-mix(in srgb, var(--st-primary) 20%, transparent);
   border-radius: 0.65rem;
-  background: rgb(20 83 75 / 13%);
+  background: color-mix(in srgb, var(--st-primary) 13%, transparent);
 }
 
 .firearmState span {
-  color: #b4c8c5;
+  color: var(--st-text);
   font-size: 0.76rem;
 }
 
@@ -548,7 +548,7 @@
   max-height: 30rem;
   overflow: auto;
   padding-right: 0.35rem;
-  scrollbar-color: rgb(245 202 115 / 35%) transparent;
+  scrollbar-color: color-mix(in srgb, var(--st-secondary) 35%, transparent) transparent;
 }
 
 .combatWorkspace {
@@ -570,15 +570,15 @@
 }
 
 .combatPriority {
-  border-color: rgb(245 202 115 / 56%);
-  background: linear-gradient(145deg, rgb(72 51 18 / 32%), rgb(2 8 13 / 74%));
-  box-shadow: inset 0.25rem 0 #d2a958, 0 1rem 2.5rem rgb(0 0 0 / 24%);
+  border-color: color-mix(in srgb, var(--st-secondary) 56%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-secondary) 32%, transparent), rgb(2 8 13 / 74%));
+  box-shadow: inset 0.25rem 0 var(--st-secondary-soft-text), 0 1rem 2.5rem rgb(0 0 0 / 24%);
 }
 
 .combatPriority > h2,
 .combatSection h2 {
   margin: 0.25rem 0 0.8rem;
-  color: #eee8dc;
+  color: var(--st-text);
   font-weight: 400;
 }
 
@@ -591,7 +591,7 @@
 }
 
 .combatSection > header > strong {
-  color: #e5cc8e;
+  color: var(--st-secondary-soft-text);
   font-size: clamp(1.35rem, 4vw, 2.2rem);
 }
 
@@ -611,14 +611,14 @@
 .combatCard h3,
 .lockedReview strong {
   margin: 0;
-  color: #eae3d6;
+  color: var(--st-secondary-soft-text);
 }
 
 .combatCard p,
 .lockedReview span,
 .lockedReview small {
   margin: 0;
-  color: #aeb7c0;
+  color: var(--st-text);
   line-height: 1.45;
 }
 
@@ -640,7 +640,7 @@
 }
 
 .combatStats strong {
-  color: #ead59f;
+  color: var(--st-secondary-soft-text);
 }
 
 .actionRow {
@@ -658,7 +658,7 @@
 .blockers {
   margin: 0.7rem 0;
   padding-left: 1.25rem;
-  color: #d6c7a9;
+  color: var(--st-secondary-soft-text);
 }
 
 .compactAction {
@@ -681,7 +681,7 @@
 .emptyBrand {
   display: inline-block;
   margin-bottom: 1.5rem;
-  background: linear-gradient(90deg, #a855f7, #fde68a, #a855f7);
+  background: linear-gradient(90deg, var(--st-primary), var(--st-secondary), var(--st-primary));
   background-clip: text;
   color: transparent;
   font-family: "Evanescent", Georgia, serif;
@@ -695,7 +695,7 @@
 }
 
 .emptyState > p:not(.eyebrow) {
-  color: #aeb6bf;
+  color: var(--st-muted);
   line-height: 1.6;
 }
 
@@ -713,13 +713,13 @@
   border: 1px solid var(--tabletop-line);
   border-radius: 0.75rem;
   background: var(--tabletop-panel-deep);
-  color: #f1ede4;
+  color: var(--st-text);
   text-decoration: none;
 }
 
 .characterChoices a:hover {
-  border-color: rgb(245 202 115 / 56%);
-  background: rgb(75 61 35 / 24%);
+  border-color: color-mix(in srgb, var(--st-secondary) 56%, transparent);
+  background: color-mix(in srgb, var(--st-secondary) 24%, transparent);
 }
 
 .characterChoices span {

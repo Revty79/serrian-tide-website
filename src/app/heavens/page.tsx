@@ -83,7 +83,7 @@ export default async function HeavensPage({
         <header className="grid overflow-hidden rounded-3xl border border-white/10 bg-black/35 shadow-2xl backdrop-blur-md md:grid-cols-[0.9fr_1.1fr]">
           <div className="flex min-h-[180px] items-center justify-center px-8 py-8">
             <Link href="/access" className="text-center">
-              <h1 className="font-evanescent bg-gradient-to-r from-purple-500 via-amber-300 to-purple-500 bg-clip-text text-5xl tracking-tight text-transparent drop-shadow-[0_0_18px_rgba(251,191,36,0.28)] sm:text-6xl">
+              <h1 className="font-evanescent bg-gradient-to-r from-purple-500 via-amber-300 to-purple-500 bg-clip-text text-5xl tracking-tight text-transparent drop-shadow-lg sm:text-6xl">
                 SERRIAN
                 <span className="block">TIDE</span>
               </h1>
@@ -172,7 +172,7 @@ function LibraryCard({
   wide?: boolean;
 }) {
   return (
-    <Link href={href} className={`group relative block min-h-[160px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-xl backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-amber-300/40 hover:bg-black/45 hover:shadow-[0_0_35px_rgba(139,92,246,0.10)]${wide ? " text-center md:col-span-2" : ""}`}>
+    <Link href={href} className={`group relative block min-h-[160px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-xl backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-amber-300/40 hover:bg-black/45 hover:shadow-2xl${wide ? " text-center md:col-span-2" : ""}`}>
       <div className="absolute -bottom-14 -right-14 h-32 w-32 rounded-full border border-purple-400/10 transition duration-300 group-hover:scale-110 group-hover:border-amber-300/20" aria-hidden="true" />
       <span className="absolute right-5 top-4 text-xl text-amber-300/40 transition group-hover:text-amber-300/70" aria-hidden="true">◇</span>
       <p className="text-xs uppercase tracking-[0.14em] text-purple-300">{subtitle}</p>

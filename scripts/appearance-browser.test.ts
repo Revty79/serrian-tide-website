@@ -1,0 +1,308 @@
+import assert from "node:assert/strict";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+
+import { hashPassword } from "better-auth/crypto";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import pg, { type PoolClient } from "pg";
+import { chromium, type BrowserContext, type Page } from "playwright-core";
+
+const defaultWindowsPostgresBin = "C:\\Program Files\\PostgreSQL\\18\\bin";
+const postgresBin = process.env.SERRIAN_TEST_POSTGRES_BIN
+  ?? (existsSync(defaultWindowsPostgresBin) ? defaultWindowsPostgresBin : "");
+const initdbExecutable = postgresBin ? join(postgresBin, "initdb.exe") : "initdb";
+const pgCtlExecutable = postgresBin ? join(postgresBin, "pg_ctl.exe") : "pg_ctl";
+const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const PASSWORD = "Appearance-Browser-Only!";
+const SCREENSHOT_DIRECTORY = resolve(process.cwd(), "coverage", "appearance-validation");
+const DIST_DIRECTORY = `.next-appearance-${process.pid}`;
+const DIST_PATH = resolve(process.cwd(), DIST_DIRECTORY);
+if (dirname(DIST_PATH) !== resolve(process.cwd()) || basename(DIST_PATH) !== DIST_DIRECTORY) {
+  throw new Error("The isolated Appearance browser directory is unsafe.");
+}
+
+async function findLoopbackPort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolveListen, rejectListen) => {
+    server.once("error", rejectListen);
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : null;
+  await new Promise<void>((resolveClose, rejectClose) => server.close((error) => error ? rejectClose(error) : resolveClose()));
+  if (!port) throw new Error("A disposable Appearance browser-test port could not be reserved.");
+  return port;
+}
+
+async function one<T extends pg.QueryResultRow>(client: PoolClient, query: string, values: unknown[] = []): Promise<T> {
+  const result = await client.query<T>(query, values);
+  if (result.rows.length !== 1) throw new Error(`Expected one row, found ${result.rows.length}.`);
+  return result.rows[0]!;
+}
+
+type Fixture = {
+  adminEmail: string;
+  playerEmail: string;
+  campaignId: number;
+  shopId: number;
+  townId: number;
+  characterId: number;
+};
+
+async function seedFixture(pool: pg.Pool): Promise<Fixture> {
+  const marker = `appearance-browser-${Date.now()}-${process.pid}`;
+  const adminId = `${marker}-admin`;
+  const playerId = `${marker}-player`;
+  const adminEmail = `${adminId}@example.invalid`;
+  const playerEmail = `${playerId}@example.invalid`;
+  const password = await hashPassword(PASSWORD);
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    for (const account of [
+      { id: adminId, name: "Appearance Administrator", email: adminEmail },
+      { id: playerId, name: "Appearance Player", email: playerEmail },
+    ]) {
+      await client.query(
+        `insert into "user" (id,name,email,email_verified,username,display_username) values ($1,$2,$3,true,$1,$1)`,
+        [account.id, account.name, account.email],
+      );
+      await client.query(
+        `insert into account (id,issuer,account_id,provider_id,user_id,password,updated_at) values ($1,'local:credential',$2,'credential',$2,$3,now())`,
+        [`${account.id}-credential`, account.id, password],
+      );
+    }
+    await client.query("insert into user_role (user_id,role) values ($1,'admin'),($1,'god'),($2,'player')", [adminId, playerId]);
+    const campaign = await one<{ id: number }>(client, `insert into campaign (
+      name,overview,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,
+      max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,assigned_fate_points,created_by_user_id
+    ) values ($1,'Appearance browser fixture',0,0,0,0,100,100,'Credits','Assigned',0,$2) returning id`, [`Appearance Campaign ${marker}`, adminId]);
+    await client.query("insert into campaign_player (campaign_id,user_id,is_npc_controller) values ($1,$2,false)", [campaign.id, playerId]);
+    const shop = await one<{ id: number }>(client, "insert into shop (campaign_id,name,category,balance_credits,storefront_state) values ($1,'Chromatic Lantern','General',250,'open') returning id", [campaign.id]);
+    const town = await one<{ id: number }>(client, "insert into town (campaign_id,name,category,overview) values ($1,'Prism Harbor','Port Town','A representative themed Town.') returning id", [campaign.id]);
+    const character = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Mira Tideglass') returning id", [campaign.id, playerId]);
+    await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,0)", [character.id]);
+    for (const attributeKey of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) {
+      await client.query("insert into campaign_character_attribute (character_id,attribute_key,value) values ($1,$2,25)", [character.id, attributeKey]);
+    }
+    await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [character.id]);
+    await client.query("commit");
+    return { adminEmail, playerEmail, campaignId: campaign.id, shopId: shop.id, townId: town.id, characterId: character.id };
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function waitForServer(server: ChildProcess, baseUrl: string): Promise<void> {
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    if (server.exitCode !== null) throw new Error(`Next dev server exited with ${server.exitCode}.`);
+    try {
+      const response = await fetch(baseUrl, { redirect: "manual" });
+      if (response.status < 500) return;
+    } catch { /* Still starting. */ }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+  }
+  throw new Error("Timed out waiting for the Appearance browser-test server.");
+}
+
+async function login(context: BrowserContext, baseUrl: string, email: string): Promise<Page> {
+  const page = await context.newPage();
+  await page.goto(`${baseUrl}/login`);
+  await page.locator('input[name="username"]').fill(email);
+  await page.locator('input[name="password"]').fill(PASSWORD);
+  await page.getByRole("button", { name: /^Enter$/ }).click();
+  await page.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
+  return page;
+}
+
+async function rootVariable(page: Page, name: string): Promise<string> {
+  return page.evaluate((propertyName) => getComputedStyle(document.documentElement).getPropertyValue(propertyName).trim().toUpperCase(), name);
+}
+
+async function assertUsesTheme(page: Page, selector: string): Promise<void> {
+  const themed = page.locator(selector).first();
+  await themed.waitFor();
+  const colors = await themed.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { color: style.color, background: style.backgroundColor, border: style.borderColor };
+  });
+  assert.notEqual(colors.color, "rgb(0, 0, 0)", `${selector} fell back to unthemed black text.`);
+}
+
+async function main(): Promise<void> {
+  const temporaryCluster = await mkdtemp(join(tmpdir(), "serrian-appearance-browser-postgres-"));
+  const dataDirectory = join(temporaryCluster, "data");
+  const logPath = join(temporaryCluster, "postgres.log");
+  const postgresPort = await findLoopbackPort();
+  const appPort = await findLoopbackPort();
+  const baseUrl = `http://localhost:${appPort}`;
+  const connectionString = `postgresql://postgres@127.0.0.1:${postgresPort}/postgres`;
+  const tsconfigPath = resolve(process.cwd(), "tsconfig.json");
+  const tsconfigBefore = await readFile(tsconfigPath);
+  let clusterStarted = false;
+  let pool: pg.Pool | null = null;
+  let server: ChildProcess | null = null;
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+
+  try {
+    execFileSync(initdbExecutable, ["--auth=trust", "--encoding=UTF8", "--no-locale", "--username=postgres", "-D", dataDirectory], { stdio: "pipe", windowsHide: true });
+    execFileSync(pgCtlExecutable, ["-D", dataDirectory, "-l", logPath, "-o", `-p ${postgresPort} -h 127.0.0.1`, "-w", "start"], { stdio: "ignore", windowsHide: true });
+    clusterStarted = true;
+    pool = new pg.Pool({ connectionString });
+    await migrate(drizzle(pool), { migrationsFolder: resolve(process.cwd(), "drizzle") });
+    const fixture = await seedFixture(pool);
+
+    await rm(DIST_PATH, { recursive: true, force: true });
+    server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", String(appPort)], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        DATABASE_URL: connectionString,
+        BETTER_AUTH_URL: baseUrl,
+        NEXT_TELEMETRY_DISABLED: "1",
+        SERRIAN_TEST_NEXT_DIST_DIR: DIST_DIRECTORY,
+      },
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    await waitForServer(server, baseUrl);
+    browser = await chromium.launch({ executablePath: CHROME, headless: true });
+    const adminContext = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const playerContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const anonymousContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const adminPage = await login(adminContext, baseUrl, fixture.adminEmail);
+    const playerPage = await login(playerContext, baseUrl, fixture.playerEmail);
+
+    await adminPage.goto(`${baseUrl}/admin`);
+    assert.equal(await adminPage.getByRole("link", { name: /APPEARANCE/ }).getAttribute("href"), "/admin/appearance");
+    await adminPage.getByRole("link", { name: /APPEARANCE/ }).click();
+    await adminPage.getByRole("heading", { name: "Site Appearance" }).waitFor();
+    assert.equal(await rootVariable(adminPage, "--st-primary"), "#4DA97D");
+    assert.equal(await adminPage.locator("html").getAttribute("data-appearance-preset"), "serrian-tide");
+
+    const preview = adminPage.locator("[data-appearance-preview]");
+    await adminPage.getByRole("button", { name: "Classic" }).click();
+    assert.equal(await preview.evaluate((element) => getComputedStyle(element).getPropertyValue("--st-primary").trim().toUpperCase()), "#8B5CF6");
+    assert.equal(await rootVariable(adminPage, "--st-primary"), "#4DA97D", "Unsaved preview leaked into the live document.");
+    await adminPage.getByRole("button", { name: "Cancel changes" }).click();
+    assert.equal(await preview.evaluate((element) => getComputedStyle(element).getPropertyValue("--st-primary").trim().toUpperCase()), "#4DA97D");
+
+    await adminPage.getByRole("button", { name: "Classic" }).click();
+    await adminPage.getByRole("button", { name: "Save appearance" }).click();
+    await adminPage.getByText("Site appearance saved.", { exact: false }).waitFor();
+    assert.equal(await rootVariable(adminPage, "--st-primary"), "#8B5CF6");
+    assert.deepEqual((await pool.query("select preset_id,primary_accent from site_appearance_setting where key='site'")).rows, [{ preset_id: "classic", primary_accent: "#8B5CF6" }]);
+
+    const anonymousPage = await anonymousContext.newPage();
+    const response = await anonymousPage.goto(baseUrl);
+    assert.ok(response);
+    assert.match(await response!.text(), /data-appearance-preset="classic"/);
+    assert.equal(await rootVariable(anonymousPage, "--st-primary"), "#8B5CF6");
+
+    const custom = {
+      "Page background hex value": "#06110F",
+      "Panel / surface background hex value": "#101A18",
+      "Primary accent hex value": "#58B88B",
+      "Secondary accent hex value": "#E6C75A",
+      "Main text hex value": "#F1F3E8",
+      "Muted text hex value": "#AAB9B0",
+    };
+    for (const [label, value] of Object.entries(custom)) await adminPage.getByLabel(label).fill(value);
+    await adminPage.getByRole("button", { name: "Save appearance" }).click();
+    await adminPage.getByText("Site appearance saved.", { exact: false }).waitFor();
+    assert.equal(await rootVariable(adminPage, "--st-primary"), "#58B88B");
+    await adminPage.reload();
+    assert.equal(await adminPage.getByLabel("Main text hex value").inputValue(), "#F1F3E8");
+
+    await adminPage.getByLabel("Main text hex value").fill("#06110F");
+    await adminPage.locator('p[role="alert"]').waitFor();
+    assert.equal(await adminPage.getByRole("button", { name: "Save appearance" }).isDisabled(), true);
+    assert.equal((await pool.query("select main_text from site_appearance_setting where key='site'")).rows[0]!.main_text, "#F1F3E8");
+    await adminPage.getByRole("button", { name: "Cancel changes" }).click();
+
+    await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "appearance-admin-desktop.png"), fullPage: true });
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    await adminPage.reload();
+    await adminPage.locator("[data-appearance-preview]").waitFor();
+    assert.equal(await adminPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "Appearance overflowed the narrow viewport.");
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "appearance-admin-narrow.png"), fullPage: true });
+    await adminPage.setViewportSize({ width: 1440, height: 960 });
+
+    await adminPage.goto(`${baseUrl}/heavens`);
+    await adminPage.getByRole("heading", { name: "THE HEAVENS" }).waitFor();
+    await assertUsesTheme(adminPage, "main");
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "heavens-themed-desktop.png"), fullPage: true });
+
+    await adminPage.goto(`${baseUrl}/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.shopId}`);
+    await adminPage.getByRole("heading", { name: "Chromatic Lantern", exact: true }).waitFor();
+    await assertUsesTheme(adminPage, ".shops-editor");
+    await adminPage.addStyleTag({ content: ".authenticated-navigation { position: static !important; }" });
+    await adminPage.locator(".shops-editor").screenshot({ path: join(SCREENSHOT_DIRECTORY, "shop-themed-desktop.png") });
+
+    await adminPage.goto(`${baseUrl}/heavens/towns?campaign=${fixture.campaignId}&town=${fixture.townId}`);
+    await adminPage.getByRole("heading", { name: "Prism Harbor", exact: true }).waitFor();
+    await assertUsesTheme(adminPage, ".towns-editor");
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    await adminPage.addStyleTag({ content: ".authenticated-navigation { position: static !important; }" });
+    assert.equal(await adminPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "Town Builder overflowed the narrow viewport.");
+    await adminPage.locator(".towns-editor").screenshot({ path: join(SCREENSHOT_DIRECTORY, "town-themed-narrow.png") });
+
+    await playerPage.goto(`${baseUrl}/realms`);
+    const realmSelectors = playerPage.locator(".realms-control-grid select");
+    await realmSelectors.nth(0).selectOption(String(fixture.campaignId));
+    await realmSelectors.nth(1).locator(`option[value="${fixture.characterId}"]`).waitFor({ state: "attached" });
+    await realmSelectors.nth(1).selectOption(String(fixture.characterId));
+    await assertUsesTheme(playerPage, "main");
+    await playerPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "realms-themed-narrow.png"), fullPage: true });
+    await playerPage.goto(`${baseUrl}/realms/characters/${fixture.characterId}`);
+    await playerPage.getByRole("heading", { name: "Character Creation" }).waitFor();
+    await playerPage.getByText(/Character: Mira Tideglass/).waitFor();
+    await assertUsesTheme(playerPage, "main");
+
+    await playerPage.goto(`${baseUrl}/admin/appearance`);
+    await playerPage.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
+    assert.equal(await playerPage.getByRole("heading", { name: "Choose Your Path" }).isVisible(), true);
+
+    console.log(JSON.stringify({ passed: true, verified: [
+      "admin-only Appearance navigation",
+      "preset selection, isolated preview, cancel, publish, cache invalidation, and SSR hydration",
+      "custom color persistence and invalid-contrast rejection",
+      "shared theme variables across Admin, Heavens, Shop, Town, Realms, and Character routes",
+      "desktop and narrow screenshots",
+    ], screenshotDirectory: SCREENSHOT_DIRECTORY }, null, 2));
+    await Promise.all([adminContext.close(), playerContext.close(), anonymousContext.close()]);
+  } finally {
+    const cleanupErrors: unknown[] = [];
+    try { if (browser) await browser.close(); } catch (error) { cleanupErrors.push(error); }
+    try {
+      if (server && server.exitCode === null) {
+        server.kill();
+        await new Promise<void>((resolveStop) => {
+          const timeout = setTimeout(resolveStop, 4_000);
+          server!.once("exit", () => { clearTimeout(timeout); resolveStop(); });
+        });
+      }
+    } catch (error) { cleanupErrors.push(error); }
+    try { if (pool) await pool.end(); } catch (error) { cleanupErrors.push(error); }
+    try {
+      if (clusterStarted && existsSync(join(dataDirectory, "postmaster.pid"))) {
+        execFileSync(pgCtlExecutable, ["-D", dataDirectory, "-m", "fast", "-w", "stop"], { stdio: "ignore", windowsHide: true });
+      }
+    } catch (error) { cleanupErrors.push(error); }
+    try { await rm(temporaryCluster, { recursive: true, force: true }); } catch (error) { cleanupErrors.push(error); }
+    try { await rm(DIST_PATH, { recursive: true, force: true }); } catch (error) { cleanupErrors.push(error); }
+    try { await writeFile(tsconfigPath, tsconfigBefore); } catch (error) { cleanupErrors.push(error); }
+    if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "Appearance browser-test cleanup failed.");
+  }
+}
+
+main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });

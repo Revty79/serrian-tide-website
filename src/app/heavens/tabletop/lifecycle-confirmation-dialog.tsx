@@ -53,7 +53,7 @@ export function LifecycleConfirmationDialog({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      className="m-auto w-[min(38rem,calc(100vw-2rem))] rounded-2xl border border-red-400/35 bg-[#080d13] p-0 text-slate-100 shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm"
+      className="st-surface-raised-bg m-auto w-[min(38rem,calc(100vw-2rem))] rounded-2xl border border-red-400/35 p-0 text-slate-100 shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm"
       onCancel={(event) => {
         event.preventDefault();
         cancel();

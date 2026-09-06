@@ -73,7 +73,7 @@ export default function LoginPage() {
                   text-4xl
                   tracking-tight
                   text-transparent
-                  drop-shadow-[0_0_14px_rgba(251,191,36,0.25)]
+                  drop-shadow-lg
                   sm:text-5xl
                 "
               >
@@ -185,11 +185,11 @@ export default function LoginPage() {
                 py-3
                 font-semibold
                 text-amber-100
-                shadow-[0_0_30px_rgba(251,191,36,0.08)]
+                shadow-2xl
                 transition
                 hover:border-amber-300/80
                 hover:bg-amber-300/20
-                hover:shadow-[0_0_35px_rgba(251,191,36,0.18)]
+                hover:shadow-2xl
                 disabled:cursor-not-allowed
                 disabled:opacity-50
               "

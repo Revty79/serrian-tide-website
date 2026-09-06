@@ -14,9 +14,9 @@
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
   padding: clamp(1rem, 3vw, 2rem);
-  border: 1px solid rgb(132 185 193 / 52%);
-  background: #101b20;
-  color: #eef6f4;
+  border: 1px solid color-mix(in srgb, var(--st-primary) 52%, transparent);
+  background: var(--st-surface);
+  color: var(--st-text);
   box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
 }
 
@@ -33,7 +33,7 @@
 .spell-cast-dialog__header p,
 .spell-cast-dialog__result > p {
   margin: 0 0 .35rem;
-  color: #8cc8c9;
+  color: var(--st-primary-soft-text);
   font-size: .72rem;
   font-weight: 800;
   letter-spacing: .14em;
@@ -50,9 +50,9 @@
 }
 
 .spell-cast-dialog button {
-  border: 1px solid #52777b;
+  border: 1px solid var(--st-muted);
   padding: .65rem .9rem;
-  background: #16292f;
+  background: var(--st-surface);
   color: inherit;
   cursor: pointer;
 }
@@ -63,8 +63,8 @@
 }
 
 .spell-cast-dialog__primary {
-  border-color: #b89752 !important;
-  background: #896a2e !important;
+  border-color: var(--st-secondary) !important;
+  background: var(--st-secondary) !important;
   color: #fff !important;
   font-weight: 800 !important;
 }
@@ -75,7 +75,7 @@
 .spell-cast-dialog__section {
   margin: 1rem 0 0;
   padding: .9rem 1rem;
-  border: 1px solid rgb(126 168 172 / 25%);
+  border: 1px solid color-mix(in srgb, var(--st-primary) 25%, transparent);
   background: rgb(255 255 255 / 3%);
 }
 
@@ -89,24 +89,24 @@
 
 .spell-cast-dialog__section.is-warning,
 .spell-cast-dialog__status.is-needs-selection {
-  border-color: #9b7f46;
-  background: rgb(127 91 25 / 16%);
+  border-color: var(--st-secondary);
+  background: color-mix(in srgb, var(--st-secondary) 16%, transparent);
 }
 
 .spell-cast-dialog__section.is-manual {
-  border-color: #77689c;
-  background: rgb(84 66 119 / 15%);
+  border-color: var(--st-text-soft);
+  background: color-mix(in srgb, var(--st-primary) 15%, transparent);
 }
 
 .spell-cast-dialog__status.is-ready {
-  border-color: #4f8e72;
-  background: rgb(44 111 79 / 16%);
+  border-color: var(--st-primary);
+  background: color-mix(in srgb, var(--st-primary) 16%, transparent);
 }
 
 .spell-cast-dialog__status span,
 .spell-cast-dialog__target-group small,
 .spell-cast-dialog__applications small {
-  color: #b8c8c7;
+  color: var(--st-text);
   font-size: .8rem;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .spell-cast-dialog__facts dt {
-  color: #9db3b2;
+  color: var(--st-text-soft);
   font-size: .72rem;
   text-transform: uppercase;
   letter-spacing: .08em;
@@ -150,7 +150,7 @@
 .spell-cast-dialog__target-group {
   margin: .8rem 0;
   padding: .8rem;
-  border: 1px solid rgb(126 168 172 / 32%);
+  border: 1px solid color-mix(in srgb, var(--st-primary) 32%, transparent);
 }
 
 .spell-cast-dialog__target-group p {
@@ -184,7 +184,7 @@
 }
 
 .spell-cast-dialog__applications li > div span {
-  color: #b8c8c7;
+  color: var(--st-text);
 }
 
 .spell-cast-dialog__applications label {
@@ -197,9 +197,9 @@
 .spell-cast-dialog__applications select {
   width: 100%;
   padding: .55rem;
-  border: 1px solid #52777b;
-  background: #0c171b;
-  color: #eef6f4;
+  border: 1px solid var(--st-muted);
+  background: var(--st-surface);
+  color: var(--st-text);
 }
 
 .spell-cast-dialog__actions {
@@ -208,8 +208,8 @@
   margin: 1.25rem -2rem -2rem;
   padding: 1rem 2rem;
   justify-content: flex-end;
-  background: #0c171b;
-  border-top: 1px solid rgb(132 185 193 / 35%);
+  background: var(--st-surface);
+  border-top: 1px solid color-mix(in srgb, var(--st-primary) 35%, transparent);
 }
 
 .spell-cast-dialog__result {
