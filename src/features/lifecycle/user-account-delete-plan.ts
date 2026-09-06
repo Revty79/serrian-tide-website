@@ -10,7 +10,7 @@ export type UserAccountForeignKeyPlanEntry = {
 };
 
 /**
- * Complete inbound-FK inventory for `user.id` in migration snapshot 0036.
+ * Complete inbound-FK inventory for `user.id` in the current migration snapshot.
  *
  * Account deletion is deliberately fail-closed: only authentication and
  * membership associations are cleanup rows. Every content, ownership,
@@ -22,6 +22,7 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "session", columnName: "user_id", constraintName: "session_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Authenticated sessions" },
   { tableName: "user_role", columnName: "user_id", constraintName: "user_role_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Serrian Tide role assignments" },
   { tableName: "lifecycle_audit_event", columnName: "actor_user_id", constraintName: "lifecycle_audit_event_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Lifecycle audit history" },
+  { tableName: "site_appearance_setting", columnName: "updated_by_user_id", constraintName: "site_appearance_setting_updated_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Site appearance update attribution" },
   { tableName: "campaign", columnName: "created_by_user_id", constraintName: "campaign_created_by_user_id_user_id_fk", onDelete: "no action", disposition: "block", label: "Owned Campaigns" },
   { tableName: "campaign", columnName: "archived_by_user_id", constraintName: "campaign_archived_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Campaign archive attribution" },
   { tableName: "shop", columnName: "archived_by_user_id", constraintName: "shop_archived_by_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Shop archive attribution" },
@@ -90,4 +91,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "chat_room_member", columnName: "user_id", constraintName: "chat_room_member_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Chat room memberships" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 70;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 71;

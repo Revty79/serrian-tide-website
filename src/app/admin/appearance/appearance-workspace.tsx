@@ -178,7 +178,12 @@ export function AppearanceWorkspace({ initialAppearance }: { initialAppearance: 
           </div>
           <span>{hasChanges ? "Not yet published" : "Matches saved site"}</span>
         </div>
-        <div className={styles.preview} style={previewStyle(draft)} data-appearance-preview>
+        <div
+          className={styles.preview}
+          style={previewStyle(draft)}
+          data-appearance-preview
+          data-appearance-theme-scope
+        >
           <nav>
             <strong className="font-evanescent">SERRIAN TIDE</strong>
             <span>Heavens</span><span>Realms</span><span>Crossroads</span>

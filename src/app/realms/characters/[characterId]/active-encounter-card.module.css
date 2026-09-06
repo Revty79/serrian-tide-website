@@ -13,8 +13,8 @@
   border: 1px solid color-mix(in srgb, var(--st-secondary) 48%, transparent);
   border-radius: 20px;
   color: var(--st-text);
-  background: linear-gradient(110deg, color-mix(in srgb, var(--st-secondary) 44%, transparent), rgb(0 0 0 / 76%) 44%, rgb(28 17 45 / 72%));
-  box-shadow: 0 20px 55px rgb(0 0 0 / 34%), inset 4px 0 color-mix(in srgb, var(--st-secondary) 78%, transparent);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--st-secondary) 44%, transparent), color-mix(in srgb, var(--st-page) 76%, transparent) 44%, color-mix(in srgb, var(--st-surface) 72%, transparent));
+  box-shadow: 0 20px 55px color-mix(in srgb, var(--st-page) 34%, transparent), inset 4px 0 color-mix(in srgb, var(--st-secondary) 78%, transparent);
   backdrop-filter: blur(16px);
 }
 
@@ -55,10 +55,10 @@
   min-width: 4.2rem;
   gap: .15rem;
   padding: .5rem .65rem;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
   border-radius: 9px;
   color: var(--st-muted);
-  background: rgb(255 255 255 / 3%);
+  background: color-mix(in srgb, var(--st-text-strong) 3%, transparent);
   font-size: .64rem;
   font-weight: 800;
   letter-spacing: .07em;
@@ -97,7 +97,7 @@
 }
 
 .actions :global(.tabletop-live-status--live > span) { background: var(--st-primary); }
-.actions :global(.tabletop-live-status--reconnecting > span) { background: #e27866; }
+.actions :global(.tabletop-live-status--reconnecting > span) { background: var(--st-danger); }
 
 .actions a {
   display: grid;
@@ -108,7 +108,7 @@
   border-radius: 999px;
   color: var(--st-secondary-soft-text);
   background: color-mix(in srgb, var(--st-secondary) 13%, transparent);
-  box-shadow: 0 .45rem 1.2rem rgb(0 0 0 / 18%);
+  box-shadow: 0 .45rem 1.2rem color-mix(in srgb, var(--st-page) 18%, transparent);
   font-weight: 900;
   text-align: center;
   text-decoration: none;

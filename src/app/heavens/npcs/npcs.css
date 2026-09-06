@@ -13,8 +13,8 @@
 .npcs-simple-editor {
   width: min(1280px, 100%);
   margin-inline: auto;
-  border: 1px solid rgb(255 255 255 / 10%);
-  background: rgb(0 0 0 / 38%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 10%, transparent);
+  background: color-mix(in srgb, var(--st-page) 38%, transparent);
   backdrop-filter: blur(16px);
 }
 
@@ -38,12 +38,12 @@
 
 .npcs-scope-banner.is-admin {
   border-color: color-mix(in srgb, var(--st-primary) 28%, transparent);
-  background: linear-gradient(110deg, color-mix(in srgb, var(--st-primary) 24%, transparent), rgb(0 0 0 / 38%));
+  background: linear-gradient(110deg, color-mix(in srgb, var(--st-primary) 24%, transparent), color-mix(in srgb, var(--st-page) 38%, transparent));
 }
 
 .npcs-scope-banner.is-god {
   border-color: color-mix(in srgb, var(--st-primary) 22%, transparent);
-  background: linear-gradient(110deg, color-mix(in srgb, var(--st-primary) 20%, transparent), rgb(0 0 0 / 38%));
+  background: linear-gradient(110deg, color-mix(in srgb, var(--st-primary) 20%, transparent), color-mix(in srgb, var(--st-page) 38%, transparent));
 }
 
 .npcs-scope-banner p {
@@ -81,7 +81,7 @@
 
 .npcs-header > div {
   padding: 20px 24px;
-  border-left: 1px solid rgb(255 255 255 / 9%);
+  border-left: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
 }
 
 .npcs-header p,
@@ -159,9 +159,9 @@
 
 .npcs-feedback.is-error,
 .npcs-readonly-note {
-  border: 1px solid rgb(248 113 113 / 22%);
-  background: rgb(127 29 29 / 16%);
-  color: #fecaca;
+  border: 1px solid color-mix(in srgb, var(--st-danger) 22%, transparent);
+  background: color-mix(in srgb, var(--st-danger) 16%, transparent);
+  color: var(--st-danger);
 }
 
 .npcs-control,
@@ -191,9 +191,9 @@
 .npcs-page select,
 .npcs-page textarea {
   width: 100%;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 13%, transparent);
   border-radius: 8px;
-  background: rgb(2 8 13 / 75%);
+  background: color-mix(in srgb, var(--st-page) 75%, transparent);
   padding: 9px 10px;
   color: var(--st-text);
   font: inherit;
@@ -211,7 +211,7 @@
   justify-content: space-between;
   gap: 15px;
   padding: 15px;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
 }
 
 .npcs-index-tools {
@@ -242,9 +242,9 @@
   min-width: 0;
   flex-direction: column;
   padding: 13px;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
   border-radius: 11px;
-  background: rgb(3 9 14 / 38%);
+  background: color-mix(in srgb, var(--st-page) 38%, transparent);
 }
 
 .npcs-card > header,
@@ -271,7 +271,7 @@
 }
 
 .npcs-status.is-active { color: var(--st-primary-soft-text); }
-.npcs-status.is-archived { color: #e6b7a8; }
+.npcs-status.is-archived { color: var(--st-danger); }
 .npcs-card > strong { margin-top: 9px; color: var(--st-secondary-soft-text); font-size: 1.08rem; }
 .npcs-card > p { margin: 4px 0 10px; color: var(--st-secondary-soft-text); font-size: 0.85rem; }
 .npcs-card dl { margin: auto 0 10px; }
@@ -325,10 +325,10 @@
   background: var(--st-surface);
   padding: 0;
   color: var(--st-text);
-  box-shadow: 0 28px 80px rgb(0 0 0 / 72%);
+  box-shadow: 0 28px 80px color-mix(in srgb, var(--st-page) 72%, transparent);
 }
 
-.npcs-dialog::backdrop { background: rgb(0 0 0 / 72%); backdrop-filter: blur(5px); }
+.npcs-dialog::backdrop { background: color-mix(in srgb, var(--st-page) 72%, transparent); backdrop-filter: blur(5px); }
 .npcs-dialog--small { width: min(520px, calc(100vw - 28px)); }
 .npcs-dialog > form { display: flex; max-height: inherit; flex-direction: column; }
 .npcs-dialog header,
@@ -338,20 +338,20 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  background: rgb(255 255 255 / 2%);
+  background: color-mix(in srgb, var(--st-text-strong) 2%, transparent);
 }
-.npcs-dialog header { border-bottom: 1px solid rgb(255 255 255 / 9%); }
-.npcs-dialog footer { border-top: 1px solid rgb(255 255 255 / 9%); color: var(--st-muted); font-size: 0.75rem; }
+.npcs-dialog header { border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent); }
+.npcs-dialog footer { border-top: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent); color: var(--st-muted); font-size: 0.75rem; }
 .npcs-dialog-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; overflow: auto; padding: 16px; }
 .npcs-dialog--small .npcs-dialog-body { grid-template-columns: 1fr; }
 .npcs-dialog-body > p { margin: 0; color: var(--st-text); line-height: 1.45; }
-.npcs-dialog fieldset { display: flex; gap: 14px; margin: 0; border: 1px solid rgb(255 255 255 / 10%); border-radius: 9px; padding: 9px 11px; }
+.npcs-dialog fieldset { display: flex; gap: 14px; margin: 0; border: 1px solid color-mix(in srgb, var(--st-text-strong) 10%, transparent); border-radius: 9px; padding: 9px 11px; }
 .npcs-dialog fieldset label { display: inline-flex; align-items: center; gap: 6px; color: var(--st-text); }
 .npcs-dialog fieldset input { width: auto; }
 
 @media (max-width: 950px) {
   .npcs-header { grid-template-columns: 140px minmax(0, 1fr); }
-  .npcs-header nav { grid-column: 1 / -1; border-top: 1px solid rgb(255 255 255 / 8%); }
+  .npcs-header nav { grid-column: 1 / -1; border-top: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent); }
   .npcs-control { grid-template-columns: 1fr 1fr; }
   .npcs-control > button { grid-column: 1 / -1; }
   .npcs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -361,7 +361,7 @@
 @media (max-width: 650px) {
   .npcs-page { padding: 12px; }
   .npcs-header { grid-template-columns: 1fr; }
-  .npcs-header > div { border-top: 1px solid rgb(255 255 255 / 8%); border-left: 0; }
+  .npcs-header > div { border-top: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent); border-left: 0; }
   .npcs-control,
   .npcs-scope-banner,
   .npcs-grid,

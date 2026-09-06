@@ -17,7 +17,7 @@
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--st-primary) 14%, transparent), transparent 34rem),
     radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--st-primary) 10%, transparent), transparent 30rem),
-    linear-gradient(180deg, rgb(4 7 14 / 10%), rgb(4 7 14 / 42%));
+    linear-gradient(180deg, color-mix(in srgb, var(--st-page) 10%, transparent), color-mix(in srgb, var(--st-page) 42%, transparent));
 }
 
 .shell {
@@ -34,7 +34,7 @@
   border: 1px solid var(--tabletop-line);
   border-radius: 1.65rem;
   background: var(--tabletop-panel);
-  box-shadow: 0 1.5rem 4.5rem rgb(0 0 0 / 30%);
+  box-shadow: 0 1.5rem 4.5rem color-mix(in srgb, var(--st-page) 30%, transparent);
   backdrop-filter: blur(16px);
 }
 
@@ -43,7 +43,7 @@
   min-height: 11.5rem;
   padding: 1.5rem;
   border-right: 1px solid var(--tabletop-line);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 20%, transparent), rgb(16 43 48 / 16%));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 20%, transparent), color-mix(in srgb, var(--st-surface) 16%, transparent));
   place-content: center;
   color: transparent;
   font-family: "Evanescent", Georgia, serif;
@@ -173,9 +173,9 @@
   min-width: 0;
   max-width: 100%;
   min-height: 2.75rem;
-  border: 1px solid rgb(255 255 255 / 14%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 14%, transparent);
   border-radius: 0.7rem;
-  background: rgb(2 8 13 / 78%);
+  background: color-mix(in srgb, var(--st-page) 78%, transparent);
   padding: 0.65rem 0.75rem;
   color: var(--st-text-strong);
 }
@@ -229,7 +229,7 @@
   border: 1px solid var(--tabletop-line);
   border-radius: 0.9rem;
   background: var(--tabletop-line);
-  box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 18%);
+  box-shadow: 0 0.8rem 2rem color-mix(in srgb, var(--st-page) 18%, transparent);
 }
 
 .statusStrip > div {
@@ -237,11 +237,11 @@
   gap: 0.2rem;
   min-width: 0;
   padding: 0.85rem 1rem;
-  background: rgb(2 8 13 / 82%);
+  background: color-mix(in srgb, var(--st-page) 82%, transparent);
 }
 
 .statusStrip > div:nth-child(1) {
-  box-shadow: inset 0 3px rgb(209 113 102 / 62%);
+  box-shadow: inset 0 3px color-mix(in srgb, var(--st-danger) 62%, transparent);
 }
 
 .statusStrip > div:nth-child(2) {
@@ -280,7 +280,7 @@
   border: 1px solid var(--tabletop-line);
   border-radius: 1rem;
   background: var(--tabletop-panel);
-  box-shadow: 0 1.1rem 3rem rgb(0 0 0 / 22%);
+  box-shadow: 0 1.1rem 3rem color-mix(in srgb, var(--st-page) 22%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -332,7 +332,7 @@
 .effectGrid > div,
 .historyGrid > div {
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   border-radius: 0.78rem;
   background: var(--tabletop-panel-deep);
   padding: 0.85rem;
@@ -387,9 +387,9 @@
 }
 
 .error {
-  border-color: #d16d62;
-  background: rgb(127 29 29 / 20%);
-  color: #f2bbb1 !important;
+  border-color: var(--st-danger);
+  background: color-mix(in srgb, var(--st-danger) 20%, transparent);
+  color: var(--st-danger) !important;
 }
 
 .twoColumn {
@@ -480,7 +480,7 @@
 
 .sourceCard:hover {
   border-color: color-mix(in srgb, var(--st-secondary) 28%, transparent);
-  background: rgb(3 10 15 / 78%);
+  background: color-mix(in srgb, var(--st-page) 78%, transparent);
 }
 
 .sourceCard > header {
@@ -565,14 +565,14 @@
   border: 1px solid var(--tabletop-line);
   border-radius: 1rem;
   background: var(--tabletop-panel);
-  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 22%);
+  box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--st-page) 22%, transparent);
   backdrop-filter: blur(14px);
 }
 
 .combatPriority {
   border-color: color-mix(in srgb, var(--st-secondary) 56%, transparent);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--st-secondary) 32%, transparent), rgb(2 8 13 / 74%));
-  box-shadow: inset 0.25rem 0 var(--st-secondary-soft-text), 0 1rem 2.5rem rgb(0 0 0 / 24%);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-secondary) 32%, transparent), color-mix(in srgb, var(--st-page) 74%, transparent));
+  box-shadow: inset 0.25rem 0 var(--st-secondary-soft-text), 0 1rem 2.5rem color-mix(in srgb, var(--st-page) 24%, transparent);
 }
 
 .combatPriority > h2,
@@ -602,7 +602,7 @@
   min-width: 0;
   margin-top: 0.65rem;
   padding: 0.8rem;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   border-radius: 0.75rem;
   background: var(--tabletop-panel-deep);
   overflow-wrap: anywhere;
@@ -633,9 +633,9 @@
   display: grid;
   gap: 0.2rem;
   padding: 0.65rem;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   border-radius: 0.65rem;
-  background: rgb(255 255 255 / 2%);
+  background: color-mix(in srgb, var(--st-text-strong) 2%, transparent);
   color: var(--tabletop-muted);
 }
 
@@ -674,7 +674,7 @@
   border: 1px solid var(--tabletop-line);
   border-radius: 1.6rem;
   background: var(--tabletop-panel);
-  box-shadow: 0 1.5rem 4.5rem rgb(0 0 0 / 30%);
+  box-shadow: 0 1.5rem 4.5rem color-mix(in srgb, var(--st-page) 30%, transparent);
   backdrop-filter: blur(18px);
 }
 

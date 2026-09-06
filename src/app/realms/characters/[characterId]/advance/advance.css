@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: 16px;
   margin-top: 14px;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   padding: 0 2px 12px;
 }
 
@@ -48,11 +48,11 @@
 .advancement-tree,
 .quintessence-workspace {
   margin-top: 18px;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
   border-radius: 20px;
-  background: rgb(2 8 13 / 58%);
+  background: color-mix(in srgb, var(--st-page) 58%, transparent);
   padding: clamp(18px, 3vw, 28px);
-  box-shadow: 0 22px 60px rgb(0 0 0 / 22%);
+  box-shadow: 0 22px 60px color-mix(in srgb, var(--st-page) 22%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -94,7 +94,7 @@
   min-height: 188px;
   border: 1px solid color-mix(in srgb, var(--st-secondary) 18%, transparent);
   border-radius: 17px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 17%, transparent), rgb(3 9 14 / 62%));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 17%, transparent), color-mix(in srgb, var(--st-page) 62%, transparent));
   padding: 20px;
   color: var(--st-text);
   text-align: left;
@@ -105,7 +105,7 @@
 .advancement-choice__cards > button:hover,
 .advancement-choice__cards > button:focus-visible {
   border-color: color-mix(in srgb, var(--st-secondary) 58%, transparent);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 28%, transparent), rgb(3 9 14 / 72%));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-primary) 28%, transparent), color-mix(in srgb, var(--st-page) 72%, transparent));
   transform: translateY(-2px);
 }
 
@@ -156,7 +156,7 @@
   min-width: 0;
   border: 1px solid color-mix(in srgb, var(--st-secondary) 15%, transparent);
   border-radius: 12px;
-  background: rgb(3 9 14 / 54%);
+  background: color-mix(in srgb, var(--st-page) 54%, transparent);
   padding: 12px;
   text-align: center;
 }
@@ -192,9 +192,9 @@
 .advancement-tree__group {
   margin-top: 12px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   border-radius: 13px;
-  background: rgb(1 6 10 / 38%);
+  background: color-mix(in srgb, var(--st-page) 38%, transparent);
 }
 
 .advancement-tree__group > header {
@@ -203,8 +203,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 11px 14px;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
-  background: rgb(255 255 255 / 2%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
+  background: color-mix(in srgb, var(--st-text-strong) 2%, transparent);
 }
 
 .advancement-tree__group > header span {
@@ -226,7 +226,7 @@
   gap: 9px;
   align-items: center;
   min-height: 80px;
-  border-bottom: 1px solid rgb(255 255 255 / 7%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 7%, transparent);
   border-left: 3px solid transparent;
   padding: 11px 13px 11px calc(13px + (var(--skill-depth) * 20px));
   transition: background 120ms ease, border-color 120ms ease;
@@ -305,7 +305,7 @@
   margin-top: 5px;
   border: 1px solid color-mix(in srgb, var(--st-secondary) 28%, transparent);
   border-radius: 7px;
-  background: rgb(0 0 0 / 42%);
+  background: color-mix(in srgb, var(--st-page) 42%, transparent);
   padding: 5px 7px;
   color: var(--st-secondary-soft-text);
   text-align: center;
@@ -338,7 +338,7 @@
 
 .advance-empty {
   margin: 14px 0 0;
-  border: 1px dashed rgb(255 255 255 / 12%);
+  border: 1px dashed color-mix(in srgb, var(--st-text-strong) 12%, transparent);
   border-radius: 10px;
   padding: 18px;
   color: var(--st-muted);
@@ -357,9 +357,9 @@
   margin: 12px auto 0;
   border: 1px solid color-mix(in srgb, var(--st-secondary) 22%, transparent);
   border-radius: 14px;
-  background: rgb(3 9 14 / 93%);
+  background: color-mix(in srgb, var(--st-page) 93%, transparent);
   padding: 11px 13px;
-  box-shadow: 0 12px 35px rgb(0 0 0 / 42%);
+  box-shadow: 0 12px 35px color-mix(in srgb, var(--st-page) 42%, transparent);
   backdrop-filter: blur(18px);
 }
 
@@ -388,8 +388,8 @@
 
 .advancement-review-bar button:last-child,
 .advancement-dialog__actions button:first-child {
-  border-color: rgb(255 255 255 / 13%);
-  background: rgb(255 255 255 / 4%);
+  border-color: color-mix(in srgb, var(--st-text-strong) 13%, transparent);
+  background: color-mix(in srgb, var(--st-text-strong) 4%, transparent);
   color: var(--st-text);
 }
 
@@ -420,7 +420,7 @@
   min-width: 0;
   border: 1px solid color-mix(in srgb, var(--st-primary) 16%, transparent);
   border-radius: 14px;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--st-primary) 10%, transparent), rgb(3 9 14 / 48%));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--st-primary) 10%, transparent), color-mix(in srgb, var(--st-page) 48%, transparent));
   padding: 16px;
 }
 
@@ -476,7 +476,7 @@
   gap: 10px;
   border: 1px solid color-mix(in srgb, var(--st-secondary) 12%, transparent);
   border-radius: 9px;
-  background: rgb(0 0 0 / 20%);
+  background: color-mix(in srgb, var(--st-page) 20%, transparent);
   padding: 9px 10px;
 }
 
@@ -518,9 +518,9 @@
 
 .advancement-quantity input {
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 12%, transparent);
   border-radius: 8px;
-  background: rgb(0 0 0 / 34%);
+  background: color-mix(in srgb, var(--st-page) 34%, transparent);
   padding: 6px;
   color: var(--st-text);
   text-align: center;
@@ -539,7 +539,7 @@
   display: grid;
   place-items: center;
   overflow-y: auto;
-  background: rgb(0 0 0 / 72%);
+  background: color-mix(in srgb, var(--st-page) 72%, transparent);
   padding: 20px;
   backdrop-filter: blur(8px);
 }
@@ -552,7 +552,7 @@
   border-radius: 18px;
   background: var(--st-surface-deep);
   padding: 23px;
-  box-shadow: 0 28px 90px rgb(0 0 0 / 58%);
+  box-shadow: 0 28px 90px color-mix(in srgb, var(--st-page) 58%, transparent);
 }
 
 .advancement-dialog--review {
@@ -573,7 +573,7 @@
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   padding: 8px 0;
 }
 
@@ -589,7 +589,7 @@
 .advancement-review-table {
   margin-top: 18px;
   overflow-x: auto;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   border-radius: 10px;
 }
 
@@ -601,7 +601,7 @@
 
 .advancement-review-table th,
 .advancement-review-table td {
-  border-bottom: 1px solid rgb(255 255 255 / 7%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 7%, transparent);
   padding: 9px 10px;
   color: var(--st-text);
   text-align: right;

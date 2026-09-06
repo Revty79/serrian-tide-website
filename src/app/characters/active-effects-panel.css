@@ -35,9 +35,9 @@
 .active-effects-panel__columns > section,
 .active-effects-panel__controls form {
   padding: 12px;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
   border-radius: 6px;
-  background: rgb(0 0 0 / 18%);
+  background: color-mix(in srgb, var(--st-page) 18%, transparent);
 }
 
 .active-effects-panel h4 { margin: 0 0 9px; }
@@ -67,7 +67,7 @@
   margin-top: 7px;
   padding: 9px;
   border-left: 2px solid var(--st-primary-soft-text);
-  background: rgb(255 255 255 / 3%);
+  background: color-mix(in srgb, var(--st-text-strong) 3%, transparent);
 }
 
 .active-effects-panel article span,
@@ -104,16 +104,16 @@
 .active-effects-panel select,
 .active-effects-panel textarea {
   width: 100%;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid color-mix(in srgb, var(--st-text-strong) 13%, transparent);
   border-radius: 4px;
   background: var(--st-surface);
   padding: 7px;
-  color: #eee;
+  color: var(--st-text-strong);
 }
 
 .active-effects-panel__history { margin-top: 12px; }
 .active-effects-panel__history p { margin: 7px 0; color: var(--st-muted); font-size: .78rem; }
-.active-effects-panel__error { color: #f5aaaa; }
+.active-effects-panel__error { color: var(--st-danger); }
 
 @media (max-width: 760px) {
   .active-effects-panel__columns,

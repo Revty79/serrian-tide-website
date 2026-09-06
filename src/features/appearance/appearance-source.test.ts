@@ -54,27 +54,80 @@ test("Admin exposes Appearance and the editor keeps drafts preview-scoped", () =
   assert.match(workspace, /Cancel changes/);
   assert.match(workspace, /Restore preset defaults/);
   assert.match(workspace, /style=\{previewStyle\(draft\)\}/);
+  assert.match(workspace, /data-appearance-theme-scope/);
+  assert.match(
+    read("src/app/globals.css"),
+    /:root,\s*\[data-appearance-theme-scope\]\s*\{[\s\S]*?--st-input:[\s\S]*?--st-brand-gradient:/,
+  );
   assert.ok(workspace.indexOf("saveAppearanceAction(draft)") < workspace.indexOf("document.documentElement.style.setProperty"));
 });
 
-test("every color-bearing application stylesheet consumes the shared semantic theme", () => {
-  const stylesheets = filesBelow("src/app").filter((path) => path.endsWith(".css"));
+test("screen styles contain no independent color palettes", () => {
+  const stylesheets = filesBelow("src").filter((path) => path.endsWith(".css"));
   const structuralOnly = new Set([
     join("src", "app", "access", "access.module.css"),
+  ]);
+  const intentionalExceptions = new Set([
+    join("src", "app", "globals.css"),
     join("src", "app", "characters", "printable-character-sheet.css"),
   ]);
   for (const path of stylesheets) {
-    if (structuralOnly.has(path)) continue;
+    if (structuralOnly.has(path) || intentionalExceptions.has(path)) continue;
     assert.match(read(path), /var\(--st-/, `${path} does not consume the shared appearance variables.`);
   }
 
   const screenCss = stylesheets
-    .filter((path) => !path.endsWith("globals.css") && !path.endsWith("printable-character-sheet.css"))
+    .filter((path) => !intentionalExceptions.has(path))
     .map(read)
     .join("\n");
   assert.doesNotMatch(
     screenCss,
-    /#(?:8b5cf6|a855f7|c084fc|fde68a|f5ca73|fbbf24)|rgb\(?(?:139[ ,]+92[ ,]+246|168[ ,]+85[ ,]+247|192[ ,]+132[ ,]+252|245[ ,]+202[ ,]+115|251[ ,]+191[ ,]+36|253[ ,]+230[ ,]+138)/i,
-    "A screen still hard-codes a legacy purple or gold brand color instead of the shared theme.",
+    /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i,
+    "A screen still contains a literal color instead of a shared semantic variable.",
   );
+  assert.doesNotMatch(
+    screenCss,
+    /(?<![-\w])(?:black|white|red|blue|green|yellow|purple|orange|pink|gray|grey)(?![-\w])/i,
+    "A screen still contains a named literal color instead of a shared semantic variable.",
+  );
+
+  const componentSources = filesBelow("src/app")
+    .filter((path) => /\.(?:[jt]sx?)$/.test(path))
+    .map(read)
+    .join("\n");
+  assert.doesNotMatch(
+    componentSources,
+    /(?:bg|text|border|shadow|from|via|to)-\[(?:#|rgba?\(|hsla?\()/i,
+    "A component still uses a hard-coded Tailwind color utility.",
+  );
+  assert.doesNotMatch(
+    componentSources,
+    /(?:color|background|backgroundColor|borderColor|boxShadow)\s*:\s*["'](?:#|rgba?\(|hsla?\()/i,
+    "A component still uses an inline literal appearance color.",
+  );
+
+  const globalStyles = read("src/app/globals.css");
+  for (const mapping of [
+    "--color-red-500: var(--st-danger)",
+    "--color-emerald-300: var(--st-success)",
+    "--color-orange-300: var(--st-warning)",
+    "--color-teal-950: var(--st-primary-deep)",
+  ]) {
+    assert.match(globalStyles, new RegExp(mapping.replace(/[()]/g, "\\$&")));
+  }
+});
+
+test("the permanent repository standard documents and enforces shared theme development", () => {
+  const agents = read("AGENTS.md");
+  const guide = read("docs/architecture/theme-development.md");
+  assert.match(
+    agents,
+    /All new or modified interfaces must use the shared semantic theme variables for appearance colors\./,
+  );
+  assert.match(agents, /docs\/architecture\/theme-development\.md/);
+  assert.match(agents, /<!-- BEGIN:nextjs-agent-rules -->[\s\S]*<!-- END:nextjs-agent-rules -->/);
+  assert.match(guide, /getAppearanceCssVariables/);
+  assert.match(guide, /data-appearance-theme-scope/);
+  assert.match(guide, /--st-health/);
+  assert.match(guide, /print\/export rules remain fixed/);
 });

@@ -35,7 +35,7 @@
   margin: 0;
   padding: 10px 12px;
   border-left: 3px solid color-mix(in srgb, var(--st-secondary) 58%, transparent);
-  color: rgb(230 226 216 / 72%);
+  color: color-mix(in srgb, var(--st-text) 72%, transparent);
   background: color-mix(in srgb, var(--st-secondary) 14%, transparent);
   font-size: 0.8rem;
   line-height: 1.5;
@@ -44,10 +44,10 @@
 .item-validation-list {
   margin: 0;
   padding: 10px 12px 10px 30px;
-  border: 1px solid rgb(230 105 105 / 32%);
+  border: 1px solid color-mix(in srgb, var(--st-danger) 32%, transparent);
   border-radius: 5px;
-  color: #efb2a8;
-  background: rgb(83 22 22 / 18%);
+  color: var(--st-danger);
+  background: color-mix(in srgb, var(--st-surface-raised) 18%, transparent);
   font-size: 0.78rem;
 }
 

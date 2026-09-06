@@ -35,9 +35,9 @@
 
 .shops-page button.is-danger,
 .shops-dialog button.is-danger {
-  border-color: rgb(248 113 113 / 42%);
-  background: rgb(127 29 29 / 28%);
-  color: #fecaca;
+  border-color: color-mix(in srgb, var(--st-danger) 42%, transparent);
+  background: color-mix(in srgb, var(--st-danger) 28%, transparent);
+  color: var(--st-danger);
 }
 
 .shops-header,
@@ -145,13 +145,15 @@
 
 .shops-feedback.is-success {
   border-color: color-mix(in srgb, var(--st-primary) 40%, transparent);
+  background: var(--st-primary-soft);
   color: var(--st-primary-soft-text);
 }
 
 .shops-feedback.is-error,
 .shops-readonly {
-  border-color: rgb(248 113 113 / 42%);
-  color: #fecaca;
+  border-color: color-mix(in srgb, var(--st-danger) 42%, transparent);
+  background: color-mix(in srgb, var(--st-danger) 12%, transparent);
+  color: var(--st-danger);
 }
 
 .shops-context {
@@ -628,7 +630,7 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 6%, transparent);
   padding: 3px 0;
 }
 
@@ -709,9 +711,9 @@
 }
 
 .shops-price-grid > div {
-  border: 1px solid rgb(148 163 184 / 14%);
+  border: 1px solid color-mix(in srgb, var(--st-muted) 14%, transparent);
   border-radius: 0.65rem;
-  background: rgb(15 23 42 / 44%);
+  background: color-mix(in srgb, var(--st-surface) 44%, transparent);
   padding: 0.65rem;
 }
 
@@ -726,8 +728,8 @@
 
 .shops-staff-list > article.is-unavailable,
 .shops-offerings > article.is-unavailable {
-  border-color: rgb(248 113 113 / 24%);
-  background: rgb(69 10 10 / 18%);
+  border-color: color-mix(in srgb, var(--st-danger) 24%, transparent);
+  background: color-mix(in srgb, var(--st-danger) 10%, transparent);
 }
 
 .shops-dialog {
@@ -737,12 +739,12 @@
   border-radius: 1.25rem;
   background: var(--st-page);
   color: var(--st-text);
-  box-shadow: 0 30px 90px rgb(0 0 0 / 65%);
+  box-shadow: 0 30px 90px color-mix(in srgb, var(--st-page) 65%, transparent);
   padding: 0;
 }
 
 .shops-dialog::backdrop {
-  background: rgb(0 0 0 / 72%);
+  background: color-mix(in srgb, var(--st-page) 72%, transparent);
   backdrop-filter: blur(5px);
 }
 
@@ -756,14 +758,14 @@
   justify-content: flex-end;
   gap: 0.6rem;
   margin-top: 1rem;
-  border-top: 1px solid rgb(255 255 255 / 10%);
+  border-top: 1px solid color-mix(in srgb, var(--st-text-strong) 10%, transparent);
   padding-top: 1rem;
 }
 
 .shops-dialog button {
   border: 1px solid color-mix(in srgb, var(--st-secondary) 32%, transparent);
   border-radius: 0.75rem;
-  background: rgb(120 53 15 / 24%);
+  background: color-mix(in srgb, var(--st-warning) 24%, transparent);
   padding: 0.65rem 0.9rem;
   color: var(--st-secondary-soft-text);
 }

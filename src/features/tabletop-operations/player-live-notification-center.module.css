@@ -17,8 +17,8 @@
   border-left-width: .35rem;
   border-radius: 14px;
   color: var(--st-text);
-  background: rgb(0 0 0 / 86%);
-  box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
+  background: color-mix(in srgb, var(--st-page) 86%, transparent);
+  box-shadow: 0 1rem 3rem color-mix(in srgb, var(--st-page) 45%, transparent);
   backdrop-filter: blur(16px);
   pointer-events: auto;
   animation: arrive .2s ease-out;
@@ -37,14 +37,14 @@
   border: 0;
   border-radius: 50%;
   color: var(--st-text-strong);
-  background: rgb(255 255 255 / 8%);
+  background: color-mix(in srgb, var(--st-text-strong) 8%, transparent);
   cursor: pointer;
 }
 .notice button:focus-visible { outline: .18rem solid var(--st-secondary-soft-text); outline-offset: .12rem; }
 
-.critical { border-color: #f08069; background: rgb(127 29 29 / 88%); }
-.important { border-color: var(--st-secondary-soft-text); background: linear-gradient(110deg, rgb(75 61 35 / 94%), rgb(0 0 0 / 90%)); }
-.informational { border-color: var(--st-primary-soft-text); background: linear-gradient(110deg, rgb(76 29 149 / 62%), rgb(0 0 0 / 90%)); }
+.critical { border-color: var(--st-danger); background: color-mix(in srgb, var(--st-danger) 38%, var(--st-page)); }
+.important { border-color: var(--st-secondary-soft-text); background: linear-gradient(110deg, color-mix(in srgb, var(--st-secondary) 28%, var(--st-page)), color-mix(in srgb, var(--st-page) 90%, transparent)); }
+.informational { border-color: var(--st-primary-soft-text); background: linear-gradient(110deg, color-mix(in srgb, var(--st-primary) 42%, var(--st-page)), color-mix(in srgb, var(--st-page) 90%, transparent)); }
 
 @keyframes arrive {
   from { opacity: 0; transform: translateY(-.5rem); }

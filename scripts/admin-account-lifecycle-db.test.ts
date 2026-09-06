@@ -5,12 +5,14 @@ import test, { after } from "node:test";
 import { eq } from "drizzle-orm";
 
 import { db, pool } from "@/db";
+import { siteAppearanceSetting } from "@/db/appearance-schema";
 import { account, session, user, verification } from "@/db/auth-schema";
 import { userRole, type SerrianRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { chatRoom, chatRoomMember } from "@/db/chat-schema";
 import { lifecycleAuditEvent } from "@/db/lifecycle-schema";
 import { campaignCharacter } from "@/db/realm-schema";
+import { DEFAULT_APPEARANCE } from "@/features/appearance/appearance";
 import { setUserRoleInTransaction } from "@/features/authorization/user-role-service";
 import {
   permanentlyDeleteAdminAccount,
@@ -52,6 +54,7 @@ type UserGraphSnapshot = {
   campaignMemberships: number;
   chatMemberships: number;
   characters: number;
+  appearanceAttributions: number;
   deletionAudits: number;
 };
 
@@ -68,6 +71,7 @@ const administratorSentinel = identity("administrator-sentinel");
 const nonAdministrator = identity("non-administrator");
 const cleanTarget = identity("clean-target");
 const blockedTarget = identity("blocked-target");
+const appearanceAttributedTarget = identity("appearance-attributed-target");
 const rollbackTarget = identity("rollback-target");
 const verificationInsertRaceTarget = identity("verification-insert-race-target");
 const verificationUpdateRaceTarget = identity("verification-update-race-target");
@@ -182,6 +186,7 @@ async function snapshotUserGraph(userId: string): Promise<UserGraphSnapshot> {
     campaign_memberships: number | string;
     chat_memberships: number | string;
     characters: number | string;
+    appearance_attributions: number | string;
     deletion_audits: number | string;
   }>(
     `select
@@ -193,6 +198,7 @@ async function snapshotUserGraph(userId: string): Promise<UserGraphSnapshot> {
        (select count(*) from campaign_player where user_id = $1)::int as campaign_memberships,
        (select count(*) from chat_room_member where user_id = $1)::int as chat_memberships,
        (select count(*) from campaign_character where player_user_id = $1)::int as characters,
+       (select count(*) from site_appearance_setting where updated_by_user_id = $1)::int as appearance_attributions,
        (
          select count(*)
          from lifecycle_audit_event
@@ -213,6 +219,7 @@ async function snapshotUserGraph(userId: string): Promise<UserGraphSnapshot> {
     campaignMemberships: Number(row.campaign_memberships),
     chatMemberships: Number(row.chat_memberships),
     characters: Number(row.characters),
+    appearanceAttributions: Number(row.appearance_attributions),
     deletionAudits: Number(row.deletion_audits),
   };
 }
@@ -221,6 +228,7 @@ async function cleanupFixtures(): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("begin");
+    await client.query("delete from site_appearance_setting where updated_by_user_id like $1", [markerPattern]);
     await client.query(
       `delete from lifecycle_audit_event
        where actor_user_id like $1 or target_id like $1`,
@@ -266,6 +274,7 @@ after(async () => {
         + (select count(*) from campaign where name like $1)
         + (select count(*) from campaign_player where user_id like $1)
         + (select count(*) from campaign_character where name like $1 or player_user_id like $1)
+        + (select count(*) from site_appearance_setting where updated_by_user_id like $1)
         + (select count(*) from chat_room where slug like $1)
         + (select count(*) from chat_room_member where user_id like $1)
         + (select count(*) from lifecycle_audit_event where actor_user_id like $1 or target_id like $1)
@@ -288,6 +297,7 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
   await createUserFixture(nonAdministrator, "god");
   await createUserFixture(cleanTarget, "player");
   await createUserFixture(blockedTarget, "player");
+  await createUserFixture(appearanceAttributedTarget, "player");
   await createUserFixture(rollbackTarget, "player");
   await createUserFixture(verificationInsertRaceTarget, "player");
   await createUserFixture(verificationUpdateRaceTarget, "player");
@@ -329,6 +339,11 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
     name: `${marker}-blocked-character`,
     isNpc: false,
   }).returning({ id: campaignCharacter.id });
+  await db.insert(siteAppearanceSetting).values({
+    key: "site",
+    ...DEFAULT_APPEARANCE,
+    updatedByUserId: appearanceAttributedTarget.id,
+  });
 
   const cleanBeforeRejections = await snapshotUserGraph(cleanTarget.id);
   const mutableEnvironment = process.env as Record<string, string | undefined>;
@@ -446,6 +461,50 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
     "the Character behind the blocker must survive",
   );
 
+  const appearanceAttributedBefore = await snapshotUserGraph(
+    appearanceAttributedTarget.id,
+  );
+  const appearanceSettingBefore = await db
+    .select()
+    .from(siteAppearanceSetting)
+    .where(eq(siteAppearanceSetting.key, "site"));
+  const appearancePreview = await previewAdminAccountDeletion(
+    administrator.id,
+    appearanceAttributedTarget.id,
+  );
+  assert.equal(appearancePreview.canDelete, false);
+  assert.deepEqual(
+    appearancePreview.blockers.find(
+      ({ key }) => key === "site_appearance_setting_updated_by_user_id_user_id_fk",
+    ),
+    {
+      key: "site_appearance_setting_updated_by_user_id_user_id_fk",
+      label: "Site appearance update attribution",
+      tableName: "site_appearance_setting",
+      columnName: "updated_by_user_id",
+      count: 1,
+      blocking: true,
+    },
+  );
+  await assert.rejects(
+    permanentlyDeleteAdminAccount(administrator.id, {
+      targetUserId: appearanceAttributedTarget.id,
+      confirmationText: `DELETE ${appearanceAttributedTarget.email}`,
+      reason: "Appearance-attribution blocker fixture",
+    }),
+    /blocked by retained content or history: Site appearance update attribution \(1\)/,
+  );
+  assert.deepEqual(
+    await snapshotUserGraph(appearanceAttributedTarget.id),
+    appearanceAttributedBefore,
+    "appearance attribution must block every destructive account change",
+  );
+  assert.deepEqual(
+    await db.select().from(siteAppearanceSetting).where(eq(siteAppearanceSetting.key, "site")),
+    appearanceSettingBefore,
+    "blocked account deletion must preserve the site appearance setting and its attribution",
+  );
+
   const cleanPreview = await previewAdminAccountDeletion(
     administrator.id,
     cleanTarget.id,
@@ -493,6 +552,7 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
     campaignMemberships: 0,
     chatMemberships: 0,
     characters: 0,
+    appearanceAttributions: 0,
     deletionAudits: 1,
   });
 

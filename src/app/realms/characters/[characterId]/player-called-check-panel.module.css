@@ -26,13 +26,13 @@
 .panel dt { color: color-mix(in srgb, currentColor 65%, transparent); font-size: 0.76rem; letter-spacing: 0.07em; }
 .panel em { font-style: normal; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.8rem; margin-top: 0.9rem; }
-.grid article { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 0.6rem; padding: 0.8rem; background: color-mix(in srgb, black 16%, transparent); }
+.grid article { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 0.6rem; padding: 0.8rem; background: color-mix(in srgb, var(--st-page) 16%, transparent); }
 .grid article.pending { border-color: var(--gold, var(--st-secondary)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold, var(--st-secondary)) 30%, transparent); }
 .grid dl { display: grid; gap: 0.3rem; margin: 0.7rem 0; }
 .grid dl div { display: flex; justify-content: space-between; gap: 0.75rem; }
 .grid dd { margin: 0; text-align: right; }
 .grid button { min-height: 2.4rem; padding: 0.45rem 0.75rem; }
-.notice { color: #a9e5b5; }
+.notice { color: var(--st-success); }
 .error { color: var(--st-text-strong); }
 .ruling,
 .waiting { border-left: 3px solid var(--gold, var(--st-secondary)); padding-left: 0.6rem; }

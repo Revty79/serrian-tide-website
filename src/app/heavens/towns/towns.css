@@ -26,7 +26,7 @@
 .towns-page button:hover:not(:disabled),
 .towns-link-button:hover { border-color: var(--st-primary); background: color-mix(in srgb, var(--st-primary) 24%, transparent); }
 .towns-page button:disabled { cursor: not-allowed; opacity: .45; }
-.towns-page button.is-danger { border-color: rgb(248 113 113 / 45%); background: rgb(127 29 29 / 28%); color: #fecaca; }
+.towns-page button.is-danger { border-color: color-mix(in srgb, var(--st-danger) 45%, transparent); background: color-mix(in srgb, var(--st-danger) 28%, transparent); color: var(--st-danger); }
 
 .towns-header,
 .towns-scope,
@@ -90,7 +90,7 @@
 .towns-scope.is-admin { border-color: var(--st-primary-border); }
 .towns-feedback.is-success { border-color: color-mix(in srgb, var(--st-primary) 42%, transparent); color: var(--st-primary-soft-text); }
 .towns-feedback.is-error,
-.towns-readonly { border-color: rgb(248 113 113 / 42%); color: #fecaca; }
+.towns-readonly { border-color: color-mix(in srgb, var(--st-danger) 42%, transparent); color: var(--st-danger); }
 
 .towns-context,
 .towns-create {

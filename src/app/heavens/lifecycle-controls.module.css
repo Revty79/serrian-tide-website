@@ -18,29 +18,29 @@
 .confirm {
   min-height: 2.5rem;
   border-radius: 999px;
-  border: 1px solid rgb(148 163 184 / 30%);
+  border: 1px solid color-mix(in srgb, var(--st-muted) 30%, transparent);
   padding: 0.55rem 1rem;
   color: var(--st-text);
-  background: rgb(15 23 42 / 78%);
+  background: color-mix(in srgb, var(--st-surface) 78%, transparent);
   cursor: pointer;
 }
 
 .action:hover,
 .cancel:hover {
   border-color: color-mix(in srgb, var(--st-secondary) 55%, transparent);
-  background: rgb(51 65 85 / 82%);
+  background: color-mix(in srgb, var(--st-surface-raised) 82%, transparent);
 }
 
 .danger {
   margin-left: auto;
-  border-color: rgb(248 113 113 / 45%);
-  color: #fecaca;
-  background: rgb(127 29 29 / 18%);
+  border-color: color-mix(in srgb, var(--st-danger) 45%, transparent);
+  color: var(--st-danger);
+  background: color-mix(in srgb, var(--st-danger) 18%, transparent);
 }
 
 .danger:hover,
 .confirm:hover {
-  background: rgb(127 29 29 / 36%);
+  background: color-mix(in srgb, var(--st-danger) 36%, transparent);
 }
 
 .action:disabled,
@@ -61,11 +61,11 @@
   padding: 0;
   color: var(--st-text);
   background: var(--st-surface);
-  box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 60%);
+  box-shadow: 0 1.5rem 5rem color-mix(in srgb, var(--st-page) 60%, transparent);
 }
 
 .dialog::backdrop {
-  background: rgb(2 6 23 / 78%);
+  background: color-mix(in srgb, var(--st-surface) 78%, transparent);
   backdrop-filter: blur(3px);
 }
 
@@ -114,7 +114,7 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid rgb(148 163 184 / 16%);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-muted) 16%, transparent);
   padding-bottom: 0.45rem;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .blocking {
-  color: #fecaca;
+  color: var(--st-danger);
 }
 
 .notice,
@@ -136,13 +136,13 @@
 .notice {
   border: 1px solid color-mix(in srgb, var(--st-secondary) 30%, transparent);
   color: var(--st-secondary);
-  background: rgb(120 53 15 / 20%);
+  background: color-mix(in srgb, var(--st-warning) 20%, transparent);
 }
 
 .error {
-  border: 1px solid rgb(248 113 113 / 38%);
-  color: #fecaca;
-  background: rgb(127 29 29 / 22%);
+  border: 1px solid color-mix(in srgb, var(--st-danger) 38%, transparent);
+  color: var(--st-danger);
+  background: color-mix(in srgb, var(--st-danger) 22%, transparent);
 }
 
 .field {
@@ -155,11 +155,11 @@
 .field textarea,
 .field input {
   width: 100%;
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid color-mix(in srgb, var(--st-muted) 32%, transparent);
   border-radius: 0.65rem;
   padding: 0.7rem 0.8rem;
   color: var(--st-text);
-  background: rgb(2 6 23 / 55%);
+  background: color-mix(in srgb, var(--st-surface) 55%, transparent);
 }
 
 .footer {
@@ -167,14 +167,14 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.65rem;
-  border-top: 1px solid rgb(148 163 184 / 18%);
+  border-top: 1px solid color-mix(in srgb, var(--st-muted) 18%, transparent);
   padding-top: 1rem;
 }
 
 .confirm {
-  border-color: rgb(248 113 113 / 60%);
+  border-color: color-mix(in srgb, var(--st-danger) 60%, transparent);
   color: var(--st-text-strong);
-  background: rgb(153 27 27 / 48%);
+  background: color-mix(in srgb, var(--st-danger) 48%, transparent);
 }
 
 @media (max-width: 42rem) {

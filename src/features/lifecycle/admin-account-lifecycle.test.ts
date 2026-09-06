@@ -26,8 +26,16 @@ type SnapshotTable = {
   foreignKeys: Record<string, SnapshotForeignKey>;
 };
 
+const migrationJournal = JSON.parse(
+  readFileSync("drizzle/meta/_journal.json", "utf8"),
+) as { entries: Array<{ idx: number; tag: string }> };
+const currentMigration = migrationJournal.entries.at(-1);
+assert.ok(currentMigration, "the migration journal must contain a current entry");
+const currentMigrationPrefix = /^(\d{4})_/.exec(currentMigration.tag)?.[1];
+assert.ok(currentMigrationPrefix, "the current migration tag must begin with its four-digit index");
+const snapshotPath = `drizzle/meta/${currentMigrationPrefix}_snapshot.json`;
 const snapshot = JSON.parse(
-  readFileSync("drizzle/meta/0036_snapshot.json", "utf8"),
+  readFileSync(snapshotPath, "utf8"),
 ) as { tables: Record<string, SnapshotTable> };
 const serviceSource = readFileSync(
   "src/features/lifecycle/admin-account-lifecycle-service.ts",
@@ -61,7 +69,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the exact 70-FK User closure", () => {
+test("the account plan classifies the current 71-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -80,9 +88,11 @@ test("the account plan classifies the exact 70-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 70);
-  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 70);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 71);
+  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 71);
   assert.deepEqual(planned, actual);
+  assert.equal(currentMigration.tag, "0037_site_appearance");
+  assert.equal(snapshotPath, "drizzle/meta/0037_snapshot.json");
 });
 
 test("only authentication and membership associations are cleanup FKs", () => {
@@ -101,7 +111,7 @@ test("only authentication and membership associations are cleanup FKs", () => {
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    65,
+    66,
   );
   assert.ok(
     USER_ACCOUNT_FOREIGN_KEY_PLAN
@@ -115,6 +125,19 @@ test("only authentication and membership associations are cleanup FKs", () => {
     )?.disposition,
     "block",
     "the database cascade must never silently delete Characters or NPCs",
+  );
+  assert.deepEqual(
+    USER_ACCOUNT_FOREIGN_KEY_PLAN.find(
+      ({ constraintName }) => constraintName === "site_appearance_setting_updated_by_user_id_user_id_fk",
+    ),
+    {
+      tableName: "site_appearance_setting",
+      columnName: "updated_by_user_id",
+      constraintName: "site_appearance_setting_updated_by_user_id_user_id_fk",
+      onDelete: "set null",
+      disposition: "block",
+      label: "Site appearance update attribution",
+    },
   );
 });
 
@@ -306,5 +329,9 @@ test("permanent deletion gates twice, rechecks every dependency, audits, and cle
     assert.match(cleanupBlock, new RegExp(`tx\\.delete\\(${table}\\)`));
   }
   assert.match(cleanupBlock, /eq\(verification\.value, targetUserId\)/);
-  assert.doesNotMatch(cleanupBlock, /campaignCharacter|lifecycleAuditEvent|chatMessage/);
+  assert.doesNotMatch(
+    cleanupBlock,
+    /campaignCharacter|lifecycleAuditEvent|chatMessage|siteAppearanceSetting/,
+    "retained records and appearance attribution must never enter destructive cleanup",
+  );
 });

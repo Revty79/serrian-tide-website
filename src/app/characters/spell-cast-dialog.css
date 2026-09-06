@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(4 9 13 / 82%);
+  background: color-mix(in srgb, var(--st-page) 82%, transparent);
   overflow-y: auto;
 }
 
@@ -17,7 +17,7 @@
   border: 1px solid color-mix(in srgb, var(--st-primary) 52%, transparent);
   background: var(--st-surface);
   color: var(--st-text);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--st-page) 55%, transparent);
 }
 
 .spell-cast-dialog__header,
@@ -65,7 +65,7 @@
 .spell-cast-dialog__primary {
   border-color: var(--st-secondary) !important;
   background: var(--st-secondary) !important;
-  color: #fff !important;
+  color: var(--st-text-strong) !important;
   font-weight: 800 !important;
 }
 
@@ -76,15 +76,15 @@
   margin: 1rem 0 0;
   padding: .9rem 1rem;
   border: 1px solid color-mix(in srgb, var(--st-primary) 25%, transparent);
-  background: rgb(255 255 255 / 3%);
+  background: color-mix(in srgb, var(--st-text-strong) 3%, transparent);
 }
 
 .spell-cast-dialog__error,
 .spell-cast-dialog__section.is-error,
 .spell-cast-dialog__status.is-invalid,
 .spell-cast-dialog__status.is-insufficient-mana {
-  border-color: #9b5151;
-  background: rgb(120 38 38 / 18%);
+  border-color: var(--st-danger);
+  background: color-mix(in srgb, var(--st-danger) 18%, transparent);
 }
 
 .spell-cast-dialog__section.is-warning,
@@ -119,7 +119,7 @@
 
 .spell-cast-dialog__facts div {
   padding: .7rem;
-  background: rgb(255 255 255 / 4%);
+  background: color-mix(in srgb, var(--st-text-strong) 4%, transparent);
 }
 
 .spell-cast-dialog__facts dt {
@@ -169,7 +169,7 @@
   gap: .5rem;
   align-items: center;
   padding: .45rem;
-  background: rgb(255 255 255 / 4%);
+  background: color-mix(in srgb, var(--st-text-strong) 4%, transparent);
 }
 
 .spell-cast-dialog__applications {
@@ -180,7 +180,7 @@
 
 .spell-cast-dialog__applications li {
   padding: .7rem;
-  background: rgb(255 255 255 / 4%);
+  background: color-mix(in srgb, var(--st-text-strong) 4%, transparent);
 }
 
 .spell-cast-dialog__applications li > div span {

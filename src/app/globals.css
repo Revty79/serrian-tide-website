@@ -41,6 +41,20 @@
   --color-amber-700: var(--st-secondary-deep);
   --color-amber-800: var(--st-secondary-deep);
   --color-amber-900: var(--st-secondary-deep);
+  --color-red-100: var(--st-danger);
+  --color-red-200: var(--st-danger);
+  --color-red-300: var(--st-danger);
+  --color-red-400: var(--st-danger);
+  --color-red-500: var(--st-danger);
+  --color-red-950: var(--st-danger);
+  --color-emerald-100: var(--st-success);
+  --color-emerald-200: var(--st-success);
+  --color-emerald-300: var(--st-success);
+  --color-emerald-950: var(--st-success);
+  --color-orange-100: var(--st-warning);
+  --color-orange-200: var(--st-warning);
+  --color-orange-300: var(--st-warning);
+  --color-teal-950: var(--st-primary-deep);
   --color-black: var(--st-page);
   --color-white: var(--st-text);
 }
@@ -63,6 +77,21 @@
   --st-muted: #9eada4;
   --st-on-primary: var(--st-page);
   --st-on-secondary: var(--st-page);
+  --st-success: #6bd49f;
+  --st-warning: #f0bd5e;
+  --st-danger: #f18b98;
+  --st-info: #79b8e8;
+  --st-health: #f87171;
+  --st-mana: #60a5fa;
+}
+
+/*
+ * Declare every derived appearance token on the element that owns the six
+ * base colors. This lets the document root and scoped previews resolve the
+ * exact same formulas without inheriting already-computed saved-theme values.
+ */
+:root,
+[data-appearance-theme-scope] {
   --st-page-top: color-mix(in srgb, var(--st-surface) 72%, var(--st-primary) 28%);
   --st-surface-raised: color-mix(in srgb, var(--st-surface) 88%, var(--st-text) 12%);
   --st-surface-soft: color-mix(in srgb, var(--st-surface) 82%, transparent);
@@ -88,10 +117,6 @@
   --st-focus: color-mix(in srgb, var(--st-secondary) 88%, white 12%);
   --st-selection: color-mix(in srgb, var(--st-primary) 35%, transparent);
   --st-shadow: rgb(0 0 0 / 38%);
-  --st-success: #6bd49f;
-  --st-warning: #f0bd5e;
-  --st-danger: #f18b98;
-  --st-info: #79b8e8;
 
   /* Compatibility aliases retained for existing screens. */
   --st-deep: var(--st-page);

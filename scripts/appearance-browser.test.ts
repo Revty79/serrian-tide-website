@@ -10,7 +10,7 @@ import { hashPassword } from "better-auth/crypto";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg, { type PoolClient } from "pg";
-import { chromium, type BrowserContext, type Page } from "playwright-core";
+import { chromium, type BrowserContext, type Locator, type Page } from "playwright-core";
 
 const defaultWindowsPostgresBin = "C:\\Program Files\\PostgreSQL\\18\\bin";
 const postgresBin = process.env.SERRIAN_TEST_POSTGRES_BIN
@@ -127,14 +127,69 @@ async function rootVariable(page: Page, name: string): Promise<string> {
   return page.evaluate((propertyName) => getComputedStyle(document.documentElement).getPropertyValue(propertyName).trim().toUpperCase(), name);
 }
 
-async function assertUsesTheme(page: Page, selector: string): Promise<void> {
-  const themed = page.locator(selector).first();
-  await themed.waitFor();
-  const colors = await themed.evaluate((element) => {
+type ComputedThemeStyle = {
+  color: string;
+  backgroundColor: string;
+  backgroundImage: string;
+  borderTopColor: string;
+};
+
+async function computedThemeStyle(locator: Locator): Promise<ComputedThemeStyle> {
+  await locator.waitFor();
+  return locator.evaluate((element) => {
     const style = getComputedStyle(element);
-    return { color: style.color, background: style.backgroundColor, border: style.borderColor };
+    return {
+      color: style.color,
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderTopColor: style.borderTopColor,
+    };
   });
-  assert.notEqual(colors.color, "rgb(0, 0, 0)", `${selector} fell back to unthemed black text.`);
+}
+
+async function resolveCssValue(page: Page, property: string, value: string): Promise<string> {
+  return page.evaluate(({ propertyName, propertyValue }) => {
+    const probe = document.createElement("span");
+    probe.style.setProperty("position", "fixed");
+    probe.style.setProperty("visibility", "hidden");
+    probe.style.setProperty(propertyName, propertyValue);
+    document.body.append(probe);
+    const resolved = getComputedStyle(probe).getPropertyValue(propertyName);
+    probe.remove();
+    return resolved;
+  }, { propertyName: property, propertyValue: value });
+}
+
+async function assertComputedTheme(
+  page: Page,
+  selector: string,
+  expectations: Partial<Record<"color" | "background-color" | "border-top-color", string>>,
+): Promise<void> {
+  const element = page.locator(selector).first();
+  const actual = await computedThemeStyle(element);
+  const actualByProperty = {
+    color: actual.color,
+    "background-color": actual.backgroundColor,
+    "border-top-color": actual.borderTopColor,
+  };
+  for (const [property, expression] of Object.entries(expectations)) {
+    assert.equal(
+      actualByProperty[property as keyof typeof actualByProperty],
+      await resolveCssValue(page, property, expression),
+      `${selector} did not resolve ${property} from ${expression}.`,
+    );
+  }
+}
+
+async function previewThemeStyles(page: Page): Promise<Record<string, ComputedThemeStyle>> {
+  const preview = page.locator("[data-appearance-preview]");
+  return {
+    preview: await computedThemeStyle(preview),
+    brand: await computedThemeStyle(preview.locator("nav strong")),
+    surface: await computedThemeStyle(preview.locator("article")),
+    input: await computedThemeStyle(preview.locator("input")),
+    secondaryButton: await computedThemeStyle(preview.locator("button").nth(1)),
+  };
 }
 
 async function main(): Promise<void> {
@@ -189,17 +244,55 @@ async function main(): Promise<void> {
     assert.equal(await adminPage.locator("html").getAttribute("data-appearance-preset"), "serrian-tide");
 
     const preview = adminPage.locator("[data-appearance-preview]");
+    const controls = adminPage.locator('[aria-labelledby="appearance-controls-heading"]');
+    const savedPreviewStyles = await previewThemeStyles(adminPage);
+    const savedSurroundingStyles = await computedThemeStyle(controls);
     await adminPage.getByRole("button", { name: "Classic" }).click();
+    await adminPage.waitForFunction(() => getComputedStyle(document.querySelector("[data-appearance-preview]")!).getPropertyValue("--st-primary").trim().toUpperCase() === "#8B5CF6");
+    const classicPreviewStyles = await previewThemeStyles(adminPage);
     assert.equal(await preview.evaluate((element) => getComputedStyle(element).getPropertyValue("--st-primary").trim().toUpperCase()), "#8B5CF6");
+    assert.notEqual(classicPreviewStyles.brand.backgroundImage, savedPreviewStyles.brand.backgroundImage, "The preview logo gradient did not react to the draft preset.");
+    assert.notEqual(classicPreviewStyles.input.backgroundColor, savedPreviewStyles.input.backgroundColor, "The preview input did not react to the draft preset.");
+    assert.notEqual(classicPreviewStyles.input.borderTopColor, savedPreviewStyles.input.borderTopColor, "The preview input border did not react to the draft preset.");
+    assert.notEqual(classicPreviewStyles.secondaryButton.backgroundColor, savedPreviewStyles.secondaryButton.backgroundColor, "The preview secondary action did not react to the draft preset.");
+    assert.notEqual(classicPreviewStyles.surface.backgroundColor, savedPreviewStyles.surface.backgroundColor, "The preview panel did not react to the draft preset.");
+    assert.deepEqual(await computedThemeStyle(controls), savedSurroundingStyles, "The unsaved draft changed the surrounding Appearance page.");
     assert.equal(await rootVariable(adminPage, "--st-primary"), "#4DA97D", "Unsaved preview leaked into the live document.");
     await adminPage.getByRole("button", { name: "Cancel changes" }).click();
+    await adminPage.waitForFunction(() => getComputedStyle(document.querySelector("[data-appearance-preview]")!).getPropertyValue("--st-primary").trim().toUpperCase() === "#4DA97D");
     assert.equal(await preview.evaluate((element) => getComputedStyle(element).getPropertyValue("--st-primary").trim().toUpperCase()), "#4DA97D");
+    assert.deepEqual(await previewThemeStyles(adminPage), savedPreviewStyles, "Cancel did not restore every computed preview treatment.");
 
     await adminPage.getByRole("button", { name: "Classic" }).click();
+    await adminPage.waitForFunction(() => getComputedStyle(document.querySelector("[data-appearance-preview]")!).getPropertyValue("--st-primary").trim().toUpperCase() === "#8B5CF6");
+    const classicBeforeSave = await previewThemeStyles(adminPage);
     await adminPage.getByRole("button", { name: "Save appearance" }).click();
     await adminPage.getByText("Site appearance saved.", { exact: false }).waitFor();
     assert.equal(await rootVariable(adminPage, "--st-primary"), "#8B5CF6");
+    assert.deepEqual(await previewThemeStyles(adminPage), classicBeforeSave, "Publishing changed the previewed Classic styles.");
+    await assertComputedTheme(adminPage, "[data-appearance-preview]", {
+      color: "var(--st-text)",
+      "background-color": "var(--st-page)",
+      "border-top-color": "var(--st-border)",
+    });
+    await assertComputedTheme(adminPage, "[data-appearance-preview] input", {
+      color: "var(--st-text)",
+      "background-color": "var(--st-input)",
+      "border-top-color": "var(--st-border-strong)",
+    });
     assert.deepEqual((await pool.query("select preset_id,primary_accent from site_appearance_setting where key='site'")).rows, [{ preset_id: "classic", primary_accent: "#8B5CF6" }]);
+
+    await adminPage.reload();
+    await preview.waitFor();
+    assert.deepEqual(await previewThemeStyles(adminPage), classicBeforeSave, "A fresh load did not reproduce the previewed Classic styles.");
+
+    await adminPage.getByRole("button", { name: "Serrian Tide" }).click();
+    await adminPage.waitForFunction(() => getComputedStyle(document.querySelector("[data-appearance-preview]")!).getPropertyValue("--st-primary").trim().toUpperCase() === "#4DA97D");
+    assert.notDeepEqual(await previewThemeStyles(adminPage), classicBeforeSave, "The Serrian Tide preset was not visually distinct from Classic.");
+    assert.equal(await rootVariable(adminPage, "--st-primary"), "#8B5CF6", "The unsaved Serrian Tide preset leaked into the document root.");
+    await adminPage.getByRole("button", { name: "Cancel changes" }).click();
+    await adminPage.waitForFunction(() => getComputedStyle(document.querySelector("[data-appearance-preview]")!).getPropertyValue("--st-primary").trim().toUpperCase() === "#8B5CF6");
+    assert.deepEqual(await previewThemeStyles(adminPage), classicBeforeSave, "Cancel did not restore the saved Classic preview.");
 
     const anonymousPage = await anonymousContext.newPage();
     const response = await anonymousPage.goto(baseUrl);
@@ -216,11 +309,17 @@ async function main(): Promise<void> {
       "Muted text hex value": "#AAB9B0",
     };
     for (const [label, value] of Object.entries(custom)) await adminPage.getByLabel(label).fill(value);
+    await adminPage.waitForFunction(() => getComputedStyle(document.querySelector("[data-appearance-preview]")!).getPropertyValue("--st-primary").trim().toUpperCase() === "#58B88B");
+    const customBeforeSave = await previewThemeStyles(adminPage);
+    assert.notDeepEqual(customBeforeSave, classicBeforeSave, "The custom palette was not visibly different from Classic.");
+    assert.equal(await rootVariable(adminPage, "--st-primary"), "#8B5CF6", "The unsaved custom palette leaked into the document root.");
     await adminPage.getByRole("button", { name: "Save appearance" }).click();
     await adminPage.getByText("Site appearance saved.", { exact: false }).waitFor();
     assert.equal(await rootVariable(adminPage, "--st-primary"), "#58B88B");
+    assert.deepEqual(await previewThemeStyles(adminPage), customBeforeSave, "Publishing changed the previewed custom styles.");
     await adminPage.reload();
     assert.equal(await adminPage.getByLabel("Main text hex value").inputValue(), "#F1F3E8");
+    assert.deepEqual(await previewThemeStyles(adminPage), customBeforeSave, "A fresh load did not reproduce the previewed custom styles.");
 
     await adminPage.getByLabel("Main text hex value").fill("#06110F");
     await adminPage.locator('p[role="alert"]').waitFor();
@@ -239,18 +338,82 @@ async function main(): Promise<void> {
 
     await adminPage.goto(`${baseUrl}/heavens`);
     await adminPage.getByRole("heading", { name: "THE HEAVENS" }).waitFor();
-    await assertUsesTheme(adminPage, "main");
+    await assertComputedTheme(adminPage, "main", { color: "var(--st-text)" });
     await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "heavens-themed-desktop.png"), fullPage: true });
+
+    await adminPage.goto(`${baseUrl}/heavens/equipment`);
+    await adminPage.getByRole("heading", { name: "Equipment", exact: true }).waitFor();
+    await assertComputedTheme(adminPage, ".items-page", { color: "var(--st-text)" });
+    await assertComputedTheme(adminPage, "#item-search", {
+      color: "var(--st-text)",
+      "background-color": "var(--st-input)",
+      "border-top-color": "color-mix(in srgb, var(--st-text-strong) 12%, transparent)",
+    });
+    const equipmentPanelStyle = await computedThemeStyle(adminPage.locator(".skill-library"));
+    assert.notEqual(equipmentPanelStyle.backgroundImage, "none", "Equipment retained no themed panel treatment.");
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "equipment-themed-desktop.png"), fullPage: true });
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await adminPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "Equipment overflowed the narrow viewport.");
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "equipment-themed-narrow.png"), fullPage: true });
+    await adminPage.setViewportSize({ width: 1440, height: 960 });
+
+    await adminPage.goto(`${baseUrl}/heavens/skills`);
+    await adminPage.getByRole("heading", { name: "Skills", exact: true }).waitFor();
+    await assertComputedTheme(adminPage, ".skills-page", { color: "var(--st-text)" });
+    await assertComputedTheme(adminPage, ".skill-library input", {
+      color: "var(--st-text)",
+      "background-color": "var(--st-input)",
+      "border-top-color": "color-mix(in srgb, var(--st-text-strong) 12%, transparent)",
+    });
+    assert.notEqual((await computedThemeStyle(adminPage.locator(".skill-library"))).backgroundImage, "none", "Skills retained no themed panel treatment.");
+
+    await adminPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}`);
+    await adminPage.getByRole("heading", { name: "Tabletop Operations" }).waitFor();
+    await assertComputedTheme(adminPage, ".tabletop-page", { color: "var(--st-text)" });
+    await assertComputedTheme(adminPage, ".tabletop-campaigns select", {
+      color: "var(--st-text)",
+      "background-color": "var(--st-surface)",
+      "border-top-color": "color-mix(in srgb, var(--st-text-strong) 14%, transparent)",
+    });
+
+    await adminPage.goto(`${baseUrl}/chat`);
+    await adminPage.locator("[data-chat-workspace]").waitFor();
+    await assertComputedTheme(adminPage, "[data-chat-workspace]", { color: "var(--st-text)" });
+    await assertComputedTheme(adminPage, "[data-chat-workspace] h1", { color: "var(--st-text)" });
+    const crossroadsWorkspaceStyle = await computedThemeStyle(adminPage.locator('[data-chat-workspace] [aria-label="Selected conversation"]'));
+    assert.notEqual(crossroadsWorkspaceStyle.backgroundImage, "none", "Crossroads retained no themed conversation surface.");
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await adminPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "Crossroads overflowed the narrow viewport.");
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "crossroads-themed-narrow.png"), fullPage: true });
+    await adminPage.setViewportSize({ width: 1440, height: 960 });
 
     await adminPage.goto(`${baseUrl}/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.shopId}`);
     await adminPage.getByRole("heading", { name: "Chromatic Lantern", exact: true }).waitFor();
-    await assertUsesTheme(adminPage, ".shops-editor");
+    await assertComputedTheme(adminPage, ".shops-panel", {
+      "background-color": "var(--st-surface-raised)",
+      "border-top-color": "var(--st-border)",
+    });
     await adminPage.addStyleTag({ content: ".authenticated-navigation { position: static !important; }" });
     await adminPage.locator(".shops-editor").screenshot({ path: join(SCREENSHOT_DIRECTORY, "shop-themed-desktop.png") });
+    await adminPage.getByRole("button", { name: "Delete Shop", exact: true }).click();
+    const shopDialog = adminPage.locator("dialog.shops-dialog[open]");
+    await shopDialog.waitFor();
+    await assertComputedTheme(adminPage, "dialog.shops-dialog[open]", {
+      color: "var(--st-text)",
+      "background-color": "var(--st-page)",
+      "border-top-color": "color-mix(in srgb, var(--st-secondary) 25%, transparent)",
+    });
+    const backdropColor = await shopDialog.evaluate((element) => getComputedStyle(element, "::backdrop").backgroundColor);
+    assert.equal(backdropColor, await resolveCssValue(adminPage, "background-color", "color-mix(in srgb, var(--st-page) 72%, transparent)"), "The Shop overlay backdrop did not inherit the published page color.");
+    await adminPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "shop-delete-overlay-themed-desktop.png"), fullPage: true });
+    await shopDialog.getByRole("button", { name: "Cancel" }).click();
 
     await adminPage.goto(`${baseUrl}/heavens/towns?campaign=${fixture.campaignId}&town=${fixture.townId}`);
     await adminPage.getByRole("heading", { name: "Prism Harbor", exact: true }).waitFor();
-    await assertUsesTheme(adminPage, ".towns-editor");
+    await assertComputedTheme(adminPage, ".towns-panel", {
+      "background-color": "var(--st-surface-raised)",
+      "border-top-color": "var(--st-border)",
+    });
     await adminPage.setViewportSize({ width: 390, height: 844 });
     await adminPage.addStyleTag({ content: ".authenticated-navigation { position: static !important; }" });
     assert.equal(await adminPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "Town Builder overflowed the narrow viewport.");
@@ -261,12 +424,12 @@ async function main(): Promise<void> {
     await realmSelectors.nth(0).selectOption(String(fixture.campaignId));
     await realmSelectors.nth(1).locator(`option[value="${fixture.characterId}"]`).waitFor({ state: "attached" });
     await realmSelectors.nth(1).selectOption(String(fixture.characterId));
-    await assertUsesTheme(playerPage, "main");
+    await assertComputedTheme(playerPage, "main", { color: "var(--st-text)" });
     await playerPage.screenshot({ path: join(SCREENSHOT_DIRECTORY, "realms-themed-narrow.png"), fullPage: true });
     await playerPage.goto(`${baseUrl}/realms/characters/${fixture.characterId}`);
     await playerPage.getByRole("heading", { name: "Character Creation" }).waitFor();
     await playerPage.getByText(/Character: Mira Tideglass/).waitFor();
-    await assertUsesTheme(playerPage, "main");
+    await assertComputedTheme(playerPage, "main", { color: "var(--st-text)" });
 
     await playerPage.goto(`${baseUrl}/admin/appearance`);
     await playerPage.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
@@ -276,8 +439,8 @@ async function main(): Promise<void> {
       "admin-only Appearance navigation",
       "preset selection, isolated preview, cancel, publish, cache invalidation, and SSR hydration",
       "custom color persistence and invalid-contrast rejection",
-      "shared theme variables across Admin, Heavens, Shop, Town, Realms, and Character routes",
-      "desktop and narrow screenshots",
+      "computed theme styles across Equipment, Skills, Tabletop, Crossroads, Shops, Towns, Realms, and Character routes",
+      "desktop, narrow, and overlay screenshots",
     ], screenshotDirectory: SCREENSHOT_DIRECTORY }, null, 2));
     await Promise.all([adminContext.close(), playerContext.close(), anonymousContext.close()]);
   } finally {

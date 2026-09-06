@@ -32,8 +32,8 @@
   padding: clamp(1.5rem, 4vw, 2.5rem);
   border: 1px solid color-mix(in srgb, var(--st-primary) 24%, transparent);
   border-radius: 1.25rem;
-  background: rgba(4, 7, 17, 0.92);
-  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.34);
+  background: color-mix(in srgb, var(--st-page) 92%, transparent);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--st-page) 34%, transparent);
   text-align: center;
   backdrop-filter: blur(18px);
 }
@@ -49,8 +49,8 @@
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--st-primary) 14%, transparent);
   border-radius: 1.15rem;
-  background: linear-gradient(100deg, rgba(44, 19, 68, 0.66), rgba(5, 9, 20, 0.89) 36%, rgba(7, 12, 24, 0.92));
-  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--st-surface) 66%, transparent), color-mix(in srgb, var(--st-surface) 89%, transparent) 36%, color-mix(in srgb, var(--st-surface) 92%, transparent));
+  box-shadow: 0 1rem 3rem color-mix(in srgb, var(--st-page) 30%, transparent);
   backdrop-filter: blur(18px);
 }
 
@@ -62,8 +62,8 @@
   display: grid;
   align-content: center;
   align-self: stretch;
-  border-right: 1px solid rgba(255, 255, 255, 0.09);
-  background: linear-gradient(145deg, rgba(45, 21, 68, 0.48), rgba(5, 12, 21, 0.08));
+  border-right: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-surface) 48%, transparent), color-mix(in srgb, var(--st-surface) 8%, transparent));
 }
 
 .brand {
@@ -74,7 +74,7 @@
   font-size: clamp(1.35rem, 2vw, 1.75rem);
   line-height: 0.95;
   letter-spacing: -0.03em;
-  text-shadow: 0 0 1.5rem rgba(221, 168, 89, 0.16);
+  text-shadow: 0 0 1.5rem color-mix(in srgb, var(--st-warning) 16%, transparent);
 }
 
 .eyebrow { margin: 0; color: var(--st-primary-soft-text); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; }
@@ -100,7 +100,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.8rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 1px solid color-mix(in srgb, var(--st-text-strong) 7%, transparent);
   color: var(--st-text-soft);
   font-size: 0.7rem;
   text-align: right;
@@ -146,8 +146,8 @@
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--st-primary) 14%, transparent);
   border-radius: 1.15rem;
-  background: rgba(3, 7, 16, 0.88);
-  box-shadow: 0 1.25rem 4rem rgba(0, 0, 0, 0.36);
+  background: color-mix(in srgb, var(--st-page) 88%, transparent);
+  box-shadow: 0 1.25rem 4rem color-mix(in srgb, var(--st-page) 36%, transparent);
   backdrop-filter: blur(20px);
 }
 
@@ -157,15 +157,15 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 0.9rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.09);
-  background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--st-primary) 20%, transparent), transparent 30%), rgba(5, 9, 19, 0.82);
-  scrollbar-color: color-mix(in srgb, var(--st-primary) 55%, transparent) rgba(0, 0, 0, 0.2);
+  border-right: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
+  background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--st-primary) 20%, transparent), transparent 30%), color-mix(in srgb, var(--st-surface) 82%, transparent);
+  scrollbar-color: color-mix(in srgb, var(--st-primary) 55%, transparent) color-mix(in srgb, var(--st-page) 20%, transparent);
   overscroll-behavior: contain;
 }
 
-.roomGroup { position: relative; padding: 0.78rem; border: 1px solid rgba(255, 255, 255, 0.055); border-radius: 0.9rem; background: rgba(8, 12, 24, 0.48); }
-.roomGroup:nth-child(2) { background: linear-gradient(145deg, rgba(65, 43, 19, 0.13), rgba(8, 12, 24, 0.48)); }
-.roomGroup:nth-child(3) { background: linear-gradient(145deg, rgba(17, 64, 62, 0.13), rgba(8, 12, 24, 0.48)); }
+.roomGroup { position: relative; padding: 0.78rem; border: 1px solid color-mix(in srgb, var(--st-text-strong) 5.5%, transparent); border-radius: 0.9rem; background: color-mix(in srgb, var(--st-surface) 48%, transparent); }
+.roomGroup:nth-child(2) { background: linear-gradient(145deg, color-mix(in srgb, var(--st-surface) 13%, transparent), color-mix(in srgb, var(--st-surface) 48%, transparent)); }
+.roomGroup:nth-child(3) { background: linear-gradient(145deg, color-mix(in srgb, var(--st-surface) 13%, transparent), color-mix(in srgb, var(--st-surface) 48%, transparent)); }
 .roomGroup + .roomGroup { margin-top: 0.7rem; }
 
 .roomGroup h2 { margin: 0 0 0.48rem; color: var(--st-primary-soft-text); font-size: 0.64rem; font-weight: 750; letter-spacing: 0.15em; text-transform: uppercase; }
@@ -198,8 +198,8 @@
 }
 
 .roomButton:hover,
-.roomButton:focus-visible { border-color: rgba(255, 255, 255, 0.13); background: rgba(255, 255, 255, 0.05); color: var(--st-text); }
-.roomButtonActive { border-color: color-mix(in srgb, var(--st-secondary) 42%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--st-secondary) 15%, transparent), color-mix(in srgb, var(--st-primary) 12%, transparent)); color: var(--st-secondary-soft-text); box-shadow: inset 3px 0 var(--st-secondary), 0 0.4rem 1.2rem rgba(0, 0, 0, 0.12); }
+.roomButton:focus-visible { border-color: color-mix(in srgb, var(--st-text-strong) 13%, transparent); background: color-mix(in srgb, var(--st-text-strong) 5%, transparent); color: var(--st-text); }
+.roomButtonActive { border-color: color-mix(in srgb, var(--st-secondary) 42%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--st-secondary) 15%, transparent), color-mix(in srgb, var(--st-primary) 12%, transparent)); color: var(--st-secondary-soft-text); box-shadow: inset 3px 0 var(--st-secondary), 0 0.4rem 1.2rem color-mix(in srgb, var(--st-page) 12%, transparent); }
 .roomButtonText { display: grid; min-width: 0; gap: 0.08rem; }
 .roomButtonText strong,
 .roomButtonText small { overflow-wrap: anywhere; }
@@ -210,7 +210,7 @@
 .currentBadge,
 .archivedBadge { display: inline-flex; flex: none; align-items: center; border-radius: 999px; padding: 0.18rem 0.38rem; font-size: 0.56rem; font-weight: 750; line-height: 1; letter-spacing: 0.045em; text-transform: uppercase; }
 .currentBadge { border: 1px solid color-mix(in srgb, var(--st-secondary) 38%, transparent); background: color-mix(in srgb, var(--st-secondary) 14%, transparent); color: var(--st-secondary-soft-text); }
-.archivedBadge { border: 1px solid rgba(129, 148, 174, 0.26); background: rgba(91, 106, 128, 0.13); color: var(--st-text); }
+.archivedBadge { border: 1px solid color-mix(in srgb, var(--st-muted) 26%, transparent); background: color-mix(in srgb, var(--st-text-dim) 13%, transparent); color: var(--st-text); }
 .roomGroupEmpty { margin: 0.55rem 0 0; color: var(--st-text-soft); font-size: 0.67rem; line-height: 1.4; }
 
 .conversation {
@@ -219,7 +219,7 @@
   min-height: 0;
   overflow: hidden;
   flex-direction: column;
-  background: radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--st-primary) 13%, transparent), transparent 35%), rgba(3, 7, 16, 0.4);
+  background: radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--st-primary) 13%, transparent), transparent 35%), color-mix(in srgb, var(--st-page) 40%, transparent);
 }
 
 .conversationHeader {
@@ -232,9 +232,9 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.8rem clamp(0.9rem, 2vw, 1.35rem);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(5, 10, 21, 0.91);
-  box-shadow: 0 0.55rem 1.5rem rgba(0, 0, 0, 0.13);
+  border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 9%, transparent);
+  background: color-mix(in srgb, var(--st-surface) 91%, transparent);
+  box-shadow: 0 0.55rem 1.5rem color-mix(in srgb, var(--st-page) 13%, transparent);
 }
 
 .conversationHeader > div:first-child { min-width: 0; }
@@ -247,7 +247,7 @@
 .liveStatus { display: inline-flex; align-items: center; gap: 0.34rem; color: var(--st-text-soft); font-size: 0.62rem; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; }
 .liveStatus > span { width: 0.44rem; height: 0.44rem; border-radius: 999px; background: var(--st-secondary); box-shadow: 0 0 0.65rem color-mix(in srgb, var(--st-secondary) 42%, transparent); }
 .liveStatus[data-live-status="live"] > span { background: var(--st-primary); box-shadow: 0 0 0.65rem color-mix(in srgb, var(--st-primary) 48%, transparent); }
-.liveStatus[data-live-status="reconnecting"] > span { background: #c97d88; box-shadow: 0 0 0.65rem rgba(201, 125, 136, 0.45); }
+.liveStatus[data-live-status="reconnecting"] > span { background: var(--st-danger); box-shadow: 0 0 0.65rem color-mix(in srgb, var(--st-danger) 45%, transparent); }
 
 .conversationHeader button,
 .olderControl button,
@@ -286,7 +286,7 @@
 .directPanel button:disabled,
 .mobileRoomControls button:disabled { opacity: 0.48; cursor: not-allowed; }
 
-.errorNotice { flex: none; margin: 0; padding: 0.62rem 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.07); background: rgba(159, 59, 76, 0.14); color: var(--st-text-strong); font-size: 0.72rem; }
+.errorNotice { flex: none; margin: 0; padding: 0.62rem 1rem; border-bottom: 1px solid color-mix(in srgb, var(--st-text-strong) 7%, transparent); background: color-mix(in srgb, var(--st-danger) 14%, transparent); color: var(--st-text-strong); font-size: 0.72rem; }
 
 .history {
   min-width: 0;
@@ -295,7 +295,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 0.9rem clamp(0.75rem, 2vw, 1.45rem) 1.1rem;
-  scrollbar-color: color-mix(in srgb, var(--st-primary) 55%, transparent) rgba(0, 0, 0, 0.2);
+  scrollbar-color: color-mix(in srgb, var(--st-primary) 55%, transparent) color-mix(in srgb, var(--st-page) 20%, transparent);
   overscroll-behavior: contain;
 }
 
@@ -316,12 +316,12 @@
   border: 1px solid color-mix(in srgb, var(--st-primary) 17%, transparent);
   border-radius: 0.35rem 1rem 1rem 1rem;
   padding: 0.68rem 0.82rem;
-  background: linear-gradient(145deg, rgba(34, 24, 49, 0.86), rgba(10, 15, 28, 0.86));
-  box-shadow: 0 0.45rem 1.25rem rgba(0, 0, 0, 0.15);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st-surface) 86%, transparent), color-mix(in srgb, var(--st-surface) 86%, transparent));
+  box-shadow: 0 0.45rem 1.25rem color-mix(in srgb, var(--st-page) 15%, transparent);
 }
 
-.ownMessage { align-self: flex-end; border-color: color-mix(in srgb, var(--st-secondary) 22%, transparent); border-radius: 1rem 0.35rem 1rem 1rem; background: linear-gradient(145deg, rgba(50, 39, 25, 0.84), rgba(20, 18, 25, 0.88)); }
-.deletedMessage { border-color: rgba(102, 116, 139, 0.18); background: rgba(13, 17, 26, 0.55); box-shadow: none; }
+.ownMessage { align-self: flex-end; border-color: color-mix(in srgb, var(--st-secondary) 22%, transparent); border-radius: 1rem 0.35rem 1rem 1rem; background: linear-gradient(145deg, color-mix(in srgb, var(--st-surface) 84%, transparent), color-mix(in srgb, var(--st-surface) 88%, transparent)); }
+.deletedMessage { border-color: color-mix(in srgb, var(--st-muted) 18%, transparent); background: color-mix(in srgb, var(--st-surface) 55%, transparent); box-shadow: none; }
 .messageConfirming { width: min(100%, 34rem); max-width: min(94%, 34rem); }
 .messageMeta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 0.75rem; color: var(--st-text-soft); font-size: 0.63rem; }
 .messageMeta strong { color: var(--st-primary-soft-text); font-size: 0.74rem; font-weight: 650; overflow-wrap: anywhere; }
@@ -333,13 +333,13 @@
 .messageActions { margin-top: 0.42rem; text-align: right; }
 
 .messageActions > button,
-.deleteConfirm button { min-height: 2rem; border-color: rgba(206, 100, 117, 0.28); padding: 0.28rem 0.55rem; background: transparent; color: #dfa4af; font-size: 0.63rem; }
+.deleteConfirm button { min-height: 2rem; border-color: color-mix(in srgb, var(--st-danger) 28%, transparent); padding: 0.28rem 0.55rem; background: transparent; color: var(--st-danger); font-size: 0.63rem; }
 .deleteConfirm { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.42rem; color: var(--st-text-soft); font-size: 0.67rem; }
 .deleteConfirm > strong { margin-right: auto; color: var(--st-text); font-size: 0.69rem; }
 .moderationReason { display: grid; width: 100%; gap: 0.25rem; text-align: left; }
 .moderationReason > span { color: var(--st-primary-soft-text); font-size: 0.59rem; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; }
 
-.moderationReason input { width: 100%; min-height: 2.35rem; border: 1px solid rgba(206, 100, 117, 0.3); border-radius: 0.55rem; outline: none; padding: 0.42rem 0.55rem; background: rgba(3, 7, 15, 0.92); color: var(--st-text); }
+.moderationReason input { width: 100%; min-height: 2.35rem; border: 1px solid color-mix(in srgb, var(--st-danger) 30%, transparent); border-radius: 0.55rem; outline: none; padding: 0.42rem 0.55rem; background: color-mix(in srgb, var(--st-page) 92%, transparent); color: var(--st-text); }
 .moderationReason input:focus { border-color: color-mix(in srgb, var(--st-secondary) 68%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-secondary) 8%, transparent); }
 .moderationReason small { color: var(--st-text-soft); }
 .deleteConfirmButtons { display: inline-flex; gap: 0.4rem; }
@@ -349,9 +349,9 @@
   flex: none;
   gap: 0.38rem;
   padding: 0.72rem clamp(0.75rem, 2vw, 1.35rem) 0.62rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(4, 8, 17, 0.94);
-  box-shadow: 0 -0.75rem 2rem rgba(0, 0, 0, 0.16);
+  border-top: 1px solid color-mix(in srgb, var(--st-text-strong) 10%, transparent);
+  background: color-mix(in srgb, var(--st-page) 94%, transparent);
+  box-shadow: 0 -0.75rem 2rem color-mix(in srgb, var(--st-page) 16%, transparent);
 }
 
 .composer label,
@@ -361,7 +361,7 @@
 
 .composer textarea,
 .directSearchForm input,
-.mobileRoomControls select { width: 100%; border: 1px solid color-mix(in srgb, var(--st-primary) 30%, transparent); border-radius: 0.72rem; outline: none; background: rgba(3, 7, 15, 0.92); color: var(--st-text); }
+.mobileRoomControls select { width: 100%; border: 1px solid color-mix(in srgb, var(--st-primary) 30%, transparent); border-radius: 0.72rem; outline: none; background: color-mix(in srgb, var(--st-page) 92%, transparent); color: var(--st-text); }
 
 .composer textarea { min-height: 4rem; max-height: 10rem; resize: vertical; padding: 0.66rem 0.76rem; font-size: 0.83rem; line-height: 1.4; }
 .composerInputRow > button { min-width: 5.25rem; border-color: color-mix(in srgb, var(--st-primary) 40%, transparent); border-radius: 0.72rem; background: linear-gradient(180deg, color-mix(in srgb, var(--st-primary) 18%, transparent), color-mix(in srgb, var(--st-primary) 9%, transparent)); color: var(--st-primary-soft-text); }
@@ -373,21 +373,21 @@
 .directSearchForm input::placeholder { color: var(--st-muted); }
 .composerFooter { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; color: var(--st-text-soft); font-size: 0.62rem; }
 .counterLimit { color: var(--st-secondary-soft-text); }
-.inlineError { min-height: 0.8rem; margin: 0; color: #f4aebb; font-size: 0.66rem; }
+.inlineError { min-height: 0.8rem; margin: 0; color: var(--st-danger); font-size: 0.66rem; }
 
-.archivedComposerNotice { display: grid; flex: none; gap: 0.2rem; padding: 0.85rem clamp(0.9rem, 2vw, 1.35rem); border-top: 1px solid rgba(151, 165, 187, 0.15); background: linear-gradient(90deg, rgba(64, 73, 91, 0.18), rgba(6, 10, 19, 0.92)); color: var(--st-text-soft); font-size: 0.7rem; }
+.archivedComposerNotice { display: grid; flex: none; gap: 0.2rem; padding: 0.85rem clamp(0.9rem, 2vw, 1.35rem); border-top: 1px solid color-mix(in srgb, var(--st-muted) 15%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--st-surface-raised) 18%, transparent), color-mix(in srgb, var(--st-surface) 92%, transparent)); color: var(--st-text-soft); font-size: 0.7rem; }
 .archivedComposerNotice strong { color: var(--st-text-soft); font-size: 0.78rem; }
 .noRoomState { flex: 1; }
 .noRoomState h2 { font-size: 2rem; }
 .noRoomState p:not(.eyebrow) { margin: 0 0 0.75rem; color: var(--st-text-soft); }
 
-.mobileRoomPicker { display: none; flex: none; border: 1px solid rgba(255, 255, 255, 0.11); border-radius: 0.9rem; padding: 0.68rem; background: rgba(4, 8, 17, 0.91); backdrop-filter: blur(16px); }
+.mobileRoomPicker { display: none; flex: none; border: 1px solid color-mix(in srgb, var(--st-text-strong) 11%, transparent); border-radius: 0.9rem; padding: 0.68rem; background: color-mix(in srgb, var(--st-page) 91%, transparent); backdrop-filter: blur(16px); }
 .mobileRoomControls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; margin-top: 0.32rem; }
 .mobileRoomControls select { min-width: 0; min-height: 2.75rem; padding: 0.58rem 0.66rem; font-size: 0.76rem; }
 .mobileEmptyHints { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; margin: 0.48rem 0 0; color: var(--st-text-soft); font-size: 0.64rem; }
 
-.modalBackdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(1, 3, 9, 0.8); backdrop-filter: blur(8px); }
-.directPanel { width: min(100%, 34rem); max-height: min(42rem, calc(100dvh - 2rem)); overflow-y: auto; border: 1px solid color-mix(in srgb, var(--st-primary) 30%, transparent); border-radius: 1.2rem; padding: clamp(1rem, 3vw, 1.4rem); background: radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--st-primary) 22%, transparent), transparent 38%), var(--st-surface); box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.64); }
+.modalBackdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 1rem; background: color-mix(in srgb, var(--st-page) 80%, transparent); backdrop-filter: blur(8px); }
+.directPanel { width: min(100%, 34rem); max-height: min(42rem, calc(100dvh - 2rem)); overflow-y: auto; border: 1px solid color-mix(in srgb, var(--st-primary) 30%, transparent); border-radius: 1.2rem; padding: clamp(1rem, 3vw, 1.4rem); background: radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--st-primary) 22%, transparent), transparent 38%), var(--st-surface); box-shadow: 0 2rem 6rem color-mix(in srgb, var(--st-page) 64%, transparent); }
 .directPanelHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .directPanelHeader h2 { margin-top: 0.2rem; font-size: 1.55rem; }
 .directIntro { max-width: 27rem; margin: 0.8rem 0 0; color: var(--st-text-soft); font-size: 0.76rem; line-height: 1.45; }
@@ -423,11 +423,11 @@
   .brandBlock { min-height: 3.25rem; border-right: 0; padding: 0.62rem 0.8rem; }
   .brand { font-size: 1.28rem; }
   .brandBlock .eyebrow { display: none; }
-  .heroCopy { grid-column: 1 / -1; grid-row: 2; min-height: 3.25rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 0.55rem 0.8rem 0.62rem; }
+  .heroCopy { grid-column: 1 / -1; grid-row: 2; min-height: 3.25rem; border-top: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent); padding: 0.55rem 0.8rem 0.62rem; }
   .heroCopy .eyebrow,
   .heroCopy > p:last-child { display: none; }
   .heroCopy h1 { font-size: 1.48rem; }
-  .accountBlock { grid-column: 2; grid-row: 1; min-height: 3.25rem; border-left: 1px solid rgba(255, 255, 255, 0.08); padding: 0.5rem 0.65rem; }
+  .accountBlock { grid-column: 2; grid-row: 1; min-height: 3.25rem; border-left: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent); padding: 0.5rem 0.65rem; }
   .identityBlock { display: none; }
   .accountBlock a { min-height: 2.75rem; padding: 0.72rem 0.7rem; }
   .mobileRoomPicker { display: block; }
