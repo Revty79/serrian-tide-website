@@ -115,7 +115,12 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
       insert into shop (campaign_id,name,category,description,balance_credits,storefront_state,location_notes)
       values ($1,'Night Cart','Street vendor','A shuttered traveling cart.',31,'closed','Private route') returning id
     `, [campaignA])).rows[0]!.id);
-    await seedPool.query("insert into town_shop_membership (town_id,shop_id,campaign_id,sort_order) values ($1,$2,$3,0)", [townId, townShopId, campaignA]);
+    const archivedShopId = Number((await seedPool.query<{ id: number }>(`
+      insert into shop (campaign_id,name,category,description,balance_credits,storefront_state,location_notes)
+      values ($1,'Retired Chandlery','Supplies','A shuttered chandlery.',0,'closed','Retained private notes') returning id
+    `, [campaignA])).rows[0]!.id);
+    await seedPool.query(`insert into town_shop_membership (town_id,shop_id,campaign_id,sort_order) values
+      ($1,$2,$3,0),($1,$4,$3,1)`, [townId, townShopId, campaignA, archivedShopId]);
     const placeA = Number((await seedPool.query<{ id: number }>(`
       insert into town_place (town_id,campaign_id,name,category,description,location_notes,god_notes,sort_order)
       values ($1,$2,'Signal Tower','Landmark','A tall brass signal tower.','Private stair','Hidden lens',0) returning id
@@ -127,10 +132,29 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
     const sharedNpcId = await insertNpc(seedPool, { campaignId: campaignA, ownerId: ownerA, name: "Mira Voss", kind: "race", build: "simple" });
     const directNpcId = await insertNpc(seedPool, { campaignId: campaignA, ownerId: ownerA, name: "Harbor Drake", kind: "creature", build: "detailed" });
     const staffNpcId = await insertNpc(seedPool, { campaignId: campaignA, ownerId: ownerA, name: "Tomas Vale", kind: "race", build: "detailed" });
+    const archivedOnlyStaffNpcId = await insertNpc(seedPool, { campaignId: campaignA, ownerId: ownerA, name: "Retired Clerk", kind: "race", build: "simple" });
+    const directFallbackNpcId = await insertNpc(seedPool, { campaignId: campaignA, ownerId: ownerA, name: "Town Lamplighter", kind: "race", build: "detailed" });
+    const activeShopFallbackNpcId = await insertNpc(seedPool, { campaignId: campaignA, ownerId: ownerA, name: "Relief Clerk", kind: "creature", build: "simple" });
     await seedPool.query(`insert into town_npc_association (town_id,campaign_id,npc_character_id,relationship_label,sort_order)
-      values ($1,$2,$3,'Harbormaster',0),($1,$2,$4,'Dock guardian',1)`, [townId, campaignA, sharedNpcId, directNpcId]);
+      values ($1,$2,$3,'Harbormaster',0),($1,$2,$4,'Dock guardian',1),($1,$2,$5,'Lamplighter',2)`, [townId, campaignA, sharedNpcId, directNpcId, directFallbackNpcId]);
     await seedPool.query(`insert into shop_staff_assignment (shop_id,campaign_id,npc_character_id,responsibility_label,is_primary_contact,sort_order)
-      values ($1,$2,$3,'Navigator',true,0),($1,$2,$4,'Proprietor',false,1)`, [townShopId, campaignA, sharedNpcId, staffNpcId]);
+      values
+        ($1,$2,$3,'Navigator',true,0),
+        ($1,$2,$4,'Proprietor',false,1),
+        ($1,$2,$5,'Relief clerk',false,2),
+        ($6,$2,$7,'Retired clerk',false,0),
+        ($6,$2,$8,'Lamp supplier',false,1),
+        ($6,$2,$5,'Former relief clerk',false,2)`, [
+          townShopId,
+          campaignA,
+          sharedNpcId,
+          staffNpcId,
+          activeShopFallbackNpcId,
+          archivedShopId,
+          archivedOnlyStaffNpcId,
+          directFallbackNpcId,
+        ]);
+    await seedPool.query("update shop set archived_at=now(),archive_reason='Closed before Session preparation' where id=$1", [archivedShopId]);
     await seedPool.query(`insert into campaign_session_roster (session_id,campaign_id,character_id,sort_order)
       values ($1,$2,$3,0)`, [sessionId, campaignA, sharedNpcId]);
     await seedPool.query(`insert into campaign_session_scene_member (scene_id,session_id,campaign_id,character_id,sort_order)
@@ -140,8 +164,20 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
     applicationPool = dbModule.pool;
     const location = await import("@/features/tabletop-operations/location-placement-service");
     const publicProjection = await import("@/features/tabletop-operations/location-public-projection");
-    const first = await dbModule.db.transaction((tx) => location.placeTownInSceneInTransaction(tx, sceneId, townId, {}, ownerA));
-    const repeated = await dbModule.db.transaction((tx) => location.placeTownInSceneInTransaction(tx, sceneId, townId, {}, ownerA));
+    const initialWorkspace = await dbModule.db.transaction((tx) => location.readLocationPlacementWorkspaceInTransaction(tx, { sessionId, sceneId }));
+    const initialTown = initialWorkspace.towns.find(({ id }) => id === townId);
+    assert.ok(initialTown);
+    const defaultSelection = {
+      shopIds: initialTown.shops.filter(({ archived }) => !archived).map(({ id }) => id),
+      placeIds: initialTown.places.filter(({ archived }) => !archived).map(({ id }) => id),
+      npcCharacterIds: initialTown.npcs.filter(({ archived }) => !archived).map(({ id }) => id),
+    };
+    assert.deepEqual(defaultSelection.shopIds, [townShopId], "archived Town Shops must be omitted from the default preview");
+    assert.equal(defaultSelection.npcCharacterIds.includes(archivedOnlyStaffNpcId), false, "staffing only an archived Shop must not confer placement eligibility");
+    assert.equal(defaultSelection.npcCharacterIds.includes(directFallbackNpcId), true, "a direct Town association must preserve eligibility");
+    assert.equal(defaultSelection.npcCharacterIds.includes(activeShopFallbackNpcId), true, "staffing another active Town Shop must preserve eligibility");
+    const first = await dbModule.db.transaction((tx) => location.placeTownInSceneInTransaction(tx, sceneId, townId, defaultSelection, ownerA));
+    const repeated = await dbModule.db.transaction((tx) => location.placeTownInSceneInTransaction(tx, sceneId, townId, defaultSelection, ownerA));
     assert.equal(first.created, true);
     assert.equal(repeated.created, false);
 
@@ -154,7 +190,7 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
       (select count(*) from campaign_session_scene_member where scene_id=$1)::int members,
       (select count(*) from campaign_session_encounter_participant where scene_id=$1)::int encounters
     `, [sceneId, sessionId])).rows[0];
-    assert.deepEqual(placementCounts, { towns: 1, shops: 1, places: 2, npcs: 3, roster: 3, members: 3, encounters: 0 });
+    assert.deepEqual(placementCounts, { towns: 1, shops: 1, places: 2, npcs: 5, roster: 5, members: 5, encounters: 0 });
 
     await dbModule.db.transaction((tx) => location.placeShopInSceneInTransaction(tx, sceneId, standaloneShopId, ownerA));
     const hidden = await dbModule.db.transaction((tx) => publicProjection.readPublicSceneLocationDirectoryInTransaction(tx, { sceneId, sessionId, campaignId: campaignA }));
@@ -164,13 +200,70 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
       await location.setShopPlacementVisibilityInTransaction(tx, sceneId, standaloneShopId, true, ownerA);
     });
     const revealed = await dbModule.db.transaction((tx) => publicProjection.readPublicSceneLocationDirectoryInTransaction(tx, { sceneId, sessionId, campaignId: campaignA }));
-    assert.equal(revealed.towns[0]?.npcs.length, 3, "a direct-and-staff NPC must be deduplicated");
-    assert.equal(revealed.towns[0]?.shops[0]?.staff.length, 2);
+    assert.equal(revealed.towns[0]?.npcs.length, 5);
+    assert.equal(revealed.towns[0]?.npcs.filter(({ id }) => id === sharedNpcId).length, 1, "a direct-and-staff NPC must be deduplicated");
+    assert.equal(revealed.towns[0]?.shops[0]?.staff.length, 3);
     assert.equal(revealed.shops[0]?.storefrontState, "closed");
     const publicJson = JSON.stringify(revealed);
+    assert.equal(publicJson.includes(`"npcCharacterId":${archivedOnlyStaffNpcId}`), false, "archived-Shop-only staff must not reach the public projection");
     for (const privateField of ["godNotes", "locationNotes", "balanceCredits", "characterPurchaseMode", "shopNote"]) {
       assert.equal(publicJson.includes(privateField), false, `${privateField} leaked into the public projection`);
     }
+
+    const secondTownId = Number((await seedPool.query<{ id: number }>(`
+      insert into town (campaign_id,name,category,overview)
+      values ($1,'Warden Quarter','District','A guarded inland quarter.') returning id
+    `, [campaignA])).rows[0]!.id);
+    const secondTownShopId = Number((await seedPool.query<{ id: number }>(`
+      insert into shop (campaign_id,name,category,description,balance_credits,storefront_state)
+      values ($1,'Warden Outfitters','Outfitter','A shop beside the inland gate.',0,'open') returning id
+    `, [campaignA])).rows[0]!.id);
+    await seedPool.query("insert into town_shop_membership (town_id,shop_id,campaign_id,sort_order) values ($1,$2,$3,0)", [secondTownId, secondTownShopId, campaignA]);
+    await seedPool.query(`insert into shop_staff_assignment
+      (shop_id,campaign_id,npc_character_id,responsibility_label,is_primary_contact,sort_order)
+      values ($1,$2,$3,'Quartermaster',true,0)`, [secondTownShopId, campaignA, sharedNpcId]);
+    const secondTownWorkspace = await dbModule.db.transaction((tx) => location.readLocationPlacementWorkspaceInTransaction(tx, { sessionId, sceneId }));
+    const secondTown = secondTownWorkspace.towns.find(({ id }) => id === secondTownId);
+    assert.ok(secondTown);
+    const secondTownSelection = {
+      shopIds: secondTown.shops.filter(({ archived }) => !archived).map(({ id }) => id),
+      placeIds: secondTown.places.filter(({ archived }) => !archived).map(({ id }) => id),
+      npcCharacterIds: secondTown.npcs.filter(({ archived }) => !archived).map(({ id }) => id),
+    };
+    await dbModule.db.transaction((tx) => location.placeTownInSceneInTransaction(tx, sceneId, secondTownId, secondTownSelection, ownerA));
+    await dbModule.db.transaction(async (tx) => {
+      await location.setTownPlacementVisibilityInTransaction(tx, sceneId, secondTownId, true, false, ownerA);
+      await location.setTownChildStateInTransaction(tx, {
+        sceneId, townId: secondTownId, kind: "shop", childId: secondTownShopId, included: true, revealed: true,
+      }, ownerA);
+    });
+    const hiddenInSecondTown = await dbModule.db.transaction((tx) => publicProjection.readPublicSceneLocationDirectoryInTransaction(tx, { sceneId, sessionId, campaignId: campaignA }));
+    const hiddenSecondShop = hiddenInSecondTown.towns.find(({ id }) => id === secondTownId)?.shops.find(({ id }) => id === secondTownShopId);
+    assert.deepEqual(hiddenSecondShop?.staff, [], "an NPC revealed in another Town must not expose a hidden staff role here");
+
+    await dbModule.db.transaction((tx) => location.setTownChildStateInTransaction(tx, {
+      sceneId, townId: secondTownId, kind: "npc", childId: sharedNpcId, included: false, revealed: false,
+    }, ownerA));
+    const excludedFromSecondTown = await dbModule.db.transaction((tx) => publicProjection.readPublicSceneLocationDirectoryInTransaction(tx, { sceneId, sessionId, campaignId: campaignA }));
+    const excludedSecondShop = excludedFromSecondTown.towns.find(({ id }) => id === secondTownId)?.shops.find(({ id }) => id === secondTownShopId);
+    assert.deepEqual(excludedSecondShop?.staff, [], "an NPC revealed in another Town must not expose an excluded staff role here");
+
+    await dbModule.db.transaction((tx) => location.setTownChildStateInTransaction(tx, {
+      sceneId, townId: secondTownId, kind: "npc", childId: sharedNpcId, included: true, revealed: true,
+    }, ownerA));
+    const revealedInSecondTown = await dbModule.db.transaction((tx) => publicProjection.readPublicSceneLocationDirectoryInTransaction(tx, { sceneId, sessionId, campaignId: campaignA }));
+    const revealedSecondShop = revealedInSecondTown.towns.find(({ id }) => id === secondTownId)?.shops.find(({ id }) => id === secondTownShopId);
+    assert.deepEqual(revealedSecondShop?.staff.map(({ npcCharacterId, responsibilityLabel }) => ({ npcCharacterId, responsibilityLabel })), [
+      { npcCharacterId: sharedNpcId, responsibilityLabel: "Quartermaster" },
+    ]);
+    await dbModule.db.transaction((tx) => location.detachTownFromSceneInTransaction(tx, sceneId, secondTownId, ownerA));
+
+    await seedPool.query("update shop set archived_at=now(),archive_reason='Historical read check' where id=$1", [townShopId]);
+    const archivedSourceHistory = await dbModule.db.transaction((tx) => location.readLocationPlacementWorkspaceInTransaction(tx, { sessionId, sceneId }));
+    const archivedSourceTown = archivedSourceHistory.sceneTowns.find(({ town: sourceTown }) => sourceTown.id === townId);
+    assert.equal(archivedSourceTown?.shops.find(({ id }) => id === townShopId)?.archived, true);
+    assert.equal(archivedSourceTown?.npcs.some(({ id }) => id === staffNpcId), true, "an existing staff-derived placement must remain readable after its Shop is archived");
+    await seedPool.query("update shop set archived_at=null,archive_reason='' where id=$1", [townShopId]);
 
     await dbModule.db.transaction((tx) => location.setTownChildStateInTransaction(tx, {
       sceneId, townId, kind: "place", childId: placeB, included: false, revealed: false,
@@ -227,8 +320,8 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
     `, [townId, sessionId, sceneId, townShopId, standaloneShopId])).rows[0];
     assert.deepEqual(retained, {
       town: 1,
-      roster: 4,
-      members: 4,
+      roster: 6,
+      members: 6,
       balance: 77,
       storefront: "closed",
       town_placements: 0,
@@ -238,11 +331,21 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
       independent_shops: 1,
     });
 
-    const created = await dbModule.db.transaction((tx) => location.createSceneFromTownInTransaction(tx, sessionId, townId, {}, ownerA));
+    const createWorkspace = await dbModule.db.transaction((tx) => location.readLocationPlacementWorkspaceInTransaction(tx, { sessionId, sceneId }));
+    const createTown = createWorkspace.towns.find(({ id }) => id === townId);
+    assert.ok(createTown);
+    const createDefaultSelection = {
+      shopIds: createTown.shops.filter(({ archived }) => !archived).map(({ id }) => id),
+      placeIds: createTown.places.filter(({ archived }) => !archived).map(({ id }) => id),
+      npcCharacterIds: createTown.npcs.filter(({ archived }) => !archived).map(({ id }) => id),
+    };
+    assert.equal(createDefaultSelection.npcCharacterIds.includes(archivedOnlyStaffNpcId), false);
+    const created = await dbModule.db.transaction((tx) => location.createSceneFromTownInTransaction(tx, sessionId, townId, createDefaultSelection, ownerA));
     assert.notEqual(created.sceneId, sceneId);
     assert.deepEqual((await seedPool.query("select title,status,location_label,description from campaign_session_scene where id=$1", [created.sceneId])).rows, [{
       title: "Lantern Harbor", status: "planned", location_label: "Lantern Harbor", description: "A harbor of lantern-lit piers.",
     }]);
+    assert.equal(Number((await seedPool.query("select count(*)::int value from campaign_session_scene_town_npc where scene_id=$1 and npc_character_id=$2", [created.sceneId, archivedOnlyStaffNpcId])).rows[0].value), 0);
     await seedPool.query("update campaign_session_scene set status='completed',completed_at=now() where id=$1", [sceneId]);
     await assert.rejects(
       dbModule.db.transaction((tx) => location.placeShopInSceneInTransaction(tx, sceneId, townShopId, ownerA)),

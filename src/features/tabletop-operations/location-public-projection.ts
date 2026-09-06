@@ -143,7 +143,12 @@ export async function readPublicSceneLocationDirectoryInTransaction(
       eq(campaignSessionSceneTownNpc.included, true),
       eq(campaignSessionSceneTownNpc.revealed, true),
     )).orderBy(asc(campaignSessionSceneTownNpc.sortOrder), asc(campaignCharacter.name), asc(campaignCharacter.id)) : [];
-  const revealedNpcIds = new Set(townNpcs.map(({ id }) => id));
+  const revealedNpcIdsByTown = new Map<number, Set<number>>();
+  for (const { townId, id } of townNpcs) {
+    const townNpcIds = revealedNpcIdsByTown.get(townId) ?? new Set<number>();
+    townNpcIds.add(id);
+    revealedNpcIdsByTown.set(townId, townNpcIds);
+  }
   const revealedShopIds = townShops.map(({ id }) => id);
   const staffRows = revealedShopIds.length ? await tx.select({
     shopId: shopStaffAssignment.shopId,
@@ -195,7 +200,7 @@ export async function readPublicSceneLocationDirectoryInTransaction(
         description: shopRow.description,
         storefrontState: shopRow.storefrontState as "open" | "closed",
         staff: staffRows.filter(({ shopId, npcCharacterId }) => (
-          shopId === shopRow.id && revealedNpcIds.has(npcCharacterId)
+          shopId === shopRow.id && revealedNpcIdsByTown.get(townRow.id)?.has(npcCharacterId)
         )).map(({ npcCharacterId, name, roleLabel, responsibilityLabel, isPrimaryContact }) => ({
           npcCharacterId,
           name,

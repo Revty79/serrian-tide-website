@@ -909,6 +909,7 @@ async function readCatalog(
       });
     }
     for (const townShop of townShops) {
+      if (townShop.archived) continue;
       for (const member of townShop.staff) {
         const existing = directNpcById.get(member.npcCharacterId);
         const staffContext = {

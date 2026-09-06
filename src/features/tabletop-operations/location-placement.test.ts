@@ -101,6 +101,8 @@ test("player projection enforces parent reveal and contains descriptive fields o
   }
   assert.match(projection, /eq\(campaignSessionSceneTownShop\.included, true\)/);
   assert.match(projection, /eq\(campaignSessionSceneTownShop\.revealed, true\)/);
+  assert.match(projection, /revealedNpcIdsByTown\.get\(townRow\.id\)\?\.has\(npcCharacterId\)/);
+  assert.doesNotMatch(projection, /const revealedNpcIds = new Set/);
   for (const privateField of ["godNotes", "prepNotes", "balanceCredits", "characterPurchaseMode", "shopNote", "locationNotes"]) {
     assert.doesNotMatch(projection, new RegExp(privateField));
   }
@@ -125,6 +127,12 @@ test("the G.O.D. interface provides preparation, inclusion, placement, visibilit
   assert.match(workspace, /canOperate && data\.sceneEditable/);
   assert.match(workspace, /Admin view is read-only/);
   assert.doesNotMatch(workspace, /Enter Shop|Purchase|Sell Item|Transfer/);
+});
+
+test("Town preview eligibility ignores staff supplied only by archived Shops", () => {
+  assert.match(service, /for \(const townShop of townShops\) \{\s*if \(townShop\.archived\) continue;/);
+  assert.match(service, /const readable = value \?\? historicalValue/);
+  assert.match(workspace, /const contents = selected \? activeTownContents\(selected\) : null/);
 });
 
 test("location references participate in deletion previews and Campaign child-first deletion", () => {
