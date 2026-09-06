@@ -461,10 +461,27 @@ async function recordRollInternal(
     }
     const declaration = await assertActionRollAllowedInTransaction(tx, request.pendingActionId);
     if (declaration) {
-      const existing = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll).where(
+      const existing = await tx.select({
+        id: campaignSessionRoll.id,
+        method: campaignSessionRoll.method,
+        resultTotal: campaignSessionRoll.resultTotal,
+        status: campaignSessionRoll.status,
+      }).from(campaignSessionRoll).where(
         eq(campaignSessionRoll.pendingActionId, request.pendingActionId),
       ).limit(1);
-      if (existing[0]) throw new Error("This declaration's attack Roll slot already has immutable history.");
+      if (existing[0]) {
+        if (
+          existing[0].status !== "recorded"
+          || existing[0].method !== request.method
+          || (request.method === "entered" && existing[0].resultTotal !== request.enteredTotal)
+        ) {
+          throw new Error("This declaration's attack Roll slot already has different immutable history.");
+        }
+        const page = await readRollLedgerInTransaction(tx, actor, session.id, { beforeId: existing[0].id + 1, limit: 1 });
+        const entry = page.rolls.find(({ id }) => id === existing[0]!.id);
+        if (!entry) throw new Error("The existing immutable attack Roll is not readable by this authorized actor.");
+        return entry;
+      }
     }
   }
 
@@ -493,9 +510,13 @@ async function recordRollInternal(
         throw new Error("That defense/intervention declaration has no open Roll slot.");
       }
       await assertResponseRollAllowedInTransaction(tx, snapshot.actionDeclarationId);
-      const existing = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll)
+      const existing = await tx.select({
+        id: campaignSessionRoll.id,
+        method: campaignSessionRoll.method,
+        resultTotal: campaignSessionRoll.resultTotal,
+        status: campaignSessionRoll.status,
+      }).from(campaignSessionRoll)
         .where(eq(campaignSessionRoll.reactionId, request.reactionId)).limit(1);
-      if (existing[0]) throw new Error("This response Roll slot already has immutable history.");
       if (request.targetCharacterId !== snapshot.targetCharacterId) {
         throw new Error("A response Roll must retain its locked target identity.");
       }
@@ -505,6 +526,19 @@ async function recordRollInternal(
       });
       if (JSON.stringify(request.mechanical) !== JSON.stringify(expectedMechanical)) {
         throw new Error("A response Roll must use its locked server-authoritative governing source and modifiers.");
+      }
+      if (existing[0]) {
+        if (
+          existing[0].status !== "recorded"
+          || existing[0].method !== request.method
+          || (request.method === "entered" && existing[0].resultTotal !== request.enteredTotal)
+        ) {
+          throw new Error("This response Roll slot already has different immutable history.");
+        }
+        const page = await readRollLedgerInTransaction(tx, actor, session.id, { beforeId: existing[0].id + 1, limit: 1 });
+        const entry = page.rolls.find(({ id }) => id === existing[0]!.id);
+        if (!entry) throw new Error("The existing immutable response Roll is not readable by this authorized actor.");
+        return entry;
       }
     }
   }

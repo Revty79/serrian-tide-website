@@ -81,7 +81,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       [campaign.id, GOD_ID, PLAYER_ID],
     );
     const hero = await one<{ id: number }>(client,
-      "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Browser Fast Actor') returning id",
+      "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values ($1,$2,'Browser Fast Actor',true,'race','detailed') returning id",
       [campaign.id, PLAYER_ID],
     );
     const defender = await one<{ id: number }>(client,
@@ -231,6 +231,8 @@ async function main(): Promise<void> {
     await login(adminContext, fixture.adminEmail);
 
     await godPage.goto(`${BASE_URL}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
+    await godPage.getByRole("status").getByText("Live", { exact: true }).waitFor();
+    await new Promise((resolveWait) => setTimeout(resolveWait, 200));
     await godPage.getByRole("button", { name: /^Scenes/ }).click();
     await godPage.getByRole("button", { name: /^Declarations/ }).click();
     const workspace = godPage.getByRole("region", { name: "Lock intent before the Roll" });
@@ -252,14 +254,18 @@ async function main(): Promise<void> {
     await workspace.getByRole("button", { name: "Lock", exact: true }).click();
     await workspace.getByText(/Declaration locked/).waitFor();
     await workspace.getByRole("button", { name: "Commit Initiative" }).waitFor();
-    assert.match(await workspace.innerText(), /Campaign \d+ .* Session \d+ .* Round 1 .* Step 1/);
+    const technicalAuditSummary = workspace.getByText("Technical audit context", { exact: true });
+    assert.equal(await technicalAuditSummary.evaluate((element) => (element.parentElement as HTMLDetailsElement).open), false);
     await workspace.getByRole("button", { name: "Commit Initiative" }).click();
     await workspace.getByText(/Declaration committed/).waitFor();
+    const eligibility = workspace.locator("article").filter({ hasText: "Browser Window Responder" }).filter({ hasText: "Can this combatant respond" }).first();
+    await eligibility.getByRole("button", { name: "Allow response" }).click();
+    await workspace.getByText(/may now choose a response/).waitFor();
     const defenseWorkspace = godPage.getByRole("region", { name: "Declare first, then Roll" });
     await defenseWorkspace.waitFor();
     await defenseWorkspace.getByRole("button", { name: "Lock Response Declaration" }).waitFor();
     assert.match(await workspace.innerText(), /35.*27/);
-    assert.match(await workspace.innerText(), /Browser Window Responder[\s\S]*pending/);
+    assert.match(await workspace.innerText(), /Browser Window Responder[\s\S]*Eligible/);
     assert.match(await workspace.innerText(), /REACHED AT 30/);
 
     const beforeResponse = await pool.query<{ status: string }>(
@@ -281,12 +287,10 @@ async function main(): Promise<void> {
     );
     assert.deepEqual(afterResponse.rows[0], { status: "rolling-ready", pending: "active", response: "no-defense", cost: 0, roll_required: false });
     assert.equal((await pool.query("select count(*)::int as count from campaign_session_roll where campaign_id=$1", [fixture.campaignId])).rows[0]?.count, 0);
-    const promptAnswers = ["Browser explicit attack target", "50"];
-    const answerDialogs = async (dialog: { accept: (value?: string) => Promise<void> }) => dialog.accept(promptAnswers.shift() ?? "");
-    godPage.on("dialog", answerDialogs);
+    await defenseWorkspace.getByLabel("G.O.D. governing label").fill("Browser explicit attack target");
+    await defenseWorkspace.getByLabel("Roll-over target").fill("50");
     await defenseWorkspace.getByRole("button", { name: "Roll Attack" }).click();
-    await defenseWorkspace.getByText(/Website attack Roll recorded immutably/).waitFor();
-    godPage.off("dialog", answerDialogs);
+    await defenseWorkspace.getByText(/Website attack Roll recorded independently/).waitFor();
     assert.equal((await pool.query("select count(*)::int as count from campaign_session_roll where campaign_id=$1 and pending_action_id is not null", [fixture.campaignId])).rows[0]?.count, 1);
     await defenseWorkspace.getByRole("button", { name: "Resolve Opposition" }).click();
     await defenseWorkspace.getByText(/No damage was applied/).waitFor();
@@ -300,11 +304,12 @@ async function main(): Promise<void> {
     assert.equal(await forbidden.getByText("Browser measured strike").count(), 0);
     await forbidden.close();
 
-    const adminForbidden = await adminContext.newPage();
-    await adminForbidden.goto(`${BASE_URL}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}`);
-    await adminForbidden.waitForURL((url) => url.pathname === "/access");
-    assert.equal(await adminForbidden.getByText("Browser measured strike").count(), 0);
-    await adminForbidden.close();
+    const adminReadOnly = await adminContext.newPage();
+    await adminReadOnly.goto(`${BASE_URL}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}`);
+    await adminReadOnly.getByRole("heading", { name: "Tabletop Operations" }).waitFor();
+    assert.equal(new URL(adminReadOnly.url()).pathname, "/heavens/tabletop");
+    assert.equal(await adminReadOnly.getByText("Browser measured strike").count(), 0);
+    await adminReadOnly.close();
 
     await Promise.all([godContext.close(), playerContext.close(), adminContext.close()]);
     console.log(JSON.stringify({
@@ -316,7 +321,7 @@ async function main(): Promise<void> {
         "durable opportunity reconciliation",
         "No Defense history at zero cost without a response Roll",
         "server-authoritative attack Roll and objective resolution without damage",
-        "Player and administrator-only denial plus responsive layout",
+        "Player denial, administrator read-only access, and responsive layout",
       ],
     }, null, 2));
   } finally {

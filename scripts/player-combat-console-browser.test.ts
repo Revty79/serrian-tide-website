@@ -374,6 +374,20 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
   let responsePanel = targetPlayer.getByRole("region", { name: "Choose a response before the action can Roll" });
   let lockedPanel = player.getByRole("region", { name: "Declarations, Rolls and results" });
   let targetLockedPanel = targetPlayer.getByRole("region", { name: "Declarations, Rolls and results" });
+  async function allowTargetResponse(): Promise<void> {
+    await god.goto(`${BASE_URL}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
+    await god.getByRole("status").getByText("Live", { exact: true }).waitFor();
+    await new Promise((resolveWait) => setTimeout(resolveWait, 200));
+    await god.getByRole("button", { name: /^Scenes/ }).click();
+    await god.getByRole("button", { name: /^Declarations/ }).click();
+    const declarationWorkspace = god.getByRole("region", { name: "Lock intent before the Roll" });
+    const decision = declarationWorkspace.locator("article")
+      .filter({ hasText: "Another Player Character" })
+      .filter({ hasText: "Can this combatant respond" })
+      .last();
+    await decision.getByRole("button", { name: "Allow response" }).click();
+    await declarationWorkspace.getByText(/may now choose a response/).waitFor();
+  }
   async function resetBrowserAction(closeGodPage = false): Promise<void> {
     const playerContext = player.context();
     const targetContext = targetPlayer.context();
@@ -410,12 +424,14 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
   await weaponPanel.getByLabel("Exact target").selectOption({ label: "Another Player Character" });
   await weaponPanel.getByRole("button", { name: "Declare and lock" }).click();
   await weaponPanel.getByText("Weapon action locked and committed.", { exact: true }).waitFor();
+  assert.equal(await responsePanel.count(), 0);
+  await allowTargetResponse();
   await responsePanel.waitFor();
   await responsePanel.getByRole("button", { name: "No Defense" }).click();
   await responsePanel.getByText("No Defense recorded.", { exact: true }).waitFor();
   await eventually(async () => await lockedPanel.getByRole("button", { name: "Website Roll" }).count() === 1, "The bound attack Roll did not open after No Defense.");
   await lockedPanel.getByRole("button", { name: "Website Roll" }).click();
-  await lockedPanel.getByText("Attack Roll recorded.", { exact: true }).waitFor();
+  await lockedPanel.getByText("Attack Roll recorded independently.", { exact: true }).waitFor();
   const boundRoll = await pool.query<{ declaration_status: string; pending_action_id: number | null }>(`select declaration.status as declaration_status, roll.pending_action_id
       from campaign_session_encounter_action_declaration declaration
       inner join campaign_session_roll roll on roll.pending_action_id=declaration.pending_action_id
@@ -427,28 +443,32 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
   await resetBrowserAction();
   await weaponPanel.getByLabel("Exact target").selectOption({ label: "Another Player Character" });
   await weaponPanel.getByRole("button", { name: "Declare and lock" }).click();
+  await allowTargetResponse();
+  await responsePanel.waitFor();
   await responsePanel.getByRole("button", { name: "Dodge · 1 Initiative" }).click();
   await targetLockedPanel.getByRole("button", { name: "Roll response" }).click();
-  await targetLockedPanel.getByText("Defense Roll recorded.", { exact: true }).waitFor();
+  await targetLockedPanel.getByText("Defense Roll recorded independently.", { exact: true }).waitFor();
   await eventually(async () => (await pool.query<{ count: number }>("select count(*)::int as count from campaign_session_roll where campaign_id=$1 and reaction_id is not null", [fixture.campaignId])).rows[0]?.count === 1, "The Dodge Roll was not durably recorded before the attack Roll.");
   await eventually(async () => await lockedPanel.getByRole("button", { name: "Website Roll" }).count() === 1, "The attack Roll did not open after Dodge was declared.");
   await lockedPanel.getByRole("button", { name: "Website Roll" }).click();
-  await lockedPanel.getByText("Attack Roll recorded.", { exact: true }).waitFor();
+  await lockedPanel.getByText("Attack Roll recorded independently.", { exact: true }).waitFor();
   const dodgeProof = await pool.query<{ committed_initiative_cost: number }>("select committed_initiative_cost from campaign_session_encounter_reaction where campaign_id=$1 and reaction_type='dodge'", [fixture.campaignId]);
   assert.deepEqual(dodgeProof.rows, [{ committed_initiative_cost: 1 }]);
 
   await resetBrowserAction();
   await weaponPanel.getByLabel("Exact target").selectOption({ label: "Another Player Character" });
   await weaponPanel.getByRole("button", { name: "Declare and lock" }).click();
+  await allowTargetResponse();
+  await responsePanel.waitFor();
   await responsePanel.getByRole("button", { name: "Parry" }).click();
   await targetLockedPanel.getByLabel("Physical defense Roll").fill("99");
   await targetLockedPanel.getByRole("button", { name: "Enter physical Roll" }).click();
-  await targetLockedPanel.getByText("Physical defense Roll recorded.", { exact: true }).waitFor();
+  await targetLockedPanel.getByText("Physical defense Roll recorded independently.", { exact: true }).waitFor();
   await eventually(async () => (await pool.query<{ count: number }>("select count(*)::int as count from campaign_session_roll where campaign_id=$1 and reaction_id is not null", [fixture.campaignId])).rows[0]?.count === 1, "The Parry Roll was not durably recorded before the attack Roll.");
   await eventually(async () => await lockedPanel.getByRole("button", { name: "Enter physical Roll" }).count() === 1, "The attack Roll did not open after Parry was declared.");
   await lockedPanel.getByLabel("Physical attack Roll").fill("85");
   await lockedPanel.getByRole("button", { name: "Enter physical Roll" }).click();
-  await lockedPanel.getByText("Physical attack Roll recorded.", { exact: true }).waitFor();
+  await lockedPanel.getByText("Physical attack Roll recorded independently.", { exact: true }).waitFor();
   await eventually(async () => (await pool.query<{ count: number }>("select count(*)::int as count from campaign_session_encounter_reaction where campaign_id=$1 and reaction_type='parry' and defender_final_cost is not null", [fixture.campaignId])).rows[0]?.count === 1, "The objective Parry reconciliation did not complete with the attack Roll.");
   const parryProof = await pool.query<{ committed_initiative_cost: number; defender_final_cost: number | null; attacker_additional_cost: number | null }>(
     "select committed_initiative_cost,defender_final_cost,attacker_additional_cost from campaign_session_encounter_reaction where campaign_id=$1 and reaction_type='parry'",
@@ -517,6 +537,9 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
   await firearmCard.getByLabel("Approved Called Shot").selectOption(calledShotValue);
   await firearmCard.getByRole("button", { name: "Declare attack" }).click();
   await firearmPanel.getByText("Firearm attack locked and committed.", { exact: true }).waitFor();
+  await allowTargetResponse();
+  await responsePanel.getByRole("article").filter({ hasText: "Aim Browser Service Pistol" }).getByRole("button", { name: "No Defense" }).click();
+  await responsePanel.getByText("No Defense recorded.", { exact: true }).waitFor();
   await god.getByRole("button", { name: /^Initiative Tracker/ }).click();
   const godInitiative = god.getByRole("region", { name: "Initiative Tracker" });
   await godInitiative.getByRole("button", { name: "Advance to Next Event" }).click();
@@ -524,7 +547,8 @@ async function runWorkflow(player: Page, targetPlayer: Page, god: Page, fixture:
   await eventually(async () => await firearmPanel.getByRole("button", { name: "Commit trigger" }).count() === 1, "The aimed firearm action did not become trigger-ready after authoritative advancement.");
   await firearmPanel.getByRole("button", { name: "Commit trigger" }).click();
   await firearmPanel.getByText("Trigger pull committed.", { exact: true }).waitFor();
-  await responsePanel.getByRole("button", { name: "No Defense" }).click();
+  await allowTargetResponse();
+  await responsePanel.getByRole("button", { name: "No Defense" }).last().click();
   await responsePanel.getByText("No Defense recorded.", { exact: true }).waitFor();
   await god.getByRole("button", { name: /^Initiative Tracker/ }).click();
   await godInitiative.getByRole("button", { name: "Advance to Next Event" }).click();

@@ -59,7 +59,7 @@ test("the firearm transaction reuses Rolls, defenses, Initiative, readiness, and
   const service = read("src/features/tabletop-operations/firearm-attack-service.ts");
   for (const seam of [
     "recordDeclaredAttackRollInTransaction",
-    "resolveDeclaredDefensesInTransaction",
+    "resolveDeclaredDefensesIfReadyInTransaction",
     "commitActionDeclarationInTransaction",
     "campaignCharacterFirearmState",
     "campaignSessionEncounterEffectPlan",
@@ -91,7 +91,7 @@ test("Tabletop exposes G.O.D.-only attack review without global authoring or Pla
   assert.match(actions, /lockOwnedEncounterRuntimeInTransaction/);
   assert.match(workspace, /Aim, Trigger &amp; Damage/);
   assert.match(workspace, /Called Shot/);
-  assert.match(workspace, /Defense &amp; Intervention workspace/);
+  assert.match(workspace, /Attack and response Rolls are saved independently/);
   assert.match(workspace, /Action Effect Plan review/);
   assert.match(workspace, /Review global Equipment/);
   assert.doesNotMatch(workspace, /saveWeapon|updateWeapon|saveAmmunition|updateAmmunition/);

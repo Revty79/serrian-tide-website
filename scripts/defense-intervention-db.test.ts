@@ -17,10 +17,14 @@ import {
   commitActionDeclarationInTransaction,
   createActionDeclarationDraftInTransaction,
   lockActionDeclarationInTransaction,
+  readActionDeclarationWorkspaceInTransaction,
+  reconcileResponderOpportunityInTransaction,
 } from "@/features/tabletop-operations/action-declaration-service";
 import {
   declareDefenseInterventionInTransaction,
   recordDeclaredAttackRollInTransaction,
+  recordDeclaredResponseRollInTransaction,
+  resolveDeclaredDefensesIfReadyInTransaction,
   resolveDeclaredDefensesInTransaction,
 } from "@/features/tabletop-operations/defense-intervention-service";
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
@@ -69,7 +73,7 @@ after(async () => {
 
 test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, and non-automating", async () => {
   const ledgerBefore = await pool.query<{ count: number }>("select count(*)::int count from drizzle.__drizzle_migrations");
-  assert.equal(ledgerBefore.rows[0]?.count, 33);
+  assert.equal(ledgerBefore.rows[0]?.count, 41);
 
   await assert.rejects(db.transaction(async (tx) => {
     const base = await insertBuildTenFixture(tx, "defense-intervention");
@@ -79,9 +83,9 @@ test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, 
     const startingHealth = await tx.select().from(campaignCharacterActiveHealth)
       .where(eq(campaignCharacterActiveHealth.characterId, base.defenderId));
 
-    const declarationId = await createActionDeclarationDraftInTransaction(tx, context, god, draft(base.heroId, base.defenderId));
-    await lockActionDeclarationInTransaction(tx, context, god, declarationId);
-    const pendingActionId = await commitActionDeclarationInTransaction(tx, context, god, declarationId);
+    const declarationId = await createActionDeclarationDraftInTransaction(tx, context, player, draft(base.heroId, base.defenderId));
+    await lockActionDeclarationInTransaction(tx, context, player, declarationId);
+    const pendingActionId = await commitActionDeclarationInTransaction(tx, context, player, declarationId);
     const [opportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity)
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declarationId));
     assert.ok(opportunity);
@@ -91,6 +95,12 @@ test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, 
         eq(campaignSessionEncounterInitiativeParticipant.encounterId, base.encounterId),
         eq(campaignSessionEncounterInitiativeParticipant.characterId, base.defenderId),
       )))[0]!.current;
+    await assert.rejects(declareDefenseInterventionInTransaction(tx, context, god, {
+      opportunityId: opportunity.id,
+      reactionType: "no-reaction",
+      protectedTargetCharacterId: base.defenderId,
+    }), /must first confirm/);
+    await reconcileResponderOpportunityInTransaction(tx, context, god, opportunity.id, { decision: "allow" });
     await assert.rejects(declareDefenseInterventionInTransaction(tx, context, player, {
       opportunityId: opportunity.id,
       reactionType: "no-reaction",
@@ -104,14 +114,20 @@ test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, 
 
     const reactionId = await declareDefenseInterventionInTransaction(tx, context, god, {
       opportunityId: opportunity.id,
-      reactionType: "no-reaction",
+      reactionType: "intervention",
       protectedTargetCharacterId: base.defenderId,
+      sourceKind: "manual",
+      manualLabel: "Pass 1 independent defense",
+      manualTarget: 40,
+      initiativeCost: 1,
+      rollRequired: true,
+      intendedMechanicalPurpose: "Oppose the declared action.",
+      godApprovalReason: "The responder has a legitimate line of effect.",
     });
     const [reaction] = await tx.select().from(campaignSessionEncounterReaction).where(eq(campaignSessionEncounterReaction.id, reactionId));
-    assert.equal(reaction?.status, "resolved");
-    assert.equal(reaction?.outcome, "no-defense");
-    assert.equal(reaction?.committedInitiativeCost, 0);
-    assert.equal(reaction?.rollRequired, false);
+    assert.equal(reaction?.status, "declared");
+    assert.equal(reaction?.committedInitiativeCost, 1);
+    assert.equal(reaction?.rollRequired, true);
     assert.ok(reaction?.declarationSnapshotJson);
     assert.equal((await tx.select().from(campaignSessionEncounterReactionEvent).where(eq(campaignSessionEncounterReactionEvent.reactionId, reactionId))).length, 1);
     assert.equal((await tx.select().from(campaignSessionEncounterResponderOpportunity).where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id)))[0]?.status, "response-declared");
@@ -122,6 +138,13 @@ test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, 
       protectedTargetCharacterId: base.defenderId,
     }), /pending responder opportunity/);
 
+    const defenseRoll = await recordDeclaredResponseRollInTransaction(tx, context, god, reactionId, { method: "entered", enteredTotal: 55 });
+    assert.equal(defenseRoll.reactionId, reactionId);
+    assert.equal(await resolveDeclaredDefensesIfReadyInTransaction(tx, context, god, declarationId), null);
+    const defenseRetry = await recordDeclaredResponseRollInTransaction(tx, context, god, reactionId, { method: "entered", enteredTotal: 55 });
+    assert.equal(defenseRetry.id, defenseRoll.id);
+    await assert.rejects(recordDeclaredResponseRollInTransaction(tx, context, god, reactionId, { method: "entered", enteredTotal: 56 }), /different immutable history/);
+
     const attackRoll = await recordDeclaredAttackRollInTransaction(tx, context, god, declarationId, {
       method: "entered",
       enteredTotal: 65,
@@ -130,13 +153,23 @@ test("guarded Pass 7 declarations are atomic, authorized, immutable, auditable, 
     });
     assert.equal(attackRoll.pendingActionId, pendingActionId);
     assert.equal(attackRoll.mechanicalSnapshot?.resolution.resultTotal, 65);
-    const outcome = await resolveDeclaredDefensesInTransaction(tx, context, god, declarationId);
-    assert.equal(outcome.status, "resolved");
-    assert.equal(outcome.attackContinues, true);
-    await assert.rejects(resolveDeclaredDefensesInTransaction(tx, context, god, declarationId), /already been applied/);
+    const attackRetry = await recordDeclaredAttackRollInTransaction(tx, context, god, declarationId, {
+      method: "entered",
+      enteredTotal: 65,
+      manualTarget: 50,
+      manualLabel: "Pass 7 explicit test target",
+    });
+    assert.equal(attackRetry.id, attackRoll.id);
+    const outcome = await resolveDeclaredDefensesIfReadyInTransaction(tx, context, god, declarationId);
+    assert.ok(outcome);
+    assert.equal(outcome.status, "awaiting-god-ruling");
+    const idempotentOutcome = await resolveDeclaredDefensesInTransaction(tx, context, god, declarationId);
+    assert.deepEqual(idempotentOutcome, outcome);
     const [resolvedDeclaration] = await tx.select().from(campaignSessionEncounterActionDeclaration)
       .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId));
     assert.ok(resolvedDeclaration?.defenseResolutionJson);
+    const godView = await readActionDeclarationWorkspaceInTransaction(tx, context, god);
+    assert.equal(godView.declarations.find(({ id }) => id === declarationId)?.rollState.resolved, true);
     assert.deepEqual(await tx.select().from(campaignCharacterActiveHealth)
       .where(eq(campaignCharacterActiveHealth.characterId, base.defenderId)), startingHealth);
 

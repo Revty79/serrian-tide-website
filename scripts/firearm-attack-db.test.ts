@@ -7,7 +7,7 @@ import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { creature } from "@/db/creature-schema";
 import { item, weaponFiringMode, weaponProfile } from "@/db/item-schema";
-import { campaignCharacterAttribute, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterAttribute, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   campaignCharacterFirearmEvent,
   campaignCharacterFirearmState,
@@ -20,6 +20,9 @@ import {
   campaignSessionEncounterResponderOpportunity,
   campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
+import {
+  reconcileResponderOpportunityInTransaction,
+} from "@/features/tabletop-operations/action-declaration-service";
 import {
   approveActionEffectPlanInTransaction,
   applyActionEffectPlanInTransaction,
@@ -66,6 +69,8 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
     await tx.insert(userRole).values({ userId: base.godId, role: "god" });
     const context = await lockOwnedEncounterRuntimeInTransaction(tx, base.encounterId, base.godId);
     const god = { authority: "god-owner" as const, userId: base.godId };
+    await tx.update(campaignCharacter).set({ isNpc: true, npcKind: "race", npcBuildMode: "detailed" })
+      .where(eq(campaignCharacter.id, base.heroId));
     const suffix = crypto.randomUUID().toUpperCase();
     await tx.insert(campaignCharacterAttribute).values({ characterId: base.heroId, attributeKey: "DEX", value: 30 });
     const [ammunitionItem, firearmItem] = await tx.insert(item).values([
@@ -254,6 +259,7 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, attackBefore.triggerDeclarationId));
     assert.ok(opportunities.length >= 1);
     for (const opportunity of opportunities) {
+      await reconcileResponderOpportunityInTransaction(tx, context, god, opportunity.id, { decision: "allow" });
       await declareDefenseInterventionInTransaction(tx, context, god, {
         opportunityId: opportunity.id,
         reactionType: "no-reaction",

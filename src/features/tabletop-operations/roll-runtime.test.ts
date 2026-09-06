@@ -8,6 +8,7 @@ import {
   getHitLocationFromPercentile,
   normalizeRollRecordRequest,
   normalizeVoidReason,
+  parsePhysicalPercentileInput,
   readableRollVisibilities,
   resolveRollOutcome,
   validateRollResult,
@@ -44,6 +45,12 @@ test("System Random rejects any browser-supplied result", () => {
 });
 
 test("entered physical percentile accepts 1, 73, and physical 00 as 100", () => {
+  assert.equal(parsePhysicalPercentileInput("00"), 100);
+  assert.equal(parsePhysicalPercentileInput(" 73 "), 73);
+  assert.equal(parsePhysicalPercentileInput("01"), 1);
+  for (const invalid of ["", " ", "0", "000", "1.5", "ten", "101"]) {
+    assert.throws(() => parsePhysicalPercentileInput(invalid));
+  }
   for (const result of [1, 73, 100]) {
     const normalized = request({ method: "entered", enteredTotal: result });
     assert.deepEqual(resolveRollOutcome(normalized, () => { throw new Error("must not generate"); }), { resultTotal: result });

@@ -7,12 +7,14 @@ import { db, pool } from "@/db";
 import { user } from "@/db/auth-schema";
 import { campaignPlayer } from "@/db/campaign-schema";
 import {
+  campaignCharacter,
   campaignCharacterActiveHealth,
   campaignCharacterItem,
 } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterActionDeclarationEvent,
+  campaignSessionEncounterInitiative,
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
@@ -38,6 +40,7 @@ import {
   reviseLockedActionDeclarationInTransaction,
 } from "@/features/tabletop-operations/action-declaration-service";
 import type { ActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
+import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import {
   advanceInitiativeRound,
   advanceInitiativeTimeline,
@@ -103,6 +106,8 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
     const context = await lockOwnedEncounterRuntimeInTransaction(tx, base.encounterId, base.godId);
     const godActor = { authority: "god-owner" as const, userId: base.godId };
     const playerActor = { authority: "player" as const, userId: base.godId, characterId: base.heroId };
+    await tx.update(campaignCharacter).set({ isNpc: false, npcBuildMode: null, npcRoleLabel: "" }).where(eq(campaignCharacter.id, base.defenderId));
+    const defenderActor = { authority: "player" as const, userId: base.godId, characterId: base.defenderId };
     const outsiderId = `action-declaration-outsider-${crypto.randomUUID()}`;
     await tx.insert(user).values({
       id: outsiderId,
@@ -160,6 +165,10 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
         userId: outsiderId,
       }, declarationDraft(base.heroId, base.defenderId)),
       /Campaign-owning G\.O\.D/,
+    );
+    await assert.rejects(
+      createActionDeclarationDraftInTransaction(tx, context, godActor, declarationDraft(base.heroId, base.defenderId)),
+      /Player-controlled Character must commit their own action choice/,
     );
     await assert.rejects(
       lockOwnedEncounterRuntimeInTransaction(tx, base.encounterId + 999_999, base.godId),
@@ -275,10 +284,29 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declarationId));
     const normalOpportunity = opportunities.find(({ source }) => source === "initiative")!;
     const exceptionalOpportunity = opportunities.find(({ source }) => source === "god-exception")!;
-    await reconcileResponderOpportunityInTransaction(tx, context, godActor, normalOpportunity.id, { status: "declined" });
-    await reconcileResponderOpportunityInTransaction(tx, context, godActor, exceptionalOpportunity.id, {
-      status: "response-declared",
-      responseLabel: "Reserve a future supported intervention",
+    const hiddenOpponentView = await readActionDeclarationWorkspaceInTransaction(tx, context, defenderActor);
+    assert.equal(hiddenOpponentView.declarations.some(({ id }) => id === declarationId), false);
+    await reconcileResponderOpportunityInTransaction(tx, context, godActor, normalOpportunity.id, { decision: "allow" });
+    const allowedOpponentView = await readActionDeclarationWorkspaceInTransaction(tx, context, defenderActor);
+    const visibleOpponentDeclaration = allowedOpponentView.declarations.find(({ id }) => id === declarationId);
+    assert.ok(visibleOpponentDeclaration);
+    assert.equal(visibleOpponentDeclaration.draft.sourcePayload, null);
+    assert.equal(visibleOpponentDeclaration.events.length, 0);
+    assert.equal(visibleOpponentDeclaration.opportunities[0]?.reason, "The G.O.D. confirmed that you may respond. Choose a response or No Defense.");
+    await assert.rejects(declareDefenseInterventionInTransaction(tx, context, godActor, {
+      opportunityId: normalOpportunity.id,
+      reactionType: "no-reaction",
+      protectedTargetCharacterId: base.defenderId,
+    }), /Player-controlled Character must choose their own response/);
+    await declareDefenseInterventionInTransaction(tx, context, defenderActor, {
+      opportunityId: normalOpportunity.id,
+      reactionType: "no-reaction",
+      protectedTargetCharacterId: base.defenderId,
+    });
+    await declareDefenseInterventionInTransaction(tx, context, godActor, {
+      opportunityId: exceptionalOpportunity.id,
+      reactionType: "no-reaction",
+      protectedTargetCharacterId: base.defenderId,
     });
     assert.equal((await tx.select().from(campaignSessionEncounterActionDeclaration)
       .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId)))[0]?.status, "rolling-ready");
@@ -311,7 +339,7 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
       visibility: "table",
       purposeKind: "attack",
       enteredTotal: 100,
-    }), /attack Roll slot already has immutable history/);
+    }), /attack Roll slot already has different immutable history/);
     assert.equal((await tx.select().from(campaignSessionEncounterActionDeclaration)
       .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId)))[0]?.status, "rolling");
 
@@ -342,7 +370,10 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declarationId));
     const resumedPending = opportunities.filter(({ status, windowSequence }) => status === "pending" && windowSequence === 2);
     assert.deepEqual(resumedPending.map(({ responderCharacterId }) => responderCharacterId), [base.defenderId]);
-    await reconcileResponderOpportunityInTransaction(tx, context, godActor, resumedPending[0]!.id, { status: "ineligible", reason: "Explicitly unaware after the interruption." });
+    const beforeResponderPass = await loadInitiativeEngineInTransaction(tx, base.encounterId);
+    const afterResponderPass = passInitiative(beforeResponderPass, base.defenderId);
+    await persistInitiativeEngineInTransaction(tx, context, beforeResponderPass, afterResponderPass);
+    await reconcileResponderOpportunityInTransaction(tx, context, godActor, resumedPending[0]!.id, { decision: "ineligible", reason: "Explicitly unaware after the interruption." });
     await abandonActionDeclarationInTransaction(tx, context, godActor, declarationId, "The actor abandons the resumed action.");
     interrupted = (await tx.select().from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.id, pendingActionId)))[0]!;
@@ -353,21 +384,21 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
     const zeroCostCancellation = await createActionDeclarationDraftInTransaction(
       tx,
       context,
-      godActor,
+      playerActor,
       declarationDraft(base.heroId, base.defenderId, { label: "Cancelled locked declaration" }),
     );
-    await lockActionDeclarationInTransaction(tx, context, godActor, zeroCostCancellation);
-    await cancelActionDeclarationInTransaction(tx, context, godActor, zeroCostCancellation);
+    await lockActionDeclarationInTransaction(tx, context, playerActor, zeroCostCancellation);
+    await cancelActionDeclarationInTransaction(tx, context, playerActor, zeroCostCancellation);
     assert.equal((await tx.select().from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.encounterId, base.encounterId))).length, initialPendingCount + 1);
 
     const draftCancellation = await createActionDeclarationDraftInTransaction(
       tx,
       context,
-      godActor,
+      playerActor,
       declarationDraft(base.heroId, base.defenderId, { label: "Cancelled draft declaration" }),
     );
-    await cancelActionDeclarationInTransaction(tx, context, godActor, draftCancellation);
+    await cancelActionDeclarationInTransaction(tx, context, playerActor, draftCancellation);
     assert.equal((await tx.select().from(campaignSessionEncounterActionDeclaration)
       .where(eq(campaignSessionEncounterActionDeclaration.id, draftCancellation)))[0]?.status, "cancelled");
     assert.equal((await tx.select().from(campaignSessionEncounterPendingAction)
@@ -376,24 +407,24 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
     const unaffordableDeclaration = await createActionDeclarationDraftInTransaction(
       tx,
       context,
-      godActor,
+      playerActor,
       declarationDraft(base.heroId, base.defenderId, {
         label: "Unaffordable ordinary action",
         initiativeCost: 18,
         allowsMultiRound: false,
       }),
     );
-    await lockActionDeclarationInTransaction(tx, context, godActor, unaffordableDeclaration);
+    await lockActionDeclarationInTransaction(tx, context, playerActor, unaffordableDeclaration);
     await assert.rejects(
-      commitActionDeclarationInTransaction(tx, context, godActor, unaffordableDeclaration),
+      commitActionDeclarationInTransaction(tx, context, playerActor, unaffordableDeclaration),
       /ordinary action cannot cost more/,
     );
-    await cancelActionDeclarationInTransaction(tx, context, godActor, unaffordableDeclaration);
+    await cancelActionDeclarationInTransaction(tx, context, playerActor, unaffordableDeclaration);
 
     const longDeclarationId = await createActionDeclarationDraftInTransaction(
       tx,
       context,
-      godActor,
+      playerActor,
       declarationDraft(base.heroId, base.defenderId, {
         label: "Long preparation",
         actionKind: "preparation",
@@ -404,28 +435,27 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
         calledShot: { declared: false, label: "", assignedPenalty: null },
       }),
     );
-    await lockActionDeclarationInTransaction(tx, context, godActor, longDeclarationId);
-    const longPendingId = await commitActionDeclarationInTransaction(tx, context, godActor, longDeclarationId);
+    await lockActionDeclarationInTransaction(tx, context, playerActor, longDeclarationId);
+    const longPendingId = await commitActionDeclarationInTransaction(tx, context, playerActor, longDeclarationId);
     const conflictingDeclarationId = await createActionDeclarationDraftInTransaction(
       tx,
       context,
-      godActor,
+      playerActor,
       declarationDraft(base.heroId, base.defenderId, { label: "Unrelated action during long preparation" }),
     );
-    await lockActionDeclarationInTransaction(tx, context, godActor, conflictingDeclarationId);
+    await lockActionDeclarationInTransaction(tx, context, playerActor, conflictingDeclarationId);
     await assert.rejects(
-      commitActionDeclarationInTransaction(tx, context, godActor, conflictingDeclarationId),
+      commitActionDeclarationInTransaction(tx, context, playerActor, conflictingDeclarationId),
       /already committed to an active pending action/,
     );
-    await cancelActionDeclarationInTransaction(tx, context, godActor, conflictingDeclarationId);
+    await cancelActionDeclarationInTransaction(tx, context, playerActor, conflictingDeclarationId);
     const longOpportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity)
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, longDeclarationId));
     for (const opportunity of longOpportunities) {
-      await reconcileResponderOpportunityInTransaction(tx, context, godActor, opportunity.id, { status: "declined" });
+      await reconcileResponderOpportunityInTransaction(tx, context, godActor, opportunity.id, { decision: "ineligible", reason: "No response is available in this fixture." });
     }
     beforeEngine = await loadInitiativeEngineInTransaction(tx, base.encounterId);
-    afterEngine = passInitiative(beforeEngine, base.defenderId);
-    afterEngine = advanceInitiativeTimeline(afterEngine, 10);
+    afterEngine = advanceInitiativeTimeline(beforeEngine, 10);
     afterEngine = passInitiative(afterEngine, base.rosterOnlyId);
     afterEngine = advanceInitiativeTimeline(afterEngine, 0);
     await persistInitiativeEngineInTransaction(tx, context, beforeEngine, afterEngine);
@@ -487,6 +517,63 @@ test("guarded declaration lifecycle, windows, Rolls, rulings, authorization, and
       /requires a locked declaration/,
     );
 
+    throw ROLLBACK;
+  }), (error: unknown) => error === ROLLBACK);
+});
+
+test("matching Initiative declarations settle privately and both keep their 11 to 7 chronology", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    for (const order of ["hero-first", "defender-first"] as const) {
+      const base = await insertBuildTenFixture(tx, `simultaneous-${order}`);
+      const context = await lockOwnedEncounterRuntimeInTransaction(tx, base.encounterId, base.godId);
+      const god = { authority: "god-owner" as const, userId: base.godId };
+      const player = { authority: "player" as const, userId: base.godId, characterId: base.heroId };
+      const choiceActor = (characterId: number) => characterId === base.heroId ? player : god;
+      await tx.update(campaignSessionEncounterInitiative).set({ timelineInitiative: 11 })
+        .where(eq(campaignSessionEncounterInitiative.encounterId, base.encounterId));
+      await tx.update(campaignSessionEncounterInitiativeParticipant).set({
+        currentInitiative: 11,
+        participationStatus: "active",
+        lastSatisfiedStep: 0,
+      }).where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, base.encounterId));
+
+      const ids = order === "hero-first" ? [base.heroId, base.defenderId] : [base.defenderId, base.heroId];
+      const firstDeclaration = await createActionDeclarationDraftInTransaction(tx, context, choiceActor(ids[0]!), declarationDraft(ids[0]!, ids[1]!, { label: `${order} first`, initiativeCost: 4 }));
+      await lockActionDeclarationInTransaction(tx, context, choiceActor(ids[0]!), firstDeclaration);
+      const firstPendingAction = await commitActionDeclarationInTransaction(tx, context, choiceActor(ids[0]!), firstDeclaration);
+      const [firstOpportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity)
+        .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, firstDeclaration));
+      assert.ok(firstOpportunity);
+      await assert.rejects(
+        reconcileResponderOpportunityInTransaction(tx, context, god, firstOpportunity.id, { decision: "allow" }),
+        /unresolved simultaneous Initiative choice/,
+      );
+
+      const secondDeclaration = await createActionDeclarationDraftInTransaction(tx, context, choiceActor(ids[1]!), declarationDraft(ids[1]!, ids[0]!, { label: `${order} second`, initiativeCost: 4 }));
+      await lockActionDeclarationInTransaction(tx, context, choiceActor(ids[1]!), secondDeclaration);
+      const secondPendingAction = await commitActionDeclarationInTransaction(tx, context, choiceActor(ids[1]!), secondDeclaration);
+      const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity)
+        .where(eq(campaignSessionEncounterResponderOpportunity.encounterId, base.encounterId));
+      for (const opportunity of opportunities.filter(({ declarationId }) => declarationId === firstDeclaration || declarationId === secondDeclaration)) {
+        await reconcileResponderOpportunityInTransaction(tx, context, god, opportunity.id, { decision: "ineligible", reason: "No response is available after both simultaneous choices are locked." });
+      }
+
+      const before = await loadInitiativeEngineInTransaction(tx, base.encounterId);
+      const actionIds = new Set([firstPendingAction, secondPendingAction]);
+      const activeActions = before.pendingActions.filter(({ id, status }) => actionIds.has(id) && status === "active");
+      assert.equal(activeActions.length, 2);
+      assert.deepEqual(activeActions.map(({ startInitiative, expectedCompletionInitiative, originalInitiativeCost }) => ({ startInitiative, expectedCompletionInitiative, originalInitiativeCost })), [
+        { startInitiative: 11, expectedCompletionInitiative: 7, originalInitiativeCost: 4 },
+        { startInitiative: 11, expectedCompletionInitiative: 7, originalInitiativeCost: 4 },
+      ]);
+      const afterTimeline = advanceInitiativeTimeline(before, 7);
+      await persistInitiativeEngineInTransaction(tx, context, before, afterTimeline);
+      const completed = await tx.select().from(campaignSessionEncounterPendingAction).where(and(
+        eq(campaignSessionEncounterPendingAction.encounterId, base.encounterId),
+        eq(campaignSessionEncounterPendingAction.status, "completed"),
+      ));
+      assert.equal(completed.filter(({ actorCharacterId, expectedCompletionInitiative }) => ids.includes(actorCharacterId) && expectedCompletionInitiative === 7).length, 2);
+    }
     throw ROLLBACK;
   }), (error: unknown) => error === ROLLBACK);
 });

@@ -187,7 +187,7 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     const afterEngine = advanceInitiativeTimeline(beforeEngine, 15);
     await persistInitiativeEngineInTransaction(tx, context, beforeEngine, afterEngine);
     assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, second.itemInstanceId)))[0]?.loadedRounds, 0);
-    await reconcileResponderOpportunityInTransaction(tx, context, actor, opportunities[0]!.id, { status: "declined", reason: "No response declared" });
+    await reconcileResponderOpportunityInTransaction(tx, context, actor, opportunities[0]!.id, { decision: "ineligible", reason: "No response is available in this fixture." });
     assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, second.itemInstanceId)))[0]?.loadedRounds, 2);
     assert.equal((await tx.select().from(campaignCharacterFirearmPreparation).where(eq(campaignCharacterFirearmPreparation.id, longLoad.preparationId)))[0]?.status, "completed");
 

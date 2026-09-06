@@ -17,7 +17,8 @@ import {
   declareDefenseInterventionInTransaction,
   recordDeclaredAttackRollInTransaction,
   recordDeclaredResponseRollInTransaction,
-  resolveDeclaredDefensesInTransaction,
+  resolveDeclaredDefensesAfterResponseIfReadyInTransaction,
+  resolveDeclaredDefensesIfReadyInTransaction,
 } from "@/features/tabletop-operations/defense-intervention-service";
 import {
   commitFirearmAttackTriggerInTransaction,
@@ -292,6 +293,7 @@ export async function declarePlayerDefense(
 export async function rollPlayerDeclaredResponse(characterId: number, encounterId: number, reactionId: number, input: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "roll", async (tx, context, actor) => {
     const roll = await recordDeclaredResponseRollInTransaction(tx, context, actor, positiveId(reactionId, "Response"), input);
+    await resolveDeclaredDefensesAfterResponseIfReadyInTransaction(tx, context, actor, reactionId);
     return roll.id;
   });
 }
@@ -299,7 +301,7 @@ export async function rollPlayerDeclaredResponse(characterId: number, encounterI
 export async function rollPlayerDeclaredAttack(characterId: number, encounterId: number, declarationId: number, input: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "roll", async (tx, context, actor) => {
     const roll = await recordDeclaredAttackRollInTransaction(tx, context, actor, positiveId(declarationId, "Declaration"), input);
-    await resolveDeclaredDefensesInTransaction(tx, context, actor, declarationId);
+    await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, declarationId);
     return roll.id;
   });
 }

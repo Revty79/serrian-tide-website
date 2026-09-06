@@ -55,6 +55,13 @@ export type PerSuccessQuantity = Readonly<{
   rulingReasons: readonly PercentileRulingReason[];
 }>;
 
+export function formatAttackPercentileResult(resolution: PercentileResolution): string {
+  if (resolution.criticalFailure) return "Critical failure.";
+  if (!resolution.succeeded) return "Attack failed.";
+  const successLabel = resolution.criticalSuccess ? "Critical success" : "Successful hit";
+  return `${successLabel}, ${resolution.additionalSuccesses} extra success${resolution.additionalSuccesses === 1 ? "" : "es"}.`;
+}
+
 export type OpposedObjectiveOutcome =
   | "attack-wins"
   | "defense-wins"

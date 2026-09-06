@@ -119,10 +119,7 @@ export async function commitActionDeclaration(encounterId: number, declarationId
 export async function reconcileResponderOpportunity(
   encounterId: number,
   opportunityId: number,
-  input:
-    | { status: "declined"; reason?: string }
-    | { status: "ineligible"; reason: string }
-    | { status: "response-declared"; responseLabel: string },
+  input: { decision: "allow" } | { decision: "ineligible"; reason: string },
 ): Promise<void> {
   return mutateDeclaration(encounterId, (tx, context, actor) => (
     reconcileResponderOpportunityInTransaction(tx, context, actor, positiveId(opportunityId, "Responder opportunity"), input)

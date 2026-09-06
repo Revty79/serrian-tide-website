@@ -11,6 +11,8 @@ import type {
   FirearmAttackWorkspaceView,
 } from "@/features/tabletop-operations/firearm-attack-service";
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
+import { formatAttackPercentileResult } from "@/features/tabletop-operations/percentile-resolution";
+import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
 
 import {
   cancelFirearmAttack,
@@ -96,18 +98,18 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
   const canFire = attack.status === "committed" && attack.triggerTimingStatus === "completed";
   return <article className={`firearm-attack-card is-${attack.status}`}>
     <header>
-      <div><span>ATTACK #{attack.id} - {attack.effectiveStatus.replaceAll("-", " ")}</span><h4>{attack.actorName}: {attack.itemName} at {attack.targetName}</h4><small>{attack.firingModeName} - {attack.ammunitionName}</small></div>
+      <div><span>{attack.effectiveStatus.replaceAll("-", " ").toLocaleUpperCase()}</span><h4>{attack.actorName}: {attack.itemName} at {attack.targetName}</h4><small>{attack.firingModeName} - {attack.ammunitionName}</small></div>
       <Link href="/heavens/equipment">Global Equipment record</Link>
     </header>
     <dl>
-      <div><dt>Trigger</dt><dd>Declaration #{attack.triggerDeclarationId} - 1 Initiative - {attack.triggerTimingStatus ?? "not committed"}</dd></div>
+      <div><dt>Trigger</dt><dd>1 Initiative - {attack.triggerTimingStatus ?? "not committed"}</dd></div>
       <div><dt>Aim</dt><dd>{attack.aimInitiative ? `${attack.aimInitiative} Initiative / -${attack.aimTargetOffset} target - ${attack.aimTimingStatus ?? "pending"}` : "None"}</dd></div>
       <div><dt>Called Shot</dt><dd>{attack.calledShotDeclared ? `${attack.calledShotObjective} - location ${attack.calledShotLocationNumber ?? "ruling"} - penalty ${attack.calledShotPenalty} (${attack.calledShotReason})` : "No"}</dd></div>
       <div><dt>Rounds</dt><dd>{attack.roundsConsumed || 0} consumed / {attack.roundsDeclared} declared; before {attack.roundsLoadedBefore}, after {attack.roundsLoadedAfter ?? "not fired"}</dd></div>
       <div><dt>Governing target</dt><dd>{attack.governingLabel}: {attack.originalTarget} - final roll-over target {attack.finalTarget}</dd></div>
-      <div><dt>Roll / Plan</dt><dd>{attack.attackRollId ? `Roll #${attack.attackRollId}` : "No Roll"} / {attack.effectPlanId ? `Plan #${attack.effectPlanId} (${attack.effectPlanStatus})` : "No plan"}</dd></div>
+      <div><dt>Roll / outcome</dt><dd>{attack.attackRollId ? attack.attackFinalized ? "Attack and defenses resolved" : "Attack Roll recorded; waiting for response Rolls" : "No attack Roll yet"}</dd></div>
     </dl>
-    <details><summary>Responder opportunities - {attack.responderOpportunities.length}</summary>{attack.responderOpportunities.length ? <ol>{attack.responderOpportunities.map((opportunity) => <li key={opportunity.id}>#{opportunity.id}: {opportunity.phase} / participant {opportunity.responderParticipantId} - {opportunity.status}{opportunity.responseLabel ? ` (${opportunity.responseLabel})` : ""}</li>)}</ol> : <p>No responder opportunities were generated.</p>}</details>
+    <details><summary>Responder opportunities - {attack.responderOpportunities.length}</summary>{attack.responderOpportunities.length ? <ol>{attack.responderOpportunities.map((opportunity) => <li key={opportunity.id}>{opportunity.responderName}: {opportunity.phase} - {opportunity.status}{opportunity.responseLabel ? ` (${opportunity.responseLabel})` : ""}</li>)}</ol> : <p>No responder opportunities were generated.</p>}</details>
 
     {attack.status === "aiming" ? <button type="button" disabled={busy || attack.effectiveStatus !== "trigger-ready"} onClick={() => void perform(
       () => commitFirearmAttackTrigger(encounterId, attack.id, attack.actorParticipantId),
@@ -115,20 +117,20 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
     )}>Commit trigger after Aim</button> : null}
 
     {attack.status === "committed" ? <section className="firearm-attack-roll">
-      <p>Use the Defense &amp; Intervention workspace to reconcile every responder opportunity and record required response Rolls. Firing then records the one immutable attack Roll and resolves the defense group atomically.</p>
-      <label><span>Roll method</span><select value={method} onChange={(event) => setMethod(event.target.value as typeof method)}><option value="random">Server d100</option><option value="entered">Enter physical d100</option></select></label>
-      {method === "entered" ? <label><span>Physical result</span><input type="number" min={1} max={100} step={1} value={enteredTotal} onChange={(event) => setEnteredTotal(event.target.value)} /></label> : null}
-      <label className="is-wide"><span>Roll notes</span><input value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} /></label>
-      <button type="button" className="is-primary" disabled={busy || !canFire || (method === "entered" && !enteredTotal)} onClick={() => void perform(
+      <p>Attack and response Rolls are saved independently. Ammunition and outcomes wait until every required Roll is present.</p>
+      {attack.attackRollId === null ? <><label className="st-field"><span>Roll method</span><select className="st-control" value={method} onChange={(event) => setMethod(event.target.value as typeof method)}><option value="random">Server d100</option><option value="entered">Enter physical d100</option></select></label>
+      {method === "entered" ? <label className="st-field"><span>Physical result</span><input className="st-control" inputMode="numeric" pattern="[0-9]{1,3}" value={enteredTotal} onChange={(event) => setEnteredTotal(event.target.value)} placeholder="01-99 or 00" /></label> : null}
+      <label className="st-field is-wide"><span>Roll notes</span><input className="st-control" value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} /></label></> : <p className="tabletop-feedback is-success">The attack Roll is safely recorded. Finish firing after every declared defense Roll is present.</p>}
+      <button type="button" className="st-button is-primary" disabled={busy || !canFire || (attack.attackRollId === null && method === "entered" && !enteredTotal.trim())} onClick={() => void perform(
         () => fireFirearmAttack(encounterId, attack.id, [attack.actorParticipantId, attack.targetParticipantId], {
-          method,
-          enteredTotal: method === "entered" ? whole(enteredTotal, "Physical d100 result", 1) : null,
+          method: attack.attackRollId === null ? method : "random",
+          enteredTotal: attack.attackRollId === null && method === "entered" ? parsePhysicalPercentileInput(enteredTotal) : null,
           visibility: "table",
           notes,
         }),
-        "The trigger was pulled; Roll, ammunition, bullet allocation, and proposed consequences were recorded once.",
-      )}>Fire and record attack Roll</button>
-      {!canFire ? <small>The trigger action and all response opportunities must finish first.</small> : null}
+        attack.attackRollId === null ? "Attack Roll recorded. Firing completes automatically when all response Rolls are ready." : "Firing completed from the already-recorded Roll.",
+      )}>{attack.attackRollId === null ? "Record attack Roll" : "Finish firing"}</button>
+      {!canFire ? <small>The trigger action must complete first.</small> : null}
     </section> : null}
 
     {attack.status === "fired-awaiting-timing" ? <button type="button" disabled={busy || attack.triggerTimingStatus !== "completed"} onClick={() => void perform(
@@ -141,7 +143,7 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
       if (reason) void perform(() => cancelFirearmAttack(encounterId, attack.id, attack.actorParticipantId, reason), "The unfired declaration was cancelled; no ammunition was consumed.");
     }}>Cancel before firing</button> : null}
 
-    {attack.attackRoll ? <section className="firearm-attack-result"><h5>Immutable attack result</h5><p><strong>{attack.attackRoll.resolution.resultTotal}</strong> vs {attack.attackRoll.resolution.finalTarget}: {attack.attackRoll.resolution.outcome}; {attack.attackRoll.resolution.totalSuccesses} total success{attack.attackRoll.resolution.totalSuccesses === 1 ? "" : "es"}.</p>{attack.bulletAllocation ? <p>{attack.bulletAllocation.initialBulletHits} initial bullet hit{attack.bulletAllocation.initialBulletHits === 1 ? "" : "s"}; {attack.bulletAllocation.bulletsCancelled} cancelled by successful defenses; {attack.bulletAllocation.survivingBulletHits} survive; {attack.bulletAllocation.overflowDamage} overflow damage.</p> : null}</section> : null}
+    {attack.attackRoll ? <section className="firearm-attack-result"><h5>Immutable attack result</h5><p><strong>{attack.attackRoll.resolution.resultTotal}</strong> vs {attack.attackRoll.resolution.finalTarget}: {formatAttackPercentileResult(attack.attackRoll.resolution)}</p>{attack.bulletAllocation ? <p>{attack.bulletAllocation.initialBulletHits} initial bullet hit{attack.bulletAllocation.initialBulletHits === 1 ? "" : "s"}; {attack.bulletAllocation.bulletsCancelled} cancelled by successful defenses; {attack.bulletAllocation.survivingBulletHits} survive; {attack.bulletAllocation.overflowDamage} overflow damage.</p> : null}</section> : null}
     {attack.bulletAllocation?.defenseContributions?.length ? <details><summary>Defense allocation - {attack.bulletAllocation.defenseContributions.length} Reaction{attack.bulletAllocation.defenseContributions.length === 1 ? "" : "s"}</summary><ol>{attack.bulletAllocation.defenseContributions.map((contribution) => <li key={contribution.reactionId}><strong>Reaction #{contribution.reactionId}</strong> - defender {contribution.defenderParticipantId}; Roll {contribution.defenseRollId === null ? "none" : `#${contribution.defenseRollId}`}; {contribution.defenseTotalSuccesses ?? "unresolved"} defense success{contribution.defenseTotalSuccesses === 1 ? "" : "es"}; {contribution.applicable === null ? "ruling required" : contribution.applicable ? "applicable" : "not applicable"}; {contribution.bulletsBefore} before, {contribution.bulletsCancelled} cancelled, {contribution.bulletsAfter} after{contribution.rulingReasons.map((reason) => <small key={reason}>{reason}</small>)}</li>)}</ol></details> : null}
     {attack.defenseResolution ? <details><summary>Defense and intervention result</summary><pre>{JSON.stringify(attack.defenseResolution, null, 2)}</pre></details> : null}
     {attack.damageResolution || attack.postShotState ? <details><summary>Frozen damage and post-shot state</summary><pre>{JSON.stringify({ damage: attack.damageResolution, postShot: attack.postShotState }, null, 2)}</pre></details> : null}

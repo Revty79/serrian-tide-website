@@ -14,7 +14,9 @@ import {
   campaignSessionEncounterEffectPlanEvent,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
+  campaignSessionEncounterReaction,
   campaignSessionEncounterResponderOpportunity,
+  campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
 import {
   readCharacterEquipmentStateInTransaction,
@@ -47,6 +49,7 @@ import {
   endPendingInitiativeAction,
   extendPendingInitiativeActionCost,
   interruptPendingInitiativeAction,
+  getNextInitiativeTimelineEvent,
   restartPendingInitiativeAction,
   resumePendingInitiativeAction,
   startInitiativeAction,
@@ -115,6 +118,12 @@ export type ActionDeclarationView = Readonly<{
   }>;
   window: ReturnType<typeof deriveActionWindow> | null;
   opportunities: readonly ActionDeclarationOpportunityView[];
+  rollState: Readonly<{
+    attackRollId: number | null;
+    missingResponseRolls: number;
+    resolved: boolean;
+    message: string;
+  }>;
   events: readonly ActionDeclarationEventView[];
   rulingReason: string;
   rulingNotes: string;
@@ -142,6 +151,7 @@ export type ActionDeclarationWorkspaceView = Readonly<{
     currentInitiative: number;
     participationStatus: "active" | "holding" | "passed" | "suspended";
     hasActiveAction: boolean;
+    choiceOwner: "god" | "player";
     weapons: readonly Readonly<{
       ownershipKey: string;
       itemId: number;
@@ -207,6 +217,31 @@ async function assertActorAuthority(
     ))
     .limit(1);
   if (!owned) throw new Error("A Player may declare an action only for their own authorized Character.");
+}
+
+async function assertActionChoiceAuthority(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  actor: ActionDeclarationActor,
+  actorCharacterId: number,
+): Promise<void> {
+  await assertActorAuthority(tx, context, actor, actorCharacterId);
+  if (actor.authority === "player") return;
+  const [participant] = await tx.select({
+    participantKind: campaignSessionEncounterParticipant.participantKind,
+    isNpc: campaignCharacter.isNpc,
+  }).from(campaignSessionEncounterParticipant)
+    .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
+    .where(and(
+      eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
+      eq(campaignSessionEncounterParticipant.sceneId, context.sceneId),
+      eq(campaignSessionEncounterParticipant.sessionId, context.sessionId),
+      eq(campaignSessionEncounterParticipant.campaignId, context.campaignId),
+      eq(campaignSessionEncounterParticipant.characterId, actorCharacterId),
+    )).limit(1);
+  if (!participant || (participant.participantKind !== "creature" && participant.isNpc !== true)) {
+    throw new Error("A Player-controlled Character must commit their own action choice.");
+  }
 }
 
 async function assertParticipants(
@@ -480,7 +515,7 @@ export async function createActionDeclarationDraftInTransaction(
 ): Promise<number> {
   assertContextLive(context);
   const draft = normalizeActionDeclarationDraft(input);
-  await assertActorAuthority(tx, context, actor, draft.actorCharacterId);
+  await assertActionChoiceAuthority(tx, context, actor, draft.actorCharacterId);
   await assertParticipants(tx, context, [draft.actorCharacterId, ...draft.targetCharacterIds]);
   let versionNumber = 1;
   if (supersedesDeclarationId !== null) {
@@ -540,7 +575,7 @@ export async function editActionDeclarationDraftInTransaction(
   if (row.status !== "draft") throw new Error("Only a draft declaration may be edited. Create an explicit revision for locked mechanics.");
   const draft = normalizeActionDeclarationDraft(input);
   if (draft.actorCharacterId !== row.actorCharacterId) throw new Error("A declaration revision cannot silently replace its acting Character.");
-  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   await assertParticipants(tx, context, [draft.actorCharacterId, ...draft.targetCharacterIds]);
   await tx.update(campaignSessionEncounterActionDeclaration).set({
     draftJson: draft,
@@ -557,7 +592,7 @@ export async function lockActionDeclarationInTransaction(
 ): Promise<void> {
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "draft") throw new Error("Only a draft declaration may be locked.");
-  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   assertActionDeclarationTransition("draft", "locked");
   const now = new Date();
   const snapshot = await buildAuthoritativeSnapshot(tx, context, row, parseActionDeclarationDraft(row.draftJson), actor, now);
@@ -579,7 +614,7 @@ export async function reviseLockedActionDeclarationInTransaction(
 ): Promise<number> {
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "locked") throw new Error("Only an uncommitted locked declaration may be replaced by a draft revision.");
-  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   const now = new Date();
   assertActionDeclarationTransition("locked", "cancelled");
@@ -635,7 +670,7 @@ export async function commitActionDeclarationInTransaction(
 ): Promise<number> {
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "locked") throw new Error("Initiative commitment requires a locked declaration.");
-  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   assertContextLive(context);
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
@@ -823,10 +858,7 @@ export async function reconcileResponderOpportunityInTransaction(
   context: OwnedEncounterRuntimeContext,
   actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
   opportunityId: number,
-  input:
-    | { status: "declined"; reason?: string }
-    | { status: "ineligible"; reason: string }
-    | { status: "response-declared"; responseLabel: string },
+  input: { decision: "allow" } | { decision: "ineligible"; reason: string },
 ): Promise<void> {
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may reconcile responder eligibility.");
   const [opportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
@@ -837,34 +869,43 @@ export async function reconcileResponderOpportunityInTransaction(
     eq(campaignSessionEncounterResponderOpportunity.campaignId, context.campaignId),
   )).limit(1).for("update");
   if (!opportunity || opportunity.status !== "pending") throw new Error("Only a pending responder opportunity may be reconciled.");
+  if (!opportunity.requiresGodConfirmation) throw new Error("This responder is already eligible and must choose their own response.");
   const row = await lockDeclaration(tx, context, opportunity.declarationId);
   if (row.status !== "committed") throw new Error("Responder opportunities can be reconciled only while the declaration window is open.");
+  const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  const next = getNextInitiativeTimelineEvent(engine);
+  const pendingAction = row.pendingActionId === null ? null : engine.pendingActions.find(({ id }) => id === row.pendingActionId) ?? null;
+  if (
+    pendingAction !== null
+    && opportunity.reachedAtInitiative === pendingAction.startInitiative
+    && next.kind === "normal-opportunity"
+    && next.initiative === opportunity.reachedAtInitiative
+    && next.characterIds.includes(opportunity.responderCharacterId)
+  ) {
+    throw new Error("This combatant still has an unresolved simultaneous Initiative choice. Settle their declaration, Hold, or Pass before deciding whether they can respond.");
+  }
   const now = new Date();
-  const rulingReason = input.status === "ineligible"
+  const rulingReason = input.decision === "ineligible"
     ? boundedReason(input.reason, "Ineligibility ruling reason")
-    : opportunity.source === "god-exception"
-      ? opportunity.rulingReason
-    : input.status === "declined"
-      ? boundedReason(input.reason ?? "", "Decline note", false)
-      : "";
-  const responseLabel = input.status === "response-declared"
-    ? boundedReason(input.responseLabel, "Response declaration")
     : "";
   await tx.update(campaignSessionEncounterResponderOpportunity).set({
-    status: input.status,
+    status: input.decision === "ineligible" ? "ineligible" : "pending",
+    requiresGodConfirmation: false,
     rulingReason,
-    responseLabel,
-    reconciledByUserId: actor.userId,
-    reconciledAt: now,
+    responseLabel: "",
+    reconciledByUserId: input.decision === "ineligible" ? actor.userId : null,
+    reconciledAt: input.decision === "ineligible" ? now : null,
     updatedAt: now,
   }).where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
-  await recordEvent(tx, context, row.id, row.status, row.status, `responder-${input.status}`, actor.userId, rulingReason || responseLabel, {
+  await recordEvent(tx, context, row.id, row.status, row.status, `responder-eligibility-${input.decision}`, actor.userId, rulingReason, {
     opportunityId: opportunity.id,
     responderCharacterId: opportunity.responderCharacterId,
   });
-  await reconcileRollingReadiness(tx, context, row, actor.userId);
-  const { reconcileFirearmPreparationAfterResponderInTransaction } = await import("./firearm-readiness-service");
-  await reconcileFirearmPreparationAfterResponderInTransaction(tx as RuntimeIntegrationTransaction, row.id, actor.userId);
+  if (input.decision === "ineligible") {
+    await reconcileRollingReadiness(tx, context, row, actor.userId);
+    const { reconcileFirearmPreparationAfterResponderInTransaction } = await import("./firearm-readiness-service");
+    await reconcileFirearmPreparationAfterResponderInTransaction(tx as RuntimeIntegrationTransaction, row.id, actor.userId);
+  }
 }
 
 export async function addExceptionalResponderOpportunityInTransaction(
@@ -1086,7 +1127,8 @@ export async function cancelActionDeclarationInTransaction(
   reason = "",
 ): Promise<void> {
   const row = await lockDeclaration(tx, context, declarationId);
-  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  if (row.pendingActionId === null) await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
+  else await assertActorAuthority(tx, context, actor, row.actorCharacterId);
   if (actor.authority === "player" && row.pendingActionId !== null) {
     throw new Error("A committed action requires a G.O.D. cancellation ruling.");
   }
@@ -1506,6 +1548,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     participantKind: campaignSessionEncounterParticipant.participantKind,
     displayLabel: campaignSessionEncounterParticipant.displayLabel,
     name: campaignCharacter.name,
+    isNpc: campaignCharacter.isNpc,
   }).from(campaignSessionEncounterParticipant)
     .leftJoin(campaignCharacter, and(
       eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId),
@@ -1521,6 +1564,10 @@ export async function readActionDeclarationWorkspaceInTransaction(
     entry.characterId,
     entry.participantKind === "creature" ? entry.displayLabel : entry.name ?? `Character #${entry.characterId}`,
   ]));
+  const choiceOwners = new Map(identities.map((entry) => [
+    entry.characterId,
+    entry.participantKind === "creature" || entry.isNpc === true ? "god" as const : "player" as const,
+  ]));
   const allDeclarationRows = await tx.select().from(campaignSessionEncounterActionDeclaration)
     .where(eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclaration.id));
@@ -1530,11 +1577,27 @@ export async function readActionDeclarationWorkspaceInTransaction(
   const eventRows = await tx.select().from(campaignSessionEncounterActionDeclarationEvent)
     .where(eq(campaignSessionEncounterActionDeclarationEvent.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclarationEvent.id));
+  const reactionRows = await tx.select({
+    id: campaignSessionEncounterReaction.id,
+    status: campaignSessionEncounterReaction.status,
+    rollRequired: campaignSessionEncounterReaction.rollRequired,
+  }).from(campaignSessionEncounterReaction)
+    .where(eq(campaignSessionEncounterReaction.encounterId, context.encounterId));
+  const rollRows = await tx.select({
+    id: campaignSessionRoll.id,
+    pendingActionId: campaignSessionRoll.pendingActionId,
+    reactionId: campaignSessionRoll.reactionId,
+    status: campaignSessionRoll.status,
+  }).from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, context.encounterId));
   const visibleDeclarationIds = actor.authority === "god-owner"
     ? null
     : new Set([
         ...allDeclarationRows.filter(({ actorCharacterId }) => actorCharacterId === actor.characterId).map(({ id }) => id),
-        ...opportunityRows.filter(({ responderCharacterId }) => responderCharacterId === actor.characterId).map(({ declarationId }) => declarationId),
+        ...opportunityRows.filter((opportunity) => (
+          opportunity.responderCharacterId === actor.characterId
+          && !opportunity.requiresGodConfirmation
+          && (opportunity.status === "pending" || opportunity.reactionId !== null)
+        )).map(({ declarationId }) => declarationId),
       ]);
   const declarationRows = visibleDeclarationIds === null
     ? allDeclarationRows
@@ -1555,6 +1618,25 @@ export async function readActionDeclarationWorkspaceInTransaction(
       lockedByUserId: "",
     };
     const pending = row.pendingActionId === null ? null : pendingById.get(row.pendingActionId) ?? null;
+    const declarationOpportunities = opportunityRows.filter(({ declarationId }) => declarationId === row.id);
+    const declarationReactionIds = new Set(declarationOpportunities.flatMap(({ reactionId }) => reactionId === null ? [] : [reactionId]));
+    const requiredReactionIds = reactionRows.filter(({ id, status, rollRequired }) => declarationReactionIds.has(id) && status === "declared" && rollRequired).map(({ id }) => id);
+    const recordedReactionIds = new Set(rollRows.filter(({ reactionId, status }) => reactionId !== null && status === "recorded").map(({ reactionId }) => reactionId));
+    const attackRollId = row.pendingActionId === null ? null : rollRows.find((roll) => roll.pendingActionId === row.pendingActionId && roll.status === "recorded")?.id ?? null;
+    const missingResponseRolls = requiredReactionIds.filter((id) => !recordedReactionIds.has(id)).length;
+    const responseChoicePending = declarationOpportunities.some(({ status }) => status === "pending");
+    const resolved = row.defenseResolutionJson !== null;
+    const rollMessage = resolved
+      ? "Attack and response Rolls are resolved."
+      : responseChoicePending
+        ? "Waiting for responder eligibility or response choices before Rolls can resolve."
+        : attackRollId === null && missingResponseRolls > 0
+          ? "Attack and defense Rolls may be recorded in either order."
+          : attackRollId === null
+            ? "Waiting for the attack Roll."
+            : missingResponseRolls > 0
+              ? `Attack Roll recorded; waiting for ${missingResponseRolls} response Roll${missingResponseRolls === 1 ? "" : "s"}.`
+              : "Every required Roll is present; resolution is ready.";
     return {
       id: row.id,
       actorCharacterId: row.actorCharacterId,
@@ -1581,7 +1663,16 @@ export async function readActionDeclarationWorkspaceInTransaction(
             { ...lockedSnapshot, initiativeCost: pending.remainingInitiativeCost },
           )
         : null,
-      opportunities: opportunityRows.filter(({ declarationId }) => declarationId === row.id).map((opportunity) => ({
+      opportunities: opportunityRows.filter((opportunity) => {
+        if (opportunity.declarationId !== row.id) return false;
+        if (actor.authority === "god-owner") return true;
+        if (ownsDeclaration) {
+          return !opportunity.requiresGodConfirmation || opportunity.status === "ineligible" || opportunity.reactionId !== null;
+        }
+        return opportunity.responderCharacterId === actor.characterId
+          && !opportunity.requiresGodConfirmation
+          && (opportunity.status === "pending" || opportunity.reactionId !== null);
+      }).map((opportunity) => ({
         id: opportunity.id,
         responderCharacterId: opportunity.responderCharacterId,
         responderName: names.get(opportunity.responderCharacterId) ?? `Character #${opportunity.responderCharacterId}`,
@@ -1589,14 +1680,22 @@ export async function readActionDeclarationWorkspaceInTransaction(
         status: opportunity.status,
         windowSequence: opportunity.windowSequence,
         reachedAtInitiative: opportunity.reachedAtInitiative,
-        reason: opportunity.reason,
+        reason: actor.authority === "player" && opportunity.status === "pending"
+          ? "The G.O.D. confirmed that you may respond. Choose a response or No Defense."
+          : opportunity.reason,
         requiresGodConfirmation: opportunity.requiresGodConfirmation,
         responseLabel: opportunity.responseLabel,
-        rulingReason: opportunity.rulingReason,
+        rulingReason: actor.authority === "god-owner" || ownsDeclaration ? opportunity.rulingReason : "",
         reactionId: opportunity.reactionId,
         reconciledAt: opportunity.reconciledAt?.toISOString() ?? null,
       })),
-      events: eventRows.filter(({ declarationId }) => declarationId === row.id).map((event) => ({
+      rollState: {
+        attackRollId,
+        missingResponseRolls,
+        resolved,
+        message: rollMessage,
+      },
+      events: eventRows.filter(({ declarationId }) => declarationId === row.id && (actor.authority === "god-owner" || ownsDeclaration)).map((event) => ({
         id: event.id,
         fromStatus: event.fromStatus,
         toStatus: event.toStatus,
@@ -1605,7 +1704,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
         actorUserId: actor.authority === "god-owner" ? event.actorUserId : null,
         createdAt: event.createdAt.toISOString(),
       })),
-      rulingReason: row.rulingReason,
+      rulingReason: ownsDeclaration ? row.rulingReason : "",
       rulingNotes: actor.authority === "god-owner" ? row.rulingNotes : "",
       createdAt: row.createdAt.toISOString(),
       lockedAt: row.lockedAt?.toISOString() ?? null,
@@ -1652,6 +1751,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
       currentInitiative: participant.currentInitiative,
       participationStatus: participant.participationStatus,
       hasActiveAction: activeIds.has(participant.characterId),
+      choiceOwner: choiceOwners.get(participant.characterId) ?? "player",
       weapons: weaponsByCharacter.get(participant.characterId) ?? [],
     })),
     declarations,

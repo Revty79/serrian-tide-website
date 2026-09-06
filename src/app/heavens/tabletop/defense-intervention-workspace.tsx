@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import type { DefenseInterventionType, DefenseSourceKind, OriginalActionDisposition } from "@/features/tabletop-operations/defense-intervention";
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
+import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
 
 import {
   cancelDeclaredResponse,
@@ -74,8 +75,13 @@ export function DefenseInterventionWorkspace({
   const [dodgeEndpointSkillId, setDodgeEndpointSkillId] = useState(0);
   const [dodgeConditional, setDodgeConditional] = useState(false);
   const [dodgeCircumstance, setDodgeCircumstance] = useState("");
+  const [attackPhysical, setAttackPhysical] = useState<Record<number, string>>({});
+  const [responsePhysical, setResponsePhysical] = useState<Record<number, string>>({});
+  const [manualAttacks, setManualAttacks] = useState<Record<number, { label: string; target: string }>>({});
   const pending = actions.declarations.flatMap((declaration) => declaration.opportunities
-    .filter(({ status }) => status === "pending")
+    .filter(({ status, requiresGodConfirmation, responderCharacterId }) => status === "pending"
+      && !requiresGodConfirmation
+      && defense.participants.find(({ characterId }) => characterId === responderCharacterId)?.choiceOwner === "god")
     .map((opportunity) => ({ declaration, opportunity })));
 
   async function perform(work: () => Promise<unknown>, message: string): Promise<void> {
@@ -92,25 +98,25 @@ export function DefenseInterventionWorkspace({
     }
   }
 
-  function physicalResult(label: string): number | null {
-    const value = window.prompt(`Enter the physical percentile result for ${label}.`);
-    if (value === null) return null;
-    const result = Number(value);
-    if (!Number.isInteger(result) || result < 1 || result > 100) {
-      setFeedback({ kind: "error", message: "A physical percentile result must be a whole number from 1 through 100." });
+  function physicalResult(value: string): number | null {
+    try {
+      return parsePhysicalPercentileInput(value);
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The physical percentile result is invalid." });
       return null;
     }
-    return result;
   }
 
   function manualAttackTarget(declaration: ActionDeclarationWorkspaceView["declarations"][number]): { manualTarget?: number; manualLabel?: string } | null {
     if (declaration.lockedSnapshot?.governing?.status === "resolved") return {};
-    const label = window.prompt("This action has no resolved governing source. Enter the explicit G.O.D. governing label.")?.trim();
-    if (!label) return null;
-    const supplied = window.prompt("Enter the explicit G.O.D. roll-over target.");
-    if (supplied === null) return null;
-    const target = Number(supplied);
-    if (!Number.isFinite(target)) {
+    const supplied = manualAttacks[declaration.id] ?? { label: "", target: "" };
+    const label = supplied.label.trim();
+    const target = Number(supplied.target);
+    if (!label) {
+      setFeedback({ kind: "error", message: "Enter the explicit G.O.D. governing label for this attack." });
+      return null;
+    }
+    if (!supplied.target.trim() || !Number.isFinite(target)) {
       setFeedback({ kind: "error", message: "The manual attack roll-over target must be finite." });
       return null;
     }
@@ -168,7 +174,7 @@ export function DefenseInterventionWorkspace({
           && reaction.declaration.opposesReactionId === null
           && reaction.status !== "cancelled");
         return <article key={opportunity.id}>
-          <header><div><span>{opportunity.source === "initiative" ? `INITIATIVE · ${opportunity.reachedAtInitiative}` : "G.O.D. EXCEPTION"}</span><strong>{opportunity.responderName}</strong></div><small>Action #{declaration.id} · {declaration.draft.label}</small></header>
+          <header><div><span>{opportunity.source === "initiative" ? `INITIATIVE · ${opportunity.reachedAtInitiative}` : "G.O.D. EXCEPTION"}</span><strong>{opportunity.responderName}</strong></div><small>{declaration.actorName}: {declaration.draft.label}</small></header>
           <div className="defense-declaration-grid">
             <label><span>Response</span><select disabled={busy} value={draft.reactionType} onChange={(event) => {
               const reactionType = event.target.value as DefenseInterventionType;
@@ -226,11 +232,15 @@ export function DefenseInterventionWorkspace({
       {actions.declarations.filter(({ pendingActionId, status }) => pendingActionId !== null && ["rolling-ready", "rolling", "awaiting-god-ruling"].includes(status)).map((declaration) => {
         const reactions = defense.reactions.filter(({ declarationId }) => declarationId === declaration.id);
         return <article key={declaration.id}>
-          <header><div><span>{declaration.status.toLocaleUpperCase()}</span><strong>Action #{declaration.id} · {declaration.draft.label}</strong></div><small>{reactions.length} response declarations</small></header>
-          <div className="defense-roll-controls"><button disabled={busy} onClick={() => { const manual = manualAttackTarget(declaration); if (manual) void perform(() => recordDeclaredAttackRoll(defense.context.encounterId, declaration.id, { method: "random", ...manual }), "Website attack Roll recorded immutably."); }}>Roll Attack</button><button disabled={busy} onClick={() => { const result = physicalResult("the attack"); const manual = result === null ? null : manualAttackTarget(declaration); if (result !== null && manual) void perform(() => recordDeclaredAttackRoll(defense.context.encounterId, declaration.id, { method: "entered", enteredTotal: result, ...manual }), "Physical attack Roll recorded immutably."); }}>Enter Physical Attack</button><button disabled={busy || reactions.some(({ rollRequired, rollId, status }) => rollRequired && rollId === null && status === "declared")} onClick={() => void perform(() => resolveDeclaredDefenses(defense.context.encounterId, declaration.id), "Objective defense comparison and Initiative reconciliation recorded. No damage was applied.")}>Resolve Opposition</button></div>
+          <header><div><span>{declaration.status.toLocaleUpperCase()}</span><strong>{declaration.actorName}: {declaration.draft.label}</strong></div><small>{reactions.length} response declarations</small></header>
+          <p>{declaration.rollState.message}</p>
+          {declaration.lockedSnapshot?.governing?.status !== "resolved" && declaration.rollState.attackRollId === null ? <div className="defense-roll-controls"><label className="st-field"><span>G.O.D. governing label</span><input className="st-control" value={manualAttacks[declaration.id]?.label ?? ""} onChange={(event) => setManualAttacks({ ...manualAttacks, [declaration.id]: { label: event.target.value, target: manualAttacks[declaration.id]?.target ?? "" } })} /></label><label className="st-field"><span>Roll-over target</span><input className="st-control" inputMode="decimal" value={manualAttacks[declaration.id]?.target ?? ""} onChange={(event) => setManualAttacks({ ...manualAttacks, [declaration.id]: { label: manualAttacks[declaration.id]?.label ?? "", target: event.target.value } })} /></label></div> : null}
+          {declaration.rollState.attackRollId === null ? <label className="st-field"><span>Physical attack result</span><input className="st-control" inputMode="numeric" pattern="[0-9]{1,3}" placeholder="01-99 or 00" value={attackPhysical[declaration.id] ?? ""} onChange={(event) => setAttackPhysical({ ...attackPhysical, [declaration.id]: event.target.value })} /></label> : null}
+          <div className="defense-roll-controls">{declaration.rollState.attackRollId === null ? <><button className="st-button is-primary" disabled={busy} onClick={() => { const manual = manualAttackTarget(declaration); if (manual) void perform(() => recordDeclaredAttackRoll(defense.context.encounterId, declaration.id, { method: "random", ...manual }), "Website attack Roll recorded independently."); }}>Roll Attack</button><button className="st-button is-secondary" disabled={busy || !(attackPhysical[declaration.id] ?? "").trim()} onClick={() => { const result = physicalResult(attackPhysical[declaration.id] ?? ""); const manual = result === null ? null : manualAttackTarget(declaration); if (result !== null && manual) void perform(() => recordDeclaredAttackRoll(defense.context.encounterId, declaration.id, { method: "entered", enteredTotal: result, ...manual }), "Physical attack Roll recorded independently."); }}>Enter Physical Attack</button></> : null}<button className="st-button is-primary" disabled={busy || declaration.rollState.attackRollId === null || reactions.some(({ rollRequired, rollId, status }) => rollRequired && rollId === null && status === "declared")} onClick={() => void perform(() => resolveDeclaredDefenses(defense.context.encounterId, declaration.id), "Objective defense comparison and Initiative reconciliation recorded. No damage was applied.")}>Resolve Opposition</button></div>
           {reactions.map((reaction) => <div className="defense-reaction-card" key={reaction.id}>
-            <div><span>{reaction.reactionType.toLocaleUpperCase()} · {reaction.status}</span><strong>{reaction.responderName} protects {reaction.protectedTargetName}</strong><small>{reaction.declaration.source.label} · committed {reaction.committedInitiativeCost} · Roll {reaction.rollId ?? "not recorded"}</small>{reaction.outcome ? <small>Outcome: {reaction.outcome} · final cost {reaction.defenderFinalCost ?? "pending"} · attacker +{reaction.attackerAdditionalCost ?? 0}</small> : null}</div>
-            <div>{reaction.status === "declared" && reaction.rollRequired && reaction.rollId === null ? <><button disabled={busy} onClick={() => void perform(() => recordDeclaredResponseRoll(defense.context.encounterId, reaction.id, { method: "random" }), `Website ${reaction.reactionType} Roll recorded immutably.`)}>Roll</button><button disabled={busy} onClick={() => { const result = physicalResult(reaction.reactionType); if (result !== null) void perform(() => recordDeclaredResponseRoll(defense.context.encounterId, reaction.id, { method: "entered", enteredTotal: result }), `Physical ${reaction.reactionType} Roll recorded immutably.`); }}>Enter Physical</button></> : null}{reaction.status === "declared" ? <button disabled={busy} onClick={() => { const reason = window.prompt("Cancellation reason")?.trim(); if (reason) void perform(() => cancelDeclaredResponse(defense.context.encounterId, reaction.id, reason), "Response cancelled; committed cost retained unless explicitly refunded."); }}>Cancel</button> : null}{reaction.status === "needs-ruling" ? <><button disabled={busy} onClick={() => adjudicate(reaction, "continue")}>Continue</button><button disabled={busy} onClick={() => adjudicate(reaction, "continue-modified")}>Modify</button><button disabled={busy} onClick={() => adjudicate(reaction, "retarget")}>Retarget</button><button disabled={busy} onClick={() => adjudicate(reaction, "cancel")}>Cancel Action</button></> : null}</div>
+            <div><span>{reaction.reactionType.toLocaleUpperCase()} · {reaction.status}</span><strong>{reaction.responderName} protects {reaction.protectedTargetName}</strong><small>{reaction.declaration.source.label} · committed {reaction.committedInitiativeCost} · {reaction.rollId === null ? "Roll not recorded" : "Roll recorded"}</small>{reaction.outcome ? <small>Outcome: {reaction.outcome} · final cost {reaction.defenderFinalCost ?? "pending"} · attacker +{reaction.attackerAdditionalCost ?? 0}</small> : null}</div>
+            {reaction.status === "declared" && reaction.rollRequired && reaction.rollId === null ? <label className="st-field"><span>Physical {reaction.reactionType} result</span><input className="st-control" inputMode="numeric" pattern="[0-9]{1,3}" placeholder="01-99 or 00" value={responsePhysical[reaction.id] ?? ""} onChange={(event) => setResponsePhysical({ ...responsePhysical, [reaction.id]: event.target.value })} /></label> : null}
+            <div>{reaction.status === "declared" && reaction.rollRequired && reaction.rollId === null ? <><button className="st-button is-primary" disabled={busy} onClick={() => void perform(() => recordDeclaredResponseRoll(defense.context.encounterId, reaction.id, { method: "random" }), `Website ${reaction.reactionType} Roll recorded independently.`)}>Roll</button><button className="st-button is-secondary" disabled={busy || !(responsePhysical[reaction.id] ?? "").trim()} onClick={() => { const result = physicalResult(responsePhysical[reaction.id] ?? ""); if (result !== null) void perform(() => recordDeclaredResponseRoll(defense.context.encounterId, reaction.id, { method: "entered", enteredTotal: result }), `Physical ${reaction.reactionType} Roll recorded independently.`); }}>Enter Physical</button></> : null}{reaction.status === "declared" ? <button disabled={busy} onClick={() => { const reason = window.prompt("Cancellation reason")?.trim(); if (reason) void perform(() => cancelDeclaredResponse(defense.context.encounterId, reaction.id, reason), "Response cancelled; committed cost retained unless explicitly refunded."); }}>Cancel</button> : null}{reaction.status === "needs-ruling" ? <><button disabled={busy} onClick={() => adjudicate(reaction, "continue")}>Continue</button><button disabled={busy} onClick={() => adjudicate(reaction, "continue-modified")}>Modify</button><button disabled={busy} onClick={() => adjudicate(reaction, "retarget")}>Retarget</button><button disabled={busy} onClick={() => adjudicate(reaction, "cancel")}>Cancel Action</button></> : null}</div>
             {reaction.events.length ? <details><summary>Audit · {reaction.events.length}</summary><ol>{reaction.events.map((event) => <li key={event.id}><b>{event.eventKind}</b> · {timestamp(event.createdAt)}{event.reason ? ` · ${event.reason}` : ""}</li>)}</ol></details> : null}
           </div>)}
         </article>;

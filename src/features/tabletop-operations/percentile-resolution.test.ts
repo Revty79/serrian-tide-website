@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   calculatePerSuccessQuantity,
   compareAttackAndDefense,
+  formatAttackPercentileResult,
   resolvePercentileCheck,
   validateRollResult,
   type PercentileResolutionInput,
@@ -42,6 +43,13 @@ test("ordinary roll-over boundaries count basic and complete additional successe
     assert.equal(result.additionalSuccesses, expected.additional, `roll ${expected.roll}`);
     assert.equal(result.totalSuccesses, expected.total, `roll ${expected.roll}`);
   }
+});
+
+test("attack result language reports hits and extra successes without counting the basic success twice", () => {
+  assert.equal(formatAttackPercentileResult(resolve(64, 30)), "Successful hit, 3 extra successes.");
+  assert.equal(formatAttackPercentileResult(resolve(84, 30)), "Successful hit, 5 extra successes.");
+  assert.equal(formatAttackPercentileResult(resolve(100, 30)), "Critical success, 7 extra successes.");
+  assert.equal(formatAttackPercentileResult(resolve(29, 30)), "Attack failed.");
 });
 
 test("labeled bonuses lower and penalties raise the target without clamping", () => {

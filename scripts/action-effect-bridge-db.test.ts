@@ -202,7 +202,7 @@ test("guarded Pass 8 plans freeze sources and apply Character or direct-Creature
         .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declarationId));
       for (const opportunity of opportunities) {
         await reconcileResponderOpportunityInTransaction(tx, context, god, opportunity.id, {
-          status: "declined",
+          decision: "ineligible",
           reason: "Pass 8 database fixture declines the response window.",
         });
       }

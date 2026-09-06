@@ -54,7 +54,7 @@ import type { ActionDeclarationDraft } from "./action-declaration";
 import type { DefenseGroupOutcome } from "./defense-intervention";
 import {
   recordDeclaredAttackRollInTransaction,
-  resolveDeclaredDefensesInTransaction,
+  resolveDeclaredDefensesIfReadyInTransaction,
 } from "./defense-intervention-service";
 import {
   evaluateFirearmReadiness,
@@ -76,6 +76,7 @@ import {
 } from "./firearm-attack";
 import { resolvePercentileCheck, type PercentileTargetModifier } from "./percentile-resolution";
 import { getHitLocationFromPercentile, type RollMethod, type RollVisibility } from "./roll-runtime";
+import { readEffectiveRollSnapshotInTransaction, type AuthorizedRollActor } from "./roll-runtime-service";
 import type { RollGoverningSourceRequest, RollGoverningSourceSnapshot, RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
@@ -186,11 +187,13 @@ export type FirearmAttackView = Readonly<{
     id: number;
     phase: "aim" | "trigger";
     responderParticipantId: number;
+    responderName: string;
     status: string;
     responseLabel: string;
   }>[];
   attackRollId: number | null;
   attackRoll: RollMechanicalSnapshot | null;
+  attackFinalized: boolean;
   defenseResolution: unknown;
   bulletAllocation: FirearmBulletAllocation | null;
   damageResolution: unknown;
@@ -1354,6 +1357,7 @@ export type FirearmAttackFireResult = Readonly<{
   status: FirearmAttackStatus;
   roundsConsumed: number;
   reused: boolean;
+  waitingForDefenseRolls: boolean;
 }>;
 
 async function firearmDefenseAllocationInputs(
@@ -1438,6 +1442,7 @@ export async function fireFirearmAttackInTransaction(
       status: attack.status as FirearmAttackStatus,
       roundsConsumed: attack.roundsConsumed,
       reused: true,
+      waitingForDefenseRolls: false,
     };
   }
   if (attack.status !== "committed" || attack.triggerPendingActionId === null) {
@@ -1458,10 +1463,34 @@ export async function fireFirearmAttackInTransaction(
     throw new Error("Every trigger-pull responder opportunity must be reconciled before firing.");
   }
 
-  const roll = await recordDeclaredAttackRollInTransaction(tx, context, actor, attack.triggerDeclarationId, input);
+  const [stagedRoll] = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll).where(and(
+    eq(campaignSessionRoll.pendingActionId, attack.triggerPendingActionId),
+    eq(campaignSessionRoll.encounterId, context.encounterId),
+    eq(campaignSessionRoll.status, "recorded"),
+  )).limit(1);
+  const roll = stagedRoll
+    ? await readEffectiveRollSnapshotInTransaction(tx, {
+        userId: actor.userId,
+        campaignId: context.campaignId,
+        readAs: actor.authority,
+        canRecordGodOnly: actor.authority === "god-owner",
+        characterId: actor.authority === "player" ? actor.characterId : null,
+      } satisfies AuthorizedRollActor, stagedRoll.id)
+    : await recordDeclaredAttackRollInTransaction(tx, context, actor, attack.triggerDeclarationId, input);
   if (!roll.mechanicalSnapshot) throw new Error("The firearm Roll did not produce an immutable mechanical snapshot.");
-  const defense = await resolveDeclaredDefensesInTransaction(tx, context, actor, attack.triggerDeclarationId);
-  if (defense.status === "unresolved") throw new Error("All required independent defense Rolls must resolve before the firearm can fire.");
+  const defense = await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, attack.triggerDeclarationId);
+  if (defense === null) {
+    return {
+      attackId: attack.id,
+      rollId: roll.id,
+      effectPlanId: null,
+      status: "committed",
+      roundsConsumed: 0,
+      reused: false,
+      waitingForDefenseRolls: true,
+    };
+  }
+  if (defense.status === "unresolved") throw new Error("The complete independent defense group could not be resolved.");
   const defenseInputs = await firearmDefenseAllocationInputs(tx, context, defense);
   const preview = attack.frozenSnapshotJson as FirearmAttackPreview;
   const allocation = allocateFirearmBullets({
@@ -1662,7 +1691,7 @@ export async function fireFirearmAttackInTransaction(
       ? "requires-god-ruling"
       : "consequence-planned";
   }
-  return { attackId: attack.id, rollId: roll.id, effectPlanId, status, roundsConsumed: attack.roundsDeclared, reused: false };
+  return { attackId: attack.id, rollId: roll.id, effectPlanId, status, roundsConsumed: attack.roundsDeclared, reused: false, waitingForDefenseRolls: false };
 }
 
 export async function finalizeFirearmAttackConsequencesInTransaction(
@@ -1750,6 +1779,15 @@ export async function readFirearmAttackWorkspaceInTransaction(
     .orderBy(asc(campaignSessionEncounterResponderOpportunity.id));
   const pendingActions = pendingIds.length ? await tx.select({ id: campaignSessionEncounterPendingAction.id, status: campaignSessionEncounterPendingAction.status, remaining: campaignSessionEncounterPendingAction.remainingInitiativeCost })
     .from(campaignSessionEncounterPendingAction).where(inArray(campaignSessionEncounterPendingAction.id, pendingIds)) : [];
+  const stagedAttackRolls = pendingIds.length ? await tx.select({
+    id: campaignSessionRoll.id,
+    pendingActionId: campaignSessionRoll.pendingActionId,
+    status: campaignSessionRoll.status,
+    mechanicalSnapshot: campaignSessionRoll.mechanicalSnapshot,
+  }).from(campaignSessionRoll).where(and(
+    eq(campaignSessionRoll.encounterId, context.encounterId),
+    inArray(campaignSessionRoll.pendingActionId, pendingIds),
+  )) : [];
   const bullets = await tx.select().from(campaignSessionEncounterFirearmBullet).where(inArray(campaignSessionEncounterFirearmBullet.attackId, attackIds))
     .orderBy(asc(campaignSessionEncounterFirearmBullet.attackId), asc(campaignSessionEncounterFirearmBullet.bulletIndex));
   const events = await tx.select().from(campaignSessionEncounterFirearmAttackEvent).where(inArray(campaignSessionEncounterFirearmAttackEvent.attackId, attackIds))
@@ -1758,11 +1796,13 @@ export async function readFirearmAttackWorkspaceInTransaction(
     .from(campaignSessionEncounterEffectPlan).where(inArray(campaignSessionEncounterEffectPlan.id, planIds)) : [];
   const declarationById = new Map(declarations.map((row) => [row.id, row]));
   const pendingById = new Map(pendingActions.map((row) => [row.id, row]));
+  const stagedRollByPendingId = new Map(stagedAttackRolls.filter(({ pendingActionId, status }) => pendingActionId !== null && status === "recorded").map((row) => [row.pendingActionId!, row]));
   const planById = new Map(plans.map((row) => [row.id, row]));
   const views: FirearmAttackView[] = attacks.map((attack) => {
     const preview = attack.frozenSnapshotJson as FirearmAttackPreview;
     const aimPending = attack.aimPendingActionId === null ? null : pendingById.get(attack.aimPendingActionId) ?? null;
     const triggerPending = attack.triggerPendingActionId === null ? null : pendingById.get(attack.triggerPendingActionId) ?? null;
+    const stagedAttackRoll = attack.triggerPendingActionId === null ? null : stagedRollByPendingId.get(attack.triggerPendingActionId) ?? null;
     const effectiveStatus = attack.status === "aiming" && aimPending?.status === "completed" && aimPending.remaining === 0
       ? "trigger-ready"
       : attack.status;
@@ -1806,11 +1846,13 @@ export async function readFirearmAttackWorkspaceInTransaction(
         id: opportunity.id,
         phase: opportunity.declarationId === attack.aimDeclarationId ? "aim" : "trigger",
         responderParticipantId: opportunity.responderParticipantId,
+        responderName: participants.find(({ id }) => id === opportunity.responderParticipantId)?.name ?? "Unknown combatant",
         status: opportunity.status,
         responseLabel: opportunity.responseLabel,
       })),
-      attackRollId: attack.attackRollId,
-      attackRoll: attack.attackRollSnapshotJson as RollMechanicalSnapshot | null,
+      attackRollId: attack.attackRollId ?? stagedAttackRoll?.id ?? null,
+      attackRoll: (attack.attackRollSnapshotJson ?? stagedAttackRoll?.mechanicalSnapshot ?? null) as RollMechanicalSnapshot | null,
+      attackFinalized: attack.attackRollId !== null,
       defenseResolution: attack.defenseResolutionJson,
       bulletAllocation: attack.bulletAllocationJson as FirearmBulletAllocation | null,
       damageResolution: attack.damageResolutionJson,

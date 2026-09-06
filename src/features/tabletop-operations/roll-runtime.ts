@@ -15,6 +15,14 @@ export const ROLL_STATUSES = ["recorded", "voided"] as const;
 
 export { PERCENTILE_ROLL_LABEL, validateRollResult } from "./percentile-resolution";
 
+export function parsePhysicalPercentileInput(value: string): number {
+  const normalized = value.trim();
+  if (!normalized) throw new Error("Enter the physical percentile result.");
+  if (!/^\d{1,3}$/.test(normalized)) throw new Error("Physical percentile results must contain only digits.");
+  if (normalized === "00") return 100;
+  return validateRollResult(Number(normalized));
+}
+
 export type RollMethod = (typeof ROLL_METHODS)[number];
 export type RollVisibility = (typeof ROLL_VISIBILITIES)[number];
 export type RollPurpose = (typeof ROLL_PURPOSES)[number];

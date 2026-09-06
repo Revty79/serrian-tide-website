@@ -411,6 +411,34 @@ test("multiple pending actions are ordered by shared chronology rather than inse
   assert.equal(getNextInitiativeTimelineEvent(engine).initiative, 22);
 });
 
+test("simultaneous cost-four actions both complete at 7 before either outcome may suspend the other", () => {
+  for (const order of [[1, 2], [2, 1]] as const) {
+    let engine = state(11, 11);
+    for (const characterId of order) {
+      engine = startInitiativeAction(engine, {
+        id: characterId,
+        actorCharacterId: characterId,
+        label: `Simultaneous action ${characterId}`,
+        initiativeCost: 4,
+        allowsMultiRound: false,
+      });
+    }
+    assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
+      kind: "pending-completion",
+      initiative: 7,
+      actionIds: [1, 2],
+    });
+    engine = advanceInitiativeToNextEvent(engine);
+    engine = setInitiativeParticipationStatus(engine, order[1], "suspended");
+    assert.equal(action(engine, 1).status, "completed");
+    assert.equal(action(engine, 2).status, "completed");
+    assert.equal(action(engine, 1).initiativeSpent, 4);
+    assert.equal(action(engine, 2).initiativeSpent, 4);
+    assert.equal(participant(engine, 1).currentInitiative, 7);
+    assert.equal(participant(engine, 2).currentInitiative, 7);
+  }
+});
+
 test("Combat Steps advance by participation slices without a one-action-per-Round limiter", () => {
   let engine = state(40, 20);
   for (let id = 1; id <= 4; id += 1) {
