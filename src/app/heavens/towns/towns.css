@@ -1,0 +1,235 @@
+.towns-page {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  padding: 2rem clamp(1rem, 3vw, 2.5rem) 4rem;
+  color: #e8edf7;
+}
+
+.towns-page button,
+.towns-page input,
+.towns-page select,
+.towns-page textarea { font: inherit; }
+
+.towns-page button,
+.towns-link-button {
+  border: 1px solid rgb(45 212 191 / 35%);
+  border-radius: .72rem;
+  background: rgb(13 148 136 / 18%);
+  color: #ccfbf1;
+  cursor: pointer;
+  padding: .6rem .8rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.towns-page button:hover:not(:disabled),
+.towns-link-button:hover { border-color: rgb(94 234 212 / 72%); background: rgb(13 148 136 / 30%); }
+.towns-page button:disabled { cursor: not-allowed; opacity: .45; }
+.towns-page button.is-danger { border-color: rgb(248 113 113 / 45%); background: rgb(127 29 29 / 28%); color: #fecaca; }
+
+.towns-header,
+.towns-scope,
+.towns-context,
+.towns-create,
+.towns-layout { margin-inline: auto; max-width: 96rem; }
+
+.towns-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.5rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.5rem;
+  background: rgb(0 0 0 / 40%);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 35%);
+  padding: 1.5rem 1.75rem;
+  backdrop-filter: blur(16px);
+}
+
+.towns-logo {
+  background: linear-gradient(90deg, #14b8a6, #fcd34d, #14b8a6);
+  background-clip: text;
+  color: transparent;
+  font-size: 2rem;
+  line-height: .85;
+  text-align: center;
+}
+
+.towns-header p,
+.towns-context p,
+.towns-library header p,
+.towns-editor__header p,
+.towns-panel > header p,
+.towns-card__identity p,
+.towns-place header p,
+.towns-lifecycle header p { color: #99f6e4; font-size: .7rem; letter-spacing: .13em; text-transform: uppercase; }
+.towns-page h1,
+.towns-page h2,
+.towns-page h3,
+.towns-page h4 { margin: .22rem 0 0; color: #f8fafc; }
+.towns-header span,
+.towns-context span,
+.towns-panel header span,
+.towns-card span,
+.towns-place header span { color: #aeb9ca; font-size: .82rem; }
+.towns-header nav a { color: #fde68a; font-size: .85rem; }
+
+.towns-scope,
+.towns-feedback,
+.towns-readonly,
+.towns-archive-note {
+  margin-top: .9rem;
+  border: 1px solid rgb(45 212 191 / 22%);
+  border-radius: .85rem;
+  background: rgb(15 23 42 / 72%);
+  padding: .75rem 1rem;
+  color: #cbd5e1;
+  font-size: .82rem;
+}
+.towns-scope.is-admin { border-color: rgb(168 85 247 / 35%); }
+.towns-feedback.is-success { border-color: rgb(52 211 153 / 42%); color: #a7f3d0; }
+.towns-feedback.is-error,
+.towns-readonly { border-color: rgb(248 113 113 / 42%); color: #fecaca; }
+
+.towns-context,
+.towns-create {
+  display: grid;
+  grid-template-columns: 1fr minmax(15rem, 26rem) auto;
+  align-items: end;
+  gap: 1rem;
+  margin-top: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.2rem;
+  background: rgb(0 0 0 / 35%);
+  padding: 1rem 1.2rem;
+  backdrop-filter: blur(14px);
+}
+.towns-create { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.towns-layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, .76fr) minmax(0, 2.24fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+
+.towns-library,
+.towns-editor {
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.25rem;
+  background: rgb(0 0 0 / 39%);
+  box-shadow: 0 22px 58px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(16px);
+}
+.towns-library { position: sticky; top: 5rem; max-height: calc(100vh - 6rem); overflow: auto; padding: 1rem; }
+.towns-editor { padding: 1rem; }
+.towns-library > header,
+.towns-editor__header,
+.towns-panel > header,
+.towns-place > header,
+.towns-lifecycle > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+
+.towns-field { display: grid; gap: .34rem; min-width: 0; }
+.towns-field > span { color: #cbd5e1; font-size: .72rem; font-weight: 650; letter-spacing: .035em; }
+.towns-field input,
+.towns-field select,
+.towns-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgb(148 163 184 / 25%);
+  border-radius: .68rem;
+  background: rgb(2 6 23 / 75%);
+  padding: .62rem .7rem;
+  color: #f8fafc;
+  outline: none;
+}
+.towns-field input:focus,
+.towns-field select:focus,
+.towns-field textarea:focus { border-color: rgb(45 212 191 / 65%); box-shadow: 0 0 0 3px rgb(45 212 191 / 9%); }
+.towns-field input:disabled,
+.towns-field select:disabled,
+.towns-field textarea:disabled { opacity: .62; }
+.towns-field.is-wide { grid-column: 1 / -1; }
+
+.towns-segmented,
+.towns-actions,
+.towns-order { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.towns-segmented { margin: .85rem 0; }
+.towns-segmented button,
+.towns-order button { padding: .38rem .58rem; font-size: .72rem; }
+.towns-segmented button[aria-pressed="true"] { border-color: rgb(252 211 77 / 70%); background: rgb(120 53 15 / 40%); color: #fef3c7; }
+
+.towns-index { display: grid; gap: .5rem; margin-top: .8rem; }
+.towns-index button { display: grid; gap: .16rem; width: 100%; text-align: left; }
+.towns-index button strong { color: #f8fafc; }
+.towns-index button span,
+.towns-index button small { color: #9fb0c5; font-size: .74rem; }
+.towns-index button.is-selected { border-color: rgb(252 211 77 / 72%); background: rgb(120 53 15 / 30%); }
+
+.towns-empty { border: 1px dashed rgb(148 163 184 / 24%); border-radius: .8rem; padding: 1rem; color: #94a3b8; font-size: .84rem; text-align: center; }
+.towns-empty.is-large { min-height: 22rem; display: grid; place-content: center; }
+
+.towns-panel,
+.towns-lifecycle {
+  margin-top: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1rem;
+  background: rgb(15 23 42 / 48%);
+  padding: 1rem;
+}
+.towns-lifecycle { border-color: rgb(252 211 77 / 30%); background: rgb(69 26 3 / 25%); }
+.towns-lifecycle ul { display: grid; gap: .4rem; padding: 0; list-style: none; }
+.towns-lifecycle li { display: flex; justify-content: space-between; gap: 1rem; color: #cbd5e1; }
+.towns-lifecycle > p { color: #fde68a; font-size: .82rem; }
+
+.towns-grid { display: grid; gap: .8rem; margin-top: .8rem; }
+.towns-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.towns-add-row,
+.towns-npc-add,
+.towns-place-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .7rem; align-items: end; margin-top: .8rem; }
+.towns-npc-add { grid-template-columns: 1.2fr .8fr 1fr auto; }
+.towns-place-tools { grid-template-columns: auto minmax(14rem, 1fr); align-items: center; }
+.towns-place-form { margin-top: .8rem; border: 1px solid rgb(45 212 191 / 20%); border-radius: .85rem; background: rgb(13 148 136 / 8%); padding: .9rem; }
+
+.towns-card-list { display: grid; gap: .72rem; margin-top: .8rem; max-height: 42rem; overflow: auto; padding-right: .2rem; }
+.towns-card,
+.towns-place { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .8rem; align-items: center; border: 1px solid rgb(148 163 184 / 18%); border-radius: .85rem; background: rgb(2 6 23 / 48%); padding: .8rem; }
+.towns-card.is-editable { grid-template-columns: minmax(11rem, .7fr) minmax(18rem, 1.3fr) auto; }
+.towns-card.is-editable .towns-actions { grid-column: 1 / -1; justify-content: flex-end; }
+.towns-card__identity h4,
+.towns-place h4 { margin-bottom: .18rem; }
+.towns-place { display: block; }
+.towns-place > .towns-actions { justify-content: flex-end; margin-top: .8rem; }
+.towns-archive-note { margin: .8rem 0 0; }
+
+@media (max-width: 980px) {
+  .towns-layout { grid-template-columns: 1fr; }
+  .towns-library { position: static; max-height: 24rem; }
+  .towns-npc-add { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .towns-card,
+  .towns-card.is-editable { grid-template-columns: 1fr auto; }
+  .towns-card.is-editable .towns-grid { grid-column: 1 / -1; }
+}
+
+@media (max-width: 660px) {
+  .towns-page { padding-inline: .75rem; }
+  .towns-header { grid-template-columns: 1fr; text-align: center; }
+  .towns-context,
+  .towns-create,
+  .towns-grid.two,
+  .towns-npc-add,
+  .towns-place-tools { grid-template-columns: 1fr; }
+  .towns-header nav,
+  .towns-actions { justify-content: center; }
+  .towns-editor__header,
+  .towns-panel > header { display: grid; }
+  .towns-card,
+  .towns-card.is-editable { grid-template-columns: 1fr; }
+  .towns-card .towns-actions,
+  .towns-card.is-editable .towns-actions { grid-column: auto; justify-content: stretch; }
+  .towns-card .towns-actions > *,
+  .towns-place .towns-actions > * { flex: 1; }
+}

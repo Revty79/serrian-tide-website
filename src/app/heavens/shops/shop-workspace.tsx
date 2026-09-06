@@ -110,6 +110,7 @@ export function ShopWorkspace({
   const archiveDialogRef = useRef<HTMLDialogElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const initialCampaign = searchParams.get("campaign") ?? "";
+  const initialShop = Number(searchParams.get("shop"));
   const initialStatus: ShopArchiveStatus = searchParams.get("status") === "archived"
     ? "archived"
     : "active";
@@ -169,9 +170,17 @@ export function ShopWorkspace({
   useEffect(() => {
     if (!initialCampaign) return;
     let active = true;
-    listShops(Number(initialCampaign), initialStatus)
-      .then((records) => {
-        if (active && activeCampaignRef.current === initialCampaign) setShops(records);
+    Promise.all([
+      listShops(Number(initialCampaign), initialStatus),
+      Number.isSafeInteger(initialShop) && initialShop > 0
+        ? getShop(initialShop, Number(initialCampaign))
+        : Promise.resolve(null),
+    ])
+      .then(([records, selected]) => {
+        if (active && activeCampaignRef.current === initialCampaign) {
+          setShops(records);
+          if (selected) setDetail(selected);
+        }
       })
       .catch((error) => {
         if (active && activeCampaignRef.current === initialCampaign) {
@@ -182,12 +191,13 @@ export function ShopWorkspace({
         if (active && activeCampaignRef.current === initialCampaign) setLoading(false);
       });
     return () => { active = false; };
-  }, [initialCampaign, initialStatus]);
+  }, [initialCampaign, initialShop, initialStatus]);
 
-  function replaceUrl(nextCampaignId: string, nextStatus: ShopArchiveStatus): void {
+  function replaceUrl(nextCampaignId: string, nextStatus: ShopArchiveStatus, shopId?: number): void {
     const params = new URLSearchParams();
     if (nextCampaignId) params.set("campaign", nextCampaignId);
     if (nextStatus === "archived") params.set("status", "archived");
+    if (shopId) params.set("shop", String(shopId));
     window.history.replaceState(null, "", `/heavens/shops${params.size ? `?${params}` : ""}`);
   }
 
@@ -260,6 +270,7 @@ export function ShopWorkspace({
           }
           setSelectedNpcId("");
           setNewStaffRole("");
+          replaceUrl(requestedCampaignId, status, shopId);
         }
       } catch (error) {
         if (activeCampaignRef.current === requestedCampaignId) {
@@ -738,9 +749,10 @@ export function ShopWorkspace({
       <section>
         <header><p>PERMANENTLY DELETE SHOP</p><h2 className="font-sans">{deleteTargetName || "Shop"}</h2><span>This removes the Shop, its staff assignments, and all offering settings. The deletion audit remains.</span></header>
         {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
+        {detail?.townAssignment ? <p className="shops-feedback is-error" role="alert">This Shop is attached to <strong>{detail.townAssignment.townName}</strong>. <Link href={`/heavens/towns?campaign=${detail.shop.campaignId}&town=${detail.townAssignment.townId}`}>Open the Town Builder</Link> and detach or reassign it before deleting the Shop.</p> : null}
         <label className="shops-field"><span>Type the exact Shop name <strong>{deleteTargetName}</strong> to confirm</span><input autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label>
         <p className="shops-help">This cannot be undone. Production recovery protection must also permit permanent deletion.</p>
-        <footer><button type="button" disabled={busy} onClick={() => { deleteDialogRef.current?.close(); setDeleteTargetName(""); setDeleteConfirmation(""); }}>Cancel</button><button className="is-danger" type="button" disabled={busy || !deleteTargetName || deleteConfirmation !== deleteTargetName} onClick={() => void submitDelete()}>{busy ? "Deleting…" : "Permanently Delete Shop"}</button></footer>
+        <footer><button type="button" disabled={busy} onClick={() => { deleteDialogRef.current?.close(); setDeleteTargetName(""); setDeleteConfirmation(""); }}>Cancel</button><button className="is-danger" type="button" disabled={busy || Boolean(detail?.townAssignment) || !deleteTargetName || deleteConfirmation !== deleteTargetName} onClick={() => void submitDelete()}>{busy ? "Deleting…" : "Permanently Delete Shop"}</button></footer>
       </section>
     </dialog>
   </main>;

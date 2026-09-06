@@ -253,6 +253,13 @@
       "when": 1788645605338,
       "tag": "0035_campaign_shop_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1788652007266,
+      "tag": "0036_campaign_town_builder",
+      "breakpoints": true
     }
   ]
 }

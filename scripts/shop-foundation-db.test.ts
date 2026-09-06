@@ -150,7 +150,7 @@ test("0035 replays with exact schema parity, enforces Shop integrity, and preser
     await migrate(drizzle(pool), { migrationsFolder: migrationRoot });
     const parityOutput = execFileSync(
       process.execPath,
-      ["scripts/verify-runtime-foundation-schema.mjs", "0035_snapshot.json"],
+      ["scripts/verify-runtime-foundation-schema.mjs", "0036_snapshot.json"],
       {
         cwd: process.cwd(),
         encoding: "utf8",

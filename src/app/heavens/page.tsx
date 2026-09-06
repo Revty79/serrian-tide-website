@@ -55,6 +55,12 @@ const coreTools = [
     description: "Create Campaign Shops, assign persistent NPC staff, and curate authorized Equipment and Inventory offerings.",
     href: "/heavens/shops",
   },
+  {
+    title: "TOWN BUILDER",
+    subtitle: "Campaign Places",
+    description: "Organize Campaign Shops, persistent NPCs, and descriptive Places into living Town references.",
+    href: "/heavens/towns",
+  },
 ];
 
 export default async function HeavensPage({

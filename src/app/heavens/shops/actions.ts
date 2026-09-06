@@ -20,6 +20,7 @@ import { armorProfile, item, weaponProfile } from "@/db/item-schema";
 import { lifecycleAuditEvent } from "@/db/lifecycle-schema";
 import { campaignCharacter, campaignInventoryItem } from "@/db/realm-schema";
 import { shop, shopOffering, shopStaffAssignment } from "@/db/shop-schema";
+import { town, townShopMembership } from "@/db/town-schema";
 import { buildCampaignAccessDesignation } from "@/features/campaigns/campaign-access-designation";
 import {
   assertExactConfirmation,
@@ -150,6 +151,10 @@ export type ShopDetail = {
   eligibleNpcs: EligibleShopNpc[];
   offerings: ShopOfferingRecord[];
   authorizedItems: ShopCatalogItem[];
+  townAssignment: {
+    townId: number;
+    townName: string;
+  } | null;
 };
 
 export type CreateShopValues = Pick<
@@ -329,7 +334,7 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
     .limit(1);
   if (!root) throw new Error("Shop not found in this Campaign.");
 
-  const [currencyRows, staffRows, npcRows, offeringRows, authorizedItemRows] = await Promise.all([
+  const [currencyRows, staffRows, npcRows, offeringRows, authorizedItemRows, townAssignmentRows] = await Promise.all([
     db.select().from(campaignDerivedCurrency)
       .where(eq(campaignDerivedCurrency.campaignId, campaignId))
       .orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id)),
@@ -445,6 +450,14 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
         isNull(item.archivedAt),
       ))
       .orderBy(asc(campaignInventoryItem.sortOrder), asc(item.name), asc(item.id)),
+    db.select({ townId: town.id, townName: town.name })
+      .from(townShopMembership)
+      .innerJoin(town, eq(town.id, townShopMembership.townId))
+      .where(and(
+        eq(townShopMembership.shopId, root.id),
+        eq(townShopMembership.campaignId, campaignId),
+      ))
+      .limit(1),
   ]);
 
   return {
@@ -558,6 +571,7 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
       armorRulesText: row.armorRulesText,
       archived: false,
     })),
+    townAssignment: townAssignmentRows[0] ?? null,
   };
 }
 
@@ -848,6 +862,15 @@ export async function deleteShop(
     )).limit(1).for("update");
     if (!current) throw new Error("Shop not found in this Campaign.");
     assertExactConfirmation(current.name, confirmationName);
+
+    const [townDependency] = await tx.select({ townName: town.name })
+      .from(townShopMembership)
+      .innerJoin(town, eq(town.id, townShopMembership.townId))
+      .where(eq(townShopMembership.shopId, current.id))
+      .limit(1);
+    if (townDependency) {
+      throw new Error(`${current.name} cannot be permanently deleted while attached to ${townDependency.townName}. Detach it in the Town Builder first.`);
+    }
 
     const [staffDependency] = await tx.select({ value: count() })
       .from(shopStaffAssignment)

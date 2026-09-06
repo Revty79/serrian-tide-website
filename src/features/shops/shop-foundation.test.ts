@@ -193,19 +193,19 @@ test("Shop Builder covers Character-store browsing, pricing, stock, staff, order
   assert.doesNotMatch(workspace, /Checkout|Purchase Request|Complete Sale|Buy Now/);
 });
 
-test("Prompt 1 does not add Town, placement, Character mutation, ledger, or automated economy systems", () => {
+test("the Shop foundation remains free of placement, transaction, and automated economy state", () => {
+  assert.doesNotMatch(schema, /townId|shopTown|shop_town/i);
   const combined = `${schema}\n${actions}`;
   for (const forbidden of [
-    /townId|shopTown|shop_town/i,
     /shopSession|shop_session|sceneShop|scene_shop/i,
     /shopTransaction|shop_transaction|transactionLedger/i,
     /profit|payroll|tax|automaticRestock|operatingSchedule/i,
   ]) assert.doesNotMatch(combined, forbidden);
 });
 
-test("0035 is the single forward migration after the verified 0034 tail", () => {
+test("0035 remains the exact Shop migration and 0036 follows it", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 36);
+  assert.equal(journal.entries.length, 37);
   assert.equal(journal.entries[34]?.tag, "0034_verification_user_delete_guard");
   assert.deepEqual(journal.entries[35], {
     idx: 35,
@@ -214,4 +214,5 @@ test("0035 is the single forward migration after the verified 0034 tail", () => 
     tag: "0035_campaign_shop_foundation",
     breakpoints: true,
   });
+  assert.equal(journal.entries[36]?.tag, "0036_campaign_town_builder");
 });

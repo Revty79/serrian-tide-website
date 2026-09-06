@@ -33,6 +33,9 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_inventory_item", scope: "campaign" },
   { tableName: "campaign_inventory_tag", scope: "campaign" },
   { tableName: "shop_staff_assignment", scope: "campaign" },
+  { tableName: "town_npc_association", scope: "campaign" },
+  { tableName: "town_place", scope: "campaign" },
+  { tableName: "town_shop_membership", scope: "campaign" },
   { tableName: "campaign_session_called_check_event", scope: "campaign" },
   { tableName: "campaign_session_called_check_request", scope: "campaign" },
   { tableName: "campaign_session_called_check_batch", scope: "campaign" },
@@ -79,6 +82,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "chat_room_member", scope: "chat-room" },
   { tableName: "chat_room", scope: "campaign" },
   { tableName: "shop", scope: "campaign" },
+  { tableName: "town", scope: "campaign" },
 ] as const satisfies readonly CampaignDeleteStep[];
 
 /** Nullable self-references must be detached before their table is removed. */

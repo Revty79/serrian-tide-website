@@ -106,7 +106,9 @@ export const lifecycleAuditEvent = pgTable(
         'encounter',
         'campaign-player',
         'user-account',
-        'shop'
+        'shop',
+        'town',
+        'town-place'
       )`,
     ),
     check(
