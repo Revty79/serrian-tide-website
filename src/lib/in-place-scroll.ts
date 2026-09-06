@@ -127,8 +127,68 @@ export function useInPlaceScrollPreservation(): <Result>(
   useLayoutEffect(() => {
     const pending = pendingRestore.current;
     if (!pending || pending.operationId !== restoreOperationId) return;
-    restoreSnapshot(pending.snapshot);
-    pendingRestore.current = null;
+    let animationFrame = 0;
+    let settleFrame = 0;
+    let mutationFrame = 0;
+    let settleTimeout = 0;
+    let cancelled = false;
+    let observer: MutationObserver | null = null;
+
+    const restoreIfCurrent = () => {
+      if (
+        cancelled
+        || latestOperationId.current !== pending.operationId
+        || pendingRestore.current?.operationId !== pending.operationId
+      ) return;
+      restoreSnapshot(pending.snapshot);
+    };
+    const removeInteractionListeners = () => {
+      window.removeEventListener("wheel", stopFollowing);
+      window.removeEventListener("touchstart", stopFollowing);
+      window.removeEventListener("pointerdown", stopFollowing);
+    };
+    const stopFollowing = () => {
+      cancelled = true;
+      observer?.disconnect();
+      observer = null;
+      window.cancelAnimationFrame(mutationFrame);
+      window.clearTimeout(settleTimeout);
+      removeInteractionListeners();
+      if (pendingRestore.current?.operationId === pending.operationId) {
+        pendingRestore.current = null;
+      }
+    };
+
+    // A Server Action can settle before its revalidated React Server Component
+    // payload is committed. Restore through that second layout pass as well as
+    // the synchronous state update that completed the action.
+    restoreIfCurrent();
+    animationFrame = window.requestAnimationFrame(() => {
+      restoreIfCurrent();
+      settleFrame = window.requestAnimationFrame(restoreIfCurrent);
+    });
+    observer = new MutationObserver(() => {
+      window.cancelAnimationFrame(mutationFrame);
+      mutationFrame = window.requestAnimationFrame(restoreIfCurrent);
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    settleTimeout = window.setTimeout(() => {
+      restoreIfCurrent();
+      stopFollowing();
+    }, 1_200);
+    window.addEventListener("wheel", stopFollowing, { once: true, passive: true });
+    window.addEventListener("touchstart", stopFollowing, { once: true, passive: true });
+    window.addEventListener("pointerdown", stopFollowing, { once: true, passive: true });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(settleFrame);
+      window.cancelAnimationFrame(mutationFrame);
+      window.clearTimeout(settleTimeout);
+      observer?.disconnect();
+      removeInteractionListeners();
+    };
   }, [restoreOperationId]);
 
   useEffect(() => () => {

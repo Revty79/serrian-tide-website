@@ -50,6 +50,11 @@ import {
 } from "./actions";
 
 type Feedback = { kind: "success" | "error"; message: string } | null;
+type MutationCommit = {
+  shopFields?: readonly (keyof ShopDetail["shop"])[];
+  staffId?: number;
+  offeringId?: number;
+};
 
 const EMPTY_CREATE = {
   name: "",
@@ -113,6 +118,9 @@ export function ShopWorkspace({
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const balanceDialogRef = useRef<HTMLDialogElement>(null);
   const balanceSubmissionKeyRef = useRef<string | null>(null);
+  const dirtyShopFieldsRef = useRef(new Set<keyof ShopDetail["shop"]>());
+  const dirtyStaffIdsRef = useRef(new Set<number>());
+  const dirtyOfferingIdsRef = useRef(new Set<number>());
   const initialCampaign = searchParams.get("campaign") ?? "";
   const initialShop = Number(searchParams.get("shop"));
   const initialStatus: ShopArchiveStatus = searchParams.get("status") === "archived"
@@ -192,7 +200,12 @@ export function ShopWorkspace({
       .then(([records, selected]) => {
         if (active && activeCampaignRef.current === initialCampaign) {
           setShops(records);
-          if (selected) setDetail(selected);
+          if (selected) {
+            dirtyShopFieldsRef.current.clear();
+            dirtyStaffIdsRef.current.clear();
+            dirtyOfferingIdsRef.current.clear();
+            setDetail(selected);
+          }
         }
       })
       .catch((error) => {
@@ -273,6 +286,9 @@ export function ShopWorkspace({
       try {
         const nextDetail = await getShop(shopId, Number(requestedCampaignId));
         if (activeCampaignRef.current === requestedCampaignId) {
+          dirtyShopFieldsRef.current.clear();
+          dirtyStaffIdsRef.current.clear();
+          dirtyOfferingIdsRef.current.clear();
           setDetail(nextDetail);
           setNpcSearch("");
           if (changesShop) {
@@ -299,6 +315,7 @@ export function ShopWorkspace({
     operation: () => Promise<ShopDetail>,
     success: string,
     onSuccess?: () => void,
+    committed: MutationCommit = {},
   ): Promise<void> {
     if (!campaignId) return;
     const requestedCampaignId = campaignId;
@@ -308,7 +325,36 @@ export function ShopWorkspace({
       try {
         const updated = await operation();
         if (activeCampaignRef.current !== requestedCampaignId) return;
-        setDetail(updated);
+        const dirtyShopFields = new Set(dirtyShopFieldsRef.current);
+        const dirtyStaffIds = new Set(dirtyStaffIdsRef.current);
+        const dirtyOfferingIds = new Set(dirtyOfferingIdsRef.current);
+        const committedShopFields = new Set(committed.shopFields ?? []);
+        setDetail((current) => {
+          if (!current || current.shop.id !== updated.shop.id) return updated;
+          const mergedShop = { ...updated.shop };
+          for (const field of dirtyShopFields) {
+            if (!committedShopFields.has(field)) Object.assign(mergedShop, { [field]: current.shop[field] });
+          }
+          return {
+            ...updated,
+            shop: mergedShop,
+            staff: updated.staff.map((entry) => {
+              const draft = current.staff.find(({ id }) => id === entry.id);
+              return draft && dirtyStaffIds.has(entry.id) && entry.id !== committed.staffId
+                ? { ...entry, responsibilityLabel: draft.responsibilityLabel, isPrimaryContact: draft.isPrimaryContact }
+                : entry;
+            }),
+            offerings: updated.offerings.map((entry) => {
+              const draft = current.offerings.find(({ id }) => id === entry.id);
+              return draft && dirtyOfferingIds.has(entry.id) && entry.id !== committed.offeringId
+                ? { ...draft, version: entry.version }
+                : entry;
+            }),
+          };
+        });
+        for (const field of committedShopFields) dirtyShopFieldsRef.current.delete(field);
+        if (committed.staffId !== undefined) dirtyStaffIdsRef.current.delete(committed.staffId);
+        if (committed.offeringId !== undefined) dirtyOfferingIdsRef.current.delete(committed.offeringId);
         onSuccess?.();
         const records = await listShops(Number(requestedCampaignId), status);
         if (activeCampaignRef.current !== requestedCampaignId) return;
@@ -326,29 +372,32 @@ export function ShopWorkspace({
 
   async function submitCreate(): Promise<void> {
     if (!campaignId) return;
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const created = await createShop({
-        campaignId: Number(campaignId),
-        ...createDraft,
-      });
-      createDialogRef.current?.close();
-      setCreateDraft(EMPTY_CREATE);
-      setStatus("active");
-      replaceUrl(campaignId, "active");
-      setShops(await listShops(Number(campaignId), "active"));
-      setDetail(created);
-      setCatalogSearch("");
-      setCatalogFilter("all");
-      setActiveAvailableItemId(null);
-      setActiveListedItemId(null);
-      setFeedback({ kind: "success", message: `${created.shop.name} was created with its storefront closed.` });
-    } catch (error) {
-      setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be created.") });
-    } finally {
-      setBusy(false);
-    }
+    await preserveScroll(async () => {
+      setBusy(true);
+      setFeedback(null);
+      try {
+        const created = await createShop({
+          campaignId: Number(campaignId),
+          ...createDraft,
+        });
+        createDialogRef.current?.close();
+        setCreateDraft(EMPTY_CREATE);
+        setStatus("active");
+        replaceUrl(campaignId, "active");
+        setShops(await listShops(Number(campaignId), "active"));
+        setDetail(created);
+        dirtyShopFieldsRef.current.clear();
+        dirtyStaffIdsRef.current.clear();
+        dirtyOfferingIdsRef.current.clear();
+        setActiveAvailableItemId(null);
+        setActiveListedItemId(null);
+        setFeedback({ kind: "success", message: `${created.shop.name} was created with its storefront closed.` });
+      } catch (error) {
+        setFeedback({ kind: "error", message: messageFrom(error, "The Shop could not be created.") });
+      } finally {
+        setBusy(false);
+      }
+    });
   }
 
   async function saveCore(): Promise<void> {
@@ -366,7 +415,17 @@ export function ShopWorkspace({
       characterPurchaseMode: detail.shop.characterPurchaseMode,
       soldItemHandling: detail.shop.soldItemHandling,
       changedSaleConfirmationMode: detail.shop.changedSaleConfirmationMode,
-    }), `${detail.shop.name || "Shop"} was saved.`);
+    }), `${detail.shop.name || "Shop"} was saved.`, undefined, { shopFields: [
+      "name",
+      "category",
+      "description",
+      "locationNotes",
+      "balanceCredits",
+      "storefrontState",
+      "characterPurchaseMode",
+      "soldItemHandling",
+      "changedSaleConfirmationMode",
+    ] });
   }
 
   async function submitBalanceCorrection(): Promise<void> {
@@ -382,7 +441,7 @@ export function ShopWorkspace({
       balanceSubmissionKeyRef.current = null;
       setBalanceCorrectionReason("");
       balanceDialogRef.current?.close();
-    });
+    }, { shopFields: ["balanceCredits"] });
   }
 
   async function addStaff(): Promise<void> {
@@ -408,7 +467,7 @@ export function ShopWorkspace({
       npcCharacterId: staff.npcCharacterId,
       responsibilityLabel: staff.responsibilityLabel,
       isPrimaryContact: staff.isPrimaryContact,
-    }), `${staff.npcName}'s Shop assignment was saved.`);
+    }), `${staff.npcName}'s Shop assignment was saved.`, undefined, { staffId: staff.id });
   }
 
   async function addOffering(itemId: number): Promise<void> {
@@ -458,7 +517,7 @@ export function ShopWorkspace({
       sellingPriceOverrideCredits: offering.sellingPriceOverrideCredits,
       buyingPriceOverrideCredits: offering.buyingPriceOverrideCredits,
       shopNote: offering.shopNote,
-    }), `${offering.itemName} was saved.`);
+    }), `${offering.itemName} was saved.`, undefined, { offeringId: offering.id });
   }
 
   async function moveOffering(offeringId: number, direction: "up" | "down"): Promise<void> {
@@ -576,12 +635,14 @@ export function ShopWorkspace({
     value: ShopDetail["shop"][Key],
   ): void {
     if (readOnly) return;
+    dirtyShopFieldsRef.current.add(key);
     setDetail((current) => current ? { ...current, shop: { ...current.shop, [key]: value } } : current);
     setFeedback(null);
   }
 
   function updateStaffDraft(id: number, changes: Partial<ShopStaffRecord>): void {
     if (readOnly) return;
+    dirtyStaffIdsRef.current.add(id);
     setDetail((current) => current ? {
       ...current,
       staff: current.staff.map((entry) => entry.id === id ? { ...entry, ...changes } : changes.isPrimaryContact
@@ -592,6 +653,7 @@ export function ShopWorkspace({
 
   function updateOfferingDraft(id: number, changes: Partial<ShopOfferingRecord>): void {
     if (readOnly) return;
+    dirtyOfferingIdsRef.current.add(id);
     setDetail((current) => current ? {
       ...current,
       offerings: current.offerings.map((entry) => entry.id === id ? { ...entry, ...changes } : entry),

@@ -159,22 +159,26 @@ export function TownWorkspace({
   const visibleLinkedShops = useMemo(() => (detail?.shops ?? []).filter((entry) => (
     matchesTownAssociationSearch({ name: entry.name, category: entry.category }, shopSearch)
   )), [detail, shopSearch]);
-  const linkedNpcIds = useMemo(() => new Set(detail?.npcs.map(({ npcCharacterId }) => npcCharacterId) ?? []), [detail]);
+  const directlyLinkedNpcIds = useMemo(() => new Set(detail?.npcs.flatMap((entry) => (
+    entry.associationId === null ? [] : [entry.npcCharacterId]
+  )) ?? []), [detail]);
   const visibleAvailableNpcs = useMemo(() => (detail?.availableNpcs ?? []).filter((entry) => (
-    !linkedNpcIds.has(entry.id) && matchesTownAssociationSearch({
+    !directlyLinkedNpcIds.has(entry.id) && matchesTownAssociationSearch({
       name: entry.name,
       roleLabel: entry.roleLabel,
       kind: entry.npcKind,
       buildMode: entry.npcBuildMode,
     }, npcSearch)
-  )).sort(compareTownNames), [detail, linkedNpcIds, npcSearch]);
+  )).sort(compareTownNames), [detail, directlyLinkedNpcIds, npcSearch]);
   const visibleLinkedNpcs = useMemo(() => (detail?.npcs ?? []).filter((entry) => matchesTownAssociationSearch({
     name: entry.name,
     roleLabel: entry.roleLabel,
     kind: entry.npcKind,
     buildMode: entry.npcBuildMode,
-    relationshipLabel: npcDrafts[entry.associationId]?.relationshipLabel ?? entry.relationshipLabel,
-    note: npcDrafts[entry.associationId]?.townNote ?? entry.townNote,
+    relationshipLabel: entry.associationId === null
+      ? entry.shopAssociations.map(({ shopName, responsibilityLabel }) => `${shopName} ${responsibilityLabel}`).join(" ")
+      : npcDrafts[entry.associationId]?.relationshipLabel ?? entry.relationshipLabel,
+    note: entry.associationId === null ? "Shop staff" : npcDrafts[entry.associationId]?.townNote ?? entry.townNote,
   }, npcSearch)), [detail, npcDrafts, npcSearch]);
   const visiblePlaces = useMemo(() => (detail?.places ?? []).filter((entry) => (
     (placeStatus === "archived") === Boolean(entry.archivedAt)
@@ -193,7 +197,9 @@ export function TownWorkspace({
     setDetail(next);
     setCoreDraft(coreFrom(next));
     setPlaceDrafts(Object.fromEntries(next.places.map((entry) => [entry.id, placeFrom(entry)])));
-    setNpcDrafts(Object.fromEntries(next.npcs.map((entry) => [entry.associationId, npcFrom(entry)])));
+    setNpcDrafts(Object.fromEntries(next.npcs.flatMap((entry) => (
+      entry.associationId === null ? [] : [[entry.associationId, npcFrom(entry)]]
+    ))));
     setSelectedShopId("");
     setSelectedNpcId("");
     setLifecycle(null);
@@ -208,7 +214,11 @@ export function TownWorkspace({
     });
     setNpcDrafts((current) => {
       const merged = { ...current };
-      for (const entry of next.npcs) if (!merged[entry.associationId]) merged[entry.associationId] = npcFrom(entry);
+      for (const entry of next.npcs) {
+        if (entry.associationId !== null && !merged[entry.associationId]) {
+          merged[entry.associationId] = npcFrom(entry);
+        }
+      }
       return merged;
     });
   }
@@ -382,18 +392,19 @@ export function TownWorkspace({
   }
 
   async function persistNpc(entry: TownNpcRecord): Promise<void> {
-    if (!detail) return;
-    const draft = npcDrafts[entry.associationId] ?? npcFrom(entry);
+    if (!detail || entry.associationId === null) return;
+    const associationId = entry.associationId;
+    const draft = npcDrafts[associationId] ?? npcFrom(entry);
     const saved = await mutate(() => updateTownNpc({
       townId: detail.town.id,
       campaignId: detail.town.campaignId,
       npcCharacterId: entry.npcCharacterId,
-      associationId: entry.associationId,
+      associationId,
       ...draft,
     }), `${entry.name} relationship saved.`);
     if (saved) {
-      const updated = saved.npcs.find(({ associationId }) => associationId === entry.associationId);
-      if (updated) setNpcDrafts((current) => ({ ...current, [entry.associationId]: npcFrom(updated) }));
+      const updated = saved.npcs.find((candidate) => candidate.associationId === associationId);
+      if (updated) setNpcDrafts((current) => ({ ...current, [associationId]: npcFrom(updated) }));
     }
   }
 
@@ -515,7 +526,28 @@ export function TownWorkspace({
 
           <section className="towns-panel"><header><div><p>Existing Campaign records</p><h3>Shops</h3><span>One Town per Shop; Shop staff, offerings, balances, and state remain unchanged.</span></div><strong>{detail.shops.length} attached</strong></header><label className="towns-field"><span>Search Shops</span><input type="search" value={shopSearch} placeholder="Name or category" onChange={(event) => setShopSearch(event.target.value)} /></label><div className="towns-add-row"><label className="towns-field"><span>Available Campaign Shop</span><select aria-label="Available Campaign Shop" disabled={readOnly} value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}><option value="">Choose a Shop</option>{visibleAvailableShops.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {entry.category}{entry.assignedTownName ? ` · currently ${entry.assignedTownName}` : " · standalone"}</option>)}</select></label><button type="button" disabled={readOnly || !selectedShopId || busy} onClick={() => void attachSelectedShop()}>{detail.availableShops.find(({ id }) => String(id) === selectedShopId)?.assignedTownId ? "Reassign Here" : "Attach Shop"}</button></div><div className="towns-card-list" data-preserve-scroll="town-shops">{visibleLinkedShops.length ? visibleLinkedShops.map((entry, index) => <article className="towns-card" key={entry.membershipId}><div className="towns-card__identity"><p>{entry.category}{entry.archived ? " · archived reference" : ""}</p><h4>{entry.name}</h4><span>{entry.staffCount} assigned staff · Shop #{entry.shopId}</span></div><div className="towns-order"><button type="button" aria-label={`Move ${entry.name} up`} disabled={readOnly || index === 0 || busy} onClick={() => void mutate(() => reorderTownShops(detail.town.id, detail.town.campaignId, moveId(detail.shops.map(({ membershipId }) => membershipId), entry.membershipId, -1)), `${entry.name} moved.`)}>↑</button><button type="button" aria-label={`Move ${entry.name} down`} disabled={readOnly || index === visibleLinkedShops.length - 1 || busy} onClick={() => void mutate(() => reorderTownShops(detail.town.id, detail.town.campaignId, moveId(detail.shops.map(({ membershipId }) => membershipId), entry.membershipId, 1)), `${entry.name} moved.`)}>↓</button></div><div className="towns-actions"><Link className="towns-link-button" href={`/heavens/shops?campaign=${detail.town.campaignId}&shop=${entry.shopId}`}>Open Shop Record</Link><button type="button" disabled={readOnly || busy} onClick={() => void mutate(() => detachTownShop(detail.town.id, detail.town.campaignId, entry.membershipId), `${entry.name} detached; the Shop remains standalone.`)}>Detach</button></div></article>) : <p className="towns-empty">No attached Shops match this search.</p>}</div></section>
 
-          <section className="towns-panel"><header><div><p>Persistent Race & Creature records</p><h3>NPC associations</h3><span>Simple and Detailed NPCs may appear in many Towns.</span></div><strong>{detail.npcs.length} associated</strong></header><label className="towns-field"><span>Search NPCs</span><input type="search" value={npcSearch} placeholder="Name, role, kind, build, relationship, note" onChange={(event) => setNpcSearch(event.target.value)} /></label><div className="towns-npc-add"><label className="towns-field"><span>Available Campaign NPC</span><select aria-label="Available Campaign NPC" disabled={readOnly} value={selectedNpcId} onChange={(event) => setSelectedNpcId(event.target.value)}><option value="">Choose an NPC</option>{visibleAvailableNpcs.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {entry.npcKind} · {entry.npcBuildMode} · {entry.roleLabel}</option>)}</select></label><label className="towns-field"><span>Town relationship</span><input disabled={readOnly} value={newNpcRelationship} placeholder="Mayor, local guide, regular…" onChange={(event) => setNewNpcRelationship(event.target.value)} /></label><label className="towns-field"><span>Town note</span><input disabled={readOnly} value={newNpcNote} onChange={(event) => setNewNpcNote(event.target.value)} /></label><button type="button" disabled={readOnly || !selectedNpcId || busy} onClick={() => void addSelectedNpc()}>Associate NPC</button></div><div className="towns-card-list" data-preserve-scroll="town-npcs">{visibleLinkedNpcs.length ? visibleLinkedNpcs.map((entry, index) => { const draft = npcDrafts[entry.associationId] ?? npcFrom(entry); return <article className="towns-card is-editable" key={entry.associationId}><div className="towns-card__identity"><p>{entry.npcKind} · {entry.npcBuildMode}{entry.archived ? " · archived reference" : ""}</p><h4>{entry.name}</h4><span>{entry.roleLabel || "No role label"}</span></div><div className="towns-grid two"><label className="towns-field"><span>Town relationship</span><input disabled={readOnly} value={draft.relationshipLabel} onChange={(event) => setNpcDrafts({ ...npcDrafts, [entry.associationId]: { ...draft, relationshipLabel: event.target.value } })} /></label><label className="towns-field"><span>Town note</span><input disabled={readOnly} value={draft.townNote} onChange={(event) => setNpcDrafts({ ...npcDrafts, [entry.associationId]: { ...draft, townNote: event.target.value } })} /></label></div><div className="towns-order"><button type="button" aria-label={`Move ${entry.name} up`} disabled={readOnly || index === 0 || busy} onClick={() => void mutate(() => reorderTownNpcs(detail.town.id, detail.town.campaignId, moveId(detail.npcs.map(({ associationId }) => associationId), entry.associationId, -1)), `${entry.name} moved.`)}>↑</button><button type="button" aria-label={`Move ${entry.name} down`} disabled={readOnly || index === visibleLinkedNpcs.length - 1 || busy} onClick={() => void mutate(() => reorderTownNpcs(detail.town.id, detail.town.campaignId, moveId(detail.npcs.map(({ associationId }) => associationId), entry.associationId, 1)), `${entry.name} moved.`)}>↓</button></div><div className="towns-actions"><Link className="towns-link-button" href={`/heavens/npcs/${entry.npcCharacterId}?campaign=${detail.town.campaignId}`}>Open NPC Record</Link><button type="button" disabled={readOnly || busy} onClick={() => void persistNpc(entry)}>Save Relationship</button><button type="button" disabled={readOnly || busy} onClick={() => void mutate(() => removeTownNpc(detail.town.id, detail.town.campaignId, entry.associationId), `${entry.name} removed from this Town; the NPC survived.`)}>Remove</button></div></article>; }) : <p className="towns-empty">No associated NPCs match this search.</p>}</div></section>
+          <section className="towns-panel">
+            <header><div><p>Town NPC directory</p><h3>NPC associations</h3><span>Direct Town associations and staff at active attached Shops appear once per NPC.</span></div><strong>{detail.npcs.length} associated</strong></header>
+            <label className="towns-field"><span>Search NPCs</span><input type="search" value={npcSearch} placeholder="Name, role, kind, build, relationship, note, or Shop" onChange={(event) => setNpcSearch(event.target.value)} /></label>
+            <div className="towns-npc-add"><label className="towns-field"><span>Available Campaign NPC</span><select aria-label="Available Campaign NPC" disabled={readOnly} value={selectedNpcId} onChange={(event) => setSelectedNpcId(event.target.value)}><option value="">Choose an NPC</option>{visibleAvailableNpcs.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {entry.npcKind} · {entry.npcBuildMode} · {entry.roleLabel}</option>)}</select></label><label className="towns-field"><span>Town relationship</span><input disabled={readOnly} value={newNpcRelationship} placeholder="Mayor, local guide, regular…" onChange={(event) => setNewNpcRelationship(event.target.value)} /></label><label className="towns-field"><span>Town note</span><input disabled={readOnly} value={newNpcNote} onChange={(event) => setNewNpcNote(event.target.value)} /></label><button type="button" disabled={readOnly || !selectedNpcId || busy} onClick={() => void addSelectedNpc()}>Associate NPC</button></div>
+            <div className="towns-card-list" data-preserve-scroll="town-npcs">
+              {visibleLinkedNpcs.length ? visibleLinkedNpcs.map((entry) => {
+                const associationId = entry.associationId;
+                const draft = associationId === null ? npcFrom(entry) : npcDrafts[associationId] ?? npcFrom(entry);
+                const directAssociations = detail.npcs.filter((npc) => npc.associationId !== null);
+                const directIndex = associationId === null ? -1 : directAssociations.findIndex((npc) => npc.associationId === associationId);
+                return <article className="towns-card is-editable" key={entry.npcCharacterId}>
+                  <div className="towns-card__identity"><p>{entry.npcKind} · {entry.npcBuildMode}{entry.archived ? " · archived reference" : ""}</p><h4>{entry.name}</h4><span>{entry.roleLabel || "No role label"}</span></div>
+                  <div className="towns-card__content">
+                    {entry.shopAssociations.length ? <div className="towns-grid two">{entry.shopAssociations.map((association) => <p key={association.shopId}><strong>Shop staff · {association.shopName}</strong><br /><span>{association.responsibilityLabel || "No staff responsibility"}{association.isPrimaryContact ? " · Primary contact" : ""}</span></p>)}</div> : null}
+                    {associationId !== null ? <div className="towns-grid two"><label className="towns-field"><span>Town relationship</span><input disabled={readOnly} value={draft.relationshipLabel} onChange={(event) => setNpcDrafts({ ...npcDrafts, [associationId]: { ...draft, relationshipLabel: event.target.value } })} /></label><label className="towns-field"><span>Town note</span><input disabled={readOnly} value={draft.townNote} onChange={(event) => setNpcDrafts({ ...npcDrafts, [associationId]: { ...draft, townNote: event.target.value } })} /></label></div> : <p>This NPC appears automatically because they staff an active Shop attached to this Town. Add a direct association above to record Town-specific notes.</p>}
+                  </div>
+                  {associationId !== null ? <div className="towns-order"><button type="button" aria-label={`Move ${entry.name} up`} disabled={readOnly || directIndex <= 0 || busy} onClick={() => void mutate(() => reorderTownNpcs(detail.town.id, detail.town.campaignId, moveId(directAssociations.map((npc) => npc.associationId!), associationId, -1)), `${entry.name} moved.`)}>↑</button><button type="button" aria-label={`Move ${entry.name} down`} disabled={readOnly || directIndex === directAssociations.length - 1 || busy} onClick={() => void mutate(() => reorderTownNpcs(detail.town.id, detail.town.campaignId, moveId(directAssociations.map((npc) => npc.associationId!), associationId, 1)), `${entry.name} moved.`)}>↓</button></div> : null}
+                  <div className="towns-actions"><Link className="towns-link-button" href={`/heavens/npcs/${entry.npcCharacterId}?campaign=${detail.town.campaignId}`}>Open NPC Record</Link>{associationId !== null ? <><button type="button" disabled={readOnly || busy} onClick={() => void persistNpc(entry)}>Save Relationship</button><button type="button" disabled={readOnly || busy} onClick={() => void mutate(() => removeTownNpc(detail.town.id, detail.town.campaignId, associationId), `${entry.name} direct association removed; other qualifying Shop staff associations remain.`)}>Remove Direct Association</button></> : null}</div>
+                </article>;
+              }) : <p className="towns-empty">No associated NPCs match this search.</p>}
+            </div>
+          </section>
 
           <section className="towns-panel"><header><div><p>Town-owned descriptive records</p><h3>Places</h3><span>Places describe the Town; they do not create runtime mechanics.</span></div><button type="button" disabled={readOnly} onClick={() => setShowNewPlace((value) => !value)}>New Place</button></header>{showNewPlace ? <div className="towns-place-form"><div className="towns-grid two"><label className="towns-field"><span>Place name</span><input value={newPlace.name} onChange={(event) => setNewPlace({ ...newPlace, name: event.target.value })} /></label><label className="towns-field"><span>Type / category</span><input value={newPlace.category} onChange={(event) => setNewPlace({ ...newPlace, category: event.target.value })} /></label><label className="towns-field is-wide"><span>Description</span><textarea rows={3} value={newPlace.description} onChange={(event) => setNewPlace({ ...newPlace, description: event.target.value })} /></label><label className="towns-field"><span>Location notes</span><textarea rows={2} value={newPlace.locationNotes} onChange={(event) => setNewPlace({ ...newPlace, locationNotes: event.target.value })} /></label><label className="towns-field"><span>G.O.D. notes</span><textarea rows={2} value={newPlace.godNotes} onChange={(event) => setNewPlace({ ...newPlace, godNotes: event.target.value })} /></label></div><div className="towns-actions"><button type="button" disabled={busy} onClick={() => void makePlace()}>Create Place</button><button type="button" onClick={() => setShowNewPlace(false)}>Cancel</button></div></div> : null}<div className="towns-place-tools"><div className="towns-segmented"><button type="button" aria-pressed={placeStatus === "active"} onClick={() => setPlaceStatus("active")}>Active ({detail.places.filter(({ archivedAt }) => !archivedAt).length})</button><button type="button" aria-pressed={placeStatus === "archived"} onClick={() => setPlaceStatus("archived")}>Archived ({detail.places.filter(({ archivedAt }) => archivedAt).length})</button></div><label className="towns-field"><span>Search Places</span><input type="search" value={placeSearch} placeholder="Name, category, description, location" onChange={(event) => setPlaceSearch(event.target.value)} /></label></div><div className="towns-card-list" data-preserve-scroll="town-places">{visiblePlaces.length ? visiblePlaces.map((entry, index) => { const draft = placeDrafts[entry.id] ?? placeFrom(entry); return <article className="towns-place" key={entry.id}><header><div><p>{draft.category || "Uncategorized"}{entry.archivedAt ? " · archived" : ""}</p><h4>{draft.name || entry.name}</h4><span>Updated {new Date(entry.updatedAt).toLocaleString()}</span></div><div className="towns-order"><button type="button" aria-label={`Move ${entry.name} up`} disabled={readOnly || index === 0 || busy} onClick={() => void mutate(() => reorderTownPlaces(detail.town.id, detail.town.campaignId, placeStatus, moveId(detail.places.filter((place) => Boolean(place.archivedAt) === (placeStatus === "archived")).map(({ id }) => id), entry.id, -1)), `${entry.name} moved.`)}>↑</button><button type="button" aria-label={`Move ${entry.name} down`} disabled={readOnly || index === visiblePlaces.length - 1 || busy} onClick={() => void mutate(() => reorderTownPlaces(detail.town.id, detail.town.campaignId, placeStatus, moveId(detail.places.filter((place) => Boolean(place.archivedAt) === (placeStatus === "archived")).map(({ id }) => id), entry.id, 1)), `${entry.name} moved.`)}>↓</button></div></header><div className="towns-grid two"><label className="towns-field"><span>Name</span><input disabled={readOnly || Boolean(entry.archivedAt)} value={draft.name} onChange={(event) => setPlaceDrafts({ ...placeDrafts, [entry.id]: { ...draft, name: event.target.value } })} /></label><label className="towns-field"><span>Type / category</span><input disabled={readOnly || Boolean(entry.archivedAt)} value={draft.category} onChange={(event) => setPlaceDrafts({ ...placeDrafts, [entry.id]: { ...draft, category: event.target.value } })} /></label><label className="towns-field is-wide"><span>Description</span><textarea rows={3} disabled={readOnly || Boolean(entry.archivedAt)} value={draft.description} onChange={(event) => setPlaceDrafts({ ...placeDrafts, [entry.id]: { ...draft, description: event.target.value } })} /></label><label className="towns-field"><span>Location notes</span><textarea rows={2} disabled={readOnly || Boolean(entry.archivedAt)} value={draft.locationNotes} onChange={(event) => setPlaceDrafts({ ...placeDrafts, [entry.id]: { ...draft, locationNotes: event.target.value } })} /></label><label className="towns-field"><span>G.O.D. notes</span><textarea rows={2} disabled={readOnly || Boolean(entry.archivedAt)} value={draft.godNotes} onChange={(event) => setPlaceDrafts({ ...placeDrafts, [entry.id]: { ...draft, godNotes: event.target.value } })} /></label></div>{entry.archiveReason ? <p className="towns-archive-note">Archive reason: {entry.archiveReason}</p> : null}<div className="towns-actions">{!entry.archivedAt ? <><button type="button" disabled={readOnly || busy} onClick={() => void persistPlace(entry)}>Save Place</button><button type="button" disabled={readOnly || busy} onClick={() => { const reason = window.prompt("Optional archive reason:") ?? ""; void mutate(() => archiveTownPlace(detail.town.id, detail.town.campaignId, entry.id, reason), `${entry.name} archived.`); }}>Archive</button></> : <button type="button" disabled={readOnly || busy} onClick={() => void mutate(() => restoreTownPlace(detail.town.id, detail.town.campaignId, entry.id), `${entry.name} restored.`)}>Restore</button>}<button type="button" className="is-danger" disabled={readOnly || busy} onClick={() => { const confirmation = window.prompt(`Type ${entry.name} to permanently delete this Town-owned Place:`); if (confirmation !== null) void mutate(() => deleteTownPlace(detail.town.id, detail.town.campaignId, entry.id, confirmation), `${entry.name} permanently deleted.`); }}>Delete</button></div></article>; }) : <p className="towns-empty">No {placeStatus} Places match this search.</p>}</div></section>
         </>}

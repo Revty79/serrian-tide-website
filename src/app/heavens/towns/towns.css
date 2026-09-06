@@ -198,6 +198,8 @@
 .towns-card,
 .towns-place { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .8rem; align-items: center; border: 1px solid var(--st-border); border-radius: .85rem; background: var(--st-surface-deep); padding: .8rem; }
 .towns-card.is-editable { grid-template-columns: minmax(11rem, .7fr) minmax(18rem, 1.3fr) auto; }
+.towns-card__content { min-width: 0; }
+.towns-card__content > p { color: var(--st-text-soft); font-size: .82rem; }
 .towns-card.is-editable .towns-actions { grid-column: 1 / -1; justify-content: flex-end; }
 .towns-card__identity h4,
 .towns-place h4 { margin-bottom: .18rem; }
@@ -211,7 +213,8 @@
   .towns-npc-add { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .towns-card,
   .towns-card.is-editable { grid-template-columns: 1fr auto; }
-  .towns-card.is-editable .towns-grid { grid-column: 1 / -1; }
+  .towns-card.is-editable .towns-card__content { grid-column: 1 / -1; }
+  .towns-card.is-editable > .towns-order { grid-column: 2; grid-row: 1; }
 }
 
 @media (max-width: 660px) {
@@ -230,6 +233,7 @@
   .towns-card.is-editable { grid-template-columns: 1fr; }
   .towns-card .towns-actions,
   .towns-card.is-editable .towns-actions { grid-column: auto; justify-content: stretch; }
+  .towns-card.is-editable > .towns-order { grid-column: auto; grid-row: auto; }
   .towns-card .towns-actions > *,
   .towns-place .towns-actions > * { flex: 1; }
 }

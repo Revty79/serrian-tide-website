@@ -64,7 +64,13 @@ export type ShopCommerceTransaction = Parameters<Parameters<typeof db.transactio
 export type ShopCommerceActor = Readonly<{ userId: string; roles: readonly SerrianRole[] }>;
 export type ShopCommerceRequestStatus = "pending" | "owner-review" | "completed" | "rejected" | "cancelled";
 
-export type PurchaseLineInput = Readonly<{ offeringId: number; quantity: number }>;
+export type PurchaseLineInput = Readonly<{
+  offeringId: number;
+  quantity: number;
+  expectedOfferingVersion: number;
+  quotedUnitPriceCredits: number;
+  quotedFulfillmentKind: "inventory-transfer" | "service-narrative";
+}>;
 export type SaleLineInput = Readonly<{
   itemId: number;
   quantity: number;
@@ -204,6 +210,11 @@ const MONEY_EPSILON = 0.000001;
 
 function positiveId(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
+function nonnegativeVersion(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${label} is invalid.`);
   return value;
 }
 
@@ -661,8 +672,9 @@ async function lockActiveVisitMembership(
   }).from(campaignSessionSceneShopVisitMember).where(and(
     eq(campaignSessionSceneShopVisitMember.visitId, visit.id),
     eq(campaignSessionSceneShopVisitMember.characterId, positiveId(characterId, "Character")),
+    eq(campaignSessionSceneShopVisitMember.status, "active"),
   )).limit(1).for("update");
-  if (!member || member.status !== "active") throw new Error("This Character is no longer an active member of the Shop visit.");
+  if (!member) throw new Error("This Character is no longer an active member of the Shop visit.");
   const [hierarchy] = await tx.select({
     sessionStatus: campaignSession.status,
     sceneStatus: campaignSessionScene.status,
@@ -711,6 +723,30 @@ async function assertPlayerAuthorization(
   if (!membership) throw new Error("You no longer have access to this Campaign.");
 }
 
+async function assertNormalExecutionEligibility(
+  tx: ShopCommerceTransaction,
+  request: typeof shopTransactionRequest.$inferSelect,
+  context: LockedCommerceContext,
+): Promise<void> {
+  if (request.transactionOverride) return;
+  if (context.storefrontState !== "open") {
+    throw new Error("Normal Shop transactions require the Shop to remain open through final approval and execution.");
+  }
+  if (request.requestedByUserId !== context.characterOwnerUserId) {
+    throw new Error("The Character owner changed after this request was submitted. Cancel it and have the current owner start a new request.");
+  }
+  await assertPlayerAuthorization(tx, context, context.characterOwnerUserId);
+  if (request.visitId === null || request.visitMemberId === null) {
+    throw new Error("Normal Shop transactions require a current active visit membership.");
+  }
+  const visit = await lockActiveVisitMembership(tx, request.visitId, context.characterId);
+  if (
+    visit.memberId !== request.visitMemberId
+    || visit.campaignId !== context.campaignId
+    || visit.shopId !== context.shopId
+  ) throw new Error("The transaction request no longer matches its active Shop visit membership.");
+}
+
 async function insertRequest(
   tx: ShopCommerceTransaction,
   input: {
@@ -733,6 +769,7 @@ async function insertRequest(
       fulfillmentKind: "inventory-transfer" | "service-narrative";
       quantity: number;
       quotedUnitPriceCredits: number;
+      currentUnitPriceCredits?: number;
       itemCanonicalIdSnapshot: string;
       itemNameSnapshot: string;
     }[];
@@ -762,7 +799,7 @@ async function insertRequest(
     fulfillmentKind: line.fulfillmentKind,
     quantity: line.quantity,
     quotedUnitPriceCredits: line.quotedUnitPriceCredits,
-    currentUnitPriceCredits: line.quotedUnitPriceCredits,
+    currentUnitPriceCredits: line.currentUnitPriceCredits ?? line.quotedUnitPriceCredits,
     itemCanonicalIdSnapshot: line.itemCanonicalIdSnapshot,
     itemNameSnapshot: line.itemNameSnapshot,
     sortOrder,
@@ -1092,6 +1129,7 @@ async function lockPurchaseOfferings(
   const offerings = offeringIds.length ? await tx.select({
     id: shopOffering.id,
     itemId: shopOffering.itemId,
+    fulfillmentKind: shopOffering.fulfillmentKind,
     enabled: shopOffering.enabled,
     unlimitedStock: shopOffering.unlimitedStock,
     limitedQuantity: shopOffering.limitedQuantity,
@@ -1141,12 +1179,21 @@ async function refreshPurchaseTerms(
     const offering = line.offeringId === null ? null : byId.get(line.offeringId);
     if (!offering || offering.itemId !== line.itemId) throw new Error("A requested Shop Offering no longer matches its Item.");
     const price = currentOfferingPrice(offering);
-    return Math.abs(price - line.currentUnitPriceCredits) > MONEY_EPSILON ? [{ line, price }] : [];
+    const fulfillmentKind = offering.fulfillmentKind === "service-narrative"
+      ? "service-narrative" as const
+      : "inventory-transfer" as const;
+    return Math.abs(price - line.currentUnitPriceCredits) > MONEY_EPSILON
+      || fulfillmentKind !== line.fulfillmentKind
+      ? [{ line, price, fulfillmentKind }]
+      : [];
   });
   if (!changes.length) return { changed: false, termsVersion: request.termsVersion };
   const termsVersion = request.termsVersion + 1;
   for (const change of changes) {
-    await tx.update(shopTransactionRequestLine).set({ currentUnitPriceCredits: change.price })
+    await tx.update(shopTransactionRequestLine).set({
+      currentUnitPriceCredits: change.price,
+      fulfillmentKind: change.fulfillmentKind,
+    })
       .where(eq(shopTransactionRequestLine.id, change.line.id));
   }
   await tx.update(shopTransactionRequest).set({
@@ -1179,6 +1226,7 @@ async function executeRequest(
     throw new Error("This transaction request is no longer open.");
   }
   assertActiveCommerceContext(input.context);
+  await assertNormalExecutionEligibility(tx, input.request, input.context);
   const lines = await tx.select().from(shopTransactionRequestLine)
     .where(eq(shopTransactionRequestLine.requestId, input.request.id))
     .orderBy(asc(shopTransactionRequestLine.sortOrder), asc(shopTransactionRequestLine.id))
@@ -1396,22 +1444,46 @@ async function executeRequest(
 function normalizePurchaseLines(lines: readonly PurchaseLineInput[]) {
   if (!Array.isArray(lines) || !lines.length) throw new Error("Choose at least one Shop Offering.");
   if (lines.length > 100) throw new Error("A purchase can contain at most 100 selected offerings.");
-  const quantities = new Map<number, number>();
+  const selections = new Map<number, {
+    offeringId: number;
+    quantity: number;
+    expectedOfferingVersion: number;
+    quotedUnitPriceCredits: number;
+    quotedFulfillmentKind: "inventory-transfer" | "service-narrative";
+  }>();
   for (const line of lines) {
     const offeringId = positiveId(line.offeringId, "Shop Offering");
-    quantities.set(offeringId, (quantities.get(offeringId) ?? 0) + positiveQuantity(line.quantity));
+    const expectedOfferingVersion = nonnegativeVersion(line.expectedOfferingVersion, "Displayed Shop Offering version");
+    const quotedUnitPriceCredits = moneyAmount(line.quotedUnitPriceCredits, "Displayed offering price");
+    if (line.quotedFulfillmentKind !== "inventory-transfer" && line.quotedFulfillmentKind !== "service-narrative") {
+      throw new Error("Displayed offering fulfillment is invalid.");
+    }
+    const existing = selections.get(offeringId);
+    if (existing && (
+      existing.expectedOfferingVersion !== expectedOfferingVersion
+      || Math.abs(existing.quotedUnitPriceCredits - quotedUnitPriceCredits) > MONEY_EPSILON
+      || existing.quotedFulfillmentKind !== line.quotedFulfillmentKind
+    )) throw new Error("One Shop Offering cannot be submitted with conflicting displayed terms.");
+    selections.set(offeringId, {
+      offeringId,
+      quantity: (existing?.quantity ?? 0) + positiveQuantity(line.quantity),
+      expectedOfferingVersion,
+      quotedUnitPriceCredits,
+      quotedFulfillmentKind: line.quotedFulfillmentKind,
+    });
   }
-  return [...quantities].map(([offeringId, quantity]) => ({ offeringId, quantity }))
+  return [...selections.values()]
     .sort((left, right) => left.offeringId - right.offeringId);
 }
 
 async function buildPurchaseRequestLines(
   tx: ShopCommerceTransaction,
   context: LockedCommerceContext,
-  requested: readonly { offeringId: number; quantity: number }[],
+  requested: ReturnType<typeof normalizePurchaseLines>,
 ) {
   const offerings = await tx.select({
     id: shopOffering.id,
+    version: shopOffering.version,
     itemId: shopOffering.itemId,
     fulfillmentKind: shopOffering.fulfillmentKind,
     enabled: shopOffering.enabled,
@@ -1443,9 +1515,11 @@ async function buildPurchaseRequestLines(
     fulfillmentKind: "inventory-transfer" | "service-narrative";
     quantity: number;
     quotedUnitPriceCredits: number;
+    currentUnitPriceCredits: number;
     itemCanonicalIdSnapshot: string;
     itemNameSnapshot: string;
   }> = [];
+  let termsChanged = false;
   for (const selected of requested) {
     const offering = byId.get(selected.offeringId);
     const definition = offering ? definitions.get(offering.itemId) : null;
@@ -1461,6 +1535,11 @@ async function buildPurchaseRequestLines(
     const fulfillmentKind = offering.fulfillmentKind === "service-narrative"
       ? "service-narrative" as const
       : "inventory-transfer" as const;
+    if (
+      offering.version !== selected.expectedOfferingVersion
+      || Math.abs(price - selected.quotedUnitPriceCredits) > MONEY_EPSILON
+      || fulfillmentKind !== selected.quotedFulfillmentKind
+    ) termsChanged = true;
     const splitExact = fulfillmentKind === "inventory-transfer" && ownershipStrategy(definition) === "instance";
     for (let index = 0; index < (splitExact ? selected.quantity : 1); index += 1) {
       result.push({
@@ -1468,13 +1547,14 @@ async function buildPurchaseRequestLines(
         itemId: offering.itemId,
         fulfillmentKind,
         quantity: splitExact ? 1 : selected.quantity,
-        quotedUnitPriceCredits: price,
+        quotedUnitPriceCredits: selected.quotedUnitPriceCredits,
+        currentUnitPriceCredits: price,
         itemCanonicalIdSnapshot: offering.canonicalId,
         itemNameSnapshot: offering.itemName,
       });
     }
   }
-  return result;
+  return { lines: result, termsChanged };
 }
 
 export async function submitPlayerPurchaseInTransaction(
@@ -1511,7 +1591,7 @@ export async function submitPlayerPurchaseInTransaction(
       .where(eq(shopTransaction.requestId, requestId)).limit(1);
     return { requestId, transactionId: transaction?.id ?? null, status: request?.status as ShopCommerceRequestStatus };
   }
-  const requestLines = await buildPurchaseRequestLines(tx, context, requested);
+  const built = await buildPurchaseRequestLines(tx, context, requested);
   const requestId = await insertRequest(tx, {
     campaignId: context.campaignId,
     shopId: context.shopId,
@@ -1519,11 +1599,15 @@ export async function submitPlayerPurchaseInTransaction(
     visit,
     operationId: operation.id,
     kind: "purchase",
-    ownerAcceptedTermsVersion: 1,
+    status: built.termsChanged ? "owner-review" : "pending",
+    ownerAcceptedTermsVersion: built.termsChanged ? null : 1,
     requestedByUserId: playerUserId,
     narrativeNote,
-    lines: requestLines,
+    lines: built.lines,
   });
+  if (built.termsChanged) {
+    return { requestId, transactionId: null, status: "owner-review" };
+  }
   if (context.characterPurchaseMode === "god-approval-required") {
     return { requestId, transactionId: null, status: "pending" };
   }
@@ -1574,6 +1658,10 @@ export async function completeGodOverridePurchaseInTransaction(
     if (!transaction) throw new Error("The original G.O.D. purchase did not complete.");
     return { requestId, transactionId: transaction.id };
   }
+  const built = await buildPurchaseRequestLines(tx, context, requested);
+  if (built.termsChanged) {
+    throw new Error("Shop terms changed after this override was displayed. Review the refreshed price and fulfillment before confirming again.");
+  }
   const requestId = await insertRequest(tx, {
     campaignId: context.campaignId,
     shopId: context.shopId,
@@ -1585,7 +1673,7 @@ export async function completeGodOverridePurchaseInTransaction(
     narrativeNote,
     transactionOverride: true,
     transactionOverrideReason: overrideReason,
-    lines: await buildPurchaseRequestLines(tx, context, requested),
+    lines: built.lines,
   });
   const [request] = await tx.select().from(shopTransactionRequest)
     .where(eq(shopTransactionRequest.id, requestId)).limit(1).for("update");
@@ -1782,6 +1870,7 @@ export async function reviewShopRequestInTransaction(
   tx: ShopCommerceTransaction,
   input: {
     requestId: number;
+    expectedTermsVersion: number;
     decision: "approve" | "reject";
     revisedLines?: readonly RevisedRequestLineInput[];
     reason?: string;
@@ -1798,6 +1887,7 @@ export async function reviewShopRequestInTransaction(
   );
   assertGodOwner(actor, context.ownerUserId);
   const reason = note(input.reason, input.decision === "reject" ? "Rejection reason" : "Review note", input.decision === "reject");
+  const expectedTermsVersion = positiveId(input.expectedTermsVersion, "Displayed terms version");
   const revisedLines = input.revisedLines?.map((line) => ({
     requestLineId: positiveId(line.requestLineId, "Request line"),
     quantity: positiveQuantity(line.quantity),
@@ -1808,8 +1898,19 @@ export async function reviewShopRequestInTransaction(
     actorUserId: actor.userId,
     submissionKey: input.submissionKey,
     kind: input.decision === "reject" ? "reject-request" : "approve-request",
-    intent: { requestId: locked.request.id, decision: input.decision, revisedLines, reason },
+    intent: { requestId: locked.request.id, expectedTermsVersion, decision: input.decision, revisedLines, reason },
   });
+  if (operation.reused) {
+    return {
+      requestId: locked.request.id,
+      transactionId: locked.request.status === "completed" ? await existingTransactionId(tx, locked.request.id) : null,
+      status: locked.request.status as ShopCommerceRequestStatus,
+    };
+  }
+  if (
+    (locked.request.status === "pending" || locked.request.status === "owner-review")
+    && locked.request.termsVersion !== expectedTermsVersion
+  ) throw new Error("These Shop terms changed after they were displayed. Review the refreshed terms before deciding again.");
   if (locked.request.status === "completed") {
     return { requestId: locked.request.id, transactionId: await existingTransactionId(tx, locked.request.id), status: "completed" };
   }
@@ -1819,7 +1920,6 @@ export async function reviewShopRequestInTransaction(
     }
     throw new Error("This transaction request is no longer open.");
   }
-  assertActiveCommerceContext(context);
   if (input.decision === "reject") {
     const now = new Date();
     await tx.update(shopTransactionRequest).set({
@@ -1834,6 +1934,7 @@ export async function reviewShopRequestInTransaction(
     ));
     return { requestId: locked.request.id, transactionId: null, status: "rejected" };
   }
+  assertActiveCommerceContext(context);
   let request = locked.request;
   let lines = await tx.select().from(shopTransactionRequestLine)
     .where(eq(shopTransactionRequestLine.requestId, request.id))
@@ -1843,11 +1944,6 @@ export async function reviewShopRequestInTransaction(
     if (revisedLines.length) throw new Error("Purchase approvals use the current authoritative Shop prices; manual price revisions are only for Character sales.");
     const refreshed = await refreshPurchaseTerms(tx, request, lines, context);
     if (refreshed.changed) {
-      await tx.update(shopTransactionRequest).set({
-        godApprovedTermsVersion: refreshed.termsVersion,
-        status: "owner-review",
-        updatedAt: new Date(),
-      }).where(eq(shopTransactionRequest.id, request.id));
       return { requestId: request.id, transactionId: null, status: "owner-review" };
     }
   } else if (revisedLines.length) {
@@ -1874,7 +1970,7 @@ export async function reviewShopRequestInTransaction(
       const nextVersion = request.termsVersion + 1;
       await tx.update(shopTransactionRequest).set({
         termsVersion: nextVersion,
-        ownerAcceptedTermsVersion: context.changedSaleConfirmationMode === "god-approval-finalizes" ? nextVersion : request.ownerAcceptedTermsVersion,
+        ownerAcceptedTermsVersion: context.changedSaleConfirmationMode === "god-approval-finalizes" ? nextVersion : null,
         godApprovedTermsVersion: nextVersion,
         status: context.changedSaleConfirmationMode === "character-owner-accepts" ? "owner-review" : "pending",
         updatedAt: new Date(),
@@ -1915,19 +2011,31 @@ export async function reviewShopRequestInTransaction(
 
 export async function acceptShopRequestTermsInTransaction(
   tx: ShopCommerceTransaction,
-  input: { requestId: number; submissionKey: string },
+  input: { requestId: number; expectedTermsVersion: number; submissionKey: string },
   playerUserId: string,
 ): Promise<{ requestId: number; transactionId: number | null; status: ShopCommerceRequestStatus }> {
   const locked = await lockRequestWithLifecycle(tx, input.requestId);
   const context = await lockCommerceContext(tx, locked.request.campaignId, locked.request.shopId, locked.request.characterId);
   await assertPlayerAuthorization(tx, context, playerUserId);
+  const expectedTermsVersion = positiveId(input.expectedTermsVersion, "Displayed terms version");
   const operation = await claimOperation(tx, {
     campaignId: context.campaignId,
     actorUserId: playerUserId,
     submissionKey: input.submissionKey,
     kind: "accept-terms",
-    intent: { requestId: locked.request.id, termsVersion: locked.request.termsVersion },
+    intent: { requestId: locked.request.id, termsVersion: expectedTermsVersion },
   });
+  if (operation.reused) {
+    return {
+      requestId: locked.request.id,
+      transactionId: locked.request.status === "completed" ? await existingTransactionId(tx, locked.request.id) : null,
+      status: locked.request.status as ShopCommerceRequestStatus,
+    };
+  }
+  if (
+    (locked.request.status === "pending" || locked.request.status === "owner-review")
+    && locked.request.termsVersion !== expectedTermsVersion
+  ) throw new Error("These Shop terms changed after they were displayed. Review the refreshed terms before accepting again.");
   if (locked.request.status === "completed") {
     return { requestId: locked.request.id, transactionId: await existingTransactionId(tx, locked.request.id), status: "completed" };
   }
@@ -1944,13 +2052,18 @@ export async function acceptShopRequestTermsInTransaction(
       return { requestId: request.id, transactionId: null, status: "owner-review" };
     }
   }
+  const requiresGodApproval = request.kind === "sale"
+    || context.characterPurchaseMode === "god-approval-required";
   await tx.update(shopTransactionRequest).set({
     ownerAcceptedTermsVersion: request.termsVersion,
+    status: requiresGodApproval && request.godApprovedTermsVersion !== request.termsVersion
+      ? "pending"
+      : request.status,
     updatedAt: new Date(),
   }).where(eq(shopTransactionRequest.id, request.id));
   request = { ...request, ownerAcceptedTermsVersion: request.termsVersion };
-  if (request.godApprovedTermsVersion !== request.termsVersion) {
-    return { requestId: request.id, transactionId: null, status: "owner-review" };
+  if (requiresGodApproval && request.godApprovedTermsVersion !== request.termsVersion) {
+    return { requestId: request.id, transactionId: null, status: "pending" };
   }
   const transactionId = await executeRequest(tx, {
     request,
@@ -2295,6 +2408,12 @@ export async function readShopCommerceInTransaction(
       .where(and(
         eq(shopMoneyEvent.campaignId, root.campaignId),
         eq(shopMoneyEvent.characterId, root.characterId),
+        input.godView ? undefined : inArray(shopMoneyEvent.kind, [
+          "purchase-character-debit",
+          "sale-character-credit",
+          "grant-character-credit",
+          "character-balance-correction",
+        ]),
       )).orderBy(desc(shopMoneyEvent.createdAt), desc(shopMoneyEvent.id)).limit(40);
   const requestIds = requestRows.map(({ id }) => id);
   const historyIds = historyRows.map(({ id }) => id);

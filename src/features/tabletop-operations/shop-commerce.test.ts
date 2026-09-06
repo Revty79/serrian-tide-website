@@ -63,6 +63,11 @@ test("requests bind approval to current terms and visit departures cancel unfini
   assert.match(service, /ownerAcceptedTermsVersion/);
   assert.match(service, /godApprovedTermsVersion/);
   assert.match(service, /refreshPurchaseTerms/);
+  assert.match(service, /expectedTermsVersion/);
+  assert.match(service, /expectedOfferingVersion/);
+  assert.match(service, /quotedFulfillmentKind/);
+  assert.match(service, /assertNormalExecutionEligibility/);
+  assert.match(service, /storefrontState !== "open"/);
   assert.match(service, /character-owner-accepts/);
   assert.match(service, /god-approval-finalizes/);
   assert.match(visitService, /cancelOpenShopRequestsForMembershipsInTransaction/);
@@ -104,4 +109,6 @@ test("the Player and G.O.D. interfaces use themed controls, durable feedback, to
   assert.match(godUi, /Approve Current Terms/);
   assert.match(godUi, /Transaction Override/);
   assert.match(godUi, /Give \/ Correct Money/);
+  assert.match(playerUi, /Selected total/);
+  assert.match(godUi, /dialogFeedback/);
 });

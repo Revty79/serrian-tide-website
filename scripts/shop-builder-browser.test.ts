@@ -193,6 +193,12 @@ async function windowScroll(page: Page): Promise<number> {
   return page.evaluate(() => window.scrollY);
 }
 
+async function assertSettledWindowScroll(page: Page, expected: number, message: string): Promise<void> {
+  await page.waitForTimeout(400);
+  const actual = await windowScroll(page);
+  assert.ok(Math.abs(actual - expected) <= 14, `${message} Expected ${expected}, received ${actual}.`);
+}
+
 async function main(): Promise<void> {
   const temporaryCluster = await mkdtemp(join(tmpdir(), "serrian-shop-browser-postgres-"));
   const dataDirectory = join(temporaryCluster, "data");
@@ -378,17 +384,23 @@ async function main(): Promise<void> {
     await swordOffering.getByLabel(/Selling Override/).fill("9");
     await swordOffering.getByLabel(/Buying Override/).fill("4");
     await swordOffering.getByLabel("Shop-Facing Note").fill("Fitting is included as a narrative service.");
+    const serviceOffering = godPage.locator(".shops-offerings article").filter({ hasText: fixture.serviceName });
+    await serviceOffering.getByLabel("Shop-Facing Note").fill("Unsaved sibling offering draft.");
     const saveOffering = swordOffering.getByRole("button", { name: "Save Offering" });
     const catalogScrollBeforeSave = await catalogScroller.evaluate((element) => element.scrollTop);
     await godPage.evaluate(() => window.scrollTo({ top: 760, behavior: "instant" }));
+    const focusedOfferingNote = swordOffering.getByLabel("Shop-Facing Note");
+    await focusedOfferingNote.focus();
     const beforeSave = await windowScroll(godPage);
     assert.ok(beforeSave > 50, "Shop Builder was not long enough to test scroll preservation.");
     await saveOffering.evaluate((element) => (element as HTMLElement).click());
     await godPage.getByText(`${fixture.swordName} was saved.`).waitFor();
-    assert.ok(Math.abs((await windowScroll(godPage)) - beforeSave) <= 14, "Offering save did not preserve in-place scroll.");
+    await assertSettledWindowScroll(godPage, beforeSave, "Offering save did not preserve scroll after the delayed server render.");
     assert.ok(Math.abs((await catalogScroller.evaluate((element) => element.scrollTop)) - catalogScrollBeforeSave) <= 2, "Offering save did not preserve catalog scroll.");
     assert.equal(await generalFilter.getAttribute("aria-pressed"), "true");
     assert.equal(await godPage.getByLabel("Search permitted Items").inputValue(), "Additional");
+    assert.equal(await focusedOfferingNote.evaluate((element) => document.activeElement === element), true, "Offering save lost field focus after the delayed server render.");
+    assert.equal(await serviceOffering.getByLabel("Shop-Facing Note").inputValue(), "Unsaved sibling offering draft.", "Saving one offering discarded an unrelated unsaved edit.");
     const refreshedSword = godPage.locator(".shops-offerings article").filter({ hasText: fixture.swordName });
     assert.match(await refreshedSword.innerText(), /Effective selling price[\s\S]*9 Credits[\s\S]*Shop override/);
     assert.match(await refreshedSword.innerText(), /Effective buying price[\s\S]*4 Credits[\s\S]*Shop override/);
@@ -430,7 +442,42 @@ async function main(): Promise<void> {
     await godPage.setViewportSize({ width: 390, height: 900 });
     await catalogPanel.scrollIntoViewIfNeeded();
     await catalogPanel.screenshot({ path: join(SCREENSHOT_DIRECTORY, "shop-inventory-browser-narrow.png") });
+    await generalFilter.click();
+    const catalogSearch = godPage.getByLabel("Search permitted Items");
+    await catalogSearch.fill("Additional");
+    const narrowSupply = availableCatalog.getByRole("button", { name: /Shop Supply 07/ });
+    await narrowSupply.click();
+    await catalogScroller.evaluate((element) => { element.scrollTop = 80; });
+    await godPage.evaluate(() => window.scrollTo({ top: 760, behavior: "instant" }));
+    await catalogSearch.focus();
+    const narrowWindowScroll = await windowScroll(godPage);
+    const narrowCatalogScroll = await catalogScroller.evaluate((element) => element.scrollTop);
+    await godPage.getByRole("button", { name: "Add Selected" }).evaluate((element) => (element as HTMLElement).click());
+    await godPage.getByText(/Shop Supply 07 was added/).waitFor();
+    await assertSettledWindowScroll(godPage, narrowWindowScroll, "Narrow Shop mutation jumped after the delayed server render.");
+    assert.ok(Math.abs((await catalogScroller.evaluate((element) => element.scrollTop)) - narrowCatalogScroll) <= 20, "Narrow Shop mutation lost the catalog-list position.");
+    assert.equal(await generalFilter.getAttribute("aria-pressed"), "true");
+    assert.equal(await catalogSearch.inputValue(), "Additional");
+    assert.equal(await catalogSearch.evaluate((element) => document.activeElement === element), true, "Narrow Shop mutation lost catalog focus.");
     await godPage.setViewportSize({ width: 1365, height: 720 });
+
+    await godPage.getByRole("button", { name: "Create Shop", exact: true }).first().evaluate((element) => (element as HTMLElement).click());
+    const secondCreateDialog = godPage.getByRole("dialog");
+    await secondCreateDialog.getByLabel("Shop Name").fill("Scrollwatch Kiosk");
+    await secondCreateDialog.getByLabel("Type / Category").fill("Test kiosk");
+    await godPage.evaluate(() => window.scrollTo({ top: 760, behavior: "instant" }));
+    const beforeCreate = await windowScroll(godPage);
+    await secondCreateDialog.getByRole("button", { name: "Create Shop", exact: true }).click();
+    await godPage.getByText(/Scrollwatch Kiosk was created/).waitFor();
+    await assertSettledWindowScroll(godPage, beforeCreate, "Creating a Shop jumped after the delayed server render.");
+    assert.equal(await generalFilter.getAttribute("aria-pressed"), "true", "Creating a Shop reset the catalog filter.");
+    assert.equal(await catalogSearch.inputValue(), "Additional", "Creating a Shop reset catalog search.");
+    await godPage.getByRole("button", { name: "Delete Shop", exact: true }).first().click();
+    const secondDeleteDialog = godPage.getByRole("dialog");
+    await secondDeleteDialog.getByLabel(/^Type the exact Shop name/).fill("Scrollwatch Kiosk");
+    await secondDeleteDialog.getByRole("button", { name: "Permanently Delete Shop", exact: true }).click();
+    await godPage.getByText("Scrollwatch Kiosk was permanently deleted.").waitFor();
+    await godPage.getByRole("button", { name: /The Lantern Forge/ }).click();
 
     const campaignSelect = godPage.locator(".shops-context select");
     await campaignSelect.selectOption(String(fixture.alternateCampaignId));
@@ -444,7 +491,7 @@ async function main(): Promise<void> {
     await refreshedSword.getByRole("button", { name: `Move ${fixture.swordName} down` }).click();
     await godPage.getByText("Shop offering order was saved.").waitFor();
     const orderedNames = await godPage.locator(".shops-offerings article h4").allTextContents();
-    assert.deepEqual(orderedNames, [fixture.serviceName, fixture.swordName, "Shop Supply 05"]);
+    assert.deepEqual(orderedNames, [fixture.serviceName, fixture.swordName, "Shop Supply 05", "Shop Supply 07"]);
 
     await godPage.getByRole("button", { name: "Archive Shop", exact: true }).first().click();
     const archiveDialog = godPage.getByRole("dialog");

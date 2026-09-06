@@ -95,7 +95,7 @@ export type AvailableTownShop = {
 };
 
 export type TownNpcRecord = {
-  associationId: number;
+  associationId: number | null;
   npcCharacterId: number;
   name: string;
   npcKind: "race" | "creature";
@@ -104,7 +104,13 @@ export type TownNpcRecord = {
   archived: boolean;
   relationshipLabel: string;
   townNote: string;
-  sortOrder: number;
+  sortOrder: number | null;
+  shopAssociations: readonly {
+    shopId: number;
+    shopName: string;
+    responsibilityLabel: string;
+    isPrimaryContact: boolean;
+  }[];
 };
 
 export type AvailableTownNpc = {
@@ -271,12 +277,38 @@ export async function listTowns(campaignId: number, status: TownArchiveStatus): 
   const townIds = roots.map(({ id }) => id);
   const shopCounts = await db.select({ townId: townShopMembership.townId, value: count() })
     .from(townShopMembership).where(inArray(townShopMembership.townId, townIds)).groupBy(townShopMembership.townId);
-  const npcCounts = await db.select({ townId: townNpcAssociation.townId, value: count() })
-    .from(townNpcAssociation).where(inArray(townNpcAssociation.townId, townIds)).groupBy(townNpcAssociation.townId);
+  const directTownNpcs = await db.select({
+    townId: townNpcAssociation.townId,
+    npcCharacterId: townNpcAssociation.npcCharacterId,
+  }).from(townNpcAssociation).where(inArray(townNpcAssociation.townId, townIds));
+  const activeShopNpcs = await db.select({
+    townId: townShopMembership.townId,
+    npcCharacterId: shopStaffAssignment.npcCharacterId,
+  }).from(townShopMembership)
+    .innerJoin(shop, and(
+      eq(shop.id, townShopMembership.shopId),
+      eq(shop.campaignId, townShopMembership.campaignId),
+      isNull(shop.archivedAt),
+    ))
+    .innerJoin(shopStaffAssignment, and(
+      eq(shopStaffAssignment.shopId, shop.id),
+      eq(shopStaffAssignment.campaignId, townShopMembership.campaignId),
+    ))
+    .innerJoin(campaignCharacter, and(
+      eq(campaignCharacter.id, shopStaffAssignment.npcCharacterId),
+      eq(campaignCharacter.campaignId, townShopMembership.campaignId),
+      isNull(campaignCharacter.archivedAt),
+    ))
+    .where(inArray(townShopMembership.townId, townIds));
   const placeCounts = await db.select({ townId: townPlace.townId, value: count() })
     .from(townPlace).where(inArray(townPlace.townId, townIds)).groupBy(townPlace.townId);
   const shopCountMap = new Map(shopCounts.map((entry) => [entry.townId, Number(entry.value)]));
-  const npcCountMap = new Map(npcCounts.map((entry) => [entry.townId, Number(entry.value)]));
+  const npcIdsByTown = new Map<number, Set<number>>();
+  for (const entry of [...directTownNpcs, ...activeShopNpcs]) {
+    const ids = npcIdsByTown.get(entry.townId) ?? new Set<number>();
+    ids.add(entry.npcCharacterId);
+    npcIdsByTown.set(entry.townId, ids);
+  }
   const placeCountMap = new Map(placeCounts.map((entry) => [entry.townId, Number(entry.value)]));
   return roots.map((entry) => ({
     id: entry.id,
@@ -286,7 +318,7 @@ export async function listTowns(campaignId: number, status: TownArchiveStatus): 
     overview: entry.overview,
     locationNotes: entry.locationNotes,
     shopCount: shopCountMap.get(entry.id) ?? 0,
-    npcCount: npcCountMap.get(entry.id) ?? 0,
+    npcCount: npcIdsByTown.get(entry.id)?.size ?? 0,
     placeCount: placeCountMap.get(entry.id) ?? 0,
     archivedAt: entry.archivedAt?.toISOString() ?? null,
     archiveReason: entry.archiveReason,
@@ -359,6 +391,83 @@ export async function getTown(townId: number, campaignId: number): Promise<TownD
     .where(and(eq(townNpcAssociation.townId, root.id), eq(townNpcAssociation.campaignId, campaignId)))
     .orderBy(asc(townNpcAssociation.sortOrder), asc(townNpcAssociation.id));
 
+  const shopNpcRows = await db.select({
+    npcCharacterId: campaignCharacter.id,
+    name: campaignCharacter.name,
+    npcKind: campaignCharacter.npcKind,
+    npcBuildMode: campaignCharacter.npcBuildMode,
+    roleLabel: campaignCharacter.npcRoleLabel,
+    shopId: shop.id,
+    shopName: shop.name,
+    responsibilityLabel: shopStaffAssignment.responsibilityLabel,
+    isPrimaryContact: shopStaffAssignment.isPrimaryContact,
+  }).from(townShopMembership)
+    .innerJoin(shop, and(
+      eq(shop.id, townShopMembership.shopId),
+      eq(shop.campaignId, townShopMembership.campaignId),
+      isNull(shop.archivedAt),
+    ))
+    .innerJoin(shopStaffAssignment, and(
+      eq(shopStaffAssignment.shopId, shop.id),
+      eq(shopStaffAssignment.campaignId, townShopMembership.campaignId),
+    ))
+    .innerJoin(campaignCharacter, and(
+      eq(campaignCharacter.id, shopStaffAssignment.npcCharacterId),
+      eq(campaignCharacter.campaignId, townShopMembership.campaignId),
+      isNull(campaignCharacter.archivedAt),
+    ))
+    .where(and(
+      eq(townShopMembership.townId, root.id),
+      eq(townShopMembership.campaignId, campaignId),
+    ))
+    .orderBy(
+      asc(townShopMembership.sortOrder),
+      asc(shop.name),
+      asc(shopStaffAssignment.sortOrder),
+      asc(shopStaffAssignment.id),
+    );
+
+  const npcRecords = new Map<number, TownNpcRecord>();
+  for (const entry of npcRows) {
+    npcRecords.set(entry.npcCharacterId, {
+      associationId: entry.associationId,
+      npcCharacterId: entry.npcCharacterId,
+      name: entry.name,
+      npcKind: entry.npcKind as "race" | "creature",
+      npcBuildMode: entry.npcBuildMode as "simple" | "detailed",
+      roleLabel: entry.roleLabel,
+      archived: entry.archivedAt !== null,
+      relationshipLabel: entry.relationshipLabel,
+      townNote: entry.townNote,
+      sortOrder: entry.sortOrder,
+      shopAssociations: [],
+    });
+  }
+  for (const entry of shopNpcRows) {
+    const existing = npcRecords.get(entry.npcCharacterId) ?? {
+      associationId: null,
+      npcCharacterId: entry.npcCharacterId,
+      name: entry.name,
+      npcKind: entry.npcKind as "race" | "creature",
+      npcBuildMode: entry.npcBuildMode as "simple" | "detailed",
+      roleLabel: entry.roleLabel,
+      archived: false,
+      relationshipLabel: "",
+      townNote: "",
+      sortOrder: null,
+      shopAssociations: [],
+    };
+    npcRecords.set(entry.npcCharacterId, {
+      ...existing,
+      shopAssociations: [...existing.shopAssociations, {
+        shopId: entry.shopId,
+        shopName: entry.shopName,
+        responsibilityLabel: entry.responsibilityLabel,
+        isPrimaryContact: entry.isPrimaryContact,
+      }],
+    });
+  }
+
   const availableNpcRows = await db.select({
     id: campaignCharacter.id,
     campaignId: campaignCharacter.campaignId,
@@ -413,18 +522,12 @@ export async function getTown(townId: number, campaignId: number): Promise<TownD
       assignedTownId: entry.assignedTownId,
       assignedTownName: entry.assignedTownName,
     })),
-    npcs: npcRows.map((entry) => ({
-      associationId: entry.associationId,
-      npcCharacterId: entry.npcCharacterId,
-      name: entry.name,
-      npcKind: entry.npcKind as "race" | "creature",
-      npcBuildMode: entry.npcBuildMode as "simple" | "detailed",
-      roleLabel: entry.roleLabel,
-      archived: entry.archivedAt !== null,
-      relationshipLabel: entry.relationshipLabel,
-      townNote: entry.townNote,
-      sortOrder: entry.sortOrder,
-    })),
+    npcs: [...npcRecords.values()].sort((left, right) => (
+      (left.associationId === null ? 1 : 0) - (right.associationId === null ? 1 : 0)
+      || (left.sortOrder ?? 0) - (right.sortOrder ?? 0)
+      || left.name.localeCompare(right.name)
+      || left.npcCharacterId - right.npcCharacterId
+    )),
     availableNpcs: availableNpcRows
       .filter((entry) => isEligibleTownNpc(entry, campaignId))
       .map((entry) => ({

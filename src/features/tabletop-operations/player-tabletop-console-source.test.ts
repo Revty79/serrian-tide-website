@@ -39,6 +39,21 @@ test("active hierarchy requires exact roster and Scene membership", () => {
   assert.match(service, /ambiguous active Scene hierarchy/);
 });
 
+test("Player combat reads distinguish Encounter membership, Initiative enrollment, and runtime status", () => {
+  assert.match(service, /initiativeEnrolled: Boolean\(initiativeParticipant\)/);
+  assert.match(service, /initiativeRuntimeStatus: initiative\?\.status \?\? "not-initialized"/);
+  assert.match(service, /status: "awaiting-initialization"/);
+  assert.match(service, /status: "awaiting-enrollment"/);
+  assert.match(service, /status: "runtime-closed"/);
+  assert.match(service, /if \(!encounter\.initiativeEnrolled\)/);
+  assert.match(service, /lockPlayerCombatContextInTransaction/);
+  assert.match(service, /lockedRuntime\.status !== "active"/);
+  assert.match(service, /error instanceof Error && error\.message === "The assigned Player Character is not an exact active Initiative participant in this Encounter\."/);
+  assert.match(service, /campaignSessionEncounterInitiative\.encounterId, context\.encounterId[\s\S]*\.for\("share"\)/);
+  assert.match(workspace, /view\.combatAvailability\.reason/);
+  assert.match(workspace, /role="status"/);
+});
+
 test("the console uses authoritative Active State readers", () => {
   for (const reader of [
     "readActiveHealthInTransaction",

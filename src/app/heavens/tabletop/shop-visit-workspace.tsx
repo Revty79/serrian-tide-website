@@ -27,6 +27,11 @@ import {
 } from "./shop-visit-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
+type RunAction = (
+  work: () => Promise<void>,
+  success: string,
+  onError?: (message: string) => void,
+) => Promise<boolean>;
 
 async function expectAction<T>(result: Promise<ShopVisitActionResult<T>>): Promise<T> {
   const settled = await result;
@@ -49,7 +54,7 @@ function GodCommerceCard({
   commerce: ShopCommerceView;
   currency: ShopVisitCurrencyView;
   busy: boolean;
-  run: (work: () => Promise<void>, success: string) => Promise<boolean>;
+  run: RunAction;
 }) {
   const operationKeys = useRef(new Map<string, string>());
   const [prices, setPrices] = useState<Record<number, number>>(() => Object.fromEntries(
@@ -75,19 +80,20 @@ function GodCommerceCard({
       <div>{request.lines.map((line) => <label className="st-field" key={line.id}><span>{line.quantity} × {line.name}{request.kind === "sale" ? " · final unit price" : ` · ${money(line.currentUnitPriceCredits, currency)}`}</span>{request.kind === "sale" ? <input className="st-control" type="number" min={0} step="0.01" value={prices[line.id] ?? line.currentUnitPriceCredits} onChange={(event) => setPrices((current) => ({ ...current, [line.id]: Number(event.target.value) }))} /> : null}</label>)}</div>
       {request.narrativeNote ? <p>{request.narrativeNote}</p> : null}
       <label className="st-field"><span>Review / rejection reason</span><input className="st-control" maxLength={1000} value={reasons[request.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [request.id]: event.target.value }))} /></label>
-      <footer><button className="st-button is-primary" type="button" disabled={busy || request.status === "owner-review"} onClick={() => void run(async () => {
+      <footer><button className="st-button is-primary" type="button" disabled={busy || request.godApprovedTermsVersion === request.termsVersion} onClick={() => void run(async () => {
         await expectAction(reviewShopRequest({
           requestId: request.id,
           characterId: commerce.characterId,
+          expectedTermsVersion: request.termsVersion,
           decision: "approve",
           revisedLines: request.kind === "sale" ? request.lines.map((line) => ({ requestLineId: line.id, quantity: line.quantity, unitPriceCredits: prices[line.id] ?? line.currentUnitPriceCredits })) : undefined,
           reason: reasons[request.id],
-          submissionKey: key("approve", request.id),
+          submissionKey: key(`approve:${request.termsVersion}`, request.id),
         }));
-        operationKeys.current.delete(`approve:${request.id}`);
+        operationKeys.current.delete(`approve:${request.termsVersion}:${request.id}`);
       }, request.kind === "sale" ? "Sale request reviewed." : "Purchase request reviewed.")}>Approve Current Terms</button><button className="st-button is-danger" type="button" disabled={busy || !(reasons[request.id] ?? "").trim()} onClick={() => void run(async () => {
-        await expectAction(reviewShopRequest({ requestId: request.id, characterId: commerce.characterId, decision: "reject", reason: reasons[request.id], submissionKey: key("reject", request.id) }));
-        operationKeys.current.delete(`reject:${request.id}`);
+        await expectAction(reviewShopRequest({ requestId: request.id, characterId: commerce.characterId, expectedTermsVersion: request.termsVersion, decision: "reject", reason: reasons[request.id], submissionKey: key(`reject:${request.termsVersion}`, request.id) }));
+        operationKeys.current.delete(`reject:${request.termsVersion}:${request.id}`);
       }, `Request #${request.id} rejected.`)}>Reject</button></footer>
     </section>)}</div> : <p>No purchase or sale requests await review.</p>}
     {commerce.history.length ? <details><summary>Recent receipts ({commerce.history.length})</summary><ol>{commerce.history.map((entry) => <li key={entry.id}><strong>#{entry.id} · {entry.kind} · {money(entry.totalCredits, currency)}</strong><span>{entry.lines.map((line) => `${line.quantity} × ${line.name}`).join(", ")}</span></li>)}</ol></details> : null}
@@ -105,7 +111,7 @@ function GodMoneyTools({
   characters: GodShopVisitWorkspace["campaignCharacters"];
   currency: ShopVisitCurrencyView;
   busy: boolean;
-  run: (work: () => Promise<void>, success: string) => Promise<boolean>;
+  run: RunAction;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const key = useRef<string | null>(null);
@@ -113,15 +119,21 @@ function GodMoneyTools({
   const [amount, setAmount] = useState(0);
   const [reason, setReason] = useState("");
   const [mode, setMode] = useState<"grant" | "correction">("grant");
+  const [dialogFeedback, setDialogFeedback] = useState<string | null>(null);
   return <>
-    <button type="button" className="st-button is-secondary" disabled={busy || !characters.length} onClick={() => dialog.current?.showModal()}>Give / Correct Money</button>
-    <dialog ref={dialog} className="tabletop-shop-commerce-dialog"><section><header><div><span>TRACEABLE MONEY EVENT</span><h4>Character money</h4><p>Grants and deliberate balance corrections are recorded in the Character&apos;s purse history.</p></div></header><label className="st-field"><span>Character</span><select className="st-control" value={characterId} onChange={(event) => setCharacterId(Number(event.target.value))}>{characters.map((entry) => <option value={entry.characterId} key={entry.characterId}>{entry.name} · {entry.playerName}</option>)}</select></label><label className="st-field"><span>Action</span><select className="st-control" value={mode} onChange={(event) => setMode(event.target.value as "grant" | "correction")}><option value="grant">Give money</option><option value="correction">Correct balance</option></select></label><label className="st-field"><span>{mode === "grant" ? "Positive amount" : "New canonical balance"}</span><input className="st-control" type="number" min={0} step="0.01" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /><small>{money(amount, currency)}</small></label><label className="st-field"><span>Required reason</span><textarea className="st-control" rows={3} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></label><footer><button type="button" className="st-button is-secondary" disabled={busy} onClick={() => dialog.current?.close()}>Cancel</button><button type="button" className="st-button is-primary" disabled={busy || !characterId || !reason.trim() || (mode === "grant" && amount <= 0)} onClick={() => void run(async () => {
+    <button type="button" className="st-button is-secondary" disabled={busy || !characters.length} onClick={() => { setDialogFeedback(null); dialog.current?.showModal(); }}>Give / Correct Money</button>
+    <dialog ref={dialog} className="tabletop-shop-commerce-dialog" onCancel={(event) => { if (busy) event.preventDefault(); else setDialogFeedback(null); }}><section><header><div><span>TRACEABLE MONEY EVENT</span><h4>Character money</h4><p>Grants and deliberate balance corrections are recorded in the Character&apos;s purse history.</p></div></header><label className="st-field"><span>Character</span><select autoFocus className="st-control" value={characterId} onChange={(event) => setCharacterId(Number(event.target.value))}>{characters.map((entry) => <option value={entry.characterId} key={entry.characterId}>{entry.name} · {entry.playerName}</option>)}</select></label><label className="st-field"><span>Action</span><select className="st-control" value={mode} onChange={(event) => setMode(event.target.value as "grant" | "correction")}><option value="grant">Give money</option><option value="correction">Correct balance</option></select></label><label className="st-field"><span>{mode === "grant" ? "Positive amount" : "New canonical balance"}</span><input className="st-control" type="number" min={0} step="0.01" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /><small>{money(amount, currency)}</small></label><label className="st-field"><span>Required reason</span><textarea className="st-control" rows={3} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></label>{dialogFeedback ? <p className="tabletop-feedback is-error" role="alert">{dialogFeedback}</p> : null}<footer><button type="button" className="st-button is-secondary" disabled={busy} onClick={() => { setDialogFeedback(null); dialog.current?.close(); }}>Cancel</button><button type="button" className="st-button is-primary" disabled={busy || !characterId || !reason.trim() || (mode === "grant" && amount <= 0)} onClick={() => void (async () => {
+      setDialogFeedback(null);
       key.current ??= globalThis.crypto.randomUUID();
-      if (mode === "grant") await expectAction(giveCharacterMoney({ campaignId, characterId, amountCredits: amount, reason, submissionKey: key.current }));
-      else await expectAction(correctCharacterBalance({ campaignId, characterId, newBalanceCredits: amount, reason, submissionKey: key.current }));
-      key.current = null;
-      dialog.current?.close();
-    }, mode === "grant" ? "Money grant recorded." : "Balance correction recorded.")}>Record {mode === "grant" ? "Grant" : "Correction"}</button></footer></section></dialog>
+      const succeeded = await run(async () => {
+        if (mode === "grant") await expectAction(giveCharacterMoney({ campaignId, characterId, amountCredits: amount, reason, submissionKey: key.current! }));
+        else await expectAction(correctCharacterBalance({ campaignId, characterId, newBalanceCredits: amount, reason, submissionKey: key.current! }));
+      }, mode === "grant" ? "Money grant recorded." : "Balance correction recorded.", setDialogFeedback);
+      if (succeeded) {
+        key.current = null;
+        dialog.current?.close();
+      }
+    })()}>{busy ? "Recording…" : `Record ${mode === "grant" ? "Grant" : "Correction"}`}</button></footer></section></dialog>
   </>;
 }
 
@@ -138,7 +150,7 @@ function GodOverridePurchase({
   currency: ShopVisitCurrencyView;
   characters: GodShopVisitWorkspace["campaignCharacters"];
   busy: boolean;
-  run: (work: () => Promise<void>, success: string) => Promise<boolean>;
+  run: RunAction;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const key = useRef<string | null>(null);
@@ -146,20 +158,34 @@ function GodOverridePurchase({
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [narrativeNote, setNarrativeNote] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
+  const [dialogFeedback, setDialogFeedback] = useState<string | null>(null);
   const selected = shop.offerings.flatMap((offering) => (quantities[offering.id] ?? 0) > 0
-    ? [{ offeringId: offering.id, quantity: quantities[offering.id]! }]
+    && offering.sellingPriceCredits !== null ? [{
+      offeringId: offering.id,
+      quantity: quantities[offering.id]!,
+      expectedOfferingVersion: offering.version,
+      quotedUnitPriceCredits: offering.sellingPriceCredits,
+      quotedFulfillmentKind: offering.fulfillmentKind,
+    }]
     : []);
   return <>
-    <button type="button" className="st-button is-secondary" disabled={busy || !characters.length} onClick={() => dialog.current?.showModal()}>Transaction Override</button>
-    <dialog ref={dialog} className="tabletop-shop-commerce-dialog"><section><header><div><span>G.O.D. TRANSACTION OVERRIDE</span><h4>Purchase from {shop.name}</h4><p>Use only for a closed Shop or a transaction outside current visit context. Campaign, archive, ownership, stock, and funds rules still apply.</p></div></header><label className="st-field"><span>Campaign Character</span><select className="st-control" value={characterId} onChange={(event) => setCharacterId(Number(event.target.value))}>{characters.map((entry) => <option value={entry.characterId} key={entry.characterId}>{entry.name} · {entry.playerName}</option>)}</select></label><div className="tabletop-shop-commerce-picker">{shop.offerings.map((offering) => <label className="st-field" key={offering.id}><span>{offering.name} · {money(offering.sellingPriceCredits, currency)}</span><input className="st-control" type="number" min={0} max={offering.unlimitedStock ? 999 : offering.limitedQuantity ?? 0} step={1} value={quantities[offering.id] ?? 0} onChange={(event) => setQuantities((current) => ({ ...current, [offering.id]: Number(event.target.value) }))} /></label>)}</div><label className="st-field"><span>Narrative note (optional)</span><textarea className="st-control" rows={2} maxLength={1000} value={narrativeNote} onChange={(event) => setNarrativeNote(event.target.value)} /></label><label className="st-field"><span>Required override reason</span><textarea className="st-control" rows={3} maxLength={1000} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} /></label><footer><button type="button" className="st-button is-secondary" disabled={busy} onClick={() => dialog.current?.close()}>Cancel</button><button type="button" className="st-button is-primary" disabled={busy || !characterId || !selected.length || !overrideReason.trim()} onClick={() => void run(async () => {
+    <button type="button" className="st-button is-secondary" disabled={busy || !characters.length} onClick={() => { setDialogFeedback(null); dialog.current?.showModal(); }}>Transaction Override</button>
+    <dialog ref={dialog} className="tabletop-shop-commerce-dialog" onCancel={(event) => { if (busy) event.preventDefault(); else setDialogFeedback(null); }}><section><header><div><span>G.O.D. TRANSACTION OVERRIDE</span><h4>Purchase from {shop.name}</h4><p>Use only for a closed Shop or a transaction outside current visit context. Campaign, archive, ownership, stock, and funds rules still apply.</p></div></header><label className="st-field"><span>Campaign Character</span><select autoFocus className="st-control" value={characterId} onChange={(event) => setCharacterId(Number(event.target.value))}>{characters.map((entry) => <option value={entry.characterId} key={entry.characterId}>{entry.name} · {entry.playerName}</option>)}</select></label><div className="tabletop-shop-commerce-picker">{shop.offerings.map((offering) => <label className="st-field" key={offering.id}><span>{offering.name} · {money(offering.sellingPriceCredits, currency)}</span><input className="st-control" type="number" min={0} max={offering.unlimitedStock ? 999 : offering.limitedQuantity ?? 0} step={1} disabled={offering.sellingPriceCredits === null} value={quantities[offering.id] ?? 0} onChange={(event) => setQuantities((current) => ({ ...current, [offering.id]: Number(event.target.value) }))} /></label>)}</div><label className="st-field"><span>Narrative note (optional)</span><textarea className="st-control" rows={2} maxLength={1000} value={narrativeNote} onChange={(event) => setNarrativeNote(event.target.value)} /></label><label className="st-field"><span>Required override reason</span><textarea className="st-control" rows={3} maxLength={1000} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} /></label>{dialogFeedback ? <p className="tabletop-feedback is-error" role="alert">{dialogFeedback}</p> : null}<footer><button type="button" className="st-button is-secondary" disabled={busy} onClick={() => { setDialogFeedback(null); dialog.current?.close(); }}>Cancel</button><button type="button" className="st-button is-primary" disabled={busy || !characterId || !selected.length || !overrideReason.trim()} onClick={() => void (async () => {
+      setDialogFeedback(null);
       key.current ??= globalThis.crypto.randomUUID();
-      await expectAction(completeGodOverridePurchase({ campaignId, shopId: shop.id, characterId, lines: selected, narrativeNote, overrideReason, submissionKey: key.current }));
-      key.current = null;
-      setQuantities({});
-      setNarrativeNote("");
-      setOverrideReason("");
-      dialog.current?.close();
-    }, "G.O.D. override purchase completed and recorded.")}>Complete Override Purchase</button></footer></section></dialog>
+      const succeeded = await run(
+        async () => { await expectAction(completeGodOverridePurchase({ campaignId, shopId: shop.id, characterId, lines: selected, narrativeNote, overrideReason, submissionKey: key.current! })); },
+        "G.O.D. override purchase completed and recorded.",
+        setDialogFeedback,
+      );
+      if (succeeded) {
+        key.current = null;
+        setQuantities({});
+        setNarrativeNote("");
+        setOverrideReason("");
+        dialog.current?.close();
+      }
+    })()}>{busy ? "Completing…" : "Complete Override Purchase"}</button></footer></section></dialog>
   </>;
 }
 
@@ -178,7 +204,7 @@ function VisitDetail({
   canOperate: boolean;
   busy: boolean;
   feedback: Feedback | null;
-  run: (work: () => Promise<void>, success: string) => Promise<boolean>;
+  run: RunAction;
   clearFeedback: () => void;
   onReturn: () => void;
 }) {
@@ -290,7 +316,7 @@ export function GodShopVisitWorkspacePanel({ data }: { data: GodShopVisitWorkspa
     return key === entryKey;
   }) ?? null;
 
-  async function run(work: () => Promise<void>, success: string): Promise<boolean> {
+  async function run(work: () => Promise<void>, success: string, onError?: (message: string) => void): Promise<boolean> {
     setBusy(true);
     setFeedback(null);
     try {
@@ -299,7 +325,9 @@ export function GodShopVisitWorkspacePanel({ data }: { data: GodShopVisitWorkspa
       router.refresh();
       return true;
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Shop visit action failed." });
+      const message = error instanceof Error ? error.message : "The Shop visit action failed.";
+      if (onError) onError(message);
+      else setFeedback({ kind: "error", message });
       return false;
     } finally {
       setBusy(false);
@@ -321,7 +349,7 @@ export function GodShopVisitWorkspacePanel({ data }: { data: GodShopVisitWorkspa
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
     {data.activeVisits.length ? <div className="tabletop-shop-visit-list">{data.activeVisits.map((visit) => <article key={visit.id}><div><span>{visit.mode === "roleplay" ? "Roleplay" : "Shopping"}</span><strong>{visit.shop.name}</strong><small>{visit.visitors.map(({ name }) => name).join(", ")}</small></div><button type="button" className="st-button is-secondary" onClick={() => setSelectedVisitId(visit.id)}>View Visit</button></article>)}</div> : <p className="tabletop-empty">No Player Characters are currently visiting Shops.</p>}
     <div className="tabletop-shop-entry-list">{data.eligiblePlacements.map((placement) => <article key={placement.placement.kind === "town" ? `town:${placement.placement.townId}:${placement.shopId}` : `independent:${placement.shopId}`}><div><span>{placement.placementLabel}</span><strong>{placement.shopName}</strong><small>{placement.shopCategory} · {placement.storefrontState}</small></div><div>{data.canTransact ? <GodOverridePurchase campaignId={data.campaignId} shop={placement.shop} currency={data.currency} characters={data.campaignCharacters} busy={busy} run={run} /> : null}{data.canOperate ? <button type="button" className="st-button is-primary" disabled={busy} onClick={() => openEntry(placement)}>Enter Shop</button> : null}</div></article>)}</div>
-    {!data.canOperate ? <p className="tabletop-readonly-notice">Admin view is read-only. Only the Campaign-owning G.O.D. can manage participant visits.</p> : null}
+    {!data.canOperate ? <p className="tabletop-readonly-notice">{data.entryUnavailableReason}</p> : null}
     {entry ? <div className="tabletop-shop-entry-dialog" role="dialog" aria-modal="true" aria-labelledby="shop-entry-dialog-title">
       <section><header><div><span>CONFIRM PARTICIPANTS</span><h4 id="shop-entry-dialog-title">Enter {entry.shopName}</h4><p>{entry.placementLabel} · {entry.storefrontState}</p></div><button type="button" className="st-button is-secondary" onClick={() => setEntryKey(null)}>Close</button></header>
         {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p> : null}

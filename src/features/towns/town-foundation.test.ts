@@ -57,8 +57,8 @@ test("the Town workspace keeps authored drafts and scroll while organizing all s
     "Available Campaign Shop",
     "Reassign Here",
     "Open Shop Record",
-    "Persistent Race & Creature records",
-    "Simple and Detailed NPCs may appear in many Towns",
+    "Town NPC directory",
+    "Direct Town associations and staff at active attached Shops appear once per NPC",
     "Open NPC Record",
     "Town-owned descriptive records",
     "Archive / Delete",
@@ -69,7 +69,7 @@ test("the Town workspace keeps authored drafts and scroll while organizing all s
   ]) assert.match(workspace, new RegExp(seam.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(workspace, /function mergeDetail/);
   assert.match(workspace, /if \(!merged\[entry\.id\]\)/);
-  assert.match(workspace, /if \(!merged\[entry\.associationId\]\)/);
+  assert.match(workspace, /entry\.associationId !== null && !merged\[entry\.associationId\]/);
   assert.match(workspace, /activeCampaignRef/);
   assert.match(workspace, /requestIdRef/);
 });

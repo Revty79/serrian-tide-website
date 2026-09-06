@@ -118,6 +118,7 @@ export async function submitShopSale(input: {
 
 export async function acceptShopTerms(input: {
   requestId: number;
+  expectedTermsVersion: number;
   submissionKey: string;
 }): Promise<PlayerShopCommerceActionResult<{ requestId: number; transactionId: number | null; status: string }>> {
   try {

@@ -229,6 +229,7 @@ export async function endShopVisit(visitId: number, reason: string): Promise<Sho
 export async function reviewShopRequest(input: {
   requestId: number;
   characterId: number;
+  expectedTermsVersion: number;
   decision: "approve" | "reject";
   revisedLines?: readonly RevisedRequestLineInput[];
   reason?: string;

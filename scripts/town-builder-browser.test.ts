@@ -50,6 +50,8 @@ type Fixture = {
   otherTownId: number;
   standaloneShopId: number;
   reassignedShopId: number;
+  activeLinkedShopId: number;
+  archivedLinkedShopId: number;
   godEmail: string;
   playerEmail: string;
   npcIds: number[];
@@ -107,8 +109,16 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
         values ($1,$2,$3,$4,$5,$6,$7) returning id`, [campaign.id, godId, npc.name, true, npc.kind, npc.build, npc.role]);
       npcIds.push(created.id);
     }
+    await client.query("update shop set archived_at=now(),archived_by_user_id=$1,archive_reason='Archived staff route rehearsal' where id=$2", [godId, linkedShopIds[1]]);
+    await client.query(`insert into shop_staff_assignment (shop_id,campaign_id,npc_character_id,responsibility_label,is_primary_contact,sort_order) values
+      ($1,$2,$3,'Active harbor clerk',true,0),
+      ($4,$2,$5,'Archived-only clerk',true,0),
+      ($4,$2,$6,'Archived secondary role',false,1),
+      ($7,$2,$5,'Standalone outfitter',true,0),
+      ($8,$2,$5,'North Gate supplier',true,0)`, [linkedShopIds[0], campaign.id, npcIds[1], linkedShopIds[1], npcIds[2], npcIds[3], standaloneShop.id, reassignedShop.id]);
+    await client.query("insert into town_npc_association (town_id,campaign_id,npc_character_id,relationship_label,town_note,sort_order) values ($1,$2,$3,'Town watch','Direct note survives Shop lifecycle',0)", [town.id, campaign.id, npcIds[3]]);
     await client.query("commit");
-    return { campaignId: campaign.id, alternateCampaignId: alternate.id, townId: town.id, otherTownId: otherTown.id, standaloneShopId: standaloneShop.id, reassignedShopId: reassignedShop.id, godEmail, playerEmail, npcIds };
+    return { campaignId: campaign.id, alternateCampaignId: alternate.id, townId: town.id, otherTownId: otherTown.id, standaloneShopId: standaloneShop.id, reassignedShopId: reassignedShop.id, activeLinkedShopId: linkedShopIds[0]!, archivedLinkedShopId: linkedShopIds[1]!, godEmail, playerEmail, npcIds };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
     throw error;
@@ -201,6 +211,15 @@ async function main(): Promise<void> {
     assert.equal(await godPage.locator(".towns-index button").count(), 1);
     await godPage.getByLabel("Search Towns").fill("");
 
+    const initialTownCard = godPage.locator(".towns-index button").filter({ hasText: "Harbor Rest" });
+    assert.match(await initialTownCard.innerText(), /11 Shops · 2 NPCs/, "Town count did not combine direct NPCs with staff from active attached Shops");
+    assert.equal(await godPage.locator(".towns-card").filter({ hasText: "Orin Emberhand" }).count(), 1, "active Shop staff was omitted from the Town directory");
+    assert.equal(await godPage.locator(".towns-card").filter({ hasText: "Brinewing" }).count(), 0, "staff supplied only by an archived Shop entered the Town directory");
+    const captainBeforeAttach = godPage.locator(".towns-card").filter({ hasText: "Captain Vey" });
+    assert.equal(await captainBeforeAttach.count(), 1, "a direct Town association was lost when its only staff route was archived");
+    assert.equal(await captainBeforeAttach.getByLabel("Town relationship").inputValue(), "Town watch");
+    assert.doesNotMatch(await captainBeforeAttach.innerText(), /Archived secondary role/);
+
     const availableShop = godPage.getByLabel("Available Campaign Shop");
     assert.equal(await availableShop.locator(`option[value="${fixture.standaloneShopId}"]`).count(), 1);
     assert.equal(await availableShop.locator(`option[value="${fixture.reassignedShopId}"]`).count(), 1);
@@ -216,8 +235,11 @@ async function main(): Promise<void> {
     assert.equal(await overview.inputValue(), "Unsaved harbor overview while organizing relationships.");
     assert.ok(Math.abs((await shopScroller.evaluate((element) => element.scrollTop)) - shopScrollBefore) <= 20, "Attaching a Shop reset the Shop-list scroll.");
     assert.equal(await availableShop.locator(`option[value="${fixture.standaloneShopId}"]`).count(), 0, "Attached Shop remained available as a duplicate.");
-    const attachedLantern = godPage.locator(".towns-card").filter({ hasText: "The Unmoored Lantern" });
-    assert.match(await attachedLantern.innerText(), /Outfitter[\s\S]*0 assigned staff/i);
+    const brinewingAfterAttach = godPage.locator(".towns-card").filter({ hasText: "Brinewing" });
+    assert.equal(await brinewingAfterAttach.count(), 1, "attaching an active staffed Shop did not update the Town NPC directory");
+    assert.match(await brinewingAfterAttach.innerText(), /Shop staff · The Unmoored Lantern[\s\S]*Standalone outfitter/);
+    const attachedLantern = godPage.locator(`.towns-card:has(a[href="/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.standaloneShopId}"])`);
+    assert.match(await attachedLantern.innerText(), /Outfitter[\s\S]*1 assigned staff/i);
     assert.equal(await attachedLantern.getByRole("link", { name: "Open Shop Record" }).getAttribute("href"), `/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.standaloneShopId}`);
     const shopDependencyPage = await godContext.newPage();
     await shopDependencyPage.goto(`${baseUrl}/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.standaloneShopId}`);
@@ -237,15 +259,19 @@ async function main(): Promise<void> {
     const reassignment = await pool.query<{ town_id: number; count: number }>("select min(town_id)::int town_id,count(*)::int count from town_shop_membership where shop_id=$1", [fixture.reassignedShopId]);
     assert.deepEqual(reassignment.rows[0], { town_id: fixture.townId, count: 1 });
     assert.deepEqual((await pool.query("select balance_credits,storefront_state from shop where id=$1", [fixture.reassignedShopId])).rows, [{ balance_credits: 91, storefront_state: "open" }]);
+    assert.equal(await godPage.locator(".towns-card").filter({ hasText: "Brinewing" }).count(), 1, "multiple active Shop staff routes duplicated one NPC");
+    assert.match(await godPage.locator(".towns-card").filter({ hasText: "Brinewing" }).innerText(), /North Gate Provisions[\s\S]*North Gate supplier/);
 
     const npcOptions = godPage.getByLabel("Available Campaign NPC");
-    for (const npcId of fixture.npcIds) assert.equal(await npcOptions.locator(`option[value="${npcId}"]`).count(), 1, `Eligible NPC ${npcId} was absent.`);
+    for (const npcId of fixture.npcIds.slice(0, 3)) assert.equal(await npcOptions.locator(`option[value="${npcId}"]`).count(), 1, `Eligible direct-association candidate ${npcId} was absent.`);
+    assert.equal(await npcOptions.locator(`option[value="${fixture.npcIds[3]}"]`).count(), 0, "A directly associated NPC was offered as a duplicate direct association.");
     await godPage.getByLabel("Search NPCs").fill("creature");
-    assert.equal(await npcOptions.locator("option").count(), 3, "NPC kind search did not combine with the eligible Campaign pool.");
+    assert.equal(await npcOptions.locator("option").count(), 2, "NPC kind search did not combine with the eligible Campaign pool.");
+    assert.equal(await npcOptions.locator(`option[value="${fixture.npcIds[2]}"]`).count(), 1, "The eligible creature NPC was lost from filtered direct-association choices.");
     await godPage.getByLabel("Search NPCs").fill("");
     await npcOptions.selectOption(String(fixture.npcIds[0]));
-    await godPage.getByLabel("Town relationship").last().fill("Harbormaster");
-    await godPage.getByLabel("Town note").last().fill("Knows every incoming captain.");
+    await godPage.getByLabel("Town relationship").first().fill("Harbormaster");
+    await godPage.getByLabel("Town note").first().fill("Knows every incoming captain.");
     await godPage.getByRole("button", { name: "Associate NPC" }).click();
     await godPage.getByText("Mara Quickquill associated.").waitFor();
     assert.equal(await overview.inputValue(), "Unsaved harbor overview while organizing relationships.");
@@ -253,6 +279,20 @@ async function main(): Promise<void> {
     const mara = godPage.locator(".towns-card.is-editable").filter({ hasText: "Mara Quickquill" });
     assert.equal(await mara.getByLabel("Town relationship").inputValue(), "Harbormaster");
     assert.equal(await mara.getByRole("link", { name: "Open NPC Record" }).getAttribute("href"), `/heavens/npcs/${fixture.npcIds[0]}?campaign=${fixture.campaignId}`);
+
+    await godPage.locator(`.towns-card:has(a[href="/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.standaloneShopId}"])`).getByRole("button", { name: "Detach" }).click();
+    await godPage.getByText("The Unmoored Lantern detached; the Shop remains standalone.").waitFor();
+    const brinewingAfterFirstDetach = godPage.locator(".towns-card").filter({ hasText: "Brinewing" });
+    assert.equal(await brinewingAfterFirstDetach.count(), 1, "detaching one staffed Shop removed an NPC that still qualified through another active Shop");
+    assert.doesNotMatch(await brinewingAfterFirstDetach.innerText(), /The Unmoored Lantern/);
+    await godPage.locator(`.towns-card:has(a[href="/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.reassignedShopId}"])`).getByRole("button", { name: "Detach" }).click();
+    await godPage.getByText("North Gate Provisions detached; the Shop remains standalone.").waitFor();
+    assert.equal(await godPage.locator(".towns-card").filter({ hasText: "Brinewing" }).count(), 0, "an NPC with only detached or archived Shop routes remained in the Town directory");
+    await availableShop.selectOption(String(fixture.standaloneShopId));
+    await godPage.getByRole("button", { name: "Attach Shop" }).click();
+    await godPage.getByText("The Unmoored Lantern attached.").waitFor();
+    assert.equal(await godPage.locator(".towns-card").filter({ hasText: "Brinewing" }).count(), 1, "reattaching an active staffed Shop did not restore its NPC association");
+    assert.equal(await overview.inputValue(), "Unsaved harbor overview while organizing relationships.");
 
     await godPage.getByRole("button", { name: "New Place" }).click();
     const placeForm = godPage.locator(".towns-place-form");
@@ -342,6 +382,7 @@ async function main(): Promise<void> {
       "Town Builder navigation and Campaign scoping",
       "Shop attach, duplicate prevention, preserved Shop state, scroll, and atomic reassignment",
       "all four persistent NPC eligibility variants, search, add, duplicate prevention, and open-record link",
+      "Town NPC counts and directory entries deduplicated direct associations with staff from active attached Shops while excluding archived-only routes",
       "Town-owned Place creation, editing, ordering, archive, restore, and exact-confirmed deletion",
       "unsaved Town and Place drafts survive relationship mutations",
       "Town archive read-only behavior, restore, lifecycle preview, exact-confirmed delete, and referenced-record survival",

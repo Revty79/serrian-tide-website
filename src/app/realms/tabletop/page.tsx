@@ -120,6 +120,7 @@ export default async function PlayerTabletopPage({
     rolls: boundPlayerRollHistory(runtime.rolls),
     recentSessions: runtime.recentSessions,
     derivedAbilityUses: runtime.derivedAbilityUses,
+    combatAvailability: runtime.combatAvailability,
     combat: runtime.combat,
   };
 

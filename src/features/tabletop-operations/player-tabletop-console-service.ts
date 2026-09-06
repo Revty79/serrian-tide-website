@@ -108,6 +108,8 @@ export type PlayerTabletopHierarchy = {
     encounterType: string;
     description: string;
     participating: boolean;
+    initiativeEnrolled: boolean;
+    initiativeRuntimeStatus: "not-initialized" | "active" | "closed";
     roundNumber: number | null;
     stepNumber: number | null;
     currentInitiative: number | null;
@@ -146,8 +148,21 @@ export type PlayerTabletopRuntimeData = {
     usedAt: string;
   }>;
   calledCheckHistory: PlayerCalledCheckWorkspaceView[];
+  combatAvailability: PlayerCombatAvailability;
   combat: PlayerCombatConsoleData | null;
 };
+
+export type PlayerCombatAvailability = Readonly<{
+  status:
+    | "no-active-encounter"
+    | "not-participating"
+    | "awaiting-initialization"
+    | "awaiting-enrollment"
+    | "runtime-closed"
+    | "hierarchy-changed"
+    | "ready";
+  reason: string;
+}>;
 
 export type PlayerCombatConsoleData = Readonly<{
   context: { campaignId: number; sessionId: number; sceneId: number; encounterId: number };
@@ -353,13 +368,13 @@ async function readActiveHierarchy(
       eq(campaignSessionEncounterParticipant.campaignId, character.campaignId),
       eq(campaignSessionEncounterParticipant.characterId, character.characterId),
     )).limit(1);
-  const [initiative] = participant ? await tx.select({
+  const [initiative] = await tx.select({
     roundNumber: campaignSessionEncounterInitiative.roundNumber,
     stepNumber: campaignSessionEncounterInitiative.stepNumber,
     status: campaignSessionEncounterInitiative.status,
   }).from(campaignSessionEncounterInitiative)
     .where(eq(campaignSessionEncounterInitiative.encounterId, activeEncounter.id))
-    .limit(1) : [];
+    .limit(1);
   const [initiativeParticipant] = participant ? await tx.select({
     currentInitiative: campaignSessionEncounterInitiativeParticipant.currentInitiative,
     participationStatus: campaignSessionEncounterInitiativeParticipant.participationStatus,
@@ -378,6 +393,8 @@ async function readActiveHierarchy(
       encounterType: activeEncounter.encounterType,
       description: activeEncounter.description,
       participating: Boolean(participant),
+      initiativeEnrolled: Boolean(initiativeParticipant),
+      initiativeRuntimeStatus: initiative?.status ?? "not-initialized",
       roundNumber: initiative?.status === "active" ? initiative.roundNumber : null,
       stepNumber: initiative?.status === "active" ? initiative.stepNumber : null,
       currentInitiative: initiativeParticipant?.currentInitiative ?? null,
@@ -690,18 +707,71 @@ async function readPlayerCombatConsole(
   character: PlayerCharacterContext,
   hierarchy: PlayerTabletopHierarchy,
   playerUserId: string,
-): Promise<PlayerCombatConsoleData | null> {
-  if (!hierarchy.encounter?.participating) return null;
-  const context = await lockPlayerCombatContextInTransaction(
-    tx,
-    hierarchy.encounter.id,
-    character.characterId,
-    playerUserId,
-  );
+): Promise<{ availability: PlayerCombatAvailability; combat: PlayerCombatConsoleData | null }> {
+  const encounter = hierarchy.encounter;
+  if (!encounter) return {
+    availability: { status: "no-active-encounter", reason: "No active Encounter is attached to this Character's Scene." },
+    combat: null,
+  };
+  if (!encounter.participating) return {
+    availability: { status: "not-participating", reason: "This Character is not participating in the active Encounter." },
+    combat: null,
+  };
+  if (encounter.initiativeRuntimeStatus === "not-initialized") return {
+    availability: { status: "awaiting-initialization", reason: "The Encounter is active, but the G.O.D. has not initialized Initiative yet." },
+    combat: null,
+  };
+  if (encounter.initiativeRuntimeStatus === "closed") return {
+    availability: { status: "runtime-closed", reason: "Initiative is closed while the Encounter remains active. Combat controls are unavailable until the G.O.D. reopens Initiative or completes the Encounter." },
+    combat: null,
+  };
+  if (!encounter.initiativeEnrolled) return {
+    availability: { status: "awaiting-enrollment", reason: "This Character participates in the Encounter but has not joined its active Initiative runtime yet." },
+    combat: null,
+  };
+  let context;
+  try {
+    context = await lockPlayerCombatContextInTransaction(
+      tx,
+      encounter.id,
+      character.characterId,
+      playerUserId,
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === "The assigned Player Character is not an exact active Initiative participant in this Encounter.") {
+      return {
+        availability: { status: "hierarchy-changed", reason: "The active combat hierarchy changed while this page was loading. Combat controls are unavailable while the Player view refreshes." },
+        combat: null,
+      };
+    }
+    throw error;
+  }
+  if (context.sessionStatus !== "active" || context.sceneStatus !== "active" || context.encounterStatus !== "active") {
+    return {
+      availability: { status: "hierarchy-changed", reason: "The active combat hierarchy changed while this page was loading. Combat controls are unavailable while the Player view refreshes." },
+      combat: null,
+    };
+  }
+  const [lockedRuntime] = await tx.select({ status: campaignSessionEncounterInitiative.status })
+    .from(campaignSessionEncounterInitiative)
+    .where(eq(campaignSessionEncounterInitiative.encounterId, context.encounterId))
+    .limit(1)
+    .for("share");
+  if (!lockedRuntime) return {
+    availability: { status: "awaiting-initialization", reason: "The Encounter is active, but the G.O.D. has not initialized Initiative yet." },
+    combat: null,
+  };
+  if (lockedRuntime.status !== "active") return {
+    availability: { status: "runtime-closed", reason: "Initiative is closed while the Encounter remains active. Combat controls are unavailable until the G.O.D. reopens Initiative or completes the Encounter." },
+    combat: null,
+  };
   const actor = { authority: "player" as const, userId: playerUserId, characterId: character.characterId };
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const participant = engine.participants.find(({ characterId }) => characterId === character.characterId);
-  if (!participant) return null;
+  if (!participant) return {
+    availability: { status: "awaiting-enrollment", reason: "This Character participates in the Encounter but has not joined its active Initiative runtime yet." },
+    combat: null,
+  };
   const pendingAction = engine.pendingActions.find(({ actorCharacterId, status }) => (
     actorCharacterId === character.characterId && status === "active"
   )) ?? null;
@@ -756,7 +826,7 @@ async function readPlayerCombatConsole(
     character.characterId,
     playerUserId,
   );
-  return {
+  return { availability: { status: "ready", reason: "Combat controls are available for this active Initiative participant." }, combat: {
     context: { campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId },
     initiative: {
       roundNumber: engine.runtime.roundNumber,
@@ -798,7 +868,7 @@ async function readPlayerCombatConsole(
     firearmAttacks,
     effects,
     rulingRequests,
-  };
+  } };
 }
 
 export async function readPlayerTabletopRuntimeInTransaction(
@@ -824,7 +894,7 @@ export async function readPlayerTabletopRuntimeInTransaction(
     const firearmStates = await readFirearmStates(tx, identity);
     const calledChecks = await readPlayerCalledCheckWorkspaceInTransaction(tx, identity.characterId, playerUserId);
     const history = await readHistory(tx, identity, playerUserId);
-    const combat = await readPlayerCombatConsole(tx, identity, hierarchy, playerUserId);
+    const combatState = await readPlayerCombatConsole(tx, identity, hierarchy, playerUserId);
     return {
       identity,
       hierarchy,
@@ -837,7 +907,8 @@ export async function readPlayerTabletopRuntimeInTransaction(
       itemEffects,
       firearmStates,
       calledChecks,
-      combat,
+      combatAvailability: combatState.availability,
+      combat: combatState.combat,
       ...history,
     };
 }

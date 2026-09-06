@@ -75,6 +75,8 @@ Completed Encounters preserve metadata and Participant references as history. Re
 
 Build 4 creates the stable Encounter Participant identity layer. Build 5 attaches Initiative, Hold/Pass, Combat Step/Round state, pending actions, and late Initiative enrollment to that identity rather than creating another participant identity system.
 
+Player Tabletop reads preserve the boundary between those layers. An active Encounter Participant may legitimately be waiting for Initiative initialization or late enrollment, and an active Encounter may temporarily retain a closed Initiative runtime. These states return explicit themed availability guidance while Character state, Called Checks, Shop visits, and other authorized projections remain readable. Only an active, exactly enrolled Initiative Participant receives combat data; combat mutations continue through the strict ownership, Campaign, Session, Scene, Encounter, and Initiative-participant authorization path. Initiative values of zero or less remain valid enrolled values and are never used as enrollment sentinels.
+
 ## One authoritative Character state
 
 Tabletop Operations, the G.O.D. interface, and the Player Character interface are different views and controllers of the same authoritative `campaign_character` runtime state. They must never maintain competing copies of persistent Character or NPC state.

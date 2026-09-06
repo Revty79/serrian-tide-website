@@ -38,6 +38,7 @@ export type ShopVisitPlacement = { kind: "town"; townId: number } | { kind: "ind
 
 export type ShopVisitOfferingView = Readonly<{
   id: number;
+  version: number;
   itemId: number;
   canonicalId: string;
   name: string;
@@ -107,6 +108,7 @@ export type GodShopVisitWorkspace = Readonly<{
   sessionId: number;
   sceneId: number;
   canOperate: boolean;
+  entryUnavailableReason: string | null;
   canTransact: boolean;
   currency: ShopVisitCurrencyView;
   eligiblePlayers: readonly { characterId: number; name: string; playerName: string }[];
@@ -320,6 +322,7 @@ async function readPublicShop(
       .orderBy(asc(shopStaffAssignment.sortOrder), asc(campaignCharacter.name), asc(campaignCharacter.id));
   const offerings = await tx.select({
     id: shopOffering.id,
+    version: shopOffering.version,
     itemId: item.id,
     canonicalId: item.canonicalId,
     name: item.name,
@@ -350,6 +353,7 @@ async function readPublicShop(
     staff,
     offerings: offerings.map((entry) => ({
       id: entry.id,
+      version: entry.version,
       itemId: entry.itemId,
       canonicalId: entry.canonicalId,
       name: entry.name,
@@ -476,6 +480,15 @@ export async function readGodShopVisitWorkspaceInTransaction(
     && !scene.campaignArchivedAt
     && scene.sessionStatus === "active"
     && scene.sceneStatus === "active";
+  const entryUnavailableReason = scene.campaignArchivedAt
+    ? "Restore this Campaign before managing participant Shop visits."
+    : scene.sessionStatus !== "active"
+      ? "Shop entry is unavailable because this Session is not active."
+      : scene.sceneStatus !== "active"
+        ? "Shop entry is unavailable because this Scene is not active."
+        : actor.userId !== scene.ownerUserId || !actor.roles.includes("god")
+          ? "Only the Campaign-owning G.O.D. can manage participant Shop visits."
+          : null;
   const canTransact = actor.roles.includes("god")
     && actor.userId === scene.ownerUserId
     && !scene.campaignArchivedAt;
@@ -589,6 +602,7 @@ export async function readGodShopVisitWorkspaceInTransaction(
     sessionId: scene.sessionId,
     sceneId: scene.sceneId,
     canOperate,
+    entryUnavailableReason,
     canTransact,
     currency: {
       currencySystem: scene.currencySystem,

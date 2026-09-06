@@ -61,7 +61,9 @@ Canonical balances remain Campaign Credits. In a Derived Currency Campaign, ever
 
 ## Purchases, services, and sales
 
-`immediate` purchases execute for the Character owner. `god-approval-required` purchases persist without reserving funds or stock. Approval refreshes authoritative prices; a price change creates a new terms version and requires owner acceptance before execution.
+The Player submits the displayed offering version, unit price, and fulfillment kind. The server compares that quotation with the authoritative offering before it can charge the Character. A changed quotation creates an `owner-review` request with the current terms and no charge, including when the Shop normally permits `immediate` checkout. The selected total is shown before confirmation, and a refresh keeps the entered quantity and note so the Player can make an informed choice.
+
+`immediate` purchases execute for the Character owner only when the displayed and authoritative terms still match. `god-approval-required` purchases persist without reserving funds or stock. Every owner acceptance and G.O.D. decision names the displayed request terms version. Any later price or fulfillment change creates another terms version, clears both approvals, and leaves the request actionable for renewed consent. Idempotency identities are version-specific so a prior approval cannot be replayed as consent to changed terms.
 
 All Character sales begin as requests. Catalog buying prices are used unless the Shop has an override. The G.O.D. may revise quantity or unit price:
 
@@ -74,7 +76,7 @@ A `service-narrative` purchase records money, quantity, note, and receipt but cr
 
 ## Projections and live refresh
 
-The player projection is scoped to the authenticated Character. It contains that Character's purse, owned eligible Items, requests, receipts, and money history only. Other players do not receive it. The Campaign-owning G.O.D. receives per-visitor private projections plus Campaign Character choices for grants and overrides.
+The player projection is scoped to the authenticated Character. It contains that Character's purse, owned eligible Items, requests, receipts, and Character-side purse events only. Shop-side credits, debits, and balance corrections are filtered before the response is constructed. Other players do not receive it. The Campaign-owning G.O.D. receives the complete Shop ledger, per-visitor private projections, and Campaign Character choices for grants and overrides.
 
 Server actions publish a `shop-commerce` invalidation in the same database transaction after the operation succeeds. Existing live readers refresh the affected Character and G.O.D. surfaces while local catalog search, category, dialog input, and in-place scroll remain client-owned.
 

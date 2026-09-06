@@ -54,6 +54,6 @@ Expected G.O.D. action failures return structured feedback from the reauthorized
 
 Visit membership is additional live context only. It does not change the Session, Scene, Encounter, Initiative, pending actions, active Character state, or saved Shop approval policies. Scene and Session completion close their visits and memberships in the same transaction. Permission loss makes the Player read fail closed immediately. Shop visit and membership history participates in Town, Shop, Character, Session, Scene, Campaign, and User deletion planning under the existing lifecycle rules.
 
-## Deferred transaction phase
+## Commerce boundary
 
-Purchasing, selling, approvals, stock mutation, purse changes, money grants, and automated economy behavior remain outside this build. The visit catalog intentionally presents browsing information without checkout-shaped controls.
+Purchasing, selling, approvals, stock mutation, purse changes, and tracked money events are implemented by the separate [Tabletop Shop commerce](tabletop-shop-commerce.md) service. Normal commerce revalidates this placement and active visit authority at final execution; only the recorded G.O.D. override path can bypass the open-Shop and active-visit requirements. Commerce retains immutable historical references without changing the location-placement model.

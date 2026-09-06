@@ -43,7 +43,13 @@ async function insertCharacter(pool: pg.Pool, campaignId: number, playerId: stri
     (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode,npc_role_label)
     values ($1,$2,$3,$4,'race',$5,$6) returning id`, [campaignId, playerId, name, npc, npc ? "detailed" : null, npc ? "Shopkeeper" : ""]);
   const characterId = result.rows[0]!.id;
-  await pool.query("insert into campaign_character_profile (character_id) values ($1)", [characterId]);
+  await pool.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,0)", [characterId]);
+  if (!npc) {
+    for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) {
+      await pool.query("insert into campaign_character_attribute (character_id,attribute_key,value) values ($1,$2,25)", [characterId, key]);
+    }
+    await pool.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [characterId]);
+  }
   return characterId;
 }
 
@@ -75,6 +81,7 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
       ($3,'Player A','visit-a@example.invalid',true),
       ($4,'Player B','visit-b@example.invalid',true),
       ($5,'Player C','visit-c@example.invalid',true)`, [god, otherGod, ...players]);
+    await seedPool.query("insert into user_role (user_id,role) values ($1,'god'),($2,'god'),($3,'player'),($4,'player'),($5,'player')", [god, otherGod, ...players]);
     const campaignId = await insertCampaign(seedPool, god, "Shop Visit Campaign");
     const foreignCampaignId = await insertCampaign(seedPool, otherGod, "Foreign Campaign");
     await seedPool.query(`insert into campaign_player (campaign_id,user_id,is_npc_controller) values
@@ -127,8 +134,86 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     const dbModule = await import("@/db");
     applicationPool = dbModule.pool;
     const visit = await import("@/features/tabletop-operations/shop-visit-service");
+    const playerTabletop = await import("@/features/tabletop-operations/player-tabletop-console-service");
+    const playerCombat = await import("@/features/tabletop-operations/player-combat-ruling-service");
     const ownerActor = { userId: god, roles: ["god"] as const };
     const otherActor = { userId: otherGod, roles: ["god"] as const };
+
+    for (const roles of [["admin", "god"], ["god", "admin"]] as const) {
+      const mixedRoleView = await dbModule.db.transaction((tx) => visit.readGodShopVisitWorkspaceInTransaction(tx, sceneId, { userId: god, roles }));
+      assert.equal(mixedRoleView.canOperate, true, `Campaign owner role order ${roles.join(",")} changed Shop-entry authority`);
+      assert.equal(mixedRoleView.entryUnavailableReason, null);
+    }
+    const nonOwnerAdminView = await dbModule.db.transaction((tx) => visit.readGodShopVisitWorkspaceInTransaction(tx, sceneId, { userId: otherGod, roles: ["admin"] }));
+    assert.equal(nonOwnerAdminView.canOperate, false);
+    assert.match(nonOwnerAdminView.entryUnavailableReason ?? "", /Campaign-owning G\.O\.D/);
+    await seedPool.query("update campaign_session_scene set status='completed',completed_at=now() where id=$1", [sceneId]);
+    const inactiveSceneView = await dbModule.db.transaction((tx) => visit.readGodShopVisitWorkspaceInTransaction(tx, sceneId, ownerActor));
+    assert.equal(inactiveSceneView.canOperate, false);
+    assert.match(inactiveSceneView.entryUnavailableReason ?? "", /Scene is not active/);
+    await seedPool.query("update campaign_session_scene set status='active',completed_at=null where id=$1", [sceneId]);
+    await seedPool.query("update campaign_session set status='completed',completed_at=now() where id=$1", [sessionId]);
+    const inactiveSessionView = await dbModule.db.transaction((tx) => visit.readGodShopVisitWorkspaceInTransaction(tx, sceneId, ownerActor));
+    assert.equal(inactiveSessionView.canOperate, false);
+    assert.match(inactiveSessionView.entryUnavailableReason ?? "", /Session is not active/);
+    await seedPool.query("update campaign_session set status='active',completed_at=null where id=$1", [sessionId]);
+    await seedPool.query("update campaign set archived_at=now() where id=$1", [campaignId]);
+    const archivedCampaignView = await dbModule.db.transaction((tx) => visit.readGodShopVisitWorkspaceInTransaction(tx, sceneId, ownerActor));
+    assert.equal(archivedCampaignView.canOperate, false);
+    assert.match(archivedCampaignView.entryUnavailableReason ?? "", /Restore this Campaign/);
+    await seedPool.query("update campaign set archived_at=null where id=$1", [campaignId]);
+
+    const setupEncounterId = Number((await seedPool.query(`insert into campaign_session_encounter
+      (scene_id,session_id,campaign_id,sequence_number,title,encounter_type,status,started_at)
+      values ($1,$2,$3,1,'Initiative Setup Interval','combat','active',now()) returning id`, [sceneId, sessionId, campaignId])).rows[0].id);
+    await seedPool.query(`insert into campaign_session_encounter_participant
+      (encounter_id,scene_id,session_id,campaign_id,character_id,participant_kind,sort_order)
+      values ($1,$2,$3,$4,$5,'campaign-character',0),($1,$2,$3,$4,$6,'campaign-character',1)`, [setupEncounterId, sceneId, sessionId, campaignId, characterIds[0], characterIds[1]]);
+    const beforeInitialization = await dbModule.db.transaction((tx) => playerTabletop.readPlayerTabletopRuntimeInTransaction(tx, characterIds[0]!, players[0]!));
+    assert.equal(beforeInitialization.hierarchy.encounter?.initiativeRuntimeStatus, "not-initialized");
+    assert.equal(beforeInitialization.hierarchy.encounter?.initiativeEnrolled, false);
+    assert.equal(beforeInitialization.combat, null);
+    assert.equal(beforeInitialization.combatAvailability.status, "awaiting-initialization");
+    assert.match(beforeInitialization.combatAvailability.reason, /not initialized Initiative yet/);
+    await assert.rejects(dbModule.db.transaction((tx) => playerCombat.lockPlayerCombatContextInTransaction(tx, setupEncounterId, characterIds[0]!, players[0]!)), /not an exact active Initiative participant/);
+
+    await seedPool.query(`insert into campaign_session_encounter_initiative
+      (encounter_id,scene_id,session_id,campaign_id,status,round_number,step_number,timeline_initiative,started_at)
+      values ($1,$2,$3,$4,'active',1,1,0,now())`, [setupEncounterId, sceneId, sessionId, campaignId]);
+    await seedPool.query(`insert into campaign_session_encounter_initiative_participant
+      (encounter_id,scene_id,session_id,campaign_id,character_id,normal_total_initiative,current_initiative,participation_status,deferred_initiative_cost,last_satisfied_step,movement_mode)
+      values ($1,$2,$3,$4,$5,10,0,'active',0,0,'Land')`, [setupEncounterId, sceneId, sessionId, campaignId, characterIds[0]]);
+    const zeroInitiative = await dbModule.db.transaction((tx) => playerTabletop.readPlayerTabletopRuntimeInTransaction(tx, characterIds[0]!, players[0]!));
+    assert.equal(zeroInitiative.combatAvailability.status, "ready");
+    assert.equal(zeroInitiative.combat?.initiative.currentInitiative, 0, "zero Current Initiative was mistaken for missing enrollment");
+    const lateParticipant = await dbModule.db.transaction((tx) => playerTabletop.readPlayerTabletopRuntimeInTransaction(tx, characterIds[1]!, players[1]!));
+    assert.equal(lateParticipant.hierarchy.encounter?.participating, true);
+    assert.equal(lateParticipant.hierarchy.encounter?.initiativeRuntimeStatus, "active");
+    assert.equal(lateParticipant.hierarchy.encounter?.initiativeEnrolled, false);
+    assert.equal(lateParticipant.combatAvailability.status, "awaiting-enrollment");
+    assert.equal(lateParticipant.combat, null);
+    await assert.rejects(dbModule.db.transaction((tx) => playerCombat.lockPlayerCombatContextInTransaction(tx, setupEncounterId, characterIds[0]!, players[1]!)), /not an exact active Initiative participant/);
+
+    await seedPool.query(`insert into campaign_session_encounter_initiative_participant
+      (encounter_id,scene_id,session_id,campaign_id,character_id,normal_total_initiative,current_initiative,participation_status,deferred_initiative_cost,last_satisfied_step,movement_mode)
+      values ($1,$2,$3,$4,$5,10,-4,'holding',0,0,'Land')`, [setupEncounterId, sceneId, sessionId, campaignId, characterIds[1]]);
+    const enrolledLateParticipant = await dbModule.db.transaction((tx) => playerTabletop.readPlayerTabletopRuntimeInTransaction(tx, characterIds[1]!, players[1]!));
+    assert.equal(enrolledLateParticipant.combatAvailability.status, "ready");
+    assert.equal(enrolledLateParticipant.combat?.initiative.currentInitiative, -4, "negative Current Initiative was mistaken for missing enrollment");
+    assert.equal(enrolledLateParticipant.combat?.initiative.participationStatus, "holding");
+    for (const participationStatus of ["passed", "suspended"] as const) {
+      await seedPool.query("update campaign_session_encounter_initiative_participant set participation_status=$1 where encounter_id=$2 and character_id=$3", [participationStatus, setupEncounterId, characterIds[1]]);
+      const state = await dbModule.db.transaction((tx) => playerTabletop.readPlayerTabletopRuntimeInTransaction(tx, characterIds[1]!, players[1]!));
+      assert.equal(state.combatAvailability.status, "ready");
+      assert.equal(state.combat?.initiative.participationStatus, participationStatus);
+    }
+    await seedPool.query("update campaign_session_encounter_initiative set status='closed',closed_at=now() where encounter_id=$1", [setupEncounterId]);
+    const closedInitiative = await dbModule.db.transaction((tx) => playerTabletop.readPlayerTabletopRuntimeInTransaction(tx, characterIds[0]!, players[0]!));
+    assert.equal(closedInitiative.hierarchy.encounter?.initiativeRuntimeStatus, "closed");
+    assert.equal(closedInitiative.combatAvailability.status, "runtime-closed");
+    assert.equal(closedInitiative.combat, null);
+    assert.match(closedInitiative.combatAvailability.reason, /Initiative is closed/);
+    await seedPool.query("update campaign_session_encounter set status='completed',completed_at=now() where id=$1", [setupEncounterId]);
 
     const startedVisit = await dbModule.db.transaction((tx) => visit.startOrAddShopVisitInTransaction(tx, {
       sceneId, shopId: townShopB, placement: { kind: "town", townId: townB }, characterIds: characterIds.slice(0, 2), mode: "shopping", closedShopOverrideReason: "",

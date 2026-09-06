@@ -47,6 +47,7 @@ type Fixture = {
   campaignId: number;
   sessionId: number;
   sceneId: number;
+  encounterId: number;
   townShopId: number;
   independentShopId: number;
   godEmail: string;
@@ -81,11 +82,14 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       starting_credit_amount,currency_system,fate_point_method,assigned_fate_points,created_by_user_id
     ) values ('Shop Visit Browser Campaign','Live participant Shop visits.',0,0,0,0,100,100,'Credits','Assigned',0,$1) returning id`, [godId]);
     await client.query("insert into campaign_player (campaign_id,user_id,is_npc_controller) values ($1,$2,true),($1,$3,false),($1,$4,false),($1,$5,false)", [campaign.id, godId, ...playerIds]);
+    const playerRace = await one<{ id: number }>(client, "insert into races (name,created_by_user_id) values ('Visit Browser Human',$1) returning id", [godId]);
+    await client.query("insert into race_movement_modes (race_id,movement_mode,base_value,sort_order) values ($1,'Land',3,0)", [playerRace.id]);
+    await client.query("insert into campaign_allowed_race (campaign_id,race_id,sort_order) values ($1,$2,0)", [campaign.id, playerRace.id]);
     const characterIds: number[] = [];
     for (let index = 0; index < playerIds.length; index += 1) {
       const character = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,$3) returning id", [campaign.id, playerIds[index], `Visitor ${String.fromCharCode(65 + index)}`]);
       characterIds.push(character.id);
-      await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps,credits_remaining) values ($1,0,0,100)", [character.id]);
+      await client.query("insert into campaign_character_profile (character_id,race_id,hp_multiplier_steps,base_magic_steps,credits_remaining) values ($1,$2,0,0,100)", [character.id, playerRace.id]);
       for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) await client.query("insert into campaign_character_attribute (character_id,attribute_key,value) values ($1,$2,25)", [character.id, key]);
       await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [character.id]);
     }
@@ -95,6 +99,12 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       await client.query("insert into campaign_session_roster (session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,$4)", [session.id, campaign.id, characterIds[index], index]);
       await client.query("insert into campaign_session_scene_member (scene_id,session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,$4,$5)", [scene.id, session.id, campaign.id, characterIds[index], index]);
     }
+    const encounter = await one<{ id: number }>(client, `insert into campaign_session_encounter
+      (scene_id,session_id,campaign_id,sequence_number,title,encounter_type,description,status)
+      values ($1,$2,$3,1,'Dockside Interruption','combat','A brief Initiative setup rehearsal.','planned') returning id`, [scene.id, session.id, campaign.id]);
+    await client.query(`insert into campaign_session_encounter_participant
+      (encounter_id,scene_id,session_id,campaign_id,character_id,participant_kind,sort_order)
+      values ($1,$2,$3,$4,$5,'campaign-character',0)`, [encounter.id, scene.id, session.id, campaign.id, characterIds[0]]);
     const town = await one<{ id: number }>(client, "insert into town (campaign_id,name,category,overview) values ($1,'Lantern Harbor','Port','Lanterns line the market quay.') returning id", [campaign.id]);
     const townShop = await one<{ id: number }>(client, "insert into shop (campaign_id,name,category,description,storefront_state,balance_credits) values ($1,'Brass Compass','Navigation','Charts and voyage provisions.','open',100) returning id", [campaign.id]);
     const independentShop = await one<{ id: number }>(client, "insert into shop (campaign_id,name,category,description,storefront_state) values ($1,'Moon Cart','Services','A traveling service cart.','open') returning id", [campaign.id]);
@@ -124,7 +134,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     await client.query("insert into campaign_session_scene_town_npc (scene_id,session_id,campaign_id,town_id,npc_character_id,included,revealed,sort_order) values ($1,$2,$3,$4,$5,true,true,0)", [scene.id, session.id, campaign.id, town.id, npc.id]);
     await client.query("insert into campaign_session_scene_shop (scene_id,session_id,campaign_id,shop_id,sort_order,revealed) values ($1,$2,$3,$4,0,true)", [scene.id, session.id, campaign.id, independentShop.id]);
     await client.query("commit");
-    return { godId, campaignId: campaign.id, sessionId: session.id, sceneId: scene.id, townShopId: townShop.id, independentShopId: independentShop.id, godEmail, playerEmails, characterIds };
+    return { godId, campaignId: campaign.id, sessionId: session.id, sceneId: scene.id, encounterId: encounter.id, townShopId: townShop.id, independentShopId: independentShop.id, godEmail, playerEmails, characterIds };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
     throw error;
@@ -153,6 +163,14 @@ async function login(context: BrowserContext, baseUrl: string, email: string): P
   await page.getByRole("button", { name: /^Enter$/ }).click();
   await page.waitForURL((url) => url.pathname === "/access", { timeout: 20_000 });
   return page;
+}
+
+async function eventually(check: () => Promise<boolean>, message: string): Promise<void> {
+  for (let attempt = 0; attempt < 160; attempt += 1) {
+    if (await check()) return;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 125));
+  }
+  throw new Error(message);
 }
 
 async function openGodScene(page: Page, baseUrl: string, fixture: Fixture): Promise<void> {
@@ -252,6 +270,61 @@ async function main(): Promise<void> {
     await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).waitFor({ timeout: 20_000 });
     assert.equal(await playerPages[2]!.getByRole("heading", { name: "Brass Compass" }).count(), 0);
     await playerPages[2]!.getByRole("heading", { name: "At the table" }).waitFor();
+
+    await godPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
+    await godPage.getByRole("heading", { name: "Campaign Sessions" }).waitFor();
+    const encounterIntro = godPage.getByRole("dialog");
+    if (await encounterIntro.count()) await encounterIntro.getByRole("button", { name: "Return to Tabletop Operations" }).click();
+    await godPage.getByRole("button", { name: /Scenes/ }).click();
+    await godPage.getByRole("heading", { name: "Dockside Interruption", exact: true }).waitFor();
+    await godPage.getByRole("button", { name: "Start Encounter", exact: true }).click();
+    const startEncounterDialog = godPage.getByRole("dialog", { name: "Start Encounter 1?" });
+    await startEncounterDialog.getByRole("button", { name: "Start Encounter", exact: true }).click();
+    await godPage.getByText("Encounter 1 is now active.", { exact: true }).waitFor();
+    const initializationReason = "The Encounter is active, but the G.O.D. has not initialized Initiative yet.";
+    await playerPages[0]!.getByText(initializationReason, { exact: true }).waitFor({ timeout: 20_000 });
+    assert.equal(await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "waiting for Initiative displaced the active Shop visit");
+    assert.equal(await playerPages[0]!.getByRole("heading", { name: "Visitor A", level: 1 }).count(), 1, "waiting for Initiative displaced Character identity");
+    assert.equal(await playerPages[0]!.evaluate(() => Array.from(document.querySelectorAll("nextjs-portal")).some((portal) => (
+      portal.shadowRoot?.querySelector("[data-nextjs-dialog-overlay]") !== null
+    ))), false, "the valid pre-Initiative state opened a Next.js runtime overlay");
+    await playerPages[0]!.screenshot({ path: join(screenshotDirectory, "player-shop-visit-awaiting-initiative-narrow.png"), fullPage: true });
+
+    await godPage.getByRole("button", { name: /^Initiative Tracker/ }).click();
+    await godPage.getByText("Not initialized", { exact: true }).waitFor();
+    await godPage.getByRole("button", { name: "Initialize Initiative", exact: true }).click();
+    await godPage.getByText("Initiative initialized from authoritative Dexterity and Movement values.", { exact: true }).waitFor();
+    await eventually(async () => await playerPages[0]!.getByText(initializationReason, { exact: true }).count() === 0, "the Player view did not refresh from Initiative waiting to ready");
+
+    await godPage.getByRole("button", { name: "Encounter Prep", exact: true }).click();
+    const lateParticipantCard = godPage.locator(".tabletop-encounter-available article").filter({ hasText: "Visitor B" });
+    await lateParticipantCard.getByRole("button", { name: "Add Participant", exact: true }).click();
+    await godPage.getByText("Visitor B was added to this Encounter.", { exact: true }).waitFor();
+    const enrollmentReason = "This Character participates in the Encounter but has not joined its active Initiative runtime yet.";
+    await playerPages[1]!.getByText(enrollmentReason, { exact: true }).waitFor({ timeout: 20_000 });
+    assert.equal(await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "late Initiative enrollment displaced the active Shop visit");
+    await godPage.getByRole("button", { name: /^Initiative Tracker/ }).click();
+    const enrollmentCard = godPage.locator(".initiative-late-entry article").filter({ hasText: "Visitor B" });
+    await enrollmentCard.getByRole("button", { name: "Enroll", exact: true }).click();
+    await godPage.getByText(/Visitor B joined Initiative at full Current/).waitFor();
+    await eventually(async () => await playerPages[1]!.getByText(enrollmentReason, { exact: true }).count() === 0, "the late Player view did not refresh from enrollment waiting to ready");
+
+    await godPage.getByText("Advanced / G.O.D. Corrections", { exact: true }).click();
+    godPage.once("dialog", (dialog) => void dialog.accept());
+    await godPage.getByRole("button", { name: "Close Initiative", exact: true }).click();
+    await godPage.getByText("Initiative closed. Historical state remains available.", { exact: true }).waitFor();
+    await playerPages[0]!.getByText(/Initiative is closed while the Encounter remains active/).waitFor({ timeout: 20_000 });
+    assert.equal(await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "closed Initiative displaced the active Shop visit");
+    await godPage.locator(".tabletop-encounter-tabs").getByRole("button", { name: /^Closeout/ }).click();
+    await godPage.getByRole("button", { name: "Finalize Encounter", exact: true }).click();
+    const finalizeEncounterDialog = godPage.getByRole("dialog", { name: "Finalize Dockside Interruption?" });
+    await finalizeEncounterDialog.getByRole("button", { name: "Finalize Encounter", exact: true }).click();
+    await godPage.getByText("Encounter finalized. XP and Encounter completion committed together.", { exact: true }).waitFor();
+    await eventually(async () => await playerPages[0]!.getByText(/Initiative is closed while the Encounter remains active/).count() === 0, "the Player view did not refresh after Encounter completion");
+    await openGodScene(godPage, baseUrl, fixture);
+    await godPage.locator(".tabletop-shop-visit-list article").filter({ hasText: "Brass Compass" }).getByRole("button", { name: "View Visit" }).click();
+    await godPage.getByRole("heading", { name: "Brass Compass" }).waitFor();
+
     const creditsGodVisitText = await godPage.locator(".tabletop-shop-visit-detail").innerText();
     const creditsPlayerVisitText = await playerPages[0]!.locator("section").filter({ hasText: "CURRENT SHOP VISIT" }).first().innerText();
     assert.match(creditsGodVisitText, /Harbor Chart[\s\S]*7 Credits[\s\S]*Buys for 1\.25 Credits/);
@@ -265,15 +338,35 @@ async function main(): Promise<void> {
     const purchaseDialog = playerPages[0]!.getByRole("dialog").filter({ hasText: "Buy from Brass Compass" });
     await purchaseDialog.getByLabel(/Harbor Chart/).fill("1");
     await purchaseDialog.getByLabel("Narrative note (optional)").fill("A chart for the crossing.");
+    assert.match(await purchaseDialog.innerText(), /Selected total: 7 Credits/);
+    await pool.query("update shop_offering set selling_price_override_credits=8,version=version+1 where shop_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.townShopId]);
     await purchaseDialog.getByRole("button", { name: "Submit Request" }).click();
-    await playerPages[0]!.getByText(/Purchase request #\d+ is awaiting G\.O\.D\. approval\./).waitFor();
+    await purchaseDialog.getByText(/price or fulfillment changed after checkout was displayed/i).waitFor();
+    assert.equal(await purchaseDialog.getByLabel(/Harbor Chart/).inputValue(), "1", "terms refresh discarded the checkout quantity");
+    assert.equal(await purchaseDialog.getByLabel("Narrative note (optional)").inputValue(), "A chart for the crossing.", "terms refresh discarded the checkout note");
+    await purchaseDialog.getByRole("button", { name: "Cancel" }).click();
     const playerACommerce = godPage.locator(".tabletop-shop-commerce-card").filter({ hasText: "Visitor A" });
+    const purchaseCommerceRequest = playerACommerce.locator("section").filter({ hasText: "purchase" }).first();
+    await purchaseCommerceRequest.getByText("Owner review", { exact: true }).waitFor({ timeout: 20_000 });
+    const godApproval = purchaseCommerceRequest.getByRole("button", { name: "Approve Current Terms" });
+    assert.equal(await godApproval.isEnabled(), true, "G.O.D. approval was disabled while owner review was pending");
+    await godApproval.click();
+    await godPage.getByText("Purchase request reviewed.", { exact: true }).waitFor();
+    await pool.query("update shop_offering set selling_price_override_credits=9,version=version+1 where shop_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.townShopId]);
+    const playerRequest = playerPages[0]!.locator("article").filter({ hasText: "Your acceptance is required" }).first();
+    await playerRequest.getByRole("button", { name: "Accept Current Terms" }).click();
+    await playerPages[0]!.getByText("Shop terms changed again. Review the refreshed terms before accepting.", { exact: true }).waitFor();
+    await playerRequest.getByText(/9 Credits each · revised/).waitFor({ timeout: 20_000 });
+    await godApproval.waitFor({ state: "visible" });
+    assert.equal(await godApproval.isEnabled(), true, "a second price change left the request stuck with a cleared but disabled G.O.D. approval");
+    await playerRequest.getByRole("button", { name: "Accept Current Terms" }).click();
+    await playerPages[0]!.getByText("Current terms are accepted and await G.O.D. review.", { exact: true }).waitFor();
     await playerACommerce.getByText("Pending", { exact: true }).waitFor({ timeout: 20_000 });
-    await playerACommerce.getByRole("button", { name: "Approve Current Terms" }).click();
+    await godApproval.click();
     await godPage.getByText("Purchase request reviewed.", { exact: true }).waitFor();
     await playerPages[0]!.reload();
     await playerPages[0]!.getByText(/Receipt #\d+ · purchase/).waitFor();
-    assert.match(await playerPages[0]!.getByText("Your purse").locator("..").innerText(), /93 Credits/);
+    assert.match(await playerPages[0]!.getByText("Your purse").locator("..").innerText(), /91 Credits/);
 
     await playerPages[0]!.getByRole("button", { name: "Sell", exact: true }).click();
     const saleDialog = playerPages[0]!.getByRole("dialog").filter({ hasText: "Offer owned Items" });
@@ -281,8 +374,9 @@ async function main(): Promise<void> {
     await saleDialog.getByLabel("Narrative note (optional)").fill("Selling a spare chart.");
     await saleDialog.getByRole("button", { name: "Submit Sale Request" }).click();
     await playerPages[0]!.getByText(/Sale request #\d+ is awaiting G\.O\.D\. review\./).waitFor();
-    await playerACommerce.getByText("Pending", { exact: true }).waitFor({ timeout: 20_000 });
-    await playerACommerce.getByRole("button", { name: "Approve Current Terms" }).click();
+    const saleCommerceRequest = playerACommerce.locator("section").filter({ hasText: "sale" }).first();
+    await saleCommerceRequest.getByText("Pending", { exact: true }).waitFor({ timeout: 20_000 });
+    await saleCommerceRequest.getByRole("button", { name: "Approve Current Terms" }).click();
     await godPage.getByText("Sale request reviewed.", { exact: true }).waitFor();
     await playerPages[0]!.reload();
     await playerPages[0]!.getByText(/Receipt #\d+ · sale/).waitFor();
@@ -293,6 +387,14 @@ async function main(): Promise<void> {
     await moneyDialog.getByLabel("Character").selectOption(String(fixture.characterIds[1]));
     await moneyDialog.getByLabel("Positive amount").fill("2.5");
     await moneyDialog.getByLabel("Required reason").fill("Market-day travel allowance.");
+    await pool.query("update campaign_character set archived_at=now(),archived_by_user_id=$2,archive_reason='Money dialog failure rehearsal' where id=$1", [fixture.characterIds[1], fixture.godId]);
+    await moneyDialog.getByRole("button", { name: "Record Grant" }).click();
+    await moneyDialog.getByText("Archived Campaigns or Characters cannot receive money changes.", { exact: true }).waitFor();
+    assert.equal(await moneyDialog.getByLabel("Positive amount").inputValue(), "2.5");
+    assert.equal(await moneyDialog.getByLabel("Required reason").inputValue(), "Market-day travel allowance.");
+    assert.equal(await moneyDialog.evaluate((element) => (element as HTMLDialogElement).open), true, "money failure closed its dialog");
+    await moneyDialog.screenshot({ path: join(screenshotDirectory, "god-money-error-dialog-classic.png") });
+    await pool.query("update campaign_character set archived_at=null,archived_by_user_id=null,archive_reason='' where id=$1", [fixture.characterIds[1]]);
     await moneyDialog.getByRole("button", { name: "Record Grant" }).click();
     await godPage.getByText("Money grant recorded.", { exact: true }).waitFor();
     assert.equal(Number((await pool.query("select credits_remaining from campaign_character_profile where character_id=$1", [fixture.characterIds[1]])).rows[0].credits_remaining), 102.5);
@@ -302,6 +404,14 @@ async function main(): Promise<void> {
     await overrideDialog.getByLabel("Campaign Character").selectOption(String(fixture.characterIds[1]));
     await overrideDialog.getByLabel(/Complimentary Token/).fill("1");
     await overrideDialog.getByLabel("Required override reason").fill("Delivered by courier outside Visitor B's current turn.");
+    await pool.query("update campaign_character set archived_at=now(),archived_by_user_id=$2,archive_reason='Override dialog failure rehearsal' where id=$1", [fixture.characterIds[1], fixture.godId]);
+    await overrideDialog.getByRole("button", { name: "Complete Override Purchase" }).click();
+    await overrideDialog.getByText("Archived Characters cannot complete Shop transactions.", { exact: true }).waitFor();
+    assert.equal(await overrideDialog.getByLabel(/Complimentary Token/).inputValue(), "1");
+    assert.equal(await overrideDialog.getByLabel("Required override reason").inputValue(), "Delivered by courier outside Visitor B's current turn.");
+    assert.equal(await overrideDialog.evaluate((element) => (element as HTMLDialogElement).open), true, "override failure closed its dialog");
+    await overrideDialog.screenshot({ path: join(screenshotDirectory, "god-override-error-dialog-classic.png") });
+    await pool.query("update campaign_character set archived_at=null,archived_by_user_id=null,archive_reason='' where id=$1", [fixture.characterIds[1]]);
     await overrideDialog.getByRole("button", { name: "Complete Override Purchase" }).click();
     await godPage.getByText("G.O.D. override purchase completed and recorded.", { exact: true }).waitFor();
     assert.equal(Number((await pool.query("select count(*)::int value from shop_transaction where transaction_override=true and character_id=$1", [fixture.characterIds[1]])).rows[0].value), 1);
@@ -321,8 +431,8 @@ async function main(): Promise<void> {
     await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).waitFor();
     const derivedGodVisitText = await godPage.locator(".tabletop-shop-visit-detail").innerText();
     const derivedPlayerVisitText = await playerPages[0]!.locator("section").filter({ hasText: "CURRENT SHOP VISIT" }).first().innerText();
-    assert.match(derivedGodVisitText, /Harbor Chart[\s\S]*2 Crowns, 8 Bits[\s\S]*Buys for 5 Bits/);
-    assert.match(derivedPlayerVisitText, /Harbor Chart[\s\S]*2 Crowns, 8 Bits[\s\S]*Shop buys for 5 Bits/);
+    assert.match(derivedGodVisitText, /Harbor Chart[\s\S]*3 Crowns, 6 Bits[\s\S]*Buys for 5 Bits/);
+    assert.match(derivedPlayerVisitText, /Harbor Chart[\s\S]*3 Crowns, 6 Bits[\s\S]*Shop buys for 5 Bits/);
     assert.match(derivedGodVisitText, /Unpriced Favor[\s\S]*Price not listed/);
     assert.match(derivedPlayerVisitText, /Unpriced Favor[\s\S]*Price not listed/);
     assert.match(derivedGodVisitText, /Complimentary Token[\s\S]*0 Bits/);
@@ -336,7 +446,7 @@ async function main(): Promise<void> {
     const derivedBuilderChart = godPage.locator(".shops-offerings article").filter({ hasText: "Harbor Chart" });
     const derivedBuilderUnpriced = godPage.locator(".shops-offerings article").filter({ hasText: "Unpriced Favor" });
     const derivedBuilderZero = godPage.locator(".shops-offerings article").filter({ hasText: "Complimentary Token" });
-    assert.match(await derivedBuilderChart.innerText(), /Effective selling price\s+2 Crowns, 8 Bits[\s\S]*Effective buying price\s+5 Bits/);
+    assert.match(await derivedBuilderChart.innerText(), /Effective selling price\s+3 Crowns, 6 Bits[\s\S]*Effective buying price\s+5 Bits/);
     assert.match(await derivedBuilderUnpriced.innerText(), /Effective selling price\s+Not priced[\s\S]*Effective buying price\s+Not priced/);
     assert.match(await derivedBuilderZero.innerText(), /Effective selling price\s+0 Bits[\s\S]*Effective buying price\s+0 Bits/);
     await godPage.locator(".shops-editor").screenshot({ path: join(screenshotDirectory, "shop-builder-derived-currency-desktop.png") });
@@ -374,6 +484,26 @@ async function main(): Promise<void> {
     assert.notDeepEqual(alternateModeStyles, { background: savedSelectStyles.background, color: savedSelectStyles.color, border: savedSelectStyles.border });
     await godPage.locator(".tabletop-shop-visit-detail").screenshot({ path: join(screenshotDirectory, "god-shop-visit-derived-serrian-tide-desktop.png") });
 
+    await godPage.getByRole("button", { name: "Give / Correct Money" }).click();
+    const serrianMoneyDialog = godPage.getByRole("dialog").filter({ hasText: "Character money" });
+    await serrianMoneyDialog.getByLabel("Character").selectOption(String(fixture.characterIds[0]));
+    await serrianMoneyDialog.getByLabel("Positive amount").fill("0.1");
+    await serrianMoneyDialog.getByLabel("Required reason").fill("Unrepresentable Serrian Tide theme rehearsal.");
+    await serrianMoneyDialog.getByRole("button", { name: "Record Grant" }).click();
+    await serrianMoneyDialog.getByText(/cannot be represented by the Campaign's configured denominations/).waitFor();
+    const serrianMoneyStyles = await serrianMoneyDialog.getByLabel("Positive amount").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color, border: style.borderTopColor };
+    });
+    assert.notDeepEqual(serrianMoneyStyles, { background: savedSelectStyles.background, color: savedSelectStyles.color, border: savedSelectStyles.border });
+    assert.equal(await serrianMoneyDialog.getByLabel("Positive amount").inputValue(), "0.1");
+    await serrianMoneyDialog.screenshot({ path: join(screenshotDirectory, "god-money-error-dialog-serrian-tide.png") });
+    await serrianMoneyDialog.getByRole("button", { name: "Cancel" }).click();
+
+    await godPage.route("**/api/tabletop/live**", (route) => void route.abort());
+    await openGodScene(godPage, baseUrl, fixture);
+    await godPage.locator(".tabletop-shop-visit-list article").filter({ hasText: "Brass Compass" }).getByRole("button", { name: "View Visit" }).click();
+    await godPage.getByRole("heading", { name: "Brass Compass" }).waitFor();
     const endVisitTrigger = godPage.getByRole("button", { name: "End Visit" });
     await endVisitTrigger.click();
     const endDialog = godPage.getByRole("dialog", { name: "End Brass Compass?" });
@@ -462,15 +592,20 @@ async function main(): Promise<void> {
       "god-shop-visit-derived-serrian-tide-desktop.png",
       "god-shop-commerce-approval-desktop.png",
       "player-shop-commerce-history-narrow.png",
+      "god-money-error-dialog-classic.png",
+      "god-override-error-dialog-classic.png",
+      "god-money-error-dialog-serrian-tide.png",
       "god-end-visit-error-dialog-desktop.png",
       "god-end-visit-error-dialog-narrow.png",
-    ], computedStyles: { savedClassic: savedSelectStyles, alternateSerrianTide: alternateModeStyles, endDialog: dialogControlStyles }, verified: [
+      "player-shop-visit-awaiting-initiative-narrow.png",
+    ], computedStyles: { savedClassic: savedSelectStyles, alternateSerrianTide: alternateModeStyles, serrianMoney: serrianMoneyStyles, endDialog: dialogControlStyles }, verified: [
       "two selected Players entered one Shop while a third stayed in Tabletop",
       "entry failure stayed visible and preserved selected participants and mode",
+      "Player Shop visits stayed usable through pre-Initiative, late-enrollment, ready, and closed-runtime live transitions",
       "Credits and fractional derived-currency prices matched Shop Builder, G.O.D., and Player views",
-      "a Player purchase request was approved once and produced inventory, balances, and a receipt",
+      "checkout totals and two successive price changes required fresh owner and G.O.D. confirmations before one charge",
       "a Character sale was approved and produced a private receipt without exposing it to the outside Player",
-      "G.O.D. money grants and explicit override purchases were traceable",
+      "G.O.D. money and override failures stayed inside themed dialogs with entered values intact before traceable success",
       "missing prices remained distinct from zero in Shop Builder and visit views",
       "End Visit client and server failures stayed visible without discarding the reason",
       "Escape dismissed End Visit and restored focus to its trigger",

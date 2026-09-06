@@ -155,6 +155,27 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     const lifecycle = await import("@/features/lifecycle/lifecycle-service");
     const tabletopLifecycle = await import("@/features/lifecycle/tabletop-lifecycle-service");
     const accountLifecycle = await import("@/features/lifecycle/admin-account-lifecycle-service");
+    const purchaseTerms = new Map<number, {
+      version: number;
+      unitPriceCredits: number;
+      fulfillmentKind: "inventory-transfer" | "service-narrative";
+    }>([
+      [stackOffering.id, { version: 0, unitPriceCredits: 10, fulfillmentKind: "inventory-transfer" }],
+      [serviceOffering.id, { version: 0, unitPriceCredits: 0, fulfillmentKind: "service-narrative" }],
+      [lastOffering.id, { version: 0, unitPriceCredits: 5, fulfillmentKind: "inventory-transfer" }],
+      [freshExactOffering.id, { version: 0, unitPriceCredits: 6, fulfillmentKind: "inventory-transfer" }],
+    ]);
+    function quotePurchase(offeringId: number, quantity: number) {
+      const quoted = purchaseTerms.get(offeringId);
+      if (!quoted) throw new Error(`Missing displayed terms for offering ${offeringId}.`);
+      return {
+        offeringId,
+        quantity,
+        expectedOfferingVersion: quoted.version,
+        quotedUnitPriceCredits: quoted.unitPriceCredits,
+        quotedFulfillmentKind: quoted.fulfillmentKind,
+      };
+    }
     const godActor = { userId: godId, roles: ["god"] as const };
     const visit = await dbModule.db.transaction((tx) => visits.startOrAddShopVisitInTransaction(tx, {
       sceneId: scene.id,
@@ -165,10 +186,11 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
       closedShopOverrideReason: "",
     }, godActor));
 
+    const immediateLines = [await quotePurchase(stackOffering.id, 2), await quotePurchase(serviceOffering.id, 2), await quotePurchase(freshExactOffering.id, 1)];
     const immediate = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
       visitId: visit.visitId,
       characterId: characterIds[0]!,
-      lines: [{ offeringId: stackOffering.id, quantity: 2 }, { offeringId: serviceOffering.id, quantity: 2 }, { offeringId: freshExactOffering.id, quantity: 1 }],
+      lines: immediateLines,
       narrativeNote: "Supplies and directions.",
       submissionKey: "immediate-a",
     }, playerIds[0]!));
@@ -176,7 +198,7 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     const repeatedImmediate = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
       visitId: visit.visitId,
       characterId: characterIds[0]!,
-      lines: [{ offeringId: stackOffering.id, quantity: 2 }, { offeringId: serviceOffering.id, quantity: 2 }, { offeringId: freshExactOffering.id, quantity: 1 }],
+      lines: immediateLines,
       narrativeNote: "Supplies and directions.",
       submissionKey: "immediate-a",
     }, playerIds[0]!));
@@ -188,13 +210,13 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     assert.deepEqual(await one<{ character_balance: number; shop_balance: number }>(seedPool, `select p.credits_remaining character_balance,s.balance_credits shop_balance
       from campaign_character_profile p cross join shop s where p.character_id=$1 and s.id=$2`, [characterIds[0], shop.id]), { character_balance: 74, shop_balance: 126 });
     await assert.rejects(dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ offeringId: stackOffering.id, quantity: 1 }], submissionKey: "unauthorized-a",
+      visitId: visit.visitId, characterId: characterIds[0]!, lines: [quotePurchase(stackOffering.id, 1)], submissionKey: "unauthorized-a",
     }, playerIds[1]!)), /own Character/);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ offeringId: stackOffering.id, quantity: 0 }], submissionKey: "bad-quantity",
+      visitId: visit.visitId, characterId: characterIds[0]!, lines: [quotePurchase(stackOffering.id, 0)], submissionKey: "bad-quantity",
     }, playerIds[0]!)), /positive whole number/);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ offeringId: stackOffering.id, quantity: 1 }], submissionKey: "immediate-a",
+      visitId: visit.visitId, characterId: characterIds[0]!, lines: [quotePurchase(stackOffering.id, 1)], submissionKey: "immediate-a",
     }, playerIds[0]!)), /different transaction contents/);
 
     const racePoolA = new pg.Pool({ connectionString, max: 1 });
@@ -202,36 +224,73 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     concurrencyPools.push(racePoolA, racePoolB);
     const raceDbA = drizzle(racePoolA);
     const raceDbB = drizzle(racePoolB);
+    const lastStockQuote = await quotePurchase(lastOffering.id, 1);
     const lastStockResults = await Promise.allSettled([
-      raceDbA.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, { visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ offeringId: lastOffering.id, quantity: 1 }], submissionKey: "last-a" }, playerIds[0]!)),
-      raceDbB.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, { visitId: visit.visitId, characterId: characterIds[2]!, lines: [{ offeringId: lastOffering.id, quantity: 1 }], submissionKey: "last-c" }, playerIds[2]!)),
+      raceDbA.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, { visitId: visit.visitId, characterId: characterIds[0]!, lines: [lastStockQuote], submissionKey: "last-a" }, playerIds[0]!)),
+      raceDbB.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, { visitId: visit.visitId, characterId: characterIds[2]!, lines: [lastStockQuote], submissionKey: "last-c" }, playerIds[2]!)),
     ]);
     assert.equal(lastStockResults.filter(({ status }) => status === "fulfilled").length, 1);
     assert.equal(lastStockResults.filter(({ status }) => status === "rejected").length, 1);
     assert.equal(Number((await one<{ limited_quantity: number }>(seedPool, "select limited_quantity from shop_offering where id=$1", [lastOffering.id])).limited_quantity), 0);
 
+    const staleImmediateQuote = quotePurchase(stackOffering.id, 1);
+    const staleImmediateBalance = (await one<{ credits_remaining: number }>(seedPool, "select credits_remaining from campaign_character_profile where character_id=$1", [characterIds[3]])).credits_remaining;
+    await seedPool.query("update shop_offering set selling_price_override_credits=10.5,version=version+1 where id=$1", [stackOffering.id]);
+    purchaseTerms.set(stackOffering.id, { version: 1, unitPriceCredits: 10.5, fulfillmentKind: "inventory-transfer" });
+    const staleImmediate = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[3]!,
+      lines: [staleImmediateQuote],
+      narrativeNote: "Displayed before the price changed.",
+      submissionKey: "stale-immediate-d",
+    }, playerIds[3]!));
+    assert.equal(staleImmediate.status, "owner-review", "stale immediate checkout charged instead of requiring reconfirmation");
+    assert.equal((await one<{ credits_remaining: number }>(seedPool, "select credits_remaining from campaign_character_profile where character_id=$1", [characterIds[3]])).credits_remaining, staleImmediateBalance);
+    assert.deepEqual(await one<{ quoted: number; current: number }>(seedPool, "select quoted_unit_price_credits quoted,current_unit_price_credits current from shop_transaction_request_line where request_id=$1", [staleImmediate.requestId]), { quoted: 10, current: 10.5 });
+    await dbModule.db.transaction((tx) => commerce.cancelShopRequestInTransaction(tx, { requestId: staleImmediate.requestId, submissionKey: "cancel-stale-immediate-d" }, { userId: playerIds[3]!, roles: [] }));
+    await seedPool.query("update shop_offering set selling_price_override_credits=null,version=version+1 where id=$1", [stackOffering.id]);
+    purchaseTerms.set(stackOffering.id, { version: 2, unitPriceCredits: 10, fulfillmentKind: "inventory-transfer" });
+
     await seedPool.query("update shop set character_purchase_mode='god-approval-required' where id=$1", [shop.id]);
     const priceReview = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[1]!, lines: [{ offeringId: stackOffering.id, quantity: 1 }], submissionKey: "approval-price-b",
+      visitId: visit.visitId, characterId: characterIds[1]!, lines: [quotePurchase(stackOffering.id, 1)], submissionKey: "approval-price-b",
     }, playerIds[1]!));
     assert.equal(priceReview.status, "pending");
     await seedPool.query("update shop_offering set selling_price_override_credits=11,version=version+1 where id=$1", [stackOffering.id]);
+    purchaseTerms.set(stackOffering.id, { version: 3, unitPriceCredits: 11, fulfillmentKind: "inventory-transfer" });
     const revisedPurchase = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
-      requestId: priceReview.requestId, decision: "approve", submissionKey: "approval-price-god",
+      requestId: priceReview.requestId, expectedTermsVersion: 1, decision: "approve", submissionKey: "approval-price-god",
     }, godActor));
     assert.equal(revisedPurchase.status, "owner-review");
-    const acceptedPurchase = await dbModule.db.transaction((tx) => commerce.acceptShopRequestTermsInTransaction(tx, {
-      requestId: priceReview.requestId, submissionKey: "accept-price-b",
+    const godConfirmedSecondTerms = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: priceReview.requestId, expectedTermsVersion: 2, decision: "approve", submissionKey: "approval-price-2-god",
+    }, godActor));
+    assert.equal(godConfirmedSecondTerms.status, "owner-review");
+    await seedPool.query("update shop_offering set selling_price_override_credits=12,version=version+1 where id=$1", [stackOffering.id]);
+    purchaseTerms.set(stackOffering.id, { version: 4, unitPriceCredits: 12, fulfillmentKind: "inventory-transfer" });
+    const secondPriceChange = await dbModule.db.transaction((tx) => commerce.acceptShopRequestTermsInTransaction(tx, {
+      requestId: priceReview.requestId, expectedTermsVersion: 2, submissionKey: "accept-price-2-b",
     }, playerIds[1]!));
+    assert.equal(secondPriceChange.status, "owner-review", "a second price change during owner acceptance did not require fresh confirmation");
+    await assert.rejects(dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: priceReview.requestId, expectedTermsVersion: 2, decision: "approve", submissionKey: "stale-approval-price-2-god",
+    }, godActor)), /terms changed after they were displayed/i);
+    const ownerAcceptedThirdTerms = await dbModule.db.transaction((tx) => commerce.acceptShopRequestTermsInTransaction(tx, {
+      requestId: priceReview.requestId, expectedTermsVersion: 3, submissionKey: "accept-price-3-b",
+    }, playerIds[1]!));
+    assert.equal(ownerAcceptedThirdTerms.status, "pending");
+    const acceptedPurchase = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: priceReview.requestId, expectedTermsVersion: 3, decision: "approve", submissionKey: "approval-price-3-god",
+    }, godActor));
     assert.equal(acceptedPurchase.status, "completed");
-    assert.equal((await one<{ credits_remaining: number }>(seedPool, "select credits_remaining from campaign_character_profile where character_id=$1", [characterIds[1]])).credits_remaining, 89);
+    assert.equal((await one<{ credits_remaining: number }>(seedPool, "select credits_remaining from campaign_character_profile where character_id=$1", [characterIds[1]])).credits_remaining, 88);
 
     const concurrentApprovalRequest = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[1]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], submissionKey: "concurrent-approval-b",
+      visitId: visit.visitId, characterId: characterIds[1]!, lines: [quotePurchase(serviceOffering.id, 1)], submissionKey: "concurrent-approval-b",
     }, playerIds[1]!));
     const approvalResults = await Promise.allSettled([
-      raceDbA.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, { requestId: concurrentApprovalRequest.requestId, decision: "approve", submissionKey: "concurrent-approve-1" }, godActor)),
-      raceDbB.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, { requestId: concurrentApprovalRequest.requestId, decision: "approve", submissionKey: "concurrent-approve-2" }, godActor)),
+      raceDbA.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, { requestId: concurrentApprovalRequest.requestId, expectedTermsVersion: 1, decision: "approve", submissionKey: "concurrent-approve-1" }, godActor)),
+      raceDbB.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, { requestId: concurrentApprovalRequest.requestId, expectedTermsVersion: 1, decision: "approve", submissionKey: "concurrent-approve-2" }, godActor)),
     ]);
     assert.deepEqual(approvalResults.map(({ status }) => status), ["fulfilled", "fulfilled"]);
     assert.equal(Number((await one<{ value: number }>(seedPool, "select count(*)::int value from shop_transaction where request_id=$1", [concurrentApprovalRequest.requestId])).value), 1);
@@ -243,12 +302,13 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     const stackSaleLine = await one<{ id: number }>(seedPool, "select id from shop_transaction_request_line where request_id=$1", [stackSale.requestId]);
     const changedSale = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
       requestId: stackSale.requestId,
+      expectedTermsVersion: 1,
       decision: "approve",
       revisedLines: [{ requestLineId: stackSaleLine.id, quantity: 1, unitPriceCredits: 5.5 }],
       submissionKey: "sale-stack-review",
     }, godActor));
     assert.equal(changedSale.status, "owner-review");
-    const acceptedSale = await dbModule.db.transaction((tx) => commerce.acceptShopRequestTermsInTransaction(tx, { requestId: stackSale.requestId, submissionKey: "sale-stack-accept" }, playerIds[0]!));
+    const acceptedSale = await dbModule.db.transaction((tx) => commerce.acceptShopRequestTermsInTransaction(tx, { requestId: stackSale.requestId, expectedTermsVersion: 2, submissionKey: "sale-stack-accept" }, playerIds[0]!));
     assert.equal(acceptedSale.status, "completed");
     assert.equal((await one<{ quantity: number }>(seedPool, "select quantity from campaign_character_item where character_id=$1 and item_id=$2", [characterIds[0], stackItem.id])).quantity, 1);
 
@@ -259,6 +319,7 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     const exactSaleLine = await one<{ id: number }>(seedPool, "select id from shop_transaction_request_line where request_id=$1", [exactSale.requestId]);
     const completedExactSale = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
       requestId: exactSale.requestId,
+      expectedTermsVersion: 1,
       decision: "approve",
       revisedLines: [{ requestLineId: exactSaleLine.id, quantity: 1, unitPriceCredits: 3.75 }],
       submissionKey: "sale-exact-review",
@@ -266,9 +327,10 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     assert.equal(completedExactSale.status, "completed");
     assert.ok((await one<{ retired_at: Date | null }>(seedPool, "select retired_at from campaign_character_item_instance where id=$1", [soldInstance.id])).retired_at);
     const resaleOffering = await one<{ id: number; limited_quantity: number; unlimited_stock: boolean }>(seedPool, "select id,limited_quantity,unlimited_stock from shop_offering where shop_id=$1 and item_id=$2", [shop.id, chargedItem.id]);
+    purchaseTerms.set(resaleOffering.id, { version: 0, unitPriceCredits: 12, fulfillmentKind: "inventory-transfer" });
     assert.deepEqual({ quantity: resaleOffering.limited_quantity, unlimited: resaleOffering.unlimited_stock }, { quantity: 1, unlimited: false });
     const repurchase = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[1]!, lines: [{ offeringId: resaleOffering.id, quantity: 1 }], submissionKey: "repurchase-exact-b",
+      visitId: visit.visitId, characterId: characterIds[1]!, lines: [quotePurchase(resaleOffering.id, 1)], submissionKey: "repurchase-exact-b",
     }, playerIds[1]!));
     assert.equal(repurchase.status, "completed");
     const acquired = await one<{ current_charges: number; provenance_source_instance_id: number }>(seedPool, "select current_charges,provenance_source_instance_id from campaign_character_item_instance where character_id=$1 and item_id=$2 and retired_at is null", [characterIds[1], chargedItem.id]);
@@ -278,12 +340,13 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
       visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ itemId: firearmItem.id, itemInstanceId: soldFirearm.id, quantity: 1 }], submissionKey: "sale-firearm-a",
     }, playerIds[0]!));
     const firearmSaleResult = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
-      requestId: firearmSale.requestId, decision: "approve", submissionKey: "sale-firearm-review",
+      requestId: firearmSale.requestId, expectedTermsVersion: 1, decision: "approve", submissionKey: "sale-firearm-review",
     }, godActor));
     assert.equal(firearmSaleResult.status, "completed");
     const firearmOffering = await one<{ id: number }>(seedPool, "select id from shop_offering where shop_id=$1 and item_id=$2", [shop.id, firearmItem.id]);
+    purchaseTerms.set(firearmOffering.id, { version: 0, unitPriceCredits: 25, fulfillmentKind: "inventory-transfer" });
     const firearmPurchase = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[1]!, lines: [{ offeringId: firearmOffering.id, quantity: 1 }], submissionKey: "repurchase-firearm-b",
+      visitId: visit.visitId, characterId: characterIds[1]!, lines: [quotePurchase(firearmOffering.id, 1)], submissionKey: "repurchase-firearm-b",
     }, playerIds[1]!));
     assert.equal(firearmPurchase.status, "completed");
     const acquiredFirearm = await one<{ id: number; provenance_source_instance_id: number }>(seedPool, "select id,provenance_source_instance_id from campaign_character_item_instance where character_id=$1 and item_id=$2 and retired_at is null", [characterIds[1], firearmItem.id]);
@@ -296,7 +359,7 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
       visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ itemId: stackItem.id, quantity: 1 }], submissionKey: "insufficient-shop-sale",
     }, playerIds[0]!));
     await assert.rejects(dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
-      requestId: insufficientSale.requestId, decision: "approve", submissionKey: "insufficient-shop-approve",
+      requestId: insufficientSale.requestId, expectedTermsVersion: 1, decision: "approve", submissionKey: "insufficient-shop-approve",
     }, godActor)), /Shop does not have enough money/);
     assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [insufficientSale.requestId])).status, "pending");
     assert.equal((await one<{ quantity: number }>(seedPool, "select quantity from campaign_character_item where character_id=$1 and item_id=$2", [characterIds[0], stackItem.id])).quantity, 1, "failed execution removed inventory");
@@ -312,32 +375,54 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     await assert.rejects(dbModule.db.transaction((tx) => commerce.giveCharacterMoneyInTransaction(tx, { campaignId: campaign.id, characterId: characterIds[0]!, amountCredits: 0.1, reason: "Unrepresentable award.", submissionKey: "grant-tenth" }, godActor)), /cannot be represented/);
     assert.equal((await one<{ credits_remaining: number }>(seedPool, "select credits_remaining from campaign_character_profile where character_id=$1", [characterIds[0]])).credits_remaining, balanceBeforeGrant + 0.25);
 
+    await seedPool.query("update shop set character_purchase_mode='god-approval-required' where id=$1", [shop.id]);
+    const pendingAtClose = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[3]!,
+      lines: [quotePurchase(serviceOffering.id, 1)],
+      submissionKey: "pending-at-close-d",
+    }, playerIds[3]!));
     await seedPool.query("update shop set storefront_state='closed' where id=$1", [shop.id]);
+    await assert.rejects(dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: pendingAtClose.requestId,
+      expectedTermsVersion: 1,
+      decision: "approve",
+      submissionKey: "approve-after-close",
+    }, godActor)), /remain open through final approval/i);
+    assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [pendingAtClose.requestId])).status, "pending");
+    const rejectedAfterClose = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: pendingAtClose.requestId,
+      expectedTermsVersion: 1,
+      decision: "reject",
+      reason: "The Shop closed before approval.",
+      submissionKey: "reject-after-close",
+    }, godActor));
+    assert.equal(rejectedAfterClose.status, "rejected", "Shop closure prevented a safe rejection path");
     const override = await dbModule.db.transaction((tx) => commerce.completeGodOverridePurchaseInTransaction(tx, {
-      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[2]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], overrideReason: "Off-scene courier service.", submissionKey: "god-override",
+      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[2]!, lines: [quotePurchase(serviceOffering.id, 1)], overrideReason: "Off-scene courier service.", submissionKey: "god-override",
     }, godActor));
     assert.ok(override.transactionId > 0);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[1]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], submissionKey: "closed-player",
+      visitId: visit.visitId, characterId: characterIds[1]!, lines: [quotePurchase(serviceOffering.id, 1)], submissionKey: "closed-player",
     }, playerIds[1]!)), /open Shop/);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.completeGodOverridePurchaseInTransaction(tx, {
-      campaignId: campaign.id, shopId: shop.id, characterId: foreignCharacter.id, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], overrideReason: "Invalid cross-Campaign attempt.", submissionKey: "cross-campaign",
+      campaignId: campaign.id, shopId: shop.id, characterId: foreignCharacter.id, lines: [quotePurchase(serviceOffering.id, 1)], overrideReason: "Invalid cross-Campaign attempt.", submissionKey: "cross-campaign",
     }, godActor)), /Character not found in this Campaign/);
-    await seedPool.query("update shop set storefront_state='open' where id=$1", [shop.id]);
+    await seedPool.query("update shop set storefront_state='open',character_purchase_mode='immediate' where id=$1", [shop.id]);
 
     await seedPool.query("update campaign_character set archived_at=now() where id=$1", [characterIds[3]]);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.completeGodOverridePurchaseInTransaction(tx, {
-      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[3]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], overrideReason: "Archived Character boundary.", submissionKey: "archived-character",
+      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[3]!, lines: [quotePurchase(serviceOffering.id, 1)], overrideReason: "Archived Character boundary.", submissionKey: "archived-character",
     }, godActor)), /Archived Characters/);
     await seedPool.query("update campaign_character set archived_at=null where id=$1", [characterIds[3]]);
     await seedPool.query("update items set archived_at=now() where id=$1", [serviceItem.id]);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.completeGodOverridePurchaseInTransaction(tx, {
-      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[3]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], overrideReason: "Archived Item boundary.", submissionKey: "archived-item",
+      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[3]!, lines: [quotePurchase(serviceOffering.id, 1)], overrideReason: "Archived Item boundary.", submissionKey: "archived-item",
     }, godActor)), /unavailable|archived/i);
     await seedPool.query("update items set archived_at=null where id=$1", [serviceItem.id]);
     await seedPool.query("update campaign set archived_at=now() where id=$1", [campaign.id]);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.completeGodOverridePurchaseInTransaction(tx, {
-      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[3]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], overrideReason: "Archived Campaign boundary.", submissionKey: "archived-campaign",
+      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[3]!, lines: [quotePurchase(serviceOffering.id, 1)], overrideReason: "Archived Campaign boundary.", submissionKey: "archived-campaign",
     }, godActor)), /Archived Campaigns/);
     await seedPool.query("update campaign set archived_at=null where id=$1", [campaign.id]);
 
@@ -345,7 +430,7 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
       visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ itemId: stackItem.id, quantity: 1 }], submissionKey: "departure-sale",
     }, playerIds[0]!));
     const departureResults = await Promise.allSettled([
-      raceDbA.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, { requestId: departureRequest.requestId, decision: "approve", submissionKey: "departure-approve" }, godActor)),
+      raceDbA.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, { requestId: departureRequest.requestId, expectedTermsVersion: 1, decision: "approve", submissionKey: "departure-approve" }, godActor)),
       raceDbB.transaction((tx) => visits.leaveOwnShopVisitInTransaction(tx, characterIds[0]!, playerIds[0]!)),
     ]);
     assert.ok(departureResults.some(({ status }) => status === "fulfilled"));
@@ -355,15 +440,71 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
 
     await seedPool.query("update shop set character_purchase_mode='god-approval-required' where id=$1", [shop.id]);
     const accessLossRequest = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[2]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], submissionKey: "access-loss-purchase",
+      visitId: visit.visitId, characterId: characterIds[2]!, lines: [quotePurchase(serviceOffering.id, 1)], submissionKey: "access-loss-purchase",
     }, playerIds[2]!));
     await dbModule.db.transaction((tx) => visits.leaveOwnShopVisitInTransaction(tx, characterIds[2]!, playerIds[2]!));
     assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [accessLossRequest.requestId])).status, "cancelled", "losing visit access left an actionable request");
+
+    await seedPool.query("update shop set character_purchase_mode='immediate' where id=$1", [shop.id]);
+    const reentered = await dbModule.db.transaction((tx) => visits.startOrAddShopVisitInTransaction(tx, {
+      sceneId: scene.id,
+      shopId: shop.id,
+      placement: { kind: "independent" as const },
+      characterIds: [characterIds[2]!],
+      mode: "shopping",
+      closedShopOverrideReason: "",
+    }, godActor));
+    assert.equal(reentered.visitId, visit.visitId, "re-entry should reuse the active visit while another member remains");
+    assert.deepEqual(await seedPool.query<{ status: string }>("select status from campaign_session_scene_shop_visit_member where visit_id=$1 and character_id=$2 order by id", [visit.visitId, characterIds[2]]).then(({ rows }) => rows.map(({ status }) => status)), ["ended", "active"]);
+    const reentryPurchase = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[2]!,
+      lines: [quotePurchase(stackOffering.id, 1)],
+      submissionKey: "reentry-purchase-c",
+    }, playerIds[2]!));
+    assert.equal(reentryPurchase.status, "completed", "the active re-entry membership was shadowed by historical membership");
+    const reentrySale = await dbModule.db.transaction((tx) => commerce.submitPlayerSaleInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[2]!,
+      lines: [{ itemId: stackItem.id, quantity: 1 }],
+      submissionKey: "reentry-sale-c",
+    }, playerIds[2]!));
+    const reentrySaleResult = await dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: reentrySale.requestId,
+      expectedTermsVersion: 1,
+      decision: "approve",
+      submissionKey: "reentry-sale-god",
+    }, godActor));
+    assert.equal(reentrySaleResult.status, "completed");
+    assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [accessLossRequest.requestId])).status, "cancelled", "re-entry revived a cancelled request from the prior membership");
+
+    await seedPool.query("update shop set character_purchase_mode='god-approval-required' where id=$1", [shop.id]);
+    const ownershipLossRequest = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[3]!,
+      lines: [quotePurchase(serviceOffering.id, 1)],
+      submissionKey: "ownership-loss-d",
+    }, playerIds[3]!));
+    await seedPool.query("update campaign_character set player_user_id=$1 where id=$2", [playerIds[2], characterIds[3]]);
+    await assert.rejects(dbModule.db.transaction((tx) => commerce.reviewShopRequestInTransaction(tx, {
+      requestId: ownershipLossRequest.requestId,
+      expectedTermsVersion: 1,
+      decision: "approve",
+      submissionKey: "ownership-loss-approve",
+    }, godActor)), /Character owner changed/);
+    assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [ownershipLossRequest.requestId])).status, "pending");
+    await seedPool.query("update campaign_character set player_user_id=$1 where id=$2", [playerIds[3], characterIds[3]]);
+    await dbModule.db.transaction((tx) => commerce.cancelShopRequestInTransaction(tx, { requestId: ownershipLossRequest.requestId, submissionKey: "ownership-loss-cancel" }, { userId: playerIds[3]!, roles: [] }));
 
     const privateView = await dbModule.db.transaction((tx) => commerce.readShopCommerceInTransaction(tx, { campaignId: campaign.id, shopId: shop.id, characterId: characterIds[1]!, viewerUserId: playerIds[1]!, godView: false }));
     assert.ok(privateView.history.length >= 3);
     assert.equal(privateView.shopBalanceCredits, null, "the Player projection exposed the Shop's private balance");
     assert.ok(privateView.moneyEvents.every((event) => event.reason.length > 0));
+    assert.ok(privateView.moneyEvents.every(({ kind }) => ["purchase-character-debit", "sale-character-credit", "grant-character-credit", "character-balance-correction"].includes(kind)));
+    const serializedPrivateView = JSON.stringify(privateView);
+    assert.doesNotMatch(serializedPrivateView, /purchase-shop-credit|sale-shop-debit|shop-balance-correction/, "the serialized Player commerce payload exposed a private Shop ledger event");
+    const godCommerceView = await dbModule.db.transaction((tx) => commerce.readShopCommerceInTransaction(tx, { campaignId: campaign.id, shopId: shop.id, characterId: characterIds[1]!, viewerUserId: godId, godView: true }));
+    assert.ok(godCommerceView.moneyEvents.some(({ kind }) => kind === "purchase-shop-credit" || kind === "sale-shop-debit"), "the G.O.D. ledger lost Shop-side money events");
     await assert.rejects(dbModule.db.transaction((tx) => commerce.readShopCommerceInTransaction(tx, { campaignId: campaign.id, shopId: shop.id, characterId: characterIds[1]!, viewerUserId: playerIds[2]!, godView: false })), /own Shop transaction details/);
     const versions = await one<{ character_version: number; shop_version: number; offering_version: number }>(seedPool, `select p.commerce_version character_version,s.commerce_version shop_version,o.version offering_version
       from campaign_character_profile p cross join shop s cross join shop_offering o where p.character_id=$1 and s.id=$2 and o.id=$3`, [characterIds[1], shop.id, stackOffering.id]);
@@ -389,7 +530,7 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
 
     await seedPool.query("update shop set character_purchase_mode='god-approval-required' where id=$1", [shop.id]);
     const sceneEndRequest = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: visit.visitId, characterId: characterIds[3]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], submissionKey: "scene-end-request",
+      visitId: visit.visitId, characterId: characterIds[3]!, lines: [quotePurchase(serviceOffering.id, 1)], submissionKey: "scene-end-request",
     }, playerIds[3]!));
     await dbModule.db.transaction((tx) => visits.endActiveShopVisitsForSceneInTransaction(tx, scene.id, godId));
     assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [sceneEndRequest.requestId])).status, "cancelled", "Scene completion left an actionable request");
@@ -402,14 +543,14 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
       closedShopOverrideReason: "",
     }, godActor));
     const sessionEndRequest = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
-      visitId: reopenedVisit.visitId, characterId: characterIds[1]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], submissionKey: "session-end-request",
+      visitId: reopenedVisit.visitId, characterId: characterIds[1]!, lines: [quotePurchase(serviceOffering.id, 1)], submissionKey: "session-end-request",
     }, playerIds[1]!));
     await dbModule.db.transaction((tx) => visits.endActiveShopVisitsForSessionInTransaction(tx, session.id, godId));
     assert.equal((await one<{ status: string }>(seedPool, "select status from shop_transaction_request where id=$1", [sessionEndRequest.requestId])).status, "cancelled", "Session completion left an actionable request");
 
     await seedPool.query("update shop set archived_at=now(),archive_reason='History rehearsal' where id=$1", [shop.id]);
     await assert.rejects(dbModule.db.transaction((tx) => commerce.completeGodOverridePurchaseInTransaction(tx, {
-      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[1]!, lines: [{ offeringId: serviceOffering.id, quantity: 1 }], overrideReason: "Archived Shop boundary.", submissionKey: "archived-shop",
+      campaignId: campaign.id, shopId: shop.id, characterId: characterIds[1]!, lines: [quotePurchase(serviceOffering.id, 1)], overrideReason: "Archived Shop boundary.", submissionKey: "archived-shop",
     }, godActor)), /Archived Shops/);
     const archivedHistory = await dbModule.db.transaction((tx) => commerce.readShopCommerceInTransaction(tx, { campaignId: campaign.id, shopId: shop.id, characterId: characterIds[1]!, viewerUserId: godId, godView: true }));
     assert.equal(archivedHistory.history.length, privateView.history.length, "archiving rewrote completed transaction history");

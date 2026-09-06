@@ -17,7 +17,7 @@ import { parseSpellDocument } from "@/features/spell-construction/spellDocumentC
 
 import type { PlayerCalledCheckWorkspaceView } from "./called-check-service";
 import type { RollLedgerEntry } from "./roll-runtime-service";
-import type { PlayerCombatConsoleData } from "./player-tabletop-console-service";
+import type { PlayerCombatAvailability, PlayerCombatConsoleData } from "./player-tabletop-console-service";
 import type { PublicSceneLocationDirectory } from "./location-public-projection";
 
 export const PLAYER_TABLETOP_HISTORY_LIMIT = 30;
@@ -510,6 +510,8 @@ export type PlayerTabletopConsoleView = Readonly<{
     encounterType: string;
     description: string;
     participating: boolean;
+    initiativeEnrolled: boolean;
+    initiativeRuntimeStatus: "not-initialized" | "active" | "closed";
     roundNumber: number | null;
     stepNumber: number | null;
     currentInitiative: number | null;
@@ -541,5 +543,6 @@ export type PlayerTabletopConsoleView = Readonly<{
     manualSteps: string;
     usedAt: string;
   }[];
+  combatAvailability: PlayerCombatAvailability;
   combat: PlayerCombatConsoleData | null;
 }>;
