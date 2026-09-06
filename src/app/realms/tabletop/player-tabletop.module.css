@@ -944,6 +944,158 @@
   font-size: .68rem;
 }
 
+.shopVisitBalance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: .7rem;
+  align-items: center;
+  margin: .8rem 0;
+  border: 1px solid var(--tabletop-line);
+  border-radius: .85rem;
+  background: var(--tabletop-panel-deep);
+  padding: .85rem;
+}
+
+.shopVisitBalance > div {
+  display: grid;
+  gap: .2rem;
+}
+
+.shopVisitBalance > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+
+.shopVisitBalance span {
+  color: var(--tabletop-muted);
+  font-size: .7rem;
+  text-transform: uppercase;
+}
+
+.shopCommerceRequests,
+.shopCommerceHistory {
+  margin-top: .8rem;
+  border: 1px solid var(--tabletop-line);
+  border-radius: .85rem;
+  background: var(--tabletop-panel-deep);
+  padding: .9rem;
+}
+
+.shopCommerceRequests > header,
+.shopCommerceHistory > header,
+.shopCommerceRequests article > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: .7rem;
+}
+
+.shopCommerceRequests h3,
+.shopCommerceRequests h4,
+.shopCommerceHistory h3 {
+  margin: 0;
+  color: var(--st-text);
+}
+
+.shopCommerceRequests > div {
+  display: grid;
+  gap: .65rem;
+  margin-top: .7rem;
+}
+
+.shopCommerceRequests article {
+  border: 1px solid var(--tabletop-line);
+  border-radius: .7rem;
+  background: var(--tabletop-panel);
+  padding: .75rem;
+}
+
+.shopCommerceRequests article footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+
+.shopCommerceHistory ol {
+  display: grid;
+  gap: .55rem;
+  margin: .7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shopCommerceHistory li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .25rem .7rem;
+  border-top: 1px solid var(--tabletop-line);
+  padding-top: .55rem;
+}
+
+.shopCommerceHistory li > div,
+.shopCommerceHistory li > small {
+  display: grid;
+  grid-column: 1;
+}
+
+.shopCommerceHistory li > strong {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.shopCommerceDialog {
+  width: min(48rem, calc(100% - 1rem));
+  max-height: calc(100dvh - 1rem);
+  overflow: auto;
+  border: 1px solid var(--st-border-strong);
+  border-radius: 1rem;
+  background: var(--st-surface-raised);
+  color: var(--st-text);
+  padding: 0;
+  box-shadow: var(--st-shadow);
+}
+
+.shopCommerceDialog::backdrop {
+  background: color-mix(in srgb, var(--st-page) 72%, transparent);
+  backdrop-filter: blur(7px);
+}
+
+.shopCommerceDialog > section {
+  display: grid;
+  gap: .85rem;
+  padding: 1rem;
+}
+
+.shopCommerceDialog h3,
+.shopCommerceDialog p {
+  margin: 0;
+}
+
+.shopCommerceDialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+}
+
+.shopCommercePicker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+  max-height: 42dvh;
+  overflow: auto;
+}
+
+.shopCommercePicker > label {
+  display: flex;
+  gap: .55rem;
+  align-items: start;
+  border: 1px solid var(--tabletop-line);
+  border-radius: .65rem;
+  background: var(--tabletop-panel);
+  padding: .65rem;
+}
+
 .shopVisitOfferings h4 {
   margin: .2rem 0 0;
   color: var(--st-text);
@@ -964,7 +1116,9 @@
 @media (max-width: 52rem) {
   .shopVisitRoster,
   .shopVisitOfferings,
-  .shopVisitFilters {
+  .shopVisitFilters,
+  .shopVisitBalance,
+  .shopCommercePicker {
     grid-template-columns: 1fr;
   }
 

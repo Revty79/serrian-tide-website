@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { skillExtension } from "@/db/skill-schema";
@@ -351,6 +351,7 @@ async function resolveItem(
       eq(campaignCharacterItemInstance.id, draft.sourceInstanceId),
       eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId),
       eq(campaignCharacterItemInstance.itemId, itemId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1);
     if (!owned) throw new Error("The acting Character no longer owns that exact Item instance.");
   }

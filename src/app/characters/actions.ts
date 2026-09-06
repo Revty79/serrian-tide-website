@@ -632,7 +632,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     }).from(campaignCharacterItemInstance)
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
-      .where(eq(campaignCharacterItemInstance.characterId, characterId))
+      .where(and(
+        eq(campaignCharacterItemInstance.characterId, characterId),
+        isNull(campaignCharacterItemInstance.retiredAt),
+      ))
       .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id)),
     db.select().from(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId)),
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, row.campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
@@ -943,6 +946,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       baseMagicSteps: profileRow.baseMagicSteps ?? 0,
       fatePoints: profileRow.fatePoints,
       creditsRemaining: profileRow.creditsRemaining,
+      commerceVersion: profileRow.commerceVersion,
       creationCompletedAt: profileRow.creationCompletedAt?.toISOString() ?? null,
       createdAt: profileRow.createdAt.toISOString(),
       updatedAt: profileRow.updatedAt.toISOString(),
@@ -1331,6 +1335,13 @@ export async function saveCharacter(
         .map((entry) => ({ currencyId: entry.id, quantity: entry.quantity }));
     }
   }
+  if (
+    godMode
+    && aggregate.profile.creationCompletedAt
+    && Math.abs(creditsRemaining - aggregate.profile.creditsRemaining) > 0.000001
+  ) {
+    throw new Error("Use the traceable G.O.D. Tabletop money grant or balance correction after Character creation; the Character editor cannot overwrite the live purse.");
+  }
 
   await db.transaction(async (tx) => {
     const [lockedCharacter] = await tx.select({
@@ -1350,6 +1361,19 @@ export async function saveCharacter(
         ? "Archived NPCs are read-only. Restore this NPC before you save it."
         : "Archived Characters are read-only. Restore this Character before you save it.");
     }
+    const [lockedProfile] = await tx.select({
+      commerceVersion: campaignCharacterProfile.commerceVersion,
+    }).from(campaignCharacterProfile)
+      .where(eq(campaignCharacterProfile.characterId, characterId))
+      .limit(1)
+      .for("update");
+    if (!lockedProfile) throw new Error("Character profile not found.");
+    if (!Number.isInteger(draft.expectedCommerceVersion) || draft.expectedCommerceVersion! < 0) {
+      throw new Error("Reload this Character before saving so live transaction state can be verified.");
+    }
+    if (draft.expectedCommerceVersion !== lockedProfile.commerceVersion) {
+      throw new Error("This Character's money or inventory changed after the editor loaded. Reload before saving so live transactions are not overwritten.");
+    }
     await tx.update(campaignCharacter).set({
       name: normalized.name,
       npcRoleLabel: normalized.npcRoleLabel,
@@ -1358,6 +1382,7 @@ export async function saveCharacter(
     await tx.update(campaignCharacterProfile).set({
       ...normalized.profile,
       creditsRemaining,
+      commerceVersion: lockedProfile.commerceVersion + 1,
       creationCompletedAt: completeCreation ? new Date() : aggregate.profile.creationCompletedAt ? new Date(aggregate.profile.creationCompletedAt) : null,
       updatedAt: new Date(),
     }).where(eq(campaignCharacterProfile.characterId, characterId));

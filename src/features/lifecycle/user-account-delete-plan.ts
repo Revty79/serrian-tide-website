@@ -89,10 +89,15 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "campaign_session_scene_shop_visit", columnName: "ended_by_user_id", constraintName: "campaign_session_scene_shop_visit_ended_by_fk", onDelete: "restrict", disposition: "block", label: "Ended Shop visits" },
   { tableName: "campaign_session_scene_shop_visit_member", columnName: "entered_by_user_id", constraintName: "campaign_session_scene_shop_visit_member_entered_by_fk", onDelete: "restrict", disposition: "block", label: "Shop visitor entry attribution" },
   { tableName: "campaign_session_scene_shop_visit_member", columnName: "exited_by_user_id", constraintName: "campaign_session_scene_shop_visit_member_exited_by_fk", onDelete: "restrict", disposition: "block", label: "Shop visitor exit attribution" },
+  { tableName: "shop_commerce_operation", columnName: "actor_user_id", constraintName: "shop_commerce_operation_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Shop commerce operation attribution" },
+  { tableName: "shop_transaction_request", columnName: "requested_by_user_id", constraintName: "shop_transaction_request_requested_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Shop transaction requests" },
+  { tableName: "shop_transaction_request", columnName: "resolved_by_user_id", constraintName: "shop_transaction_request_resolved_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Shop request resolution attribution" },
+  { tableName: "shop_transaction", columnName: "completed_by_user_id", constraintName: "shop_transaction_completed_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Completed Shop transactions" },
+  { tableName: "shop_money_event", columnName: "actor_user_id", constraintName: "shop_money_event_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Shop money event attribution" },
   { tableName: "defense_skill_path_mapping", columnName: "updated_by_user_id", constraintName: "defense_skill_path_mapping_updated_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Defense Skill governance attribution" },
   { tableName: "chat_message", columnName: "author_user_id", constraintName: "chat_message_author_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Authored Chat messages" },
   { tableName: "chat_message", columnName: "deleted_by_user_id", constraintName: "chat_message_deleted_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Chat moderation attribution" },
   { tableName: "chat_room_member", columnName: "user_id", constraintName: "chat_room_member_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Chat room memberships" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 75;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 80;

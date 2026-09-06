@@ -29,6 +29,7 @@ import {
   addShopOffering,
   addShopStaff,
   archiveShop,
+  correctShopBalance,
   createShop,
   deleteShop,
   getShop,
@@ -110,6 +111,8 @@ export function ShopWorkspace({
   const createDialogRef = useRef<HTMLDialogElement>(null);
   const archiveDialogRef = useRef<HTMLDialogElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const balanceDialogRef = useRef<HTMLDialogElement>(null);
+  const balanceSubmissionKeyRef = useRef<string | null>(null);
   const initialCampaign = searchParams.get("campaign") ?? "";
   const initialShop = Number(searchParams.get("shop"));
   const initialStatus: ShopArchiveStatus = searchParams.get("status") === "archived"
@@ -132,6 +135,8 @@ export function ShopWorkspace({
   const [archiveReason, setArchiveReason] = useState("");
   const [deleteTargetName, setDeleteTargetName] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [correctedBalance, setCorrectedBalance] = useState(0);
+  const [balanceCorrectionReason, setBalanceCorrectionReason] = useState("");
   const [deletePlacementDependencies, setDeletePlacementDependencies] = useState<{
     preparedSessions: number;
     independentPlacements: number;
@@ -350,6 +355,7 @@ export function ShopWorkspace({
     if (!detail) return;
     await acceptMutation(() => saveShopCore({
       shopId: detail.shop.id,
+      expectedCommerceVersion: detail.shop.commerceVersion,
       campaignId: detail.shop.campaignId,
       name: detail.shop.name,
       category: detail.shop.category,
@@ -361,6 +367,22 @@ export function ShopWorkspace({
       soldItemHandling: detail.shop.soldItemHandling,
       changedSaleConfirmationMode: detail.shop.changedSaleConfirmationMode,
     }), `${detail.shop.name || "Shop"} was saved.`);
+  }
+
+  async function submitBalanceCorrection(): Promise<void> {
+    if (!detail) return;
+    balanceSubmissionKeyRef.current ??= globalThis.crypto.randomUUID();
+    await acceptMutation(() => correctShopBalance({
+      campaignId: detail.shop.campaignId,
+      shopId: detail.shop.id,
+      newBalanceCredits: correctedBalance,
+      reason: balanceCorrectionReason,
+      submissionKey: balanceSubmissionKeyRef.current!,
+    }), `${detail.shop.name} balance correction was recorded.`, () => {
+      balanceSubmissionKeyRef.current = null;
+      setBalanceCorrectionReason("");
+      balanceDialogRef.current?.close();
+    });
   }
 
   async function addStaff(): Promise<void> {
@@ -425,6 +447,7 @@ export function ShopWorkspace({
     if (!detail) return;
     await acceptMutation(() => updateShopOffering({
       offeringId: offering.id,
+      expectedVersion: offering.version,
       shopId: detail.shop.id,
       campaignId: detail.shop.campaignId,
       itemId: offering.itemId,
@@ -641,14 +664,14 @@ export function ShopWorkspace({
               <label className="shops-field"><span>Type / Category</span><input value={detail.shop.category} maxLength={120} disabled={readOnly} placeholder="Armorer, apothecary, ferry…" onChange={(event) => updateCore("category", event.target.value)} /></label>
               <label className="shops-field is-wide"><span>Description</span><textarea rows={4} maxLength={5000} disabled={readOnly} value={detail.shop.description} onChange={(event) => updateCore("description", event.target.value)} /></label>
               <label className="shops-field is-wide"><span>Location Notes</span><textarea rows={3} maxLength={1000} disabled={readOnly} value={detail.shop.locationNotes} onChange={(event) => updateCore("locationNotes", event.target.value)} /></label>
-              <label className="shops-field"><span>Balance · canonical Campaign Credits</span><input type="number" min={0} step="0.01" disabled={readOnly} value={detail.shop.balanceCredits} onChange={(event) => updateCore("balanceCredits", numberValue(event.target.value))} /><small>{formatMoney(detail.shop.balanceCredits)}</small></label>
+              <label className="shops-field"><span>Balance · canonical Campaign Credits</span><input type="number" readOnly value={detail.shop.balanceCredits} /><small>{formatMoney(detail.shop.balanceCredits)} · changed only through tracked transactions or corrections</small><button type="button" disabled={busy || readOnly} onClick={() => { setCorrectedBalance(detail.shop.balanceCredits); setBalanceCorrectionReason(""); setFeedback(null); balanceDialogRef.current?.showModal(); }}>Correct Balance</button></label>
               <label className="shops-field"><span>Storefront</span><select disabled={readOnly} value={detail.shop.storefrontState} onChange={(event) => updateCore("storefrontState", event.target.value as ShopStorefrontState)}><option value="closed">Closed</option><option value="open">Open</option></select><small>New and restored Shops default to closed.</small></label>
             </div>
           </section>
 
           <section className="shops-panel">
             <header><div><p>TRANSACTION POLICIES</p><h3>Approval and resale settings</h3></div><button type="button" disabled={busy || readOnly} onClick={() => void saveCore()}>Save Policies</button></header>
-            <p className="shops-help">These policies are stored now. Purchase and sale transactions arrive in Prompt 2.</p>
+            <p className="shops-help">These policies govern live purchases, sale approvals, and resale handling in Tabletop Shop visits.</p>
             <div className="shops-form-grid">
               <label className="shops-field"><span>Character Purchases</span><select disabled={readOnly} value={detail.shop.characterPurchaseMode} onChange={(event) => updateCore("characterPurchaseMode", event.target.value as ShopCharacterPurchaseMode)}><option value="god-approval-required">G.O.D. approval required</option><option value="immediate">Immediate</option></select></label>
               <label className="shops-field"><span>Sold Item Handling</span><select disabled={readOnly} value={detail.shop.soldItemHandling} onChange={(event) => updateCore("soldItemHandling", event.target.value as ShopSoldItemHandling)}><option value="add-to-shop-stock">Add to Shop stock</option><option value="remove-from-active-play">Remove from active play</option></select></label>
@@ -755,6 +778,16 @@ export function ShopWorkspace({
         {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
         <label className="shops-field"><span>Archive Reason (optional)</span><textarea rows={3} maxLength={1000} value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} /></label>
         <footer><button type="button" disabled={busy} onClick={() => { archiveDialogRef.current?.close(); setArchiveReason(""); }}>Cancel</button><button className="is-danger" type="button" disabled={busy} onClick={() => void submitArchive()}>{busy ? "Archiving…" : "Archive Shop"}</button></footer>
+      </section>
+    </dialog>
+
+    <dialog ref={balanceDialogRef} className="shops-dialog" onCancel={() => setBalanceCorrectionReason("")}>
+      <section>
+        <header><p>TRACEABLE BALANCE CORRECTION</p><h2 className="font-sans">{detail?.shop.name ?? "Shop"}</h2><span>Use this only to deliberately correct the tracked Shop balance. The reason and actor are retained.</span></header>
+        {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
+        <label className="shops-field"><span>New Balance · canonical Campaign Credits</span><input type="number" min={0} step="0.01" value={correctedBalance} onChange={(event) => setCorrectedBalance(numberValue(event.target.value))} /><small>{formatMoney(correctedBalance)}</small></label>
+        <label className="shops-field"><span>Required reason</span><textarea rows={3} maxLength={1000} value={balanceCorrectionReason} onChange={(event) => setBalanceCorrectionReason(event.target.value)} /></label>
+        <footer><button type="button" disabled={busy} onClick={() => balanceDialogRef.current?.close()}>Cancel</button><button type="button" disabled={busy || !balanceCorrectionReason.trim()} onClick={() => void submitBalanceCorrection()}>{busy ? "Recording…" : "Record Correction"}</button></footer>
       </section>
     </dialog>
 

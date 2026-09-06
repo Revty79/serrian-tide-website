@@ -1,10 +1,23 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { campaignSessionSceneShopVisitMember } from "@/db/tabletop-shop-visit-schema";
+import {
+  campaignSessionSceneShopVisit,
+  campaignSessionSceneShopVisitMember,
+  shopTransactionRequest,
+} from "@/db/tabletop-shop-visit-schema";
+import { campaignSession, campaignSessionScene } from "@/db/tabletop-operations-schema";
+import {
+  completeGodOverridePurchaseInTransaction,
+  correctCharacterBalanceInTransaction,
+  giveCharacterMoneyInTransaction,
+  reviewShopRequestInTransaction,
+  type PurchaseLineInput,
+  type RevisedRequestLineInput,
+} from "@/features/tabletop-operations/shop-commerce-service";
 import {
   endShopVisitInTransaction,
   readGodShopVisitWorkspaceInTransaction,
@@ -25,6 +38,59 @@ function actorFrom(access: Awaited<ReturnType<typeof requireGodOrAdminAccessCont
 function refreshShopVisits(): void {
   revalidatePath("/heavens/tabletop");
   revalidatePath("/realms/tabletop");
+}
+
+async function publishCommerceInvalidation(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  input: { requestId?: number; campaignId?: number; characterId: number },
+): Promise<void> {
+  if (input.requestId) {
+    const [request] = await tx.select({
+      campaignId: shopTransactionRequest.campaignId,
+      visitId: shopTransactionRequest.visitId,
+    }).from(shopTransactionRequest).where(eq(shopTransactionRequest.id, input.requestId)).limit(1);
+    if (request?.visitId) {
+      const [visit] = await tx.select({
+        sessionId: campaignSessionSceneShopVisit.sessionId,
+        sceneId: campaignSessionSceneShopVisit.sceneId,
+      }).from(campaignSessionSceneShopVisit)
+        .where(eq(campaignSessionSceneShopVisit.id, request.visitId)).limit(1);
+      if (visit) {
+        await publishTabletopInvalidationInTransaction(tx, {
+          campaignId: request.campaignId,
+          sessionId: visit.sessionId,
+          sceneId: visit.sceneId,
+          encounterId: null,
+          characterIds: [input.characterId],
+          category: "shop-commerce",
+        });
+        return;
+      }
+    }
+  }
+  if (!input.campaignId) return;
+  const [active] = await tx.select({
+    sessionId: campaignSession.id,
+    sceneId: campaignSessionScene.id,
+  }).from(campaignSession)
+    .leftJoin(campaignSessionScene, and(
+      eq(campaignSessionScene.sessionId, campaignSession.id),
+      eq(campaignSessionScene.campaignId, campaignSession.campaignId),
+      eq(campaignSessionScene.status, "active"),
+    ))
+    .where(and(
+      eq(campaignSession.campaignId, input.campaignId),
+      eq(campaignSession.status, "active"),
+    )).orderBy(desc(campaignSession.startedAt), desc(campaignSession.id)).limit(1);
+  if (!active) return;
+  await publishTabletopInvalidationInTransaction(tx, {
+    campaignId: input.campaignId,
+    sessionId: active.sessionId,
+    sceneId: active.sceneId,
+    encounterId: null,
+    characterIds: [input.characterId],
+    category: "shop-commerce",
+  });
 }
 
 export type ShopVisitActionResult<T = undefined> =
@@ -152,6 +218,91 @@ export async function endShopVisit(visitId: number, reason: string): Promise<Sho
         characterIds: audience.characterIds,
         category: "shop-visit",
       });
+    });
+    refreshShopVisits();
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function reviewShopRequest(input: {
+  requestId: number;
+  characterId: number;
+  decision: "approve" | "reject";
+  revisedLines?: readonly RevisedRequestLineInput[];
+  reason?: string;
+  submissionKey: string;
+}): Promise<ShopVisitActionResult<{ requestId: number; transactionId: number | null; status: string }>> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    const result = await db.transaction(async (tx) => {
+      const reviewed = await reviewShopRequestInTransaction(tx, input, actorFrom(access));
+      await publishCommerceInvalidation(tx, { requestId: reviewed.requestId, characterId: input.characterId });
+      return reviewed;
+    });
+    refreshShopVisits();
+    return { ok: true, value: result };
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function completeGodOverridePurchase(input: {
+  campaignId: number;
+  shopId: number;
+  characterId: number;
+  lines: readonly PurchaseLineInput[];
+  narrativeNote?: string;
+  overrideReason: string;
+  submissionKey: string;
+}): Promise<ShopVisitActionResult<{ requestId: number; transactionId: number }>> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    const result = await db.transaction(async (tx) => {
+      const completed = await completeGodOverridePurchaseInTransaction(tx, input, actorFrom(access));
+      await publishCommerceInvalidation(tx, { requestId: completed.requestId, campaignId: input.campaignId, characterId: input.characterId });
+      return completed;
+    });
+    refreshShopVisits();
+    return { ok: true, value: result };
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function giveCharacterMoney(input: {
+  campaignId: number;
+  characterId: number;
+  amountCredits: number;
+  reason: string;
+  submissionKey: string;
+}): Promise<ShopVisitActionResult> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    await db.transaction(async (tx) => {
+      await giveCharacterMoneyInTransaction(tx, input, actorFrom(access));
+      await publishCommerceInvalidation(tx, { campaignId: input.campaignId, characterId: input.characterId });
+    });
+    refreshShopVisits();
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function correctCharacterBalance(input: {
+  campaignId: number;
+  characterId: number;
+  newBalanceCredits: number;
+  reason: string;
+  submissionKey: string;
+}): Promise<ShopVisitActionResult> {
+  try {
+    const access = await requireGodOrAdminAccessContext();
+    await db.transaction(async (tx) => {
+      await correctCharacterBalanceInTransaction(tx, input, actorFrom(access));
+      await publishCommerceInvalidation(tx, { campaignId: input.campaignId, characterId: input.characterId });
     });
     refreshShopVisits();
     return { ok: true, value: undefined };

@@ -24,11 +24,12 @@ test("appearance persistence is a constrained singleton at migration 0037", () =
   assert.match(migration, /CREATE TABLE "site_appearance_setting"/);
   assert.match(migration, /site_appearance_singleton_key/);
   assert.match(migration, /site_appearance_preset_valid/);
-  assert.equal(journal.entries.length, 40);
+  assert.equal(journal.entries.length, 41);
   assert.equal(journal.entries[37]?.idx, 37);
   assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
   assert.equal(journal.entries[38]?.tag, "0038_tabletop_location_placement");
   assert.equal(journal.entries[39]?.tag, "0039_tabletop_shop_visits");
+  assert.equal(journal.entries[40]?.tag, "0040_tabletop_shop_transactions");
 });
 
 test("every appearance mutation performs fresh administrator authorization and cache expiry", () => {

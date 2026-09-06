@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -122,7 +122,10 @@ export async function readCharacterItemChargeStateInTransaction(
   const rows = await tx.select(chargeColumns()).from(campaignCharacterItemInstance)
     .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
-    .where(eq(campaignCharacterItemInstance.characterId, characterId))
+    .where(and(
+      eq(campaignCharacterItemInstance.characterId, characterId),
+      isNull(campaignCharacterItemInstance.retiredAt),
+    ))
     .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id));
   return { characterId, instances: rows.map(stateFromRow) };
 }
@@ -143,6 +146,7 @@ export async function readItemChargeStateInTransaction(
       eq(campaignCharacterItemInstance.id, identity.instanceId),
       eq(campaignCharacterItemInstance.characterId, identity.characterId),
       eq(campaignCharacterItemInstance.itemId, identity.itemId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1);
   const rows = lock
     ? await query.for("update", { of: campaignCharacterItemInstance })

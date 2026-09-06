@@ -26,6 +26,11 @@ import {
 } from "@/db/tabletop-operations-schema";
 import { town } from "@/db/town-schema";
 import type { SerrianRole } from "@/db/authorization-schema";
+import {
+  cancelOpenShopRequestsForMembershipsInTransaction,
+  readShopCommerceInTransaction,
+  type ShopCommerceView,
+} from "./shop-commerce-service";
 
 export type ShopVisitTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type ShopVisitMode = "roleplay" | "shopping";
@@ -94,6 +99,7 @@ export type ShopVisitView = Readonly<{
 export type GodShopVisitView = Readonly<ShopVisitView & {
   closedShopOverride: boolean;
   closedShopOverrideReason: string;
+  commerce: readonly ShopCommerceView[];
 }>;
 
 export type GodShopVisitWorkspace = Readonly<{
@@ -101,12 +107,16 @@ export type GodShopVisitWorkspace = Readonly<{
   sessionId: number;
   sceneId: number;
   canOperate: boolean;
+  canTransact: boolean;
+  currency: ShopVisitCurrencyView;
   eligiblePlayers: readonly { characterId: number; name: string; playerName: string }[];
+  campaignCharacters: readonly { characterId: number; name: string; playerName: string }[];
   eligiblePlacements: readonly {
     shopId: number;
     shopName: string;
     shopCategory: string;
     storefrontState: "open" | "closed";
+    shop: ShopVisitPublicShopView;
     placement: ShopVisitPlacement;
     placementLabel: string;
   }[];
@@ -412,11 +422,27 @@ async function readVisit(
 async function readGodVisit(
   tx: ShopVisitTransaction,
   row: typeof campaignSessionSceneShopVisit.$inferSelect,
+  viewerUserId: string,
+  includeCommerce: boolean,
 ): Promise<GodShopVisitView> {
+  const visit = await readVisit(tx, row);
+  const commerce: ShopCommerceView[] = [];
+  if (includeCommerce) {
+    for (const visitor of visit.visitors) {
+      commerce.push(await readShopCommerceInTransaction(tx, {
+        campaignId: visit.campaignId,
+        shopId: visit.shop.id,
+        characterId: visitor.characterId,
+        viewerUserId,
+        godView: true,
+      }));
+    }
+  }
   return {
-    ...await readVisit(tx, row),
+    ...visit,
     closedShopOverride: row.closedShopOverride,
     closedShopOverrideReason: row.closedShopOverrideReason,
+    commerce,
   };
 }
 
@@ -433,6 +459,7 @@ export async function readGodShopVisitWorkspaceInTransaction(
     sessionStatus: campaignSession.status,
     ownerUserId: campaign.createdByUserId,
     campaignArchivedAt: campaign.archivedAt,
+    currencySystem: campaign.currencySystem,
   }).from(campaignSessionScene)
     .innerJoin(campaignSession, and(
       eq(campaignSession.id, campaignSessionScene.sessionId),
@@ -449,6 +476,9 @@ export async function readGodShopVisitWorkspaceInTransaction(
     && !scene.campaignArchivedAt
     && scene.sessionStatus === "active"
     && scene.sceneStatus === "active";
+  const canTransact = actor.roles.includes("god")
+    && actor.userId === scene.ownerUserId
+    && !scene.campaignArchivedAt;
   const directRows = await tx.select({
     shopId: shop.id,
     shopName: shop.name,
@@ -506,31 +536,67 @@ export async function readGodShopVisitWorkspaceInTransaction(
       eq(campaignSessionSceneShopVisit.status, "active"),
     )).orderBy(asc(campaignSessionSceneShopVisit.startedAt), asc(campaignSessionSceneShopVisit.id));
   const activeVisits: GodShopVisitView[] = [];
-  for (const row of visitRows) activeVisits.push(await readGodVisit(tx, row));
+  for (const row of visitRows) activeVisits.push(await readGodVisit(tx, row, actor.userId, canOperate));
+  const campaignCharacters = await tx.select({
+    characterId: campaignCharacter.id,
+    name: campaignCharacter.name,
+    playerName: user.name,
+  }).from(campaignCharacter)
+    .innerJoin(user, eq(user.id, campaignCharacter.playerUserId))
+    .where(and(
+      eq(campaignCharacter.campaignId, scene.campaignId),
+      eq(campaignCharacter.isNpc, false),
+      isNull(campaignCharacter.archivedAt),
+    )).orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id));
+  const derivedCurrencies = scene.currencySystem === "Derived Currency"
+    ? await tx.select({
+        id: campaignDerivedCurrency.id,
+        name: campaignDerivedCurrency.name,
+        creditsPerUnit: campaignDerivedCurrency.creditsPerUnit,
+        sortOrder: campaignDerivedCurrency.sortOrder,
+      }).from(campaignDerivedCurrency)
+        .where(eq(campaignDerivedCurrency.campaignId, scene.campaignId))
+        .orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id))
+    : [];
+  const eligiblePlacementRoots = [
+    ...townRows.map((entry) => ({
+      shopId: entry.shopId,
+      shopName: entry.shopName,
+      shopCategory: entry.shopCategory,
+      storefrontState: entry.storefrontState as "open" | "closed",
+      placement: { kind: "town" as const, townId: entry.townId },
+      placementLabel: entry.townName,
+    })),
+    ...directRows.map((entry) => ({
+      shopId: entry.shopId,
+      shopName: entry.shopName,
+      shopCategory: entry.shopCategory,
+      storefrontState: entry.storefrontState as "open" | "closed",
+      placement: { kind: "independent" as const },
+      placementLabel: "Independent placement",
+    })),
+  ];
+  const eligiblePlacements: Array<GodShopVisitWorkspace["eligiblePlacements"][number]> = [];
+  for (const placement of eligiblePlacementRoots) {
+    const context = await loadVisitContext(tx, scene.sceneId, placement.shopId);
+    eligiblePlacements.push({
+      ...placement,
+      shop: await readPublicShop(tx, context, placement.placement),
+    });
+  }
   return {
     campaignId: scene.campaignId,
     sessionId: scene.sessionId,
     sceneId: scene.sceneId,
     canOperate,
+    canTransact,
+    currency: {
+      currencySystem: scene.currencySystem,
+      derivedCurrencies,
+    },
     eligiblePlayers: await loadEligiblePlayers(tx, scene),
-    eligiblePlacements: [
-      ...townRows.map((entry) => ({
-        shopId: entry.shopId,
-        shopName: entry.shopName,
-        shopCategory: entry.shopCategory,
-        storefrontState: entry.storefrontState as "open" | "closed",
-        placement: { kind: "town" as const, townId: entry.townId },
-        placementLabel: entry.townName,
-      })),
-      ...directRows.map((entry) => ({
-        shopId: entry.shopId,
-        shopName: entry.shopName,
-        shopCategory: entry.shopCategory,
-        storefrontState: entry.storefrontState as "open" | "closed",
-        placement: { kind: "independent" as const },
-        placementLabel: "Independent placement",
-      })),
-    ],
+    campaignCharacters,
+    eligiblePlacements,
     activeVisits,
   };
 }
@@ -649,6 +715,20 @@ async function endMembership(
   actorUserId: string,
   exitKind: "player-left" | "god-removed" | "visit-ended" | "lifecycle-ended" | "permission-lost",
 ): Promise<boolean> {
+  const [membership] = await tx.select({ id: campaignSessionSceneShopVisitMember.id })
+    .from(campaignSessionSceneShopVisitMember)
+    .where(and(
+      eq(campaignSessionSceneShopVisitMember.visitId, visitId),
+      eq(campaignSessionSceneShopVisitMember.characterId, characterId),
+      eq(campaignSessionSceneShopVisitMember.status, "active"),
+    )).limit(1).for("update");
+  if (!membership) return false;
+  await cancelOpenShopRequestsForMembershipsInTransaction(tx, {
+    visitId,
+    memberIds: [membership.id],
+    actorUserId,
+    reason: "The Character left the Shop visit before the request completed.",
+  });
   const now = new Date();
   const ended = await tx.update(campaignSessionSceneShopVisitMember).set({
     status: "ended",
@@ -744,6 +824,11 @@ export async function endShopVisitInTransaction(
   if (visit.status !== "active") return;
   const normalized = normalizedReason(reason, "Visit end reason");
   const now = new Date();
+  await cancelOpenShopRequestsForMembershipsInTransaction(tx, {
+    visitId: visit.id,
+    actorUserId: actor.userId,
+    reason: `The Shop visit ended: ${normalized}`,
+  });
   await tx.update(campaignSessionSceneShopVisitMember).set({
     status: "ended",
     exitedByUserId: actor.userId,
@@ -887,6 +972,13 @@ async function endVisits(
 ): Promise<void> {
   if (!visitIds.length) return;
   const now = new Date();
+  for (const visitId of visitIds) {
+    await cancelOpenShopRequestsForMembershipsInTransaction(tx, {
+      visitId,
+      actorUserId,
+      reason,
+    });
+  }
   await tx.update(campaignSessionSceneShopVisitMember).set({
     status: "ended",
     exitedByUserId: actorUserId,

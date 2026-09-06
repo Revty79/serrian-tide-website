@@ -273,6 +273,7 @@ function preparationDependencySpecs(
       { label: "Prepared Town and Shop references", blocking: false, query: countTables(["campaign_session_prepared_town", "campaign_session_prepared_shop"], "campaign-session", id) },
       { label: "Scene location placements", blocking: false, query: countTables(["campaign_session_scene_town", "campaign_session_scene_shop", "campaign_session_scene_town_shop", "campaign_session_scene_town_place", "campaign_session_scene_town_npc"], "campaign-session", id) },
       { label: "Shop visit history", blocking: true, query: countTables(["campaign_session_scene_shop_visit", "campaign_session_scene_shop_visit_member"], "campaign-session", id) },
+      { label: "Shop transaction history", blocking: true, query: sql<CountRow>`select count(*)::int as value from shop_transaction_request r inner join campaign_session_scene_shop_visit v on v.id = r.visit_id where v.session_id = ${id}` },
     ];
   }
   if (target.entityKind === "scene") {
@@ -283,6 +284,7 @@ function preparationDependencySpecs(
       { label: "Encounter participant references", blocking: false, query: sumCountQuery([directCountPart("campaign_session_encounter_participant", "scene_id", id)]) },
       { label: "Scene location placements", blocking: false, query: countTables(["campaign_session_scene_town", "campaign_session_scene_shop", "campaign_session_scene_town_shop", "campaign_session_scene_town_place", "campaign_session_scene_town_npc"], "scene", id) },
       { label: "Shop visit history", blocking: true, query: countTables(["campaign_session_scene_shop_visit", "campaign_session_scene_shop_visit_member"], "scene", id) },
+      { label: "Shop transaction history", blocking: true, query: sql<CountRow>`select count(*)::int as value from shop_transaction_request r inner join campaign_session_scene_shop_visit v on v.id = r.visit_id where v.scene_id = ${id}` },
     ];
   }
   return [

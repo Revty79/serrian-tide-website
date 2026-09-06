@@ -25,7 +25,11 @@ import {
   campaignSessionSceneShop,
   campaignSessionSceneTownShop,
 } from "@/db/tabletop-location-schema";
-import { campaignSessionSceneShopVisit } from "@/db/tabletop-shop-visit-schema";
+import {
+  campaignSessionSceneShopVisit,
+  shopMoneyEvent,
+  shopTransactionRequest,
+} from "@/db/tabletop-shop-visit-schema";
 import { town, townShopMembership } from "@/db/town-schema";
 import { buildCampaignAccessDesignation } from "@/features/campaigns/campaign-access-designation";
 import {
@@ -53,6 +57,7 @@ import {
 } from "@/features/shops/shop-builder";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { assertNoActiveShopVisitForSourceInTransaction } from "@/features/tabletop-operations/shop-visit-service";
+import { correctShopBalanceInTransaction } from "@/features/tabletop-operations/shop-commerce-service";
 
 const shopAmmunitionItem = alias(item, "shop_ammunition_item");
 const shopAmmunitionWeaponProfile = alias(weaponProfile, "shop_ammunition_weapon_profile");
@@ -101,6 +106,7 @@ export type EligibleShopNpc = {
 
 export type ShopOfferingRecord = {
   id: number;
+  version: number;
   itemId: number;
   canonicalId: string;
   itemName: string;
@@ -137,6 +143,7 @@ export type ShopDetail = {
     characterPurchaseMode: ShopCharacterPurchaseMode;
     soldItemHandling: ShopSoldItemHandling;
     changedSaleConfirmationMode: ShopChangedSaleConfirmationMode;
+    commerceVersion: number;
     archivedAt: string | null;
     archiveReason: string;
   };
@@ -169,11 +176,11 @@ export type CreateShopValues = Pick<
   "campaignId" | "name" | "category" | "description" | "locationNotes" | "balanceCredits"
 >;
 
-export type SaveShopCoreValues = ShopCoreValues & { shopId: number };
+export type SaveShopCoreValues = ShopCoreValues & { shopId: number; expectedCommerceVersion: number };
 export type AddShopStaffValues = ShopStaffValues;
 export type UpdateShopStaffValues = ShopStaffValues & { assignmentId: number };
 export type AddShopOfferingValues = ShopOfferingValues;
-export type UpdateShopOfferingValues = ShopOfferingValues & { offeringId: number };
+export type UpdateShopOfferingValues = ShopOfferingValues & { offeringId: number; expectedVersion: number };
 
 type ManagerContext = {
   actorUserId: string;
@@ -327,6 +334,7 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
     characterPurchaseMode: shop.characterPurchaseMode,
     soldItemHandling: shop.soldItemHandling,
     changedSaleConfirmationMode: shop.changedSaleConfirmationMode,
+    commerceVersion: shop.commerceVersion,
     archivedAt: shop.archivedAt,
     archiveReason: shop.archiveReason,
     campaignName: campaign.name,
@@ -401,6 +409,7 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
       buyingPriceOverrideCredits: shopOffering.buyingPriceOverrideCredits,
       sortOrder: shopOffering.sortOrder,
       shopNote: shopOffering.shopNote,
+      version: shopOffering.version,
     }).from(shopOffering)
       .innerJoin(item, eq(item.id, shopOffering.itemId))
       .leftJoin(campaignInventoryItem, and(
@@ -480,6 +489,7 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
       characterPurchaseMode: root.characterPurchaseMode as ShopCharacterPurchaseMode,
       soldItemHandling: root.soldItemHandling as ShopSoldItemHandling,
       changedSaleConfirmationMode: root.changedSaleConfirmationMode as ShopChangedSaleConfirmationMode,
+      commerceVersion: root.commerceVersion,
       archivedAt: root.archivedAt?.toISOString() ?? null,
       archiveReason: root.archiveReason,
     },
@@ -517,6 +527,7 @@ export async function getShop(shopId: number, campaignId: number): Promise<ShopD
     })),
     offerings: offeringRows.map((row) => ({
       id: row.id,
+      version: row.version,
       itemId: row.itemId,
       canonicalId: row.canonicalId,
       itemName: row.itemName,
@@ -600,6 +611,9 @@ export async function createShop(input: CreateShopValues): Promise<ShopDetail> {
 
 export async function saveShopCore(input: SaveShopCoreValues): Promise<ShopDetail> {
   const shopId = positiveId(input.shopId, "Shop");
+  if (!Number.isInteger(input.expectedCommerceVersion) || input.expectedCommerceVersion < 0) {
+    throw new Error("Reload this Shop before saving so live transaction state can be verified.");
+  }
   const normalized = normalizeShopCoreValues(input);
   await requireEditableShop(shopId, normalized.campaignId);
   const [updated] = await db.update(shop).set({
@@ -612,12 +626,35 @@ export async function saveShopCore(input: SaveShopCoreValues): Promise<ShopDetai
     characterPurchaseMode: normalized.characterPurchaseMode,
     soldItemHandling: normalized.soldItemHandling,
     changedSaleConfirmationMode: normalized.changedSaleConfirmationMode,
+    commerceVersion: input.expectedCommerceVersion + 1,
     updatedAt: new Date(),
-  }).where(and(eq(shop.id, shopId), eq(shop.campaignId, normalized.campaignId)))
+  }).where(and(
+    eq(shop.id, shopId),
+    eq(shop.campaignId, normalized.campaignId),
+    eq(shop.commerceVersion, input.expectedCommerceVersion),
+    eq(shop.balanceCredits, normalized.balanceCredits),
+  ))
     .returning({ id: shop.id });
   if (!updated) throw new Error("The Shop changed before it could be saved.");
   revalidateShopPaths();
   return getShop(shopId, normalized.campaignId);
+}
+
+export async function correctShopBalance(input: {
+  campaignId: number;
+  shopId: number;
+  newBalanceCredits: number;
+  reason: string;
+  submissionKey: string;
+}): Promise<ShopDetail> {
+  const access = await requireGodOrAdminAccessContext();
+  await db.transaction((tx) => correctShopBalanceInTransaction(tx, input, {
+    userId: access.session.user.id,
+    roles: access.roles,
+  }));
+  revalidateShopPaths();
+  revalidatePath("/heavens/tabletop");
+  return getShop(input.shopId, input.campaignId);
 }
 
 export async function addShopStaff(input: AddShopStaffValues): Promise<ShopDetail> {
@@ -771,9 +808,12 @@ export async function addShopOffering(input: AddShopOfferingValues): Promise<Sho
 
 export async function updateShopOffering(input: UpdateShopOfferingValues): Promise<ShopDetail> {
   const offeringId = positiveId(input.offeringId, "Shop Offering");
+  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 0) {
+    throw new Error("Reload this Shop Offering before saving so live stock can be verified.");
+  }
   const normalized = normalizeShopOfferingValues(input);
   await requireEditableShop(normalized.shopId, normalized.campaignId);
-  const [existing] = await db.select({ itemId: shopOffering.itemId })
+  const [existing] = await db.select({ itemId: shopOffering.itemId, version: shopOffering.version })
     .from(shopOffering)
     .where(and(
       eq(shopOffering.id, offeringId),
@@ -784,8 +824,11 @@ export async function updateShopOffering(input: UpdateShopOfferingValues): Promi
   if (existing.itemId !== normalized.itemId) {
     throw new Error("A Shop Offering cannot be moved to a different Item.");
   }
+  if (existing.version !== input.expectedVersion) {
+    throw new Error("This Shop Offering changed after the editor loaded. Reload before saving so live stock changes are not overwritten.");
+  }
   if (normalized.enabled) await requireEligibleOfferingItem(normalized);
-  await db.update(shopOffering).set({
+  const updated = await db.update(shopOffering).set({
     fulfillmentKind: normalized.fulfillmentKind,
     enabled: normalized.enabled,
     unlimitedStock: normalized.unlimitedStock,
@@ -793,12 +836,17 @@ export async function updateShopOffering(input: UpdateShopOfferingValues): Promi
     sellingPriceOverrideCredits: normalized.sellingPriceOverrideCredits,
     buyingPriceOverrideCredits: normalized.buyingPriceOverrideCredits,
     shopNote: normalized.shopNote,
+    version: input.expectedVersion + 1,
     updatedAt: new Date(),
   }).where(and(
     eq(shopOffering.id, offeringId),
     eq(shopOffering.shopId, normalized.shopId),
     eq(shopOffering.campaignId, normalized.campaignId),
-  ));
+    eq(shopOffering.version, input.expectedVersion),
+  )).returning({ id: shopOffering.id });
+  if (updated.length !== 1) {
+    throw new Error("This Shop Offering changed after the editor loaded. Reload before saving so live stock changes are not overwritten.");
+  }
   revalidateShopPaths();
   return getShop(normalized.shopId, normalized.campaignId);
 }
@@ -899,6 +947,17 @@ export async function deleteShop(
     if (Number(visitDependency?.value ?? 0) > 0) {
       throw new Error(`${current.name} cannot be permanently deleted because retained Shop visit history references it.`);
     }
+    const [transactionDependency] = await tx.select({ value: count() })
+      .from(shopTransactionRequest)
+      .where(eq(shopTransactionRequest.shopId, current.id));
+    const [moneyDependency] = await tx.select({ value: count() })
+      .from(shopMoneyEvent)
+      .where(eq(shopMoneyEvent.shopId, current.id));
+    const commerceReferenceCount = Number(transactionDependency?.value ?? 0)
+      + Number(moneyDependency?.value ?? 0);
+    if (commerceReferenceCount > 0) {
+      throw new Error(`${current.name} cannot be permanently deleted because retained transaction or money history references it (${commerceReferenceCount} references). Archive it instead.`);
+    }
 
     const [staffDependency] = await tx.select({ value: count() })
       .from(shopStaffAssignment)
@@ -932,7 +991,7 @@ export async function deleteShop(
 export async function previewShopPlacementDependencies(
   shopId: number,
   campaignId: number,
-): Promise<{ preparedSessions: number; independentPlacements: number; townPlacements: number; visitReferences: number; blocking: boolean }> {
+): Promise<{ preparedSessions: number; independentPlacements: number; townPlacements: number; visitReferences: number; commerceReferences: number; blocking: boolean }> {
   await requireCampaignManager(campaignId);
   const normalizedShopId = positiveId(shopId, "Shop");
   const [current] = await db.select({ id: shop.id }).from(shop).where(and(
@@ -940,19 +999,22 @@ export async function previewShopPlacementDependencies(
     eq(shop.campaignId, campaignId),
   )).limit(1);
   if (!current) throw new Error("Shop not found in this Campaign.");
-  const [prepared, independent, fromTown, visits] = await Promise.all([
+  const [prepared, independent, fromTown, visits, requests, moneyEvents] = await Promise.all([
     db.select({ value: count() }).from(campaignSessionPreparedShop).where(eq(campaignSessionPreparedShop.shopId, normalizedShopId)),
     db.select({ value: count() }).from(campaignSessionSceneShop).where(eq(campaignSessionSceneShop.shopId, normalizedShopId)),
     db.select({ value: count() }).from(campaignSessionSceneTownShop).where(eq(campaignSessionSceneTownShop.shopId, normalizedShopId)),
     db.select({ value: count() }).from(campaignSessionSceneShopVisit).where(eq(campaignSessionSceneShopVisit.shopId, normalizedShopId)),
+    db.select({ value: count() }).from(shopTransactionRequest).where(eq(shopTransactionRequest.shopId, normalizedShopId)),
+    db.select({ value: count() }).from(shopMoneyEvent).where(eq(shopMoneyEvent.shopId, normalizedShopId)),
   ]);
   const result = {
     preparedSessions: Number(prepared[0]?.value ?? 0),
     independentPlacements: Number(independent[0]?.value ?? 0),
     townPlacements: Number(fromTown[0]?.value ?? 0),
     visitReferences: Number(visits[0]?.value ?? 0),
+    commerceReferences: Number(requests[0]?.value ?? 0) + Number(moneyEvents[0]?.value ?? 0),
   };
-  return { ...result, blocking: result.preparedSessions + result.independentPlacements + result.townPlacements + result.visitReferences > 0 };
+  return { ...result, blocking: result.preparedSessions + result.independentPlacements + result.townPlacements + result.visitReferences + result.commerceReferences > 0 };
 }
 
 export async function archiveShop(

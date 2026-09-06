@@ -286,6 +286,7 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
     { label: "Prepared Town and Shop references", blocking: false, query: sql<CountRow>`select ((select count(*) from campaign_session_prepared_town where campaign_id = ${campaignId}) + (select count(*) from campaign_session_prepared_shop where campaign_id = ${campaignId}))::int as value` },
     { label: "Scene Town and Shop placements", blocking: false, query: sql<CountRow>`select ((select count(*) from campaign_session_scene_town where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_shop where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_town_shop where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_town_place where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_town_npc where campaign_id = ${campaignId}))::int as value` },
     { label: "Shop visit history", blocking: false, query: sql<CountRow>`select ((select count(*) from campaign_session_scene_shop_visit where campaign_id = ${campaignId}) + (select count(*) from campaign_session_scene_shop_visit_member where campaign_id = ${campaignId}))::int as value` },
+    { label: "Shop transaction and money history", blocking: false, query: sql<CountRow>`select ((select count(*) from shop_commerce_operation where campaign_id = ${campaignId}) + (select count(*) from shop_transaction_request where campaign_id = ${campaignId}) + (select count(*) from shop_transaction_request_line where request_id in (select id from shop_transaction_request where campaign_id = ${campaignId})) + (select count(*) from shop_transaction where campaign_id = ${campaignId}) + (select count(*) from shop_transaction_line where transaction_id in (select id from shop_transaction where campaign_id = ${campaignId})) + (select count(*) from shop_money_event where campaign_id = ${campaignId}) + (select count(*) from shop_resale_item_instance where campaign_id = ${campaignId}))::int as value` },
   ];
 }
 
@@ -319,6 +320,7 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
     { label: "Town associations", blocking: true, query: sql<CountRow>`select count(*)::int as value from town_npc_association where campaign_id = ${campaignId} and npc_character_id = ${characterId}` },
     { label: "Scene Town placement references", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_scene_town_npc where campaign_id = ${campaignId} and npc_character_id = ${characterId}` },
     { label: "Shop visit history", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_scene_shop_visit_member where campaign_id = ${campaignId} and character_id = ${characterId}` },
+    { label: "Shop transaction and money history", blocking: true, query: sql<CountRow>`select ((select count(*) from shop_transaction_request where campaign_id = ${campaignId} and character_id = ${characterId}) + (select count(*) from shop_transaction where campaign_id = ${campaignId} and character_id = ${characterId}) + (select count(*) from shop_money_event where campaign_id = ${campaignId} and character_id = ${characterId}) + (select count(*) from shop_resale_item_instance where campaign_id = ${campaignId} and source_character_id = ${characterId}))::int as value` },
   ];
 }
 
@@ -395,6 +397,7 @@ function itemDependencySpecs(id: number): DependencySpec[] {
     { label: "Weapons using this ammunition", blocking: true, query: sql<CountRow>`select count(*)::int as value from weapon_profiles where ammunition_item_id = ${id}` },
     { label: "Other Item properties linked to this Item", blocking: true, query: sql<CountRow>`select count(*)::int as value from item_properties where related_item_id = ${id}` },
     { label: "Campaign inventory authorization", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_inventory_item where item_id = ${id}` },
+    { label: "Shop listings", blocking: true, query: sql<CountRow>`select count(*)::int as value from shop_offering where item_id = ${id}` },
     { label: "Character inventory stacks", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_item where item_id = ${id}` },
     { label: "Character exact Item instances", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_instance where item_id = ${id}` },
     { label: "Character weapon overrides", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_weapon_override where item_id = ${id}` },
@@ -402,6 +405,7 @@ function itemDependencySpecs(id: number): DependencySpec[] {
     { label: "Firearm runtime and history", blocking: true, query: sql<CountRow>`select ((select count(*) from campaign_character_firearm_state where item_id = ${id} or loaded_ammunition_item_id = ${id}) + (select count(*) from campaign_character_firearm_preparation where item_id = ${id} or ammunition_item_id = ${id}) + (select count(*) from campaign_session_encounter_firearm_attack where item_id = ${id} or ammunition_item_id = ${id}))::int as value` },
     { label: "Active and historical Item-sourced Conditions and Modifiers", blocking: true, query: sql<CountRow>`select ((select count(*) from campaign_character_active_condition where source_kind = 'item' and source_id = ${itemSourceId}) + (select count(*) from campaign_character_active_modifier where source_kind = 'item' and source_id = ${itemSourceId}))::int as value` },
     { label: "Tabletop Item action, effect-plan, and reaction history", blocking: true, query: sql<CountRow>`select ((select count(*) from campaign_session_encounter_pending_action_source where source_kind = 'item' and source_ref = ${itemActionSourceRef}) + (select count(*) from campaign_session_encounter_effect_plan where source_kind = 'item' and source_id = ${itemSourceId}) + (select count(*) from campaign_session_encounter_reaction where defending_item_id = ${id}))::int as value` },
+    { label: "Shop transaction history", blocking: true, query: sql<CountRow>`select ((select count(*) from shop_transaction_request_line where item_id = ${id}) + (select count(*) from shop_transaction_line where item_id = ${id}) + (select count(*) from shop_resale_item_instance where item_id = ${id}))::int as value` },
   ];
 }
 
@@ -668,14 +672,20 @@ async function updateRootArchiveState(
 }
 
 function scopedCampaignPredicate(
-  scope: "campaign" | "character" | "chat-room",
+  scope: "campaign" | "character" | "chat-room" | "shop-request" | "shop-transaction",
   campaignId: number,
 ): SQL {
   if (scope === "campaign") return sql`campaign_id = ${campaignId}`;
   if (scope === "character") {
     return sql`character_id in (select id from campaign_character where campaign_id = ${campaignId})`;
   }
-  return sql`room_id in (select id from chat_room where campaign_id = ${campaignId})`;
+  if (scope === "chat-room") {
+    return sql`room_id in (select id from chat_room where campaign_id = ${campaignId})`;
+  }
+  if (scope === "shop-request") {
+    return sql`request_id in (select id from shop_transaction_request where campaign_id = ${campaignId})`;
+  }
+  return sql`transaction_id in (select id from shop_transaction where campaign_id = ${campaignId})`;
 }
 
 async function deleteCampaignGraph(

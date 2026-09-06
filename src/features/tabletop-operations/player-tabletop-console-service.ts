@@ -395,7 +395,10 @@ async function readItemEffectDetails(
     .where(eq(campaignCharacterItem.characterId, characterId));
   const instanceIds = await tx.select({ itemId: campaignCharacterItemInstance.itemId })
     .from(campaignCharacterItemInstance)
-    .where(eq(campaignCharacterItemInstance.characterId, characterId));
+    .where(and(
+      eq(campaignCharacterItemInstance.characterId, characterId),
+      isNull(campaignCharacterItemInstance.retiredAt),
+    ));
   const ownedItemIds = [...new Set([...stackIds, ...instanceIds].map(({ itemId }) => itemId))];
   if (!ownedItemIds.length) return [];
   const rows = await tx.select({
@@ -447,6 +450,7 @@ async function readFirearmStates(
     .where(and(
       eq(campaignCharacterFirearmState.characterId, character.characterId),
       eq(campaignCharacterFirearmState.campaignId, character.campaignId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).orderBy(asc(campaignCharacterFirearmState.itemInstanceId));
   if (!rows.length) return [];
   const modeIds = [...new Set(rows.map(({ selectedFiringModeId }) => selectedFiringModeId))];

@@ -64,6 +64,7 @@ export type CharacterProfile = {
   baseMagicSteps: number;
   fatePoints: number | null;
   creditsRemaining: number;
+  commerceVersion?: number;
   creationCompletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -297,7 +298,8 @@ export type CharacterSkillAllocationDraft = {
 export type CharacterDraft = {
   name: string;
   npcRoleLabel?: string;
-  profile: Omit<CharacterProfile, "characterId" | "creationCompletedAt" | "createdAt" | "updatedAt">;
+  expectedCommerceVersion?: number;
+  profile: Omit<CharacterProfile, "characterId" | "commerceVersion" | "creationCompletedAt" | "createdAt" | "updatedAt">;
   attributes: Record<CharacterAttributeKey, number>;
   skillAllocations: CharacterSkillAllocationDraft[];
   items: Array<{ itemId: number; quantity: number; unitCostCredits: number }>;

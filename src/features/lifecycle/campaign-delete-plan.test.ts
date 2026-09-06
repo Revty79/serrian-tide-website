@@ -18,7 +18,7 @@ type SnapshotTable = {
 };
 
 const snapshot = JSON.parse(
-  readFileSync("drizzle/meta/0039_snapshot.json", "utf8"),
+  readFileSync("drizzle/meta/0040_snapshot.json", "utf8"),
 ) as { tables: Record<string, SnapshotTable> };
 
 function campaignOwnedClosure(): Set<string> {
@@ -72,8 +72,12 @@ test("delete scopes match a trusted Campaign predicate", () => {
       assert.ok(table.columns.campaign_id, `${step.tableName} lacks campaign_id`);
     } else if (step.scope === "character") {
       assert.ok(table.columns.character_id, `${step.tableName} lacks character_id`);
-    } else {
+    } else if (step.scope === "chat-room") {
       assert.ok(table.columns.room_id, `${step.tableName} lacks room_id`);
+    } else if (step.scope === "shop-request") {
+      assert.ok(table.columns.request_id, `${step.tableName} lacks request_id`);
+    } else {
+      assert.ok(table.columns.transaction_id, `${step.tableName} lacks transaction_id`);
     }
   }
 });

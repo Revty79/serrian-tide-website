@@ -159,7 +159,11 @@ async function loadOwnedEquipmentInTransaction(
       state: campaignCharacterItemInstance.equipmentState,
     }).from(campaignCharacterItemInstance)
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
-      .where(and(eq(campaignCharacterItemInstance.characterId, characterId), eq(item.catalogScope, "equipment")))
+      .where(and(
+        eq(campaignCharacterItemInstance.characterId, characterId),
+        isNull(campaignCharacterItemInstance.retiredAt),
+        eq(item.catalogScope, "equipment"),
+      ))
       .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id));
   const activeStackQuantities = new Map<number, Partial<Record<ActiveEquipmentState, number>>>();
   for (const row of stateRows) {
@@ -568,6 +572,7 @@ export async function validateEquipmentOwnershipMutationInTransaction(
       .where(and(
         eq(campaignCharacterItemInstance.characterId, input.characterId),
         inArray(campaignCharacterItemInstance.id, [...input.removedInstanceIds]),
+        isNull(campaignCharacterItemInstance.retiredAt),
       )).for("update");
     if (rows.some(({ state }) => state !== "inactive")) {
       throw new Error("Set an owned Item copy to Inactive before removing it.");
@@ -712,7 +717,11 @@ export async function setInstanceEquipmentStateInTransaction(
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
   const rows = await tx.select({ itemId: campaignCharacterItemInstance.itemId, scope: item.catalogScope })
     .from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
-    .where(and(eq(campaignCharacterItemInstance.characterId, command.characterId), eq(campaignCharacterItemInstance.id, command.instanceId)))
+    .where(and(
+      eq(campaignCharacterItemInstance.characterId, command.characterId),
+      eq(campaignCharacterItemInstance.id, command.instanceId),
+      isNull(campaignCharacterItemInstance.retiredAt),
+    ))
     .limit(1).for("update");
   const owned = rows[0];
   if (!owned) throw new Error("Owned Item copy was not found.");

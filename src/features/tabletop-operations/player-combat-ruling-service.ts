@@ -215,6 +215,7 @@ async function assertRequestedSource(
       .where(and(
         eq(campaignCharacterItemInstance.id, instanceId),
         eq(campaignCharacterItemInstance.characterId, player.characterId),
+        isNull(campaignCharacterItemInstance.retiredAt),
       )).limit(1);
     if (!ownedInstance) throw new Error("The requested exact Item instance is not owned by this Player Character.");
   }

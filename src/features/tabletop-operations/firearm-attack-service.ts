@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import {
@@ -391,6 +391,7 @@ async function loadFoundation(
       eq(campaignCharacterItemInstance.id, state.itemInstanceId),
       eq(campaignCharacterItemInstance.characterId, actorParticipantId),
       eq(campaignCharacterItemInstance.itemId, state.itemId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1);
   if (!owned) throw new Error("The exact firearm instance no longer belongs to the attacking Character.");
   const [profile] = await tx.select().from(weaponProfile).where(and(
@@ -1027,6 +1028,7 @@ async function ensureFirearmStillFireable(
     eq(campaignCharacterItemInstance.id, attack.itemInstanceId),
     eq(campaignCharacterItemInstance.characterId, attack.actorParticipantId),
     eq(campaignCharacterItemInstance.itemId, attack.itemId),
+    isNull(campaignCharacterItemInstance.retiredAt),
   )).limit(1);
   if (!owned || owned.equipmentState !== "wielded") throw new Error("The exact firearm is no longer wielded by the attacker.");
   const [openPreparation] = await tx.select({ id: campaignCharacterFirearmPreparation.id }).from(campaignCharacterFirearmPreparation).where(and(

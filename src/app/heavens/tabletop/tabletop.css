@@ -1029,11 +1029,123 @@
   font-size: .68rem;
 }
 
+.tabletop-shop-commerce {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid var(--st-border);
+  padding-top: 12px;
+}
+
+.tabletop-shop-commerce > header,
+.tabletop-shop-commerce-card > header,
+.tabletop-shop-commerce-card section > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.tabletop-shop-commerce > div,
+.tabletop-shop-commerce-card > div {
+  display: grid;
+  gap: 8px;
+}
+
+.tabletop-shop-commerce-card section > header > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tabletop-shop-commerce-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--st-border);
+  border-radius: 10px;
+  background: var(--st-surface-soft);
+  padding: 10px;
+}
+
+.tabletop-shop-commerce-card h5,
+.tabletop-shop-commerce-card p {
+  margin: 0;
+}
+
+.tabletop-shop-commerce-card > p,
+.tabletop-shop-commerce-card section > p,
+.tabletop-shop-commerce-card li,
+.tabletop-shop-commerce-card details {
+  color: var(--st-muted);
+  font-size: .72rem;
+}
+
+.tabletop-shop-commerce-card section {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--st-border);
+  border-radius: 9px;
+  background: var(--st-surface);
+  padding: 9px;
+}
+
+.tabletop-shop-commerce-card section > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.tabletop-shop-commerce-card section > footer,
+.tabletop-shop-commerce-dialog footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.tabletop-shop-commerce-dialog {
+  width: min(48rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  overflow: auto;
+  border: 1px solid var(--st-border-strong);
+  border-radius: 15px;
+  background: var(--st-surface-raised);
+  color: var(--st-text);
+  padding: 0;
+  box-shadow: var(--st-shadow);
+}
+
+.tabletop-shop-commerce-dialog::backdrop {
+  background: color-mix(in srgb, var(--st-page) 78%, transparent);
+  backdrop-filter: blur(7px);
+}
+
+.tabletop-shop-commerce-dialog > section {
+  display: grid;
+  gap: 12px;
+  padding: 17px;
+}
+
+.tabletop-shop-commerce-dialog h4,
+.tabletop-shop-commerce-dialog p {
+  margin: 0;
+}
+
+.tabletop-shop-commerce-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 42dvh;
+  overflow: auto;
+}
+
 @media(max-width:700px) {
   .tabletop-shop-entry-list,
   .tabletop-shop-visit-summary,
   .tabletop-shop-public-staff ul,
-  .tabletop-shop-offerings > header > div:last-child {
+  .tabletop-shop-offerings > header > div:last-child,
+  .tabletop-shop-commerce-card section > div,
+  .tabletop-shop-commerce-picker {
     grid-template-columns: 1fr;
   }
 

@@ -85,7 +85,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     for (let index = 0; index < playerIds.length; index += 1) {
       const character = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,$3) returning id", [campaign.id, playerIds[index], `Visitor ${String.fromCharCode(65 + index)}`]);
       characterIds.push(character.id);
-      await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps) values ($1,0,0)", [character.id]);
+      await client.query("insert into campaign_character_profile (character_id,hp_multiplier_steps,base_magic_steps,credits_remaining) values ($1,0,0,100)", [character.id]);
       for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) await client.query("insert into campaign_character_attribute (character_id,attribute_key,value) values ($1,$2,25)", [character.id, key]);
       await client.query("insert into campaign_character_active_health (character_id,total_damage) values ($1,0)", [character.id]);
     }
@@ -96,7 +96,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
       await client.query("insert into campaign_session_scene_member (scene_id,session_id,campaign_id,character_id,sort_order) values ($1,$2,$3,$4,$5)", [scene.id, session.id, campaign.id, characterIds[index], index]);
     }
     const town = await one<{ id: number }>(client, "insert into town (campaign_id,name,category,overview) values ($1,'Lantern Harbor','Port','Lanterns line the market quay.') returning id", [campaign.id]);
-    const townShop = await one<{ id: number }>(client, "insert into shop (campaign_id,name,category,description,storefront_state) values ($1,'Brass Compass','Navigation','Charts and voyage provisions.','open') returning id", [campaign.id]);
+    const townShop = await one<{ id: number }>(client, "insert into shop (campaign_id,name,category,description,storefront_state,balance_credits) values ($1,'Brass Compass','Navigation','Charts and voyage provisions.','open',100) returning id", [campaign.id]);
     const independentShop = await one<{ id: number }>(client, "insert into shop (campaign_id,name,category,description,storefront_state) values ($1,'Moon Cart','Services','A traveling service cart.','open') returning id", [campaign.id]);
     const npc = await one<{ id: number }>(client, "insert into campaign_character (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode,npc_role_label) values ($1,$2,'Mira Voss',true,'race','detailed','Harbormaster') returning id", [campaign.id, godId]);
     await client.query("insert into town_shop_membership (town_id,shop_id,campaign_id,sort_order) values ($1,$2,$3,0)", [town.id, townShop.id, campaign.id]);
@@ -116,6 +116,7 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     await client.query(`insert into shop_offering
       (shop_id,campaign_id,item_id,fulfillment_kind,enabled,unlimited_stock,selling_price_override_credits,buying_price_override_credits,sort_order)
       values ($1,$2,$3,'inventory-transfer',true,true,7,1.25,0),($1,$2,$4,'service-narrative',true,true,null,null,1),($1,$2,$5,'inventory-transfer',true,true,null,null,2)`, [townShop.id, campaign.id, catalogItem.id, unpricedItem.id, zeroPriceItem.id]);
+    await client.query("insert into campaign_character_item (character_id,item_id,quantity,unit_cost_credits) values ($1,$2,2,9)", [characterIds[0], catalogItem.id]);
     await client.query("insert into campaign_session_prepared_town (session_id,campaign_id,town_id,sort_order) values ($1,$2,$3,0)", [session.id, campaign.id, town.id]);
     await client.query("insert into campaign_session_prepared_shop (session_id,campaign_id,shop_id,sort_order) values ($1,$2,$3,0)", [session.id, campaign.id, independentShop.id]);
     await client.query("insert into campaign_session_scene_town (scene_id,session_id,campaign_id,town_id,sort_order,revealed) values ($1,$2,$3,$4,0,true)", [scene.id, session.id, campaign.id, town.id]);
@@ -259,6 +260,55 @@ async function main(): Promise<void> {
     assert.match(creditsPlayerVisitText, /Unpriced Favor[\s\S]*Price not listed/);
     assert.match(creditsGodVisitText, /Complimentary Token[\s\S]*0 Credits/);
     assert.match(creditsPlayerVisitText, /Complimentary Token[\s\S]*0 Credits/);
+
+    await playerPages[0]!.getByRole("button", { name: "Buy", exact: true }).click();
+    const purchaseDialog = playerPages[0]!.getByRole("dialog").filter({ hasText: "Buy from Brass Compass" });
+    await purchaseDialog.getByLabel(/Harbor Chart/).fill("1");
+    await purchaseDialog.getByLabel("Narrative note (optional)").fill("A chart for the crossing.");
+    await purchaseDialog.getByRole("button", { name: "Submit Request" }).click();
+    await playerPages[0]!.getByText(/Purchase request #\d+ is awaiting G\.O\.D\. approval\./).waitFor();
+    const playerACommerce = godPage.locator(".tabletop-shop-commerce-card").filter({ hasText: "Visitor A" });
+    await playerACommerce.getByText("Pending", { exact: true }).waitFor({ timeout: 20_000 });
+    await playerACommerce.getByRole("button", { name: "Approve Current Terms" }).click();
+    await godPage.getByText("Purchase request reviewed.", { exact: true }).waitFor();
+    await playerPages[0]!.reload();
+    await playerPages[0]!.getByText(/Receipt #\d+ · purchase/).waitFor();
+    assert.match(await playerPages[0]!.getByText("Your purse").locator("..").innerText(), /93 Credits/);
+
+    await playerPages[0]!.getByRole("button", { name: "Sell", exact: true }).click();
+    const saleDialog = playerPages[0]!.getByRole("dialog").filter({ hasText: "Offer owned Items" });
+    await saleDialog.getByLabel(/Harbor Chart/).fill("1");
+    await saleDialog.getByLabel("Narrative note (optional)").fill("Selling a spare chart.");
+    await saleDialog.getByRole("button", { name: "Submit Sale Request" }).click();
+    await playerPages[0]!.getByText(/Sale request #\d+ is awaiting G\.O\.D\. review\./).waitFor();
+    await playerACommerce.getByText("Pending", { exact: true }).waitFor({ timeout: 20_000 });
+    await playerACommerce.getByRole("button", { name: "Approve Current Terms" }).click();
+    await godPage.getByText("Sale request reviewed.", { exact: true }).waitFor();
+    await playerPages[0]!.reload();
+    await playerPages[0]!.getByText(/Receipt #\d+ · sale/).waitFor();
+    assert.equal(Number((await pool.query("select quantity from campaign_character_item where character_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.characterIds[0]])).rows[0].quantity), 2);
+
+    await godPage.getByRole("button", { name: "Give / Correct Money" }).click();
+    const moneyDialog = godPage.getByRole("dialog").filter({ hasText: "Character money" });
+    await moneyDialog.getByLabel("Character").selectOption(String(fixture.characterIds[1]));
+    await moneyDialog.getByLabel("Positive amount").fill("2.5");
+    await moneyDialog.getByLabel("Required reason").fill("Market-day travel allowance.");
+    await moneyDialog.getByRole("button", { name: "Record Grant" }).click();
+    await godPage.getByText("Money grant recorded.", { exact: true }).waitFor();
+    assert.equal(Number((await pool.query("select credits_remaining from campaign_character_profile where character_id=$1", [fixture.characterIds[1]])).rows[0].credits_remaining), 102.5);
+
+    await godPage.getByRole("button", { name: "Transaction Override" }).click();
+    const overrideDialog = godPage.getByRole("dialog").filter({ hasText: "G.O.D. TRANSACTION OVERRIDE" });
+    await overrideDialog.getByLabel("Campaign Character").selectOption(String(fixture.characterIds[1]));
+    await overrideDialog.getByLabel(/Complimentary Token/).fill("1");
+    await overrideDialog.getByLabel("Required override reason").fill("Delivered by courier outside Visitor B's current turn.");
+    await overrideDialog.getByRole("button", { name: "Complete Override Purchase" }).click();
+    await godPage.getByText("G.O.D. override purchase completed and recorded.", { exact: true }).waitFor();
+    assert.equal(Number((await pool.query("select count(*)::int value from shop_transaction where transaction_override=true and character_id=$1", [fixture.characterIds[1]])).rows[0].value), 1);
+
+    await playerPages[0]!.evaluate(() => document.querySelectorAll("nextjs-portal").forEach((element) => element.remove()));
+    await godPage.locator(".tabletop-shop-commerce").screenshot({ path: join(screenshotDirectory, "god-shop-commerce-approval-desktop.png") });
+    await playerPages[0]!.screenshot({ path: join(screenshotDirectory, "player-shop-commerce-history-narrow.png"), fullPage: true });
 
     await pool.query("update campaign set currency_system='Derived Currency' where id=$1", [fixture.campaignId]);
     await pool.query(`insert into campaign_derived_currency (campaign_id,name,description,credits_per_unit,sort_order)
@@ -410,12 +460,17 @@ async function main(): Promise<void> {
       "god-shop-visit-derived-currency-desktop.png",
       "player-shop-visit-derived-currency-narrow.png",
       "god-shop-visit-derived-serrian-tide-desktop.png",
+      "god-shop-commerce-approval-desktop.png",
+      "player-shop-commerce-history-narrow.png",
       "god-end-visit-error-dialog-desktop.png",
       "god-end-visit-error-dialog-narrow.png",
     ], computedStyles: { savedClassic: savedSelectStyles, alternateSerrianTide: alternateModeStyles, endDialog: dialogControlStyles }, verified: [
       "two selected Players entered one Shop while a third stayed in Tabletop",
       "entry failure stayed visible and preserved selected participants and mode",
       "Credits and fractional derived-currency prices matched Shop Builder, G.O.D., and Player views",
+      "a Player purchase request was approved once and produced inventory, balances, and a receipt",
+      "a Character sale was approved and produced a private receipt without exposing it to the outside Player",
+      "G.O.D. money grants and explicit override purchases were traceable",
       "missing prices remained distinct from zero in Shop Builder and visit views",
       "End Visit client and server failures stayed visible without discarding the reason",
       "Escape dismissed End Visit and restored focus to its trigger",

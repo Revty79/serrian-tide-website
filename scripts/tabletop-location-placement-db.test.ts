@@ -80,7 +80,7 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
     const migrationLedger = await seedPool.query<{ count: number }>(
       "select count(*)::int count from drizzle.__drizzle_migrations",
     );
-    assert.equal(Number(migrationLedger.rows[0]?.count), 40, "the disposable database did not reach migration 0039");
+    assert.equal(Number(migrationLedger.rows[0]?.count), 41, "the disposable database did not reach migration 0040");
 
     const ownerA = "location-owner-a";
     const ownerB = "location-owner-b";

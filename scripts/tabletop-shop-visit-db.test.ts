@@ -42,7 +42,9 @@ async function insertCharacter(pool: pg.Pool, campaignId: number, playerId: stri
   const result = await pool.query<{ id: number }>(`insert into campaign_character
     (campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode,npc_role_label)
     values ($1,$2,$3,$4,'race',$5,$6) returning id`, [campaignId, playerId, name, npc, npc ? "detailed" : null, npc ? "Shopkeeper" : ""]);
-  return result.rows[0]!.id;
+  const characterId = result.rows[0]!.id;
+  await pool.query("insert into campaign_character_profile (character_id) values ($1)", [characterId]);
+  return characterId;
 }
 
 test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifecycle-bound", { timeout: 120_000 }, async () => {
@@ -62,7 +64,7 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     process.env.DATABASE_URL = connectionString;
     seedPool = new pg.Pool({ connectionString });
     await migrate(drizzle(seedPool), { migrationsFolder: path.resolve(process.cwd(), "drizzle") });
-    assert.equal(Number((await seedPool.query("select count(*)::int value from drizzle.__drizzle_migrations")).rows[0].value), 40);
+    assert.equal(Number((await seedPool.query("select count(*)::int value from drizzle.__drizzle_migrations")).rows[0].value), 41);
 
     const god = "shop-visit-god";
     const otherGod = "shop-visit-other-god";

@@ -7,6 +7,7 @@ import type {
 } from "@/features/tabletop-operations/player-tabletop-console";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import type { ShopVisitView } from "@/features/tabletop-operations/shop-visit-service";
+import type { ShopCommerceView } from "@/features/tabletop-operations/shop-commerce-service";
 
 import {
   PlayerTabletopDice,
@@ -51,10 +52,12 @@ export function PlayerTabletopWorkspace({
   characters,
   view,
   shopVisit,
+  shopCommerce,
 }: {
   characters: readonly PlayerTabletopCharacterOption[];
   view: PlayerTabletopConsoleView;
   shopVisit: ShopVisitView | null;
+  shopCommerce: ShopCommerceView | null;
 }) {
   const activeConditions = view.effects.conditions.filter(({ resolvedAt }) => resolvedAt === null);
   const activeModifiers = view.effects.modifiers.filter(({ endedAt }) => endedAt === null);
@@ -111,7 +114,7 @@ export function PlayerTabletopWorkspace({
       </section>
 
       {shopVisit ? <>
-        <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} />
+        <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} />
         {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
       </> : <>
 

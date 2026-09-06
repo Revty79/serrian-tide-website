@@ -769,7 +769,10 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
       .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
-      .where(eq(campaignCharacterItemInstance.characterId, characterId))
+      .where(and(
+        eq(campaignCharacterItemInstance.characterId, characterId),
+        isNull(campaignCharacterItemInstance.retiredAt),
+      ))
       .orderBy(asc(campaignCharacterItemInstance.id)),
     db.select({
       id: item.id,

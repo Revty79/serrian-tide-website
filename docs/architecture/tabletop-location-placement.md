@@ -1,5 +1,7 @@
 # Tabletop Town and Shop placement
 
+Completed Shop visits can proceed into purchases, Character sales, approvals, and tracked money events under the separate [Tabletop Shop commerce](tabletop-shop-commerce.md) contract. Placement remains the authority boundary for normal visit transactions; a recorded G.O.D. transaction override is deliberately separate.
+
 Tabletop location placement is a descriptive organization layer beneath existing Campaign Sessions and Scenes. Campaign Towns, Shops, Places, and persistent NPCs remain authoritative. Placement stores references, ordering, Scene-specific inclusion, reveal state, and preparation context only; it never clones inventory, money, staff assignments, Character state, or descriptive source records.
 
 ## Model

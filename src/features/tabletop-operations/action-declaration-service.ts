@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaignPlayer } from "@/db/campaign-schema";
@@ -355,6 +355,7 @@ async function buildAuthoritativeSnapshot(
       eq(campaignCharacterItemInstance.id, draft.sourceInstanceId!),
       eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId),
       eq(campaignCharacterItemInstance.itemId, draft.weaponItemId!),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1) : [];
     if (!equipped && !ownedPreparationSource) throw new Error(
       firearmPreparation
@@ -648,6 +649,7 @@ export async function commitActionDeclarationInTransaction(
         eq(campaignCharacterItemInstance.id, snapshot.source.instanceId!),
         eq(campaignCharacterItemInstance.characterId, snapshot.actorCharacterId),
         eq(campaignCharacterItemInstance.itemId, snapshot.weapon!.itemId),
+        isNull(campaignCharacterItemInstance.retiredAt),
       )).limit(1);
       if (!owned) throw new Error("The locked firearm preparation source is no longer an exact owned Item instance.");
     } else {

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { item, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import { campaignPlayer } from "@/db/campaign-schema";
@@ -427,6 +427,7 @@ export async function initializeFirearmStateInTransaction(
       eq(campaignCharacterItemInstance.id, positiveId(itemInstanceId, "Firearm Item instance")),
       eq(campaignCharacterItemInstance.characterId, command.characterId),
       eq(campaignCharacterItemInstance.itemId, command.itemId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1).for("update");
     if (!owned) throw new Error("The exact Item instance is not owned by this Character and firearm Item.");
     equipmentState = owned.equipmentState;
@@ -707,6 +708,7 @@ export async function startFirearmPreparationInTransaction(
       eq(campaignCharacterItemInstance.id, state.itemInstanceId),
       eq(campaignCharacterItemInstance.characterId, state.characterId),
       eq(campaignCharacterItemInstance.itemId, state.itemId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1).for("update");
   if (!owned) throw new Error("The exact firearm instance is no longer owned by this Character.");
   const { profile, modes } = await loadProfileAndModes(tx, state.itemId, state.weaponProfileId);
@@ -902,6 +904,7 @@ export async function correctFirearmStateInTransaction(
       eq(campaignCharacterItemInstance.id, state.itemInstanceId),
       eq(campaignCharacterItemInstance.characterId, state.characterId),
       eq(campaignCharacterItemInstance.itemId, state.itemId),
+      isNull(campaignCharacterItemInstance.retiredAt),
     )).limit(1).for("update");
   if (!owned) throw new Error("The exact firearm instance is no longer owned by this Character.");
   if (nextReadied && owned.equipmentState !== "wielded") throw new Error("A stowed firearm cannot be corrected directly to readied state.");
@@ -1084,6 +1087,7 @@ export async function readFirearmWorkspaceInTransaction(
     .innerJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
     .where(and(
       eq(campaignCharacterItemInstance.characterId, selectedCharacterId),
+      isNull(campaignCharacterItemInstance.retiredAt),
       sql`lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition'`,
       sql`(${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} firearm_mode where firearm_mode.weapon_profile_id = ${weaponProfile.id}))`,
     ))

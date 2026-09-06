@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   doublePrecision,
@@ -207,6 +208,7 @@ export const campaignCharacterProfile = pgTable(
     quintessence: doublePrecision("quintessence").default(0).notNull(),
     totalQuintessence: doublePrecision("total_quintessence").default(0).notNull(),
     creditsRemaining: doublePrecision("credits_remaining").default(0).notNull(),
+    commerceVersion: integer("commerce_version").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     creationCompletedAt: timestamp("creation_completed_at"),
@@ -246,6 +248,10 @@ export const campaignCharacterProfile = pgTable(
     check(
       "campaign_character_profile_credits_valid",
       sql`${table.creditsRemaining} >= 0`,
+    ),
+    check(
+      "campaign_character_profile_commerce_version_valid",
+      sql`${table.commerceVersion} >= 0`,
     ),
     check(
       "campaign_character_profile_fate_valid",
@@ -522,6 +528,12 @@ export const campaignCharacterItemInstance = pgTable(
     currentCharges: integer("current_charges").notNull(),
     equipmentState: text("equipment_state").default("inactive").notNull(),
     unitCostCredits: doublePrecision("unit_cost_credits").notNull(),
+    provenanceSourceInstanceId: integer("provenance_source_instance_id").references(
+      (): AnyPgColumn => campaignCharacterItemInstance.id,
+      { onDelete: "set null" },
+    ),
+    retiredAt: timestamp("retired_at"),
+    retirementReason: text("retirement_reason").default("").notNull(),
     acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -540,6 +552,9 @@ export const campaignCharacterItemInstance = pgTable(
       table.itemId,
       table.characterId,
     ),
+    index("campaign_character_item_instance_provenance_idx").on(
+      table.provenanceSourceInstanceId,
+    ),
     check(
       "campaign_character_item_instance_charges_valid",
       sql`${table.currentCharges} >= 0`,
@@ -551,6 +566,14 @@ export const campaignCharacterItemInstance = pgTable(
     check(
       "campaign_character_item_instance_cost_valid",
       sql`${table.unitCostCredits} >= 0`,
+    ),
+    check(
+      "campaign_character_item_instance_retirement_valid",
+      sql`(${table.retiredAt} IS NULL AND ${table.retirementReason} = '') OR (${table.retiredAt} IS NOT NULL AND length(trim(${table.retirementReason})) > 0)`,
+    ),
+    check(
+      "campaign_character_item_instance_retirement_reason_length_valid",
+      sql`length(${table.retirementReason}) <= 1000`,
     ),
   ],
 );

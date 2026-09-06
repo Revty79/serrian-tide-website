@@ -41,6 +41,7 @@ export const shop = pgTable(
     changedSaleConfirmationMode: text("changed_sale_confirmation_mode")
       .default("character-owner-accepts")
       .notNull(),
+    commerceVersion: integer("commerce_version").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     archivedAt: timestamp("archived_at"),
@@ -78,6 +79,7 @@ export const shop = pgTable(
       "shop_changed_sale_confirmation_mode_valid",
       sql`${table.changedSaleConfirmationMode} IN ('character-owner-accepts','god-approval-finalizes')`,
     ),
+    check("shop_commerce_version_valid", sql`${table.commerceVersion} >= 0`),
     check(
       "shop_archive_state_valid",
       sql`(
@@ -144,6 +146,7 @@ export const shopOffering = pgTable(
     buyingPriceOverrideCredits: doublePrecision("buying_price_override_credits"),
     sortOrder: integer("sort_order").default(0).notNull(),
     shopNote: text("shop_note").default("").notNull(),
+    version: integer("version").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -182,5 +185,6 @@ export const shopOffering = pgTable(
     ),
     check("shop_offering_sort_order_valid", sql`${table.sortOrder} >= 0`),
     check("shop_offering_note_length_valid", sql`length(${table.shopNote}) <= 1000`),
+    check("shop_offering_version_valid", sql`${table.version} >= 0`),
   ],
 );

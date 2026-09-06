@@ -213,7 +213,10 @@ async function readCharacterWeapons(
       ))
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
       .innerJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
-      .where(eq(campaignCharacterItemInstance.characterId, characterId));
+      .where(and(
+        eq(campaignCharacterItemInstance.characterId, characterId),
+        isNull(campaignCharacterItemInstance.retiredAt),
+      ));
   const retainedRows = await tx.select({
       itemId: campaignCharacterWeaponOverride.itemId,
       canonicalId: item.canonicalId,

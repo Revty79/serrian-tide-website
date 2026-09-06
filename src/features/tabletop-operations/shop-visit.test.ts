@@ -34,9 +34,10 @@ test("0039 adds normalized Shop visits and membership without changing earlier m
   assert.match(schema, /townId/);
   assert.doesNotMatch(migration, /\b(?:DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)\b/i);
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 40);
+  assert.equal(journal.entries.length, 41);
   assert.equal(journal.entries[39]?.idx, 39);
   assert.equal(journal.entries[39]?.tag, "0039_tabletop_shop_visits");
+  assert.equal(journal.entries[40]?.tag, "0040_tabletop_shop_transactions");
 });
 
 test("visit entry reauthorizes ownership, hierarchy, placement, participant, and closed-Shop override", () => {
@@ -75,10 +76,10 @@ test("departures serialize on the shared visit before membership mutation and li
   assert.match(service, /orderBy\(asc\(campaignSessionSceneShopVisit\.id\)\)\.for\("update"\)/);
 });
 
-test("the Player projection is scoped to owned membership and omits management-only data", () => {
+test("the Player visit projection is scoped to owned membership and omits visit-management data", () => {
   const publicType = service.slice(service.indexOf("export type ShopVisitView"), service.indexOf("export type GodShopVisitView"));
   assert.doesNotMatch(publicType, /closedShopOverride|closedShopOverrideReason/);
-  for (const privateField of ["shopNote", "balanceCredits", "characterPurchaseMode", "godNotes", "prepNotes", "npcProfile"]) {
+  for (const privateField of ["shopNote", "godNotes", "prepNotes", "npcProfile"]) {
     assert.doesNotMatch(publicType, new RegExp(privateField));
     assert.doesNotMatch(playerWorkspace, new RegExp(privateField));
   }
@@ -126,11 +127,14 @@ test("lifecycle transitions close visits atomically and placement mutations bloc
   assert.match(placementService, /End the active Shop visit|shopRemovals/);
 });
 
-test("visit views browse public offerings but expose no transaction-shaped controls", () => {
+test("visit views preserve catalog browsing while adding focused commerce controls", () => {
   for (const seam of ["Search offerings", "All categories", "Service / narrative", "Unlimited", "available"]) {
     assert.match(godWorkspace + playerWorkspace, new RegExp(seam.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  for (const forbidden of ["Buy now", "Checkout", "Approve purchase", "Grant money", "Sell item"]) {
+  for (const required of ["Buy", "Sell", "Open requests", "Approve Current Terms", "Give / Correct Money", "Transaction Override"]) {
+    assert.match(godWorkspace + playerWorkspace, new RegExp(required, "i"));
+  }
+  for (const forbidden of ["Shipping", "Tax", "Shopping cart"]) {
     assert.doesNotMatch(godWorkspace + playerWorkspace, new RegExp(forbidden, "i"));
   }
 });

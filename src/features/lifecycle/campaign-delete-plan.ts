@@ -1,4 +1,9 @@
-export type CampaignDeleteScope = "campaign" | "character" | "chat-room";
+export type CampaignDeleteScope =
+  | "campaign"
+  | "character"
+  | "chat-room"
+  | "shop-request"
+  | "shop-transaction";
 
 export type CampaignDeleteStep = {
   tableName: string;
@@ -29,6 +34,13 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_character_skill_allocation", scope: "character" },
   { tableName: "campaign_creature_npc_profile", scope: "character" },
   { tableName: "campaign_derived_currency", scope: "campaign" },
+  { tableName: "shop_money_event", scope: "campaign" },
+  { tableName: "shop_resale_item_instance", scope: "campaign" },
+  { tableName: "shop_transaction_line", scope: "shop-transaction" },
+  { tableName: "shop_transaction", scope: "campaign" },
+  { tableName: "shop_transaction_request_line", scope: "shop-request" },
+  { tableName: "shop_transaction_request", scope: "campaign" },
+  { tableName: "shop_commerce_operation", scope: "campaign" },
   { tableName: "campaign_session_scene_shop_visit_member", scope: "campaign" },
   { tableName: "campaign_session_scene_shop_visit", scope: "campaign" },
   { tableName: "campaign_session_scene_town_npc", scope: "campaign" },
@@ -102,4 +114,5 @@ export const CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS = [
   { tableName: "campaign_session_called_check_request", columnName: "parent_request_id", scope: "campaign" },
   { tableName: "campaign_session_high_low_request", columnName: "parent_request_id", scope: "campaign" },
   { tableName: "campaign_session_roll_amendment", columnName: "previous_amendment_id", scope: "campaign" },
+  { tableName: "campaign_character_item_instance", columnName: "provenance_source_instance_id", scope: "character" },
 ] as const;
