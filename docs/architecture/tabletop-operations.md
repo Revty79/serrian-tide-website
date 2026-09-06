@@ -19,7 +19,7 @@ Campaign
 
 Build 2 establishes the Session Roster as references to existing Campaign Characters. Build 3 establishes Scenes and Scene membership beneath Sessions. Build 4 establishes Encounters and Encounter Participants. Build 5 establishes the persistent Initiative Runtime attached to that Participant identity. Authored attack, reaction, spell, Item, Creature Ability, and Active State integration remain later additions.
 
-Saved Town and Shop placement is an additional descriptive layer beneath Session preparation and Scenes. Its normalized reference, reveal, refresh, and lifecycle contract is defined in `docs/architecture/tabletop-location-placement.md`. It does not change the one-active-Scene rule or add Shop visits and transactions.
+Saved Town and Shop placement is an additional descriptive layer beneath Session preparation and Scenes. Its normalized reference, reveal, refresh, visit, and lifecycle contract is defined in `docs/architecture/tabletop-location-placement.md`. Participant Shop visits add a focused roleplay/browsing context inside the active Scene; they do not change the one-active-Scene rule and do not implement transactions.
 
 ## Session Roster boundary
 
@@ -50,6 +50,8 @@ Scene
 ```
 
 Scene Members reference existing Session Roster entries. Session Roster membership means an entity is expected or available for the Session; Scene membership means that rostered entity is associated with a particular Scene. Encounter Participants remain a separate concept rather than replacing either layer.
+
+A Shop visit is also Scene-specific state, but its Character memberships do not replace Session roster, Scene member, Encounter participant, or Initiative identities. A Character in a Shop remains in the same Scene and retains the same Encounter, Initiative, pending actions, and authoritative Character state. Roleplay/Shopping is descriptive visit context controlled by the owning G.O.D.; it does not mutate saved Shop policies or create a parallel conversation system.
 
 Completed Scenes preserve their metadata and member references as history. Removing a Session Roster entry must be rejected while any Scene still references it, rather than cascading away Scene history.
 

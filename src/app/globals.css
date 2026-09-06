@@ -229,3 +229,86 @@ dd,
 small {
   line-height: 1.5;
 }
+
+/* Shared semantic controls for builder, placement, and live-operation surfaces. */
+.st-field {
+  display: grid;
+  gap: 0.34rem;
+  min-width: 0;
+  color: var(--st-text-soft);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.st-control {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.55rem;
+  border: 1px solid var(--st-border-strong);
+  border-radius: 0.68rem;
+  background: var(--st-input);
+  padding: 0.62rem 0.7rem;
+  color: var(--st-text);
+}
+
+.st-control:focus {
+  border-color: var(--st-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--st-primary-soft);
+}
+
+.st-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+select,
+select option,
+select optgroup {
+  color-scheme: dark;
+  background-color: var(--st-input);
+  color: var(--st-text);
+}
+
+.st-button {
+  min-height: 2.55rem;
+  border: 1px solid var(--st-border-strong);
+  border-radius: 0.68rem;
+  background: var(--st-surface-raised);
+  padding: 0.58rem 0.82rem;
+  color: var(--st-text-soft);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.st-button.is-primary {
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  color: var(--st-primary-soft-text);
+}
+
+.st-button.is-secondary {
+  border-color: var(--st-secondary-border);
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary-soft-text);
+}
+
+.st-button.is-danger {
+  border-color: color-mix(in srgb, var(--st-danger) 42%, transparent);
+  background: color-mix(in srgb, var(--st-danger) 12%, transparent);
+  color: var(--st-danger);
+}
+
+.st-button:hover:not(:disabled) {
+  border-color: var(--st-focus);
+}
+
+.st-button:focus-visible {
+  outline: 3px solid var(--st-focus);
+  outline-offset: 2px;
+}
+
+.st-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}

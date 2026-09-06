@@ -43,6 +43,7 @@ import {
   type CampaignAccessDesignation,
 } from "@/features/campaigns/campaign-access-designation";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
+import { endActiveShopVisitsForSessionInTransaction } from "@/features/tabletop-operations/shop-visit-service";
 import {
   assertOwnedRootManager,
   assertPermanentDeletionEnabled,
@@ -646,6 +647,9 @@ async function applyLifecycleTransition(
             eq(campaignSession.status, "active"),
           ));
         assertNoOtherActiveSession(activeRows.map(({ id }) => id), sessionId);
+      }
+      if (transition === "complete") {
+        await endActiveShopVisitsForSessionInTransaction(tx, sessionId, actor.userId);
       }
       const [saved] = await tx
         .update(campaignSession)

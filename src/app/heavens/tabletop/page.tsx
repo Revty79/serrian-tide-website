@@ -23,6 +23,7 @@ import {
 } from "./initiative-actions";
 import { getSessionSceneWorkspace } from "./scene-actions";
 import { getLocationPlacementWorkspace } from "./location-actions";
+import { getGodShopVisitWorkspace } from "./shop-visit-actions";
 import "./tabletop.css";
 import { TabletopWorkspace } from "./tabletop-workspace";
 
@@ -74,6 +75,9 @@ export default async function TabletopOperationsPage({
   const locationWorkspace = selectedSessionId === null
     ? null
     : await getLocationPlacementWorkspace(selectedSessionId, sceneWorkspace?.selectedSceneId ?? null);
+  const shopVisitWorkspace = sceneWorkspace?.selectedSceneId
+    ? await getGodShopVisitWorkspace(sceneWorkspace.selectedSceneId)
+    : null;
   const encounterWorkspace = sceneWorkspace?.selectedSceneId
     ? await getSceneEncounterWorkspace(
         sceneWorkspace.selectedSceneId,
@@ -159,6 +163,7 @@ export default async function TabletopOperationsPage({
       initialPrepData={prepWorkspace}
       initialSceneData={sceneWorkspace}
       initialLocationData={locationWorkspace}
+      initialShopVisitData={shopVisitWorkspace}
       initialEncounterData={encounterWorkspace}
       initialInitiativeTracker={initiativeTracker}
       initialCombatAid={combatAid}

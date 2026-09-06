@@ -11,6 +11,7 @@ export const TABLETOP_INVALIDATION_CATEGORIES = [
   "roll",
   "called-check",
   "character-state",
+  "shop-visit",
 ] as const;
 
 export type TabletopInvalidationCategory = (typeof TABLETOP_INVALIDATION_CATEGORIES)[number];

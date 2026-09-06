@@ -25,6 +25,7 @@ import {
   campaignSessionSceneShop,
   campaignSessionSceneTownShop,
 } from "@/db/tabletop-location-schema";
+import { campaignSessionSceneShopVisit } from "@/db/tabletop-shop-visit-schema";
 import { town, townShopMembership } from "@/db/town-schema";
 import { buildCampaignAccessDesignation } from "@/features/campaigns/campaign-access-designation";
 import {
@@ -51,6 +52,7 @@ import {
   type ShopStorefrontState,
 } from "@/features/shops/shop-builder";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { assertNoActiveShopVisitForSourceInTransaction } from "@/features/tabletop-operations/shop-visit-service";
 
 const shopAmmunitionItem = alias(item, "shop_ammunition_item");
 const shopAmmunitionWeaponProfile = alias(weaponProfile, "shop_ammunition_weapon_profile");
@@ -891,6 +893,12 @@ export async function deleteShop(
     if (retainedPlacementCount > 0) {
       throw new Error(`${current.name} cannot be permanently deleted while retained by Session preparation or Scene placement (${retainedPlacementCount} references). Detach those references in Tabletop Operations first.`);
     }
+    const [visitDependency] = await tx.select({ value: count() })
+      .from(campaignSessionSceneShopVisit)
+      .where(eq(campaignSessionSceneShopVisit.shopId, current.id));
+    if (Number(visitDependency?.value ?? 0) > 0) {
+      throw new Error(`${current.name} cannot be permanently deleted because retained Shop visit history references it.`);
+    }
 
     const [staffDependency] = await tx.select({ value: count() })
       .from(shopStaffAssignment)
@@ -924,7 +932,7 @@ export async function deleteShop(
 export async function previewShopPlacementDependencies(
   shopId: number,
   campaignId: number,
-): Promise<{ preparedSessions: number; independentPlacements: number; townPlacements: number; blocking: boolean }> {
+): Promise<{ preparedSessions: number; independentPlacements: number; townPlacements: number; visitReferences: number; blocking: boolean }> {
   await requireCampaignManager(campaignId);
   const normalizedShopId = positiveId(shopId, "Shop");
   const [current] = await db.select({ id: shop.id }).from(shop).where(and(
@@ -932,17 +940,19 @@ export async function previewShopPlacementDependencies(
     eq(shop.campaignId, campaignId),
   )).limit(1);
   if (!current) throw new Error("Shop not found in this Campaign.");
-  const [prepared, independent, fromTown] = await Promise.all([
+  const [prepared, independent, fromTown, visits] = await Promise.all([
     db.select({ value: count() }).from(campaignSessionPreparedShop).where(eq(campaignSessionPreparedShop.shopId, normalizedShopId)),
     db.select({ value: count() }).from(campaignSessionSceneShop).where(eq(campaignSessionSceneShop.shopId, normalizedShopId)),
     db.select({ value: count() }).from(campaignSessionSceneTownShop).where(eq(campaignSessionSceneTownShop.shopId, normalizedShopId)),
+    db.select({ value: count() }).from(campaignSessionSceneShopVisit).where(eq(campaignSessionSceneShopVisit.shopId, normalizedShopId)),
   ]);
   const result = {
     preparedSessions: Number(prepared[0]?.value ?? 0),
     independentPlacements: Number(independent[0]?.value ?? 0),
     townPlacements: Number(fromTown[0]?.value ?? 0),
+    visitReferences: Number(visits[0]?.value ?? 0),
   };
-  return { ...result, blocking: result.preparedSessions + result.independentPlacements + result.townPlacements > 0 };
+  return { ...result, blocking: result.preparedSessions + result.independentPlacements + result.townPlacements + result.visitReferences > 0 };
 }
 
 export async function archiveShop(
@@ -963,6 +973,7 @@ export async function archiveShop(
     )).limit(1).for("update");
     if (!current) throw new Error("Shop not found in this Campaign.");
     if (current.archivedAt) throw new Error("This Shop is already archived.");
+    await assertNoActiveShopVisitForSourceInTransaction(tx, { shopId: current.id });
     await tx.update(shop).set({
       storefrontState: "closed",
       archivedAt: new Date(),

@@ -24,6 +24,7 @@ import {
   campaignSessionSceneTown,
   campaignSessionSceneTownPlace,
 } from "@/db/tabletop-location-schema";
+import { campaignSessionSceneShopVisit } from "@/db/tabletop-shop-visit-schema";
 import {
   town,
   townNpcAssociation,
@@ -49,6 +50,7 @@ import {
   type TownPlaceValues,
 } from "@/features/towns/town-builder";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { assertNoActiveShopVisitForSourceInTransaction } from "@/features/tabletop-operations/shop-visit-service";
 
 const assignedTown = alias(town, "assigned_town");
 
@@ -788,14 +790,16 @@ export async function previewTownLifecycle(townId: number, campaignId: number): 
   const [archivedPlaces] = await db.select({ value: count() }).from(townPlace).where(and(eq(townPlace.townId, current.id), isNotNull(townPlace.archivedAt)));
   const [preparedSessions] = await db.select({ value: count() }).from(campaignSessionPreparedTown).where(eq(campaignSessionPreparedTown.townId, current.id));
   const [scenePlacements] = await db.select({ value: count() }).from(campaignSessionSceneTown).where(eq(campaignSessionSceneTown.townId, current.id));
+  const [visitReferences] = await db.select({ value: count() }).from(campaignSessionSceneShopVisit).where(eq(campaignSessionSceneShopVisit.townId, current.id));
+  const [activeVisits] = await db.select({ value: count() }).from(campaignSessionSceneShopVisit).where(and(eq(campaignSessionSceneShopVisit.townId, current.id), eq(campaignSessionSceneShopVisit.status, "active")));
   const permanentDeletionEnabled = isPermanentDeletionEnabled();
-  const retainedReferences = Number(preparedSessions?.value ?? 0) + Number(scenePlacements?.value ?? 0);
+  const retainedReferences = Number(preparedSessions?.value ?? 0) + Number(scenePlacements?.value ?? 0) + Number(visitReferences?.value ?? 0);
   return {
     townId: current.id,
     townName: current.name,
     archived: current.archivedAt !== null,
     permanentDeletionEnabled,
-    canArchive: manager.campaignArchivedAt === null && current.archivedAt === null,
+    canArchive: manager.campaignArchivedAt === null && current.archivedAt === null && Number(activeVisits?.value ?? 0) === 0,
     canRestore: manager.campaignArchivedAt === null && current.archivedAt !== null,
     canDelete: permanentDeletionEnabled && retainedReferences === 0,
     dependencies: [
@@ -805,6 +809,8 @@ export async function previewTownLifecycle(townId: number, campaignId: number): 
       { label: "Archived Town-owned places (deleted)", count: Number(archivedPlaces?.value ?? 0) },
       { label: "Prepared Session references (block deletion)", count: Number(preparedSessions?.value ?? 0) },
       { label: "Scene placements (block deletion)", count: Number(scenePlacements?.value ?? 0) },
+      { label: "Shop visit history (blocks deletion)", count: Number(visitReferences?.value ?? 0) },
+      { label: "Active Shop visits (block archive)", count: Number(activeVisits?.value ?? 0) },
     ],
   };
 }
@@ -819,6 +825,7 @@ export async function archiveTown(townId: number, campaignId: number, reason?: s
     )).limit(1).for("update");
     if (!current) throw new Error("Town not found in this Campaign.");
     if (current.archivedAt) throw new Error("This Town is already archived.");
+    await assertNoActiveShopVisitForSourceInTransaction(tx, { townId: current.id });
     await tx.update(town).set({ archivedAt: new Date(), archivedByUserId: manager.actorUserId, archiveReason, updatedAt: new Date() }).where(eq(town.id, current.id));
     await tx.insert(lifecycleAuditEvent).values({ action: "archive", entityKind: "town", targetId: String(current.id), targetName: current.name, campaignIdSnapshot: campaignId, ownerUserIdSnapshot: manager.ownerUserId, actorUserId: manager.actorUserId, reason: archiveReason, dependencySummaryJson: {} });
   });
@@ -857,6 +864,9 @@ export async function deleteTown(townId: number, campaignId: number, confirmatio
     if (preparedReference || sceneReference) {
       throw new Error("This Town is retained by Session preparation or a Scene placement. Detach those references before permanent deletion.");
     }
+    const [visitReference] = await tx.select({ id: campaignSessionSceneShopVisit.id })
+      .from(campaignSessionSceneShopVisit).where(eq(campaignSessionSceneShopVisit.townId, current.id)).limit(1);
+    if (visitReference) throw new Error("This Town is retained by Shop visit history and cannot be permanently deleted.");
     const [shops] = await tx.select({ value: count() }).from(townShopMembership).where(eq(townShopMembership.townId, current.id));
     const [npcs] = await tx.select({ value: count() }).from(townNpcAssociation).where(eq(townNpcAssociation.townId, current.id));
     const [places] = await tx.select({ value: count() }).from(townPlace).where(eq(townPlace.townId, current.id));

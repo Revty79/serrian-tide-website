@@ -27,6 +27,7 @@ import {
   townPlace,
   townShopMembership,
 } from "@/db/town-schema";
+import { assertNoActiveShopVisitForPlacementInTransaction } from "./shop-visit-service";
 
 import {
   assertParentSessionAllowsScenePreparation,
@@ -602,6 +603,7 @@ export async function detachTownFromSceneInTransaction(
 ): Promise<SceneContext> {
   const context = await lockOwnedScene(tx, sceneId, actingUserId);
   assertSceneIsEditable(context.sceneStatus, context.status);
+  await assertNoActiveShopVisitForPlacementInTransaction(tx, { sceneId: context.sceneId, townId });
   const removed = await tx.delete(campaignSessionSceneTown).where(and(
     eq(campaignSessionSceneTown.sceneId, context.sceneId),
     eq(campaignSessionSceneTown.townId, positiveId(townId, "Town")),
@@ -618,6 +620,7 @@ export async function detachShopFromSceneInTransaction(
 ): Promise<SceneContext> {
   const context = await lockOwnedScene(tx, sceneId, actingUserId);
   assertSceneIsEditable(context.sceneStatus, context.status);
+  await assertNoActiveShopVisitForPlacementInTransaction(tx, { sceneId: context.sceneId, shopId, placementKind: "independent" });
   const removed = await tx.delete(campaignSessionSceneShop).where(and(
     eq(campaignSessionSceneShop.sceneId, context.sceneId),
     eq(campaignSessionSceneShop.shopId, positiveId(shopId, "Shop")),
@@ -638,6 +641,7 @@ export async function setTownPlacementVisibilityInTransaction(
 ): Promise<SceneContext> {
   const context = await lockOwnedScene(tx, sceneId, actingUserId);
   assertSceneIsEditable(context.sceneStatus, context.status);
+  if (!revealed) await assertNoActiveShopVisitForPlacementInTransaction(tx, { sceneId: context.sceneId, townId });
   const updated = await tx.update(campaignSessionSceneTown).set({ revealed, updatedAt: new Date() }).where(and(
     eq(campaignSessionSceneTown.sceneId, context.sceneId),
     eq(campaignSessionSceneTown.townId, positiveId(townId, "Town")),
@@ -679,6 +683,9 @@ export async function setTownChildStateInTransaction(
   assertSceneIsEditable(context.sceneStatus, context.status);
   positiveId(input.townId, "Town");
   positiveId(input.childId, input.kind === "npc" ? "NPC" : input.kind === "shop" ? "Shop" : "Place");
+  if (input.kind === "shop" && (!input.included || !input.revealed)) {
+    await assertNoActiveShopVisitForPlacementInTransaction(tx, { sceneId: context.sceneId, townId: input.townId, shopId: input.childId });
+  }
   const values = { included: input.included, revealed: input.included && input.revealed, updatedAt: new Date() };
   const result = input.kind === "shop"
     ? await tx.update(campaignSessionSceneTownShop).set(values).where(and(
@@ -711,6 +718,7 @@ export async function setShopPlacementVisibilityInTransaction(
 ): Promise<SceneContext> {
   const context = await lockOwnedScene(tx, sceneId, actingUserId);
   assertSceneIsEditable(context.sceneStatus, context.status);
+  if (!revealed) await assertNoActiveShopVisitForPlacementInTransaction(tx, { sceneId: context.sceneId, shopId, placementKind: "independent" });
   const updated = await tx.update(campaignSessionSceneShop).set({ revealed, updatedAt: new Date() }).where(and(
     eq(campaignSessionSceneShop.sceneId, context.sceneId),
     eq(campaignSessionSceneShop.shopId, positiveId(shopId, "Shop")),
@@ -797,6 +805,11 @@ export async function applyTownRefreshInTransaction(
   assertSceneIsEditable(context.sceneStatus, context.status);
   const normalizedTownId = positiveId(townId, "Town");
   const preview = await loadRefreshPreview(tx, context.sceneId, normalizedTownId, context.campaignId);
+  for (const entry of preview.shopRemovals) await assertNoActiveShopVisitForPlacementInTransaction(tx, {
+    sceneId: context.sceneId,
+    townId: normalizedTownId,
+    shopId: entry.id,
+  });
   const eligible = await loadEligibleTownContents(tx, normalizedTownId, context.campaignId);
   for (const entry of preview.shopRemovals) await tx.delete(campaignSessionSceneTownShop).where(and(
     eq(campaignSessionSceneTownShop.sceneId, context.sceneId),

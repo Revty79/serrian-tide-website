@@ -41,6 +41,7 @@ import {
 } from "./actions";
 import type { SceneWorkspaceData } from "./scene-actions";
 import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/location-placement-service";
+import type { GodShopVisitWorkspace } from "@/features/tabletop-operations/shop-visit-service";
 import type { EncounterWorkspaceData } from "./encounter-actions";
 import { SceneWorkspace } from "./scene-workspace";
 import { SessionRollWorkspace } from "./roll-ledger";
@@ -236,6 +237,7 @@ export function TabletopWorkspace({
   initialPrepData,
   initialSceneData,
   initialLocationData,
+  initialShopVisitData,
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
@@ -257,6 +259,7 @@ export function TabletopWorkspace({
   initialPrepData: SessionPrepWorkspaceData | null;
   initialSceneData: SceneWorkspaceData | null;
   initialLocationData: LocationPlacementWorkspace | null;
+  initialShopVisitData: GodShopVisitWorkspace | null;
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
@@ -658,6 +661,7 @@ export function TabletopWorkspace({
             key={initialSceneData.selectedSceneId ?? "no-scene"}
             initialData={initialSceneData}
             initialLocationData={initialLocationData}
+            initialShopVisitData={initialShopVisitData}
             initialEncounterData={initialEncounterData}
             initialInitiativeTracker={initialInitiativeTracker}
             initialCombatAid={initialCombatAid}

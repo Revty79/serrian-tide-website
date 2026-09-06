@@ -6,6 +6,7 @@ import type {
   PlayerTabletopConsoleView,
 } from "@/features/tabletop-operations/player-tabletop-console";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
+import type { ShopVisitView } from "@/features/tabletop-operations/shop-visit-service";
 
 import {
   PlayerTabletopDice,
@@ -14,6 +15,7 @@ import {
 } from "./player-tabletop-actions";
 import { PlayerCombatConsole, PlayerCombatIntentButton } from "./player-combat-console";
 import styles from "./player-tabletop.module.css";
+import { PlayerShopVisit } from "./player-shop-visit";
 
 function dateTime(value: string): string {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -48,9 +50,11 @@ function Section({
 export function PlayerTabletopWorkspace({
   characters,
   view,
+  shopVisit,
 }: {
   characters: readonly PlayerTabletopCharacterOption[];
   view: PlayerTabletopConsoleView;
+  shopVisit: ShopVisitView | null;
 }) {
   const activeConditions = view.effects.conditions.filter(({ resolvedAt }) => resolvedAt === null);
   const activeModifiers = view.effects.modifiers.filter(({ endedAt }) => endedAt === null);
@@ -85,6 +89,7 @@ export function PlayerTabletopWorkspace({
               <p>{view.identity.campaignName} · {view.identity.playerUsername}</p>
             </div>
             <nav className={styles.heroNav} aria-label="Player tabletop navigation">
+              {shopVisit ? <a href="#player-shop-visit-title" aria-current="location">In {shopVisit.shop.name}</a> : null}
               <Link href="/realms">Realms</Link>
               <Link href={`/realms/characters/${view.identity.characterId}`}>Character Sheet</Link>
             </nav>
@@ -104,6 +109,11 @@ export function PlayerTabletopWorkspace({
         <div><span>Mana</span><strong>{view.mana.pools.length ? view.mana.pools.reduce((sum, pool) => sum + pool.currentMana, 0) : "—"}</strong><small>{view.mana.pools.length ? `${view.mana.pools.length} canonical pool${view.mana.pools.length === 1 ? "" : "s"}` : "No resolved Mana pools"}</small></div>
         <div><span>Table state</span><strong>{view.presence.label}</strong><small>{view.presence.detail}</small></div>
       </section>
+
+      {shopVisit ? <>
+        <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} />
+        {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
+      </> : <>
 
       <Section id="tabletop-context" eyebrow="LIVE CONTEXT" title="At the table" detail="The active hierarchy is displayed as recorded; this console never invents Session membership.">
         <div className={styles.contextGrid}>
@@ -211,6 +221,7 @@ export function PlayerTabletopWorkspace({
           <div><h3>Sessions</h3>{view.recentSessions.length ? <ol>{view.recentSessions.map((session) => <li key={session.id}><strong>#{session.sequenceNumber} · {session.title}</strong><span>{titleCase(session.status)} · {dateTime(session.startedAt)}</span>{session.sceneTitles.length ? <small>Scenes: {session.sceneTitles.join(", ")}</small> : null}{session.encounterTitles.length ? <small>Encounters: {session.encounterTitles.join(", ")}</small> : null}</li>)}</ol> : <p>No rostered Session history.</p>}</div>
         </div>
       </Section>
+      </>}
     </div>
   </main>;
 }

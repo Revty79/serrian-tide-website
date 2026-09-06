@@ -274,6 +274,13 @@
       "when": 1788706162713,
       "tag": "0038_tabletop_location_placement",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1788713285418,
+      "tag": "0039_tabletop_shop_visits",
+      "breakpoints": true
     }
   ]
 }

@@ -168,7 +168,16 @@ they never appear in the NPC archive.
 Campaign Shops and Towns are persistent authoring roots with archive and guarded
 permanent-deletion flows. Session preparation and Scene placement retain them by
 foreign key, so their deletion previews report those references and permanent
-deletion requires explicit detachment. Placement does not create Shop visits,
+deletion requires explicit detachment. Participant Shop visits reference their
+canonical Shop and optional source Town and retain entry/exit attribution as
+history. An active visit blocks hiding, exclusion, refresh removal, detachment,
+and source archive where that operation would make its placement unavailable;
+the operator must end the visit first. Completed visit history blocks ordinary
+Shop, Town, Character, Session, and Scene permanent deletion. Whole-Campaign
+deletion removes membership before visits and visits before their Scene, Shop,
+Town, and Character parents. New visit User attributions participate in the
+clean-account blockers. Scene or Session completion ends active memberships and
+visits atomically, while reopen never resurrects ended rows. Visits do not create
 transactions, stock movement, or another inventory owner.
 
 ## Chat

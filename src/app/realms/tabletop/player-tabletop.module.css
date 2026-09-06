@@ -135,6 +135,12 @@
   background: color-mix(in srgb, var(--st-secondary) 13%, transparent);
 }
 
+.heroNav a[aria-current="location"] {
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  color: var(--st-primary-soft-text);
+}
+
 .characterSelect {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) auto;
@@ -819,6 +825,154 @@
 
   .twoColumn > .section {
     height: auto;
+  }
+}
+
+.shopVisit {
+  display: grid;
+  gap: 1rem;
+  margin: .8rem 0;
+  border: 1px solid var(--st-secondary-border);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--st-secondary) 6%, var(--tabletop-panel));
+  padding: clamp(1rem, 2.2vw, 1.4rem);
+  box-shadow: 0 1.1rem 3rem color-mix(in srgb, var(--st-page) 22%, transparent);
+}
+
+.shopVisitHero,
+.shopVisitCatalog > header,
+.shopVisitOfferings article > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.shopVisitHero h2 {
+  margin: .25rem 0;
+  color: var(--st-text);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 400;
+}
+
+.shopVisitHero p,
+.shopVisitDescription {
+  margin: .3rem 0 0;
+  color: var(--tabletop-muted);
+}
+
+.shopVisitError {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--st-danger) 42%, transparent);
+  border-radius: .75rem;
+  background: color-mix(in srgb, var(--st-danger) 12%, transparent);
+  padding: .75rem;
+  color: var(--st-danger);
+}
+
+.shopVisitRoster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+}
+
+.shopVisitRoster > section,
+.shopVisitCatalog {
+  min-width: 0;
+  border: 1px solid var(--tabletop-line);
+  border-radius: .85rem;
+  background: var(--tabletop-panel-deep);
+  padding: .9rem;
+}
+
+.shopVisitRoster h3,
+.shopVisitCatalog h3 {
+  margin: 0;
+  color: var(--st-secondary-soft-text);
+  font-size: .82rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.shopVisitRoster ul {
+  display: grid;
+  gap: .45rem;
+  margin: .65rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shopVisitRoster li {
+  display: grid;
+  gap: .15rem;
+  border-top: 1px solid var(--tabletop-line);
+  padding-top: .45rem;
+}
+
+.shopVisitRoster li span {
+  color: var(--tabletop-muted);
+  font-size: .75rem;
+}
+
+.shopVisitFilters {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(10rem, .7fr);
+  gap: .55rem;
+  width: min(36rem, 100%);
+}
+
+.shopVisitOfferings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .7rem;
+  margin-top: .8rem;
+}
+
+.shopVisitOfferings article {
+  display: grid;
+  gap: .55rem;
+  min-width: 0;
+  border: 1px solid var(--tabletop-line);
+  border-radius: .75rem;
+  background: var(--tabletop-panel);
+  padding: .8rem;
+}
+
+.shopVisitOfferings article header span,
+.shopVisitOfferings article footer {
+  color: var(--tabletop-muted);
+  font-size: .68rem;
+}
+
+.shopVisitOfferings h4 {
+  margin: .2rem 0 0;
+  color: var(--st-text);
+}
+
+.shopVisitOfferings article > p {
+  margin: 0;
+  color: var(--st-text-soft);
+  font-size: .8rem;
+}
+
+.shopVisitOfferings article footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+}
+
+@media (max-width: 52rem) {
+  .shopVisitRoster,
+  .shopVisitOfferings,
+  .shopVisitFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .shopVisitHero,
+  .shopVisitCatalog > header,
+  .shopVisitOfferings article > header {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

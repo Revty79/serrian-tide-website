@@ -136,6 +136,7 @@ export function ShopWorkspace({
     preparedSessions: number;
     independentPlacements: number;
     townPlacements: number;
+    visitReferences: number;
     blocking: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(Boolean(initialCampaign));
@@ -762,7 +763,7 @@ export function ShopWorkspace({
         <header><p>PERMANENTLY DELETE SHOP</p><h2 className="font-sans">{deleteTargetName || "Shop"}</h2><span>This removes the Shop, its staff assignments, and all offering settings. The deletion audit remains.</span></header>
         {feedback?.kind === "error" ? <p className="shops-feedback is-error" role="alert">{feedback.message}</p> : null}
         {detail?.townAssignment ? <p className="shops-feedback is-error" role="alert">This Shop is attached to <strong>{detail.townAssignment.townName}</strong>. <Link href={`/heavens/towns?campaign=${detail.shop.campaignId}&town=${detail.townAssignment.townId}`}>Open the Town Builder</Link> and detach or reassign it before deleting the Shop.</p> : null}
-        {deletePlacementDependencies?.blocking ? <p className="shops-feedback is-error" role="alert">Tabletop placement retains this Shop: {deletePlacementDependencies.preparedSessions} prepared Session references, {deletePlacementDependencies.independentPlacements} independent Scene placements, and {deletePlacementDependencies.townPlacements} Town-derived Scene references. Detach them in Tabletop Operations before deletion.</p> : null}
+        {deletePlacementDependencies?.blocking ? <p className="shops-feedback is-error" role="alert">Tabletop history retains this Shop: {deletePlacementDependencies.preparedSessions} prepared Session references, {deletePlacementDependencies.independentPlacements} independent Scene placements, {deletePlacementDependencies.townPlacements} Town-derived Scene references, and {deletePlacementDependencies.visitReferences} Shop visits. End active visits and detach placements in Tabletop Operations; retained visit history is not deleted.</p> : null}
         <label className="shops-field"><span>Type the exact Shop name <strong>{deleteTargetName}</strong> to confirm</span><input autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label>
         <p className="shops-help">This cannot be undone. Production recovery protection must also permit permanent deletion.</p>
         <footer><button type="button" disabled={busy} onClick={() => { deleteDialogRef.current?.close(); setDeleteTargetName(""); setDeleteConfirmation(""); setDeletePlacementDependencies(null); }}>Cancel</button><button className="is-danger" type="button" disabled={busy || Boolean(detail?.townAssignment) || Boolean(deletePlacementDependencies?.blocking) || !deleteTargetName || deleteConfirmation !== deleteTargetName} onClick={() => void submitDelete()}>{busy ? "Deleting…" : "Permanently Delete Shop"}</button></footer>

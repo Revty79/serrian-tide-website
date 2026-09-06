@@ -734,6 +734,269 @@
   }
 }
 
+/* Participant Shop visits */
+.tabletop-shop-visits,
+.tabletop-shop-visit-detail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--st-secondary-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--st-secondary) 6%, var(--st-surface-deep));
+  padding: 13px;
+}
+
+.tabletop-shop-visits > header,
+.tabletop-shop-visit-detail > header,
+.tabletop-shop-offerings > header,
+.tabletop-shop-entry-dialog > section > header,
+.tabletop-shop-offerings article > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tabletop-shop-visits > header > div,
+.tabletop-shop-visit-detail > header > div:first-child {
+  min-width: 0;
+}
+
+.tabletop-shop-visits > header span,
+.tabletop-shop-visit-detail > header span,
+.tabletop-shop-entry-dialog header span,
+.tabletop-shop-entry-list article span,
+.tabletop-shop-visit-list article span,
+.tabletop-shop-offerings article header span,
+.tabletop-shop-visit-summary span {
+  display: block;
+  color: var(--st-primary-soft-text);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.tabletop-shop-visits > header p,
+.tabletop-shop-visit-detail > header p,
+.tabletop-shop-entry-dialog header p {
+  margin: 4px 0 0;
+  color: var(--st-muted);
+  font-size: .72rem;
+}
+
+.tabletop-shop-visits > header > strong {
+  color: var(--st-secondary-soft-text);
+}
+
+.tabletop-shop-entry-list,
+.tabletop-shop-visit-list,
+.tabletop-shop-visitors > div,
+.tabletop-shop-offerings > div {
+  display: grid;
+  gap: 8px;
+}
+
+.tabletop-shop-entry-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tabletop-shop-entry-list article,
+.tabletop-shop-visit-list article,
+.tabletop-shop-visitors article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--st-border);
+  border-radius: 9px;
+  background: var(--st-surface-soft);
+  padding: 9px;
+}
+
+.tabletop-shop-entry-list article > div,
+.tabletop-shop-visit-list article > div,
+.tabletop-shop-visitors article > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.tabletop-shop-entry-list small,
+.tabletop-shop-visit-list small,
+.tabletop-shop-visitors span,
+.tabletop-shop-public-staff span {
+  color: var(--st-muted);
+  font-size: .7rem;
+}
+
+.tabletop-shop-entry-dialog {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  overflow: auto;
+  place-items: center;
+  background: color-mix(in srgb, var(--st-page) 78%, transparent);
+  padding: 18px;
+  backdrop-filter: blur(7px);
+}
+
+.tabletop-shop-entry-dialog > section {
+  display: grid;
+  gap: 13px;
+  width: min(42rem, 100%);
+  border: 1px solid var(--st-border-strong);
+  border-radius: 15px;
+  background: var(--st-surface-raised);
+  padding: 18px;
+  box-shadow: 0 28px 90px var(--st-shadow);
+}
+
+.tabletop-shop-entry-dialog fieldset {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  border: 1px solid var(--st-border);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.tabletop-shop-entry-dialog legend,
+.tabletop-shop-visitors h5,
+.tabletop-shop-public-staff h5,
+.tabletop-shop-offerings h5 {
+  color: var(--st-secondary-soft-text);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.tabletop-shop-entry-dialog fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--st-muted);
+  font-size: .72rem;
+}
+
+.tabletop-shop-entry-dialog fieldset label span,
+.tabletop-shop-entry-dialog fieldset label strong {
+  display: block;
+}
+
+.tabletop-shop-entry-dialog fieldset label strong {
+  color: var(--st-text);
+}
+
+.tabletop-shop-entry-dialog > section > footer,
+.tabletop-shop-visit-detail > header > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tabletop-shop-visit-override {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--st-warning) 38%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--st-warning) 10%, transparent);
+  padding: 9px;
+  color: var(--st-warning);
+  font-size: .74rem;
+}
+
+.tabletop-shop-visit-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tabletop-shop-visit-summary > div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--st-border);
+  border-radius: 9px;
+  background: var(--st-surface-soft);
+  padding: 9px;
+}
+
+.tabletop-shop-public-staff ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tabletop-shop-public-staff li,
+.tabletop-shop-offerings article {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--st-border);
+  border-radius: 9px;
+  background: var(--st-surface-soft);
+  padding: 10px;
+}
+
+.tabletop-shop-offerings > header > div:last-child {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(10rem, .7fr);
+  gap: 8px;
+  width: min(34rem, 100%);
+}
+
+.tabletop-shop-offerings article h6 {
+  margin: 2px 0 0;
+  color: var(--st-text);
+  font-size: .9rem;
+}
+
+.tabletop-shop-offerings article > p {
+  margin: 0;
+  color: var(--st-text-soft);
+  font-size: .74rem;
+}
+
+.tabletop-shop-offerings article > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--st-muted);
+  font-size: .68rem;
+}
+
+@media(max-width:700px) {
+  .tabletop-shop-entry-list,
+  .tabletop-shop-visit-summary,
+  .tabletop-shop-public-staff ul,
+  .tabletop-shop-offerings > header > div:last-child {
+    grid-template-columns: 1fr;
+  }
+
+  .tabletop-shop-visits > header,
+  .tabletop-shop-visit-detail > header,
+  .tabletop-shop-offerings > header,
+  .tabletop-shop-entry-dialog > section > header,
+  .tabletop-shop-offerings article > header,
+  .tabletop-shop-entry-list article,
+  .tabletop-shop-visit-list article,
+  .tabletop-shop-visitors article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tabletop-shop-entry-list button,
+  .tabletop-shop-visit-list button,
+  .tabletop-shop-visitors button {
+    width: 100%;
+  }
+}
+
 .tabletop-player-rulings { margin-bottom: 16px; }
 .tabletop-player-ruling-list { display: grid; gap: 10px; }
 .tabletop-player-ruling-list > article { display: grid; gap: 8px; border: 1px solid color-mix(in srgb, var(--st-secondary) 22%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--st-surface) 46%, transparent); padding: 12px; }

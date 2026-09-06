@@ -85,10 +85,14 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "campaign_session_roll", columnName: "recorded_by_user_id", constraintName: "campaign_session_roll_recorded_by_fk", onDelete: "restrict", disposition: "block", label: "Recorded Rolls" },
   { tableName: "campaign_session_roll", columnName: "voided_by_user_id", constraintName: "campaign_session_roll_voided_by_fk", onDelete: "restrict", disposition: "block", label: "Voided Roll attribution" },
   { tableName: "campaign_session_roll_amendment", columnName: "created_by_user_id", constraintName: "campaign_session_roll_amendment_created_by_fk", onDelete: "restrict", disposition: "block", label: "Roll amendments" },
+  { tableName: "campaign_session_scene_shop_visit", columnName: "started_by_user_id", constraintName: "campaign_session_scene_shop_visit_started_by_fk", onDelete: "restrict", disposition: "block", label: "Started Shop visits" },
+  { tableName: "campaign_session_scene_shop_visit", columnName: "ended_by_user_id", constraintName: "campaign_session_scene_shop_visit_ended_by_fk", onDelete: "restrict", disposition: "block", label: "Ended Shop visits" },
+  { tableName: "campaign_session_scene_shop_visit_member", columnName: "entered_by_user_id", constraintName: "campaign_session_scene_shop_visit_member_entered_by_fk", onDelete: "restrict", disposition: "block", label: "Shop visitor entry attribution" },
+  { tableName: "campaign_session_scene_shop_visit_member", columnName: "exited_by_user_id", constraintName: "campaign_session_scene_shop_visit_member_exited_by_fk", onDelete: "restrict", disposition: "block", label: "Shop visitor exit attribution" },
   { tableName: "defense_skill_path_mapping", columnName: "updated_by_user_id", constraintName: "defense_skill_path_mapping_updated_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Defense Skill governance attribution" },
   { tableName: "chat_message", columnName: "author_user_id", constraintName: "chat_message_author_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Authored Chat messages" },
   { tableName: "chat_message", columnName: "deleted_by_user_id", constraintName: "chat_message_deleted_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Chat moderation attribution" },
   { tableName: "chat_room_member", columnName: "user_id", constraintName: "chat_room_member_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Chat room memberships" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 71;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 75;

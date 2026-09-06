@@ -21,6 +21,18 @@ When a component needs another reusable appearance role, add a derived semantic 
 
 A scoped theme owner supplies the base variables returned by `getAppearanceCssVariables` and carries `data-appearance-theme-scope`. The shared derivation rule then recomputes every dependent surface, text, border, gradient, hover, focus, and selection token within that element. Never override only the base variables on an ordinary descendant because inherited derived values would still belong to the outer theme.
 
+## Shared form controls
+
+Builder, placement, and live-operation interfaces use the small shared pattern in `globals.css`:
+
+- `.st-field` owns label layout and label typography.
+- `.st-control` owns native input, select, and textarea sizing, padding, radius, border, semantic input background, foreground, focus, and disabled treatment.
+- `.st-button` owns the matching action geometry. Add `.is-primary`, `.is-secondary`, or `.is-danger` for the action's actual role.
+
+Apply the class to the native control or button itself; do not rely on a distant page wrapper matching one particular DOM shape. Keep labels associated with their native controls, and retain native keyboard behavior. Dialogs and overlays use the same classes rather than establishing another palette.
+
+Native select popups are partly browser-owned. The shared `select`, `option`, and `optgroup` rule declares the dark color scheme plus `--st-input` and `--st-text`, which prevents bright option menus in supporting browsers while leaving the native arrow and accessibility behavior intact. Page CSS may control layout and width but must not replace these appearance roles. Validate computed select and option colors under the saved appearance and at least one scoped alternate preset when changing this pattern.
+
 ## Intentional exceptions
 
 `--st-health`, `--st-mana`, `--st-success`, `--st-warning`, `--st-danger`, and `--st-info` remain stable semantic signals rather than administrator-adjustable brand colors. Their tinted backgrounds and borders must still be derived with `color-mix`. Dedicated print/export rules remain fixed black, gray, and white for legible physical output and are excluded from screen-theme conversion.

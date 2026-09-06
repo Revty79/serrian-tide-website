@@ -16,6 +16,8 @@ import {
   readPlayerTabletopRuntime,
 } from "@/features/tabletop-operations/player-tabletop-console-service";
 import { requirePlayer } from "@/lib/server-access";
+import { readPlayerShopVisitInTransaction } from "@/features/tabletop-operations/shop-visit-service";
+import { db } from "@/db";
 
 import { PlayerTabletopWorkspace } from "./player-tabletop-workspace";
 import styles from "./player-tabletop.module.css";
@@ -32,7 +34,7 @@ export default async function PlayerTabletopPage({
 }: {
   searchParams: Promise<{ character?: string | string[] }>;
 }) {
-  await requirePlayer().catch(() => redirect("/access"));
+  const access = await requirePlayer().catch(() => redirect("/access"));
   const characters = await listPlayerTabletopCharacters();
   const query = await searchParams;
   const selection = resolvePlayerTabletopSelection(characters, selectedId(query.character));
@@ -66,9 +68,10 @@ export default async function PlayerTabletopPage({
   }
 
   const characterId = selection.character.characterId;
-  const [aggregate, runtime] = await Promise.all([
+  const [aggregate, runtime, shopVisit] = await Promise.all([
     getCharacter(characterId, false),
     readPlayerTabletopRuntime(characterId),
+    db.transaction((tx) => readPlayerShopVisitInTransaction(tx, characterId, access.user.id)),
   ]);
   const presence = resolvePlayerTabletopPresence({
     hasActiveSession: runtime.hierarchy.session !== null,
@@ -110,5 +113,5 @@ export default async function PlayerTabletopPage({
     combat: runtime.combat,
   };
 
-  return <PlayerTabletopWorkspace characters={characters} view={view} />;
+  return <PlayerTabletopWorkspace characters={characters} view={view} shopVisit={shopVisit} />;
 }

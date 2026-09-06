@@ -53,6 +53,10 @@ import {
 } from "@/lib/server-access";
 import { expireSceneDurationsInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
+import {
+  assertNoActiveShopMembershipInTransaction,
+  endActiveShopVisitsForSceneInTransaction,
+} from "@/features/tabletop-operations/shop-visit-service";
 
 import {
   getSessionPrepWorkspace,
@@ -468,6 +472,9 @@ async function applySceneLifecycleTransition(
           ));
         assertNoOtherActiveScene(activeRows.map(({ id }) => id), sceneId);
       }
+      if (transition === "complete") {
+        await endActiveShopVisitsForSceneInTransaction(tx, sceneId, actor.userId);
+      }
       const [row] = await tx
         .update(campaignSessionScene)
         .set({ ...next, updatedAt: new Date() })
@@ -662,6 +669,7 @@ export async function removeCampaignSessionSceneMember(
     if (locationUse) {
       throw new Error("This NPC is included by a Town placement. Exclude or detach that Town content before removing the Scene member.");
     }
+    await assertNoActiveShopMembershipInTransaction(tx, characterId);
     const removed = await tx
       .delete(campaignSessionSceneMember)
       .where(and(

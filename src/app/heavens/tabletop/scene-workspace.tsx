@@ -20,6 +20,7 @@ import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operatio
 import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/location-placement-service";
+import type { GodShopVisitWorkspace } from "@/features/tabletop-operations/shop-visit-service";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
 import type { EncounterWorkspaceData } from "./encounter-actions";
@@ -148,6 +149,7 @@ function SceneMemberCard({
 export function SceneWorkspace({
   initialData,
   initialLocationData,
+  initialShopVisitData,
   initialEncounterData,
   initialInitiativeTracker,
   initialCombatAid,
@@ -164,6 +166,7 @@ export function SceneWorkspace({
 }: {
   initialData: SceneWorkspaceData;
   initialLocationData: LocationPlacementWorkspace | null;
+  initialShopVisitData: GodShopVisitWorkspace | null;
   initialEncounterData: EncounterWorkspaceData | null;
   initialInitiativeTracker: InitiativeTrackerReadModel | null;
   initialCombatAid: CombatAidEncounterView | null;
@@ -446,7 +449,7 @@ export function SceneWorkspace({
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}
       </section>
     </div>
-    {initialLocationData ? <SceneLocationWorkspace data={initialLocationData} canOperate={initialData.canOperate} /> : null}
+    {initialLocationData ? <SceneLocationWorkspace data={initialLocationData} visits={initialShopVisitData} canOperate={initialData.canOperate} /> : null}
     {selectedScene ? <LifecycleConfirmationDialog
       open={initialData.canOperate && transitionMode !== null}
       titleId="transition-tabletop-scene-title"

@@ -29,6 +29,8 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_character_skill_allocation", scope: "character" },
   { tableName: "campaign_creature_npc_profile", scope: "character" },
   { tableName: "campaign_derived_currency", scope: "campaign" },
+  { tableName: "campaign_session_scene_shop_visit_member", scope: "campaign" },
+  { tableName: "campaign_session_scene_shop_visit", scope: "campaign" },
   { tableName: "campaign_session_scene_town_npc", scope: "campaign" },
   { tableName: "campaign_session_scene_town_place", scope: "campaign" },
   { tableName: "campaign_session_scene_town_shop", scope: "campaign" },
