@@ -178,6 +178,21 @@ async function main(): Promise<void> {
     const townCard = godPage.getByRole("link", { name: /TOWN BUILDER/ });
     await townCard.waitFor();
     assert.equal(await townCard.getAttribute("href"), "/heavens/towns");
+    const creationLibrary = godPage.locator("section.mt-10");
+    const libraryCards = creationLibrary.locator('a[href^="/heavens/"]');
+    const npcCard = creationLibrary.locator('a[href="/heavens/npcs"]');
+    const townCardBox = await townCard.boundingBox();
+    const npcCardBox = await npcCard.boundingBox();
+    assert.equal(await libraryCards.last().getAttribute("href"), "/heavens/npcs", "NPCs is not the final Heavens library card.");
+    assert.ok(townCardBox && npcCardBox && npcCardBox.width > townCardBox.width * 1.8, "The final NPC card does not span the desktop library grid.");
+    await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
+    await creationLibrary.screenshot({ path: join(SCREENSHOT_DIRECTORY, "heavens-library-desktop.png") });
+    await godPage.setViewportSize({ width: 390, height: 900 });
+    const narrowNpcBox = await npcCard.boundingBox();
+    const narrowTownBox = await townCard.boundingBox();
+    assert.ok(narrowNpcBox && narrowTownBox && Math.abs(narrowNpcBox.width - narrowTownBox.width) <= 2, "Narrow library cards do not share one balanced column.");
+    await creationLibrary.screenshot({ path: join(SCREENSHOT_DIRECTORY, "heavens-library-narrow.png") });
+    await godPage.setViewportSize({ width: 1365, height: 760 });
 
     await godPage.goto(`${baseUrl}/heavens/towns?campaign=${fixture.campaignId}&town=${fixture.townId}`);
     await godPage.getByRole("heading", { name: "Campaign Towns" }).waitFor();

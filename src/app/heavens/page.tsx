@@ -44,12 +44,6 @@ const coreTools = [
     href: "/heavens/creatures",
   },
   {
-    title: "NPCS",
-    subtitle: "Characters",
-    description: "Create Race NPCs and independent Creature NPC individuals inside Campaigns.",
-    href: "/heavens/npcs",
-  },
-  {
     title: "SHOP BUILDER",
     subtitle: "Campaign Commerce",
     description: "Create Campaign Shops, assign persistent NPC staff, and curate authorized Equipment and Inventory offerings.",
@@ -60,6 +54,13 @@ const coreTools = [
     subtitle: "Campaign Places",
     description: "Organize Campaign Shops, persistent NPCs, and descriptive Places into living Town references.",
     href: "/heavens/towns",
+  },
+  {
+    title: "NPCS",
+    subtitle: "Characters",
+    description: "Create Race NPCs and independent Creature NPC individuals inside Campaigns.",
+    href: "/heavens/npcs",
+    wide: true,
   },
 ];
 
