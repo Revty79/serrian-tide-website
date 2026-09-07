@@ -43,7 +43,6 @@ const HIDDEN_RUNNER_SECONDARY_SUMMARIES = [
   "All firearm attack history",
   "Advanced declaration, eligibility, and defense controls",
   "Full combat reference and manual operations",
-  "All readable declarations, Rolls, and consequences",
 ] as const;
 
 export function BattleGuide({
@@ -253,10 +252,13 @@ export function BattleMainColumn({ children }: { children: ReactNode }) {
 
 export function BattleSecondary({ summary, children, open = false }: { summary: string; children: ReactNode; open?: boolean }) {
   if (HIDDEN_RUNNER_SECONDARY_SUMMARIES.some((hidden) => summary.startsWith(hidden))) return null;
-  const displaySummary = summary.startsWith("Completed combat history")
-    ? summary.replace("Completed combat history", "Combat history")
-    : summary;
-  return <details className={styles.secondary} open={open}>
+  const isRollPanel = summary.startsWith("All readable declarations, Rolls, and consequences");
+  const displaySummary = isRollPanel
+    ? "Rolls & results"
+    : summary.startsWith("Completed combat history")
+      ? summary.replace("Completed combat history", "Combat history")
+      : summary;
+  return <details className={styles.secondary} open={open || isRollPanel}>
     <summary>{displaySummary}</summary>
     <div>{children}</div>
   </details>;
