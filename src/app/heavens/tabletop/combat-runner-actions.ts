@@ -31,3 +31,15 @@ export async function continueGodCombatRunner(encounterId: number, input: {
   }
   return result;
 }
+
+export async function submitGodCombatDecision(encounterId: number, input: import("@/features/tabletop-operations/combat-runner-decision").CombatRunnerSubmission) {
+  const access = await requireGod();
+  const { submitCombatRunnerDecisionInTransaction } = await import("@/features/tabletop-operations/combat-runner-decision-service");
+  const result = await db.transaction(async (tx) => {
+    const context = await lockOwnedEncounterRuntimeInTransaction(tx, encounterId, access.user.id);
+    return submitCombatRunnerDecisionInTransaction(tx, context, { authority: "god-owner", userId: access.user.id }, input);
+  });
+  revalidatePath("/heavens/tabletop");
+  revalidatePath("/realms/tabletop");
+  return result;
+}

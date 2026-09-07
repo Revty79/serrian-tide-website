@@ -24,3 +24,16 @@ export async function getPlayerCombatRunner(encounterId: number, characterId: nu
     } };
   });
 }
+
+export async function submitPlayerCombatDecision(encounterId: number, characterId: number, input: import("@/features/tabletop-operations/combat-runner-decision").CombatRunnerSubmission) {
+  const access = await requirePlayer();
+  const { submitCombatRunnerDecisionInTransaction } = await import("@/features/tabletop-operations/combat-runner-decision-service");
+  const { revalidatePath } = await import("next/cache");
+  const result = await db.transaction(async (tx) => {
+    const context = await lockPlayerCombatContextInTransaction(tx, encounterId, characterId, access.user.id);
+    return submitCombatRunnerDecisionInTransaction(tx, context, { authority: "player", userId: access.user.id, characterId }, input);
+  });
+  revalidatePath("/heavens/tabletop");
+  revalidatePath("/realms/tabletop");
+  return result;
+}
