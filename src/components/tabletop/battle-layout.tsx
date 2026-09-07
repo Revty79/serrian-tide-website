@@ -36,6 +36,16 @@ export type BattleActivityEntry = Readonly<{
   attention?: string | null;
 }>;
 
+const PRIMARY_BATTLE_COMMAND_KEYS = new Set(["attack", "cast", "defend"]);
+const HIDDEN_RUNNER_SECONDARY_SUMMARIES = [
+  "Initiative controls and shared timeline",
+  "All consequence plans",
+  "All firearm attack history",
+  "Advanced declaration, eligibility, and defense controls",
+  "Full combat reference and manual operations",
+  "All readable declarations, Rolls, and consequences",
+] as const;
+
 export function BattleGuide({
   eyebrow,
   title,
@@ -168,7 +178,10 @@ export function BattleCommands<TCommand extends string>({
   selected: TCommand;
   onSelect: (command: TCommand) => void;
 }) {
-  return <nav className={styles.commands} aria-label="Battle commands">{commands.map((command) => <button
+  const primary = commands.filter((command) => PRIMARY_BATTLE_COMMAND_KEYS.has(command.key));
+  const more = commands.filter((command) => !PRIMARY_BATTLE_COMMAND_KEYS.has(command.key));
+  const selectedIsMore = more.some((command) => command.key === selected);
+  const button = (command: BattleCommandEntry<TCommand>) => <button
     type="button"
     key={command.key}
     className={`st-button${command.key === selected ? ` ${styles.selectedCommand}` : ""}`}
@@ -176,7 +189,15 @@ export function BattleCommands<TCommand extends string>({
     disabled={command.disabled}
     title={command.disabled ? command.disabledReason : undefined}
     onClick={() => onSelect(command.key)}
-  ><span>{command.label}</span>{command.badge ? <b>{command.badge}</b> : null}</button>)}</nav>;
+  ><span>{command.label}</span>{command.badge ? <b>{command.badge}</b> : null}</button>;
+
+  return <nav className={styles.commands} aria-label="Battle commands">
+    <div className={styles.primaryCommands}>{primary.map(button)}</div>
+    {more.length ? <details className={styles.moreCommands} open={selectedIsMore}>
+      <summary>More actions</summary>
+      <div>{more.map(button)}</div>
+    </details> : null}
+  </nav>;
 }
 
 export function BattleStage({
@@ -231,8 +252,12 @@ export function BattleMainColumn({ children }: { children: ReactNode }) {
 }
 
 export function BattleSecondary({ summary, children, open = false }: { summary: string; children: ReactNode; open?: boolean }) {
+  if (HIDDEN_RUNNER_SECONDARY_SUMMARIES.some((hidden) => summary.startsWith(hidden))) return null;
+  const displaySummary = summary.startsWith("Completed combat history")
+    ? summary.replace("Completed combat history", "Combat history")
+    : summary;
   return <details className={styles.secondary} open={open}>
-    <summary>{summary}</summary>
+    <summary>{displaySummary}</summary>
     <div>{children}</div>
   </details>;
 }
