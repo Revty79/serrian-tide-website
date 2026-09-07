@@ -40,5 +40,6 @@ test("ordinary attacks, movement, and called locations stay on the existing decl
   assert.match(effects, /Firearm consequences must be generated through the dedicated per-bullet firearm runtime/);
   assert.match(effects, /isDedicatedFirearmDeclaration\(locked\)/);
   assert.match(declarations, /Authored target location/);
-  assert.match(declarations, /Exact authored Creature Attack/);
+  assert.match(declarations, /Attack with/);
+  assert.match(declarations, /<span>Creature Attack<\/span>/);
 });
