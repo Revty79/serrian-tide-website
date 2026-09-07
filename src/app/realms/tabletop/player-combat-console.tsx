@@ -1,175 +1,78 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition, type ComponentProps } from "react";
+import type { ComponentProps } from "react";
 
-import type { PlayerCombatConsoleData } from "@/features/tabletop-operations/player-tabletop-console-service";
-import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
+import { PlayerCalledCheckPanel } from "@/app/realms/characters/[characterId]/player-called-check-panel";
+import { CombatRollPanel, type CombatRollInput, type CombatRollRecorded } from "@/components/tabletop/combat-roll-panel";
+import { buildCombatRollPrompts, buildFirearmRollPrompts, type CombatRollPrompt } from "@/features/tabletop-operations/combat-roll-prompts";
 
+import { recordPlayerTabletopFreeRoll } from "./actions";
 import {
   commitPlayerFirearmTrigger,
   firePlayerFirearmAttack,
   rollPlayerDeclaredAttack,
   rollPlayerDeclaredResponse,
 } from "./player-combat-actions";
-import {
-  PlayerCombatConsole as CorePlayerCombatConsole,
-} from "./player-combat-console-core";
-import styles from "./player-tabletop.module.css";
+import { PlayerCombatConsole as CorePlayerCombatConsole } from "./player-combat-console-core";
 
 export { PlayerCombatIntentButton } from "./player-combat-console-core";
 
-type PlayerCombatConsoleProps = ComponentProps<typeof CorePlayerCombatConsole>;
+type PlayerCombatConsoleProps = ComponentProps<typeof CorePlayerCombatConsole> & {
+  rolls?: readonly { id: number; effectiveResultTotal: number }[];
+  calledChecks?: ComponentProps<typeof PlayerCalledCheckPanel>["view"] | null;
+};
 
-type PriorityRollKind = "defense" | "attack" | "firearm-trigger" | "firearm-roll" | "firearm-finish";
-
-function titleCase(value: string): string {
-  return value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+function submissionKey(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function PriorityRollPanel({ characterId, combat }: { characterId: number; combat: PlayerCombatConsoleData }) {
-  const router = useRouter();
-  const [busy, startTransition] = useTransition();
-  const [entered, setEntered] = useState("");
-  const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+export function PlayerCombatConsole({ calledChecks, rolls, ...props }: PlayerCombatConsoleProps) {
+  const { characterId, combat } = props;
+  const controlledIds = [characterId];
+  const prompts: CombatRollPrompt[] = [
+    ...buildCombatRollPrompts({
+      declarations: combat.declarations.declarations,
+      reactions: combat.defenses.reactions,
+      controlledParticipantIds: controlledIds,
+      allowManualTarget: false,
+    }),
+    ...buildFirearmRollPrompts(combat.firearmAttacks.attacks, controlledIds),
+    {
+      key: "free", kind: "free", recordId: 0, label: "Other d100 — not an action", ready: true,
+      detail: "This is a general Roll, not an attack or defense. To resolve combat, select the named action above. If none is listed, declare your action or defense in combat first.",
+    },
+  ];
 
-  const pendingDefense = combat.defenses.reactions.find((reaction) => (
-    reaction.responderCharacterId === characterId
-    && reaction.rollRequired
-    && reaction.rollId === null
-    && reaction.status === "declared"
-  )) ?? null;
-
-  const pendingAttack = combat.declarations.declarations.find((declaration) => (
-    declaration.actorCharacterId === characterId
-    && declaration.status === "rolling-ready"
-    && declaration.rollState.attackRollId === null
-    && declaration.lockedSnapshot?.authoredSource?.resolutionMode !== "automatic-no-roll"
-    && !declaration.draft.actionKind.startsWith("firearm-")
-  )) ?? null;
-
-  const pendingFirearm = combat.firearmAttacks.attacks.find((attack) => {
-    const declaration = combat.declarations.declarations.find(({ id }) => id === attack.triggerDeclarationId);
-    if (declaration?.actorCharacterId !== characterId) return false;
-    if (attack.effectiveStatus === "trigger-ready") return true;
-    return attack.status === "committed"
-      && attack.triggerTimingStatus === "completed"
-      && attack.responderOpportunities.every(({ status }) => status !== "pending");
-  }) ?? null;
-
-  let kind: PriorityRollKind | null = null;
-  if (pendingDefense) kind = "defense";
-  else if (pendingAttack) kind = "attack";
-  else if (pendingFirearm?.effectiveStatus === "trigger-ready") kind = "firearm-trigger";
-  else if (pendingFirearm?.attackRollId === null) kind = pendingFirearm ? "firearm-roll" : null;
-  else if (pendingFirearm) kind = "firearm-finish";
-
-  if (!kind) return null;
-
-  const run = (action: () => Promise<unknown>, success: string) => {
-    setMessage(null);
-    startTransition(() => {
-      void action().then(() => {
-        setEntered("");
-        setMessage({ error: false, text: success });
-        router.refresh();
-      }).catch((error: unknown) => {
-        setMessage({ error: true, text: error instanceof Error ? error.message : "The combat Roll could not be completed." });
-      });
+  async function submit(prompt: CombatRollPrompt, input: CombatRollInput): Promise<CombatRollRecorded> {
+    const encounterId = combat.context.encounterId;
+    const roll = { method: input.method, enteredTotal: input.enteredTotal };
+    if (prompt.kind === "attack") {
+      const rollId = await rollPlayerDeclaredAttack(characterId, encounterId, prompt.recordId, roll);
+      return { rollId, text: `${prompt.label}: attack Roll recorded for this action. Required defenses are compared when ready.` };
+    }
+    if (prompt.kind === "defense") {
+      const rollId = await rollPlayerDeclaredResponse(characterId, encounterId, prompt.recordId, roll);
+      return { rollId, text: `${prompt.label}: defense Roll recorded for this attack.` };
+    }
+    if (prompt.kind === "firearm-trigger") {
+      await commitPlayerFirearmTrigger(characterId, encounterId, prompt.recordId);
+      return { text: `${prompt.label}: trigger pull committed. Continue the shot's Initiative timing.` };
+    }
+    if (prompt.kind === "firearm-roll" || prompt.kind === "firearm-finish") {
+      const rollId = await firePlayerFirearmAttack(characterId, encounterId, prompt.recordId, roll);
+      return { rollId, text: `${prompt.label}: firearm result recorded using its own combat resolution.` };
+    }
+    const result = await recordPlayerTabletopFreeRoll(characterId, {
+      ...roll, visibility: "table", label: "General combat d100", idempotencyKey: submissionKey(),
     });
-  };
+    return { resultTotal: result.resultTotal, text: "General d100 recorded. This Roll is not attached to an action." };
+  }
 
-  const enteredTotal = () => {
-    try {
-      return parsePhysicalPercentileInput(entered);
-    } catch (error) {
-      setMessage({ error: true, text: error instanceof Error ? error.message : "Enter a valid percentile Roll." });
-      return null;
-    }
-  };
-
-  const defenseLabel = pendingDefense ? titleCase(pendingDefense.reactionType) : "Defense";
-  const attackLabel = pendingAttack?.lockedSnapshot?.label ?? pendingAttack?.draft.label ?? "Attack";
-  const firearmLabel = pendingFirearm?.itemName ?? "Firearm";
-  const title = kind === "defense"
-    ? `Roll ${defenseLabel}`
-    : kind === "attack"
-      ? `Roll ${attackLabel}`
-      : kind === "firearm-trigger"
-        ? `Pull the trigger — ${firearmLabel}`
-        : kind === "firearm-roll"
-          ? `Roll ${firearmLabel}`
-          : `Finish firing — ${firearmLabel}`;
-  const detail = kind === "defense"
-    ? "Your defense is declared. Make this Roll now so the attack can resolve."
-    : kind === "attack"
-      ? "Your action is ready to resolve. Make the attack Roll now."
-      : kind === "firearm-trigger"
-        ? "The firearm is ready and the attack is committed. Pull the trigger to continue."
-        : kind === "firearm-roll"
-          ? "The trigger timing and response window are complete. Make the firearm Roll now."
-          : "The Roll is recorded. Finish firing so ammunition and the attack result can resolve.";
-
-  const rollRandom = () => {
-    if (kind === "defense" && pendingDefense) {
-      run(() => rollPlayerDeclaredResponse(characterId, combat.context.encounterId, pendingDefense.id, { method: "random" }), "Defense Roll recorded.");
-      return;
-    }
-    if (kind === "attack" && pendingAttack) {
-      run(() => rollPlayerDeclaredAttack(characterId, combat.context.encounterId, pendingAttack.id, { method: "random" }), "Attack Roll recorded.");
-      return;
-    }
-    if (kind === "firearm-roll" && pendingFirearm) {
-      run(() => firePlayerFirearmAttack(characterId, combat.context.encounterId, pendingFirearm.id, { method: "random" }), "Firearm Roll recorded.");
-    }
-  };
-
-  const rollEntered = () => {
-    const total = enteredTotal();
-    if (total === null) return;
-    if (kind === "defense" && pendingDefense) {
-      run(() => rollPlayerDeclaredResponse(characterId, combat.context.encounterId, pendingDefense.id, { method: "entered", enteredTotal: total }), "Physical defense Roll recorded.");
-      return;
-    }
-    if (kind === "attack" && pendingAttack) {
-      run(() => rollPlayerDeclaredAttack(characterId, combat.context.encounterId, pendingAttack.id, { method: "entered", enteredTotal: total }), "Physical attack Roll recorded.");
-      return;
-    }
-    if (kind === "firearm-roll" && pendingFirearm) {
-      run(() => firePlayerFirearmAttack(characterId, combat.context.encounterId, pendingFirearm.id, { method: "entered", enteredTotal: total }), "Physical firearm Roll recorded.");
-    }
-  };
-
-  return <section className={styles.combatPriority} aria-labelledby="player-priority-roll-title">
-    <p className={styles.eyebrow}>ROLL NOW</p>
-    <h2 id="player-priority-roll-title">{title}</h2>
-    <p>{detail}</p>
-    {kind === "firearm-trigger" && pendingFirearm ? <div className={styles.actionRow}>
-      <button className="st-button is-primary" type="button" disabled={busy} onClick={() => run(() => commitPlayerFirearmTrigger(characterId, combat.context.encounterId, pendingFirearm.id), "Trigger pull committed.")}>Pull trigger</button>
-    </div> : null}
-    {kind === "firearm-finish" && pendingFirearm ? <div className={styles.actionRow}>
-      <button className="st-button is-primary" type="button" disabled={busy} onClick={() => run(() => firePlayerFirearmAttack(characterId, combat.context.encounterId, pendingFirearm.id, { method: "random" }), "Firing completed from the recorded Roll.")}>Finish firing</button>
-    </div> : null}
-    {kind === "defense" || kind === "attack" || kind === "firearm-roll" ? <div className={styles.actionRow}>
-      <input
-        className="st-control"
-        aria-label={kind === "defense" ? "Physical defense Roll" : kind === "firearm-roll" ? "Physical firearm Roll" : "Physical attack Roll"}
-        inputMode="numeric"
-        pattern="[0-9]{1,3}"
-        placeholder="01-99 or 00"
-        value={entered}
-        onChange={(event) => setEntered(event.target.value)}
-      />
-      <button className="st-button is-primary" type="button" disabled={busy} onClick={rollRandom}>Website Roll</button>
-      <button className="st-button is-secondary" type="button" disabled={busy || !entered.trim()} onClick={rollEntered}>Enter physical Roll</button>
-    </div> : null}
-    {message ? <p className={message.error ? styles.error : styles.notice} role={message.error ? "alert" : "status"}>{message.text}</p> : null}
-  </section>;
-}
-
-export function PlayerCombatConsole(props: PlayerCombatConsoleProps) {
   return <>
-    <PriorityRollPanel characterId={props.characterId} combat={props.combat} />
+    <CombatRollPanel rolls={rolls} prompts={prompts} onSubmit={submit} emptyMessage="Choose an action or defense below to prepare a combat Roll." />
+    {calledChecks ? <PlayerCalledCheckPanel view={calledChecks} /> : null}
     <CorePlayerCombatConsole {...props} />
   </>;
 }

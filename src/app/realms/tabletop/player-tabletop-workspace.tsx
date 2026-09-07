@@ -107,6 +107,8 @@ export function PlayerTabletopWorkspace({
           encounterTitle={view.encounter?.title ?? "Active Encounter"}
           returnHref={referenceHref}
           combat={view.combat}
+          calledChecks={view.calledChecks}
+          rolls={view.rolls}
           items={view.items}
           spells={view.spells}
           abilities={view.derivedAbilities}

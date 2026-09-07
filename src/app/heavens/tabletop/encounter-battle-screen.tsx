@@ -44,6 +44,7 @@ import { CombatAidWorkspace } from "./combat-aid-workspace";
 import { DefenseInterventionWorkspace } from "./defense-intervention-workspace";
 import { FirearmAttackWorkspace } from "./firearm-attack-workspace";
 import { FirearmReadinessWorkspace } from "./firearm-readiness-workspace";
+import { GodCombatRolls } from "./god-combat-rolls";
 import { InitiativeTracker } from "./initiative-tracker";
 import { PlayerCombatRulingWorkspace } from "./player-combat-ruling-workspace";
 import {
@@ -405,6 +406,16 @@ export function EncounterBattleScreen({
       actions={<><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
     />
 
+    <GodCombatRolls
+      encounterId={initiative.encounter.id}
+      selectedCombatantId={selectedCombatant?.characterId ?? null}
+      declarations={declarations}
+      defenses={defenses}
+      firearms={firearmAttacks}
+      workspace={rollWorkspace}
+      runtimeClosed={initiative.runtime?.runtime.status === "closed"}
+    />
+
     {!closedUnfinishedDeclarations.length ? <p className="tabletop-feedback">{initiative.nextEvent?.detail ?? (initiative.canAdvanceRound ? "The current Round is complete and may advance." : "Waiting for Initiative or unfinished combat actions.")}</p> : null}
 
     <CombatRecoveryCard
@@ -458,7 +469,7 @@ export function EncounterBattleScreen({
         : selectedOwnedExchange.rollState.attackRollId === null && !selectedOwnedExchange.rollState.resolved ? <BattleGuide
           eyebrow="YOUR NEXT STEP"
           title={`Roll ${selectedOwnedExchange.lockedSnapshot?.label ?? selectedOwnedExchange.draft.label}`}
-          detail="The action has finished its Initiative timing. Use the Roll control below."
+          detail="The action has finished its Initiative timing. Use Combat rolls at the top of this screen."
           tone="ready"
         /> : selectedOwnedExchange.rollState.missingResponseRolls ? <BattleGuide
           eyebrow="WAITING FOR DEFENSE"
