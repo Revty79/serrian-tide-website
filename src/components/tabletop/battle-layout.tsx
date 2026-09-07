@@ -1,4 +1,10 @@
-import type { ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import styles from "./battle-layout.module.css";
 
@@ -36,6 +42,37 @@ export type BattleActivityEntry = Readonly<{
   attention?: string | null;
 }>;
 
+type PlayerRollCombatSnapshot = Readonly<{
+  declarations?: Readonly<{
+    declarations?: readonly Readonly<{
+      actorCharacterId: number;
+      status: string;
+      rollState: Readonly<{ attackRollId: number | null }>;
+      draft: Readonly<{ actionKind: string }>;
+      lockedSnapshot?: Readonly<{ authoredSource?: Readonly<{ resolutionMode?: string | null }> | null }> | null;
+    }>[];
+  }>;
+  defenses?: Readonly<{
+    reactions?: readonly Readonly<{
+      responderCharacterId: number;
+      status: string;
+      rollRequired: boolean;
+      rollId: number | null;
+    }>[];
+  }>;
+}>;
+
+type RollPanelChildProps = Readonly<{
+  characterId?: number;
+  combat?: PlayerRollCombatSnapshot;
+}>;
+
+type SecondaryProps = Readonly<{
+  summary: string;
+  children: ReactNode;
+  open?: boolean;
+}>;
+
 const PRIMARY_BATTLE_COMMAND_KEYS = new Set(["attack", "cast", "defend"]);
 const HIDDEN_RUNNER_SECONDARY_SUMMARIES = [
   "Initiative controls and shared timeline",
@@ -44,6 +81,32 @@ const HIDDEN_RUNNER_SECONDARY_SUMMARIES = [
   "Advanced declaration, eligibility, and defense controls",
   "Full combat reference and manual operations",
 ] as const;
+const PLAYER_ROLL_PANEL_SUMMARY = "All readable declarations, Rolls, and consequences";
+
+function playerRollReady(panel: ReactElement<SecondaryProps>): boolean {
+  const panelChildren = Children.toArray(panel.props.children);
+  for (const child of panelChildren) {
+    if (!isValidElement<RollPanelChildProps>(child)) continue;
+    const characterId = child.props.characterId;
+    const combat = child.props.combat;
+    if (typeof characterId !== "number" || !combat) continue;
+    const attackReady = combat.declarations?.declarations?.some((declaration) => (
+      declaration.actorCharacterId === characterId
+      && declaration.status === "rolling-ready"
+      && declaration.rollState.attackRollId === null
+      && declaration.lockedSnapshot?.authoredSource?.resolutionMode !== "automatic-no-roll"
+      && !declaration.draft.actionKind.startsWith("firearm-")
+    )) ?? false;
+    const defenseReady = combat.defenses?.reactions?.some((reaction) => (
+      reaction.responderCharacterId === characterId
+      && reaction.status === "declared"
+      && reaction.rollRequired
+      && reaction.rollId === null
+    )) ?? false;
+    if (attackReady || defenseReady) return true;
+  }
+  return false;
+}
 
 export function BattleGuide({
   eyebrow,
@@ -71,7 +134,30 @@ export function BattleShell({
   labelledBy: string;
   children: ReactNode;
 }) {
-  return <section className={styles.shell} aria-labelledby={labelledBy}>{children}</section>;
+  const childList = Children.toArray(children);
+  const rollPanelIndex = childList.findIndex((child) => (
+    isValidElement<SecondaryProps>(child)
+    && child.type === BattleSecondary
+    && child.props.summary.startsWith(PLAYER_ROLL_PANEL_SUMMARY)
+  ));
+  if (rollPanelIndex < 0) return <section className={styles.shell} aria-labelledby={labelledBy}>{children}</section>;
+
+  const rollPanel = childList[rollPanelIndex] as ReactElement<SecondaryProps>;
+  if (!playerRollReady(rollPanel)) return <section className={styles.shell} aria-labelledby={labelledBy}>{children}</section>;
+
+  const promotedRollPanel = cloneElement(rollPanel, {
+    summary: "ROLL NOW — action or defense",
+    open: true,
+  });
+  const withoutRollPanel = childList.filter((_, index) => index !== rollPanelIndex);
+  const headerIndex = withoutRollPanel.findIndex((child) => isValidElement(child) && child.type === BattleHeader);
+  const insertionIndex = headerIndex >= 0 ? headerIndex + 1 : 0;
+  const ordered = [
+    ...withoutRollPanel.slice(0, insertionIndex),
+    promotedRollPanel,
+    ...withoutRollPanel.slice(insertionIndex),
+  ];
+  return <section className={styles.shell} aria-labelledby={labelledBy}>{ordered}</section>;
 }
 
 export function BattleHeader({
@@ -250,15 +336,15 @@ export function BattleMainColumn({ children }: { children: ReactNode }) {
   return <div className={styles.mainColumn}>{children}</div>;
 }
 
-export function BattleSecondary({ summary, children, open = false }: { summary: string; children: ReactNode; open?: boolean }) {
+export function BattleSecondary({ summary, children, open = false }: SecondaryProps) {
   if (HIDDEN_RUNNER_SECONDARY_SUMMARIES.some((hidden) => summary.startsWith(hidden))) return null;
-  const isRollPanel = summary.startsWith("All readable declarations, Rolls, and consequences");
+  const isRollPanel = summary.startsWith(PLAYER_ROLL_PANEL_SUMMARY);
   const displaySummary = isRollPanel
     ? "Rolls & results"
     : summary.startsWith("Completed combat history")
       ? summary.replace("Completed combat history", "Combat history")
       : summary;
-  return <details className={styles.secondary} open={open || isRollPanel}>
+  return <details className={styles.secondary} open={open}>
     <summary>{displaySummary}</summary>
     <div>{children}</div>
   </details>;
