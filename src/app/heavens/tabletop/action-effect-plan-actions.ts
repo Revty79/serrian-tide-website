@@ -21,6 +21,7 @@ import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-op
 import { requireGod } from "@/lib/server-access";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type RoutineActionResult = "applied" | "partially-applied" | "application-failed" | "needs-ruling";
 
 function positiveId(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
@@ -82,8 +83,8 @@ export async function generateActionEffectPlan(encounterId: number, declarationI
 export async function applyRoutineActionResult(
   encounterId: number,
   declarationId: number,
-): Promise<"applied" | "partially-applied" | "application-failed" | "needs-ruling"> {
-  return mutate(encounterId, async (tx, context, actor) => {
+): Promise<RoutineActionResult> {
+  return mutate(encounterId, async (tx, context, actor): Promise<RoutineActionResult> => {
     const planId = await generateActionEffectPlanInTransaction(
       tx,
       context,
@@ -109,7 +110,9 @@ export async function applyRoutineActionResult(
     } else if (!["approved", "partially-applied", "application-failed"].includes(plan.status)) {
       throw new Error("This combat result cannot be applied from its current state.");
     }
-    return applyActionEffectPlanInTransaction(tx, context, actor, plan.id);
+    const applied = await applyActionEffectPlanInTransaction(tx, context, actor, plan.id);
+    if (applied === "applied" || applied === "partially-applied" || applied === "application-failed") return applied;
+    throw new Error(`Combat result application returned an unexpected status (${applied}).`);
   });
 }
 
