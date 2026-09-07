@@ -9,6 +9,7 @@ import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runt
 
 import { recordDeclaredAttackRoll, recordDeclaredResponseRoll } from "./defense-intervention-actions";
 import { commitFirearmAttackTrigger, fireFirearmAttack } from "./firearm-attack-actions";
+import { ForceEndEncounterControl } from "./force-end-encounter-control";
 import { recordGodRoll } from "./roll-actions";
 
 export function GodCombatRolls({
@@ -84,7 +85,10 @@ export function GodCombatRolls({
     return { resultTotal: result.resultTotal, text: "General d100 recorded. This Roll is not attached to an action." };
   }
 
-  return <CombatRollPanel prompts={prompts} rolls={workspace?.initialHistory.rolls} onSubmit={submit}
-    emptyMessage="Start Initiative and declare an action or defense to prepare a combat Roll."
-    unavailableReason={runtimeClosed ? "Initiative is closed. Use Continue unfinished combat before recording action or defense Rolls." : null} />;
+  return <>
+    <ForceEndEncounterControl key={encounterId} encounterId={encounterId} />
+    <CombatRollPanel prompts={prompts} rolls={workspace?.initialHistory.rolls} onSubmit={submit}
+      emptyMessage="Start Initiative and declare an action or defense to prepare a combat Roll."
+      unavailableReason={runtimeClosed ? "Initiative is closed. Use Continue unfinished combat before recording action or defense Rolls." : null} />
+  </>;
 }
