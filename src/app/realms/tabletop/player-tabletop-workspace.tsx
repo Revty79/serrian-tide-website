@@ -157,7 +157,18 @@ export function PlayerTabletopWorkspace({
         </div> : <p className={styles.emptyCopy}>No Scene locations have been revealed to players.</p>}
       </Section> : null}
 
-      {view.combat ? <PlayerCombatConsole characterId={view.identity.characterId} combat={view.combat} /> : null}
+      {view.combat ? <PlayerCombatConsole
+        characterId={view.identity.characterId}
+        combat={view.combat}
+        items={view.items}
+        spells={view.spells}
+        abilities={view.derivedAbilities}
+        resources={{
+          health: `${view.health.total.remainingHp ?? "—"} / ${view.health.total.maximumHp ?? "—"}`,
+          mana: view.mana.pools.length ? String(view.mana.pools.reduce((sum, pool) => sum + pool.currentMana, 0)) : "—",
+          relevantItems: view.items.length,
+        }}
+      /> : null}
 
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
 

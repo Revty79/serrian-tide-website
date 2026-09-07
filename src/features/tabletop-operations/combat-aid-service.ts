@@ -32,6 +32,7 @@ import type { ActiveManaView } from "@/features/active-state/active-mana";
 import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
 import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
+import { loadCharacterDerivedAbilitiesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
 import {
   readCharacterOperationalItemsInTransaction,
   type CharacterOperationalItemStateView,
@@ -107,13 +108,14 @@ export type CombatAidParticipant = {
   resources: CharacterOperationalItemStateView | null;
   creatureAttacks: EncounterCreatureAttack[];
   creatureAbilities: EncounterCreatureAbility[];
+  derivedAbilities: Array<{ id: number; name: string; activation: string }>;
   spellSources: Array<
     | { kind: "catalog"; allocationId: number; name: string }
     | { kind: "personal"; savedSpellId: number; name: string }
     | { kind: "raw-saved"; savedSpellId: number; name: string }
   >;
   initiative: CombatAidInitiativeSummary;
-  errors: Array<{ section: "health" | "mana" | "effects" | "equipment" | "resources"; message: string }>;
+  errors: Array<{ section: "health" | "mana" | "effects" | "equipment" | "resources" | "abilities"; message: string }>;
 };
 
 export type CombatAidAuthoredAction = {
@@ -371,6 +373,9 @@ export async function readCombatAidEncounterInTransaction(
     const trackerParticipant = trackerParticipants.get(row.characterId);
     const action = actionByCharacter.get(row.characterId);
     const effects = directCreature ? null : await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false));
+    const derivedAbilityState = directCreature ? null : await readSection("abilities", errors, () => (
+      loadCharacterDerivedAbilitiesInTransaction(tx, row.characterId, actingUserId, false)
+    ));
     const durationBindings = directCreature ? [] : await readCharacterDurationBindingsInTransaction(tx, row.characterId, false).catch((error) => {
       errors.push({ section: "effects", message: error instanceof Error ? error.message : "Duration lifecycle state is unavailable." });
       return [];
@@ -398,6 +403,11 @@ export async function readCombatAidEncounterInTransaction(
       creatureAbilities: kind === "creature-npc" || kind === "creature"
         ? await readEncounterCreatureAbilitiesInTransaction(tx, row.characterId).catch(() => [])
         : [],
+      derivedAbilities: derivedAbilityState ? derivedAbilityState.resolution.statuses.flatMap((status) => {
+        if (!status.possessed || !status.available) return [];
+        const ability = derivedAbilityState.catalog.find(({ id }) => id === status.abilityId);
+        return ability ? [{ id: ability.id, name: ability.name, activation: ability.activationType }] : [];
+      }) : [],
       spellSources: [
         ...(catalogByCharacter.get(row.characterId) ?? []).map(({ allocationId, name }) => ({ kind: "catalog" as const, allocationId, name })),
         ...(personalByCharacter.get(row.characterId) ?? []).map(({ savedSpellId, name, inSpellbook }) => inSpellbook

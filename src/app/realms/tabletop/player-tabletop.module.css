@@ -644,6 +644,137 @@
   margin: 0.8rem 0;
 }
 
+.battleHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  padding: clamp(1rem, 2.2vw, 1.4rem);
+  border: 1px solid var(--st-border-strong);
+  border-radius: 1rem;
+  background: var(--st-surface-raised);
+  box-shadow: 0 1rem 2.5rem var(--st-shadow);
+}
+
+.battleHeader h2,
+.battleHeader p {
+  margin: 0.2rem 0;
+}
+
+.battleHeader > div > p:last-child {
+  color: var(--st-text-soft);
+}
+
+.battleHeader dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(5rem, auto));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.battleHeader dl > div {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.65rem;
+  background: var(--st-surface-soft);
+  padding: 0.6rem;
+}
+
+.battleHeader dt {
+  color: var(--st-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.battleHeader dd {
+  margin: 0;
+  color: var(--st-text-strong);
+  font-weight: 800;
+}
+
+.battleCommands {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 0.35rem;
+  position: sticky;
+  top: 0.4rem;
+  z-index: 5;
+  border: 1px solid var(--st-border);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--st-surface-raised) 94%, transparent);
+  padding: 0.45rem;
+  box-shadow: 0 0.7rem 1.8rem var(--st-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.battleCommands button {
+  min-height: 2.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--st-text-soft);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.battleCommands button:hover,
+.battleCommands button:focus-visible,
+.battleCommands .selectedCommand {
+  border-color: var(--st-secondary-border);
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary-soft-text);
+}
+
+.battleCommands button span {
+  margin-left: 0.3rem;
+  border-radius: 999px;
+  background: var(--st-danger);
+  padding: 0.08rem 0.35rem;
+  color: var(--st-text-strong);
+}
+
+.commandSources {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.attemptRecovery {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--st-warning) 42%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--st-warning) 12%, var(--st-surface));
+  padding: 0.75rem;
+  color: var(--st-text-soft);
+}
+
+.attemptRecovery strong {
+  color: var(--st-warning);
+}
+
+.resultCalculation {
+  border-top: 1px solid var(--st-border);
+  padding-top: 0.45rem;
+  color: var(--st-text-soft);
+}
+
+.resultCalculation summary {
+  cursor: pointer;
+  color: var(--st-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.resultCalculation span,
+.resultCalculation small {
+  display: block;
+  margin-top: 0.3rem;
+}
+
 .combatPriority,
 .combatSection {
   min-width: 0;
@@ -825,6 +956,14 @@
 
   .twoColumn > .section {
     height: auto;
+  }
+
+  .battleHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .battleCommands {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -1229,8 +1368,15 @@
   .effectGrid,
   .historyGrid,
   .formGrid,
-  .combatStats {
+  .combatStats,
+  .battleHeader dl,
+  .commandSources {
     grid-template-columns: 1fr;
+  }
+
+  .battleCommands {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: static;
   }
 
   .wideField {

@@ -758,6 +758,281 @@
   }
 }
 
+.encounter-battle-screen {
+  display: grid;
+  gap: 12px;
+}
+
+.encounter-battle-header,
+.encounter-battle-controlbar,
+.encounter-battle-operation,
+.encounter-battle-exchanges,
+.encounter-battle-timeline,
+.encounter-battle-reference {
+  border: 1px solid var(--st-border);
+  border-radius: 12px;
+  background: var(--st-surface);
+}
+
+.encounter-battle-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  padding: 16px;
+}
+
+.encounter-battle-header h2,
+.encounter-battle-operation h3,
+.encounter-battle-exchanges h3 {
+  margin: 3px 0;
+  color: var(--st-text);
+}
+
+.encounter-battle-header p,
+.encounter-battle-controlbar p,
+.encounter-battle-operation p,
+.encounter-battle-operation small,
+.encounter-battle-exchanges p,
+.encounter-battle-exchanges small {
+  margin: 0;
+  color: var(--st-muted);
+  line-height: 1.45;
+}
+
+.encounter-battle-header > div > span,
+.encounter-battle-operation > header span,
+.encounter-battle-exchanges > header span {
+  color: var(--st-primary-soft-text);
+  font-size: .63rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.encounter-battle-header dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(4.3rem, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.encounter-battle-header dl > div {
+  border: 1px solid var(--st-primary-border);
+  border-radius: 8px;
+  background: var(--st-surface);
+  padding: 7px 9px;
+  text-align: center;
+}
+
+.encounter-battle-header dt {
+  color: var(--st-muted);
+  font-size: .58rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.encounter-battle-header dd {
+  margin: 2px 0 0;
+  color: var(--st-text);
+  font-weight: 800;
+}
+
+.encounter-battle-controlbar {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) minmax(13rem, .65fr);
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+}
+
+.encounter-battle-controlbar p {
+  display: grid;
+  gap: 3px;
+  border-left: 3px solid var(--st-secondary-border);
+  padding: 8px 10px;
+}
+
+.encounter-battle-controlbar strong {
+  color: var(--st-text);
+}
+
+.encounter-battle-commands {
+  position: sticky;
+  z-index: 6;
+  top: 8px;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 4px;
+  border: 1px solid var(--st-border-strong);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--st-surface-raised) 94%, transparent);
+  padding: 5px;
+  box-shadow: 0 8px 24px var(--st-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.encounter-battle-commands button {
+  position: relative;
+  min-height: 2.5rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--st-muted);
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.encounter-battle-commands button:hover,
+.encounter-battle-commands button.is-selected {
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  color: var(--st-primary-soft-text);
+}
+
+.encounter-battle-commands button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+.encounter-battle-commands button span {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  min-width: 1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--st-danger) 14%, transparent);
+  padding: 1px 4px;
+  color: var(--st-danger);
+  font-size: .55rem;
+}
+
+.encounter-battle-timeline,
+.encounter-battle-reference {
+  overflow: clip;
+}
+
+.encounter-battle-timeline > summary,
+.encounter-battle-reference > summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--st-text);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.encounter-battle-operation {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.encounter-battle-operation > header,
+.encounter-battle-exchanges > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.encounter-battle-operation > .action-declaration-workspace,
+.encounter-battle-operation > .firearm-readiness-workspace,
+.encounter-battle-operation > .firearm-attack-workspace {
+  margin: 0;
+}
+
+.encounter-battle-exchanges {
+  padding: 12px;
+}
+
+.encounter-battle-exchanges > header > strong {
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  background: var(--st-surface-soft);
+  padding: 4px 8px;
+  color: var(--st-text);
+  font-size: .65rem;
+}
+
+.encounter-battle-exchanges > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.encounter-battle-exchanges article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid var(--st-border);
+  border-radius: 8px;
+  background: var(--st-surface-soft);
+  padding: 9px;
+}
+
+.encounter-battle-exchanges article > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.encounter-battle-exchanges article > header div,
+.encounter-battle-exchanges article strong,
+.encounter-battle-exchanges article span,
+.encounter-battle-exchanges article small {
+  display: block;
+}
+
+.encounter-battle-exchanges article strong {
+  color: var(--st-text);
+}
+
+.encounter-battle-exchanges article span {
+  margin-top: 2px;
+  color: var(--st-secondary-soft-text);
+  font-size: .72rem;
+}
+
+.encounter-battle-reference > .combat-aid {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--st-border);
+  border-radius: 0;
+}
+
+@media(max-width:1100px) {
+  .encounter-battle-header,
+  .encounter-battle-controlbar {
+    grid-template-columns: 1fr;
+  }
+
+  .encounter-battle-commands {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .encounter-battle-exchanges > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media(max-width:620px) {
+  .encounter-battle-header dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .encounter-battle-commands {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .encounter-battle-exchanges > div {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Participant Shop visits */
 .tabletop-shop-visits,
 .tabletop-shop-visit-detail {

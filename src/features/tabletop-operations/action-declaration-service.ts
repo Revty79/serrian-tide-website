@@ -65,6 +65,7 @@ import { resolveLockedActionSourceInTransaction } from "./action-source-resolver
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 import { resolveInitiativeCapacityOptionsInTransaction } from "./initiative-capacity-service";
 import { readAttackTargetInTransaction } from "./attack-target-service";
+import { projectActionDeclarationWorkspaceForPlayer } from "./player-action-declaration-projection";
 
 export type ActionDeclarationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1782,7 +1783,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
       weaponsByCharacter.set(participant.characterId, []);
     }
   }
-  return {
+  const workspace: ActionDeclarationWorkspaceView = {
     context: {
       campaignId: context.campaignId,
       sessionId: context.sessionId,
@@ -1825,4 +1826,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
       });
     }),
   };
+  return actor.authority === "player"
+    ? projectActionDeclarationWorkspaceForPlayer(workspace, actor.characterId)
+    : workspace;
 }

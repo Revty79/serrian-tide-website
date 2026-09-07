@@ -97,7 +97,9 @@ test("Player UI prioritizes responses and exposes only request-side Called Shot 
   assert.doesNotMatch(playerConsole, /name="penalty"/);
   assert.match(playerConsole, /Legacy aggregate firearms require G\.O\.D\. initialization/);
   assert.match(playerConsole, /attack\.triggerTimingStatus === "completed"/);
-  assert.match(playerConsole, /JSON\.stringify\(effect\.finalValue/);
+  assert.match(playerConsole, /styles\.resultCalculation/);
+  assert.match(playerConsole, /gross.*armor.*soak.*damage/);
+  assert.doesNotMatch(playerConsole, /JSON\.stringify\(effect\./);
 });
 
 test("G.O.D. rulings stay in Heavens and Called Shot penalties are assigned there", () => {
