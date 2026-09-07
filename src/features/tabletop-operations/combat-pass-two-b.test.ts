@@ -178,7 +178,8 @@ test("G.O.D. direct declarations are atomic, duplicate-safe, and keep firearms o
   assert.match(service, /commitActionDeclarationInTransaction/);
   assert.match(workspace, /firingModes\.length === 0/);
   assert.match(workspace, /Firearms use the per-bullet Firearm flow below/);
-  assert.match(workspace, /Retry exact declaration/);
+  assert.match(workspace, /Retry action/);
+  assert.match(workspace, /Retry details/);
   const battle = readFileSync("src/app/heavens/tabletop/encounter-battle-screen.tsx", "utf8");
   assert.match(battle, /initialCalledShot=\{command === "called-shot"\}/);
 });
