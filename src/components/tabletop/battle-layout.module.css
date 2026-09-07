@@ -317,12 +317,20 @@
 
 .commands {
   display: grid;
-  grid-template-columns: repeat(9, minmax(4rem, 1fr));
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto);
+  gap: 0.45rem;
+  align-items: start;
   padding: 0.45rem;
   border: 1px solid var(--st-border);
   border-radius: 0.8rem;
   background: var(--st-surface-deep);
+}
+
+.primaryCommands {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(5.5rem, 1fr));
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .commands button {
@@ -347,6 +355,39 @@
   background: color-mix(in srgb, var(--st-warning) 16%, transparent);
   color: var(--st-warning);
   font-size: 0.62rem;
+}
+
+.moreCommands {
+  min-width: 0;
+}
+
+.moreCommands > summary {
+  min-height: 2.5rem;
+  padding: 0.62rem 0.75rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.65rem;
+  background: var(--st-surface-raised);
+  color: var(--st-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.moreCommands[open] > summary {
+  border-color: var(--st-border-strong);
+  color: var(--st-text-strong);
+}
+
+.moreCommands > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(6.5rem, 1fr));
+  gap: 0.35rem;
+  grid-column: 1 / -1;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--st-border);
 }
 
 .stage {
@@ -587,8 +628,8 @@
     max-height: none;
   }
 
-  .commands {
-    grid-template-columns: repeat(5, minmax(4rem, 1fr));
+  .moreCommands > div {
+    grid-template-columns: repeat(2, minmax(6.5rem, 1fr));
   }
 }
 
@@ -639,6 +680,10 @@
   }
 
   .commands {
+    grid-template-columns: 1fr;
+  }
+
+  .primaryCommands {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
@@ -661,7 +706,8 @@
 
 @media (max-width: 480px) {
   .rosterList,
-  .commands {
+  .primaryCommands,
+  .moreCommands > div {
     grid-template-columns: 1fr 1fr;
   }
 
