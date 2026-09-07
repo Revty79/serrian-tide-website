@@ -10,7 +10,9 @@ const schema = source("src/db/tabletop-operations-schema.ts");
 const migration = source("drizzle/0031_player_combat_ruling_requests.sql");
 const rulingService = source("src/features/tabletop-operations/player-combat-ruling-service.ts");
 const playerActions = source("src/app/realms/tabletop/player-combat-actions.ts");
-const playerConsole = source("src/app/realms/tabletop/player-combat-console.tsx");
+const playerConsoleEntry = source("src/app/realms/tabletop/player-combat-console.tsx");
+const playerConsoleCore = source("src/app/realms/tabletop/player-combat-console-core.tsx");
+const playerConsole = playerConsoleEntry + playerConsoleCore;
 const playerWorkspace = source("src/app/realms/tabletop/player-tabletop-workspace.tsx");
 const rollService = source("src/features/tabletop-operations/roll-runtime-service.ts");
 const legacyPlayerEncounterPage = source("src/app/realms/characters/[characterId]/encounter/page.tsx");
@@ -100,6 +102,21 @@ test("Player UI prioritizes responses and exposes only request-side Called Shot 
   assert.match(playerConsole, /styles\.resultCalculation/);
   assert.match(playerConsole, /gross.*armor.*soak.*damage/);
   assert.doesNotMatch(playerConsole, /JSON\.stringify\(effect\./);
+});
+
+test("Player priority Roll surface cannot strand attack or defense resolution", () => {
+  assert.match(playerConsoleEntry, /ROLL NOW/);
+  assert.match(playerConsoleEntry, /pendingDefense/);
+  assert.match(playerConsoleEntry, /pendingAttack/);
+  assert.match(playerConsoleEntry, /pendingFirearm/);
+  assert.match(playerConsoleEntry, /rollPlayerDeclaredResponse/);
+  assert.match(playerConsoleEntry, /rollPlayerDeclaredAttack/);
+  assert.match(playerConsoleEntry, /firePlayerFirearmAttack/);
+  assert.match(playerConsoleEntry, />Website Roll</);
+  assert.match(playerConsoleEntry, />Enter physical Roll</);
+  assert.match(playerConsoleEntry, /Physical defense Roll/);
+  assert.match(playerConsoleEntry, /Physical attack Roll/);
+  assert.match(playerConsoleEntry, /Physical firearm Roll/);
 });
 
 test("G.O.D. rulings stay in Heavens and Called Shot penalties are assigned there", () => {
