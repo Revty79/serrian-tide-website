@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useCombatOperationState } from "@/components/tabletop/combat-operation-state";
 import type {
   FirearmAttackCommand,
   FirearmAttackPreview,
@@ -13,6 +14,7 @@ import type {
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
 import { formatAttackPercentileResult } from "@/features/tabletop-operations/percentile-resolution";
 import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
+import { isUncertainSubmissionError } from "@/features/tabletop-operations/submitted-attempt";
 
 import {
   cancelFirearmAttack,
@@ -154,35 +156,46 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
   </article>;
 }
 
-export function FirearmAttackWorkspace({ attackView, readiness, initialCalledShot = false }: {
+export function FirearmAttackWorkspace({ attackView, readiness, initialCalledShot = false, selectedDeclarationId = null, historyOnly = false }: {
   attackView: FirearmAttackWorkspaceView;
   readiness: FirearmWorkspaceView;
   initialCalledShot?: boolean;
+  selectedDeclarationId?: number | null;
+  historyOnly?: boolean;
 }) {
   const router = useRouter();
   const firearm = readiness.firearms.find(({ itemInstanceId }) => itemInstanceId === readiness.selectedItemInstanceId) ?? null;
   const actor = readiness.characters.find(({ id }) => id === readiness.selectedCharacterId) ?? null;
   const mode = firearm?.modes.find(({ id }) => id === firearm.state?.selectedFiringModeId) ?? null;
   const availableTargets = attackView.participants.filter(({ id }) => id !== actor?.id);
-  const [targetId, setTargetId] = useState(String(availableTargets[0]?.id ?? ""));
+  const operationKey = `firearm-attack:${actor?.id ?? "none"}:${initialCalledShot ? "called" : "standard"}`;
+  const [targetId, setTargetId] = useCombatOperationState(`${operationKey}:target`, String(availableTargets[0]?.id ?? ""));
   const target = attackView.participants.find(({ id }) => id === Number(targetId)) ?? null;
-  const [aim, setAim] = useState("0");
-  const [duration, setDuration] = useState("1");
-  const [called, setCalled] = useState(initialCalledShot);
-  const [objective, setObjective] = useState("");
-  const [location, setLocation] = useState("");
-  const [penalty, setPenalty] = useState("");
-  const [calledReason, setCalledReason] = useState("");
-  const [otherModifiers, setOtherModifiers] = useState("");
-  const [manual, setManual] = useState(false);
-  const [manualLabel, setManualLabel] = useState("");
-  const [manualTarget, setManualTarget] = useState("");
-  const [manualReason, setManualReason] = useState("");
-  const [preview, setPreview] = useState<FirearmAttackPreview | null>(null);
+  const [aim, setAim] = useCombatOperationState(`${operationKey}:aim`, "0");
+  const [duration, setDuration] = useCombatOperationState(`${operationKey}:duration`, "1");
+  const [called, setCalled] = useCombatOperationState(`${operationKey}:called`, initialCalledShot);
+  const [objective, setObjective] = useCombatOperationState(`${operationKey}:objective`, "");
+  const [location, setLocation] = useCombatOperationState(`${operationKey}:location`, "");
+  const [penalty, setPenalty] = useCombatOperationState(`${operationKey}:penalty`, "");
+  const [calledReason, setCalledReason] = useCombatOperationState(`${operationKey}:called-reason`, "");
+  const [otherModifiers, setOtherModifiers] = useCombatOperationState(`${operationKey}:modifiers`, "");
+  const [manual, setManual] = useCombatOperationState(`${operationKey}:manual`, false);
+  const [manualLabel, setManualLabel] = useCombatOperationState(`${operationKey}:manual-label`, "");
+  const [manualTarget, setManualTarget] = useCombatOperationState(`${operationKey}:manual-target`, "");
+  const [manualReason, setManualReason] = useCombatOperationState(`${operationKey}:manual-reason`, "");
+  const [preview, setPreview] = useCombatOperationState<FirearmAttackPreview | null>(`${operationKey}:preview`, null);
+  const [declarationAttempt, setDeclarationAttempt] = useCombatOperationState<(FirearmAttackCommand & { idempotencyKey: string }) | null>(`${operationKey}:attempt`, null);
+  const declarationAttemptRef = useRef(declarationAttempt);
+  useEffect(() => {
+    declarationAttemptRef.current = declarationAttempt;
+  }, [declarationAttempt, operationKey]);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [feedback, setFeedback] = useCombatOperationState<Feedback | null>(`${operationKey}:feedback`, null);
   const sustained = mode?.deliveryCadence === "sustained-per-initiative";
   const canCompose = actor !== null && actor.id > 0 && firearm?.state !== null && mode?.id !== null && target !== null;
+  const visibleAttacks = selectedDeclarationId === null
+    ? attackView.attacks
+    : attackView.attacks.filter(({ triggerDeclarationId }) => triggerDeclarationId === selectedDeclarationId);
 
   function buildCommand(): FirearmAttackCommand {
     if (!canCompose || !actor || !firearm?.state || !mode?.id || !target) throw new Error("Select an exact attacker, firearm, mode, and target.");
@@ -205,23 +218,56 @@ export function FirearmAttackWorkspace({ attackView, readiness, initialCalledSho
     };
   }
 
-  async function perform(work: () => Promise<unknown>, success: string): Promise<void> {
+  async function perform(
+    work: () => Promise<unknown>,
+    success: string,
+    onSuccess?: () => void,
+    onError?: (error: unknown) => void,
+  ): Promise<void> {
     setBusy(true);
     setFeedback(null);
     try {
       await work();
+      onSuccess?.();
       setFeedback({ kind: "success", message: success });
     } catch (error) {
+      onError?.(error);
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The firearm attack could not be prepared." });
     } finally {
       setBusy(false);
     }
   }
 
+  async function declareFromPreview(): Promise<void> {
+    let attempt = declarationAttemptRef.current;
+    if (!attempt) {
+      if (!preview) return;
+      attempt = { ...buildCommand(), idempotencyKey: requestId() };
+      declarationAttemptRef.current = attempt;
+      setDeclarationAttempt(attempt);
+    }
+    await perform(
+      () => declareFirearmAttack(attackView.context.encounterId, attempt),
+      "The firearm attack was declared through Initiative and response timing.",
+      () => {
+        declarationAttemptRef.current = null;
+        setDeclarationAttempt(null);
+        setPreview(null);
+        router.refresh();
+      },
+      (error) => {
+        if (!isUncertainSubmissionError(error)) {
+          declarationAttemptRef.current = null;
+          setDeclarationAttempt(null);
+        }
+      },
+    );
+  }
+
   return <section className="firearm-attack-workspace" aria-label="Firearm attacks, Aim, Called Shots, and damage">
     <header><div><span>PASS 10 - FIREARM ATTACKS</span><h3 className="font-sans">Aim, Trigger &amp; Damage</h3></div><small>Exact identities - one Roll - one ammunition mutation - review-before-apply</small></header>
-    <p className="firearm-attack-boundary">The global Equipment mapping remains read-only here. Select an exact owned copy in Firearm Readiness above. Damage is proposed through the existing Action Effect Plan review; this console never applies Health directly.</p>
-    {firearm && actor && firearm.state && mode ? <div className="firearm-attack-compose">
+    {!historyOnly ? <p className="firearm-attack-boundary">The global Equipment mapping remains read-only here. Select an exact owned copy in Firearm Readiness above. Damage is proposed through the existing Action Effect Plan review; this console never applies Health directly.</p> : null}
+    {!historyOnly && firearm && actor && firearm.state && mode ? <div className="firearm-attack-compose">
       <header><div><span>NEW DECLARATION</span><h4>{actor.name}: {firearm.itemName} - {mode.name}</h4></div><Link href="/heavens/equipment">Review global Equipment</Link></header>
       <div className="firearm-attack-fields">
         <label><span>Exact Encounter target</span><select value={targetId} onChange={(event) => { setTargetId(event.target.value); setLocation(""); setPreview(null); }}><option value="">Select target</option>{availableTargets.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} ({entry.participantKind})</option>)}</select></label>
@@ -237,10 +283,11 @@ export function FirearmAttackWorkspace({ attackView, readiness, initialCalledSho
         <label className="is-wide"><span>Other explicit modifiers (one per line: Label = signed value)</span><textarea rows={3} value={otherModifiers} onChange={(event) => { setOtherModifiers(event.target.value); setPreview(null); }} /></label>
       </div>
       <details className="firearm-attack-governance"><summary>One-action G.O.D. governing-source ruling</summary><label className="firearm-attack-check"><input type="checkbox" checked={manual} onChange={(event) => { setManual(event.target.checked); setPreview(null); }} /><span>Use an explicit manual target for this action only</span></label>{manual ? <div className="firearm-attack-fields"><label><span>Target label</span><input value={manualLabel} onChange={(event) => { setManualLabel(event.target.value); setPreview(null); }} /></label><label><span>Original target</span><input type="number" value={manualTarget} onChange={(event) => { setManualTarget(event.target.value); setPreview(null); }} /></label><label className="is-wide"><span>Required ruling reason</span><input value={manualReason} onChange={(event) => { setManualReason(event.target.value); setPreview(null); }} /></label></div> : null}</details>
-      <div className="firearm-attack-actions"><button type="button" disabled={busy || !canCompose} onClick={() => void perform(async () => { setPreview(await previewFirearmAttack(attackView.context.encounterId, buildCommand())); }, "The exact declaration, target, path, modifiers, delivery, and state were previewed.")}>Preview locked mechanics</button><button type="button" className="is-primary" disabled={busy || !canCompose || !preview} onClick={() => void perform(async () => { await declareFirearmAttack(attackView.context.encounterId, { ...buildCommand(), idempotencyKey: requestId() }); setPreview(null); router.refresh(); }, "The firearm attack was declared through Initiative and response timing.")}>Declare from preview</button></div>
+      <div className="firearm-attack-actions"><button type="button" disabled={busy || !canCompose || declarationAttempt !== null} onClick={() => void perform(async () => { setPreview(await previewFirearmAttack(attackView.context.encounterId, buildCommand())); }, "The exact declaration, target, path, modifiers, delivery, and state were previewed.")}>Preview locked mechanics</button><button type="button" className="is-primary" disabled={busy || !canCompose || !preview || declarationAttempt !== null} onClick={() => void declareFromPreview()}>Declare from preview</button></div>
+      {declarationAttempt && feedback?.kind === "error" ? <aside className="action-declaration-recovery"><strong>The firearm declaration may have reached the server.</strong><span>Retry keeps the exact actor, firearm, target, modifiers, timing, choices, and submission identity.</span><div><button type="button" disabled={busy} onClick={() => void declareFromPreview()}>Retry exact firearm declaration</button></div></aside> : null}
       {preview ? <PreviewCard preview={preview} /> : null}
       {feedback ? <p className={`firearm-attack-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-    </div> : <p className="tabletop-empty">Select and initialize an exact persistent Character firearm above. Direct Creatures do not gain manufactured firearm inventory implicitly.</p>}
-    <div className="firearm-attack-history">{attackView.attacks.map((attack) => <AttackCard key={`${attack.id}:${attack.status}:${attack.triggerTimingStatus ?? "none"}`} encounterId={attackView.context.encounterId} attack={attack} />)}{!attackView.attacks.length ? <p className="tabletop-empty">No firearm attacks have been declared in this Encounter.</p> : null}</div>
+    </div> : !historyOnly ? <p className="tabletop-empty">Select and initialize an exact persistent Character firearm above. Direct Creatures do not gain manufactured firearm inventory implicitly.</p> : null}
+    <div className="firearm-attack-history">{visibleAttacks.map((attack) => <AttackCard key={`${attack.id}:${attack.status}:${attack.triggerTimingStatus ?? "none"}`} encounterId={attackView.context.encounterId} attack={attack} />)}{!visibleAttacks.length ? <p className="tabletop-empty">No firearm attack is attached to this selected exchange.</p> : null}</div>
   </section>;
 }

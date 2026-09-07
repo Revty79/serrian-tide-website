@@ -66,11 +66,13 @@ export function DefenseInterventionWorkspace({
   defense,
   compact = false,
   selectedCombatantId = null,
+  selectedDeclarationId = null,
 }: {
   actions: ActionDeclarationWorkspaceView;
   defense: DefenseInterventionWorkspaceView;
   compact?: boolean;
   selectedCombatantId?: number | null;
+  selectedDeclarationId?: number | null;
 }) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
@@ -85,11 +87,13 @@ export function DefenseInterventionWorkspace({
   const pending = actions.declarations.flatMap((declaration) => declaration.opportunities
     .filter(({ status, requiresGodConfirmation, responderCharacterId }) => status === "pending"
       && !requiresGodConfirmation
+      && (selectedDeclarationId === null || declaration.id === selectedDeclarationId)
       && (selectedCombatantId === null || responderCharacterId === selectedCombatantId)
       && defense.participants.find(({ characterId }) => characterId === responderCharacterId)?.choiceOwner === "god")
     .map((opportunity) => ({ declaration, opportunity })));
   const resolutionDeclarations = actions.declarations.filter(({ id, actorCharacterId, pendingActionId, status }) => {
     if (pendingActionId === null || !["rolling-ready", "rolling", "awaiting-god-ruling"].includes(status)) return false;
+    if (selectedDeclarationId !== null) return id === selectedDeclarationId;
     return selectedCombatantId === null
       || actorCharacterId === selectedCombatantId
       || defense.reactions.some(({ declarationId, responderCharacterId }) => declarationId === id && responderCharacterId === selectedCombatantId);

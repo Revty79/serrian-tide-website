@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
   BattleActivity,
@@ -12,12 +12,14 @@ import {
   BattleHeader,
   BattleMainColumn,
   BattleRoster,
+  BattleSecondary,
   BattleShell,
   BattleStage,
   type BattleActivityEntry,
   type BattleCommandEntry,
   type BattleRosterEntry,
 } from "@/components/tabletop/battle-layout";
+import { CombatOperationStateProvider, useCombatOperationState } from "@/components/tabletop/combat-operation-state";
 import type { CharacterWeaponGovernanceResult } from "@/features/items/character-weapon-governance";
 import type {
   PlayerTabletopDerivedAbility,
@@ -30,6 +32,7 @@ import { formatAttackPercentileResult } from "@/features/tabletop-operations/per
 import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
 import {
   captureSubmittedAttempt,
+  isUncertainSubmissionError,
   type SubmittedAttempt,
 } from "@/features/tabletop-operations/submitted-attempt";
 
@@ -95,18 +98,26 @@ function ResultMessage({ message }: { message: { error: boolean; text: string } 
   return message ? <p className={message.error ? styles.error : styles.notice} role={message.error ? "alert" : "status"}>{message.text}</p> : null;
 }
 
-function useCombatMutation() {
+function useCombatMutation(operationKey: string) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
-  function run(action: () => Promise<unknown>, success: string, onSuccess?: () => void) {
+  const [message, setMessage] = useCombatOperationState<{ error: boolean; text: string } | null>(`${operationKey}:message`, null);
+  function run(
+    action: () => Promise<unknown>,
+    success: string,
+    onSuccess?: () => void,
+    onError?: (error: unknown) => void,
+  ) {
     setMessage(null);
     startTransition(() => {
       void action().then(() => {
         onSuccess?.();
         setMessage({ error: false, text: success });
         router.refresh();
-      }).catch((error: unknown) => setMessage({ error: true, text: error instanceof Error ? error.message : "The combat action could not be completed." }));
+      }).catch((error: unknown) => {
+        onError?.(error);
+        setMessage({ error: true, text: error instanceof Error ? error.message : "The combat action could not be completed." });
+      });
     });
   }
   return { busy, message, run };
@@ -117,9 +128,12 @@ type ReplayableAttempt = SubmittedAttempt<unknown> & Readonly<{
   success: string;
 }>;
 
-function useSubmittedAttempt(mutation: ReturnType<typeof useCombatMutation>) {
-  const [attempt, setAttempt] = useState<ReplayableAttempt | null>(null);
+function useSubmittedAttempt(mutation: ReturnType<typeof useCombatMutation>, operationKey: string) {
+  const [attempt, setAttempt] = useCombatOperationState<ReplayableAttempt | null>(`${operationKey}:attempt`, null);
   const attemptRef = useRef<ReplayableAttempt | null>(null);
+  useEffect(() => {
+    attemptRef.current = attempt;
+  }, [attempt, operationKey]);
 
   function remember(next: ReplayableAttempt | null): void {
     attemptRef.current = next;
@@ -144,6 +158,9 @@ function useSubmittedAttempt(mutation: ReturnType<typeof useCombatMutation>) {
       () => replayable.execute(replayable.payload, replayable.idempotencyKey),
       success,
       () => remember(null),
+      (error) => {
+        if (!isUncertainSubmissionError(error)) remember(null);
+      },
     );
   }
 
@@ -154,6 +171,9 @@ function useSubmittedAttempt(mutation: ReturnType<typeof useCombatMutation>) {
       () => saved.execute(saved.payload, saved.idempotencyKey),
       saved.success,
       () => remember(null),
+      (error) => {
+        if (!isUncertainSubmissionError(error)) remember(null);
+      },
     );
   }
 
@@ -161,7 +181,6 @@ function useSubmittedAttempt(mutation: ReturnType<typeof useCombatMutation>) {
     attempt,
     submit,
     retry,
-    discard: () => remember(null),
   };
 }
 
@@ -176,10 +195,9 @@ function AttemptRecovery({
   return <aside className={styles.attemptRecovery} role="status">
     <strong>{submission.attempt.operation} may have reached the server.</strong>
     <span>Retry resends the exact saved timing, target, source, selections, intent, and identity.</span>
-    <span>Start a corrected action only after the server has clearly rejected or rolled back this attempt.</span>
+    <span>Wait for confirmation or retry this exact saved attempt. A confirmed server rejection unlocks the form.</span>
     <div className={styles.actionRow}>
       <button type="button" disabled={mutation.busy} onClick={submission.retry}>Retry exact attempt</button>
-      <button type="button" className="st-button is-secondary" disabled={mutation.busy} onClick={submission.discard}>Start corrected action</button>
     </div>
   </aside>;
 }
@@ -199,9 +217,10 @@ export function PlayerCombatIntentButton({
   sourceInstanceId?: number | null;
   label: string;
 }) {
-  const mutation = useCombatMutation();
-  const submission = useSubmittedAttempt(mutation);
-  const [intent, setIntent] = useState("");
+  const operationKey = `source:${sourceKind}:${sourceRef}:${sourceInstanceId ?? "stack"}`;
+  const mutation = useCombatMutation(operationKey);
+  const submission = useSubmittedAttempt(mutation, operationKey);
+  const [intent, setIntent] = useCombatOperationState(`${operationKey}:intent`, "");
   return <form className={styles.compactAction} onSubmit={(event) => {
     event.preventDefault();
     submission.submit("Combat source request", {
@@ -223,14 +242,16 @@ export function PlayerCombatIntentButton({
   </form>;
 }
 
-function ResponsePanel({ characterId, combat }: { characterId: number; combat: PlayerCombatConsoleData }) {
-  const mutation = useCombatMutation();
+function ResponsePanel({ characterId, combat, selectedDeclarationId = null }: { characterId: number; combat: PlayerCombatConsoleData; selectedDeclarationId?: number | null }) {
+  const mutation = useCombatMutation("response");
   const opportunities = combat.declarations.declarations.flatMap((declaration) => declaration.opportunities
-    .filter(({ responderCharacterId, status }) => responderCharacterId === characterId && status === "pending")
+    .filter(({ responderCharacterId, status }) => responderCharacterId === characterId
+      && status === "pending"
+      && (selectedDeclarationId === null || declaration.id === selectedDeclarationId))
     .map((opportunity) => ({ declaration, opportunity })));
   const weapons = combat.defenses.participants.find(({ characterId: id }) => id === characterId)?.weapons ?? [];
   const dodgeAvailable = combat.defenses.dodgeMappings.some(({ reviewState }) => reviewState === "approved");
-  const [weaponKey, setWeaponKey] = useState(weapons[0]?.ownershipKey ?? "");
+  const [weaponKey, setWeaponKey] = useCombatOperationState("response:weapon", weapons[0]?.ownershipKey ?? "");
   const selectedWeapon = weapons.find(({ ownershipKey }) => ownershipKey === weaponKey) ?? null;
   const weaponChoiceStale = Boolean(weaponKey) && selectedWeapon === null;
   if (!opportunities.length) return null;
@@ -258,7 +279,7 @@ function ResponsePanel({ characterId, combat }: { characterId: number; combat: P
 }
 
 function InitiativePanel({ characterId, combat, disposition }: { characterId: number; combat: PlayerCombatConsoleData; disposition: "hold" | "pass" }) {
-  const mutation = useCombatMutation();
+  const mutation = useCombatMutation(`initiative:${disposition}`);
   const initiative = combat.initiative;
   return <section className={styles.combatSection} aria-labelledby="player-initiative-title">
     <header><div><p className={styles.eyebrow}>AUTHORITATIVE INITIATIVE</p><h2 id="player-initiative-title">Round {initiative.roundNumber} · Step {initiative.stepNumber}</h2></div><strong>{initiative.currentInitiative} / {initiative.normalTotalInitiative}</strong></header>
@@ -272,11 +293,12 @@ function InitiativePanel({ characterId, combat, disposition }: { characterId: nu
 }
 
 function MovementPanel({ characterId, combat }: { characterId: number; combat: PlayerCombatConsoleData }) {
-  const mutation = useCombatMutation();
-  const submission = useSubmittedAttempt(mutation);
-  const [mode, setMode] = useState(combat.initiative.movementModes[0]?.movementMode ?? combat.initiative.movementMode);
-  const [distance, setDistance] = useState("");
-  const [intent, setIntent] = useState("");
+  const operationKey = "movement";
+  const mutation = useCombatMutation(operationKey);
+  const submission = useSubmittedAttempt(mutation, operationKey);
+  const [mode, setMode] = useCombatOperationState(`${operationKey}:mode`, combat.initiative.movementModes[0]?.movementMode ?? combat.initiative.movementMode);
+  const [distance, setDistance] = useCombatOperationState(`${operationKey}:distance`, "");
+  const [intent, setIntent] = useCombatOperationState(`${operationKey}:intent`, "");
   const selected = combat.initiative.movementModes.find(({ movementMode }) => movementMode === mode) ?? null;
   const modeChoiceStale = Boolean(mode) && selected === null;
   const cost = selected && Number(distance) > 0 ? Math.ceil(Number(distance) / selected.baseMovement) : null;
@@ -305,12 +327,13 @@ function MovementPanel({ characterId, combat }: { characterId: number; combat: P
 }
 
 function WeaponActions({ characterId, combat }: { characterId: number; combat: PlayerCombatConsoleData }) {
-  const mutation = useCombatMutation();
-  const submission = useSubmittedAttempt(mutation);
+  const operationKey = "weapon-attack";
+  const mutation = useCombatMutation(operationKey);
+  const submission = useSubmittedAttempt(mutation, operationKey);
   const weapons = combat.declarations.participants.find(({ characterId: id }) => id === characterId)?.weapons.filter(({ firingModes }) => firingModes.length === 0) ?? [];
-  const [weaponKey, setWeaponKey] = useState(weapons[0]?.ownershipKey ?? "");
-  const [target, setTarget] = useState(String(combat.targets[0]?.participantId ?? ""));
-  const [calledShot, setCalledShot] = useState("");
+  const [weaponKey, setWeaponKey] = useCombatOperationState(`${operationKey}:weapon`, weapons[0]?.ownershipKey ?? "");
+  const [target, setTarget] = useCombatOperationState(`${operationKey}:target`, String(combat.targets[0]?.participantId ?? ""));
+  const [calledShot, setCalledShot] = useCombatOperationState(`${operationKey}:called-shot`, "");
   const selected = weapons.find(({ ownershipKey }) => ownershipKey === weaponKey) ?? null;
   const selectedTarget = combat.targets.find(({ participantId }) => participantId === Number(target)) ?? null;
   const sourceChoiceStale = Boolean(weaponKey) && selected === null;
@@ -338,22 +361,26 @@ function WeaponActions({ characterId, combat }: { characterId: number; combat: P
   </section>;
 }
 
-function FirearmPanel({ characterId, combat }: { characterId: number; combat: PlayerCombatConsoleData }) {
-  const mutation = useCombatMutation();
-  const submission = useSubmittedAttempt(mutation);
-  const [target, setTarget] = useState(String(combat.targets[0]?.participantId ?? ""));
-  const [aim, setAim] = useState("0");
-  const [duration, setDuration] = useState("1");
-  const [entered, setEntered] = useState("");
-  const [preparationRounds, setPreparationRounds] = useState("");
-  const [replaceLoad, setReplaceLoad] = useState(false);
-  const [partialLoadDisposition, setPartialLoadDisposition] = useState<"none" | "retain" | "discard">("none");
-  const [discardReason, setDiscardReason] = useState("");
+function FirearmPanel({ characterId, combat, selectedDeclarationId = null, historyOnly = false }: { characterId: number; combat: PlayerCombatConsoleData; selectedDeclarationId?: number | null; historyOnly?: boolean }) {
+  const operationKey = "firearm";
+  const mutation = useCombatMutation(operationKey);
+  const submission = useSubmittedAttempt(mutation, operationKey);
+  const [target, setTarget] = useCombatOperationState(`${operationKey}:target`, String(combat.targets[0]?.participantId ?? ""));
+  const [aim, setAim] = useCombatOperationState(`${operationKey}:aim`, "0");
+  const [duration, setDuration] = useCombatOperationState(`${operationKey}:duration`, "1");
+  const [entered, setEntered] = useCombatOperationState(`${operationKey}:entered`, "");
+  const [preparationRounds, setPreparationRounds] = useCombatOperationState(`${operationKey}:rounds`, "");
+  const [replaceLoad, setReplaceLoad] = useCombatOperationState(`${operationKey}:replace`, false);
+  const [partialLoadDisposition, setPartialLoadDisposition] = useCombatOperationState<"none" | "retain" | "discard">(`${operationKey}:disposition`, "none");
+  const [discardReason, setDiscardReason] = useCombatOperationState(`${operationKey}:discard-reason`, "");
   const approvedCalledShots = combat.rulingRequests.filter(({ requestType, status }) => requestType === "called-shot" && status === "approved");
   const selectedTargetAvailable = combat.targets.some(({ participantId }) => participantId === Number(target));
+  const visibleAttacks = selectedDeclarationId === null
+    ? combat.firearmAttacks.attacks
+    : combat.firearmAttacks.attacks.filter(({ triggerDeclarationId }) => triggerDeclarationId === selectedDeclarationId);
   return <section className={styles.combatSection} aria-labelledby="firearms-title"><header><div><p className={styles.eyebrow}>FIREARM RUNTIME</p><h2 id="firearms-title">Readiness, Aim and attacks</h2></div></header>
-    {combat.firearms.legacyStacks.length ? <p className={styles.ruling}>Legacy aggregate firearms require G.O.D. initialization and are not converted here.</p> : null}
-    {combat.firearms.firearms.map((firearm) => {
+    {!historyOnly && combat.firearms.legacyStacks.length ? <p className={styles.ruling}>Legacy aggregate firearms require G.O.D. initialization and are not converted here.</p> : null}
+    {!historyOnly ? combat.firearms.firearms.map((firearm) => {
       const state = firearm.state;
       const selectedMode = state ? firearm.modes.find(({ id }) => id === state.selectedFiringModeId) ?? null : null;
       const modeGovernance = combat.weaponGovernance.weapons.find(({ itemId }) => itemId === firearm.itemId)?.modes.find(({ firingModeId }) => firingModeId === state?.selectedFiringModeId)?.resolution ?? null;
@@ -412,8 +439,8 @@ function FirearmPanel({ characterId, combat }: { characterId: number; combat: Pl
           <button type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !firearmGovernanceResolved || !selectedTargetAvailable}>Declare attack</button>
         </form> : null}
       </article>;
-    })}
-    {combat.firearmAttacks.attacks.map((attack) => <article className={styles.lockedReview} key={attack.id}>
+    }) : null}
+    {visibleAttacks.map((attack) => <article className={styles.lockedReview} key={attack.id}>
       <strong>{attack.itemName} at {attack.targetName}</strong>
       <span>{titleCase(attack.effectiveStatus)} · target {attack.finalTarget}% · {attack.roundsDeclared} round{attack.roundsDeclared === 1 ? "" : "s"}{attack.aimInitiative ? ` · Aim ${attack.aimInitiative} (-${attack.aimTargetOffset})` : ""}{attack.calledShotDeclared ? ` · Called Shot ${attack.calledShotObjective} (${attack.calledShotPenalty})` : ""}</span>
       {attack.effectiveStatus === "trigger-ready" ? <button disabled={mutation.busy} onClick={() => mutation.run(() => commitPlayerFirearmTrigger(characterId, combat.context.encounterId, attack.id), "Trigger pull committed.")}>Commit trigger</button> : null}
@@ -424,16 +451,20 @@ function FirearmPanel({ characterId, combat }: { characterId: number; combat: Pl
       {attack.effectPlanStatus ? <span>Consequences: {titleCase(attack.effectPlanStatus)}</span> : null}
       {attack.rulingReasons.map((reason) => <small className={styles.ruling} key={reason}>{reason}</small>)}
     </article>)}
-    <ResultMessage message={mutation.message} />
-    <AttemptRecovery submission={submission} mutation={mutation} />
+    {!visibleAttacks.length ? <p className={styles.boundaryNotice}>No firearm attack is attached to this exchange.</p> : null}
+    {!historyOnly ? <><ResultMessage message={mutation.message} /><AttemptRecovery submission={submission} mutation={mutation} /></> : null}
   </section>;
 }
 
-function DeclarationAndRollPanel({ characterId, combat }: { characterId: number; combat: PlayerCombatConsoleData }) {
-  const mutation = useCombatMutation();
-  const [entered, setEntered] = useState("");
-  const declarations = combat.declarations.declarations.filter(({ actorCharacterId }) => actorCharacterId === characterId);
-  const reactions = combat.defenses.reactions.filter(({ responderCharacterId }) => responderCharacterId === characterId);
+function DeclarationAndRollPanel({ characterId, combat, selectedDeclarationId = null }: { characterId: number; combat: PlayerCombatConsoleData; selectedDeclarationId?: number | null }) {
+  const mutation = useCombatMutation("locked-rolls");
+  const [entered, setEntered] = useCombatOperationState("locked-rolls:entered", "");
+  const declarations = combat.declarations.declarations.filter(({ id, actorCharacterId }) => (
+    selectedDeclarationId === null ? actorCharacterId === characterId : id === selectedDeclarationId
+  ));
+  const reactions = combat.defenses.reactions.filter(({ declarationId, responderCharacterId }) => (
+    responderCharacterId === characterId && (selectedDeclarationId === null || declarationId === selectedDeclarationId)
+  ));
   return <section className={styles.combatSection} aria-labelledby="locked-actions-title"><header><div><p className={styles.eyebrow}>LOCKED WORK</p><h2 id="locked-actions-title">Declarations, Rolls and results</h2></div></header>
     {!declarations.length && !reactions.length ? <p>No combat declarations have been recorded for this Character.</p> : null}
     {declarations.map((declaration) => <article className={styles.lockedReview} key={declaration.id}><strong>{declaration.lockedSnapshot?.label ?? declaration.draft.label}</strong><span>{titleCase(declaration.status)} · {declaration.lockedSnapshot?.initiativeCost ?? declaration.draft.initiativeCost} Initiative</span>{declaration.lockedSnapshot?.governing ? <span>{governingLabel(declaration.lockedSnapshot.governing.source)}</span> : null}{declaration.timing ? <span>Started at {declaration.timing.startInitiative}; completes at {declaration.timing.expectedCompletionInitiative}. {declaration.timing.remainingInitiativeCost} Initiative remains.</span> : null}<small className={styles.ruling}>{declaration.rollState.message}</small>{declaration.status === "rolling-ready" && declaration.rollState.attackRollId === null && declaration.lockedSnapshot?.authoredSource?.resolutionMode !== "automatic-no-roll" && !declaration.draft.actionKind.startsWith("firearm-") ? <div className={styles.actionRow}><input className="st-control" aria-label="Physical attack Roll" inputMode="numeric" pattern="[0-9]{1,3}" placeholder="01-99 or 00" value={entered} onChange={(event) => setEntered(event.target.value)} /><button className="st-button is-primary" disabled={mutation.busy} onClick={() => mutation.run(() => rollPlayerDeclaredAttack(characterId, combat.context.encounterId, declaration.id, { method: "random" }), "Attack Roll recorded independently.")}>Website Roll</button><button className="st-button is-secondary" disabled={mutation.busy || !entered.trim()} onClick={() => mutation.run(() => rollPlayerDeclaredAttack(characterId, combat.context.encounterId, declaration.id, { method: "entered", enteredTotal: parsePhysicalPercentileInput(entered) }), "Physical attack Roll recorded independently.")}>Enter physical Roll</button></div> : null}{declaration.rulingReason ? <small className={styles.ruling}>{declaration.rulingReason}</small> : null}</article>)}
@@ -443,14 +474,15 @@ function DeclarationAndRollPanel({ characterId, combat }: { characterId: number;
 }
 
 function RulingPanel({ characterId, combat, initialType = "intervention" }: { characterId: number; combat: PlayerCombatConsoleData; initialType?: "manual-action" | "called-shot" | "ally-defense" | "tackle" | "intervention" }) {
-  const mutation = useCombatMutation();
-  const submission = useSubmittedAttempt(mutation);
-  const [type, setType] = useState<"manual-action" | "called-shot" | "ally-defense" | "tackle" | "intervention">(initialType);
-  const [intent, setIntent] = useState("");
-  const [target, setTarget] = useState(String(combat.targets[0]?.participantId ?? ""));
-  const [location, setLocation] = useState("");
+  const operationKey = `ruling:${initialType}`;
+  const mutation = useCombatMutation(operationKey);
+  const submission = useSubmittedAttempt(mutation, operationKey);
+  const [type, setType] = useCombatOperationState<"manual-action" | "called-shot" | "ally-defense" | "tackle" | "intervention">(`${operationKey}:type`, initialType);
+  const [intent, setIntent] = useCombatOperationState(`${operationKey}:intent`, "");
+  const [target, setTarget] = useCombatOperationState(`${operationKey}:target`, String(combat.targets[0]?.participantId ?? ""));
+  const [location, setLocation] = useCombatOperationState(`${operationKey}:location`, "");
   const attackSources = combat.declarations.participants.find(({ characterId: id }) => id === characterId)?.weapons ?? [];
-  const [weaponSource, setWeaponSource] = useState(attackSources[0]?.ownershipKey ?? "");
+  const [weaponSource, setWeaponSource] = useCombatOperationState(`${operationKey}:weapon`, attackSources[0]?.ownershipKey ?? "");
   const selectedSource = attackSources.find(({ ownershipKey }) => ownershipKey === weaponSource) ?? null;
   const selectedTarget = combat.targets.find(({ participantId }) => participantId === Number(target)) ?? null;
   const selectedLocation = selectedTarget?.hitLocations.find(({ result }) => result === Number(location)) ?? null;
@@ -486,9 +518,10 @@ function RulingPanel({ characterId, combat, initialType = "intervention" }: { ch
   </section>;
 }
 
-function EffectPlans({ combat }: { combat: PlayerCombatConsoleData }) {
-  if (!combat.effects.plans.length) return null;
-  return <section className={styles.combatSection} aria-labelledby="player-effects-title"><header><div><p className={styles.eyebrow}>RESULTS</p><h2 id="player-effects-title">Consequences</h2></div></header>{combat.effects.plans.map((plan) => <article className={styles.lockedReview} key={plan.id}><strong>{plan.sourceSnapshot.displayName} · {titleCase(plan.status)}</strong><span>{plan.explanation}</span>{plan.governingRollSnapshot ? <span>Roll {plan.governingRollSnapshot.resolution.resultTotal} against {plan.governingRollSnapshot.resolution.finalTarget}: {plan.governingRollSnapshot.resolution.totalSuccesses} success{plan.governingRollSnapshot.resolution.totalSuccesses === 1 ? "" : "es"}</span> : null}{plan.effects.map((effect) => {
+function EffectPlans({ combat, selectedDeclarationId = null }: { combat: PlayerCombatConsoleData; selectedDeclarationId?: number | null }) {
+  const plans = selectedDeclarationId === null ? combat.effects.plans : combat.effects.plans.filter(({ declarationId }) => declarationId === selectedDeclarationId);
+  if (!plans.length) return null;
+  return <section className={styles.combatSection} aria-labelledby="player-effects-title"><header><div><p className={styles.eyebrow}>RESULTS</p><h2 id="player-effects-title">Consequences</h2></div></header>{plans.map((plan) => <article className={styles.lockedReview} key={plan.id}><strong>{plan.sourceSnapshot.displayName} · {titleCase(plan.status)}</strong><span>{plan.explanation}</span>{plan.governingRollSnapshot ? <span>Roll {plan.governingRollSnapshot.resolution.resultTotal} against {plan.governingRollSnapshot.resolution.finalTarget}: {plan.governingRollSnapshot.resolution.totalSuccesses} success{plan.governingRollSnapshot.resolution.totalSuccesses === 1 ? "" : "es"}</span> : null}{plan.effects.map((effect) => {
     const authored = effect.authoredValue && typeof effect.authoredValue === "object" && !Array.isArray(effect.authoredValue)
       ? effect.authoredValue as Record<string, unknown>
       : null;
@@ -564,8 +597,11 @@ function PlayerSourceCommand({
   </section>;
 }
 
-function playerActivityEntries(combat: PlayerCombatConsoleData): BattleActivityEntry[] {
-  return [...combat.declarations.declarations].reverse().slice(0, 10).map((declaration) => {
+function playerActivityEntries(
+  combat: PlayerCombatConsoleData,
+  rows: PlayerCombatConsoleData["declarations"]["declarations"] = combat.declarations.declarations,
+): BattleActivityEntry[] {
+  return [...rows].reverse().slice(0, 10).map((declaration) => {
     const targetIds = declaration.lockedSnapshot?.targetCharacterIds ?? declaration.draft.targetCharacterIds;
     const targets = targetIds.map((id) => combat.declarations.participants.find(({ characterId }) => characterId === id)?.name).filter(Boolean);
     return {
@@ -607,6 +643,14 @@ export function PlayerCombatConsole({
   equipmentLabels: readonly string[];
 }) {
   const [command, setCommand] = useState<PlayerBattleCommand>("attack");
+  const pendingDeclarations = combat.declarations.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status));
+  const completedDeclarations = combat.declarations.declarations.filter(({ status }) => ["resolved", "cancelled", "abandoned"].includes(status));
+  const preferredExchange = pendingDeclarations.find((declaration) => (
+    declaration.actorCharacterId === characterId
+    || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === characterId)
+  )) ?? pendingDeclarations[0] ?? null;
+  const [requestedExchangeId, setRequestedExchangeId] = useState<number | null>(preferredExchange?.id ?? null);
+  const selectedExchange = pendingDeclarations.find(({ id }) => id === requestedExchangeId) ?? preferredExchange;
   const responseCount = combat.declarations.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ responderCharacterId, status }) => responderCharacterId === characterId && status === "pending").length, 0);
   const self = combat.declarations.participants.find(({ characterId: id }) => id === characterId) ?? null;
   const weaponAvailable = Boolean(self?.weapons.length || combat.firearms.firearms.length);
@@ -674,7 +718,7 @@ export function PlayerCombatConsole({
           ? "Move or state other intent"
           : `Choose ${titleCase(command)}`;
 
-  return <BattleShell labelledBy="player-battle-title">
+  return <CombatOperationStateProvider scope={`player-battle:${combat.context.encounterId}:${characterId}`}><BattleShell labelledBy="player-battle-title">
     <BattleHeader
       titleId="player-battle-title"
       eyebrow="REALMS / ACTIVE ENCOUNTER"
@@ -709,18 +753,20 @@ export function PlayerCombatConsole({
         </BattleActor>
         <BattleCommands commands={commands} selected={command} onSelect={setCommand} />
         <BattleStage eyebrow={command.replaceAll("-", " ").toUpperCase()} title={stageTitle} detail={responseCount ? `Waiting on your choice for ${responseCount} incoming exchange${responseCount === 1 ? "" : "s"}.` : "The server rechecks the exact source, target, resource cost, and Initiative state."}>
-          <ResponsePanel characterId={characterId} combat={combat} />
-          {command === "attack" ? <><WeaponActions characterId={characterId} combat={combat} /><FirearmPanel characterId={characterId} combat={combat} /></> : null}
+          {selectedExchange ? <aside className={styles.lockedReview}><strong>Selected exchange: {selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span></aside> : <p className={styles.boundaryNotice}>No pending exchange is awaiting a response, Roll, ruling, or consequence.</p>}
+          {selectedExchange ? <ResponsePanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /> : null}
+          {command === "attack" ? <><WeaponActions characterId={characterId} combat={combat} /><FirearmPanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange?.id ?? -1} /></> : null}
           {command === "cast" || command === "item" || command === "ability" ? <PlayerSourceCommand command={command} characterId={characterId} combat={combat} items={items} spells={spells} abilities={abilities} /> : null}
           {command === "defend" && responseCount === 0 ? <p className={styles.boundaryNotice}>No eligible incoming response is open. Defense choices appear only when the authoritative timeline creates one.</p> : null}
           {command === "called-shot" ? <RulingPanel characterId={characterId} combat={combat} initialType="called-shot" /> : null}
           {command === "move-other" ? <><MovementPanel characterId={characterId} combat={combat} /><RulingPanel characterId={characterId} combat={combat} initialType="manual-action" /></> : null}
           {command === "hold" || command === "pass" ? <InitiativePanel characterId={characterId} combat={combat} disposition={command} /> : null}
-          <DeclarationAndRollPanel characterId={characterId} combat={combat} />
-          <EffectPlans combat={combat} />
+          {selectedExchange ? <><DeclarationAndRollPanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /><EffectPlans combat={combat} selectedDeclarationId={selectedExchange.id} /></> : null}
         </BattleStage>
       </BattleMainColumn>
-      <BattleActivity entries={playerActivityEntries(combat)} title="Pending and recent" />
+      <BattleActivity entries={playerActivityEntries(combat, pendingDeclarations)} title="Pending exchanges" selectedId={selectedExchange ? String(selectedExchange.id) : null} onSelect={(id) => setRequestedExchangeId(Number(id))} />
     </BattleGrid>
-  </BattleShell>;
+    {completedDeclarations.length ? <BattleSecondary summary={`Completed combat history · ${completedDeclarations.length}`}><BattleActivity entries={playerActivityEntries(combat, completedDeclarations)} title="Completed exchanges" /></BattleSecondary> : null}
+    <BattleSecondary summary="All readable declarations, Rolls, and consequences"><DeclarationAndRollPanel characterId={characterId} combat={combat} /><EffectPlans combat={combat} /><FirearmPanel characterId={characterId} combat={combat} historyOnly /></BattleSecondary>
+  </BattleShell></CombatOperationStateProvider>;
 }

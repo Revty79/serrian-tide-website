@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { FirearmInstanceView, FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
+import { useCombatOperationState } from "@/components/tabletop/combat-operation-state";
+import type { FirearmInstanceView, FirearmWorkspaceView, StartFirearmPreparationCommand } from "@/features/tabletop-operations/firearm-readiness-service";
 import type { FirearmPreparationOperation } from "@/features/tabletop-operations/firearm-readiness";
+import { isUncertainSubmissionError } from "@/features/tabletop-operations/submitted-attempt";
 
 import {
   cancelActionDeclaration,
@@ -43,31 +45,44 @@ function FirearmRuntimeCard({
 }) {
   const router = useRouter();
   const state = firearm.state;
+  const operationKey = `firearm-preparation:${characterId}:${firearm.itemInstanceId}`;
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [modeId, setModeId] = useState(String(state?.selectedFiringModeId ?? firearm.modes[0]?.id ?? ""));
-  const [rounds, setRounds] = useState("");
-  const [replace, setReplace] = useState(false);
-  const [disposition, setDisposition] = useState<"none" | "retain" | "discard">("none");
-  const [godCost, setGodCost] = useState("");
-  const [reason, setReason] = useState("");
-  const [capacity, setCapacity] = useState(state?.capacityRounds === null || state?.capacityRounds === undefined ? "" : String(state.capacityRounds));
-  const [readinessMode, setReadinessMode] = useState<"" | "draw-is-ready" | "separate-ready-action">(
+  const [feedback, setFeedback] = useCombatOperationState<Feedback | null>(`${operationKey}:feedback`, null);
+  const [modeId, setModeId] = useCombatOperationState(`${operationKey}:mode`, String(state?.selectedFiringModeId ?? firearm.modes[0]?.id ?? ""));
+  const [rounds, setRounds] = useCombatOperationState(`${operationKey}:rounds`, "");
+  const [replace, setReplace] = useCombatOperationState(`${operationKey}:replace`, false);
+  const [disposition, setDisposition] = useCombatOperationState<"none" | "retain" | "discard">(`${operationKey}:disposition`, "none");
+  const [godCost, setGodCost] = useCombatOperationState(`${operationKey}:god-cost`, "");
+  const [reason, setReason] = useCombatOperationState(`${operationKey}:reason`, "");
+  const [capacity, setCapacity] = useCombatOperationState(`${operationKey}:capacity`, state?.capacityRounds === null || state?.capacityRounds === undefined ? "" : String(state.capacityRounds));
+  const [readinessMode, setReadinessMode] = useCombatOperationState<"" | "draw-is-ready" | "separate-ready-action">(`${operationKey}:readiness-mode`,
     state?.readinessMode === "draw-is-ready" || state?.readinessMode === "separate-ready-action" ? state.readinessMode : "",
   );
-  const [correctedReadied, setCorrectedReadied] = useState(state?.readied ?? false);
-  const [correctedCycling, setCorrectedCycling] = useState(state?.requiresCycling ?? false);
-  const [correctedRecoil, setCorrectedRecoil] = useState(state?.requiresRecoilRecovery ?? false);
+  const [correctedReadied, setCorrectedReadied] = useCombatOperationState(`${operationKey}:corrected-readied`, state?.readied ?? false);
+  const [correctedCycling, setCorrectedCycling] = useCombatOperationState(`${operationKey}:corrected-cycling`, state?.requiresCycling ?? false);
+  const [correctedRecoil, setCorrectedRecoil] = useCombatOperationState(`${operationKey}:corrected-recoil`, state?.requiresRecoilRecovery ?? false);
+  const [preparationAttempt, setPreparationAttempt] = useCombatOperationState<StartFirearmPreparationCommand | null>(`${operationKey}:attempt`, null);
+  const preparationAttemptRef = useRef(preparationAttempt);
+  useEffect(() => {
+    preparationAttemptRef.current = preparationAttempt;
+  }, [operationKey, preparationAttempt]);
   const selectedMode = firearm.modes.find(({ id }) => id === Number(modeId)) ?? null;
 
-  async function perform(work: () => Promise<unknown>, success: string): Promise<void> {
+  async function perform(
+    work: () => Promise<unknown>,
+    success: string,
+    onSuccess?: () => void,
+    onError?: (error: unknown) => void,
+  ): Promise<void> {
     setBusy(true);
     setFeedback(null);
     try {
       await work();
+      onSuccess?.();
       setFeedback({ kind: "success", message: success });
       router.refresh();
     } catch (error) {
+      onError?.(error);
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The firearm operation failed." });
     } finally {
       setBusy(false);
@@ -75,8 +90,9 @@ function FirearmRuntimeCard({
   }
 
   async function prepare(operation: FirearmPreparationOperation): Promise<void> {
-    await perform(async () => {
-      await startFirearmPreparation(encounterId, {
+    let attempt = preparationAttemptRef.current;
+    if (!attempt) {
+      attempt = {
         characterId,
         itemInstanceId: firearm.itemInstanceId,
         operation,
@@ -87,8 +103,24 @@ function FirearmRuntimeCard({
         godInitiativeCost: numberOrNull(godCost),
         godReason: reason,
         idempotencyKey: crypto.randomUUID(),
-      });
-    }, `${operation.replaceAll("-", " ")} was recorded through the existing Initiative action workflow.`);
+      };
+      preparationAttemptRef.current = attempt;
+      setPreparationAttempt(attempt);
+    }
+    await perform(
+      () => startFirearmPreparation(encounterId, attempt),
+      `${attempt.operation.replaceAll("-", " ")} was recorded through the existing Initiative action workflow.`,
+      () => {
+        preparationAttemptRef.current = null;
+        setPreparationAttempt(null);
+      },
+      (error) => {
+        if (!isUncertainSubmissionError(error)) {
+          preparationAttemptRef.current = null;
+          setPreparationAttempt(null);
+        }
+      },
+    );
   }
 
   if (!state) return <article className="firearm-runtime-card">
@@ -137,16 +169,18 @@ function FirearmRuntimeCard({
         <label className="is-wide"><span>G.O.D. timing / discard reason</span><input value={reason} onChange={(event) => setReason(event.target.value)} /></label>
       </div>
       <div className="firearm-runtime-actions">
-        <button disabled={busy || firearm.equipmentState === "wielded"} onClick={() => void prepare("draw")}>Draw</button>
-        <button disabled={busy || firearm.equipmentState !== "wielded" || state.readied} onClick={() => void prepare("ready")}>Ready</button>
-        <button disabled={busy || state.loadedRounds > 0 || !rounds} onClick={() => void prepare("load")}>Load</button>
-        <button disabled={busy || !rounds} onClick={() => void prepare("reload")}>Reload</button>
-        <button disabled={busy || state.loadedRounds === 0 || disposition === "none"} onClick={() => void prepare("unload")}>Unload</button>
-        <button disabled={busy || Number(modeId) === state.selectedFiringModeId || !selectedMode?.timing} onClick={() => void prepare("change-mode")}>Change mode</button>
-        <button disabled={busy || !state.requiresCycling} onClick={() => void prepare("cycle")}>Cycle</button>
-        <button disabled={busy || !state.requiresRecoilRecovery} onClick={() => void prepare("recover-recoil")}>Recover recoil</button>
+        <button disabled={busy || preparationAttempt !== null || firearm.equipmentState === "wielded"} onClick={() => void prepare("draw")}>Draw</button>
+        <button disabled={busy || preparationAttempt !== null || firearm.equipmentState !== "wielded" || state.readied} onClick={() => void prepare("ready")}>Ready</button>
+        <button disabled={busy || preparationAttempt !== null || state.loadedRounds > 0 || !rounds} onClick={() => void prepare("load")}>Load</button>
+        <button disabled={busy || preparationAttempt !== null || !rounds} onClick={() => void prepare("reload")}>Reload</button>
+        <button disabled={busy || preparationAttempt !== null || state.loadedRounds === 0 || disposition === "none"} onClick={() => void prepare("unload")}>Unload</button>
+        <button disabled={busy || preparationAttempt !== null || Number(modeId) === state.selectedFiringModeId || !selectedMode?.timing} onClick={() => void prepare("change-mode")}>Change mode</button>
+        <button disabled={busy || preparationAttempt !== null || !state.requiresCycling} onClick={() => void prepare("cycle")}>Cycle</button>
+        <button disabled={busy || preparationAttempt !== null || !state.requiresRecoilRecovery} onClick={() => void prepare("recover-recoil")}>Recover recoil</button>
       </div>
     </>}
+
+    {preparationAttempt && feedback?.kind === "error" ? <aside className="action-declaration-recovery"><strong>The firearm preparation may have reached the server.</strong><span>Retry keeps the exact operation, rounds, disposition, timing ruling, firearm, actor, and submission identity.</span><div><button type="button" disabled={busy} onClick={() => void prepare(preparationAttempt.operation)}>Retry exact preparation</button></div></aside> : null}
 
     <details className="firearm-runtime-ruling"><summary>Audited state correction</summary><div className="firearm-runtime-form"><label><span>Frozen capacity</span><input type="number" min={1} step={1} value={capacity} onChange={(event) => setCapacity(event.target.value)} /></label><label><span>Readiness relationship</span><select value={readinessMode} onChange={(event) => setReadinessMode(event.target.value as typeof readinessMode)}><option value="">Unresolved</option><option value="draw-is-ready">Drawing also readies</option><option value="separate-ready-action">Separate ready action</option></select></label><label className="firearm-runtime-check"><input type="checkbox" checked={correctedReadied} onChange={(event) => setCorrectedReadied(event.target.checked)} /><span>Readied</span></label><label className="firearm-runtime-check"><input type="checkbox" checked={correctedCycling} onChange={(event) => setCorrectedCycling(event.target.checked)} /><span>Cycling required</span></label><label className="firearm-runtime-check"><input type="checkbox" checked={correctedRecoil} onChange={(event) => setCorrectedRecoil(event.target.checked)} /><span>Recoil recovery required</span></label><label className="is-wide"><span>Required correction reason</span><input value={reason} onChange={(event) => setReason(event.target.value)} /></label></div><div className="firearm-runtime-actions"><button disabled={busy || !reason.trim()} onClick={() => void perform(() => correctFirearmState(encounterId, { characterId, itemInstanceId: firearm.itemInstanceId, capacityRounds: numberOrNull(capacity), readinessMode: readinessMode || null, readied: correctedReadied, requiresCycling: correctedCycling, requiresRecoilRecovery: correctedRecoil, reason }), "Audited firearm correction recorded without editing canonical Equipment.")}>Record correction</button><button disabled={busy || !reason.trim()} onClick={() => void perform(() => recordFirearmManualHandling(encounterId, { characterId, itemInstanceId: firearm.itemInstanceId, reason }), "Unsupported situation marked for manual handling.")}>Mark manual handling</button></div></details>
 
@@ -155,7 +189,13 @@ function FirearmRuntimeCard({
   </article>;
 }
 
-export function FirearmReadinessWorkspace({ view }: { view: FirearmWorkspaceView }) {
+export function FirearmReadinessWorkspace({
+  view,
+  lockCharacterSelection = false,
+}: {
+  view: FirearmWorkspaceView;
+  lockCharacterSelection?: boolean;
+}) {
   const router = useRouter();
   const selectedCharacter = view.characters.find(({ id }) => id === view.selectedCharacterId) ?? null;
   const selectedFirearm = view.firearms.find(({ itemInstanceId }) => itemInstanceId === view.selectedItemInstanceId) ?? null;
@@ -172,7 +212,9 @@ export function FirearmReadinessWorkspace({ view }: { view: FirearmWorkspaceView
     <header><div><span>PASS 9 · FIREARM RUNTIME</span><h3 className="font-sans">Readiness &amp; Ammunition</h3></div><small>Exact owned copies · existing Initiative actions · no attack resolution</small></header>
     <p className="firearm-runtime-boundary">This console records objective readiness and inventory state. It does not roll attacks, consume fired rounds, allocate bullets, or apply damage.</p>
     <div className="firearm-runtime-picker">
-      <label><span>Encounter Character or NPC</span><select value={view.selectedCharacterId ?? ""} onChange={(event) => navigate(Number(event.target.value))}>{view.characters.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.participantKind === "creature" ? " · direct Creature" : entry.isNpc ? " · persistent NPC" : ""}</option>)}</select></label>
+      {lockCharacterSelection
+        ? <div><span>Selected encounter actor</span><strong>{selectedCharacter?.name ?? "No current actor"}</strong></div>
+        : <label><span>Encounter Character or NPC</span><select value={view.selectedCharacterId ?? ""} onChange={(event) => navigate(Number(event.target.value))}>{view.characters.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.participantKind === "creature" ? " · direct Creature" : entry.isNpc ? " · persistent NPC" : ""}</option>)}</select></label>}
       {selectedCharacter && selectedCharacter.id > 0 ? <label><span>Exact owned firearm</span><select value={view.selectedItemInstanceId ?? ""} onChange={(event) => navigate(selectedCharacter.id, Number(event.target.value))}><option value="">Select exact copy</option>{view.firearms.map((entry) => <option key={entry.itemInstanceId} value={entry.itemInstanceId}>{entry.itemName} · copy #{entry.itemInstanceId}</option>)}</select></label> : null}
     </div>
 

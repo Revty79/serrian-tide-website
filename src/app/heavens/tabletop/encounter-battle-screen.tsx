@@ -19,6 +19,7 @@ import {
   type BattleCommandEntry,
   type BattleRosterEntry,
 } from "@/components/tabletop/battle-layout";
+import { CombatOperationStateProvider } from "@/components/tabletop/combat-operation-state";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import type { CombatAidEncounterView, CombatAidParticipant } from "@/features/tabletop-operations/combat-aid-service";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
@@ -28,6 +29,7 @@ import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firear
 import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
+import { resolveEncounterBattleParticipantId } from "@/features/tabletop-operations/encounter-battle-selection";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 
 import {
@@ -42,7 +44,13 @@ import { FirearmAttackWorkspace } from "./firearm-attack-workspace";
 import { FirearmReadinessWorkspace } from "./firearm-readiness-workspace";
 import { InitiativeTracker } from "./initiative-tracker";
 import { PlayerCombatRulingWorkspace } from "./player-combat-ruling-workspace";
-import { holdEncounterInitiative, passEncounterInitiative } from "./initiative-actions";
+import {
+  advanceEncounterInitiativeRound,
+  advanceEncounterInitiativeTimeline,
+  holdEncounterInitiative,
+  passEncounterInitiative,
+  recoverClosedEncounterInitiative,
+} from "./initiative-actions";
 
 type BattleCommand = BattleDeclarationPreset["command"] | "defend" | "hold" | "pass";
 
@@ -68,9 +76,12 @@ function healthValue(participant: CombatAidParticipant | null): { value: string;
   return { value: "Unavailable", detail: "No resolved Health view" };
 }
 
-function activityEntries(view: ActionDeclarationWorkspaceView | null): BattleActivityEntry[] {
+function activityEntries(
+  view: ActionDeclarationWorkspaceView | null,
+  rows: ActionDeclarationWorkspaceView["declarations"] = view?.declarations ?? [],
+): BattleActivityEntry[] {
   if (!view) return [];
-  return [...view.declarations].reverse().slice(0, 10).map((declaration) => {
+  return [...rows].reverse().slice(0, 10).map((declaration) => {
     const targetIds = declaration.lockedSnapshot?.targetCharacterIds ?? declaration.draft.targetCharacterIds;
     const targets = targetIds.map((id) => view.participants.find(({ characterId }) => characterId === id)?.name).filter(Boolean);
     const timing = declaration.timing
@@ -127,12 +138,11 @@ export function EncounterBattleScreen({
     hitLocations: [],
     creatureAttacks: [],
   }));
-  const firstSelected = presentationParticipants.some(({ characterId }) => characterId === initialSelectedCombatantId)
-    ? initialSelectedCombatantId!
-    : presentationParticipants.find(({ characterId, choiceOwner }) => choiceOwner === "god" && initiative.nextEvent?.characterIds.includes(characterId))?.characterId
-      ?? presentationParticipants.find(({ choiceOwner, participationStatus }) => choiceOwner === "god" && participationStatus === "active")?.characterId
-      ?? presentationParticipants[0]?.characterId
-      ?? 0;
+  const firstSelected = resolveEncounterBattleParticipantId({
+    requestedParticipantId: initialSelectedCombatantId,
+    participants: presentationParticipants,
+    nextEventParticipantIds: initiative.nextEvent?.characterIds ?? [],
+  }) ?? 0;
   const [selectedCombatantId, setSelectedCombatantId] = useState(firstSelected);
   const selectedCombatant = presentationParticipants.find(({ characterId }) => characterId === selectedCombatantId) ?? null;
   const selectedState = combatAid?.participants.find(({ identity }) => identity.characterId === selectedCombatantId) ?? null;
@@ -140,9 +150,17 @@ export function EncounterBattleScreen({
   const actorIsGodControlled = selectedCombatant?.choiceOwner === "god";
   const declarationOpportunityAvailable = Boolean(actorIsGodControlled && trackerParticipant?.canAct && !selectedCombatant?.hasActiveAction);
   const [command, setCommand] = useState<BattleCommand>("attack");
-  const [presetVersion, setPresetVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const pendingDeclarations = declarations?.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)) ?? [];
+  const completedDeclarations = declarations?.declarations.filter(({ status }) => ["resolved", "cancelled", "abandoned"].includes(status)) ?? [];
+  const closedUnfinishedDeclarations = initiative.runtime?.runtime.status === "closed" ? pendingDeclarations : [];
+  const preferredExchange = pendingDeclarations.find((declaration) => (
+    declaration.actorCharacterId === selectedCombatantId
+    || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === selectedCombatantId)
+  )) ?? pendingDeclarations[0] ?? null;
+  const [requestedExchangeId, setRequestedExchangeId] = useState<number | null>(preferredExchange?.id ?? null);
+  const selectedExchange = pendingDeclarations.find(({ id }) => id === requestedExchangeId) ?? preferredExchange;
   const responseCount = declarations?.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ status }) => status === "pending").length, 0) ?? 0;
   const focusedResponseCount = declarations?.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ responderCharacterId, status }) => responderCharacterId === selectedCombatantId && status === "pending").length, 0) ?? 0;
   const resultCount = effects?.plans.filter(({ status }) => !["applied", "declined"].includes(status)).length ?? 0;
@@ -151,8 +169,13 @@ export function EncounterBattleScreen({
     && (declaration.actorCharacterId === selectedCombatantId || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === selectedCombatantId))
   )) ?? false;
   const firearmAttackAvailable = Boolean(selectedCombatant?.weapons.some(({ firingModes }) => firingModes.length > 0));
+  const firearmPreparationAvailable = Boolean(
+    firearmReadiness
+    && firearmReadiness.selectedCharacterId === selectedCombatantId
+    && (firearmReadiness.firearms.length || firearmReadiness.legacyStacks.length),
+  );
   const declarationAttackAvailable = Boolean(selectedCombatant?.creatureAttacks.length || selectedCombatant?.weapons.some(({ firingModes }) => firingModes.length === 0));
-  const attackAvailable = firearmAttackAvailable || declarationAttackAvailable;
+  const attackAvailable = firearmAttackAvailable || firearmPreparationAvailable || declarationAttackAvailable;
   const castAvailable = Boolean(selectedState?.spellSources.length);
   const itemAvailable = Boolean(selectedState?.resources && (
     selectedState.resources.stacks.some(({ runtime }) => runtime.useMode !== "none")
@@ -234,12 +257,12 @@ export function EncounterBattleScreen({
     })),
   ] : [];
   const firearmWorkspace = (command === "attack" || command === "called-shot")
-    && firearmAttackAvailable
+    && firearmPreparationAvailable
     && firearmReadiness
     && firearmReadiness.selectedCharacterId === selectedCombatantId
     ? <>
-      <FirearmReadinessWorkspace view={firearmReadiness} />
-      {firearmAttacks ? <FirearmAttackWorkspace key={`${selectedCombatantId}:${command}`} readiness={firearmReadiness} attackView={firearmAttacks} initialCalledShot={command === "called-shot"} /> : null}
+      <FirearmReadinessWorkspace view={firearmReadiness} lockCharacterSelection />
+      {firearmAttacks ? <FirearmAttackWorkspace readiness={firearmReadiness} attackView={firearmAttacks} initialCalledShot={command === "called-shot"} selectedDeclarationId={selectedExchange?.id ?? -1} /> : null}
     </>
     : null;
 
@@ -247,10 +270,14 @@ export function EncounterBattleScreen({
     setSelectedCombatantId(characterId);
     setCommand("attack");
     setFeedback(null);
-    setPresetVersion((value) => value + 1);
+    const nextExchange = pendingDeclarations.find((declaration) => (
+      declaration.actorCharacterId === characterId
+      || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === characterId)
+    )) ?? pendingDeclarations[0] ?? null;
+    setRequestedExchangeId(nextExchange?.id ?? null);
     const params = new URLSearchParams(window.location.search);
     params.set("actor", String(characterId));
-    params.set("firearmCharacter", String(characterId));
+    params.delete("firearmCharacter");
     params.delete("firearmInstance");
     router.replace(`/heavens/tabletop?${params.toString()}`, { scroll: false });
   }
@@ -258,7 +285,6 @@ export function EncounterBattleScreen({
   function chooseCommand(next: BattleCommand): void {
     setCommand(next);
     setFeedback(null);
-    if (next !== "defend" && next !== "hold" && next !== "pass") setPresetVersion((value) => value + 1);
   }
 
   async function disposition(kind: "hold" | "pass"): Promise<void> {
@@ -277,13 +303,44 @@ export function EncounterBattleScreen({
     }
   }
 
-  const attention = responseCount
+  async function advance(kind: "event" | "round"): Promise<void> {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      if (kind === "event") await advanceEncounterInitiativeTimeline(initiative.encounter.id);
+      else await advanceEncounterInitiativeRound(initiative.encounter.id);
+      setFeedback({ kind: "success", message: kind === "event" ? "Advanced to the next authoritative Initiative event." : "Advanced to the next Initiative Round." });
+      router.refresh();
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Initiative could not advance." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recoverClosedInitiative(): Promise<void> {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await recoverClosedEncounterInitiative(initiative.encounter.id);
+      setFeedback({ kind: "success", message: "Initiative resumed at the existing Round, Step, and timeline. Finish or explicitly cancel the existing exchange." });
+      router.refresh();
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The closed Initiative runtime could not be recovered." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const attention = closedUnfinishedDeclarations.length
+    ? `Initiative is closed with ${closedUnfinishedDeclarations.length} unfinished committed exchange${closedUnfinishedDeclarations.length === 1 ? "" : "s"}.`
+    : responseCount
     ? `${responseCount} response choice${responseCount === 1 ? "" : "s"} need attention.`
     : resultCount
       ? `${resultCount} result${resultCount === 1 ? "" : "s"} need review.`
       : initiative.nextEvent?.summary ?? "Initialize Initiative to begin battle operations.";
 
-  return <BattleShell labelledBy="encounter-battle-title">
+  return <CombatOperationStateProvider scope={`god-battle:${initiative.encounter.id}`}><BattleShell labelledBy="encounter-battle-title">
     <BattleHeader
       titleId="encounter-battle-title"
       eyebrow="THE HEAVENS / RUN ENCOUNTER"
@@ -295,8 +352,21 @@ export function EncounterBattleScreen({
         { label: "Responses", value: responseCount },
         { label: "Results", value: resultCount },
       ]}
-      actions={<><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
+      actions={<>{closedUnfinishedDeclarations.length ? <button className="st-button is-primary" type="button" disabled={busy} onClick={() => void recoverClosedInitiative()}>Resume Unfinished Initiative</button> : null}<button className="st-button is-primary" type="button" disabled={busy || !initiative.nextEvent?.canAdvance} title={initiative.nextEvent?.detail ?? "No Initiative event is ready to advance."} onClick={() => void advance("event")}>Advance Next Event</button><button className="st-button is-secondary" type="button" disabled={busy || !initiative.canAdvanceRound} title={initiative.canAdvanceRound ? "Advance the legal Initiative Round." : "Unresolved opportunities or actions prevent Round advancement."} onClick={() => void advance("round")}>Advance Round</button><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
     />
+
+    <p className="tabletop-feedback">{closedUnfinishedDeclarations.length ? "This is an already-closed runtime with unfinished committed work. Resume it in place, then open the existing exchange below to complete or explicitly cancel it." : initiative.nextEvent?.detail ?? (initiative.canAdvanceRound ? "The current Round is complete and may advance." : "Waiting for Initiative initialization or unresolved combat work.")}</p>
+
+    {closedUnfinishedDeclarations.length ? <aside className="action-declaration-recovery" role="alert">
+      <strong>Unfinished work survived Initiative closure.</strong>
+      <span>Recovery changes only the runtime from closed to active. It does not reset Initiative, repeat elapsed time, clear Rolls, refund costs, or reapply damage or resources.</span>
+      <nav aria-label="Unfinished closed Initiative exchanges">
+        {closedUnfinishedDeclarations.map((declaration) => <button className="st-button is-secondary" type="button" key={declaration.id} onClick={() => {
+          selectCombatant(declaration.actorCharacterId);
+          setRequestedExchangeId(declaration.id);
+        }}>Open #{declaration.id}: {declaration.lockedSnapshot?.label ?? declaration.draft.label} — {declaration.rollState.message}</button>)}
+      </nav>
+    </aside> : null}
 
     {!selectedCombatant && selectedCombatantId !== 0 ? <p className="tabletop-feedback is-error">The selected combatant left this Encounter. The roster has not switched you to someone else; choose a current participant.</p> : null}
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
@@ -331,13 +401,13 @@ export function EncounterBattleScreen({
         >
           {!actorIsGodControlled ? <p className="tabletop-feedback">This Player owns their ordinary action and defense choices. G.O.D. visibility does not transfer control or response knowledge.</p> : null}
           {actorIsGodControlled && declarationCommand && !declarationOpportunityAvailable ? <p className="tabletop-feedback">No legal normal action opportunity is open for this combatant. Existing declarations, responses, Rolls, and results remain available below.</p> : null}
+          {selectedExchange ? <aside className="action-declaration-recovery"><strong>Selected exchange: {selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span></aside> : <p className="tabletop-empty">No pending exchange is awaiting defense, Roll, ruling, or consequences.</p>}
 
           {actorIsGodControlled && (command === "hold" || command === "pass") ? <div className="encounter-battle-disposition"><p>This records the existing {titleCase(command)} disposition without creating an action declaration.</p><button className="st-button is-primary" type="button" disabled={busy || (command === "hold" ? !trackerParticipant?.canHold : !trackerParticipant?.canPass)} onClick={() => void disposition(command)}>{command === "hold" ? "Hold Initiative" : "Pass Initiative"}</button></div> : null}
 
           {actorIsGodControlled && declarationCommand && declarationOpportunityAvailable && declarations ? <>
             {(command === "cast" || command === "item" || command === "ability") ? <p className="tabletop-feedback">Choose an exact current source. The source, current ownership, Initiative, Mana or Item costs, and supported consequences are rechecked and frozen on the server. Any genuinely unresolved Roll mode remains an explicit ruling.</p> : null}
             {command !== "attack" && command !== "called-shot" || declarationAttackAvailable ? <ActionDeclarationWorkspace
-              key={`${selectedCombatant.characterId}:${command}:${presetVersion}`}
               view={declarations}
               battlePreset={{ actorCharacterId: selectedCombatant.characterId, command }}
               battleSourceChoices={battleSourceChoices}
@@ -351,17 +421,19 @@ export function EncounterBattleScreen({
             : firearmWorkspace
           : null}
 
-          {actorIsGodControlled && command === "defend" && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
-          {command !== "defend" && focusedResolution && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
-          {effects ? <ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} compact /> : null}
+          {declarations && defenses && selectedExchange ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedDeclarationId={selectedExchange.id} /> : actorIsGodControlled && command === "defend" && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
+          {effects && selectedExchange ? <ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} compact selectedDeclarationId={selectedExchange.id} /> : null}
         </BattleStage> : null}
       </BattleMainColumn>
-      <BattleActivity entries={activityEntries(declarations)} title="Pending and recent" />
+      <BattleActivity entries={activityEntries(declarations, pendingDeclarations)} title="Pending exchanges" selectedId={selectedExchange ? String(selectedExchange.id) : null} onSelect={(id) => setRequestedExchangeId(Number(id))} />
     </BattleGrid>
 
     <BattleSecondary summary="Initiative controls and shared timeline" open={!initiative.runtime}><InitiativeTracker data={initiative} /></BattleSecondary>
+    {completedDeclarations.length ? <BattleSecondary summary={`Completed combat history · ${completedDeclarations.length}`}><BattleActivity entries={activityEntries(declarations, completedDeclarations)} title="Completed exchanges" /></BattleSecondary> : null}
+    {effects ? <BattleSecondary summary="All consequence plans"><ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} /></BattleSecondary> : null}
+    {firearmReadiness && firearmAttacks ? <BattleSecondary summary="All firearm attack history"><FirearmAttackWorkspace readiness={firearmReadiness} attackView={firearmAttacks} historyOnly /></BattleSecondary> : null}
     {playerRulings.length ? <BattleSecondary summary={`Player rulings and exceptions · ${playerRulings.length}`}><PlayerCombatRulingWorkspace encounterId={initiative.encounter.id} requests={playerRulings} /></BattleSecondary> : null}
     {declarations && defenses ? <BattleSecondary summary="Advanced declaration, eligibility, and defense controls"><ActionDeclarationWorkspace view={declarations} /><DefenseInterventionWorkspace actions={declarations} defense={defenses} /></BattleSecondary> : null}
     {combatAid ? <BattleSecondary summary="Full combat reference and manual operations"><CombatAidWorkspace data={combatAid} rollWorkspace={rollWorkspace} /></BattleSecondary> : null}
-  </BattleShell>;
+  </BattleShell></CombatOperationStateProvider>;
 }

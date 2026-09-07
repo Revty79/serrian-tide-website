@@ -31,3 +31,19 @@ export function captureSubmittedAttempt<T>(
 export function retrySubmittedAttempt<T>(attempt: SubmittedAttempt<T>): SubmittedAttempt<T> {
   return attempt;
 }
+
+export function isUncertainSubmissionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return true;
+  if (error instanceof TypeError) return true;
+  const message = error.message.toLocaleLowerCase();
+  return [
+    "failed to fetch",
+    "network error",
+    "network request failed",
+    "load failed",
+    "connection",
+    "timeout",
+    "failed to find server action",
+    "could not be completed",
+  ].some((fragment) => message.includes(fragment));
+}

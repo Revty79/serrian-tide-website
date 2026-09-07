@@ -316,6 +316,7 @@ async function requireEncounterParticipants(
 export async function loadInitiativeEngineInTransaction(
   tx: RuntimeIntegrationTransaction,
   encounterId: number,
+  options: { allowClosed?: boolean } = {},
 ): Promise<InitiativeEngineState> {
   const [runtime] = await tx.select({
     encounterId: campaignSessionEncounterInitiative.encounterId,
@@ -329,7 +330,9 @@ export async function loadInitiativeEngineInTransaction(
     .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId))
     .limit(1)
     .for("update");
-  if (!runtime || runtime.status !== "active") throw new Error("This Encounter has no active Initiative runtime.");
+  if (!runtime || (runtime.status !== "active" && !options.allowClosed)) {
+    throw new Error("This Encounter has no active Initiative runtime.");
+  }
   const participants = await tx.select({
       encounterId: campaignSessionEncounterInitiativeParticipant.encounterId,
       characterId: campaignSessionEncounterInitiativeParticipant.characterId,

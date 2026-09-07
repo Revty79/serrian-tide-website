@@ -58,6 +58,7 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     await tx.insert(userRole).values({ userId: base.godId, role: "god" });
     const context = await lockOwnedEncounterRuntimeInTransaction(tx, base.encounterId, base.godId);
     const actor = { authority: "god-owner" as const, userId: base.godId };
+    const playerActor = { authority: "player" as const, userId: base.godId, characterId: base.heroId };
     const suffix = crypto.randomUUID().toUpperCase();
     const [firearmItem, ammunitionItem, wrongAmmunitionItem, foreignFirearmItem] = await tx.insert(item).values([
       { canonicalId: `TEST-FIREARM-${suffix}`, name: "Twin Test Pistol", catalogScope: "equipment", equipmentGroup: "weapon", recordType: "Weapon", family: "Test", category: "Firearm", priceBasis: "per item", createdByUserId: base.godId },
@@ -173,7 +174,7 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     assert.ok((await tx.select().from(campaignCharacterFirearmEvent).where(eq(campaignCharacterFirearmEvent.itemInstanceId, first.itemInstanceId))).some(({ reason }) => reason === "Rounds were destroyed by the environment"));
 
     await tx.update(weaponProfile).set({ reloadInitiativeCost: 3 }).where(eq(weaponProfile.id, firearmProfile.id));
-    const longLoad = await startFirearmPreparationInTransaction(tx, context, base.godId, {
+    const longLoad = await startFirearmPreparationInTransaction(tx, context, playerActor, {
       characterId: base.heroId, itemInstanceId: second.itemInstanceId, operation: "load", requestedRounds: 2, idempotencyKey: `long-load-${suffix}`,
     });
     assert.equal(longLoad.status, "pending");
@@ -192,7 +193,7 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     assert.equal((await tx.select().from(campaignCharacterFirearmPreparation).where(eq(campaignCharacterFirearmPreparation.id, longLoad.preparationId)))[0]?.status, "completed");
 
     await tx.update(weaponProfile).set({ unloadInitiativeCost: 2 }).where(eq(weaponProfile.id, firearmProfile.id));
-    const interruptedUnload = await startFirearmPreparationInTransaction(tx, context, base.godId, {
+    const interruptedUnload = await startFirearmPreparationInTransaction(tx, context, playerActor, {
       characterId: base.heroId, itemInstanceId: second.itemInstanceId, operation: "unload", partialLoadDisposition: "retain", idempotencyKey: `interrupt-${suffix}`,
     });
     const interruptedDeclaration = (await tx.select().from(campaignCharacterFirearmPreparation).where(eq(campaignCharacterFirearmPreparation.id, interruptedUnload.preparationId)))[0]!.actionDeclarationId!;

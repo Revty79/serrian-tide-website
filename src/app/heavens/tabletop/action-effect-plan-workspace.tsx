@@ -115,14 +115,22 @@ export function ActionEffectPlanWorkspace({
   encounterId,
   view,
   compact = false,
+  selectedDeclarationId = null,
 }: {
   encounterId: number;
   view: ActionEffectWorkspaceView;
   compact?: boolean;
+  selectedDeclarationId?: number | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const eligibleDeclarations = selectedDeclarationId === null
+    ? view.eligibleDeclarations
+    : view.eligibleDeclarations.filter(({ id }) => id === selectedDeclarationId);
+  const plans = selectedDeclarationId === null
+    ? view.plans
+    : view.plans.filter(({ declarationId }) => declarationId === selectedDeclarationId);
 
   async function perform(operation: () => Promise<unknown>, success: string): Promise<void> {
     setBusy(true);
@@ -174,8 +182,8 @@ export function ActionEffectPlanWorkspace({
     </header>
     {feedback ? <p className={`tabletop-encounter-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
-    {view.eligibleDeclarations.length ? <div className="action-effect-ready">
-      {view.eligibleDeclarations.map((declaration) => <article key={declaration.id}>
+    {eligibleDeclarations.length ? <div className="action-effect-ready">
+      {eligibleDeclarations.map((declaration) => <article key={declaration.id}>
         <div><strong>{declaration.label}</strong><small>{declaration.actorName} · {declaration.sourceKind} · Initiative {declaration.timingStatus}</small></div>
         <button type="button" disabled={busy} onClick={() => void perform(
           () => generateActionEffectPlan(encounterId, declaration.id),
@@ -185,7 +193,7 @@ export function ActionEffectPlanWorkspace({
     </div> : <p className="tabletop-empty">{compact ? "No completed action is waiting for consequence review." : "No completed declaration is waiting for consequence-plan generation."}</p>}
 
     <div className="action-effect-plans">
-      {view.plans.map((plan) => <article className="action-effect-plan" key={plan.id}>
+      {plans.map((plan) => <article className="action-effect-plan" key={plan.id}>
         <header>
           <div>{compact ? <span>{plan.actorName}</span> : <span>PLAN #{plan.id} · DECLARATION #{plan.declarationId}</span>}<strong>{plan.sourceSnapshot.displayName}</strong>{compact ? null : <small>Actor: {plan.actorName} · {plan.sourceKind} · {plan.sourceIdentity}</small>}</div>
           <em className={`tabletop-status is-${plan.status}`}>{compact ? titleCase(plan.status) : plan.status}</em>
@@ -243,6 +251,7 @@ export function ActionEffectPlanWorkspace({
           {["calculated", "requires-god-ruling", "approved", "application-failed"].includes(plan.status) ? <button type="button" className="is-danger" disabled={busy} onClick={() => { const reason = requested("Required reason for declining the entire plan"); if (reason) void perform(() => declineActionEffectPlan(encounterId, plan.id, reason), compact ? "Results declined without changing gameplay state." : "Effect plan declined without applying gameplay changes."); }}>{compact ? "Decline Results" : "Decline Plan"}</button> : null}
         </footer>
       </article>)}
+      {!plans.length ? <p className="tabletop-empty">No consequence plan is attached to this selected exchange.</p> : null}
     </div>
   </section>;
 }

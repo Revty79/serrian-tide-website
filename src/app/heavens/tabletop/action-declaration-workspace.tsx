@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useCombatOperationState } from "@/components/tabletop/combat-operation-state";
 import type { ActionDeclarationDraft, ActionWindowKind } from "@/features/tabletop-operations/action-declaration";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
+import { isUncertainSubmissionError } from "@/features/tabletop-operations/submitted-attempt";
 
 import {
   abandonActionDeclaration,
@@ -246,10 +248,17 @@ export function ActionDeclarationWorkspace({
   directCommit?: boolean;
 }) {
   const router = useRouter();
-  const [editor, setEditor] = useState<EditorState>(() => initialEditor(view, battlePreset, battleSourceChoices));
+  const operationKey = battlePreset
+    ? `declaration:${battlePreset.actorCharacterId}:${battlePreset.command}`
+    : "declaration:advanced";
+  const [editor, setEditor] = useCombatOperationState<EditorState>(`${operationKey}:editor`, () => initialEditor(view, battlePreset, battleSourceChoices));
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [directAttempt, setDirectAttempt] = useState<null | { draft: ActionDeclarationDraft; idempotencyKey: string }>(null);
+  const [feedback, setFeedback] = useCombatOperationState<Feedback | null>(`${operationKey}:feedback`, null);
+  const [directAttempt, setDirectAttempt] = useCombatOperationState<null | { draft: ActionDeclarationDraft; idempotencyKey: string }>(`${operationKey}:attempt`, null);
+  const directAttemptRef = useRef(directAttempt);
+  useEffect(() => {
+    directAttemptRef.current = directAttempt;
+  }, [directAttempt, operationKey]);
   const [exceptionalResponder, setExceptionalResponder] = useState<Record<number, number>>({});
   const [eligibilityReasons, setEligibilityReasons] = useState<Record<number, string>>({});
   const godControlledParticipants = view.participants.filter(({ choiceOwner }) => choiceOwner === "god");
@@ -274,7 +283,12 @@ export function ActionDeclarationWorkspace({
   ].includes(status)), [view.declarations]);
   const headingId = compact ? "action-declaration-battle-heading" : "action-declaration-heading";
 
-  async function perform(work: () => Promise<unknown>, success: string, onSuccess?: () => void): Promise<void> {
+  async function perform(
+    work: () => Promise<unknown>,
+    success: string,
+    onSuccess?: () => void,
+    onError?: (error: unknown) => void,
+  ): Promise<void> {
     setBusy(true);
     setFeedback(null);
     try {
@@ -283,6 +297,7 @@ export function ActionDeclarationWorkspace({
       setFeedback({ kind: "success", message: success });
       router.refresh();
     } catch (error) {
+      onError?.(error);
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The declaration operation failed." });
     } finally {
       setBusy(false);
@@ -308,7 +323,7 @@ export function ActionDeclarationWorkspace({
   }
 
   async function declareAction(): Promise<void> {
-    let attempt = directAttempt;
+    let attempt = directAttemptRef.current;
     if (!attempt) {
       let draft: ActionDeclarationDraft;
       try {
@@ -323,14 +338,22 @@ export function ActionDeclarationWorkspace({
           .map((byte) => byte.toString(16).padStart(2, "0"))
           .join(""),
       };
+      directAttemptRef.current = attempt;
       setDirectAttempt(attempt);
     }
     await perform(
       () => declareGodAction(view.context.encounterId, attempt.draft, attempt.idempotencyKey),
       "Action declared and committed to the authoritative Initiative timeline.",
       () => {
+        directAttemptRef.current = null;
         setDirectAttempt(null);
         setEditor(initialEditor(view, battlePreset, battleSourceChoices));
+      },
+      (error) => {
+        if (!isUncertainSubmissionError(error)) {
+          directAttemptRef.current = null;
+          setDirectAttempt(null);
+        }
       },
     );
   }
@@ -365,7 +388,7 @@ export function ActionDeclarationWorkspace({
     {directAttempt && feedback?.kind === "error" ? <aside className="action-declaration-recovery">
       <strong>The declaration may have reached the server.</strong>
       <span>Retry keeps the exact actor, source, target, timing, choices, and submission identity.</span>
-      <div><button type="button" disabled={busy} onClick={() => void declareAction()}>Retry exact declaration</button><button type="button" className="st-button is-secondary" disabled={busy} onClick={() => { setDirectAttempt(null); setFeedback(null); }}>Start corrected action</button></div>
+      <div><button type="button" disabled={busy} onClick={() => void declareAction()}>Retry exact declaration</button></div>
     </aside> : null}
 
     <form className="action-declaration-editor" onSubmit={(event) => { event.preventDefault(); void (directCommit ? declareAction() : saveDraft()); }}>

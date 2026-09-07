@@ -26,6 +26,18 @@ function titleCase(value: string): string {
   return value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function CombatAvailabilityNotice({ availability }: { availability: PlayerTabletopConsoleView["combatAvailability"] }) {
+  return <aside className={`${styles.boundaryNotice} ${styles.closedWork}`} role="status">
+    <span>{availability.reason}</span>
+    {availability.unfinishedWork?.length ? <ul>
+      {availability.unfinishedWork.map((work) => <li key={work.declarationId}>
+        <strong>Exchange #{work.declarationId}: {work.label}</strong>
+        <span>{work.message}</span>
+      </li>)}
+    </ul> : null}
+  </aside>;
+}
+
 function Section({
   id,
   eyebrow,
@@ -147,7 +159,7 @@ export function PlayerTabletopWorkspace({
 
       {shopVisit ? <>
         <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} />
-        {view.encounter && view.combatAvailability.status !== "ready" ? <p className={styles.boundaryNotice} role="status">{view.combatAvailability.reason}</p> : null}
+        {view.encounter && view.combatAvailability.status !== "ready" ? <CombatAvailabilityNotice availability={view.combatAvailability} /> : null}
         {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
       </> : <>
 
@@ -159,7 +171,7 @@ export function PlayerTabletopWorkspace({
           <article><span>Scene</span><h3>{view.scene?.title ?? "No active Scene"}</h3><p>{view.scene ? [view.scene.locationLabel, view.scene.description].filter(Boolean).join(" · ") || "No public Scene description" : "This Character has no active Scene membership."}</p></article>
           <article><span>Encounter</span><h3>{view.encounter?.title ?? "No active Encounter"}</h3>{view.encounter ? <p>{titleCase(view.encounter.encounterType)} · {view.encounter.participating ? titleCase(view.encounter.participationStatus) : "Not participating"}{view.encounter.roundNumber !== null ? ` · Round ${view.encounter.roundNumber}, Step ${view.encounter.stepNumber}` : ""}{view.encounter.currentInitiative !== null ? ` · Initiative ${view.encounter.currentInitiative}` : ""}</p> : <p>No Encounter is attached to this Character&apos;s active Scene.</p>}</article>
         </div>
-        {view.encounter && view.combatAvailability.status !== "ready" ? <p className={styles.boundaryNotice} role="status">{view.combatAvailability.reason}</p> : null}
+        {view.encounter && view.combatAvailability.status !== "ready" ? <CombatAvailabilityNotice availability={view.combatAvailability} /> : null}
       </Section>
 
       {view.scene ? <Section

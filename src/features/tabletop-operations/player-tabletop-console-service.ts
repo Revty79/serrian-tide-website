@@ -162,6 +162,11 @@ export type PlayerCombatAvailability = Readonly<{
     | "hierarchy-changed"
     | "ready";
   reason: string;
+  unfinishedWork?: readonly Readonly<{
+    declarationId: number;
+    label: string;
+    message: string;
+  }>[];
 }>;
 
 export type PlayerCombatConsoleData = Readonly<{
@@ -729,10 +734,6 @@ async function readPlayerCombatConsole(
     availability: { status: "awaiting-initialization", reason: "The Encounter is active, but the G.O.D. has not initialized Initiative yet." },
     combat: null,
   };
-  if (encounter.initiativeRuntimeStatus === "closed") return {
-    availability: { status: "runtime-closed", reason: "Initiative is closed while the Encounter remains active. Combat controls are unavailable until the G.O.D. reopens Initiative or completes the Encounter." },
-    combat: null,
-  };
   if (!encounter.initiativeEnrolled) return {
     availability: { status: "awaiting-enrollment", reason: "This Character participates in the Encounter but has not joined its active Initiative runtime yet." },
     combat: null,
@@ -769,11 +770,27 @@ async function readPlayerCombatConsole(
     availability: { status: "awaiting-initialization", reason: "The Encounter is active, but the G.O.D. has not initialized Initiative yet." },
     combat: null,
   };
-  if (lockedRuntime.status !== "active") return {
-    availability: { status: "runtime-closed", reason: "Initiative is closed while the Encounter remains active. Combat controls are unavailable until the G.O.D. reopens Initiative or completes the Encounter." },
-    combat: null,
-  };
   const actor = { authority: "player" as const, userId: playerUserId, characterId: character.characterId };
+  if (lockedRuntime.status !== "active") {
+    const declarations = await readActionDeclarationWorkspaceInTransaction(tx, context, actor);
+    const unfinishedWork = declarations.declarations.filter(({ status }) => (
+      !["resolved", "cancelled", "abandoned"].includes(status)
+    )).map((declaration) => ({
+      declarationId: declaration.id,
+      label: declaration.lockedSnapshot?.label ?? declaration.draft.label,
+      message: declaration.rollState.message,
+    }));
+    return {
+      availability: {
+        status: "runtime-closed",
+        reason: unfinishedWork.length
+          ? "Initiative is closed with an unfinished exchange. Your existing choices and Rolls are preserved; the Campaign-owning G.O.D. must resume that runtime before the exchange can continue."
+          : "Initiative is closed while the Encounter remains active. Combat controls remain unavailable under normal closed-runtime restrictions.",
+        unfinishedWork,
+      },
+      combat: null,
+    };
+  }
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const participant = engine.participants.find(({ characterId }) => characterId === character.characterId);
   if (!participant) return {

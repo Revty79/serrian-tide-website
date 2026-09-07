@@ -32,12 +32,14 @@ import {
   campaignSession,
   campaignSessionEncounter,
   campaignSessionEncounterActionDeclaration,
+  campaignSessionEncounterEffect,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
   campaignSessionEncounterReaction,
   campaignSessionEncounterResponderOpportunity,
+  campaignSessionRoll,
   campaignSessionEffectDurationBinding,
   campaignSessionRoster,
   campaignSessionScene,
@@ -51,20 +53,39 @@ import { readCharacterEquipmentStateInTransaction } from "@/features/items/equip
 import { readCombatAidEncounterInTransaction } from "@/features/tabletop-operations/combat-aid-service";
 import { spawnEncounterCreaturesInTransaction } from "@/features/tabletop-operations/creature-spawn-service";
 import {
+  cancelActionDeclarationInTransaction,
   commitActionDeclarationInTransaction,
   createActionDeclarationDraftInTransaction,
+  declareGodActionIdempotentlyInTransaction,
   lockActionDeclarationInTransaction,
+  reconcileResponderOpportunityInTransaction,
 } from "@/features/tabletop-operations/action-declaration-service";
-import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
+import {
+  closeGuardedInitiativeRuntimeInTransaction,
+  readUnfinishedEncounterCombatWorkInTransaction,
+  recoverUnfinishedInitiativeRuntimeInTransaction,
+} from "@/features/tabletop-operations/initiative-close-guard-service";
+import {
+  declareDefenseInterventionInTransaction,
+  recordDeclaredAttackRollInTransaction,
+  recordDeclaredResponseRollInTransaction,
+} from "@/features/tabletop-operations/defense-intervention-service";
 import { parseLockedActionDeclarationSnapshot } from "@/features/tabletop-operations/action-declaration";
+import { advanceInitiativeTimeline } from "@/features/tabletop-operations/initiative-runtime";
+import {
+  readRollLedgerInTransaction,
+  recordRollInTransaction,
+} from "@/features/tabletop-operations/roll-runtime-service";
 import {
   applyEncounterDamageInTransaction,
   addEncounterConditionInTransaction,
   declareEncounterReactionInTransaction,
   executeImmediateEncounterItemInTransaction,
+  loadInitiativeEngineInTransaction,
   lockOwnedEncounterRuntimeInTransaction,
   mutateEncounterManaInTransaction,
   prepareEncounterCreatureAbilityActionInTransaction,
+  persistInitiativeEngineInTransaction,
   resolveAuthoredActionInTransaction,
   resolveEncounterReactionInTransaction,
   setEncounterEquipmentStateInTransaction,
@@ -566,6 +587,169 @@ test("direct Creatures participate in Pass 6 windows, use exact authored Dodge, 
   }), (error: unknown) => error === ROLLBACK);
 });
 
+test("direct Creature attack and defense Rolls persist signed identities through website and physical paths", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const data = await fixture(tx, "CreatureRolls");
+    await addInitiative(tx, data, 30);
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: data.encounterId,
+      sceneId: data.sceneId,
+      sessionId: data.sessionId,
+      campaignId: data.campaignId,
+      characterId: data.targetCharacterId,
+      normalTotalInitiative: 30,
+      currentInitiative: 30,
+      movementMode: "Land",
+    });
+    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+      creatureId: data.masterCreatureId,
+      quantity: 1,
+      joinInitiative: true,
+      movementMode: "Land",
+    });
+    const creatureId = spawned.created[0]!.runtimeParticipantKey;
+    await tx.update(campaignSessionEncounterInitiativeParticipant).set({
+      normalTotalInitiative: 30,
+      currentInitiative: 29,
+    }).where(and(
+      eq(campaignSessionEncounterInitiativeParticipant.encounterId, data.encounterId),
+      eq(campaignSessionEncounterInitiativeParticipant.characterId, creatureId),
+    ));
+    const god = { authority: "god-owner" as const, userId: data.godId };
+    const player = { authority: "player" as const, userId: data.godId, characterId: data.targetCharacterId };
+    const rollActor = {
+      userId: data.godId,
+      campaignId: data.campaignId,
+      readAs: "god-owner" as const,
+      canRecordGodOnly: true,
+    };
+    const incomingId = await createActionDeclarationDraftInTransaction(tx, data.context, player, {
+      actorCharacterId: data.targetCharacterId,
+      targetCharacterIds: [creatureId],
+      label: "Creature defense Roll fixture",
+      actionKind: "generic-attack",
+      sourceKind: "generic",
+      sourceRef: null,
+      sourceInstanceId: null,
+      weaponItemId: null,
+      firingModeId: null,
+      attackMode: "",
+      initiativeCost: 2,
+      allowsMultiRound: false,
+      heldIntervention: false,
+      windowKind: "ordinary",
+      aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null },
+      explicitModifiers: [],
+      preparesForDeclarationId: null,
+      godNotes: "Only the Creature defense Roll is under test.",
+    });
+    await lockActionDeclarationInTransaction(tx, data.context, player, incomingId);
+    await commitActionDeclarationInTransaction(tx, data.context, player, incomingId);
+    const [opportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity)
+      .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, incomingId));
+    assert.ok(opportunity);
+    await reconcileResponderOpportunityInTransaction(tx, data.context, god, opportunity.id, { decision: "allow" });
+    const defenseReactionId = await declareDefenseInterventionInTransaction(tx, data.context, god, {
+      opportunityId: opportunity.id,
+      reactionType: "dodge",
+      protectedTargetCharacterId: creatureId,
+    });
+    const physicalDefense = await recordDeclaredResponseRollInTransaction(tx, data.context, god, defenseReactionId, {
+      method: "entered",
+      visibility: "table",
+      enteredTotal: 100,
+      notes: "Physical 00 Creature Dodge",
+    });
+    assert.equal(physicalDefense.resultTotal, 100);
+    assert.equal(physicalDefense.rollerCharacterId, creatureId);
+    await assert.rejects(recordDeclaredResponseRollInTransaction(tx, data.context, god, defenseReactionId, {
+      method: "entered",
+      visibility: "table",
+      enteredTotal: 1,
+    }), /immutable (?:Roll|history)|already recorded/);
+    await cancelActionDeclarationInTransaction(tx, data.context, god, incomingId, "End the defense fixture before the Creature attacks.");
+
+    await tx.update(campaignSessionEncounterInitiativeParticipant).set({ currentInitiative: 20 })
+      .where(and(
+        eq(campaignSessionEncounterInitiativeParticipant.encounterId, data.encounterId),
+        eq(campaignSessionEncounterInitiativeParticipant.characterId, data.targetCharacterId),
+      ));
+    await tx.update(campaignSessionEncounterInitiativeParticipant).set({ currentInitiative: 30 })
+      .where(and(
+        eq(campaignSessionEncounterInitiativeParticipant.encounterId, data.encounterId),
+        eq(campaignSessionEncounterInitiativeParticipant.characterId, creatureId),
+      ));
+    const attackId = await createActionDeclarationDraftInTransaction(tx, data.context, god, {
+      actorCharacterId: creatureId,
+      targetCharacterIds: [data.targetCharacterId],
+      label: "Creature website attack Roll fixture",
+      actionKind: "creature-attack",
+      sourceKind: "creature-attack",
+      sourceRef: data.attackCanonicalId,
+      sourceInstanceId: null,
+      weaponItemId: null,
+      firingModeId: null,
+      attackMode: "",
+      initiativeCost: 2,
+      allowsMultiRound: false,
+      heldIntervention: false,
+      windowKind: "ordinary",
+      aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null },
+      explicitModifiers: [],
+      preparesForDeclarationId: null,
+      godNotes: "Signed Creature attack Roll persistence fixture.",
+    });
+    await lockActionDeclarationInTransaction(tx, data.context, god, attackId);
+    const attackPendingActionId = await commitActionDeclarationInTransaction(tx, data.context, god, attackId);
+    const websiteAttack = await recordDeclaredAttackRollInTransaction(tx, data.context, god, attackId, {
+      method: "random",
+      visibility: "table",
+      notes: "Website Creature Bite",
+    });
+    assert.ok(websiteAttack.resultTotal >= 1 && websiteAttack.resultTotal <= 100);
+    assert.equal(websiteAttack.rollerCharacterId, creatureId);
+    assert.equal(websiteAttack.pendingActionId, attackPendingActionId);
+
+    const creatureHistory = await readRollLedgerInTransaction(tx, rollActor, data.sessionId, {
+      encounterId: data.encounterId,
+      characterId: creatureId,
+      limit: 10,
+    });
+    assert.deepEqual(creatureHistory.rolls.map(({ id }) => id), [websiteAttack.id, physicalDefense.id]);
+    assert.ok(creatureHistory.rolls.every(({ rollerCharacterName }) => rollerCharacterName === spawned.created[0]!.name));
+    await assert.rejects(recordRollInTransaction(tx, {
+      ...rollActor,
+      readAs: "player",
+      canRecordGodOnly: false,
+      characterId: data.targetCharacterId,
+    }, {
+      sessionId: data.sessionId,
+      sceneId: data.sceneId,
+      encounterId: data.encounterId,
+      rollerCharacterId: creatureId,
+      method: "entered",
+      visibility: "table",
+      purposeKind: "free",
+      enteredTotal: 50,
+    }), /own Character|authorized Character/);
+    await assert.rejects(recordRollInTransaction(tx, rollActor, {
+      sessionId: data.sessionId,
+      sceneId: data.sceneId,
+      encounterId: data.encounterId,
+      rollerCharacterId: creatureId - 999_999,
+      method: "entered",
+      visibility: "table",
+      purposeKind: "free",
+      enteredTotal: 50,
+    }), /exact Encounter Participant/);
+    assert.equal((await tx.select().from(campaignSessionRoll)
+      .where(eq(campaignSessionRoll.encounterId, data.encounterId))).length, 2);
+    throw ROLLBACK;
+  }), (error: unknown) => error === ROLLBACK);
+});
+
 test("authored Creature attacks defer damage, reconcile Dodge, preserve history, and reject double resolution", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const data = await fixture(tx, "Timing");
@@ -666,6 +850,141 @@ test("authored Creature attacks defer damage, reconcile Dodge, preserve history,
       targetCharacterId: outsider.id,
       attackCanonicalId: data.attackCanonicalId,
     }), /current Encounter Participants/);
+    throw ROLLBACK;
+  }), (error: unknown) => error === ROLLBACK);
+});
+
+test("completed Creature timing with an unrolled attack blocks close and closed recovery preserves the exchange", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const data = await fixture(tx, "ClosedCreatureRecovery");
+    await addInitiative(tx, data, 30);
+    await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
+      encounterId: data.encounterId,
+      sceneId: data.sceneId,
+      sessionId: data.sessionId,
+      campaignId: data.campaignId,
+      characterId: data.targetCharacterId,
+      normalTotalInitiative: 20,
+      currentInitiative: 20,
+      movementMode: "Land",
+    });
+    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+      creatureId: data.masterCreatureId,
+      quantity: 1,
+      joinInitiative: true,
+      movementMode: "Land",
+    });
+    const creatureId = spawned.created[0]!.runtimeParticipantKey;
+    await tx.update(campaignSessionEncounterInitiativeParticipant).set({
+      normalTotalInitiative: 30,
+      currentInitiative: 30,
+    }).where(and(
+      eq(campaignSessionEncounterInitiativeParticipant.encounterId, data.encounterId),
+      eq(campaignSessionEncounterInitiativeParticipant.characterId, creatureId),
+    ));
+    const god = { authority: "god-owner" as const, userId: data.godId };
+    const declarationDraft = {
+      actorCharacterId: creatureId,
+      targetCharacterIds: [data.targetCharacterId],
+      label: "Bite before the mistaken close",
+      actionKind: "creature-attack",
+      sourceKind: "creature-attack",
+      sourceRef: data.attackCanonicalId,
+      sourceInstanceId: null,
+      weaponItemId: null,
+      firingModeId: null,
+      attackMode: "",
+      initiativeCost: 2,
+      allowsMultiRound: false,
+      heldIntervention: false,
+      windowKind: "ordinary",
+      aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null },
+      explicitModifiers: [],
+      preparesForDeclarationId: null,
+      godNotes: "Regression fixture: Initiative timing completes before the attack Roll.",
+    } as const;
+    const lostResponseKey = "0123456789abcdef0123456789abcdef";
+    const declarationId = await declareGodActionIdempotentlyInTransaction(tx, data.context, god, declarationDraft, lostResponseKey);
+    const retryDeclarationId = await declareGodActionIdempotentlyInTransaction(tx, data.context, god, declarationDraft, lostResponseKey);
+    assert.equal(retryDeclarationId, declarationId);
+    await assert.rejects(
+      declareGodActionIdempotentlyInTransaction(tx, data.context, god, { ...declarationDraft, label: "Changed after an uncertain response" }, lostResponseKey),
+      /already used for a different exact declaration/,
+    );
+    const [committed] = await tx.select({ pendingActionId: campaignSessionEncounterActionDeclaration.pendingActionId })
+      .from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId));
+    assert.ok(committed?.pendingActionId);
+    const pendingActionId = committed.pendingActionId;
+    const beforeTiming = await loadInitiativeEngineInTransaction(tx, data.encounterId);
+    const pendingBeforeTiming = beforeTiming.pendingActions.find(({ id }) => id === pendingActionId);
+    assert.ok(pendingBeforeTiming);
+    const afterTiming = advanceInitiativeTimeline(beforeTiming, pendingBeforeTiming.expectedCompletionInitiative);
+    await persistInitiativeEngineInTransaction(tx, data.context, beforeTiming, afterTiming);
+    assert.equal(afterTiming.pendingActions.find(({ id }) => id === pendingActionId)?.status, "completed");
+
+    const unfinished = await readUnfinishedEncounterCombatWorkInTransaction(tx, data.encounterId);
+    assert.equal(unfinished.length, 1);
+    assert.equal(unfinished[0]?.actorParticipantId, creatureId);
+    assert.deepEqual(unfinished[0]?.remaining, ["the attack Roll"]);
+    await assert.rejects(
+      closeGuardedInitiativeRuntimeInTransaction(tx, afterTiming),
+      new RegExp(`Open exchange #${declarationId} .*the attack Roll`),
+    );
+
+    const mistakenClosedAt = new Date("2026-09-06T18:00:00.000Z");
+    await tx.update(campaignSessionEncounterInitiative).set({ status: "closed", closedAt: mistakenClosedAt })
+      .where(eq(campaignSessionEncounterInitiative.encounterId, data.encounterId));
+    const closed = await loadInitiativeEngineInTransaction(tx, data.encounterId, { allowClosed: true });
+    const healthBeforeRecovery = await readActiveHealthInTransaction(tx, data.targetCharacterId, "race");
+    const participantBeforeRecovery = await tx.select().from(campaignSessionEncounterParticipant)
+      .where(and(
+        eq(campaignSessionEncounterParticipant.encounterId, data.encounterId),
+        eq(campaignSessionEncounterParticipant.characterId, creatureId),
+      ));
+    const rollsBeforeRecovery = await tx.select().from(campaignSessionRoll)
+      .where(eq(campaignSessionRoll.encounterId, data.encounterId));
+    const effectsBeforeRecovery = await tx.select().from(campaignSessionEncounterEffect)
+      .where(eq(campaignSessionEncounterEffect.encounterId, data.encounterId));
+
+    const recovered = await recoverUnfinishedInitiativeRuntimeInTransaction(tx, data.context, closed);
+    assert.equal(recovered.runtime.status, "active");
+    assert.equal(recovered.runtime.closedAt, null);
+    assert.equal(recovered.runtime.roundNumber, closed.runtime.roundNumber);
+    assert.equal(recovered.runtime.stepNumber, closed.runtime.stepNumber);
+    assert.equal(recovered.runtime.timelineInitiative, closed.runtime.timelineInitiative);
+    assert.equal(recovered.runtime.startedAt.getTime(), closed.runtime.startedAt.getTime());
+    assert.deepEqual(recovered.participants, closed.participants);
+    assert.deepEqual(recovered.pendingActions, closed.pendingActions);
+    await assert.rejects(
+      recoverUnfinishedInitiativeRuntimeInTransaction(tx, data.context, recovered),
+      /Only a closed Initiative runtime may be recovered/,
+    );
+
+    await cancelActionDeclarationInTransaction(
+      tx,
+      data.context,
+      god,
+      declarationId,
+      "Explicitly cancelled after recovering the mistakenly closed runtime.",
+    );
+    assert.equal((await tx.select({ status: campaignSessionEncounterActionDeclaration.status })
+      .from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.id, declarationId)))[0]?.status, "cancelled");
+    await assert.rejects(
+      cancelActionDeclarationInTransaction(tx, data.context, god, declarationId, "Duplicate cancellation"),
+      /cannot transition from cancelled to cancelled/,
+    );
+    assert.deepEqual(await readActiveHealthInTransaction(tx, data.targetCharacterId, "race"), healthBeforeRecovery);
+    assert.deepEqual(await tx.select().from(campaignSessionEncounterParticipant).where(and(
+      eq(campaignSessionEncounterParticipant.encounterId, data.encounterId),
+      eq(campaignSessionEncounterParticipant.characterId, creatureId),
+    )), participantBeforeRecovery);
+    assert.deepEqual(await tx.select().from(campaignSessionRoll)
+      .where(eq(campaignSessionRoll.encounterId, data.encounterId)), rollsBeforeRecovery);
+    assert.deepEqual(await tx.select().from(campaignSessionEncounterEffect)
+      .where(eq(campaignSessionEncounterEffect.encounterId, data.encounterId)), effectsBeforeRecovery);
     throw ROLLBACK;
   }), (error: unknown) => error === ROLLBACK);
 });

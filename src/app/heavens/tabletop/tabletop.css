@@ -820,6 +820,23 @@
   color: var(--st-warning);
 }
 
+.action-declaration-recovery {
+  display: grid;
+  gap: 7px;
+}
+
+.action-declaration-recovery > span {
+  color: var(--st-text-soft);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+
+.action-declaration-recovery > nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 @media(max-width:620px) {
   .action-declaration-advanced > div {
     grid-template-columns: 1fr;

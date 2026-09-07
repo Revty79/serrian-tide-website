@@ -216,6 +216,16 @@ function optionalFilterId(value: number | null | undefined, label: string): numb
   return value === undefined || value === null ? null : positiveId(value, label);
 }
 
+function optionalParticipantFilterKey(value: number | null | undefined, label: string): number | null {
+  if (value === undefined || value === null) return null;
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
+function encounterParticipantNameKey(encounterId: number, characterId: number): string {
+  return `${encounterId}:${characterId}`;
+}
+
 function enumFilter<T extends string>(values: readonly T[], value: unknown, label: string): T | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string" || !values.includes(value as T)) throw new Error(`${label} is invalid.`);
@@ -856,7 +866,7 @@ export async function readRollLedgerInTransaction(
   if (!session) throw new Error("That Roll Session does not belong to the authorized Campaign.");
   const sceneId = optionalFilterId(filters.sceneId, "Scene filter");
   const encounterId = optionalFilterId(filters.encounterId, "Encounter filter");
-  const characterId = optionalFilterId(filters.characterId, "Character filter");
+  const characterId = optionalParticipantFilterKey(filters.characterId, "Participant filter");
   const beforeId = optionalFilterId(filters.beforeId, "Roll cursor");
   const method = enumFilter(ROLL_METHODS, filters.method, "Roll method filter");
   const requestedVisibility = enumFilter(ROLL_VISIBILITIES, filters.visibility, "Roll visibility filter");
@@ -937,6 +947,14 @@ export async function readRollLedgerInTransaction(
   ].filter((id): id is string => id !== null))];
   const characterRows = characterIds.length ? await tx.select({ id: campaignCharacter.id, name: campaignCharacter.name })
     .from(campaignCharacter).where(inArray(campaignCharacter.id, characterIds)) : [];
+  const participantRows = encounterIds.length && characterIds.length ? await tx.select({
+    encounterId: campaignSessionEncounterParticipant.encounterId,
+    characterId: campaignSessionEncounterParticipant.characterId,
+    displayLabel: campaignSessionEncounterParticipant.displayLabel,
+  }).from(campaignSessionEncounterParticipant).where(and(
+    inArray(campaignSessionEncounterParticipant.encounterId, encounterIds),
+    inArray(campaignSessionEncounterParticipant.characterId, characterIds),
+  )) : [];
   const sceneRows = sceneIds.length ? await tx.select({ id: campaignSessionScene.id, title: campaignSessionScene.title })
     .from(campaignSessionScene).where(inArray(campaignSessionScene.id, sceneIds)) : [];
   const encounterRows = encounterIds.length ? await tx.select({ id: campaignSessionEncounter.id, title: campaignSessionEncounter.title })
@@ -948,6 +966,9 @@ export async function readRollLedgerInTransaction(
   const userRows = userIds.length ? await tx.select({ id: user.id, name: user.name, username: user.username })
     .from(user).where(inArray(user.id, userIds)) : [];
   const characterNames = new Map(characterRows.map((row) => [row.id, row.name]));
+  const participantNames = new Map(participantRows
+    .filter(({ displayLabel }) => displayLabel.trim())
+    .map((row) => [encounterParticipantNameKey(row.encounterId, row.characterId), row.displayLabel]));
   const sceneTitles = new Map(sceneRows.map((row) => [row.id, row.title]));
   const encounterTitles = new Map(encounterRows.map((row) => [row.id, row.title]));
   const actionLabels = new Map(actionRows.map((row) => [row.id, row.label]));
@@ -1009,9 +1030,21 @@ export async function readRollLedgerInTransaction(
         encounterId: row.encounterId,
         encounterTitle: row.encounterId === null ? null : encounterTitles.get(row.encounterId) ?? null,
         rollerCharacterId: row.rollerCharacterId,
-        rollerCharacterName: row.rollerCharacterId === null ? null : characterNames.get(row.rollerCharacterId) ?? null,
+        rollerCharacterName: row.rollerCharacterId === null
+          ? null
+          : row.encounterId === null
+            ? characterNames.get(row.rollerCharacterId) ?? null
+            : participantNames.get(encounterParticipantNameKey(row.encounterId, row.rollerCharacterId))
+              ?? characterNames.get(row.rollerCharacterId)
+              ?? null,
         targetCharacterId: row.targetCharacterId,
-        targetCharacterName: row.targetCharacterId === null ? null : characterNames.get(row.targetCharacterId) ?? null,
+        targetCharacterName: row.targetCharacterId === null
+          ? null
+          : row.encounterId === null
+            ? characterNames.get(row.targetCharacterId) ?? null
+            : participantNames.get(encounterParticipantNameKey(row.encounterId, row.targetCharacterId))
+              ?? characterNames.get(row.targetCharacterId)
+              ?? null,
         pendingActionId: row.pendingActionId,
         pendingActionLabel: row.pendingActionId === null ? null : actionLabels.get(row.pendingActionId) ?? null,
         reactionId: row.reactionId,

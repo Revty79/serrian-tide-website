@@ -180,18 +180,27 @@ export function BattleStage({
 export function BattleActivity({
   entries,
   title = "Activity",
+  selectedId,
+  onSelect,
 }: {
   entries: readonly BattleActivityEntry[];
   title?: string;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 }) {
   return <aside className={styles.activity} aria-label={title}>
     <header><div><span>EXCHANGES</span><strong>{title}</strong></div><b>{entries.length}</b></header>
-    <div className={styles.activityList}>{entries.map((entry) => <article key={entry.id}>
-      <span className={styles.activityTopline}><small>{entry.eyebrow}</small><em>{entry.status}</em></span>
-      <strong>{entry.title}</strong>
-      <p>{entry.detail}</p>
-      {entry.attention ? <small className={styles.activityAttention}>{entry.attention}</small> : null}
-    </article>)}</div>
+    <div className={styles.activityList}>{entries.map((entry) => {
+      const content = <>
+        <span className={styles.activityTopline}><small>{entry.eyebrow}</small><em>{entry.status}</em></span>
+        <strong>{entry.title}</strong>
+        <p>{entry.detail}</p>
+        {entry.attention ? <small className={styles.activityAttention}>{entry.attention}</small> : null}
+      </>;
+      return onSelect
+        ? <button type="button" key={entry.id} className={entry.id === selectedId ? styles.selectedActivityEntry : undefined} aria-pressed={entry.id === selectedId} onClick={() => onSelect(entry.id)}>{content}</button>
+        : <article key={entry.id}>{content}</article>;
+    })}</div>
     {!entries.length ? <p className={styles.empty}>No combat activity has been recorded yet.</p> : null}
   </aside>;
 }

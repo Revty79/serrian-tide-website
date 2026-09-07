@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { ActionDeclarationWorkspaceView } from "./action-declaration-service";
 import { projectActionDeclarationWorkspaceForPlayer } from "./player-action-declaration-projection";
-import { captureSubmittedAttempt, retrySubmittedAttempt } from "./submitted-attempt";
+import { captureSubmittedAttempt, isUncertainSubmissionError, retrySubmittedAttempt } from "./submitted-attempt";
 
 test("Player declaration projection keeps permitted target anatomy but removes opponent combat sources", () => {
   const workspace = {
@@ -130,6 +130,13 @@ test("uncertain retry reuses the complete captured attempt despite edited inputs
   assert.strictEqual(retried, captured);
 });
 
+test("submission recovery distinguishes confirmed rejection from uncertain delivery", () => {
+  assert.equal(isUncertainSubmissionError(new Error("That action does not belong to the exact Encounter.")), false);
+  assert.equal(isUncertainSubmissionError(new TypeError("Failed to fetch")), true);
+  assert.equal(isUncertainSubmissionError(new Error("Failed to find Server Action")), true);
+  assert.equal(isUncertainSubmissionError("connection ended without a response"), true);
+});
+
 test("active encounters use the same dedicated battle composition for G.O.D. and Player", () => {
   const shared = readFileSync("src/components/tabletop/battle-layout.tsx", "utf8");
   const sharedStyles = readFileSync("src/components/tabletop/battle-layout.module.css", "utf8");
@@ -159,14 +166,16 @@ test("active encounters use the same dedicated battle composition for G.O.D. and
 
 test("G.O.D. direct declarations are atomic, duplicate-safe, and keep firearms on their dedicated flow", () => {
   const actions = readFileSync("src/app/heavens/tabletop/action-declaration-actions.ts", "utf8");
+  const service = readFileSync("src/features/tabletop-operations/action-declaration-service.ts", "utf8");
   const workspace = readFileSync("src/app/heavens/tabletop/action-declaration-workspace.tsx", "utf8");
 
   assert.match(actions, /export async function declareGodAction/);
-  assert.match(actions, /pg_advisory_xact_lock/);
-  assert.match(actions, /sourcePayload: \{ \.\.\.draft\.sourcePayload, submissionId \}/);
-  assert.match(actions, /createActionDeclarationDraftInTransaction/);
-  assert.match(actions, /lockActionDeclarationInTransaction/);
-  assert.match(actions, /commitActionDeclarationInTransaction/);
+  assert.match(actions, /declareGodActionIdempotentlyInTransaction/);
+  assert.match(service, /pg_advisory_xact_lock/);
+  assert.match(service, /sourcePayload: \{ \.\.\.draft\.sourcePayload, submissionId \}/);
+  assert.match(service, /createActionDeclarationDraftInTransaction/);
+  assert.match(service, /lockActionDeclarationInTransaction/);
+  assert.match(service, /commitActionDeclarationInTransaction/);
   assert.match(workspace, /firingModes\.length === 0/);
   assert.match(workspace, /Firearms use the per-bullet Firearm flow below/);
   assert.match(workspace, /Retry exact declaration/);

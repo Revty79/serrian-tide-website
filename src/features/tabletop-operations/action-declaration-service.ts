@@ -765,6 +765,41 @@ export async function commitActionDeclarationInTransaction(
   return pendingActionId;
 }
 
+export async function declareGodActionIdempotentlyInTransaction(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
+  draft: ActionDeclarationDraft,
+  idempotencyKey: string,
+): Promise<number> {
+  const submissionId = idempotencyKey.trim();
+  if (!/^[a-f0-9]{32}$/.test(submissionId)) throw new Error("The action submission identity is invalid.");
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`serrian-tide:god-action:${context.campaignId}:${actor.userId}:${submissionId}`}))`);
+  const submitted = parseActionDeclarationDraft({
+    ...draft,
+    sourcePayload: { ...draft.sourcePayload, submissionId },
+  });
+  const existing = await tx.select({
+    id: campaignSessionEncounterActionDeclaration.id,
+    draft: campaignSessionEncounterActionDeclaration.draftJson,
+  }).from(campaignSessionEncounterActionDeclaration).where(and(
+    eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
+    eq(campaignSessionEncounterActionDeclaration.actorCharacterId, submitted.actorCharacterId),
+    eq(campaignSessionEncounterActionDeclaration.createdByUserId, actor.userId),
+  ));
+  const reused = existing.find(({ draft: stored }) => parseActionDeclarationDraft(stored).sourcePayload?.submissionId === submissionId);
+  if (reused) {
+    if (JSON.stringify(parseActionDeclarationDraft(reused.draft)) !== JSON.stringify(submitted)) {
+      throw new Error("That action submission identity was already used for a different exact declaration.");
+    }
+    return reused.id;
+  }
+  const declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, submitted);
+  await lockActionDeclarationInTransaction(tx, context, actor, declarationId);
+  await commitActionDeclarationInTransaction(tx, context, actor, declarationId);
+  return declarationId;
+}
+
 async function reconcileRollingReadiness(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -1555,7 +1590,11 @@ export async function readActionDeclarationWorkspaceInTransaction(
   } else {
     await lockPlayerCombatContextInTransaction(tx, context.encounterId, actor.characterId, actor.userId);
   }
-  const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  const engine = await loadInitiativeEngineInTransaction(
+    tx as RuntimeIntegrationTransaction,
+    context.encounterId,
+    { allowClosed: true },
+  );
   const identities = await tx.select({
     characterId: campaignSessionEncounterParticipant.characterId,
     participantKind: campaignSessionEncounterParticipant.participantKind,

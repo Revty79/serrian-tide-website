@@ -189,6 +189,7 @@
 
 .rosterList > button,
 .rosterList > article,
+.activityList > button,
 .activityList > article {
   display: grid;
   width: 100%;
@@ -201,12 +202,15 @@
   text-align: left;
 }
 
-.rosterList > button {
+.rosterList > button,
+.activityList > button {
   cursor: pointer;
 }
 
 .rosterList > button:hover,
-.rosterList > button:focus-visible {
+.rosterList > button:focus-visible,
+.activityList > button:hover,
+.activityList > button:focus-visible {
   border-color: var(--st-primary-border);
   background: var(--st-primary-soft);
   outline: none;
@@ -216,6 +220,12 @@
   border-color: var(--st-secondary-border);
   background: var(--st-secondary-soft);
   box-shadow: inset 3px 0 0 var(--st-secondary);
+}
+
+.activityList > .selectedActivityEntry {
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  box-shadow: inset 3px 0 0 var(--st-primary);
 }
 
 .rosterTopline,
@@ -392,7 +402,8 @@
   padding: 0.8rem;
 }
 
-.activityList > article {
+.activityList > article,
+.activityList > button {
   background: var(--st-surface-raised);
 }
 
