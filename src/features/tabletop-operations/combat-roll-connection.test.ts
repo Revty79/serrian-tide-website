@@ -76,22 +76,22 @@ function adapter(role: "god" | "player", missingResponseRolls = 1, staged = fals
   };
   let tree: unknown;
   if (role === "god") {
-    const module = loadClient("src/app/heavens/tabletop/god-combat-rolls.tsx", {
+    const clientModule = loadClient("src/app/heavens/tabletop/god-combat-rolls.tsx", {
       ...common,
       "./defense-intervention-actions": { recordDeclaredAttackRoll: spy("attack"), recordDeclaredResponseRoll: spy("defense") },
       "./firearm-attack-actions": { commitFirearmAttackTrigger: spy("trigger"), fireFirearmAttack: spy("firearm", { rollId: 904, waitingForDefenseRolls: missingResponseRolls > 0 }) },
       "./roll-actions": { recordGodRoll: spy("free", { resultTotal: 63 }) },
     });
-    tree = (module.GodCombatRolls as (props: unknown) => Node)({ encounterId: 77, selectedCombatantId: -99, declarations, defenses, firearms: { attacks: [shot] }, workspace: { session: { id: 55, status: "active" }, initialHistory: { rolls: [] } }, runtimeClosed: false });
+    tree = (clientModule.GodCombatRolls as (props: unknown) => Node)({ encounterId: 77, selectedCombatantId: -99, declarations, defenses, firearms: { attacks: [shot] }, workspace: { session: { id: 55, status: "active" }, initialHistory: { rolls: [] } }, runtimeClosed: false });
   } else {
-    const module = loadClient("src/app/realms/tabletop/player-combat-console.tsx", {
+    const clientModule = loadClient("src/app/realms/tabletop/player-combat-console.tsx", {
       ...common,
       "@/app/realms/characters/[characterId]/player-called-check-panel": { PlayerCalledCheckPanel: "called-checks" },
       "./actions": { recordPlayerTabletopFreeRoll: spy("free", { resultTotal: 63 }) },
       "./player-combat-actions": { rollPlayerDeclaredAttack: spy("attack"), rollPlayerDeclaredResponse: spy("defense"), commitPlayerFirearmTrigger: spy("trigger"), firePlayerFirearmAttack: spy("firearm", 904) },
       "./player-combat-console-core": { PlayerCombatConsole: "core", PlayerCombatIntentButton: "intent" },
     });
-    tree = (module.PlayerCombatConsole as (props: unknown) => Node)({ characterId: 1, combat: { context: { encounterId: 77 }, declarations, defenses, firearmAttacks: { attacks: [shot] } } });
+    tree = (clientModule.PlayerCombatConsole as (props: unknown) => Node)({ characterId: 1, combat: { context: { encounterId: 77 }, declarations, defenses, firearmAttacks: { attacks: [shot] } } });
   }
   const panel = findNode(tree, "panel");
   return { calls, submit: panel.props.onSubmit as Submit, prompts: panel.props.prompts as CombatRollPrompt[] };
@@ -154,7 +154,7 @@ function panelHarness(initialPrompts: CombatRollPrompt[], onSubmit: Submit, pars
   let cursor = 0;
   let refreshes = 0;
   let prompts = initialPrompts;
-  const module = loadClient("src/components/tabletop/combat-roll-panel.tsx", {
+  const clientModule = loadClient("src/components/tabletop/combat-roll-panel.tsx", {
     "react": {
       useId: () => "test-roll",
       useState: (initial: unknown) => {
@@ -173,7 +173,7 @@ function panelHarness(initialPrompts: CombatRollPrompt[], onSubmit: Submit, pars
     "@/features/tabletop-operations/combat-roll-prompts": promptModule,
     "./battle-layout": { BattleStage: "stage" },
   });
-  const render = () => { cursor = 0; return (module.CombatRollPanel as (props: unknown) => Node)({ prompts, onSubmit, emptyMessage: "No Rolls." }); };
+  const render = () => { cursor = 0; return (clientModule.CombatRollPanel as (props: unknown) => Node)({ prompts, onSubmit, emptyMessage: "No Rolls." }); };
   const click = (text: string) => { const button = findNode(render(), "button", text); assert.equal(button.props.disabled, false); (button.props.onClick as () => void)(); };
   const change = (type: string, value: string) => (findNode(render(), type).props.onChange as (event: unknown) => void)({ target: { value } });
   return { render, click, change, refreshes: () => refreshes, setPrompts: (next: CombatRollPrompt[]) => { prompts = next; } };
