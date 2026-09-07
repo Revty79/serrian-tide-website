@@ -457,6 +457,29 @@
   font-size: 0.75rem;
 }
 
+.shops-offering-conflict {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0;
+  border: 1px solid color-mix(in srgb, var(--st-warning) 42%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--st-warning) 12%, transparent);
+  padding: 0.75rem;
+  color: var(--st-text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.shops-offering-conflict > strong {
+  color: var(--st-warning);
+}
+
+.shops-offering-conflict > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .shops-catalog-tools {
   display: grid;
   gap: 10px;

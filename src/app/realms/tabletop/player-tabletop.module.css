@@ -1011,6 +1011,13 @@
   padding: .75rem;
 }
 
+.shopCommerceRequests article.shopRequestReview {
+  border-color: color-mix(in srgb, var(--st-secondary) 58%, transparent);
+  background: color-mix(in srgb, var(--st-secondary) 12%, var(--tabletop-panel));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-secondary) 16%, transparent);
+  outline: none;
+}
+
 .shopCommerceRequests article footer {
   display: flex;
   flex-wrap: wrap;
@@ -1076,6 +1083,15 @@
   display: flex;
   justify-content: flex-end;
   gap: .5rem;
+}
+
+.shopCheckoutRetry {
+  border-left: 3px solid var(--st-warning);
+  background: color-mix(in srgb, var(--st-warning) 12%, transparent);
+  padding: 0.7rem 0.85rem;
+  color: var(--st-text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .shopCommercePicker {

@@ -11,6 +11,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg, { type PoolClient } from "pg";
 
+import { currentMigrationSnapshotName } from "./current-migration-snapshot";
+
 const defaultWindowsPostgresBin = "C:\\Program Files\\PostgreSQL\\18\\bin";
 const postgresBin = process.env.SERRIAN_TEST_POSTGRES_BIN
   ?? (existsSync(defaultWindowsPostgresBin) ? defaultWindowsPostgresBin : "");
@@ -99,7 +101,7 @@ test("0036 replays with parity and enforces Town ownership, eligibility, cardina
     const connectionString = `postgresql://postgres@127.0.0.1:${port}/postgres`;
     pool = new pg.Pool({ connectionString });
     await migrate(drizzle(pool), { migrationsFolder: migrationRoot });
-    const parityOutput = execFileSync(process.execPath, ["scripts/verify-runtime-foundation-schema.mjs", "0036_snapshot.json"], {
+    const parityOutput = execFileSync(process.execPath, ["scripts/verify-runtime-foundation-schema.mjs", currentMigrationSnapshotName(migrationRoot)], {
       cwd: process.cwd(),
       encoding: "utf8",
       env: { ...process.env, DATABASE_URL: connectionString },

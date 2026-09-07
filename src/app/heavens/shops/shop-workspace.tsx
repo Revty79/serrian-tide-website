@@ -55,6 +55,19 @@ type MutationCommit = {
   staffId?: number;
   offeringId?: number;
 };
+type EditableOfferingField = "fulfillmentKind" | "enabled" | "unlimitedStock" | "limitedQuantity"
+  | "sellingPriceOverrideCredits" | "buyingPriceOverrideCredits" | "shopNote";
+type OfferingConflict = { fields: EditableOfferingField[]; live: ShopOfferingRecord };
+
+const OFFERING_FIELD_LABELS: Record<EditableOfferingField, string> = {
+  fulfillmentKind: "fulfillment",
+  enabled: "listing availability",
+  unlimitedStock: "stock tracking",
+  limitedQuantity: "limited quantity",
+  sellingPriceOverrideCredits: "selling price",
+  buyingPriceOverrideCredits: "buying price",
+  shopNote: "Shop-facing note",
+};
 
 const EMPTY_CREATE = {
   name: "",
@@ -121,6 +134,8 @@ export function ShopWorkspace({
   const dirtyShopFieldsRef = useRef(new Set<keyof ShopDetail["shop"]>());
   const dirtyStaffIdsRef = useRef(new Set<number>());
   const dirtyOfferingIdsRef = useRef(new Set<number>());
+  const dirtyOfferingFieldsRef = useRef(new Map<number, Set<EditableOfferingField>>());
+  const offeringDraftBasesRef = useRef(new Map<number, ShopOfferingRecord>());
   const initialCampaign = searchParams.get("campaign") ?? "";
   const initialShop = Number(searchParams.get("shop"));
   const initialStatus: ShopArchiveStatus = searchParams.get("status") === "archived"
@@ -155,6 +170,7 @@ export function ShopWorkspace({
   const [loading, setLoading] = useState(Boolean(initialCampaign));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [offeringConflicts, setOfferingConflicts] = useState<Record<number, OfferingConflict>>({});
 
   const selectedCampaign = campaigns.find(({ id }) => String(id) === campaignId) ?? null;
   const readOnly = Boolean(detail?.shop.archivedAt || detail?.campaign.archived);
@@ -204,6 +220,9 @@ export function ShopWorkspace({
             dirtyShopFieldsRef.current.clear();
             dirtyStaffIdsRef.current.clear();
             dirtyOfferingIdsRef.current.clear();
+            dirtyOfferingFieldsRef.current.clear();
+            offeringDraftBasesRef.current.clear();
+            setOfferingConflicts({});
             setDetail(selected);
           }
         }
@@ -289,6 +308,9 @@ export function ShopWorkspace({
           dirtyShopFieldsRef.current.clear();
           dirtyStaffIdsRef.current.clear();
           dirtyOfferingIdsRef.current.clear();
+          dirtyOfferingFieldsRef.current.clear();
+          offeringDraftBasesRef.current.clear();
+          setOfferingConflicts({});
           setDetail(nextDetail);
           setNpcSearch("");
           if (changesShop) {
@@ -329,13 +351,41 @@ export function ShopWorkspace({
         const dirtyStaffIds = new Set(dirtyStaffIdsRef.current);
         const dirtyOfferingIds = new Set(dirtyOfferingIdsRef.current);
         const committedShopFields = new Set(committed.shopFields ?? []);
-        setDetail((current) => {
-          if (!current || current.shop.id !== updated.shop.id) return updated;
+        const current = detail;
+        if (!current || current.shop.id !== updated.shop.id) {
+          dirtyOfferingIdsRef.current.clear();
+          dirtyOfferingFieldsRef.current.clear();
+          offeringDraftBasesRef.current.clear();
+          setOfferingConflicts({});
+          setDetail(updated);
+        } else {
           const mergedShop = { ...updated.shop };
           for (const field of dirtyShopFields) {
             if (!committedShopFields.has(field)) Object.assign(mergedShop, { [field]: current.shop[field] });
           }
-          return {
+          const nextConflicts = { ...offeringConflicts };
+          const offerings = updated.offerings.map((entry) => {
+            const draft = current.offerings.find(({ id }) => id === entry.id);
+            const dirtyFields = [...(dirtyOfferingFieldsRef.current.get(entry.id) ?? [])];
+            if (!draft || !dirtyOfferingIds.has(entry.id) || entry.id === committed.offeringId || !dirtyFields.length) {
+              delete nextConflicts[entry.id];
+              return entry;
+            }
+            const base = offeringDraftBasesRef.current.get(entry.id) ?? draft;
+            const conflictingFields = dirtyFields.filter((field) => !Object.is(entry[field], base[field]));
+            const merged = Object.assign(
+              { ...entry },
+              Object.fromEntries(dirtyFields.map((field) => [field, draft[field]])),
+            ) as ShopOfferingRecord;
+            if (conflictingFields.length) {
+              nextConflicts[entry.id] = { fields: conflictingFields, live: entry };
+              return { ...merged, version: draft.version };
+            }
+            offeringDraftBasesRef.current.set(entry.id, entry);
+            delete nextConflicts[entry.id];
+            return merged;
+          });
+          setDetail({
             ...updated,
             shop: mergedShop,
             staff: updated.staff.map((entry) => {
@@ -344,17 +394,22 @@ export function ShopWorkspace({
                 ? { ...entry, responsibilityLabel: draft.responsibilityLabel, isPrimaryContact: draft.isPrimaryContact }
                 : entry;
             }),
-            offerings: updated.offerings.map((entry) => {
-              const draft = current.offerings.find(({ id }) => id === entry.id);
-              return draft && dirtyOfferingIds.has(entry.id) && entry.id !== committed.offeringId
-                ? { ...draft, version: entry.version }
-                : entry;
-            }),
-          };
-        });
+            offerings,
+          });
+          setOfferingConflicts(nextConflicts);
+        }
         for (const field of committedShopFields) dirtyShopFieldsRef.current.delete(field);
         if (committed.staffId !== undefined) dirtyStaffIdsRef.current.delete(committed.staffId);
-        if (committed.offeringId !== undefined) dirtyOfferingIdsRef.current.delete(committed.offeringId);
+        if (committed.offeringId !== undefined) {
+          dirtyOfferingIdsRef.current.delete(committed.offeringId);
+          dirtyOfferingFieldsRef.current.delete(committed.offeringId);
+          offeringDraftBasesRef.current.delete(committed.offeringId);
+          setOfferingConflicts((conflicts) => {
+            const next = { ...conflicts };
+            delete next[committed.offeringId!];
+            return next;
+          });
+        }
         onSuccess?.();
         const records = await listShops(Number(requestedCampaignId), status);
         if (activeCampaignRef.current !== requestedCampaignId) return;
@@ -389,6 +444,9 @@ export function ShopWorkspace({
         dirtyShopFieldsRef.current.clear();
         dirtyStaffIdsRef.current.clear();
         dirtyOfferingIdsRef.current.clear();
+        dirtyOfferingFieldsRef.current.clear();
+        offeringDraftBasesRef.current.clear();
+        setOfferingConflicts({});
         setActiveAvailableItemId(null);
         setActiveListedItemId(null);
         setFeedback({ kind: "success", message: `${created.shop.name} was created with its storefront closed.` });
@@ -651,13 +709,63 @@ export function ShopWorkspace({
     } : current);
   }
 
-  function updateOfferingDraft(id: number, changes: Partial<ShopOfferingRecord>): void {
+  function updateOfferingDraft(
+    id: number,
+    changes: Partial<Pick<ShopOfferingRecord, EditableOfferingField>>,
+  ): void {
     if (readOnly) return;
+    const currentOffering = detail?.offerings.find((entry) => entry.id === id);
+    if (currentOffering && !offeringDraftBasesRef.current.has(id)) {
+      offeringDraftBasesRef.current.set(id, { ...currentOffering });
+    }
     dirtyOfferingIdsRef.current.add(id);
+    const fields = dirtyOfferingFieldsRef.current.get(id) ?? new Set<EditableOfferingField>();
+    for (const field of Object.keys(changes) as EditableOfferingField[]) fields.add(field);
+    dirtyOfferingFieldsRef.current.set(id, fields);
     setDetail((current) => current ? {
       ...current,
       offerings: current.offerings.map((entry) => entry.id === id ? { ...entry, ...changes } : entry),
     } : current);
+  }
+
+  function keepOfferingDraft(id: number): void {
+    const conflict = offeringConflicts[id];
+    const draft = detail?.offerings.find((entry) => entry.id === id);
+    const dirtyFields = [...(dirtyOfferingFieldsRef.current.get(id) ?? [])];
+    if (!conflict || !draft || !dirtyFields.length) return;
+    const reconciled = Object.assign(
+      { ...conflict.live },
+      Object.fromEntries(dirtyFields.map((field) => [field, draft[field]])),
+    ) as ShopOfferingRecord;
+    offeringDraftBasesRef.current.set(id, conflict.live);
+    setDetail((current) => current ? {
+      ...current,
+      offerings: current.offerings.map((entry) => entry.id === id ? reconciled : entry),
+    } : current);
+    setOfferingConflicts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setFeedback({ kind: "success", message: "Your draft now includes the current live values. Review it, then save when ready." });
+  }
+
+  function replaceWithLiveOffering(id: number): void {
+    const conflict = offeringConflicts[id];
+    if (!conflict) return;
+    dirtyOfferingIdsRef.current.delete(id);
+    dirtyOfferingFieldsRef.current.delete(id);
+    offeringDraftBasesRef.current.delete(id);
+    setDetail((current) => current ? {
+      ...current,
+      offerings: current.offerings.map((entry) => entry.id === id ? conflict.live : entry),
+    } : current);
+    setOfferingConflicts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setFeedback({ kind: "success", message: "The live offering values replaced this draft." });
   }
 
   return <main className="shops-page">
@@ -799,6 +907,7 @@ export function ShopWorkspace({
             {detail.offerings.length ? <div className="shops-offerings">{detail.offerings.map((offering, index) => {
               const effectiveSellingPrice = getEffectiveShopPrice(offering.canonicalPriceCredits, offering.sellingPriceOverrideCredits);
               const effectiveBuyingPrice = getEffectiveShopPrice(offering.canonicalPriceCredits, offering.buyingPriceOverrideCredits);
+              const conflict = offeringConflicts[offering.id];
               return <article key={offering.id} className={!offering.enabled || offering.itemArchived || !offering.campaignAuthorized ? "is-unavailable" : ""}>
                 <header><div className="shops-card-identity"><p>{offering.canonicalId} · {offering.recordType}</p><h4>{offering.itemName}</h4><span>{offering.category}{offering.itemArchived ? " · Archived Item" : ""}{!offering.campaignAuthorized ? " · No longer Campaign-authorized" : ""}</span></div><div className="shops-order"><button type="button" aria-label={`Move ${offering.itemName} up`} disabled={busy || readOnly || index === 0} onClick={() => void moveOffering(offering.id, "up")}>↑</button><button type="button" aria-label={`Move ${offering.itemName} down`} disabled={busy || readOnly || index === detail.offerings.length - 1} onClick={() => void moveOffering(offering.id, "down")}>↓</button></div></header>
                 <div className="shops-price-grid"><div><span>Canonical</span><strong>{offering.canonicalPriceCredits === null ? "Not priced" : formatMoney(offering.canonicalPriceCredits)}</strong><small>{offering.priceBasis}</small></div><div><span>Effective selling price</span><strong>{effectiveSellingPrice === null ? "Not priced" : formatMoney(effectiveSellingPrice)}</strong><small>{offering.sellingPriceOverrideCredits === null ? "Canonical fallback" : "Shop override"}</small></div><div><span>Effective buying price</span><strong>{effectiveBuyingPrice === null ? "Not priced" : formatMoney(effectiveBuyingPrice)}</strong><small>{offering.buyingPriceOverrideCredits === null ? "Canonical fallback" : "Shop override"}</small></div></div>
@@ -811,7 +920,8 @@ export function ShopWorkspace({
                   <label className="shops-field is-wide"><span>Shop-Facing Note</span><textarea rows={2} maxLength={1000} disabled={readOnly} value={offering.shopNote} onChange={(event) => updateOfferingDraft(offering.id, { shopNote: event.target.value })} /></label>
                 </div>
                 <label className="shops-check"><input type="checkbox" disabled={readOnly || (offering.enabled === false && (offering.itemArchived || !offering.campaignAuthorized))} checked={offering.enabled} onChange={(event) => updateOfferingDraft(offering.id, { enabled: event.target.checked })} /><span>Listing enabled</span></label>
-                <div className="shops-row-actions"><button type="button" disabled={busy || readOnly} onClick={() => void saveOffering(offering)}>Save Offering</button><button className="is-danger" type="button" disabled={busy || readOnly} onClick={() => void removeOffering(offering)}>Remove</button></div>
+                {conflict ? <aside className="shops-offering-conflict" role="alert"><strong>Live values changed while you were editing.</strong><span>The {conflict.fields.map((field) => OFFERING_FIELD_LABELS[field]).join(", ")} changed elsewhere. Your draft is preserved; choose which values to continue with.</span><div><button type="button" disabled={busy || readOnly} onClick={() => keepOfferingDraft(offering.id)}>Keep My Draft</button><button type="button" disabled={busy || readOnly} onClick={() => replaceWithLiveOffering(offering.id)}>Use Live Values</button></div></aside> : null}
+                <div className="shops-row-actions"><button type="button" disabled={busy || readOnly || Boolean(conflict)} onClick={() => void saveOffering(offering)}>Save Offering</button><button className="is-danger" type="button" disabled={busy || readOnly} onClick={() => void removeOffering(offering)}>Remove</button></div>
               </article>;
             })}</div> : <p className="shops-empty">No offerings yet. Add Items from the Campaign-authorized catalog above.</p>}
           </section>

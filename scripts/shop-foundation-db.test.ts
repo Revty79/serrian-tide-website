@@ -11,6 +11,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg, { type PoolClient } from "pg";
 
+import { currentMigrationSnapshotName } from "./current-migration-snapshot";
+
 const defaultWindowsPostgresBin = "C:\\Program Files\\PostgreSQL\\18\\bin";
 const postgresBin = process.env.SERRIAN_TEST_POSTGRES_BIN
   ?? (existsSync(defaultWindowsPostgresBin) ? defaultWindowsPostgresBin : "");
@@ -150,7 +152,7 @@ test("0035 replays with exact schema parity, enforces Shop integrity, and preser
     await migrate(drizzle(pool), { migrationsFolder: migrationRoot });
     const parityOutput = execFileSync(
       process.execPath,
-      ["scripts/verify-runtime-foundation-schema.mjs", "0036_snapshot.json"],
+      ["scripts/verify-runtime-foundation-schema.mjs", currentMigrationSnapshotName(migrationRoot)],
       {
         cwd: process.cwd(),
         encoding: "utf8",

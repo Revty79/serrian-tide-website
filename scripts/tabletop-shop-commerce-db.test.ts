@@ -247,7 +247,26 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     assert.equal(staleImmediate.status, "owner-review", "stale immediate checkout charged instead of requiring reconfirmation");
     assert.equal((await one<{ credits_remaining: number }>(seedPool, "select credits_remaining from campaign_character_profile where character_id=$1", [characterIds[3]])).credits_remaining, staleImmediateBalance);
     assert.deepEqual(await one<{ quoted: number; current: number }>(seedPool, "select quoted_unit_price_credits quoted,current_unit_price_credits current from shop_transaction_request_line where request_id=$1", [staleImmediate.requestId]), { quoted: 10, current: 10.5 });
+    const repeatedStaleImmediate = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[3]!,
+      lines: [staleImmediateQuote],
+      narrativeNote: "Displayed before the price changed.",
+      submissionKey: "stale-immediate-d",
+    }, playerIds[3]!));
+    assert.deepEqual(repeatedStaleImmediate, staleImmediate, "an uncertain stale-checkout retry did not reuse its original request");
+    assert.equal(Number((await one<{ value: number }>(seedPool, `select count(*)::int value from shop_transaction_request request
+      inner join shop_commerce_operation operation on operation.id=request.origin_operation_id
+      where request.requested_by_user_id=$1 and operation.submission_key='stale-immediate-d'`, [playerIds[3]])).value), 1);
     await dbModule.db.transaction((tx) => commerce.cancelShopRequestInTransaction(tx, { requestId: staleImmediate.requestId, submissionKey: "cancel-stale-immediate-d" }, { userId: playerIds[3]!, roles: [] }));
+    const afterCancelledReconfirmation = await dbModule.db.transaction((tx) => commerce.submitPlayerPurchaseInTransaction(tx, {
+      visitId: visit.visitId,
+      characterId: characterIds[3]!,
+      lines: [quotePurchase(serviceOffering.id, 1)],
+      narrativeNote: "A genuinely new checkout after cancellation.",
+      submissionKey: "after-cancelled-reconfirmation-d",
+    }, playerIds[3]!));
+    assert.equal(afterCancelledReconfirmation.status, "completed", "a new checkout after cancellation could not use a new identity");
     await seedPool.query("update shop_offering set selling_price_override_credits=null,version=version+1 where id=$1", [stackOffering.id]);
     purchaseTerms.set(stackOffering.id, { version: 2, unitPriceCredits: 10, fulfillmentKind: "inventory-transfer" });
 

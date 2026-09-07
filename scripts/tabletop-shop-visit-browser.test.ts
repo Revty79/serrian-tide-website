@@ -19,6 +19,7 @@ const pgCtlExecutable = postgresBin ? join(postgresBin, "pg_ctl.exe") : "pg_ctl"
 const chromeExecutable = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const password = "Shop-Visit-Browser-Only!";
 const screenshotDirectory = resolve(process.cwd(), "coverage", "tabletop-shop-visit-validation");
+const focusedCorrections = process.argv.includes("--focused-corrections");
 const distDirectory = `.next-shop-visits-${process.pid}`;
 const distPath = resolve(process.cwd(), distDirectory);
 if (dirname(distPath) !== resolve(process.cwd()) || basename(distPath) !== distDirectory) throw new Error("The isolated Shop-visit browser directory is unsafe.");
@@ -124,8 +125,8 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
     await client.query("insert into campaign_inventory_item (campaign_id,item_id,sort_order) values ($1,$2,1)", [campaign.id, unpricedItem.id]);
     await client.query("insert into campaign_inventory_item (campaign_id,item_id,sort_order) values ($1,$2,2)", [campaign.id, zeroPriceItem.id]);
     await client.query(`insert into shop_offering
-      (shop_id,campaign_id,item_id,fulfillment_kind,enabled,unlimited_stock,selling_price_override_credits,buying_price_override_credits,sort_order)
-      values ($1,$2,$3,'inventory-transfer',true,true,7,1.25,0),($1,$2,$4,'service-narrative',true,true,null,null,1),($1,$2,$5,'inventory-transfer',true,true,null,null,2)`, [townShop.id, campaign.id, catalogItem.id, unpricedItem.id, zeroPriceItem.id]);
+      (shop_id,campaign_id,item_id,fulfillment_kind,enabled,unlimited_stock,limited_quantity,selling_price_override_credits,buying_price_override_credits,sort_order)
+      values ($1,$2,$3,'inventory-transfer',true,false,5,7,1.25,0),($1,$2,$4,'service-narrative',true,true,null,null,null,1),($1,$2,$5,'inventory-transfer',true,true,null,null,null,2)`, [townShop.id, campaign.id, catalogItem.id, unpricedItem.id, zeroPriceItem.id]);
     await client.query("insert into campaign_character_item (character_id,item_id,quantity,unit_cost_credits) values ($1,$2,2,9)", [characterIds[0], catalogItem.id]);
     await client.query("insert into campaign_session_prepared_town (session_id,campaign_id,town_id,sort_order) values ($1,$2,$3,0)", [session.id, campaign.id, town.id]);
     await client.query("insert into campaign_session_prepared_shop (session_id,campaign_id,shop_id,sort_order) values ($1,$2,$3,0)", [session.id, campaign.id, independentShop.id]);
@@ -271,56 +272,58 @@ async function main(): Promise<void> {
     assert.equal(await playerPages[2]!.getByRole("heading", { name: "Brass Compass" }).count(), 0);
     await playerPages[2]!.getByRole("heading", { name: "At the table" }).waitFor();
 
-    await godPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
-    await godPage.getByRole("heading", { name: "Campaign Sessions" }).waitFor();
-    const encounterIntro = godPage.getByRole("dialog");
-    if (await encounterIntro.count()) await encounterIntro.getByRole("button", { name: "Return to Tabletop Operations" }).click();
-    await godPage.getByRole("button", { name: /Scenes/ }).click();
-    await godPage.getByRole("heading", { name: "Dockside Interruption", exact: true }).waitFor();
-    await godPage.getByRole("button", { name: "Start Encounter", exact: true }).click();
-    const startEncounterDialog = godPage.getByRole("dialog", { name: "Start Encounter 1?" });
-    await startEncounterDialog.getByRole("button", { name: "Start Encounter", exact: true }).click();
-    await godPage.getByText("Encounter 1 is now active.", { exact: true }).waitFor();
-    const initializationReason = "The Encounter is active, but the G.O.D. has not initialized Initiative yet.";
-    await playerPages[0]!.getByText(initializationReason, { exact: true }).waitFor({ timeout: 20_000 });
-    assert.equal(await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "waiting for Initiative displaced the active Shop visit");
-    assert.equal(await playerPages[0]!.getByRole("heading", { name: "Visitor A", level: 1 }).count(), 1, "waiting for Initiative displaced Character identity");
-    assert.equal(await playerPages[0]!.evaluate(() => Array.from(document.querySelectorAll("nextjs-portal")).some((portal) => (
-      portal.shadowRoot?.querySelector("[data-nextjs-dialog-overlay]") !== null
-    ))), false, "the valid pre-Initiative state opened a Next.js runtime overlay");
-    await playerPages[0]!.screenshot({ path: join(screenshotDirectory, "player-shop-visit-awaiting-initiative-narrow.png"), fullPage: true });
+    if (!focusedCorrections) {
+      await godPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
+      await godPage.getByRole("heading", { name: "Campaign Sessions" }).waitFor();
+      const encounterIntro = godPage.getByRole("dialog");
+      if (await encounterIntro.count()) await encounterIntro.getByRole("button", { name: "Return to Tabletop Operations" }).click();
+      await godPage.getByRole("button", { name: /Scenes/ }).click();
+      await godPage.getByRole("heading", { name: "Dockside Interruption", exact: true }).waitFor();
+      await godPage.getByRole("button", { name: "Start Encounter", exact: true }).click();
+      const startEncounterDialog = godPage.getByRole("dialog", { name: "Start Encounter 1?" });
+      await startEncounterDialog.getByRole("button", { name: "Start Encounter", exact: true }).click();
+      await godPage.getByText("Encounter 1 is now active.", { exact: true }).waitFor();
+      const initializationReason = "The Encounter is active, but the G.O.D. has not initialized Initiative yet.";
+      await playerPages[0]!.getByText(initializationReason, { exact: true }).waitFor({ timeout: 20_000 });
+      assert.equal(await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "waiting for Initiative displaced the active Shop visit");
+      assert.equal(await playerPages[0]!.getByRole("heading", { name: "Visitor A", level: 1 }).count(), 1, "waiting for Initiative displaced Character identity");
+      assert.equal(await playerPages[0]!.evaluate(() => Array.from(document.querySelectorAll("nextjs-portal")).some((portal) => (
+        portal.shadowRoot?.querySelector("[data-nextjs-dialog-overlay]") !== null
+      ))), false, "the valid pre-Initiative state opened a Next.js runtime overlay");
+      await playerPages[0]!.screenshot({ path: join(screenshotDirectory, "player-shop-visit-awaiting-initiative-narrow.png"), fullPage: true });
 
-    await godPage.getByRole("button", { name: /^Initiative Tracker/ }).click();
-    await godPage.getByText("Not initialized", { exact: true }).waitFor();
-    await godPage.getByRole("button", { name: "Initialize Initiative", exact: true }).click();
-    await godPage.getByText("Initiative initialized from authoritative Dexterity and Movement values.", { exact: true }).waitFor();
-    await eventually(async () => await playerPages[0]!.getByText(initializationReason, { exact: true }).count() === 0, "the Player view did not refresh from Initiative waiting to ready");
+      await godPage.getByRole("button", { name: /^Initiative Tracker/ }).click();
+      await godPage.getByText("Not initialized", { exact: true }).waitFor();
+      await godPage.getByRole("button", { name: "Initialize Initiative", exact: true }).click();
+      await godPage.getByText("Initiative initialized from authoritative Dexterity and Movement values.", { exact: true }).waitFor();
+      await eventually(async () => await playerPages[0]!.getByText(initializationReason, { exact: true }).count() === 0, "the Player view did not refresh from Initiative waiting to ready");
 
-    await godPage.getByRole("button", { name: "Encounter Prep", exact: true }).click();
-    const lateParticipantCard = godPage.locator(".tabletop-encounter-available article").filter({ hasText: "Visitor B" });
-    await lateParticipantCard.getByRole("button", { name: "Add Participant", exact: true }).click();
-    await godPage.getByText("Visitor B was added to this Encounter.", { exact: true }).waitFor();
-    const enrollmentReason = "This Character participates in the Encounter but has not joined its active Initiative runtime yet.";
-    await playerPages[1]!.getByText(enrollmentReason, { exact: true }).waitFor({ timeout: 20_000 });
-    assert.equal(await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "late Initiative enrollment displaced the active Shop visit");
-    await godPage.getByRole("button", { name: /^Initiative Tracker/ }).click();
-    const enrollmentCard = godPage.locator(".initiative-late-entry article").filter({ hasText: "Visitor B" });
-    await enrollmentCard.getByRole("button", { name: "Enroll", exact: true }).click();
-    await godPage.getByText(/Visitor B joined Initiative at full Current/).waitFor();
-    await eventually(async () => await playerPages[1]!.getByText(enrollmentReason, { exact: true }).count() === 0, "the late Player view did not refresh from enrollment waiting to ready");
+      await godPage.getByRole("button", { name: "Encounter Prep", exact: true }).click();
+      const lateParticipantCard = godPage.locator(".tabletop-encounter-available article").filter({ hasText: "Visitor B" });
+      await lateParticipantCard.getByRole("button", { name: "Add Participant", exact: true }).click();
+      await godPage.getByText("Visitor B was added to this Encounter.", { exact: true }).waitFor();
+      const enrollmentReason = "This Character participates in the Encounter but has not joined its active Initiative runtime yet.";
+      await playerPages[1]!.getByText(enrollmentReason, { exact: true }).waitFor({ timeout: 20_000 });
+      assert.equal(await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "late Initiative enrollment displaced the active Shop visit");
+      await godPage.getByRole("button", { name: /^Initiative Tracker/ }).click();
+      const enrollmentCard = godPage.locator(".initiative-late-entry article").filter({ hasText: "Visitor B" });
+      await enrollmentCard.getByRole("button", { name: "Enroll", exact: true }).click();
+      await godPage.getByText(/Visitor B joined Initiative at full Current/).waitFor();
+      await eventually(async () => await playerPages[1]!.getByText(enrollmentReason, { exact: true }).count() === 0, "the late Player view did not refresh from enrollment waiting to ready");
 
-    await godPage.getByText("Advanced / G.O.D. Corrections", { exact: true }).click();
-    godPage.once("dialog", (dialog) => void dialog.accept());
-    await godPage.getByRole("button", { name: "Close Initiative", exact: true }).click();
-    await godPage.getByText("Initiative closed. Historical state remains available.", { exact: true }).waitFor();
-    await playerPages[0]!.getByText(/Initiative is closed while the Encounter remains active/).waitFor({ timeout: 20_000 });
-    assert.equal(await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "closed Initiative displaced the active Shop visit");
-    await godPage.locator(".tabletop-encounter-tabs").getByRole("button", { name: /^Closeout/ }).click();
-    await godPage.getByRole("button", { name: "Finalize Encounter", exact: true }).click();
-    const finalizeEncounterDialog = godPage.getByRole("dialog", { name: "Finalize Dockside Interruption?" });
-    await finalizeEncounterDialog.getByRole("button", { name: "Finalize Encounter", exact: true }).click();
-    await godPage.getByText("Encounter finalized. XP and Encounter completion committed together.", { exact: true }).waitFor();
-    await eventually(async () => await playerPages[0]!.getByText(/Initiative is closed while the Encounter remains active/).count() === 0, "the Player view did not refresh after Encounter completion");
+      await godPage.getByText("Advanced / G.O.D. Corrections", { exact: true }).click();
+      godPage.once("dialog", (dialog) => void dialog.accept());
+      await godPage.getByRole("button", { name: "Close Initiative", exact: true }).click();
+      await godPage.getByText("Initiative closed. Historical state remains available.", { exact: true }).waitFor();
+      await playerPages[0]!.getByText(/Initiative is closed while the Encounter remains active/).waitFor({ timeout: 20_000 });
+      assert.equal(await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).count(), 1, "closed Initiative displaced the active Shop visit");
+      await godPage.locator(".tabletop-encounter-tabs").getByRole("button", { name: /^Closeout/ }).click();
+      await godPage.getByRole("button", { name: "Finalize Encounter", exact: true }).click();
+      const finalizeEncounterDialog = godPage.getByRole("dialog", { name: "Finalize Dockside Interruption?" });
+      await finalizeEncounterDialog.getByRole("button", { name: "Finalize Encounter", exact: true }).click();
+      await godPage.getByText("Encounter finalized. XP and Encounter completion committed together.", { exact: true }).waitFor();
+      await eventually(async () => await playerPages[0]!.getByText(/Initiative is closed while the Encounter remains active/).count() === 0, "the Player view did not refresh after Encounter completion");
+    }
     await openGodScene(godPage, baseUrl, fixture);
     await godPage.locator(".tabletop-shop-visit-list article").filter({ hasText: "Brass Compass" }).getByRole("button", { name: "View Visit" }).click();
     await godPage.getByRole("heading", { name: "Brass Compass" }).waitFor();
@@ -334,6 +337,13 @@ async function main(): Promise<void> {
     assert.match(creditsGodVisitText, /Complimentary Token[\s\S]*0 Credits/);
     assert.match(creditsPlayerVisitText, /Complimentary Token[\s\S]*0 Credits/);
 
+    const liveBuilderPage = await godContext.newPage();
+    await liveBuilderPage.goto(`${baseUrl}/heavens/shops?campaign=${fixture.campaignId}&shop=${fixture.townShopId}`);
+    await liveBuilderPage.getByRole("heading", { name: "Brass Compass", exact: true }).waitFor();
+    const liveBuilderChart = liveBuilderPage.locator(".shops-offerings article").filter({ hasText: "Harbor Chart" });
+    const preservedBuilderNote = "Keep this note while live stock changes.";
+    await liveBuilderChart.getByLabel("Shop-Facing Note").fill(preservedBuilderNote);
+
     await playerPages[0]!.getByRole("button", { name: "Buy", exact: true }).click();
     const purchaseDialog = playerPages[0]!.getByRole("dialog").filter({ hasText: "Buy from Brass Compass" });
     await purchaseDialog.getByLabel(/Harbor Chart/).fill("1");
@@ -341,10 +351,8 @@ async function main(): Promise<void> {
     assert.match(await purchaseDialog.innerText(), /Selected total: 7 Credits/);
     await pool.query("update shop_offering set selling_price_override_credits=8,version=version+1 where shop_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.townShopId]);
     await purchaseDialog.getByRole("button", { name: "Submit Request" }).click();
-    await purchaseDialog.getByText(/price or fulfillment changed after checkout was displayed/i).waitFor();
-    assert.equal(await purchaseDialog.getByLabel(/Harbor Chart/).inputValue(), "1", "terms refresh discarded the checkout quantity");
-    assert.equal(await purchaseDialog.getByLabel("Narrative note (optional)").inputValue(), "A chart for the crossing.", "terms refresh discarded the checkout note");
-    await purchaseDialog.getByRole("button", { name: "Cancel" }).click();
+    await playerPages[0]!.getByText(/Checkout moved to request #\d+\. Review the refreshed terms below; no charge has been made\./).waitFor();
+    await purchaseDialog.waitFor({ state: "hidden" });
     const playerACommerce = godPage.locator(".tabletop-shop-commerce-card").filter({ hasText: "Visitor A" });
     const purchaseCommerceRequest = playerACommerce.locator("section").filter({ hasText: "purchase" }).first();
     await purchaseCommerceRequest.getByText("Owner review", { exact: true }).waitFor({ timeout: 20_000 });
@@ -364,6 +372,76 @@ async function main(): Promise<void> {
     await playerACommerce.getByText("Pending", { exact: true }).waitFor({ timeout: 20_000 });
     await godApproval.click();
     await godPage.getByText("Purchase request reviewed.", { exact: true }).waitFor();
+
+    await playerPages[0]!.getByText(/Receipt #\d+ · purchase/).waitFor({ timeout: 20_000 });
+    await playerPages[0]!.getByRole("button", { name: "Buy", exact: true }).click();
+    const nextPurchaseDialog = playerPages[0]!.getByRole("dialog").filter({ hasText: "Buy from Brass Compass" });
+    assert.equal(await nextPurchaseDialog.getByLabel(/Harbor Chart/).inputValue(), "1", "accepted reconfirmation discarded the preserved selection");
+    assert.equal(await nextPurchaseDialog.getByLabel("Narrative note (optional)").inputValue(), "A chart for the crossing.", "accepted reconfirmation discarded the preserved note");
+    await nextPurchaseDialog.getByRole("button", { name: "Submit Request" }).click();
+    await playerPages[0]!.getByText(/Purchase request #\d+ is awaiting G\.O\.D\. approval\./).waitFor();
+    assert.equal(await playerPages[0]!.getByText(/submission identity was already used/i).count(), 0, "a new purchase reused the completed checkout submission identity");
+    const nextPendingRequest = playerPages[0]!.locator("article").filter({ hasText: "Awaiting G.O.D. review" }).first();
+    await nextPendingRequest.getByRole("button", { name: "Cancel" }).click();
+    await playerPages[0]!.getByText(/Request #\d+ cancelled\./).waitFor();
+
+    await playerPages[1]!.getByRole("button", { name: "Buy", exact: true }).click();
+    const cancelPurchaseDialog = playerPages[1]!.getByRole("dialog").filter({ hasText: "Buy from Brass Compass" });
+    await cancelPurchaseDialog.getByLabel(/Harbor Chart/).fill("1");
+    await cancelPurchaseDialog.getByLabel("Narrative note (optional)").fill("Cancel after an uncertain response.");
+    await pool.query("update shop_offering set selling_price_override_credits=10,version=version+1 where shop_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.townShopId]);
+    let interceptedCheckout = false;
+    await playerPages[1]!.route("**/realms/tabletop?**", async (route) => {
+      if (!interceptedCheckout && route.request().method() === "POST") {
+        interceptedCheckout = true;
+        await route.fetch();
+        await route.abort("failed");
+        return;
+      }
+      await route.continue();
+    });
+    await cancelPurchaseDialog.getByRole("button", { name: "Submit Request" }).click();
+    await cancelPurchaseDialog.getByRole("button", { name: "Retry Original Checkout" }).waitFor();
+    assert.equal(await cancelPurchaseDialog.getByLabel(/Harbor Chart/).isDisabled(), true, "an uncertain retry allowed the original checkout contents to change");
+    await playerPages[1]!.unroute("**/realms/tabletop?**");
+    await cancelPurchaseDialog.getByRole("button", { name: "Retry Original Checkout" }).click();
+    await playerPages[1]!.getByText(/Checkout moved to request #\d+\. Review the refreshed terms below; no charge has been made\./).waitFor();
+    assert.equal(Number((await pool.query<{ count: number }>("select count(*)::int count from shop_transaction_request where character_id=$1 and narrative_note='Cancel after an uncertain response.'", [fixture.characterIds[1]])).rows[0]?.count), 1, "an uncertain retry created a duplicate request");
+    const cancelledReview = playerPages[1]!.locator("article").filter({ hasText: "Your acceptance is required" }).first();
+    await cancelledReview.getByRole("button", { name: "Cancel" }).click();
+    await playerPages[1]!.getByText(/Request #\d+ cancelled\./).waitFor();
+    await playerPages[1]!.getByRole("button", { name: "Buy", exact: true }).click();
+    const purchaseAfterCancel = playerPages[1]!.getByRole("dialog").filter({ hasText: "Buy from Brass Compass" });
+    await purchaseAfterCancel.getByRole("button", { name: "Submit Request" }).click();
+    await playerPages[1]!.getByText(/Purchase request #\d+ is awaiting G\.O\.D\. approval\./).waitFor();
+    assert.equal(await playerPages[1]!.getByText(/submission identity was already used/i).count(), 0, "a purchase after cancellation reused the previous checkout identity");
+    await playerPages[1]!.locator("article").filter({ hasText: "Awaiting G.O.D. review" }).first().getByRole("button", { name: "Cancel" }).click();
+
+    await liveBuilderPage.getByRole("heading", { name: "Brass Compass", exact: true }).waitFor();
+    const liveStaff = liveBuilderPage.locator(".shops-staff-list article").filter({ hasText: "Mira Voss" });
+    await liveStaff.getByLabel("Responsibility / Role").fill("Lead navigator");
+    await liveStaff.getByRole("button", { name: "Save Assignment" }).click();
+    await liveBuilderPage.getByText("Mira Voss's Shop assignment was saved.", { exact: true }).waitFor();
+    assert.equal(await liveBuilderChart.getByLabel("Limited Quantity").inputValue(), "4", "an unrelated Builder save restored stale stock");
+    assert.equal(await liveBuilderChart.getByLabel("Shop-Facing Note").inputValue(), preservedBuilderNote, "live-stock reconciliation discarded the unsaved note");
+    await liveBuilderChart.getByRole("button", { name: "Save Offering" }).click();
+    await liveBuilderPage.getByText("Harbor Chart was saved.", { exact: true }).waitFor();
+    assert.deepEqual((await pool.query<{ limited_quantity: number; shop_note: string }>("select limited_quantity,shop_note from shop_offering where shop_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.townShopId])).rows, [{ limited_quantity: 4, shop_note: preservedBuilderNote }]);
+
+    await liveBuilderChart.getByLabel("Limited Quantity").fill("6");
+    await pool.query("update shop_offering set limited_quantity=3,version=version+1 where shop_id=$1 and item_id=(select id from items where canonical_id='VISIT-BROWSER-0001')", [fixture.townShopId]);
+    await liveStaff.getByLabel("Responsibility / Role").fill("Principal navigator");
+    await liveStaff.getByRole("button", { name: "Save Assignment" }).click();
+    const offeringConflict = liveBuilderChart.locator(".shops-offering-conflict");
+    await offeringConflict.getByText(/limited quantity changed elsewhere/i).waitFor();
+    assert.equal(await liveBuilderChart.getByRole("button", { name: "Save Offering" }).isDisabled(), true, "a same-field conflict remained silently saveable");
+    await offeringConflict.getByRole("button", { name: "Use Live Values" }).click();
+    assert.equal(await liveBuilderChart.getByLabel("Limited Quantity").inputValue(), "3", "using live values did not reconcile the conflicting stock draft");
+
+    if (focusedCorrections) {
+      console.log("Focused Shop stock reconciliation and checkout browser checks passed.");
+      return;
+    }
     await playerPages[0]!.reload();
     await playerPages[0]!.getByText(/Receipt #\d+ · purchase/).waitFor();
     assert.match(await playerPages[0]!.getByText("Your purse").locator("..").innerText(), /91 Credits/);
