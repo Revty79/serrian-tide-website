@@ -36,7 +36,7 @@ function draft(overrides: Partial<ActionDeclarationDraft> = {}): ActionDeclarati
     heldIntervention: false,
     windowKind: "melee-overlap",
     aimDeclared: true,
-    calledShot: { declared: true, label: "Weapon hand", assignedPenalty: -20 },
+    calledShot: { declared: true, label: "Weapon hand", assignedPenalty: 20, locationNumber: 4 },
     explicitModifiers: [{ label: "Cover", value: -10 }],
     preparesForDeclarationId: null,
     godNotes: "Keep the fiction unresolved.",
@@ -104,19 +104,23 @@ test("locked snapshot preserves exact context, source, governing target, modes, 
   assert.equal(locked.governing?.rollOverTarget, 63);
   assert.equal(locked.initiativeCost, 8);
   assert.equal(locked.aimDeclared, true);
-  assert.deepEqual(locked.calledShot, { declared: true, label: "Weapon hand", assignedPenalty: -20 });
-  assert.deepEqual(locked.explicitModifiers, [{ label: "Cover", value: -10 }]);
+  assert.deepEqual(locked.calledShot, { declared: true, label: "Weapon hand", assignedPenalty: 20, locationNumber: 4 });
+  assert.deepEqual(locked.explicitModifiers, [{ label: "Cover", value: -10 }, { label: "Called Shot", value: -20 }]);
   assert.equal(locked.authorUserId, "author");
   assert.equal(locked.lockedByUserId, "god");
 });
 
-test("draft normalization edits freely but preserves explicitly supplied penalty sign", () => {
+test("draft normalization binds a Called Shot location and includes its assigned penalty exactly once", () => {
   const first = normalizeActionDeclarationDraft(draft({ label: "First" }));
   const edited = normalizeActionDeclarationDraft(draft({ label: "Edited", initiativeCost: 3 }));
   assert.equal(first.label, "First");
   assert.equal(edited.label, "Edited");
   assert.equal(edited.initiativeCost, 3);
-  assert.equal(edited.calledShot.assignedPenalty, -20);
+  assert.equal(edited.calledShot.assignedPenalty, 20);
+  assert.equal(edited.calledShot.locationNumber, 4);
+  assert.deepEqual(edited.explicitModifiers, [{ label: "Cover", value: -10 }, { label: "Called Shot", value: -20 }]);
+  const alreadyIncluded = normalizeActionDeclarationDraft(draft({ explicitModifiers: [{ label: "Called Shot", value: -20 }] }));
+  assert.deepEqual(alreadyIncluded.explicitModifiers, [{ label: "Called Shot", value: -20 }]);
   assert.throws(() => normalizeActionDeclarationDraft(draft({ windowKind: "firearm-trigger", initiativeCost: 2 })), /exactly 1/);
 });
 

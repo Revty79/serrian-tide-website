@@ -19,6 +19,7 @@ import {
   generateActionEffectPlan,
   resolveManualActionEffect,
   retryActionEffectPlan,
+  ruleOrdinaryAttackDamage,
 } from "./action-effect-plan-actions";
 
 function json(value: unknown): string {
@@ -28,6 +29,50 @@ function json(value: unknown): string {
 function requested(promptText: string, initial = ""): string | null {
   const value = window.prompt(promptText, initial)?.trim() ?? "";
   return value || null;
+}
+
+function effectSummary(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const instruction = (value as Record<string, unknown>).instruction;
+  if (!instruction || typeof instruction !== "object" || Array.isArray(instruction)) return null;
+  const summary = (instruction as Record<string, unknown>).summary;
+  return typeof summary === "string" && summary.trim() ? summary : null;
+}
+
+function AttackDamageRuling({
+  encounterId,
+  planId,
+  effect,
+  view,
+  busy,
+  perform,
+}: {
+  encounterId: number;
+  planId: number;
+  effect: ActionEffectPlanView["effects"][number];
+  view: ActionEffectWorkspaceView;
+  busy: boolean;
+  perform: (operation: () => Promise<unknown>, success: string) => Promise<void>;
+}) {
+  const participant = view.participants.find(({ id }) => id === effect.targetParticipantId);
+  const [amount, setAmount] = useState("");
+  const [location, setLocation] = useState(String(participant?.hitLocations[0]?.result ?? ""));
+  const [reason, setReason] = useState("");
+  if (!participant?.hitLocations.length) return <p className="action-effect-warning">This target has no available authored Hit Location. Record a manual outcome with the missing anatomy fact.</p>;
+  return <div className="action-effect-ruling">
+    <strong>Specific G.O.D. damage ruling</strong>
+    <label className="st-field"><span>Final damage after protection</span><input className="st-control" type="number" min={0.000001} step="any" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
+    <label className="st-field"><span>Authored Hit Location</span><select className="st-control" value={location} onChange={(event) => setLocation(event.target.value)}>{participant.hitLocations.map((entry) => <option key={entry.result} value={entry.result}>{entry.name}</option>)}</select></label>
+    <label className="st-field"><span>Why this ruling is authoritative</span><input className="st-control" maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
+    <button className="st-button is-secondary" type="button" disabled={busy || !amount || location === "" || !reason.trim()} onClick={() => void perform(
+      () => ruleOrdinaryAttackDamage(encounterId, planId, effect.id, {
+        amount: Number(amount),
+        hitLocationNumber: Number(location),
+        reason,
+      }),
+      "The explicit G.O.D. damage ruling is now bound to this exact action, target, and Hit Location.",
+    )}>Use ruled damage</button>
+  </div>;
 }
 
 export function ActionEffectPlanWorkspace({
@@ -123,6 +168,7 @@ export function ActionEffectPlanWorkspace({
         <div className="action-effect-list">
           {plan.effects.map((effect) => <article key={effect.id}>
             <header><div><strong>{effect.effectType}</strong><small>{effect.targetName} · effect #{effect.id}</small></div><em>{effect.status}</em></header>
+            {effectSummary(effect.authoredValue) ? <p className="action-effect-summary">{effectSummary(effect.authoredValue)}</p> : null}
             <div className="action-effect-values">
               <section><span>Authored</span><pre>{json(effect.authoredValue)}</pre></section>
               <section><span>Calculated</span><pre>{json(effect.calculatedValue)}</pre></section>
@@ -130,6 +176,9 @@ export function ActionEffectPlanWorkspace({
               <section><span>Final applied result</span><pre>{json(effect.appliedResult)}</pre></section>
             </div>
             {effect.amendmentReason ? <p><strong>Ruling:</strong> {effect.amendmentReason}</p> : null}
+            {effect.effectKey.startsWith("ordinary-attack-damage:target:") && !effect.applicationSupported && !["manual-resolved", "declined"].includes(effect.status)
+              ? <AttackDamageRuling encounterId={encounterId} planId={plan.id} effect={effect} view={view} busy={busy} perform={perform} />
+              : null}
             <footer>
               {effect.applicationSupported && !["applied", "declined"].includes(effect.status) ? <button type="button" disabled={busy} onClick={() => correctAmount(plan.id, effect.id, effect.calculatedValue)}>Correct Amount</button> : null}
               {!['applied', 'declined', 'manual-resolved'].includes(effect.status) ? <button type="button" disabled={busy} onClick={() => { const reason = requested("Required reason for declining this effect"); if (reason) void perform(() => declineActionEffect(encounterId, plan.id, effect.id, reason), "Effect declined with its audit reason."); }}>Decline Effect</button> : null}

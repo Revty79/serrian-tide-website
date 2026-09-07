@@ -114,7 +114,11 @@ export type InitiativeRuntimeView = {
 };
 
 function assertPositiveId(value: number, label: string): void {
-  if (!Number.isInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
+}
+
+function assertParticipantKey(value: number, label: string): void {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
 }
 
 function refreshInitiative(): void {
@@ -568,7 +572,7 @@ export async function enrollLateEncounterInitiativeParticipant(
   characterId: number,
   movementMode?: string,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
     const [encounterParticipant] = await tx
       .select({ characterId: campaignSessionEncounterParticipant.characterId })
@@ -608,7 +612,7 @@ export async function beginGenericInitiativeAction(
     heldIntervention?: boolean;
   },
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(input.actorCharacterId, "Character");
+  assertParticipantKey(input.actorCharacterId, "Participant");
   return mutateOwnedInitiative(encounterId, async (state, _context, tx) => startInitiativeAction(state, {
     id: await nextPendingActionId(tx),
     ...input,
@@ -620,12 +624,12 @@ export async function advanceEncounterInitiativeTimeline(encounterId: number): P
 }
 
 export async function holdEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => holdInitiative(state, characterId));
 }
 
 export async function passEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => passInitiative(state, characterId));
 }
 
@@ -634,7 +638,7 @@ export async function setEncounterInitiativeParticipationStatus(
   characterId: number,
   status: InitiativeParticipationStatus,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => setInitiativeParticipationStatus(state, characterId, status));
 }
 
@@ -642,7 +646,7 @@ export async function resumeSuspendedEncounterInitiative(
   encounterId: number,
   characterId: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => {
     const participant = state.participants.find((entry) => entry.characterId === characterId);
     if (participant?.participationStatus !== "suspended") throw new Error("Only a suspended Initiative Participant may resume.");
@@ -655,7 +659,7 @@ export async function overrideCurrentEncounterInitiative(
   characterId: number,
   currentInitiative: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => setCurrentInitiative(state, characterId, currentInitiative));
 }
 
@@ -664,7 +668,7 @@ export async function applyEncounterInitiativeDelta(
   characterId: number,
   delta: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => applyDirectInitiativeDelta(state, characterId, delta));
 }
 
@@ -674,7 +678,7 @@ export async function overrideNormalEncounterInitiative(
   normalTotalInitiative: number,
   mode: CapacityChangeMode,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => changeNormalTotalInitiative(
     state,
     characterId,
@@ -689,7 +693,7 @@ export async function refreshEncounterInitiativeCapacity(
   mode: CapacityChangeMode,
   movementMode?: string,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
     const capacity = await resolveInitiativeCapacityInTransaction(tx, characterId, context.campaignId, movementMode);
     return changeNormalTotalInitiative(
@@ -707,7 +711,7 @@ export async function addEncounterDeferredInitiativeCost(
   characterId: number,
   amount: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => addDeferredInitiativeCost(state, characterId, amount));
 }
 
@@ -716,7 +720,7 @@ export async function settleEncounterDeferredInitiativeCost(
   characterId: number,
   amount?: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertParticipantKey(characterId, "Participant");
   return mutateOwnedInitiative(encounterId, (state) => settleDeferredInitiativeCost(state, characterId, amount));
 }
 

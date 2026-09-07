@@ -46,6 +46,7 @@ import {
 import {
   parseActionDeclarationDraft,
   parseLockedActionDeclarationSnapshot,
+  type LockedActionDeclarationSnapshot,
 } from "./action-declaration";
 import {
   resolveActionDeclarationInTransaction,
@@ -59,6 +60,8 @@ import {
 } from "./roll-runtime-service";
 import type { RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { resolveOrdinaryAttackConsequencesInTransaction } from "./ordinary-attack-consequence-service";
+import { readAttackTargetInTransaction } from "./attack-target-service";
 
 export type ActionEffectPlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type GodActionEffectActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -129,11 +132,21 @@ export type ActionEffectWorkspaceView = Readonly<{
     status: string;
     timingStatus: string;
   }>[];
-  participants: readonly Readonly<{ id: number; name: string; kind: string }>[];
+  participants: readonly Readonly<{
+    id: number;
+    name: string;
+    kind: string;
+    hitLocations: readonly Readonly<{ result: number; name: string; poolKey: string | null }>[];
+  }>[];
 }>;
 
 type LoadedPlan = typeof campaignSessionEncounterEffectPlan.$inferSelect;
 type LoadedEffect = typeof campaignSessionEncounterEffect.$inferSelect;
+
+function isDedicatedFirearmDeclaration(locked: LockedActionDeclarationSnapshot): boolean {
+  return locked.windowKind === "firearm-trigger"
+    && typeof locked.source.payload?.firearmAttackId === "number";
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -328,7 +341,10 @@ export async function generateActionEffectPlanInTransaction(
     throw new Error("The declaration must be locked and committed before consequences can be generated.");
   }
   const locked = parseLockedActionDeclarationSnapshot(declaration.lockedSnapshotJson);
-  const source = assertFrozenActionSourceSnapshot(locked.authoredSource);
+  if (isDedicatedFirearmDeclaration(locked)) {
+    throw new Error("Firearm consequences must be generated through the dedicated per-bullet firearm runtime.");
+  }
+  const frozenSource = assertFrozenActionSourceSnapshot(locked.authoredSource);
   const [pending] = await tx.select().from(campaignSessionEncounterPendingAction).where(and(
     eq(campaignSessionEncounterPendingAction.id, declaration.pendingActionId),
     eq(campaignSessionEncounterPendingAction.encounterId, context.encounterId),
@@ -353,11 +369,11 @@ export async function generateActionEffectPlanInTransaction(
       throw new Error("Every declared response must be resolved and reconciled before consequences are generated.");
     }
   }
-  if ((source.kind === "weapon" || source.kind === "creature-attack") && declaration.defenseResolutionJson === null) {
+  if ((frozenSource.kind === "weapon" || frozenSource.kind === "creature-attack") && declaration.defenseResolutionJson === null) {
     throw new Error("Attack consequences require the completed Pass 7 defense/intervention resolution.");
   }
   const governingRoll = await effectiveActionRoll(tx, context, actor, declaration.pendingActionId);
-  if (sourceNeedsRoll(source) && !governingRoll) {
+  if (sourceNeedsRoll(frozenSource) && !governingRoll) {
     throw new Error("The exact immutable governing Roll is required before consequences are generated.");
   }
   const targetIds = locked.targetCharacterIds.length ? locked.targetCharacterIds : [locked.actorCharacterId];
@@ -379,6 +395,9 @@ export async function generateActionEffectPlanInTransaction(
     name: target.kind === "creature" ? target.displayLabel : target.characterName,
   })).sort((left, right) => targetIds.indexOf(left.participantId) - targetIds.indexOf(right.participantId));
   const defenseResolution = isRecord(declaration.defenseResolutionJson) ? declaration.defenseResolutionJson : null;
+  const source = (frozenSource.kind === "weapon" || frozenSource.kind === "creature-attack") && governingRoll
+    ? await resolveOrdinaryAttackConsequencesInTransaction(tx, context, locked, frozenSource, governingRoll)
+    : frozenSource;
   const proposal = buildActionEffectPlanProposal({
     source,
     actorParticipantId: locked.actorCharacterId,
@@ -393,7 +412,7 @@ export async function generateActionEffectPlanInTransaction(
     actor,
     declaration.id,
     declaration.draftJson,
-    source,
+    frozenSource,
     locked.weapon,
     locked.governing,
   );
@@ -544,6 +563,61 @@ export async function amendActionEffectAmountInTransaction(
     effectId: effectRow.id,
     previousAmount,
     correctedAmount: amountInput,
+  });
+}
+
+export async function ruleOrdinaryAttackDamageInTransaction(
+  tx: ActionEffectPlanTransaction,
+  context: OwnedEncounterRuntimeContext,
+  actor: GodActionEffectActor,
+  planId: number,
+  effectId: number,
+  input: { amount: number; hitLocationNumber: number; reason: string },
+): Promise<void> {
+  assertGod(context, actor);
+  const plan = await lockPlan(tx, context, planId);
+  if (!["calculated", "requires-god-ruling", "approved", "application-failed"].includes(plan.status)) {
+    throw new Error("This plan no longer accepts an attack-damage ruling.");
+  }
+  if (plan.sourceKind !== "weapon" && plan.sourceKind !== "creature-attack") {
+    throw new Error("Only an ordinary Weapon or Creature Attack consequence accepts this ruling.");
+  }
+  const effectRow = await lockEffect(tx, plan, effectId);
+  if (!effectRow.effectKey.startsWith("ordinary-attack-damage:target:")) {
+    throw new Error("This effect is not the ordinary attack damage consequence.");
+  }
+  if (effectRow.status === "applied" || effectRow.status === "manual-resolved" || effectRow.status === "declined") {
+    throw new Error("A terminal effect cannot receive an attack-damage ruling.");
+  }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Ruled final damage must be greater than zero.");
+  if (!Number.isSafeInteger(input.hitLocationNumber) || input.hitLocationNumber < 0) throw new Error("Ruled Hit Location is invalid.");
+  const target = await readAttackTargetInTransaction(tx, context, effectRow.targetParticipantId);
+  const location = target.anatomy?.hitLocations.find(({ result }) => result === input.hitLocationNumber) ?? null;
+  if (!location) throw new Error("The ruled Hit Location is not part of the target's exact current anatomy.");
+  const reason = boundedReason(input.reason, "Attack damage ruling reason");
+  const finalValue = {
+    effect: { kind: "health.damage" as const, amount: input.amount, application: "localized" as const },
+    application: { hitLocationNumber: location.result, poolKey: location.poolKey },
+  };
+  const now = new Date();
+  await tx.update(campaignSessionEncounterEffect).set({
+    effectType: "health.damage",
+    calculatedValueJson: input.amount,
+    finalValueJson: finalValue,
+    unit: "Health",
+    applicationSupported: true,
+    godReviewRequired: false,
+    status: plan.status === "approved" ? "approved" : plan.status === "application-failed" ? "application-failed" : "calculated",
+    amendmentReason: reason,
+    amendedByUserId: actor.userId,
+    updatedAt: now,
+  }).where(eq(campaignSessionEncounterEffect.id, effectRow.id));
+  await recordEvent(tx, context, plan.id, plan.status, plan.status, "ordinary-attack-damage-ruled", actor.userId, reason, {
+    effectId: effectRow.id,
+    targetParticipantId: effectRow.targetParticipantId,
+    amount: input.amount,
+    hitLocationNumber: location.result,
+    hitLocationName: location.name,
   });
 }
 
@@ -1004,11 +1078,16 @@ export async function readActionEffectWorkspaceInTransaction(
     .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
     .where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterParticipant.sortOrder));
-  const participantViews = participants.map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    name: row.kind === "creature" ? row.displayLabel : row.characterName ?? `Character #${row.id}`,
-  }));
+  const participantViews: ActionEffectWorkspaceView["participants"][number][] = [];
+  for (const row of participants) {
+    const target = await readAttackTargetInTransaction(tx, context, row.id);
+    participantViews.push({
+      id: row.id,
+      kind: row.kind,
+      name: row.kind === "creature" ? row.displayLabel : row.characterName ?? `Character #${row.id}`,
+      hitLocations: target.anatomy?.hitLocations.map(({ result, name, poolKey }) => ({ result, name, poolKey })) ?? [],
+    });
+  }
   const nameById = new Map(participantViews.map((row) => [row.id, row.name]));
   const planRows = await tx.select().from(campaignSessionEncounterEffectPlan)
     .where(eq(campaignSessionEncounterEffectPlan.encounterId, context.encounterId))
@@ -1095,7 +1174,7 @@ export async function readActionEffectWorkspaceInTransaction(
     eligibleDeclarations: declarationRows.filter((row) => !planDeclarationIds.has(row.id)).flatMap((row) => {
       try {
         const locked = parseLockedActionDeclarationSnapshot(row.lockedSnapshot);
-        if (!locked.authoredSource) return [];
+        if (!locked.authoredSource || isDedicatedFirearmDeclaration(locked)) return [];
         return [{
           id: row.id,
           label: row.label,

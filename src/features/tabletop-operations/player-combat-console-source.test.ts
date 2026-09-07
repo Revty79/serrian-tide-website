@@ -67,7 +67,7 @@ test("Player combat reuses declarations, defenses, firearm runtime, Rolls, and o
     "declareDefenseInterventionInTransaction",
     "recordDeclaredAttackRollInTransaction",
     "recordDeclaredResponseRollInTransaction",
-    "resolveDeclaredDefensesInTransaction",
+    "resolveDeclaredDefensesIfReadyInTransaction",
     "startFirearmPreparationInTransaction",
     "declareFirearmAttackInTransaction",
     "fireFirearmAttackInTransaction",
@@ -91,6 +91,9 @@ test("Player UI prioritizes responses and exposes only request-side Called Shot 
   assert.match(playerConsole, /Block/);
   assert.match(playerConsole, /aria-label="Physical defense Roll"/);
   assert.match(playerConsole, /Approved Called Shot/);
+  assert.match(playerConsole, /Authored target location/);
+  assert.match(playerConsole, /MOVEMENT/);
+  assert.match(playerActions, /declarePlayerMovement/);
   assert.doesNotMatch(playerConsole, /name="penalty"/);
   assert.match(playerConsole, /Legacy aggregate firearms require G\.O\.D\. initialization/);
   assert.match(playerConsole, /attack\.triggerTimingStatus === "completed"/);

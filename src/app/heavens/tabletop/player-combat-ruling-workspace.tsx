@@ -21,7 +21,7 @@ export function PlayerCombatRulingWorkspace({ encounterId, requests }: { encount
     <p>Review Player intent here. Global weapon mapping remains in Equipment; this workflow governs only the exact Character and Encounter request.</p>
     <div className="tabletop-player-ruling-list">{requests.map((request) => <article key={request.id}>
       <header><div><strong>#{request.id} · {request.characterName}</strong><span>{titleCase(request.requestType)} · {titleCase(request.status)}</span></div>{request.targetName ? <span>Target: {request.targetName}</span> : null}</header>
-      <p>{request.intent}</p><small>{request.sourceKind} · {request.sourceRef || "No exact source"}{request.sourceInstanceId ? ` · instance #${request.sourceInstanceId}` : ""}</small><small>{request.blockedReason}</small>
+      <p>{request.intent}</p>{request.requestType === "called-shot" && typeof request.frozenRequest.objective === "string" ? <strong>Called location: {request.frozenRequest.objective}</strong> : null}<small>{request.sourceKind} · {request.sourceRef || "No exact source"}{request.sourceInstanceId ? ` · instance #${request.sourceInstanceId}` : ""}</small><small>{request.blockedReason}</small>
       {request.godResponse ? <p>G.O.D. response: {request.godResponse}</p> : null}
       {request.status === "pending" || request.status === "clarification-requested" ? <form onSubmit={(event) => {
         event.preventDefault();

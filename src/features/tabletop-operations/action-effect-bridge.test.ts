@@ -67,6 +67,31 @@ test("automatic structured effects preserve exact identity and produce calculate
   assert.deepEqual(frozen, before);
 });
 
+test("authoritative zero damage remains visible but is declined without a Health mutation", () => {
+  const plan = buildActionEffectPlanProposal({
+    source: source({
+      kind: "weapon",
+      resolutionMode: "opposed-roll",
+      effects: [{
+        key: "ordinary-attack-damage",
+        effect: null,
+        instruction: { objectivelyResolvedNoEffect: true, summary: "Armor and soak reduced damage to zero." },
+        applicationSupported: false,
+        requiresGodReview: false,
+        targetParticipantIds: [9],
+      }],
+    }),
+    actorParticipantId: 7,
+    targetParticipantIds: [9],
+    governingRoll: buildRollMechanicalSnapshot({ kind: "manual", label: "Attack", originalTarget: 50 }, 60, [], "original-roll"),
+    defenseResolution: { originalActionDisposition: "continues" },
+    initiativeComplete: true,
+  });
+  assert.equal(plan.effects[0]?.status, "declined");
+  assert.equal(plan.effects[0]?.applicationSupported, false);
+  assert.match(plan.effects[0]?.amendmentReason ?? "", /zero damage/);
+});
+
 test("generation rejects incomplete Initiative, mismatched owners, and injected targets", () => {
   assert.throws(() => buildActionEffectPlanProposal({
     source: source(), actorParticipantId: 7, targetParticipantIds: [9], governingRoll: null,
@@ -186,7 +211,7 @@ test("authored Item quantity and exact-instance Charge costs enter the shared ap
   }
 });
 
-test("weapon and Creature attack damage remain explicit non-automated instructions", () => {
+test("unresolved weapon and Creature attack facts remain explicit manual instructions", () => {
   for (const kind of ["weapon", "creature-attack"] as const) {
     const plan = buildActionEffectPlanProposal({
       source: source({

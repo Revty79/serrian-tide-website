@@ -671,6 +671,29 @@
   color: var(--st-secondary-soft-text);
 }
 
+.action-effect-summary {
+  margin: 0;
+  padding: 9px 11px;
+  border-left: 3px solid var(--st-secondary);
+  background: color-mix(in srgb, var(--st-secondary) 8%, var(--st-page));
+  color: var(--st-text);
+}
+
+.action-effect-ruling {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--st-secondary) 28%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--st-panel) 72%, transparent);
+}
+
+.action-effect-ruling > strong {
+  grid-column: 1 / -1;
+}
+
 @media(max-width:620px) {
   .defense-declaration-grid {
     grid-template-columns: 1fr;
@@ -695,7 +718,8 @@
   }
 
   .action-effect-evidence,
-  .action-effect-values {
+  .action-effect-values,
+  .action-effect-ruling {
     grid-template-columns: 1fr;
   }
 

@@ -13,6 +13,7 @@ import {
   generateActionEffectPlanInTransaction,
   readActionEffectWorkspaceInTransaction,
   resolveManualActionEffectInTransaction,
+  ruleOrdinaryAttackDamageInTransaction,
   type ActionEffectWorkspaceView,
 } from "@/features/tabletop-operations/action-effect-plan-service";
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
@@ -97,6 +98,22 @@ export async function amendActionEffectAmount(encounterId: number, planId: numbe
     positiveId(effectId, "Action Effect"),
     amount,
     reason,
+  ));
+}
+
+export async function ruleOrdinaryAttackDamage(
+  encounterId: number,
+  planId: number,
+  effectId: number,
+  input: { amount: number; hitLocationNumber: number; reason: string },
+): Promise<void> {
+  await mutate(encounterId, (tx, context, actor) => ruleOrdinaryAttackDamageInTransaction(
+    tx,
+    context,
+    actor,
+    positiveId(planId, "Action Effect Plan"),
+    positiveId(effectId, "Action Effect"),
+    input,
   ));
 }
 

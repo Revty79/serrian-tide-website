@@ -57,6 +57,7 @@ test("migration 0029 remains after immutable 0028 in the forward-only ledger", (
 
 test("the firearm transaction reuses Rolls, defenses, Initiative, readiness, and Pass 8 plans", () => {
   const service = read("src/features/tabletop-operations/firearm-attack-service.ts");
+  const targets = read("src/features/tabletop-operations/attack-target-service.ts");
   for (const seam of [
     "recordDeclaredAttackRollInTransaction",
     "resolveDeclaredDefensesIfReadyInTransaction",
@@ -65,9 +66,11 @@ test("the firearm transaction reuses Rolls, defenses, Initiative, readiness, and
     "campaignSessionEncounterEffectPlan",
     "campaignSessionEncounterEffect",
     "getHitLocationFromPercentile",
-    "readActiveHealthInTransaction",
-    "readCharacterEquipmentStateInTransaction",
+    "readAttackTargetInTransaction",
+    "resolveAttackProtectionInTransaction",
   ]) assert.match(service, new RegExp(seam));
+  assert.match(targets, /readActiveHealthInTransaction/);
+  assert.match(targets, /readCharacterEquipmentStateInTransaction/);
   assert.match(service, /fired-awaiting-timing/);
   assert.match(service, /roundsLoadedAfter === 0 \? null/);
   assert.match(service, /attack\.attackRollId !== null/);

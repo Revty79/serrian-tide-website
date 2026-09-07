@@ -74,6 +74,7 @@ export type ActionDeclarationDraft = Readonly<{
     declared: boolean;
     label: string;
     assignedPenalty: number | null;
+    locationNumber?: number | null;
   }>;
   explicitModifiers: readonly ActionDeclarationModifier[];
   preparesForDeclarationId: number | null;
@@ -230,10 +231,19 @@ export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): 
   if (calledShotDeclared && assignedPenalty === null) {
     throw new Error("A declared Called Shot must preserve its explicitly assigned penalty.");
   }
+  const locationNumber = input.calledShot.locationNumber === null || input.calledShot.locationNumber === undefined
+    ? null
+    : input.calledShot.locationNumber;
+  if (locationNumber !== null && (!Number.isSafeInteger(locationNumber) || locationNumber < 0)) {
+    throw new Error("Called Shot Hit Location is invalid.");
+  }
   const explicitModifiers = input.explicitModifiers.map((modifier) => ({
     label: text(modifier.label, "Modifier label", 160),
     value: finite(modifier.value, "Modifier value"),
   }));
+  if (calledShotDeclared && !explicitModifiers.some(({ label }) => label.trim().toLocaleLowerCase("en-US") === "called shot")) {
+    explicitModifiers.push({ label: "Called Shot", value: -Math.abs(assignedPenalty!) });
+  }
   const weaponItemId = optionalId(input.weaponItemId, "Weapon Item");
   if (input.sourceKind === "weapon" && weaponItemId === null) {
     throw new Error("A Weapon declaration requires an exact Item identity.");
@@ -261,6 +271,7 @@ export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): 
       declared: calledShotDeclared,
       label: text(input.calledShot.label, "Called Shot label", 240, false),
       assignedPenalty,
+      ...(input.calledShot.locationNumber === undefined ? {} : { locationNumber }),
     },
     explicitModifiers,
     preparesForDeclarationId: optionalId(input.preparesForDeclarationId, "Prepared declaration"),

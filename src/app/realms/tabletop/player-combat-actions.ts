@@ -40,6 +40,8 @@ import {
   holdParticipantInitiativeInTransaction,
   passParticipantInitiativeInTransaction,
 } from "@/features/tabletop-operations/runtime-integration-service";
+import { resolveInitiativeCapacityInTransaction } from "@/features/tabletop-operations/initiative-capacity-service";
+import { calculateMovementInitiativeCost } from "@/features/tabletop-operations/initiative-runtime";
 import type { RollMethod } from "@/features/tabletop-operations/roll-runtime";
 import { requirePlayer } from "@/lib/server-access";
 
@@ -204,10 +206,11 @@ export async function startPlayerFirearmPreparation(
 export async function declarePlayerWeaponAttack(
   characterId: number,
   encounterId: number,
-  input: { targetParticipantId: number; itemId: number; instanceId: number | null; idempotencyKey: string },
+  input: { targetParticipantId: number; itemId: number; instanceId: number | null; calledShotRequestId?: number | null; idempotencyKey: string },
 ): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
     const submissionId = key(input.idempotencyKey);
+    const requestId = input.calledShotRequestId == null ? null : positiveId(input.calledShotRequestId, "Called Shot request");
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`serrian-tide:player-action:${context.campaignId}:${actor.userId}:${submissionId}`}))`);
     const existing = await tx.select({ id: campaignSessionEncounterActionDeclaration.id, draft: campaignSessionEncounterActionDeclaration.draftJson })
       .from(campaignSessionEncounterActionDeclaration)
@@ -223,7 +226,8 @@ export async function declarePlayerWeaponAttack(
       if (draft.targetCharacterIds.length !== 1
         || draft.targetCharacterIds[0] !== target
         || draft.weaponItemId !== input.itemId
-        || draft.sourceInstanceId !== input.instanceId) {
+        || draft.sourceInstanceId !== input.instanceId
+        || (draft.sourcePayload?.calledShotRequestId ?? null) !== requestId) {
         throw new Error("That submission identity was already used for a different exact weapon action.");
       }
       return reused.id;
@@ -246,6 +250,20 @@ export async function declarePlayerWeaponAttack(
     ) {
       throw new Error(`${governance.explanation} Submit a G.O.D. ruling request before spending Initiative.`);
     }
+    const request = requestId === null ? null : (await readPlayerCombatRulingRequestsInTransaction(tx, context.encounterId, actor.characterId, actor.userId)).find(({ id }) => id === requestId) ?? null;
+    if (requestId !== null && (!request || request.requestType !== "called-shot" || request.status !== "approved")) {
+      throw new Error("The selected Called Shot request is not approved for this Player and Encounter.");
+    }
+    if (request && (request.sourceRef !== weapon.ownershipKey || request.sourceInstanceId !== weapon.instanceId || request.targetParticipantId !== target)) {
+      throw new Error("The approved Called Shot request does not match this exact weapon and target.");
+    }
+    const rulingPenalty = request && typeof request.ruling.penalty === "number" ? request.ruling.penalty : null;
+    const rulingReason = request && typeof request.ruling.reason === "string" ? request.ruling.reason : "";
+    const locationNumber = request && Number.isSafeInteger(request.frozenRequest.locationNumber) ? Number(request.frozenRequest.locationNumber) : null;
+    const objective = request && typeof request.frozenRequest.objective === "string" ? request.frozenRequest.objective : "";
+    if (request && (rulingPenalty === null || !rulingReason.trim() || locationNumber === null || !objective.trim())) {
+      throw new Error("The approved Called Shot ruling lacks its exact location, penalty, objective, or reason.");
+    }
     const declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, {
       actorCharacterId: actor.characterId,
       targetCharacterIds: [target],
@@ -254,7 +272,7 @@ export async function declarePlayerWeaponAttack(
       sourceKind: "weapon",
       sourceRef: weapon.ownershipKey,
       sourceInstanceId: weapon.instanceId,
-      sourcePayload: { submissionId },
+      sourcePayload: { submissionId, calledShotRequestId: requestId },
       weaponItemId: weapon.itemId,
       firingModeId: null,
       attackMode: "Melee / authored weapon attack",
@@ -263,7 +281,70 @@ export async function declarePlayerWeaponAttack(
       heldIntervention: false,
       windowKind: "melee-overlap",
       aimDeclared: false,
-      calledShot: { declared: false, label: "", assignedPenalty: null },
+      calledShot: { declared: request !== null, label: objective, assignedPenalty: rulingPenalty, locationNumber },
+      explicitModifiers: [],
+      preparesForDeclarationId: null,
+      godNotes: "",
+    });
+    await lockActionDeclarationInTransaction(tx, context, actor, declarationId);
+    await commitActionDeclarationInTransaction(tx, context, actor, declarationId);
+    return declarationId;
+  });
+}
+
+export async function declarePlayerMovement(
+  characterId: number,
+  encounterId: number,
+  input: { movementMode: string; distanceFeet: number; intent: string; idempotencyKey: string },
+): Promise<number> {
+  return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
+    const submissionId = key(input.idempotencyKey);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`serrian-tide:player-action:${context.campaignId}:${actor.userId}:${submissionId}`}))`);
+    const movementMode = text(input.movementMode, "Movement mode", 160);
+    if (!Number.isFinite(input.distanceFeet) || input.distanceFeet <= 0) throw new Error("Movement distance must be greater than zero feet.");
+    const intent = text(input.intent, "Movement intent", 500);
+    const existing = await tx.select({ id: campaignSessionEncounterActionDeclaration.id, draft: campaignSessionEncounterActionDeclaration.draftJson })
+      .from(campaignSessionEncounterActionDeclaration)
+      .where(and(
+        eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
+        eq(campaignSessionEncounterActionDeclaration.actorCharacterId, actor.characterId),
+        eq(campaignSessionEncounterActionDeclaration.createdByUserId, actor.userId),
+      ));
+    const reused = existing.find(({ draft }) => parseActionDeclarationDraft(draft).sourcePayload?.submissionId === submissionId);
+    if (reused) {
+      const draft = parseActionDeclarationDraft(reused.draft);
+      const movement = draft.sourcePayload?.movement;
+      const frozenMovement = movement && typeof movement === "object" && !Array.isArray(movement)
+        ? movement as Record<string, unknown>
+        : null;
+      if (!frozenMovement
+        || frozenMovement.mode !== movementMode
+        || frozenMovement.distanceFeet !== input.distanceFeet
+        || frozenMovement.intent !== intent) {
+        throw new Error("That submission identity was already used for different exact movement.");
+      }
+      return reused.id;
+    }
+    const capacity = await resolveInitiativeCapacityInTransaction(tx, actor.characterId, context.campaignId, movementMode);
+    const initiativeCost = calculateMovementInitiativeCost(capacity.baseMovement, input.distanceFeet);
+    const declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, {
+      actorCharacterId: actor.characterId,
+      targetCharacterIds: [],
+      label: `${capacity.movementMode} ${input.distanceFeet} ft — ${intent}`,
+      actionKind: "movement",
+      sourceKind: "no-roll",
+      sourceRef: `movement:${capacity.movementMode}`,
+      sourceInstanceId: null,
+      sourcePayload: { submissionId, movement: { mode: capacity.movementMode, distanceFeet: input.distanceFeet, intent } },
+      weaponItemId: null,
+      firingModeId: null,
+      attackMode: capacity.movementMode,
+      initiativeCost,
+      allowsMultiRound: true,
+      heldIntervention: false,
+      windowKind: "ordinary",
+      aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null, locationNumber: null },
       explicitModifiers: [],
       preparesForDeclarationId: null,
       godNotes: "",

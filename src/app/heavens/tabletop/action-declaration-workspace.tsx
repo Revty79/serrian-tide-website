@@ -48,6 +48,10 @@ type EditorState = {
   calledShotDeclared: boolean;
   calledShotLabel: string;
   calledShotPenalty: string;
+  calledShotLocation: string;
+  movementMode: string;
+  movementDistance: string;
+  movementIntent: string;
   explicitModifiers: string;
   preparesForDeclarationId: number | null;
   godNotes: string;
@@ -77,6 +81,10 @@ function initialEditor(view: ActionDeclarationWorkspaceView): EditorState {
     calledShotDeclared: false,
     calledShotLabel: "",
     calledShotPenalty: "",
+    calledShotLocation: "",
+    movementMode: actor?.movementModes[0]?.movementMode ?? "",
+    movementDistance: "",
+    movementIntent: "",
     explicitModifiers: "",
     preparesForDeclarationId: null,
     godNotes: "",
@@ -107,7 +115,11 @@ function draftFromEditor(editor: EditorState, view: ActionDeclarationWorkspaceVi
     sourceInstanceId: editor.sourceKind === "weapon"
       ? weapon?.instanceId ?? null
       : editor.sourceInstanceId.trim() ? Number(editor.sourceInstanceId) : null,
-    sourcePayload: editor.sourceKind === "manual" ? { instruction: editor.godNotes } : {},
+    sourcePayload: editor.sourceKind === "manual"
+      ? { instruction: editor.godNotes }
+      : editor.sourceKind === "no-roll" && editor.actionKind === "movement"
+        ? { movement: { mode: editor.movementMode, distanceFeet: Number(editor.movementDistance), intent: editor.movementIntent } }
+        : {},
     weaponItemId: editor.sourceKind === "weapon" ? weapon?.itemId ?? null : null,
     firingModeId: editor.sourceKind === "weapon" ? editor.firingModeId : null,
     attackMode: editor.attackMode,
@@ -120,6 +132,7 @@ function draftFromEditor(editor: EditorState, view: ActionDeclarationWorkspaceVi
       declared: editor.calledShotDeclared,
       label: editor.calledShotLabel,
       assignedPenalty: editor.calledShotDeclared ? Number(editor.calledShotPenalty) : null,
+      locationNumber: editor.calledShotDeclared && editor.calledShotLocation !== "" ? Number(editor.calledShotLocation) : null,
     },
     explicitModifiers: modifiersFromText(editor.explicitModifiers),
     preparesForDeclarationId: editor.windowKind === "preparation" ? editor.preparesForDeclarationId : null,
@@ -128,6 +141,10 @@ function draftFromEditor(editor: EditorState, view: ActionDeclarationWorkspaceVi
 }
 
 function editorFromDraft(declarationId: number, draft: ActionDeclarationDraft): EditorState {
+  const movement = draft.sourcePayload?.movement;
+  const movementPayload = movement && typeof movement === "object" && !Array.isArray(movement)
+    ? movement as Record<string, unknown>
+    : null;
   return {
     declarationId,
     actorCharacterId: draft.actorCharacterId,
@@ -148,6 +165,10 @@ function editorFromDraft(declarationId: number, draft: ActionDeclarationDraft): 
     calledShotDeclared: draft.calledShot.declared,
     calledShotLabel: draft.calledShot.label,
     calledShotPenalty: draft.calledShot.assignedPenalty === null ? "" : String(draft.calledShot.assignedPenalty),
+    calledShotLocation: draft.calledShot.locationNumber === null || draft.calledShot.locationNumber === undefined ? "" : String(draft.calledShot.locationNumber),
+    movementMode: typeof movementPayload?.mode === "string" ? movementPayload.mode : "",
+    movementDistance: typeof movementPayload?.distanceFeet === "number" ? String(movementPayload.distanceFeet) : "",
+    movementIntent: typeof movementPayload?.intent === "string" ? movementPayload.intent : "",
     explicitModifiers: draft.explicitModifiers.map((modifier) => `${modifier.label}: ${modifier.value}`).join("\n"),
     preparesForDeclarationId: draft.preparesForDeclarationId,
     godNotes: draft.godNotes,
@@ -167,7 +188,12 @@ export function ActionDeclarationWorkspace({ view }: { view: ActionDeclarationWo
   const [eligibilityReasons, setEligibilityReasons] = useState<Record<number, string>>({});
   const godControlledParticipants = view.participants.filter(({ choiceOwner }) => choiceOwner === "god");
   const actor = view.participants.find(({ characterId }) => characterId === editor.actorCharacterId) ?? null;
+  const target = view.participants.find(({ characterId }) => characterId === editor.targetCharacterId) ?? null;
   const selectedWeapon = actor?.weapons.find(({ ownershipKey }) => ownershipKey === editor.weaponKey) ?? null;
+  const selectedMovement = actor?.movementModes.find(({ movementMode }) => movementMode === editor.movementMode) ?? null;
+  const movementCost = selectedMovement && Number(editor.movementDistance) > 0
+    ? Math.ceil(Number(editor.movementDistance) / selectedMovement.baseMovement)
+    : null;
   const unresolvedDeclarations = useMemo(() => view.declarations.filter(({ status }) => ![
     "resolved", "cancelled", "abandoned",
   ].includes(status)), [view.declarations]);
@@ -234,16 +260,22 @@ export function ActionDeclarationWorkspace({ view }: { view: ActionDeclarationWo
 
     <form className="action-declaration-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
       <header><strong>{editor.declarationId === null ? "New draft" : "Edit draft"}</strong><small>G.O.D. creates choices only for NPCs and creatures. Player choices arrive here automatically.</small></header>
-      <label><span>Acting combatant</span><select disabled={busy || editor.declarationId !== null} value={editor.actorCharacterId || ""} onChange={(event) => setEditor({ ...editor, actorCharacterId: Number(event.target.value), weaponKey: "", firingModeId: null })}><option value="">Choose NPC or creature</option>{godControlledParticipants.map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name} · {participant.currentInitiative} · {participant.participationStatus}</option>)}</select></label>
-      <label><span>Target</span><select disabled={busy} value={editor.targetCharacterId ?? ""} onChange={(event) => setEditor({ ...editor, targetCharacterId: event.target.value ? Number(event.target.value) : null })}><option value="">No target</option>{view.participants.filter(({ characterId }) => characterId !== editor.actorCharacterId).map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name}</option>)}</select></label>
+      <label><span>Acting combatant</span><select disabled={busy || editor.declarationId !== null} value={editor.actorCharacterId || ""} onChange={(event) => {
+        const nextActor = view.participants.find(({ characterId }) => characterId === Number(event.target.value));
+        setEditor({ ...editor, actorCharacterId: Number(event.target.value), weaponKey: "", firingModeId: null, sourceRef: "", movementMode: nextActor?.movementModes[0]?.movementMode ?? "" });
+      }}><option value="">Choose NPC or creature</option>{godControlledParticipants.map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name} · {participant.currentInitiative} · {participant.participationStatus}</option>)}</select></label>
+      <label><span>Target</span><select disabled={busy || (editor.sourceKind === "no-roll" && editor.actionKind === "movement")} value={editor.targetCharacterId ?? ""} onChange={(event) => setEditor({ ...editor, targetCharacterId: event.target.value ? Number(event.target.value) : null, calledShotLocation: "", calledShotLabel: "" })}><option value="">No target</option>{view.participants.filter(({ characterId }) => characterId !== editor.actorCharacterId).map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name}</option>)}</select></label>
       <label className="is-wide"><span>Action Label</span><input required disabled={busy} value={editor.label} onChange={(event) => setEditor({ ...editor, label: event.target.value })} placeholder="Measured strike, open the gate, prepare aim…" /></label>
       <label><span>Action Kind</span><input required disabled={busy} value={editor.actionKind} onChange={(event) => setEditor({ ...editor, actionKind: event.target.value })} /></label>
       <label><span>Window Kind</span><select disabled={busy} value={editor.windowKind} onChange={(event) => {
         const windowKind = event.target.value as ActionWindowKind;
         setEditor({ ...editor, windowKind, initiativeCost: windowKind === "firearm-trigger" ? "1" : editor.initiativeCost });
       }}><option value="ordinary">Ordinary</option><option value="melee-overlap">Melee overlap</option><option value="firearm-trigger">Firearm trigger · 1 Initiative</option><option value="preparation">Preparation</option></select></label>
-      <label><span>Initiative Cost</span><input required type="number" min="0.000001" step="any" disabled={busy || editor.windowKind === "firearm-trigger"} value={editor.initiativeCost} onChange={(event) => setEditor({ ...editor, initiativeCost: event.target.value })} /></label>
-      <label><span>Source</span><select disabled={busy} value={editor.sourceKind} onChange={(event) => setEditor({ ...editor, sourceKind: event.target.value as ActionDeclarationDraft["sourceKind"], sourceRef: "", sourceInstanceId: "", weaponKey: "", firingModeId: null })}><option value="generic">Legacy generic / descriptive</option><option value="weapon">Weapon / Profile</option><option value="item">Owned Item</option><option value="spell">Spell</option><option value="derived-ability">Derived Ability</option><option value="skill">Exact Skill allocation</option><option value="attribute">Character Attribute</option><option value="creature-attack">Creature attack</option><option value="creature-ability">Creature ability</option><option value="no-roll">Explicit no-roll</option><option value="manual">Manual G.O.D. ruling</option></select></label>
+      <label><span>Initiative Cost</span><input required type="number" min="0.000001" step="any" disabled={busy || editor.windowKind === "firearm-trigger" || (editor.sourceKind === "no-roll" && editor.actionKind === "movement")} value={movementCost === null ? editor.initiativeCost : String(movementCost)} onChange={(event) => setEditor({ ...editor, initiativeCost: event.target.value })} /></label>
+      <label><span>Source</span><select disabled={busy} value={editor.sourceKind} onChange={(event) => {
+        const sourceKind = event.target.value as ActionDeclarationDraft["sourceKind"];
+        setEditor({ ...editor, sourceKind, sourceRef: "", sourceInstanceId: "", weaponKey: "", firingModeId: null, actionKind: sourceKind === "no-roll" ? "movement" : editor.actionKind, targetCharacterId: sourceKind === "no-roll" ? null : editor.targetCharacterId });
+      }}><option value="generic">Legacy generic / descriptive</option><option value="weapon">Weapon / Profile</option><option value="item">Owned Item</option><option value="spell">Spell</option><option value="derived-ability">Derived Ability</option><option value="skill">Exact Skill allocation</option><option value="attribute">Character Attribute</option><option value="creature-attack">Creature attack</option><option value="creature-ability">Creature ability</option><option value="no-roll">Movement / explicit no-roll</option><option value="manual">Manual G.O.D. ruling</option></select></label>
       {editor.sourceKind === "weapon" ? <>
         <label><span>Exact Wielded Weapon</span><select required disabled={busy} value={editor.weaponKey} onChange={(event) => {
           const weapon = actor?.weapons.find(({ ownershipKey }) => ownershipKey === event.target.value);
@@ -251,7 +283,20 @@ export function ActionDeclarationWorkspace({ view }: { view: ActionDeclarationWo
         }}><option value="">Choose weapon</option>{actor?.weapons.map((weapon) => <option key={weapon.ownershipKey} value={weapon.ownershipKey}>{weapon.name}{weapon.initiativeCost === null ? " · G.O.D. cost required" : ` · cost ${weapon.initiativeCost}`}</option>)}</select></label>
         <label><span>Firing Mode</span><select disabled={busy || !selectedWeapon?.firingModes.length} value={editor.firingModeId ?? ""} onChange={(event) => setEditor({ ...editor, firingModeId: event.target.value ? Number(event.target.value) : null, attackMode: event.target.selectedOptions[0]?.textContent ?? "" })}><option value="">Default / none</option>{selectedWeapon?.firingModes.map((mode) => <option key={mode.id} value={mode.id}>{mode.name}</option>)}</select></label>
       </> : null}
-      {!["generic", "weapon", "no-roll", "manual"].includes(editor.sourceKind) ? <>
+      {editor.sourceKind === "creature-attack" ? <label><span>Exact authored Creature Attack</span><select required disabled={busy} value={editor.sourceRef} onChange={(event) => {
+        const attack = actor?.creatureAttacks.find(({ canonicalId }) => canonicalId === event.target.value);
+        setEditor({ ...editor, sourceRef: event.target.value, label: attack?.attackName ? `${attack.attackName} attack` : editor.label, initiativeCost: String(attack?.initiativeCost ?? editor.initiativeCost), attackMode: "Creature attack" });
+      }}><option value="">Choose attack</option>{actor?.creatureAttacks.map((attack) => <option key={attack.canonicalId} value={attack.canonicalId}>{attack.attackName} · {attack.damage ?? "damage ruling"} · {attack.initiativeCost ?? "cost ruling"} Initiative</option>)}</select></label> : null}
+      {editor.sourceKind === "no-roll" ? <>
+        <label><span>No-roll operation</span><select disabled={busy} value={editor.actionKind === "movement" ? "movement" : "descriptive"} onChange={(event) => setEditor({ ...editor, actionKind: event.target.value === "movement" ? "movement" : "no-roll", targetCharacterId: null })}><option value="movement">Movement</option><option value="descriptive">Other descriptive action</option></select></label>
+        {editor.actionKind === "movement" ? <>
+          <label><span>Movement mode</span><select required disabled={busy} value={editor.movementMode} onChange={(event) => setEditor({ ...editor, movementMode: event.target.value })}><option value="">Choose mode</option>{actor?.movementModes.map((mode) => <option key={mode.movementMode} value={mode.movementMode}>{mode.movementMode} · {mode.baseMovement} ft per Initiative</option>)}</select></label>
+          <label><span>Distance in feet</span><input required disabled={busy} type="number" min="0.000001" step="any" value={editor.movementDistance} onChange={(event) => setEditor({ ...editor, movementDistance: event.target.value })} /></label>
+          <label className="is-wide"><span>Movement intent</span><input required disabled={busy} maxLength={500} value={editor.movementIntent} onChange={(event) => setEditor({ ...editor, movementIntent: event.target.value })} placeholder="Where and why this combatant is moving" /></label>
+          <p className="action-declaration-source-note">{movementCost === null ? "Choose an authored Movement mode and distance." : `${editor.movementDistance} ft at ${selectedMovement?.baseMovement} ft per Initiative costs ${movementCost} Initiative and uses no Roll.`}</p>
+        </> : null}
+      </> : null}
+      {!["generic", "weapon", "creature-attack", "no-roll", "manual"].includes(editor.sourceKind) ? <>
         <label><span>Exact Source Identity</span><input required disabled={busy} value={editor.sourceRef} onChange={(event) => setEditor({ ...editor, sourceRef: event.target.value })} placeholder={editor.sourceKind === "item" ? "item:123" : editor.sourceKind === "spell" ? "spell:personal:123" : editor.sourceKind === "derived-ability" ? "derived-ability:123" : editor.sourceKind === "skill" ? "skill-allocation:123" : editor.sourceKind === "attribute" ? "DEX" : "Canonical attack / ability ID"} /></label>
         {editor.sourceKind === "item" ? <label><span>Owned Item Instance ID (when required)</span><input type="number" min={1} step={1} disabled={busy} value={editor.sourceInstanceId} onChange={(event) => setEditor({ ...editor, sourceInstanceId: event.target.value })} /></label> : null}
       </> : null}
@@ -261,8 +306,11 @@ export function ActionDeclarationWorkspace({ view }: { view: ActionDeclarationWo
       <label className="action-declaration-check"><input type="checkbox" disabled={busy} checked={editor.allowsMultiRound} onChange={(event) => setEditor({ ...editor, allowsMultiRound: event.target.checked })} /><span>Explicitly permits multi-Round continuation</span></label>
       <label className="action-declaration-check"><input type="checkbox" disabled={busy} checked={editor.heldIntervention} onChange={(event) => setEditor({ ...editor, heldIntervention: event.target.checked })} /><span>Held intervention</span></label>
       <label className="action-declaration-check"><input type="checkbox" disabled={busy} checked={editor.aimDeclared} onChange={(event) => setEditor({ ...editor, aimDeclared: event.target.checked })} /><span>Aim already declared · placeholder only</span></label>
-      <label className="action-declaration-check"><input type="checkbox" disabled={busy} checked={editor.calledShotDeclared} onChange={(event) => setEditor({ ...editor, calledShotDeclared: event.target.checked })} /><span>Called Shot declared · no calculation</span></label>
-      {editor.calledShotDeclared ? <><label><span>Called Shot</span><input disabled={busy} value={editor.calledShotLabel} onChange={(event) => setEditor({ ...editor, calledShotLabel: event.target.value })} /></label><label><span>Assigned Penalty</span><input required type="number" step="any" disabled={busy} value={editor.calledShotPenalty} onChange={(event) => setEditor({ ...editor, calledShotPenalty: event.target.value })} /></label></> : null}
+      {editor.sourceKind === "weapon" || editor.sourceKind === "creature-attack" ? <label className="action-declaration-check"><input type="checkbox" disabled={busy || editor.targetCharacterId === null} checked={editor.calledShotDeclared} onChange={(event) => setEditor({ ...editor, calledShotDeclared: event.target.checked, calledShotLocation: event.target.checked ? editor.calledShotLocation : "", calledShotLabel: event.target.checked ? editor.calledShotLabel : "" })} /><span>Called Shot with pre-Roll G.O.D. penalty</span></label> : null}
+      {editor.calledShotDeclared ? <><label><span>Authored target location</span><select required disabled={busy || !target} value={editor.calledShotLocation} onChange={(event) => {
+        const location = target?.hitLocations.find(({ result }) => result === Number(event.target.value));
+        setEditor({ ...editor, calledShotLocation: event.target.value, calledShotLabel: location?.name ?? "" });
+      }}><option value="">Choose location</option>{target?.hitLocations.map((location) => <option key={location.result} value={location.result}>{location.name}</option>)}</select></label><label><span>G.O.D.-assigned penalty</span><input required type="number" min={0} step="any" disabled={busy} value={editor.calledShotPenalty} onChange={(event) => setEditor({ ...editor, calledShotPenalty: event.target.value })} /></label></> : null}
       <label className="is-wide"><span>Explicit Modifiers</span><textarea disabled={busy} rows={3} value={editor.explicitModifiers} onChange={(event) => setEditor({ ...editor, explicitModifiers: event.target.value })} placeholder={"One per line, Label: number\nCover: 10"} /></label>
       <label className="is-wide"><span>G.O.D. Notes / Ruling Context</span><textarea disabled={busy} rows={3} value={editor.godNotes} onChange={(event) => setEditor({ ...editor, godNotes: event.target.value })} /></label>
       <footer><button type="submit" disabled={busy || editor.actorCharacterId === 0}>{editor.declarationId === null ? "Create Draft" : "Save Draft"}</button>{editor.declarationId !== null ? <button type="button" disabled={busy} onClick={() => setEditor(initialEditor(view))}>Stop Editing</button> : null}</footer>

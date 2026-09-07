@@ -57,11 +57,14 @@ import {
 import {
   loadInitiativeEngineInTransaction,
   persistInitiativeEngineInTransaction,
+  readEncounterCreatureAttacksInTransaction,
   type OwnedEncounterRuntimeContext,
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
 import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import { resolveInitiativeCapacityOptionsInTransaction } from "./initiative-capacity-service";
+import { readAttackTargetInTransaction } from "./attack-target-service";
 
 export type ActionDeclarationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -159,6 +162,15 @@ export type ActionDeclarationWorkspaceView = Readonly<{
       name: string;
       initiativeCost: number | null;
       firingModes: readonly Readonly<{ id: number; name: string }>[];
+    }>[];
+    movementModes: readonly Readonly<{ movementMode: string; baseMovement: number; normalTotalInitiative: number }>[];
+    hitLocations: readonly Readonly<{ result: number; name: string; poolKey: string | null }>[];
+    creatureAttacks: readonly Readonly<{
+      canonicalId: string;
+      attackName: string;
+      attackPercentage: number | null;
+      damage: string | null;
+      initiativeCost: number | null;
     }>[];
   }>[];
   declarations: readonly ActionDeclarationView[];
@@ -1549,6 +1561,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     displayLabel: campaignSessionEncounterParticipant.displayLabel,
     name: campaignCharacter.name,
     isNpc: campaignCharacter.isNpc,
+    npcKind: campaignCharacter.npcKind,
   }).from(campaignSessionEncounterParticipant)
     .leftJoin(campaignCharacter, and(
       eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId),
@@ -1568,6 +1581,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     entry.characterId,
     entry.participantKind === "creature" || entry.isNpc === true ? "god" as const : "player" as const,
   ]));
+  const identityById = new Map(identities.map((entry) => [entry.characterId, entry]));
   const allDeclarationRows = await tx.select().from(campaignSessionEncounterActionDeclaration)
     .where(eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclaration.id));
@@ -1626,8 +1640,11 @@ export async function readActionDeclarationWorkspaceInTransaction(
     const missingResponseRolls = requiredReactionIds.filter((id) => !recordedReactionIds.has(id)).length;
     const responseChoicePending = declarationOpportunities.some(({ status }) => status === "pending");
     const resolved = row.defenseResolutionJson !== null;
+    const automaticNoRoll = lockedSnapshot?.authoredSource?.resolutionMode === "automatic-no-roll";
     const rollMessage = resolved
       ? "Attack and response Rolls are resolved."
+      : automaticNoRoll
+        ? "No Roll is required. Resolve the action after Initiative timing and any response choices complete."
       : responseChoicePending
         ? "Waiting for responder eligibility or response choices before Rolls can resolve."
         : attackRollId === null && missingResponseRolls > 0
@@ -1714,7 +1731,39 @@ export async function readActionDeclarationWorkspaceInTransaction(
   });
   const activeIds = new Set(engine.pendingActions.filter(({ status }) => status === "active").map(({ actorCharacterId }) => actorCharacterId));
   const weaponsByCharacter = new Map<number, ActionDeclarationWorkspaceView["participants"][number]["weapons"]>();
+  const movementByCharacter = new Map<number, ActionDeclarationWorkspaceView["participants"][number]["movementModes"]>();
+  const anatomyByCharacter = new Map<number, ActionDeclarationWorkspaceView["participants"][number]["hitLocations"]>();
+  const attacksByCharacter = new Map<number, ActionDeclarationWorkspaceView["participants"][number]["creatureAttacks"]>();
   for (const participant of engine.participants) {
+    try {
+      const capacity = await resolveInitiativeCapacityOptionsInTransaction(tx, participant.characterId, context.campaignId);
+      movementByCharacter.set(participant.characterId, capacity.movementModes);
+    } catch {
+      movementByCharacter.set(participant.characterId, []);
+    }
+    try {
+      const target = await readAttackTargetInTransaction(tx, context, participant.characterId);
+      anatomyByCharacter.set(participant.characterId, target.anatomy?.hitLocations.map(({ result, name, poolKey }) => ({ result, name, poolKey })) ?? []);
+    } catch {
+      anatomyByCharacter.set(participant.characterId, []);
+    }
+    const identity = identityById.get(participant.characterId);
+    if (identity?.participantKind === "creature" || (identity?.isNpc === true && identity.npcKind === "creature")) {
+      try {
+        const attacks = await readEncounterCreatureAttacksInTransaction(tx as RuntimeIntegrationTransaction, participant.characterId);
+        attacksByCharacter.set(participant.characterId, attacks.map(({ canonicalId, attackName, attackPercentage, damage, initiativeCost }) => ({
+          canonicalId,
+          attackName,
+          attackPercentage,
+          damage,
+          initiativeCost,
+        })));
+      } catch {
+        attacksByCharacter.set(participant.characterId, []);
+      }
+    } else {
+      attacksByCharacter.set(participant.characterId, []);
+    }
     if (participant.characterId < 0) {
       weaponsByCharacter.set(participant.characterId, []);
       continue;
@@ -1753,6 +1802,9 @@ export async function readActionDeclarationWorkspaceInTransaction(
       hasActiveAction: activeIds.has(participant.characterId),
       choiceOwner: choiceOwners.get(participant.characterId) ?? "player",
       weapons: weaponsByCharacter.get(participant.characterId) ?? [],
+      movementModes: movementByCharacter.get(participant.characterId) ?? [],
+      hitLocations: anatomyByCharacter.get(participant.characterId) ?? [],
+      creatureAttacks: attacksByCharacter.get(participant.characterId) ?? [],
     })),
     declarations,
     run: engine.participants.map((participant) => {

@@ -205,7 +205,8 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         throw new Error("A frozen authored effect references a participant outside the original target set.");
       }
       const isManual = authored.effect === null || authored.effect.kind === "manual" || !authored.applicationSupported;
-      const objectivelyPrevented = stopped || failedRoll;
+      const objectivelyNoEffect = authored.instruction.objectivelyResolvedNoEffect === true;
+      const objectivelyPrevented = stopped || failedRoll || objectivelyNoEffect;
       const status: ActionEffectStatus = objectivelyPrevented
         ? "declined"
         : isManual || authored.requiresGodReview || unresolved
@@ -229,7 +230,11 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         godReviewRequired: !objectivelyPrevented && (isManual || authored.requiresGodReview || unresolved),
         status,
         amendmentReason: objectivelyPrevented
-          ? stopped ? "The completed defense/intervention stage stopped the originating action." : "The immutable governing Roll failed."
+          ? stopped
+            ? "The completed defense/intervention stage stopped the originating action."
+            : failedRoll
+              ? "The immutable governing Roll failed."
+              : "Authoritative armor and soak reduced the attack to zero damage."
           : "",
       });
     }

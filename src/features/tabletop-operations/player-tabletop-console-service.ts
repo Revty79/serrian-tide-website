@@ -174,6 +174,8 @@ export type PlayerCombatConsoleData = Readonly<{
     currentInitiative: number;
     participationStatus: string;
     deferredInitiativeCost: number;
+    movementMode: string;
+    movementModes: readonly Readonly<{ movementMode: string; baseMovement: number; normalTotalInitiative: number }>[];
     canDeclareAction: boolean;
     blockers: readonly string[];
     pendingAction: null | {
@@ -188,7 +190,13 @@ export type PlayerCombatConsoleData = Readonly<{
       allowsMultiRound: boolean;
     };
   };
-  targets: readonly { participantId: number; name: string; currentInitiative: number; participationStatus: string }[];
+  targets: readonly {
+    participantId: number;
+    name: string;
+    currentInitiative: number;
+    participationStatus: string;
+    hitLocations: readonly Readonly<{ result: number; name: string; poolKey: string | null }>[];
+  }[];
   declarations: ActionDeclarationWorkspaceView;
   defenses: DefenseInterventionWorkspaceView;
   firearms: Pick<FirearmWorkspaceView, "legacyStacks" | "firearms">;
@@ -826,6 +834,7 @@ async function readPlayerCombatConsole(
     character.characterId,
     playerUserId,
   );
+  const actorDeclarationParticipant = declarations.participants.find(({ characterId }) => characterId === character.characterId);
   return { availability: { status: "ready", reason: "Combat controls are available for this active Initiative participant." }, combat: {
     context: { campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId },
     initiative: {
@@ -836,6 +845,8 @@ async function readPlayerCombatConsole(
       currentInitiative: participant.currentInitiative,
       participationStatus: participant.participationStatus,
       deferredInitiativeCost: participant.deferredInitiativeCost,
+      movementMode: participant.movementMode,
+      movementModes: actorDeclarationParticipant?.movementModes ?? [],
       canDeclareAction: blockers.length === 0,
       blockers,
       pendingAction: pendingAction ? {
@@ -857,6 +868,7 @@ async function readPlayerCombatConsole(
         name: entry.name,
         currentInitiative: entry.currentInitiative,
         participationStatus: entry.participationStatus,
+        hitLocations: entry.hitLocations,
       })),
     declarations,
     defenses,

@@ -36,6 +36,11 @@ function positiveId(value: number, label: string): number {
   return value;
 }
 
+function participantKey(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
 function refreshDeclarations(): void {
   revalidatePath("/heavens/tabletop");
   revalidatePath("/heavens");
@@ -137,7 +142,7 @@ export async function addExceptionalResponder(
     context,
     actor,
     positiveId(declarationId, "Action declaration"),
-    positiveId(responderCharacterId, "Responder Character"),
+    participantKey(responderCharacterId, "Responder Participant"),
     reason,
   ));
 }

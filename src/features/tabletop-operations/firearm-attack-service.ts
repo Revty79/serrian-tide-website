@@ -5,7 +5,6 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import {
   item,
-  itemArmorDamageModifier,
   weaponFiringMode,
   weaponProfile,
 } from "@/db/item-schema";
@@ -32,15 +31,11 @@ import {
   campaignSessionPlayerRulingRequest,
   campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
-import { getActiveModifierTotal } from "@/features/active-state/active-effects";
-import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
-import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import type { ActiveHealthAnatomy } from "@/features/active-state/models";
 import { getAttributeModifier } from "@/features/characters/character-rules";
 import { getCharacterWeaponDamage } from "@/features/characters/character-sheet-rules";
 import { resolveCharacterWeaponGovernanceInTransaction } from "@/features/items/character-weapon-governance-service";
 import type { CharacterWeaponOneActionOverride } from "@/features/items/character-weapon-governance";
-import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 
 import {
   cancelActionDeclarationInTransaction,
@@ -80,6 +75,11 @@ import { readEffectiveRollSnapshotInTransaction, type AuthorizedRollActor } from
 import type { RollGoverningSourceRequest, RollGoverningSourceSnapshot, RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import {
+  readAttackTargetInTransaction,
+  resolveAttackProtectionInTransaction,
+  type AttackProtectionResolution,
+} from "./attack-target-service";
 
 export type FirearmAttackTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type GodActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -300,41 +300,6 @@ async function resolveFirearmActor(
   return actor;
 }
 
-async function targetAnatomy(
-  tx: FirearmAttackTransaction,
-  participant: { id: number; participantKind: string; npcKind: string | null; creatureSnapshot: unknown },
-): Promise<ActiveHealthAnatomy | null> {
-  if (participant.participantKind === "creature") {
-    if (!isRecord(participant.creatureSnapshot)) return null;
-    const pools = Array.isArray(participant.creatureSnapshot.hpPools) ? participant.creatureSnapshot.hpPools : [];
-    const locations = Array.isArray(participant.creatureSnapshot.hitLocations) ? participant.creatureSnapshot.hitLocations : [];
-    return {
-      kind: "creature",
-      totalMaximumHp: null,
-      maximumHpNote: "Frozen direct-Creature occurrence anatomy.",
-      pools: pools.flatMap((entry, sortOrder) => isRecord(entry) && typeof entry.canonicalId === "string" && typeof entry.poolName === "string" ? [{
-        key: entry.canonicalId,
-        name: entry.poolName,
-        maximumHp: typeof entry.maximumHp === "number" ? entry.maximumHp : null,
-        percentage: typeof entry.hpPercentage === "number" ? entry.hpPercentage : null,
-        sortOrder: typeof entry.sortOrder === "number" ? entry.sortOrder : sortOrder,
-      }] : []),
-      hitLocations: locations.flatMap((entry) => isRecord(entry) && Number.isSafeInteger(entry.hitLocationNumber) && typeof entry.locationName === "string" ? [{
-        result: Number(entry.hitLocationNumber),
-        name: entry.locationName,
-        bodyParts: typeof entry.bodyPartsIncluded === "string" ? entry.bodyPartsIncluded : entry.locationName,
-        poolKey: typeof entry.hpPoolCanonicalId === "string" ? entry.hpPoolCanonicalId : null,
-        poolName: null,
-      }] : []),
-    };
-  }
-  try {
-    return (await readActiveHealthInTransaction(tx, positiveId(participant.id, "Target Character"), participant.npcKind ?? "race")).anatomy;
-  } catch {
-    return null;
-  }
-}
-
 async function loadFoundation(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -535,7 +500,8 @@ async function loadFoundation(
     && governance.status !== "resolved-one-action-override") {
     throw new Error(`${governance.explanation} Supply an explicit one-action G.O.D. governing ruling before declaration.`);
   }
-  const targetHealthAnatomy = await targetAnatomy(tx, targetParticipant);
+  const exactTarget = await readAttackTargetInTransaction(tx, context, targetParticipantId);
+  const targetHealthAnatomy = exactTarget.anatomy;
   const validCalledLocation = calledShot.locationNumber === null
     || targetHealthAnatomy?.hitLocations.some(({ result }) => result === calledShot.locationNumber) === true;
   if (calledShot.declared && calledShot.locationNumber !== null && !validCalledLocation) {
@@ -571,10 +537,10 @@ async function loadFoundation(
       actor: { participantId: actorParticipantId, name: actorParticipant.name ?? actorParticipant.displayLabel },
       target: {
         participantId: targetParticipantId,
-        name: targetParticipant.participantKind === "creature" ? targetParticipant.displayLabel : targetParticipant.name ?? "Unknown target",
-        participantKind: targetParticipant.participantKind,
+        name: exactTarget.name,
+        participantKind: exactTarget.participantKind,
         anatomy: targetHealthAnatomy,
-        sourceSnapshot: targetParticipant.participantKind === "creature" ? structuredClone(targetParticipant.creatureSnapshot) : null,
+        sourceSnapshot: exactTarget.participantKind === "creature" ? structuredClone(exactTarget.sourceSnapshot) : null,
       },
       firearm: {
         itemInstanceId: state.itemInstanceId,
@@ -681,12 +647,29 @@ export async function declareFirearmAttackInTransaction(
     targetParticipantId: campaignSessionEncounterFirearmAttack.targetParticipantId,
     itemInstanceId: campaignSessionEncounterFirearmAttack.itemInstanceId,
     firingModeId: campaignSessionEncounterFirearmAttack.firingModeId,
+    aimInitiative: campaignSessionEncounterFirearmAttack.aimInitiative,
+    firingDurationInitiative: campaignSessionEncounterFirearmAttack.firingDurationInitiative,
+    calledShotDeclared: campaignSessionEncounterFirearmAttack.calledShotDeclared,
+    calledShotObjective: campaignSessionEncounterFirearmAttack.calledShotObjective,
+    calledShotLocationNumber: campaignSessionEncounterFirearmAttack.calledShotLocationNumber,
+    calledShotPenalty: campaignSessionEncounterFirearmAttack.calledShotPenalty,
+    calledShotReason: campaignSessionEncounterFirearmAttack.calledShotReason,
   }).from(campaignSessionEncounterFirearmAttack).where(and(
     eq(campaignSessionEncounterFirearmAttack.campaignId, context.campaignId),
     eq(campaignSessionEncounterFirearmAttack.idempotencyKey, idempotencyKey),
   )).limit(1);
   if (existing) {
-    if (existing.actorParticipantId !== command.actorParticipantId || existing.targetParticipantId !== command.targetParticipantId || existing.itemInstanceId !== command.itemInstanceId || existing.firingModeId !== command.firingModeId) {
+    if (existing.actorParticipantId !== command.actorParticipantId
+      || existing.targetParticipantId !== command.targetParticipantId
+      || existing.itemInstanceId !== command.itemInstanceId
+      || existing.firingModeId !== command.firingModeId
+      || existing.aimInitiative !== command.aimInitiative
+      || existing.firingDurationInitiative !== (command.firingDurationInitiative ?? 1)
+      || existing.calledShotDeclared !== command.calledShot.declared
+      || existing.calledShotObjective !== (command.calledShot.declared ? command.calledShot.objective.trim() : "")
+      || existing.calledShotLocationNumber !== (command.calledShot.declared ? command.calledShot.locationNumber : null)
+      || existing.calledShotPenalty !== (command.calledShot.declared ? command.calledShot.penalty : null)
+      || existing.calledShotReason !== (command.calledShot.declared ? command.calledShot.reason.trim() : "")) {
       throw new Error("That firearm attack request ID was already used for different exact identities.");
     }
     return { attackId: existing.id, status: existing.status as FirearmAttackStatus, reused: true };
@@ -720,6 +703,7 @@ export async function declareFirearmAttackInTransaction(
       declared: preview.calledShot.declared,
       label: preview.calledShot.objective,
       assignedPenalty: preview.calledShot.penalty,
+      locationNumber: preview.calledShot.locationNumber,
     },
     explicitModifiers: draftModifiers(preview.modifiers),
     preparesForDeclarationId: null,
@@ -927,83 +911,19 @@ export async function commitFirearmAttackTriggerInTransaction(
   return triggerPendingActionId;
 }
 
-type ProtectionResolution = Readonly<{
-  armor: number | null;
-  soak: number | null;
-  supported: boolean;
-  snapshot: Record<string, unknown>;
-  rulingReasons: readonly string[];
-}>;
-
-function directCreatureProtection(
-  preview: FirearmAttackPreview,
-  hitLocationNumber: number | null,
-): ProtectionResolution {
-  const reasons: string[] = [];
-  const snapshot = preview.target.sourceSnapshot;
-  const locations = isRecord(snapshot) && Array.isArray(snapshot.hitLocations) ? snapshot.hitLocations : [];
-  const location = hitLocationNumber === null ? null : locations.find((entry) => isRecord(entry) && entry.hitLocationNumber === hitLocationNumber);
-  if (!isRecord(location)) reasons.push("The frozen direct-Creature anatomy does not contain the resolved Hit Location.");
-  const armor = isRecord(location) && typeof location.naturalArmor === "number" && Number.isFinite(location.naturalArmor) ? location.naturalArmor : isRecord(location) ? 0 : null;
-  const soak = isRecord(location) && typeof location.soak === "number" && Number.isFinite(location.soak) ? location.soak : isRecord(location) ? 0 : null;
-  if ((armor !== null && armor < 0) || (soak !== null && soak < 0)) reasons.push("Frozen Creature armor or soak is negative and requires a G.O.D. ruling.");
-  if (isRecord(location) && typeof location.locationEffect === "string" && location.locationEffect.trim()) {
-    reasons.push("The authored Creature Hit Location has an unsupported special location effect.");
-  }
-  return {
-    armor: armor !== null && armor >= 0 ? armor : null,
-    soak: soak !== null && soak >= 0 ? soak : null,
-    supported: reasons.length === 0,
-    snapshot: { participantKind: "creature", frozenLocation: location ?? null },
-    rulingReasons: reasons,
-  };
-}
-
-async function persistentCharacterProtection(
-  tx: FirearmAttackTransaction,
-  preview: FirearmAttackPreview,
-  hitLocationNumber: number | null,
-): Promise<ProtectionResolution> {
-  const reasons: string[] = [];
-  if (hitLocationNumber === null) {
-    return { armor: null, soak: null, supported: false, snapshot: { participantKind: "campaign-character", hitLocationNumber: null }, rulingReasons: ["Armor and soak require an exact Hit Location."] };
-  }
-  const equipment = await readCharacterEquipmentStateInTransaction(tx, positiveId(preview.target.participantId, "Target Character"));
-  const relevantArmor = equipment.wornArmor.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(String(hitLocationNumber)));
-  const itemIds = [...new Set(relevantArmor.map(({ itemId }) => itemId))];
-  const damageModifiers = itemIds.length ? await tx.select().from(itemArmorDamageModifier)
-    .where(inArray(itemArmorDamageModifier.itemId, itemIds)).orderBy(asc(itemArmorDamageModifier.itemId), asc(itemArmorDamageModifier.sortOrder), asc(itemArmorDamageModifier.id)) : [];
-  if (relevantArmor.length > 1) reasons.push("Multiple worn armor sources cover this Hit Location; no stacking rule was invented.");
-  if (relevantArmor.some(({ baseSoak }) => baseSoak === null)) reasons.push("Location-relevant armor has no authored numeric base soak.");
-  if (damageModifiers.length) reasons.push("Authored free-text armor damage-type modifiers require a G.O.D. ruling.");
-  const activeEffects = await readActiveEffectsInTransaction(tx, preview.target.participantId);
-  const activeSoak = getActiveModifierTotal(activeEffects.modifiers, "soak", "self");
-  if (activeSoak < 0) reasons.push("A negative active soak modifier requires a G.O.D. ruling for firearm protection.");
-  const armor = relevantArmor.length === 0 ? 0 : relevantArmor.length === 1 ? relevantArmor[0]!.baseSoak : null;
-  return {
-    armor,
-    soak: activeSoak >= 0 ? activeSoak : null,
-    supported: reasons.length === 0,
-    snapshot: {
-      participantKind: "campaign-character",
-      hitLocationNumber,
-      wornArmor: relevantArmor,
-      activeSoakModifier: activeSoak,
-      damageType: preview.authoredDamage.damageType,
-      unsupportedDamageModifiers: damageModifiers,
-    },
-    rulingReasons: reasons,
-  };
-}
-
 async function resolveProtection(
   tx: FirearmAttackTransaction,
   preview: FirearmAttackPreview,
   hitLocationNumber: number | null,
-): Promise<ProtectionResolution> {
-  return preview.target.participantKind === "creature"
-    ? directCreatureProtection(preview, hitLocationNumber)
-    : persistentCharacterProtection(tx, preview, hitLocationNumber);
+): Promise<AttackProtectionResolution> {
+  return resolveAttackProtectionInTransaction(tx, {
+    participantId: preview.target.participantId,
+    name: preview.target.name,
+    participantKind: preview.target.participantKind,
+    npcKind: null,
+    anatomy: preview.target.anatomy,
+    sourceSnapshot: preview.target.sourceSnapshot,
+  }, hitLocationNumber, preview.authoredDamage.damageType);
 }
 
 async function ensureFirearmStillFireable(
@@ -1738,7 +1658,7 @@ export async function readFirearmAttackWorkspaceInTransaction(
     .orderBy(asc(campaignSessionEncounterParticipant.sortOrder), asc(campaignSessionEncounterParticipant.participantId));
   const participants: FirearmAttackWorkspaceView["participants"][number][] = [];
   for (const participant of participantRows) {
-    const anatomy = await targetAnatomy(tx, participant);
+    const anatomy = (await readAttackTargetInTransaction(tx, context, participant.id)).anatomy;
     participants.push({
       id: participant.id,
       name: participant.participantKind === "creature" ? participant.displayLabel : participant.name ?? participant.displayLabel,
