@@ -1,4 +1,3 @@
-/** Presentation only. Recording services remain authoritative for permissions and timing. */
 export type CombatRollPrompt = Readonly<{
   key: string;
   kind: "attack" | "defense" | "firearm-trigger" | "firearm-roll" | "firearm-finish" | "free";
@@ -47,7 +46,6 @@ export function buildCombatRollPrompts(input: {
 }): CombatRollPrompt[] {
   const controlled = new Set(input.controlledParticipantIds);
   const prompts: CombatRollPrompt[] = [];
-  // A defender's Roll must not depend on which attack/command is selected in the UI.
   for (const reaction of input.reactions) {
     const declaration = input.declarations.find(({ id }) => id === reaction.declarationId);
     if (!controlled.has(reaction.responderCharacterId)
@@ -94,9 +92,19 @@ export function selectCombatRollPrompt(prompts: readonly CombatRollPrompt[], req
   return prompts.find(({ key }) => key === requestedKey)
     ?? prompts.find(({ ready, kind }) => ready && kind !== "free")
     ?? prompts.find(({ kind }) => kind !== "free")
-    ?? prompts[0]
-    ?? null;
+    ?? prompts[0] ?? null;
 }
+
+/** A continuation must use the exact trigger declaration, not another exchange's defense state. */
+type FirearmRollDeclaration = Readonly<{
+  id: number;
+  rollState: Readonly<{
+    attackRollId: number | null;
+    missingResponseRolls: number;
+    resolved: boolean;
+    message: string;
+  }>;
+}>;
 
 export function buildFirearmRollPrompts(attacks: readonly Readonly<{
   id: number;
@@ -105,27 +113,43 @@ export function buildFirearmRollPrompts(attacks: readonly Readonly<{
   itemName: string;
   effectiveStatus: string;
   status: string;
+  triggerDeclarationId?: number;
   triggerTimingStatus: string | null;
   attackRollId: number | null;
   responderOpportunities: readonly Readonly<{ status: string }>[];
-}>[], controlledParticipantIds: readonly number[]): CombatRollPrompt[] {
+}>[], controlledParticipantIds: readonly number[], declarations: readonly FirearmRollDeclaration[] = []): CombatRollPrompt[] {
   const controlled = new Set(controlledParticipantIds);
-  return attacks.flatMap((attack): CombatRollPrompt[] => {
+  return attacks.flatMap((attack) => {
     if (!controlled.has(attack.actorParticipantId)) return [];
     const triggerReady = attack.effectiveStatus === "trigger-ready";
     if (!triggerReady && attack.status !== "committed") return [];
     const timingComplete = attack.triggerTimingStatus === "completed";
     const responsesComplete = attack.responderOpportunities.every(({ status }) => status !== "pending");
-    const kind = triggerReady ? "firearm-trigger" : attack.attackRollId === null ? "firearm-roll" : "firearm-finish";
+    const declaration = declarations.find(({ id }) => id === attack.triggerDeclarationId);
+    const attackRollId = attack.attackRollId ?? declaration?.rollState.attackRollId ?? null;
+    const kind = triggerReady ? "firearm-trigger" : attackRollId === null ? "firearm-roll" : "firearm-finish";
+    // A response choice is not a response Roll. The first attack Roll may precede
+    // defense Rolls, but finishing that staged shot must wait for those Rolls.
+    const defenseRollsComplete = Boolean(declaration
+      && (declaration.rollState.resolved || declaration.rollState.missingResponseRolls === 0));
+    const canFinish = kind !== "firearm-finish" || defenseRollsComplete;
     return [{
       key: `${kind}:${attack.id}`, kind, recordId: attack.id,
       label: `${attack.actorName} — ${attack.itemName}`,
-      ready: triggerReady || timingComplete && responsesComplete,
-      detail: triggerReady ? "Pull the trigger to begin this shot's timing. No dice are rolled by this step."
-        : !timingComplete ? "The shot is still spending Initiative. G.O.D. must advance combat to its completion."
-          : !responsesComplete ? "Choose the outstanding defenses or No Defense before rolling this shot."
-            : attack.attackRollId === null ? "This Roll is attached to this firearm attack, including its ammunition and per-bullet resolution."
-              : "The Roll is already recorded. Continue using that result; do not roll again.",
+      ready: triggerReady || timingComplete && responsesComplete && canFinish,
+      detail: triggerReady
+        ? "Pull the trigger to begin this shot's timing. No dice are rolled by this step."
+        : !timingComplete
+          ? "The shot is still spending Initiative. G.O.D. must advance combat to its completion."
+          : !responsesComplete
+            ? "Choose the outstanding defenses or No Defense before rolling this shot."
+            : kind === "firearm-roll"
+              ? "This Roll is attached to this firearm attack, including its ammunition and per-bullet resolution."
+              : !declaration
+                ? "The attack Roll is already recorded. Refresh combat to load this shot's defense state; do not roll again."
+                : !defenseRollsComplete
+                  ? `The attack Roll is already recorded; waiting for ${declaration.rollState.missingResponseRolls} defense Roll${declaration.rollState.missingResponseRolls === 1 ? "" : "s"}. Finish firing will become available here when those Rolls arrive.`
+                  : "The Roll is already recorded. Finish firing using that result; do not roll again.",
     }];
   });
 }

@@ -104,19 +104,21 @@ test("Player UI prioritizes responses and exposes only request-side Called Shot 
   assert.doesNotMatch(playerConsole, /JSON\.stringify\(effect\./);
 });
 
-test("Player priority Roll surface cannot strand attack or defense resolution", () => {
-  assert.match(playerConsoleEntry, /ROLL NOW/);
-  assert.match(playerConsoleEntry, /pendingDefense/);
-  assert.match(playerConsoleEntry, /pendingAttack/);
-  assert.match(playerConsoleEntry, /pendingFirearm/);
-  assert.match(playerConsoleEntry, /rollPlayerDeclaredResponse/);
-  assert.match(playerConsoleEntry, /rollPlayerDeclaredAttack/);
-  assert.match(playerConsoleEntry, /firePlayerFirearmAttack/);
-  assert.match(playerConsoleEntry, />Website Roll</);
-  assert.match(playerConsoleEntry, />Enter physical Roll</);
-  assert.match(playerConsoleEntry, /Physical defense Roll/);
-  assert.match(playerConsoleEntry, /Physical attack Roll/);
-  assert.match(playerConsoleEntry, /Physical firearm Roll/);
+test("Player priority Roll surface mounts the shared action-bound roller before the core console", () => {
+  const panel = source("src/components/tabletop/combat-roll-panel.tsx");
+  assert.match(playerConsoleEntry, /<CombatRollPanel/);
+  assert.ok(playerConsoleEntry.indexOf("<CombatRollPanel") < playerConsoleEntry.indexOf("<CorePlayerCombatConsole"));
+  assert.match(playerConsoleEntry, /buildCombatRollPrompts/);
+  assert.match(playerConsoleEntry, /buildFirearmRollPrompts\(combat\.firearmAttacks\.attacks, controlledIds, combat\.declarations\.declarations\)/);
+  assert.match(playerConsoleEntry, /rollPlayerDeclaredResponse\(characterId, encounterId, prompt\.recordId, roll\)/);
+  assert.match(playerConsoleEntry, /rollPlayerDeclaredAttack\(characterId, encounterId, prompt\.recordId, roll\)/);
+  assert.match(playerConsoleEntry, /firePlayerFirearmAttack\(characterId, encounterId, prompt\.recordId, roll\)/);
+  assert.match(playerConsoleEntry, /allowManualTarget: false/);
+  assert.match(panel, /"Roll d100"/);
+  assert.match(panel, />Enter roll</);
+  assert.match(panel, /parsePhysicalPercentileInput\(draft\.entered\)/);
+  assert.match(panel, /await onSubmit\(prompt, input\)/);
+  assert.match(panel, /router\.refresh\(\)/);
 });
 
 test("G.O.D. rulings stay in Heavens and Called Shot penalties are assigned there", () => {

@@ -30,7 +30,7 @@ export function GodCombatRolls({
       controlledParticipantIds: controlledIds,
       allowManualTarget: true,
     }),
-    ...buildFirearmRollPrompts(firearms?.attacks ?? [], controlledIds),
+    ...buildFirearmRollPrompts(firearms?.attacks ?? [], controlledIds, declarations?.declarations ?? []),
   ];
   if (workspace) prompts.push({
     key: "free", kind: "free", recordId: 0, label: "Other d100 — not an action",
@@ -47,7 +47,7 @@ export function GodCombatRolls({
       const rollId = await recordDeclaredResponseRoll(encounterId, prompt.recordId, input);
       return { rollId, text: `${prompt.label}: defense Roll recorded for this attack.` };
     }
-    if (prompt.kind.startsWith("firearm-")) {
+    if (prompt.kind === "firearm-trigger" || prompt.kind === "firearm-roll" || prompt.kind === "firearm-finish") {
       const attack = firearms?.attacks.find(({ id }) => id === prompt.recordId);
       if (!attack) throw new Error("This firearm attack is no longer available. Refresh combat.");
       if (prompt.kind === "firearm-trigger") {
@@ -55,8 +55,14 @@ export function GodCombatRolls({
         return { text: `${prompt.label}: trigger pull committed. Continue the shot's Initiative timing.` };
       }
       const result = await fireFirearmAttack(encounterId, attack.id, [attack.actorParticipantId, attack.targetParticipantId], input);
-      return { rollId: result.rollId, text: `${prompt.label}: firearm result recorded using its own combat resolution.` };
+      return {
+        rollId: result.rollId,
+        text: result.waitingForDefenseRolls
+          ? `${prompt.label}: attack Roll recorded; waiting for defense Rolls. Finish firing will become available here without rolling again.`
+          : `${prompt.label}: firearm result recorded using its own combat resolution.`,
+      };
     }
+    if (prompt.kind !== "free") throw new Error("This combat Roll is no longer available. Refresh combat.");
     if (!workspace) throw new Error("No active Session is available for this Roll.");
     const result = await recordGodRoll({
       sessionId: workspace.session.id,
@@ -78,11 +84,7 @@ export function GodCombatRolls({
     return { resultTotal: result.resultTotal, text: "General d100 recorded. This Roll is not attached to an action." };
   }
 
-  return <CombatRollPanel
-    prompts={prompts}
-    rolls={workspace?.initialHistory.rolls}
-    onSubmit={submit}
+  return <CombatRollPanel prompts={prompts} rolls={workspace?.initialHistory.rolls} onSubmit={submit}
     emptyMessage="Start Initiative and declare an action or defense to prepare a combat Roll."
-    unavailableReason={runtimeClosed ? "Initiative is closed. Use Continue unfinished combat before recording action or defense Rolls." : null}
-  />;
+    unavailableReason={runtimeClosed ? "Initiative is closed. Use Continue unfinished combat before recording action or defense Rolls." : null} />;
 }

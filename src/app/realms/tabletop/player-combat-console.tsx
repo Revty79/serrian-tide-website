@@ -38,7 +38,7 @@ export function PlayerCombatConsole({ calledChecks, rolls, ...props }: PlayerCom
       controlledParticipantIds: controlledIds,
       allowManualTarget: false,
     }),
-    ...buildFirearmRollPrompts(combat.firearmAttacks.attacks, controlledIds),
+    ...buildFirearmRollPrompts(combat.firearmAttacks.attacks, controlledIds, combat.declarations.declarations),
     {
       key: "free", kind: "free", recordId: 0, label: "Other d100 — not an action", ready: true,
       detail: "This is a general Roll, not an attack or defense. To resolve combat, select the named action above. If none is listed, declare your action or defense in combat first.",
@@ -62,8 +62,9 @@ export function PlayerCombatConsole({ calledChecks, rolls, ...props }: PlayerCom
     }
     if (prompt.kind === "firearm-roll" || prompt.kind === "firearm-finish") {
       const rollId = await firePlayerFirearmAttack(characterId, encounterId, prompt.recordId, roll);
-      return { rollId, text: `${prompt.label}: firearm result recorded using its own combat resolution.` };
+      return { rollId, text: `${prompt.label}: recorded Roll saved for this shot. Combat is refreshing; any outstanding defense Rolls must finish before firing resolves.` };
     }
+    if (prompt.kind !== "free") throw new Error("This combat Roll is no longer available. Refresh combat.");
     const result = await recordPlayerTabletopFreeRoll(characterId, {
       ...roll, visibility: "table", label: "General combat d100", idempotencyKey: submissionKey(),
     });
