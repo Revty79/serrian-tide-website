@@ -1,0 +1,34 @@
+name: Isolated combat database tools
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  postgres-tools:
+    if: github.head_ref == 'finish-guided-combat'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Package PostgreSQL executables for isolated local tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          postgres=$(find /usr/lib/postgresql -path '*/bin/postgres' | sort -V | tail -1)
+          version=$(basename "$(dirname "$(dirname "$postgres")")")
+          root=/tmp/combat-postgres
+          mkdir -p "$root/usr/lib/postgresql" "$root/usr/share/postgresql" "$root/lib"
+          cp -a "/usr/lib/postgresql/$version" "$root/usr/lib/postgresql/"
+          cp -a "/usr/share/postgresql/$version" "$root/usr/share/postgresql/"
+          find "/usr/lib/postgresql/$version" -type f -print0 | xargs -0 -r ldd 2>/dev/null | awk '/=> \/.* \(/ {print $3}' | sort -u > /tmp/pg-libraries || true
+          while read -r library; do
+            case "$(basename "$library")" in libc.so.*|libpthread.so.*|libdl.so.*|librt.so.*|libm.so.*|ld-linux*) continue;; esac
+            cp -L "$library" "$root/lib/"
+          done < /tmp/pg-libraries
+          echo "$version" > "$root/VERSION"
+          tar -czf /tmp/combat-postgres.tar.gz -C "$root" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: combat-postgres-tools
+          path: /tmp/combat-postgres.tar.gz
+          retention-days: 1
