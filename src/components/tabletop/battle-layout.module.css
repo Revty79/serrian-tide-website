@@ -402,6 +402,66 @@
   font-size: 0.78rem;
 }
 
+.guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem 1rem;
+  align-items: center;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--st-border);
+  border-left-width: 4px;
+  border-radius: 0.75rem;
+  background: var(--st-surface-raised);
+}
+
+.guide > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.guide span {
+  color: var(--st-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.guide strong {
+  color: var(--st-text-strong);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.guide p {
+  margin: 0;
+  color: var(--st-text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.guide_ready {
+  border-left-color: var(--st-primary);
+}
+
+.guide_waiting {
+  border-left-color: var(--st-text-soft);
+}
+
+.guide_attention {
+  border-left-color: var(--st-warning);
+  background: color-mix(in srgb, var(--st-warning) 7%, var(--st-surface-raised));
+}
+
+.guideActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
 .recoveryCard {
   display: grid;
   gap: 0.9rem;
@@ -588,6 +648,14 @@
 
   .stage > header p {
     text-align: left;
+  }
+
+  .guide {
+    grid-template-columns: 1fr;
+  }
+
+  .guideActions {
+    justify-content: flex-start;
   }
 }
 

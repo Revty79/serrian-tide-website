@@ -360,15 +360,17 @@ export async function declarePlayerDefense(
   encounterId: number,
   input: { opportunityId: number; reactionType: "no-reaction" | "dodge" | "parry" | "block"; protectedTargetParticipantId: number; itemId?: number | null; instanceId?: number | null },
 ): Promise<number> {
-  return withPlayerCombat(characterId, encounterId, "reaction", (tx, context, actor) => (
-    declareDefenseInterventionInTransaction(tx, context, actor, {
+  return withPlayerCombat(characterId, encounterId, "reaction", async (tx, context, actor) => {
+    const reactionId = await declareDefenseInterventionInTransaction(tx, context, actor, {
       opportunityId: positiveId(input.opportunityId, "Responder opportunity"),
       reactionType: input.reactionType,
       protectedTargetCharacterId: participantId(input.protectedTargetParticipantId, "Protected target"),
       itemId: input.itemId,
       instanceId: input.instanceId,
-    })
-  ));
+    });
+    await resolveDeclaredDefensesAfterResponseIfReadyInTransaction(tx, context, actor, reactionId);
+    return reactionId;
+  });
 }
 
 export async function rollPlayerDeclaredResponse(characterId: number, encounterId: number, reactionId: number, input: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {

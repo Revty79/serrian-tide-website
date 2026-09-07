@@ -9,6 +9,7 @@ import {
   BattleActor,
   BattleCommands,
   BattleGrid,
+  BattleGuide,
   BattleHeader,
   BattleMainColumn,
   BattleRoster,
@@ -67,6 +68,15 @@ function actionStatusLabel(status: string): string {
   if (["committed", "rolling-ready", "rolling"].includes(status)) return "In progress";
   if (status === "awaiting-god-ruling") return "Needs G.O.D. ruling";
   return titleCase(status);
+}
+
+function plainInitiativeBlocker(blocker: string | undefined): string {
+  if (!blocker) return "Waiting for the next combat step.";
+  if (blocker === "This Character does not have the next normal Initiative opportunity.") return "Another combatant acts before you.";
+  if (blocker === "A pending action completion has priority at this Initiative.") return "An action already in progress finishes before anyone acts again.";
+  if (blocker === "An authored action is already in progress.") return "Finish your current action before starting another one.";
+  if (blocker.startsWith("Initiative status is ")) return `You cannot start another action while your ${blocker.toLowerCase()}`;
+  return blocker;
 }
 
 function governingLabel(source: unknown): string {
@@ -360,6 +370,8 @@ function WeaponActions({ characterId, combat }: { characterId: number; combat: P
         <span>{governanceResolved ? `Character fallback: ${governingLabel(selectedGovernance.source)}` : selectedGovernance.explanation}</span>
       </div> : <p className={styles.ruling}>This weapon has no canonical governance projection. Ask the G.O.D. to review its Equipment mapping.</p>}
       {sourceChoiceStale || targetChoiceStale ? <p className={styles.ruling}>A selected weapon or target changed in live Encounter state. Choose current values before declaring.</p> : null}
+      {!combat.initiative.canDeclareAction ? <p className={styles.notice}>{plainInitiativeBlocker(combat.initiative.blockers[0])}</p> : null}
+      {selected?.initiativeCost === null ? <p className={styles.ruling}>This weapon is missing an Initiative cost. G.O.D. must resolve that rule before it can be used.</p> : null}
       <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !selected || !selectedTarget || selected.initiativeCost === null || !governanceResolved}>Declare attack</button>
     </form> : <p>No currently wielded non-firearm weapon and valid target are available.</p>}
     <ResultMessage message={mutation.message} />
@@ -442,6 +454,8 @@ function FirearmPanel({ characterId, combat, selectedDeclarationId = null, histo
           <label className="st-field"><span>Approved Called Shot</span><select className="st-control" name="called" defaultValue=""><option value="">None</option>{approvedCalledShots.filter((request) => request.sourceInstanceId === firearm.itemInstanceId && request.targetParticipantId === Number(target)).map((request) => <option key={request.id} value={request.id}>{String(request.frozenRequest.objective ?? request.intent)} · penalty {String(request.ruling.penalty)}</option>)}</select></label>
           <p className={styles.ruling}>Changing the exact firearm, target, Profile, firing mode, or Called Shot objective requires a new declaration. Spent Aim remains spent.</p>
           {!selectedTargetAvailable ? <p className={styles.ruling}>The selected target is no longer in the live Encounter. Choose a current target before declaring.</p> : null}
+          {!combat.initiative.canDeclareAction ? <p className={styles.notice}>{plainInitiativeBlocker(combat.initiative.blockers[0])}</p> : null}
+          {!firearmGovernanceResolved ? <p className={styles.ruling}>This firing mode needs a G.O.D. ruling before it can be used.</p> : null}
           <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !firearmGovernanceResolved || !selectedTargetAvailable}>Declare attack</button>
         </form> : null}
       </article>;
@@ -651,43 +665,20 @@ export function PlayerCombatConsole({
   const [command, setCommand] = useState<PlayerBattleCommand>("attack");
   const pendingDeclarations = combat.declarations.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status));
   const completedDeclarations = combat.declarations.declarations.filter(({ status }) => ["resolved", "cancelled", "abandoned"].includes(status));
-  const preferredExchange = pendingDeclarations.find((declaration) => (
-    declaration.actorCharacterId === characterId
-    || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === characterId)
-  )) ?? pendingDeclarations[0] ?? null;
+  const incomingExchange = pendingDeclarations.find((declaration) => declaration.opportunities.some(({ responderCharacterId, status }) => responderCharacterId === characterId && status === "pending")) ?? null;
+  const preferredExchange = incomingExchange
+    ?? pendingDeclarations.find((declaration) => declaration.actorCharacterId === characterId)
+    ?? pendingDeclarations.find((declaration) => declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === characterId))
+    ?? pendingDeclarations[0]
+    ?? null;
   const [requestedExchangeId, setRequestedExchangeId] = useState<number | null>(preferredExchange?.id ?? null);
   const selectedExchange = pendingDeclarations.find(({ id }) => id === requestedExchangeId) ?? preferredExchange;
+  const selectedOwnExchange = selectedExchange?.actorCharacterId === characterId;
   const responseCount = combat.declarations.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ responderCharacterId, status }) => responderCharacterId === characterId && status === "pending").length, 0);
-  const self = combat.declarations.participants.find(({ characterId: id }) => id === characterId) ?? null;
-  const weaponAvailable = Boolean(self?.weapons.length || combat.firearms.firearms.length);
-  const castFlowAvailable = spells.some(({ available, requiresGodRuling }) => available && requiresGodRuling);
-  const itemFlowAvailable = items.some(({ firearmState, runtimeProfile, requiresGodRuling }) => firearmState === null && runtimeProfile.useMode !== "none" && requiresGodRuling);
-  const abilityFlowAvailable = abilities.some(({ availability, requiresGodRuling }) => availability === "Available" && requiresGodRuling);
-  const commands: readonly BattleCommandEntry<PlayerBattleCommand>[] = PLAYER_BATTLE_COMMANDS.map((entry) => {
-    const availability = entry.key === "attack" || entry.key === "called-shot"
-      ? weaponAvailable && combat.targets.length > 0
-      : entry.key === "cast"
-        ? castFlowAvailable
-        : entry.key === "item"
-          ? itemFlowAvailable
-          : entry.key === "ability"
-            ? abilityFlowAvailable
-            : entry.key === "defend"
-              ? responseCount > 0
-              : entry.key === "move-other"
-                ? combat.initiative.movementModes.length > 0
-                : combat.initiative.canDeclareAction;
-    return {
-      ...entry,
-      badge: entry.key === "defend" ? responseCount : undefined,
-      disabled: !availability,
-      disabledReason: entry.key === "defend"
-        ? "No eligible incoming response is open."
-        : entry.key === "cast" || entry.key === "item" || entry.key === "ability"
-          ? "No actual source has either a supported combat executor or a genuinely unresolved ruling."
-          : "This command has no currently available source or legal Initiative opportunity.",
-    };
-  });
+  const commands: readonly BattleCommandEntry<PlayerBattleCommand>[] = PLAYER_BATTLE_COMMANDS.map((entry) => ({
+    ...entry,
+    badge: entry.key === "defend" ? responseCount : undefined,
+  }));
   const rosterEntries: BattleRosterEntry[] = [
     {
       id: characterId,
@@ -757,20 +748,29 @@ export function PlayerCombatConsole({
           {conditionLabels.slice(0, 4).map((label) => <small key={label}>{label}</small>)}
           {!conditionLabels.length ? <small>No active Conditions</small> : null}
         </BattleActor>
+        {responseCount ? <BattleGuide eyebrow="YOUR NEXT STEP" title="Choose your defense" detail={`${responseCount} incoming action${responseCount === 1 ? " needs" : "s need"} your response.`} tone="attention"><button className="st-button is-primary" type="button" onClick={() => setCommand("defend")}>Choose defense</button></BattleGuide>
+        : combat.initiative.canDeclareAction ? <BattleGuide eyebrow="YOUR TURN" title={`${characterName} can act now`} detail="Choose one action below. Known costs and rules are filled in automatically." tone="ready" />
+        : combat.initiative.pendingAction ? <BattleGuide eyebrow="ACTION IN PROGRESS" title={combat.initiative.pendingAction.label} detail={`${combat.initiative.pendingAction.remainingInitiativeCost} Initiative remains. The action continues when combat reaches its next step.`} tone="waiting" />
+        : <BattleGuide eyebrow="WAITING" title={plainInitiativeBlocker(combat.initiative.blockers[0])} detail="You can inspect your options without losing any choices." tone="waiting" />}
         <BattleCommands commands={commands} selected={command} onSelect={setCommand} />
         <BattleStage eyebrow={command.replaceAll("-", " ").toUpperCase()} title={stageTitle} detail={responseCount ? `Choose a response for ${responseCount} incoming action${responseCount === 1 ? "" : "s"}.` : combat.initiative.canDeclareAction ? "Choose an action for your current Initiative opportunity." : "Waiting for the next combat step."}>
-          {selectedExchange ? <aside className={`${styles.lockedReview} ${styles.selectedAction}`}><strong>{selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span><details><summary>Action details</summary><small>Combat record #{selectedExchange.id} · {actionStatusLabel(selectedExchange.status)}</small></details></aside> : <p className={styles.boundaryNotice}>No action is waiting for a response, Roll, ruling, or consequence.</p>}
-          {selectedExchange ? <ResponsePanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /> : null}
+          {selectedExchange ? <aside className={`${styles.lockedReview} ${styles.selectedAction}`}><strong>{selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span><details><summary>Action details</summary><small>Combat record #{selectedExchange.id} · {actionStatusLabel(selectedExchange.status)}</small></details></aside> : null}
+          {command === "defend" && selectedExchange ? <ResponsePanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /> : null}
           {command === "attack" ? <><WeaponActions characterId={characterId} combat={combat} /><FirearmPanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange?.id ?? -1} /></> : null}
           {command === "cast" || command === "item" || command === "ability" ? <PlayerSourceCommand command={command} characterId={characterId} combat={combat} items={items} spells={spells} abilities={abilities} /> : null}
           {command === "defend" && responseCount === 0 ? <p className={styles.boundaryNotice}>No eligible incoming response is open. Defense choices appear only when the authoritative timeline creates one.</p> : null}
           {command === "called-shot" ? <RulingPanel characterId={characterId} combat={combat} initialType="called-shot" /> : null}
           {command === "move-other" ? <><MovementPanel characterId={characterId} combat={combat} /><RulingPanel characterId={characterId} combat={combat} initialType="manual-action" /></> : null}
           {command === "hold" || command === "pass" ? <InitiativePanel characterId={characterId} combat={combat} disposition={command} /> : null}
-          {selectedExchange ? <><DeclarationAndRollPanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /><EffectPlans combat={combat} selectedDeclarationId={selectedExchange.id} /></> : null}
+          {selectedOwnExchange && selectedExchange ? <><DeclarationAndRollPanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /><EffectPlans combat={combat} selectedDeclarationId={selectedExchange.id} /></> : null}
         </BattleStage>
       </BattleMainColumn>
-      <BattleActivity entries={playerActivityEntries(combat, pendingDeclarations)} title="Pending exchanges" selectedId={selectedExchange ? String(selectedExchange.id) : null} onSelect={(id) => setRequestedExchangeId(Number(id))} />
+      <BattleActivity entries={playerActivityEntries(combat, pendingDeclarations)} title="Pending exchanges" selectedId={selectedExchange ? String(selectedExchange.id) : null} onSelect={(id) => {
+        const declarationId = Number(id);
+        setRequestedExchangeId(declarationId);
+        const exchange = pendingDeclarations.find((declaration) => declaration.id === declarationId);
+        if (exchange?.opportunities.some(({ responderCharacterId, status }) => responderCharacterId === characterId && status === "pending")) setCommand("defend");
+      }} />
     </BattleGrid>
     {completedDeclarations.length ? <BattleSecondary summary={`Completed combat history · ${completedDeclarations.length}`}><BattleActivity entries={playerActivityEntries(combat, completedDeclarations)} title="Completed exchanges" /></BattleSecondary> : null}
     <BattleSecondary summary="All readable declarations, Rolls, and consequences"><DeclarationAndRollPanel characterId={characterId} combat={combat} /><EffectPlans combat={combat} /><FirearmPanel characterId={characterId} combat={combat} historyOnly /></BattleSecondary>

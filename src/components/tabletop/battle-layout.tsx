@@ -36,6 +36,25 @@ export type BattleActivityEntry = Readonly<{
   attention?: string | null;
 }>;
 
+export function BattleGuide({
+  eyebrow,
+  title,
+  detail,
+  tone = "waiting",
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  tone?: "ready" | "waiting" | "attention";
+  children?: ReactNode;
+}) {
+  return <section className={`${styles.guide} ${styles[`guide_${tone}`]}`} aria-live="polite">
+    <div><span>{eyebrow}</span><strong>{title}</strong><p>{detail}</p></div>
+    {children ? <div className={styles.guideActions}>{children}</div> : null}
+  </section>;
+}
+
 export function BattleShell({
   labelledBy,
   children,

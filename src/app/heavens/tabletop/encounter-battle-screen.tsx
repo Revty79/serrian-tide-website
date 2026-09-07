@@ -9,6 +9,7 @@ import {
   BattleActor,
   BattleCommands,
   BattleGrid,
+  BattleGuide,
   BattleHeader,
   BattleMainColumn,
   BattleRoster,
@@ -176,6 +177,17 @@ export function EncounterBattleScreen({
     ["rolling-ready", "rolling", "awaiting-god-ruling"].includes(declaration.status)
     && (declaration.actorCharacterId === selectedCombatantId || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === selectedCombatantId))
   )) ?? false;
+  const currentOpportunityParticipants = initiative.nextEvent?.kind === "normal-opportunity" && !initiative.nextEvent.canAdvance
+    ? presentationParticipants.filter(({ characterId }) => initiative.nextEvent?.characterIds.includes(characterId))
+    : [];
+  const currentOpportunityNames = currentOpportunityParticipants.map(({ name }) => name).join(", ");
+  const currentGodOpportunity = currentOpportunityParticipants.find(({ choiceOwner }) => choiceOwner === "god") ?? null;
+  const selectedOwnedExchange = pendingDeclarations.find(({ actorCharacterId }) => actorCharacterId === selectedCombatantId) ?? null;
+  const selectedResponseExchange = pendingDeclarations.find((declaration) => declaration.opportunities.some(({ responderCharacterId, status }) => responderCharacterId === selectedCombatantId && status === "pending")) ?? null;
+  const focusedExchange = command === "defend" ? selectedResponseExchange ?? selectedOwnedExchange : selectedOwnedExchange;
+  const selectedPendingResponses = declarations?.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ responderCharacterId, status }) => responderCharacterId === selectedCombatantId && status === "pending").length, 0) ?? 0;
+  const selectedPlan = effects?.plans.find(({ declarationId }) => declarationId === selectedOwnedExchange?.id) ?? null;
+  const selectedResultReady = effects?.eligibleDeclarations.some(({ id }) => id === selectedOwnedExchange?.id) ?? false;
   const firearmAttackAvailable = Boolean(selectedCombatant?.weapons.some(({ firingModes }) => firingModes.length > 0));
   const firearmPreparationAvailable = Boolean(
     firearmReadiness
@@ -183,14 +195,6 @@ export function EncounterBattleScreen({
     && (firearmReadiness.firearms.length || firearmReadiness.legacyStacks.length),
   );
   const declarationAttackAvailable = Boolean(selectedCombatant?.creatureAttacks.length || selectedCombatant?.weapons.some(({ firingModes }) => firingModes.length === 0));
-  const attackAvailable = firearmAttackAvailable || firearmPreparationAvailable || declarationAttackAvailable;
-  const castAvailable = Boolean(selectedState?.spellSources.length);
-  const itemAvailable = Boolean(selectedState?.resources && (
-    selectedState.resources.stacks.some(({ runtime }) => runtime.useMode !== "none")
-    || selectedState.resources.chargedInstances.length
-  ));
-  const abilityAvailable = Boolean(selectedState?.creatureAbilities.length || selectedState?.derivedAbilities.length);
-  const moveAvailable = Boolean(selectedCombatant?.movementModes.length || declarationOpportunityAvailable);
   const declarationCommand = command !== "defend" && command !== "hold" && command !== "pass";
   const health = healthValue(selectedState);
   const manaPools = selectedState?.mana?.pools ?? [];
@@ -198,15 +202,15 @@ export function EncounterBattleScreen({
   const equipmentCount = (selectedState?.equipment?.wieldedWeapons.length ?? 0) + (selectedState?.equipment?.wornArmor.length ?? 0);
   const conditions = selectedState?.occurrenceState?.conditions ?? selectedState?.effects?.conditions.map(({ name }) => name) ?? [];
   const commandDefinitions: readonly BattleCommandEntry<BattleCommand>[] = [
-    { key: "attack", label: "Attack", disabled: !actorIsGodControlled || !attackAvailable, disabledReason: actorIsGodControlled ? "No wielded Weapon or authored Creature Attack is available." : "This combatant's choices belong to their Player." },
-    { key: "cast", label: "Cast", disabled: !actorIsGodControlled || !castAvailable, disabledReason: actorIsGodControlled ? "No current Spell source is available." : "This combatant's choices belong to their Player." },
-    { key: "item", label: "Item", disabled: !actorIsGodControlled || !itemAvailable, disabledReason: actorIsGodControlled ? "No operational Item source is available." : "This combatant's choices belong to their Player." },
-    { key: "ability", label: "Ability", disabled: !actorIsGodControlled || !abilityAvailable, disabledReason: actorIsGodControlled ? "No currently available Ability is loaded." : "This combatant's choices belong to their Player." },
-    { key: "defend", label: "Defend", badge: focusedResponseCount, disabled: !actorIsGodControlled || focusedResponseCount === 0, disabledReason: focusedResponseCount ? "This response belongs to the Player." : "No eligible incoming response is open for this combatant." },
-    { key: "called-shot", label: "Called Shot", disabled: !actorIsGodControlled || !attackAvailable, disabledReason: actorIsGodControlled ? "A Called Shot requires an actual attack source." : "This combatant's choices belong to their Player." },
-    { key: "move-other", label: "Move / Other", disabled: !actorIsGodControlled || !moveAvailable, disabledReason: actorIsGodControlled ? "No authoritative Movement or other action opportunity is available." : "This combatant's choices belong to their Player." },
-    { key: "hold", label: "Hold", disabled: !actorIsGodControlled || !trackerParticipant?.canHold, disabledReason: actorIsGodControlled ? "Hold is unavailable at the current Initiative state." : "This combatant's choices belong to their Player." },
-    { key: "pass", label: "Pass", disabled: !actorIsGodControlled || !trackerParticipant?.canPass, disabledReason: actorIsGodControlled ? "Pass is unavailable at the current Initiative state." : "This combatant's choices belong to their Player." },
+    { key: "attack", label: "Attack", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "cast", label: "Cast", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "item", label: "Item", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "ability", label: "Ability", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "defend", label: "Defend", badge: focusedResponseCount, disabled: !actorIsGodControlled, disabledReason: "This response belongs to the Player." },
+    { key: "called-shot", label: "Called Shot", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "move-other", label: "Move / Other", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "hold", label: "Hold", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
+    { key: "pass", label: "Pass", disabled: !actorIsGodControlled, disabledReason: "This combatant's choices belong to their Player." },
   ];
   const rosterEntries: BattleRosterEntry[] = presentationParticipants.map((participant) => {
     const state = combatAid?.participants.find(({ identity }) => identity.characterId === participant.characterId) ?? null;
@@ -308,8 +312,15 @@ export function EncounterBattleScreen({
   function openRecoveryAction(declarationId: number): void {
     const declaration = closedUnfinishedDeclarations.find(({ id }) => id === declarationId);
     if (!declaration) return;
+    openExchange(declarationId, true);
+  }
+
+  function openExchange(declarationId: number, scroll = false): void {
+    const declaration = pendingDeclarations.find(({ id }) => id === declarationId);
+    if (!declaration) return;
     selectCombatant(declaration.actorCharacterId);
     setRequestedExchangeId(declaration.id);
+    if (!scroll) return;
     window.requestAnimationFrame(() => {
       const stage = document.getElementById("encounter-selected-action");
       stage?.focus({ preventScroll: true });
@@ -391,7 +402,7 @@ export function EncounterBattleScreen({
         { label: "Responses", value: responseCount },
         { label: "Results", value: resultCount },
       ]}
-      actions={<><button className="st-button is-primary" type="button" disabled={busy || !initiative.nextEvent?.canAdvance} title={initiative.nextEvent?.detail ?? "No Initiative step is ready."} onClick={() => void advance("event")}>Next combat step</button><button className="st-button is-secondary" type="button" disabled={busy || !initiative.canAdvanceRound} title={initiative.canAdvanceRound ? "Start the next Initiative Round." : "Unfinished actions or responses prevent the next Round."} onClick={() => void advance("round")}>Next Round</button><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
+      actions={<><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
     />
 
     {!closedUnfinishedDeclarations.length ? <p className="tabletop-feedback">{initiative.nextEvent?.detail ?? (initiative.canAdvanceRound ? "The current Round is complete and may advance." : "Waiting for Initiative or unfinished combat actions.")}</p> : null}
@@ -432,6 +443,45 @@ export function EncounterBattleScreen({
           {!conditions.length ? <small>No active Conditions</small> : null}
         </BattleActor> : <p className="tabletop-empty">Choose an Encounter participant to inspect.</p>}
 
+        {!closedUnfinishedDeclarations.length ? selectedPendingResponses ? <BattleGuide
+          eyebrow="YOUR NEXT STEP"
+          title={`Choose ${selectedCombatant?.name ?? "this combatant"}'s defense`}
+          detail={`${selectedPendingResponses} incoming action${selectedPendingResponses === 1 ? " needs" : "s need"} a response. Choose Defend below.`}
+          tone="attention"
+        ><button className="st-button is-primary" type="button" onClick={() => setCommand("defend")}>Choose defense</button></BattleGuide>
+        : selectedOwnedExchange ? selectedOwnedExchange.timing?.status === "active" ? <BattleGuide
+          eyebrow="ACTION IN PROGRESS"
+          title={selectedOwnedExchange.lockedSnapshot?.label ?? selectedOwnedExchange.draft.label}
+          detail={`${selectedOwnedExchange.timing.remainingInitiativeCost} Initiative remains before the next part of this action.`}
+          tone="waiting"
+        >{initiative.nextEvent?.canAdvance ? <button className="st-button is-primary" type="button" disabled={busy} onClick={() => void advance("event")}>Next combat step</button> : null}</BattleGuide>
+        : selectedOwnedExchange.rollState.attackRollId === null && !selectedOwnedExchange.rollState.resolved ? <BattleGuide
+          eyebrow="YOUR NEXT STEP"
+          title={`Roll ${selectedOwnedExchange.lockedSnapshot?.label ?? selectedOwnedExchange.draft.label}`}
+          detail="The action has finished its Initiative timing. Use the Roll control below."
+          tone="ready"
+        /> : selectedOwnedExchange.rollState.missingResponseRolls ? <BattleGuide
+          eyebrow="WAITING FOR DEFENSE"
+          title={`${selectedOwnedExchange.rollState.missingResponseRolls} defense Roll${selectedOwnedExchange.rollState.missingResponseRolls === 1 ? " is" : "s are"} still needed`}
+          detail="The exchange continues automatically when the required Rolls are recorded."
+          tone="waiting"
+        /> : selectedResultReady || selectedPlan ? <BattleGuide
+          eyebrow={selectedPlan?.status === "requires-god-ruling" ? "RULING NEEDED" : "YOUR NEXT STEP"}
+          title={selectedPlan?.status === "requires-god-ruling" ? "Review the unresolved result" : "Apply the combat result"}
+          detail={selectedPlan?.status === "requires-god-ruling" ? "Only the unresolved part needs a G.O.D. decision." : "Known damage and resources can be applied from the result below."}
+          tone={selectedPlan?.status === "requires-god-ruling" ? "attention" : "ready"}
+        /> : <BattleGuide eyebrow="EXCHANGE IN PROGRESS" title={selectedOwnedExchange.lockedSnapshot?.label ?? selectedOwnedExchange.draft.label} detail={selectedOwnedExchange.rollState.message} tone="waiting" />
+        : trackerParticipant?.canAct ? <BattleGuide eyebrow="YOUR NEXT STEP" title={`${selectedCombatant?.name ?? "This combatant"} can act now`} detail="Choose one action below. Known costs and rules are filled in automatically." tone="ready" />
+        : currentOpportunityParticipants.length ? <BattleGuide
+          eyebrow="WHO ACTS NOW"
+          title={`${currentOpportunityNames} can act`}
+          detail={currentGodOpportunity ? "Open that combatant and choose an action." : "Waiting for the Player to choose an action."}
+          tone={currentGodOpportunity ? "ready" : "waiting"}
+        >{currentGodOpportunity ? <button className="st-button is-primary" type="button" onClick={() => selectCombatant(currentGodOpportunity.characterId)}>Play {currentGodOpportunity.name}</button> : null}</BattleGuide>
+        : initiative.nextEvent?.canAdvance ? <BattleGuide eyebrow="YOUR NEXT STEP" title={initiative.nextEvent.summary} detail="Continue to the next meaningful combat choice." tone="ready"><button className="st-button is-primary" type="button" disabled={busy} onClick={() => void advance("event")}>Next combat step</button></BattleGuide>
+        : initiative.canAdvanceRound ? <BattleGuide eyebrow="ROUND COMPLETE" title={`Round ${initiative.runtime?.runtime.roundNumber ?? ""} is finished`} detail="Start the next Round when the table is ready." tone="ready"><button className="st-button is-primary" type="button" disabled={busy} onClick={() => void advance("round")}>Next Round</button></BattleGuide>
+        : <BattleGuide eyebrow="WAITING" title="Combat is waiting for an unfinished choice" detail={initiative.nextEvent?.detail ?? "Open a pending exchange to continue."} tone="waiting" /> : null}
+
         {initiative.runtime ? <BattleCommands commands={commandDefinitions} selected={command} onSelect={chooseCommand} /> : null}
 
         {!initiative.runtime ? <BattleStage eyebrow="START COMBAT" title="Start Initiative" detail="Choose the participants and begin combat."><InitiativeTracker data={initiative} /></BattleStage> : selectedCombatant ? <BattleStage
@@ -441,8 +491,8 @@ export function EncounterBattleScreen({
           detail={focusedResponseCount ? `${focusedResponseCount} incoming response choice${focusedResponseCount === 1 ? "" : "s"} available.` : focusedResolution ? "Continue the current declaration, Roll, defense, or result here." : trackerParticipant?.isCurrentOpportunity ? "This combatant has the current normal opportunity." : "Other eligible combatants may act while this one waits."}
         >
           {!actorIsGodControlled ? <p className="tabletop-feedback">This Player owns their ordinary action and defense choices. G.O.D. visibility does not transfer control or response knowledge.</p> : null}
-          {actorIsGodControlled && declarationCommand && !declarationOpportunityAvailable ? <p className="tabletop-feedback">No legal normal action opportunity is open for this combatant. Existing declarations, responses, Rolls, and results remain available below.</p> : null}
-          {selectedExchange ? <aside className="encounter-selected-action"><strong>{selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span><details><summary>Action details</summary><small>Combat record #{selectedExchange.id} · {actionStatusLabel(selectedExchange.status)}</small></details></aside> : <p className="tabletop-empty">No action is waiting for a defense, Roll, ruling, or consequence.</p>}
+          {actorIsGodControlled && declarationCommand && !declarationOpportunityAvailable && !selectedOwnedExchange ? <p className="tabletop-feedback">{trackerParticipant?.activeActionId ? `${selectedCombatant.name} already has an action in progress.` : currentOpportunityNames ? `It is ${currentOpportunityNames}'s opportunity to act.` : "Continue the combat step shown above before declaring another action."}</p> : null}
+          {focusedExchange ? <aside className="encounter-selected-action"><strong>{focusedExchange.actorName} — {focusedExchange.lockedSnapshot?.label ?? focusedExchange.draft.label}</strong><span>{focusedExchange.rollState.message}</span><details><summary>Action details</summary><small>Combat record #{focusedExchange.id} · {actionStatusLabel(focusedExchange.status)}</small></details></aside> : null}
 
           {actorIsGodControlled && (command === "hold" || command === "pass") ? <div className="encounter-battle-disposition"><p>{command === "hold" ? `${selectedCombatant.name} will wait for a later opening this Round.` : `${selectedCombatant.name} will take no more normal actions this Round.`}</p><button className="st-button" type="button" disabled={busy || (command === "hold" ? !trackerParticipant?.canHold : !trackerParticipant?.canPass)} onClick={() => void disposition(command)}>{command === "hold" ? "Hold" : "Pass"}</button></div> : null}
 
@@ -462,11 +512,11 @@ export function EncounterBattleScreen({
             : firearmWorkspace
           : null}
 
-          {declarations && defenses && selectedExchange ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedDeclarationId={selectedExchange.id} /> : actorIsGodControlled && command === "defend" && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
-          {effects && selectedExchange ? <ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} compact selectedDeclarationId={selectedExchange.id} /> : null}
+          {declarations && defenses && focusedExchange && (command === "defend" || !focusedExchange.rollState.resolved) ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedDeclarationId={focusedExchange.id} /> : actorIsGodControlled && command === "defend" && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
+          {effects && selectedOwnedExchange && selectedOwnedExchange.rollState.resolved ? <ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} compact selectedDeclarationId={selectedOwnedExchange.id} /> : null}
         </BattleStage> : null}
       </BattleMainColumn>
-      <BattleActivity entries={activityEntries(declarations, pendingDeclarations)} title="Pending exchanges" selectedId={selectedExchange ? String(selectedExchange.id) : null} onSelect={(id) => setRequestedExchangeId(Number(id))} />
+      <BattleActivity entries={activityEntries(declarations, pendingDeclarations)} title="Pending exchanges" selectedId={selectedExchange ? String(selectedExchange.id) : null} onSelect={(id) => openExchange(Number(id))} />
     </BattleGrid>
 
     <BattleSecondary summary="Initiative controls and shared timeline" open={!initiative.runtime}><InitiativeTracker data={initiative} /></BattleSecondary>

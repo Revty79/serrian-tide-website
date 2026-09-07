@@ -79,6 +79,40 @@ export async function generateActionEffectPlan(encounterId: number, declarationI
   ));
 }
 
+export async function applyRoutineActionResult(
+  encounterId: number,
+  declarationId: number,
+): Promise<"applied" | "partially-applied" | "application-failed" | "needs-ruling"> {
+  return mutate(encounterId, async (tx, context, actor) => {
+    const planId = await generateActionEffectPlanInTransaction(
+      tx,
+      context,
+      actor,
+      positiveId(declarationId, "Action declaration"),
+    );
+    const workspace = await readActionEffectWorkspaceInTransaction(tx, context);
+    const plan = workspace.plans.find(({ id }) => id === planId);
+    if (!plan) throw new Error("The prepared combat result could not be reloaded.");
+    if (plan.status === "applied") return "applied";
+    if (plan.status === "requires-god-ruling"
+      || plan.effects.some((effect) => effect.godReviewRequired || !effect.applicationSupported)) {
+      return "needs-ruling";
+    }
+    if (plan.status === "calculated") {
+      await approveActionEffectPlanInTransaction(
+        tx,
+        context,
+        actor,
+        plan.id,
+        "Automatically approved because every consequence is mechanically resolved.",
+      );
+    } else if (!["approved", "partially-applied", "application-failed"].includes(plan.status)) {
+      throw new Error("This combat result cannot be applied from its current state.");
+    }
+    return applyActionEffectPlanInTransaction(tx, context, actor, plan.id);
+  });
+}
+
 export async function approveActionEffectPlan(encounterId: number, planId: number, reason = ""): Promise<void> {
   await mutate(encounterId, (tx, context, actor) => approveActionEffectPlanInTransaction(
     tx,

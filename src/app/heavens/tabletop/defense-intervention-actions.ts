@@ -10,6 +10,8 @@ import {
   readDefenseInterventionWorkspaceInTransaction,
   recordDeclaredAttackRollInTransaction,
   recordDeclaredResponseRollInTransaction,
+  resolveDeclaredDefensesAfterResponseIfReadyInTransaction,
+  resolveDeclaredDefensesIfReadyInTransaction,
   resolveDeclaredDefensesInTransaction,
   saveDodgeSkillPathMappingInTransaction,
   removeDodgeSkillPathMappingInTransaction,
@@ -74,7 +76,11 @@ export async function getDefenseInterventionWorkspace(encounterIdInput: number):
 }
 
 export async function declareDefenseIntervention(encounterId: number, input: DefenseDeclarationInput): Promise<number> {
-  return mutate(encounterId, (tx, context, actor) => declareDefenseInterventionInTransaction(tx, context, actor, input));
+  return mutate(encounterId, async (tx, context, actor) => {
+    const reactionId = await declareDefenseInterventionInTransaction(tx, context, actor, input);
+    await resolveDeclaredDefensesAfterResponseIfReadyInTransaction(tx, context, actor, reactionId);
+    return reactionId;
+  });
 }
 
 export async function recordDeclaredAttackRoll(encounterId: number, declarationId: number, input: {
@@ -83,18 +89,24 @@ export async function recordDeclaredAttackRoll(encounterId: number, declarationI
   manualTarget?: number | null;
   manualLabel?: string;
 }): Promise<number> {
-  return mutate(encounterId, async (tx, context, actor) => (
-    await recordDeclaredAttackRollInTransaction(tx, context, actor, positiveId(declarationId, "Action declaration"), input)
-  ).id);
+  return mutate(encounterId, async (tx, context, actor) => {
+    const normalizedDeclarationId = positiveId(declarationId, "Action declaration");
+    const roll = await recordDeclaredAttackRollInTransaction(tx, context, actor, normalizedDeclarationId, input);
+    await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, normalizedDeclarationId);
+    return roll.id;
+  });
 }
 
 export async function recordDeclaredResponseRoll(encounterId: number, reactionId: number, input: {
   method: RollMethod;
   enteredTotal?: number | null;
 }): Promise<number> {
-  return mutate(encounterId, async (tx, context, actor) => (
-    await recordDeclaredResponseRollInTransaction(tx, context, actor, positiveId(reactionId, "Response declaration"), input)
-  ).id);
+  return mutate(encounterId, async (tx, context, actor) => {
+    const normalizedReactionId = positiveId(reactionId, "Response declaration");
+    const roll = await recordDeclaredResponseRollInTransaction(tx, context, actor, normalizedReactionId, input);
+    await resolveDeclaredDefensesAfterResponseIfReadyInTransaction(tx, context, actor, normalizedReactionId);
+    return roll.id;
+  });
 }
 
 export async function resolveDeclaredDefenses(encounterId: number, declarationId: number): Promise<void> {
