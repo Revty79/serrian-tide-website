@@ -40,5 +40,5 @@ test("G.O.D. guided exchange still keeps declaration, defense, Roll, and result 
   assert.match(godRunner, /<ActionDeclarationWorkspace[\s\S]*compact[\s\S]*directCommit/);
   assert.match(godRunner, /<DefenseInterventionWorkspace/);
   assert.match(godRunner, /<ActionEffectPlanWorkspace/);
-  assert.match(godRunner, /title={`Roll \$\{selectedOwnedExchange/);
+  assert.ok(godRunner.includes('title={`Roll ${selectedOwnedExchange'));
 });
