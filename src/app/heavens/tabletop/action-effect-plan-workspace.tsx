@@ -177,7 +177,7 @@ export function ActionEffectPlanWorkspace({
 
   return <section className="action-effect-workspace" aria-labelledby="action-effect-heading">
     <header>
-      <div><span>{compact ? "CURRENT RESULTS" : "PASS 8 · CONSEQUENCE BRIDGE"}</span><h6 id="action-effect-heading" className="font-sans">{compact ? "Review and apply consequences" : "Action Effect Plans"}</h6></div>
+      <div><span>{compact ? "CURRENT RESULTS" : "CONSEQUENCE REVIEW"}</span><h6 id="action-effect-heading" className="font-sans">{compact ? "Review and apply consequences" : "Action Effect Plans"}</h6></div>
       <p>{compact ? "Review the readable result, make any explicit ruling, then apply it to live state." : "Frozen source → Roll and defense result → reviewable effects → explicit application."}</p>
     </header>
     {feedback ? <p className={`tabletop-encounter-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
@@ -185,7 +185,7 @@ export function ActionEffectPlanWorkspace({
     {eligibleDeclarations.length ? <div className="action-effect-ready">
       {eligibleDeclarations.map((declaration) => <article key={declaration.id}>
         <div><strong>{declaration.label}</strong><small>{declaration.actorName} · {declaration.sourceKind} · Initiative {declaration.timingStatus}</small></div>
-        <button type="button" disabled={busy} onClick={() => void perform(
+        <button type="button" className="st-button is-primary" disabled={busy} onClick={() => void perform(
           () => generateActionEffectPlan(encounterId, declaration.id),
           compact ? "Consequences prepared from the locked action and Roll. No gameplay state was changed." : "Consequence plan generated from locked authoritative history. No gameplay state was changed.",
         )}>{compact ? "Review Consequences" : "Generate Plan"}</button>
@@ -230,9 +230,9 @@ export function ActionEffectPlanWorkspace({
               ? <AttackDamageRuling encounterId={encounterId} planId={plan.id} effect={effect} view={view} busy={busy} perform={perform} />
               : null}
             <footer>
-              {effect.applicationSupported && !["applied", "declined"].includes(effect.status) ? <button type="button" disabled={busy} onClick={() => correctAmount(plan.id, effect.id, effect.calculatedValue)}>Correct Amount</button> : null}
-              {!['applied', 'declined', 'manual-resolved'].includes(effect.status) ? <button type="button" disabled={busy} onClick={() => { const reason = requested("Required reason for declining this effect"); if (reason) void perform(() => declineActionEffect(encounterId, plan.id, effect.id, reason), "Effect declined with its audit reason."); }}>Decline Effect</button> : null}
-              {!effect.applicationSupported && !['manual-resolved', 'declined'].includes(effect.status) ? <button type="button" disabled={busy} onClick={() => { const outcome = requested("Manual outcome to preserve"); if (!outcome) return; const reason = requested("Required G.O.D. ruling reason"); if (reason) void perform(() => resolveManualActionEffect(encounterId, plan.id, effect.id, outcome, reason), "Manual consequence resolved and preserved."); }}>Record Manual Outcome</button> : null}
+              {effect.applicationSupported && !["applied", "declined"].includes(effect.status) ? <button type="button" className="st-button" disabled={busy} onClick={() => correctAmount(plan.id, effect.id, effect.calculatedValue)}>Correct amount</button> : null}
+              {!['applied', 'declined', 'manual-resolved'].includes(effect.status) ? <button type="button" className="st-button is-danger" disabled={busy} onClick={() => { const reason = requested("Required reason for declining this effect"); if (reason) void perform(() => declineActionEffect(encounterId, plan.id, effect.id, reason), "Effect declined with its audit reason."); }}>Decline effect</button> : null}
+              {!effect.applicationSupported && !['manual-resolved', 'declined'].includes(effect.status) ? <button type="button" className="st-button is-secondary" disabled={busy} onClick={() => { const outcome = requested("Manual outcome to preserve"); if (!outcome) return; const reason = requested("Required G.O.D. ruling reason"); if (reason) void perform(() => resolveManualActionEffect(encounterId, plan.id, effect.id, outcome, reason), "Manual consequence resolved and preserved."); }}>Record outcome</button> : null}
             </footer>
           </article>})}
           {!plan.effects.length ? <p className="tabletop-empty">The exact source produced no effects. Add a manual consequence only when the G.O.D. is making an explicit ruling.</p> : null}
@@ -244,11 +244,11 @@ export function ActionEffectPlanWorkspace({
           </ol>
         </details> : null}
         <footer>
-          {["calculated", "requires-god-ruling"].includes(plan.status) ? <button type="button" disabled={busy} onClick={() => { const reason = requested("Approval note (optional)") ?? ""; void perform(() => approveActionEffectPlan(encounterId, plan.id, reason), compact ? "Results approved. Apply consequences when ready." : "Effect plan approved for explicit application."); }}>{compact ? "Approve Results" : "Approve Plan"}</button> : null}
-          {["calculated", "requires-god-ruling", "approved", "partially-applied"].includes(plan.status) ? <button type="button" disabled={busy} onClick={() => addManual(plan)}>{compact ? "Add G.O.D. Ruling" : "Add Manual Effect"}</button> : null}
-          {["approved", "partially-applied"].includes(plan.status) ? <button type="button" className="is-primary" disabled={busy} onClick={() => void perform(() => applyPlan(plan.id), compact ? "Approved consequences were applied to live Character state." : "Approved supported effects applied transactionally.")}>{compact ? "Apply Consequences" : "Apply Approved Effects"}</button> : null}
-          {plan.status === "application-failed" ? <button type="button" className="is-primary" disabled={busy} onClick={() => void perform(() => applyPlan(plan.id, true), compact ? "Consequences were retried without duplicating prior work." : "Failed application retried through the same idempotent executor.")}>{compact ? "Retry Consequences" : "Retry Application"}</button> : null}
-          {["calculated", "requires-god-ruling", "approved", "application-failed"].includes(plan.status) ? <button type="button" className="is-danger" disabled={busy} onClick={() => { const reason = requested("Required reason for declining the entire plan"); if (reason) void perform(() => declineActionEffectPlan(encounterId, plan.id, reason), compact ? "Results declined without changing gameplay state." : "Effect plan declined without applying gameplay changes."); }}>{compact ? "Decline Results" : "Decline Plan"}</button> : null}
+          {["calculated", "requires-god-ruling"].includes(plan.status) ? <button type="button" className="st-button" disabled={busy} onClick={() => { const reason = requested("Approval note (optional)") ?? ""; void perform(() => approveActionEffectPlan(encounterId, plan.id, reason), compact ? "Results approved. Apply consequences when ready." : "Effect plan approved for explicit application."); }}>{compact ? "Approve results" : "Approve plan"}</button> : null}
+          {["calculated", "requires-god-ruling", "approved", "partially-applied"].includes(plan.status) ? <button type="button" className="st-button is-secondary" disabled={busy} onClick={() => addManual(plan)}>{compact ? "Add G.O.D. ruling" : "Add manual effect"}</button> : null}
+          {["approved", "partially-applied"].includes(plan.status) ? <button type="button" className="st-button is-primary" disabled={busy} onClick={() => void perform(() => applyPlan(plan.id), compact ? "Approved consequences were applied to live Character state." : "Approved supported effects applied transactionally.")}>{compact ? "Apply consequences" : "Apply effects"}</button> : null}
+          {plan.status === "application-failed" ? <button type="button" className="st-button is-primary" disabled={busy} onClick={() => void perform(() => applyPlan(plan.id, true), compact ? "Consequences were retried without duplicating prior work." : "Failed application retried through the same idempotent executor.")}>{compact ? "Retry consequences" : "Retry application"}</button> : null}
+          {["calculated", "requires-god-ruling", "approved", "application-failed"].includes(plan.status) ? <button type="button" className="st-button is-danger" disabled={busy} onClick={() => { const reason = requested("Required reason for declining the entire plan"); if (reason) void perform(() => declineActionEffectPlan(encounterId, plan.id, reason), compact ? "Results declined without changing gameplay state." : "Effect plan declined without applying gameplay changes."); }}>{compact ? "Decline results" : "Decline plan"}</button> : null}
         </footer>
       </article>)}
       {!plans.length ? <p className="tabletop-empty">No consequence plan is attached to this selected exchange.</p> : null}

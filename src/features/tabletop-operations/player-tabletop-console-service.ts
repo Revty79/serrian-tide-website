@@ -164,6 +164,7 @@ export type PlayerCombatAvailability = Readonly<{
   reason: string;
   unfinishedWork?: readonly Readonly<{
     declarationId: number;
+    actorName: string;
     label: string;
     message: string;
   }>[];
@@ -777,6 +778,7 @@ async function readPlayerCombatConsole(
       !["resolved", "cancelled", "abandoned"].includes(status)
     )).map((declaration) => ({
       declarationId: declaration.id,
+      actorName: declaration.actorName,
       label: declaration.lockedSnapshot?.label ?? declaration.draft.label,
       message: declaration.rollState.message,
     }));
@@ -784,8 +786,8 @@ async function readPlayerCombatConsole(
       availability: {
         status: "runtime-closed",
         reason: unfinishedWork.length
-          ? "Initiative is closed with an unfinished exchange. Your existing choices and Rolls are preserved; the Campaign-owning G.O.D. must resume that runtime before the exchange can continue."
-          : "Initiative is closed while the Encounter remains active. Combat controls remain unavailable under normal closed-runtime restrictions.",
+          ? "Waiting for G.O.D. to continue combat."
+          : "Initiative is closed while the Encounter remains active. Combat controls are unavailable until G.O.D. starts combat again.",
         unfinishedWork,
       },
       combat: null,

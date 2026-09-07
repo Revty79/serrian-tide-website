@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -20,6 +20,7 @@ import {
   type BattleRosterEntry,
 } from "@/components/tabletop/battle-layout";
 import { CombatOperationStateProvider } from "@/components/tabletop/combat-operation-state";
+import { CombatRecoveryCard } from "@/components/tabletop/combat-recovery-card";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
 import type { CombatAidEncounterView, CombatAidParticipant } from "@/features/tabletop-operations/combat-aid-service";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
@@ -58,6 +59,12 @@ function titleCase(value: string): string {
   return value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function actionStatusLabel(status: string): string {
+  if (["committed", "rolling-ready", "rolling"].includes(status)) return "In progress";
+  if (status === "awaiting-god-ruling") return "Needs G.O.D. ruling";
+  return titleCase(status);
+}
+
 function participantDetail(participant: CombatAidParticipant | null, choiceOwner: "god" | "player"): string {
   if (participant?.identity.playerName) return `Player: ${participant.identity.playerName}`;
   if (participant?.identity.creatureTemplateName) return `Creature: ${participant.identity.creatureTemplateName}`;
@@ -92,7 +99,7 @@ function activityEntries(
       eyebrow: declaration.actorName,
       title: declaration.lockedSnapshot?.label ?? declaration.draft.label,
       detail: `${targets.length ? `Target: ${targets.join(", ")}. ` : ""}${timing}`,
-      status: titleCase(declaration.status),
+      status: actionStatusLabel(declaration.status),
       attention: ["resolved", "cancelled", "abandoned"].includes(declaration.status) ? null : declaration.rollState.message,
     };
   });
@@ -152,6 +159,7 @@ export function EncounterBattleScreen({
   const [command, setCommand] = useState<BattleCommand>("attack");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const focusRecoveredActionRef = useRef(false);
   const pendingDeclarations = declarations?.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)) ?? [];
   const completedDeclarations = declarations?.declarations.filter(({ status }) => ["resolved", "cancelled", "abandoned"].includes(status)) ?? [];
   const closedUnfinishedDeclarations = initiative.runtime?.runtime.status === "closed" ? pendingDeclarations : [];
@@ -266,6 +274,16 @@ export function EncounterBattleScreen({
     </>
     : null;
 
+  useEffect(() => {
+    if (initiative.runtime?.runtime.status !== "active" || !focusRecoveredActionRef.current) return;
+    focusRecoveredActionRef.current = false;
+    window.requestAnimationFrame(() => {
+      const stage = document.getElementById("encounter-selected-action");
+      stage?.focus({ preventScroll: true });
+      stage?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [initiative.runtime?.runtime.status]);
+
   function selectCombatant(characterId: number): void {
     setSelectedCombatantId(characterId);
     setCommand("attack");
@@ -285,6 +303,18 @@ export function EncounterBattleScreen({
   function chooseCommand(next: BattleCommand): void {
     setCommand(next);
     setFeedback(null);
+  }
+
+  function openRecoveryAction(declarationId: number): void {
+    const declaration = closedUnfinishedDeclarations.find(({ id }) => id === declarationId);
+    if (!declaration) return;
+    selectCombatant(declaration.actorCharacterId);
+    setRequestedExchangeId(declaration.id);
+    window.requestAnimationFrame(() => {
+      const stage = document.getElementById("encounter-selected-action");
+      stage?.focus({ preventScroll: true });
+      stage?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   async function disposition(kind: "hold" | "pass"): Promise<void> {
@@ -309,7 +339,7 @@ export function EncounterBattleScreen({
     try {
       if (kind === "event") await advanceEncounterInitiativeTimeline(initiative.encounter.id);
       else await advanceEncounterInitiativeRound(initiative.encounter.id);
-      setFeedback({ kind: "success", message: kind === "event" ? "Advanced to the next authoritative Initiative event." : "Advanced to the next Initiative Round." });
+      setFeedback({ kind: "success", message: kind === "event" ? "The next combat step is ready." : "The next Initiative Round is ready." });
       router.refresh();
     } catch (error) {
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Initiative could not advance." });
@@ -319,21 +349,30 @@ export function EncounterBattleScreen({
   }
 
   async function recoverClosedInitiative(): Promise<void> {
+    const recoveryAction = closedUnfinishedDeclarations.find(({ id }) => id === selectedExchange?.id)
+      ?? closedUnfinishedDeclarations[0]
+      ?? null;
     setBusy(true);
     setFeedback(null);
     try {
       await recoverClosedEncounterInitiative(initiative.encounter.id);
-      setFeedback({ kind: "success", message: "Initiative resumed at the existing Round, Step, and timeline. Finish or explicitly cancel the existing exchange." });
+      if (recoveryAction) {
+        setSelectedCombatantId(recoveryAction.actorCharacterId);
+        setRequestedExchangeId(recoveryAction.id);
+        setCommand("attack");
+      }
+      focusRecoveredActionRef.current = true;
+      setFeedback({ kind: "success", message: "Combat continued. The unfinished action is open below." });
       router.refresh();
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The closed Initiative runtime could not be recovered." });
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Combat could not be continued." });
     } finally {
       setBusy(false);
     }
   }
 
   const attention = closedUnfinishedDeclarations.length
-    ? `Initiative is closed with ${closedUnfinishedDeclarations.length} unfinished committed exchange${closedUnfinishedDeclarations.length === 1 ? "" : "s"}.`
+    ? "Combat is closed."
     : responseCount
     ? `${responseCount} response choice${responseCount === 1 ? "" : "s"} need attention.`
     : resultCount
@@ -352,21 +391,22 @@ export function EncounterBattleScreen({
         { label: "Responses", value: responseCount },
         { label: "Results", value: resultCount },
       ]}
-      actions={<>{closedUnfinishedDeclarations.length ? <button className="st-button is-primary" type="button" disabled={busy} onClick={() => void recoverClosedInitiative()}>Resume Unfinished Initiative</button> : null}<button className="st-button is-primary" type="button" disabled={busy || !initiative.nextEvent?.canAdvance} title={initiative.nextEvent?.detail ?? "No Initiative event is ready to advance."} onClick={() => void advance("event")}>Advance Next Event</button><button className="st-button is-secondary" type="button" disabled={busy || !initiative.canAdvanceRound} title={initiative.canAdvanceRound ? "Advance the legal Initiative Round." : "Unresolved opportunities or actions prevent Round advancement."} onClick={() => void advance("round")}>Advance Round</button><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
+      actions={<><button className="st-button is-primary" type="button" disabled={busy || !initiative.nextEvent?.canAdvance} title={initiative.nextEvent?.detail ?? "No Initiative step is ready."} onClick={() => void advance("event")}>Next combat step</button><button className="st-button is-secondary" type="button" disabled={busy || !initiative.canAdvanceRound} title={initiative.canAdvanceRound ? "Start the next Initiative Round." : "Unfinished actions or responses prevent the next Round."} onClick={() => void advance("round")}>Next Round</button><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
     />
 
-    <p className="tabletop-feedback">{closedUnfinishedDeclarations.length ? "This is an already-closed runtime with unfinished committed work. Resume it in place, then open the existing exchange below to complete or explicitly cancel it." : initiative.nextEvent?.detail ?? (initiative.canAdvanceRound ? "The current Round is complete and may advance." : "Waiting for Initiative initialization or unresolved combat work.")}</p>
+    {!closedUnfinishedDeclarations.length ? <p className="tabletop-feedback">{initiative.nextEvent?.detail ?? (initiative.canAdvanceRound ? "The current Round is complete and may advance." : "Waiting for Initiative or unfinished combat actions.")}</p> : null}
 
-    {closedUnfinishedDeclarations.length ? <aside className="action-declaration-recovery" role="alert">
-      <strong>Unfinished work survived Initiative closure.</strong>
-      <span>Recovery changes only the runtime from closed to active. It does not reset Initiative, repeat elapsed time, clear Rolls, refund costs, or reapply damage or resources.</span>
-      <nav aria-label="Unfinished closed Initiative exchanges">
-        {closedUnfinishedDeclarations.map((declaration) => <button className="st-button is-secondary" type="button" key={declaration.id} onClick={() => {
-          selectCombatant(declaration.actorCharacterId);
-          setRequestedExchangeId(declaration.id);
-        }}>Open #{declaration.id}: {declaration.lockedSnapshot?.label ?? declaration.draft.label} — {declaration.rollState.message}</button>)}
-      </nav>
-    </aside> : null}
+    <CombatRecoveryCard
+      actions={closedUnfinishedDeclarations.map((declaration) => ({
+        id: declaration.id,
+        combatantName: declaration.actorName,
+        actionName: declaration.lockedSnapshot?.label ?? declaration.draft.label,
+        detail: declaration.rollState.message,
+      }))}
+      busy={busy}
+      onContinue={() => void recoverClosedInitiative()}
+      onOpenAction={openRecoveryAction}
+    />
 
     {!selectedCombatant && selectedCombatantId !== 0 ? <p className="tabletop-feedback is-error">The selected combatant left this Encounter. The roster has not switched you to someone else; choose a current participant.</p> : null}
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
@@ -394,16 +434,17 @@ export function EncounterBattleScreen({
 
         {initiative.runtime ? <BattleCommands commands={commandDefinitions} selected={command} onSelect={chooseCommand} /> : null}
 
-        {!initiative.runtime ? <BattleStage eyebrow="START COMBAT" title="Initialize the shared Initiative runtime" detail="Enrollment and capacities remain authoritative."><InitiativeTracker data={initiative} /></BattleStage> : selectedCombatant ? <BattleStage
+        {!initiative.runtime ? <BattleStage eyebrow="START COMBAT" title="Start Initiative" detail="Choose the participants and begin combat."><InitiativeTracker data={initiative} /></BattleStage> : selectedCombatant ? <BattleStage
+          id="encounter-selected-action"
           eyebrow={actorIsGodControlled ? command.replaceAll("-", " ").toUpperCase() : "PLAYER CONTROLLED"}
           title={actorIsGodControlled ? command === "defend" ? `Choose ${selectedCombatant.name}'s defense` : command === "hold" || command === "pass" ? `${titleCase(command)} ${selectedCombatant.name}'s Initiative` : `Act as ${selectedCombatant.name}` : `Waiting for ${selectedCombatant.name}`}
           detail={focusedResponseCount ? `${focusedResponseCount} incoming response choice${focusedResponseCount === 1 ? "" : "s"} available.` : focusedResolution ? "Continue the current declaration, Roll, defense, or result here." : trackerParticipant?.isCurrentOpportunity ? "This combatant has the current normal opportunity." : "Other eligible combatants may act while this one waits."}
         >
           {!actorIsGodControlled ? <p className="tabletop-feedback">This Player owns their ordinary action and defense choices. G.O.D. visibility does not transfer control or response knowledge.</p> : null}
           {actorIsGodControlled && declarationCommand && !declarationOpportunityAvailable ? <p className="tabletop-feedback">No legal normal action opportunity is open for this combatant. Existing declarations, responses, Rolls, and results remain available below.</p> : null}
-          {selectedExchange ? <aside className="action-declaration-recovery"><strong>Selected exchange: {selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span></aside> : <p className="tabletop-empty">No pending exchange is awaiting defense, Roll, ruling, or consequences.</p>}
+          {selectedExchange ? <aside className="encounter-selected-action"><strong>{selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span><details><summary>Action details</summary><small>Combat record #{selectedExchange.id} · {actionStatusLabel(selectedExchange.status)}</small></details></aside> : <p className="tabletop-empty">No action is waiting for a defense, Roll, ruling, or consequence.</p>}
 
-          {actorIsGodControlled && (command === "hold" || command === "pass") ? <div className="encounter-battle-disposition"><p>This records the existing {titleCase(command)} disposition without creating an action declaration.</p><button className="st-button is-primary" type="button" disabled={busy || (command === "hold" ? !trackerParticipant?.canHold : !trackerParticipant?.canPass)} onClick={() => void disposition(command)}>{command === "hold" ? "Hold Initiative" : "Pass Initiative"}</button></div> : null}
+          {actorIsGodControlled && (command === "hold" || command === "pass") ? <div className="encounter-battle-disposition"><p>{command === "hold" ? `${selectedCombatant.name} will wait for a later opening this Round.` : `${selectedCombatant.name} will take no more normal actions this Round.`}</p><button className="st-button" type="button" disabled={busy || (command === "hold" ? !trackerParticipant?.canHold : !trackerParticipant?.canPass)} onClick={() => void disposition(command)}>{command === "hold" ? "Hold" : "Pass"}</button></div> : null}
 
           {actorIsGodControlled && declarationCommand && declarationOpportunityAvailable && declarations ? <>
             {(command === "cast" || command === "item" || command === "ability") ? <p className="tabletop-feedback">Choose an exact current source. The source, current ownership, Initiative, Mana or Item costs, and supported consequences are rechecked and frozen on the server. Any genuinely unresolved Roll mode remains an explicit ruling.</p> : null}

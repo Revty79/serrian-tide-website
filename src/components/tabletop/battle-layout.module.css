@@ -18,9 +18,9 @@
 
 .header {
   display: grid;
-  grid-template-columns: minmax(16rem, 1.4fr) minmax(24rem, 2fr) auto;
+  grid-template-columns: minmax(14rem, 1.25fr) minmax(20rem, 2fr) auto;
   gap: 1rem;
-  align-items: center;
+  align-items: start;
   padding: 1rem 1.15rem;
   border-color: var(--st-border-strong);
   background: var(--st-surface-raised);
@@ -43,6 +43,7 @@
   margin: 0.12rem 0 0;
   color: var(--st-text-strong);
   font-family: "Evanescent", Georgia, serif;
+  overflow-wrap: anywhere;
 }
 
 .headerCopy h1 {
@@ -55,6 +56,7 @@
   margin: 0.25rem 0 0;
   color: var(--st-text-secondary);
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .metrics,
@@ -103,11 +105,9 @@
 .actorMetrics small {
   display: block;
   margin-top: 0.1rem;
-  overflow: hidden;
   color: var(--st-text-soft);
   font-size: 0.67rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .headerActions {
@@ -115,11 +115,6 @@
   flex-wrap: wrap;
   gap: 0.45rem;
   justify-content: flex-end;
-}
-
-.headerActions a,
-.headerActions button {
-  min-height: 2.25rem;
 }
 
 .grid {
@@ -194,38 +189,29 @@
   display: grid;
   width: 100%;
   gap: 0.25rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.rosterList > article,
+.activityList > article {
   padding: 0.65rem;
   border: 1px solid var(--st-border);
   border-radius: 0.65rem;
   background: var(--st-surface-soft);
   color: var(--st-text);
-  text-align: left;
-}
-
-.rosterList > button,
-.activityList > button {
-  cursor: pointer;
-}
-
-.rosterList > button:hover,
-.rosterList > button:focus-visible,
-.activityList > button:hover,
-.activityList > button:focus-visible {
-  border-color: var(--st-primary-border);
-  background: var(--st-primary-soft);
-  outline: none;
 }
 
 .rosterList > .selectedRosterEntry {
-  border-color: var(--st-secondary-border);
-  background: var(--st-secondary-soft);
-  box-shadow: inset 3px 0 0 var(--st-secondary);
+  border-color: var(--st-border-strong);
+  background: var(--st-surface-soft);
+  box-shadow: inset 3px 0 0 var(--st-text-secondary);
 }
 
 .activityList > .selectedActivityEntry {
-  border-color: var(--st-primary-border);
-  background: var(--st-primary-soft);
-  box-shadow: inset 3px 0 0 var(--st-primary);
+  border-color: var(--st-border-strong);
+  background: var(--st-surface-soft);
+  box-shadow: inset 3px 0 0 var(--st-text-secondary);
 }
 
 .rosterTopline,
@@ -259,6 +245,7 @@
 .activityList strong {
   color: var(--st-text-strong);
   font-size: 0.86rem;
+  overflow-wrap: anywhere;
 }
 
 .rosterDetail,
@@ -340,36 +327,17 @@
 
 .commands button {
   display: flex;
-  min-height: 2.65rem;
   gap: 0.3rem;
   align-items: center;
   justify-content: center;
-  padding: 0.45rem 0.35rem;
-  border: 1px solid var(--st-border);
-  border-radius: 0.55rem;
-  background: var(--st-surface-raised);
-  color: var(--st-text-secondary);
   font-size: 0.7rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.commands button:hover:not(:disabled),
-.commands button:focus-visible:not(:disabled) {
-  border-color: var(--st-secondary-border);
-  color: var(--st-text-strong);
-  outline: none;
-}
-
-.commands button:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
 }
 
 .commands button.selectedCommand {
-  border-color: var(--st-primary-border);
-  background: var(--st-primary-soft);
-  color: var(--st-primary);
+  border-color: var(--st-border-strong);
+  background: var(--st-surface-soft);
+  color: var(--st-text-strong);
+  box-shadow: inset 0 -3px 0 var(--st-text-secondary);
 }
 
 .commands b {
@@ -402,8 +370,7 @@
   padding: 0.8rem;
 }
 
-.activityList > article,
-.activityList > button {
+.activityList > article {
   background: var(--st-surface-raised);
 }
 
@@ -433,6 +400,101 @@
   padding: 0.8rem;
   color: var(--st-muted);
   font-size: 0.78rem;
+}
+
+.recoveryCard {
+  display: grid;
+  gap: 0.9rem;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border: 1px solid color-mix(in srgb, var(--st-warning) 42%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--st-warning) 9%, var(--st-surface));
+  color: var(--st-text);
+}
+
+.recoveryCopy > span {
+  color: var(--st-warning);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.recoveryCopy h2,
+.recoveryCopy p {
+  margin: 0;
+}
+
+.recoveryCopy h2 {
+  margin-top: 0.2rem;
+  color: var(--st-text-strong);
+  font-family: "Evanescent", Georgia, serif;
+  font-size: 1.2rem;
+}
+
+.recoveryCopy p {
+  margin-top: 0.3rem;
+  color: var(--st-text-soft);
+}
+
+.recoveryActions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.recoveryActions article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.7rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.7rem;
+  background: var(--st-surface-raised);
+}
+
+.recoveryActions article > div:first-child,
+.recoveryActionDetail {
+  display: grid;
+  min-width: 0;
+}
+
+.recoveryActions strong,
+.recoveryActions span,
+.recoveryActions small {
+  overflow-wrap: anywhere;
+}
+
+.recoveryActions article > div:first-child span,
+.recoveryActionDetail {
+  color: var(--st-text-secondary);
+  font-size: 0.78rem;
+}
+
+.recoveryActionDetail {
+  grid-column: 1 / -1;
+  gap: 0.15rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--st-border);
+}
+
+.recoveryActionDetail small {
+  color: var(--st-muted);
+}
+
+.recoveryCard footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+  align-items: center;
+}
+
+.recoveryCard footer > span {
+  color: var(--st-text-soft);
+  font-size: 0.78rem;
+}
+
+.recoveryCard footer > strong {
+  color: var(--st-warning);
 }
 
 @media (max-width: 1180px) {
@@ -533,5 +595,13 @@
   .rosterList,
   .commands {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .recoveryActions article {
+    grid-template-columns: 1fr;
+  }
+
+  .recoveryActions article > button {
+    width: 100%;
   }
 }

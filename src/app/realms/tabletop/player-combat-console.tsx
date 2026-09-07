@@ -63,6 +63,12 @@ function titleCase(value: string): string {
   return value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function actionStatusLabel(status: string): string {
+  if (["committed", "rolling-ready", "rolling"].includes(status)) return "In progress";
+  if (status === "awaiting-god-ruling") return "Needs G.O.D. ruling";
+  return titleCase(status);
+}
+
 function governingLabel(source: unknown): string {
   if (!source || typeof source !== "object" || Array.isArray(source)) return "G.O.D. ruling required";
   const row = source as Record<string, unknown>;
@@ -193,12 +199,12 @@ function AttemptRecovery({
 }) {
   if (!submission.attempt || !mutation.message?.error) return null;
   return <aside className={styles.attemptRecovery} role="status">
-    <strong>{submission.attempt.operation} may have reached the server.</strong>
-    <span>Retry resends the exact saved timing, target, source, selections, intent, and identity.</span>
-    <span>Wait for confirmation or retry this exact saved attempt. A confirmed server rejection unlocks the form.</span>
+    <strong>We couldn&apos;t confirm whether your action finished.</strong>
+    <span>Check and retry.</span>
     <div className={styles.actionRow}>
-      <button type="button" disabled={mutation.busy} onClick={submission.retry}>Retry exact attempt</button>
+      <button className="st-button is-primary" type="button" disabled={mutation.busy} onClick={submission.retry}>Retry action</button>
     </div>
+    <details><summary>Retry details</summary><span>{submission.attempt.operation}. Retrying uses the exact saved choices and request identity.</span></details>
   </aside>;
 }
 
@@ -235,8 +241,8 @@ export function PlayerCombatIntentButton({
       idempotencyKey,
     }), `${label} ruling request sent to the G.O.D.`);
   }}>
-    <label><span>Combat intent</span><input required maxLength={2000} value={intent} onChange={(event) => setIntent(event.target.value)} placeholder={`How do you want to use ${label}?`} /></label>
-    <button type="submit" disabled={mutation.busy || submission.attempt !== null || !intent.trim()}>{mutation.busy ? "Sending…" : "Request G.O.D. ruling"}</button>
+    <label className="st-field"><span>Combat intent</span><input className="st-control" required maxLength={2000} value={intent} onChange={(event) => setIntent(event.target.value)} placeholder={`How do you want to use ${label}?`} /></label>
+    <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || !intent.trim()}>{mutation.busy ? "Sending…" : "Request ruling"}</button>
     <ResultMessage message={mutation.message} />
     <AttemptRecovery submission={submission} mutation={mutation} />
   </form>;
@@ -264,11 +270,11 @@ function ResponsePanel({ characterId, combat, selectedDeclarationId = null }: { 
         <h3>{declaration.actorName}: {declaration.lockedSnapshot?.label ?? declaration.draft.label}</h3>
         <p>{opportunity.reason}</p>
         <div className={styles.actionRow}>
-          <button disabled={mutation.busy} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "no-reaction", protectedTargetParticipantId: protectedTarget }), "No Defense recorded.")}>No Defense</button>
-          <button disabled={mutation.busy || !dodgeAvailable} title={dodgeAvailable ? undefined : "No approved Dodge Skill path is available."} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "dodge", protectedTargetParticipantId: protectedTarget }), "Dodge declared.")}>Dodge · 1 Initiative</button>
-          {weapons.length ? <><select aria-label="Parry or Block Item" value={weaponKey} onChange={(event) => setWeaponKey(event.target.value)}>{weapons.map((weapon) => <option key={weapon.ownershipKey} value={weapon.ownershipKey}>{weapon.name} · {weapon.initiativeCost ?? "ruling"} Initiative</option>)}</select>
-            <button disabled={mutation.busy || !selectedWeapon} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "parry", protectedTargetParticipantId: protectedTarget, itemId: selectedWeapon!.itemId, instanceId: selectedWeapon!.instanceId }), "Parry declared.")}>Parry</button>
-            <button disabled={mutation.busy || !selectedWeapon} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "block", protectedTargetParticipantId: protectedTarget, itemId: selectedWeapon!.itemId, instanceId: selectedWeapon!.instanceId }), "Block declared.")}>Block</button></> : null}
+          <button className="st-button" disabled={mutation.busy} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "no-reaction", protectedTargetParticipantId: protectedTarget }), "No Defense recorded.")}>No Defense</button>
+          <button className="st-button" disabled={mutation.busy || !dodgeAvailable} title={dodgeAvailable ? undefined : "No approved Dodge Skill path is available."} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "dodge", protectedTargetParticipantId: protectedTarget }), "Dodge declared.")}>Dodge · 1 Initiative</button>
+          {weapons.length ? <><select className="st-control" aria-label="Parry or Block Item" value={weaponKey} onChange={(event) => setWeaponKey(event.target.value)}>{weapons.map((weapon) => <option key={weapon.ownershipKey} value={weapon.ownershipKey}>{weapon.name} · {weapon.initiativeCost ?? "ruling"} Initiative</option>)}</select>
+            <button className="st-button" disabled={mutation.busy || !selectedWeapon} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "parry", protectedTargetParticipantId: protectedTarget, itemId: selectedWeapon!.itemId, instanceId: selectedWeapon!.instanceId }), "Parry declared.")}>Parry</button>
+            <button className="st-button" disabled={mutation.busy || !selectedWeapon} onClick={() => mutation.run(() => declarePlayerDefense(characterId, combat.context.encounterId, { opportunityId: opportunity.id, reactionType: "block", protectedTargetParticipantId: protectedTarget, itemId: selectedWeapon!.itemId, instanceId: selectedWeapon!.instanceId }), "Block declared.")}>Block</button></> : null}
         </div>
         {weaponChoiceStale ? <p className={styles.ruling}>The selected defense item is no longer available. Choose a current item before responding.</p> : null}
         {!dodgeAvailable ? <p>Dodge is unavailable because no approved canonical Dodge Skill path exists.</p> : null}
@@ -287,7 +293,7 @@ function InitiativePanel({ characterId, combat, disposition }: { characterId: nu
       <span>Timeline <strong>{initiative.timelineInitiative}</strong></span><span>Status <strong>{titleCase(initiative.participationStatus)}</strong></span><span>Deferred cost <strong>{initiative.deferredInitiativeCost}</strong></span>
     </div>
     {initiative.pendingAction ? <article className={styles.lockedReview}><strong>{initiative.pendingAction.label}</strong><span>{initiative.pendingAction.initiativeSpent} spent · {initiative.pendingAction.remainingInitiativeCost} remaining · {initiative.pendingAction.additionalInitiativeCost} defense-added · completes at {initiative.pendingAction.expectedCompletionInitiative}</span></article> : null}
-    {initiative.canDeclareAction ? <div className={styles.actionRow}><button disabled={mutation.busy} onClick={() => mutation.run(() => setPlayerInitiativeDisposition(characterId, combat.context.encounterId, disposition), disposition === "hold" ? "Initiative is now holding." : "Initiative passed for this Encounter.")}>{disposition === "hold" ? "Hold Initiative" : "Pass Initiative"}</button></div> : <ul className={styles.blockers}>{initiative.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>}
+    {initiative.canDeclareAction ? <div className={styles.actionRow}><button className="st-button" disabled={mutation.busy} onClick={() => mutation.run(() => setPlayerInitiativeDisposition(characterId, combat.context.encounterId, disposition), disposition === "hold" ? "Initiative is now holding." : "Initiative passed for this Encounter.")}>{disposition === "hold" ? "Hold" : "Pass"}</button></div> : <ul className={styles.blockers}>{initiative.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>}
     <ResultMessage message={mutation.message} />
   </section>;
 }
@@ -315,11 +321,11 @@ function MovementPanel({ characterId, combat }: { characterId: number; combat: P
         idempotencyKey,
       }), "Movement locked and committed to Initiative.");
     }}>
-      <label><span>Movement mode</span><select value={mode} onChange={(event) => setMode(event.target.value)}>{combat.initiative.movementModes.map((entry) => <option key={entry.movementMode} value={entry.movementMode}>{entry.movementMode} · {entry.baseMovement} ft per Initiative</option>)}</select></label>
-      <label><span>Distance in feet</span><input required type="number" min="0.000001" step="any" value={distance} onChange={(event) => setDistance(event.target.value)} /></label>
-      <label className={styles.wideField}><span>Movement intent</span><input required maxLength={500} value={intent} onChange={(event) => setIntent(event.target.value)} placeholder="Where and why you are moving" /></label>
+      <label className="st-field"><span>Movement mode</span><select className="st-control" value={mode} onChange={(event) => setMode(event.target.value)}>{combat.initiative.movementModes.map((entry) => <option key={entry.movementMode} value={entry.movementMode}>{entry.movementMode} · {entry.baseMovement} ft per Initiative</option>)}</select></label>
+      <label className="st-field"><span>Distance in feet</span><input className="st-control" required type="number" min="0.000001" step="any" value={distance} onChange={(event) => setDistance(event.target.value)} /></label>
+      <label className={`${styles.wideField} st-field`}><span>Movement intent</span><input className="st-control" required maxLength={500} value={intent} onChange={(event) => setIntent(event.target.value)} placeholder="Where and why you are moving" /></label>
       <p className={modeChoiceStale ? styles.ruling : styles.notice}>{modeChoiceStale ? "The selected Movement mode is no longer available in live Character state. Choose a current mode." : cost === null ? "Enter a distance to calculate its Initiative Cost." : `${distance} ft costs ${cost} Initiative. This action has no Roll.`}</p>
-      <button type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || cost === null || !intent.trim()}>Declare movement</button>
+      <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || cost === null || !intent.trim()}>Declare movement</button>
     </form> : <p className={styles.ruling}>No authoritative Movement mode is available for this Character.</p>}
     <ResultMessage message={mutation.message} />
     <AttemptRecovery submission={submission} mutation={mutation} />
@@ -345,16 +351,16 @@ function WeaponActions({ characterId, combat }: { characterId: number; combat: P
   const canonicalPath = canonicalWeaponPath(selectedGovernance);
   return <section className={styles.combatSection} aria-labelledby="weapon-actions-title"><header><div><p className={styles.eyebrow}>WEAPON ACTION</p><h2 id="weapon-actions-title">Melee and authored weapons</h2></div></header>
     {weapons.length && combat.targets.length ? <form className={styles.formGrid} onSubmit={(event) => { event.preventDefault(); submission.submit("Weapon declaration", { targetParticipantId: Number(target), itemId: selected!.itemId, instanceId: selected!.instanceId, calledShotRequestId: calledShot ? Number(calledShot) : null }, (attempt, idempotencyKey) => declarePlayerWeaponAttack(characterId, combat.context.encounterId, { ...attempt, idempotencyKey }), "Weapon action locked and committed."); }}>
-      <label><span>Exact weapon</span><select value={weaponKey} onChange={(event) => { setWeaponKey(event.target.value); setCalledShot(""); }}>{weapons.map((weapon) => <option value={weapon.ownershipKey} key={weapon.ownershipKey}>{weapon.name} · {weapon.initiativeCost ?? "G.O.D. ruling"} Initiative</option>)}</select></label>
-      <label><span>Exact target</span><select value={target} onChange={(event) => { setTarget(event.target.value); setCalledShot(""); }}>{combat.targets.map((entry) => <option value={entry.participantId} key={entry.participantId}>{entry.name}</option>)}</select></label>
-      <label><span>Approved Called Shot</span><select value={calledShot} onChange={(event) => setCalledShot(event.target.value)}><option value="">None</option>{combat.rulingRequests.filter((request) => request.requestType === "called-shot" && request.status === "approved" && request.sourceRef === selected?.ownershipKey && request.sourceInstanceId === selected?.instanceId && request.targetParticipantId === Number(target)).map((request) => <option key={request.id} value={request.id}>{String(request.frozenRequest.objective ?? request.intent)} · penalty {String(request.ruling.penalty)}</option>)}</select></label>
+      <label className="st-field"><span>Weapon</span><select className="st-control" value={weaponKey} onChange={(event) => { setWeaponKey(event.target.value); setCalledShot(""); }}>{weapons.map((weapon) => <option value={weapon.ownershipKey} key={weapon.ownershipKey}>{weapon.name} · {weapon.initiativeCost ?? "G.O.D. ruling"} Initiative</option>)}</select></label>
+      <label className="st-field"><span>Target</span><select className="st-control" value={target} onChange={(event) => { setTarget(event.target.value); setCalledShot(""); }}>{combat.targets.map((entry) => <option value={entry.participantId} key={entry.participantId}>{entry.name}</option>)}</select></label>
+      <label className="st-field"><span>Approved Called Shot</span><select className="st-control" value={calledShot} onChange={(event) => setCalledShot(event.target.value)}><option value="">None</option>{combat.rulingRequests.filter((request) => request.requestType === "called-shot" && request.status === "approved" && request.sourceRef === selected?.ownershipKey && request.sourceInstanceId === selected?.instanceId && request.targetParticipantId === Number(target)).map((request) => <option key={request.id} value={request.id}>{String(request.frozenRequest.objective ?? request.intent)} · penalty {String(request.ruling.penalty)}</option>)}</select></label>
       {selectedGovernance ? <div className={governanceResolved ? styles.lockedReview : styles.ruling}>
         <strong>{governanceResolved ? `Roll over ${selectedGovernance.originalTarget}%` : "G.O.D. ruling required"}</strong>
         {canonicalPath ? <span>Global canonical path: {canonicalPath}</span> : null}
         <span>{governanceResolved ? `Character fallback: ${governingLabel(selectedGovernance.source)}` : selectedGovernance.explanation}</span>
       </div> : <p className={styles.ruling}>This weapon has no canonical governance projection. Ask the G.O.D. to review its Equipment mapping.</p>}
       {sourceChoiceStale || targetChoiceStale ? <p className={styles.ruling}>A selected weapon or target changed in live Encounter state. Choose current values before declaring.</p> : null}
-      <button type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !selected || !selectedTarget || selected.initiativeCost === null || !governanceResolved}>Declare and lock</button>
+      <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !selected || !selectedTarget || selected.initiativeCost === null || !governanceResolved}>Declare attack</button>
     </form> : <p>No currently wielded non-firearm weapon and valid target are available.</p>}
     <ResultMessage message={mutation.message} />
     <AttemptRecovery submission={submission} mutation={mutation} />
@@ -378,7 +384,7 @@ function FirearmPanel({ characterId, combat, selectedDeclarationId = null, histo
   const visibleAttacks = selectedDeclarationId === null
     ? combat.firearmAttacks.attacks
     : combat.firearmAttacks.attacks.filter(({ triggerDeclarationId }) => triggerDeclarationId === selectedDeclarationId);
-  return <section className={styles.combatSection} aria-labelledby="firearms-title"><header><div><p className={styles.eyebrow}>FIREARM RUNTIME</p><h2 id="firearms-title">Readiness, Aim and attacks</h2></div></header>
+  return <section className={styles.combatSection} aria-labelledby="firearms-title"><header><div><p className={styles.eyebrow}>FIREARM READINESS</p><h2 id="firearms-title">Readiness, Aim and attacks</h2></div></header>
     {!historyOnly && combat.firearms.legacyStacks.length ? <p className={styles.ruling}>Legacy aggregate firearms require G.O.D. initialization and are not converted here.</p> : null}
     {!historyOnly ? combat.firearms.firearms.map((firearm) => {
       const state = firearm.state;
@@ -407,43 +413,43 @@ function FirearmPanel({ characterId, combat, selectedDeclarationId = null, histo
         {modeGovernance ? <p className={firearmGovernanceResolved ? styles.notice : styles.ruling}>{firearmGovernanceResolved ? `Governing source: ${governingLabel(modeGovernance.source)}${firearmCanonicalPath ? ` · canonical ${firearmCanonicalPath}` : ""}` : modeGovernance.explanation}</p> : null}
         {firearm.readiness.blockers.length ? <ul className={styles.blockers}>{firearm.readiness.blockers.map((blocker) => <li key={blocker.code}>{blocker.message}</li>)}</ul> : null}
         {state && !firearm.preparation ? <div className={styles.actionRow}>
-          {firearm.equipmentState !== "wielded" ? <button disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("draw")}>Draw</button> : null}
-          {firearm.equipmentState === "wielded" && !state.readied ? <button disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("ready")}>Ready</button> : null}
-          {state.requiresCycling ? <button disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("cycle")}>Cycle</button> : null}
-          {state.requiresRecoilRecovery ? <button disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("recover-recoil")}>Recover recoil</button> : null}
+          {firearm.equipmentState !== "wielded" ? <button className="st-button" disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("draw")}>Draw</button> : null}
+          {firearm.equipmentState === "wielded" && !state.readied ? <button className="st-button" disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("ready")}>Ready</button> : null}
+          {state.requiresCycling ? <button className="st-button" disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("cycle")}>Cycle</button> : null}
+          {state.requiresRecoilRecovery ? <button className="st-button" disabled={mutation.busy || submission.attempt !== null} onClick={() => prep("recover-recoil")}>Recover recoil</button> : null}
         </div> : null}
         {state && !firearm.preparation ? <div className={styles.formGrid}>
-          <label><span>Rounds to load</span><input type="number" min={1} max={state.capacityRounds ?? undefined} value={preparationRounds} onChange={(event) => setPreparationRounds(event.target.value)} /></label>
-          {state.loadedRounds > 0 ? <><label><span>Partial-load handling</span><select value={partialLoadDisposition} onChange={(event) => setPartialLoadDisposition(event.target.value as typeof partialLoadDisposition)}><option value="none">Choose for unload/replacement</option><option value="retain">Return rounds to inventory</option><option value="discard">Discard rounds</option></select></label><label><span>Replace current load</span><input type="checkbox" checked={replaceLoad} onChange={(event) => setReplaceLoad(event.target.checked)} /></label>{partialLoadDisposition === "discard" ? <label><span>Discard reason</span><input required maxLength={2000} value={discardReason} onChange={(event) => setDiscardReason(event.target.value)} /></label> : null}</> : null}
+          <label className="st-field"><span>Rounds to load</span><input className="st-control" type="number" min={1} max={state.capacityRounds ?? undefined} value={preparationRounds} onChange={(event) => setPreparationRounds(event.target.value)} /></label>
+          {state.loadedRounds > 0 ? <><label className="st-field"><span>Partial-load handling</span><select className="st-control" value={partialLoadDisposition} onChange={(event) => setPartialLoadDisposition(event.target.value as typeof partialLoadDisposition)}><option value="none">Choose for unload/replacement</option><option value="retain">Return rounds to inventory</option><option value="discard">Discard rounds</option></select></label><label className={`st-field ${styles.checkboxField}`}><input type="checkbox" checked={replaceLoad} onChange={(event) => setReplaceLoad(event.target.checked)} /><span>Replace current load</span></label>{partialLoadDisposition === "discard" ? <label className="st-field"><span>Discard reason</span><input className="st-control" required maxLength={2000} value={discardReason} onChange={(event) => setDiscardReason(event.target.value)} /></label> : null}</> : null}
           {state.loadedRounds === 0
-            ? <button disabled={mutation.busy || submission.attempt !== null || !preparationRounds} onClick={() => prep("load")}>Load</button>
-            : <><button disabled={mutation.busy || submission.attempt !== null || !preparationRounds || (replaceLoad && partialLoadDisposition === "none") || (replaceLoad && partialLoadDisposition === "discard" && !discardReason.trim())} onClick={() => prep("reload")}>{replaceLoad ? "Replace load" : "Add rounds"}</button><button disabled={mutation.busy || submission.attempt !== null || partialLoadDisposition === "none" || (partialLoadDisposition === "discard" && !discardReason.trim())} onClick={() => prep("unload")}>Unload</button></>}
+            ? <button className="st-button" disabled={mutation.busy || submission.attempt !== null || !preparationRounds} onClick={() => prep("load")}>Load</button>
+            : <><button className="st-button" disabled={mutation.busy || submission.attempt !== null || !preparationRounds || (replaceLoad && partialLoadDisposition === "none") || (replaceLoad && partialLoadDisposition === "discard" && !discardReason.trim())} onClick={() => prep("reload")}>{replaceLoad ? "Replace load" : "Add rounds"}</button><button className="st-button" disabled={mutation.busy || submission.attempt !== null || partialLoadDisposition === "none" || (partialLoadDisposition === "discard" && !discardReason.trim())} onClick={() => prep("unload")}>Unload</button></>}
         </div> : null}
         {state && firearm.modes.length > 1 && !firearm.preparation ? <form className={styles.compactAction} onSubmit={(event) => {
           event.preventDefault();
           const modeId = Number(new FormData(event.currentTarget).get("mode"));
           submission.submit("Change firearm mode", { itemInstanceId: firearm.itemInstanceId, operation: "change-mode" as const, targetFiringModeId: modeId }, (attempt, idempotencyKey) => startPlayerFirearmPreparation(characterId, combat.context.encounterId, { ...attempt, idempotencyKey }), "Firing Mode change committed.");
-        }}><label><span>Firing Mode</span><select name="mode" defaultValue={state.selectedFiringModeId}>{firearm.modes.flatMap((mode) => mode.id === null ? [] : [<option key={mode.id} value={mode.id}>{mode.name}{mode.mechanicsReviewRequired ? " · review required" : ""}</option>])}</select></label><button type="submit" disabled={mutation.busy || submission.attempt !== null}>Change mode</button></form> : null}
+        }}><label className="st-field"><span>Firing Mode</span><select className="st-control" name="mode" defaultValue={state.selectedFiringModeId}>{firearm.modes.flatMap((mode) => mode.id === null ? [] : [<option key={mode.id} value={mode.id}>{mode.name}{mode.mechanicsReviewRequired ? " · review required" : ""}</option>])}</select></label><button className="st-button" type="submit" disabled={mutation.busy || submission.attempt !== null}>Change mode</button></form> : null}
         {state && selectedMode && selectedMode.id !== null && firearm.readiness.status === "ready" && combat.targets.length ? <form className={styles.formGrid} onSubmit={(event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
           const called = Number(form.get("called")) || null;
           submission.submit("Firearm declaration", { targetParticipantId: Number(target), itemInstanceId: firearm.itemInstanceId, firingModeId: selectedMode.id!, aimInitiative: Number(aim), firingDurationInitiative: Number(duration), calledShotRequestId: called }, (attempt, idempotencyKey) => declarePlayerFirearmAttack(characterId, combat.context.encounterId, { ...attempt, idempotencyKey }), "Firearm attack locked and committed.");
         }}>
-          <label><span>Target</span><select value={target} onChange={(event) => setTarget(event.target.value)}>{combat.targets.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
-          <label><span>Aim Initiative</span><input type="number" min={0} value={aim} onChange={(event) => setAim(event.target.value)} /></label>
-          <label><span>Firing duration</span><input type="number" min={1} value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
-          <label><span>Approved Called Shot</span><select name="called" defaultValue=""><option value="">None</option>{approvedCalledShots.filter((request) => request.sourceInstanceId === firearm.itemInstanceId && request.targetParticipantId === Number(target)).map((request) => <option key={request.id} value={request.id}>{String(request.frozenRequest.objective ?? request.intent)} · penalty {String(request.ruling.penalty)}</option>)}</select></label>
+          <label className="st-field"><span>Target</span><select className="st-control" value={target} onChange={(event) => setTarget(event.target.value)}>{combat.targets.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
+          <label className="st-field"><span>Aim Initiative</span><input className="st-control" type="number" min={0} value={aim} onChange={(event) => setAim(event.target.value)} /></label>
+          <label className="st-field"><span>Firing duration</span><input className="st-control" type="number" min={1} value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
+          <label className="st-field"><span>Approved Called Shot</span><select className="st-control" name="called" defaultValue=""><option value="">None</option>{approvedCalledShots.filter((request) => request.sourceInstanceId === firearm.itemInstanceId && request.targetParticipantId === Number(target)).map((request) => <option key={request.id} value={request.id}>{String(request.frozenRequest.objective ?? request.intent)} · penalty {String(request.ruling.penalty)}</option>)}</select></label>
           <p className={styles.ruling}>Changing the exact firearm, target, Profile, firing mode, or Called Shot objective requires a new declaration. Spent Aim remains spent.</p>
           {!selectedTargetAvailable ? <p className={styles.ruling}>The selected target is no longer in the live Encounter. Choose a current target before declaring.</p> : null}
-          <button type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !firearmGovernanceResolved || !selectedTargetAvailable}>Declare attack</button>
+          <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || !combat.initiative.canDeclareAction || !firearmGovernanceResolved || !selectedTargetAvailable}>Declare attack</button>
         </form> : null}
       </article>;
     }) : null}
     {visibleAttacks.map((attack) => <article className={styles.lockedReview} key={attack.id}>
       <strong>{attack.itemName} at {attack.targetName}</strong>
       <span>{titleCase(attack.effectiveStatus)} · target {attack.finalTarget}% · {attack.roundsDeclared} round{attack.roundsDeclared === 1 ? "" : "s"}{attack.aimInitiative ? ` · Aim ${attack.aimInitiative} (-${attack.aimTargetOffset})` : ""}{attack.calledShotDeclared ? ` · Called Shot ${attack.calledShotObjective} (${attack.calledShotPenalty})` : ""}</span>
-      {attack.effectiveStatus === "trigger-ready" ? <button disabled={mutation.busy} onClick={() => mutation.run(() => commitPlayerFirearmTrigger(characterId, combat.context.encounterId, attack.id), "Trigger pull committed.")}>Commit trigger</button> : null}
+      {attack.effectiveStatus === "trigger-ready" ? <button className="st-button is-primary" disabled={mutation.busy} onClick={() => mutation.run(() => commitPlayerFirearmTrigger(characterId, combat.context.encounterId, attack.id), "Trigger pull committed.")}>Pull trigger</button> : null}
       {attack.status === "committed" && attack.triggerTimingStatus === "completed" && attack.responderOpportunities.every(({ status }) => status !== "pending") ? <div className={styles.actionRow}>{attack.attackRollId === null ? <input className="st-control" aria-label="Physical firearm Roll" inputMode="numeric" pattern="[0-9]{1,3}" placeholder="01-99 or 00" value={entered} onChange={(event) => setEntered(event.target.value)} /> : <span>The attack Roll is recorded; response Rolls must finish before ammunition and outcomes are applied.</span>}<button className="st-button is-primary" disabled={mutation.busy} onClick={() => mutation.run(() => firePlayerFirearmAttack(characterId, combat.context.encounterId, attack.id, { method: "random" }), attack.attackRollId === null ? "Firearm Roll recorded." : "Firing completed from the recorded Roll.")}>{attack.attackRollId === null ? "Website Roll" : "Finish firing"}</button>{attack.attackRollId === null ? <button className="st-button is-secondary" disabled={mutation.busy || !entered.trim()} onClick={() => mutation.run(() => firePlayerFirearmAttack(characterId, combat.context.encounterId, attack.id, { method: "entered", enteredTotal: parsePhysicalPercentileInput(entered) }), "Physical firearm Roll recorded.")}>Enter physical Roll</button> : null}</div> : null}
       {attack.attackRoll ? <span>Roll {attack.attackRoll.resolution.resultTotal} · {formatAttackPercentileResult(attack.attackRoll.resolution)}</span> : null}
       {attack.bulletAllocation ? <span>{attack.bulletAllocation.survivingBulletHits} bullets survive defense · {attack.bulletAllocation.bulletsCancelled} cancelled · {attack.bulletAllocation.overflowDamage} overflow damage</span> : null}
@@ -505,14 +511,14 @@ function RulingPanel({ characterId, combat, initialType = "intervention" }: { ch
         idempotencyKey,
       }), "Ruling request sent.");
     }}>
-      <label><span>Request type</span><select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="intervention">General intervention</option><option value="ally-defense">Ally defense</option><option value="tackle">Tackle</option><option value="called-shot">Called Shot</option><option value="manual-action">Manual action</option></select></label>
-      <label><span>Intended target</span><select value={target} onChange={(event) => { setTarget(event.target.value); setLocation(""); }}><option value="">No target</option>{combat.targets.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
-      {type === "called-shot" ? <><label><span>Exact attack source</span><select required value={weaponSource} onChange={(event) => setWeaponSource(event.target.value)}>{attackSources.map((entry) => <option key={entry.ownershipKey} value={entry.ownershipKey}>{entry.name}{entry.instanceId ? " · individual item" : ""}</option>)}</select></label><label><span>Authored target location</span><select required value={location} onChange={(event) => setLocation(event.target.value)}><option value="">Choose location</option>{selectedTarget?.hitLocations.map((entry) => <option key={entry.result} value={entry.result}>{entry.name}</option>)}</select></label></> : null}
-      <label className={styles.wideField}><span>Your intent</span><textarea required maxLength={2000} value={intent} onChange={(event) => setIntent(event.target.value)} /></label>
+      <label className="st-field"><span>Request type</span><select className="st-control" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="intervention">General intervention</option><option value="ally-defense">Ally defense</option><option value="tackle">Tackle</option><option value="called-shot">Called Shot</option><option value="manual-action">Manual action</option></select></label>
+      <label className="st-field"><span>Intended target</span><select className="st-control" value={target} onChange={(event) => { setTarget(event.target.value); setLocation(""); }}><option value="">No target</option>{combat.targets.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
+      {type === "called-shot" ? <><label className="st-field"><span>Attack source</span><select className="st-control" required value={weaponSource} onChange={(event) => setWeaponSource(event.target.value)}>{attackSources.map((entry) => <option key={entry.ownershipKey} value={entry.ownershipKey}>{entry.name}{entry.instanceId ? " · individual item" : ""}</option>)}</select></label><label className="st-field"><span>Target location</span><select className="st-control" required value={location} onChange={(event) => setLocation(event.target.value)}><option value="">Choose location</option>{selectedTarget?.hitLocations.map((entry) => <option key={entry.result} value={entry.result}>{entry.name}</option>)}</select></label></> : null}
+      <label className={`${styles.wideField} st-field`}><span>Your intent</span><textarea className="st-control" required maxLength={2000} value={intent} onChange={(event) => setIntent(event.target.value)} /></label>
       {targetChoiceStale ? <p className={styles.ruling}>The selected target is no longer in the live Encounter. Choose a current target or no target before submitting.</p> : null}
-      <button type="submit" disabled={mutation.busy || submission.attempt !== null || targetChoiceStale || !intent.trim() || (type === "called-shot" && (!target || !selectedSource || !selectedLocation))}>Submit request</button>
+      <button className="st-button is-primary" type="submit" disabled={mutation.busy || submission.attempt !== null || targetChoiceStale || !intent.trim() || (type === "called-shot" && (!target || !selectedSource || !selectedLocation))}>{type === "called-shot" ? "Request Called Shot" : "Send request"}</button>
     </form>
-    {combat.rulingRequests.map((request) => <article className={styles.lockedReview} key={request.id}><strong>{titleCase(request.requestType)} · {titleCase(request.status)}</strong><span>{request.intent}{request.targetName ? ` · target ${request.targetName}` : ""}</span><small>{request.blockedReason}</small>{request.godResponse ? <span>G.O.D.: {request.godResponse}</span> : null}{rulingSummary(request.ruling) ? <small>Ruling: {rulingSummary(request.ruling)}</small> : null}<div className={styles.actionRow}>{request.status === "clarification-requested" ? <button disabled={mutation.busy} onClick={() => { const answer = window.prompt("Clarification for the G.O.D."); if (answer?.trim()) mutation.run(() => clarifyPlayerCombatRulingRequest(characterId, combat.context.encounterId, request.id, answer), "Clarification sent."); }}>Clarify</button> : null}{["pending", "clarification-requested"].includes(request.status) ? <button disabled={mutation.busy} onClick={() => mutation.run(() => cancelPlayerCombatRulingRequest(characterId, combat.context.encounterId, request.id, "Cancelled by the requesting Player."), "Request cancelled.")}>Cancel request</button> : null}</div></article>)}
+    {combat.rulingRequests.map((request) => <article className={styles.lockedReview} key={request.id}><strong>{titleCase(request.requestType)} · {titleCase(request.status)}</strong><span>{request.intent}{request.targetName ? ` · target ${request.targetName}` : ""}</span><small>{request.blockedReason}</small>{request.godResponse ? <span>G.O.D.: {request.godResponse}</span> : null}{rulingSummary(request.ruling) ? <small>Ruling: {rulingSummary(request.ruling)}</small> : null}<div className={styles.actionRow}>{request.status === "clarification-requested" ? <button className="st-button" disabled={mutation.busy} onClick={() => { const answer = window.prompt("Clarification for the G.O.D."); if (answer?.trim()) mutation.run(() => clarifyPlayerCombatRulingRequest(characterId, combat.context.encounterId, request.id, answer), "Clarification sent."); }}>Clarify</button> : null}{["pending", "clarification-requested"].includes(request.status) ? <button className="st-button is-danger" disabled={mutation.busy} onClick={() => mutation.run(() => cancelPlayerCombatRulingRequest(characterId, combat.context.encounterId, request.id, "Cancelled by the requesting Player."), "Request cancelled.")}>Cancel request</button> : null}</div></article>)}
     <ResultMessage message={mutation.message} />
     <AttemptRecovery submission={submission} mutation={mutation} />
   </section>;
@@ -589,10 +595,10 @@ function PlayerSourceCommand({
       : abilities.map((ability) => ({ key: String(ability.id), label: ability.name, detail: `${ability.activation} · ${ability.availability}${ability.costs.length ? ` · ${ability.costs.join(", ")}` : ""}`, sourceKind: "derived-ability", sourceRef: `derived-ability:${ability.id}`, sourceInstanceId: null, available: ability.availability === "Available", requiresRuling: ability.requiresGodRuling }));
   return <section className={styles.combatSection} aria-labelledby={`player-${command}-title`}>
     <header><div><p className={styles.eyebrow}>{command.toUpperCase()}</p><h2 id={`player-${command}-title`}>Choose an actual Character source</h2></div></header>
-    <p className={styles.boundaryNotice}>Only an actual unresolved rule or exception opens a G.O.D. request. A source without a supported combat executor remains clearly unavailable and is not presented as a completed action.</p>
+    <p className={styles.boundaryNotice}>Choose a source that is available to your Character. If it needs a ruling, you can send your intent to G.O.D.</p>
     {sources.length ? <div className={styles.commandSources}>{sources.map((source) => <article className={styles.combatCard} key={source.key}>
       <header><div><h3>{source.label}</h3><small>{source.detail}</small></div></header>
-      {!source.available ? <small>This source is not currently available from authoritative Character state.</small> : source.requiresRuling ? <PlayerCombatIntentButton characterId={characterId} combat={combat} sourceKind={source.sourceKind} sourceRef={source.sourceRef} sourceInstanceId={source.sourceInstanceId} label={source.label} /> : <small>This source is currently valid, but its ordinary combat declaration executor is not yet supported. No routine permission request was sent.</small>}
+      {!source.available ? <small>This source is not available right now.</small> : source.requiresRuling ? <PlayerCombatIntentButton characterId={characterId} combat={combat} sourceKind={source.sourceKind} sourceRef={source.sourceRef} sourceInstanceId={source.sourceInstanceId} label={source.label} /> : <small>This source cannot be used from this combat screen yet.</small>}
     </article>)}</div> : <p>No applicable {command} sources are currently available to this Character.</p>}
   </section>;
 }
@@ -609,7 +615,7 @@ function playerActivityEntries(
       eyebrow: declaration.actorName,
       title: declaration.lockedSnapshot?.label ?? declaration.draft.label,
       detail: `${targets.length ? `Target: ${targets.join(", ")}. ` : ""}${declaration.timing ? `${declaration.timing.remainingInitiativeCost} Initiative remains; completes at ${declaration.timing.expectedCompletionInitiative}.` : "Not committed to Initiative."}`,
-      status: titleCase(declaration.status),
+      status: actionStatusLabel(declaration.status),
       attention: ["resolved", "cancelled", "abandoned"].includes(declaration.status) ? null : declaration.rollState.message,
     };
   });
@@ -752,8 +758,8 @@ export function PlayerCombatConsole({
           {!conditionLabels.length ? <small>No active Conditions</small> : null}
         </BattleActor>
         <BattleCommands commands={commands} selected={command} onSelect={setCommand} />
-        <BattleStage eyebrow={command.replaceAll("-", " ").toUpperCase()} title={stageTitle} detail={responseCount ? `Waiting on your choice for ${responseCount} incoming exchange${responseCount === 1 ? "" : "s"}.` : "The server rechecks the exact source, target, resource cost, and Initiative state."}>
-          {selectedExchange ? <aside className={styles.lockedReview}><strong>Selected exchange: {selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span></aside> : <p className={styles.boundaryNotice}>No pending exchange is awaiting a response, Roll, ruling, or consequence.</p>}
+        <BattleStage eyebrow={command.replaceAll("-", " ").toUpperCase()} title={stageTitle} detail={responseCount ? `Choose a response for ${responseCount} incoming action${responseCount === 1 ? "" : "s"}.` : combat.initiative.canDeclareAction ? "Choose an action for your current Initiative opportunity." : "Waiting for the next combat step."}>
+          {selectedExchange ? <aside className={`${styles.lockedReview} ${styles.selectedAction}`}><strong>{selectedExchange.actorName} — {selectedExchange.lockedSnapshot?.label ?? selectedExchange.draft.label}</strong><span>{selectedExchange.rollState.message}</span><details><summary>Action details</summary><small>Combat record #{selectedExchange.id} · {actionStatusLabel(selectedExchange.status)}</small></details></aside> : <p className={styles.boundaryNotice}>No action is waiting for a response, Roll, ruling, or consequence.</p>}
           {selectedExchange ? <ResponsePanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange.id} /> : null}
           {command === "attack" ? <><WeaponActions characterId={characterId} combat={combat} /><FirearmPanel characterId={characterId} combat={combat} selectedDeclarationId={selectedExchange?.id ?? -1} /></> : null}
           {command === "cast" || command === "item" || command === "ability" ? <PlayerSourceCommand command={command} characterId={characterId} combat={combat} items={items} spells={spells} abilities={abilities} /> : null}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PlayerCalledCheckPanel } from "@/app/realms/characters/[characterId]/player-called-check-panel";
+import { CombatRecoveryCard } from "@/components/tabletop/combat-recovery-card";
 import type {
   PlayerTabletopCharacterOption,
   PlayerTabletopConsoleView,
@@ -27,15 +28,16 @@ function titleCase(value: string): string {
 }
 
 function CombatAvailabilityNotice({ availability }: { availability: PlayerTabletopConsoleView["combatAvailability"] }) {
-  return <aside className={`${styles.boundaryNotice} ${styles.closedWork}`} role="status">
-    <span>{availability.reason}</span>
-    {availability.unfinishedWork?.length ? <ul>
-      {availability.unfinishedWork.map((work) => <li key={work.declarationId}>
-        <strong>Exchange #{work.declarationId}: {work.label}</strong>
-        <span>{work.message}</span>
-      </li>)}
-    </ul> : null}
-  </aside>;
+  if (availability.unfinishedWork?.length) return <CombatRecoveryCard
+    player
+    actions={availability.unfinishedWork.map((work) => ({
+      id: work.declarationId,
+      combatantName: work.actorName,
+      actionName: work.label,
+      detail: work.message,
+    }))}
+  />;
+  return <aside className={styles.boundaryNotice} role="status">{availability.reason}</aside>;
 }
 
 function Section({

@@ -103,7 +103,7 @@ export function BattleRoster({
         ? <button
           type="button"
           key={entry.id}
-          className={entry.id === selectedId ? styles.selectedRosterEntry : undefined}
+          className={`st-button${entry.id === selectedId ? ` ${styles.selectedRosterEntry}` : ""}`}
           aria-pressed={entry.id === selectedId}
           onClick={() => onSelect(entry.id)}
         >{content}</button>
@@ -152,7 +152,7 @@ export function BattleCommands<TCommand extends string>({
   return <nav className={styles.commands} aria-label="Battle commands">{commands.map((command) => <button
     type="button"
     key={command.key}
-    className={command.key === selected ? styles.selectedCommand : undefined}
+    className={`st-button${command.key === selected ? ` ${styles.selectedCommand}` : ""}`}
     aria-pressed={command.key === selected}
     disabled={command.disabled}
     title={command.disabled ? command.disabledReason : undefined}
@@ -165,13 +165,15 @@ export function BattleStage({
   title,
   detail,
   children,
+  id,
 }: {
   eyebrow: string;
   title: string;
   detail: string;
   children: ReactNode;
+  id?: string;
 }) {
-  return <section className={styles.stage}>
+  return <section className={styles.stage} id={id} tabIndex={id ? -1 : undefined}>
     <header><div><span>{eyebrow}</span><h2>{title}</h2></div><p>{detail}</p></header>
     <div className={styles.stageBody}>{children}</div>
   </section>;
@@ -198,7 +200,7 @@ export function BattleActivity({
         {entry.attention ? <small className={styles.activityAttention}>{entry.attention}</small> : null}
       </>;
       return onSelect
-        ? <button type="button" key={entry.id} className={entry.id === selectedId ? styles.selectedActivityEntry : undefined} aria-pressed={entry.id === selectedId} onClick={() => onSelect(entry.id)}>{content}</button>
+        ? <button type="button" key={entry.id} className={`st-button${entry.id === selectedId ? ` ${styles.selectedActivityEntry}` : ""}`} aria-pressed={entry.id === selectedId} onClick={() => onSelect(entry.id)}>{content}</button>
         : <article key={entry.id}>{content}</article>;
     })}</div>
     {!entries.length ? <p className={styles.empty}>No combat activity has been recorded yet.</p> : null}
