@@ -1407,3 +1407,71 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+.battlePage {
+  padding-inline: clamp(0.55rem, 1.4vw, 1rem);
+}
+
+.battleShell {
+  width: min(104rem, 100%);
+}
+
+.battleShell :global(.tabletop-live-status) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--st-text-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.battleShell :global(.tabletop-live-status > span) {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--st-secondary);
+  box-shadow: 0 0 0.6rem currentColor;
+}
+
+.battleShell :global(.tabletop-live-status--live > span) {
+  background: var(--st-success);
+}
+
+.battleShell :global(.tabletop-live-status--reconnecting > span) {
+  background: var(--st-danger);
+}
+
+.battleEntry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  border: 1px solid var(--st-secondary-border);
+  border-radius: 0.9rem;
+  background: var(--st-secondary-soft);
+  padding: 1rem;
+}
+
+.battleEntry h2,
+.battleEntry p {
+  margin: 0;
+}
+
+.battleEntry h2 {
+  color: var(--st-text-strong);
+  font-family: "Evanescent", Georgia, serif;
+}
+
+.battleEntry > div > p:last-child {
+  margin-top: 0.3rem;
+  color: var(--st-text-secondary);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 620px) {
+  .battleEntry {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

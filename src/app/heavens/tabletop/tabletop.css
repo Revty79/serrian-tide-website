@@ -758,6 +758,74 @@
   }
 }
 
+.tabletop-battle-page {
+  padding-inline: clamp(10px, 1.5vw, 18px);
+}
+
+.tabletop-battle-page > .tabletop-feedback,
+.tabletop-battle-page > section {
+  width: min(104rem, 100%);
+  margin-inline: auto;
+}
+
+.action-declaration-workspace.is-battle-command,
+.defense-intervention-workspace.is-battle-focus {
+  margin: 0;
+  border-color: var(--st-border);
+  background: var(--st-surface-soft);
+  box-shadow: none;
+}
+
+.action-declaration-workspace.is-battle-command .action-declaration-editor {
+  gap: 8px;
+  border-color: var(--st-border);
+  background: var(--st-surface-raised);
+}
+
+.action-declaration-advanced {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border: 1px solid var(--st-border);
+  border-radius: 8px;
+  background: var(--st-surface-soft);
+}
+
+.action-declaration-advanced > summary {
+  padding: 9px 11px;
+  color: var(--st-text-secondary);
+  font-size: .75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action-declaration-advanced > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.action-declaration-workspace.is-battle-command .action-declaration-list,
+.defense-intervention-workspace.is-battle-focus .defense-resolution-list {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.action-declaration-recovery,
+.encounter-battle-disposition {
+  border: 1px solid color-mix(in srgb, var(--st-warning) 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--st-warning) 10%, transparent);
+  padding: 9px 11px;
+  color: var(--st-warning);
+}
+
+@media(max-width:620px) {
+  .action-declaration-advanced > div {
+    grid-template-columns: 1fr;
+  }
+}
+
 .encounter-battle-screen {
   display: grid;
   gap: 12px;

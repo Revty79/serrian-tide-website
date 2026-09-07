@@ -64,9 +64,13 @@ function timestamp(value: string): string {
 export function DefenseInterventionWorkspace({
   actions,
   defense,
+  compact = false,
+  selectedCombatantId = null,
 }: {
   actions: ActionDeclarationWorkspaceView;
   defense: DefenseInterventionWorkspaceView;
+  compact?: boolean;
+  selectedCombatantId?: number | null;
 }) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
@@ -81,8 +85,16 @@ export function DefenseInterventionWorkspace({
   const pending = actions.declarations.flatMap((declaration) => declaration.opportunities
     .filter(({ status, requiresGodConfirmation, responderCharacterId }) => status === "pending"
       && !requiresGodConfirmation
+      && (selectedCombatantId === null || responderCharacterId === selectedCombatantId)
       && defense.participants.find(({ characterId }) => characterId === responderCharacterId)?.choiceOwner === "god")
     .map((opportunity) => ({ declaration, opportunity })));
+  const resolutionDeclarations = actions.declarations.filter(({ id, actorCharacterId, pendingActionId, status }) => {
+    if (pendingActionId === null || !["rolling-ready", "rolling", "awaiting-god-ruling"].includes(status)) return false;
+    return selectedCombatantId === null
+      || actorCharacterId === selectedCombatantId
+      || defense.reactions.some(({ declarationId, responderCharacterId }) => declarationId === id && responderCharacterId === selectedCombatantId);
+  });
+  const headingId = compact ? "defense-intervention-battle-heading" : "defense-intervention-heading";
 
   async function perform(work: () => Promise<unknown>, message: string): Promise<void> {
     setBusy(true);
@@ -141,15 +153,15 @@ export function DefenseInterventionWorkspace({
     );
   }
 
-  return <section className="defense-intervention-workspace" aria-labelledby="defense-intervention-heading">
+  return <section className={`defense-intervention-workspace${compact ? " is-battle-focus" : ""}`} aria-labelledby={headingId}>
     <header>
-      <div><span>DEFENSE &amp; INTERVENTION</span><h6 id="defense-intervention-heading" className="font-sans">Declare first, then Roll</h6></div>
+      <div><span>DEFENSE &amp; INTERVENTION</span><h6 id={headingId} className="font-sans">Declare first, then Roll</h6></div>
       <strong>{pending.length} open opportunities</strong>
     </header>
-    <p className="action-declaration-boundary">Initiative determines candidates. The G.O.D. confirms positioning and interventions. Server snapshots determine targets, costs, governing lineage, Rolls, comparisons, refunds, and attacker extensions.</p>
+    {!compact ? <p className="action-declaration-boundary">Initiative determines candidates. The G.O.D. confirms positioning and interventions. Server snapshots determine targets, costs, governing lineage, Rolls, comparisons, refunds, and attacker extensions.</p> : null}
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
-    <details className="defense-mapping-review">
+    {!compact ? <details className="defense-mapping-review">
       <summary>Global canonical Dodge paths ({defense.dodgeMappings.length})</summary>
       <p>These paths govern Dodge for every Character. Exact allocation lineage or the path root Attribute is resolved only when a response is declared.</p>
       {defense.dodgeMappings.length ? <ul>{defense.dodgeMappings.map((mapping) => <li key={mapping.id}><b>{mapping.pathLabel}</b> · {mapping.reviewState}{mapping.conditional ? ` · conditional: ${mapping.circumstanceLabel}` : ""} <button disabled={busy} onClick={() => void perform(() => removeDodgeSkillPathMapping(defense.context.encounterId, mapping.id), "Global Dodge path removed.")}>Remove</button></li>)}</ul> : <p className="tabletop-feedback is-error">No Dodge Skill paths are configured. Dodge remains unavailable until an exact canonical path is authored and approved.</p>}
@@ -159,7 +171,7 @@ export function DefenseInterventionWorkspace({
         {dodgeConditional ? <label><span>Required circumstance</span><input disabled={busy} value={dodgeCircumstance} onChange={(event) => setDodgeCircumstance(event.target.value)} /></label> : null}
         <button disabled={busy || dodgeEndpointSkillId === 0} onClick={() => void perform(() => saveDodgeSkillPathMapping(defense.context.encounterId, { endpointSkillId: dodgeEndpointSkillId, conditional: dodgeConditional, circumstanceLabel: dodgeCircumstance, reviewState: "approved" }), "Global canonical Dodge path approved.")}>Add Approved Path</button>
       </div>
-    </details>
+    </details> : null}
 
     <div className="defense-opportunity-list">
       {pending.map(({ declaration, opportunity }) => {
@@ -222,14 +234,14 @@ export function DefenseInterventionWorkspace({
             rollRequired: draft.reactionType === "no-reaction" ? false : draft.rollRequired,
             intendedMechanicalPurpose: draft.purpose,
             godApprovalReason: draft.reason,
-          }), `${opportunity.responderName}'s ${draft.reactionType} declaration was locked and its Initiative committed.`)}>Lock Response Declaration</button>
+          }), `${opportunity.responderName}'s ${draft.reactionType} declaration was locked and its Initiative committed.`)}>{compact ? "Choose Defense" : "Lock Response Declaration"}</button>
         </article>;
       })}
       {!pending.length ? <p className="tabletop-empty">No unreconciled responder opportunities.</p> : null}
     </div>
 
     <div className="defense-resolution-list">
-      {actions.declarations.filter(({ pendingActionId, status }) => pendingActionId !== null && ["rolling-ready", "rolling", "awaiting-god-ruling"].includes(status)).map((declaration) => {
+      {resolutionDeclarations.map((declaration) => {
         const reactions = defense.reactions.filter(({ declarationId }) => declarationId === declaration.id);
         return <article key={declaration.id}>
           <header><div><span>{declaration.status.toLocaleUpperCase()}</span><strong>{declaration.actorName}: {declaration.draft.label}</strong></div><small>{reactions.length} response declarations</small></header>

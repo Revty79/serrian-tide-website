@@ -1,8 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
+import {
+  BattleActivity,
+  BattleActor,
+  BattleCommands,
+  BattleGrid,
+  BattleHeader,
+  BattleMainColumn,
+  BattleRoster,
+  BattleShell,
+  BattleStage,
+  type BattleActivityEntry,
+  type BattleCommandEntry,
+  type BattleRosterEntry,
+} from "@/components/tabletop/battle-layout";
 import type { CharacterWeaponGovernanceResult } from "@/features/items/character-weapon-governance";
 import type {
   PlayerTabletopDerivedAbility,
@@ -10,6 +25,7 @@ import type {
   PlayerTabletopSpell,
 } from "@/features/tabletop-operations/player-tabletop-console";
 import type { PlayerCombatConsoleData } from "@/features/tabletop-operations/player-tabletop-console-service";
+import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import { formatAttackPercentileResult } from "@/features/tabletop-operations/percentile-resolution";
 import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
 import {
@@ -198,10 +214,10 @@ export function PlayerCombatIntentButton({
     }, (attempt, idempotencyKey) => submitPlayerCombatRulingRequest(characterId, combat.context.encounterId, {
       ...attempt,
       idempotencyKey,
-    }), `${label} intent sent to the G.O.D.`);
+    }), `${label} ruling request sent to the G.O.D.`);
   }}>
     <label><span>Combat intent</span><input required maxLength={2000} value={intent} onChange={(event) => setIntent(event.target.value)} placeholder={`How do you want to use ${label}?`} /></label>
-    <button type="submit" disabled={mutation.busy || submission.attempt !== null || !intent.trim()}>{mutation.busy ? "Sending…" : "Request combat use"}</button>
+    <button type="submit" disabled={mutation.busy || submission.attempt !== null || !intent.trim()}>{mutation.busy ? "Sending…" : "Request G.O.D. ruling"}</button>
     <ResultMessage message={mutation.message} />
     <AttemptRecovery submission={submission} mutation={mutation} />
   </form>;
@@ -534,51 +550,177 @@ function PlayerSourceCommand({
   abilities: readonly PlayerTabletopDerivedAbility[];
 }) {
   const sources = command === "cast"
-    ? spells.map((spell) => ({ key: spell.key, label: spell.name, detail: `${spell.activationLabel} · ${spell.manaCost ?? "unresolved"} Mana`, sourceKind: "spell", sourceRef: spellSourceRef(spell), sourceInstanceId: null, usable: true }))
+    ? spells.map((spell) => ({ key: spell.key, label: spell.name, detail: `${spell.activationLabel} · ${spell.manaCost ?? "unresolved"} Mana`, sourceKind: "spell", sourceRef: spellSourceRef(spell), sourceInstanceId: null, available: spell.available, requiresRuling: spell.requiresGodRuling }))
     : command === "item"
-      ? items.filter(({ firearmState }) => firearmState === null).map((item) => ({ key: item.ownershipKey, label: item.name, detail: `${item.equipmentState} · ${item.runtimeProfile.activationLabel}`, sourceKind: "item", sourceRef: item.ownershipKey, sourceInstanceId: item.instanceId, usable: true }))
-      : abilities.map((ability) => ({ key: String(ability.id), label: ability.name, detail: `${ability.activation} · ${ability.availability}${ability.costs.length ? ` · ${ability.costs.join(", ")}` : ""}`, sourceKind: "derived-ability", sourceRef: `derived-ability:${ability.id}`, sourceInstanceId: null, usable: ability.availability === "Available" }));
+      ? items.filter(({ firearmState, runtimeProfile }) => firearmState === null && runtimeProfile.useMode !== "none").map((item) => ({ key: item.ownershipKey, label: item.name, detail: `${item.equipmentState} · ${item.runtimeProfile.activationLabel}`, sourceKind: "item", sourceRef: item.ownershipKey, sourceInstanceId: item.instanceId, available: item.canUseSafely || item.requiresGodRuling, requiresRuling: item.requiresGodRuling }))
+      : abilities.map((ability) => ({ key: String(ability.id), label: ability.name, detail: `${ability.activation} · ${ability.availability}${ability.costs.length ? ` · ${ability.costs.join(", ")}` : ""}`, sourceKind: "derived-ability", sourceRef: `derived-ability:${ability.id}`, sourceInstanceId: null, available: ability.availability === "Available", requiresRuling: ability.requiresGodRuling }));
   return <section className={styles.combatSection} aria-labelledby={`player-${command}-title`}>
     <header><div><p className={styles.eyebrow}>{command.toUpperCase()}</p><h2 id={`player-${command}-title`}>Choose an actual Character source</h2></div></header>
-    <p className={styles.boundaryNotice}>Pass 2B preserves these exact sources and current costs, but their remaining combat executors belong to Pass 3. Sending intent requests a G.O.D. ruling; it does not declare, roll, spend resources, or complete the action.</p>
+    <p className={styles.boundaryNotice}>Only an actual unresolved rule or exception opens a G.O.D. request. A source without a supported combat executor remains clearly unavailable and is not presented as a completed action.</p>
     {sources.length ? <div className={styles.commandSources}>{sources.map((source) => <article className={styles.combatCard} key={source.key}>
       <header><div><h3>{source.label}</h3><small>{source.detail}</small></div></header>
-      {source.usable ? <PlayerCombatIntentButton characterId={characterId} combat={combat} sourceKind={source.sourceKind} sourceRef={source.sourceRef} sourceInstanceId={source.sourceInstanceId} label={source.label} /> : <small>This source is not currently available, so no combat intent can be submitted from it.</small>}
+      {!source.available ? <small>This source is not currently available from authoritative Character state.</small> : source.requiresRuling ? <PlayerCombatIntentButton characterId={characterId} combat={combat} sourceKind={source.sourceKind} sourceRef={source.sourceRef} sourceInstanceId={source.sourceInstanceId} label={source.label} /> : <small>This source is currently valid, but its ordinary combat declaration executor is not yet supported. No routine permission request was sent.</small>}
     </article>)}</div> : <p>No applicable {command} sources are currently available to this Character.</p>}
   </section>;
 }
 
+function playerActivityEntries(combat: PlayerCombatConsoleData): BattleActivityEntry[] {
+  return [...combat.declarations.declarations].reverse().slice(0, 10).map((declaration) => {
+    const targetIds = declaration.lockedSnapshot?.targetCharacterIds ?? declaration.draft.targetCharacterIds;
+    const targets = targetIds.map((id) => combat.declarations.participants.find(({ characterId }) => characterId === id)?.name).filter(Boolean);
+    return {
+      id: String(declaration.id),
+      eyebrow: declaration.actorName,
+      title: declaration.lockedSnapshot?.label ?? declaration.draft.label,
+      detail: `${targets.length ? `Target: ${targets.join(", ")}. ` : ""}${declaration.timing ? `${declaration.timing.remainingInitiativeCost} Initiative remains; completes at ${declaration.timing.expectedCompletionInitiative}.` : "Not committed to Initiative."}`,
+      status: titleCase(declaration.status),
+      attention: ["resolved", "cancelled", "abandoned"].includes(declaration.status) ? null : declaration.rollState.message,
+    };
+  });
+}
+
 export function PlayerCombatConsole({
   characterId,
+  characterName,
+  campaignName,
+  encounterTitle,
+  returnHref,
   combat,
   items,
   spells,
   abilities,
   resources,
+  conditionLabels,
+  equipmentLabels,
 }: {
   characterId: number;
+  characterName: string;
+  campaignName: string;
+  encounterTitle: string;
+  returnHref: string;
   combat: PlayerCombatConsoleData;
   items: readonly PlayerTabletopOwnedItem[];
   spells: readonly PlayerTabletopSpell[];
   abilities: readonly PlayerTabletopDerivedAbility[];
   resources: Readonly<{ health: string; mana: string; relevantItems: number }>;
+  conditionLabels: readonly string[];
+  equipmentLabels: readonly string[];
 }) {
   const [command, setCommand] = useState<PlayerBattleCommand>("attack");
   const responseCount = combat.declarations.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ responderCharacterId, status }) => responderCharacterId === characterId && status === "pending").length, 0);
-  return <section className={styles.combatWorkspace} aria-labelledby="player-battle-title">
-    <header className={styles.battleHeader}>
-      <div><p className={styles.eyebrow}>ENCOUNTER BATTLE SCREEN</p><h2 id="player-battle-title">Choose, respond, Roll and resolve here</h2><p>{responseCount ? `${responseCount} response choice${responseCount === 1 ? "" : "s"} need attention.` : combat.initiative.canDeclareAction ? "Your normal Initiative opportunity is ready." : combat.initiative.blockers[0] ?? "Waiting for the next legal combat step."}</p></div>
-      <dl><div><dt>Initiative</dt><dd>{combat.initiative.currentInitiative} / {combat.initiative.normalTotalInitiative}</dd></div><div><dt>Health</dt><dd>{resources.health}</dd></div><div><dt>Mana</dt><dd>{resources.mana}</dd></div><div><dt>Items</dt><dd>{resources.relevantItems}</dd></div></dl>
-    </header>
-    <nav className={styles.battleCommands} aria-label="Battle commands">{PLAYER_BATTLE_COMMANDS.map((entry) => <button type="button" key={entry.key} className={command === entry.key ? styles.selectedCommand : undefined} aria-pressed={command === entry.key} onClick={() => setCommand(entry.key)}>{entry.label}{entry.key === "defend" && responseCount ? <span>{responseCount}</span> : null}</button>)}</nav>
-    <ResponsePanel characterId={characterId} combat={combat} />
-    {command === "attack" ? <><WeaponActions characterId={characterId} combat={combat} /><FirearmPanel characterId={characterId} combat={combat} /></> : null}
-    {command === "cast" || command === "item" || command === "ability" ? <PlayerSourceCommand command={command} characterId={characterId} combat={combat} items={items} spells={spells} abilities={abilities} /> : null}
-    {command === "defend" && responseCount === 0 ? <p className={styles.boundaryNotice}>No eligible incoming response is open. Defense choices appear here only after Initiative and the G.O.D. establish an exact opportunity.</p> : null}
-    {command === "called-shot" ? <RulingPanel characterId={characterId} combat={combat} initialType="called-shot" /> : null}
-    {command === "move-other" ? <><MovementPanel characterId={characterId} combat={combat} /><RulingPanel characterId={characterId} combat={combat} initialType="manual-action" /></> : null}
-    {command === "hold" || command === "pass" ? <InitiativePanel characterId={characterId} combat={combat} disposition={command} /> : null}
-    <DeclarationAndRollPanel characterId={characterId} combat={combat} />
-    <EffectPlans combat={combat} />
-  </section>;
+  const self = combat.declarations.participants.find(({ characterId: id }) => id === characterId) ?? null;
+  const weaponAvailable = Boolean(self?.weapons.length || combat.firearms.firearms.length);
+  const castFlowAvailable = spells.some(({ available, requiresGodRuling }) => available && requiresGodRuling);
+  const itemFlowAvailable = items.some(({ firearmState, runtimeProfile, requiresGodRuling }) => firearmState === null && runtimeProfile.useMode !== "none" && requiresGodRuling);
+  const abilityFlowAvailable = abilities.some(({ availability, requiresGodRuling }) => availability === "Available" && requiresGodRuling);
+  const commands: readonly BattleCommandEntry<PlayerBattleCommand>[] = PLAYER_BATTLE_COMMANDS.map((entry) => {
+    const availability = entry.key === "attack" || entry.key === "called-shot"
+      ? weaponAvailable && combat.targets.length > 0
+      : entry.key === "cast"
+        ? castFlowAvailable
+        : entry.key === "item"
+          ? itemFlowAvailable
+          : entry.key === "ability"
+            ? abilityFlowAvailable
+            : entry.key === "defend"
+              ? responseCount > 0
+              : entry.key === "move-other"
+                ? combat.initiative.movementModes.length > 0
+                : combat.initiative.canDeclareAction;
+    return {
+      ...entry,
+      badge: entry.key === "defend" ? responseCount : undefined,
+      disabled: !availability,
+      disabledReason: entry.key === "defend"
+        ? "No eligible incoming response is open."
+        : entry.key === "cast" || entry.key === "item" || entry.key === "ability"
+          ? "No actual source has either a supported combat executor or a genuinely unresolved ruling."
+          : "This command has no currently available source or legal Initiative opportunity.",
+    };
+  });
+  const rosterEntries: BattleRosterEntry[] = [
+    {
+      id: characterId,
+      eyebrow: "Your Character",
+      name: characterName,
+      detail: campaignName,
+      initiative: String(combat.initiative.currentInitiative),
+      status: titleCase(combat.initiative.participationStatus),
+      attention: responseCount ? "Choose Defense" : combat.initiative.canDeclareAction ? "Ready to act" : null,
+      controllable: true,
+    },
+    ...combat.targets.map((target) => ({
+      id: target.participantId,
+      eyebrow: "Visible target",
+      name: target.name,
+      detail: "Visible Encounter summary",
+      initiative: String(target.currentInitiative),
+      status: titleCase(target.participationStatus),
+      controllable: false,
+    })),
+  ];
+  const attention = responseCount
+    ? `${responseCount} response choice${responseCount === 1 ? "" : "s"} need attention.`
+    : combat.initiative.canDeclareAction
+      ? "Your normal Initiative opportunity is ready."
+      : combat.initiative.blockers[0] ?? "Waiting for the next legal combat step.";
+  const stageTitle = command === "defend"
+    ? "Choose Defense"
+    : command === "hold" || command === "pass"
+      ? `${titleCase(command)} Initiative`
+      : command === "called-shot"
+        ? "Request a Called Shot ruling"
+        : command === "move-other"
+          ? "Move or state other intent"
+          : `Choose ${titleCase(command)}`;
+
+  return <BattleShell labelledBy="player-battle-title">
+    <BattleHeader
+      titleId="player-battle-title"
+      eyebrow="REALMS / ACTIVE ENCOUNTER"
+      title={encounterTitle}
+      summary={attention}
+      metrics={[
+        { label: "Round", value: combat.initiative.roundNumber, detail: `Step ${combat.initiative.stepNumber}` },
+        { label: "Initiative", value: combat.initiative.currentInitiative, detail: `${combat.initiative.normalTotalInitiative} normal` },
+        { label: "Health", value: resources.health },
+        { label: "Mana", value: resources.mana },
+      ]}
+      actions={<><TabletopLiveRefresh mode="player" characterId={characterId} scope="console" /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link><Link className="st-button" href={`/realms/characters/${characterId}`}>Character Sheet</Link></>}
+    />
+    <BattleGrid>
+      <BattleRoster entries={rosterEntries} selectedId={characterId} />
+      <BattleMainColumn>
+        <BattleActor
+          eyebrow="Your combatant"
+          name={characterName}
+          detail={campaignName}
+          status={responseCount ? "Defense required" : combat.initiative.canDeclareAction ? "Ready to act" : "Waiting"}
+          metrics={[
+            { label: "Health", value: resources.health },
+            { label: "Mana", value: resources.mana },
+            { label: "Initiative", value: combat.initiative.currentInitiative, detail: `${combat.initiative.deferredInitiativeCost} deferred` },
+            { label: "Equipment", value: equipmentLabels.length || "—", detail: `${resources.relevantItems} owned Items` },
+          ]}
+        >
+          {equipmentLabels.slice(0, 4).map((label) => <span key={label}>{label}</span>)}
+          {conditionLabels.slice(0, 4).map((label) => <small key={label}>{label}</small>)}
+          {!conditionLabels.length ? <small>No active Conditions</small> : null}
+        </BattleActor>
+        <BattleCommands commands={commands} selected={command} onSelect={setCommand} />
+        <BattleStage eyebrow={command.replaceAll("-", " ").toUpperCase()} title={stageTitle} detail={responseCount ? `Waiting on your choice for ${responseCount} incoming exchange${responseCount === 1 ? "" : "s"}.` : "The server rechecks the exact source, target, resource cost, and Initiative state."}>
+          <ResponsePanel characterId={characterId} combat={combat} />
+          {command === "attack" ? <><WeaponActions characterId={characterId} combat={combat} /><FirearmPanel characterId={characterId} combat={combat} /></> : null}
+          {command === "cast" || command === "item" || command === "ability" ? <PlayerSourceCommand command={command} characterId={characterId} combat={combat} items={items} spells={spells} abilities={abilities} /> : null}
+          {command === "defend" && responseCount === 0 ? <p className={styles.boundaryNotice}>No eligible incoming response is open. Defense choices appear only when the authoritative timeline creates one.</p> : null}
+          {command === "called-shot" ? <RulingPanel characterId={characterId} combat={combat} initialType="called-shot" /> : null}
+          {command === "move-other" ? <><MovementPanel characterId={characterId} combat={combat} /><RulingPanel characterId={characterId} combat={combat} initialType="manual-action" /></> : null}
+          {command === "hold" || command === "pass" ? <InitiativePanel characterId={characterId} combat={combat} disposition={command} /> : null}
+          <DeclarationAndRollPanel characterId={characterId} combat={combat} />
+          <EffectPlans combat={combat} />
+        </BattleStage>
+      </BattleMainColumn>
+      <BattleActivity entries={playerActivityEntries(combat)} title="Pending and recent" />
+    </BattleGrid>
+  </BattleShell>;
 }

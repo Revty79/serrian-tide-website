@@ -187,9 +187,7 @@ export function EncounterWorkspace({
   const router = useRouter();
   const selectedEncounter = initialData.selectedEncounter;
   const [creating, setCreating] = useState(false);
-  const [activeSection, setActiveSection] = useState<"prep" | "battle" | "closeout">(() => (
-    selectedEncounter?.status === "active" && initialInitiativeTracker?.runtime?.runtime.status === "active" ? "battle" : "prep"
-  ));
+  const [activeSection, setActiveSection] = useState<"prep" | "battle" | "closeout">("prep");
   const [draft, setDraft] = useState<EncounterMetadataInput>(() => selectedEncounter
     ? metadataFromEncounter(selectedEncounter)
     : emptyEncounterMetadata(initialData));
@@ -205,6 +203,10 @@ export function EncounterWorkspace({
   function encounterHref(encounterId?: number): string {
     const base = `/heavens/tabletop?campaign=${initialData.campaignId}&session=${initialData.sessionId}&scene=${initialData.sceneId}`;
     return encounterId ? `${base}&encounter=${encounterId}` : base;
+  }
+
+  function battleHref(encounterId: number): string {
+    return `${encounterHref(encounterId)}&mode=battle`;
   }
 
   async function perform(work: () => Promise<void>): Promise<void> {
@@ -266,7 +268,8 @@ export function EncounterWorkspace({
       setFeedback({ kind: "success", message: `Encounter ${updated.sequenceNumber} is now ${updated.status}.` });
       setTransitionMode(null);
       setTransitionPreview(null);
-      router.refresh();
+      if (action === "start") router.push(battleHref(updated.id), { scroll: false });
+      else router.refresh();
     });
   }
 
@@ -361,7 +364,7 @@ export function EncounterWorkspace({
 
         {!creating && selectedEncounter ? <nav className="tabletop-encounter-tabs" aria-label="Encounter workspace">
           <button type="button" className={activeSection === "prep" ? "is-selected" : ""} onClick={() => setActiveSection("prep")}>Encounter Prep</button>
-          <button type="button" className={activeSection === "battle" ? "is-selected" : ""} onClick={() => setActiveSection("battle")}>Battle {initialInitiativeTracker?.runtime?.runtime.status === "active" ? <span>Active</span> : initialActionDeclarations?.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length ? <span>{initialActionDeclarations.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length}</span> : null}</button>
+          <button type="button" className={activeSection === "battle" ? "is-selected" : ""} onClick={() => selectedEncounter.status === "active" ? router.push(battleHref(selectedEncounter.id), { scroll: false }) : setActiveSection("battle")}>{selectedEncounter.status === "active" ? "Resume Encounter" : "Battle Setup"} {initialInitiativeTracker?.runtime?.runtime.status === "active" ? <span>Active</span> : initialActionDeclarations?.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length ? <span>{initialActionDeclarations.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length}</span> : null}</button>
           <button type="button" className={activeSection === "closeout" ? "is-selected" : ""} onClick={() => setActiveSection("closeout")}>Closeout {initialCloseout?.blockers.length ? <span>{initialCloseout.blockers.length}</span> : null}</button>
         </nav> : null}
 
@@ -392,8 +395,8 @@ export function EncounterWorkspace({
               if (selectedEncounter) setDraft(metadataFromEncounter(selectedEncounter));
               setFeedback(null);
             }}>Cancel</button> : null}
-            {initialData.canOperate && !creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start Encounter</button> : null}
-            {initialData.canOperate && !creating && selectedEncounter?.status === "active" && parentsActive ? <button type="button" disabled={busy} onClick={() => setActiveSection("closeout")}>Review Closeout</button> : null}
+            {initialData.canOperate && !creating && selectedEncounter?.status === "planned" && parentsActive ? <button type="button" className="is-primary" disabled={busy} onClick={() => void openTransitionConfirmation("start")}>Start &amp; Run Encounter</button> : null}
+            {initialData.canOperate && !creating && selectedEncounter?.status === "active" && parentsActive ? <><button type="button" className="is-primary" disabled={busy} onClick={() => router.push(battleHref(selectedEncounter.id), { scroll: false })}>Resume Encounter</button><button type="button" disabled={busy} onClick={() => setActiveSection("closeout")}>Review Closeout</button></> : null}
             {initialData.canOperate && !creating && selectedEncounter?.status === "completed" && parentsActive ? <button type="button" disabled={busy} onClick={() => void openTransitionConfirmation("reopen")}>Reopen Encounter</button> : null}
             {!creating && selectedEncounter?.status === "planned" && initialData.canManagePersistent && parentsPermitPreparation ? <button type="button" className="is-danger" disabled={busy} onClick={() => void openDeleteConfirmation()}>Delete Planned Encounter</button> : null}
           </div>
@@ -434,8 +437,11 @@ export function EncounterWorkspace({
             </div> : null}
           </section> : null}
         </> : !editorVisible ? <p className="tabletop-empty">Select an Encounter or create a new one.</p> : null}
-        {!creating && selectedEncounter && activeSection === "battle" ? initialInitiativeTracker
+        {!creating && selectedEncounter && selectedEncounter.status !== "active" && activeSection === "battle" ? initialInitiativeTracker
           ? <EncounterBattleScreen
+            campaignId={initialData.campaignId}
+            returnHref={encounterHref(selectedEncounter.id)}
+            initialSelectedCombatantId={null}
             initiative={initialInitiativeTracker}
             combatAid={initialCombatAid}
             declarations={initialActionDeclarations}

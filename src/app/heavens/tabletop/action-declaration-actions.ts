@@ -1,8 +1,10 @@
 "use server";
 
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { campaignSessionEncounterActionDeclaration } from "@/db/tabletop-operations-schema";
 import {
   abandonActionDeclarationInTransaction,
   addExceptionalResponderOpportunityInTransaction,
@@ -24,7 +26,10 @@ import {
   reviseLockedActionDeclarationInTransaction,
   type ActionDeclarationWorkspaceView,
 } from "@/features/tabletop-operations/action-declaration-service";
-import type { ActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
+import {
+  parseActionDeclarationDraft,
+  type ActionDeclarationDraft,
+} from "@/features/tabletop-operations/action-declaration";
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
@@ -39,6 +44,12 @@ function positiveId(value: number, label: string): number {
 function participantKey(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
   return value;
+}
+
+function submissionKey(value: string): string {
+  const normalized = value.trim();
+  if (!/^[a-f0-9]{32}$/.test(normalized)) throw new Error("The action submission identity is invalid.");
+  return normalized;
 }
 
 function refreshDeclarations(): void {
@@ -95,6 +106,40 @@ export async function createActionDeclarationDraft(encounterId: number, draft: A
   return mutateDeclaration(encounterId, (tx, context, actor) => (
     createActionDeclarationDraftInTransaction(tx, context, actor, draft)
   ));
+}
+
+export async function declareGodAction(
+  encounterId: number,
+  draft: ActionDeclarationDraft,
+  idempotencyKey: string,
+): Promise<number> {
+  return mutateDeclaration(encounterId, async (tx, context, actor) => {
+    const submissionId = submissionKey(idempotencyKey);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`serrian-tide:god-action:${context.campaignId}:${actor.userId}:${submissionId}`}))`);
+    const submitted = parseActionDeclarationDraft({
+      ...draft,
+      sourcePayload: { ...draft.sourcePayload, submissionId },
+    });
+    const existing = await tx.select({
+      id: campaignSessionEncounterActionDeclaration.id,
+      draft: campaignSessionEncounterActionDeclaration.draftJson,
+    }).from(campaignSessionEncounterActionDeclaration).where(and(
+      eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
+      eq(campaignSessionEncounterActionDeclaration.actorCharacterId, submitted.actorCharacterId),
+      eq(campaignSessionEncounterActionDeclaration.createdByUserId, actor.userId),
+    ));
+    const reused = existing.find(({ draft: stored }) => parseActionDeclarationDraft(stored).sourcePayload?.submissionId === submissionId);
+    if (reused) {
+      if (JSON.stringify(parseActionDeclarationDraft(reused.draft)) !== JSON.stringify(submitted)) {
+        throw new Error("That action submission identity was already used for a different exact declaration.");
+      }
+      return reused.id;
+    }
+    const declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, submitted);
+    await lockActionDeclarationInTransaction(tx, context, actor, declarationId);
+    await commitActionDeclarationInTransaction(tx, context, actor, declarationId);
+    return declarationId;
+  });
 }
 
 export async function editActionDeclarationDraft(encounterId: number, declarationId: number, draft: ActionDeclarationDraft): Promise<void> {

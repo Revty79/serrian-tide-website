@@ -101,6 +101,19 @@ export type CombatAidParticipant = {
     creatureTemplateName: string | null;
   };
   health: ActiveHealthView | null;
+  occurrenceState: null | {
+    maximumHp: number | null;
+    totalDamage: number;
+    remainingHp: number | null;
+    pools: Array<{
+      key: string;
+      name: string;
+      maximumHp: number | null;
+      damage: number;
+      remainingHp: number | null;
+    }>;
+    conditions: string[];
+  };
   mana: ActiveManaView | null;
   effects: ActiveEffectsView | null;
   durationBindings: TabletopDurationBindingView[];
@@ -165,6 +178,58 @@ export type CombatAidEncounterView = {
 
 type SectionName = CombatAidParticipant["errors"][number]["section"];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readOccurrenceState(
+  snapshot: unknown,
+  localState: unknown,
+): CombatAidParticipant["occurrenceState"] {
+  if (!isRecord(snapshot) || !isRecord(localState)) return null;
+  const core = isRecord(snapshot.core) ? snapshot.core : {};
+  const maximumHp = typeof core.totalHp === "number" && Number.isFinite(core.totalHp) ? core.totalHp : null;
+  const health = isRecord(localState.health) ? localState.health : {};
+  const totalDamage = typeof health.totalDamage === "number" && Number.isFinite(health.totalDamage) && health.totalDamage >= 0
+    ? health.totalDamage
+    : 0;
+  const poolDamage = isRecord(health.poolDamage) ? health.poolDamage : {};
+  const pools = Array.isArray(snapshot.hpPools) ? snapshot.hpPools.flatMap((candidate) => {
+    if (!isRecord(candidate) || typeof candidate.canonicalId !== "string" || typeof candidate.poolName !== "string") return [];
+    const damage = typeof poolDamage[candidate.canonicalId] === "number" && Number.isFinite(poolDamage[candidate.canonicalId])
+      ? Math.max(0, Number(poolDamage[candidate.canonicalId]))
+      : 0;
+    const poolMaximum = typeof candidate.maximumHp === "number" && Number.isFinite(candidate.maximumHp)
+      ? candidate.maximumHp
+      : null;
+    return [{
+      key: candidate.canonicalId,
+      name: candidate.poolName,
+      maximumHp: poolMaximum,
+      damage,
+      remainingHp: poolMaximum === null ? null : Math.max(0, poolMaximum - damage),
+    }];
+  }) : [];
+  const conditions = Array.isArray(localState.conditions) ? localState.conditions.flatMap((candidate) => {
+    if (!isRecord(candidate)) return [];
+    const label = typeof candidate.name === "string"
+      ? candidate.name
+      : typeof candidate.label === "string"
+        ? candidate.label
+        : typeof candidate.effectKey === "string"
+          ? candidate.effectKey.replaceAll("-", " ")
+          : null;
+    return label?.trim() ? [label.trim()] : [];
+  }) : [];
+  return {
+    maximumHp,
+    totalDamage,
+    remainingHp: maximumHp === null ? null : Math.max(0, maximumHp - totalDamage),
+    pools,
+    conditions,
+  };
+}
+
 async function readSection<T>(
   section: SectionName,
   errors: CombatAidParticipant["errors"],
@@ -216,6 +281,8 @@ export async function readCombatAidEncounterInTransaction(
       playerName: user.name,
       playerUsername: user.username,
       creatureTemplateName: creature.canonicalName,
+      creatureSnapshot: campaignSessionEncounterParticipant.creatureSnapshotJson,
+      localState: campaignSessionEncounterParticipant.localStateJson,
     }).from(campaignSessionEncounterParticipant)
       .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
       .leftJoin(user, eq(user.id, campaignCharacter.playerUserId))
@@ -392,6 +459,7 @@ export async function readCombatAidEncounterInTransaction(
       health: directCreature ? null : await readSection("health", errors, async () => (
         await readActiveHealthInTransaction(tx, row.characterId, row.npcKind === "creature" ? "creature" : "race")
       ).view),
+      occurrenceState: directCreature ? readOccurrenceState(row.creatureSnapshot, row.localState) : null,
       mana: directCreature ? null : await readSection("mana", errors, () => readActiveManaInTransaction(tx, row.characterId)),
       effects,
       durationBindings,

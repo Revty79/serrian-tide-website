@@ -53,11 +53,13 @@ export function PlayerTabletopWorkspace({
   view,
   shopVisit,
   shopCommerce,
+  requestedMode,
 }: {
   characters: readonly PlayerTabletopCharacterOption[];
   view: PlayerTabletopConsoleView;
   shopVisit: ShopVisitView | null;
   shopCommerce: ShopCommerceView | null;
+  requestedMode: "battle" | "reference" | null;
 }) {
   const activeConditions = view.effects.conditions.filter(({ resolvedAt }) => resolvedAt === null);
   const activeModifiers = view.effects.modifiers.filter(({ endedAt }) => endedAt === null);
@@ -75,6 +77,36 @@ export function PlayerTabletopWorkspace({
       at: entry.endedAt!,
     })),
   ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 30);
+  const battleHref = `/realms/tabletop?character=${view.identity.characterId}&mode=battle`;
+  const referenceHref = `/realms/tabletop?character=${view.identity.characterId}&mode=reference`;
+  const equipmentLabels = view.items
+    .filter(({ equipmentState }) => !["inactive", "stowed", "owned"].includes(equipmentState.toLowerCase()))
+    .map(({ name, equipmentState }) => `${name} (${equipmentState})`);
+
+  if (view.combat && !shopVisit && requestedMode !== "reference") {
+    return <main className={`${styles.page} ${styles.battlePage}`}>
+      <div className={`${styles.shell} ${styles.battleShell}`}>
+        <PlayerCombatConsole
+          characterId={view.identity.characterId}
+          characterName={view.identity.characterName}
+          campaignName={view.identity.campaignName}
+          encounterTitle={view.encounter?.title ?? "Active Encounter"}
+          returnHref={referenceHref}
+          combat={view.combat}
+          items={view.items}
+          spells={view.spells}
+          abilities={view.derivedAbilities}
+          resources={{
+            health: `${view.health.total.remainingHp ?? "—"} / ${view.health.total.maximumHp ?? "—"}`,
+            mana: view.mana.pools.length ? String(view.mana.pools.reduce((sum, pool) => sum + pool.currentMana, 0)) : "—",
+            relevantItems: view.items.length,
+          }}
+          conditionLabels={activeConditions.map(({ name }) => name)}
+          equipmentLabels={equipmentLabels}
+        />
+      </div>
+    </main>;
+  }
 
   return <main className={styles.page}>
     <div className={styles.shell}>
@@ -157,18 +189,14 @@ export function PlayerTabletopWorkspace({
         </div> : <p className={styles.emptyCopy}>No Scene locations have been revealed to players.</p>}
       </Section> : null}
 
-      {view.combat ? <PlayerCombatConsole
-        characterId={view.identity.characterId}
-        combat={view.combat}
-        items={view.items}
-        spells={view.spells}
-        abilities={view.derivedAbilities}
-        resources={{
-          health: `${view.health.total.remainingHp ?? "—"} / ${view.health.total.maximumHp ?? "—"}`,
-          mana: view.mana.pools.length ? String(view.mana.pools.reduce((sum, pool) => sum + pool.currentMana, 0)) : "—",
-          relevantItems: view.items.length,
-        }}
-      /> : null}
+      {view.combat ? <section className={styles.battleEntry} aria-labelledby="player-active-encounter-entry">
+        <div>
+          <p className={styles.eyebrow}>ACTIVE ENCOUNTER</p>
+          <h2 id="player-active-encounter-entry">{view.encounter?.title ?? "Return to combat"}</h2>
+          <p>The encounter runner keeps the roster, your combatant, commands, focused exchange, and pending activity in one shared layout.</p>
+        </div>
+        <Link className="st-button" href={battleHref}>Resume Encounter</Link>
+      </section> : null}
 
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
 

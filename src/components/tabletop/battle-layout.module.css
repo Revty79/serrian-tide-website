@@ -1,0 +1,526 @@
+.shell {
+  display: grid;
+  gap: 1rem;
+  color: var(--st-text);
+}
+
+.header,
+.roster,
+.actor,
+.stage,
+.activity,
+.secondary {
+  border: 1px solid var(--st-border);
+  border-radius: 0.9rem;
+  background: var(--st-surface);
+  box-shadow: var(--st-shadow);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1.4fr) minmax(24rem, 2fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.15rem;
+  border-color: var(--st-border-strong);
+  background: var(--st-surface-raised);
+}
+
+.headerCopy > span,
+.actor header span,
+.stage > header span,
+.roster > header span,
+.activity > header span {
+  color: var(--st-secondary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.headerCopy h1,
+.actor h2,
+.stage h2 {
+  margin: 0.12rem 0 0;
+  color: var(--st-text-strong);
+  font-family: "Evanescent", Georgia, serif;
+}
+
+.headerCopy h1 {
+  font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+}
+
+.headerCopy p,
+.actor header p,
+.stage > header p {
+  margin: 0.25rem 0 0;
+  color: var(--st-text-secondary);
+  font-size: 0.82rem;
+}
+
+.metrics,
+.actorMetrics {
+  display: grid;
+  margin: 0;
+}
+
+.metrics {
+  grid-template-columns: repeat(4, minmax(5rem, 1fr));
+  border: 1px solid var(--st-border);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  background: var(--st-surface-soft);
+}
+
+.metrics > div,
+.actorMetrics > div {
+  min-width: 0;
+  padding: 0.62rem 0.7rem;
+}
+
+.metrics > div + div,
+.actorMetrics > div + div {
+  border-left: 1px solid var(--st-border);
+}
+
+.metrics dt,
+.actorMetrics dt {
+  color: var(--st-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metrics dd,
+.actorMetrics dd {
+  margin: 0.12rem 0 0;
+  color: var(--st-text-strong);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.metrics small,
+.actorMetrics small {
+  display: block;
+  margin-top: 0.1rem;
+  overflow: hidden;
+  color: var(--st-text-soft);
+  font-size: 0.67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.headerActions a,
+.headerActions button {
+  min-height: 2.25rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.72fr) minmax(28rem, 2fr) minmax(16rem, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.mainColumn {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.roster,
+.activity {
+  position: sticky;
+  top: 0.75rem;
+  max-height: calc(100vh - 1.5rem);
+  overflow: hidden;
+}
+
+.roster > header,
+.activity > header,
+.actor > header,
+.stage > header {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--st-border);
+}
+
+.roster > header div,
+.activity > header div {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.roster > header strong,
+.activity > header strong {
+  color: var(--st-text-strong);
+  font-family: "Evanescent", Georgia, serif;
+}
+
+.roster > header b,
+.activity > header b {
+  min-width: 1.65rem;
+  padding: 0.18rem 0.35rem;
+  border: 1px solid var(--st-secondary-border);
+  border-radius: 999px;
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary);
+  text-align: center;
+}
+
+.rosterList,
+.activityList {
+  display: grid;
+  gap: 0.4rem;
+  max-height: calc(100vh - 6rem);
+  padding: 0.55rem;
+  overflow-y: auto;
+}
+
+.rosterList > button,
+.rosterList > article,
+.activityList > article {
+  display: grid;
+  width: 100%;
+  gap: 0.25rem;
+  padding: 0.65rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.65rem;
+  background: var(--st-surface-soft);
+  color: var(--st-text);
+  text-align: left;
+}
+
+.rosterList > button {
+  cursor: pointer;
+}
+
+.rosterList > button:hover,
+.rosterList > button:focus-visible {
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  outline: none;
+}
+
+.rosterList > .selectedRosterEntry {
+  border-color: var(--st-secondary-border);
+  background: var(--st-secondary-soft);
+  box-shadow: inset 3px 0 0 var(--st-secondary);
+}
+
+.rosterTopline,
+.activityTopline,
+.rosterFooter {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rosterTopline small,
+.activityTopline small {
+  color: var(--st-muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rosterTopline em,
+.activityTopline em,
+.actor > header em {
+  color: var(--st-text-soft);
+  font-size: 0.65rem;
+  font-style: normal;
+  text-transform: capitalize;
+}
+
+.rosterList strong,
+.activityList strong {
+  color: var(--st-text-strong);
+  font-size: 0.86rem;
+}
+
+.rosterDetail,
+.rosterFooter,
+.activityList p {
+  margin: 0;
+  color: var(--st-text-secondary);
+  font-size: 0.7rem;
+}
+
+.rosterFooter b {
+  font-weight: 700;
+}
+
+.rosterAttention,
+.activityAttention {
+  padding: 0.28rem 0.38rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--st-warning) 13%, transparent);
+  color: var(--st-warning);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.actor {
+  overflow: hidden;
+  background: var(--st-surface-raised);
+}
+
+.actor > header > div {
+  min-width: 0;
+}
+
+.actor h2,
+.stage h2 {
+  font-size: 1.1rem;
+}
+
+.actor > header em {
+  padding: 0.3rem 0.52rem;
+  border: 1px solid var(--st-primary-border);
+  border-radius: 999px;
+  background: var(--st-primary-soft);
+  color: var(--st-primary);
+  white-space: nowrap;
+}
+
+.actorMetrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--st-border);
+}
+
+.actorDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
+}
+
+.actorDetails > span,
+.actorDetails > small {
+  padding: 0.26rem 0.42rem;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  background: var(--st-surface-soft);
+  color: var(--st-text-secondary);
+  font-size: 0.67rem;
+}
+
+.commands {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(4rem, 1fr));
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.8rem;
+  background: var(--st-surface-deep);
+}
+
+.commands button {
+  display: flex;
+  min-height: 2.65rem;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.35rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.55rem;
+  background: var(--st-surface-raised);
+  color: var(--st-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.commands button:hover:not(:disabled),
+.commands button:focus-visible:not(:disabled) {
+  border-color: var(--st-secondary-border);
+  color: var(--st-text-strong);
+  outline: none;
+}
+
+.commands button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.commands button.selectedCommand {
+  border-color: var(--st-primary-border);
+  background: var(--st-primary-soft);
+  color: var(--st-primary);
+}
+
+.commands b {
+  min-width: 1.15rem;
+  padding: 0.08rem 0.24rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--st-warning) 16%, transparent);
+  color: var(--st-warning);
+  font-size: 0.62rem;
+}
+
+.stage {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stage > header {
+  align-items: center;
+  background: var(--st-surface-raised);
+}
+
+.stage > header p {
+  max-width: 24rem;
+  text-align: right;
+}
+
+.stageBody {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.8rem;
+}
+
+.activityList > article {
+  background: var(--st-surface-raised);
+}
+
+.activityList p {
+  line-height: 1.45;
+}
+
+.secondary {
+  overflow: hidden;
+}
+
+.secondary > summary {
+  padding: 0.8rem 1rem;
+  background: var(--st-surface-raised);
+  color: var(--st-text-strong);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondary > div {
+  padding: 0.8rem;
+  border-top: 1px solid var(--st-border);
+}
+
+.empty {
+  margin: 0;
+  padding: 0.8rem;
+  color: var(--st-muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1180px) {
+  .header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .metrics {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .headerActions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .grid {
+    grid-template-columns: minmax(12rem, 0.65fr) minmax(28rem, 2fr);
+  }
+
+  .activity {
+    position: static;
+    grid-column: 1 / -1;
+    max-height: none;
+  }
+
+  .activityList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+
+  .commands {
+    grid-template-columns: repeat(5, minmax(4rem, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .header,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .headerActions,
+  .metrics {
+    grid-column: 1;
+  }
+
+  .headerActions {
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+
+  .metrics,
+  .actorMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metrics > div:nth-child(odd),
+  .actorMetrics > div:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .metrics > div:nth-child(n + 3),
+  .actorMetrics > div:nth-child(n + 3) {
+    border-top: 1px solid var(--st-border);
+  }
+
+  .roster,
+  .activity {
+    position: static;
+    max-height: none;
+  }
+
+  .rosterList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+
+  .activityList {
+    grid-template-columns: 1fr;
+  }
+
+  .commands {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stage > header {
+    display: grid;
+  }
+
+  .stage > header p {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .rosterList,
+  .commands {
+    grid-template-columns: 1fr 1fr;
+  }
+}

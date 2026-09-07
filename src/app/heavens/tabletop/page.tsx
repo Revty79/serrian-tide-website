@@ -41,6 +41,8 @@ export default async function TabletopOperationsPage({
     weaponMode?: string;
     firearmCharacter?: string;
     firearmInstance?: string;
+    mode?: string;
+    actor?: string;
   }>;
 }) {
   await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
@@ -54,6 +56,8 @@ export default async function TabletopOperationsPage({
   const requestedWeaponModeId = Number(query.weaponMode);
   const requestedFirearmCharacterId = Number(query.firearmCharacter);
   const requestedFirearmInstanceId = Number(query.firearmInstance);
+  const requestedActorId = Number(query.actor);
+  const battleActorId = Number.isSafeInteger(requestedActorId) && requestedActorId !== 0 ? requestedActorId : null;
   const workspace = await getTabletopWorkspace(
     Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
       ? requestedCampaignId
@@ -116,7 +120,7 @@ export default async function TabletopOperationsPage({
   const firearmReadiness = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getFirearmReadinessWorkspace(
         encounterWorkspace.selectedEncounter.id,
-        Number.isInteger(requestedFirearmCharacterId) && requestedFirearmCharacterId !== 0 ? requestedFirearmCharacterId : null,
+        Number.isInteger(requestedFirearmCharacterId) && requestedFirearmCharacterId !== 0 ? requestedFirearmCharacterId : battleActorId,
         Number.isInteger(requestedFirearmInstanceId) && requestedFirearmInstanceId > 0 ? requestedFirearmInstanceId : null,
       )
     : null;
@@ -179,6 +183,8 @@ export default async function TabletopOperationsPage({
       initialCalledChecks={calledChecks}
       initialWeaponGovernance={weaponGovernance}
       requestedSessionId={selectedSessionId}
+      requestedMode={query.mode === "reference" ? "reference" : query.mode === "battle" ? "battle" : null}
+      requestedCombatantId={battleActorId}
       requestedWorkspace={canOperateTable
         ? query.workspace === "weapons"
           ? "weapons"

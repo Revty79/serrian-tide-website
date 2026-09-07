@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { ActionDeclarationWorkspaceView } from "./action-declaration-service";
@@ -127,4 +128,60 @@ test("uncertain retry reuses the complete captured attempt despite edited inputs
     requestedTiming: "Round 1, Initiative 11",
   });
   assert.strictEqual(retried, captured);
+});
+
+test("active encounters use the same dedicated battle composition for G.O.D. and Player", () => {
+  const shared = readFileSync("src/components/tabletop/battle-layout.tsx", "utf8");
+  const sharedStyles = readFileSync("src/components/tabletop/battle-layout.module.css", "utf8");
+  const godPage = readFileSync("src/app/heavens/tabletop/page.tsx", "utf8");
+  const godWorkspace = readFileSync("src/app/heavens/tabletop/tabletop-workspace.tsx", "utf8");
+  const godBattle = readFileSync("src/app/heavens/tabletop/encounter-battle-screen.tsx", "utf8");
+  const playerPage = readFileSync("src/app/realms/tabletop/page.tsx", "utf8");
+  const playerWorkspace = readFileSync("src/app/realms/tabletop/player-tabletop-workspace.tsx", "utf8");
+  const playerBattle = readFileSync("src/app/realms/tabletop/player-combat-console.tsx", "utf8");
+
+  for (const component of ["BattleHeader", "BattleRoster", "BattleActor", "BattleCommands", "BattleStage", "BattleActivity"]) {
+    assert.match(shared, new RegExp(`export function ${component}`));
+    assert.match(godBattle, new RegExp(`<${component}`));
+    assert.match(playerBattle, new RegExp(`<${component}`));
+  }
+  assert.match(sharedStyles, /var\(--st-surface-raised\)/);
+  assert.match(sharedStyles, /var\(--st-secondary-border\)/);
+  assert.doesNotMatch(sharedStyles, /#[0-9a-f]{3,8}\b/i);
+  assert.match(godPage, /mode\?: string/);
+  assert.match(godWorkspace, /requestedMode !== "reference"/);
+  assert.match(godWorkspace, /selectedEncounter\?\.status === "active"/);
+  assert.match(godBattle, /params\.set\("actor", String\(characterId\)\)/);
+  assert.match(playerPage, /mode\?: string \| string\[\]/);
+  assert.match(playerWorkspace, /requestedMode !== "reference"/);
+  assert.match(playerWorkspace, />Resume Encounter</);
+});
+
+test("G.O.D. direct declarations are atomic, duplicate-safe, and keep firearms on their dedicated flow", () => {
+  const actions = readFileSync("src/app/heavens/tabletop/action-declaration-actions.ts", "utf8");
+  const workspace = readFileSync("src/app/heavens/tabletop/action-declaration-workspace.tsx", "utf8");
+
+  assert.match(actions, /export async function declareGodAction/);
+  assert.match(actions, /pg_advisory_xact_lock/);
+  assert.match(actions, /sourcePayload: \{ \.\.\.draft\.sourcePayload, submissionId \}/);
+  assert.match(actions, /createActionDeclarationDraftInTransaction/);
+  assert.match(actions, /lockActionDeclarationInTransaction/);
+  assert.match(actions, /commitActionDeclarationInTransaction/);
+  assert.match(workspace, /firingModes\.length === 0/);
+  assert.match(workspace, /Firearms use the per-bullet Firearm flow below/);
+  assert.match(workspace, /Retry exact declaration/);
+  const battle = readFileSync("src/app/heavens/tabletop/encounter-battle-screen.tsx", "utf8");
+  assert.match(battle, /initialCalledShot=\{command === "called-shot"\}/);
+});
+
+test("direct Creature battle summaries read occurrence-local health without changing signed participant keys", () => {
+  const service = readFileSync("src/features/tabletop-operations/combat-aid-service.ts", "utf8");
+  const battle = readFileSync("src/app/heavens/tabletop/encounter-battle-screen.tsx", "utf8");
+
+  assert.match(service, /creatureSnapshot: campaignSessionEncounterParticipant\.creatureSnapshotJson/);
+  assert.match(service, /localState: campaignSessionEncounterParticipant\.localStateJson/);
+  assert.match(service, /occurrenceState: directCreature/);
+  assert.match(service, /readOccurrenceState\(row\.creatureSnapshot, row\.localState\)/);
+  assert.match(battle, /participant\.occurrenceState/);
+  assert.match(battle, /params\.set\("actor", String\(characterId\)\)/);
 });

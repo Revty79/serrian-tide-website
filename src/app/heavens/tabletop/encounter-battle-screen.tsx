@@ -1,10 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  BattleActivity,
+  BattleActor,
+  BattleCommands,
+  BattleGrid,
+  BattleHeader,
+  BattleMainColumn,
+  BattleRoster,
+  BattleSecondary,
+  BattleShell,
+  BattleStage,
+  type BattleActivityEntry,
+  type BattleCommandEntry,
+  type BattleRosterEntry,
+} from "@/components/tabletop/battle-layout";
 import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
-import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
+import type { CombatAidEncounterView, CombatAidParticipant } from "@/features/tabletop-operations/combat-aid-service";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
 import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
@@ -12,6 +28,7 @@ import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firear
 import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
 import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
+import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 
 import {
   ActionDeclarationWorkspace,
@@ -29,43 +46,51 @@ import { holdEncounterInitiative, passEncounterInitiative } from "./initiative-a
 
 type BattleCommand = BattleDeclarationPreset["command"] | "defend" | "hold" | "pass";
 
-const COMMANDS: readonly Readonly<{ key: BattleCommand; label: string }>[] = [
-  { key: "attack", label: "Attack" },
-  { key: "cast", label: "Cast" },
-  { key: "item", label: "Item" },
-  { key: "ability", label: "Ability" },
-  { key: "defend", label: "Defend" },
-  { key: "called-shot", label: "Called Shot" },
-  { key: "move-other", label: "Move / Other" },
-  { key: "hold", label: "Hold" },
-  { key: "pass", label: "Pass" },
-];
-
 function titleCase(value: string): string {
   return value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function ExchangeOverview({ view, effects }: { view: ActionDeclarationWorkspaceView; effects: ActionEffectWorkspaceView | null }) {
-  const declarations = [...view.declarations].reverse().slice(0, 12);
-  return <section className="encounter-battle-exchanges" aria-labelledby="encounter-exchanges-title">
-    <header><div><span>CURRENT EXCHANGES &amp; HISTORY</span><h3 id="encounter-exchanges-title" className="font-sans">Actions stay attached to timing, responses and Rolls</h3></div><strong>{view.declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status)).length} open</strong></header>
-    <div>{declarations.map((declaration) => {
-      const targetIds = declaration.lockedSnapshot?.targetCharacterIds ?? declaration.draft.targetCharacterIds;
-      const targetNames = targetIds.map((characterId) => view.participants.find((participant) => participant.characterId === characterId)?.name).filter((name): name is string => Boolean(name));
-      const result = effects?.plans.find(({ declarationId }) => declarationId === declaration.id) ?? null;
-      return <article key={declaration.id}>
-      <header><div><strong>{declaration.actorName}</strong><span>{declaration.lockedSnapshot?.label ?? declaration.draft.label}</span></div><em className={`tabletop-status is-${declaration.status}`}>{titleCase(declaration.status)}</em></header>
-      <p>{targetNames.length ? `Target${targetNames.length === 1 ? "" : "s"}: ${targetNames.join(", ")}.` : "No target selected."}</p>
-      <p>{declaration.timing ? `Started at ${declaration.timing.startInitiative}; ${declaration.timing.remainingInitiativeCost} Initiative remains; completion ${declaration.timing.expectedCompletionInitiative}.` : "Not yet committed to Initiative."}</p>
-      <small>{declaration.rollState.message}</small>
-      {declaration.opportunities.length ? <small>{declaration.opportunities.filter(({ status }) => status === "pending").length} response choice{declaration.opportunities.filter(({ status }) => status === "pending").length === 1 ? "" : "s"} pending.</small> : null}
-      {result ? <small>Consequences: {titleCase(result.status)}.</small> : null}
-    </article>})}</div>
-    {!declarations.length ? <p className="tabletop-empty">No action history has been recorded for this Encounter.</p> : null}
-  </section>;
+function participantDetail(participant: CombatAidParticipant | null, choiceOwner: "god" | "player"): string {
+  if (participant?.identity.playerName) return `Player: ${participant.identity.playerName}`;
+  if (participant?.identity.creatureTemplateName) return `Creature: ${participant.identity.creatureTemplateName}`;
+  return choiceOwner === "player" ? "Player controlled" : participant?.identity.kindLabel ?? "Encounter participant";
+}
+
+function healthValue(participant: CombatAidParticipant | null): { value: string; detail: string } {
+  if (participant?.occurrenceState) return {
+    value: `${participant.occurrenceState.remainingHp ?? "?"} / ${participant.occurrenceState.maximumHp ?? "?"}`,
+    detail: `${participant.occurrenceState.totalDamage} occurrence damage`,
+  };
+  if (participant?.health) return {
+    value: `${participant.health.total.remainingHp ?? "?"} / ${participant.health.total.maximumHp ?? "?"}`,
+    detail: `${participant.health.total.damage} damage`,
+  };
+  return { value: "Unavailable", detail: "No resolved Health view" };
+}
+
+function activityEntries(view: ActionDeclarationWorkspaceView | null): BattleActivityEntry[] {
+  if (!view) return [];
+  return [...view.declarations].reverse().slice(0, 10).map((declaration) => {
+    const targetIds = declaration.lockedSnapshot?.targetCharacterIds ?? declaration.draft.targetCharacterIds;
+    const targets = targetIds.map((id) => view.participants.find(({ characterId }) => characterId === id)?.name).filter(Boolean);
+    const timing = declaration.timing
+      ? `${declaration.timing.remainingInitiativeCost} Initiative remains; completes at ${declaration.timing.expectedCompletionInitiative}.`
+      : "Not committed to Initiative.";
+    return {
+      id: String(declaration.id),
+      eyebrow: declaration.actorName,
+      title: declaration.lockedSnapshot?.label ?? declaration.draft.label,
+      detail: `${targets.length ? `Target: ${targets.join(", ")}. ` : ""}${timing}`,
+      status: titleCase(declaration.status),
+      attention: ["resolved", "cancelled", "abandoned"].includes(declaration.status) ? null : declaration.rollState.message,
+    };
+  });
 }
 
 export function EncounterBattleScreen({
+  campaignId,
+  returnHref,
+  initialSelectedCombatantId,
   initiative,
   combatAid,
   declarations,
@@ -76,6 +101,9 @@ export function EncounterBattleScreen({
   playerRulings,
   rollWorkspace,
 }: {
+  campaignId: number;
+  returnHref: string;
+  initialSelectedCombatantId: number | null;
   initiative: InitiativeTrackerReadModel;
   combatAid: CombatAidEncounterView | null;
   declarations: ActionDeclarationWorkspaceView | null;
@@ -87,21 +115,92 @@ export function EncounterBattleScreen({
   rollWorkspace: RollWorkspaceView | null;
 }) {
   const router = useRouter();
-  const godCombatants = declarations?.participants.filter(({ choiceOwner }) => choiceOwner === "god") ?? [];
-  const firstCombatantId = godCombatants.find(({ participationStatus }) => participationStatus === "active")?.characterId ?? godCombatants[0]?.characterId ?? 0;
-  const [selectedCombatantId, setSelectedCombatantId] = useState(firstCombatantId);
-  const selectedCombatant = godCombatants.find(({ characterId }) => characterId === selectedCombatantId) ?? godCombatants[0] ?? null;
-  const selectedCombatState = combatAid?.participants.find(({ identity }) => identity.characterId === selectedCombatant?.characterId) ?? null;
-  const battleSourceChoices: BattleDeclarationSourceChoice[] = selectedCombatState ? [
-    ...selectedCombatState.spellSources.map((spell) => ({
+  const presentationParticipants = declarations?.participants ?? initiative.participants.map((participant) => ({
+    characterId: participant.characterId,
+    name: participant.name,
+    currentInitiative: participant.currentInitiative,
+    participationStatus: participant.participationStatus,
+    hasActiveAction: participant.activeActionId !== null,
+    choiceOwner: participant.playerName ? "player" as const : "god" as const,
+    weapons: [],
+    movementModes: participant.movementModes,
+    hitLocations: [],
+    creatureAttacks: [],
+  }));
+  const firstSelected = presentationParticipants.some(({ characterId }) => characterId === initialSelectedCombatantId)
+    ? initialSelectedCombatantId!
+    : presentationParticipants.find(({ characterId, choiceOwner }) => choiceOwner === "god" && initiative.nextEvent?.characterIds.includes(characterId))?.characterId
+      ?? presentationParticipants.find(({ choiceOwner, participationStatus }) => choiceOwner === "god" && participationStatus === "active")?.characterId
+      ?? presentationParticipants[0]?.characterId
+      ?? 0;
+  const [selectedCombatantId, setSelectedCombatantId] = useState(firstSelected);
+  const selectedCombatant = presentationParticipants.find(({ characterId }) => characterId === selectedCombatantId) ?? null;
+  const selectedState = combatAid?.participants.find(({ identity }) => identity.characterId === selectedCombatantId) ?? null;
+  const trackerParticipant = initiative.participants.find(({ characterId }) => characterId === selectedCombatantId) ?? null;
+  const actorIsGodControlled = selectedCombatant?.choiceOwner === "god";
+  const declarationOpportunityAvailable = Boolean(actorIsGodControlled && trackerParticipant?.canAct && !selectedCombatant?.hasActiveAction);
+  const [command, setCommand] = useState<BattleCommand>("attack");
+  const [presetVersion, setPresetVersion] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const responseCount = declarations?.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ status }) => status === "pending").length, 0) ?? 0;
+  const focusedResponseCount = declarations?.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ responderCharacterId, status }) => responderCharacterId === selectedCombatantId && status === "pending").length, 0) ?? 0;
+  const resultCount = effects?.plans.filter(({ status }) => !["applied", "declined"].includes(status)).length ?? 0;
+  const focusedResolution = declarations?.declarations.some((declaration) => (
+    ["rolling-ready", "rolling", "awaiting-god-ruling"].includes(declaration.status)
+    && (declaration.actorCharacterId === selectedCombatantId || declaration.opportunities.some(({ responderCharacterId }) => responderCharacterId === selectedCombatantId))
+  )) ?? false;
+  const firearmAttackAvailable = Boolean(selectedCombatant?.weapons.some(({ firingModes }) => firingModes.length > 0));
+  const declarationAttackAvailable = Boolean(selectedCombatant?.creatureAttacks.length || selectedCombatant?.weapons.some(({ firingModes }) => firingModes.length === 0));
+  const attackAvailable = firearmAttackAvailable || declarationAttackAvailable;
+  const castAvailable = Boolean(selectedState?.spellSources.length);
+  const itemAvailable = Boolean(selectedState?.resources && (
+    selectedState.resources.stacks.some(({ runtime }) => runtime.useMode !== "none")
+    || selectedState.resources.chargedInstances.length
+  ));
+  const abilityAvailable = Boolean(selectedState?.creatureAbilities.length || selectedState?.derivedAbilities.length);
+  const moveAvailable = Boolean(selectedCombatant?.movementModes.length || declarationOpportunityAvailable);
+  const declarationCommand = command !== "defend" && command !== "hold" && command !== "pass";
+  const health = healthValue(selectedState);
+  const manaPools = selectedState?.mana?.pools ?? [];
+  const manaCurrent = manaPools.reduce((sum, pool) => sum + pool.currentMana, 0);
+  const equipmentCount = (selectedState?.equipment?.wieldedWeapons.length ?? 0) + (selectedState?.equipment?.wornArmor.length ?? 0);
+  const conditions = selectedState?.occurrenceState?.conditions ?? selectedState?.effects?.conditions.map(({ name }) => name) ?? [];
+  const commandDefinitions: readonly BattleCommandEntry<BattleCommand>[] = [
+    { key: "attack", label: "Attack", disabled: !actorIsGodControlled || !attackAvailable, disabledReason: actorIsGodControlled ? "No wielded Weapon or authored Creature Attack is available." : "This combatant's choices belong to their Player." },
+    { key: "cast", label: "Cast", disabled: !actorIsGodControlled || !castAvailable, disabledReason: actorIsGodControlled ? "No current Spell source is available." : "This combatant's choices belong to their Player." },
+    { key: "item", label: "Item", disabled: !actorIsGodControlled || !itemAvailable, disabledReason: actorIsGodControlled ? "No operational Item source is available." : "This combatant's choices belong to their Player." },
+    { key: "ability", label: "Ability", disabled: !actorIsGodControlled || !abilityAvailable, disabledReason: actorIsGodControlled ? "No currently available Ability is loaded." : "This combatant's choices belong to their Player." },
+    { key: "defend", label: "Defend", badge: focusedResponseCount, disabled: !actorIsGodControlled || focusedResponseCount === 0, disabledReason: focusedResponseCount ? "This response belongs to the Player." : "No eligible incoming response is open for this combatant." },
+    { key: "called-shot", label: "Called Shot", disabled: !actorIsGodControlled || !attackAvailable, disabledReason: actorIsGodControlled ? "A Called Shot requires an actual attack source." : "This combatant's choices belong to their Player." },
+    { key: "move-other", label: "Move / Other", disabled: !actorIsGodControlled || !moveAvailable, disabledReason: actorIsGodControlled ? "No authoritative Movement or other action opportunity is available." : "This combatant's choices belong to their Player." },
+    { key: "hold", label: "Hold", disabled: !actorIsGodControlled || !trackerParticipant?.canHold, disabledReason: actorIsGodControlled ? "Hold is unavailable at the current Initiative state." : "This combatant's choices belong to their Player." },
+    { key: "pass", label: "Pass", disabled: !actorIsGodControlled || !trackerParticipant?.canPass, disabledReason: actorIsGodControlled ? "Pass is unavailable at the current Initiative state." : "This combatant's choices belong to their Player." },
+  ];
+  const rosterEntries: BattleRosterEntry[] = presentationParticipants.map((participant) => {
+    const state = combatAid?.participants.find(({ identity }) => identity.characterId === participant.characterId) ?? null;
+    const pending = declarations?.declarations.find(({ actorCharacterId, status }) => actorCharacterId === participant.characterId && !["resolved", "cancelled", "abandoned"].includes(status));
+    return {
+      id: participant.characterId,
+      eyebrow: state?.identity.kindLabel ?? "Participant",
+      name: participant.name,
+      detail: participantDetail(state, participant.choiceOwner),
+      initiative: String(participant.currentInitiative),
+      status: titleCase(participant.participationStatus),
+      attention: pending?.rollState.message ?? (initiative.nextEvent?.characterIds.includes(participant.characterId) ? "Needs to act" : null),
+      controllable: participant.choiceOwner === "god",
+    };
+  });
+  const battleSourceChoices: BattleDeclarationSourceChoice[] = selectedState ? [
+    ...selectedState.spellSources.map((spell) => ({
       key: `spell:${spell.kind}:${"allocationId" in spell ? spell.allocationId : spell.savedSpellId}`,
       kind: "spell" as const,
       ref: spell.kind === "catalog" ? `spell:catalog:${spell.allocationId}` : spell.kind === "personal" ? `spell:personal:${spell.savedSpellId}` : `spell:raw-saved:${spell.savedSpellId}`,
       instanceId: null,
       label: spell.name,
-      detail: spell.kind === "catalog" ? "Catalog Spell" : spell.kind === "personal" ? "Spellbook source" : "Saved formula with no framework",
+      detail: spell.kind === "catalog" ? "Known Catalog Spell" : spell.kind === "personal" ? "Personal Spellbook" : "Saved formula requiring review",
     })),
-    ...(selectedCombatState.resources?.stacks ?? []).filter(({ runtime }) => runtime.useMode !== "charges").map((item) => ({
+    ...(selectedState.resources?.stacks ?? []).filter(({ runtime }) => runtime.useMode !== "none").map((item) => ({
       key: `item:stack:${item.itemId}`,
       kind: "item" as const,
       ref: `item:${item.itemId}`,
@@ -109,7 +208,7 @@ export function EncounterBattleScreen({
       label: item.itemName,
       detail: `${item.runtime.activationLabel} · ${item.quantity} available`,
     })),
-    ...(selectedCombatState.resources?.chargedInstances ?? []).map((item) => ({
+    ...(selectedState.resources?.chargedInstances ?? []).map((item) => ({
       key: `item:instance:${item.instanceId}`,
       kind: "item" as const,
       ref: `item:${item.itemId}`,
@@ -117,7 +216,7 @@ export function EncounterBattleScreen({
       label: item.itemName,
       detail: `${item.currentCharges} / ${item.maximumCharges ?? "?"} charges`,
     })),
-    ...selectedCombatState.creatureAbilities.map((ability) => ({
+    ...selectedState.creatureAbilities.map((ability) => ({
       key: `creature-ability:${ability.canonicalId}`,
       kind: "creature-ability" as const,
       ref: ability.canonicalId,
@@ -125,7 +224,7 @@ export function EncounterBattleScreen({
       label: ability.abilityName,
       detail: `${ability.activation}${ability.requirements ? ` · ${ability.requirements}` : ""}`,
     })),
-    ...selectedCombatState.derivedAbilities.map((ability) => ({
+    ...selectedState.derivedAbilities.map((ability) => ({
       key: `derived-ability:${ability.id}`,
       kind: "derived-ability" as const,
       ref: `derived-ability:${ability.id}`,
@@ -134,15 +233,27 @@ export function EncounterBattleScreen({
       detail: `${titleCase(ability.activation)} · currently available`,
     })),
   ] : [];
-  const selectionStale = selectedCombatantId !== 0 && selectedCombatant?.characterId !== selectedCombatantId;
-  const [command, setCommand] = useState<BattleCommand>("attack");
-  const [presetVersion, setPresetVersion] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const trackerParticipant = initiative.participants.find(({ characterId }) => characterId === selectedCombatant?.characterId) ?? null;
-  const responseCount = declarations?.declarations.reduce((total, declaration) => total + declaration.opportunities.filter(({ status }) => status === "pending").length, 0) ?? 0;
-  const resultCount = effects?.plans.filter(({ status }) => !["applied", "declined"].includes(status)).length ?? 0;
-  const declarationCommand = command !== "defend" && command !== "hold" && command !== "pass";
+  const firearmWorkspace = (command === "attack" || command === "called-shot")
+    && firearmAttackAvailable
+    && firearmReadiness
+    && firearmReadiness.selectedCharacterId === selectedCombatantId
+    ? <>
+      <FirearmReadinessWorkspace view={firearmReadiness} />
+      {firearmAttacks ? <FirearmAttackWorkspace key={`${selectedCombatantId}:${command}`} readiness={firearmReadiness} attackView={firearmAttacks} initialCalledShot={command === "called-shot"} /> : null}
+    </>
+    : null;
+
+  function selectCombatant(characterId: number): void {
+    setSelectedCombatantId(characterId);
+    setCommand("attack");
+    setFeedback(null);
+    setPresetVersion((value) => value + 1);
+    const params = new URLSearchParams(window.location.search);
+    params.set("actor", String(characterId));
+    params.set("firearmCharacter", String(characterId));
+    params.delete("firearmInstance");
+    router.replace(`/heavens/tabletop?${params.toString()}`, { scroll: false });
+  }
 
   function chooseCommand(next: BattleCommand): void {
     setCommand(next);
@@ -151,7 +262,7 @@ export function EncounterBattleScreen({
   }
 
   async function disposition(kind: "hold" | "pass"): Promise<void> {
-    if (!selectedCombatant || selectionStale) return;
+    if (!selectedCombatant || !actorIsGodControlled) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -166,32 +277,91 @@ export function EncounterBattleScreen({
     }
   }
 
-  return <section className="encounter-battle-screen" aria-labelledby="encounter-battle-title">
-    <header className="encounter-battle-header">
-      <div><span>UNIFIED ENCOUNTER RUNTIME</span><h2 id="encounter-battle-title" className="font-sans">{initiative.encounter.title}</h2><p>{initiative.nextEvent?.summary ?? "Initialize Initiative to begin battle operations."}</p></div>
-      {initiative.runtime ? <dl><div><dt>Round</dt><dd>{initiative.runtime.runtime.roundNumber}</dd></div><div><dt>Step</dt><dd>{initiative.runtime.runtime.stepNumber}</dd></div><div><dt>Timeline</dt><dd>{initiative.runtime.runtime.timelineInitiative}</dd></div><div><dt>Responses</dt><dd>{responseCount}</dd></div><div><dt>Results</dt><dd>{resultCount}</dd></div></dl> : null}
-    </header>
+  const attention = responseCount
+    ? `${responseCount} response choice${responseCount === 1 ? "" : "s"} need attention.`
+    : resultCount
+      ? `${resultCount} result${resultCount === 1 ? "" : "s"} need review.`
+      : initiative.nextEvent?.summary ?? "Initialize Initiative to begin battle operations.";
 
-    <div className="encounter-battle-controlbar">
-      <label className="st-field"><span>NPC or Creature to control</span><select className="st-control" value={selectionStale ? "" : selectedCombatant?.characterId ?? ""} onChange={(event) => { setSelectedCombatantId(Number(event.target.value)); setPresetVersion((value) => value + 1); }}><option value="">Choose a G.O.D.-controlled combatant</option>{godCombatants.map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name} · Initiative {participant.currentInitiative} · {titleCase(participant.participationStatus)}</option>)}</select></label>
-      {selectedCombatant ? <p><strong>{selectedCombatant.name}</strong><span>{selectedCombatant.hasActiveAction ? "Action in progress" : trackerParticipant?.isCurrentOpportunity ? "Normal opportunity ready" : "Waiting on the shared timeline"}</span></p> : null}
-    </div>
-    {selectionStale ? <p className="tabletop-feedback is-error">The previously selected combatant left this live Encounter. The first available G.O.D.-controlled combatant is shown; choose again before declaring.</p> : null}
+  return <BattleShell labelledBy="encounter-battle-title">
+    <BattleHeader
+      titleId="encounter-battle-title"
+      eyebrow="THE HEAVENS / RUN ENCOUNTER"
+      title={initiative.encounter.title}
+      summary={attention}
+      metrics={[
+        { label: "Round", value: initiative.runtime?.runtime.roundNumber ?? "—" },
+        { label: "Initiative", value: initiative.runtime?.runtime.timelineInitiative ?? "—", detail: initiative.nextEvent?.eyebrow },
+        { label: "Responses", value: responseCount },
+        { label: "Results", value: resultCount },
+      ]}
+      actions={<><TabletopLiveRefresh mode="god" campaignId={campaignId} /><Link className="st-button is-secondary" href={returnHref}>Tabletop Reference</Link></>}
+    />
 
-    <nav className="encounter-battle-commands" aria-label="Battle commands">{COMMANDS.map((entry) => <button type="button" key={entry.key} className={command === entry.key ? "is-selected" : ""} aria-pressed={command === entry.key} disabled={selectionStale || (!selectedCombatant && !["defend"].includes(entry.key))} onClick={() => chooseCommand(entry.key)}>{entry.label}{entry.key === "defend" && responseCount ? <span>{responseCount}</span> : null}{entry.key === "attack" && resultCount ? <span>{resultCount}</span> : null}</button>)}</nav>
+    {!selectedCombatant && selectedCombatantId !== 0 ? <p className="tabletop-feedback is-error">The selected combatant left this Encounter. The roster has not switched you to someone else; choose a current participant.</p> : null}
     {feedback ? <p className={`tabletop-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
 
-    <details className="encounter-battle-timeline" open><summary>Shared Initiative and ongoing actions</summary><InitiativeTracker data={initiative} /></details>
-    {declarations ? <ExchangeOverview view={declarations} effects={effects} /> : <section className="encounter-battle-exchanges"><p className="tabletop-empty">Initialize Initiative to open the shared exchange history.</p></section>}
-    {effects ? <ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} compact /> : null}
+    <BattleGrid>
+      <BattleRoster entries={rosterEntries} selectedId={selectedCombatantId} onSelect={selectCombatant} />
+      <BattleMainColumn>
+        {selectedCombatant ? <BattleActor
+          eyebrow={selectedState?.identity.kindLabel ?? "Selected participant"}
+          name={selectedCombatant.name}
+          detail={participantDetail(selectedState, selectedCombatant.choiceOwner)}
+          status={selectedCombatant.choiceOwner === "god" ? (selectedCombatant.hasActiveAction ? "Action in progress" : trackerParticipant?.isCurrentOpportunity ? "Ready to act" : "Waiting") : `Waiting for ${selectedCombatant.name}`}
+          metrics={[
+            { label: "Health", value: health.value, detail: health.detail },
+            { label: "Mana", value: manaPools.length ? manaCurrent : "—", detail: manaPools.length ? `${manaPools.length} active pool${manaPools.length === 1 ? "" : "s"}` : "No active Mana pool" },
+            { label: "Initiative", value: selectedCombatant.currentInitiative, detail: trackerParticipant ? `${trackerParticipant.normalTotalInitiative} normal` : "Not enrolled" },
+            { label: "Equipment", value: equipmentCount || "—", detail: equipmentCount ? "Wielded and worn" : "None active" },
+          ]}
+        >
+          {(selectedState?.equipment?.wieldedWeapons ?? []).slice(0, 3).map((weapon) => <span key={weapon.ownershipKey}>{weapon.itemName} · {weapon.initiativeCost ?? "?"} Initiative</span>)}
+          {(selectedState?.creatureAttacks ?? []).slice(0, 3).map((attack) => <span key={attack.canonicalId}>{attack.attackName} · {attack.damage ?? "damage ruling"}</span>)}
+          {conditions.slice(0, 4).map((condition) => <small key={condition}>{condition}</small>)}
+          {!conditions.length ? <small>No active Conditions</small> : null}
+        </BattleActor> : <p className="tabletop-empty">Choose an Encounter participant to inspect.</p>}
 
-    {command === "hold" || command === "pass" ? <section className="encounter-battle-operation"><header><div><span>{command.toUpperCase()}</span><h3 className="font-sans">Set {selectedCombatant?.name ?? "combatant"}&apos;s Initiative disposition</h3></div></header><p>This command records the existing {command === "hold" ? "Hold" : "Pass"} disposition through the authoritative Initiative tracker.</p><button className="st-button is-primary" type="button" disabled={busy || selectionStale || !selectedCombatant || (command === "hold" ? !trackerParticipant?.canHold : !trackerParticipant?.canPass)} onClick={() => void disposition(command)}>{command === "hold" ? "Hold Initiative" : "Pass Initiative"}</button>{trackerParticipant && !(command === "hold" ? trackerParticipant.canHold : trackerParticipant.canPass) ? <small>This command is unavailable at the current authoritative Initiative state.</small> : null}</section> : null}
+        {initiative.runtime ? <BattleCommands commands={commandDefinitions} selected={command} onSelect={chooseCommand} /> : null}
 
-    {declarationCommand && declarations && selectedCombatant && !selectionStale ? <section className="encounter-battle-operation"><header><div><span>{command.replaceAll("-", " ").toUpperCase()}</span><h3 className="font-sans">Declare for {selectedCombatant.name}</h3></div></header>{command === "cast" || command === "item" || command === "ability" ? <p className="tabletop-feedback">Choose a source loaded from this combatant&apos;s current state. Remaining end-to-end executors are Pass 3 boundaries; a preview or intent is not a completed action, and no prepared-Spell mechanic is implied.</p> : null}<ActionDeclarationWorkspace key={`${selectedCombatant.characterId}:${command}:${presetVersion}`} view={declarations} battlePreset={{ actorCharacterId: selectedCombatant.characterId, command }} battleSourceChoices={battleSourceChoices} />{command === "attack" || command === "called-shot" ? <>{firearmReadiness ? <FirearmReadinessWorkspace view={firearmReadiness} /> : null}{firearmReadiness && firearmAttacks ? <FirearmAttackWorkspace readiness={firearmReadiness} attackView={firearmAttacks} /> : null}</> : null}</section> : null}
+        {!initiative.runtime ? <BattleStage eyebrow="START COMBAT" title="Initialize the shared Initiative runtime" detail="Enrollment and capacities remain authoritative."><InitiativeTracker data={initiative} /></BattleStage> : selectedCombatant ? <BattleStage
+          eyebrow={actorIsGodControlled ? command.replaceAll("-", " ").toUpperCase() : "PLAYER CONTROLLED"}
+          title={actorIsGodControlled ? command === "defend" ? `Choose ${selectedCombatant.name}'s defense` : command === "hold" || command === "pass" ? `${titleCase(command)} ${selectedCombatant.name}'s Initiative` : `Act as ${selectedCombatant.name}` : `Waiting for ${selectedCombatant.name}`}
+          detail={focusedResponseCount ? `${focusedResponseCount} incoming response choice${focusedResponseCount === 1 ? "" : "s"} available.` : focusedResolution ? "Continue the current declaration, Roll, defense, or result here." : trackerParticipant?.isCurrentOpportunity ? "This combatant has the current normal opportunity." : "Other eligible combatants may act while this one waits."}
+        >
+          {!actorIsGodControlled ? <p className="tabletop-feedback">This Player owns their ordinary action and defense choices. G.O.D. visibility does not transfer control or response knowledge.</p> : null}
+          {actorIsGodControlled && declarationCommand && !declarationOpportunityAvailable ? <p className="tabletop-feedback">No legal normal action opportunity is open for this combatant. Existing declarations, responses, Rolls, and results remain available below.</p> : null}
 
-    {command === "defend" && declarations && defenses ? <section className="encounter-battle-operation"><header><div><span>DEFEND</span><h3 className="font-sans">Resolve only eligible incoming responses</h3></div></header><DefenseInterventionWorkspace actions={declarations} defense={defenses} /></section> : null}
-    {declarations ? <PlayerCombatRulingWorkspace encounterId={initiative.encounter.id} requests={playerRulings} /> : null}
-    {command !== "defend" && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} /> : null}
-    {combatAid ? <details className="encounter-battle-reference" open><summary>Roster, active state and combat reference</summary><CombatAidWorkspace data={combatAid} rollWorkspace={rollWorkspace} /></details> : null}
-  </section>;
+          {actorIsGodControlled && (command === "hold" || command === "pass") ? <div className="encounter-battle-disposition"><p>This records the existing {titleCase(command)} disposition without creating an action declaration.</p><button className="st-button is-primary" type="button" disabled={busy || (command === "hold" ? !trackerParticipant?.canHold : !trackerParticipant?.canPass)} onClick={() => void disposition(command)}>{command === "hold" ? "Hold Initiative" : "Pass Initiative"}</button></div> : null}
+
+          {actorIsGodControlled && declarationCommand && declarationOpportunityAvailable && declarations ? <>
+            {(command === "cast" || command === "item" || command === "ability") ? <p className="tabletop-feedback">Choose an exact current source. The source, current ownership, Initiative, Mana or Item costs, and supported consequences are rechecked and frozen on the server. Any genuinely unresolved Roll mode remains an explicit ruling.</p> : null}
+            {command !== "attack" && command !== "called-shot" || declarationAttackAvailable ? <ActionDeclarationWorkspace
+              key={`${selectedCombatant.characterId}:${command}:${presetVersion}`}
+              view={declarations}
+              battlePreset={{ actorCharacterId: selectedCombatant.characterId, command }}
+              battleSourceChoices={battleSourceChoices}
+              compact
+              directCommit
+            /> : null}
+          </> : null}
+
+          {actorIsGodControlled && firearmWorkspace ? declarationAttackAvailable
+            ? <BattleSecondary summary="Firearm readiness and per-bullet attack">{firearmWorkspace}</BattleSecondary>
+            : firearmWorkspace
+          : null}
+
+          {actorIsGodControlled && command === "defend" && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
+          {command !== "defend" && focusedResolution && declarations && defenses ? <DefenseInterventionWorkspace actions={declarations} defense={defenses} compact selectedCombatantId={selectedCombatant.characterId} /> : null}
+          {effects ? <ActionEffectPlanWorkspace encounterId={initiative.encounter.id} view={effects} compact /> : null}
+        </BattleStage> : null}
+      </BattleMainColumn>
+      <BattleActivity entries={activityEntries(declarations)} title="Pending and recent" />
+    </BattleGrid>
+
+    <BattleSecondary summary="Initiative controls and shared timeline" open={!initiative.runtime}><InitiativeTracker data={initiative} /></BattleSecondary>
+    {playerRulings.length ? <BattleSecondary summary={`Player rulings and exceptions · ${playerRulings.length}`}><PlayerCombatRulingWorkspace encounterId={initiative.encounter.id} requests={playerRulings} /></BattleSecondary> : null}
+    {declarations && defenses ? <BattleSecondary summary="Advanced declaration, eligibility, and defense controls"><ActionDeclarationWorkspace view={declarations} /><DefenseInterventionWorkspace actions={declarations} defense={defenses} /></BattleSecondary> : null}
+    {combatAid ? <BattleSecondary summary="Full combat reference and manual operations"><CombatAidWorkspace data={combatAid} rollWorkspace={rollWorkspace} /></BattleSecondary> : null}
+  </BattleShell>;
 }

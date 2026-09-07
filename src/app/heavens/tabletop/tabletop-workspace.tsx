@@ -44,6 +44,7 @@ import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/
 import type { GodShopVisitWorkspace } from "@/features/tabletop-operations/shop-visit-service";
 import type { EncounterWorkspaceData } from "./encounter-actions";
 import { SceneWorkspace } from "./scene-workspace";
+import { EncounterBattleScreen } from "./encounter-battle-screen";
 import { SessionRollWorkspace } from "./roll-ledger";
 import { SessionCloseout } from "./session-closeout";
 import { WeaponGovernanceWorkspace } from "./weapon-governance-workspace";
@@ -254,6 +255,8 @@ export function TabletopWorkspace({
   initialWeaponGovernance,
   requestedSessionId,
   requestedWorkspace,
+  requestedMode,
+  requestedCombatantId,
 }: {
   initialData: TabletopWorkspaceData;
   initialPrepData: SessionPrepWorkspaceData | null;
@@ -276,6 +279,8 @@ export function TabletopWorkspace({
   initialWeaponGovernance: GodWeaponGovernanceWorkspaceView | null;
   requestedSessionId: number | null;
   requestedWorkspace: "weapons" | "checks" | null;
+  requestedMode: "battle" | "reference" | null;
+  requestedCombatantId: number | null;
 }) {
   const router = useRouter();
   const selectedCampaign = initialData.campaigns.find(({ id }) => id === initialData.selectedCampaignId) ?? null;
@@ -463,6 +468,35 @@ export function TabletopWorkspace({
     setFeedback(null);
   }
 
+  const dedicatedEncounter = requestedMode !== "reference"
+    && initialData.canOperate
+    && selectedSession
+    && initialSceneData?.selectedScene
+    && initialEncounterData?.selectedEncounter?.status === "active"
+    && initialInitiativeTracker
+    ? initialEncounterData.selectedEncounter
+    : null;
+
+  if (dedicatedEncounter && initialData.selectedCampaignId !== null && selectedSession && initialSceneData?.selectedScene && initialInitiativeTracker) {
+    const prepHref = `/heavens/tabletop?campaign=${initialData.selectedCampaignId}&session=${selectedSession.id}&scene=${initialSceneData.selectedScene.id}&encounter=${dedicatedEncounter.id}&mode=reference`;
+    return <main className="tabletop-page tabletop-battle-page">
+      <EncounterBattleScreen
+        campaignId={initialData.selectedCampaignId}
+        returnHref={prepHref}
+        initialSelectedCombatantId={requestedCombatantId}
+        initiative={initialInitiativeTracker}
+        combatAid={initialCombatAid}
+        declarations={initialActionDeclarations}
+        defenses={initialDefenseInterventions}
+        effects={initialActionEffects}
+        firearmReadiness={initialFirearmReadiness}
+        firearmAttacks={initialFirearmAttacks}
+        playerRulings={initialPlayerCombatRulings}
+        rollWorkspace={initialRollWorkspace}
+      />
+    </main>;
+  }
+
   return <main className="tabletop-page">
     <header className="tabletop-hero">
       <div>
@@ -533,8 +567,8 @@ export function TabletopWorkspace({
         <div><span>Initiative</span><strong>{initialSessionCloseout.activeContext.initiative ? `Round ${initialSessionCloseout.activeContext.initiative.roundNumber} / Step ${initialSessionCloseout.activeContext.initiative.stepNumber}` : "Not active"}</strong></div>
         <footer>{initialSessionCloseout.activeContext.encounterId && initialSessionCloseout.activeContext.sceneId ? <button type="button" onClick={() => {
           setActiveTab("scenes");
-          router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}`, { scroll: false });
-        }}>Go to Active Encounter</button> : null}{initialData.canAuthor ? <><button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button></> : null}<button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
+          router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}&mode=battle`, { scroll: false });
+        }}>Resume Encounter</button> : null}{initialData.canAuthor ? <><button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button></> : null}<button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
       </section> : null}
 
       <div className="tabletop-workspace">

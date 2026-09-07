@@ -154,9 +154,10 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
   </article>;
 }
 
-export function FirearmAttackWorkspace({ attackView, readiness }: {
+export function FirearmAttackWorkspace({ attackView, readiness, initialCalledShot = false }: {
   attackView: FirearmAttackWorkspaceView;
   readiness: FirearmWorkspaceView;
+  initialCalledShot?: boolean;
 }) {
   const router = useRouter();
   const firearm = readiness.firearms.find(({ itemInstanceId }) => itemInstanceId === readiness.selectedItemInstanceId) ?? null;
@@ -167,7 +168,7 @@ export function FirearmAttackWorkspace({ attackView, readiness }: {
   const target = attackView.participants.find(({ id }) => id === Number(targetId)) ?? null;
   const [aim, setAim] = useState("0");
   const [duration, setDuration] = useState("1");
-  const [called, setCalled] = useState(false);
+  const [called, setCalled] = useState(initialCalledShot);
   const [objective, setObjective] = useState("");
   const [location, setLocation] = useState("");
   const [penalty, setPenalty] = useState("");
