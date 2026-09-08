@@ -162,6 +162,12 @@ export type PlayerCombatAvailability = Readonly<{
     | "hierarchy-changed"
     | "ready";
   reason: string;
+  unfinishedWork?: readonly Readonly<{
+    declarationId: number;
+    actorName: string;
+    label: string;
+    message: string;
+  }>[];
 }>;
 
 export type PlayerCombatConsoleData = Readonly<{
@@ -174,6 +180,8 @@ export type PlayerCombatConsoleData = Readonly<{
     currentInitiative: number;
     participationStatus: string;
     deferredInitiativeCost: number;
+    movementMode: string;
+    movementModes: readonly Readonly<{ movementMode: string; baseMovement: number; normalTotalInitiative: number }>[];
     canDeclareAction: boolean;
     blockers: readonly string[];
     pendingAction: null | {
@@ -188,7 +196,13 @@ export type PlayerCombatConsoleData = Readonly<{
       allowsMultiRound: boolean;
     };
   };
-  targets: readonly { participantId: number; name: string; currentInitiative: number; participationStatus: string }[];
+  targets: readonly {
+    participantId: number;
+    name: string;
+    currentInitiative: number;
+    participationStatus: string;
+    hitLocations: readonly Readonly<{ result: number; name: string; poolKey: string | null }>[];
+  }[];
   declarations: ActionDeclarationWorkspaceView;
   defenses: DefenseInterventionWorkspaceView;
   firearms: Pick<FirearmWorkspaceView, "legacyStacks" | "firearms">;
@@ -721,10 +735,6 @@ async function readPlayerCombatConsole(
     availability: { status: "awaiting-initialization", reason: "The Encounter is active, but the G.O.D. has not initialized Initiative yet." },
     combat: null,
   };
-  if (encounter.initiativeRuntimeStatus === "closed") return {
-    availability: { status: "runtime-closed", reason: "Initiative is closed while the Encounter remains active. Combat controls are unavailable until the G.O.D. reopens Initiative or completes the Encounter." },
-    combat: null,
-  };
   if (!encounter.initiativeEnrolled) return {
     availability: { status: "awaiting-enrollment", reason: "This Character participates in the Encounter but has not joined its active Initiative runtime yet." },
     combat: null,
@@ -761,11 +771,28 @@ async function readPlayerCombatConsole(
     availability: { status: "awaiting-initialization", reason: "The Encounter is active, but the G.O.D. has not initialized Initiative yet." },
     combat: null,
   };
-  if (lockedRuntime.status !== "active") return {
-    availability: { status: "runtime-closed", reason: "Initiative is closed while the Encounter remains active. Combat controls are unavailable until the G.O.D. reopens Initiative or completes the Encounter." },
-    combat: null,
-  };
   const actor = { authority: "player" as const, userId: playerUserId, characterId: character.characterId };
+  if (lockedRuntime.status !== "active") {
+    const declarations = await readActionDeclarationWorkspaceInTransaction(tx, context, actor);
+    const unfinishedWork = declarations.declarations.filter(({ status }) => (
+      !["resolved", "cancelled", "abandoned"].includes(status)
+    )).map((declaration) => ({
+      declarationId: declaration.id,
+      actorName: declaration.actorName,
+      label: declaration.lockedSnapshot?.label ?? declaration.draft.label,
+      message: declaration.rollState.message,
+    }));
+    return {
+      availability: {
+        status: "runtime-closed",
+        reason: unfinishedWork.length
+          ? "Waiting for G.O.D. to continue combat."
+          : "Initiative is closed while the Encounter remains active. Combat controls are unavailable until G.O.D. starts combat again.",
+        unfinishedWork,
+      },
+      combat: null,
+    };
+  }
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const participant = engine.participants.find(({ characterId }) => characterId === character.characterId);
   if (!participant) return {
@@ -826,6 +853,7 @@ async function readPlayerCombatConsole(
     character.characterId,
     playerUserId,
   );
+  const actorDeclarationParticipant = declarations.participants.find(({ characterId }) => characterId === character.characterId);
   return { availability: { status: "ready", reason: "Combat controls are available for this active Initiative participant." }, combat: {
     context: { campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId },
     initiative: {
@@ -836,6 +864,8 @@ async function readPlayerCombatConsole(
       currentInitiative: participant.currentInitiative,
       participationStatus: participant.participationStatus,
       deferredInitiativeCost: participant.deferredInitiativeCost,
+      movementMode: participant.movementMode,
+      movementModes: actorDeclarationParticipant?.movementModes ?? [],
       canDeclareAction: blockers.length === 0,
       blockers,
       pendingAction: pendingAction ? {
@@ -857,6 +887,7 @@ async function readPlayerCombatConsole(
         name: entry.name,
         currentInitiative: entry.currentInitiative,
         participationStatus: entry.participationStatus,
+        hitLocations: entry.hitLocations,
       })),
     declarations,
     defenses,

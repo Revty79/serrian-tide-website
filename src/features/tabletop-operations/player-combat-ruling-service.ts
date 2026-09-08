@@ -27,6 +27,7 @@ import {
 } from "@/db/tabletop-operations-schema";
 
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { readAttackTargetInTransaction } from "./attack-target-service";
 
 export type PlayerCombatRulingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -200,9 +201,9 @@ async function assertRequestedSource(
   const sourceRef = input.sourceRef?.trim() ?? "";
   const sourceKind = input.sourceKind.trim();
   if ((input.requestType === "called-shot" || input.requestType === "firearm-preparation") && sourceKind !== "weapon") {
-    throw new Error("A firearm ruling request must reference an exact owned weapon source.");
+    throw new Error("This ruling request must reference an exact owned weapon source.");
   }
-  if ((input.requestType === "called-shot" || input.requestType === "firearm-preparation") && input.sourceInstanceId == null) {
+  if (input.requestType === "firearm-preparation" && input.sourceInstanceId == null) {
     throw new Error("This firearm request requires an exact owned Item instance.");
   }
   if (input.sourceInstanceId !== undefined && input.sourceInstanceId !== null) {
@@ -308,6 +309,17 @@ export async function createPlayerCombatRulingRequestInTransaction(
   if (!/^[a-f0-9]{32}$/.test(key)) throw new Error("Request identity must be a 16-byte lowercase hexadecimal value.");
   await assertTarget(tx, context, input.targetParticipantId ?? null);
   await assertRequestedSource(tx, player, input);
+  if (input.requestType === "called-shot") {
+    const locationNumber = input.frozenRequest.locationNumber;
+    if (!Number.isSafeInteger(locationNumber) || Number(locationNumber) < 0 || input.targetParticipantId == null) {
+      throw new Error("A Called Shot request requires one exact authored Hit Location.");
+    }
+    const target = await readAttackTargetInTransaction(tx, context, input.targetParticipantId);
+    const location = target.anatomy?.hitLocations.find(({ result }) => result === Number(locationNumber)) ?? null;
+    if (!location || input.frozenRequest.objective !== location.name) {
+      throw new Error("The requested Called Shot location does not match the exact target's authored anatomy.");
+    }
+  }
   const [existing] = await tx.select().from(campaignSessionPlayerRulingRequest).where(and(
     eq(campaignSessionPlayerRulingRequest.campaignId, context.campaignId),
     eq(campaignSessionPlayerRulingRequest.requestedByUserId, player.userId),
@@ -320,7 +332,11 @@ export async function createPlayerCombatRulingRequestInTransaction(
       || existing.targetParticipantId !== (input.targetParticipantId ?? null)
       || existing.sourceKind !== input.sourceKind.trim()
       || existing.sourceRef !== (input.sourceRef ?? "").trim()
-      || existing.sourceInstanceId !== (input.sourceInstanceId ?? null)) {
+      || existing.sourceInstanceId !== (input.sourceInstanceId ?? null)
+      || existing.intent !== input.intent.trim()
+      || existing.requestedTiming !== (input.requestedTiming ?? "").trim()
+      || existing.blockedReason !== input.blockedReason.trim()
+      || JSON.stringify(existing.frozenRequestJson) !== JSON.stringify(input.frozenRequest)) {
       throw new Error("That request identity was already used for a different combat ruling request.");
     }
     return { requestId: existing.id, reused: true };

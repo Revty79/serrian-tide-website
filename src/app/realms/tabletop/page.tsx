@@ -33,7 +33,7 @@ function selectedId(value: string | string[] | undefined): number | null {
 export default async function PlayerTabletopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string | string[] }>;
+  searchParams: Promise<{ character?: string | string[]; mode?: string | string[] }>;
 }) {
   const access = await requirePlayer().catch(() => redirect("/access"));
   const characters = await listPlayerTabletopCharacters();
@@ -124,5 +124,12 @@ export default async function PlayerTabletopPage({
     combat: runtime.combat,
   };
 
-  return <PlayerTabletopWorkspace characters={characters} view={view} shopVisit={shopVisit} shopCommerce={shopCommerce} />;
+  const requestedMode = Array.isArray(query.mode) ? query.mode[0] : query.mode;
+  return <PlayerTabletopWorkspace
+    characters={characters}
+    view={view}
+    shopVisit={shopVisit}
+    shopCommerce={shopCommerce}
+    requestedMode={requestedMode === "reference" ? "reference" : requestedMode === "battle" ? "battle" : null}
+  />;
 }

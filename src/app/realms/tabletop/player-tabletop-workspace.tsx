@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PlayerCalledCheckPanel } from "@/app/realms/characters/[characterId]/player-called-check-panel";
+import { CombatRecoveryCard } from "@/components/tabletop/combat-recovery-card";
 import type {
   PlayerTabletopCharacterOption,
   PlayerTabletopConsoleView,
@@ -24,6 +25,19 @@ function dateTime(value: string): string {
 
 function titleCase(value: string): string {
   return value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function CombatAvailabilityNotice({ availability }: { availability: PlayerTabletopConsoleView["combatAvailability"] }) {
+  if (availability.unfinishedWork?.length) return <CombatRecoveryCard
+    player
+    actions={availability.unfinishedWork.map((work) => ({
+      id: work.declarationId,
+      combatantName: work.actorName,
+      actionName: work.label,
+      detail: work.message,
+    }))}
+  />;
+  return <aside className={styles.boundaryNotice} role="status">{availability.reason}</aside>;
 }
 
 function Section({
@@ -53,11 +67,13 @@ export function PlayerTabletopWorkspace({
   view,
   shopVisit,
   shopCommerce,
+  requestedMode,
 }: {
   characters: readonly PlayerTabletopCharacterOption[];
   view: PlayerTabletopConsoleView;
   shopVisit: ShopVisitView | null;
   shopCommerce: ShopCommerceView | null;
+  requestedMode: "battle" | "reference" | null;
 }) {
   const activeConditions = view.effects.conditions.filter(({ resolvedAt }) => resolvedAt === null);
   const activeModifiers = view.effects.modifiers.filter(({ endedAt }) => endedAt === null);
@@ -75,6 +91,38 @@ export function PlayerTabletopWorkspace({
       at: entry.endedAt!,
     })),
   ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 30);
+  const battleHref = `/realms/tabletop?character=${view.identity.characterId}&mode=battle`;
+  const referenceHref = `/realms/tabletop?character=${view.identity.characterId}&mode=reference`;
+  const equipmentLabels = view.items
+    .filter(({ equipmentState }) => !["inactive", "stowed", "owned"].includes(equipmentState.toLowerCase()))
+    .map(({ name, equipmentState }) => `${name} (${equipmentState})`);
+
+  if (view.combat && !shopVisit && requestedMode !== "reference") {
+    return <main className={`${styles.page} ${styles.battlePage}`}>
+      <div className={`${styles.shell} ${styles.battleShell}`}>
+        <PlayerCombatConsole
+          characterId={view.identity.characterId}
+          characterName={view.identity.characterName}
+          campaignName={view.identity.campaignName}
+          encounterTitle={view.encounter?.title ?? "Active Encounter"}
+          returnHref={referenceHref}
+          combat={view.combat}
+          calledChecks={view.calledChecks}
+          rolls={view.rolls}
+          items={view.items}
+          spells={view.spells}
+          abilities={view.derivedAbilities}
+          resources={{
+            health: `${view.health.total.remainingHp ?? "—"} / ${view.health.total.maximumHp ?? "—"}`,
+            mana: view.mana.pools.length ? String(view.mana.pools.reduce((sum, pool) => sum + pool.currentMana, 0)) : "—",
+            relevantItems: view.items.length,
+          }}
+          conditionLabels={activeConditions.map(({ name }) => name)}
+          equipmentLabels={equipmentLabels}
+        />
+      </div>
+    </main>;
+  }
 
   return <main className={styles.page}>
     <div className={styles.shell}>
@@ -115,7 +163,7 @@ export function PlayerTabletopWorkspace({
 
       {shopVisit ? <>
         <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} />
-        {view.encounter && view.combatAvailability.status !== "ready" ? <p className={styles.boundaryNotice} role="status">{view.combatAvailability.reason}</p> : null}
+        {view.encounter && view.combatAvailability.status !== "ready" ? <CombatAvailabilityNotice availability={view.combatAvailability} /> : null}
         {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
       </> : <>
 
@@ -127,7 +175,7 @@ export function PlayerTabletopWorkspace({
           <article><span>Scene</span><h3>{view.scene?.title ?? "No active Scene"}</h3><p>{view.scene ? [view.scene.locationLabel, view.scene.description].filter(Boolean).join(" · ") || "No public Scene description" : "This Character has no active Scene membership."}</p></article>
           <article><span>Encounter</span><h3>{view.encounter?.title ?? "No active Encounter"}</h3>{view.encounter ? <p>{titleCase(view.encounter.encounterType)} · {view.encounter.participating ? titleCase(view.encounter.participationStatus) : "Not participating"}{view.encounter.roundNumber !== null ? ` · Round ${view.encounter.roundNumber}, Step ${view.encounter.stepNumber}` : ""}{view.encounter.currentInitiative !== null ? ` · Initiative ${view.encounter.currentInitiative}` : ""}</p> : <p>No Encounter is attached to this Character&apos;s active Scene.</p>}</article>
         </div>
-        {view.encounter && view.combatAvailability.status !== "ready" ? <p className={styles.boundaryNotice} role="status">{view.combatAvailability.reason}</p> : null}
+        {view.encounter && view.combatAvailability.status !== "ready" ? <CombatAvailabilityNotice availability={view.combatAvailability} /> : null}
       </Section>
 
       {view.scene ? <Section
@@ -157,7 +205,14 @@ export function PlayerTabletopWorkspace({
         </div> : <p className={styles.emptyCopy}>No Scene locations have been revealed to players.</p>}
       </Section> : null}
 
-      {view.combat ? <PlayerCombatConsole characterId={view.identity.characterId} combat={view.combat} /> : null}
+      {view.combat ? <section className={styles.battleEntry} aria-labelledby="player-active-encounter-entry">
+        <div>
+          <p className={styles.eyebrow}>ACTIVE ENCOUNTER</p>
+          <h2 id="player-active-encounter-entry">{view.encounter?.title ?? "Return to combat"}</h2>
+          <p>The encounter runner keeps the roster, your combatant, commands, focused exchange, and pending activity in one shared layout.</p>
+        </div>
+        <Link className="st-button" href={battleHref}>Resume Encounter</Link>
+      </section> : null}
 
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
 

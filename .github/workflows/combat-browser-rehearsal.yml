@@ -1,0 +1,69 @@
+name: Guided combat browser rehearsal
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  browser-rehearsal:
+    if: github.head_ref == 'finish-guided-combat'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-runner-only
+          POSTGRES_DB: serrian_runner_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d serrian_runner_dev"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:isolated-runner-only@127.0.0.1:5432/serrian_runner_dev
+      BETTER_AUTH_URL: http://localhost:3137
+      BETTER_AUTH_SECRET: isolated-browser-rehearsal-only-not-a-deployment-secret
+      SERRIAN_TEST_NEXT_DIST_DIR: .next-runner-rehearsal
+      NEXT_TELEMETRY_DISABLED: '1'
+      RUNNER_TEST_OUTPUT: /tmp/serrian-runner-proof
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install isolated Chromium
+        run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Check progression and task ownership
+        run: node --import tsx --test src/features/tabletop-operations/combat-progression.test.ts src/features/tabletop-operations/combat-runner-presentation.test.ts
+      - name: Construct disposable fixture schema
+        run: node scripts/combat-runner-disposable-schema.mjs
+      - name: Rehearse guarded database commands
+        run: node --conditions=react-server --import tsx --test scripts/combat-runner-db.test.ts scripts/combat-runner-decisions-db.test.ts
+      - name: Seed separate GOD and Player identities
+        run: node --conditions=react-server --import tsx scripts/combat-runner-browser-fixture.ts
+      - name: Run the actual battle screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEST_OUTPUT"
+          node node_modules/next/dist/bin/next dev --port 3137 --hostname 127.0.0.1 > "$RUNNER_TEST_OUTPUT/next.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -s -o /dev/null http://localhost:3137/api/auth/get-session; then break; fi
+            sleep 1
+          done
+          node scripts/combat-runner-browser-rehearsal.mjs 2>&1 | tee "$RUNNER_TEST_OUTPUT/rehearsal.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: guided-combat-browser-proof
+          path: /tmp/serrian-runner-proof
+          retention-days: 7

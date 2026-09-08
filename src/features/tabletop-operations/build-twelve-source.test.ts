@@ -87,10 +87,11 @@ test("Tabletop consequence review shows locked evidence, separated values, audit
   }
 });
 
-test("complete firearm damage and ammunition automation remain outside Pass 8", () => {
+test("ordinary attack consequences use frozen damage while firearm ammunition remains in its dedicated runtime", () => {
   const resolver = read("src/features/tabletop-operations/action-source-resolver-service.ts");
   const service = read("src/features/tabletop-operations/action-effect-plan-service.ts");
-  assert.match(resolver, /Full weapon damage, ammunition, armor, soak, hit location, recoil, and Called Shot rules are deferred/);
+  assert.match(resolver, /resolvedDamage/);
+  assert.match(service, /resolveOrdinaryAttackConsequencesInTransaction/);
   assert.doesNotMatch(service, /consumeAmmunition|calculateBurstDamage|applyArmorSoak|calledShotDexBonus/);
 });
 

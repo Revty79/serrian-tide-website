@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useCombatOperationState } from "@/components/tabletop/combat-operation-state";
 import type {
   FirearmAttackCommand,
   FirearmAttackPreview,
@@ -13,6 +14,7 @@ import type {
 import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
 import { formatAttackPercentileResult } from "@/features/tabletop-operations/percentile-resolution";
 import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
+import { isUncertainSubmissionError } from "@/features/tabletop-operations/submitted-attempt";
 
 import {
   cancelFirearmAttack,
@@ -111,7 +113,7 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
     </dl>
     <details><summary>Responder opportunities - {attack.responderOpportunities.length}</summary>{attack.responderOpportunities.length ? <ol>{attack.responderOpportunities.map((opportunity) => <li key={opportunity.id}>{opportunity.responderName}: {opportunity.phase} - {opportunity.status}{opportunity.responseLabel ? ` (${opportunity.responseLabel})` : ""}</li>)}</ol> : <p>No responder opportunities were generated.</p>}</details>
 
-    {attack.status === "aiming" ? <button type="button" disabled={busy || attack.effectiveStatus !== "trigger-ready"} onClick={() => void perform(
+    {attack.status === "aiming" ? <button type="button" className="st-button is-primary" disabled={busy || attack.effectiveStatus !== "trigger-ready"} onClick={() => void perform(
       () => commitFirearmAttackTrigger(encounterId, attack.id, attack.actorParticipantId),
       "Aim completed and the separate one-Initiative trigger pull was committed.",
     )}>Commit trigger after Aim</button> : null}
@@ -133,12 +135,12 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
       {!canFire ? <small>The trigger action must complete first.</small> : null}
     </section> : null}
 
-    {attack.status === "fired-awaiting-timing" ? <button type="button" disabled={busy || attack.triggerTimingStatus !== "completed"} onClick={() => void perform(
+    {attack.status === "fired-awaiting-timing" ? <button type="button" className="st-button is-primary" disabled={busy || attack.triggerTimingStatus !== "completed"} onClick={() => void perform(
       () => finalizeFirearmAttackConsequences(encounterId, attack.id, [attack.actorParticipantId, attack.targetParticipantId]),
       "The defense-added Initiative cost completed and the Action Effect Plan was generated.",
     )}>Generate consequences after timing</button> : null}
 
-    {attack.firedAt === null && attack.status !== "cancelled" ? <button type="button" className="is-danger" disabled={busy} onClick={() => {
+    {attack.firedAt === null && attack.status !== "cancelled" ? <button type="button" className="st-button is-danger" disabled={busy} onClick={() => {
       const reason = window.prompt("Why is this unfired attack being cancelled?")?.trim();
       if (reason) void perform(() => cancelFirearmAttack(encounterId, attack.id, attack.actorParticipantId, reason), "The unfired declaration was cancelled; no ammunition was consumed.");
     }}>Cancel before firing</button> : null}
@@ -154,34 +156,46 @@ function AttackCard({ encounterId, attack }: { encounterId: number; attack: Fire
   </article>;
 }
 
-export function FirearmAttackWorkspace({ attackView, readiness }: {
+export function FirearmAttackWorkspace({ attackView, readiness, initialCalledShot = false, selectedDeclarationId = null, historyOnly = false }: {
   attackView: FirearmAttackWorkspaceView;
   readiness: FirearmWorkspaceView;
+  initialCalledShot?: boolean;
+  selectedDeclarationId?: number | null;
+  historyOnly?: boolean;
 }) {
   const router = useRouter();
   const firearm = readiness.firearms.find(({ itemInstanceId }) => itemInstanceId === readiness.selectedItemInstanceId) ?? null;
   const actor = readiness.characters.find(({ id }) => id === readiness.selectedCharacterId) ?? null;
   const mode = firearm?.modes.find(({ id }) => id === firearm.state?.selectedFiringModeId) ?? null;
   const availableTargets = attackView.participants.filter(({ id }) => id !== actor?.id);
-  const [targetId, setTargetId] = useState(String(availableTargets[0]?.id ?? ""));
+  const operationKey = `firearm-attack:${actor?.id ?? "none"}:${initialCalledShot ? "called" : "standard"}`;
+  const [targetId, setTargetId] = useCombatOperationState(`${operationKey}:target`, String(availableTargets[0]?.id ?? ""));
   const target = attackView.participants.find(({ id }) => id === Number(targetId)) ?? null;
-  const [aim, setAim] = useState("0");
-  const [duration, setDuration] = useState("1");
-  const [called, setCalled] = useState(false);
-  const [objective, setObjective] = useState("");
-  const [location, setLocation] = useState("");
-  const [penalty, setPenalty] = useState("");
-  const [calledReason, setCalledReason] = useState("");
-  const [otherModifiers, setOtherModifiers] = useState("");
-  const [manual, setManual] = useState(false);
-  const [manualLabel, setManualLabel] = useState("");
-  const [manualTarget, setManualTarget] = useState("");
-  const [manualReason, setManualReason] = useState("");
-  const [preview, setPreview] = useState<FirearmAttackPreview | null>(null);
+  const [aim, setAim] = useCombatOperationState(`${operationKey}:aim`, "0");
+  const [duration, setDuration] = useCombatOperationState(`${operationKey}:duration`, "1");
+  const [called, setCalled] = useCombatOperationState(`${operationKey}:called`, initialCalledShot);
+  const [objective, setObjective] = useCombatOperationState(`${operationKey}:objective`, "");
+  const [location, setLocation] = useCombatOperationState(`${operationKey}:location`, "");
+  const [penalty, setPenalty] = useCombatOperationState(`${operationKey}:penalty`, "");
+  const [calledReason, setCalledReason] = useCombatOperationState(`${operationKey}:called-reason`, "");
+  const [otherModifiers, setOtherModifiers] = useCombatOperationState(`${operationKey}:modifiers`, "");
+  const [manual, setManual] = useCombatOperationState(`${operationKey}:manual`, false);
+  const [manualLabel, setManualLabel] = useCombatOperationState(`${operationKey}:manual-label`, "");
+  const [manualTarget, setManualTarget] = useCombatOperationState(`${operationKey}:manual-target`, "");
+  const [manualReason, setManualReason] = useCombatOperationState(`${operationKey}:manual-reason`, "");
+  const [preview, setPreview] = useCombatOperationState<FirearmAttackPreview | null>(`${operationKey}:preview`, null);
+  const [declarationAttempt, setDeclarationAttempt] = useCombatOperationState<(FirearmAttackCommand & { idempotencyKey: string }) | null>(`${operationKey}:attempt`, null);
+  const declarationAttemptRef = useRef(declarationAttempt);
+  useEffect(() => {
+    declarationAttemptRef.current = declarationAttempt;
+  }, [declarationAttempt, operationKey]);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [feedback, setFeedback] = useCombatOperationState<Feedback | null>(`${operationKey}:feedback`, null);
   const sustained = mode?.deliveryCadence === "sustained-per-initiative";
   const canCompose = actor !== null && actor.id > 0 && firearm?.state !== null && mode?.id !== null && target !== null;
+  const visibleAttacks = selectedDeclarationId === null
+    ? attackView.attacks
+    : attackView.attacks.filter(({ triggerDeclarationId }) => triggerDeclarationId === selectedDeclarationId);
 
   function buildCommand(): FirearmAttackCommand {
     if (!canCompose || !actor || !firearm?.state || !mode?.id || !target) throw new Error("Select an exact attacker, firearm, mode, and target.");
@@ -204,42 +218,76 @@ export function FirearmAttackWorkspace({ attackView, readiness }: {
     };
   }
 
-  async function perform(work: () => Promise<unknown>, success: string): Promise<void> {
+  async function perform(
+    work: () => Promise<unknown>,
+    success: string,
+    onSuccess?: () => void,
+    onError?: (error: unknown) => void,
+  ): Promise<void> {
     setBusy(true);
     setFeedback(null);
     try {
       await work();
+      onSuccess?.();
       setFeedback({ kind: "success", message: success });
     } catch (error) {
+      onError?.(error);
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The firearm attack could not be prepared." });
     } finally {
       setBusy(false);
     }
   }
 
+  async function declareFromPreview(): Promise<void> {
+    let attempt = declarationAttemptRef.current;
+    if (!attempt) {
+      if (!preview) return;
+      attempt = { ...buildCommand(), idempotencyKey: requestId() };
+      declarationAttemptRef.current = attempt;
+      setDeclarationAttempt(attempt);
+    }
+    await perform(
+      () => declareFirearmAttack(attackView.context.encounterId, attempt),
+      "The firearm attack was declared through Initiative and response timing.",
+      () => {
+        declarationAttemptRef.current = null;
+        setDeclarationAttempt(null);
+        setPreview(null);
+        router.refresh();
+      },
+      (error) => {
+        if (!isUncertainSubmissionError(error)) {
+          declarationAttemptRef.current = null;
+          setDeclarationAttempt(null);
+        }
+      },
+    );
+  }
+
   return <section className="firearm-attack-workspace" aria-label="Firearm attacks, Aim, Called Shots, and damage">
-    <header><div><span>PASS 10 - FIREARM ATTACKS</span><h3 className="font-sans">Aim, Trigger &amp; Damage</h3></div><small>Exact identities - one Roll - one ammunition mutation - review-before-apply</small></header>
-    <p className="firearm-attack-boundary">The global Equipment mapping remains read-only here. Select an exact owned copy in Firearm Readiness above. Damage is proposed through the existing Action Effect Plan review; this console never applies Health directly.</p>
-    {firearm && actor && firearm.state && mode ? <div className="firearm-attack-compose">
+    <header><div><span>FIREARM ATTACKS</span><h3 className="font-sans">Aim, Trigger &amp; Damage</h3></div><small>One Roll · one ammunition change · review before applying damage</small></header>
+    {!historyOnly ? <p className="firearm-attack-boundary">The global Equipment mapping remains read-only here. Select an exact owned copy in Firearm Readiness above. Damage is proposed through the existing Action Effect Plan review; this console never applies Health directly.</p> : null}
+    {!historyOnly && firearm && actor && firearm.state && mode ? <div className="firearm-attack-compose">
       <header><div><span>NEW DECLARATION</span><h4>{actor.name}: {firearm.itemName} - {mode.name}</h4></div><Link href="/heavens/equipment">Review global Equipment</Link></header>
       <div className="firearm-attack-fields">
-        <label><span>Exact Encounter target</span><select value={targetId} onChange={(event) => { setTargetId(event.target.value); setLocation(""); setPreview(null); }}><option value="">Select target</option>{availableTargets.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} ({entry.participantKind})</option>)}</select></label>
-        <label><span>Aim Initiative</span><input type="number" min={0} step={1} value={aim} onChange={(event) => { setAim(event.target.value); setPreview(null); }} /></label>
-        {sustained ? <label><span>Sustained duration (Initiative)</span><input type="number" min={1} step={1} value={duration} onChange={(event) => { setDuration(event.target.value); setPreview(null); }} /></label> : <p className="firearm-attack-authored">Authored delivery: {mode?.roundsPerCadence ?? "?"} round{mode?.roundsPerCadence === 1 ? "" : "s"} per trigger.</p>}
-        <label className="firearm-attack-check"><input type="checkbox" checked={called} onChange={(event) => { setCalled(event.target.checked); setPreview(null); }} /><span>Declare a Called Shot</span></label>
+        <label className="st-field"><span>Target</span><select className="st-control" value={targetId} onChange={(event) => { setTargetId(event.target.value); setLocation(""); setPreview(null); }}><option value="">Select target</option>{availableTargets.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} ({entry.participantKind})</option>)}</select></label>
+        <label className="st-field"><span>Aim Initiative</span><input className="st-control" type="number" min={0} step={1} value={aim} onChange={(event) => { setAim(event.target.value); setPreview(null); }} /></label>
+        {sustained ? <label className="st-field"><span>Sustained duration</span><input className="st-control" type="number" min={1} step={1} value={duration} onChange={(event) => { setDuration(event.target.value); setPreview(null); }} /></label> : <p className="firearm-attack-authored">{mode?.roundsPerCadence ?? "?"} round{mode?.roundsPerCadence === 1 ? "" : "s"} per trigger.</p>}
+        <label className="st-field firearm-attack-check"><input type="checkbox" checked={called} onChange={(event) => { setCalled(event.target.checked); setPreview(null); }} /><span>Called Shot</span></label>
         {called ? <>
-          <label><span>Exact objective</span><input value={objective} maxLength={240} onChange={(event) => { setObjective(event.target.value); setPreview(null); }} /></label>
-          <label><span>Authored Hit Location</span><select value={location} onChange={(event) => { setLocation(event.target.value); setPreview(null); }}><option value="">Objective has no exact location</option>{target?.hitLocations.map((entry) => <option key={entry.result} value={entry.result}>{entry.result}: {entry.name}{entry.poolKey ? ` - ${entry.poolKey}` : ""}</option>)}</select></label>
-          <label><span>G.O.D.-assigned penalty</span><input type="number" min={0} value={penalty} onChange={(event) => { setPenalty(event.target.value); setPreview(null); }} /></label>
-          <label className="is-wide"><span>Required penalty reason</span><input value={calledReason} onChange={(event) => { setCalledReason(event.target.value); setPreview(null); }} /></label>
+          <label className="st-field"><span>Objective</span><input className="st-control" value={objective} maxLength={240} onChange={(event) => { setObjective(event.target.value); setPreview(null); }} /></label>
+          <label className="st-field"><span>Hit Location</span><select className="st-control" value={location} onChange={(event) => { setLocation(event.target.value); setPreview(null); }}><option value="">No exact location</option>{target?.hitLocations.map((entry) => <option key={entry.result} value={entry.result}>{entry.result}: {entry.name}{entry.poolKey ? ` - ${entry.poolKey}` : ""}</option>)}</select></label>
+          <label className="st-field"><span>G.O.D. penalty</span><input className="st-control" type="number" min={0} value={penalty} onChange={(event) => { setPenalty(event.target.value); setPreview(null); }} /></label>
+          <label className="st-field is-wide"><span>Penalty reason</span><input className="st-control" value={calledReason} onChange={(event) => { setCalledReason(event.target.value); setPreview(null); }} /></label>
         </> : null}
-        <label className="is-wide"><span>Other explicit modifiers (one per line: Label = signed value)</span><textarea rows={3} value={otherModifiers} onChange={(event) => { setOtherModifiers(event.target.value); setPreview(null); }} /></label>
+        <label className="st-field is-wide"><span>Other modifiers (Label = signed value)</span><textarea className="st-control" rows={3} value={otherModifiers} onChange={(event) => { setOtherModifiers(event.target.value); setPreview(null); }} /></label>
       </div>
-      <details className="firearm-attack-governance"><summary>One-action G.O.D. governing-source ruling</summary><label className="firearm-attack-check"><input type="checkbox" checked={manual} onChange={(event) => { setManual(event.target.checked); setPreview(null); }} /><span>Use an explicit manual target for this action only</span></label>{manual ? <div className="firearm-attack-fields"><label><span>Target label</span><input value={manualLabel} onChange={(event) => { setManualLabel(event.target.value); setPreview(null); }} /></label><label><span>Original target</span><input type="number" value={manualTarget} onChange={(event) => { setManualTarget(event.target.value); setPreview(null); }} /></label><label className="is-wide"><span>Required ruling reason</span><input value={manualReason} onChange={(event) => { setManualReason(event.target.value); setPreview(null); }} /></label></div> : null}</details>
-      <div className="firearm-attack-actions"><button type="button" disabled={busy || !canCompose} onClick={() => void perform(async () => { setPreview(await previewFirearmAttack(attackView.context.encounterId, buildCommand())); }, "The exact declaration, target, path, modifiers, delivery, and state were previewed.")}>Preview locked mechanics</button><button type="button" className="is-primary" disabled={busy || !canCompose || !preview} onClick={() => void perform(async () => { await declareFirearmAttack(attackView.context.encounterId, { ...buildCommand(), idempotencyKey: requestId() }); setPreview(null); router.refresh(); }, "The firearm attack was declared through Initiative and response timing.")}>Declare from preview</button></div>
+      <details className="firearm-attack-governance"><summary>G.O.D. ruling for this action</summary><label className="st-field firearm-attack-check"><input type="checkbox" checked={manual} onChange={(event) => { setManual(event.target.checked); setPreview(null); }} /><span>Use a manual target</span></label>{manual ? <div className="firearm-attack-fields"><label className="st-field"><span>Target name</span><input className="st-control" value={manualLabel} onChange={(event) => { setManualLabel(event.target.value); setPreview(null); }} /></label><label className="st-field"><span>Original target</span><input className="st-control" type="number" value={manualTarget} onChange={(event) => { setManualTarget(event.target.value); setPreview(null); }} /></label><label className="st-field is-wide"><span>Ruling reason</span><input className="st-control" value={manualReason} onChange={(event) => { setManualReason(event.target.value); setPreview(null); }} /></label></div> : null}</details>
+      <div className="firearm-attack-actions"><button className="st-button" type="button" disabled={busy || !canCompose || declarationAttempt !== null} onClick={() => void perform(async () => { setPreview(await previewFirearmAttack(attackView.context.encounterId, buildCommand())); }, "The attack is ready to declare.")}>Preview attack</button><button type="button" className="st-button is-primary" disabled={busy || !canCompose || !preview || declarationAttempt !== null} onClick={() => void declareFromPreview()}>Declare attack</button></div>
+      {declarationAttempt && feedback?.kind === "error" ? <aside className="action-declaration-recovery"><strong>We couldn’t confirm whether your action finished.</strong><span>Check and retry.</span><div><button className="st-button is-primary" type="button" disabled={busy} onClick={() => void declareFromPreview()}>Retry action</button></div><details><summary>Saved retry details</summary><small>The same actor, firearm, target, modifiers, timing, choices, and submission identity will be used.</small></details></aside> : null}
       {preview ? <PreviewCard preview={preview} /> : null}
       {feedback ? <p className={`firearm-attack-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-    </div> : <p className="tabletop-empty">Select and initialize an exact persistent Character firearm above. Direct Creatures do not gain manufactured firearm inventory implicitly.</p>}
-    <div className="firearm-attack-history">{attackView.attacks.map((attack) => <AttackCard key={`${attack.id}:${attack.status}:${attack.triggerTimingStatus ?? "none"}`} encounterId={attackView.context.encounterId} attack={attack} />)}{!attackView.attacks.length ? <p className="tabletop-empty">No firearm attacks have been declared in this Encounter.</p> : null}</div>
+    </div> : !historyOnly ? <p className="tabletop-empty">Select and initialize an exact persistent Character firearm above. Direct Creatures do not gain manufactured firearm inventory implicitly.</p> : null}
+    <div className="firearm-attack-history">{visibleAttacks.map((attack) => <AttackCard key={`${attack.id}:${attack.status}:${attack.triggerTimingStatus ?? "none"}`} encounterId={attackView.context.encounterId} attack={attack} />)}{!visibleAttacks.length ? <p className="tabletop-empty">No firearm attack is attached to this selected exchange.</p> : null}</div>
   </section>;
 }

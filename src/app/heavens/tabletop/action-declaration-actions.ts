@@ -12,6 +12,7 @@ import {
   continueActionDeclarationAfterRulingInTransaction,
   correctActionDeclarationRemainingCostInTransaction,
   createActionDeclarationDraftInTransaction,
+  declareGodActionIdempotentlyInTransaction,
   editActionDeclarationDraftInTransaction,
   interruptActionDeclarationInTransaction,
   lockActionDeclarationInTransaction,
@@ -24,7 +25,9 @@ import {
   reviseLockedActionDeclarationInTransaction,
   type ActionDeclarationWorkspaceView,
 } from "@/features/tabletop-operations/action-declaration-service";
-import type { ActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
+import {
+  type ActionDeclarationDraft,
+} from "@/features/tabletop-operations/action-declaration";
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
@@ -34,6 +37,17 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 function positiveId(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
   return value;
+}
+
+function participantKey(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value === 0) throw new Error(`${label} is invalid.`);
+  return value;
+}
+
+function submissionKey(value: string): string {
+  const normalized = value.trim();
+  if (!/^[a-f0-9]{32}$/.test(normalized)) throw new Error("The action submission identity is invalid.");
+  return normalized;
 }
 
 function refreshDeclarations(): void {
@@ -92,6 +106,17 @@ export async function createActionDeclarationDraft(encounterId: number, draft: A
   ));
 }
 
+export async function declareGodAction(
+  encounterId: number,
+  draft: ActionDeclarationDraft,
+  idempotencyKey: string,
+): Promise<number> {
+  return mutateDeclaration(encounterId, async (tx, context, actor) => {
+    const submissionId = submissionKey(idempotencyKey);
+    return declareGodActionIdempotentlyInTransaction(tx, context, actor, draft, submissionId);
+  });
+}
+
 export async function editActionDeclarationDraft(encounterId: number, declarationId: number, draft: ActionDeclarationDraft): Promise<void> {
   return mutateDeclaration(encounterId, (tx, context, actor) => (
     editActionDeclarationDraftInTransaction(tx, context, actor, positiveId(declarationId, "Action declaration"), draft)
@@ -137,7 +162,7 @@ export async function addExceptionalResponder(
     context,
     actor,
     positiveId(declarationId, "Action declaration"),
-    positiveId(responderCharacterId, "Responder Character"),
+    participantKey(responderCharacterId, "Responder Participant"),
     reason,
   ));
 }

@@ -93,10 +93,21 @@ test("request normalization enforces exact hierarchy prerequisites", () => {
   assert.equal(normalized.pendingActionId, 4);
 });
 
-test("Roll targets accept exact negative direct-Creature occurrence keys without allowing negative rollers", () => {
-  assert.equal(request({ targetCharacterId: -7 }).targetCharacterId, -7);
-  assert.throws(() => request({ targetCharacterId: 0 }), /Target Participant is invalid/);
-  assert.throws(() => request({ rollerCharacterId: -7 }), /Roller Character is invalid/);
+test("Encounter Roll participants accept positive Characters and exact negative direct-Creature occurrence keys", () => {
+  for (const participantId of [7, -7]) {
+    const normalized = request({
+      sceneId: 2,
+      encounterId: 3,
+      rollerCharacterId: participantId,
+      targetCharacterId: participantId === 7 ? -7 : 7,
+    });
+    assert.equal(normalized.rollerCharacterId, participantId);
+    assert.equal(normalized.targetCharacterId, participantId === 7 ? -7 : 7);
+  }
+  for (const invalid of [0, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => request({ rollerCharacterId: invalid }), /Roller Participant is invalid/);
+    assert.throws(() => request({ targetCharacterId: invalid }), /Target Participant is invalid/);
+  }
 });
 
 test("request metadata is trimmed, bounded, and target number stays uninterpreted", () => {

@@ -159,7 +159,7 @@
 .characterSelect label,
 .diceForm label,
 .combatWorkspace label,
-.compactAction label {
+.compactAction label:not(:global(.st-field)) {
   display: grid;
   gap: 0.35rem;
   min-width: 0;
@@ -174,7 +174,7 @@
 .combatWorkspace select,
 .combatWorkspace input:not([type="checkbox"]),
 .combatWorkspace textarea,
-.compactAction input:not([type="checkbox"]) {
+.compactAction input:not([type="checkbox"]):not(:global(.st-control)) {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -198,7 +198,7 @@
   accent-color: var(--st-secondary-soft-text);
 }
 
-.page button {
+.page button:not(:global(.st-button)) {
   min-height: 2.75rem;
   border: 1px solid color-mix(in srgb, var(--st-secondary) 44%, transparent);
   border-radius: 0.7rem;
@@ -210,20 +210,15 @@
   transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
 
-.page button:hover:not(:disabled) {
+.page button:not(:global(.st-button)):hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--st-secondary) 72%, transparent);
   background: color-mix(in srgb, var(--st-secondary) 17%, transparent);
   transform: translateY(-1px);
 }
 
-.page button:disabled {
+.page button:not(:global(.st-button)):disabled {
   cursor: not-allowed;
   opacity: 0.48;
-}
-
-.page :focus-visible {
-  outline: 3px solid var(--st-secondary-soft-text);
-  outline-offset: 3px;
 }
 
 .statusStrip {
@@ -454,14 +449,22 @@
   font-weight: 750;
 }
 
-.boundaryNotice,
+.boundaryNotice {
+  border-left: 3px solid var(--st-border-strong);
+  background: var(--st-surface-soft);
+  padding: 0.7rem 0.85rem;
+  color: var(--st-text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .ruling,
 .notice,
 .error {
-  border-left: 3px solid var(--st-secondary);
-  background: color-mix(in srgb, var(--st-secondary) 22%, transparent);
+  border-left: 3px solid var(--st-warning);
+  background: color-mix(in srgb, var(--st-warning) 12%, transparent);
   padding: 0.7rem 0.85rem;
-  color: var(--st-secondary-soft-text) !important;
+  color: var(--st-warning);
   font-size: 0.78rem;
   line-height: 1.45;
 }
@@ -469,13 +472,13 @@
 .notice {
   border-color: var(--st-primary);
   background: color-mix(in srgb, var(--st-primary) 19%, transparent);
-  color: var(--st-primary-soft-text) !important;
+  color: var(--st-primary-soft-text);
 }
 
 .error {
   border-color: var(--st-danger);
   background: color-mix(in srgb, var(--st-danger) 20%, transparent);
-  color: var(--st-danger) !important;
+  color: var(--st-danger);
 }
 
 .twoColumn {
@@ -644,6 +647,147 @@
   margin: 0.8rem 0;
 }
 
+.battleHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  padding: clamp(1rem, 2.2vw, 1.4rem);
+  border: 1px solid var(--st-border-strong);
+  border-radius: 1rem;
+  background: var(--st-surface-raised);
+  box-shadow: 0 1rem 2.5rem var(--st-shadow);
+}
+
+.battleHeader h2,
+.battleHeader p {
+  margin: 0.2rem 0;
+}
+
+.battleHeader > div > p:last-child {
+  color: var(--st-text-soft);
+}
+
+.battleHeader dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(5rem, auto));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.battleHeader dl > div {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.65rem;
+  background: var(--st-surface-soft);
+  padding: 0.6rem;
+}
+
+.battleHeader dt {
+  color: var(--st-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.battleHeader dd {
+  margin: 0;
+  color: var(--st-text-strong);
+  font-weight: 800;
+}
+
+.battleCommands {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 0.35rem;
+  position: sticky;
+  top: 0.4rem;
+  z-index: 5;
+  border: 1px solid var(--st-border);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--st-surface-raised) 94%, transparent);
+  padding: 0.45rem;
+  box-shadow: 0 0.7rem 1.8rem var(--st-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.battleCommands button {
+  min-height: 2.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--st-text-soft);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.battleCommands button:hover,
+.battleCommands button:focus-visible,
+.battleCommands .selectedCommand {
+  border-color: var(--st-secondary-border);
+  background: var(--st-secondary-soft);
+  color: var(--st-secondary-soft-text);
+}
+
+.battleCommands button span {
+  margin-left: 0.3rem;
+  border-radius: 999px;
+  background: var(--st-danger);
+  padding: 0.08rem 0.35rem;
+  color: var(--st-text-strong);
+}
+
+.commandSources {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.attemptRecovery {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--st-warning) 42%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--st-warning) 12%, var(--st-surface));
+  padding: 0.75rem;
+  color: var(--st-text-soft);
+}
+
+.attemptRecovery strong {
+  color: var(--st-warning);
+}
+
+.attemptRecovery details {
+  color: var(--st-text-secondary);
+  font-size: 0.72rem;
+}
+
+.attemptRecovery summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.resultCalculation {
+  border-top: 1px solid var(--st-border);
+  padding-top: 0.45rem;
+  color: var(--st-text-soft);
+}
+
+.resultCalculation summary {
+  cursor: pointer;
+  color: var(--st-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.resultCalculation span,
+.resultCalculation small {
+  display: block;
+  margin-top: 0.3rem;
+}
+
 .combatPriority,
 .combatSection {
   min-width: 0;
@@ -741,6 +885,33 @@
   flex: 1 1 12rem;
 }
 
+.checkboxField {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: end;
+  min-height: 2.55rem;
+}
+
+.selectedAction {
+  border-color: var(--st-border-strong);
+  background: var(--st-surface-soft);
+}
+
+.selectedAction > strong {
+  color: var(--st-text-strong);
+}
+
+.selectedAction > details {
+  color: var(--st-muted);
+  font-size: 0.72rem;
+}
+
+.selectedAction summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
 .blockers {
   margin: 0.7rem 0;
   padding-left: 1.25rem;
@@ -825,6 +996,14 @@
 
   .twoColumn > .section {
     height: auto;
+  }
+
+  .battleHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .battleCommands {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -1229,8 +1408,15 @@
   .effectGrid,
   .historyGrid,
   .formGrid,
-  .combatStats {
+  .combatStats,
+  .battleHeader dl,
+  .commandSources {
     grid-template-columns: 1fr;
+  }
+
+  .battleCommands {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: static;
   }
 
   .wideField {
@@ -1259,5 +1445,73 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+.battlePage {
+  padding-inline: clamp(0.55rem, 1.4vw, 1rem);
+}
+
+.battleShell {
+  width: min(104rem, 100%);
+}
+
+.battleShell :global(.tabletop-live-status) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--st-text-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.battleShell :global(.tabletop-live-status > span) {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--st-secondary);
+  box-shadow: 0 0 0.6rem currentColor;
+}
+
+.battleShell :global(.tabletop-live-status--live > span) {
+  background: var(--st-success);
+}
+
+.battleShell :global(.tabletop-live-status--reconnecting > span) {
+  background: var(--st-danger);
+}
+
+.battleEntry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  border: 1px solid var(--st-secondary-border);
+  border-radius: 0.9rem;
+  background: var(--st-secondary-soft);
+  padding: 1rem;
+}
+
+.battleEntry h2,
+.battleEntry p {
+  margin: 0;
+}
+
+.battleEntry h2 {
+  color: var(--st-text-strong);
+  font-family: "Evanescent", Georgia, serif;
+}
+
+.battleEntry > div > p:last-child {
+  margin-top: 0.3rem;
+  color: var(--st-text-secondary);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 620px) {
+  .battleEntry {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

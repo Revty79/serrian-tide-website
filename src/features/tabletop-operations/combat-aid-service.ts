@@ -32,6 +32,7 @@ import type { ActiveManaView } from "@/features/active-state/active-mana";
 import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
 import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
+import { loadCharacterDerivedAbilitiesInTransaction } from "@/features/derived-abilities/character-derived-ability-service";
 import {
   readCharacterOperationalItemsInTransaction,
   type CharacterOperationalItemStateView,
@@ -100,6 +101,19 @@ export type CombatAidParticipant = {
     creatureTemplateName: string | null;
   };
   health: ActiveHealthView | null;
+  occurrenceState: null | {
+    maximumHp: number | null;
+    totalDamage: number;
+    remainingHp: number | null;
+    pools: Array<{
+      key: string;
+      name: string;
+      maximumHp: number | null;
+      damage: number;
+      remainingHp: number | null;
+    }>;
+    conditions: string[];
+  };
   mana: ActiveManaView | null;
   effects: ActiveEffectsView | null;
   durationBindings: TabletopDurationBindingView[];
@@ -107,13 +121,14 @@ export type CombatAidParticipant = {
   resources: CharacterOperationalItemStateView | null;
   creatureAttacks: EncounterCreatureAttack[];
   creatureAbilities: EncounterCreatureAbility[];
+  derivedAbilities: Array<{ id: number; name: string; activation: string }>;
   spellSources: Array<
     | { kind: "catalog"; allocationId: number; name: string }
     | { kind: "personal"; savedSpellId: number; name: string }
     | { kind: "raw-saved"; savedSpellId: number; name: string }
   >;
   initiative: CombatAidInitiativeSummary;
-  errors: Array<{ section: "health" | "mana" | "effects" | "equipment" | "resources"; message: string }>;
+  errors: Array<{ section: "health" | "mana" | "effects" | "equipment" | "resources" | "abilities"; message: string }>;
 };
 
 export type CombatAidAuthoredAction = {
@@ -162,6 +177,58 @@ export type CombatAidEncounterView = {
 };
 
 type SectionName = CombatAidParticipant["errors"][number]["section"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readOccurrenceState(
+  snapshot: unknown,
+  localState: unknown,
+): CombatAidParticipant["occurrenceState"] {
+  if (!isRecord(snapshot) || !isRecord(localState)) return null;
+  const core = isRecord(snapshot.core) ? snapshot.core : {};
+  const maximumHp = typeof core.totalHp === "number" && Number.isFinite(core.totalHp) ? core.totalHp : null;
+  const health = isRecord(localState.health) ? localState.health : {};
+  const totalDamage = typeof health.totalDamage === "number" && Number.isFinite(health.totalDamage) && health.totalDamage >= 0
+    ? health.totalDamage
+    : 0;
+  const poolDamage = isRecord(health.poolDamage) ? health.poolDamage : {};
+  const pools = Array.isArray(snapshot.hpPools) ? snapshot.hpPools.flatMap((candidate) => {
+    if (!isRecord(candidate) || typeof candidate.canonicalId !== "string" || typeof candidate.poolName !== "string") return [];
+    const damage = typeof poolDamage[candidate.canonicalId] === "number" && Number.isFinite(poolDamage[candidate.canonicalId])
+      ? Math.max(0, Number(poolDamage[candidate.canonicalId]))
+      : 0;
+    const poolMaximum = typeof candidate.maximumHp === "number" && Number.isFinite(candidate.maximumHp)
+      ? candidate.maximumHp
+      : null;
+    return [{
+      key: candidate.canonicalId,
+      name: candidate.poolName,
+      maximumHp: poolMaximum,
+      damage,
+      remainingHp: poolMaximum === null ? null : Math.max(0, poolMaximum - damage),
+    }];
+  }) : [];
+  const conditions = Array.isArray(localState.conditions) ? localState.conditions.flatMap((candidate) => {
+    if (!isRecord(candidate)) return [];
+    const label = typeof candidate.name === "string"
+      ? candidate.name
+      : typeof candidate.label === "string"
+        ? candidate.label
+        : typeof candidate.effectKey === "string"
+          ? candidate.effectKey.replaceAll("-", " ")
+          : null;
+    return label?.trim() ? [label.trim()] : [];
+  }) : [];
+  return {
+    maximumHp,
+    totalDamage,
+    remainingHp: maximumHp === null ? null : Math.max(0, maximumHp - totalDamage),
+    pools,
+    conditions,
+  };
+}
 
 async function readSection<T>(
   section: SectionName,
@@ -214,6 +281,8 @@ export async function readCombatAidEncounterInTransaction(
       playerName: user.name,
       playerUsername: user.username,
       creatureTemplateName: creature.canonicalName,
+      creatureSnapshot: campaignSessionEncounterParticipant.creatureSnapshotJson,
+      localState: campaignSessionEncounterParticipant.localStateJson,
     }).from(campaignSessionEncounterParticipant)
       .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
       .leftJoin(user, eq(user.id, campaignCharacter.playerUserId))
@@ -371,6 +440,9 @@ export async function readCombatAidEncounterInTransaction(
     const trackerParticipant = trackerParticipants.get(row.characterId);
     const action = actionByCharacter.get(row.characterId);
     const effects = directCreature ? null : await readSection("effects", errors, () => readActiveEffectsInTransaction(tx, row.characterId, false));
+    const derivedAbilityState = directCreature ? null : await readSection("abilities", errors, () => (
+      loadCharacterDerivedAbilitiesInTransaction(tx, row.characterId, actingUserId, false)
+    ));
     const durationBindings = directCreature ? [] : await readCharacterDurationBindingsInTransaction(tx, row.characterId, false).catch((error) => {
       errors.push({ section: "effects", message: error instanceof Error ? error.message : "Duration lifecycle state is unavailable." });
       return [];
@@ -387,6 +459,7 @@ export async function readCombatAidEncounterInTransaction(
       health: directCreature ? null : await readSection("health", errors, async () => (
         await readActiveHealthInTransaction(tx, row.characterId, row.npcKind === "creature" ? "creature" : "race")
       ).view),
+      occurrenceState: directCreature ? readOccurrenceState(row.creatureSnapshot, row.localState) : null,
       mana: directCreature ? null : await readSection("mana", errors, () => readActiveManaInTransaction(tx, row.characterId)),
       effects,
       durationBindings,
@@ -398,6 +471,11 @@ export async function readCombatAidEncounterInTransaction(
       creatureAbilities: kind === "creature-npc" || kind === "creature"
         ? await readEncounterCreatureAbilitiesInTransaction(tx, row.characterId).catch(() => [])
         : [],
+      derivedAbilities: derivedAbilityState ? derivedAbilityState.resolution.statuses.flatMap((status) => {
+        if (!status.possessed || !status.available) return [];
+        const ability = derivedAbilityState.catalog.find(({ id }) => id === status.abilityId);
+        return ability ? [{ id: ability.id, name: ability.name, activation: ability.activationType }] : [];
+      }) : [],
       spellSources: [
         ...(catalogByCharacter.get(row.characterId) ?? []).map(({ allocationId, name }) => ({ kind: "catalog" as const, allocationId, name })),
         ...(personalByCharacter.get(row.characterId) ?? []).map(({ savedSpellId, name, inSpellbook }) => inSpellbook

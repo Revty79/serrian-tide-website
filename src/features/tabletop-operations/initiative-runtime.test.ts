@@ -21,6 +21,7 @@ import {
   enrollLateInitiativeParticipant,
   getDodgeInitiativeCost,
   getMaximumMovementDistance,
+  calculateMovementInitiativeCost,
   getNextInitiativeTimelineEvent,
   holdInitiative,
   initializeInitiativeRuntime,
@@ -340,6 +341,10 @@ test("reaction gap detection respects start and completion boundaries", () => {
 });
 
 test("movement, Dodge, and Block/Parry helpers preserve canonical numeric rules", () => {
+  assert.equal(calculateMovementInitiativeCost(5, 1), 1);
+  assert.equal(calculateMovementInitiativeCost(5, 5), 1);
+  assert.equal(calculateMovementInitiativeCost(5, 5.1), 2);
+  assert.equal(calculateMovementInitiativeCost(5, 12), 3);
   assert.equal(getMaximumMovementDistance(3, 30), 90);
   assert.equal(getDodgeInitiativeCost(), 1);
   assert.deepEqual(resolveBlockParryInitiativeCosts(8, 6, false), { attackerCost: 8, defenderCost: 6 });

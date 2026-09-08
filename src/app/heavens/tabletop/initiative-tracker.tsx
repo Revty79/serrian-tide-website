@@ -191,9 +191,9 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
       <div className="initiative-setup-list">
         {data.availableToJoin.map((participant) => <article key={participant.characterId}>
           <div><strong>{participant.name}</strong><small>{identityDetail(participant)}</small></div>
-          {participant.capacityError ? <p className="initiative-inline-error">{participant.capacityError}</p> : participant.movementModes.length > 1 ? <label>
+          {participant.capacityError ? <p className="initiative-inline-error">{participant.capacityError}</p> : participant.movementModes.length > 1 ? <label className="st-field">
             <span>Starting Movement</span>
-            <select value={movementModes[participant.characterId] ?? ""} onChange={(event) => setMovementModes({ ...movementModes, [participant.characterId]: event.target.value })}>
+            <select className="st-control" value={movementModes[participant.characterId] ?? ""} onChange={(event) => setMovementModes({ ...movementModes, [participant.characterId]: event.target.value })}>
               {participant.movementModes.map((mode) => <option key={mode.movementMode} value={mode.movementMode}>{mode.movementMode} · Base {mode.baseMovement} · Initiative {mode.normalTotalInitiative}</option>)}
             </select>
           </label> : <span className="initiative-mode-readout">{participant.movementModes[0] ? `${participant.movementModes[0].movementMode} · Initiative ${participant.movementModes[0].normalTotalInitiative}` : "No capacity available"}</span>}
@@ -201,7 +201,7 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
       </div>
       {feedback ? <p className={`initiative-feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
       {data.initializationBlockReason ? <p className="initiative-guidance">{data.initializationBlockReason}</p> : null}
-      <button type="button" className="initiative-primary" disabled={busy || !data.canInitialize} onClick={() => void initialize()}>{busy ? "Initializing…" : "Initialize Initiative"}</button>
+      <button type="button" className="st-button is-primary" disabled={busy || !data.canInitialize} onClick={() => void initialize()}>{busy ? "Starting…" : "Start Initiative"}</button>
     </section>;
   }
 
@@ -225,7 +225,7 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
     {feedback ? <p className={`initiative-feedback is-${feedback.kind}`} role="status">{feedback.message}</p> : null}
 
     {closed ? <section className="initiative-closed-summary">
-      <p>This Initiative Runtime is historical and read-only. It did not complete the Encounter or reset Character state.</p>
+      <p>Initiative is closed and read-only. The encounter and Character state remain unchanged.</p>
       <dl>
         <div><dt>Started</dt><dd>{displayTimestamp(runtime.startedAt)}</dd></div>
         <div><dt>Closed</dt><dd>{displayTimestamp(runtime.closedAt)}</dd></div>
@@ -234,13 +234,13 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
       <div><span>{data.nextEvent.eyebrow}</span><h6 className="font-sans">{data.nextEvent.summary}</h6><p>{data.nextEvent.detail}</p></div>
       <button
         type="button"
-        className="initiative-primary"
+        className="st-button is-primary"
         disabled={busy || !data.nextEvent.canAdvance}
         onClick={() => void mutate(
           () => advanceEncounterInitiativeTimeline(encounterId),
           `Advanced to the next authoritative Initiative event at ${data.nextEvent?.initiative}.`,
         )}
-      >Advance to Next Event</button>
+      >Next combat step</button>
     </section> : null}
 
     <section className="initiative-participant-section">
@@ -267,16 +267,16 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
             {participant.canIntervene ? <p className="initiative-state-note">Eligible to intervene at retained Initiative {participant.currentInitiative}.</p> : null}
             {pending ? <div className="initiative-participant-pending"><span>PENDING</span><strong>{pending.label}</strong><small>{pending.initiativeSpent} spent · {pending.remainingInitiativeCost} remaining · completion {pending.expectedCompletionInitiative}</small></div> : null}
             {!closed ? <footer>
-              {participant.canAct ? <button type="button" disabled={busy} onClick={() => openAction(participant, false)}>Action</button> : null}
-              {participant.canHold ? <button type="button" disabled={busy} onClick={() => void mutate(
+              {participant.canAct ? <button type="button" className="st-button is-primary" disabled={busy} onClick={() => openAction(participant, false)}>Choose action</button> : null}
+              {participant.canHold ? <button type="button" className="st-button" disabled={busy} onClick={() => void mutate(
                 () => holdEncounterInitiative(encounterId, participant.characterId),
                 `${participant.name} is Holding at Initiative ${participant.currentInitiative}.`,
               )}>Hold</button> : null}
-              {participant.canPass ? <button type="button" disabled={busy} onClick={() => void mutate(
+              {participant.canPass ? <button type="button" className="st-button" disabled={busy} onClick={() => void mutate(
                 () => passEncounterInitiative(encounterId, participant.characterId),
                 `${participant.name} Passed with ${participant.currentInitiative} Initiative banked.`,
               )}>Pass</button> : null}
-              {participant.canIntervene ? <button type="button" className="initiative-intervene" disabled={busy} onClick={() => openAction(participant, true)}>Intervene</button> : null}
+              {participant.canIntervene ? <button type="button" className="st-button is-secondary" disabled={busy} onClick={() => openAction(participant, true)}>Intervene</button> : null}
               {pending ? <span>Pending…</span> : null}
             </footer> : null}
           </article>;
@@ -305,7 +305,7 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
           </dl>
           {action.reactionNames.length ? <p className="initiative-reaction-hint"><strong>Reaction window:</strong> {action.reactionNames.join(", ")} may have timing to react. No reaction is chosen automatically.</p> : null}
           {!closed && action.status === "active" ? <div className="initiative-pending-controls">
-            <button type="button" disabled={busy} onClick={() => void mutate(
+            <button type="button" className="st-button" disabled={busy} onClick={() => void mutate(
               () => interruptEncounterPendingAction(encounterId, action.id),
               `${action.label} was interrupted with ${action.remainingInitiativeCost} Initiative remaining.`,
             )}>Interrupt</button>
@@ -313,33 +313,33 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
           {!closed && action.status === "interrupted" ? <div className="initiative-interrupted-controls">
             <strong>G.O.D. decision required</strong>
             <div>
-              <button type="button" disabled={busy} onClick={() => void decidePending(
+              <button type="button" className="st-button is-secondary" disabled={busy} onClick={() => void decidePending(
                 `Resume ${action.label} with ${action.remainingInitiativeCost} Initiative remaining?`,
                 () => resumeEncounterPendingAction(encounterId, action.id),
                 `${action.label} resumed from existing progress.`,
-              )}>Resume Progress</button>
-              <button type="button" disabled={busy} onClick={() => void decidePending(
+              )}>Resume progress</button>
+              <button type="button" className="st-button" disabled={busy} onClick={() => void decidePending(
                 `Restart ${action.label} at its full ${action.originalInitiativeCost} Initiative cost?`,
                 () => restartEncounterPendingAction(encounterId, action.id),
                 `${action.label} restarted at full cost.`,
-              )}>Restart Full Cost</button>
+              )}>Restart full cost</button>
             </div>
-            <label><span>Adjusted remaining cost</span><input type="number" value={adjustedCosts[action.id] ?? ""} onChange={(event) => setAdjustedCosts({ ...adjustedCosts, [action.id]: event.target.value })} /></label>
+            <label className="st-field"><span>Adjusted remaining cost</span><input className="st-control" type="number" value={adjustedCosts[action.id] ?? ""} onChange={(event) => setAdjustedCosts({ ...adjustedCosts, [action.id]: event.target.value })} /></label>
             <div>
-              <button type="button" disabled={busy} onClick={() => void mutate(
+              <button type="button" className="st-button" disabled={busy} onClick={() => void mutate(
                 () => adjustEncounterPendingActionRemainingCost(encounterId, action.id, Number(adjustedCosts[action.id])),
                 `${action.label}'s remaining cost was adjusted.`,
-              )}>Adjust Only</button>
-              <button type="button" disabled={busy} onClick={() => void decidePending(
+              )}>Adjust only</button>
+              <button type="button" className="st-button is-secondary" disabled={busy} onClick={() => void decidePending(
                 `Resume ${action.label} with an adjusted remaining cost of ${adjustedCosts[action.id]}?`,
                 () => resumeEncounterPendingActionWithAdjustedCost(encounterId, action.id, Number(adjustedCosts[action.id])),
                 `${action.label} resumed with adjusted cost.`,
-              )}>Resume with Adjusted Cost</button>
+              )}>Resume adjusted</button>
             </div>
             <div>
-              <button type="button" disabled={busy} onClick={() => void decidePending(`End ${action.label}?`, () => endEncounterPendingAction(encounterId, action.id), `${action.label} ended.`)}>End</button>
-              <button type="button" disabled={busy} onClick={() => void decidePending(`Abandon ${action.label}?`, () => abandonEncounterPendingAction(encounterId, action.id), `${action.label} was abandoned.`)}>Abandon</button>
-              <button type="button" disabled={busy} onClick={() => void decidePending(`Mark ${action.label} complete manually?`, () => completeEncounterPendingActionManually(encounterId, action.id), `${action.label} was completed manually.`)}>Complete Manually</button>
+              <button type="button" className="st-button" disabled={busy} onClick={() => void decidePending(`End ${action.label}?`, () => endEncounterPendingAction(encounterId, action.id), `${action.label} ended.`)}>End</button>
+              <button type="button" className="st-button is-danger" disabled={busy} onClick={() => void decidePending(`Abandon ${action.label}?`, () => abandonEncounterPendingAction(encounterId, action.id), `${action.label} was abandoned.`)}>Abandon</button>
+              <button type="button" className="st-button is-secondary" disabled={busy} onClick={() => void decidePending(`Mark ${action.label} complete manually?`, () => completeEncounterPendingActionManually(encounterId, action.id), `${action.label} was completed manually.`)}>Complete manually</button>
             </div>
           </div> : null}
         </details>)}
@@ -351,10 +351,10 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
       <header><div><span>LATE ENTRY</span><h6 className="font-sans">Available to Join Initiative</h6></div><strong>{data.availableToJoin.length}</strong></header>
       <div>{data.availableToJoin.map((participant) => <article key={participant.characterId}>
         <div><strong>{participant.name}</strong><small>{identityDetail(participant)}</small></div>
-        {participant.capacityError ? <p className="initiative-inline-error">{participant.capacityError}</p> : <select value={movementModes[participant.characterId] ?? participant.movementModes[0]?.movementMode ?? ""} onChange={(event) => setMovementModes({ ...movementModes, [participant.characterId]: event.target.value })}>
+        {participant.capacityError ? <p className="initiative-inline-error">{participant.capacityError}</p> : <select className="st-control" value={movementModes[participant.characterId] ?? participant.movementModes[0]?.movementMode ?? ""} onChange={(event) => setMovementModes({ ...movementModes, [participant.characterId]: event.target.value })}>
           {participant.movementModes.map((mode) => <option key={mode.movementMode} value={mode.movementMode}>{mode.movementMode} · Initiative {mode.normalTotalInitiative}</option>)}
         </select>}
-        <button type="button" disabled={busy || Boolean(participant.capacityError)} onClick={() => void mutate(
+        <button type="button" className="st-button is-primary" disabled={busy || Boolean(participant.capacityError)} onClick={() => void mutate(
           () => enrollLateEncounterInitiativeParticipant(encounterId, participant.characterId, movementModes[participant.characterId] || participant.movementModes[0]?.movementMode),
           (view) => {
             const enrolled = view.participants.find(({ characterId }) => characterId === participant.characterId);
@@ -362,37 +362,37 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
               ? `${participant.name} joined Initiative at full Current ${enrolled.currentInitiative} / Normal ${enrolled.normalTotalInitiative}; shared timeline remains ${view.runtime.timelineInitiative}.`
               : `${participant.name} joined Initiative.`;
           },
-        )}>Enroll</button>
+        )}>Join Initiative</button>
       </article>)}</div>
     </section> : null}
 
     {!closed ? <section className="initiative-round-controls">
       <div><span>ROUND CONTROL</span><h6 className="font-sans">Round {runtime.roundNumber}</h6><p>{data.canAdvanceRound ? "The engine permits normal Round advancement." : "The Round cannot advance mechanically while opportunities remain unresolved."}</p></div>
-      <button type="button" className="initiative-primary" disabled={busy || !data.canAdvanceRound} onClick={() => void mutate(
+      <button type="button" className="st-button is-primary" disabled={busy || !data.canAdvanceRound} onClick={() => void mutate(
         () => advanceEncounterInitiativeRound(encounterId),
         `Advanced to Round ${runtime.roundNumber + 1}; carryover and debt were applied by the engine.`,
-      )}>Advance Round</button>
+      )}>Next round</button>
     </section> : null}
 
     {!closed ? <details className="initiative-advanced">
       <summary>Advanced / G.O.D. Corrections</summary>
       <p>These controls directly correct persisted Initiative state. They do not change Health, Mana, Conditions, Inventory, or Equipment.</p>
-      <label><span>Participant</span><select value={correctionCharacterId ?? ""} onChange={(event) => setCorrectionCharacterId(Number(event.target.value))}>{data.participants.map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name} · Current {participant.currentInitiative}</option>)}</select></label>
+      <label className="st-field"><span>Participant</span><select className="st-control" value={correctionCharacterId ?? ""} onChange={(event) => setCorrectionCharacterId(Number(event.target.value))}>{data.participants.map((participant) => <option key={participant.characterId} value={participant.characterId}>{participant.name} · Current {participant.currentInitiative}</option>)}</select></label>
       {selectedParticipant ? <div className="initiative-correction-grid">
         <form onSubmit={(event) => { event.preventDefault(); void mutate(() => overrideCurrentEncounterInitiative(encounterId, selectedParticipant.characterId, Number(currentOverride)), `${selectedParticipant.name}'s Current Initiative was set to ${currentOverride}.`); }}>
-          <strong>Set Current Initiative</strong><small>Signed and uncapped values are valid.</small><input type="number" step="any" value={currentOverride} onChange={(event) => setCurrentOverride(event.target.value)} placeholder={String(selectedParticipant.currentInitiative)} /><button type="submit" disabled={busy}>Set Current</button>
+          <strong>Set Current Initiative</strong><small>Signed and uncapped values are valid.</small><input className="st-control" type="number" step="any" value={currentOverride} onChange={(event) => setCurrentOverride(event.target.value)} placeholder={String(selectedParticipant.currentInitiative)} /><button className="st-button is-secondary" type="submit" disabled={busy}>Set current</button>
         </form>
         <form onSubmit={(event) => { event.preventDefault(); void mutate(() => applyEncounterInitiativeDelta(encounterId, selectedParticipant.characterId, Number(initiativeDelta)), `${selectedParticipant.name}'s Current Initiative changed by ${initiativeDelta}.`); }}>
-          <strong>Direct Initiative Change</strong><small>Changes Current Initiative only.</small><input type="number" step="any" value={initiativeDelta} onChange={(event) => setInitiativeDelta(event.target.value)} placeholder="+5 or -5" /><button type="submit" disabled={busy}>Apply Delta</button>
+          <strong>Direct Initiative Change</strong><small>Changes Current Initiative only.</small><input className="st-control" type="number" step="any" value={initiativeDelta} onChange={(event) => setInitiativeDelta(event.target.value)} placeholder="+5 or -5" /><button className="st-button is-secondary" type="submit" disabled={busy}>Apply change</button>
         </form>
         <form onSubmit={(event) => { event.preventDefault(); void mutate(() => overrideNormalEncounterInitiative(encounterId, selectedParticipant.characterId, Number(normalOverride), capacityMode), `${selectedParticipant.name}'s Normal Initiative was corrected.`); }}>
-          <strong>Override Normal Initiative</strong><input type="number" step="any" value={normalOverride} onChange={(event) => setNormalOverride(event.target.value)} placeholder={String(selectedParticipant.normalTotalInitiative)} /><select value={capacityMode} onChange={(event) => setCapacityMode(event.target.value as "ordinary" | "penalty-recovery")}><option value="ordinary">Apply change normally</option><option value="penalty-recovery">Penalty ending while actor is negative</option></select><button type="submit" disabled={busy}>Override Normal</button>
+          <strong>Override Normal Initiative</strong><input className="st-control" type="number" step="any" value={normalOverride} onChange={(event) => setNormalOverride(event.target.value)} placeholder={String(selectedParticipant.normalTotalInitiative)} /><select className="st-control" value={capacityMode} onChange={(event) => setCapacityMode(event.target.value as "ordinary" | "penalty-recovery")}><option value="ordinary">Apply change normally</option><option value="penalty-recovery">Penalty ending while actor is negative</option></select><button className="st-button is-secondary" type="submit" disabled={busy}>Override normal</button>
         </form>
         <form onSubmit={(event) => { event.preventDefault(); void mutate(() => refreshEncounterInitiativeCapacity(encounterId, selectedParticipant.characterId, capacityMode, selectedMode || undefined), `${selectedParticipant.name}'s authoritative Initiative capacity was refreshed.`); }}>
-          <strong>Refresh from Character</strong><small>Uses authoritative Dexterity and Movement.</small><select value={selectedMode} onChange={(event) => setMovementModes({ ...movementModes, [selectedParticipant.characterId]: event.target.value })}>{selectedParticipant.movementModes.map((mode) => <option key={mode.movementMode} value={mode.movementMode}>{mode.movementMode} · Base {mode.baseMovement} · Initiative {mode.normalTotalInitiative}</option>)}</select><select value={capacityMode} onChange={(event) => setCapacityMode(event.target.value as "ordinary" | "penalty-recovery")}><option value="ordinary">Apply change normally</option><option value="penalty-recovery">Penalty recovery while negative</option></select><button type="submit" disabled={busy || Boolean(selectedParticipant.capacityError)}>Apply Mode / Refresh</button>{selectedParticipant.capacityError ? <small className="initiative-inline-error">{selectedParticipant.capacityError}</small> : null}
+          <strong>Refresh from Character</strong><small>Uses authoritative Dexterity and Movement.</small><select className="st-control" value={selectedMode} onChange={(event) => setMovementModes({ ...movementModes, [selectedParticipant.characterId]: event.target.value })}>{selectedParticipant.movementModes.map((mode) => <option key={mode.movementMode} value={mode.movementMode}>{mode.movementMode} · Base {mode.baseMovement} · Initiative {mode.normalTotalInitiative}</option>)}</select><select className="st-control" value={capacityMode} onChange={(event) => setCapacityMode(event.target.value as "ordinary" | "penalty-recovery")}><option value="ordinary">Apply change normally</option><option value="penalty-recovery">Penalty recovery while negative</option></select><button className="st-button is-secondary" type="submit" disabled={busy || Boolean(selectedParticipant.capacityError)}>Apply and refresh</button>{selectedParticipant.capacityError ? <small className="initiative-inline-error">{selectedParticipant.capacityError}</small> : null}
         </form>
         <div className="initiative-correction-card">
-          <strong>Participation Status</strong><small>Suspending preserves Current Initiative.</small><select value={selectedParticipant.participationStatus} onChange={(event) => void mutate(
+          <strong>Participation Status</strong><small>Suspending preserves Current Initiative.</small><select className="st-control" value={selectedParticipant.participationStatus} onChange={(event) => void mutate(
             () => event.target.value === "active" && selectedParticipant.participationStatus === "suspended"
               ? resumeSuspendedEncounterInitiative(encounterId, selectedParticipant.characterId)
               : setEncounterInitiativeParticipationStatus(encounterId, selectedParticipant.characterId, event.target.value as "active" | "holding" | "passed" | "suspended"),
@@ -400,10 +400,10 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
           )}><option value="active">Active</option><option value="holding">Holding</option><option value="passed">Passed</option><option value="suspended">Suspended</option></select>
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void mutate(() => addEncounterDeferredInitiativeCost(encounterId, selectedParticipant.characterId, Number(deferredAmount)), `Added ${deferredAmount} deferred Initiative Cost to ${selectedParticipant.name}.`); }}>
-          <strong>Add Deferred Cost</strong><input type="number" step="any" value={deferredAmount} onChange={(event) => setDeferredAmount(event.target.value)} /><button type="submit" disabled={busy}>Add Deferred</button>
+          <strong>Add Deferred Cost</strong><input className="st-control" type="number" step="any" value={deferredAmount} onChange={(event) => setDeferredAmount(event.target.value)} /><button className="st-button is-secondary" type="submit" disabled={busy}>Add cost</button>
         </form>
         <form onSubmit={(event) => { event.preventDefault(); void mutate(() => settleEncounterDeferredInitiativeCost(encounterId, selectedParticipant.characterId, settleAmount === "" ? undefined : Number(settleAmount)), `Settled deferred Initiative Cost for ${selectedParticipant.name}.`); }}>
-          <strong>Settle Deferred Cost</strong><small>Leave blank to settle all {selectedParticipant.deferredInitiativeCost}.</small><input type="number" step="any" value={settleAmount} onChange={(event) => setSettleAmount(event.target.value)} /><button type="submit" disabled={busy}>Settle</button>
+          <strong>Settle Deferred Cost</strong><small>Leave blank to settle all {selectedParticipant.deferredInitiativeCost}.</small><input className="st-control" type="number" step="any" value={settleAmount} onChange={(event) => setSettleAmount(event.target.value)} /><button className="st-button is-secondary" type="submit" disabled={busy}>Settle</button>
         </form>
       </div> : null}
       <form className="initiative-runtime-correction" onSubmit={(event) => {
@@ -415,15 +415,15 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
           timelineInitiative: Number(runtimeTimeline),
         }), "Initiative runtime position was corrected.");
       }}>
-        <strong>Correct Runtime Position</strong><label><span>Round</span><input type="number" min="1" value={runtimeRound} onChange={(event) => setRuntimeRound(event.target.value)} /></label><label><span>Combat Step</span><input type="number" min="1" value={runtimeStep} onChange={(event) => setRuntimeStep(event.target.value)} /></label><label><span>Shared Timeline</span><input type="number" min="0" step="any" value={runtimeTimeline} onChange={(event) => setRuntimeTimeline(event.target.value)} /></label><button type="submit" disabled={busy}>Apply Runtime Correction</button>
+        <strong>Correct Initiative position</strong><label className="st-field"><span>Round</span><input className="st-control" type="number" min="1" value={runtimeRound} onChange={(event) => setRuntimeRound(event.target.value)} /></label><label className="st-field"><span>Combat step</span><input className="st-control" type="number" min="1" value={runtimeStep} onChange={(event) => setRuntimeStep(event.target.value)} /></label><label className="st-field"><span>Shared timeline</span><input className="st-control" type="number" min="0" step="any" value={runtimeTimeline} onChange={(event) => setRuntimeTimeline(event.target.value)} /></label><button className="st-button is-secondary" type="submit" disabled={busy}>Apply correction</button>
       </form>
       <div className="initiative-danger-controls">
-        <button type="button" disabled={busy} onClick={() => void decidePending(
+        <button type="button" className="st-button is-danger" disabled={busy} onClick={() => void decidePending(
           "Force advance the Initiative Round? Carryover and debt will still be applied by the engine.",
           () => advanceEncounterInitiativeRound(encounterId, true),
           `Forced advancement to Round ${runtime.roundNumber + 1} completed.`,
-        )}>Force Advance Round</button>
-        <button type="button" disabled={busy} onClick={() => void decidePending(
+        )}>Force next round</button>
+        <button type="button" className="st-button is-danger" disabled={busy} onClick={() => void decidePending(
           "Close Initiative? This preserves Initiative history and does not complete the Encounter or reset Character state.",
           () => closeEncounterInitiative(encounterId),
           "Initiative closed. Historical state remains available.",
@@ -433,13 +433,13 @@ export function InitiativeTracker({ data }: { data: InitiativeTrackerReadModel }
 
     {actionDraft && actionParticipant ? <div className="initiative-dialog-backdrop" role="presentation">
       <form className="initiative-action-dialog" role="dialog" aria-modal="true" aria-labelledby="initiative-action-title" onSubmit={(event) => { event.preventDefault(); void submitAction(); }}>
-        <header><div><span>{actionDraft.heldIntervention ? "HELD INTERVENTION" : "GENERIC INITIATIVE ACTION"}</span><h6 id="initiative-action-title" className="font-sans">{actionParticipant.name}</h6></div><button type="button" aria-label="Close action dialog" onClick={() => setActionDraft(null)}>×</button></header>
+        <header><div><span>{actionDraft.heldIntervention ? "HELD INTERVENTION" : "INITIATIVE ACTION"}</span><h6 id="initiative-action-title" className="font-sans">{actionParticipant.name}</h6></div><button type="button" className="st-button" aria-label="Close action dialog" onClick={() => setActionDraft(null)}>×</button></header>
         <p>Current {actionParticipant.currentInitiative} · Shared timeline {runtime.timelineInitiative}. The server validates whether this action is affordable.</p>
-        <label><span>Action Label</span><input required value={actionDraft.label} onChange={(event) => setActionDraft({ ...actionDraft, label: event.target.value })} placeholder="Sword Attack, Move, Open Door…" /></label>
-        <label><span>Initiative Cost</span><input required type="number" min="0.000001" step="any" value={actionDraft.initiativeCost} onChange={(event) => setActionDraft({ ...actionDraft, initiativeCost: event.target.value })} /></label>
-        <label className="initiative-checkbox"><input type="checkbox" checked={actionDraft.allowsMultiRound} onChange={(event) => setActionDraft({ ...actionDraft, allowsMultiRound: event.target.checked })} /><span>Long / Multi-Round Action</span></label>
+        <label className="st-field"><span>Action name</span><input className="st-control" required value={actionDraft.label} onChange={(event) => setActionDraft({ ...actionDraft, label: event.target.value })} placeholder="Sword attack, move, open door…" /></label>
+        <label className="st-field"><span>Initiative cost</span><input className="st-control" required type="number" min="0.000001" step="any" value={actionDraft.initiativeCost} onChange={(event) => setActionDraft({ ...actionDraft, initiativeCost: event.target.value })} /></label>
+        <label className="st-field initiative-checkbox"><input type="checkbox" checked={actionDraft.allowsMultiRound} onChange={(event) => setActionDraft({ ...actionDraft, allowsMultiRound: event.target.checked })} /><span>Long / multi-round action</span></label>
         {movementPreview ? <p className="initiative-movement-preview"><strong>Optional movement helper</strong>{movementPreview.movementMode} · Base {movementPreview.baseMovement} × {actionDraft.initiativeCost || 0} Initiative = up to {movementPreview.distance} ft.</p> : null}
-        <footer><button type="button" disabled={busy} onClick={() => setActionDraft(null)}>Cancel</button><button type="submit" className="initiative-primary" disabled={busy}>{busy ? "Starting…" : actionDraft.heldIntervention ? "Begin Intervention" : "Begin Action"}</button></footer>
+        <footer><button type="button" className="st-button" disabled={busy} onClick={() => setActionDraft(null)}>Cancel</button><button type="submit" className="st-button is-primary" disabled={busy}>{busy ? "Starting…" : actionDraft.heldIntervention ? "Begin intervention" : "Begin action"}</button></footer>
       </form>
     </div> : null}
   </section>;

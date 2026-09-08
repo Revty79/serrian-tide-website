@@ -33,6 +33,7 @@ import {
 } from "@/features/items/character-weapon-governance";
 import { lockActiveItemRootInTransaction } from "@/features/items/active-item-root-service";
 import { loadCharacterSkillLineageInputInTransaction } from "@/features/items/character-weapon-governance-service";
+import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 import {
   prepareCharacterSpellCastInTransaction,
 } from "@/features/characters/character-spell-runtime-service";
@@ -56,6 +57,9 @@ import type {
 import type { ActionDeclarationActor } from "./action-declaration-service";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
+import { resolveInitiativeCapacityInTransaction } from "./initiative-capacity-service";
+import { calculateMovementInitiativeCost } from "./initiative-runtime";
+import { readAttackTargetInTransaction } from "./attack-target-service";
 
 export type ActionSourceResolverTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -281,15 +285,23 @@ async function resolveWeapon(
     .limit(1);
   if (!row) throw new Error("The selected canonical Weapon/Profile no longer exists.");
   if (draft.firingModeId !== null && row.firingModeId !== draft.firingModeId) throw new Error("The selected Firing Mode no longer belongs to that Weapon Profile.");
+  const equipment = await readCharacterEquipmentStateInTransaction(tx, draft.actorCharacterId);
+  const wielded = equipment.wieldedWeapons.find(({ itemId, instanceId }) => (
+    itemId === row.itemId && instanceId === draft.sourceInstanceId
+  ));
+  if (!wielded) throw new Error("The exact Weapon source is no longer wielded by the acting Character.");
   const effects = [manualEffect("weapon-damage-instruction", `${row.name} attack`, {
-    damage: row.damage,
+    damage: wielded.authoredDamage,
+    canonicalDamage: row.damage,
+    authoredDamageModifier: wielded.authoredDamageModifier,
+    authoredDamageSourceName: wielded.authoredDamageSourceName,
     damageSource: row.damageSource,
     damageType: row.damageType,
     range: row.rangeText,
     reach: row.reachText,
     ammunitionItemId: row.ammunitionItemId,
     rulesText: row.rulesText,
-    nonautomation: "Full weapon damage, ammunition, armor, soak, hit location, recoil, and Called Shot rules are deferred.",
+    resolution: "After the immutable attack and defense result, ordinary damage uses this frozen source plus authoritative target anatomy, armor, soak, and any bound Called Shot.",
   }, allTargets(draft))];
   return {
     authoritativeInitiativeCost: row.initiativeCost,
@@ -306,7 +318,7 @@ async function resolveWeapon(
       resolutionMode: governing?.status === "resolved" ? "opposed-roll" : "manual-god-ruling",
       governingSource: governing?.status === "resolved" ? governing.source as FrozenActionSourceSnapshot["governingSource"] : null,
       governingSnapshot: null,
-      authoredData: row,
+      authoredData: { ...row, resolvedDamage: wielded.authoredDamage, authoredDamageModifier: wielded.authoredDamageModifier, authoredDamageSourceName: wielded.authoredDamageSourceName },
       resourceCosts: [],
       effects,
       warnings: row.firingModeReviewRequired ? ["The selected Firing Mode is still marked mechanics-review-required."] : [],
@@ -694,7 +706,7 @@ async function resolveCreatureSource(
           damageType: attack.damageType ?? "",
           specialEffect: attack.specialEffect ?? "",
           requirements: attack.requirements ?? "",
-          nonautomation: "Attack damage, armor, soak, hit location, and narrative consequences remain deferred.",
+          resolution: "After the immutable attack and defense result, ordinary damage uses this frozen occurrence attack plus authoritative target anatomy, armor, soak, and any bound Called Shot.",
         }, targets)],
         warnings: [
           ...(governingSource ? [] : ["Creature Attack Roll requires a G.O.D. ruling."]),
@@ -757,13 +769,14 @@ async function resolveCreatureSource(
   };
 }
 
-function resolveNoRollOrManual(
+async function resolveNoRollOrManual(
+  tx: ActionSourceResolverTransaction,
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
   participant: ParticipantSource,
   declarationId: number,
   draft: ActionDeclarationDraft,
-): ResolvedLockedActionSource {
+): Promise<ResolvedLockedActionSource> {
   const kind = draft.sourceKind === "manual" || (draft.sourceKind === "generic" && participant.participantKind === "creature")
     ? "manual" as const
     : "no-roll" as const;
@@ -771,6 +784,50 @@ function resolveNoRollOrManual(
     throw new Error("Only the Campaign-owning G.O.D. may lock a Manual G.O.D. ruling source.");
   }
   const payload = sourcePayload(draft);
+  if (kind === "no-roll" && draft.actionKind === "movement") {
+    const movement = isRecord(payload.movement) ? payload.movement : null;
+    if (!movement) throw new Error("Movement requires an exact mode, distance, and intent.");
+    const movementMode = requiredText(movement.mode, "Movement mode", 160);
+    const distanceFeet = numeric(movement.distanceFeet);
+    if (distanceFeet === null || distanceFeet <= 0) throw new Error("Movement distance must be greater than zero feet.");
+    const intent = requiredText(movement.intent, "Movement intent", 500);
+    if (draft.targetCharacterIds.length) throw new Error("Movement cannot lock an attack target.");
+    const capacity = await resolveInitiativeCapacityInTransaction(
+      tx,
+      draft.actorCharacterId,
+      context.campaignId,
+      movementMode,
+    );
+    const initiativeCost = calculateMovementInitiativeCost(capacity.baseMovement, distanceFeet);
+    return {
+      authoritativeInitiativeCost: initiativeCost,
+      governing: null,
+      snapshot: snapshot({
+        kind: "no-roll",
+        identity: `movement:declaration:${declarationId};participant:${draft.actorCharacterId}`,
+        sourceId: declarationId,
+        sourceInstanceId: null,
+        ownerParticipantId: draft.actorCharacterId,
+        displayName: `${capacity.movementMode} movement — ${distanceFeet} ft`,
+        authoringHref: null,
+        liveRevision: null,
+        resolutionMode: "automatic-no-roll",
+        governingSource: null,
+        governingSnapshot: null,
+        authoredData: {
+          actionKind: "movement",
+          movementMode: capacity.movementMode,
+          baseMovement: capacity.baseMovement,
+          distanceFeet,
+          intent,
+          initiativeCost,
+        },
+        resourceCosts: [],
+        effects: [],
+        warnings: [],
+      }),
+    };
+  }
   const instruction = optionalText(payload.instruction) || draft.godNotes;
   const effects = kind === "manual" && instruction
     ? [manualEffect("god-manual-instruction", draft.label, { instruction }, allTargets(draft))]
@@ -815,6 +872,21 @@ export async function resolveLockedActionSourceInTransaction(
   },
 ): Promise<ResolvedLockedActionSource> {
   const participant = await loadParticipant(tx, context, draft.actorCharacterId);
+  if ((draft.sourceKind === "weapon" || draft.sourceKind === "creature-attack") && draft.targetCharacterIds.length !== 1) {
+    throw new Error("A Weapon or Creature Attack must bind one exact Encounter target before Initiative is committed.");
+  }
+  if (draft.calledShot.declared) {
+    if (draft.sourceKind !== "weapon" && draft.sourceKind !== "creature-attack") {
+      throw new Error("A Called Shot must be bound to an exact Weapon or Creature Attack source.");
+    }
+    if (draft.targetCharacterIds.length !== 1 || draft.calledShot.locationNumber === null || draft.calledShot.locationNumber === undefined) {
+      throw new Error("A Called Shot must bind one exact target and one authored Hit Location before the Roll.");
+    }
+    const target = await readAttackTargetInTransaction(tx, context, draft.targetCharacterIds[0]!);
+    if (!target.anatomy?.hitLocations.some(({ result }) => result === draft.calledShot.locationNumber)) {
+      throw new Error("The Called Shot Hit Location is absent from the exact target's authored anatomy.");
+    }
+  }
   if (draft.sourceKind === "weapon") {
     if (!existing.weapon) throw new Error("A Weapon source requires the exact locked Weapon Profile.");
     return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing);
@@ -826,5 +898,5 @@ export async function resolveLockedActionSourceInTransaction(
   if (draft.sourceKind === "creature-attack" || draft.sourceKind === "creature-ability") {
     return resolveCreatureSource(participant, draft);
   }
-  return resolveNoRollOrManual(context, actor, participant, declarationId, draft);
+  return resolveNoRollOrManual(tx, context, actor, participant, declarationId, draft);
 }

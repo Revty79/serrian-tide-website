@@ -10,7 +10,9 @@ const schema = source("src/db/tabletop-operations-schema.ts");
 const migration = source("drizzle/0031_player_combat_ruling_requests.sql");
 const rulingService = source("src/features/tabletop-operations/player-combat-ruling-service.ts");
 const playerActions = source("src/app/realms/tabletop/player-combat-actions.ts");
-const playerConsole = source("src/app/realms/tabletop/player-combat-console.tsx");
+const playerConsoleEntry = source("src/app/realms/tabletop/player-combat-console.tsx");
+const playerConsoleCore = source("src/app/realms/tabletop/player-combat-console-core.tsx");
+const playerConsole = playerConsoleEntry + playerConsoleCore;
 const playerWorkspace = source("src/app/realms/tabletop/player-tabletop-workspace.tsx");
 const rollService = source("src/features/tabletop-operations/roll-runtime-service.ts");
 const legacyPlayerEncounterPage = source("src/app/realms/characters/[characterId]/encounter/page.tsx");
@@ -67,7 +69,7 @@ test("Player combat reuses declarations, defenses, firearm runtime, Rolls, and o
     "declareDefenseInterventionInTransaction",
     "recordDeclaredAttackRollInTransaction",
     "recordDeclaredResponseRollInTransaction",
-    "resolveDeclaredDefensesInTransaction",
+    "resolveDeclaredDefensesIfReadyInTransaction",
     "startFirearmPreparationInTransaction",
     "declareFirearmAttackInTransaction",
     "fireFirearmAttackInTransaction",
@@ -91,10 +93,32 @@ test("Player UI prioritizes responses and exposes only request-side Called Shot 
   assert.match(playerConsole, /Block/);
   assert.match(playerConsole, /aria-label="Physical defense Roll"/);
   assert.match(playerConsole, /Approved Called Shot/);
+  assert.match(playerConsole, /Authored target location/);
+  assert.match(playerConsole, /MOVEMENT/);
+  assert.match(playerActions, /declarePlayerMovement/);
   assert.doesNotMatch(playerConsole, /name="penalty"/);
   assert.match(playerConsole, /Legacy aggregate firearms require G\.O\.D\. initialization/);
   assert.match(playerConsole, /attack\.triggerTimingStatus === "completed"/);
-  assert.match(playerConsole, /JSON\.stringify\(effect\.finalValue/);
+  assert.match(playerConsole, /styles\.resultCalculation/);
+  assert.match(playerConsole, /gross.*armor.*soak.*damage/);
+  assert.doesNotMatch(playerConsole, /JSON\.stringify\(effect\./);
+});
+
+test("Player priority Roll surface mounts the shared action-bound roller before the core console", () => {
+  const panel = source("src/components/tabletop/combat-roll-panel.tsx");
+  assert.match(playerConsoleEntry, /<CombatRollPanel/);
+  assert.ok(playerConsoleEntry.indexOf("<CombatRollPanel") < playerConsoleEntry.indexOf("<CorePlayerCombatConsole"));
+  assert.match(playerConsoleEntry, /buildCombatRollPrompts/);
+  assert.match(playerConsoleEntry, /buildFirearmRollPrompts\(combat\.firearmAttacks\.attacks, controlledIds, combat\.declarations\.declarations\)/);
+  assert.match(playerConsoleEntry, /rollPlayerDeclaredResponse\(characterId, encounterId, prompt\.recordId, roll\)/);
+  assert.match(playerConsoleEntry, /rollPlayerDeclaredAttack\(characterId, encounterId, prompt\.recordId, roll\)/);
+  assert.match(playerConsoleEntry, /firePlayerFirearmAttack\(characterId, encounterId, prompt\.recordId, roll\)/);
+  assert.match(playerConsoleEntry, /allowManualTarget: false/);
+  assert.match(panel, /"Roll d100"/);
+  assert.match(panel, />Enter roll</);
+  assert.match(panel, /parsePhysicalPercentileInput\(draft\.entered\)/);
+  assert.match(panel, /await onSubmit\(prompt, input\)/);
+  assert.match(panel, /router\.refresh\(\)/);
 });
 
 test("G.O.D. rulings stay in Heavens and Called Shot penalties are assigned there", () => {

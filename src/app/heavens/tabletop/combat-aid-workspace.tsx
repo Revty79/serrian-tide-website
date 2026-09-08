@@ -88,7 +88,7 @@ export function CombatAidWorkspace({
 }: {
   data: CombatAidEncounterView;
   rollWorkspace: RollWorkspaceView | null;
-  onOpenInitiative: () => void;
+  onOpenInitiative?: () => void;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(data.participants[0]?.identity.characterId ?? null);
@@ -106,7 +106,7 @@ export function CombatAidWorkspace({
   return <section className="combat-aid">
     <header className="combat-aid-heading">
       <div><span>LIVE AUTHORITATIVE STATE</span><h6 className="font-sans">Combat Aid</h6><p>Read and operate on the same Character state used by Player and G.O.D. pages.</p></div>
-      <div><button type="button" onClick={() => router.refresh()}>Refresh State</button>{rollWorkspace ? <button type="button" onClick={() => openRollTray()}>Roll Tray</button> : null}<button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button></div>
+      <div><button type="button" onClick={() => router.refresh()}>Refresh State</button>{rollWorkspace ? <button type="button" onClick={() => openRollTray()}>Roll Tray</button> : null}{onOpenInitiative ? <button type="button" onClick={onOpenInitiative}>Open Initiative Tracker</button> : null}</div>
     </header>
     {rollWorkspace && rollTrayOpen ? <details className="combat-aid-roll-tray" open>
       <summary onClick={(event) => { event.preventDefault(); setRollTrayOpen(false); }}>Close Roll Tray</summary>

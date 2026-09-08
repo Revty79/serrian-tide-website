@@ -788,6 +788,12 @@ export function getMaximumMovementDistance(baseMovement: number, initiativeSpent
   return baseMovement * initiativeSpent;
 }
 
+export function calculateMovementInitiativeCost(baseMovement: number, distanceFeet: number): number {
+  positive(baseMovement, "Base Movement");
+  positive(distanceFeet, "Movement distance");
+  return Math.ceil(distanceFeet / baseMovement);
+}
+
 export function getDodgeInitiativeCost(): 1 {
   return 1;
 }

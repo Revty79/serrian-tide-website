@@ -1,0 +1,41 @@
+name: Combat runner validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  combat-runner:
+    if: github.head_ref == 'finish-guided-combat'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Package isolated review workspace
+        run: |
+          mkdir -p /tmp/combat-review
+          git archive --format=tar.gz HEAD > /tmp/combat-review/source.tar.gz
+          tar -czf /tmp/combat-review/dependencies.tar.gz node_modules
+      - name: Retain review workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: combat-review-workspace
+          path: /tmp/combat-review/*.tar.gz
+          retention-days: 1
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run validate:unit

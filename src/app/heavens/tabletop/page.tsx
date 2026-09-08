@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { buildInitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
+import { resolveEncounterBattleParticipantId } from "@/features/tabletop-operations/encounter-battle-selection";
 
 import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
 import { getSceneEncounterWorkspace } from "./encounter-actions";
@@ -41,6 +42,8 @@ export default async function TabletopOperationsPage({
     weaponMode?: string;
     firearmCharacter?: string;
     firearmInstance?: string;
+    mode?: string;
+    actor?: string;
   }>;
 }) {
   await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
@@ -54,6 +57,8 @@ export default async function TabletopOperationsPage({
   const requestedWeaponModeId = Number(query.weaponMode);
   const requestedFirearmCharacterId = Number(query.firearmCharacter);
   const requestedFirearmInstanceId = Number(query.firearmInstance);
+  const requestedActorId = Number(query.actor);
+  const battleActorId = Number.isSafeInteger(requestedActorId) && requestedActorId !== 0 ? requestedActorId : null;
   const workspace = await getTabletopWorkspace(
     Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
       ? requestedCampaignId
@@ -113,10 +118,25 @@ export default async function TabletopOperationsPage({
   const actionEffects = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getActionEffectWorkspace(encounterWorkspace.selectedEncounter.id)
     : null;
+  const battleParticipants = actionDeclarations?.participants ?? initiativeTracker?.participants.map((participant) => ({
+    characterId: participant.characterId,
+    choiceOwner: participant.playerName ? "player" as const : "god" as const,
+    participationStatus: participant.participationStatus,
+  })) ?? [];
+  const resolvedBattleActorId = initiativeTracker ? resolveEncounterBattleParticipantId({
+    requestedParticipantId: battleActorId,
+    participants: battleParticipants,
+    nextEventParticipantIds: initiativeTracker.nextEvent?.characterIds ?? [],
+  }) : null;
+  const useBattleActor = encounterWorkspace?.selectedEncounter?.status === "active" && query.mode !== "reference";
   const firearmReadiness = canOperateTable && encounterWorkspace?.selectedEncounter
     ? await getFirearmReadinessWorkspace(
         encounterWorkspace.selectedEncounter.id,
-        Number.isInteger(requestedFirearmCharacterId) && requestedFirearmCharacterId !== 0 ? requestedFirearmCharacterId : null,
+        useBattleActor
+          ? resolvedBattleActorId
+          : Number.isInteger(requestedFirearmCharacterId) && requestedFirearmCharacterId !== 0
+            ? requestedFirearmCharacterId
+            : resolvedBattleActorId,
         Number.isInteger(requestedFirearmInstanceId) && requestedFirearmInstanceId > 0 ? requestedFirearmInstanceId : null,
       )
     : null;
@@ -179,6 +199,8 @@ export default async function TabletopOperationsPage({
       initialCalledChecks={calledChecks}
       initialWeaponGovernance={weaponGovernance}
       requestedSessionId={selectedSessionId}
+      requestedMode={query.mode === "reference" ? "reference" : query.mode === "battle" ? "battle" : null}
+      requestedCombatantId={resolvedBattleActorId}
       requestedWorkspace={canOperateTable
         ? query.workspace === "weapons"
           ? "weapons"
