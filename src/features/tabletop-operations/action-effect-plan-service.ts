@@ -862,6 +862,9 @@ async function applyDirectCreatureEffect(
     throw new Error("The direct Creature occurrence-local state is missing or malformed.");
   }
   const final = finalMechanicalEffect(effectRow.finalValueJson);
+  const { captureCombatModifierTimingInTransaction, reconcileCombatModifierTimingInTransaction } = await import("./combat-modifier-timing-service");
+  const combatTiming = final.effect.kind === "modifier.apply"
+    ? await captureCombatModifierTimingInTransaction(tx, effectRow.targetParticipantId, [final.effect]) : [];
   const next = structuredClone(participant.localState);
   const appliedAt = new Date().toISOString();
   if (final.effect.kind === "health.damage" || final.effect.kind === "health.heal") {
@@ -922,6 +925,7 @@ async function applyDirectCreatureEffect(
     eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
     eq(campaignSessionEncounterParticipant.characterId, effectRow.targetParticipantId),
   ));
+  await reconcileCombatModifierTimingInTransaction(tx, combatTiming);
   return { kind: final.effect.kind, occurrenceLocal: true, effectPlanEffectId: effectRow.id };
 }
 

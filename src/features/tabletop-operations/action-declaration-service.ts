@@ -61,7 +61,7 @@ import {
   type OwnedEncounterRuntimeContext,
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
-import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
+import { assertLockedSpellOwnershipInTransaction, resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 import {
   beginDeclarationCheckpointInTransaction,
@@ -498,6 +498,10 @@ async function buildAuthoritativeSnapshot(
     governing,
   });
   governing = resolvedSource.governing;
+  if (actor.authority === "player" && ["item", "derived-ability"].includes(draft.sourceKind)
+    && resolvedSource.authoritativeInitiativeCost === null) {
+    throw new Error("This exact source has no authored combat timing. The G.O.D. must record its Initiative cost before the Player chooses to use it.");
+  }
   if (resolvedSource.authoritativeInitiativeCost !== null && draft.windowKind !== "firearm-trigger") {
     draft = { ...draft, initiativeCost: resolvedSource.authoritativeInitiativeCost };
   }
@@ -659,8 +663,11 @@ async function insertObjectiveOpportunities(
   participants: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>["participants"],
   windowSequence = 1,
   excludedResponderIds: ReadonlySet<number> = new Set(),
+  expectedCompletionInitiative?: number,
 ): Promise<number> {
-  const window = deriveActionWindow(startInitiative, snapshot);
+  const originalWindow = deriveActionWindow(startInitiative, snapshot);
+  const window = expectedCompletionInitiative === undefined ? originalWindow
+    : { ...originalWindow, nominalCompletionInitiative: expectedCompletionInitiative };
   const candidates = deriveResponderCandidates(window, snapshot.actorCharacterId, participants)
     .filter(({ included, characterId }) => included && !excludedResponderIds.has(characterId));
   if (candidates.length) {
@@ -689,6 +696,13 @@ export async function commitActionDeclarationInTransaction(
   declarationId: number,
   rollInput: DeclarationRollInput = { method: "random" },
 ): Promise<number> {
+  return tx.transaction((commitTx) => commitActionDeclarationInternal(commitTx, context, actor, declarationId, rollInput));
+}
+
+async function commitActionDeclarationInternal(
+  tx: ActionDeclarationTransaction, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor,
+  declarationId: number, rollInput: DeclarationRollInput,
+): Promise<number> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
@@ -698,6 +712,7 @@ export async function commitActionDeclarationInTransaction(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  await assertLockedSpellOwnershipInTransaction(tx, snapshotDraft(snapshot));
   if (snapshot.source.kind === "weapon") {
     const firearmPreparation = snapshot.windowKind === "preparation"
       && snapshot.actionKind.startsWith("firearm-preparation:")
@@ -732,8 +747,27 @@ export async function commitActionDeclarationInTransaction(
     allowsMultiRound: snapshot.allowsMultiRound,
     heldIntervention: snapshot.heldIntervention,
   });
+  const commitmentReceipts: Record<string, unknown>[] = [];
+  const { commitCombatDerivedAbilityUseInTransaction } = await import("./combat-derived-ability-service");
+  const abilityUseId = await commitCombatDerivedAbilityUseInTransaction(tx, context, actor, snapshot, declarationId);
+  if (abilityUseId !== null) commitmentReceipts.push({ kind: "derived-ability-use", id: abilityUseId });
+  for (const cost of snapshot.authoredSource?.resourceCosts ?? []) {
+    if (cost.commitAt !== "declaration") continue;
+    if (cost.kind !== "mana" || !["spell", "derived-ability"].includes(snapshot.source.kind) || snapshot.actorCharacterId <= 0
+      || !cost.applicationSupported || cost.amount === null || !Number.isFinite(cost.amount) || cost.amount < 0
+      || !["Spellcraft", "Talismanism", "Faith", "Psyonics", "Bardic Resonance"].includes(cost.resourceKey ?? "")) {
+      throw new Error("This cast-start resource cost is not supported; resolve the exact source before casting begins.");
+    }
+    if (cost.amount > 0) {
+      const { spendActiveManaInTransaction } = await import("@/features/active-state/active-mana-service");
+      const receipt = await spendActiveManaInTransaction(tx, { characterId: snapshot.actorCharacterId,
+        system: cost.resourceKey as import("@/features/characters/character-rules").CharacterMagicSystem, amount: cost.amount });
+      commitmentReceipts.push({ key: cost.key, amount: cost.amount, system: cost.resourceKey, receipt });
+    } else commitmentReceipts.push({ key: cost.key, amount: 0, system: cost.resourceKey });
+  }
   await persistInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context, before, after);
-  const committedAction = after.pendingActions.find(({ id }) => id === pendingActionId)!;
+  const persisted = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const committedAction = persisted.pendingActions.find(({ id }) => id === pendingActionId)!;
   const now = new Date();
   await tx.update(campaignSessionEncounterActionDeclaration).set({
     pendingActionId,
@@ -756,7 +790,10 @@ export async function commitActionDeclarationInTransaction(
     pendingActionId,
     snapshot,
     committedAction.startInitiative,
-    after.participants,
+    persisted.participants,
+    1,
+    new Set(),
+    committedAction.expectedCompletionInitiative,
   );
   if (opportunityCount === 0) {
     const nextStatus: ActionDeclarationStatus = snapshot.governing?.status === "needs-god-ruling"
@@ -785,6 +822,8 @@ export async function commitActionDeclarationInTransaction(
   await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
     participantId: snapshot.actorCharacterId, kind: "action", declarationId, reactionId: null,
   });
+  if (commitmentReceipts.length) await recordEvent(tx, context, row.id, "committed", "committed", "cast-resources-committed", actor.userId,
+    "Mana spent when casting began. Failure, interruption and voluntary cancellation do not refund a begun cast.", { receipts: commitmentReceipts });
   return pendingActionId;
 }
 
@@ -831,9 +870,13 @@ export async function reconcileActionResponseWindowsInTransaction(
   after: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
+  const participantsChanged = after.participants.some((participant) => {
+    const prior = before.participants.find(({ characterId }) => characterId === participant.characterId);
+    return !prior || prior.currentInitiative !== participant.currentInitiative || prior.participationStatus !== participant.participationStatus;
+  });
   for (const action of after.pendingActions) {
     const prior = before.pendingActions.find(({ id }) => id === action.id);
-    if (!prior || action.status !== "active" || prior.expectedCompletionInitiative === action.expectedCompletionInitiative) continue;
+    if (!prior || action.status !== "active" || !participantsChanged && prior.expectedCompletionInitiative === action.expectedCompletionInitiative) continue;
     const [row] = await tx.select().from(campaignSessionEncounterActionDeclaration)
       .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, action.id)).limit(1);
     if (!row) continue;
@@ -848,11 +891,13 @@ export async function reconcileActionResponseWindowsInTransaction(
       if (opportunity.reactionId !== null || opportunity.source !== "initiative") continue;
       const candidate = candidates.find(({ characterId }) => characterId === opportunity.responderCharacterId);
       if (opportunity.status === "pending" && !candidate) {
-        await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "ineligible", reason: timingReason, rulingReason: timingReason, updatedAt: new Date() })
+        await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "ineligible", reason: timingReason, rulingReason: timingReason,
+          reconciledAt: new Date(), reconciledByUserId: context.ownerUserId, updatedAt: new Date() })
           .where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
       } else if (candidate && (opportunity.status === "pending" || opportunity.rulingReason === timingReason)) {
         await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "pending", reachedAtInitiative: candidate.currentInitiative,
-          requiresGodConfirmation: opportunity.status === "ineligible" || opportunity.requiresGodConfirmation, rulingReason: "", updatedAt: new Date() })
+          requiresGodConfirmation: opportunity.status === "ineligible" || opportunity.requiresGodConfirmation, rulingReason: "",
+          reconciledAt: null, reconciledByUserId: null, updatedAt: new Date() })
           .where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
       }
     }
@@ -945,6 +990,7 @@ export async function reconcileResponderOpportunityInTransaction(
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may reconcile responder eligibility.");
+  if (input.decision !== "allow" && input.decision !== "ineligible") throw new Error("Choose Allow or an explicit ineligibility ruling for this response opportunity.");
   const [opportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
     eq(campaignSessionEncounterResponderOpportunity.id, positiveId(opportunityId, "Responder opportunity")),
     eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId),

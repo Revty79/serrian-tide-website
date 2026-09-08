@@ -1,5 +1,6 @@
 import "server-only";
 import { readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
+import { projectSealedCombatManaInTransaction } from "./combat-resource-projection-service";
 import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -896,7 +897,7 @@ async function readPlayerTabletopStateInTransaction(
         })
       : { towns: [], shops: [] };
     const health = (await readActiveHealthInTransaction(tx, identity.characterId, identity.npcKind)).view;
-    const mana = await readActiveManaInTransaction(tx, identity.characterId);
+    const mana = await projectSealedCombatManaInTransaction(tx, await readActiveManaInTransaction(tx, identity.characterId));
     const effects = await readActiveEffectsInTransaction(tx, identity.characterId, true);
     const equipment = await readCharacterEquipmentStateInTransaction(tx, identity.characterId);
     const charges = await readCharacterItemChargeStateInTransaction(tx, identity.characterId);

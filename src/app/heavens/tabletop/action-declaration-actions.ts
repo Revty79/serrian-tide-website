@@ -29,6 +29,7 @@ import type { ActionDeclarationDraft } from "@/features/tabletop-operations/acti
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
+import { recordCombatSourceResolutionInTransaction, type CombatSourceResolutionRuling } from "@/features/tabletop-operations/combat-source-resolution-service";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -91,6 +92,10 @@ export async function createActionDeclarationDraft(encounterId: number, draft: A
   return mutateDeclaration(encounterId, (tx, context, actor) => (
     createActionDeclarationDraftInTransaction(tx, context, actor, draft)
   ));
+}
+
+export async function ruleCombatSourceResolution(encounterId: number, ruling: CombatSourceResolutionRuling): Promise<string> {
+  return mutateDeclaration(encounterId, (tx, context, actor) => recordCombatSourceResolutionInTransaction(tx, context, actor, ruling));
 }
 
 export async function editActionDeclarationDraft(encounterId: number, declarationId: number, draft: ActionDeclarationDraft): Promise<void> {

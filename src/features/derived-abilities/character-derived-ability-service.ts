@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
 import { and, asc, eq, inArray, isNull, like } from "drizzle-orm";
 
@@ -58,9 +59,7 @@ import { persistPlannedMechanicalEffectInTransaction } from "@/features/active-s
 import { getEffectiveCampaignSystems } from "@/features/campaigns/campaign-systems";
 import type { CharacterMagicSystem } from "@/features/characters/character-rules";
 import { isCharacterMagicSystem } from "@/features/active-state/active-mana";
-import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import {
-  spendImmediateInitiativeInTransaction,
   type OwnedEncounterRuntimeContext,
 } from "@/features/tabletop-operations/runtime-integration-service";
 import { requireSession } from "@/lib/server-access";
@@ -746,21 +745,11 @@ export async function executeCharacterDerivedAbilityUse(
   const session = await requireSession();
   return db.transaction(async (tx) => {
     const loaded = await loadUsePlanInTransaction(tx, request, session.user.id, true);
+    await assertCharacterCombatWritableInTransaction(tx, request.characterId);
+    if (loaded.runtime) throw new Error("Use the encounter's combat declaration for this Derived Ability so its timing, use limit and consequences share one commitment.");
     const { plan } = loaded.preparation;
     if (plan.status !== "ready") {
       throw new Error(`Derived Ability use is not ready (${plan.status}).`);
-    }
-    const initiativeCost = plan.costs
-      .filter(({ status, cost }) => status === "automatic" && cost.costType === "initiative")
-      .reduce((total, { cost }) => total + cost.amount, 0);
-    if (initiativeCost > 0) {
-      if (!loaded.runtime) throw new Error("The active Initiative context was lost before payment.");
-      await spendImmediateInitiativeInTransaction(
-        tx,
-        loaded.runtime,
-        request.characterId,
-        initiativeCost,
-      );
     }
     for (const costPlan of plan.costs) {
       if (costPlan.status !== "automatic" || costPlan.cost.costType !== "mana") continue;
@@ -782,10 +771,10 @@ export async function executeCharacterDerivedAbilityUse(
       derivedAbilityId: request.derivedAbilityId,
       ownershipId,
       actorUserId: session.user.id,
-      sessionId: loaded.runtime?.sessionId ?? null,
-      sceneId: loaded.runtime?.sceneId ?? null,
-      encounterId: loaded.runtime?.encounterId ?? null,
-      roundNumber: loaded.runtime?.roundNumber ?? null,
+      sessionId: null,
+      sceneId: null,
+      encounterId: null,
+      roundNumber: null,
       eventKey: cleanEventKey(request.eventKey),
       effectSummary: plan.effects.map(({ plan: effect }) => effect.summary).join(" | "),
       manualSteps: plan.manualSteps.join(" | "),
@@ -812,16 +801,6 @@ export async function executeCharacterDerivedAbilityUse(
         targetAnatomy: health.anatomy,
       });
     }
-    if (loaded.runtime) {
-      await publishTabletopInvalidationInTransaction(tx, {
-        campaignId: loaded.runtime.campaignId,
-        sessionId: loaded.runtime.sessionId,
-        sceneId: loaded.runtime.sceneId,
-        encounterId: loaded.runtime.encounterId,
-        characterIds: [],
-        category: "character-state",
-      });
-    }
     return { useId: use.id, plan };
   });
 }
@@ -843,6 +822,7 @@ export async function rechargeCharacterDerivedAbility(input: {
       true,
     );
     assertCampaignRuntimeManager(state.entity, session.user.id, roles);
+    await assertCharacterCombatWritableInTransaction(tx, input.characterId);
     const ability = state.catalog.find(({ id }) => id === input.derivedAbilityId);
     if (!ability) throw new Error("Derived Ability not found.");
     const key = cleanEventKey(input.refreshKey);

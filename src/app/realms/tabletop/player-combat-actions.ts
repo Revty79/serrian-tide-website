@@ -2,6 +2,7 @@
 import { assertCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
 import { and, eq, sql } from "drizzle-orm";
+import { isDeepStrictEqual } from "node:util";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -301,9 +302,74 @@ export async function rollPlayerDeclaredResponse(characterId: number, encounterI
   });
 }
 
+export async function declarePlayerSpell(
+  characterId: number, encounterId: number,
+  input: { sourceRef: string; targetParticipantIds: number[]; selections: { targetGroups: Record<string, number[]>; applications: Record<string, Record<string, unknown>> };
+    heldIntervention?: boolean; idempotencyKey: string; roll?: { method: RollMethod; enteredTotal?: number | null } },
+): Promise<number> {
+  return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
+    const submissionId = key(input.idempotencyKey);
+    const request = JSON.parse(JSON.stringify(input));
+    const rows = await tx.select({ id: campaignSessionEncounterActionDeclaration.id, draft: campaignSessionEncounterActionDeclaration.draftJson })
+      .from(campaignSessionEncounterActionDeclaration).where(and(eq(campaignSessionEncounterActionDeclaration.encounterId, encounterId),
+        eq(campaignSessionEncounterActionDeclaration.actorCharacterId, characterId), eq(campaignSessionEncounterActionDeclaration.createdByUserId, actor.userId)));
+    const prior = rows.find(({ draft }) => parseActionDeclarationDraft(draft).sourcePayload?.submissionId === submissionId);
+    if (prior) {
+      if (!isDeepStrictEqual(parseActionDeclarationDraft(prior.draft).sourcePayload?.request, request)) throw new Error("This submission identity already describes a different Spell cast.");
+      return prior.id;
+    }
+    const declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, {
+      actorCharacterId: characterId, targetCharacterIds: input.targetParticipantIds.map((id) => participantId(id, "Spell target")),
+      label: "Cast Spell", actionKind: "spell-cast", sourceKind: "spell", sourceRef: text(input.sourceRef, "Owned Spell source", 500), sourceInstanceId: null,
+      sourcePayload: { submissionId, request, selections: input.selections }, weaponItemId: null, firingModeId: null, attackMode: "",
+      initiativeCost: 1, // Replaced at lock by the canonical casting service's actual cost.
+      allowsMultiRound: true, heldIntervention: input.heldIntervention === true, windowKind: "ordinary", aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null }, explicitModifiers: [], preparesForDeclarationId: null, godNotes: "",
+    });
+    await lockActionDeclarationInTransaction(tx, context, actor, declarationId);
+    await commitActionDeclarationInTransaction(tx, context, actor, declarationId, input.roll);
+    return declarationId;
+  });
+}
+
 export async function applyPlayerCombatConsequences(characterId: number, encounterId: number, declarationId: number) {
   return withPlayerCombat(characterId, encounterId, "action", (tx, context, actor) =>
     applyRoutineCombatConsequencesInTransaction(tx, context, actor, positiveId(declarationId, "Declaration")));
+}
+
+export async function declarePlayerItemOrAbility(
+  characterId: number, encounterId: number,
+  input: { sourceKind: "item" | "derived-ability"; sourceRef: string; sourceInstanceId?: number | null; targetParticipantIds: number[];
+    effectSelections?: Record<string, Record<string, unknown>>; eventKey?: string; heldIntervention?: boolean; idempotencyKey: string;
+    roll?: { method: RollMethod; enteredTotal?: number | null } },
+): Promise<number> {
+  return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
+    if (!["item", "derived-ability"].includes(input.sourceKind)) throw new Error("Choose an owned Item or Derived Ability.");
+    const submissionId = key(input.idempotencyKey);
+    const request = JSON.parse(JSON.stringify(input));
+    const rows = await tx.select({ id: campaignSessionEncounterActionDeclaration.id, draft: campaignSessionEncounterActionDeclaration.draftJson })
+      .from(campaignSessionEncounterActionDeclaration).where(and(eq(campaignSessionEncounterActionDeclaration.encounterId, encounterId),
+        eq(campaignSessionEncounterActionDeclaration.actorCharacterId, characterId), eq(campaignSessionEncounterActionDeclaration.createdByUserId, actor.userId)));
+    const prior = rows.find(({ draft }) => parseActionDeclarationDraft(draft).sourcePayload?.submissionId === submissionId);
+    if (prior) {
+      if (!isDeepStrictEqual(parseActionDeclarationDraft(prior.draft).sourcePayload?.request, request)) throw new Error("This submission identity already describes a different combat choice.");
+      return prior.id;
+    }
+    const declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, {
+      actorCharacterId: characterId, targetCharacterIds: input.targetParticipantIds.map((id) => participantId(id, "Action target")),
+      label: input.sourceKind === "item" ? "Use Item" : "Use Ability", actionKind: input.sourceKind === "item" ? "item-use" : "ability-use",
+      sourceKind: input.sourceKind, sourceRef: text(input.sourceRef, "Owned source", 500), sourceInstanceId: input.sourceInstanceId == null ? null : positiveId(input.sourceInstanceId, "Item instance"),
+      sourcePayload: { submissionId, request, effectSelections: input.effectSelections ?? {}, eventKey: input.eventKey ?? null },
+      weaponItemId: null, firingModeId: null, attackMode: "", initiativeCost: 1, allowsMultiRound: true,
+      heldIntervention: input.heldIntervention === true, windowKind: "ordinary", aimDeclared: false,
+      calledShot: { declared: false, label: "", assignedPenalty: null }, explicitModifiers: [], preparesForDeclarationId: null, godNotes: "",
+    });
+    // Lock requires authored timing or a recorded G.O.D. source ruling. The
+    // Player supplies identity and choices, never a resource or timing cost.
+    await lockActionDeclarationInTransaction(tx, context, actor, declarationId);
+    await commitActionDeclarationInTransaction(tx, context, actor, declarationId, input.roll);
+    return declarationId;
+  });
 }
 
 export async function rollPlayerDeclaredAttack(characterId: number, encounterId: number, declarationId: number, input: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {

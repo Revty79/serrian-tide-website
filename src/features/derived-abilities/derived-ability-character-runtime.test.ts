@@ -469,7 +469,7 @@ test("Pass 6 server boundaries preserve no-XP acquisition, authoritative recheck
   assert.match(service, /status\.acquisitionResult === "unsatisfied"/);
   assert.match(service, /persistPlannedMechanicalEffectInTransaction/);
   assert.match(service, /spendActiveManaInTransaction/);
-  assert.match(service, /spendImmediateInitiativeInTransaction/);
+  assert.match(service, /Use the encounter's combat declaration/);
   assert.match(service, /characterDerivedAbilityUse/);
   assert.match(service, /reconcileCharacterDerivedAbilityPassivesInTransaction/);
   assert.match(service, /if \(input\.godOnly\) assertCampaignRecordManager/);

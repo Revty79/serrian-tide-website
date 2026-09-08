@@ -265,6 +265,8 @@ export async function applyInitiativeDurationTransitionInTransaction(
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const transition = getInitiativeDurationTransition(before, after, passage);
+  const { advanceCreatureDurationsInTransaction } = await import("./creature-duration-service");
+  await advanceCreatureDurationsInTransaction(tx, { encounterId: context.encounterId }, transition);
   if (transition.initiativeClosed) {
     const bindings = await activeBindings(tx, {
       encounterId: context.encounterId,
@@ -304,6 +306,8 @@ export async function expireSceneDurationsInTransaction(
   sceneId: number,
   sceneSequenceNumber: number,
 ): Promise<void> {
+  const { advanceCreatureDurationsInTransaction } = await import("./creature-duration-service");
+  await advanceCreatureDurationsInTransaction(tx, { sceneId }, { combatStepBoundaries: 0, combatRoundBoundaries: 0, initiativeClosed: false, sceneClosed: true });
   const bindings = await activeBindings(tx, { sceneId, kinds: ["scene"] });
   for (const binding of bindings) {
     await expireBoundEffect(tx, binding, `Scene ${sceneSequenceNumber} completed.`);

@@ -48,10 +48,23 @@ New G.O.D. and Player backend projections expose pause, resume authority, curren
 
 Validation: 19 actual disposable PostgreSQL service cases now pass, including five pause cases: unauthorized Freeze/Resume, persisted reconnect state, unchanged repeated requests and stale Resume rejection, Character/Creature inspection while frozen, blocked writes including health and duration advancement, sealed choices/Rolls, both actual lock-contention race orders, another Encounter remaining writable, and Resume of an approved damage plan applied exactly once. Existing timing and Roll state survive. All 1,258 feature unit cases passed; typecheck and lint passed during this supplement. Cast-start Mana and firearm-specific pause/retry coverage continues as those remaining pass integrations are completed. Ordinary database migrations have not been applied yet.
 
-End: this supplement commit (subject Persist encounter Freeze and expose authoritative combat availability).
+End: `172b723`.
+
+## Pass 5 - casting, owned resources and immediate effects
+
+Start: `172b723`. Begun casts spend Mana inside the declaration savepoint and retain one original Roll; invalid starts roll back atomically. Failed, cancelled and interrupted casts keep their paid Mana. Owned Spell identity is rechecked at commitment, source aliases resolve consistently, and the existing authored target-capacity rules validate exact signed target selections. Explicit source-specific G.O.D. mode rulings support owned Skill, Attribute, opposed, no-roll and manual execution; numeric per-success effects use the existing percentile quantity calculation. A multi-target Dodge protects its declared target without erasing another target's effect. Ambiguous multi-target Block/intervention scope remains an explicit consequence ruling.
+
+Player endpoints accept owned Spell, Item and Ability choices and retry identities. Costs come from the source; missing Item/Ability timing requires a persisted G.O.D. source ruling. Derived Abilities use the existing availability/condition/limit planner and retained use/recharge ledger, with one use receipt and declaration-time Mana costs. The retained sheet executor directs active combat through declarations. Items use the existing exact stack/instance executors once at consequence application; failure rolls back the entire application group. Tests cover consumed quantities, charges, Creature healing, conditions and Initiative modifiers without affecting another occurrence.
+
+Temporary Dexterity, movement and Initiative changes now adjust capacity, current balance/debt, pending finishes and response windows immediately on application and expiration. Character duration bindings and direct Creature occurrence durations advance at the same actual Step/round/Scene boundaries. Creature effect history is retained with expiration evidence. Sealed Mana projections preserve declaration privacy in inspection and public casting previews. Freeze keeps the effects, pending work and combat boundary intact.
+
+Validation: 38 actually executed service cases passed in the disposable migrated PostgreSQL cluster, including 11 Spell cases, five timing/expiration cases and three Item/Ability cases. The authored concentration scenario crosses a round with one Mana payment and one Roll; its production practitioner/casting formula is unchanged. All 1,258 feature unit tests passed. Typecheck, lint, production build, Drizzle migration check and diff check passed during this pass. No ordinary campaign fixtures, database reset or replacement screen. Ordinary forward migrations remain scheduled after the remaining integration checks.
+
+End: this Pass 5 commit (subject Complete combat casting resources and immediate effect propagation).
 
 ## Remaining passes
 
-5. Cast-start spending, Items/abilities, immediate effects, and duration parity.
 6. Firearms under the reconciled timing contract.
 7. Cancellation/closeout/recovery and complete service-level encounters, final validation and handoff.
+
+Pass 7 XP clarification accepted: [confirmed Creature award modes and additive full-per-recipient encounter XP](../rules/combat-xp-clarification-2026-09-08.md). The latest clarification makes "everyone gets Creature XP" the full-value-per-recipient mode. Killer-only and explicit shared split remain available; for a shared split, equal whole shares plus the killer's remainder preserve the Creature value. Distribution is not wholly undecided.

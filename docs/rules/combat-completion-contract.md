@@ -14,6 +14,7 @@ Authority: [Brannan's settled assignment, 8 September 2026](combat-completion-as
 8. **Immediate effects:** effective Dexterity/movement/Initiative changes and expiration move current capacity, already-started completion positions, opportunities, and response windows immediately. Never retrospectively reroll. Temporary-effect recovery does not suppress its positive timing delta because the actor has debt.
 9. **Persistence:** failure, interruption, or voluntary cancellation after casting begins never refunds Mana. An actual shot's later effect cancellation never refills ammunition. Already-applied results and immutable evidence survive cancellation/closeout. Each retry identifies and checks the original operation.
 10. **Simultaneous outcomes:** an incapacitation at one completion point does not erase another action already completing at that point. Defeat value, credit, distribution, and actual XP awards remain separate decisions.
+11. **Confirmed XP:** The owning G.O.D. chooses full Creature value for the killer, full value for every selected eligible Character, or an explicit shared split. "Everyone gets XP" means full value each. Additional encounter XP gives every selected recipient the full entered amount. These awards add together. Preserve occurrence attribution and exactly-once history; see the [Pass 7 XP clarification](combat-xp-clarification-2026-09-08.md).
 
 ## Rules to services
 

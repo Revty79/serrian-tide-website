@@ -91,7 +91,7 @@ export async function resolveInitiativeCapacityInTransaction(
   };
 }
 
-export async function resolveInitiativeCapacityOptionsInTransaction(
+async function resolveBaseInitiativeCapacityOptionsInTransaction(
   tx: TabletopTransaction,
   characterId: number,
   expectedCampaignId: number,
@@ -209,4 +209,17 @@ export async function resolveInitiativeCapacityOptionsInTransaction(
     dexterity: dexterityRow.value,
     movementModes,
   };
+}
+
+export async function resolveInitiativeCapacityOptionsInTransaction(tx: TabletopTransaction, characterId: number, expectedCampaignId: number): Promise<ResolvedInitiativeCapacityOptions> {
+  const base = await resolveBaseInitiativeCapacityOptionsInTransaction(tx, characterId, expectedCampaignId);
+  const { readCombatParticipantModifiersInTransaction } = await import("./combat-modifier-timing-service");
+  const modifiers = await readCombatParticipantModifiersInTransaction(tx, characterId, expectedCampaignId);
+  const total = (channel: string, targetKey: string) => modifiers.filter((entry) => entry.channel === channel && entry.targetKey === targetKey).reduce((value, entry) => value + entry.amount, 0);
+  const dexterity = base.dexterity + total("attribute", "DEX");
+  const initiative = total("initiative", "self");
+  return { ...base, dexterity, movementModes: base.movementModes.map((entry) => {
+    const baseMovement = entry.baseMovement + total("movement", `movement:${entry.movementMode}`);
+    return { ...entry, baseMovement, normalTotalInitiative: calculateNormalTotalInitiative(dexterity, baseMovement) + initiative };
+  }) };
 }

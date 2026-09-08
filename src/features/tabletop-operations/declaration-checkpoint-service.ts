@@ -9,6 +9,7 @@ import {
   campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
 import { getNextInitiativeTimelineEvent, type InitiativeEngineState } from "./initiative-runtime";
+import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Choice = (typeof checkpoint.$inferSelect)["choicesJson"][number];
@@ -61,13 +62,20 @@ export async function beginDeclarationCheckpointInTransaction(
   if (!currentIds.includes(participantId) && !response) {
     throw new Error("Advance to this participant's current declaration opportunity before committing.");
   }
+  const manaBefore: Record<string, Awaited<ReturnType<typeof readActiveManaInTransaction>>> = {};
+  const manaBeforeIssues: Record<string, string> = {};
+  for (const participant of engine.participants) {
+    if (participant.characterId <= 0) continue;
+    try { manaBefore[String(participant.characterId)] = await readActiveManaInTransaction(tx, participant.characterId); }
+    catch (error) { manaBeforeIssues[String(participant.characterId)] = error instanceof Error ? error.message : "Mana source is unavailable."; }
+  }
   const [created] = await tx.insert(checkpoint).values({
     encounterId,
     roundNumber: engine.runtime.roundNumber,
     timelineInitiative: engine.runtime.timelineInitiative,
     participantIdsJson: currentIds.includes(participantId) ? [...currentIds].sort((a, b) => a - b) : [participantId],
     choicesJson: [],
-    beforeStateJson: { participants: engine.participants, pendingActions: engine.pendingActions },
+    beforeStateJson: { participants: engine.participants, pendingActions: engine.pendingActions, manaBefore, manaBeforeIssues },
   }).returning({ id: checkpoint.id });
   if (!created) throw new Error("The simultaneous declaration checkpoint could not be created.");
   return created.id;

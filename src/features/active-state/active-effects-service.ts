@@ -205,6 +205,8 @@ export async function applyModifierInTransaction(
   }
   const effect = validation.effect;
   await requireModifierTarget(tx, input.characterId, effect);
+  const { captureCombatModifierTimingInTransaction, reconcileCombatModifierTimingInTransaction } = await import("@/features/tabletop-operations/combat-modifier-timing-service");
+  const combatTiming = await captureCombatModifierTimingInTransaction(tx, input.characterId, [effect]);
   const duration = formatRuntimeDuration(effect.duration);
   const [created] = await tx.insert(campaignCharacterActiveModifier).values({
     characterId: input.characterId,
@@ -218,6 +220,7 @@ export async function applyModifierInTransaction(
     durationLabel: duration.label,
   }).returning();
   if (!created) throw new Error("Active Modifier was not persisted.");
+  await reconcileCombatModifierTimingInTransaction(tx, combatTiming);
   return modifierRow(created);
 }
 
@@ -243,12 +246,17 @@ export async function endModifierInTransaction(
   note = "",
 ): Promise<void> {
   await assertCharacterCombatWritableInTransaction(tx, characterId);
+  const [before] = await tx.select({ channel: campaignCharacterActiveModifier.modifierChannel, targetKey: campaignCharacterActiveModifier.targetKey })
+    .from(campaignCharacterActiveModifier).where(and(eq(campaignCharacterActiveModifier.id, modifierId), eq(campaignCharacterActiveModifier.characterId, characterId), isNull(campaignCharacterActiveModifier.endedAt))).limit(1);
+  const { captureCombatModifierTimingInTransaction, reconcileCombatModifierTimingInTransaction } = await import("@/features/tabletop-operations/combat-modifier-timing-service");
+  const combatTiming = before ? await captureCombatModifierTimingInTransaction(tx, characterId, [before]) : [];
   const rows = await tx.update(campaignCharacterActiveModifier).set({ endedAt: new Date(), endNote: note.trim() }).where(and(
     eq(campaignCharacterActiveModifier.id, modifierId),
     eq(campaignCharacterActiveModifier.characterId, characterId),
     isNull(campaignCharacterActiveModifier.endedAt),
   )).returning({ id: campaignCharacterActiveModifier.id });
   if (!rows.length) throw new Error("Active Modifier was not found or was already ended.");
+  await reconcileCombatModifierTimingInTransaction(tx, combatTiming);
 }
 
 type Access = { tx: ActiveEffectsTransaction; userId: string; roles: string[]; ownsCampaign: boolean };

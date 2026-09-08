@@ -444,6 +444,7 @@ async function loadAuthoritativePlan(
   request: SpellCastRequest,
   subject: SpellCastAccessSubject,
   lock: boolean,
+  projectSealedResources = false,
 ): Promise<LoadedRuntimePlan> {
   const casterEntity = await loadAccessEntity(
     tx,
@@ -462,7 +463,10 @@ async function loadAuthoritativePlan(
     tree,
     lock,
   );
-  const activeMana = await readActiveManaInTransaction(tx, casterEntity.characterId);
+  const actualMana = await readActiveManaInTransaction(tx, casterEntity.characterId);
+  const activeMana = projectSealedResources
+    ? await (await import("@/features/tabletop-operations/combat-resource-projection-service")).projectSealedCombatManaInTransaction(tx, actualMana)
+    : actualMana;
   const system = resolveCastingSystem(
     source,
     tree,
@@ -559,6 +563,7 @@ export async function prepareCharacterSpellCast(
     tx,
     request,
     session.user.id,
+    true,
   ));
 }
 
@@ -567,6 +572,7 @@ export async function prepareCharacterSpellCastInTransaction(
   tx: ActiveHealthTransaction,
   input: SpellCastRequest,
   actingUserId: string,
+  projectSealedResources = false,
 ): Promise<SpellCastPreparation> {
   const request = validateRequest(input);
   const subject = await loadSubject(tx, actingUserId);
@@ -579,7 +585,7 @@ export async function prepareCharacterSpellCastInTransaction(
   if (!canInitiateSpellCast(subject, caster)) {
     throw new Error("You do not have permission to cast as this Character.");
   }
-  const loaded = await loadAuthoritativePlan(tx, request, subject, false);
+  const loaded = await loadAuthoritativePlan(tx, request, subject, false, projectSealedResources);
   const targetOptions = await listTargetOptions(tx, subject, caster);
   return { plan: loaded.plan, targetOptions };
 }

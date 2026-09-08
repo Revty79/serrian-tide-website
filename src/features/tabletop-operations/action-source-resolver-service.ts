@@ -1,4 +1,5 @@
 import "server-only";
+import { applyRecordedSourceResolutionInTransaction } from "./combat-source-resolution-service";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
 
@@ -36,7 +37,7 @@ import { loadCharacterSkillLineageInputInTransaction } from "@/features/items/ch
 import {
   prepareCharacterSpellCastInTransaction,
 } from "@/features/characters/character-spell-runtime-service";
-import type { SpellCastSourceRequest } from "@/features/characters/character-spell-runtime";
+import { resolveSpellCastTargetSelection, type SpellCastSourceRequest } from "@/features/characters/character-spell-runtime";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAttributeKey } from "@/features/characters/models";
 import {
   adaptProgressiveSpellToMechanicalEffects,
@@ -216,12 +217,12 @@ function asSpellSource(value: unknown, ref: string | null): SpellCastSourceReque
       circumstance: requiredText(value.circumstance, "Raw Spell circumstance", 100) as Extract<SpellCastSourceRequest, { kind: "raw-saved" }>["circumstance"],
     };
   }
-  const normalized = ref?.trim() ?? "";
-  if (normalized.startsWith("spell:catalog:")) return { kind: "catalog", allocationId: refId(normalized, ["spell:catalog:"], "Catalog Spell allocation") };
-  if (normalized.startsWith("spell:raw-saved:")) {
-    return { kind: "raw-saved", savedSpellId: refId(normalized, ["spell:raw-saved:"], "Saved raw Spell"), circumstance: "no-framework" };
+  const normalized = ref?.trim().replace(/^spell:/, "") ?? "";
+  if (normalized.startsWith("catalog:")) return { kind: "catalog", allocationId: refId(normalized, ["catalog:"], "Catalog Spell allocation") };
+  if (normalized.startsWith("raw-saved:")) {
+    return { kind: "raw-saved", savedSpellId: refId(normalized, ["raw-saved:"], "Saved raw Spell"), circumstance: "no-framework" };
   }
-  return { kind: "personal", savedSpellId: refId(normalized, ["spell:personal:", "spell:"], "Personal Spell") };
+  return { kind: "personal", savedSpellId: refId(normalized, ["personal:"], "Personal Spell") };
 }
 
 function payloadTargetGroups(payload: Record<string, unknown>): Record<string, number[]> {
@@ -428,6 +429,11 @@ async function loadSpellDocument(
   return { spell: parseSpellDocument(JSON.parse(row.documentJson)), revision: row.updatedAt.toISOString() };
 }
 
+export async function assertLockedSpellOwnershipInTransaction(tx: ActionSourceResolverTransaction, draft: ActionDeclarationDraft): Promise<void> {
+  if (draft.sourceKind !== "spell") return;
+  await loadSpellDocument(tx, draft.actorCharacterId, asSpellSource(sourcePayload(draft).source, draft.sourceRef));
+}
+
 async function resolveSpell(
   tx: ActionSourceResolverTransaction,
   participant: ParticipantSource,
@@ -452,12 +458,30 @@ async function resolveSpell(
   const adapted = preview.plan.activeProgressiveTier
     ? adaptProgressiveSpellToMechanicalEffects(loaded.spell, preview.plan.activeProgressiveTier)
     : adaptSpellToMechanicalEffects(loaded.spell);
+  if (preview.plan.status === "invalid") throw new Error(`The exact authored Spell is invalid: ${preview.plan.issues.join(" ")}`);
+  for (const groupId of Object.keys(targetGroups)) {
+    if (!preview.plan.targetGroups.some(({ id }) => id === groupId)) throw new Error(`Unknown authored Spell target group ${groupId}.`);
+  }
+  for (const group of preview.plan.targetGroups) {
+    const selection = resolveSpellCastTargetSelection(group, draft.actorCharacterId, targetGroups[group.id]);
+    if (selection.issue) throw new Error(selection.issue);
+    if (!selection.selected.length) throw new Error(`Select the exact Encounter participants for Spell target group ${group.id}.`);
+    targetGroups[group.id] = selection.selected;
+  }
+  if (preview.plan.targetGroups.length) assertSameTargets(Object.values(targetGroups).flat(), allTargets(draft), "Spell target selection");
   const targets = allTargets(draft);
+  const spellModifiers = [...loaded.spell.modifiers];
+  const collectModifiers = (containers: typeof loaded.spell.containers) => {
+    for (const container of containers) { spellModifiers.push(...container.modifiers); collectModifiers(container.children); }
+  };
+  collectModifiers(loaded.spell.containers);
+  const perSuccess = spellModifiers.some(({ ruleId }) => ruleId === "per-success-assignment")
+    && !spellModifiers.some(({ ruleId }) => ruleId === "static-assignment");
   const effects = adapted.valid
     ? adapted.effects.flatMap((entry) => {
         const groupId = [...entry.containerPath].reverse().find((id) => targetGroups[id] !== undefined);
         const exactTargets = groupId ? targetGroups[groupId]! : targets;
-        return exactTargets.map((targetId) => structuredEffect(
+        return exactTargets.map((targetId) => ({ ...structuredEffect(
           `spell-effect:${entry.spellEffectId}:target:${targetId}`,
           entry.definition.effect,
           [targetId],
@@ -470,7 +494,7 @@ async function resolveSpell(
               ? spellSelections[`${entry.spellEffectId}:${targetId}`] as Record<string, unknown>
               : {},
           },
-        ));
+        ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
   return {
@@ -499,8 +523,9 @@ async function resolveSpell(
         kind: "mana",
         amount: preview.plan.finalManaCost,
         resourceKey: preview.plan.caster.system,
-        instruction: `Spend the canonical ${preview.plan.caster.system} Mana cost at approved application.`,
+        instruction: `Spend the canonical ${preview.plan.caster.system} Mana cost when casting begins; no refund after starting.`,
         applicationSupported: true,
+        commitAt: "declaration",
       }],
       effects,
       warnings: [
@@ -548,13 +573,14 @@ async function resolveDerivedAbility(
       },
     );
   });
-  const resourceCosts: FrozenActionResourceCost[] = ability.costs.map((cost) => ({
+  const resourceCosts: FrozenActionResourceCost[] = ability.costs.filter(({ costType }) => costType !== "initiative").map((cost) => ({
     key: `derived-cost:${cost.sortOrder}`,
-    kind: cost.costType === "mana" ? "mana" : cost.costType === "initiative" ? "manual" : "manual",
+    kind: cost.costType === "mana" ? "mana" : "manual",
     amount: cost.amount,
     resourceKey: cost.resourceKey,
     instruction: `${cost.costType} cost: ${cost.amount}${cost.resourceKey ? ` ${cost.resourceKey}` : ""}.`,
     applicationSupported: cost.costType === "mana" && typeof cost.resourceKey === "string",
+    commitAt: "declaration",
   }));
   const initiative = ability.costs.filter(({ costType }) => costType === "initiative").reduce((sum, cost) => sum + cost.amount, 0);
   return {
@@ -819,12 +845,13 @@ export async function resolveLockedActionSourceInTransaction(
     if (!existing.weapon) throw new Error("A Weapon source requires the exact locked Weapon Profile.");
     return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing);
   }
-  if (draft.sourceKind === "item") return resolveItem(tx, participant, draft);
-  if (draft.sourceKind === "spell") return resolveSpell(tx, participant, draft, actor.userId);
-  if (draft.sourceKind === "derived-ability") return resolveDerivedAbility(tx, participant, draft, actor.userId);
+  if (draft.sourceKind === "item") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveItem(tx, participant, draft));
+  if (draft.sourceKind === "spell") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveSpell(tx, participant, draft, actor.userId));
+  if (draft.sourceKind === "derived-ability") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveDerivedAbility(tx, participant, draft, actor.userId));
   if (draft.sourceKind === "skill" || draft.sourceKind === "attribute") return resolveSkillOrAttribute(tx, participant, draft);
   if (draft.sourceKind === "creature-attack" || draft.sourceKind === "creature-ability") {
-    return resolveCreatureSource(participant, draft);
+    const resolved = await resolveCreatureSource(participant, draft);
+    return draft.sourceKind === "creature-ability" ? applyRecordedSourceResolutionInTransaction(tx, context, draft, resolved) : resolved;
   }
   return resolveNoRollOrManual(context, actor, participant, declarationId, draft);
 }

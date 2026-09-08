@@ -1,4 +1,5 @@
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
+import { projectSealedCombatManaInTransaction } from "@/features/tabletop-operations/combat-resource-projection-service";
 import "server-only";
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -396,9 +397,8 @@ function withAuthorizedManaMutationTransaction<T>(
 }
 
 export async function getActiveMana(characterId: number): Promise<ActiveManaView> {
-  return withAuthorizedManaReadTransaction(characterId, (tx) => (
-    readActiveManaInTransaction(tx, characterId)
-  ));
+  return withAuthorizedManaReadTransaction(characterId, async (tx) => projectSealedCombatManaInTransaction(tx,
+    await readActiveManaInTransaction(tx, characterId)));
 }
 
 export async function spendCharacterMana(

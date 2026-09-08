@@ -447,7 +447,7 @@ async function mutateOwnedInitiative(
       characterIds: [],
       category: "initiative",
     });
-    return projectRevealedInitiativeInTransaction(tx, changed);
+    return projectRevealedInitiativeInTransaction(tx, (await loadInitiativeEngine(tx, encounterId, false))!);
   });
   refreshInitiative();
   return toView(next);

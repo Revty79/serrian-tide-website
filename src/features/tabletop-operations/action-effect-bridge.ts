@@ -1,4 +1,5 @@
 import type { MechanicalEffect } from "@/features/mechanical-effects";
+import { calculatePerSuccessQuantity } from "./percentile-resolution";
 
 import type {
   RollGoverningSourceRequest,
@@ -59,9 +60,11 @@ export type FrozenActionResourceCost = Readonly<{
   resourceKey: string | null;
   instruction: string;
   applicationSupported: boolean;
+  commitAt?: "declaration" | "consequence";
 }>;
 
 export type FrozenActionAuthoredEffect = Readonly<{
+  scaling?: "fixed" | "per-success";
   key: string;
   effect: MechanicalEffect | null;
   instruction: Readonly<Record<string, unknown>>;
@@ -191,6 +194,7 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
   const stopped = actionWasStopped(input.defenseResolution);
   const failedRoll = input.governingRoll?.resolution.succeeded === false;
   const unresolved = input.source.resolutionMode === "manual-god-ruling"
+    || input.source.resolutionMode === "opposed-roll" && input.defenseResolution === null
     || input.governingRoll?.resolution.requiresGodRuling === true
     || defenseNeedsRuling(input.defenseResolution);
   const proposals: ActionEffectProposal[] = [];
@@ -205,14 +209,26 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         throw new Error("A frozen authored effect references a participant outside the original target set.");
       }
       const isManual = authored.effect === null || authored.effect.kind === "manual" || !authored.applicationSupported;
-      const objectivelyPrevented = stopped || failedRoll;
+      const targetOutcomes = input.defenseResolution?.targetOutcomes;
+      const targetOutcome = Array.isArray(targetOutcomes) ? targetOutcomes.find((outcome) => isRecord(outcome) && outcome.targetParticipantId === targetParticipantId) : null;
+      const targetStopped = isRecord(targetOutcome) ? targetOutcome.attackStopped === true : stopped;
+      const targetUnresolved = unresolved || isRecord(targetOutcome) && targetOutcome.requiresGodRuling === true
+        || originalTargets.length > 1 && stopped && !targetOutcome;
+      const objectivelyPrevented = (targetStopped && !targetUnresolved) || failedRoll;
       const status: ActionEffectStatus = objectivelyPrevented
         ? "declined"
-        : isManual || authored.requiresGodReview || unresolved
+        : isManual || authored.requiresGodReview || targetUnresolved
           ? "requires-god-ruling"
           : "calculated";
       const authoredValue = { effect: authored.effect, instruction: authored.instruction };
-      const calculatedValue = objectivelyPrevented ? null : effectAmount(authored.effect);
+      let resolvedEffect = authored.effect;
+      if (!objectivelyPrevented && authored.scaling === "per-success") {
+        if (!input.governingRoll || !resolvedEffect || !("amount" in resolvedEffect) || typeof resolvedEffect.amount !== "number") {
+          throw new Error("Per-success scaling requires a recorded Roll and an explicitly numeric authored effect.");
+        }
+        resolvedEffect = { ...resolvedEffect, amount: calculatePerSuccessQuantity(input.governingRoll.resolution, resolvedEffect.amount).appliedQuantity };
+      }
+      const calculatedValue = objectivelyPrevented ? null : effectAmount(resolvedEffect);
       proposals.push({
         effectKey: `${authored.key}:target:${targetParticipantId}`,
         effectType: effectType(authored.effect),
@@ -220,13 +236,13 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         authoredValue,
         calculatedValue,
         finalValue: objectivelyPrevented ? null : {
-          effect: authored.effect,
+          effect: resolvedEffect,
           application: isRecord(authored.instruction.application) ? authored.instruction.application : {},
         },
         unit: effectUnit(authored.effect),
         resource: "",
         applicationSupported: !objectivelyPrevented && authored.applicationSupported && !isManual,
-        godReviewRequired: !objectivelyPrevented && (isManual || authored.requiresGodReview || unresolved),
+        godReviewRequired: !objectivelyPrevented && (isManual || authored.requiresGodReview || targetUnresolved),
         status,
         amendmentReason: objectivelyPrevented
           ? stopped ? "The completed defense/intervention stage stopped the originating action." : "The immutable governing Roll failed."
@@ -236,6 +252,9 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
   }
 
   for (const cost of input.source.resourceCosts) {
+    // New begun casts paid this cost in the declaration transaction. Retained
+    // snapshots without this marker keep their historical application route.
+    if (cost.commitAt === "declaration") continue;
     const supported = cost.applicationSupported
       && (cost.kind === "mana" || cost.kind === "item-quantity" || cost.kind === "item-charges")
       && cost.amount !== null;

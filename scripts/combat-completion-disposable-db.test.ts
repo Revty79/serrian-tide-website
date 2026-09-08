@@ -51,11 +51,17 @@ test("combat completion service cases use a new disposable migrated PostgreSQL c
     pool = null;
     const childEnvironment = { ...process.env };
     delete childEnvironment.NODE_TEST_CONTEXT;
-    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts", "scripts/combat-completion-damage-db.test.ts", "scripts/combat-completion-freeze-db.test.ts"]) {
-      const output = execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
+    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts", "scripts/combat-completion-damage-db.test.ts", "scripts/combat-completion-freeze-db.test.ts", "scripts/combat-completion-spells-db.test.ts", "scripts/combat-completion-effects-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts"]) {
+      let output: string;
+      try { output = execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
         cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: 180_000,
         env: { ...childEnvironment, DATABASE_URL: databaseUrl, NODE_ENV: "test", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true" },
-      });
+      }); } catch (error) {
+        const failed = error as { stdout?: string; stderr?: string };
+        process.stdout.write(failed.stdout ?? "");
+        process.stderr.write(failed.stderr ?? "");
+        throw new Error(`${script} failed; see its executed TAP cases above.`);
+      }
       process.stdout.write(output);
       const executed = /# tests (\d+)/.exec(output);
       assert.ok(executed && Number(executed[1]) > 0, `${script} must execute tests, not silently skip its child runner.`);

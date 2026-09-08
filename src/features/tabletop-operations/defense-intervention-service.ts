@@ -1306,6 +1306,19 @@ export async function resolveDeclaredDefensesInTransaction(
     attackRollId: attackRoll.id,
     responseRollIds: [...rollByReaction.values()].map(({ id }) => id),
     objective: result,
+    targetOutcomes: actionSnapshot.targetCharacterIds.length > 1
+      && ["spell", "derived-ability", "creature-ability", "item"].includes(actionSnapshot.source.kind)
+      ? actionSnapshot.targetCharacterIds.map((targetParticipantId) => {
+        const targetReactions = ordinary.filter(({ protectedTargetCharacterId }) => protectedTargetCharacterId === targetParticipantId);
+        const targetResult = resolveDefenseGroup({ attack: attackRoll.mechanicalSnapshot!.resolution,
+          defenses: targetReactions.map((reaction) => ({ reactionId: reaction.id, reactionType: reaction.reactionType as DefenseInterventionType,
+            committedInitiativeCost: reaction.committedInitiativeCost, cancelled: reaction.status === "cancelled", roll: rollByReaction.get(reaction.id)?.mechanicalSnapshot?.resolution ?? null })) });
+        // A Dodge protects its declared target. Whether blocking a multi-target
+        // source or an intervention stops other targets remains an explicit ruling.
+        const scopeNeedsRuling = reactions.some(({ reactionType, status }) => status !== "cancelled" && !["dodge", "no-reaction"].includes(reactionType));
+        return { targetParticipantId, attackStopped: !scopeNeedsRuling && targetResult.attackStopped,
+          requiresGodRuling: scopeNeedsRuling || targetResult.status !== "resolved", objective: targetResult };
+      }) : null,
     tackleOutcomes,
     originalActionDisposition: awaitsGod ? "awaiting-god-ruling" : targetRemovedFromPath ? "target-removed" : result.attackStopped ? "stopped" : "continue",
     resolvedAt: now.toISOString(),

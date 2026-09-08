@@ -258,6 +258,23 @@ function targetContainerFor(
   return null;
 }
 
+export function resolveSpellCastTargetSelection(
+  group: Pick<SpellCastTargetGroup, "id" | "capacity" | "selfTargeted">,
+  casterCharacterId: number,
+  supplied: readonly number[] = [],
+): { selected: number[]; issue: string | null } {
+  const selected = group.selfTargeted ? [casterCharacterId] : [...supplied];
+  let issue: string | null = null;
+  if (new Set(selected).size !== selected.length) issue = `Target group ${group.id} contains a duplicate Character target.`;
+  if (!issue && group.selfTargeted && supplied.length > 0 && (supplied.length !== 1 || supplied[0] !== casterCharacterId)) {
+    issue = `Self-range target group ${group.id} may only target the caster.`;
+  }
+  if (!issue && group.capacity !== null && selected.length > group.capacity) {
+    issue = `Target group ${group.id} allows at most ${group.capacity} Character target${group.capacity === 1 ? "" : "s"}.`;
+  }
+  return { selected, issue };
+}
+
 function targetGroupFor(
   location: ContainerLocation,
   automaticEffectIds: string[],
@@ -270,19 +287,7 @@ function targetGroupFor(
   const capacity = kind === "target"
     ? 1 + Math.max(0, container.multiTarget?.additionalTargets ?? 0)
     : null;
-  const supplied = selectedTargetIds ?? [];
-  const selected = selfTargeted ? [casterCharacterId] : [...supplied];
-  const duplicate = new Set(selected).size !== selected.length;
-  let issue: string | null = null;
-  if (duplicate) issue = `Target group ${container.id} contains a duplicate Character target.`;
-  if (!issue && selfTargeted && supplied.length > 0 && (
-    supplied.length !== 1 || supplied[0] !== casterCharacterId
-  )) {
-    issue = `Self-range target group ${container.id} may only target the caster.`;
-  }
-  if (!issue && capacity !== null && selected.length > capacity) {
-    issue = `Target group ${container.id} allows at most ${capacity} Character target${capacity === 1 ? "" : "s"}.`;
-  }
+  const { selected, issue } = resolveSpellCastTargetSelection({ id: container.id, capacity, selfTargeted }, casterCharacterId, selectedTargetIds);
   const rangeRule = container.rangeRuleId
     ? rulesById.ranges.get(container.rangeRuleId)
     : null;
