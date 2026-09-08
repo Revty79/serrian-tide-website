@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 
 import { randomInt } from "node:crypto";
 
@@ -388,6 +389,7 @@ async function recordRollInternal(
   frozenGoverningSource: RollGoverningSourceSnapshot | null,
 ): Promise<RollLedgerEntry> {
   const request = normalizeRollRecordRequest(input);
+  if (request.encounterId !== null) await assertCombatWritableInTransaction(tx, request.encounterId);
   if (request.visibility === "god-only" && !actor.canRecordGodOnly) {
     throw new Error("This authorized actor cannot record G.O.D.-only Rolls.");
   }
@@ -696,6 +698,7 @@ async function lockRollForAmendment(
     eq(campaignSessionRoll.campaignId, actor.campaignId),
   )).limit(1).for("update");
   if (!locked) throw new Error("That Roll does not belong to the authorized Campaign and Session.");
+  if (locked.encounterId !== null) await assertCombatWritableInTransaction(tx, locked.encounterId);
   const amendments = await tx.select().from(campaignSessionRollAmendment)
     .where(and(
       eq(campaignSessionRollAmendment.rollId, locked.id),

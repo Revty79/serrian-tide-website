@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
@@ -11,6 +12,14 @@ import { getNextInitiativeTimelineEvent, type InitiativeEngineState } from "./in
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Choice = (typeof checkpoint.$inferSelect)["choicesJson"][number];
+
+export async function hasUnresolvedCompletedActionsInTransaction(tx: Transaction, encounterId: number): Promise<boolean> {
+  const unfinished = await tx.execute(sql`SELECT declaration.id FROM campaign_session_encounter_action_declaration declaration
+    JOIN campaign_session_encounter_pending_action action ON action.id = declaration.pending_action_id
+    WHERE declaration.encounter_id = ${encounterId} AND action.status = 'completed'
+      AND declaration.status NOT IN ('resolved', 'cancelled', 'abandoned') LIMIT 1`);
+  return unfinished.rows.length > 0;
+}
 
 export async function readOpenDeclarationCheckpoint(tx: Transaction, encounterId: number) {
   const [row] = await tx.select().from(checkpoint)
@@ -26,6 +35,7 @@ export async function beginDeclarationCheckpointInTransaction(
   participantId: number,
   response = false,
 ): Promise<number> {
+  await assertCombatWritableInTransaction(tx, encounterId);
   // All choices serialize on the same runtime before capturing membership.
   await tx.select({ id: campaignSessionEncounterInitiative.encounterId }).from(campaignSessionEncounterInitiative)
     .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId)).for("update");
@@ -38,11 +48,7 @@ export async function beginDeclarationCheckpointInTransaction(
     return existing.id;
   }
   if (!response) {
-    const unfinished = await tx.execute(sql`SELECT declaration.id FROM campaign_session_encounter_action_declaration declaration
-      JOIN campaign_session_encounter_pending_action action ON action.id = declaration.pending_action_id
-      WHERE declaration.encounter_id = ${encounterId} AND action.status = 'completed'
-        AND declaration.status NOT IN ('resolved', 'cancelled', 'abandoned') LIMIT 1`);
-    if (unfinished.rows.length) throw new Error("Resolve every action completing at this point before committing the next ordinary choice; simultaneous outcomes must remain intact.");
+    if (await hasUnresolvedCompletedActionsInTransaction(tx, encounterId)) throw new Error("Resolve every action completing at this point before committing the next ordinary choice; simultaneous outcomes must remain intact.");
   }
   const next = getNextInitiativeTimelineEvent(engine);
   const currentIds = next.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative

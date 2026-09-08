@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -371,6 +372,7 @@ export async function saveDodgeSkillPathMappingInTransaction(
     notes?: string;
   },
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may author Dodge paths.");
   const endpointSkillId = positiveId(input.endpointSkillId, "Dodge endpoint Skill");
   const id = optionalPositiveId(input.id, "Dodge path mapping");
@@ -429,6 +431,7 @@ export async function removeDodgeSkillPathMappingInTransaction(
   actor: Extract<ActionDeclarationActor, { authority: "god-owner" }>,
   mappingId: number,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may remove Dodge paths.");
   const removed = await tx.delete(defenseSkillPathMapping).where(and(
     eq(defenseSkillPathMapping.id, positiveId(mappingId, "Dodge path mapping")),
@@ -809,6 +812,7 @@ export async function declareDefenseInterventionInTransaction(
   input: DefenseDeclarationInput,
   rollInput: { method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility; notes?: string } = { method: "random" },
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [previousOpportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
     eq(campaignSessionEncounterResponderOpportunity.id, input.opportunityId),
     eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId),
@@ -969,6 +973,7 @@ export async function recordDeclaredAttackRollInTransaction(
   input: { method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility; manualTarget?: number | null; manualLabel?: string; notes?: string },
   atDeclaration = false,
 ): Promise<RollLedgerEntry> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const { row, snapshot } = await lockedActionForRoll(tx, context, declarationId);
   if (!atDeclaration) await assertDeclarationCheckpointRevealed(tx, row.checkpointId);
   if (actor.authority !== "god-owner" && actor.characterId !== snapshot.actorCharacterId) throw new Error("A Player may roll only their own declared action.");
@@ -1013,6 +1018,7 @@ export async function recordDeclaredResponseRollInTransaction(
   input: { method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility; notes?: string },
   atDeclaration = false,
 ): Promise<RollLedgerEntry> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [row] = await tx.select().from(campaignSessionEncounterReaction).where(and(
     eq(campaignSessionEncounterReaction.id, positiveId(reactionId, "Response declaration")),
     eq(campaignSessionEncounterReaction.encounterId, context.encounterId),
@@ -1115,6 +1121,7 @@ export async function resolveDeclaredDefensesInTransaction(
   actor: ActionDeclarationActor,
   declarationId: number,
 ): Promise<DefenseGroupOutcome> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const { row: declaration, snapshot: actionSnapshot } = await lockedActionForRoll(tx, context, declarationId);
   if (actor.authority === "player" && actor.characterId !== declaration.actorCharacterId) {
     const [ownedResponse] = await tx.select({
@@ -1322,6 +1329,7 @@ export async function resolveDeclaredDefensesIfReadyInTransaction(
   actor: ActionDeclarationActor,
   declarationId: number,
 ): Promise<DefenseGroupOutcome | null> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const { row: declaration } = await lockedActionForRoll(tx, context, declarationId);
   if (declaration.defenseResolutionJson !== null) {
     return resolveDeclaredDefensesInTransaction(tx, context, actor, declarationId);
@@ -1360,6 +1368,7 @@ export async function resolveDeclaredDefensesAfterResponseIfReadyInTransaction(
   actor: ActionDeclarationActor,
   reactionId: number,
 ): Promise<DefenseGroupOutcome | null> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [reaction] = await tx.select({
     reactorCharacterId: campaignSessionEncounterReaction.reactorCharacterId,
     declarationSnapshotJson: campaignSessionEncounterReaction.declarationSnapshotJson,
@@ -1456,6 +1465,7 @@ export async function ruleOnDefenseInterventionInTransaction(
     defenseSucceeded?: boolean;
   },
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may adjudicate an Intervention.");
   const reason = boundedText(input.reason, "G.O.D. ruling reason", 2000, true);
   const [reaction] = await tx.select().from(campaignSessionEncounterReaction).where(and(
@@ -1559,6 +1569,7 @@ export async function cancelDeclaredResponseInTransaction(
   reasonInput: string,
   refundByExplicitRuling = false,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may cancel a locked response.");
   const reason = boundedText(reasonInput, "Cancellation reason", 2000, true);
   const [reaction] = await tx.select().from(campaignSessionEncounterReaction).where(and(

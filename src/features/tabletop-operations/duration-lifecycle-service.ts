@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -135,6 +136,7 @@ export async function bindPersistedEffectDurationInTransaction(
   context: TabletopDurationContext,
   effect: PersistedMechanicalEffectIdentity,
 ): Promise<BindingRow | null> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (!isTabletopBoundDurationKind(effect.duration.kind)) return null;
   return insertBinding(tx, context, {
     kind: effect.kind,
@@ -187,6 +189,7 @@ export async function bindExistingEffectDurationInTransaction(
   context: TabletopDurationContext,
   input: { effectKind: DurationEffectKind; effectId: number; characterId: number },
 ): Promise<BindingRow> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const effect = await loadEffectForBinding(tx, input.effectKind, input.effectId, input.characterId, true);
   if (effect.endedAt) throw new Error("An ended Active Effect cannot receive a new duration binding.");
   if (!isTabletopBoundDurationKind(effect.durationKind)) {
@@ -260,6 +263,7 @@ export async function applyInitiativeDurationTransitionInTransaction(
   after: InitiativeDurationPosition,
   passage: "elapsed" | "correction" = "elapsed",
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const transition = getInitiativeDurationTransition(before, after, passage);
   if (transition.initiativeClosed) {
     const bindings = await activeBindings(tx, {
@@ -328,6 +332,7 @@ export async function setDurationRemainingInTransaction(
   bindingId: number,
   remainingValue: number,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const remaining = requireFiniteDurationValue(remainingValue);
   const [binding] = await tx.select().from(campaignSessionEffectDurationBinding).where(and(
     eq(campaignSessionEffectDurationBinding.id, positiveId(bindingId, "Duration binding")),
@@ -352,6 +357,7 @@ export async function expireDurationNowInTransaction(
   context: TabletopDurationContext,
   bindingId: number,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [binding] = await tx.select().from(campaignSessionEffectDurationBinding).where(and(
     eq(campaignSessionEffectDurationBinding.id, positiveId(bindingId, "Duration binding")),
     eq(campaignSessionEffectDurationBinding.status, "active"),

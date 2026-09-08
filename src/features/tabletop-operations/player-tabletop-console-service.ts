@@ -1,4 +1,5 @@
 import "server-only";
+import { readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -119,6 +120,7 @@ export type PlayerTabletopHierarchy = {
 };
 
 export type PlayerTabletopRuntimeData = {
+  combatPause: CombatPauseState | null;
   identity: PlayerCharacterContext;
   hierarchy: PlayerTabletopHierarchy;
   locations: PublicSceneLocationDirectory;
@@ -768,6 +770,7 @@ async function readPlayerCombatConsole(
     combat: null,
   };
   const actor = { authority: "player" as const, userId: playerUserId, characterId: character.characterId };
+  const pause = await readCombatPauseStateInTransaction(tx, context.encounterId, actor);
   if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) return {
     availability: { status: "awaiting-checkpoint", reason: "The current simultaneous choices and Rolls remain sealed. Use the declaration checkpoint to finish outstanding choices." },
     combat: null,
@@ -783,6 +786,7 @@ async function readPlayerCombatConsole(
   )) ?? null;
   const next = getNextInitiativeTimelineEvent(engine);
   const blockers: string[] = [];
+  if (pause.message) blockers.push(pause.message);
   if (participant.participationStatus !== "active") blockers.push(`Initiative status is ${participant.participationStatus}.`);
   if (pendingAction) blockers.push("An authored action is already in progress.");
   if (next.kind === "pending-completion") blockers.push("A pending action completion has priority at this Initiative.");
@@ -899,9 +903,12 @@ async function readPlayerTabletopStateInTransaction(
     const itemEffects = await readItemEffectDetails(tx, identity.characterId);
     const calledChecks = await readPlayerCalledCheckWorkspaceInTransaction(tx, identity.characterId, playerUserId);
     const history = await readHistory(tx, identity, playerUserId);
+    const combatPause = hierarchy.encounter ? await readCombatPauseStateInTransaction(tx, hierarchy.encounter.id,
+      { authority: "player", userId: playerUserId }) : null;
     return {
       identity,
       hierarchy,
+      combatPause,
       locations,
       health,
       mana,

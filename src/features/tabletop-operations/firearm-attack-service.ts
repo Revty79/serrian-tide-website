@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
@@ -674,6 +675,7 @@ export async function declareFirearmAttackInTransaction(
   actorInput: FirearmAttackActorInput,
   command: DeclareFirearmAttackCommand,
 ): Promise<{ attackId: number; status: FirearmAttackStatus; reused: boolean }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const idempotencyKey = boundedText(command.idempotencyKey, "Firearm attack request ID", true, 200);
   const [existing] = await tx.select({
     id: campaignSessionEncounterFirearmAttack.id,
@@ -865,6 +867,7 @@ export async function cancelFirearmAttackInTransaction(
   attackId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const attack = await lockAttack(tx, context, attackId);
   const actor = await resolveFirearmActor(tx, context, actorInput, attack.actorParticipantId);
   if (attack.status === "cancelled") return;
@@ -877,6 +880,7 @@ export async function commitFirearmAttackTriggerInTransaction(
   actorInput: FirearmAttackActorInput,
   attackId: number,
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const attack = await lockAttack(tx, context, attackId);
   const actor = await resolveFirearmActor(tx, context, actorInput, attack.actorParticipantId);
   if (attack.triggerPendingActionId !== null) return attack.triggerPendingActionId;
@@ -1432,6 +1436,7 @@ export async function fireFirearmAttackInTransaction(
   attackId: number,
   input: FirearmAttackRollCommand,
 ): Promise<FirearmAttackFireResult> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const attack = await lockAttack(tx, context, attackId);
   const actor = await resolveFirearmActor(tx, context, actorInput, attack.actorParticipantId);
   const actorUserId = actor.userId;
@@ -1701,6 +1706,7 @@ export async function finalizeFirearmAttackConsequencesInTransaction(
   actorUserId: string,
   attackId: number,
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actorUserId);
   const attack = await lockAttack(tx, context, attackId);
   if (attack.effectPlanId !== null) return attack.effectPlanId;

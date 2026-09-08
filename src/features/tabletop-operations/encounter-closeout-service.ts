@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -353,6 +354,7 @@ export async function finalizeEncounterCloseoutInTransaction(
   context: EncounterCloseoutContext,
   input: FinalizeEncounterCloseoutInput,
 ): Promise<EncounterCloseoutView> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (context.encounterStatus === "completed") {
     return readEncounterCloseoutInTransaction(tx, context);
   }

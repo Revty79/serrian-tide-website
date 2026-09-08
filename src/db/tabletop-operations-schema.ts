@@ -413,6 +413,8 @@ export const campaignSessionEncounter = pgTable(
     title: text("title").notNull(),
     status: campaignSessionEncounterStatus("status").default("planned").notNull(),
     encounterType: campaignSessionEncounterType("encounter_type").default("other").notNull(),
+    frozenAt: timestamp("frozen_at"),
+    freezeRevision: integer("freeze_revision").default(0).notNull(),
     description: text("description").default("").notNull(),
     godNotes: text("god_notes").default("").notNull(),
     startedAt: timestamp("started_at"),
@@ -447,6 +449,7 @@ export const campaignSessionEncounter = pgTable(
     index("campaign_session_encounter_scene_order_idx").on(table.sceneId, table.sequenceNumber),
     check("campaign_session_encounter_title_nonblank", sql`length(trim(${table.title})) > 0`),
     check("campaign_session_encounter_sequence_positive", sql`${table.sequenceNumber} > 0`),
+    check("campaign_session_encounter_freeze_revision_valid", sql`${table.freezeRevision} >= 0`),
     check(
       "campaign_session_encounter_lifecycle_timestamps_valid",
       sql`(

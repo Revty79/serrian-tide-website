@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction, readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import "server-only";
 
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -147,6 +148,7 @@ export type ActionDeclarationView = Readonly<{
 }>;
 
 export type ActionDeclarationWorkspaceView = Readonly<{
+  pause: CombatPauseState;
   context: Readonly<{
     campaignId: number;
     sessionId: number;
@@ -527,6 +529,7 @@ export async function createActionDeclarationDraftInTransaction(
   input: ActionDeclarationDraft,
   supersedesDeclarationId: number | null = null,
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertContextLive(context);
   const draft = normalizeActionDeclarationDraft(input);
   await assertActionChoiceAuthority(tx, context, actor, draft.actorCharacterId);
@@ -585,6 +588,7 @@ export async function editActionDeclarationDraftInTransaction(
   declarationId: number,
   input: ActionDeclarationDraft,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "draft") throw new Error("Only a draft declaration may be edited. Create an explicit revision for locked mechanics.");
   const draft = normalizeActionDeclarationDraft(input);
@@ -604,6 +608,7 @@ export async function lockActionDeclarationInTransaction(
   actor: ActionDeclarationActor,
   declarationId: number,
 ): Promise<void> {
+  await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "draft") throw new Error("Only a draft declaration may be locked.");
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
@@ -626,6 +631,7 @@ export async function reviseLockedActionDeclarationInTransaction(
   actor: ActionDeclarationActor,
   declarationId: number,
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "locked") throw new Error("Only an uncommitted locked declaration may be replaced by a draft revision.");
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
@@ -683,6 +689,7 @@ export async function commitActionDeclarationInTransaction(
   declarationId: number,
   rollInput: DeclarationRollInput = { method: "random" },
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   if (row.pendingActionId !== null) return row.pendingActionId;
@@ -813,6 +820,7 @@ export async function refreshActionDeclarationRollingReadinessInTransaction(
   declarationId: number,
   actorUserId: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await reconcileRollingReadiness(tx, context, await lockDeclaration(tx, context, declarationId), actorUserId);
 }
 
@@ -822,6 +830,7 @@ export async function reconcileActionResponseWindowsInTransaction(
   before: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
   after: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   for (const action of after.pendingActions) {
     const prior = before.pendingActions.find(({ id }) => id === action.id);
     if (!prior || action.status !== "active" || prior.expectedCompletionInitiative === action.expectedCompletionInitiative) continue;
@@ -869,6 +878,7 @@ export async function recordActionDeclarationAuditEventInTransaction(
   reason = "",
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await recordEvent(tx, context, declarationId, status, status, eventKind, actorUserId, reason, metadata);
 }
 
@@ -880,6 +890,7 @@ export async function extendActionDeclarationCostInTransaction(
   actorUserId: string,
   reason: string,
 ): Promise<{ opportunityCount: number; previousCompletion: number; expectedCompletion: number }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.pendingActionId === null || !["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) {
     throw new Error("Only an active committed declaration may receive a defense cost extension.");
@@ -932,6 +943,7 @@ export async function reconcileResponderOpportunityInTransaction(
   opportunityId: number,
   input: { decision: "allow" } | { decision: "ineligible"; reason: string },
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may reconcile responder eligibility.");
   const [opportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
     eq(campaignSessionEncounterResponderOpportunity.id, positiveId(opportunityId, "Responder opportunity")),
@@ -989,6 +1001,7 @@ export async function addExceptionalResponderOpportunityInTransaction(
   responderCharacterId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may add an exceptional responder.");
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "committed") throw new Error("Exceptional responders may be added only while the declaration window is open.");
@@ -1163,6 +1176,7 @@ export async function markActionDeclarationAwaitingRulingInTransaction(
   reason: string,
   notes = "",
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   return transitionCommittedDeclaration(tx, context, actor, declarationId, "awaiting-god-ruling", reason, notes);
 }
 
@@ -1173,6 +1187,7 @@ export async function continueActionDeclarationAfterRulingInTransaction(
   declarationId: number,
   reason: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "awaiting-god-ruling") throw new Error("Only a declaration awaiting a G.O.D. ruling may continue.");
   const opportunities = await tx.select({ status: campaignSessionEncounterResponderOpportunity.status })
@@ -1189,6 +1204,7 @@ export async function interruptActionDeclarationInTransaction(
   declarationId: number,
   reason: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   return transitionCommittedDeclaration(tx, context, actor, declarationId, "interrupted", reason);
 }
 
@@ -1199,6 +1215,7 @@ export async function cancelActionDeclarationInTransaction(
   declarationId: number,
   reason = "",
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.pendingActionId === null) await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   else await assertActorAuthority(tx, context, actor, row.actorCharacterId);
@@ -1227,6 +1244,7 @@ export async function abandonActionDeclarationInTransaction(
   declarationId: number,
   reason: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   return transitionCommittedDeclaration(tx, context, actor, declarationId, "abandoned", reason);
 }
 
@@ -1237,6 +1255,7 @@ export async function resolveActionDeclarationInTransaction(
   declarationId: number,
   reason = "",
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   return transitionCommittedDeclaration(tx, context, actor, declarationId, "resolved", reason);
 }
 
@@ -1247,6 +1266,7 @@ export async function resumeInterruptedActionDeclarationInTransaction(
   declarationId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may resume an interrupted declaration.");
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "interrupted" || row.pendingActionId === null) throw new Error("Only a committed interrupted action may resume.");
@@ -1301,6 +1321,7 @@ export async function restartInterruptedActionDeclarationInTransaction(
   declarationId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may restart an interrupted declaration.");
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "interrupted" || row.pendingActionId === null) throw new Error("Only a committed interrupted action may restart.");
@@ -1359,6 +1380,7 @@ export async function correctActionDeclarationRemainingCostInTransaction(
   remainingInitiativeCost: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may correct declaration timing.");
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.pendingActionId === null || row.status === "resolved" || row.status === "cancelled" || row.status === "abandoned") {
@@ -1430,6 +1452,7 @@ export async function completeActionDeclarationTimingInTransaction(
   declarationId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may complete action timing by ruling.");
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.pendingActionId === null || row.status === "resolved" || row.status === "cancelled" || row.status === "abandoned") {
@@ -1457,6 +1480,7 @@ export async function recordActionTimingCompletionsInTransaction(
   completedPendingActionIds: readonly number[],
   actorUserId: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (!completedPendingActionIds.length) return;
   const rows = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
     eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
@@ -1548,6 +1572,7 @@ export async function recordLongActionRoundContinuationsInTransaction(
   after: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
   actorUserId: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (afterRound <= beforeRound) return;
   const activePendingActions = after.pendingActions.filter(({ status, allowsMultiRound }) => status === "active" && allowsMultiRound);
   if (!activePendingActions.length) return;
@@ -1808,6 +1833,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     }
   }
   return {
+    pause: await readCombatPauseStateInTransaction(tx, context.encounterId, actor),
     context: {
       campaignId: context.campaignId,
       sessionId: context.sessionId,

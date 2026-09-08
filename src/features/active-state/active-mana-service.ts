@@ -1,3 +1,4 @@
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -247,6 +248,7 @@ export async function spendActiveManaInTransaction(
   tx: ActiveManaTransaction,
   command: ActiveManaMutationCommand,
 ): Promise<ActiveManaPool> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   const locked = await lockActiveManaPoolInTransaction(
     tx,
     command.characterId,
@@ -263,6 +265,7 @@ export async function restoreActiveManaInTransaction(
   tx: ActiveManaTransaction,
   command: ActiveManaMutationCommand,
 ): Promise<ActiveManaPool> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   const locked = await lockActiveManaPoolInTransaction(
     tx,
     command.characterId,
@@ -279,6 +282,7 @@ export async function restoreActiveManaPoolInTransaction(
   tx: ActiveManaTransaction,
   command: ActiveManaPoolCommand,
 ): Promise<ActiveManaPool> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   const locked = await lockActiveManaPoolInTransaction(
     tx,
     command.characterId,
@@ -295,6 +299,7 @@ export async function restoreAllActiveManaInTransaction(
   tx: ActiveManaTransaction,
   characterId: number,
 ): Promise<ActiveManaView> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
   assertCharacterId(characterId);
   const profiles = await loadDerivedManaProfiles(tx, characterId);
   const systems = profiles.map(({ system }) => system).sort();

@@ -302,6 +302,13 @@
       "when": 1788889000077,
       "tag": "0042_creature_authored_defense",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1788890829138,
+      "tag": "0043_combat_freeze",
+      "breakpoints": true
     }
   ]
 }

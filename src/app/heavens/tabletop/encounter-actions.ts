@@ -1,4 +1,5 @@
 "use server";
+import { assertCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
 import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -253,6 +254,7 @@ async function lockOwnedEncounter(
   } else {
     assertOwnedRootManager(actor, locked.ownerUserId, "Encounter");
   }
+  await assertCombatWritableInTransaction(tx, encounterId);
   return locked;
 }
 

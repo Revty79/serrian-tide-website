@@ -1,3 +1,4 @@
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
 import { and, asc, eq, inArray, isNull, like } from "drizzle-orm";
@@ -554,6 +555,7 @@ export async function validateEquipmentOwnershipMutationInTransaction(
     removedInstanceIds: readonly number[];
   },
 ): Promise<void> {
+  await assertCharacterCombatWritableInTransaction(tx, input.characterId);
   await lockEquipmentStateCharacterInTransaction(tx, input.characterId);
   const nextQuantities = new Map(input.nextStackQuantities.map(({ itemId, quantity }) => [itemId, quantity]));
   const stateRows = await tx.select({ itemId: campaignCharacterItemEquipmentState.itemId, quantity: campaignCharacterItemEquipmentState.quantity })
@@ -664,6 +666,7 @@ export async function setStackEquipmentStateInTransaction(
   tx: EquipmentStateTransaction,
   command: SetStackEquipmentStateCommand,
 ): Promise<EquipmentStateMutationResult> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   positiveId(command.itemId, "Equipment Item");
   if (!ACTIVE_EQUIPMENT_STATES.includes(command.state)) throw new Error("Stack Equipment State must be Equipped, Worn, or Wielded.");
   if (!Number.isSafeInteger(command.quantity) || command.quantity < 0) throw new Error("Active Equipment quantity must be a whole number zero or greater.");
@@ -712,6 +715,7 @@ export async function setInstanceEquipmentStateInTransaction(
   tx: EquipmentStateTransaction,
   command: SetInstanceEquipmentStateCommand,
 ): Promise<EquipmentStateMutationResult> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   positiveId(command.instanceId, "Owned Item copy");
   const state = requireEquipmentState(command.state);
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);

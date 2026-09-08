@@ -26,7 +26,7 @@ Start: `5b0b211`. Corrected signed participant keys in Initiative controls and R
 
 Validation: the corrected disposable harness actually executes and passes 7 service tests: both simultaneous submission orders, sealed reads/advance, unchanged Hold retry, real Player and NPC weapon governance, two occurrences of one template using separate signed keys and authored attack/Block sources, cost/refund/extension exactly once, unauthorized action rejection, and the explicit Hold/awareness variant using fresh Roll 36 with no Roll 94. Unit suite: 1,258 passed. Typecheck passed. HP/condition and consumed-resource independence is validated with consequences in the following passes.
 
-End: this pass commit (subject `Unify combat participant identity and authored defense paths`).
+End: `b38b198`.
 
 ## Pass 4 - ordinary consequences and defeat
 
@@ -34,9 +34,21 @@ Start: b38b198. Ordinary weapon and Creature attacks now generate supported loca
 
 Validation: 14 actual disposable PostgreSQL service cases passed, including seven consequence cases: Rowan's real owned Skill gives target 40, Roll 90 and failed Block 20 produce the ruled 11 damage to the 3-HP head, one severing record and defeat value 3; damage retry is unchanged; nonfatal armor/Soak and absorption; both simultaneous application orders; critical 01 and 100 remain unresolved rulings. Typecheck, lint and diff check passed. Last full unit suite: 1,258 passing before this pass; broader validation follows the resource integration. No ordinary database migration or fixture writes occurred.
 
-End: this pass commit (subject Complete ordinary attack consequences and preserve simultaneous defeat outcomes).
+End: `e046e27`.
 
 Supplement accepted: [persistent Freeze/Resume and later screen requirements](../rules/combat-freeze-and-ui-handoff-2026-09-08.md). Implementation and race/privacy validation continue with the remaining backend passes.
+
+## Freeze/Resume supplement - shared write boundary and projections
+
+Start: e046e27. At the user's request, all ongoing work now uses main tracking origin/main. The four completed pass commits were pushed normally to origin/main. The superseded local main was preserved as backup-main-before-combat-completion-20260908; its removed UI was not restored.
+
+Migration 0043 adds only frozen_at and freeze_revision on the retained Encounter. The owning G.O.D. sends an explicit desired state and observed revision; retries cannot toggle state or replay an old Resume over a newer Freeze. Freeze/Resume and combat mutations serialize on the Encounter row. Guards cover declarations, responses, Rolls and amendments, Initiative, durations, consequence plans, firearm operations and retained resource/integration routes, including Character sheet resource writes for active participants. Read projections and unrelated Encounters remain available. The existing commit-bound live invalidation tells every authorized subscriber to reload the authoritative pause state.
+
+New G.O.D. and Player backend projections expose pause, resume authority, current Initiative and action timing, action/response opportunities, Hold intervention availability, concise blockers and inspection independent of availability. They use checkpoint-projected state and authorized declarations, preserving sealed choices and Rolls. Player resource inspection is limited to their Character; the G.O.D. can inspect each occurrence. No screen was added. The later screen decisions remain in the linked handoff document.
+
+Validation: 19 actual disposable PostgreSQL service cases now pass, including five pause cases: unauthorized Freeze/Resume, persisted reconnect state, unchanged repeated requests and stale Resume rejection, Character/Creature inspection while frozen, blocked writes including health and duration advancement, sealed choices/Rolls, both actual lock-contention race orders, another Encounter remaining writable, and Resume of an approved damage plan applied exactly once. Existing timing and Roll state survive. All 1,258 feature unit cases passed; typecheck and lint passed during this supplement. Cast-start Mana and firearm-specific pause/retry coverage continues as those remaining pass integrations are completed. Ordinary database migrations have not been applied yet.
+
+End: this supplement commit (subject Persist encounter Freeze and expose authoritative combat availability).
 
 ## Remaining passes
 

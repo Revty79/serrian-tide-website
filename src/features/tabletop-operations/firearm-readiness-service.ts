@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
@@ -333,6 +334,7 @@ export async function initializeFirearmStateInTransaction(
   actorUserId: string,
   command: InitializeFirearmStateCommand,
 ): Promise<{ itemInstanceId: number; stateVersion: number; reused: boolean }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await assertPersistentParticipant(tx, context, command.characterId);
   positiveId(command.itemId, "Firearm Item");
   positiveId(command.selectedFiringModeId, "Selected Firing Mode");
@@ -530,6 +532,7 @@ async function completeFirearmPreparationById(
   const [preparation] = await tx.select().from(campaignCharacterFirearmPreparation)
     .where(eq(campaignCharacterFirearmPreparation.id, preparationId)).limit(1).for("update");
   if (!preparation || preparation.status === "completed") return Boolean(preparation);
+  await assertCombatWritableInTransaction(tx, preparation.encounterId);
   if (preparation.status !== "pending") return false;
   if (preparation.pendingActionId !== null) {
     const [pending] = await tx.select({ status: campaignSessionEncounterPendingAction.status })
@@ -671,6 +674,7 @@ export async function startFirearmPreparationInTransaction(
   actorInput: string | ActionDeclarationActor,
   command: StartFirearmPreparationCommand,
 ): Promise<{ preparationId: number; status: string; pendingActionId: number | null; reused: boolean }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await assertPersistentParticipant(tx, context, command.characterId);
   const actor = await resolvePreparationActor(tx, context, actorInput, command.characterId);
   const actorUserId = actor.userId;
@@ -882,6 +886,7 @@ export async function correctFirearmStateInTransaction(
   actorUserId: string,
   command: FirearmStateCorrectionCommand,
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await assertPersistentParticipant(tx, context, command.characterId);
   const reason = boundedText(command.reason, "Firearm correction reason");
   const state = await lockState(tx, context, command.characterId, command.itemInstanceId);
@@ -947,6 +952,7 @@ export async function recordFirearmManualHandlingInTransaction(
   actorUserId: string,
   command: { characterId: number; itemInstanceId: number; reason: string },
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await assertPersistentParticipant(tx, context, command.characterId);
   const reason = boundedText(command.reason, "Manual-handling reason");
   const state = await lockState(tx, context, command.characterId, command.itemInstanceId);
@@ -966,6 +972,7 @@ export async function reconcileFirearmInitiativeTransitionsInTransaction(
   after: InitiativeEngineState,
   actorUserId: string,
 ): Promise<void> {
+  await assertCombatWritableInTransaction(tx, before.runtime.encounterId);
   const beforeById = new Map(before.pendingActions.map((action) => [action.id, action]));
   for (const action of after.pendingActions) {
     const prior = beforeById.get(action.id);

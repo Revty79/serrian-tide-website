@@ -1,4 +1,5 @@
 "use server";
+import { assertCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
 import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -420,6 +421,7 @@ async function mutateOwnedInitiative(
   const next = await db.transaction(async (tx) => {
     const context = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertActiveHierarchy(context);
+    await assertCombatWritableInTransaction(tx, encounterId);
     const current = await loadInitiativeEngine(tx, encounterId, true);
     if (!current) throw new Error("Initiative has not been initialized for this Encounter.");
     const disposition = options.disposition;
@@ -517,6 +519,7 @@ export async function initializeEncounterInitiative(
   const initialized = await db.transaction(async (tx) => {
     const context = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertActiveHierarchy(context);
+    await assertCombatWritableInTransaction(tx, encounterId);
     if (await loadInitiativeEngine(tx, encounterId, true)) {
       throw new Error("Initiative has already been initialized for this Encounter.");
     }

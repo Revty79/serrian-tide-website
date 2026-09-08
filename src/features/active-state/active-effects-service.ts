@@ -1,3 +1,4 @@
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
@@ -167,6 +168,7 @@ export async function applyConditionInTransaction(
   tx: ActiveEffectsTransaction,
   input: ApplySourceEffect & { effect: ConditionApplyEffect },
 ): Promise<ActiveCondition> {
+  await assertCharacterCombatWritableInTransaction(tx, input.characterId);
   positiveCharacterId(input.characterId);
   const validation = validateMechanicalEffect(input.effect);
   if (!validation.valid || validation.effect.kind !== "condition.apply") {
@@ -193,6 +195,7 @@ export async function applyModifierInTransaction(
   tx: ActiveEffectsTransaction,
   input: ApplySourceEffect & { effect: ModifierApplyEffect },
 ): Promise<ActiveModifier> {
+  await assertCharacterCombatWritableInTransaction(tx, input.characterId);
   positiveCharacterId(input.characterId);
   const validation = validateMechanicalEffect(input.effect);
   if (!validation.valid || validation.effect.kind !== "modifier.apply") {
@@ -224,6 +227,7 @@ export async function resolveConditionInTransaction(
   conditionId: number,
   note = "",
 ): Promise<void> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
   const rows = await tx.update(campaignCharacterActiveCondition).set({ resolvedAt: new Date(), resolutionNote: note.trim() }).where(and(
     eq(campaignCharacterActiveCondition.id, conditionId),
     eq(campaignCharacterActiveCondition.characterId, characterId),
@@ -238,6 +242,7 @@ export async function endModifierInTransaction(
   modifierId: number,
   note = "",
 ): Promise<void> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
   const rows = await tx.update(campaignCharacterActiveModifier).set({ endedAt: new Date(), endNote: note.trim() }).where(and(
     eq(campaignCharacterActiveModifier.id, modifierId),
     eq(campaignCharacterActiveModifier.characterId, characterId),

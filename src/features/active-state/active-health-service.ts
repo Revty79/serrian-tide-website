@@ -1,3 +1,4 @@
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
@@ -334,6 +335,7 @@ export async function persistActiveHealthStateInTransaction(
   anatomy: ActiveHealthAnatomy,
   state: ActiveHealthState,
 ): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, state.characterId);
   assertCharacterId(state.characterId);
   if (!Number.isFinite(state.totalDamage) || state.totalDamage < 0) {
     throw new Error("Active Health total Damage must be zero or greater.");
@@ -466,6 +468,7 @@ export async function applyLocalizedDamageInTransaction(
   command: ApplyLocalizedDamageCommand,
   npcKind: string,
 ): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   const amount = positiveAmount(command.amount, "Damage");
   const context = await lockActiveHealthInTransaction(tx, command.characterId, npcKind);
   const target = resolveLocalizedDamageTarget(context.anatomy, { ...command, amount });
@@ -513,6 +516,7 @@ export async function healFullBodyInTransaction(
   npcKind: string,
   amountInput: number,
 ): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
   const amount = positiveAmount(amountInput, "Healing");
   await lockActiveHealthInTransaction(tx, characterId, npcKind);
   const now = new Date();
@@ -534,6 +538,7 @@ export async function healAreaInTransaction(
   poolKey: string,
   amountInput: number,
 ): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
   const amount = positiveAmount(amountInput, "Healing");
   const context = await lockActiveHealthInTransaction(tx, characterId, npcKind);
   const pool = context.anatomy.pools.find((entry) => entry.key === poolKey);
@@ -554,6 +559,7 @@ export async function addInjuryInTransaction(
   command: AddInjuryCommand,
   npcKind: string,
 ): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   const damageAmount = optionalDamageAmount(command.damageAmount);
   const context = await lockActiveHealthInTransaction(tx, command.characterId, npcKind);
   const target = resolveLocalizedDamageTarget(context.anatomy, {
@@ -582,6 +588,7 @@ export async function resolveInjuryInTransaction(
   npcKind: string,
   injuryId: number,
 ): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
   if (!Number.isInteger(injuryId) || injuryId <= 0) throw new Error("A saved Injury is required.");
   await lockActiveHealthInTransaction(tx, characterId, npcKind);
   const now = new Date();
@@ -656,6 +663,7 @@ export async function resolveCharacterInjury(
 
 export async function restoreCharacterHealth(characterId: number): Promise<ActiveHealthView> {
   return withAuthorizedHealthMutationTransaction(characterId, async (context) => {
+    await assertCharacterCombatWritableInTransaction(context.tx, context.characterId);
     const now = new Date();
     await ensureHealthRow(context.tx, context.characterId);
     await context.tx

@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import {
   assertNoOpenDeclarationCheckpoint,
@@ -376,6 +377,7 @@ export async function persistInitiativeEngineInTransaction(
   before: InitiativeEngineState,
   after: InitiativeEngineState,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (before.runtime.timelineInitiative !== after.runtime.timelineInitiative
     || before.runtime.roundNumber !== after.runtime.roundNumber
     || after.pendingActions.some((action) => {
@@ -466,6 +468,7 @@ export async function holdParticipantInitiativeInTransaction(
   context: OwnedEncounterRuntimeContext,
   characterId: number,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, characterId, true);
   const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
@@ -482,6 +485,7 @@ export async function passParticipantInitiativeInTransaction(
   context: OwnedEncounterRuntimeContext,
   characterId: number,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, characterId, true);
   const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
@@ -504,6 +508,7 @@ export async function spendImmediateInitiativeInTransaction(
   characterId: number,
   amount: number,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertActiveInitiativeHierarchy(context);
   const cost = positiveAmount(amount, "Initiative Cost");
   await requireEncounterParticipant(tx, context, characterId, true);
@@ -523,6 +528,7 @@ export async function startAuthoredActionInTransaction(
   context: OwnedEncounterRuntimeContext,
   input: StartAuthoredActionInput,
 ): Promise<AuthoredActionBinding<Record<string, unknown>>> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, input.sourceCharacterId, true);
   throw new Error("New combat actions use the locked Action Declaration and Effect Plan route. Legacy authored bindings remain readable and recoverable; they cannot create a second commitment path.");
@@ -550,6 +556,7 @@ export async function startWeaponActionInTransaction(
     heldIntervention?: boolean;
   },
 ): Promise<AuthoredActionBinding<WeaponActionPayload>> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const equipment = await readCharacterEquipmentStateInTransaction(tx, input.sourceCharacterId);
   const weapon = requireWieldedWeapon(equipment.wieldedWeapons, input.itemId, input.instanceId);
   const initiativeCost = weapon.initiativeCost ?? input.godSuppliedInitiativeCost ?? null;
@@ -667,6 +674,7 @@ export async function startCreatureAttackInTransaction(
     heldIntervention?: boolean;
   },
 ): Promise<AuthoredActionBinding<CreatureAttackActionPayload>> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const attacks = await readEncounterCreatureAttacksInTransaction(tx, input.sourceCharacterId, true);
   const attack = attacks.find(({ canonicalId }) => canonicalId === input.attackCanonicalId);
   if (!attack) throw new Error("The selected Creature Attack is no longer available.");
@@ -722,6 +730,7 @@ export async function startSpellActionInTransaction(
   actingUserId: string,
   heldIntervention = false,
 ): Promise<{ binding: AuthoredActionBinding<SpellCastRequest>; preview: Awaited<ReturnType<typeof prepareCharacterSpellCastInTransaction>> }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (request.source.kind === "raw-formula") {
     throw new Error("Unsaved Raw Formula casting has no durable combat identity. Save it first or use Generic Initiative.");
   }
@@ -749,6 +758,7 @@ export async function startItemActionInTransaction(
   actingUserId: string,
   heldIntervention = false,
 ): Promise<{ binding: AuthoredActionBinding<ItemUseRequest>; preview: Awaited<ReturnType<typeof prepareCharacterItemUseInTransaction>> }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await lockActiveItemRootInTransaction(tx, request.itemId);
   const targetCharacterId = request.targetCharacterId ?? request.sourceCharacterId;
   await requireEncounterParticipants(tx, context, [request.sourceCharacterId, targetCharacterId]);
@@ -796,6 +806,7 @@ export async function startCreatureAbilityActionInTransaction(
   actingUserId: string,
   heldIntervention = false,
 ): Promise<{ binding: AuthoredActionBinding<CreatureAbilityUseRequest>; preview: Awaited<ReturnType<typeof prepareCreatureAbilityUseInTransaction>> }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (request.sourceCharacterId < 0) {
     const ruling = await prepareEncounterCreatureAbilityActionInTransaction(tx, context, request, actingUserId);
     if ("status" in ruling) throw new Error(`CREATURE_GOD_RULING_REQUIRED: ${ruling.explanation}`);
@@ -1000,6 +1011,7 @@ export async function resolveAuthoredActionInTransaction(
   actingUserId: string,
   input: ResolveAuthoredActionInput,
 ): Promise<ResolveAuthoredActionResult> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const binding = await lockAuthoredBinding(tx, context, bindingId);
   requireReadyAuthoredAction(binding.action, binding.resolutionStatus);
@@ -1107,6 +1119,7 @@ export async function cancelAuthoredActionBindingInTransaction(
   pendingActionId: number,
   summary: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await tx.update(campaignSessionEncounterPendingActionSource).set({
     resolutionStatus: "cancelled",
     resolutionSummary: summary.trim(),
@@ -1139,6 +1152,7 @@ export async function declareEncounterReactionInTransaction(
     defendingInstanceId?: number | null;
   },
 ): Promise<{ id: number; committedInitiativeCost: number }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, input.reactorCharacterId, true);
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
@@ -1197,6 +1211,7 @@ export async function resolveEncounterReactionInTransaction(
   reactionId: number,
   succeeded: boolean,
 ): Promise<{ defenderFinalCost: number; attackerAdditionalCost: number; attackPrevented: boolean }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [reaction] = await tx.select().from(campaignSessionEncounterReaction).where(and(
     eq(campaignSessionEncounterReaction.id, positiveId(reactionId, "Reaction")),
     eq(campaignSessionEncounterReaction.encounterId, context.encounterId),
@@ -1246,6 +1261,7 @@ export async function ruleOnInterruptedReactionInTransaction(
   reactionId: number,
   ruling: "keep" | "refund",
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [reaction] = await tx.select().from(campaignSessionEncounterReaction).where(and(
     eq(campaignSessionEncounterReaction.id, positiveId(reactionId, "Reaction")),
     eq(campaignSessionEncounterReaction.encounterId, context.encounterId),
@@ -1272,6 +1288,7 @@ export async function enrollSpawnedCreatureInInitiativeInTransaction(
   characterId: number,
   movementMode?: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const capacity = await resolveInitiativeCapacityInTransaction(tx, characterId, context.campaignId, movementMode);
   const changed = enrollLateInitiativeParticipant(engine, capacity);
@@ -1290,6 +1307,7 @@ export async function applyEncounterDamageInTransaction(
     injuryNotes?: string;
   },
 ): Promise<ActiveHealthView> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   return applyLocalizedDamageInTransaction(tx, {
@@ -1307,6 +1325,7 @@ export async function healEncounterParticipantInTransaction(
   context: OwnedEncounterRuntimeContext,
   input: { targetCharacterId: number; amount: number; scope: "whole-body" | "area"; poolKey?: string | null },
 ): Promise<ActiveHealthView> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   return input.scope === "whole-body"
@@ -1319,6 +1338,7 @@ export async function addEncounterInjuryInTransaction(
   context: OwnedEncounterRuntimeContext,
   input: Omit<AddInjuryCommand, "characterId"> & { targetCharacterId: number },
 ): Promise<ActiveHealthView> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   return addInjuryInTransaction(tx, { ...input, characterId: target.characterId }, target.npcKind);
@@ -1330,6 +1350,7 @@ export async function resolveEncounterInjuryInTransaction(
   targetCharacterId: number,
   injuryId: number,
 ): Promise<ActiveHealthView> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, targetCharacterId, true);
   return resolveInjuryInTransaction(tx, target.characterId, target.npcKind, injuryId);
@@ -1340,6 +1361,7 @@ export async function mutateEncounterManaInTransaction(
   context: OwnedEncounterRuntimeContext,
   input: { targetCharacterId: number; system: CharacterMagicSystem; operation: "spend" | "restore" | "restore-pool"; amount?: number },
 ) {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   if (input.operation === "restore-pool") {
@@ -1359,6 +1381,7 @@ export async function addEncounterConditionInTransaction(
   actingUserId: string,
   input: { targetCharacterId: number; name: string; description: string; duration: RuntimeDuration },
 ) {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   const created = await applyConditionInTransaction(tx, {
@@ -1382,6 +1405,7 @@ export async function resolveEncounterConditionInTransaction(
   conditionId: number,
   note = "",
 ) {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, targetCharacterId, true);
   await resolveConditionInTransaction(tx, targetCharacterId, conditionId, note);
@@ -1400,6 +1424,7 @@ export async function addEncounterModifierInTransaction(
   actingUserId: string,
   input: { targetCharacterId: number; label: string; channel: TemporaryModifierChannel; targetKey: string; amount: number; duration: RuntimeDuration },
 ) {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   const created = await applyModifierInTransaction(tx, {
@@ -1423,6 +1448,7 @@ export async function endEncounterModifierInTransaction(
   modifierId: number,
   note = "",
 ) {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, targetCharacterId, true);
   await endModifierInTransaction(tx, targetCharacterId, modifierId, note);
@@ -1442,6 +1468,7 @@ export async function setEncounterEquipmentStateInTransaction(
     | { kind: "stack"; targetCharacterId: number; itemId: number; state: EquipmentState; quantity: number }
     | { kind: "instance"; targetCharacterId: number; instanceId: number; state: EquipmentState },
 ) {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
   if (input.kind === "instance") {
@@ -1492,6 +1519,7 @@ export async function executeImmediateEncounterSpellInTransaction(
   actingUserId: string,
   request: SpellCastRequest,
 ): Promise<SpellCastExecutionResult> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await assertNoActiveInitiative(tx, context);
   await requireEncounterParticipants(tx, context, [request.casterCharacterId, ...spellTargetIds(request)]);
@@ -1510,6 +1538,7 @@ export async function executeImmediateEncounterItemInTransaction(
   actingUserId: string,
   request: ItemUseRequest,
 ): Promise<ItemUseExecutionResult> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await assertNoActiveInitiative(tx, context);
   await requireEncounterParticipants(tx, context, [
@@ -1530,6 +1559,7 @@ export async function executeImmediateEncounterCreatureAbilityInTransaction(
   actingUserId: string,
   request: CreatureAbilityUseRequest,
 ): Promise<CreatureAbilityUseResult> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   await assertNoActiveInitiative(tx, context);
   await requireEncounterParticipants(tx, context, [request.sourceCharacterId, ...request.targetCharacterIds]);

@@ -1,4 +1,5 @@
 "use server";
+import { assertCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -91,6 +92,7 @@ async function withPlayerCombat<T>(
   const encounterId = positiveId(encounterIdInput, "Encounter");
   const result = await db.transaction(async (tx) => {
     const context = await lockPlayerCombatContextInTransaction(tx, encounterId, characterId, access.user.id);
+    await assertCombatWritableInTransaction(tx, encounterId);
     const actor: PlayerActor = { authority: "player", userId: access.user.id, characterId };
     const value = await work(tx, context, actor);
     await publishTabletopInvalidationInTransaction(tx, {

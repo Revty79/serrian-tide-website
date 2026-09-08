@@ -1,3 +1,4 @@
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
@@ -477,6 +478,7 @@ export async function approveActionEffectPlanInTransaction(
   planId: number,
   reasonInput = "",
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (plan.status === "approved" || plan.status === "applied" || plan.status === "partially-applied") return;
@@ -505,6 +507,7 @@ export async function amendActionEffectAmountInTransaction(
   amountInput: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (!["calculated", "requires-god-ruling", "approved", "application-failed"].includes(plan.status)) throw new Error("This plan no longer accepts amendments.");
@@ -561,6 +564,7 @@ export async function declineActionEffectInTransaction(
   effectId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (!["calculated", "requires-god-ruling", "approved", "partially-applied", "application-failed"].includes(plan.status)) throw new Error("This plan no longer accepts effect rulings.");
@@ -586,6 +590,7 @@ export async function addManualActionEffectInTransaction(
   instructionInput: string,
   reasonInput: string,
 ): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (!["calculated", "requires-god-ruling", "approved", "partially-applied"].includes(plan.status)) throw new Error("This plan no longer accepts manual effects.");
@@ -652,6 +657,7 @@ export async function resolveManualActionEffectInTransaction(
   outcomeInput: string,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (!["calculated", "requires-god-ruling", "approved", "partially-applied"].includes(plan.status)) throw new Error("This plan no longer accepts manual resolutions.");
@@ -682,6 +688,7 @@ export async function declineActionEffectPlanInTransaction(
   planId: number,
   reasonInput: string,
 ): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (plan.status === "declined") return;
@@ -1121,12 +1128,14 @@ export async function readActionEffectWorkspaceInTransaction(
 
 export async function generateActionEffectPlanInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
   actor: GodActionEffectActor, declarationId: number, ruling?: OrdinaryAttackRuling): Promise<number> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   return generateActionEffectPlanInternal(tx, context, actor, declarationId, ruling);
 }
 
 export async function applyActionEffectPlanInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
   actor: GodActionEffectActor, planId: number): Promise<ActionEffectPlanStatus> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   return applyActionEffectPlanInternal(tx, context, actor, planId);
 }
@@ -1134,6 +1143,7 @@ export async function applyActionEffectPlanInTransaction(tx: ActionEffectPlanTra
 /** Exact owner execution of objectively supported completed consequences, with actual caller attribution. */
 export async function applyRoutineCombatConsequencesInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor, declarationId: number): Promise<{ planId: number; status: ActionEffectPlanStatus }> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
     eq(campaignSessionEncounterActionDeclaration.id, declarationId), eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
   )).limit(1).for("update");
@@ -1161,6 +1171,7 @@ export async function applyRoutineCombatConsequencesInTransaction(tx: ActionEffe
 
 export async function ruleOrdinaryAttackConsequenceInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
   actor: GodActionEffectActor, planId: number, ruling: OrdinaryAttackRuling): Promise<void> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (!["calculated", "requires-god-ruling", "approved"].includes(plan.status)) throw new Error("Only unapplied ordinary consequences may receive a new ruling.");

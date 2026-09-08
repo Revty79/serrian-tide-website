@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -233,6 +234,7 @@ export async function spawnEncounterCreaturesInTransaction(
   input: SpawnEncounterCreaturesInput,
 ): Promise<SpawnEncounterCreaturesResult> {
   if (actingUserId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may add encounter Creatures.");
+  await assertCombatWritableInTransaction(tx, context.encounterId);
   if (context.encounterStatus === "completed") throw new Error("Completed Encounters cannot receive new Creatures.");
   if (context.sessionStatus === "completed" || context.sceneStatus === "completed") {
     throw new Error("Completed Session or Scene history cannot receive new Creatures.");
