@@ -51,7 +51,7 @@ test("combat completion service cases use a new disposable migrated PostgreSQL c
     pool = null;
     const childEnvironment = { ...process.env };
     delete childEnvironment.NODE_TEST_CONTEXT;
-    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts", "scripts/combat-completion-damage-db.test.ts", "scripts/combat-completion-freeze-db.test.ts", "scripts/combat-completion-spells-db.test.ts", "scripts/combat-completion-effects-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts"]) {
+    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts", "scripts/combat-completion-damage-db.test.ts", "scripts/combat-completion-freeze-db.test.ts", "scripts/combat-completion-spells-db.test.ts", "scripts/combat-completion-effects-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-firearms-db.test.ts"]) {
       let output: string;
       try { output = execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
         cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: 180_000,

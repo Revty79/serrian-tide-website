@@ -447,7 +447,7 @@ async function buildAuthoritativeSnapshot(
         : requestedWeaponGovernanceOverride as Parameters<typeof resolveCharacterWeaponGovernanceInTransaction>[2]["oneActionOverride"],
     });
     authoritativeSourceRef = firearmPreparation ? `instance:${ownedPreparationSource!.instanceId}` : equipped!.ownershipKey;
-    if (!firearmPreparation && draft.windowKind !== "firearm-trigger" && equipped!.initiativeCost !== null) {
+    if (!firearmPreparation && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind) && equipped!.initiativeCost !== null) {
       draft = { ...draft, initiativeCost: equipped!.initiativeCost };
     }
     weapon = {
@@ -502,7 +502,7 @@ async function buildAuthoritativeSnapshot(
     && resolvedSource.authoritativeInitiativeCost === null) {
     throw new Error("This exact source has no authored combat timing. The G.O.D. must record its Initiative cost before the Player chooses to use it.");
   }
-  if (resolvedSource.authoritativeInitiativeCost !== null && draft.windowKind !== "firearm-trigger") {
+  if (resolvedSource.authoritativeInitiativeCost !== null && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind)) {
     draft = { ...draft, initiativeCost: resolvedSource.authoritativeInitiativeCost };
   }
   return buildLockedActionDeclarationSnapshot({

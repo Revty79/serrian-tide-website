@@ -324,6 +324,7 @@ async function generateActionEffectPlanInternal(
   const [existing] = await tx.select({ id: campaignSessionEncounterEffectPlan.id })
     .from(campaignSessionEncounterEffectPlan)
     .where(eq(campaignSessionEncounterEffectPlan.declarationId, declaration.id))
+    .orderBy(desc(campaignSessionEncounterEffectPlan.firearmPortion))
     .limit(1);
   if (existing) return existing.id;
   if (declaration.status === "cancelled" || declaration.status === "abandoned" || declaration.status === "interrupted") {
@@ -333,6 +334,9 @@ async function generateActionEffectPlanInternal(
     throw new Error("The declaration must be locked and committed before consequences can be generated.");
   }
   const locked = parseLockedActionDeclarationSnapshot(declaration.lockedSnapshotJson);
+  if (locked.actionKind.startsWith("firearm-attack:")) {
+    throw new Error("Resolve this firearm through its exact firearm attack and bullet allocation before applying consequences.");
+  }
   const source = assertFrozenActionSourceSnapshot(locked.authoredSource);
   const [pending] = await tx.select().from(campaignSessionEncounterPendingAction).where(and(
     eq(campaignSessionEncounterPendingAction.id, declaration.pendingActionId),
@@ -1002,7 +1006,11 @@ async function applyActionEffectPlanInternal(
   }).where(eq(campaignSessionEncounterEffectPlan.id, plan.id));
   await recordEvent(tx, context, plan.id, plan.status, nextStatus, "effect-plan-applied", actor.userId, "", { appliedEffectIds: appliedIds });
   if (nextStatus === "applied") {
-    await resolveActionDeclarationInTransaction(tx, context, actor, plan.declarationId, "Approved consequences were applied or explicitly resolved.");
+    const [timing] = await tx.select({ status: campaignSessionEncounterPendingAction.status }).from(campaignSessionEncounterPendingAction)
+      .where(eq(campaignSessionEncounterPendingAction.id, plan.pendingActionId));
+    if (plan.firearmPortion === 0 || timing?.status === "completed") {
+      await resolveActionDeclarationInTransaction(tx, context, actor, plan.declarationId, "Approved consequences were applied or explicitly resolved.");
+    }
   }
   return nextStatus;
 }
@@ -1146,7 +1154,7 @@ export async function applyActionEffectPlanInTransaction(tx: ActionEffectPlanTra
 
 /** Exact owner execution of objectively supported completed consequences, with actual caller attribution. */
 export async function applyRoutineCombatConsequencesInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
-  actor: ActionDeclarationActor, declarationId: number): Promise<{ planId: number; status: ActionEffectPlanStatus }> {
+  actor: ActionDeclarationActor, declarationId: number, exactPlanId?: number): Promise<{ planId: number; status: ActionEffectPlanStatus }> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
     eq(campaignSessionEncounterActionDeclaration.id, declarationId), eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
@@ -1154,8 +1162,9 @@ export async function applyRoutineCombatConsequencesInTransaction(tx: ActionEffe
   if (!declaration) throw new Error("That exact combat declaration no longer exists.");
   await assertActionChoiceAuthority(tx, context, actor, declaration.actorCharacterId);
   await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
-  const planId = await generateActionEffectPlanInternal(tx, context, actor, declarationId);
+  const planId = exactPlanId ?? await generateActionEffectPlanInternal(tx, context, actor, declarationId);
   const plan = await lockPlan(tx, context, planId);
+  if (plan.declarationId !== declarationId) throw new Error("The consequence plan does not belong to this exact declaration.");
   if (plan.status === "applied") return { planId, status: "applied" };
   const effects = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, planId));
   if (plan.status !== "calculated" || effects.some((effect) => effect.godReviewRequired

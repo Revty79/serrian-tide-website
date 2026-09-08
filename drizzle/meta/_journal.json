@@ -309,6 +309,13 @@
       "when": 1788890829138,
       "tag": "0043_combat_freeze",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1788896654586,
+      "tag": "0044_combat_firing_portions",
+      "breakpoints": true
     }
   ]
 }

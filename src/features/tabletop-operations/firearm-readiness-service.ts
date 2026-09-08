@@ -3,6 +3,7 @@ import "server-only";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { isDeepStrictEqual } from "node:util";
 
 import { item, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import { campaignPlayer } from "@/db/campaign-schema";
@@ -24,7 +25,7 @@ import {
 import type { ResolvedFirearmFiringMode } from "@/features/items/firearm-timing";
 import { setInstanceEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 
-import type { ActionDeclarationActor } from "./action-declaration-service";
+import { assertActionChoiceAuthority, type ActionDeclarationActor } from "./action-declaration-service";
 import type { InitiativeEngineState } from "./initiative-runtime";
 import type {
   OwnedEncounterRuntimeContext,
@@ -674,32 +675,50 @@ export async function startFirearmPreparationInTransaction(
   actorInput: string | ActionDeclarationActor,
   command: StartFirearmPreparationCommand,
 ): Promise<{ preparationId: number; status: string; pendingActionId: number | null; reused: boolean }> {
+  return tx.transaction((preparationTx) => startFirearmPreparationInternal(preparationTx, context, actorInput, command));
+}
+
+async function startFirearmPreparationInternal(
+  tx: FirearmReadinessTransaction, context: OwnedEncounterRuntimeContext,
+  actorInput: string | ActionDeclarationActor, command: StartFirearmPreparationCommand,
+): Promise<{ preparationId: number; status: string; pendingActionId: number | null; reused: boolean }> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   await assertPersistentParticipant(tx, context, command.characterId);
   const actor = await resolvePreparationActor(tx, context, actorInput, command.characterId);
+  await assertActionChoiceAuthority(tx, context, actor, command.characterId);
   const actorUserId = actor.userId;
   if (actor.authority === "player" && command.godInitiativeCost !== undefined && command.godInitiativeCost !== null) {
     throw new Error("A Player cannot supply a missing firearm Initiative Cost.");
   }
   const idempotencyKey = boundedText(command.idempotencyKey, "Firearm preparation request ID", true, 200);
+  const originalRequest = JSON.parse(JSON.stringify(command)) as Record<string, unknown>;
   const [reused] = await tx.select({
     id: campaignCharacterFirearmPreparation.id,
     itemInstanceId: campaignCharacterFirearmPreparation.itemInstanceId,
     operation: campaignCharacterFirearmPreparation.operation,
     status: campaignCharacterFirearmPreparation.status,
     pendingActionId: campaignCharacterFirearmPreparation.pendingActionId,
+    encounterId: campaignCharacterFirearmPreparation.encounterId,
+    frozenSnapshot: campaignCharacterFirearmPreparation.frozenSnapshotJson,
   }).from(campaignCharacterFirearmPreparation).where(and(
     eq(campaignCharacterFirearmPreparation.campaignId, context.campaignId),
     eq(campaignCharacterFirearmPreparation.idempotencyKey, idempotencyKey),
   )).limit(1);
   if (reused) {
-    if (reused.itemInstanceId !== command.itemInstanceId || reused.operation !== command.operation) {
+    const original = (reused.frozenSnapshot as { originalRequest?: unknown }).originalRequest;
+    if (reused.encounterId !== context.encounterId || reused.itemInstanceId !== command.itemInstanceId || reused.operation !== command.operation
+      || original !== undefined && !isDeepStrictEqual(original, originalRequest)) {
       throw new Error("That request ID was already used for a different firearm operation.");
     }
     return { preparationId: reused.id, status: reused.status, pendingActionId: reused.pendingActionId, reused: true };
   }
 
   const state = await lockState(tx, context, command.characterId, command.itemInstanceId);
+  const { campaignSessionEncounterFirearmAttack, campaignSessionEncounterPendingAction } = await import("@/db/tabletop-operations-schema");
+  const [firing] = await tx.select({ id: campaignSessionEncounterFirearmAttack.id }).from(campaignSessionEncounterFirearmAttack)
+    .innerJoin(campaignSessionEncounterPendingAction, eq(campaignSessionEncounterPendingAction.id, campaignSessionEncounterFirearmAttack.triggerPendingActionId))
+    .where(and(eq(campaignSessionEncounterFirearmAttack.itemInstanceId, state.itemInstanceId), eq(campaignSessionEncounterPendingAction.status, "active"))).limit(1);
+  if (firing) throw new Error("Interrupt the active firearm attack before changing its readiness or ammunition.");
   const [open] = await tx.select({ id: campaignCharacterFirearmPreparation.id })
     .from(campaignCharacterFirearmPreparation)
     .where(and(
@@ -780,6 +799,7 @@ export async function startFirearmPreparationInTransaction(
   if (disposition === "discard" && !reason) throw new Error("Deliberately discarding ammunition requires an explicit reason.");
   const frozenSnapshot = {
     schemaVersion: 1,
+    originalRequest,
     operation: command.operation,
     state: stateSnapshot(state),
     canonical: {

@@ -18,6 +18,7 @@ export const ACTION_WINDOW_KINDS = [
   "ordinary",
   "melee-overlap",
   "firearm-trigger",
+  "firearm-sustained",
   "preparation",
 ] as const;
 

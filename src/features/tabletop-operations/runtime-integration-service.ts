@@ -377,6 +377,13 @@ export async function persistInitiativeEngineInTransaction(
   before: InitiativeEngineState,
   after: InitiativeEngineState,
 ): Promise<void> {
+  return tx.transaction((persistTx) => persistInitiativeEngineInternal(persistTx, context, before, after));
+}
+
+async function persistInitiativeEngineInternal(
+  tx: RuntimeIntegrationTransaction, context: OwnedEncounterRuntimeContext,
+  before: InitiativeEngineState, after: InitiativeEngineState,
+): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (before.runtime.timelineInitiative !== after.runtime.timelineInitiative
     || before.runtime.roundNumber !== after.runtime.roundNumber
@@ -457,6 +464,8 @@ export async function persistInitiativeEngineInTransaction(
     }
   }
   const { reconcileActionResponseWindowsInTransaction } = await import("./action-declaration-service");
+  const { reconcileSustainedFireProgressInTransaction } = await import("./firearm-attack-service");
+  await reconcileSustainedFireProgressInTransaction(tx, context, before, after);
   await reconcileActionResponseWindowsInTransaction(tx, context, before, after);
   const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("./firearm-readiness-service");
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);

@@ -60,11 +60,22 @@ Temporary Dexterity, movement and Initiative changes now adjust capacity, curren
 
 Validation: 38 actually executed service cases passed in the disposable migrated PostgreSQL cluster, including 11 Spell cases, five timing/expiration cases and three Item/Ability cases. The authored concentration scenario crosses a round with one Mana payment and one Roll; its production practitioner/casting formula is unchanged. All 1,258 feature unit tests passed. Typecheck, lint, production build, Drizzle migration check and diff check passed during this pass. No ordinary campaign fixtures, database reset or replacement screen. Ordinary forward migrations remain scheduled after the remaining integration checks.
 
-End: this Pass 5 commit (subject Complete combat casting resources and immediate effect propagation).
+End: `1a115be`.
+
+## Pass 6 - firearms and sustained firing portions
+
+Start: `1a115be`. Firearm declarations now accept the original entered Roll at the actual trigger commitment; Aim and authored preparation remain separate no-roll actions. Invalid starts roll back the whole operation. Retry identities include the exact Encounter and original choices, and authority is checked before returning a receipt. Readiness preparation also retains exact request choices and cannot change an actively firing instance.
+
+The [additional sustained-fire ruling](../rules/combat-sustained-fire-clarification-2026-09-08.md) is implemented through the existing Initiative engine. A three-point declaration from 22 visits 21, 20 and 19. The original bullet calculation is allocated by ordered bullet index and authored rounds per cadence. Each completed portion spends only that portion's ammunition and generates its own consequence plan. Overflow is retained once at the final portion; unsupported Called automatic DEX placement remains a precise existing G.O.D. ruling. Subsequent legitimate defenses can cancel only uncompleted bullet portions. Reconciliation applies defense refunds/extensions only once, including when a new response arrives after a previous group was resolved.
+
+Migration 0044 adds a completed-portion counter and an effect-plan portion number, extends the existing uniqueness keys to include the portion, and permits partial ammunition expenditure on a fired attack. Existing plans remain portion zero; previously fired attacks are marked fully delivered without replaying any shot. Freeze preserves the next point. Interruption cancels remaining firing while preserving completed portions and authored cycling/recoil requirements. Simultaneously matured portions receive their ammunition and plan receipts before damage can interrupt another shooter's future work.
+
+Validation: ten firearm service cases cover Player and NPC single/burst, exact ammo shortage, authored numeric Creature armor/Soak, invalid Roll rollback, repeated requests, Freeze, real target/Aim replacement, Called single damage, declining consequences without ammunition refunds, draw/reload/load/unload/mode/cycling/recoil operations, an aware Creature Dodge, the full three-point sustained sequence, interruption after its second point, and a later defense preserving earlier damage. All 48 service cases passed in the disposable migrated PostgreSQL cluster. All 1,258 feature unit tests, typecheck, lint, production build, Drizzle check and diff check passed during this pass. No ordinary campaign database has been migrated or seeded.
+
+End: this Pass 6 commit (subject Complete firearm declaration timing and sustained firing portions).
 
 ## Remaining passes
 
-6. Firearms under the reconciled timing contract.
-7. Cancellation/closeout/recovery and complete service-level encounters, final validation and handoff.
+7. Cancellation/closeout/recovery, explicit XP modes and complete service-level encounters, final validation and handoff.
 
 Pass 7 XP clarification accepted: [confirmed Creature award modes and additive full-per-recipient encounter XP](../rules/combat-xp-clarification-2026-09-08.md). The latest clarification makes "everyone gets Creature XP" the full-value-per-recipient mode. Killer-only and explicit shared split remain available; for a shared split, equal whole shares plus the killer's remainder preserve the Creature value. Distribution is not wholly undecided.

@@ -255,6 +255,10 @@ export function getNextInitiativeTimelineEvent(state: InitiativeEngineState): In
     if (action.status !== "active") return [];
     const actor = participantById(state, action.actorCharacterId);
     const availableThisRound = Math.max(0, actor.currentInitiative);
+    if (action.actionKind.startsWith("firearm-attack:") && action.originalInitiativeCost > 1 && availableThisRound > 0
+      && action.initiativeSpent < action.originalInitiativeCost) {
+      return [{ id: action.id, initiative: availableThisRound - Math.min(1, action.remainingInitiativeCost) }];
+    }
     if (action.remainingInitiativeCost <= availableThisRound) {
       return [{ id: action.id, initiative: availableThisRound - action.remainingInitiativeCost }];
     }
@@ -453,10 +457,11 @@ export function advanceInitiativeToNextEvent(state: InitiativeEngineState): Init
     for (const actionId of event.actionIds) {
       const action = actionById(resolved, actionId);
       const actor = participantById(resolved, action.actorCharacterId);
-      if (action.status !== "active" || action.remainingInitiativeCost > Math.max(0, actor.currentInitiative)) {
+      const portion = action.actionKind.startsWith("firearm-attack:") && action.originalInitiativeCost > 1 && action.initiativeSpent < action.originalInitiativeCost;
+      const spent = portion ? Math.min(1, action.remainingInitiativeCost) : action.remainingInitiativeCost;
+      if (action.status !== "active" || spent > Math.max(0, actor.currentInitiative)) {
         throw new Error("The retained Initiative completion is no longer resolvable.");
       }
-      const spent = action.remainingInitiativeCost;
       resolved = replaceParticipant(resolved, settleAllDeferredCost({
         ...actor,
         currentInitiative: actor.currentInitiative - spent,
@@ -465,9 +470,9 @@ export function advanceInitiativeToNextEvent(state: InitiativeEngineState): Init
       resolved = replaceAction(resolved, {
         ...action,
         initiativeSpent: action.initiativeSpent + spent,
-        remainingInitiativeCost: 0,
-        status: "completed",
-        completedRound: resolved.runtime.roundNumber,
+        remainingInitiativeCost: action.remainingInitiativeCost - spent,
+        status: action.remainingInitiativeCost === spent ? "completed" : "active",
+        completedRound: action.remainingInitiativeCost === spent ? resolved.runtime.roundNumber : null,
       });
     }
     return reconcileCompletedCombatStep(resolved);

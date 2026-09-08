@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import type { DeclarationRollInput } from "@/features/tabletop-operations/action-declaration-service";
 import {
   cancelFirearmAttackInTransaction,
   commitFirearmAttackTriggerInTransaction,
@@ -99,9 +100,10 @@ export async function commitFirearmAttackTrigger(
   encounterId: number,
   attackId: number,
   actorParticipantId: number,
+  roll?: DeclarationRollInput,
 ): Promise<number> {
   return mutate(encounterId, [actorParticipantId], (tx, context, actorUserId) => (
-    commitFirearmAttackTriggerInTransaction(tx, context, actorUserId, positiveId(attackId, "Firearm Attack"))
+    commitFirearmAttackTriggerInTransaction(tx, context, actorUserId, positiveId(attackId, "Firearm Attack"), roll)
   ));
 }
 

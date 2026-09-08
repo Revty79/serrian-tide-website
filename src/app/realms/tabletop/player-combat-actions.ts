@@ -383,7 +383,7 @@ export async function rollPlayerDeclaredAttack(characterId: number, encounterId:
 export async function declarePlayerFirearmAttack(
   characterId: number,
   encounterId: number,
-  input: { targetParticipantId: number; itemInstanceId: number; firingModeId: number; aimInitiative: number; firingDurationInitiative?: number | null; calledShotRequestId?: number | null; idempotencyKey: string },
+  input: { targetParticipantId: number; itemInstanceId: number; firingModeId: number; aimInitiative: number; firingDurationInitiative?: number | null; calledShotRequestId?: number | null; idempotencyKey: string; roll?: { method: RollMethod; enteredTotal?: number | null } },
 ): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
     const targetParticipantId = participantId(input.targetParticipantId, "Target participant");
@@ -408,6 +408,7 @@ export async function declarePlayerFirearmAttack(
       firingModeId: positiveId(input.firingModeId, "Firing Mode"),
       aimInitiative: input.aimInitiative,
       firingDurationInitiative: input.firingDurationInitiative,
+      roll: input.roll,
       calledShot: { declared: request !== null, objective, locationNumber: location, penalty: rulingPenalty, reason: rulingReason },
       playerRulingRequestId: requestId,
       idempotencyKey: key(input.idempotencyKey),
@@ -416,9 +417,9 @@ export async function declarePlayerFirearmAttack(
   });
 }
 
-export async function commitPlayerFirearmTrigger(characterId: number, encounterId: number, attackId: number): Promise<number> {
+export async function commitPlayerFirearmTrigger(characterId: number, encounterId: number, attackId: number, roll?: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "action", (tx, context, actor) => (
-    commitFirearmAttackTriggerInTransaction(tx, context, actor, positiveId(attackId, "Firearm attack"))
+    commitFirearmAttackTriggerInTransaction(tx, context, actor, positiveId(attackId, "Firearm attack"), roll)
   ));
 }
 

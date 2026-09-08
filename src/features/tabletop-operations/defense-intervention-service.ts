@@ -1120,6 +1120,7 @@ export async function resolveDeclaredDefensesInTransaction(
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
   declarationId: number,
+  throughInitiative?: number,
 ): Promise<DefenseGroupOutcome> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const { row: declaration, snapshot: actionSnapshot } = await lockedActionForRoll(tx, context, declarationId);
@@ -1140,7 +1141,16 @@ export async function resolveDeclaredDefensesInTransaction(
   } else {
     await assertActorAuthority(tx, context, actor, declaration.actorCharacterId);
   }
-  if (declaration.defenseResolutionJson !== null) {
+  const opportunities = (await tx.select().from(campaignSessionEncounterResponderOpportunity)
+    .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declaration.id)).for("update"))
+    .filter((opportunity) => throughInitiative === undefined || opportunity.status !== "pending" || opportunity.source === "god-exception"
+      || opportunity.reachedAtInitiative >= throughInitiative);
+  if (opportunities.some(({ status }) => status === "pending")) throw new Error("Every responder opportunity at this firing point must be reconciled before opposition resolves.");
+  const reactionIds = opportunities.flatMap(({ reactionId }) => reactionId === null ? [] : [reactionId]);
+  const newReactions = reactionIds.length ? await tx.select({ id: campaignSessionEncounterReaction.id }).from(campaignSessionEncounterReaction)
+    .where(and(inArray(campaignSessionEncounterReaction.id, reactionIds), isNull(campaignSessionEncounterReaction.reconciliationAppliedAt),
+      inArray(campaignSessionEncounterReaction.status, ["declared", "needs-ruling"]))) : [];
+  if (declaration.defenseResolutionJson !== null && newReactions.length === 0) {
     const stored = typeof declaration.defenseResolutionJson === "object" && declaration.defenseResolutionJson !== null
       ? declaration.defenseResolutionJson as { objective?: unknown; originalActionDisposition?: unknown }
       : null;
@@ -1151,10 +1161,6 @@ export async function resolveDeclaredDefensesInTransaction(
       : objective as DefenseGroupOutcome;
   }
   if (!declaration.pendingActionId) throw new Error("The action declaration has no pending action.");
-  const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity)
-    .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declaration.id)).for("update");
-  if (opportunities.some(({ status }) => status === "pending")) throw new Error("Every responder opportunity must be reconciled before opposition resolves.");
-  const reactionIds = opportunities.flatMap(({ reactionId }) => reactionId === null ? [] : [reactionId]);
   const reactions = reactionIds.length
     ? await tx.select().from(campaignSessionEncounterReaction).where(inArray(campaignSessionEncounterReaction.id, reactionIds)).orderBy(asc(campaignSessionEncounterReaction.id)).for("update")
     : [];
@@ -1258,7 +1264,7 @@ export async function resolveDeclaredDefensesInTransaction(
       await insertReactionEvent(tx, context, outcome.reactionId, "declared", "needs-ruling", "critical-collision", actor.userId, "Objective comparison requires a G.O.D. ruling.", { comparison: outcome.comparison });
     }
   }
-  const appliedOutcomes = result.status === "resolved" ? result.outcomes : [];
+  const appliedOutcomes = result.status === "resolved" ? result.outcomes.filter(({ reactionId }) => reactions.find(({ id }) => id === reactionId)?.reconciliationAppliedAt === null) : [];
   await applyRefunds(tx, context, appliedOutcomes.map((outcome) => ({
     characterId: reactions.find(({ id }) => id === outcome.reactionId)!.reactorCharacterId,
     amount: outcome.defenderRefund,
@@ -1298,8 +1304,9 @@ export async function resolveDeclaredDefensesInTransaction(
     }).where(eq(campaignSessionEncounterReaction.id, reaction.id));
     await insertReactionEvent(tx, context, reaction.id, "declared", awaitsGod ? "needs-ruling" : "resolved", "intervention-objective-resolution", actor.userId, "", { resolution });
   }
-  if (result.status === "resolved" && result.attackerAdditionalCost > 0) {
-    await extendActionDeclarationCostInTransaction(tx, context, declaration.id, result.attackerAdditionalCost, actor.userId, "Successful Parry/Block full Item cost added to the attacker action.");
+  const newlyAddedCost = appliedOutcomes.reduce((total, outcome) => total + outcome.attackerAdditionalCost, 0);
+  if (newlyAddedCost > 0) {
+    await extendActionDeclarationCostInTransaction(tx, context, declaration.id, newlyAddedCost, actor.userId, "Successful Parry/Block full Item cost added to the attacker action.");
   }
   const aggregate = {
     schemaVersion: 1,
@@ -1341,18 +1348,20 @@ export async function resolveDeclaredDefensesIfReadyInTransaction(
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
   declarationId: number,
+  throughInitiative?: number,
 ): Promise<DefenseGroupOutcome | null> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const { row: declaration } = await lockedActionForRoll(tx, context, declarationId);
-  if (declaration.defenseResolutionJson !== null) {
-    return resolveDeclaredDefensesInTransaction(tx, context, actor, declarationId);
-  }
   if (!declaration.pendingActionId) return null;
-  const opportunities = await tx.select({
+  const opportunities = (await tx.select({
     status: campaignSessionEncounterResponderOpportunity.status,
     reactionId: campaignSessionEncounterResponderOpportunity.reactionId,
+    reachedAtInitiative: campaignSessionEncounterResponderOpportunity.reachedAtInitiative,
+    source: campaignSessionEncounterResponderOpportunity.source,
   }).from(campaignSessionEncounterResponderOpportunity)
-    .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declaration.id));
+    .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declaration.id)))
+    .filter((opportunity) => throughInitiative === undefined || opportunity.status !== "pending" || opportunity.source === "god-exception"
+      || opportunity.reachedAtInitiative >= throughInitiative);
   if (opportunities.some(({ status }) => status === "pending")) return null;
   const reactionIds = opportunities.flatMap(({ reactionId }) => reactionId === null ? [] : [reactionId]);
   const reactions = reactionIds.length
@@ -1372,7 +1381,7 @@ export async function resolveDeclaredDefensesIfReadyInTransaction(
   const requiredReactionIds = reactions.filter(({ status, rollRequired }) => status === "declared" && rollRequired).map(({ id }) => id);
   const recordedReactionIds = new Set(rollRows.filter(({ status, reactionId }) => status === "recorded" && reactionId !== null).map(({ reactionId }) => reactionId));
   if (requiredReactionIds.some((id) => !recordedReactionIds.has(id))) return null;
-  return resolveDeclaredDefensesInTransaction(tx, context, actor, declaration.id);
+  return resolveDeclaredDefensesInTransaction(tx, context, actor, declaration.id, throughInitiative);
 }
 
 export async function resolveDeclaredDefensesAfterResponseIfReadyInTransaction(
