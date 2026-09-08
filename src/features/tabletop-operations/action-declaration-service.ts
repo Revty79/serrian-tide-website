@@ -278,6 +278,8 @@ async function assertParticipants(
     )) : [];
   const found = new Set(rows.map(({ characterId }) => characterId));
   if (found.size !== expected.length) throw new Error("Every declaration Character must be an exact Encounter Participant.");
+  const { assertCombatantCanChooseInTransaction } = await import("./combat-condition-service");
+  if (characterIds.length) await assertCombatantCanChooseInTransaction(tx, context.encounterId, characterIds[0]);
   const { combatParticipationState } = await import("./combat-participation-service");
   if (rows.some(({ localState }) => combatParticipationState(localState).departed)) throw new Error("A selected combatant has left active combat. The G.O.D. must confirm its return before new declarations or targeting.");
 }
@@ -1275,8 +1277,9 @@ export async function cancelActionDeclarationInTransaction(
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
-  if (row.pendingActionId === null) await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
-  else await assertActorAuthority(tx, context, actor, row.actorCharacterId);
+  // Cancelling retained work is recovery, not a new action choice. The owner
+  // must also be able to reconcile an incapacitated Player's uncommitted draft.
+  await assertActorAuthority(tx, context, actor, row.actorCharacterId);
   if (actor.authority === "player" && row.pendingActionId !== null) {
     throw new Error("A committed action requires a G.O.D. cancellation ruling.");
   }
@@ -1696,7 +1699,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     await lockPlayerCombatContextInTransaction(tx, context.encounterId, actor.characterId, actor.userId);
   }
   const engine = await projectRevealedInitiativeInTransaction(tx,
-    await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId));
+    await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId, true));
   const openCheckpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
   const identities = await tx.select({
     characterId: campaignSessionEncounterParticipant.characterId,

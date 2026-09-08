@@ -25,7 +25,7 @@ function numeric(value: unknown): number | null {
 export type OrdinaryAttackRuling = Readonly<{
   targetParticipantId: number;
   hitLocationNumber: number;
-  finalDamage: number;
+  finalDamage?: number;
   reason: string;
   injuryName?: string;
   defeated?: boolean;
@@ -49,7 +49,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     throw new Error("Ordinary consequences require an exact ordinary Weapon or Creature Attack source.");
   }
   if (ruling && (!locked.targetCharacterIds.includes(ruling.targetParticipantId) || !Number.isInteger(ruling.hitLocationNumber)
-    || ruling.hitLocationNumber < 0 || ruling.hitLocationNumber > 9 || !Number.isFinite(ruling.finalDamage) || ruling.finalDamage < 0
+    || ruling.hitLocationNumber < 0 || ruling.hitLocationNumber > 9 || ruling.finalDamage !== undefined && (!Number.isFinite(ruling.finalDamage) || ruling.finalDamage < 0)
     || !ruling.reason.trim() || (ruling.defeatValueXp !== undefined && (!Number.isFinite(ruling.defeatValueXp) || ruling.defeatValueXp < 0)))) {
     throw new Error("An attack ruling requires its exact target, location 0–9, nonnegative damage/defeat value, and reason.");
   }
@@ -109,7 +109,8 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     const calculated = base !== null && armor !== null && armor >= 0 && soak !== null && soak >= 0
       ? calculateOrdinaryAttackDamage(base, roll.resolution.additionalSuccesses, armor, soak) : null;
     const netDamage = adjudicated?.finalDamage ?? calculated?.netDamage ?? null;
-    const supported = poolKey !== null && netDamage !== null && (issues.length === 0 || adjudicated !== undefined);
+    // Location selection alone cannot override unsupported damage mechanics.
+    const supported = poolKey !== null && netDamage !== null && (issues.length === 0 || adjudicated?.finalDamage !== undefined);
     const declined = prevented || supported && netDamage === 0;
     const application = { hitLocationNumber, poolKey, ordinaryAttack: { locationName, poolMaximumHp, totalMaximumHp, calculated,
       appliedDamage: netDamage, ruling: adjudicated ?? null, issues } };

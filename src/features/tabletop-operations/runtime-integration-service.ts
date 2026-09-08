@@ -391,11 +391,19 @@ async function persistInitiativeEngineInternal(
   if (!isDeepStrictEqual(before, await loadInitiativeEngineInTransaction(tx, context.encounterId))) {
     throw new Error("Combat state changed or this request already completed. Refresh before changing Initiative.");
   }
+  const { assertCombatantCanChooseInTransaction } = await import("./combat-condition-service");
+  for (const entry of after.participants) {
+    const prior = before.participants.find(({ characterId }) => characterId === entry.characterId);
+    if (["active", "holding"].includes(entry.participationStatus) && (!prior || prior.participationStatus === "suspended")) {
+      await assertCombatantCanChooseInTransaction(tx, context.encounterId, entry.characterId);
+    }
+  }
   if (before.runtime.roundNumber !== after.runtime.roundNumber) {
     const { combatParticipationState } = await import("./combat-participation-service");
+    const { combatConditionState } = await import("./combat-condition-state");
     const members = await tx.select({ id: campaignSessionEncounterParticipant.characterId, local: campaignSessionEncounterParticipant.localStateJson })
       .from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId));
-    const absent = new Set(members.filter(({ local }) => combatParticipationState(local).departed).map(({ id }) => id));
+    const absent = new Set(members.filter(({ local }) => combatParticipationState(local).departed || combatConditionState(local).status !== "able").map(({ id }) => id));
     after = { ...after, participants: after.participants.map((entry) => absent.has(entry.characterId)
       ? { ...entry, currentInitiative: before.participants.find(({ characterId }) => characterId === entry.characterId)!.currentInitiative } : entry) };
   }
@@ -517,6 +525,10 @@ async function persistInitiativeEngineInternal(
   const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("./firearm-readiness-service");
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime, durationPassage);
+  if (before.runtime.stepNumber !== after.runtime.stepNumber || before.runtime.roundNumber !== after.runtime.roundNumber || before.runtime.status !== after.runtime.status) {
+    const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");
+    await reconcileCombatRecoveryInTransaction(tx, context);
+  }
 }
 
 export async function holdParticipantInitiativeInTransaction(

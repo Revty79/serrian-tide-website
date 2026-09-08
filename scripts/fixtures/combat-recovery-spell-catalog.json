@@ -1,0 +1,361 @@
+{
+  "source": "Read-only exact catalog inspection, 8 September 2026; spell-import-source retains supplied row provenance.",
+  "records": [
+    {
+      "name": "Cycle of Rebirth",
+      "source_external_id": "skill-061f2434f971f446faa1faa0de29cf8016bd8f6966cfd50580dd4c625d53cd80",
+      "extension_type": "spell-construction",
+      "data_json": {
+        "schemaVersion": 6,
+        "id": "spell-18c2eefe057ad2d85e12",
+        "name": "Cycle of Rebirth",
+        "tradition": "Spellcraft/Talismanism/Faith",
+        "sphere": "Life",
+        "discipline": "",
+        "resonance": "",
+        "containers": [
+          {
+            "id": "calculator-container-8567753ba41703de9510",
+            "containerRuleId": "target",
+            "effects": [
+              {
+                "id": "effect-094c65e9fd2c30aa37d8",
+                "ruleId": "healing",
+                "quantity": 2,
+                "description": "Healing"
+              }
+            ],
+            "rangeDescription": "Line of Sight (10)",
+            "durations": [
+              {
+                "id": "duration-7e36f2258467002bb415",
+                "ruleId": "combat-round",
+                "quantity": 0,
+                "description": "Combat Round (5) + Lingering (2)"
+              },
+              {
+                "id": "duration-85b6d59b369909dd8dfb",
+                "ruleId": "lingering",
+                "quantity": 1,
+                "description": "Combat Round (5) + Lingering (2)"
+              }
+            ],
+            "modifiers": [],
+            "children": [],
+            "rangeRuleId": "line-of-sight"
+          },
+          {
+            "id": "calculator-container-5f7e2de2b8921dae774f",
+            "containerRuleId": "aoe",
+            "effects": [
+              {
+                "id": "effect-4b5cacdb5320badd92f4",
+                "ruleId": "healing",
+                "quantity": 4,
+                "description": "Healing"
+              },
+              {
+                "id": "effect-0ba54e402e6d26418469",
+                "ruleId": "transfer-life-force",
+                "quantity": 3,
+                "description": "Transfer Life Force"
+              }
+            ],
+            "rangeDescription": "",
+            "durations": [],
+            "modifiers": [],
+            "children": [],
+            "shape": {
+              "id": "calculator-shape-6e27de5de1817a889f9b",
+              "ruleId": "sphere-cube-zone",
+              "quantity": 0,
+              "description": "Sphere/Zone (Large, 11)"
+            }
+          },
+          {
+            "id": "calculator-container-ef422d53059bd70ca8c8",
+            "containerRuleId": "temporal-spatial",
+            "effects": [
+              {
+                "id": "effect-e76d7ac08ba52cae333c",
+                "ruleId": "temporal-stasis",
+                "quantity": 1,
+                "description": "Temporal Stasis"
+              }
+            ],
+            "rangeDescription": "",
+            "durations": [],
+            "modifiers": [],
+            "children": []
+          }
+        ],
+        "modifiers": [],
+        "description": "Allies heal 3 HP per round; fallen allies rise with 5 HP (temporary until stabilized at spell end). Enemies lose 3 HP per round (Transfer Life Force). Temporal suspension prevents immediate death checks during duration.",
+        "notes": "• Revived allies return at 5 HP and function normally during duration. • At end of spell, revived allies must stabilize (save or fall dead again). • Enemies cannot resist Transfer drain except by leaving the zone. • Cycle visible as golden threads tying combatants together. • Spell strains caster’s body, leaving them exhausted after use.",
+        "flavorLine": "“Death is but a pause in the great cycle.”",
+        "progressive": {
+          "enabled": false,
+          "costMode": "original-base",
+          "milestones": [
+            {
+              "level": "Apprentice",
+              "tierName": "Apprentice",
+              "condition": "",
+              "description": "",
+              "notes": "",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "Novice",
+              "tierName": "Novice",
+              "condition": "",
+              "description": "",
+              "notes": "",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "Master",
+              "tierName": "Master",
+              "condition": "",
+              "description": "",
+              "notes": "",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "High Master",
+              "tierName": "High Master",
+              "condition": "",
+              "description": "",
+              "notes": "",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "Grand Master",
+              "tierName": "Grand Master",
+              "condition": "",
+              "description": "",
+              "notes": "",
+              "flavorLine": "",
+              "changes": []
+            }
+          ]
+        },
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "modifiedAt": "2026-08-16T00:00:00.000Z",
+        "frameworkSkillId": 749
+      }
+    },
+    {
+      "name": "Cycle of Rebirth",
+      "source_external_id": "skill-061f2434f971f446faa1faa0de29cf8016bd8f6966cfd50580dd4c625d53cd80",
+      "extension_type": "spell-import-source",
+      "data_json": {
+        "schemaVersion": 1,
+        "importVersion": 1,
+        "sourceFile": "data/serrian-tide-spell-catalog.tsv",
+        "sourceRows": [
+          {
+            "rowNumber": 72,
+            "values": {
+              "Name": "Cycle of Rebirth",
+              "Parent Skill": "Life",
+              "Mastery Level": "High Master",
+              "Spell Cost": "88",
+              "Casting Time": "44",
+              "Range": "Line of Sight (10)",
+              "Shape": "Sphere/Zone (Large, 11)",
+              "Duration": "Combat Round (5) + Lingering (2)",
+              "Effects": "Allies heal 3 HP per round; fallen allies rise with 5 HP (temporary until stabilized at spell end). Enemies lose 3 HP per round (Transfer Life Force). Temporal suspension prevents immediate death checks during duration.",
+              "Container Breakdown": "Container 1: AoE (2) → Stand Alone: Healing (9) + Transfer Life Force (8); Container 2: Temporal/Spatial (5) → Stand Alone: Temporal Stasis (6) to delay death moment; Container 3: Target (1) → Stand Alone: Healing (5)",
+              "Add ons": "Range: Line of Sight (10), Shape: Sphere/Zone (11), Duration: Combat Round (5) + Lingering (2)",
+              "Modifiers": "--",
+              "Notes/Special Conditions": "• Revived allies return at 5 HP and function normally during duration. • At end of spell, revived allies must stabilize (save or fall dead again). • Enemies cannot resist Transfer drain except by leaving the zone. • Cycle visible as golden threads tying combatants together. • Spell strains caster’s body, leaving them exhausted after use.",
+              "Flavor Line": "“Death is but a pause in the great cycle.”",
+              "Progressive spell conditions": "--"
+            }
+          }
+        ],
+        "canonicalMapping": {
+          "targetSkillName": "Cycle of Rebirth",
+          "targetParentName": "Life",
+          "sourceNames": [
+            "Cycle of Rebirth"
+          ]
+        },
+        "spreadsheetReference": {
+          "referenceOnly": true,
+          "masteryLabel": "High Master",
+          "statedSpellCost": 88,
+          "statedCastingTime": 44
+        },
+        "parseWarnings": [
+          "Sphere/Cube/Zone size steps are undefined; \"Sphere/Zone (Large, 11)\" was retained without invented scaling.",
+          "Non-step Lingering duration \"Combat Round (5) + Lingering (2)\" requires manual rules review."
+        ],
+        "importedAt": "2026-08-16T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "Vital Wellspring",
+      "source_external_id": "skill-28b72a29a435d069e1f7d2c444065a44bb3cb2c7be800f553fab9fc88df113c9",
+      "extension_type": "spell-construction",
+      "data_json": {
+        "schemaVersion": 6,
+        "id": "spell-488f266cb4773622e703",
+        "name": "Vital Wellspring",
+        "tradition": "Spellcraft/Talismanism/Faith",
+        "sphere": "Life",
+        "discipline": "",
+        "resonance": "",
+        "containers": [
+          {
+            "id": "calculator-container-17a11e3f1570300873b3",
+            "containerRuleId": "target",
+            "effects": [
+              {
+                "id": "effect-73af37dd013c6fb38678",
+                "ruleId": "healing",
+                "quantity": 1,
+                "description": "Healing"
+              },
+              {
+                "id": "effect-e77371df6e1c323afaaf",
+                "ruleId": "buff",
+                "quantity": 1,
+                "description": "Buff"
+              }
+            ],
+            "rangeDescription": "Touch (2)",
+            "durations": [
+              {
+                "id": "duration-a72e5e2dba760c84bfd3",
+                "ruleId": "combat-step",
+                "quantity": 0,
+                "description": "Combat Step (2 at Apprentice, expands with levels)"
+              }
+            ],
+            "modifiers": [],
+            "children": [],
+            "rangeRuleId": "touch"
+          }
+        ],
+        "modifiers": [
+          {
+            "id": "modifier-90925ddc0ce89d918ea8",
+            "ruleId": "progressive-spell",
+            "quantity": 1,
+            "description": "Progressive Spell (3)"
+          }
+        ],
+        "description": "Healing, Buffs to vitality, Wards, Revival at top tiers",
+        "notes": "• Apprentice: Restores 1 HP and grants +5% resilience for 1 combat step. • Novice: Heals 2 HP and cleanses poison/disease from one ally; duration = 1 Combat Round. • Master: Multi-Target (up to 3 allies), heals 3 HP each, grants +1 Constitution for 1 Combat Round. • High Master: AoE (Radius 20 ft), heals 5 HP per ally, wards against poison/disease/curse, duration = 1 Hour. • Grand Master: AoE (Sphere 100 ft), heals 10 HP per ally, restores lost Constitution, revives 1 fallen ally at 1 HP, wards all allies with +2 Constitution and curse immunity for 1 Day.",
+        "flavorLine": "“A drop of life may close a wound. A river of life may turn the tide of worlds.”",
+        "progressive": {
+          "enabled": true,
+          "costMode": "original-base",
+          "milestones": [
+            {
+              "level": "Apprentice",
+              "tierName": "Apprentice",
+              "condition": "Touch heals 1 HP, +5% resilience (1 step)",
+              "description": "Touch heals 1 HP, +5% resilience (1 step)",
+              "notes": "Apprentice: Touch heals 1 HP, +5% resilience (1 step). • Novice: Heal 2 HP, cleanse poison/disease, duration 1 round. • Master: Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round. • High Master: Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour. • Grand Master: Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day.",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "Novice",
+              "tierName": "Novice",
+              "condition": "Heal 2 HP, cleanse poison/disease, duration 1 round",
+              "description": "Heal 2 HP, cleanse poison/disease, duration 1 round",
+              "notes": "Apprentice: Touch heals 1 HP, +5% resilience (1 step). • Novice: Heal 2 HP, cleanse poison/disease, duration 1 round. • Master: Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round. • High Master: Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour. • Grand Master: Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day.",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "Master",
+              "tierName": "Master",
+              "condition": "Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round",
+              "description": "Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round",
+              "notes": "Apprentice: Touch heals 1 HP, +5% resilience (1 step). • Novice: Heal 2 HP, cleanse poison/disease, duration 1 round. • Master: Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round. • High Master: Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour. • Grand Master: Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day.",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "High Master",
+              "tierName": "High Master",
+              "condition": "Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour",
+              "description": "Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour",
+              "notes": "Apprentice: Touch heals 1 HP, +5% resilience (1 step). • Novice: Heal 2 HP, cleanse poison/disease, duration 1 round. • Master: Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round. • High Master: Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour. • Grand Master: Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day.",
+              "flavorLine": "",
+              "changes": []
+            },
+            {
+              "level": "Grand Master",
+              "tierName": "Grand Master",
+              "condition": "Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day",
+              "description": "Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day",
+              "notes": "Apprentice: Touch heals 1 HP, +5% resilience (1 step). • Novice: Heal 2 HP, cleanse poison/disease, duration 1 round. • Master: Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round. • High Master: Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour. • Grand Master: Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day.",
+              "flavorLine": "",
+              "changes": []
+            }
+          ]
+        },
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "modifiedAt": "2026-08-16T00:00:00.000Z",
+        "frameworkSkillId": 749
+      }
+    },
+    {
+      "name": "Vital Wellspring",
+      "source_external_id": "skill-28b72a29a435d069e1f7d2c444065a44bb3cb2c7be800f553fab9fc88df113c9",
+      "extension_type": "spell-import-source",
+      "data_json": {
+        "schemaVersion": 1,
+        "importVersion": 1,
+        "sourceFile": "data/serrian-tide-spell-catalog.tsv",
+        "sourceRows": [
+          {
+            "rowNumber": 62,
+            "values": {
+              "Name": "Vital Wellspring",
+              "Parent Skill": "Life",
+              "Mastery Level": "Apprentice(Progressive)",
+              "Spell Cost": "10",
+              "Casting Time": "5",
+              "Range": "Touch (2)",
+              "Shape": "--",
+              "Duration": "Combat Step (2 at Apprentice, expands with levels)",
+              "Effects": "Healing, Buffs to vitality, Wards, Revival at top tiers",
+              "Container Breakdown": "Container 1: Target (1) → Stand Alone: Healing (3) + Buff (2)",
+              "Add ons": "Range: Touch (2), Duration: Combat Step (2)",
+              "Modifiers": "Progressive Spell (3)",
+              "Notes/Special Conditions": "• Apprentice: Restores 1 HP and grants +5% resilience for 1 combat step. • Novice: Heals 2 HP and cleanses poison/disease from one ally; duration = 1 Combat Round. • Master: Multi-Target (up to 3 allies), heals 3 HP each, grants +1 Constitution for 1 Combat Round. • High Master: AoE (Radius 20 ft), heals 5 HP per ally, wards against poison/disease/curse, duration = 1 Hour. • Grand Master: AoE (Sphere 100 ft), heals 10 HP per ally, restores lost Constitution, revives 1 fallen ally at 1 HP, wards all allies with +2 Constitution and curse immunity for 1 Day.",
+              "Flavor Line": "“A drop of life may close a wound. A river of life may turn the tide of worlds.”",
+              "Progressive spell conditions": "Apprentice: Touch heals 1 HP, +5% resilience (1 step). • Novice: Heal 2 HP, cleanse poison/disease, duration 1 round. • Master: Heal 3 HP to up to 3 allies, +1 Constitution, duration 1 round. • High Master: Heal 5 HP per ally in 20 ft radius, ward against ailments, duration 1 hour. • Grand Master: Heal 10 HP per ally in 100 ft sphere, restore lost Constitution, revive 1 fallen ally, +2 Constitution and curse immunity, duration 1 day."
+            }
+          }
+        ],
+        "canonicalMapping": {
+          "targetSkillName": "Vital Wellspring",
+          "targetParentName": "Life",
+          "sourceNames": [
+            "Vital Wellspring"
+          ]
+        },
+        "spreadsheetReference": {
+          "referenceOnly": true,
+          "masteryLabel": "Apprentice",
+          "statedSpellCost": 10,
+          "statedCastingTime": 5
+        },
+        "parseWarnings": [],
+        "importedAt": "2026-08-16T00:00:00.000Z"
+      }
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import type { db } from "@/db";
-import { campaignCharacter } from "@/db/realm-schema";
-import { campaignSessionEncounterActionDeclaration, campaignSessionEncounterParticipant } from "@/db/tabletop-operations-schema";
+import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
+import { campaignSessionEncounterParticipant } from "@/db/tabletop-operations-schema";
 import { readActiveHealthInTransaction, addInjuryInTransaction } from "@/features/active-state/active-health-service";
-import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
-import { setInitiativeParticipationStatus } from "./initiative-runtime";
-import { interruptActionDeclarationInTransaction } from "./action-declaration-service";
+import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { combatConditionState, fatalHeadDamage } from "./combat-condition-state";
+import { recordCombatConditionInTransaction } from "./combat-condition-service";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -19,22 +19,47 @@ export async function recordCombatDamageOutcomeInTransaction(tx: Transaction, co
   const ordinary = object(application.ordinaryAttack);
   const ruling = object(ordinary.ruling);
   const [participant] = await tx.select({ local: campaignSessionEncounterParticipant.localStateJson, snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson,
-    npcKind: campaignCharacter.npcKind }).from(campaignSessionEncounterParticipant)
+    npcKind: campaignCharacter.npcKind, persistentSnapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(campaignSessionEncounterParticipant)
     .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
+    .leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignSessionEncounterParticipant.characterId))
     .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId), eq(campaignSessionEncounterParticipant.characterId, effect.targetParticipantId)))
     .limit(1).for("update", { of: campaignSessionEncounterParticipant });
   if (!participant) throw new Error("Damage outcome requires the exact Encounter participant.");
   const local = structuredClone(object(participant.local));
+  const previousOutcome = (Array.isArray(local.damageOutcomes) ? local.damageOutcomes.map(object) : []).find((entry) => entry.effectId === effect.id);
+  if (previousOutcome) return { ...result, combatOutcome: previousOutcome };
   let totalDamage: number;
   let totalMaximumHp: number | null;
+  let poolMaximumHp: number | null = null;
+  let poolName = "";
+  let locations: { number: number; name: string; poolKey: string | null; specialEffect?: unknown }[] = [];
+  const poolKey = typeof application.poolKey === "string" ? application.poolKey : typeof result.poolKey === "string" ? result.poolKey : null;
   if (effect.targetParticipantId < 0) {
     totalDamage = Number(object(local.health).totalDamage ?? 0);
     const maximum = object(object(participant.snapshot).core).totalHp;
     totalMaximumHp = typeof maximum === "number" ? maximum : null;
+    const snapshot = object(participant.snapshot);
+    const pools = Array.isArray(snapshot.hpPools) ? snapshot.hpPools.map(object) : [];
+    const pool = pools.find((entry) => entry.canonicalId === poolKey);
+    poolMaximumHp = typeof pool?.maximumHp === "number" ? pool.maximumHp : null;
+    poolName = String(pool?.poolName ?? "");
+    locations = (Array.isArray(snapshot.hitLocations) ? snapshot.hitLocations.map(object) : []).map((entry) => ({
+      number: Number(entry.hitLocationNumber), name: String(entry.locationName ?? ""),
+      poolKey: typeof entry.hpPoolCanonicalId === "string" ? entry.hpPoolCanonicalId : null, specialEffect: entry.locationEffect,
+    }));
   } else {
     const health = await readActiveHealthInTransaction(tx, effect.targetParticipantId, participant.npcKind ?? "race");
     totalDamage = health.view.totalDamage;
     totalMaximumHp = health.anatomy.totalMaximumHp;
+    const pool = health.anatomy.pools.find((entry) => entry.key === poolKey);
+    poolMaximumHp = pool?.maximumHp ?? null;
+    poolName = pool?.name ?? "";
+    locations = health.anatomy.hitLocations.map((entry) => ({ number: entry.result, name: entry.name, poolKey: entry.poolKey }));
+    if (participant.npcKind === "creature" && participant.persistentSnapshot) {
+      const snapshot = object(JSON.parse(participant.persistentSnapshot));
+      const authored = Array.isArray(snapshot.hitLocations) ? snapshot.hitLocations.map(object) : [];
+      locations = locations.map((location) => ({ ...location, specialEffect: authored.find((entry) => entry.hitLocationNumber === location.number)?.locationEffect }));
+    }
   }
   const injuries = Array.isArray(local.injuries) ? [...local.injuries] : [];
   if (typeof ruling.injuryName === "string" && ruling.injuryName.trim()) {
@@ -45,31 +70,29 @@ export async function recordCombatDamageOutcomeInTransaction(tx: Transaction, co
       hitLocationNumber: application.hitLocationNumber, poolKey: application.poolKey, recordedByUserId: context.ownerUserId });
     local.injuries = injuries;
   }
-  const defeated = ruling.defeated === true || totalMaximumHp !== null && totalDamage >= totalMaximumHp;
+  const fatalHead = fatalHeadDamage({ damage: Number(object(final.effect).amount), poolKey, poolName, maximumHp: poolMaximumHp,
+    location: locations.find((entry) => entry.number === application.hitLocationNumber), locations });
+  const defeated = ruling.defeated === true || fatalHead;
+  const incapacitated = !defeated && totalMaximumHp !== null && totalDamage >= totalMaximumHp;
+  const reason = fatalHead ? "Damage exceeded twice the authored single head's HP; the fatal-location rule causes death."
+    : defeated ? String(ruling.reason) : "Total accumulated damage reached the authored HP maximum; unable to participate. Death requires a supported fatal rule or specific ruling.";
   const evidence = { effectId: effect.id, damageAmount: object(final.effect).amount, totalDamage, totalMaximumHp,
-    location: application.hitLocationNumber, poolKey: application.poolKey, locationMaximumHp: ordinary.poolMaximumHp ?? null,
-    ruling: Object.keys(ruling).length ? ruling : null, defeated };
+    location: application.hitLocationNumber, poolKey, locationMaximumHp: poolMaximumHp,
+    rule: fatalHead ? "fatal-head" : defeated ? "god-ruling" : incapacitated ? "total-hp-exhausted" : null,
+    ruling: Object.keys(ruling).length ? ruling : null, defeated, dead: defeated, incapacitated,
+    locationConsequenceRequiresGodRuling: !defeated && poolMaximumHp !== null && Number(object(final.effect).amount) >= poolMaximumHp };
   const outcomes = Array.isArray(local.damageOutcomes) ? [...local.damageOutcomes] : [];
   outcomes.push(evidence);
   local.damageOutcomes = outcomes;
   if (defeated && !local.defeat) local.defeat = { effectId: effect.id, recordedByUserId: context.ownerUserId,
-    reason: ruling.reason ?? "Total accumulated damage reached the authored HP maximum.",
+    reason,
     defeatValueXp: typeof ruling.defeatValueXp === "number" ? ruling.defeatValueXp : null,
     credit: null, distribution: null, awards: [], recordedAt: new Date().toISOString() };
   await tx.update(campaignSessionEncounterParticipant).set({ localStateJson: local, updatedAt: new Date() })
     .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId), eq(campaignSessionEncounterParticipant.characterId, effect.targetParticipantId)));
-  if (defeated && context.encounterStatus === "active") {
-    const before = await loadInitiativeEngineInTransaction(tx, context.encounterId);
-    const actor = before.participants.find(({ characterId }) => characterId === effect.targetParticipantId);
-    if (actor && actor.participationStatus !== "suspended") await persistInitiativeEngineInTransaction(tx, context, before,
-      setInitiativeParticipationStatus(before, actor.characterId, "suspended"));
-    // Already completed actions at this same point retain their independent results.
-    for (const action of before.pendingActions.filter((entry) => entry.actorCharacterId === effect.targetParticipantId && entry.status === "active"
-      && entry.expectedCompletionInitiative < before.runtime.timelineInitiative)) {
-      const [declaration] = await tx.select({ id: campaignSessionEncounterActionDeclaration.id }).from(campaignSessionEncounterActionDeclaration)
-        .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, action.id)).limit(1);
-      if (declaration) await interruptActionDeclarationInTransaction(tx, context, { authority: "god-owner", userId: context.ownerUserId }, declaration.id, "Combatant defeated before this future action completed; prior resources and Roll are retained.");
-    }
-  }
+  if ((defeated || incapacitated) && combatConditionState(participant.local).status !== "dead") await recordCombatConditionInTransaction(tx, context, {
+    participantId: effect.targetParticipantId, status: defeated ? "dead" : "incapacitated", reason,
+    requestKey: `damage-effect:${effect.id}`, initiativeTreatment: "preserve", evidence,
+  });
   return { ...result, combatOutcome: evidence };
 }

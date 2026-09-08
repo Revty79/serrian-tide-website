@@ -241,6 +241,10 @@ async function expireBoundEffect(
     await endModifierInTransaction(tx, effect.characterId, effect.id, reason);
   }
   await closeBinding(tx, binding, "expired", reason);
+  if (effect.kind === "condition" && binding.encounterId !== null) {
+    const { reconcileExpiredCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");
+    await reconcileExpiredCombatRecoveryInTransaction(tx, binding.encounterId, binding.characterId);
+  }
 }
 
 async function activeBindings(

@@ -10,10 +10,11 @@ import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 import { cancelActionDeclarationInTransaction, type ActionDeclarationActor } from "./action-declaration-service";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction, lockOwnedEncounterRuntimeInTransaction,
-  type RuntimeIntegrationTransaction as Tx } from "./runtime-integration-service";
+  type RuntimeIntegrationTransaction as Tx, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { enrollLateInitiativeParticipant, endPendingInitiativeAction } from "./initiative-runtime";
 import { resolveInitiativeCapacityInTransaction } from "./initiative-capacity-service";
 import { parseLockedActionDeclarationSnapshot } from "./action-declaration";
+import { combatConditionState, combatConditionMessage } from "./combat-condition-state";
 
 export type CombatParticipationCommand = {
   participantId: number; operation: "arrive" | "withdraw" | "confirm-escape";
@@ -65,7 +66,8 @@ export async function changeCombatParticipationInTransaction(tx: Tx, encounterId
     const departure = input.operation !== "arrive";
     const now = new Date();
     if (!departure) {
-      if (object(member.localStateJson).defeat) throw new Error("This combatant has recorded defeat. Resolve that state explicitly before returning it to active combat.");
+      const conditionReason = combatConditionMessage(combatConditionState(member.localStateJson));
+      if (conditionReason) throw new Error(conditionReason);
       if (!enrolled) {
         const capacity = await resolveInitiativeCapacityInTransaction(changeTx, input.participantId, context.campaignId, input.movementMode);
         await persistInitiativeEngineInTransaction(changeTx, context, before, enrollLateInitiativeParticipant(before, capacity));
@@ -75,60 +77,7 @@ export async function changeCombatParticipationInTransaction(tx: Tx, encounterId
           ? { ...entry, participationStatus: "active" as const } : entry) });
       }
     } else if (!state.departed) {
-      const declarations = await changeTx.select().from(declaration).where(eq(declaration.encounterId, encounterId)).orderBy(asc(declaration.id));
-      for (const row of declarations) {
-        if (["resolved", "cancelled", "abandoned"].includes(row.status)) continue;
-        const pending = before.pendingActions.find(({ id }) => id === row.pendingActionId);
-        // Completed outcomes are independent of arrival order of Apply/Withdraw requests.
-        if (pending?.status === "completed") continue;
-        if (row.actorCharacterId === input.participantId) {
-          await cancelActionDeclarationInTransaction(changeTx, context, actor, row.id, reason, true);
-        } else if (row.lockedSnapshotJson && parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson).targetCharacterIds.includes(input.participantId)) {
-          if (row.pendingActionId !== null) {
-            await changeTx.update(declaration).set({ status: "awaiting-god-ruling", rulingReason: `Target left active combat before this action completed. ${reason}`, updatedAt: now }).where(eq(declaration.id, row.id));
-            await changeTx.insert(declarationEvent).values({ declarationId: row.id, encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
-              fromStatus: row.status, toStatus: "awaiting-god-ruling", eventKind: "target-departed", actorUserId: actor.userId, reason,
-              metadata: { participantId: input.participantId, consequencesAlreadyDue: false } });
-          }
-        }
-      }
-      // Retained generic/source-bound actions have no rich declaration, but must
-      // leave the same timeline and preserve their spent resources and debt.
-      let remaining = await loadInitiativeEngineInTransaction(changeTx, encounterId);
-      for (const pending of remaining.pendingActions.filter((entry) => entry.actorCharacterId === input.participantId && ["active", "interrupted"].includes(entry.status))) {
-        await persistInitiativeEngineInTransaction(changeTx, context, remaining, endPendingInitiativeAction(remaining, pending.id), "correction");
-        remaining = await loadInitiativeEngineInTransaction(changeTx, encounterId);
-      }
-      const stoppedSources = before.pendingActions.filter((entry) => entry.actorCharacterId === input.participantId && ["active", "interrupted"].includes(entry.status)).map(({ id }) => id);
-      if (stoppedSources.length) await changeTx.update(reaction).set({ status: "cancelled", outcome: `Source combatant departed; committed response cost retained. ${reason}`,
-        reconciliationAppliedAt: now, resolvedAt: now, updatedAt: now }).where(and(eq(reaction.encounterId, encounterId),
-        inArray(reaction.pendingActionId, stoppedSources), inArray(reaction.status, ["declared", "needs-ruling"])));
-      // No new defense is demanded from an absent combatant. Already committed
-      // responses to due outcomes survive; future cancelled responses retain costs.
-      const windows = await changeTx.select().from(opportunity).where(and(eq(opportunity.encounterId, encounterId), eq(opportunity.responderCharacterId, input.participantId)));
-      for (const window of windows) {
-        if (window.status === "pending") await changeTx.update(opportunity).set({ status: "ineligible", rulingReason: reason,
-          reconciledByUserId: actor.userId, reconciledAt: now, updatedAt: now }).where(eq(opportunity.id, window.id));
-        const pending = before.pendingActions.find(({ id }) => id === window.pendingActionId);
-        if (window.reactionId !== null && pending?.status !== "completed") await changeTx.update(reaction).set({ status: "cancelled", outcome: `Departed; committed response cost retained. ${reason}`,
-          reconciliationAppliedAt: now, resolvedAt: now, updatedAt: now }).where(and(eq(reaction.id, window.reactionId), eq(reaction.status, "declared")));
-      }
-      const current = await loadInitiativeEngineInTransaction(changeTx, encounterId);
-      if (enrolled) await persistInitiativeEngineInTransaction(changeTx, context, current, { ...current,
-        runtime: { ...current.runtime, stepNumber: before.runtime.stepNumber },
-        participants: current.participants.map((entry) => entry.characterId === input.participantId ? { ...entry, participationStatus: "suspended" as const } : entry) }, "correction");
-      const open = await readOpenDeclarationCheckpoint(changeTx, encounterId);
-      if (open?.participantIdsJson.includes(input.participantId)) {
-        const committed = open.choicesJson.some(({ participantId }) => participantId === input.participantId);
-        const remaining = committed ? open.participantIdsJson : open.participantIdsJson.filter((id) => id !== input.participantId);
-        const snapshot = object(open.beforeStateJson);
-        const publicParticipants = Array.isArray(snapshot.participants) ? snapshot.participants.map((entry) => object(entry).characterId === input.participantId
-          ? { ...object(entry), participationStatus: "suspended" } : entry) : [];
-        const complete = remaining.every((id) => open.choicesJson.some(({ participantId }) => participantId === id));
-        await changeTx.update(checkpoint).set({ participantIdsJson: remaining.length ? remaining : open.participantIdsJson,
-          revealedAt: complete ? now : null, beforeStateJson: { ...snapshot, participants: publicParticipants,
-            departures: [...(Array.isArray(snapshot.departures) ? snapshot.departures : []), { participantId: input.participantId, reason, actorUserId: actor.userId, departedAt: now.toISOString() }] } }).where(eq(checkpoint.id, open.id));
-      }
+      await suspendCombatantInTransaction(changeTx, context, actor, input.participantId, reason, true);
     }
     const [latest] = await changeTx.select().from(participant).where(eq(participant.participantId, member.participantId));
     const local = object(latest.localStateJson);
@@ -138,4 +87,70 @@ export async function changeCombatParticipationInTransaction(tx: Tx, encounterId
         initiativeBefore: enrolled ?? null, roundNumber: before.runtime.roundNumber, stepNumber: before.runtime.stepNumber }] } }, updatedAt: now }).where(eq(participant.participantId, member.participantId));
     return { participantId: input.participantId, ...next, reused: false };
   });
+}
+
+
+/** Shared suspension reconciliation. Completed actions and firing portions remain
+ * due; future work ends without refunds. Participation changes never tick time. */
+export async function suspendCombatantInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext,
+  actor: ActionDeclarationActor, participantId: number, reason: string, departure = false) {
+  const encounterId = context.encounterId;
+  const before = await loadInitiativeEngineInTransaction(tx, encounterId, true);
+  if (before.runtime.status !== "active" || context.encounterStatus === "completed") return;
+  const enrolled = before.participants.find(({ characterId }) => characterId === participantId);
+  const now = new Date();
+  const declarations = await tx.select().from(declaration).where(eq(declaration.encounterId, encounterId)).orderBy(asc(declaration.id));
+  for (const row of declarations) {
+    if (["resolved", "cancelled", "abandoned"].includes(row.status)) continue;
+    const pending = before.pendingActions.find(({ id }) => id === row.pendingActionId);
+    // Completed outcomes are independent of arrival order of Apply/Withdraw requests.
+    if (pending?.status === "completed") continue;
+    if (row.actorCharacterId === participantId) {
+      await cancelActionDeclarationInTransaction(tx, context, actor, row.id, reason, true);
+    } else if (departure && row.lockedSnapshotJson && parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson).targetCharacterIds.includes(participantId)) {
+      if (row.pendingActionId !== null) {
+        await tx.update(declaration).set({ status: "awaiting-god-ruling", rulingReason: `Target left active combat before this action completed. ${reason}`, updatedAt: now }).where(eq(declaration.id, row.id));
+        await tx.insert(declarationEvent).values({ declarationId: row.id, encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+          fromStatus: row.status, toStatus: "awaiting-god-ruling", eventKind: "target-departed", actorUserId: actor.userId, reason,
+          metadata: { participantId: participantId, consequencesAlreadyDue: false } });
+      }
+    }
+  }
+  // Retained generic/source-bound actions have no rich declaration, but must
+  // leave the same timeline and preserve their spent resources and debt.
+  let remaining = await loadInitiativeEngineInTransaction(tx, encounterId);
+  for (const pending of remaining.pendingActions.filter((entry) => entry.actorCharacterId === participantId && ["active", "interrupted"].includes(entry.status))) {
+    await persistInitiativeEngineInTransaction(tx, context, remaining, endPendingInitiativeAction(remaining, pending.id), "correction");
+    remaining = await loadInitiativeEngineInTransaction(tx, encounterId);
+  }
+  const stoppedSources = before.pendingActions.filter((entry) => entry.actorCharacterId === participantId && ["active", "interrupted"].includes(entry.status)).map(({ id }) => id);
+  if (stoppedSources.length) await tx.update(reaction).set({ status: "cancelled", outcome: `Source combatant unavailable; committed response cost retained. ${reason}`,
+    reconciliationAppliedAt: now, resolvedAt: now, updatedAt: now }).where(and(eq(reaction.encounterId, encounterId),
+    inArray(reaction.pendingActionId, stoppedSources), inArray(reaction.status, ["declared", "needs-ruling"])));
+  // No new defense is demanded from an absent combatant. Already committed
+  // responses to due outcomes survive; future cancelled responses retain costs.
+  const windows = await tx.select().from(opportunity).where(and(eq(opportunity.encounterId, encounterId), eq(opportunity.responderCharacterId, participantId)));
+  for (const window of windows) {
+    if (window.status === "pending") await tx.update(opportunity).set({ status: "ineligible", rulingReason: reason,
+      reconciledByUserId: actor.userId, reconciledAt: now, updatedAt: now }).where(eq(opportunity.id, window.id));
+    const pending = before.pendingActions.find(({ id }) => id === window.pendingActionId);
+    if (window.reactionId !== null && pending?.status !== "completed") await tx.update(reaction).set({ status: "cancelled", outcome: `Combatant unavailable; committed response cost retained. ${reason}`,
+      reconciliationAppliedAt: now, resolvedAt: now, updatedAt: now }).where(and(eq(reaction.id, window.reactionId), eq(reaction.status, "declared")));
+  }
+  const current = await loadInitiativeEngineInTransaction(tx, encounterId);
+  if (enrolled) await persistInitiativeEngineInTransaction(tx, context, current, { ...current,
+    runtime: { ...current.runtime, stepNumber: before.runtime.stepNumber },
+    participants: current.participants.map((entry) => entry.characterId === participantId ? { ...entry, participationStatus: "suspended" as const } : entry) }, "correction");
+  const open = await readOpenDeclarationCheckpoint(tx, encounterId);
+  if (open?.participantIdsJson.includes(participantId)) {
+    const committed = open.choicesJson.some((choice) => choice.participantId === participantId);
+    const remaining = committed ? open.participantIdsJson : open.participantIdsJson.filter((id) => id !== participantId);
+    const snapshot = object(open.beforeStateJson);
+    const publicParticipants = Array.isArray(snapshot.participants) ? snapshot.participants.map((entry) => object(entry).characterId === participantId
+      ? { ...object(entry), participationStatus: "suspended" } : entry) : [];
+    const complete = remaining.every((id) => open.choicesJson.some(({ participantId }) => participantId === id));
+    await tx.update(checkpoint).set({ participantIdsJson: remaining.length ? remaining : open.participantIdsJson,
+      revealedAt: complete ? now : null, beforeStateJson: { ...snapshot, participants: publicParticipants,
+        departures: [...(Array.isArray(snapshot.departures) ? snapshot.departures : []), { participantId: participantId, reason, actorUserId: actor.userId, departedAt: now.toISOString() }] } }).where(eq(checkpoint.id, open.id));
+  }
 }

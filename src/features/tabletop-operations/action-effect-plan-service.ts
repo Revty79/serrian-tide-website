@@ -968,6 +968,10 @@ async function applySupportedEffects(
     }).where(eq(campaignSessionEncounterEffect.id, effectRow.id));
     appliedIds.push(effectRow.id);
   }
+  const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");
+  for (const id of new Set(applicable.map(({ targetParticipantId }) => targetParticipantId))) {
+    await reconcileCombatRecoveryInTransaction(tx, context, id);
+  }
   return appliedIds;
 }
 

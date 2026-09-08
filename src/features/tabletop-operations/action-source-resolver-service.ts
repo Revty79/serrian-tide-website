@@ -4,7 +4,8 @@ import { applyRecordedSourceResolutionInTransaction } from "./combat-source-reso
 import { and, asc, eq, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
-import { skillExtension } from "@/db/skill-schema";
+import { skill, skillExtension } from "@/db/skill-schema";
+import { combatRecoverySpellAuthority } from "./combat-recovery-spells";
 import {
   item,
   itemEffect,
@@ -399,14 +400,16 @@ async function loadSpellDocument(
   tx: ActionSourceResolverTransaction,
   characterId: number,
   source: SpellCastSourceRequest,
-): Promise<{ spell: ReturnType<typeof parseSpellDocument>; revision: string | null }> {
+): Promise<{ spell: ReturnType<typeof parseSpellDocument>; revision: string | null; catalogSourceId?: string | null }> {
   if (source.kind === "catalog") {
     const [allocation] = await tx.select({
       skillId: campaignCharacterSkillAllocation.skillId,
       points: campaignCharacterSkillAllocation.points,
       updatedAt: campaignCharacterSkillAllocation.updatedAt,
       dataJson: skillExtension.dataJson,
+      catalogSourceId: skill.sourceExternalId,
     }).from(campaignCharacterSkillAllocation)
+      .innerJoin(skill, eq(skill.id, campaignCharacterSkillAllocation.skillId))
       .innerJoin(skillExtension, and(
         eq(skillExtension.skillId, campaignCharacterSkillAllocation.skillId),
         eq(skillExtension.extensionType, "spell-construction"),
@@ -416,7 +419,7 @@ async function loadSpellDocument(
         eq(campaignCharacterSkillAllocation.characterId, characterId),
       )).limit(1);
     if (!allocation || allocation.points <= 0) throw new Error("The actor no longer owns that exact Catalog Spell allocation.");
-    return { spell: parseSpellDocument(allocation.dataJson), revision: allocation.updatedAt.toISOString() };
+    return { spell: parseSpellDocument(allocation.dataJson), revision: allocation.updatedAt.toISOString(), catalogSourceId: allocation.catalogSourceId };
   }
   if (source.kind === "raw-formula") throw new Error("An unsaved raw formula has no durable action-source identity.");
   const [row] = await tx.select().from(campaignCharacterSpellDocument).where(and(
@@ -497,6 +500,9 @@ async function resolveSpell(
         ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
+  const authoredData = { spell: loaded.spell, casting: preview.plan, catalogSourceId: loaded.catalogSourceId ?? null };
+  const recovery = combatRecoverySpellAuthority(authoredData);
+  if (recovery) effects.push({ ...manualEffect("spell-combat-recovery", `${recovery.name} recovery ruling`, { combatRecovery: recovery }, targets), scaling: "fixed" });
   return {
     authoritativeInitiativeCost: preview.plan.finalInitiativeCost,
     governing: {
@@ -517,7 +523,7 @@ async function resolveSpell(
       resolutionMode: "manual-god-ruling",
       governingSource: null,
       governingSnapshot: null,
-      authoredData: { spell: loaded.spell, casting: preview.plan },
+      authoredData,
       resourceCosts: [{
         key: `spell-mana:${preview.plan.source.identity}`,
         kind: "mana",

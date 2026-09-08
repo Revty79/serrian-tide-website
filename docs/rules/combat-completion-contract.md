@@ -46,7 +46,7 @@ All Initiative persistence, including retained server actions, now passes throug
 
 Goblin 2's confirmed post-block value is 14; its next cost-4 attack projects to 10, crossing Rowan's 13. This projection is distinct from silently advancing past Mira's still-unselected next ordinary choice. The Hold variant is a separate explicit choice and uses the newly generated fixed defense Roll 36, obtained with `crypto.randomInt(1, 101)` during this assignment. It is not the discarded 94.
 
-Missing Goblin general armor/attributes and universal anatomy are not manufactured. The first hit uses the explicit 11-damage/head-3-HP/severing ruling. Additional behavioral tests use separately identified authored synthetic sources and anatomy.
+Missing Goblin general armor/attributes and universal anatomy are not manufactured. The original trace preserves its supplied first-hit ruling. The follow-up normal-service regression derives 11 damage and the fatal result against the authored 3-HP head without injecting damage, injury narration or defeat. See the [closed-state and recovery correction](../reports/combat-closed-state-and-recovery-correction-2026-09-08.md) for current death/incapacity and source-linked revival behavior.
 
 | Trace checkpoint | Required evidence/outcome |
 | --- | --- |

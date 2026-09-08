@@ -320,6 +320,8 @@ async function loadResponseContext(
   }
   await assertDeclarationCheckpointRevealed(tx, declaration.checkpointId);
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const { assertCombatantCanChooseInTransaction } = await import("./combat-condition-service");
+  await assertCombatantCanChooseInTransaction(tx, context.encounterId, opportunity.responderCharacterId);
   const participant = engine.participants.find(({ characterId }) => characterId === opportunity.responderCharacterId);
   if (!participant || !["active", "holding"].includes(participant.participationStatus) || participant.currentInitiative <= 0
     || opportunity.source !== "god-exception" && !canParticipantReactToAction(pendingAction, participant.currentInitiative)

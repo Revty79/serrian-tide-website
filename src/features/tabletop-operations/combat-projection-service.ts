@@ -12,6 +12,7 @@ import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext, t
 import { hasUnresolvedCompletedActionsInTransaction, projectRevealedInitiativeInTransaction, readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 import { initiativeStateToken } from "./initiative-state-token";
 import { combatParticipationState } from "./combat-participation-service";
+import { combatConditionState, combatConditionMessage, combatObject } from "./combat-condition-state";
 
 /** One authorized, sealed-state-safe projection for the later combat cards.
  * Availability describes an opportunity, not approval of every possible source/cost.
@@ -21,14 +22,16 @@ export async function readCombatProjectionInTransaction(
   tx: RuntimeIntegrationTransaction, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor,
 ) {
   const workspace = await readActionDeclarationWorkspaceInTransaction(tx, context, actor);
-  const engine = await projectRevealedInitiativeInTransaction(tx, await loadInitiativeEngineInTransaction(tx, context.encounterId));
-  const next = getNextInitiativeTimelineEvent(engine);
+  const engine = await projectRevealedInitiativeInTransaction(tx, await loadInitiativeEngineInTransaction(tx, context.encounterId, true));
+  const closed = engine.runtime.status !== "active" || context.encounterStatus === "completed";
+  const next = closed ? null : getNextInitiativeTimelineEvent(engine);
   const checkpoint = workspace.checkpoint;
   const pendingOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, context.encounterId);
   const members = await tx.select({ id: campaignSessionEncounterParticipant.characterId, local: campaignSessionEncounterParticipant.localStateJson })
     .from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId));
   const entities = workspace.participants.map((entity) => {
     const participation = combatParticipationState(members.find(({ id }) => id === entity.characterId)?.local);
+    const condition = combatConditionState(members.find(({ id }) => id === entity.characterId)?.local);
     const participant = engine.participants.find(({ characterId }) => characterId === entity.characterId)!;
     const canControl = actor.authority === "god-owner" ? entity.choiceOwner === "god" : actor.characterId === entity.characterId;
     const choicesSealed = checkpoint?.committedParticipantIds.includes(entity.characterId) ?? false;
@@ -42,9 +45,10 @@ export async function readCombatProjectionInTransaction(
       elapsed: active.initiativeSpent, remaining: active.remainingInitiativeCost,
       expectedFinish: active.expectedCompletionInitiative,
     } : null;
-    const normalNow = next.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative && next.characterIds.includes(entity.characterId);
-    const heldInterventionAvailable = checkpoint == null && !active && canHoldingParticipantIntervene(engine.runtime, participant);
+    const normalNow = next?.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative && next.characterIds.includes(entity.characterId);
+    const heldInterventionAvailable = !closed && checkpoint == null && !active && canHoldingParticipantIntervene(engine.runtime, participant);
     const eligibleResponses = workspace.declarations.flatMap((declaration) => {
+      if (closed) return [];
       const pending = engine.pendingActions.find(({ id }) => id === declaration.pendingActionId);
       if (!pending || !["active", "completed"].includes(pending.status)) return [];
       return declaration.opportunities.filter((opportunity) => opportunity.responderCharacterId === entity.characterId
@@ -53,7 +57,8 @@ export async function readCombatProjectionInTransaction(
           || canHoldingParticipantIntervene(engine.runtime, participant)));
     });
     const checkpointBlocksResponse = checkpoint != null && (!checkpoint.participantIds.includes(entity.characterId) || choicesSealed);
-    const common = workspace.pause.message ?? (participation.departed ? `Left active combat: ${participation.reason}` : !capable ? participant.participationStatus === "suspended"
+    const common = (closed ? "Combat has ended. Actions and responses are closed; information and history remain available." : null)
+      ?? workspace.pause.message ?? combatConditionMessage(condition) ?? (participation.departed ? `Left active combat: ${participation.reason}` : !capable ? participant.participationStatus === "suspended"
       ? "Unable to participate." : "No Initiative opportunity remains." : choicesSealed ? "Choice committed; waiting for simultaneous choices." : null);
     const actionReason = common ?? (heldInterventionAvailable ? null : pendingOutcomes ? "Resolve the outcomes completing at this point." : active ? "An action is underway."
       : participant.participationStatus === "holding" ? "Holding Initiative; waiting for a legitimate intervention point."
@@ -63,14 +68,14 @@ export async function readCombatProjectionInTransaction(
     const canActNow = actionReason === null;
     const canRespondNow = responseReason === null;
     return { participantId: entity.characterId, name: entity.name, currentInitiative: entity.currentInitiative,
-      participationStatus: participant.participationStatus, participation, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
+      participationStatus: participant.participationStatus, participation, condition, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
       canInspect: true as const, actionReason, responseReason,
       statusText: canActNow && canRespondNow ? "Can choose an action or response." : canRespondNow ? "Can respond now."
         : canActNow ? "Can choose an action now." : common ?? actionReason ?? responseReason!,
       responseOpportunityIds: canControl && canRespondNow ? eligibleResponses.map(({ id }) => id) : [],
     };
   });
-  return { context: workspace.context, runtime: workspace.runtime, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities,
+  return { context: workspace.context, runtime: { ...workspace.runtime, status: engine.runtime.status }, closed, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities,
     checkpoint: checkpoint ?? null, declarations: workspace.declarations };
 }
 
@@ -89,13 +94,22 @@ export async function readCombatEntityInformationInTransaction(
     .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
       eq(campaignSessionEncounterParticipant.characterId, participantId))).limit(1);
   if (!row) throw new Error("That entity no longer belongs to this Encounter.");
+  const retained = combatObject(row.localState);
+  // Owner-only audit details include exact source/effect IDs for recovery
+  // rulings. Do not put these private records on the shared combatant cards.
+  const combatHistory = actor.authority === "god-owner" ? {
+    condition: combatObject(retained.combatCondition),
+    damageOutcomes: Array.isArray(retained.damageOutcomes) ? retained.damageOutcomes : [],
+    defeat: retained.defeat ?? null,
+    revivals: Array.isArray(retained.combatRevivals) ? retained.combatRevivals : [],
+  } : null;
   if (row.kind === "creature") {
     const local = row.localState as Record<string, unknown>;
     // Participation audit balances can include a response committed in the
     // currently sealed group. The card needs only the public participation state.
     const state = projection.checkpoint && local?.combatParticipation
       ? { ...local, combatParticipation: combatParticipationState(local) } : row.localState;
-    return { entity, pause: projection.pause,
+    return { entity, pause: projection.pause, combatHistory,
       resources: { kind: "creature" as const, anatomyAndStatistics: row.snapshot, state } };
   }
   const issues: string[] = [];
@@ -108,6 +122,6 @@ export async function readCombatEntityInformationInTransaction(
   const effects = await readActiveEffectsInTransaction(tx, participantId);
   const checkpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
   const before = checkpoint?.beforeStateJson as { manaBefore?: Record<string, typeof mana> } | undefined;
-  return { entity, pause: projection.pause, resources: { kind: "character" as const,
+  return { entity, pause: projection.pause, combatHistory, resources: { kind: "character" as const,
     health: health?.view ?? null, mana: before?.manaBefore?.[String(participantId)] ?? (checkpoint ? null : mana), effects, issues } };
 }

@@ -31,7 +31,7 @@ async function health(tx: Tx, f: Fixture, id: number) {
   return (await tx.select().from(occurrence).where(and(eq(occurrence.encounterId, f.encounterId), eq(occurrence.characterId, id))))[0].localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> }; defeat?: { defeatValueXp: number; awards: unknown[] }; injuries?: unknown[] };
 }
 
-test("Rowan's owned weapon/Skill Roll 90 and failed Block 20 apply the adjudicated 11/3 head defeat once", async () => {
+test("Rowan's owned weapon/Skill Roll 90 and failed Block 20 derive 11/3 fatal head damage without narration or a defeat override", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await completionServiceFixture(tx, "rowan-first-hit");
     await tx.update(weaponProfile).set({ damage: "6", initiativeCost: 6 }).where(eq(weaponProfile.itemId, f.weaponId));
@@ -52,7 +52,7 @@ test("Rowan's owned weapon/Skill Roll 90 and failed Block 20 apply the adjudicat
     assert.equal((await health(tx, f, f.occurrences[0])).health.totalDamage, 0);
     await advance(tx, f, 20);
     const id = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration, { targetParticipantId: f.occurrences[0], hitLocationNumber: 0,
-      finalDamage: 11, reason: "Brannan's fixed first-hit adjudication: 11 exceeds twice the 3 HP head; severed and killed.", injuryName: "Severed head", defeated: true, defeatValueXp: 3 });
+      reason: "G.O.D. selects the authored head location." });
     const [proposal] = await tx.select().from(effect).where(eq(effect.planId, id));
     assert.equal((proposal.finalValueJson as { effect: { amount: number } }).effect.amount, 11);
     await approveActionEffectPlanInTransaction(tx, f.context, f.god, id);
@@ -61,9 +61,10 @@ test("Rowan's owned weapon/Skill Roll 90 and failed Block 20 apply the adjudicat
     const target = await health(tx, f, f.occurrences[0]);
     assert.equal(target.health.totalDamage, 11);
     assert.equal(target.health.poolDamage["fixture-head"], 11);
-    assert.equal(target.defeat?.defeatValueXp, 3);
+    assert.equal(target.defeat?.defeatValueXp, null, "XP value/credit/distribution remain separately authorized.");
     assert.deepEqual(target.defeat?.awards, []);
-    assert.equal(target.injuries?.length, 1);
+    assert.equal(target.injuries, undefined, "Narration is optional and does not determine death.");
+    assert.equal((target as unknown as { combatCondition: { status: string } }).combatCondition.status, "dead");
     assert.equal((await health(tx, f, f.occurrences[1])).health.totalDamage, 0);
     assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.occurrences[0])?.participationStatus, "suspended");
     throw rollback;

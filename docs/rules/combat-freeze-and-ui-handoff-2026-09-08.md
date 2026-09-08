@@ -42,8 +42,13 @@ The seven backend passes are complete; see the [Pass 7 evidence and limitations]
 | New direct Creatures | Existing Creature spawn action with a stable `requestKey`; active combat retries return the same exact occurrences |
 | XP | `awardCombatExperience` or `finalizeEncounterCloseout` with `combatXpDecisions`; modes are `killer-only`, `full-to-each`, `shared-split` |
 | Retained recovery | `getCombatRecovery`, `completeRetainedCombatEffectPlan`, `settleCombatEffectRemainder`, `withdrawCombatCheckpoint`; explicit owning G.O.D. decisions |
+| Death / incapacity ruling | `ruleCombatCondition`; exact member, reason, observed condition revision and stable request key; incapacity also specifies its supported Initiative treatment |
+| Source-linked spell recovery | `resolveCombatSpellRecovery`; exact cast plan/effect, authored operation and mastery, source-specific anatomy/condition/duration ruling, stable request key |
+| Temporary revival expiration | `resolveCombatRevivalExpiration`; exact member/effect and the G.O.D.'s authored stabilization outcome |
 
 Each entity supplies `currentInitiative`, `currentAction` (label, status, original/elapsed/remaining time, expected finish), `canActNow`, `canRespondNow`, `canControl`, `canInspect`, `actionReason`, `responseReason`, `statusText`, and exact eligible response opportunity IDs. `participation` carries revision, departure status, reason and kind. Green is `canActNow || canRespondNow`; red cards remain selectable. Availability is an engine opportunity, not a promise that every source can pass its own cost, target or governance validation.
+
+The [death and spell recovery correction](../reports/combat-closed-state-and-recovery-correction-2026-09-08.md) adds `condition` (current status, reason and revision), independently of voluntary `participation`. `closed` and `runtime.status` describe retained final combat; inspection remains available while ordinary action/response availability is false. G.O.D. entity detail includes `combatHistory` with retained damage/condition/defeat evidence and exact revival effect IDs. Show Cycle of Rebirth's pending stabilization ruling from that record. Use current condition for agency; an old defeat/XP receipt must not make a successfully revived entity appear currently dead. Generic return cannot bypass unresolved conditions.
 
 Keep public availability separate from control authority. The G.O.D. owns pause, participation and rulings, and controls NPC/Creature choices; Player Characters retain their Player choices. Use positive Character IDs and exact negative direct-Creature keys, never a Creature template ID in place of an occurrence.
 
