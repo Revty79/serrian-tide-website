@@ -22,6 +22,7 @@ import {
   loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction,
   type OwnedEncounterRuntimeContext, type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
+import { withHeldCombatChoices, canFinishRoundWithHolders } from "./combat-held-actions";
 import { publishTabletopInvalidationInTransaction } from "./tabletop-live-events";
 
 export type CombatRunnerSnapshot = Readonly<{
@@ -44,7 +45,7 @@ export async function readCombatRunnerInTransaction(tx: RuntimeIntegrationTransa
   const defenses = await readDefenseInterventionWorkspaceInTransaction(tx, context, actor);
   const effects = await readActionEffectWorkspaceInTransaction(tx, context);
   const event = getNextInitiativeTimelineEvent(engine);
-  const progression = buildCombatProgression({
+  const progression = withHeldCombatChoices(engine, buildCombatProgression({
     runtimeStatus: runtime.status, timelineInitiative: engine.runtime.timelineInitiative,
     nextEvent: {
       kind: event.kind === "pending-round-boundary" ? "round-boundary" : event.kind,
@@ -52,10 +53,10 @@ export async function readCombatRunnerInTransaction(tx: RuntimeIntegrationTransa
       characterIds: event.kind === "normal-opportunity" ? event.characterIds : [],
       canAdvance: event.kind !== "none" && (event.kind !== "normal-opportunity" || event.initiative < engine.runtime.timelineInitiative),
     },
-    canAdvanceRound: canAdvanceInitiativeRound(engine),
+    canAdvanceRound: canAdvanceInitiativeRound(engine) || canFinishRoundWithHolders(engine),
     participants: declarations.participants, declarations: declarations.declarations,
     reactions: defenses.reactions, plans: effects.plans,
-  });
+  }), declarations.participants);
   // Only stable persisted mechanics enter the revision. A retry or second tab
   // with the old revision cannot advance combat a second time.
   const revision = createHash("sha256").update(JSON.stringify({
@@ -106,7 +107,7 @@ export async function continueCombatRunnerInTransaction(
   let changed = false;
   if (input.command === "round") {
     if (!current.snapshot.progression.canStartRound) throw new Error("Finish the displayed combat decisions before starting another round.");
-    const after = advanceInitiativeRound(current.engine);
+    const after = advanceInitiativeRound(current.engine, canFinishRoundWithHolders(current.engine));
     await persistInitiativeEngineInTransaction(tx, context, current.engine, after);
     await recordLongActionRoundContinuationsInTransaction(tx, context, current.engine.runtime.roundNumber, after.runtime.roundNumber, after, context.ownerUserId);
     changed = true;

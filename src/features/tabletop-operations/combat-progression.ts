@@ -4,7 +4,7 @@
  * This module never picks a tactic, rolls dice, or changes Initiative.
  */
 export type CombatTaskKind =
-  | "choose-action" | "eligibility" | "choose-response"
+  | "choose-action" | "held-action" | "eligibility" | "choose-response"
   | "roll-attack" | "roll-defense" | "resolve-exchange" | "apply-result"
   | "ruling" | "advance-time" | "next-round" | "start" | "closed" | "blocked";
 

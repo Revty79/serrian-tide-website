@@ -11,7 +11,7 @@ import { canAutomaticallyProgressCombat, canControlCombatTask, selectRunnerTask 
 import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
 import styles from "./combat-runner-workspace.module.css";
 
-type DecisionResult = { changed: boolean; stale: boolean; rollTotal?: number | null };
+type DecisionResult = { changed: boolean; stale: boolean; rollTotal?: number | null; message?: string };
 type ContinueInput = { revision: string; command: "continue" | "round"; automatic?: boolean };
 export type RunnerCombatant = ActionDeclarationWorkspaceView["participants"][number] & { health?: string; movementMode?: string };
 
@@ -58,7 +58,7 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
       const result = await work();
       if (!automatic) setFeedback({ error: false, text: result.stale
         ? "Combat changed before this submission. Review the refreshed choice; nothing was submitted twice."
-        : result.rollTotal != null ? `Roll: ${result.rollTotal} — saved for this combat action.` : "Choice saved." });
+        : result.message ?? (result.rollTotal != null ? `Roll: ${result.rollTotal} — saved for this combat action.` : "Choice saved.") });
       await reload();
     } catch (error) {
       setFeedback({ error: true, text: error instanceof Error ? error.message : "The choice could not be confirmed. Refresh before retrying." });
@@ -103,7 +103,7 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
             <span><strong>{participant.name}</strong><b>{participant.currentInitiative}</b></span>
             <small>{participant.health ? `Health ${participant.health} · ` : ""}{participant.participationStatus}</small>
             <small>{work?.timing?.status === "active" ? `${work.lockedSnapshot?.label ?? work.draft.label} · finishes at ${work.timing.expectedCompletionInitiative}`
-              : task?.kind === "choose-action" ? "Choose an action" : task?.kind.startsWith("roll-") ? "Roll needed" : work ? "Resolving action" : "Waiting"}</small>
+              : task?.kind === "held-action" ? "Holding — you can act" : task?.kind === "choose-action" ? "Choose an action" : task?.kind.startsWith("roll-") ? "Roll needed" : work ? "Resolving action" : "Waiting"}</small>
           </button>;
         })}
       </aside>
@@ -122,7 +122,7 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
             {declaration ? <p className={styles.actionLabel}>{declaration.actorName} — {declaration.lockedSnapshot?.label ?? declaration.draft.label}</p> : null}
             {canControl(current) && !isFirearm ? <fieldset disabled={busy || Boolean(loadError)} className={styles.controls}>
               <DecisionControls key={current.key} task={current} actor={actor} combatants={combatants} declaration={declaration} defenses={defenses} decide={decide} />
-            </fieldset> : current.participantId !== null && ["choose-action", "choose-response", "roll-attack", "roll-defense"].includes(current.kind) && !canControl(current) ? <p className={styles.feedback}>Waiting for this combatant&apos;s Player. Their required controls are on their combat screen.</p> : null}
+            </fieldset> : current.participantId !== null && ["choose-action", "held-action", "choose-response", "roll-attack", "roll-defense"].includes(current.kind) && !canControl(current) ? <p className={styles.feedback}>Waiting for this combatant&apos;s Player. Their required controls are on their combat screen.</p> : null}
             {current.kind === "ruling" || current.kind === "blocked" || isFirearm ? renderException?.(current) : null}
             {continueCombat && (snapshot.progression.canAdvanceTime || readyResults || snapshot.progression.canStartRound) ? <div className={styles.continue}>
               {snapshot.heldNames.length ? <p>{snapshot.heldNames.join(", ")} {snapshot.heldNames.length === 1 ? "is" : "are"} holding. Check for an intervention before continuing.</p> : null}
@@ -150,6 +150,7 @@ function DecisionControls({ task, actor, combatants, declaration, defenses, deci
     ...actor.weapons.filter(({ firingModes }) => !firingModes.length).map((weapon) => ({ key: weapon.ownershipKey, source: "weapon" as const, label: weapon.name, cost: weapon.initiativeCost })),
     ...actor.creatureAttacks.map((attack) => ({ key: attack.canonicalId, source: "creature-attack" as const, label: attack.attackName, cost: attack.initiativeCost })),
   ] : [];
+  const [actionMode, setActionMode] = useState<"attack" | "move">("attack");
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "");
   const [targetId, setTargetId] = useState(String(combatants.find(({ characterId }) => characterId !== actor?.characterId)?.characterId ?? ""));
   const [physical, setPhysical] = useState("");
@@ -165,18 +166,28 @@ function DecisionControls({ task, actor, combatants, declaration, defenses, deci
     try { const enteredTotal = method === "entered" ? parsePhysicalPercentileInput(physical) : undefined; setError(null); decide({ kind: "roll", method, enteredTotal }); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Enter a percentile result."); }
   };
-  if (task.kind === "choose-action" && actor) return <>
-    {sources.length ? <form onSubmit={(event) => { event.preventDefault(); if (source && validTarget) decide({ kind: "attack", source: source.source, sourceKey, targetParticipantId: Number(targetId) }); }}>
+  if ((task.kind === "choose-action" || task.kind === "held-action") && actor) return <>
+    <div className={styles.fields} role="group" aria-label="Action choices">
+      <button type="button" className="st-button" aria-pressed={actionMode === "attack"} onClick={() => setActionMode("attack")}>Attack</button>
+      <button type="button" className="st-button" aria-pressed={actionMode === "move"} onClick={() => setActionMode("move")}>Move</button>
+    </div>
+    {actionMode === "attack" ? sources.length ? <form onSubmit={(event) => { event.preventDefault(); if (source && validTarget) decide({ kind: "attack", source: source.source, sourceKey, targetParticipantId: Number(targetId) }); }}>
       <div className={styles.fields}><label className="st-field"><span>Attack with</span><select className="st-control" value={sourceKey} onChange={(event) => setSourceKey(event.target.value)}>{sources.map((entry) => <option key={entry.key} value={entry.key}>{entry.label} · {entry.cost ?? "?"} Initiative</option>)}</select></label>
         <label className="st-field"><span>Target</span><select className="st-control" value={targetId} onChange={(event) => setTargetId(event.target.value)}>{combatants.filter(({ characterId }) => characterId !== actor.characterId).map((entry) => <option key={entry.characterId} value={entry.characterId}>{entry.name}</option>)}</select></label></div>
       {source?.cost != null ? <p>Cost: {source.cost} Initiative · starts at {actor.currentInitiative} · expected finish at {actor.currentInitiative - source.cost}</p> : <p>This attack needs a G.O.D. cost ruling.</p>}
       <button type="submit" className="st-button is-primary" disabled={!source || !validTarget || source.cost === null || source.cost > actor.currentInitiative}>Commit attack</button>
-    </form> : <p>No authored melee or Creature attack is available. Check equipment or use the other action controls below.</p>}
-    <div className={styles.fields}><button type="button" className="st-button" onClick={() => decide({ kind: "hold" })}>Hold</button><button type="button" className="st-button" onClick={() => decide({ kind: "pass" })}>Pass this round</button></div>
+    </form> : <p>No authored melee or Creature attack is available. Check equipment or use the other action controls below.</p> : null}
+    <div className={styles.fields}><button type="button" className="st-button" onClick={() => decide({ kind: "hold" })}>{task.kind === "held-action" ? "Keep holding" : "Hold"}</button><button type="button" className="st-button" onClick={() => decide({ kind: "pass" })}>Pass this round</button></div>
     <small>Hold keeps an opening to intervene. Pass saves unused Initiative for the next round.</small>
-    {actor.movementMode ? <details className={styles.reference}><summary>Move</summary><form onSubmit={(event) => { event.preventDefault(); decide({ kind: "move", movementMode: actor.movementMode!, distanceFeet: Number(distance), intent }); }}>
+    {actionMode === "move" ? actor.movementMode ? <section aria-label="Movement"><h3>Move</h3><p>Enter the distance and destination. Movement spends Initiative; it does not require an attack roll.</p><form onSubmit={(event) => { event.preventDefault(); decide({ kind: "move", movementMode: actor.movementMode!, distanceFeet: Number(distance), intent }); }}>
       <label className="st-field"><span>Distance (feet)</span><input className="st-control" type="number" min="0.01" step="any" required value={distance} onChange={(event) => setDistance(event.target.value)} /></label>
-      <label className="st-field"><span>Move to</span><input className="st-control" required maxLength={500} value={intent} onChange={(event) => setIntent(event.target.value)} /></label><button type="submit" className="st-button">Begin movement</button></form></details> : null}
+      <label className="st-field"><span>Move to</span><input className="st-control" required maxLength={500} value={intent} onChange={(event) => setIntent(event.target.value)} /></label><p>{(() => {
+        const mode = actor.movementModes.find(({ movementMode }) => movementMode === actor.movementMode);
+        const feet = Number(distance);
+        if (!mode || !Number.isFinite(feet) || feet <= 0) return "Enter a distance to preview the Initiative cost.";
+        const cost = Math.ceil(feet / mode.baseMovement);
+        return `${feet} feet costs ${cost} Initiative (${mode.baseMovement} feet per Initiative).${cost > actor.currentInitiative ? " Movement will continue into the next round." : ""}`;
+      })()}</p><button type="submit" className="st-button">Begin movement</button></form></section> : <p role="status">Your current movement mode is unavailable. G.O.D. needs to check your movement before you can move.</p> : null}
   </>;
   if (task.kind === "eligibility") return <>
     <p>Confirm awareness and positioning. This does not choose a defense for the combatant.</p>

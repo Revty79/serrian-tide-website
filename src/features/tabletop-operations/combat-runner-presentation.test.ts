@@ -61,3 +61,12 @@ test("a Player actor's ruling is still a GOD task, not a Player wait", () => {
   assert.equal(canControlCombatTask(ruling, roster, "god"), true);
   assert.equal(canControlCombatTask(ruling, roster, "player"), false);
 });
+
+
+test("optional Hold controls never conceal an owned defense decision", () => {
+  const held = task("held-action", -2, "held:-2");
+  const response = task("choose-response", -2, "response:8");
+  assert.equal(selectRunnerTask([held, response], null, roster, "god"), response);
+  assert.equal(selectRunnerTask([held, response], held.key, roster, "god"), held);
+  assert.equal(selectRunnerTask([task("held-action", 1, "held:1"), task("advance-time", -2, "time")], null, roster, "god")?.kind, "advance-time");
+});

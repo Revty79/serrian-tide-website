@@ -11,11 +11,11 @@ export async function getPlayerCombatRunner(encounterId: number, characterId: nu
     const context = await lockPlayerCombatContextInTransaction(tx, encounterId, characterId, access.user.id);
     const { snapshot } = await readCombatRunnerInTransaction(tx, context);
     const own = snapshot.progression.tasks.filter((task) => task.participantId === characterId
-      && ["choose-action", "choose-response", "roll-attack", "roll-defense"].includes(task.kind)).map((task) => ({
+      && ["choose-action", "held-action", "choose-response", "roll-attack", "roll-defense"].includes(task.kind)).map((task) => ({
         ...task,
-        title: task.kind === "choose-action" ? "Choose your action" : task.kind === "choose-response" ? "Choose your response"
+        title: task.kind === "held-action" ? "You are holding — act now or keep waiting" : task.kind === "choose-action" ? "Choose your action" : task.kind === "choose-response" ? "Choose your response"
           : task.kind === "roll-defense" ? "Roll your defense" : "Roll your action",
-        detail: task.kind === "choose-action" ? "Choose an action, Hold, or Pass."
+        detail: task.kind === "held-action" ? "Your Initiative is preserved. Choose an action from Hold, keep waiting, or Pass this round. Your opening is checked again as combat changes." : task.kind === "choose-action" ? "Choose an action, Hold, or Pass."
           : task.kind === "choose-response" ? "Choose your response before the related rolls."
           : "This roll belongs to your committed action or defense. Its permitted details are shown below.",
       }));

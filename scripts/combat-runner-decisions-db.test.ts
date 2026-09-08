@@ -44,6 +44,14 @@ test("revision-checked screen commands preserve ownership, simultaneous attacks,
       await tx.execute(sql`insert into campaign_character_item (character_id,item_id,quantity,unit_cost_credits) values (${id},${itemId},1,0)`);
       await tx.execute(sql`insert into campaign_character_item_equipment_state (character_id,item_id,state,quantity) values (${id},${itemId},'wielded',1)`);
     }
+    // Authored movement is needed for actual movement commands, not a made-up test cost.
+    const race = await tx.execute(sql`insert into races (name,size,created_by_user_id) values ('Runner human','Medium',${base.godId}) returning id`);
+    const raceId = Number((race.rows[0] as { id: number }).id);
+    await tx.execute(sql`insert into race_movement_modes (race_id,movement_mode,base_value) values (${raceId},'land',3)`);
+    for (const characterId of [base.heroId,base.defenderId]) {
+      await tx.execute(sql`insert into campaign_character_profile (character_id,race_id) values (${characterId},${raceId}) on conflict (character_id) do update set race_id=excluded.race_id`);
+    }
+    await tx.execute(sql`update campaign_session_encounter_initiative_participant set movement_mode='land' where encounter_id=${base.encounterId}`);
     const read = () => readCombatRunnerInTransaction(tx, context);
     async function choose(actorId: number, kind: string, decision: CombatRunnerDecision) {
       const view = await read();
@@ -133,6 +141,41 @@ test("revision-checked screen commands preserve ownership, simultaneous attacks,
     const nextRound = await read();
     assert.equal(nextRound.engine.runtime.roundNumber, 2);
     assert.deepEqual(nextRound.engine.participants.map(({ currentInitiative }) => currentInitiative), [14, 18]);
+    // Continue the same fight: Hold must remain actionable after someone moves.
+    await choose(base.defenderId, "choose-action", { kind: "hold" });
+    let holding = await read();
+    assert.equal(holding.snapshot.autoContinue, false, "an eligible holder must stop automatic time advancement");
+    assert.ok(holding.snapshot.progression.tasks.some((task) => task.kind === "held-action" && task.participantId === base.defenderId));
+    await continueCombatRunnerInTransaction(tx, context, { revision: holding.snapshot.revision, command: "continue" });
+    await choose(base.heroId, "choose-action", { kind: "hold" });
+    holding = await read();
+    assert.equal(holding.snapshot.progression.canStartRound, true, "holding the rest of a round does not require Pass");
+    const heroHeldTask = holding.snapshot.progression.tasks.find((task) => task.kind === "held-action" && task.participantId === base.heroId)!;
+    await assert.rejects(submitCombatRunnerDecisionInTransaction(tx, context, god, {
+      revision: holding.snapshot.revision, taskKey: heroHeldTask.key, decision: { kind: "pass" },
+    }), /belongs|belong/);
+    const retained = holding.engine.participants.find(({ characterId }) => characterId === base.heroId)!.currentInitiative;
+    const kept = await choose(base.heroId, "held-action", { kind: "hold" });
+    assert.equal(kept.changed, false);
+    assert.equal((await read()).engine.participants.find(({ characterId }) => characterId === base.heroId)!.currentInitiative, retained);
+    const active = (await read()).engine.participants.find(({ characterId }) => characterId === base.heroId)!;
+    const rollsBeforeMove = (await tx.execute(sql`select count(*)::integer count from campaign_session_roll where encounter_id=${base.encounterId}`)).rows[0] as { count: number };
+    await choose(base.heroId, "held-action", { kind: "move", distanceFeet: 3, movementMode: active.movementMode, intent: "Step behind the pillar" });
+    let movement = await read();
+    const movingDeclaration = movement.declarations.declarations.find((row) => row.actorCharacterId === base.heroId && row.status !== "resolved")!;
+    assert.equal(movingDeclaration.lockedSnapshot?.heldIntervention, true);
+    assert.equal(movingDeclaration.lockedSnapshot?.authoredSource?.resolutionMode, "automatic-no-roll");
+    assert.equal(movement.engine.runtime.timelineInitiative, 14, "starting a held movement cannot rewind the timeline");
+    assert.ok(movement.snapshot.progression.tasks.some((task) => task.kind === "held-action" && task.participantId === base.defenderId));
+    await continueCombatRunnerInTransaction(tx, context, { revision: movement.snapshot.revision, command: "continue" });
+    movement = await read();
+    assert.ok(movement.snapshot.progression.tasks.every(({ kind }) => kind !== "held-action"), "settle completed movement before starting another action");
+    await continueCombatRunnerInTransaction(tx, context, { revision: movement.snapshot.revision, command: "continue" });
+    movement = await read();
+    assert.equal(movement.declarations.declarations.find(({ id }) => id === movingDeclaration.id)?.status, "resolved");
+    assert.ok(movement.snapshot.progression.tasks.some((task) => task.kind === "held-action" && task.participantId === base.defenderId), "holder may reconsider after the movement finishes");
+    const rollsAfterMove = (await tx.execute(sql`select count(*)::integer count from campaign_session_roll where encounter_id=${base.encounterId}`)).rows[0] as { count: number };
+    assert.equal(rollsAfterMove.count, rollsBeforeMove.count, "ordinary movement never invents a roll");
     throw ROLLBACK;
   }), (error) => { if (error !== ROLLBACK) console.error(error); return error === ROLLBACK; });
 });

@@ -9,7 +9,7 @@ export type RunnerParticipant = Readonly<{
 
 export function canControlCombatTask(task: CombatTask, participants: readonly Pick<RunnerParticipant, "id" | "controlled">[], role: "god" | "player"): boolean {
   if (task.kind === "eligibility" || task.kind === "ruling") return role === "god";
-  if (!["choose-action", "choose-response", "roll-attack", "roll-defense"].includes(task.kind)) return false;
+  if (!["choose-action", "held-action", "choose-response", "roll-attack", "roll-defense"].includes(task.kind)) return false;
   return participants.some(({ id, controlled }) => id === task.participantId && controlled);
 }
 
@@ -18,7 +18,9 @@ export function selectRunnerTask(tasks: readonly CombatTask[], requestedKey: str
     // Finish pending G.O.D. eligibility questions before defaulting to an NPC
     // response. Explicit inspection stays put; this does not change legal tasks.
     ?? (role === "god" ? tasks.find(({ kind }) => kind === "eligibility") : undefined)
+    ?? tasks.find((task) => task.kind !== "held-action" && canControlCombatTask(task, participants, role))
     ?? tasks.find((task) => canControlCombatTask(task, participants, role))
+    ?? tasks.find(({ kind }) => kind !== "held-action")
     ?? tasks[0] ?? null;
 }
 

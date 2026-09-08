@@ -19,7 +19,7 @@ import {
   holdParticipantInitiativeInTransaction, passParticipantInitiativeInTransaction,
   type OwnedEncounterRuntimeContext, type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
-import { calculateMovementInitiativeCost } from "./initiative-runtime";
+import { calculateMovementInitiativeCost, canHoldingParticipantIntervene } from "./initiative-runtime";
 import { resolveInitiativeCapacityInTransaction } from "./initiative-capacity-service";
 import { readCombatRunnerInTransaction } from "./combat-runner-service";
 import type { CombatRunnerSubmission } from "./combat-runner-decision";
@@ -30,7 +30,7 @@ import { publishTabletopInvalidationInTransaction } from "./tabletop-live-events
 export async function submitCombatRunnerDecisionInTransaction(
   tx: RuntimeIntegrationTransaction, context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor, input: CombatRunnerSubmission,
-): Promise<{ changed: boolean; stale: boolean; rollTotal: number | null }> {
+): Promise<{ changed: boolean; stale: boolean; rollTotal: number | null; message?: string }> {
   if (!input || !/^[a-f0-9]{64}$/.test(input.revision) || typeof input.taskKey !== "string"
     || !input.decision || typeof input.decision.kind !== "string") throw new Error("Refresh combat before submitting this choice.");
   if ([context.sessionStatus, context.sceneStatus, context.encounterStatus].some((status) => status !== "active")) {
@@ -57,17 +57,28 @@ export async function submitCombatRunnerDecisionInTransaction(
     if (actor.authority === "player" ? actor.characterId !== participant.characterId : participant.choiceOwner !== "god") {
       throw new Error("This choice belongs to that combatant's Player.");
     }
+    const heldAction = task.kind === "held-action";
+    if (heldAction) {
+      const state = current.engine.participants.find(({ characterId }) => characterId === participant.characterId);
+      if (!state || !canHoldingParticipantIntervene(current.engine.runtime, state) || state.currentInitiative <= 0) {
+        throw new Error("Your held opening has changed. Refresh combat before acting.");
+      }
+    }
     if (decision.kind === "hold" || decision.kind === "pass") {
-      if (task.kind !== "choose-action") throw new Error("This combatant does not have an ordinary action choice now.");
+      if (task.kind !== "choose-action" && !heldAction) throw new Error("This combatant does not have an ordinary action choice now.");
+      if (decision.kind === "hold" && heldAction) return {
+        changed: false, stale: false, rollTotal: null,
+        message: "Still holding. Your Initiative is unchanged and you can act from Hold at the next legal opening.",
+      };
       if (decision.kind === "hold") await holdParticipantInitiativeInTransaction(tx, context, participant.characterId);
       else await passParticipantInitiativeInTransaction(tx, context, participant.characterId);
     } else if (decision.kind === "attack" || decision.kind === "move") {
-      if (task.kind !== "choose-action") throw new Error("Finish the current exchange before choosing another action.");
+      if (task.kind !== "choose-action" && !heldAction) throw new Error("Finish the current exchange before choosing another action.");
       const draft: ActionDeclarationDraft = {
         actorCharacterId: participant.characterId, targetCharacterIds: [], label: "", actionKind: "movement",
         sourceKind: "no-roll", sourceRef: null, sourceInstanceId: null, weaponItemId: null,
         firingModeId: null, attackMode: "", initiativeCost: 1, allowsMultiRound: false,
-        heldIntervention: false, windowKind: "ordinary", aimDeclared: false,
+        heldIntervention: heldAction, windowKind: "ordinary", aimDeclared: false,
         calledShot: { declared: false, label: "", assignedPenalty: null },
         explicitModifiers: [], preparesForDeclarationId: null, godNotes: "",
       };

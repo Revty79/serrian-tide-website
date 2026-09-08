@@ -35,6 +35,15 @@ const fixture = await db.transaction(async (tx) => {
       await tx.execute(sql`insert into campaign_character_item_equipment_state (character_id,item_id,state,quantity) values (${id},${itemId},'wielded',1)`);
     }
 
+    // A real race movement source is required to rehearse movement from the UI.
+    const race = await tx.execute(sql`insert into races (name,size,created_by_user_id) values ('Runner human','Medium',${base.godId}) returning id`);
+    const raceId = Number((race.rows[0] as { id: number }).id);
+    await tx.execute(sql`insert into race_movement_modes (race_id,movement_mode,base_value) values (${raceId},'land',3)`);
+    for (const characterId of [base.heroId,base.defenderId]) {
+      await tx.execute(sql`insert into campaign_character_profile (character_id,race_id) values (${characterId},${raceId}) on conflict (character_id) do update set race_id=excluded.race_id`);
+    }
+    await tx.execute(sql`update campaign_session_encounter_initiative_participant set movement_mode='land' where encounter_id=${base.encounterId}`);
+
     const playerId = `runner-player-${crypto.randomUUID()}`;
     const playerEmail = `${playerId}@example.invalid`;
     const godEmail = `${base.godId}@example.invalid`;
