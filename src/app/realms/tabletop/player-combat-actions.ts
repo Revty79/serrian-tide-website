@@ -13,6 +13,7 @@ import {
   lockActionDeclarationInTransaction,
 } from "@/features/tabletop-operations/action-declaration-service";
 import { parseActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
+import { applyRoutineCombatConsequencesInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import {
   declareDefenseInterventionInTransaction,
   recordDeclaredAttackRollInTransaction,
@@ -296,6 +297,11 @@ export async function rollPlayerDeclaredResponse(characterId: number, encounterI
     await resolveDeclaredDefensesAfterResponseIfReadyInTransaction(tx, context, actor, reactionId);
     return roll.id;
   });
+}
+
+export async function applyPlayerCombatConsequences(characterId: number, encounterId: number, declarationId: number) {
+  return withPlayerCombat(characterId, encounterId, "action", (tx, context, actor) =>
+    applyRoutineCombatConsequencesInTransaction(tx, context, actor, positiveId(declarationId, "Declaration")));
 }
 
 export async function rollPlayerDeclaredAttack(characterId: number, encounterId: number, declarationId: number, input: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {

@@ -5,7 +5,7 @@ import {
   finishDeclarationCheckpointChoiceInTransaction,
 } from "./declaration-checkpoint-service";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";

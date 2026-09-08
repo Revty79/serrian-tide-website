@@ -69,12 +69,13 @@ export async function getActionEffectWorkspace(encounterIdInput: number): Promis
   });
 }
 
-export async function generateActionEffectPlan(encounterId: number, declarationId: number): Promise<number> {
+export async function generateActionEffectPlan(encounterId: number, declarationId: number, ordinaryRuling?: import("@/features/tabletop-operations/ordinary-attack-consequence-service").OrdinaryAttackRuling): Promise<number> {
   return mutate(encounterId, (tx, context, actor) => generateActionEffectPlanInTransaction(
     tx,
     context,
     actor,
     positiveId(declarationId, "Action declaration"),
+    ordinaryRuling,
   ));
 }
 
@@ -156,4 +157,10 @@ export async function applyActionEffectPlan(encounterId: number, planId: number)
 
 export async function retryActionEffectPlan(encounterId: number, planId: number): Promise<string> {
   return applyActionEffectPlan(encounterId, planId);
+}
+
+export async function ruleOrdinaryAttackConsequence(encounterId: number, planId: number,
+  ruling: import("@/features/tabletop-operations/ordinary-attack-consequence-service").OrdinaryAttackRuling): Promise<void> {
+  const { ruleOrdinaryAttackConsequenceInTransaction } = await import("@/features/tabletop-operations/action-effect-plan-service");
+  await mutate(encounterId, (tx, context, actor) => ruleOrdinaryAttackConsequenceInTransaction(tx, context, actor, positiveId(planId, "Effect Plan"), ruling));
 }

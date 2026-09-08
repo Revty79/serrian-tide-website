@@ -50,6 +50,7 @@ import {
 } from "./action-declaration";
 import {
   resolveActionDeclarationInTransaction,
+  assertActionChoiceAuthority,
   type ActionDeclarationActor,
 } from "./action-declaration-service";
 import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
@@ -58,8 +59,10 @@ import {
   readEffectiveRollSnapshotInTransaction,
   type AuthorizedRollActor,
 } from "./roll-runtime-service";
-import type { RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
+import { parseRollMechanicalSnapshot, type RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { buildOrdinaryAttackConsequenceProposalInTransaction, type OrdinaryAttackRuling } from "./ordinary-attack-consequence-service";
+import { recordCombatDamageOutcomeInTransaction } from "./combat-damage-outcome-service";
 
 export type ActionEffectPlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type GodActionEffectActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -164,13 +167,13 @@ function assertGod(context: OwnedEncounterRuntimeContext, actor: GodActionEffect
   }
 }
 
-function rollActor(context: OwnedEncounterRuntimeContext, actor: GodActionEffectActor): AuthorizedRollActor {
+function rollActor(context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor): AuthorizedRollActor {
   return {
     userId: actor.userId,
     campaignId: context.campaignId,
-    readAs: "god-owner",
-    canRecordGodOnly: true,
-    characterId: null,
+    readAs: actor.authority === "god-owner" ? "god-owner" : "player",
+    canRecordGodOnly: actor.authority === "god-owner",
+    characterId: actor.authority === "player" ? actor.characterId : null,
   };
 }
 
@@ -237,7 +240,7 @@ async function lockEffect(
 async function effectiveActionRoll(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: GodActionEffectActor,
+  actor: ActionDeclarationActor,
   pendingActionId: number,
 ): Promise<RollMechanicalSnapshot | null> {
   const rows = await tx.select({ id: campaignSessionRoll.id })
@@ -267,7 +270,7 @@ function sourceNeedsRoll(source: FrozenActionSourceSnapshot): boolean {
 async function currentSourceDivergence(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: GodActionEffectActor,
+  actor: ActionDeclarationActor,
   declarationId: number,
   draftJson: unknown,
   frozen: FrozenActionSourceSnapshot,
@@ -301,13 +304,13 @@ async function currentSourceDivergence(
   }
 }
 
-export async function generateActionEffectPlanInTransaction(
+async function generateActionEffectPlanInternal(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: GodActionEffectActor,
+  actor: ActionDeclarationActor,
   declarationIdInput: number,
+  ordinaryRuling?: OrdinaryAttackRuling,
 ): Promise<number> {
-  assertGod(context, actor);
   const declarationId = positiveId(declarationIdInput, "Action declaration");
   const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
     eq(campaignSessionEncounterActionDeclaration.id, declarationId),
@@ -380,7 +383,9 @@ export async function generateActionEffectPlanInTransaction(
     name: target.kind === "creature" ? target.displayLabel : target.characterName,
   })).sort((left, right) => targetIds.indexOf(left.participantId) - targetIds.indexOf(right.participantId));
   const defenseResolution = isRecord(declaration.defenseResolutionJson) ? declaration.defenseResolutionJson : null;
-  const proposal = buildActionEffectPlanProposal({
+  const proposal = (source.kind === "weapon" || source.kind === "creature-attack") && locked.weapon?.firingModeId == null && governingRoll
+    ? await buildOrdinaryAttackConsequenceProposalInTransaction(tx, context, locked, governingRoll, defenseResolution, ordinaryRuling)
+    : buildActionEffectPlanProposal({
     source,
     actorParticipantId: locked.actorCharacterId,
     targetParticipantIds: targetIds,
@@ -476,7 +481,7 @@ export async function approveActionEffectPlanInTransaction(
   const plan = await lockPlan(tx, context, planId);
   if (plan.status === "approved" || plan.status === "applied" || plan.status === "partially-applied") return;
   if (!['calculated', 'requires-god-ruling'].includes(plan.status)) throw new Error("Only a calculated Action Effect Plan may be approved.");
-  const reason = boundedReason(reasonInput, "Approval reason", false);
+  const reason = boundedReason(reasonInput, "Approval reason", plan.status === "requires-god-ruling");
   const now = new Date();
   await tx.update(campaignSessionEncounterEffect).set({ status: "approved", updatedAt: now }).where(and(
     eq(campaignSessionEncounterEffect.planId, plan.id),
@@ -930,7 +935,7 @@ async function applySupportedEffects(
       : await applyCharacterEffect(tx, context, plan, effectRow);
     await tx.update(campaignSessionEncounterEffect).set({
       status: "applied",
-      appliedResultJson: result,
+      appliedResultJson: await recordCombatDamageOutcomeInTransaction(tx, context, effectRow, result),
       appliedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(campaignSessionEncounterEffect.id, effectRow.id));
@@ -939,13 +944,12 @@ async function applySupportedEffects(
   return appliedIds;
 }
 
-export async function applyActionEffectPlanInTransaction(
+async function applyActionEffectPlanInternal(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,
-  actor: GodActionEffectActor,
+  actor: ActionDeclarationActor,
   planId: number,
 ): Promise<ActionEffectPlanStatus> {
-  assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
   if (plan.status === "applied") return "applied";
   if (!["approved", "partially-applied", "application-failed"].includes(plan.status)) {
@@ -1113,4 +1117,74 @@ export async function readActionEffectWorkspaceInTransaction(
     }),
     participants: participantViews,
   };
+}
+
+export async function generateActionEffectPlanInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
+  actor: GodActionEffectActor, declarationId: number, ruling?: OrdinaryAttackRuling): Promise<number> {
+  assertGod(context, actor);
+  return generateActionEffectPlanInternal(tx, context, actor, declarationId, ruling);
+}
+
+export async function applyActionEffectPlanInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
+  actor: GodActionEffectActor, planId: number): Promise<ActionEffectPlanStatus> {
+  assertGod(context, actor);
+  return applyActionEffectPlanInternal(tx, context, actor, planId);
+}
+
+/** Exact owner execution of objectively supported completed consequences, with actual caller attribution. */
+export async function applyRoutineCombatConsequencesInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
+  actor: ActionDeclarationActor, declarationId: number): Promise<{ planId: number; status: ActionEffectPlanStatus }> {
+  const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
+    eq(campaignSessionEncounterActionDeclaration.id, declarationId), eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
+  )).limit(1).for("update");
+  if (!declaration) throw new Error("That exact combat declaration no longer exists.");
+  await assertActionChoiceAuthority(tx, context, actor, declaration.actorCharacterId);
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
+  const planId = await generateActionEffectPlanInternal(tx, context, actor, declarationId);
+  const plan = await lockPlan(tx, context, planId);
+  if (plan.status === "applied") return { planId, status: "applied" };
+  const effects = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, planId));
+  if (plan.status !== "calculated" || effects.some((effect) => effect.godReviewRequired
+    || !["calculated", "declined"].includes(effect.status) || effect.status !== "declined" && !effect.applicationSupported)) {
+    return { planId, status: plan.status };
+  }
+  const now = new Date();
+  await tx.update(campaignSessionEncounterEffect).set({ status: "approved", updatedAt: now }).where(and(
+    eq(campaignSessionEncounterEffect.planId, planId), eq(campaignSessionEncounterEffect.status, "calculated"),
+  ));
+  await tx.update(campaignSessionEncounterEffectPlan).set({ status: "approved", reviewedByUserId: actor.userId, reviewedAt: now, updatedAt: now })
+    .where(eq(campaignSessionEncounterEffectPlan.id, planId));
+  await recordEvent(tx, context, planId, "calculated", "approved", "routine-consequences-confirmed", actor.userId,
+    "The action owner confirmed objectively supported consequences; no narrative ruling was inferred.");
+  return { planId, status: await applyActionEffectPlanInternal(tx, context, actor, planId) };
+}
+
+export async function ruleOrdinaryAttackConsequenceInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
+  actor: GodActionEffectActor, planId: number, ruling: OrdinaryAttackRuling): Promise<void> {
+  assertGod(context, actor);
+  const plan = await lockPlan(tx, context, planId);
+  if (!["calculated", "requires-god-ruling", "approved"].includes(plan.status)) throw new Error("Only unapplied ordinary consequences may receive a new ruling.");
+  const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration)
+    .where(eq(campaignSessionEncounterActionDeclaration.id, plan.declarationId)).limit(1);
+  if (!declaration) throw new Error("The originating declaration no longer exists.");
+  const locked = parseLockedActionDeclarationSnapshot(declaration.lockedSnapshotJson);
+  const roll = parseRollMechanicalSnapshot(plan.governingRollSnapshotJson);
+  if (!roll) throw new Error("The original immutable attack Roll is required.");
+  const proposals = await buildOrdinaryAttackConsequenceProposalInTransaction(tx, context, locked, roll,
+    isRecord(plan.defenseResolutionJson) ? plan.defenseResolutionJson : null, ruling);
+  const proposal = proposals.effects.find(({ targetParticipantId }) => targetParticipantId === ruling.targetParticipantId);
+  if (!proposal) throw new Error("The ruling target is not in this ordinary attack.");
+  const [effect] = await tx.select().from(campaignSessionEncounterEffect).where(and(
+    eq(campaignSessionEncounterEffect.planId, planId), eq(campaignSessionEncounterEffect.effectKey, proposal.effectKey),
+  )).limit(1).for("update");
+  if (!effect || effect.status === "applied") throw new Error("The original target effect is missing or already applied.");
+  await tx.update(campaignSessionEncounterEffect).set({ finalValueJson: proposal.finalValue,
+    applicationSupported: proposal.applicationSupported, godReviewRequired: proposal.godReviewRequired, status: proposal.status,
+    amendmentReason: ruling.reason, amendedByUserId: actor.userId, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffect.id, effect.id));
+  const remaining = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, planId));
+  const status = remaining.some(({ status }) => status === "requires-god-ruling") ? "requires-god-ruling" : "calculated";
+  await tx.update(campaignSessionEncounterEffectPlan).set({ status, reviewedByUserId: null, reviewedAt: null, updatedAt: new Date() })
+    .where(eq(campaignSessionEncounterEffectPlan.id, planId));
+  await recordEvent(tx, context, planId, plan.status, status, "ordinary-attack-ruling", actor.userId, ruling.reason,
+    { effectId: effect.id, previousFinalValue: effect.finalValueJson, finalValue: proposal.finalValue });
 }

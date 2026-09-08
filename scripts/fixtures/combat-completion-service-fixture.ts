@@ -35,7 +35,7 @@ export async function completionServiceFixture(tx: BuildTenDbTransaction, label:
     attacks: [{ canonicalId: "fixture-shortsword", attackName: "Shortsword", attackPercentage: 50, damage: "4", damageType: "Slashing" }],
     defenses: [{ defenseType: "Dodge", value: "40", seedIdentity: "fixture-dodge" }, { defenseType: "Block", value: "50", seedIdentity: "fixture-block" }],
     hpPools: [{ canonicalId: "fixture-head", poolName: "Head", maximumHp: 3 }],
-    hitLocations: [{ hitLocationNumber: 0, locationName: "Head", poolCanonicalId: "fixture-head", soak: "0", naturalArmor: "0" }],
+    hitLocations: [{ hitLocationNumber: 0, locationName: "Head", hpPoolCanonicalId: "fixture-head", soak: "0", naturalArmor: "0" }],
   };
   for (const characterId of occurrences) {
     await tx.update(campaignSessionEncounterParticipant).set({ creatureSnapshotJson: creatureSnapshot }).where(eq(campaignSessionEncounterParticipant.characterId, characterId));

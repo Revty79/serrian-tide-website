@@ -37,6 +37,13 @@ export async function beginDeclarationCheckpointInTransaction(
     }
     return existing.id;
   }
+  if (!response) {
+    const unfinished = await tx.execute(sql`SELECT declaration.id FROM campaign_session_encounter_action_declaration declaration
+      JOIN campaign_session_encounter_pending_action action ON action.id = declaration.pending_action_id
+      WHERE declaration.encounter_id = ${encounterId} AND action.status = 'completed'
+        AND declaration.status NOT IN ('resolved', 'cancelled', 'abandoned') LIMIT 1`);
+    if (unfinished.rows.length) throw new Error("Resolve every action completing at this point before committing the next ordinary choice; simultaneous outcomes must remain intact.");
+  }
   const next = getNextInitiativeTimelineEvent(engine);
   const currentIds = next.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative
     ? next.characterIds

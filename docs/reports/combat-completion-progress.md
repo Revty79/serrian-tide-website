@@ -28,9 +28,18 @@ Validation: the corrected disposable harness actually executes and passes 7 serv
 
 End: this pass commit (subject `Unify combat participant identity and authored defense paths`).
 
+## Pass 4 - ordinary consequences and defeat
+
+Start: b38b198. Ordinary weapon and Creature attacks now generate supported location damage plans from frozen sources, original Rolls, authored anatomy, armor and Soak. Failed or stopped attacks apply no damage. Exceptional criticals, unknown numeric protection and exceptional injuries remain specific G.O.D. rulings, with original calculations and amendments retained. Routine supported Player consequences use the Player authority and attribution. Applied damage retains over-damage and exact occurrence identity; explicit injuries and defeat values do not create XP awards. Simultaneous completed attacks survive either application order after defeat. A subsequent ordinary checkpoint waits for current completed outcomes.
+
+Validation: 14 actual disposable PostgreSQL service cases passed, including seven consequence cases: Rowan's real owned Skill gives target 40, Roll 90 and failed Block 20 produce the ruled 11 damage to the 3-HP head, one severing record and defeat value 3; damage retry is unchanged; nonfatal armor/Soak and absorption; both simultaneous application orders; critical 01 and 100 remain unresolved rulings. Typecheck, lint and diff check passed. Last full unit suite: 1,258 passing before this pass; broader validation follows the resource integration. No ordinary database migration or fixture writes occurred.
+
+End: this pass commit (subject Complete ordinary attack consequences and preserve simultaneous defeat outcomes).
+
+Supplement accepted: [persistent Freeze/Resume and later screen requirements](../rules/combat-freeze-and-ui-handoff-2026-09-08.md). Implementation and race/privacy validation continue with the remaining backend passes.
+
 ## Remaining passes
 
-4. Ordinary attack consequences and independent location/defeat state.
 5. Cast-start spending, Items/abilities, immediate effects, and duration parity.
 6. Firearms under the reconciled timing contract.
 7. Cancellation/closeout/recovery and complete service-level encounters, final validation and handoff.
