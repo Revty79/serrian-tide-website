@@ -439,7 +439,7 @@ test("simultaneous cost-four actions both complete at 7 before either outcome ma
   }
 });
 
-test("Combat Steps advance by participation slices without a one-action-per-Round limiter", () => {
+test("a full Combat Step includes capable lower-Initiative actors without limiting faster actions", () => {
   let engine = state(40, 20);
   for (let id = 1; id <= 4; id += 1) {
     engine = startInitiativeAction(engine, {
@@ -449,7 +449,7 @@ test("Combat Steps advance by participation slices without a one-action-per-Roun
   }
   assert.equal(participant(engine, 1).currentInitiative, 20);
   assert.equal(participant(engine, 2).currentInitiative, 20);
-  assert.equal(engine.runtime.stepNumber, 4);
+  assert.equal(engine.runtime.stepNumber, 1);
   assert.equal(engine.runtime.roundNumber, 1);
   assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
     kind: "normal-opportunity", initiative: 20, characterIds: [1, 2],
@@ -460,8 +460,9 @@ test("Combat Steps advance by participation slices without a one-action-per-Roun
   engine = startInitiativeAction(engine, {
     id: 6, actorCharacterId: 2, label: "Ryan tied action", initiativeCost: 1, allowsMultiRound: false,
   });
+  assert.equal(engine.runtime.stepNumber, 2, "the lower actor finally participates in the first full Step");
   engine = advanceInitiativeToNextEvent(engine);
-  assert.equal(engine.runtime.stepNumber, 5);
+  assert.equal(engine.runtime.stepNumber, 3, "both ongoing actions progress in the next full Step");
 });
 
 test("suspension preserves Current Initiative and requires explicit G.O.D. resolution", () => {

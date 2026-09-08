@@ -171,10 +171,10 @@ export type HasTheRunResult = Readonly<{
 const LEGAL_TRANSITIONS: Readonly<Record<ActionDeclarationStatus, readonly ActionDeclarationStatus[]>> = {
   draft: ["locked", "cancelled"],
   locked: ["committed", "cancelled"],
-  committed: ["rolling-ready", "awaiting-god-ruling", "interrupted", "cancelled", "abandoned"],
+  committed: ["rolling-ready", "rolling", "awaiting-god-ruling", "interrupted", "cancelled", "abandoned"],
   "rolling-ready": ["committed", "rolling", "awaiting-god-ruling", "resolved", "interrupted", "cancelled", "abandoned"],
   rolling: ["committed", "rolling", "awaiting-god-ruling", "resolved", "interrupted", "cancelled", "abandoned"],
-  "awaiting-god-ruling": ["rolling-ready", "resolved", "interrupted", "cancelled", "abandoned"],
+  "awaiting-god-ruling": ["rolling-ready", "rolling", "awaiting-god-ruling", "resolved", "interrupted", "cancelled", "abandoned"],
   interrupted: ["committed", "resolved", "cancelled", "abandoned"],
   resolved: [],
   cancelled: [],
@@ -468,13 +468,11 @@ export function responderOpportunitiesAreReconciled(
 
 export function assertActionCanRoll(
   status: ActionDeclarationStatus,
-  opportunities: readonly { status: ResponderOpportunityStatus }[],
+  ..._context: [opportunities?: readonly { status: ResponderOpportunityStatus }[]]
 ): void {
-  if (status !== "rolling-ready" && status !== "rolling") {
-    throw new Error("An action Roll requires a locked, committed, rolling-ready declaration.");
-  }
-  if (!responderOpportunitiesAreReconciled(opportunities)) {
-    throw new Error("Every eligible responder opportunity must be reconciled before an action Roll.");
+  void _context; // Legacy callers may still supply future opportunities; these never gate declaration Rolls.
+  if (!["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(status)) {
+    throw new Error("An action Roll requires a locked, committed declaration.");
   }
 }
 

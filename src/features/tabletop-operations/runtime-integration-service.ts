@@ -1,4 +1,9 @@
 import "server-only";
+import {
+  assertNoOpenDeclarationCheckpoint,
+  beginDeclarationCheckpointInTransaction,
+  finishDeclarationCheckpointChoiceInTransaction,
+} from "./declaration-checkpoint-service";
 
 import { and, asc, eq, sql } from "drizzle-orm";
 
@@ -373,6 +378,13 @@ export async function persistInitiativeEngineInTransaction(
   before: InitiativeEngineState,
   after: InitiativeEngineState,
 ): Promise<void> {
+  if (before.runtime.timelineInitiative !== after.runtime.timelineInitiative
+    || before.runtime.roundNumber !== after.runtime.roundNumber
+    || after.pendingActions.some((action) => {
+      const previous = before.pendingActions.find(({ id }) => id === action.id);
+      return previous && (action.initiativeSpent > previous.initiativeSpent
+        || action.status === "completed" && previous.status !== "completed");
+    })) await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const now = new Date();
   await tx.update(campaignSessionEncounterInitiative).set({
     status: after.runtime.status,
@@ -444,6 +456,8 @@ export async function persistInitiativeEngineInTransaction(
       });
     }
   }
+  const { reconcileActionResponseWindowsInTransaction } = await import("./action-declaration-service");
+  await reconcileActionResponseWindowsInTransaction(tx, context, before, after);
   const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("./firearm-readiness-service");
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime);
@@ -465,8 +479,11 @@ export async function holdParticipantInitiativeInTransaction(
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, characterId, true);
   const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  if (state.participants.find((entry) => entry.characterId === characterId)?.participationStatus === "holding") return;
+  const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, state, characterId);
   const changed = holdInitiative(state, characterId);
   await persistInitiativeEngineInTransaction(tx, context, state, changed);
+  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, { participantId: characterId, kind: "hold", declarationId: null, reactionId: null });
 }
 
 /** Player and G.O.D. controllers share the authoritative Initiative engine. */
@@ -478,8 +495,12 @@ export async function passParticipantInitiativeInTransaction(
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, characterId, true);
   const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const participant = state.participants.find((entry) => entry.characterId === characterId);
+  if (participant?.participationStatus === "passed") return;
+  const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, state, characterId, participant?.participationStatus === "holding");
   const changed = passInitiative(state, characterId);
   await persistInitiativeEngineInTransaction(tx, context, state, changed);
+  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, { participantId: characterId, kind: "pass", declarationId: null, reactionId: null });
 }
 
 /**

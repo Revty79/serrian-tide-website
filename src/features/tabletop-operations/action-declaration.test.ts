@@ -190,12 +190,12 @@ test("melee admission uses the original window and records overlap without decid
   assert.equal("damage" in window, false);
 });
 
-test("pending responder opportunities block Rolls until every opportunity is reconciled", () => {
+test("Rolls start at declaration without waiting for future response choices", () => {
   assert.equal(responderOpportunitiesAreReconciled([{ status: "declined" }, { status: "ineligible" }]), true);
   assert.equal(responderOpportunitiesAreReconciled([{ status: "response-declared" }, { status: "pending" }]), false);
   assert.throws(() => assertActionCanRoll("draft", []), /locked, committed/);
-  assert.throws(() => assertActionCanRoll("committed", [{ status: "pending" }]), /locked, committed/);
-  assert.throws(() => assertActionCanRoll("rolling-ready", [{ status: "pending" }]), /must be reconciled/);
+  assert.doesNotThrow(() => assertActionCanRoll("committed", [{ status: "pending" }]));
+  assert.doesNotThrow(() => assertActionCanRoll("rolling-ready", [{ status: "pending" }]));
   assert.doesNotThrow(() => assertActionCanRoll("rolling-ready", [{ status: "declined" }, { status: "ineligible" }]));
   assert.doesNotThrow(() => assertActionCanRoll("rolling", [{ status: "response-declared" }]));
 });

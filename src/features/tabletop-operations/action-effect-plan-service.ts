@@ -1,4 +1,5 @@
 import "server-only";
+import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
@@ -995,6 +996,7 @@ export async function readActionEffectWorkspaceInTransaction(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,
 ): Promise<ActionEffectWorkspaceView> {
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const participants = await tx.select({
     id: campaignSessionEncounterParticipant.characterId,
     kind: campaignSessionEncounterParticipant.participantKind,

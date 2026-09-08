@@ -288,6 +288,13 @@
       "when": 1788723741408,
       "tag": "0040_tabletop_shop_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788887325111,
+      "tag": "0041_combat_declaration_checkpoints",
+      "breakpoints": true
     }
   ]
 }

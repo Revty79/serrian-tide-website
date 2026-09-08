@@ -1,4 +1,5 @@
 import "server-only";
+import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -1031,6 +1032,7 @@ export async function readFirearmWorkspaceInTransaction(
   selectedCharacterIdInput: number | null,
   selectedItemInstanceIdInput: number | null,
 ): Promise<FirearmWorkspaceView> {
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const characters = await tx.select({
     id: campaignSessionEncounterParticipant.characterId,
     name: sql<string>`case when ${campaignSessionEncounterParticipant.participantKind} = 'creature' then ${campaignSessionEncounterParticipant.displayLabel} else ${campaignCharacter.name} end`,

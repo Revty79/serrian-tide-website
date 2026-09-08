@@ -57,6 +57,10 @@ import { assertCampaignSessionOwner } from "@/features/tabletop-operations/sessi
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 import {
+  assertNoOpenDeclarationCheckpoint, beginDeclarationCheckpointInTransaction,
+  finishDeclarationCheckpointChoiceInTransaction, projectRevealedInitiativeInTransaction,
+} from "@/features/tabletop-operations/declaration-checkpoint-service";
+import {
   recordActionTimingCompletionsInTransaction,
   recordLongActionRoundContinuationsInTransaction,
 } from "@/features/tabletop-operations/action-declaration-service";
@@ -365,6 +369,8 @@ async function persistEngine(
       ));
     }
   }
+  const { reconcileActionResponseWindowsInTransaction } = await import("@/features/tabletop-operations/action-declaration-service");
+  if (before) await reconcileActionResponseWindowsInTransaction(tx, context, before, after);
   const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("@/features/tabletop-operations/firearm-readiness-service");
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
   await recordActionTimingCompletionsInTransaction(
@@ -406,7 +412,7 @@ async function mutateOwnedInitiative(
     context: OwnedEncounterContext,
     tx: TabletopTransaction,
   ) => Promise<InitiativeEngineState> | InitiativeEngineState,
-  options: { durationPassage?: "elapsed" | "correction" } = {},
+  options: { durationPassage?: "elapsed" | "correction"; disposition?: { participantId: number; kind: "hold" | "pass" } } = {},
 ): Promise<InitiativeRuntimeView> {
   assertPositiveId(encounterId, "Encounter");
   const access = await requireGod();
@@ -415,8 +421,20 @@ async function mutateOwnedInitiative(
     assertActiveHierarchy(context);
     const current = await loadInitiativeEngine(tx, encounterId, true);
     if (!current) throw new Error("Initiative has not been initialized for this Encounter.");
+    const disposition = options.disposition;
+    if (disposition && current.participants.find(({ characterId }) => characterId === disposition.participantId)?.participationStatus === (disposition.kind === "hold" ? "holding" : "passed")) {
+      return projectRevealedInitiativeInTransaction(tx, current);
+    }
+    const checkpointId = disposition
+      ? await beginDeclarationCheckpointInTransaction(tx, encounterId, current, disposition.participantId,
+        current.participants.find(({ characterId }) => characterId === disposition.participantId)?.participationStatus === "holding")
+      : null;
+    if (!disposition) await assertNoOpenDeclarationCheckpoint(tx, encounterId);
     const changed = await mutate(current, context, tx);
     await persistEngine(tx, context, current, changed, options.durationPassage);
+    if (checkpointId !== null && disposition) await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
+      participantId: disposition.participantId, kind: disposition.kind, declarationId: null, reactionId: null,
+    });
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: context.campaignId,
       sessionId: context.sessionId,
@@ -425,7 +443,7 @@ async function mutateOwnedInitiative(
       characterIds: [],
       category: "initiative",
     });
-    return changed;
+    return projectRevealedInitiativeInTransaction(tx, changed);
   });
   refreshInitiative();
   return toView(next);
@@ -436,7 +454,8 @@ export async function getEncounterInitiativeRuntime(encounterId: number): Promis
   const access = await requireGod();
   const state = await db.transaction(async (tx) => {
     await lockOwnedEncounter(tx, encounterId, access.user.id);
-    return loadInitiativeEngine(tx, encounterId, false);
+    const engine = await loadInitiativeEngine(tx, encounterId, false);
+    return engine ? projectRevealedInitiativeInTransaction(tx, engine) : null;
   });
   return state ? toView(state) : null;
 }
@@ -621,12 +640,12 @@ export async function advanceEncounterInitiativeTimeline(encounterId: number): P
 
 export async function holdEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(characterId, "Character");
-  return mutateOwnedInitiative(encounterId, (state) => holdInitiative(state, characterId));
+  return mutateOwnedInitiative(encounterId, (state) => holdInitiative(state, characterId), { disposition: { participantId: characterId, kind: "hold" } });
 }
 
 export async function passEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
   assertPositiveId(characterId, "Character");
-  return mutateOwnedInitiative(encounterId, (state) => passInitiative(state, characterId));
+  return mutateOwnedInitiative(encounterId, (state) => passInitiative(state, characterId), { disposition: { participantId: characterId, kind: "pass" } });
 }
 
 export async function setEncounterInitiativeParticipationStatus(

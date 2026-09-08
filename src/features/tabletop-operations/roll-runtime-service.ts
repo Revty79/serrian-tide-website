@@ -15,6 +15,7 @@ import { skill } from "@/db/skill-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
@@ -25,6 +26,7 @@ import {
   campaignSessionScene,
   campaignSessionSceneMember,
 } from "@/db/tabletop-operations-schema";
+import { assertDeclarationCheckpointRevealed, revealedCombatRollPredicate } from "./declaration-checkpoint-service";
 import {
   CHARACTER_ATTRIBUTE_KEYS,
   CHARACTER_ATTRIBUTE_LABELS,
@@ -459,7 +461,8 @@ async function recordRollInternal(
     if (request.rollerCharacterId !== null && request.rollerCharacterId !== action.actorCharacterId) {
       throw new Error("A linked action Roll must use that action's actor Character.");
     }
-    const declaration = await assertActionRollAllowedInTransaction(tx, request.pendingActionId);
+    const [declaration] = await tx.select({ id: campaignSessionEncounterActionDeclaration.id }).from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, request.pendingActionId)).limit(1).for("update");
     if (declaration) {
       const existing = await tx.select({
         id: campaignSessionRoll.id,
@@ -477,11 +480,12 @@ async function recordRollInternal(
         ) {
           throw new Error("This declaration's attack Roll slot already has different immutable history.");
         }
-        const page = await readRollLedgerInTransaction(tx, actor, session.id, { beforeId: existing[0].id + 1, limit: 1 });
+        const page = await readRollLedgerInternal(tx, actor, session.id, { beforeId: existing[0].id + 1, limit: 1 }, existing[0].id);
         const entry = page.rolls.find(({ id }) => id === existing[0]!.id);
         if (!entry) throw new Error("The existing immutable attack Roll is not readable by this authorized actor.");
         return entry;
       }
+      await assertActionRollAllowedInTransaction(tx, request.pendingActionId);
     }
   }
 
@@ -506,10 +510,6 @@ async function recordRollInternal(
     }
     if (reaction.declarationSnapshotJson !== null) {
       const snapshot = parseDefenseInterventionSnapshot(reaction.declarationSnapshotJson);
-      if (reaction.status !== "declared" || reaction.rollRequired !== true || !snapshot.rollRequired) {
-        throw new Error("That defense/intervention declaration has no open Roll slot.");
-      }
-      await assertResponseRollAllowedInTransaction(tx, snapshot.actionDeclarationId);
       const existing = await tx.select({
         id: campaignSessionRoll.id,
         method: campaignSessionRoll.method,
@@ -535,11 +535,15 @@ async function recordRollInternal(
         ) {
           throw new Error("This response Roll slot already has different immutable history.");
         }
-        const page = await readRollLedgerInTransaction(tx, actor, session.id, { beforeId: existing[0].id + 1, limit: 1 });
+        const page = await readRollLedgerInternal(tx, actor, session.id, { beforeId: existing[0].id + 1, limit: 1 }, existing[0].id);
         const entry = page.rolls.find(({ id }) => id === existing[0]!.id);
         if (!entry) throw new Error("The existing immutable response Roll is not readable by this authorized actor.");
         return entry;
       }
+      if (reaction.status !== "declared" || reaction.rollRequired !== true || !snapshot.rollRequired) {
+        throw new Error("That defense/intervention declaration has no open Roll slot.");
+      }
+      await assertResponseRollAllowedInTransaction(tx, snapshot.actionDeclarationId);
     }
   }
 
@@ -623,7 +627,7 @@ async function recordRollInternal(
       outcome.resultTotal === 1 || outcome.resultTotal === 100,
     );
   }
-  const page = await readRollLedgerInTransaction(tx, actor, session.id, { beforeId: created.id + 1, limit: 1 });
+  const page = await readRollLedgerInternal(tx, actor, session.id, { beforeId: created.id + 1, limit: 1 }, created.id);
   const entry = page.rolls.find(({ id }) => id === created.id);
   if (!entry) throw new Error("The persisted Roll could not be reloaded.");
   return entry;
@@ -635,7 +639,30 @@ export async function recordRollInTransaction(
   input: RollRecordRequest,
   randomSource: RollRandomSource = secureRandomSource,
 ): Promise<RollLedgerEntry> {
+  await assertRollRequestRevealed(tx, input);
   return recordRollInternal(tx, actor, input, randomSource, null);
+}
+
+async function assertRollRequestRevealed(tx: RollRuntimeTransaction, input: RollRecordRequest): Promise<void> {
+  if (input.pendingActionId != null) {
+    const [declaration] = await tx.select({ checkpointId: campaignSessionEncounterActionDeclaration.checkpointId })
+      .from(campaignSessionEncounterActionDeclaration).where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, input.pendingActionId)).limit(1);
+    await assertDeclarationCheckpointRevealed(tx, declaration?.checkpointId ?? null);
+  }
+  if (input.reactionId != null) {
+    const [reaction] = await tx.select({ checkpointId: campaignSessionEncounterReaction.checkpointId })
+      .from(campaignSessionEncounterReaction).where(eq(campaignSessionEncounterReaction.id, input.reactionId)).limit(1);
+    await assertDeclarationCheckpointRevealed(tx, reaction?.checkpointId ?? null);
+  }
+}
+
+// Internal atomic-declaration receipt only. Public mutations return identities,
+// and public projections continue to hide every sealed result, including one's own.
+export async function recordDeclarationRollInTransaction(
+  tx: RollRuntimeTransaction, actor: AuthorizedRollActor, input: RollRecordRequest,
+  frozenGoverningSource: RollGoverningSourceSnapshot | null = null,
+): Promise<RollLedgerEntry> {
+  return recordRollInternal(tx, actor, input, secureRandomSource, frozenGoverningSource);
 }
 
 /**
@@ -650,6 +677,7 @@ export async function recordFrozenRollInTransaction(
   frozenGoverningSource: RollGoverningSourceSnapshot,
   randomSource: RollRandomSource = secureRandomSource,
 ): Promise<RollLedgerEntry> {
+  await assertRollRequestRevealed(tx, input);
   return recordRollInternal(tx, actor, input, randomSource, frozenGoverningSource);
 }
 
@@ -848,6 +876,16 @@ export async function readRollLedgerInTransaction(
   sessionId: number,
   filters: RollLedgerFilters = {},
 ): Promise<RollLedgerPage> {
+  return readRollLedgerInternal(tx, actor, sessionId, filters);
+}
+
+async function readRollLedgerInternal(
+  tx: RollRuntimeTransaction,
+  actor: AuthorizedRollActor,
+  sessionId: number,
+  filters: RollLedgerFilters,
+  sealedReceiptRollId: number | null = null,
+): Promise<RollLedgerPage> {
   const normalizedSessionId = positiveId(sessionId, "Session");
   const [session] = await tx.select({ id: campaignSession.id })
     .from(campaignSession)
@@ -873,6 +911,7 @@ export async function readRollLedgerInTransaction(
   const clauses: SQL[] = [
     eq(campaignSessionRoll.sessionId, normalizedSessionId),
     eq(campaignSessionRoll.campaignId, actor.campaignId),
+    sealedReceiptRollId === null ? revealedCombatRollPredicate() : eq(campaignSessionRoll.id, sealedReceiptRollId),
   ];
   if (actor.readAs === "god-owner") {
     clauses.push(inArray(campaignSessionRoll.visibility, readableRollVisibilities(actor.readAs)));

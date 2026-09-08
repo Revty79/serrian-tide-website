@@ -1,4 +1,12 @@
 import "server-only";
+import { isDeepStrictEqual } from "node:util";
+import {
+  assertDeclarationCheckpointRevealed,
+  beginDeclarationCheckpointInTransaction,
+  finishDeclarationCheckpointChoiceInTransaction,
+  assertNoOpenDeclarationCheckpoint,
+} from "./declaration-checkpoint-service";
+import { recordDeclarationRollInTransaction } from "./roll-runtime-service";
 
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -60,7 +68,7 @@ import {
   type IndividualDefenseOutcome,
   type OriginalActionDisposition,
 } from "./defense-intervention";
-import { applyDirectInitiativeDelta } from "./initiative-runtime";
+import { applyDirectInitiativeDelta, canParticipantReactToAction, canHoldingParticipantIntervene } from "./initiative-runtime";
 import type { PercentileTargetModifier } from "./percentile-resolution";
 import type { RollGoverningSourceRequest } from "./roll-mechanical-snapshot";
 import type { RollMethod, RollVisibility } from "./roll-runtime";
@@ -297,7 +305,7 @@ async function loadResponseContext(
     eq(campaignSessionEncounterActionDeclaration.pendingActionId, opportunity.pendingActionId),
     eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
   )).limit(1).for("update");
-  if (!declaration || declaration.status !== "committed") {
+  if (!declaration || !["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(declaration.status)) {
     throw new Error("Response declarations require the exact open Pass 6 declaration window.");
   }
   const [pendingAction] = await tx.select().from(campaignSessionEncounterPendingAction).where(and(
@@ -307,17 +315,13 @@ async function loadResponseContext(
   if (!pendingAction || !["active", "completed"].includes(pendingAction.status)) {
     throw new Error("The related pending action cannot accept a response.");
   }
-  if (opportunity.windowSequence === 1) {
-    const existingRolls = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll)
-      .leftJoin(campaignSessionEncounterReaction, eq(campaignSessionRoll.reactionId, campaignSessionEncounterReaction.id))
-      .where(and(
-        eq(campaignSessionRoll.encounterId, context.encounterId),
-        eq(campaignSessionEncounterReaction.pendingActionId, opportunity.pendingActionId),
-      )).limit(1);
-    const actionRoll = await tx.select({ id: campaignSessionRoll.id }).from(campaignSessionRoll).where(
-      eq(campaignSessionRoll.pendingActionId, opportunity.pendingActionId),
-    ).limit(1);
-    if (existingRolls[0] || actionRoll[0]) throw new Error("All initial responses must be declared before the first related Roll.");
+  await assertDeclarationCheckpointRevealed(tx, declaration.checkpointId);
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const participant = engine.participants.find(({ characterId }) => characterId === opportunity.responderCharacterId);
+  if (!participant || !["active", "holding"].includes(participant.participationStatus) || participant.currentInitiative <= 0
+    || opportunity.source !== "god-exception" && !canParticipantReactToAction(pendingAction, participant.currentInitiative)
+      && !canHoldingParticipantIntervene(engine.runtime, participant)) {
+    throw new Error("The response is outside the current Initiative window; confirm a specific exceptional opportunity if the fiction permits it.");
   }
   return { opportunity, declaration, pendingAction, lockedAction: parseLockedActionDeclarationSnapshot(declaration.lockedSnapshotJson) };
 }
@@ -774,7 +778,23 @@ export async function declareDefenseInterventionInTransaction(
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
   input: DefenseDeclarationInput,
+  rollInput: { method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility; notes?: string } = { method: "random" },
 ): Promise<number> {
+  const [previousOpportunity] = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
+    eq(campaignSessionEncounterResponderOpportunity.id, input.opportunityId),
+    eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId),
+  )).limit(1).for("update");
+  if (previousOpportunity?.reactionId != null) {
+    await assertResponseChoiceAuthority(tx, context, actor, previousOpportunity.responderCharacterId);
+    const [receipt] = await tx.select().from(campaignSessionEncounterReactionEvent).where(and(
+      eq(campaignSessionEncounterReactionEvent.reactionId, previousOpportunity.reactionId),
+      eq(campaignSessionEncounterReactionEvent.eventKind, input.reactionType === "no-reaction" ? "no-defense-declared" : "response-declared"),
+    )).limit(1);
+    if (!isDeepStrictEqual((receipt?.metadata as { request?: unknown } | undefined)?.request, JSON.parse(JSON.stringify(input)))) {
+      throw new Error("This opportunity already has a different immutable response choice.");
+    }
+    return previousOpportunity.reactionId;
+  }
   const loaded = await loadResponseContext(tx, context, input.opportunityId);
   await assertResponseChoiceAuthority(tx, context, actor, loaded.opportunity.responderCharacterId);
   const protectedTargetCharacterId = participantKey(input.protectedTargetCharacterId, "Protected target Participant");
@@ -808,6 +828,8 @@ export async function declareDefenseInterventionInTransaction(
     if (!tackle) throw new Error("The response does not oppose an exact declared Tackle against this Character.");
   }
   const prepared = await buildSourceAndCost(tx, context, actor, loaded, input);
+  const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, engine, loaded.opportunity.responderCharacterId, true);
   if (prepared.source.itemId !== null) {
     await lockActiveItemRootInTransaction(tx, prepared.source.itemId);
   }
@@ -845,6 +867,7 @@ export async function declareDefenseInterventionInTransaction(
     campaignId: context.campaignId,
     pendingActionId: loaded.pendingAction.id,
     reactorCharacterId: loaded.opportunity.responderCharacterId,
+    checkpointId,
     protectedTargetCharacterId,
     targetCharacterId,
     opposesReactionId,
@@ -876,6 +899,7 @@ export async function declareDefenseInterventionInTransaction(
   await insertReactionEvent(tx, context, created.id, null, noDefense ? "resolved" : "declared", noDefense ? "no-defense-declared" : "response-declared", actor.userId, snapshot.godApprovalReason, {
     opportunityId: loaded.opportunity.id,
     committedInitiativeCost: snapshot.initiativeCost,
+    request: input,
   });
   await recordActionDeclarationAuditEventInTransaction(tx, context, loaded.declaration.id, "committed", "response-declared", actor.userId, snapshot.godApprovalReason, {
     reactionId: created.id,
@@ -885,6 +909,10 @@ export async function declareDefenseInterventionInTransaction(
     committedInitiativeCost: snapshot.initiativeCost,
   });
   await refreshActionDeclarationRollingReadinessInTransaction(tx, context, loaded.declaration.id, actor.userId);
+  if (snapshot.rollRequired) await recordDeclaredResponseRollInTransaction(tx, context, actor, created.id, rollInput, true);
+  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
+    participantId: loaded.opportunity.responderCharacterId, kind: "response", declarationId: loaded.declaration.id, reactionId: created.id,
+  });
   return created.id;
 }
 
@@ -910,8 +938,10 @@ export async function recordDeclaredAttackRollInTransaction(
   actor: ActionDeclarationActor,
   declarationId: number,
   input: { method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility; manualTarget?: number | null; manualLabel?: string; notes?: string },
+  atDeclaration = false,
 ): Promise<RollLedgerEntry> {
   const { row, snapshot } = await lockedActionForRoll(tx, context, declarationId);
+  if (!atDeclaration) await assertDeclarationCheckpointRevealed(tx, row.checkpointId);
   if (actor.authority !== "god-owner" && actor.characterId !== snapshot.actorCharacterId) throw new Error("A Player may roll only their own declared action.");
   if (actor.authority === "god-owner" && actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may record this Roll.");
   const governingSource = rollGoverningRequestFromLockedActionSource(snapshot.governing?.source, snapshot.actorCharacterId)
@@ -919,7 +949,8 @@ export async function recordDeclaredAttackRollInTransaction(
       ? { kind: "manual" as const, label: boundedText(input.manualLabel, "Manual attack target label", 200, true), originalTarget: input.manualTarget }
       : null);
   if (!governingSource) throw new Error("The action has no exact locked governing source; an explicit G.O.D. manual target is required.");
-  return recordRollInTransaction(tx, rollActor(context, actor), {
+  const record = atDeclaration ? recordDeclarationRollInTransaction : recordRollInTransaction;
+  return record(tx, rollActor(context, actor), {
     sessionId: context.sessionId,
     sceneId: context.sceneId,
     encounterId: context.encounterId,
@@ -949,6 +980,7 @@ export async function recordDeclaredResponseRollInTransaction(
   actor: ActionDeclarationActor,
   reactionId: number,
   input: { method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility; notes?: string },
+  atDeclaration = false,
 ): Promise<RollLedgerEntry> {
   const [row] = await tx.select().from(campaignSessionEncounterReaction).where(and(
     eq(campaignSessionEncounterReaction.id, positiveId(reactionId, "Response declaration")),
@@ -958,10 +990,12 @@ export async function recordDeclaredResponseRollInTransaction(
     eq(campaignSessionEncounterReaction.campaignId, context.campaignId),
   )).limit(1).for("update");
   if (!row || row.declarationSnapshotJson === null) throw new Error("The exact Pass 7 response declaration was not found.");
+  if (!atDeclaration) await assertDeclarationCheckpointRevealed(tx, row.checkpointId);
   await assertActorAuthority(tx, context, actor, row.reactorCharacterId);
   const snapshot = parseDefenseInterventionSnapshot(row.declarationSnapshotJson);
   if (!snapshot.rollRequired || snapshot.source.governingSource === null) throw new Error("This response has no Roll slot.");
-  const roll = await recordRollInTransaction(tx, rollActor(context, actor), {
+  const record = atDeclaration ? recordDeclarationRollInTransaction : recordRollInTransaction;
+  const roll = await record(tx, rollActor(context, actor), {
     sessionId: context.sessionId,
     sceneId: context.sceneId,
     encounterId: context.encounterId,
@@ -976,7 +1010,9 @@ export async function recordDeclaredResponseRollInTransaction(
     notes: input.notes,
     mechanical: { governingSource: snapshot.source.governingSource, modifiers: snapshot.explicitModifiers },
   });
-  await insertReactionEvent(tx, context, row.id, row.status, row.status, "response-roll-recorded", actor.userId, "", { rollId: roll.id, method: roll.method });
+  const [recorded] = await tx.select({ id: campaignSessionEncounterReactionEvent.id }).from(campaignSessionEncounterReactionEvent)
+    .where(and(eq(campaignSessionEncounterReactionEvent.reactionId, row.id), eq(campaignSessionEncounterReactionEvent.eventKind, "response-roll-recorded"))).limit(1);
+  if (!recorded) await insertReactionEvent(tx, context, row.id, row.status, row.status, "response-roll-recorded", actor.userId, "", { rollId: roll.id, method: roll.method });
   return roll;
 }
 
@@ -1518,6 +1554,7 @@ export async function readDefenseInterventionWorkspaceInTransaction(
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
 ): Promise<DefenseInterventionWorkspaceView> {
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   if (actor.authority === "god-owner") {
     if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may read the governance workspace.");
   } else {

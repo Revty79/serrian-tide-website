@@ -206,7 +206,7 @@ test("the Shop authoring foundation remains normalized while placement is lifecy
 
 test("0035 remains the exact Shop migration and 0036 follows it", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 41);
+  assert.equal(journal.entries.length, 42);
   assert.equal(journal.entries[34]?.tag, "0034_verification_user_delete_guard");
   assert.deepEqual(journal.entries[35], {
     idx: 35,

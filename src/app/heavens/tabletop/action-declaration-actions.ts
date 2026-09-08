@@ -23,6 +23,7 @@ import {
   resumeInterruptedActionDeclarationInTransaction,
   reviseLockedActionDeclarationInTransaction,
   type ActionDeclarationWorkspaceView,
+  type DeclarationRollInput,
 } from "@/features/tabletop-operations/action-declaration-service";
 import type { ActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
 import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
@@ -110,9 +111,9 @@ export async function reviseLockedActionDeclaration(encounterId: number, declara
   ));
 }
 
-export async function commitActionDeclaration(encounterId: number, declarationId: number): Promise<number> {
+export async function commitActionDeclaration(encounterId: number, declarationId: number, roll?: DeclarationRollInput): Promise<number> {
   return mutateDeclaration(encounterId, (tx, context, actor) => (
-    commitActionDeclarationInTransaction(tx, context, actor, positiveId(declarationId, "Action declaration"))
+    commitActionDeclarationInTransaction(tx, context, actor, positiveId(declarationId, "Action declaration"), roll)
   ));
 }
 

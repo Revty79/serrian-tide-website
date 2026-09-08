@@ -770,6 +770,7 @@ export const campaignSessionEncounterReaction = pgTable(
     campaignId: integer("campaign_id").notNull(),
     pendingActionId: integer("pending_action_id").notNull(),
     reactorCharacterId: integer("reactor_character_id").notNull(),
+    checkpointId: integer("checkpoint_id"),
     protectedTargetCharacterId: integer("protected_target_character_id"),
     targetCharacterId: integer("target_character_id"),
     opposesReactionId: integer("opposes_reaction_id").references(
@@ -811,6 +812,11 @@ export const campaignSessionEncounterReaction = pgTable(
         campaignSessionEncounterPendingAction.campaignId,
       ],
       name: "campaign_session_encounter_reaction_action_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.checkpointId, table.encounterId],
+      foreignColumns: [campaignSessionEncounterDeclarationCheckpoint.id, campaignSessionEncounterDeclarationCheckpoint.encounterId],
+      name: "encounter_reaction_checkpoint_fk",
     }).onDelete("restrict"),
     foreignKey({
       columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.protectedTargetCharacterId],
@@ -927,6 +933,29 @@ export const campaignSessionEncounterReactionEvent = pgTable(
   ],
 );
 
+export const campaignSessionEncounterDeclarationCheckpoint = pgTable(
+  "campaign_session_encounter_declaration_checkpoint",
+  {
+    id: serial("id").primaryKey(),
+    encounterId: integer("encounter_id").notNull().references(() => campaignSessionEncounter.id, { onDelete: "restrict" }),
+    roundNumber: integer("round_number").notNull(),
+    timelineInitiative: doublePrecision("timeline_initiative").notNull(),
+    participantIdsJson: jsonb("participant_ids_json").$type<number[]>().notNull(),
+    choicesJson: jsonb("choices_json").$type<Array<{ participantId: number; kind: "action" | "response" | "hold" | "pass"; declarationId: number | null; reactionId: number | null }>>().default([]).notNull(),
+    beforeStateJson: jsonb("before_state_json").notNull(),
+    revealedAt: timestamp("revealed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("encounter_checkpoint_open_uq").on(table.encounterId).where(sql`${table.revealedAt} IS NULL`),
+    unique("encounter_checkpoint_identity_uq").on(table.id, table.encounterId),
+    check("encounter_checkpoint_round_positive", sql`${table.roundNumber} > 0`),
+    check("encounter_checkpoint_members_array", sql`jsonb_typeof(${table.participantIdsJson}) = 'array' AND jsonb_array_length(${table.participantIdsJson}) > 0`),
+    check("encounter_checkpoint_choices_array", sql`jsonb_typeof(${table.choicesJson}) = 'array'`),
+    check("encounter_checkpoint_before_object", sql`jsonb_typeof(${table.beforeStateJson}) = 'object'`),
+  ],
+);
+
 export const campaignSessionEncounterActionDeclaration = pgTable(
   "campaign_session_encounter_action_declaration",
   {
@@ -937,6 +966,7 @@ export const campaignSessionEncounterActionDeclaration = pgTable(
     campaignId: integer("campaign_id").notNull(),
     actorCharacterId: integer("actor_character_id").notNull(),
     pendingActionId: integer("pending_action_id"),
+    checkpointId: integer("checkpoint_id"),
     supersedesDeclarationId: integer("supersedes_declaration_id"),
     status: campaignSessionEncounterActionDeclarationStatus("status").default("draft").notNull(),
     versionNumber: integer("version_number").default(1).notNull(),
@@ -958,6 +988,11 @@ export const campaignSessionEncounterActionDeclaration = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.checkpointId, table.encounterId],
+      foreignColumns: [campaignSessionEncounterDeclarationCheckpoint.id, campaignSessionEncounterDeclarationCheckpoint.encounterId],
+      name: "encounter_declaration_checkpoint_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.actorCharacterId],
       foreignColumns: [

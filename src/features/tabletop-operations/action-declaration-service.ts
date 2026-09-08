@@ -62,6 +62,19 @@ import {
 } from "./runtime-integration-service";
 import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import {
+  beginDeclarationCheckpointInTransaction,
+  finishDeclarationCheckpointChoiceInTransaction,
+  readOpenDeclarationCheckpoint,
+  projectRevealedInitiativeInTransaction,
+  assertDeclarationCheckpointRevealed,
+} from "./declaration-checkpoint-service";
+import type { RollMethod, RollVisibility } from "./roll-runtime";
+
+export type DeclarationRollInput = {
+  method: RollMethod; enteredTotal?: number | null; visibility?: RollVisibility;
+  manualTarget?: number | null; manualLabel?: string; notes?: string;
+};
 
 export type ActionDeclarationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -162,6 +175,7 @@ export type ActionDeclarationWorkspaceView = Readonly<{
     }>[];
   }>[];
   declarations: readonly ActionDeclarationView[];
+  checkpoint?: null | { id: number; participantIds: readonly number[]; committedParticipantIds: readonly number[] };
   run: readonly HasTheRunResult[];
 }>;
 
@@ -667,10 +681,12 @@ export async function commitActionDeclarationInTransaction(
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
   declarationId: number,
+  rollInput: DeclarationRollInput = { method: "random" },
 ): Promise<number> {
   const row = await lockDeclaration(tx, context, declarationId);
-  if (row.status !== "locked") throw new Error("Initiative commitment requires a locked declaration.");
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
+  if (row.pendingActionId !== null) return row.pendingActionId;
+  if (row.status !== "locked") throw new Error("Initiative commitment requires a locked declaration.");
   assertContextLive(context);
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
@@ -695,6 +711,7 @@ export async function commitActionDeclarationInTransaction(
     }
   }
   const before = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, before, snapshot.actorCharacterId, snapshot.heldIntervention);
   const sequence = await tx.execute(sql<{ id: number }>`
     select nextval(pg_get_serial_sequence('campaign_session_encounter_pending_action', 'id'))::integer as id
   `);
@@ -713,6 +730,7 @@ export async function commitActionDeclarationInTransaction(
   const now = new Date();
   await tx.update(campaignSessionEncounterActionDeclaration).set({
     pendingActionId,
+    checkpointId,
     status: "committed",
     committedByUserId: actor.userId,
     committedAt: now,
@@ -749,6 +767,16 @@ export async function commitActionDeclarationInTransaction(
       actor.userId,
     );
   }
+  const rollRequired = snapshot.authoredSource
+    ? snapshot.authoredSource.resolutionMode !== "automatic-no-roll" && snapshot.authoredSource.resolutionMode !== "manual-god-ruling"
+    : snapshot.governing !== null || rollInput.manualTarget != null;
+  if (rollRequired) {
+    const { recordDeclaredAttackRollInTransaction } = await import("./defense-intervention-service");
+    await recordDeclaredAttackRollInTransaction(tx, context, actor, declarationId, rollInput, true);
+  }
+  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
+    participantId: snapshot.actorCharacterId, kind: "action", declarationId, reactionId: null,
+  });
   return pendingActionId;
 }
 
@@ -785,6 +813,49 @@ export async function refreshActionDeclarationRollingReadinessInTransaction(
   actorUserId: string,
 ): Promise<void> {
   await reconcileRollingReadiness(tx, context, await lockDeclaration(tx, context, declarationId), actorUserId);
+}
+
+export async function reconcileActionResponseWindowsInTransaction(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  before: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
+  after: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
+): Promise<void> {
+  for (const action of after.pendingActions) {
+    const prior = before.pendingActions.find(({ id }) => id === action.id);
+    if (!prior || action.status !== "active" || prior.expectedCompletionInitiative === action.expectedCompletionInitiative) continue;
+    const [row] = await tx.select().from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, action.id)).limit(1);
+    if (!row) continue;
+    const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity)
+      .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, row.id));
+    const candidates = after.participants.filter((participant) => participant.characterId !== action.actorCharacterId
+      && ["active", "holding"].includes(participant.participationStatus) && participant.currentInitiative > 0
+      && (participant.participationStatus === "holding" && participant.currentInitiative >= after.runtime.timelineInitiative
+        || participant.currentInitiative <= action.startTimelineInitiative && participant.currentInitiative >= action.expectedCompletionInitiative));
+    const timingReason = "Response window changed with current Initiative; awareness must be confirmed separately.";
+    for (const opportunity of opportunities) {
+      if (opportunity.reactionId !== null || opportunity.source !== "initiative") continue;
+      const candidate = candidates.find(({ characterId }) => characterId === opportunity.responderCharacterId);
+      if (opportunity.status === "pending" && !candidate) {
+        await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "ineligible", reason: timingReason, rulingReason: timingReason, updatedAt: new Date() })
+          .where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
+      } else if (candidate && (opportunity.status === "pending" || opportunity.rulingReason === timingReason)) {
+        await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "pending", reachedAtInitiative: candidate.currentInitiative,
+          requiresGodConfirmation: opportunity.status === "ineligible" || opportunity.requiresGodConfirmation, rulingReason: "", updatedAt: new Date() })
+          .where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
+      }
+    }
+    const sequence = Math.max(0, ...opportunities.map(({ windowSequence }) => windowSequence)) + 1;
+    for (const candidate of candidates.filter(({ characterId }) => !opportunities.some(({ responderCharacterId }) => responderCharacterId === characterId))) {
+      await tx.insert(campaignSessionEncounterResponderOpportunity).values({ declarationId: row.id, pendingActionId: action.id,
+        encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+        responderCharacterId: candidate.characterId, source: "initiative", windowSequence: sequence,
+        reachedAtInitiative: candidate.currentInitiative, reason: timingReason, requiresGodConfirmation: true });
+    }
+    await recordEvent(tx, context, row.id, row.status, row.status, "response-window-retimed", context.ownerUserId, timingReason,
+      { previousCompletion: prior.expectedCompletionInitiative, expectedCompletion: action.expectedCompletionInitiative });
+  }
 }
 
 export async function recordActionDeclarationAuditEventInTransaction(
@@ -871,7 +942,8 @@ export async function reconcileResponderOpportunityInTransaction(
   if (!opportunity || opportunity.status !== "pending") throw new Error("Only a pending responder opportunity may be reconciled.");
   if (!opportunity.requiresGodConfirmation) throw new Error("This responder is already eligible and must choose their own response.");
   const row = await lockDeclaration(tx, context, opportunity.declarationId);
-  if (row.status !== "committed") throw new Error("Responder opportunities can be reconciled only while the declaration window is open.");
+  if (!["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) throw new Error("Responder opportunities can be reconciled only while the declaration window is open.");
+  await assertDeclarationCheckpointRevealed(tx, row.checkpointId);
   const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const next = getNextInitiativeTimelineEvent(engine);
   const pendingAction = row.pendingActionId === null ? null : engine.pendingActions.find(({ id }) => id === row.pendingActionId) ?? null;
@@ -1424,15 +1496,10 @@ export async function assertResponseRollAllowedInTransaction(
     .where(eq(campaignSessionEncounterActionDeclaration.id, positiveId(declarationId, "Action declaration")))
     .limit(1)
     .for("update");
-  if (!row || !["rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) {
-    throw new Error("A response Roll requires a fully reconciled locked action window.");
+  if (!row || !["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) {
+    throw new Error("A response Roll requires a committed action window.");
   }
-  const opportunities = await tx.select({ status: campaignSessionEncounterResponderOpportunity.status })
-    .from(campaignSessionEncounterResponderOpportunity)
-    .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, row.id));
-  if (!responderOpportunitiesAreReconciled(opportunities)) {
-    throw new Error("Every responder opportunity must be reconciled before any related Roll.");
-  }
+  // Later legitimate responders do not delay recording this declaration's Roll.
   return { declarationId: row.id, status: row.status };
 }
 
@@ -1542,7 +1609,9 @@ export async function readActionDeclarationWorkspaceInTransaction(
   } else {
     await lockPlayerCombatContextInTransaction(tx, context.encounterId, actor.characterId, actor.userId);
   }
-  const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  const engine = await projectRevealedInitiativeInTransaction(tx,
+    await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId));
+  const openCheckpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
   const identities = await tx.select({
     characterId: campaignSessionEncounterParticipant.characterId,
     participantKind: campaignSessionEncounterParticipant.participantKind,
@@ -1599,9 +1668,13 @@ export async function readActionDeclarationWorkspaceInTransaction(
           && (opportunity.status === "pending" || opportunity.reactionId !== null)
         )).map(({ declarationId }) => declarationId),
       ]);
-  const declarationRows = visibleDeclarationIds === null
+  const permittedDeclarationRows = visibleDeclarationIds === null
     ? allDeclarationRows
     : allDeclarationRows.filter(({ id }) => visibleDeclarationIds.has(id));
+  const declarationRows = permittedDeclarationRows.filter((row) => (
+    (openCheckpoint === null || row.checkpointId !== openCheckpoint.id)
+    && (!["draft", "locked"].includes(row.status) || row.createdByUserId === actor.userId)
+  ));
   const pendingById = new Map(engine.pendingActions.map((entry) => [entry.id, entry]));
   const declarations = declarationRows.map((row): ActionDeclarationView => {
     const parsedDraft = parseActionDeclarationDraft(row.draftJson);
@@ -1755,6 +1828,11 @@ export async function readActionDeclarationWorkspaceInTransaction(
       weapons: weaponsByCharacter.get(participant.characterId) ?? [],
     })),
     declarations,
+    checkpoint: openCheckpoint ? {
+      id: openCheckpoint.id,
+      participantIds: openCheckpoint.participantIdsJson,
+      committedParticipantIds: openCheckpoint.choicesJson.map(({ participantId }) => participantId),
+    } : null,
     run: engine.participants.map((participant) => {
       const currentDeclaration = [...declarations].reverse().find((declaration) => (
         declaration.actorCharacterId === participant.characterId

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
 
@@ -203,6 +204,7 @@ export async function readCombatAidEncounterInTransaction(
     .limit(1);
   if (!context) throw new Error("That Encounter no longer exists.");
   assertCampaignSessionOwner(context.ownerUserId, actingUserId);
+  await assertNoOpenDeclarationCheckpoint(tx, encounterId);
 
   const participantRows = await tx.select({
       characterId: campaignSessionEncounterParticipant.characterId,

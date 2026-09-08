@@ -125,6 +125,10 @@ function replaceParticipant(
   return {
     ...state,
     participants: state.participants.map((entry) => entry.characterId === changed.characterId ? changed : entry),
+    pendingActions: state.pendingActions.map((action) => action.actorCharacterId === changed.characterId
+      && (action.status === "active" || action.status === "interrupted")
+      ? { ...action, expectedCompletionInitiative: changed.currentInitiative - action.remainingInitiativeCost }
+      : action),
   };
 }
 
@@ -147,18 +151,19 @@ function settleAllDeferredCost(
 }
 
 function capableParticipantIds(state: InitiativeEngineState): number[] {
-  const point = state.runtime.timelineInitiative;
   return state.participants
     .filter((participant) => (
       participant.participationStatus === "active"
       || participant.participationStatus === "holding"
-    ) && participant.currentInitiative >= point)
+    ) && participant.currentInitiative > 0)
     .map(({ characterId }) => characterId);
 }
 
 function reconcileCompletedCombatStep(state: InitiativeEngineState): InitiativeEngineState {
   const capable = capableParticipantIds(state);
-  if (!capable.length) return state;
+  // A lower future opportunity is still part of the full Step. Empty/unchanged
+  // bookkeeping cannot finish a Step without any actual participation evidence.
+  if (!state.participants.some(({ lastSatisfiedStep }) => lastSatisfiedStep === state.runtime.stepNumber)) return state;
   if (!capable.every((characterId) => participantById(state, characterId).lastSatisfiedStep >= state.runtime.stepNumber)) {
     return state;
   }
@@ -374,10 +379,10 @@ export function startInitiativeAction(
     startedRound: state.runtime.roundNumber,
     completedRound: null,
   };
-  return {
+  return reconcileCompletedCombatStep({
     ...replaceParticipant(state, activeParticipant),
     pendingActions: [...state.pendingActions, action],
-  };
+  });
 }
 
 export function advanceInitiativeTimeline(
@@ -390,6 +395,7 @@ export function advanceInitiativeTimeline(
   if (targetInitiative > state.runtime.timelineInitiative) throw new Error("The Initiative timeline cannot rewind.");
   const participants = state.participants.map((entry) => ({ ...entry }));
   const pendingActions = state.pendingActions.map((entry) => ({ ...entry }));
+  let progressed = false;
 
   for (let index = 0; index < pendingActions.length; index += 1) {
     const action = pendingActions[index]!;
@@ -401,6 +407,7 @@ export function advanceInitiativeTimeline(
     const to = Math.max(0, Math.min(from, targetInitiative));
     const elapsed = Math.min(action.remainingInitiativeCost, from - to);
     if (elapsed > 0) {
+      progressed = true;
       actor = {
         ...actor,
         currentInitiative: actor.currentInitiative - elapsed,
@@ -416,6 +423,16 @@ export function advanceInitiativeTimeline(
     }
     participants[participantIndex] = actor;
     pendingActions[index] = action;
+  }
+
+  // A deliberate retained Hold participates when combat actually progresses;
+  // reading/refreshing the same point or repeating its status does not count.
+  if (progressed) {
+    for (const participant of participants) {
+      if (participant.participationStatus === "holding" && participant.currentInitiative > 0) {
+        participant.lastSatisfiedStep = state.runtime.stepNumber;
+      }
+    }
   }
 
   return reconcileCompletedCombatStep({
@@ -468,11 +485,11 @@ export function holdInitiative(state: InitiativeEngineState, characterId: number
   if (event.kind !== "normal-opportunity" || !event.characterIds.includes(characterId)) {
     throw new Error("That Participant does not have the current normal Initiative opportunity.");
   }
-  return replaceParticipant(state, {
+  return reconcileCompletedCombatStep(replaceParticipant(state, {
     ...participant,
     participationStatus: "holding",
     lastSatisfiedStep: state.runtime.stepNumber,
-  });
+  }));
 }
 
 export function passInitiative(state: InitiativeEngineState, characterId: number): InitiativeEngineState {
@@ -482,11 +499,11 @@ export function passInitiative(state: InitiativeEngineState, characterId: number
     throw new Error("Only an active or Holding Participant may Pass.");
   }
   if (activeActionFor(state, characterId)) throw new Error("A Participant with an active pending action cannot Pass.");
-  return replaceParticipant(state, {
+  return reconcileCompletedCombatStep(replaceParticipant(state, {
     ...participant,
     participationStatus: "passed",
     lastSatisfiedStep: state.runtime.stepNumber,
-  });
+  }));
 }
 
 export function setInitiativeParticipationStatus(
@@ -497,16 +514,17 @@ export function setInitiativeParticipationStatus(
   requireActiveRuntime(state);
   if (!INITIATIVE_PARTICIPATION_STATUSES.includes(status)) throw new Error("Initiative participation status is invalid.");
   const participant = participantById(state, characterId);
+  if (participant.participationStatus === status) return state;
   if (status !== "active" && activeActionFor(state, characterId)) {
     throw new Error("Resolve the Participant's active pending action before changing this status.");
   }
-  return replaceParticipant(state, {
+  return reconcileCompletedCombatStep(replaceParticipant(state, {
     ...participant,
     participationStatus: status,
     lastSatisfiedStep: status === "holding" || status === "passed"
       ? state.runtime.stepNumber
       : participant.lastSatisfiedStep,
-  });
+  }));
 }
 
 export function setCurrentInitiative(
@@ -749,7 +767,7 @@ export function advanceInitiativeRound(
   const runtime = {
     ...state.runtime,
     roundNumber: state.runtime.roundNumber + 1,
-    stepNumber: state.runtime.stepNumber + 1,
+    stepNumber: state.runtime.stepNumber,
     timelineInitiative,
   };
   const pendingActions = state.pendingActions.map((action) => {

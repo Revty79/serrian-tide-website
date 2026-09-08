@@ -28,6 +28,7 @@
     "validate:navigation": "tsx --test src/features/navigation/*.test.ts src/features/campaigns/campaign-membership.test.ts src/features/campaigns/campaign-workflow.test.ts",
     "validate:crossroads-navigation-browser": "node --import tsx scripts/crossroads-navigation-browser.test.ts",
     "validate:tabletop": "tsx --test src/features/tabletop-operations/*.test.ts",
+    "validate:combat-completion-db": "node --import tsx --test scripts/combat-completion-disposable-db.test.ts",
     "validate:tabletop-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-operations-db.test.ts",
     "validate:tabletop-locations-db": "node --conditions=react-server --import tsx --test scripts/tabletop-location-placement-db.test.ts",
     "validate:tabletop-locations-browser": "node --conditions=react-server --import tsx scripts/tabletop-location-placement-browser.test.ts",

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -1714,6 +1715,7 @@ export async function readFirearmAttackWorkspaceInTransaction(
   context: OwnedEncounterRuntimeContext,
   actorInput: FirearmAttackActorInput,
 ): Promise<FirearmAttackWorkspaceView> {
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const actor = typeof actorInput === "string" ? assertGod(context, actorInput) : actorInput;
   if (actor.authority === "god-owner") assertGod(context, actor.userId);
   else await resolveFirearmActor(tx, context, actor, actor.characterId);

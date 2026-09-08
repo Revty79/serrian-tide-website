@@ -1,4 +1,5 @@
 import "server-only";
+import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -160,6 +161,7 @@ export type PlayerCombatAvailability = Readonly<{
     | "awaiting-enrollment"
     | "runtime-closed"
     | "hierarchy-changed"
+    | "awaiting-checkpoint"
     | "ready";
   reason: string;
 }>;
@@ -766,6 +768,10 @@ async function readPlayerCombatConsole(
     combat: null,
   };
   const actor = { authority: "player" as const, userId: playerUserId, characterId: character.characterId };
+  if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) return {
+    availability: { status: "awaiting-checkpoint", reason: "The current simultaneous choices and Rolls remain sealed. Use the declaration checkpoint to finish outstanding choices." },
+    combat: null,
+  };
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const participant = engine.participants.find(({ characterId }) => characterId === character.characterId);
   if (!participant) return {
