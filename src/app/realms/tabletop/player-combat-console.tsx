@@ -1,79 +1,42 @@
 "use client";
 
-import type { ComponentProps } from "react";
-
+import Link from "next/link";
+import { useCallback, type ComponentProps } from "react";
 import { PlayerCalledCheckPanel } from "@/app/realms/characters/[characterId]/player-called-check-panel";
-import { CombatRollPanel, type CombatRollInput, type CombatRollRecorded } from "@/components/tabletop/combat-roll-panel";
-import { buildCombatRollPrompts, buildFirearmRollPrompts, type CombatRollPrompt } from "@/features/tabletop-operations/combat-roll-prompts";
-
-import { recordPlayerTabletopFreeRoll } from "./actions";
-import {
-  commitPlayerFirearmTrigger,
-  firePlayerFirearmAttack,
-  rollPlayerDeclaredAttack,
-  rollPlayerDeclaredResponse,
-} from "./player-combat-actions";
+import { CombatRunnerWorkspace } from "@/components/tabletop/combat-runner-workspace";
+import type { CombatRunnerSubmission } from "@/features/tabletop-operations/combat-runner-decision";
+import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
+import { getPlayerCombatRunner, submitPlayerCombatDecision } from "./combat-runner-actions";
 import { PlayerCombatConsole as CorePlayerCombatConsole } from "./player-combat-console-core";
 
 export { PlayerCombatIntentButton } from "./player-combat-console-core";
-
-type PlayerCombatConsoleProps = ComponentProps<typeof CorePlayerCombatConsole> & {
+type Props = ComponentProps<typeof CorePlayerCombatConsole> & {
   rolls?: readonly { id: number; effectiveResultTotal: number }[];
   calledChecks?: ComponentProps<typeof PlayerCalledCheckPanel>["view"] | null;
 };
-
-function submissionKey(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-export function PlayerCombatConsole({ calledChecks, rolls, ...props }: PlayerCombatConsoleProps) {
-  const { characterId, combat } = props;
-  const controlledIds = [characterId];
-  const prompts: CombatRollPrompt[] = [
-    ...buildCombatRollPrompts({
-      declarations: combat.declarations.declarations,
-      reactions: combat.defenses.reactions,
-      controlledParticipantIds: controlledIds,
-      allowManualTarget: false,
-    }),
-    ...buildFirearmRollPrompts(combat.firearmAttacks.attacks, controlledIds, combat.declarations.declarations),
-    {
-      key: "free", kind: "free", recordId: 0, label: "Other d100 — not an action", ready: true,
-      detail: "This is a general Roll, not an attack or defense. To resolve combat, select the named action above. If none is listed, declare your action or defense in combat first.",
-    },
-  ];
-
-  async function submit(prompt: CombatRollPrompt, input: CombatRollInput): Promise<CombatRollRecorded> {
-    const encounterId = combat.context.encounterId;
-    const roll = { method: input.method, enteredTotal: input.enteredTotal };
-    if (prompt.kind === "attack") {
-      const rollId = await rollPlayerDeclaredAttack(characterId, encounterId, prompt.recordId, roll);
-      return { rollId, text: `${prompt.label}: attack Roll recorded for this action. Required defenses are compared when ready.` };
-    }
-    if (prompt.kind === "defense") {
-      const rollId = await rollPlayerDeclaredResponse(characterId, encounterId, prompt.recordId, roll);
-      return { rollId, text: `${prompt.label}: defense Roll recorded for this attack.` };
-    }
-    if (prompt.kind === "firearm-trigger") {
-      await commitPlayerFirearmTrigger(characterId, encounterId, prompt.recordId);
-      return { text: `${prompt.label}: trigger pull committed. Continue the shot's Initiative timing.` };
-    }
-    if (prompt.kind === "firearm-roll" || prompt.kind === "firearm-finish") {
-      const rollId = await firePlayerFirearmAttack(characterId, encounterId, prompt.recordId, roll);
-      return { rollId, text: `${prompt.label}: recorded Roll saved for this shot. Combat is refreshing; any outstanding defense Rolls must finish before firing resolves.` };
-    }
-    if (prompt.kind !== "free") throw new Error("This combat Roll is no longer available. Refresh combat.");
-    const result = await recordPlayerTabletopFreeRoll(characterId, {
-      ...roll, visibility: "table", label: "General combat d100", idempotencyKey: submissionKey(),
-    });
-    return { resultTotal: result.resultTotal, text: "General d100 recorded. This Roll is not attached to an action." };
-  }
-
-  return <>
-    <CombatRollPanel rolls={rolls} prompts={prompts} onSubmit={submit} emptyMessage="Choose an action or defense below to prepare a combat Roll." />
-    {calledChecks ? <PlayerCalledCheckPanel view={calledChecks} /> : null}
-    <CorePlayerCombatConsole {...props} />
-  </>;
+export function PlayerCombatConsole(props: Props) {
+  const characterId = props.characterId;
+  const combat = props.combat;
+  const encounterId = combat.context.encounterId;
+  const read = useCallback(() => getPlayerCombatRunner(encounterId, characterId), [encounterId, characterId]);
+  const submit = useCallback((input: CombatRunnerSubmission) => submitPlayerCombatDecision(encounterId, characterId, input), [encounterId, characterId]);
+  const combatants = combat.declarations.participants.map((participant) => ({ ...participant,
+    health: participant.characterId === characterId ? props.resources.health : undefined,
+    movementMode: participant.characterId === characterId ? combat.initiative.movementMode : undefined,
+  }));
+  return <CombatRunnerWorkspace key={`${encounterId}:${characterId}`} title={props.encounterTitle}
+    round={combat.initiative.roundNumber} timeline={combat.initiative.timelineInitiative}
+    combatants={combatants} declarations={combat.declarations.declarations} defenses={combat.defenses}
+    controlledIds={[characterId]} readSnapshot={read} submitDecision={submit}
+    refreshKey={JSON.stringify([combat.initiative, combat.declarations, combat.defenses.reactions, combat.effects.plans])}
+    headerActions={<><TabletopLiveRefresh mode="player" characterId={characterId} scope="console" />
+      <Link className="st-button is-secondary" href={props.returnHref}>Tabletop reference</Link>
+      <Link className="st-button" href={`/realms/characters/${characterId}`}>{props.characterName}</Link></>}
+    renderException={() => <p>Waiting for G.O.D. or another combatant. Your own required attack and defense rolls appear in this card when ready.</p>}
+    reference={<>
+      {props.calledChecks ? <PlayerCalledCheckPanel view={props.calledChecks} /> : null}
+      <p>The guided card handles ordinary attacks and defenses. Additional Character controls remain available while their guided paths are completed.</p>
+      <CorePlayerCombatConsole {...props} />
+    </>}
+  />;
 }

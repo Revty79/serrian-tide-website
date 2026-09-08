@@ -11,7 +11,14 @@ export async function getPlayerCombatRunner(encounterId: number, characterId: nu
     const context = await lockPlayerCombatContextInTransaction(tx, encounterId, characterId, access.user.id);
     const { snapshot } = await readCombatRunnerInTransaction(tx, context);
     const own = snapshot.progression.tasks.filter((task) => task.participantId === characterId
-      && ["choose-action", "choose-response", "roll-attack", "roll-defense"].includes(task.kind));
+      && ["choose-action", "choose-response", "roll-attack", "roll-defense"].includes(task.kind)).map((task) => ({
+        ...task,
+        title: task.kind === "choose-action" ? "Choose your action" : task.kind === "choose-response" ? "Choose your response"
+          : task.kind === "roll-defense" ? "Roll your defense" : "Roll your action",
+        detail: task.kind === "choose-action" ? "Choose an action, Hold, or Pass."
+          : task.kind === "choose-response" ? "Choose your response before the related rolls."
+          : "This roll belongs to your committed action or defense. Its permitted details are shown below.",
+      }));
     // No opponent intentions, hidden eligibility, secret sources or rolls leave
     // the server through the coordination view. Existing authorized projections
     // provide the player's actual action/response details.
