@@ -233,7 +233,7 @@ async function assertActorAuthority(
   if (!owned) throw new Error("A Player may declare an action only for their own authorized Character.");
 }
 
-async function assertActionChoiceAuthority(
+export async function assertActionChoiceAuthority(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
@@ -768,7 +768,8 @@ export async function commitActionDeclarationInTransaction(
     );
   }
   const rollRequired = snapshot.authoredSource
-    ? snapshot.authoredSource.resolutionMode !== "automatic-no-roll" && snapshot.authoredSource.resolutionMode !== "manual-god-ruling"
+    ? snapshot.authoredSource.resolutionMode !== "automatic-no-roll"
+      && (snapshot.authoredSource.resolutionMode !== "manual-god-ruling" || rollInput.manualTarget != null)
     : snapshot.governing !== null || rollInput.manualTarget != null;
   if (rollRequired) {
     const { recordDeclaredAttackRollInTransaction } = await import("./defense-intervention-service");

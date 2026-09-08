@@ -86,12 +86,10 @@ import {
   canParticipantReactToAction,
   holdInitiative,
   passInitiative,
-  startInitiativeAction,
   type InitiativeEngineState,
   type PendingInitiativeActionState,
 } from "./initiative-runtime";
 import {
-  assertDurableAuthoredActionPayload,
   getReactionCommitment,
   parseDirectNumericDamage,
   parseDurablePayload,
@@ -463,14 +461,6 @@ export async function persistInitiativeEngineInTransaction(
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime);
 }
 
-async function nextPendingActionId(tx: RuntimeIntegrationTransaction): Promise<number> {
-  const result = await tx.execute(sql<{ id: number }>`
-    select nextval(pg_get_serial_sequence('campaign_session_encounter_pending_action', 'id'))::integer as id
-  `);
-  return positiveId(Number((result.rows[0] as { id?: number } | undefined)?.id), "Pending Action");
-}
-
-/** Player and G.O.D. controllers share the authoritative Initiative engine. */
 export async function holdParticipantInitiativeInTransaction(
   tx: RuntimeIntegrationTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -535,47 +525,7 @@ export async function startAuthoredActionInTransaction(
 ): Promise<AuthoredActionBinding<Record<string, unknown>>> {
   assertActiveInitiativeHierarchy(context);
   await requireEncounterParticipant(tx, context, input.sourceCharacterId, true);
-  await requireEncounterParticipants(tx, context, input.targetCharacterIds);
-  assertDurableAuthoredActionPayload(input.payload);
-  const sourceRef = cleanText(input.sourceRef, "Authored action source");
-  const state = await loadInitiativeEngineInTransaction(tx, context.encounterId);
-  const actionId = await nextPendingActionId(tx);
-  const changed = startInitiativeAction(state, {
-    id: actionId,
-    actorCharacterId: input.sourceCharacterId,
-    label: cleanText(input.label, "Authored action label"),
-    actionKind: input.sourceKind,
-    initiativeCost: positiveAmount(input.initiativeCost, "Initiative Cost"),
-    allowsMultiRound: input.allowsMultiRound,
-    heldIntervention: input.heldIntervention,
-  });
-  await persistInitiativeEngineInTransaction(tx, context, state, changed);
-  const [created] = await tx.insert(campaignSessionEncounterPendingActionSource).values({
-    pendingActionId: actionId,
-    encounterId: context.encounterId,
-    sceneId: context.sceneId,
-    sessionId: context.sessionId,
-    campaignId: context.campaignId,
-    sourceCharacterId: input.sourceCharacterId,
-    sourceKind: input.sourceKind,
-    sourceRef,
-    sourceInstanceId: input.sourceInstanceId ?? null,
-    payloadJson: JSON.stringify(input.payload),
-  }).returning();
-  if (!created) throw new Error("The authored action binding could not be saved.");
-  return {
-    id: created.id,
-    pendingActionId: created.pendingActionId,
-    encounterId: created.encounterId,
-    sourceCharacterId: created.sourceCharacterId,
-    sourceKind: created.sourceKind,
-    sourceRef: created.sourceRef,
-    sourceInstanceId: created.sourceInstanceId,
-    payload: input.payload,
-    resolutionStatus: created.resolutionStatus,
-    resolvedAt: created.resolvedAt,
-    resolutionSummary: created.resolutionSummary,
-  };
+  throw new Error("New combat actions use the locked Action Declaration and Effect Plan route. Legacy authored bindings remain readable and recoverable; they cannot create a second commitment path.");
 }
 
 function requireWieldedWeapon(

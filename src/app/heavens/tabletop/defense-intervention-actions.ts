@@ -73,8 +73,8 @@ export async function getDefenseInterventionWorkspace(encounterIdInput: number):
   });
 }
 
-export async function declareDefenseIntervention(encounterId: number, input: DefenseDeclarationInput): Promise<number> {
-  return mutate(encounterId, (tx, context, actor) => declareDefenseInterventionInTransaction(tx, context, actor, input));
+export async function declareDefenseIntervention(encounterId: number, input: DefenseDeclarationInput, roll?: { method: RollMethod; enteredTotal?: number | null }): Promise<number> {
+  return mutate(encounterId, (tx, context, actor) => declareDefenseInterventionInTransaction(tx, context, actor, input, roll));
 }
 
 export async function recordDeclaredAttackRoll(encounterId: number, declarationId: number, input: {

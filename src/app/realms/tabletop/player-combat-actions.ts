@@ -204,7 +204,7 @@ export async function startPlayerFirearmPreparation(
 export async function declarePlayerWeaponAttack(
   characterId: number,
   encounterId: number,
-  input: { targetParticipantId: number; itemId: number; instanceId: number | null; idempotencyKey: string },
+  input: { targetParticipantId: number; itemId: number; instanceId: number | null; idempotencyKey: string; roll?: { method: RollMethod; enteredTotal?: number | null } },
 ): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
     const submissionId = key(input.idempotencyKey);
@@ -269,7 +269,7 @@ export async function declarePlayerWeaponAttack(
       godNotes: "",
     });
     await lockActionDeclarationInTransaction(tx, context, actor, declarationId);
-    await commitActionDeclarationInTransaction(tx, context, actor, declarationId);
+    await commitActionDeclarationInTransaction(tx, context, actor, declarationId, input.roll);
     return declarationId;
   });
 }
@@ -277,7 +277,7 @@ export async function declarePlayerWeaponAttack(
 export async function declarePlayerDefense(
   characterId: number,
   encounterId: number,
-  input: { opportunityId: number; reactionType: "no-reaction" | "dodge" | "parry" | "block"; protectedTargetParticipantId: number; itemId?: number | null; instanceId?: number | null },
+  input: { opportunityId: number; reactionType: "no-reaction" | "dodge" | "parry" | "block"; protectedTargetParticipantId: number; itemId?: number | null; instanceId?: number | null; roll?: { method: RollMethod; enteredTotal?: number | null } },
 ): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "reaction", (tx, context, actor) => (
     declareDefenseInterventionInTransaction(tx, context, actor, {
@@ -286,7 +286,7 @@ export async function declarePlayerDefense(
       protectedTargetCharacterId: participantId(input.protectedTargetParticipantId, "Protected target"),
       itemId: input.itemId,
       instanceId: input.instanceId,
-    })
+    }, input.roll)
   ));
 }
 

@@ -43,6 +43,7 @@ import {
 import { validateCanonicalSkillPath } from "@/features/items/weapon-skill-governance";
 
 import { parseLockedActionDeclarationSnapshot } from "./action-declaration";
+import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
 import {
   cancelActionDeclarationInTransaction,
   continueActionDeclarationAfterRulingInTransaction,
@@ -70,6 +71,7 @@ import {
 } from "./defense-intervention";
 import { applyDirectInitiativeDelta, canParticipantReactToAction, canHoldingParticipantIntervene } from "./initiative-runtime";
 import type { PercentileTargetModifier } from "./percentile-resolution";
+import { parseRollGoverningSourceSnapshot } from "./roll-mechanical-snapshot";
 import type { RollGoverningSourceRequest } from "./roll-mechanical-snapshot";
 import type { RollMethod, RollVisibility } from "./roll-runtime";
 import {
@@ -566,6 +568,33 @@ async function buildSourceAndCost(
     };
   }
   if (input.reactionType === "parry" || input.reactionType === "block") {
+    if (loaded.opportunity.responderCharacterId < 0) {
+      const [occurrence] = await tx.select({ snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson })
+        .from(campaignSessionEncounterParticipant).where(and(
+          eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
+          eq(campaignSessionEncounterParticipant.characterId, loaded.opportunity.responderCharacterId),
+          eq(campaignSessionEncounterParticipant.participantKind, "creature"),
+        )).limit(1);
+      const frozen = occurrence?.snapshot as { defenses?: Array<Record<string, unknown>>; attacks?: Array<Record<string, unknown>> } | null;
+      const available = (frozen?.defenses ?? []).filter((entry) => String(entry.defenseType).toLowerCase() === input.reactionType);
+      const choices = available.length > 1 ? available.filter((entry) => entry.seedIdentity === input.sourceRef) : available;
+      const selected = choices.length === 1 ? choices[0] : null;
+      const target = selected && selected.value !== null && selected.value !== "" ? Number(selected.value) : NaN;
+      const defendingAttack = frozen?.attacks?.find((entry) => entry.canonicalId === input.sourceRef);
+      const authoredCost = defendingAttack ? resolveCreatureAttackInitiativeCost({ attackName: String(defendingAttack.attackName),
+        damage: typeof defendingAttack.damage === "number" || typeof defendingAttack.damage === "string" ? defendingAttack.damage : null }).cost : null;
+      const cost = authoredCost ?? (isGod && godReason ? input.initiativeCost ?? NaN : NaN);
+      if (!selected || !Number.isFinite(target) || !Number.isFinite(cost) || cost <= 0) {
+        throw new Error("CREATURE_DEFENSE_SOURCE_REQUIRED: select one exact authored Block/Parry defense with its numeric target and defending weapon Initiative cost; an explicit G.O.D. ruling is required for missing data.");
+      }
+      if (input.initiativeCost != null && input.initiativeCost !== cost) throw new Error("An authored Creature defense cost cannot be replaced by a submitted value.");
+      const label = `${input.reactionType}: ${String(selected.against || selected.seedIdentity || "authored Creature defense")}`;
+      const governing = { kind: "manual" as const, label, originalTarget: target };
+      return { source: { kind: "creature-defense", label, itemId: null, instanceId: null, skillAllocationId: null,
+        attributeKey: null, derivedAbilityId: null, sourceRef: String(selected.seedIdentity ?? input.reactionType),
+        governingSource: governing, governingSnapshot: governing, authoredContext: { defense: selected, defendingAttack: defendingAttack ?? null } },
+      initiativeCost: cost, rollRequired: true, godReason: authoredCost === null ? godReason : "" };
+    }
     const equipment = await readCharacterEquipmentStateInTransaction(tx, loaded.opportunity.responderCharacterId);
     const itemId = optionalPositiveId(input.itemId, "Defending Item");
     const instanceId = optionalPositiveId(input.instanceId, "Defending Item instance");
@@ -949,7 +978,9 @@ export async function recordDeclaredAttackRollInTransaction(
       ? { kind: "manual" as const, label: boundedText(input.manualLabel, "Manual attack target label", 200, true), originalTarget: input.manualTarget }
       : null);
   if (!governingSource) throw new Error("The action has no exact locked governing source; an explicit G.O.D. manual target is required.");
-  const record = atDeclaration ? recordDeclarationRollInTransaction : recordRollInTransaction;
+  const record: typeof recordRollInTransaction = atDeclaration
+    ? (transaction, authorizedActor, request) => recordDeclarationRollInTransaction(transaction, authorizedActor, request, snapshot.authoredSource?.governingSnapshot ?? null)
+    : recordRollInTransaction;
   return record(tx, rollActor(context, actor), {
     sessionId: context.sessionId,
     sceneId: context.sceneId,
@@ -994,7 +1025,10 @@ export async function recordDeclaredResponseRollInTransaction(
   await assertActorAuthority(tx, context, actor, row.reactorCharacterId);
   const snapshot = parseDefenseInterventionSnapshot(row.declarationSnapshotJson);
   if (!snapshot.rollRequired || snapshot.source.governingSource === null) throw new Error("This response has no Roll slot.");
-  const record = atDeclaration ? recordDeclarationRollInTransaction : recordRollInTransaction;
+  const record: typeof recordRollInTransaction = atDeclaration
+    ? (transaction, authorizedActor, request) => recordDeclarationRollInTransaction(transaction, authorizedActor, request,
+      snapshot.source.governingSnapshot ? parseRollGoverningSourceSnapshot(snapshot.source.governingSnapshot) : null)
+    : recordRollInTransaction;
   const roll = await record(tx, rollActor(context, actor), {
     sessionId: context.sessionId,
     sceneId: context.sceneId,

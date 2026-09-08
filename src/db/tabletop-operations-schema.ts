@@ -882,7 +882,12 @@ export const campaignSessionEncounterReaction = pgTable(
     check(
       "campaign_session_encounter_reaction_defending_item_valid",
       sql`(
-        (${table.reactionType} IN ('block', 'parry') AND ${table.defendingItemId} IS NOT NULL)
+        (${table.reactionType} IN ('block', 'parry') AND (
+          ${table.defendingItemId} IS NOT NULL
+          OR (${table.reactorCharacterId} < 0 AND ${table.defendingItemId} IS NULL AND ${table.defendingInstanceId} IS NULL
+            AND coalesce(${table.declarationSnapshotJson}->'source'->>'kind' = 'creature-defense', false)
+            AND ${table.committedInitiativeCost} > 0)
+        ))
         OR (${table.reactionType} IN ('dodge', 'no-reaction') AND ${table.defendingItemId} IS NULL AND ${table.defendingInstanceId} IS NULL)
         OR (${table.reactionType} NOT IN ('block', 'parry', 'dodge', 'no-reaction'))
       )`,

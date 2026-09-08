@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -45,7 +45,6 @@ import {
   setCurrentInitiative,
   setInitiativeParticipationStatus,
   settleDeferredInitiativeCost,
-  startInitiativeAction,
   abandonPendingInitiativeAction,
   type CapacityChangeMode,
   type InitiativeEngineState,
@@ -55,6 +54,8 @@ import {
 } from "@/features/tabletop-operations/initiative-runtime";
 import { assertCampaignSessionOwner } from "@/features/tabletop-operations/session-foundation";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
+import { assertCombatParticipantKey } from "@/features/tabletop-operations/combat-participant-identity";
+import { assertActionChoiceAuthority } from "@/features/tabletop-operations/action-declaration-service";
 import { requireGod } from "@/lib/server-access";
 import {
   assertNoOpenDeclarationCheckpoint, beginDeclarationCheckpointInTransaction,
@@ -422,6 +423,7 @@ async function mutateOwnedInitiative(
     const current = await loadInitiativeEngine(tx, encounterId, true);
     if (!current) throw new Error("Initiative has not been initialized for this Encounter.");
     const disposition = options.disposition;
+    if (disposition) await assertActionChoiceAuthority(tx, context, { authority: "god-owner", userId: access.user.id }, disposition.participantId);
     if (disposition && current.participants.find(({ characterId }) => characterId === disposition.participantId)?.participationStatus === (disposition.kind === "hold" ? "holding" : "passed")) {
       return projectRevealedInitiativeInTransaction(tx, current);
     }
@@ -587,7 +589,7 @@ export async function enrollLateEncounterInitiativeParticipant(
   characterId: number,
   movementMode?: string,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
     const [encounterParticipant] = await tx
       .select({ characterId: campaignSessionEncounterParticipant.characterId })
@@ -607,15 +609,6 @@ export async function enrollLateEncounterInitiativeParticipant(
   });
 }
 
-async function nextPendingActionId(tx: TabletopTransaction): Promise<number> {
-  const result = await tx.execute(sql<{ id: number }>`
-    select nextval(pg_get_serial_sequence('campaign_session_encounter_pending_action', 'id'))::integer as id
-  `);
-  const id = Number((result.rows[0] as { id?: number } | undefined)?.id);
-  assertPositiveId(id, "Pending Action");
-  return id;
-}
-
 export async function beginGenericInitiativeAction(
   encounterId: number,
   input: {
@@ -627,11 +620,10 @@ export async function beginGenericInitiativeAction(
     heldIntervention?: boolean;
   },
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(input.actorCharacterId, "Character");
-  return mutateOwnedInitiative(encounterId, async (state, _context, tx) => startInitiativeAction(state, {
-    id: await nextPendingActionId(tx),
-    ...input,
-  }));
+  assertCombatParticipantKey(input.actorCharacterId);
+  assertPositiveId(encounterId, "Encounter");
+  await requireGod();
+  throw new Error("Create, lock, and commit an Action Declaration for this participant. Untracked generic starts are retired; the declaration ID identifies retries.");
 }
 
 export async function advanceEncounterInitiativeTimeline(encounterId: number): Promise<InitiativeRuntimeView> {
@@ -639,12 +631,12 @@ export async function advanceEncounterInitiativeTimeline(encounterId: number): P
 }
 
 export async function holdEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => holdInitiative(state, characterId), { disposition: { participantId: characterId, kind: "hold" } });
 }
 
 export async function passEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => passInitiative(state, characterId), { disposition: { participantId: characterId, kind: "pass" } });
 }
 
@@ -653,7 +645,7 @@ export async function setEncounterInitiativeParticipationStatus(
   characterId: number,
   status: InitiativeParticipationStatus,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => setInitiativeParticipationStatus(state, characterId, status));
 }
 
@@ -661,7 +653,7 @@ export async function resumeSuspendedEncounterInitiative(
   encounterId: number,
   characterId: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => {
     const participant = state.participants.find((entry) => entry.characterId === characterId);
     if (participant?.participationStatus !== "suspended") throw new Error("Only a suspended Initiative Participant may resume.");
@@ -674,7 +666,7 @@ export async function overrideCurrentEncounterInitiative(
   characterId: number,
   currentInitiative: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => setCurrentInitiative(state, characterId, currentInitiative));
 }
 
@@ -683,7 +675,7 @@ export async function applyEncounterInitiativeDelta(
   characterId: number,
   delta: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => applyDirectInitiativeDelta(state, characterId, delta));
 }
 
@@ -693,7 +685,7 @@ export async function overrideNormalEncounterInitiative(
   normalTotalInitiative: number,
   mode: CapacityChangeMode,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => changeNormalTotalInitiative(
     state,
     characterId,
@@ -708,7 +700,7 @@ export async function refreshEncounterInitiativeCapacity(
   mode: CapacityChangeMode,
   movementMode?: string,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
     const capacity = await resolveInitiativeCapacityInTransaction(tx, characterId, context.campaignId, movementMode);
     return changeNormalTotalInitiative(
@@ -726,7 +718,7 @@ export async function addEncounterDeferredInitiativeCost(
   characterId: number,
   amount: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => addDeferredInitiativeCost(state, characterId, amount));
 }
 
@@ -735,7 +727,7 @@ export async function settleEncounterDeferredInitiativeCost(
   characterId: number,
   amount?: number,
 ): Promise<InitiativeRuntimeView> {
-  assertPositiveId(characterId, "Character");
+  assertCombatParticipantKey(characterId);
   return mutateOwnedInitiative(encounterId, (state) => settleDeferredInitiativeCost(state, characterId, amount));
 }
 

@@ -24,7 +24,7 @@ test("appearance persistence is a constrained singleton at migration 0037", () =
   assert.match(migration, /CREATE TABLE "site_appearance_setting"/);
   assert.match(migration, /site_appearance_singleton_key/);
   assert.match(migration, /site_appearance_preset_valid/);
-  assert.equal(journal.entries.length, 42);
+  assert.equal(journal.entries.length, 43);
   assert.equal(journal.entries[37]?.idx, 37);
   assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
   assert.equal(journal.entries[38]?.tag, "0038_tabletop_location_placement");

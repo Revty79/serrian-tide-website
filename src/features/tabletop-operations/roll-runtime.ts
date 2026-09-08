@@ -143,7 +143,7 @@ export function normalizeRollRecordRequest(request: RollRecordRequest): Normaliz
     sessionId: positiveId(request.sessionId, "Session"),
     sceneId,
     encounterId,
-    rollerCharacterId: optionalPositiveId(request.rollerCharacterId, "Roller Character"),
+    rollerCharacterId: optionalParticipantKey(request.rollerCharacterId, "Roller Participant"),
     targetCharacterId: optionalParticipantKey(request.targetCharacterId, "Target Participant"),
     pendingActionId,
     reactionId,

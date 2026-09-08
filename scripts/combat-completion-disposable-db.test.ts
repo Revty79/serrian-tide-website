@@ -49,11 +49,17 @@ test("combat completion service cases use a new disposable migrated PostgreSQL c
     assert.equal(ledger.rows[0].count, journal.entries.length);
     await pool.end();
     pool = null;
-    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts"]) {
-      execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", script], {
-        cwd: process.cwd(), windowsHide: true, stdio: "inherit",
-        env: { ...process.env, DATABASE_URL: databaseUrl, NODE_ENV: "test", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true" },
+    const childEnvironment = { ...process.env };
+    delete childEnvironment.NODE_TEST_CONTEXT;
+    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts"]) {
+      const output = execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
+        cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: 180_000,
+        env: { ...childEnvironment, DATABASE_URL: databaseUrl, NODE_ENV: "test", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true" },
       });
+      process.stdout.write(output);
+      const executed = /# tests (\d+)/.exec(output);
+      assert.ok(executed && Number(executed[1]) > 0, `${script} must execute tests, not silently skip its child runner.`);
+      assert.match(output, /# fail 0\b/);
     }
   } finally {
     if (pool) await pool.end();

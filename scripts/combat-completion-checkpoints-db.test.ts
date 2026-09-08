@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { eq } from "drizzle-orm";
 import { db, pool } from "@/db";
-import { campaignCharacter } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterAttribute } from "@/db/realm-schema";
 import { campaignSessionEncounterInitiative, campaignSessionEncounterInitiativeParticipant, campaignSessionRoll } from "@/db/tabletop-operations-schema";
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction, readActionDeclarationWorkspaceInTransaction } from "@/features/tabletop-operations/action-declaration-service";
 import type { ActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
@@ -20,8 +20,8 @@ if (connection.hostname !== "127.0.0.1" || connection.pathname !== "/serrian_com
 after(() => pool.end());
 const rollback = new Error("ROLLBACK_COMPLETION_CHECKPOINT_FIXTURE");
 const draft = (actorCharacterId: number, target: number): ActionDeclarationDraft => ({
-  actorCharacterId, targetCharacterIds: [target], label: "Explicit fixture action", actionKind: "fixture-action", sourceKind: "generic",
-  sourceRef: null, sourceInstanceId: null, weaponItemId: null, firingModeId: null, attackMode: "", initiativeCost: 4,
+  actorCharacterId, targetCharacterIds: [target], label: "Explicit fixture action", actionKind: "fixture-action", sourceKind: "attribute",
+  sourceRef: "DEX", sourceInstanceId: null, weaponItemId: null, firingModeId: null, attackMode: "", initiativeCost: 4,
   allowsMultiRound: false, heldIntervention: false, windowKind: "ordinary", aimDeclared: false,
   calledShot: { declared: false, label: "", assignedPenalty: null }, explicitModifiers: [], preparesForDeclarationId: null, godNotes: "Authorized numeric test override",
 });
@@ -34,6 +34,7 @@ for (const reversed of [false, true]) test(`simultaneous declaration Rolls stay 
       .where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, fixture.encounterId));
     await tx.update(campaignSessionEncounterInitiative).set({ timelineInitiative: 22, roundNumber: 1, stepNumber: 1 })
       .where(eq(campaignSessionEncounterInitiative.encounterId, fixture.encounterId));
+    await tx.insert(campaignCharacterAttribute).values([fixture.heroId, fixture.defenderId].map((characterId) => ({ characterId, attributeKey: "DEX", value: 60 })));
     const context = await lockOwnedEncounterRuntimeInTransaction(tx, fixture.encounterId, fixture.godId);
     const actor = { authority: "god-owner" as const, userId: fixture.godId };
     const reader = { readAs: "god-owner" as const, userId: fixture.godId, campaignId: fixture.campaignId, canRecordGodOnly: true };

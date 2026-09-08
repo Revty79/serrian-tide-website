@@ -295,6 +295,13 @@
       "when": 1788887325111,
       "tag": "0041_combat_declaration_checkpoints",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1788889000077,
+      "tag": "0042_creature_authored_defense",
+      "breakpoints": true
     }
   ]
 }

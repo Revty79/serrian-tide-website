@@ -560,10 +560,10 @@ async function recordRollInternal(
   }
   if (frozenGoverningSource !== null) {
     const sourceCharacterId = frozenGoverningSource.kind === "manual" ? null : frozenGoverningSource.characterId;
-    if (sourceCharacterId !== request.rollerCharacterId) {
+    if (sourceCharacterId !== null && sourceCharacterId !== request.rollerCharacterId) {
       throw new Error("Frozen Roll mechanics do not belong to the authorized rolling Character.");
     }
-    if (actor.readAs === "player" && sourceCharacterId !== actor.characterId) {
+    if (actor.readAs === "player" && sourceCharacterId !== null && sourceCharacterId !== actor.characterId) {
       throw new Error("A Player cannot use another Character's frozen Roll mechanics.");
     }
     const requestedSource = request.mechanical!.governingSource;
@@ -976,6 +976,9 @@ async function readRollLedgerInternal(
   ].filter((id): id is string => id !== null))];
   const characterRows = characterIds.length ? await tx.select({ id: campaignCharacter.id, name: campaignCharacter.name })
     .from(campaignCharacter).where(inArray(campaignCharacter.id, characterIds)) : [];
+  const creatureRows = characterIds.some((id) => id < 0) && encounterIds.length ? await tx.select({ id: campaignSessionEncounterParticipant.characterId, name: campaignSessionEncounterParticipant.displayLabel })
+    .from(campaignSessionEncounterParticipant).where(and(inArray(campaignSessionEncounterParticipant.characterId, characterIds.filter((id) => id < 0)),
+      inArray(campaignSessionEncounterParticipant.encounterId, encounterIds), eq(campaignSessionEncounterParticipant.campaignId, actor.campaignId))) : [];
   const sceneRows = sceneIds.length ? await tx.select({ id: campaignSessionScene.id, title: campaignSessionScene.title })
     .from(campaignSessionScene).where(inArray(campaignSessionScene.id, sceneIds)) : [];
   const encounterRows = encounterIds.length ? await tx.select({ id: campaignSessionEncounter.id, title: campaignSessionEncounter.title })
@@ -986,7 +989,7 @@ async function readRollLedgerInternal(
     .from(campaignSessionEncounterReaction).where(inArray(campaignSessionEncounterReaction.id, reactionIds)) : [];
   const userRows = userIds.length ? await tx.select({ id: user.id, name: user.name, username: user.username })
     .from(user).where(inArray(user.id, userIds)) : [];
-  const characterNames = new Map(characterRows.map((row) => [row.id, row.name]));
+  const characterNames = new Map([...characterRows, ...creatureRows].map((row) => [row.id, row.name]));
   const sceneTitles = new Map(sceneRows.map((row) => [row.id, row.title]));
   const encounterTitles = new Map(encounterRows.map((row) => [row.id, row.title]));
   const actionLabels = new Map(actionRows.map((row) => [row.id, row.label]));
