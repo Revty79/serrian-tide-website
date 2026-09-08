@@ -48,12 +48,14 @@ function Section({
 }
 
 export function PlayerTabletopWorkspace({
+  combatLinks,
   characters,
   view,
   shopVisit,
   shopCommerce,
 }: {
   characters: readonly PlayerTabletopCharacterOption[];
+  combatLinks?: React.ReactNode;
   view: PlayerTabletopConsoleView;
   shopVisit: ShopVisitView | null;
   shopCommerce: ShopCommerceView | null;
@@ -112,6 +114,7 @@ export function PlayerTabletopWorkspace({
         <div><span>Table state</span><strong>{view.presence.label}</strong><small>{view.presence.detail}</small></div>
       </section>
 
+      {combatLinks}
       {shopVisit ? <>
         <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} />
         {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}

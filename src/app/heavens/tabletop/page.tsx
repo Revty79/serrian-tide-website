@@ -11,6 +11,9 @@ import { getLocationPlacementWorkspace } from "./location-actions";
 import { getGodShopVisitWorkspace } from "./shop-visit-actions";
 import "./tabletop.css";
 import { TabletopWorkspace } from "./tabletop-workspace";
+import { CombatRoute } from "@/features/combat-screen/combat-route";
+import { EncounterLibrary } from "@/features/combat-screen/encounter-library";
+import { getSceneEncounterWorkspace } from "./encounter-actions";
 
 export default async function TabletopOperationsPage({
   searchParams,
@@ -20,10 +23,13 @@ export default async function TabletopOperationsPage({
     session?: string;
     scene?: string;
     workspace?: string;
+    combat?: string;
+    encounter?: string;
   }>;
 }) {
   await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const query = await searchParams;
+  if (query.combat) return <CombatRoute key={`god:${query.combat}`} scope={{ role: "god", encounterId: Number(query.combat) }} />;
   const requestedCampaignId = Number(query.campaign);
   const requestedSessionId = Number(query.session);
   const requestedSceneId = Number(query.scene);
@@ -64,10 +70,12 @@ export default async function TabletopOperationsPage({
   const calledChecks = !canOperateTable || selectedSessionId === null
     ? null
     : await getGodCalledCheckWorkspace(selectedSessionId);
+  const encounters = sceneWorkspace?.selectedSceneId ? await getSceneEncounterWorkspace(sceneWorkspace.selectedSceneId, Number(query.encounter) || null) : null;
   return (
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
       initialData={workspace}
+      encounterLibrary={encounters ? <EncounterLibrary data={encounters} /> : null}
       initialPrepData={prepWorkspace}
       initialSceneData={sceneWorkspace}
       initialLocationData={locationWorkspace}
@@ -76,7 +84,7 @@ export default async function TabletopOperationsPage({
       initialSessionCloseout={sessionCloseout}
       initialCalledChecks={calledChecks}
       requestedSessionId={selectedSessionId}
-      requestedWorkspace={canOperateTable && query.workspace === "checks" ? "checks" : null}
+      requestedWorkspace={query.workspace === "scenes" ? "scenes" : canOperateTable && query.workspace === "checks" ? "checks" : null}
     />
   );
 }

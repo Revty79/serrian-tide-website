@@ -105,6 +105,8 @@ export async function lockPlayerCombatContextInTransaction(
   encounterIdInput: number,
   characterIdInput: number,
   playerUserId: string,
+  /** Read-only screen bootstrap; all combat mutations retain the enrolled default. */
+  allowBeforeEnrollment = false,
 ): Promise<OwnedEncounterRuntimeContext> {
   const encounterId = positiveId(encounterIdInput, "Encounter");
   const characterId = positiveId(characterIdInput, "Player Character");
@@ -153,12 +155,13 @@ export async function lockPlayerCombatContextInTransaction(
       eq(campaignSessionEncounterParticipant.characterId, characterId),
       eq(campaignSessionEncounterParticipant.participantKind, "campaign-character"),
     ))
-    .innerJoin(campaignSessionEncounterInitiativeParticipant, and(
+    .leftJoin(campaignSessionEncounterInitiativeParticipant, and(
       eq(campaignSessionEncounterInitiativeParticipant.encounterId, campaignSessionEncounter.id),
       eq(campaignSessionEncounterInitiativeParticipant.characterId, characterId),
     ))
     .where(and(
       eq(campaignSessionEncounter.id, encounterId),
+      ...(allowBeforeEnrollment ? [] : [eq(campaignSessionEncounterInitiativeParticipant.characterId, characterId)]),
       isNull(campaignCharacter.archivedAt),
       isNull(campaign.archivedAt),
     ))

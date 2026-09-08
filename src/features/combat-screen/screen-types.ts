@@ -1,0 +1,14 @@
+import type { readCombatScreen } from "./screen-actions";
+export type CombatScreenScope = { role: "god"; encounterId: number } | { role: "player"; encounterId: number; characterId: number };
+export type CombatScreenData = Awaited<ReturnType<typeof readCombatScreen>>;
+export type CombatEntity = NonNullable<CombatScreenData["projection"]>["entities"][number];
+export const COMBAT_COMMANDS = ["Attack", "Cast", "Item", "Ability", "Defend", "Hold", "Move", "Called Shot"] as const;
+export type CombatCommand = typeof COMBAT_COMMANDS[number];
+export function combatScreenPrompt(data: CombatScreenData, selected: CombatEntity | undefined) {
+  if (data.pause.frozen) return "Combat is paused by the G.O.D. You can still inspect the fight.";
+  if (data.projection?.closed) return "Combat has ended. Inspect the final information and history.";
+  if (!data.initialized) return "The G.O.D. must prepare the roster and start Initiative.";
+  if (!data.projection) return "Waiting for the G.O.D. to enroll your Character in Initiative.";
+  if (!selected) return "Select a combatant to inspect it.";
+  return selected.statusText;
+}

@@ -221,6 +221,7 @@ function SessionRosterCard({
 }
 
 export function TabletopWorkspace({
+  encounterLibrary,
   initialData,
   initialPrepData,
   initialSceneData,
@@ -233,6 +234,7 @@ export function TabletopWorkspace({
   requestedWorkspace,
 }: {
   initialData: TabletopWorkspaceData;
+  encounterLibrary?: React.ReactNode;
   initialPrepData: SessionPrepWorkspaceData | null;
   initialSceneData: SceneWorkspaceData | null;
   initialLocationData: LocationPlacementWorkspace | null;
@@ -241,7 +243,7 @@ export function TabletopWorkspace({
   initialSessionCloseout: SessionCloseoutView | null;
   initialCalledChecks: CalledCheckWorkspaceView | null;
   requestedSessionId: number | null;
-  requestedWorkspace: "checks" | null;
+  requestedWorkspace: "checks" | "scenes" | null;
 }) {
   const router = useRouter();
   const selectedCampaign = initialData.campaigns.find(({ id }) => id === initialData.selectedCampaignId) ?? null;
@@ -256,7 +258,7 @@ export function TabletopWorkspace({
       && initialData.sessions.length === 0
       && selectedCampaign !== null,
   );
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>(requestedWorkspace === "checks" ? "checks" : "record");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(requestedWorkspace ?? "record");
   const [rollNavigationRequest, setRollNavigationRequest] = useState(0);
   const [rosterSearch, setRosterSearch] = useState("");
   const [busy, setBusy] = useState(false);
@@ -593,14 +595,14 @@ export function TabletopWorkspace({
             </section> : null}
           </div> : null}
 
-          {!creating && selectedSession && activeTab === "scenes" && initialSceneData ? <SceneWorkspace
+          {!creating && selectedSession && activeTab === "scenes" && initialSceneData ? <><SceneWorkspace
             key={initialSceneData.selectedSceneId ?? "no-scene"}
             initialData={initialSceneData}
             initialLocationData={initialLocationData}
             initialShopVisitData={initialShopVisitData}
             session={selectedSession}
             campaignName={selectedCampaign.name}
-          /> : null}
+          />{encounterLibrary}</> : null}
 
           {!creating && selectedSession && activeTab === "rolls" && initialRollWorkspace ? <div ref={rollWorkspaceRef} id="session-roll-workspace" tabIndex={-1} aria-label="Session Roll Tray and Ledger"><SessionRollWorkspace key={`${initialRollWorkspace.initialHistory.rolls[0]?.id ?? "empty"}:${initialRollWorkspace.initialHistory.rolls.length}`} workspace={initialRollWorkspace} /></div> : null}
 

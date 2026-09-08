@@ -6,12 +6,13 @@ import { isTabletopReferenceRoll, TABLETOP_ROLL_PURPOSES } from "./tabletop-ui-p
 
 const source = (path: string) => readFileSync(path, "utf8");
 
-test("G.O.D. pages cannot mount or load retired Encounter workspaces", () => {
+test("G.O.D. combat entry replaces retired workspaces while retaining Scene tools", () => {
   const page = source("src/app/heavens/tabletop/page.tsx");
   const workspace = source("src/app/heavens/tabletop/tabletop-workspace.tsx");
   const scene = source("src/app/heavens/tabletop/scene-workspace.tsx");
-  assert.doesNotMatch(page + workspace + scene, /EncounterWorkspace|InitiativeTracker|CombatAid|ActionDeclarationWorkspace|DefenseInterventionWorkspace|ActionEffectWorkspace|FirearmReadinessWorkspace|FirearmAttackWorkspace|PlayerCombatRulingWorkspace|WeaponGovernanceWorkspace/);
-  assert.doesNotMatch(page, /query\.(encounter|weaponCharacter|firearmCharacter)/);
+  assert.doesNotMatch(page + workspace + scene, /<(?:EncounterWorkspace|InitiativeTracker|CombatAid|ActionDeclarationWorkspace|DefenseInterventionWorkspace|ActionEffectWorkspace|FirearmReadinessWorkspace|FirearmAttackWorkspace|PlayerCombatRulingWorkspace|WeaponGovernanceWorkspace)\b/);
+  assert.match(page, /<CombatRoute/);
+  assert.match(page, /<EncounterLibrary/);
   assert.match(workspace, /<SceneWorkspace/);
   assert.match(workspace, /<CalledCheckWorkspace/);
   assert.match(scene, /<SceneLocationWorkspace/);

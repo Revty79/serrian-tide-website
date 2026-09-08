@@ -24,6 +24,8 @@ import { isTabletopReferenceRoll } from "@/features/tabletop-operations/tabletop
 
 import { PlayerTabletopWorkspace } from "./player-tabletop-workspace";
 import styles from "./player-tabletop.module.css";
+import { CombatRoute } from "@/features/combat-screen/combat-route";
+import { listPlayerCombatEncounters } from "@/features/combat-screen/screen-actions";
 
 function selectedId(value: string | string[] | undefined): number | null {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -35,7 +37,7 @@ function selectedId(value: string | string[] | undefined): number | null {
 export default async function PlayerTabletopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string | string[] }>;
+  searchParams: Promise<{ character?: string | string[]; combat?: string }>;
 }) {
   const access = await requirePlayer().catch(() => redirect("/access"));
   const characters = await listPlayerTabletopCharacters();
@@ -43,7 +45,7 @@ export default async function PlayerTabletopPage({
   const selection = resolvePlayerTabletopSelection(characters, selectedId(query.character));
 
   if (selection.kind === "single-available") {
-    redirect(`/realms/tabletop?character=${selection.characterId}`);
+    redirect(`/realms/tabletop?character=${selection.characterId}${query.combat ? `&combat=${encodeURIComponent(query.combat)}` : ""}`);
   }
 
   if (selection.kind !== "selected") {
@@ -71,6 +73,8 @@ export default async function PlayerTabletopPage({
   }
 
   const characterId = selection.character.characterId;
+  if (query.combat) return <CombatRoute key={`player:${characterId}:${query.combat}`} scope={{ role: "player", characterId, encounterId: Number(query.combat) }} />;
+  const combatEncounters = await listPlayerCombatEncounters(characterId);
   const [aggregate, runtime] = await Promise.all([
     getCharacter(characterId, false),
     readPlayerTabletopState(characterId),
@@ -123,5 +127,10 @@ export default async function PlayerTabletopPage({
     derivedAbilityUses: runtime.derivedAbilityUses,
   };
 
-  return <PlayerTabletopWorkspace characters={characters} view={view} shopVisit={shopVisit} shopCommerce={shopCommerce} />;
+  const activeEncounters = combatEncounters.filter((entry) => entry.status === "active");
+  const combatLinks = combatEncounters.length ? <section className={styles.section} aria-label="Character encounters"><h2>Encounters</h2>
+    {activeEncounters.map((entry) => <p key={entry.id}><a className="st-button is-primary" href={`/realms/tabletop?character=${characterId}&combat=${entry.id}`}>Open Combat · {entry.title}</a></p>)}
+    <details><summary>Encounter records</summary>{combatEncounters.filter((entry) => entry.status !== "active").map((entry) => <p key={entry.id}><a href={`/realms/tabletop?character=${characterId}&combat=${entry.id}`}>{entry.title} · {entry.status}</a></p>)}</details>
+  </section> : null;
+  return <PlayerTabletopWorkspace characters={characters} view={view} shopVisit={shopVisit} shopCommerce={shopCommerce} combatLinks={combatLinks} />;
 }
