@@ -7,6 +7,7 @@ import type { CombatTask } from "@/features/tabletop-operations/combat-progressi
 import type { CombatRunnerDecision, CombatRunnerSubmission } from "@/features/tabletop-operations/combat-runner-decision";
 import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
 import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
+import { canAutomaticallyProgressCombat, canControlCombatTask, selectRunnerTask } from "@/features/tabletop-operations/combat-runner-presentation";
 import { parsePhysicalPercentileInput } from "@/features/tabletop-operations/roll-runtime";
 import styles from "./combat-runner-workspace.module.css";
 
@@ -66,15 +67,20 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
     } finally { inFlight.current = false; setBusy(false); }
   }, [reload, router]);
   useEffect(() => {
-    if (!continueCombat || !snapshot?.autoContinue || paused || busy || loadError || autoAttempted.current === snapshot.revision) return;
+    if (!continueCombat || !snapshot || !canAutomaticallyProgressCombat({
+      canGovern: true, serverReady: snapshot.autoContinue, paused, toolsOpen: showTools,
+      busy, loadFailed: Boolean(loadError), revision: snapshot.revision,
+      attemptedRevision: autoAttempted.current,
+    })) return;
     autoAttempted.current = snapshot.revision;
     startTransition(() => perform(() => continueCombat({ revision: snapshot.revision, command: "continue", automatic: true }), true));
-  }, [snapshot, continueCombat, paused, busy, loadError, perform]);
+  }, [snapshot, continueCombat, paused, showTools, busy, loadError, perform]);
 
-  const canControl = (task: CombatTask) => task.kind === "eligibility" ? Boolean(continueCombat)
-    : task.participantId !== null && controlledIds.includes(task.participantId);
+  const role = continueCombat ? "god" : "player";
+  const controllers = combatants.map(({ characterId }) => ({ id: characterId, controlled: controlledIds.includes(characterId) }));
+  const canControl = (task: CombatTask) => canControlCombatTask(task, controllers, role);
   const tasks = snapshot?.progression.tasks ?? [];
-  const current = tasks.find(({ key }) => key === requestedTask) ?? tasks.find(canControl) ?? tasks[0] ?? null;
+  const current = selectRunnerTask(tasks, requestedTask, controllers, role);
   const actor = combatants.find(({ characterId }) => characterId === current?.participantId) ?? null;
   const declaration = declarations.find(({ id }) => id === current?.declarationId) ?? null;
   const isFirearm = declaration?.draft.actionKind.startsWith("firearm-") ?? false;
@@ -84,7 +90,7 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
   const decide = (decision: CombatRunnerDecision) => {
     if (snapshot && current) startTransition(() => perform(() => submitDecision({ revision: snapshot.revision, taskKey: current.key, decision })));
   };
-  return <section className={styles.runner} aria-label="Guided combat runner" data-combat-runner="connected">
+  return <section className={styles.runner} aria-label="Guided combat runner" data-combat-runner="connected" data-combat-revision={snapshot?.revision}>
     <header className={styles.header}><div><p className={styles.eyebrow}>COMBAT</p><h1>{title}</h1>
       <p>Round <strong>{round}</strong> · Combat time <strong>{timeline}</strong></p></div><div className={styles.fields}>{headerActions}</div></header>
     <div className={styles.layout}>
@@ -103,13 +109,14 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
       </aside>
       <div className={styles.main}>
         <div className={styles.flowBar}><strong>{busy ? "Saving combat…" : "What happens now"}</strong>
-          {continueCombat ? <label><input type="checkbox" checked={!paused} onChange={(event) => setPaused(!event.target.checked)} /> Automatic progression</label> : null}
+          {continueCombat ? <label><input type="checkbox" checked={!paused} onChange={(event) => { autoAttempted.current = null; setPaused(!event.target.checked); }} /> Automatic progression</label> : null}
           <button className="st-button is-secondary" type="button" disabled={busy} onClick={() => { void reload(); router.refresh(); }}>Refresh</button></div>
+        {showTools && continueCombat ? <p role="status">Automatic progression is paused while G.O.D. tools are open.</p> : null}
         {feedback ? <p className={feedback.error ? styles.error : styles.feedback} role={feedback.error ? "alert" : "status"}>{feedback.text}</p> : null}
         {loadError ? <p className={styles.error} role="alert">{loadError} Refresh to reconnect; encounter controls remain available.</p> : null}
         {!snapshot ? <p role="status">Loading the next combat decision…</p> : <>
           {tasks.length > 1 ? <nav className={styles.tasks} aria-label="Current combat decisions">{tasks.map((task) => <button type="button" className="st-button" key={task.key}
-            aria-pressed={task.key === current?.key} onClick={() => setRequestedTask(task.key)}>{task.title}</button>)}</nav> : null}
+            data-combat-task-kind={task.kind} aria-pressed={task.key === current?.key} disabled={busy} onClick={() => setRequestedTask(task.key)}>{task.title}</button>)}</nav> : null}
           {current ? <section className={styles.task} aria-label="Current combat task" data-task-kind={current.kind} data-task-key={current.key}>
             <h2>{current.title}</h2><p>{current.detail}</p>
             {declaration ? <p className={styles.actionLabel}>{declaration.actorName} — {declaration.lockedSnapshot?.label ?? declaration.draft.label}</p> : null}
