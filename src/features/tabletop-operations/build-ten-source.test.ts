@@ -56,21 +56,14 @@ test("Roll recording never mutates Initiative, Health, authored outcomes, Reacti
   assert.equal((service.match(/\.insert\(campaignSessionRoll\)/g) ?? []).length, 1);
 });
 
-test("all G.O.D. Roll surfaces reuse one tray and quick Rolls remain explicit prefills", () => {
+test("the general G.O.D. Roll tray retains secure explicit recording", () => {
   const tray = read("src/app/heavens/tabletop/roll-tray.tsx");
   const ledger = read("src/app/heavens/tabletop/roll-ledger.tsx");
-  const combat = read("src/app/heavens/tabletop/combat-aid-workspace.tsx");
-  const operations = read("src/app/heavens/tabletop/combat-aid-operations.tsx");
   const domain = read("src/features/tabletop-operations/roll-runtime.ts");
   const percentileResolution = read("src/features/tabletop-operations/percentile-resolution.ts");
   assert.match(tray, /recordGodRoll/);
   assert.doesNotMatch(tray, /Math\.random/);
   assert.match(ledger, /<RollTray/);
-  assert.match(combat, /<RollTray/);
-  assert.match(operations, /Roll for Action/);
-  assert.match(operations, /Roll for Reaction/);
-  assert.match(operations, /pendingActionId:\s*selectedPending\.id/);
-  assert.match(operations, /reactionId:\s*reaction\.id/);
   assert.match(tray, /The Roll never decides or executes an outcome/);
   assert.match(tray, /Random/);
   assert.match(tray, /Enter Physical/);
@@ -79,9 +72,8 @@ test("all G.O.D. Roll surfaces reuse one tray and quick Rolls remain explicit pr
   assert.match(tray, /Manual Roll-over Target/);
   assert.match(tray, /G\.O\.D\. Only/);
   assert.match(tray, /Show to Table/);
-  assert.doesNotMatch(`${combat}\n${operations}`, /Math\.random|randomInt/);
   assert.doesNotMatch(tray, /d20|d12|d8|d6|d4|2d6|3d10|Custom NdM/);
-  assert.match(tray, /Damage and Initiative are never rolled here/);
+  assert.doesNotMatch(tray, /getHitLocationFromPercentile|recordGodWeaponGovernanceRoll|value="encounter"/);
 });
 
 test("Session workspace exposes active table, Rolls, and Closeout without replacing existing tabs", () => {

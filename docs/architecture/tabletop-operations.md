@@ -1,5 +1,7 @@
 # Tabletop Operations Architecture Contract
 
+> **Current UI status — 8 September 2026:** the legacy combat/Encounter interfaces have been removed for a full UI rebuild. The backend contracts and database remain preserved. Build-by-build interface descriptions below are historical; see the [combat and Initiative audit](../reports/combat-and-initiative-audit-2026-09-08.md) for the current surfaces, implementation gaps, and database verification.
+
 Tabletop Operations is a tabletop aid. It organizes play, calculates deterministic mechanics, tracks objective state, and supports G.O.D. decisions. It does not run the game, choose tactics, select actions, or make narrative decisions.
 
 ## Hierarchy

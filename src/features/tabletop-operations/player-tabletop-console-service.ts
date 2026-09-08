@@ -871,11 +871,11 @@ async function readPlayerCombatConsole(
   } };
 }
 
-export async function readPlayerTabletopRuntimeInTransaction(
+async function readPlayerTabletopStateInTransaction(
   tx: PlayerTabletopConsoleTransaction,
   characterId: number,
   playerUserId: string,
-): Promise<PlayerTabletopRuntimeData> {
+): Promise<Omit<PlayerTabletopRuntimeData, "combatAvailability" | "combat" | "firearmStates">> {
     const identity = await loadPlayerCharacterContext(tx, characterId, playerUserId);
     const hierarchy = await readActiveHierarchy(tx, identity);
     const locations = hierarchy.session && hierarchy.scene
@@ -891,10 +891,8 @@ export async function readPlayerTabletopRuntimeInTransaction(
     const equipment = await readCharacterEquipmentStateInTransaction(tx, identity.characterId);
     const charges = await readCharacterItemChargeStateInTransaction(tx, identity.characterId);
     const itemEffects = await readItemEffectDetails(tx, identity.characterId);
-    const firearmStates = await readFirearmStates(tx, identity);
     const calledChecks = await readPlayerCalledCheckWorkspaceInTransaction(tx, identity.characterId, playerUserId);
     const history = await readHistory(tx, identity, playerUserId);
-    const combatState = await readPlayerCombatConsole(tx, identity, hierarchy, playerUserId);
     return {
       identity,
       hierarchy,
@@ -905,12 +903,27 @@ export async function readPlayerTabletopRuntimeInTransaction(
       equipment,
       charges,
       itemEffects,
-      firearmStates,
       calledChecks,
-      combatAvailability: combatState.availability,
-      combat: combatState.combat,
       ...history,
     };
+}
+
+// The page reads shared Character and Session state without loading retired combat workspaces.
+export async function readPlayerTabletopState(characterId: number) {
+  const access = await requirePlayer();
+  return db.transaction((tx) => readPlayerTabletopStateInTransaction(tx, characterId, access.user.id));
+}
+
+// Retained for backend consumers and combat service validation.
+export async function readPlayerTabletopRuntimeInTransaction(
+  tx: PlayerTabletopConsoleTransaction,
+  characterId: number,
+  playerUserId: string,
+): Promise<PlayerTabletopRuntimeData> {
+  const state = await readPlayerTabletopStateInTransaction(tx, characterId, playerUserId);
+  const firearmStates = await readFirearmStates(tx, state.identity);
+  const combatState = await readPlayerCombatConsole(tx, state.identity, state.hierarchy, playerUserId);
+  return { ...state, firearmStates, combatAvailability: combatState.availability, combat: combatState.combat };
 }
 
 export async function readPlayerTabletopRuntime(characterId: number): Promise<PlayerTabletopRuntimeData> {

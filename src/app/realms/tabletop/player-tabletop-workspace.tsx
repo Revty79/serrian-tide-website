@@ -14,7 +14,6 @@ import {
   PlayerTabletopItemUse,
   PlayerTabletopSpellUse,
 } from "./player-tabletop-actions";
-import { PlayerCombatConsole, PlayerCombatIntentButton } from "./player-combat-console";
 import styles from "./player-tabletop.module.css";
 import { PlayerShopVisit } from "./player-shop-visit";
 
@@ -115,7 +114,6 @@ export function PlayerTabletopWorkspace({
 
       {shopVisit ? <>
         <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} />
-        {view.encounter && view.combatAvailability.status !== "ready" ? <p className={styles.boundaryNotice} role="status">{view.combatAvailability.reason}</p> : null}
         {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
       </> : <>
 
@@ -125,9 +123,7 @@ export function PlayerTabletopWorkspace({
           <article><span>Character</span><h3>{view.identity.characterName}</h3><p>{[view.identity.raceName, view.identity.age ? `Age ${view.identity.age}` : null, view.identity.sex].filter(Boolean).join(" · ") || "No public profile details"}</p><Link href={`/realms/characters/${view.identity.characterId}`}>Open full Character Sheet</Link></article>
           <article><span>Session</span><h3>{view.session?.title ?? "No active Session"}</h3><p>{view.session ? `${view.session.rostered ? "Rostered" : "Not rostered"} · started ${dateTime(view.session.startedAt)}` : "Persistent Character tools remain available."}</p></article>
           <article><span>Scene</span><h3>{view.scene?.title ?? "No active Scene"}</h3><p>{view.scene ? [view.scene.locationLabel, view.scene.description].filter(Boolean).join(" · ") || "No public Scene description" : "This Character has no active Scene membership."}</p></article>
-          <article><span>Encounter</span><h3>{view.encounter?.title ?? "No active Encounter"}</h3>{view.encounter ? <p>{titleCase(view.encounter.encounterType)} · {view.encounter.participating ? titleCase(view.encounter.participationStatus) : "Not participating"}{view.encounter.roundNumber !== null ? ` · Round ${view.encounter.roundNumber}, Step ${view.encounter.stepNumber}` : ""}{view.encounter.currentInitiative !== null ? ` · Initiative ${view.encounter.currentInitiative}` : ""}</p> : <p>No Encounter is attached to this Character&apos;s active Scene.</p>}</article>
         </div>
-        {view.encounter && view.combatAvailability.status !== "ready" ? <p className={styles.boundaryNotice} role="status">{view.combatAvailability.reason}</p> : null}
       </Section>
 
       {view.scene ? <Section
@@ -157,7 +153,6 @@ export function PlayerTabletopWorkspace({
         </div> : <p className={styles.emptyCopy}>No Scene locations have been revealed to players.</p>}
       </Section> : null}
 
-      {view.combat ? <PlayerCombatConsole characterId={view.identity.characterId} combat={view.combat} /> : null}
 
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
 
@@ -178,17 +173,14 @@ export function PlayerTabletopWorkspace({
         </Section>
       </div>
 
-      <Section id="tabletop-items" eyebrow="OWNED SOURCES" title="Items & equipment" detail="Every owned copy remains distinct. Aggregate legacy firearms are identified and never converted implicitly.">
+      <Section id="tabletop-items" eyebrow="OWNED SOURCES" title="Items & equipment" detail="Browse owned Items and equipment.">
         {view.items.length ? <div className={styles.cardGrid}>{view.items.map((item) => <article className={styles.sourceCard} key={item.ownershipKey}>
           <header><div><span>{item.category}</span><h3>{item.name}</h3></div><strong>{item.quantity > 1 ? `×${item.quantity}` : item.equipmentState}</strong></header>
           {item.description ? <p>{item.description}</p> : null}
           <dl><div><dt>Equipment</dt><dd>{item.equipmentState}</dd></div>{item.maximumCharges !== null ? <div><dt>Charges</dt><dd>{item.currentCharges ?? "—"} / {item.maximumCharges}</dd></div> : null}</dl>
-          {item.firearmState ? <div className={styles.firearmState}><strong>{item.firearmState.selectedModeName}</strong><span>{item.firearmState.loadedRounds}{item.firearmState.capacityRounds === null ? "" : ` / ${item.firearmState.capacityRounds}`} rounds · {item.firearmState.loadedAmmunitionName ?? "No ammunition"}</span><span>{[item.firearmState.readied ? "Readied" : "Not readied", item.firearmState.requiresCycling ? "Requires cycling" : null, item.firearmState.requiresRecoilRecovery ? "Recoil recovery required" : null].filter(Boolean).join(" · ")}</span></div> : null}
           {item.effects.length ? <ul>{item.effects.map((effect, index) => <li key={index}>{effect}</li>)}</ul> : null}
-          {item.legacyAggregateFirearm ? <p className={styles.ruling}>Legacy aggregate firearm · exact per-copy readiness is unavailable and no conversion was attempted.</p> : null}
           {item.requiresGodRuling ? <p className={styles.ruling}>G.O.D. ruling required before use.</p> : null}
           {item.canUseSafely ? <PlayerTabletopItemUse characterId={view.identity.characterId} item={item} disabled={!view.presence.noncombatSourceUseAllowed} /> : null}
-          {view.combat ? <PlayerCombatIntentButton characterId={view.identity.characterId} combat={view.combat} sourceKind="item" sourceRef={item.ownershipKey} sourceInstanceId={item.instanceId} label={item.name} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No owned Items are recorded for this Character.</p>}
       </Section>
 
@@ -202,7 +194,6 @@ export function PlayerTabletopWorkspace({
           {!spell.available ? <p className={styles.ruling}>This Character does not currently resolve the required casting source.</p> : null}
           {spell.requiresGodRuling ? <p className={styles.ruling}>Missing or manual mechanics require a G.O.D. ruling.</p> : null}
           {spell.canUseSafely && spell.castSource && view.presence.noncombatSourceUseAllowed ? <PlayerTabletopSpellUse characterId={view.identity.characterId} source={spell.castSource} label={spell.name} /> : null}
-          {view.combat ? <PlayerCombatIntentButton characterId={view.identity.characterId} combat={view.combat} sourceKind="spell" sourceRef={spell.key} label={spell.name} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No known or personal Spells are recorded for this Character.</p>}
       </Section>
 
@@ -212,7 +203,6 @@ export function PlayerTabletopWorkspace({
           <p>{ability.description}</p>
           {[...ability.requirements, ...ability.costs, ...ability.limits, ...ability.effects].length ? <ul>{[...ability.requirements, ...ability.costs, ...ability.limits, ...ability.effects].map((detail, index) => <li key={index}>{detail}</li>)}</ul> : null}
           {ability.requiresGodRuling ? <p className={styles.ruling}>Manual mechanics require a G.O.D. ruling.</p> : null}
-          {view.combat ? <PlayerCombatIntentButton characterId={view.identity.characterId} combat={view.combat} sourceKind="derived-ability" sourceRef={`derived-ability:${ability.id}`} label={ability.name} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No Derived Abilities are currently possessed.</p>}
       </Section>
 
@@ -222,7 +212,7 @@ export function PlayerTabletopWorkspace({
           <div><h3>Roll ledger</h3>{view.rolls.length ? <ol>{view.rolls.map((roll) => <li key={roll.id}><strong>{roll.effectiveResultTotal} · {roll.label}</strong><span>{titleCase(roll.purposeKind)} · {titleCase(roll.visibility)} · {dateTime(roll.createdAt)}{roll.status === "voided" ? " · Voided" : ""}</span></li>)}</ol> : <p>No visible Rolls in recent rostered Sessions.</p>}</div>
           <div><h3>Effect history</h3>{priorEffects.length ? <ol>{priorEffects.map((entry) => <li key={entry.key}><strong>{entry.name}</strong><span>{entry.detail} · {dateTime(entry.at)}</span></li>)}</ol> : <p>No resolved Conditions or ended Modifiers.</p>}</div>
           <div><h3>Ability uses</h3>{view.derivedAbilityUses.length ? <ol>{view.derivedAbilityUses.map((entry) => <li key={entry.id}><strong>{entry.abilityName}</strong><span>{entry.effectSummary || entry.manualSteps || "Recorded use"} · {dateTime(entry.usedAt)}</span></li>)}</ol> : <p>No recent Derived Ability uses.</p>}</div>
-          <div><h3>Sessions</h3>{view.recentSessions.length ? <ol>{view.recentSessions.map((session) => <li key={session.id}><strong>#{session.sequenceNumber} · {session.title}</strong><span>{titleCase(session.status)} · {dateTime(session.startedAt)}</span>{session.sceneTitles.length ? <small>Scenes: {session.sceneTitles.join(", ")}</small> : null}{session.encounterTitles.length ? <small>Encounters: {session.encounterTitles.join(", ")}</small> : null}</li>)}</ol> : <p>No rostered Session history.</p>}</div>
+          <div><h3>Sessions</h3>{view.recentSessions.length ? <ol>{view.recentSessions.map((session) => <li key={session.id}><strong>#{session.sequenceNumber} · {session.title}</strong><span>{titleCase(session.status)} · {dateTime(session.startedAt)}</span>{session.sceneTitles.length ? <small>Scenes: {session.sceneTitles.join(", ")}</small> : null}</li>)}</ol> : <p>No rostered Session history.</p>}</div>
         </div>
       </Section>
       </>}

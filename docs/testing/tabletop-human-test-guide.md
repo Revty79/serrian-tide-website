@@ -1,5 +1,7 @@
 # Tabletop Operations human-test guide
 
+> **Historical combat UI guide:** as of 8 September 2026, the Encounter, Initiative, weapon-management, and Player combat screens referenced below have been removed for a rebuild. Combat browser rehearsals that depend on these controls are not current acceptance checks. Preserve the backend scenarios for the replacement interface; do not restore the retired UI or install missing fixtures to satisfy this guide. See the [current audit and validation](../reports/combat-and-initiative-audit-2026-09-08.md).
+
 This guide prepares the accepted Pass 1-14 Tabletop Operations build for structured human testing. Automated browser checks are evidence that the build is ready; they are not a substitute for the human test described here.
 
 > **Safety:** Never run this rehearsal against production. Use only a disposable local PostgreSQL database on `localhost`, `127.0.0.1`, or `::1` whose database name ends in `_dev`. Do not import canon, run a seed, backfill data, deploy, or push as part of this test.

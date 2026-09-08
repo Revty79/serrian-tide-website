@@ -1433,10 +1433,8 @@ export async function saveCharacter(
       );
       if (referencedOverrides.length) {
         const blocker = referencedOverrides[0];
-        const modeQuery = blocker.firingModeId === null ? "" : `&weaponMode=${blocker.firingModeId}`;
-        const reviewPath = `/heavens/tabletop?campaign=${blocker.campaignId}&workspace=weapons&weaponCharacter=${characterId}&weaponItem=${blocker.itemId}${modeQuery}`;
         throw new Error(
-          `Skill allocation #${blocker.allocationId} is the authoritative source for persistent weapon override #${blocker.overrideId} on ${blocker.weaponName} (${blocker.canonicalId}). Remove or replace that override in G.O.D. Tabletop before deleting the allocation: ${reviewPath}`,
+          `Skill allocation #${blocker.allocationId} is the authoritative source for persistent weapon override #${blocker.overrideId} on ${blocker.weaponName} (${blocker.canonicalId}). The override must be removed or replaced before this allocation can be deleted. Its management interface is currently unavailable; the existing allocation has been preserved.`,
         );
       }
       await tx.delete(campaignCharacterSkillAllocation).where(and(

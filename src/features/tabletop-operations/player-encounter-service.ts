@@ -8,6 +8,7 @@ import { campaignCharacter } from "@/db/realm-schema";
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterInitiative,
   campaignSessionEncounterParticipant,
   campaignSessionRoster,
   campaignSessionScene,
@@ -144,6 +145,21 @@ export async function resolveActivePlayerEncounterInTransaction(
   const rows = await query;
   if (rows.length > 1) throw new Error("The active tabletop hierarchy is ambiguous for this Character.");
   return rows[0] ?? null;
+}
+
+// Availability check for shared Character tools; does not load combat projections.
+export async function hasActivePlayerInitiativeInTransaction(
+  tx: PlayerEncounterTransaction,
+  characterId: number,
+  playerUserId: string,
+): Promise<boolean> {
+  const context = await resolveActivePlayerEncounterInTransaction(tx, characterId, playerUserId);
+  if (!context) return false;
+  const [runtime] = await tx.select({ status: campaignSessionEncounterInitiative.status })
+    .from(campaignSessionEncounterInitiative)
+    .where(eq(campaignSessionEncounterInitiative.encounterId, context.encounterId))
+    .limit(1);
+  return runtime?.status === "active";
 }
 
 export function projectPlayerEncounterView(

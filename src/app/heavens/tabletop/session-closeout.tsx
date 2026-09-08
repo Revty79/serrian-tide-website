@@ -102,26 +102,19 @@ export function SessionCloseout({
 
     <section className="session-closeout-status">
       <article><span>Scenes</span><strong>{data.scenes.completed} completed</strong><small>{data.scenes.planned} planned · {data.scenes.active} active · {data.scenes.total} total</small></article>
-      <article><span>Encounters</span><strong>{data.encounters.completed} completed</strong><small>{data.encounters.planned} planned · {data.encounters.active} active · {data.encounters.total} total</small></article>
-      <article><span>XP history</span><strong>{data.rewards.totalExperience} XP</strong><small>{data.rewards.rewardRows} Encounter reward records</small></article>
       <article><span>Roll Ledger</span><strong>{data.rolls.total} Rolls</strong><small>{data.rolls.random} random · {data.rolls.entered} entered · {data.rolls.voided} voided</small></article>
     </section>
 
     <div className="session-closeout-grid">
       <article>
         <header><span>OBJECTIVE RUNTIME</span><strong>{data.blockers.length ? "Closeout blocked" : "Ready for review"}</strong></header>
-        {data.blockers.length ? <div className="session-closeout-blockers">{data.blockers.map((blocker, index) => <p key={`${blocker.code}:${blocker.encounterId ?? blocker.sceneId ?? index}`}>{blocker.message}</p>)}</div> : <p className="session-closeout-clear">No active Scene, Encounter, Initiative, pending action, authored resolution, or Reaction remains.</p>}
-        <footer><button type="button" onClick={onOpenScenes}>Review Scenes &amp; Encounters</button>{canOperate && data.blockers.some(({ code }) => code === "called-check-pending" || code === "high-low-pending") ? <button type="button" onClick={onOpenCalledChecks}>Open Called Checks</button> : null}</footer>
+        {data.blockers.length ? <div className="session-closeout-blockers">{data.blockers.map((blocker, index) => <p key={`${blocker.code}:${blocker.encounterId ?? blocker.sceneId ?? index}`}>{blocker.message}</p>)}</div> : <p className="session-closeout-clear">No active table state blocks closeout.</p>}
+        <footer><button type="button" onClick={onOpenScenes}>Review Scenes</button>{canOperate && data.blockers.some(({ code }) => code === "called-check-pending" || code === "high-low-pending") ? <button type="button" onClick={onOpenCalledChecks}>Open Called Checks</button> : null}</footer>
       </article>
       <article>
         <header><span>WARNINGS</span><strong>{data.warnings.length}</strong></header>
         {data.warnings.length ? <ul>{data.warnings.map((warning, index) => <li key={`${warning.code}:${index}`}>{warning.message}</li>)}</ul> : <p className="session-closeout-clear">No unused preparation or unbound duration warnings.</p>}
         <small>Warnings are informational. Build 10 does not guess duration context or require deletion of unused preparation.</small>
-      </article>
-      <article>
-        <header><span>ENCOUNTER XP HISTORY</span><strong>{data.rewards.totalExperience} total</strong></header>
-        {data.rewards.recipients.length ? <div className="session-closeout-rewards">{data.rewards.recipients.map((reward) => <div key={reward.characterId}><span>{reward.characterName}</span><strong>+{reward.amount} XP</strong></div>)}</div> : <p className="session-closeout-clear">No Encounter XP was awarded in this Session.</p>}
-        <small>Derived from immutable Encounter rewards. No second Session reward ledger exists.</small>
       </article>
       <article>
         <header><span>ROLL HISTORY</span><strong>{data.rolls.total}</strong></header>

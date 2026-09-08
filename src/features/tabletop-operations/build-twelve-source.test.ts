@@ -68,24 +68,6 @@ test("browser actions accept identities and rulings, never proposed Roll outcome
   assert.doesNotMatch(actions, /targetCharacterIds|successCount|rollOutcome|authoredValueJson|resourceCostsJson/);
 });
 
-test("Tabletop consequence review shows locked evidence, separated values, audits, and no global authoring controls", () => {
-  const workspace = read("src/app/heavens/tabletop/action-effect-plan-workspace.tsx");
-  const declarations = read("src/app/heavens/tabletop/action-declaration-workspace.tsx");
-  assert.match(workspace, /Acting|Actor:/);
-  assert.match(workspace, /Governing Roll/);
-  assert.match(workspace, /Defense \/ Intervention/);
-  assert.match(workspace, /Initiative commitment/);
-  assert.match(workspace, /Authored/);
-  assert.match(workspace, /Calculated/);
-  assert.match(workspace, /G\.O\.D\. correction/);
-  assert.match(workspace, /Final applied result/);
-  assert.match(workspace, /Audit history/);
-  assert.match(workspace, /Review canonical source authoring/);
-  assert.doesNotMatch(workspace, /saveWeapon|updateItem|updateSpell|updateCreature|updateDerivedAbility/);
-  for (const kind of ["weapon", "item", "spell", "derived-ability", "skill", "attribute", "creature-attack", "creature-ability", "no-roll", "manual"]) {
-    assert.match(declarations, new RegExp(`value="${kind}"`));
-  }
-});
 
 test("complete firearm damage and ammunition automation remain outside Pass 8", () => {
   const resolver = read("src/features/tabletop-operations/action-source-resolver-service.ts");

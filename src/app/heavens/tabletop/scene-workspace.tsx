@@ -7,24 +7,12 @@ import {
   getNextSceneSequence,
   type SceneMetadataInput,
 } from "@/features/tabletop-operations/scene-foundation";
-import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
-import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
-import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
-import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
-import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
-import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
-import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
-import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
-import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
-import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/location-placement-service";
 import type { GodShopVisitWorkspace } from "@/features/tabletop-operations/shop-visit-service";
 
 import { startCampaignSession, type CampaignSessionSummary } from "./actions";
-import type { EncounterWorkspaceData } from "./encounter-actions";
-import { EncounterWorkspace } from "./encounter-workspace";
 import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
 import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 import {
@@ -150,34 +138,12 @@ export function SceneWorkspace({
   initialData,
   initialLocationData,
   initialShopVisitData,
-  initialEncounterData,
-  initialInitiativeTracker,
-  initialCombatAid,
-  initialActionDeclarations,
-  initialDefenseInterventions,
-  initialActionEffects,
-  initialFirearmReadiness,
-  initialFirearmAttacks,
-  initialPlayerCombatRulings,
-  initialCloseout,
-  initialRollWorkspace,
   session,
   campaignName,
 }: {
   initialData: SceneWorkspaceData;
   initialLocationData: LocationPlacementWorkspace | null;
   initialShopVisitData: GodShopVisitWorkspace | null;
-  initialEncounterData: EncounterWorkspaceData | null;
-  initialInitiativeTracker: InitiativeTrackerReadModel | null;
-  initialCombatAid: CombatAidEncounterView | null;
-  initialActionDeclarations: ActionDeclarationWorkspaceView | null;
-  initialDefenseInterventions: DefenseInterventionWorkspaceView | null;
-  initialActionEffects: ActionEffectWorkspaceView | null;
-  initialFirearmReadiness: FirearmWorkspaceView | null;
-  initialFirearmAttacks: FirearmAttackWorkspaceView | null;
-  initialPlayerCombatRulings: readonly PlayerCombatRulingRequestView[];
-  initialCloseout: EncounterCloseoutView | null;
-  initialRollWorkspace: RollWorkspaceView | null;
   session: CampaignSessionSummary;
   campaignName: string;
 }) {
@@ -430,22 +396,6 @@ export function SceneWorkspace({
               </div>
             </div> : null}
           </section> : null}
-
-          {!creating && selectedScene && initialEncounterData ? <EncounterWorkspace
-            key={initialEncounterData.selectedEncounterId ?? "no-encounter"}
-            initialData={initialEncounterData}
-            initialInitiativeTracker={initialInitiativeTracker}
-            initialCombatAid={initialCombatAid}
-            initialActionDeclarations={initialActionDeclarations}
-            initialDefenseInterventions={initialDefenseInterventions}
-            initialActionEffects={initialActionEffects}
-            initialFirearmReadiness={initialFirearmReadiness}
-            initialFirearmAttacks={initialFirearmAttacks}
-            initialPlayerCombatRulings={initialPlayerCombatRulings}
-            initialCloseout={initialCloseout}
-            initialRollWorkspace={initialRollWorkspace}
-            scene={selectedScene}
-          /> : null}
         </> : <p className="tabletop-empty">Select a Scene or create a new one.</p>}
       </section>
     </div>

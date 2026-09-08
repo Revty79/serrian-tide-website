@@ -190,18 +190,3 @@ test("Pass 9 persistence is additive, exact, restrictive, and follows immutable 
   assert.match(migration, /ON DELETE restrict/);
   assert.doesNotMatch(migration, /^\s*(?:DROP|DELETE|TRUNCATE|UPDATE)\b/im);
 });
-
-test("Tabletop owns Character firearm controls without duplicating global authoring or Pass 10 attacks", () => {
-  const workspace = readFileSync(path.join(process.cwd(), "src/app/heavens/tabletop/firearm-readiness-workspace.tsx"), "utf8");
-  const actions = readFileSync(path.join(process.cwd(), "src/app/heavens/tabletop/firearm-readiness-actions.ts"), "utf8");
-  const service = readFileSync(path.join(process.cwd(), "src/features/tabletop-operations/firearm-readiness-service.ts"), "utf8");
-  assert.match(workspace, /Review canonical Equipment/);
-  assert.match(workspace, /Canonical authored/);
-  assert.match(workspace, /Frozen runtime/);
-  assert.match(workspace, /Current inventory/);
-  assert.match(workspace, /does not roll attacks, consume fired rounds, allocate bullets, or apply damage/);
-  assert.match(actions, /requireGod/);
-  assert.match(actions, /lockOwnedEncounterRuntimeInTransaction/);
-  assert.match(service, /firearm-preparation:/);
-  assert.doesNotMatch(service, /Math\.random|rollAttack|applyDamage|allocateBullet|consumeFired/i);
-});

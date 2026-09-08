@@ -6,18 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { getNextSessionSequence, type SessionMetadataInput } from "@/features/tabletop-operations/session-foundation";
 import type { SessionRosterEntityKind } from "@/features/tabletop-operations/session-roster";
-import type { InitiativeTrackerReadModel } from "@/features/tabletop-operations/initiative-tracker";
-import type { CombatAidEncounterView } from "@/features/tabletop-operations/combat-aid-service";
-import type { EncounterCloseoutView } from "@/features/tabletop-operations/encounter-closeout-service";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 import type { SessionCloseoutView } from "@/features/tabletop-operations/session-closeout-service";
-import type { GodWeaponGovernanceWorkspaceView } from "@/features/items/weapon-governance-management-service";
-import type { ActionDeclarationWorkspaceView } from "@/features/tabletop-operations/action-declaration-service";
-import type { DefenseInterventionWorkspaceView } from "@/features/tabletop-operations/defense-intervention-service";
-import type { ActionEffectWorkspaceView } from "@/features/tabletop-operations/action-effect-plan-service";
-import type { FirearmWorkspaceView } from "@/features/tabletop-operations/firearm-readiness-service";
-import type { FirearmAttackWorkspaceView } from "@/features/tabletop-operations/firearm-attack-service";
-import type { PlayerCombatRulingRequestView } from "@/features/tabletop-operations/player-combat-ruling-service";
 import type { CalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
 import { campaignAccessLabel } from "@/features/campaigns/campaign-access-designation";
 import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
@@ -42,18 +32,16 @@ import {
 import type { SceneWorkspaceData } from "./scene-actions";
 import type { LocationPlacementWorkspace } from "@/features/tabletop-operations/location-placement-service";
 import type { GodShopVisitWorkspace } from "@/features/tabletop-operations/shop-visit-service";
-import type { EncounterWorkspaceData } from "./encounter-actions";
 import { SceneWorkspace } from "./scene-workspace";
 import { SessionRollWorkspace } from "./roll-ledger";
 import { SessionCloseout } from "./session-closeout";
-import { WeaponGovernanceWorkspace } from "./weapon-governance-workspace";
 import { CalledCheckWorkspace } from "./called-check-workspace";
 import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
 import { SessionLocationPreparation } from "./location-workspace";
 import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
-type WorkspaceTab = "record" | "prep" | "scenes" | "rolls" | "checks" | "weapons" | "closeout";
+type WorkspaceTab = "record" | "prep" | "scenes" | "rolls" | "checks" | "closeout";
 
 const rosterGroups: { kind: SessionRosterEntityKind; title: string }[] = [
   { kind: "pc", title: "Player Characters" },
@@ -238,20 +226,9 @@ export function TabletopWorkspace({
   initialSceneData,
   initialLocationData,
   initialShopVisitData,
-  initialEncounterData,
-  initialInitiativeTracker,
-  initialCombatAid,
-  initialActionDeclarations,
-  initialDefenseInterventions,
-  initialActionEffects,
-  initialFirearmReadiness,
-  initialFirearmAttacks,
-  initialPlayerCombatRulings,
-  initialCloseout,
   initialRollWorkspace,
   initialSessionCloseout,
   initialCalledChecks,
-  initialWeaponGovernance,
   requestedSessionId,
   requestedWorkspace,
 }: {
@@ -260,22 +237,11 @@ export function TabletopWorkspace({
   initialSceneData: SceneWorkspaceData | null;
   initialLocationData: LocationPlacementWorkspace | null;
   initialShopVisitData: GodShopVisitWorkspace | null;
-  initialEncounterData: EncounterWorkspaceData | null;
-  initialInitiativeTracker: InitiativeTrackerReadModel | null;
-  initialCombatAid: CombatAidEncounterView | null;
-  initialActionDeclarations: ActionDeclarationWorkspaceView | null;
-  initialDefenseInterventions: DefenseInterventionWorkspaceView | null;
-  initialActionEffects: ActionEffectWorkspaceView | null;
-  initialFirearmReadiness: FirearmWorkspaceView | null;
-  initialFirearmAttacks: FirearmAttackWorkspaceView | null;
-  initialPlayerCombatRulings: readonly PlayerCombatRulingRequestView[];
-  initialCloseout: EncounterCloseoutView | null;
   initialRollWorkspace: RollWorkspaceView | null;
   initialSessionCloseout: SessionCloseoutView | null;
   initialCalledChecks: CalledCheckWorkspaceView | null;
-  initialWeaponGovernance: GodWeaponGovernanceWorkspaceView | null;
   requestedSessionId: number | null;
-  requestedWorkspace: "weapons" | "checks" | null;
+  requestedWorkspace: "checks" | null;
 }) {
   const router = useRouter();
   const selectedCampaign = initialData.campaigns.find(({ id }) => id === initialData.selectedCampaignId) ?? null;
@@ -288,10 +254,9 @@ export function TabletopWorkspace({
   const [creating, setCreating] = useState(
     initialData.canAuthor
       && initialData.sessions.length === 0
-      && selectedCampaign !== null
-      && requestedWorkspace !== "weapons",
+      && selectedCampaign !== null,
   );
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>(requestedWorkspace === "weapons" ? "weapons" : requestedWorkspace === "checks" ? "checks" : "record");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(requestedWorkspace === "checks" ? "checks" : "record");
   const [rollNavigationRequest, setRollNavigationRequest] = useState(0);
   const [rosterSearch, setRosterSearch] = useState("");
   const [busy, setBusy] = useState(false);
@@ -440,22 +405,6 @@ export function TabletopWorkspace({
     setRollNavigationRequest((request) => request + 1);
   }
 
-  function openWeaponGovernance(): void {
-    if (!initialData.canAuthor) return;
-    setCreating(false);
-    setActiveTab("weapons");
-    setFeedback(null);
-    if (initialData.selectedCampaignId === null || initialWeaponGovernance) return;
-    const params = new URLSearchParams({
-      campaign: String(initialData.selectedCampaignId),
-      workspace: "weapons",
-    });
-    if (selectedSession) params.set("session", String(selectedSession.id));
-    if (initialSceneData?.selectedSceneId) params.set("scene", String(initialSceneData.selectedSceneId));
-    if (initialEncounterData?.selectedEncounterId) params.set("encounter", String(initialEncounterData.selectedEncounterId));
-    router.push(`/heavens/tabletop?${params}`, { scroll: false });
-  }
-
   function openCalledChecks(): void {
     if (!initialData.canAuthor) return;
     setCreating(false);
@@ -503,14 +452,6 @@ export function TabletopWorkspace({
           >View Campaign Intro</button>
           <small>{selectedCampaign.overview.trim() ? "Opens the full introduction" : "No introduction has been written yet"}</small>
         </div>
-        {initialData.canAuthor ? <div className="tabletop-campaign-intro-control">
-          <button
-            type="button"
-            className="tabletop-campaign-intro-button"
-            onClick={openWeaponGovernance}
-          >Weapon Governance</button>
-          <small>Review Character assignments and exceptions</small>
-        </div> : null}
         <dl>
           <div><dt>Planned</dt><dd>{statusCounts.planned}</dd></div>
           <div><dt>Active</dt><dd>{statusCounts.active}</dd></div>
@@ -529,12 +470,7 @@ export function TabletopWorkspace({
       {!creating && selectedSession && initialSessionCloseout ? <section className="tabletop-active-table">
         <div><span>ACTIVE TABLE</span><strong>Session {selectedSession.sequenceNumber} · {selectedSession.title}</strong><small>{selectedSession.status}</small></div>
         <div><span>Scene</span><strong>{initialSessionCloseout.activeContext.sceneTitle ?? "No active Scene"}</strong></div>
-        <div><span>Encounter</span><strong>{initialSessionCloseout.activeContext.encounterTitle ?? "No active Encounter"}</strong></div>
-        <div><span>Initiative</span><strong>{initialSessionCloseout.activeContext.initiative ? `Round ${initialSessionCloseout.activeContext.initiative.roundNumber} / Step ${initialSessionCloseout.activeContext.initiative.stepNumber}` : "Not active"}</strong></div>
-        <footer>{initialSessionCloseout.activeContext.encounterId && initialSessionCloseout.activeContext.sceneId ? <button type="button" onClick={() => {
-          setActiveTab("scenes");
-          router.push(`/heavens/tabletop?campaign=${selectedSession.campaignId}&session=${selectedSession.id}&scene=${initialSessionCloseout.activeContext.sceneId}&encounter=${initialSessionCloseout.activeContext.encounterId}`, { scroll: false });
-        }}>Go to Active Encounter</button> : null}{initialData.canAuthor ? <><button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button></> : null}<button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
+        <footer>{initialData.canAuthor ? <><button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button></> : null}<button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
       </section> : null}
 
       <div className="tabletop-workspace">
@@ -556,7 +492,7 @@ export function TabletopWorkspace({
 
         <section className="tabletop-editor">
           <header>
-            <div><p>{creating ? "NEW SESSION" : activeTab === "record" ? "SESSION RECORD" : activeTab === "prep" ? "ROSTER & PREP" : activeTab === "scenes" ? "SCENES" : activeTab === "rolls" ? "ROLLS" : activeTab === "checks" ? "CALLED CHECKS & HIGH/LOW" : activeTab === "weapons" ? "WEAPON GOVERNANCE" : "CLOSEOUT"}</p><h2 className="font-sans">{creating ? "Plan a Session" : activeTab === "weapons" ? "Character Weapon Assignments" : selectedSession?.title ?? "Select a Session"}</h2></div>
+            <div><p>{creating ? "NEW SESSION" : activeTab === "record" ? "SESSION RECORD" : activeTab === "prep" ? "ROSTER & PREP" : activeTab === "scenes" ? "SCENES" : activeTab === "rolls" ? "ROLLS" : activeTab === "checks" ? "CALLED CHECKS & HIGH/LOW" : "CLOSEOUT"}</p><h2 className="font-sans">{creating ? "Plan a Session" : selectedSession?.title ?? "Select a Session"}</h2></div>
             {!creating && selectedSession ? <span className={`tabletop-status is-${selectedSession.status}`}>{selectedSession.status}</span> : null}
           </header>
 
@@ -566,7 +502,7 @@ export function TabletopWorkspace({
             <button type="button" className={activeTab === "scenes" ? "is-selected" : ""} onClick={() => setActiveTab("scenes")}>Scenes <span>{initialSceneData?.scenes.length ?? 0}</span></button>
             {initialData.canAuthor ? <><button type="button" className={activeTab === "rolls" ? "is-selected" : ""} onClick={openRollWorkspace}>Rolls <span>{initialSessionCloseout?.rolls.total ?? 0}</span></button>
             <button type="button" className={activeTab === "checks" ? "is-selected" : ""} onClick={openCalledChecks}>Called Checks <span>{initialCalledChecks?.batches.reduce((count, batch) => count + batch.summary.pending, 0) ?? 0}</span></button>
-            <button type="button" className={activeTab === "weapons" ? "is-selected" : ""} onClick={openWeaponGovernance}>Weapon Governance</button></> : null}
+            </> : null}
             <button type="button" className={activeTab === "closeout" ? "is-selected" : ""} onClick={() => setActiveTab("closeout")}>Closeout {initialSessionCloseout?.blockers.length ? <span>{initialSessionCloseout.blockers.length}</span> : null}</button>
           </nav> : null}
 
@@ -662,17 +598,6 @@ export function TabletopWorkspace({
             initialData={initialSceneData}
             initialLocationData={initialLocationData}
             initialShopVisitData={initialShopVisitData}
-            initialEncounterData={initialEncounterData}
-            initialInitiativeTracker={initialInitiativeTracker}
-            initialCombatAid={initialCombatAid}
-            initialActionDeclarations={initialActionDeclarations}
-            initialDefenseInterventions={initialDefenseInterventions}
-            initialActionEffects={initialActionEffects}
-            initialFirearmReadiness={initialFirearmReadiness}
-            initialFirearmAttacks={initialFirearmAttacks}
-            initialPlayerCombatRulings={initialPlayerCombatRulings}
-            initialCloseout={initialCloseout}
-            initialRollWorkspace={initialRollWorkspace}
             session={selectedSession}
             campaignName={selectedCampaign.name}
           /> : null}
@@ -683,21 +608,12 @@ export function TabletopWorkspace({
             key={selectedSession.id}
             view={initialCalledChecks}
             sceneId={initialSceneData?.selectedSceneId ?? null}
-            encounterId={initialEncounterData?.selectedEncounterId ?? null}
-          /> : null}
-
-          {!creating && activeTab === "weapons" && initialWeaponGovernance ? <WeaponGovernanceWorkspace
-            key={`${initialWeaponGovernance.selectedCharacter?.id ?? "none"}:${initialWeaponGovernance.selectedWeapon?.itemId ?? "none"}:${initialWeaponGovernance.selectedFiringModeId ?? "default"}`}
-            view={initialWeaponGovernance}
-            rollWorkspace={initialRollWorkspace}
-            sessionId={selectedSession?.id ?? null}
-            sceneId={initialSceneData?.selectedSceneId ?? null}
-            encounterId={initialEncounterData?.selectedEncounterId ?? null}
+            encounterId={null}
           /> : null}
 
           {!creating && selectedSession && activeTab === "closeout" && initialSessionCloseout ? <SessionCloseout canOperate={initialData.canOperate} data={initialSessionCloseout} onOpenScenes={() => setActiveTab("scenes")} onOpenRolls={openRollWorkspace} onOpenCalledChecks={openCalledChecks} /> : null}
 
-          {!creating && !selectedSession && activeTab !== "weapons" ? <p className="tabletop-empty">Select or create a Session to begin.</p> : null}
+          {!creating && !selectedSession ? <p className="tabletop-empty">Select or create a Session to begin.</p> : null}
         </section>
       </div>
 

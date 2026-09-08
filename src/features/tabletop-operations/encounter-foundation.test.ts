@@ -182,21 +182,6 @@ test("Encounter mutations cannot write persistent Character, NPC, or Active Stat
   assert.doesNotMatch(actions, /duration\.kind|expire.*effect|resolve.*effect/i);
 });
 
-test("Encounter UI exposes preparation and lifecycle without Initiative or combat automation", () => {
-  const page = readSource("src/app/heavens/tabletop/page.tsx");
-  const sceneWorkspace = readSource("src/app/heavens/tabletop/scene-workspace.tsx");
-  const encounterWorkspace = readSource("src/app/heavens/tabletop/encounter-workspace.tsx");
-  assert.match(page, /getSceneEncounterWorkspace/);
-  assert.match(sceneWorkspace, /<EncounterWorkspace/);
-  assert.match(encounterWorkspace, /ENCOUNTER LIBRARY/);
-  assert.match(encounterWorkspace, /Encounter Number/);
-  assert.match(encounterWorkspace, /Private G\.O\.D\. Notes/);
-  assert.match(encounterWorkspace, /Add Participant/);
-  assert.match(encounterWorkspace, /Start Encounter/);
-  assert.match(encounterWorkspace, /Preparation\/display order — not Initiative order/);
-  assert.match(encounterWorkspace, /does not roll Initiative, begin combat, or automate any action/);
-  assert.doesNotMatch(encounterWorkspace, /Roll Initiative|initiativeCost|currentInitiative|Attack Target|Apply Damage|End Turn/);
-});
 
 test("migration 0008 is additive and contains only Encounter and Participant persistence", () => {
   const migration = readSource("drizzle/0008_tabletop_operations_encounters.sql");

@@ -42,29 +42,8 @@ test("Combat Aid read model preserves authoritative identity, Initiative values,
   assert.match(service, /errors\.push\(\{ section/);
 });
 
-test("Combat Aid preserves the read summary and delegates Build 8 operations through its controller", () => {
-  const ui = read("src/app/heavens/tabletop/combat-aid-workspace.tsx");
-  const operations = read("src/app/heavens/tabletop/combat-aid-operations.tsx");
+test("retained combat controllers authorize and lock the owning Encounter", () => {
   const actions = read("src/app/heavens/tabletop/runtime-integration-actions.ts");
-  for (const label of [
-    "HEALTH",
-    "MANA",
-    "CONDITIONS &amp; MODIFIERS",
-    "UNRESOLVED INJURIES",
-    "EQUIPMENT",
-    "INVENTORY RESOURCES &amp; CHARGES",
-    "INITIATIVE",
-    "Open Initiative Tracker",
-    "Refresh State",
-  ]) assert.match(ui, new RegExp(label));
-  assert.match(ui, /participant membership is historical/);
-  assert.match(ui, /current living Campaign state/);
-  assert.match(ui, /conditions\.map\(\(\{ name \}\) => name\)/);
-  assert.doesNotMatch(ui, /from ["'].*(?:active-health-service|active-mana-service|active-effects-service|equipment-state-service|item-use|spell-runtime|creature-ability-runtime)["']/);
-  assert.match(ui, /CombatAidOperations/);
-  for (const label of ["RUNTIME STATE", "ACTIONS", "REACTIONS", "READY TO RESOLVE"]) {
-    assert.match(operations, new RegExp(label));
-  }
   assert.match(actions, /requireGod\(\)/);
   assert.match(actions, /lockOwnedEncounterRuntimeInTransaction/);
   assert.match(actions, /db\.transaction/);

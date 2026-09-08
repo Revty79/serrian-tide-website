@@ -17,7 +17,6 @@ import { parseSpellDocument } from "@/features/spell-construction/spellDocumentC
 
 import type { PlayerCalledCheckWorkspaceView } from "./called-check-service";
 import type { RollLedgerEntry } from "./roll-runtime-service";
-import type { PlayerCombatAvailability, PlayerCombatConsoleData } from "./player-tabletop-console-service";
 import type { PublicSceneLocationDirectory } from "./location-public-projection";
 
 export const PLAYER_TABLETOP_HISTORY_LIMIT = 30;
@@ -75,7 +74,7 @@ export function resolvePlayerTabletopPresence(input: {
   if (!input.hasActiveSession) return {
     kind: "no-active-session",
     label: "Waiting for an active Session",
-    detail: "Persistent Character state and owned sources remain available. No Session, Scene, or Encounter has been fabricated.",
+    detail: "Persistent Character state and owned sources remain available. Session and Scene membership are recorded by the G.O.D.",
     liveActionsAllowed: false,
     noncombatSourceUseAllowed: true,
   };
@@ -96,16 +95,14 @@ export function resolvePlayerTabletopPresence(input: {
   if (!input.hasActiveEncounter) return {
     kind: "active-scene",
     label: "Active Scene",
-    detail: "This Character is present in the current Scene. No active Encounter is attached to this Character.",
+    detail: "This Character is present in the current Scene.",
     liveActionsAllowed: true,
     noncombatSourceUseAllowed: true,
   };
   return {
     kind: "active-encounter",
-    label: input.encounterParticipant ? "Active Encounter · participating" : "Active Encounter · not participating",
-    detail: input.encounterParticipant
-      ? "Encounter state is read-only here. Complete combat controls remain outside the Pass 12 console."
-      : "An Encounter is active in this Scene, but this Character is not an Encounter Participant.",
+    label: "Active Scene",
+    detail: "This Character is present in the current Scene. Some source uses require G.O.D. timing review.",
     liveActionsAllowed: input.encounterParticipant,
     noncombatSourceUseAllowed: false,
   };
@@ -504,19 +501,6 @@ export type PlayerTabletopConsoleView = Readonly<{
     description: string;
   };
   locations: PublicSceneLocationDirectory;
-  encounter: null | {
-    id: number;
-    title: string;
-    encounterType: string;
-    description: string;
-    participating: boolean;
-    initiativeEnrolled: boolean;
-    initiativeRuntimeStatus: "not-initialized" | "active" | "closed";
-    roundNumber: number | null;
-    stepNumber: number | null;
-    currentInitiative: number | null;
-    participationStatus: string;
-  };
   health: ActiveHealthView;
   mana: ActiveManaView;
   effects: ActiveEffectsView;
@@ -543,6 +527,4 @@ export type PlayerTabletopConsoleView = Readonly<{
     manualSteps: string;
     usedAt: string;
   }[];
-  combatAvailability: PlayerCombatAvailability;
-  combat: PlayerCombatConsoleData | null;
 }>;

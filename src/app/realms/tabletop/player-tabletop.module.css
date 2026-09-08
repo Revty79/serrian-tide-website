@@ -157,9 +157,7 @@
 }
 
 .characterSelect label,
-.diceForm label,
-.combatWorkspace label,
-.compactAction label {
+.diceForm label {
   display: grid;
   gap: 0.35rem;
   min-width: 0;
@@ -170,11 +168,7 @@
 
 .characterSelect select,
 .diceForm select,
-.diceForm input:not([type="checkbox"]),
-.combatWorkspace select,
-.combatWorkspace input:not([type="checkbox"]),
-.combatWorkspace textarea,
-.compactAction input:not([type="checkbox"]) {
+.diceForm input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -184,11 +178,6 @@
   background: color-mix(in srgb, var(--st-page) 78%, transparent);
   padding: 0.65rem 0.75rem;
   color: var(--st-text-strong);
-}
-
-.combatWorkspace textarea {
-  min-height: 6rem;
-  resize: vertical;
 }
 
 .page input[type="checkbox"] {
@@ -612,20 +601,6 @@
   font-weight: 700;
 }
 
-.firearmState {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--st-primary) 20%, transparent);
-  border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--st-primary) 13%, transparent);
-}
-
-.firearmState span {
-  color: var(--st-text);
-  font-size: 0.76rem;
-}
-
 .historyGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -635,122 +610,6 @@
   overflow: auto;
   padding-right: 0.35rem;
   scrollbar-color: color-mix(in srgb, var(--st-secondary) 35%, transparent) transparent;
-}
-
-.combatWorkspace {
-  display: grid;
-  gap: 0.8rem;
-  min-width: 0;
-  margin: 0.8rem 0;
-}
-
-.combatPriority,
-.combatSection {
-  min-width: 0;
-  padding: clamp(1rem, 2.2vw, 1.3rem);
-  border: 1px solid var(--tabletop-line);
-  border-radius: 1rem;
-  background: var(--tabletop-panel);
-  box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--st-page) 22%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-.combatPriority {
-  border-color: color-mix(in srgb, var(--st-secondary) 56%, transparent);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--st-secondary) 32%, transparent), color-mix(in srgb, var(--st-page) 74%, transparent));
-  box-shadow: inset 0.25rem 0 var(--st-secondary-soft-text), 0 1rem 2.5rem color-mix(in srgb, var(--st-page) 24%, transparent);
-}
-
-.combatPriority > h2,
-.combatSection h2 {
-  margin: 0.25rem 0 0.8rem;
-  color: var(--st-text);
-  font-weight: 400;
-}
-
-.combatSection > header,
-.combatCard > header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.combatSection > header > strong {
-  color: var(--st-secondary-soft-text);
-  font-size: clamp(1.35rem, 4vw, 2.2rem);
-}
-
-.combatCard,
-.lockedReview {
-  display: grid;
-  gap: 0.55rem;
-  min-width: 0;
-  margin-top: 0.65rem;
-  padding: 0.8rem;
-  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
-  border-radius: 0.75rem;
-  background: var(--tabletop-panel-deep);
-  overflow-wrap: anywhere;
-}
-
-.combatCard h3,
-.lockedReview strong {
-  margin: 0;
-  color: var(--st-secondary-soft-text);
-}
-
-.combatCard p,
-.lockedReview span,
-.lockedReview small {
-  margin: 0;
-  color: var(--st-text);
-  line-height: 1.45;
-}
-
-.combatStats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.6rem;
-  margin: 0.7rem 0;
-}
-
-.combatStats span {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--st-text-strong) 8%, transparent);
-  border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--st-text-strong) 2%, transparent);
-  color: var(--tabletop-muted);
-}
-
-.combatStats strong {
-  color: var(--st-secondary-soft-text);
-}
-
-.actionRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.actionRow select,
-.actionRow input:not([type="checkbox"]) {
-  flex: 1 1 12rem;
-}
-
-.blockers {
-  margin: 0.7rem 0;
-  padding-left: 1.25rem;
-  color: var(--st-secondary-soft-text);
-}
-
-.compactAction {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 0.7rem;
 }
 
 .emptyState {
@@ -1228,8 +1087,7 @@
   .resourceList,
   .effectGrid,
   .historyGrid,
-  .formGrid,
-  .combatStats {
+  .formGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1237,17 +1095,9 @@
     grid-column: auto;
   }
 
-  .sourceCard > header,
-  .combatSection > header,
-  .combatCard > header {
+  .sourceCard > header {
     align-items: start;
     flex-direction: column;
-  }
-
-  .actionRow > button,
-  .actionRow > select,
-  .actionRow > input:not([type="checkbox"]) {
-    width: 100%;
   }
 }
 

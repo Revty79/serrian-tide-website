@@ -19,9 +19,7 @@ const encounterCloseoutService = read("src/features/tabletop-operations/encounte
 const tabletopPage = read("src/app/heavens/tabletop/page.tsx");
 const tabletopWorkspace = read("src/app/heavens/tabletop/tabletop-workspace.tsx");
 const sceneWorkspace = read("src/app/heavens/tabletop/scene-workspace.tsx");
-const encounterWorkspace = read("src/app/heavens/tabletop/encounter-workspace.tsx");
 const sessionCloseout = read("src/app/heavens/tabletop/session-closeout.tsx");
-const encounterCloseout = read("src/app/heavens/tabletop/encounter-closeout.tsx");
 const lifecycleDialog = read("src/app/heavens/tabletop/lifecycle-confirmation-dialog.tsx");
 
 test("Tabletop lifecycle preview accepts identity only and resolves actor roles from the database", () => {
@@ -89,7 +87,7 @@ test("closeout locks accept only a trusted server actor or the established inter
 test("the Tabletop route is site-wide read-only for foreign administrators and operable only by the Campaign-owning G.O.D.", () => {
   assert.match(tabletopPage, /requireGodOrAdminAccessContext\(\)/);
   assert.match(tabletopPage, /const canOperateTable = workspace\.canOperate/);
-  assert.match(tabletopPage, /canOperateTable && encounterWorkspace\?\.selectedEncounter/);
+  assert.doesNotMatch(tabletopPage, /encounterWorkspace|getEncounterInitiativeRuntime/);
   assert.match(sessionActions, /actor\.roles\.includes\("admin"\)/);
   assert.match(sessionActions, /canAuthor: canOperate/);
   assert.match(sessionActions, /canOperate,/);
@@ -99,14 +97,10 @@ test("the Tabletop route is site-wide read-only for foreign administrators and o
   assert.match(tabletopWorkspace, /initialData\.canAuthor \? <button type="button" onClick=\{beginCreate\}>New Session/);
   assert.match(tabletopWorkspace, /initialData\.canOperate && !creating && selectedSession\?\.status === "planned"/);
   assert.match(sceneWorkspace, /initialData\.canOperate && !creating && selectedScene\?\.status === "active"/);
-  assert.match(encounterWorkspace, /initialData\.canOperate && !creating && selectedEncounter\?\.status === "active"/);
   assert.match(encounterActions, /canManagePersistent: canManageOwnedRoot\(actor, context\.ownerUserId\)/);
-  assert.match(encounterWorkspace, /selectedEncounter\?\.status === "planned" && initialData\.canManagePersistent && parentsPermitPreparation/);
   assert.match(tabletopWorkspace, /<SessionCloseout canOperate=\{initialData\.canOperate\}/);
-  assert.match(encounterWorkspace, /<EncounterCloseout[\s\S]*?canOperate=\{initialData\.canOperate\}/);
   assert.match(sessionCloseout, /canOperate \? historical \? <button[\s\S]*?Reopen Session/);
-  assert.match(encounterCloseout, /canOperate && !historical \? <footer className="encounter-closeout-finalize"/);
-  for (const source of [tabletopWorkspace, sceneWorkspace, encounterWorkspace, sessionCloseout, encounterCloseout]) {
+  for (const source of [tabletopWorkspace, sceneWorkspace, sessionCloseout]) {
     assert.match(source, /Campaign-owning G\.O\.D\./);
   }
   for (const source of [sessionActions, sceneActions, encounterActions]) {
@@ -174,7 +168,6 @@ test("accessible delete dialogs render server dependency counts and disable bloc
   for (const path of [
     "src/app/heavens/tabletop/tabletop-workspace.tsx",
     "src/app/heavens/tabletop/scene-workspace.tsx",
-    "src/app/heavens/tabletop/encounter-workspace.tsx",
   ]) {
     const source = read(path);
     assert.match(source, /previewTabletopLifecycleEntity/);
@@ -189,7 +182,7 @@ test("accessible delete dialogs render server dependency counts and disable bloc
 });
 
 test("start, complete, and reopen controls use preview-backed scroll-preserving dialogs", () => {
-  for (const source of [tabletopWorkspace, sceneWorkspace, encounterWorkspace]) {
+  for (const source of [tabletopWorkspace, sceneWorkspace]) {
     assert.match(source, /openTransitionConfirmation/);
     assert.match(source, /previewTabletopLifecycleEntity/);
     assert.match(source, /transitionPreview\?\.dependencies/);
@@ -199,8 +192,7 @@ test("start, complete, and reopen controls use preview-backed scroll-preserving 
   assert.match(sceneWorkspace, /openTransitionConfirmation\("complete"\)/);
   assert.match(sessionCloseout, /openConfirmation\("finalize"\)/);
   assert.match(sessionCloseout, /openConfirmation\("reopen"\)/);
-  assert.match(encounterCloseout, /openFinalizeConfirmation/);
-  for (const source of [sessionCloseout, encounterCloseout]) {
+  for (const source of [sessionCloseout]) {
     assert.match(source, /previewTabletopLifecycleEntity/);
     assert.match(source, /lifecyclePreview\?\.dependencies/);
     assert.match(source, /useInPlaceScrollPreservation/);

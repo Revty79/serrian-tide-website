@@ -50,7 +50,7 @@ export function PlayerWeaponGovernancePanel({
   return <section className={styles.panel} aria-labelledby="player-weapon-governance-heading">
     <header className={styles.heading}>
       <div><p>YOUR WEAPON CHECKS</p><h2 id="player-weapon-governance-heading">Weapon Governance</h2></div>
-      <span>{showLiveStatus ? <TabletopLiveRefresh mode="player" characterId={view.characterId} /> : null} Read-only. Your G.O.D. controls canonical mappings and Character exceptions.</span>
+      <span>{showLiveStatus ? <TabletopLiveRefresh mode="player" characterId={view.characterId} scope="console" /> : null} Read-only. Your G.O.D. controls canonical mappings and Character exceptions.</span>
     </header>
     <div className={styles.weapons}>
       {view.weapons.map((weapon) => <article className={styles.weapon} key={weapon.itemId}>

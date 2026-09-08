@@ -9,14 +9,7 @@ function source(path: string): string {
 const playerService = source("src/features/tabletop-operations/player-encounter-service.ts");
 const playerPolicy = source("src/features/tabletop-operations/player-encounter-policy.ts");
 const playerActions = source("src/app/realms/characters/[characterId]/encounter/actions.ts");
-const playerUi = source("src/app/realms/characters/[characterId]/encounter/player-encounter-console.tsx");
-const playerCss = source("src/app/realms/characters/[characterId]/encounter/player-encounter.css");
-const activeEncounterCard = source("src/app/realms/characters/[characterId]/active-encounter-card.tsx");
-const activeEncounterCardCss = source("src/app/realms/characters/[characterId]/active-encounter-card.module.css");
 const notificationDomain = source("src/features/tabletop-operations/player-encounter-notifications.ts");
-const notificationCenter = source("src/features/tabletop-operations/player-live-notification-center.tsx");
-const playerPage = source("src/app/realms/characters/[characterId]/encounter/page.tsx");
-const characterPage = source("src/app/realms/characters/[characterId]/page.tsx");
 const liveEvents = source("src/features/tabletop-operations/tabletop-live-events.ts");
 const liveRoute = source("src/app/api/tabletop/live/route.ts");
 const liveClient = source("src/features/tabletop-operations/tabletop-live-refresh.tsx");
@@ -78,56 +71,13 @@ test("Player controllers authorize again and delegate to shared authoritative se
   assert.doesNotMatch(playerActions, /godSuppliedInitiativeCost|beginGenericInitiativeAction|applyEncounterDamage|resolveEncounterReaction/);
 });
 
-test("the accepted Player Encounter implementation remains covered while its route consolidates into Player Tabletop", () => {
-  assert.match(characterPage, /ActiveEncounterCard/);
-  assert.match(characterPage, /CharacterEditor/);
-  assert.match(playerPage, /redirect\(`\/realms\/tabletop\?character=\$\{id\}`\)/);
-  assert.doesNotMatch(playerPage, /PlayerEncounterConsole|getPlayerEncounter/);
-  for (const label of ["Your Initiative", "Hold", "Pass", "Actions", "Reaction", "Percentile Roll", "Your State"]) {
-    assert.match(playerUi, new RegExp(label));
-  }
-  assert.match(playerUi, /getHitLocationFromPercentile/);
-  assert.match(playerUi, /ownInitiative\.canAct/);
-  assert.match(playerUi, /ownInitiative\.canIntervene/);
-  assert.match(playerUi, /raw-saved/);
-  assert.match(playerUi, /G\.O\.D\. timing ruling/);
-  assert.doesNotMatch(playerUi, /Apply Damage|Resolve Reaction|G\.O\.D\.-only/);
-});
 
-test("Player UX establishes prominent Encounter, opportunity, Initiative, action, state, Roll, and timeline regions", () => {
-  assert.match(activeEncounterCard, /ACTIVE ENCOUNTER/);
-  assert.match(activeEncounterCard, /Open Player Tabletop/);
-  assert.match(activeEncounterCard, /YOUR INITIATIVE/);
-  assert.match(activeEncounterCardCss, /border: 1px solid color-mix\(in srgb, var\(--st-secondary\) 48%, transparent\)/);
-  assert.match(activeEncounterCardCss, /backdrop-filter: blur\(16px\)/);
-  assert.match(activeEncounterCardCss, /\.runtime/);
-  for (const structuralClass of [
-    "__header",
-    "__opportunity",
-    "__initiative-panel",
-    "__critical-action",
-    "__actions-panel",
-    "__roll-panel",
-    "__state-cards",
-    "__timeline-panel",
-    "__roll-history",
-  ]) assert.match(playerUi, new RegExp(structuralClass));
-  assert.match(playerCss, /max-width: 78rem/);
-  assert.match(playerCss, /grid-template-columns: repeat\(12/);
-  assert.match(playerCss, /@media \(max-width: 48rem\)/);
-  assert.match(playerCss, /@media \(max-width: 30rem\)/);
-  assert.match(playerCss, /grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(playerCss, /focus-visible/);
-});
 
 test("Player live notices compare only the already-authorized Player snapshot", () => {
   for (const title of ["YOU TOOK", "REACTION AVAILABLE", "YOUR ACTION IS READY", "CONDITION ADDED", "MANA CHANGED", "ENCOUNTER ENDED"]) {
     assert.match(notificationDomain, new RegExp(title));
   }
-  assert.match(notificationCenter, /sessionStorage/);
-  assert.match(notificationCenter, /role=\{notification\.priority === "critical" \? "alert" : "status"\}/);
   assert.doesNotMatch(notificationDomain, /prepNotes|godNotes|creatureAttacks|creatureAbilities|equipment:/);
-  assert.doesNotMatch(notificationCenter, /EventSource|pg_notify|fetch\(/);
 });
 
 test("live synchronization is authorized invalidation transport with post-commit database emission", () => {

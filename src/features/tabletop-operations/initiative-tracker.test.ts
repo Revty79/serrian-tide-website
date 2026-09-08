@@ -209,58 +209,22 @@ test("closed Initiative is historical and exposes no live affordances", () => {
   assert.equal(tracker.participants.every(({ canAct, canHold, canPass, canIntervene }) => !canAct && !canHold && !canPass && !canIntervene), true);
 });
 
-test("Tracker UI wires Build 5 operations and keeps normal and forced Round advancement distinct", () => {
-  const ui = readSource("src/app/heavens/tabletop/initiative-tracker.tsx");
-  const encounterUi = readSource("src/app/heavens/tabletop/encounter-workspace.tsx");
-  assert.match(encounterUi, /Encounter Prep/);
-  assert.match(encounterUi, /Initiative Tracker/);
-  for (const operation of [
-    "initializeEncounterInitiative",
-    "beginGenericInitiativeAction",
-    "holdEncounterInitiative",
-    "passEncounterInitiative",
-    "advanceEncounterInitiativeTimeline",
-    "interruptEncounterPendingAction",
-    "resumeEncounterPendingAction",
-    "restartEncounterPendingAction",
-    "resumeEncounterPendingActionWithAdjustedCost",
-    "endEncounterPendingAction",
-    "abandonEncounterPendingAction",
-    "completeEncounterPendingActionManually",
-    "enrollLateEncounterInitiativeParticipant",
-    "refreshEncounterInitiativeCapacity",
-    "correctEncounterInitiativeRuntime",
-    "closeEncounterInitiative",
-  ]) assert.match(ui, new RegExp(`\\b${operation}\\b`), `Tracker UI is missing ${operation}`);
-  assert.match(ui, /advanceEncounterInitiativeRound\(encounterId\)/);
-  assert.match(ui, /advanceEncounterInitiativeRound\(encounterId, true\)/);
-  assert.match(ui, /Action Label/);
-  assert.match(ui, /Initiative Cost/);
-  assert.match(ui, /Long \/ Multi-Round Action/);
-  assert.doesNotMatch(ui, /Starting Initiative[^<]*<input|Roll Initiative|End Turn|Next Turn/);
-});
 
 test("Tracker architecture uses authoritative reads and contains no independent Initiative engine", () => {
   const tracker = readSource("src/features/tabletop-operations/initiative-tracker.ts");
-  const ui = readSource("src/app/heavens/tabletop/initiative-tracker.tsx");
   const page = readSource("src/app/heavens/tabletop/page.tsx");
   const actions = readSource("src/app/heavens/tabletop/initiative-actions.ts");
-  const combined = `${tracker}\n${ui}`;
+  const combined = tracker;
   for (const helper of [
     "getNextInitiativeTimelineEvent",
     "canHoldingParticipantIntervene",
     "canParticipantReactToAction",
     "canAdvanceInitiativeRound",
-    "getMaximumMovementDistance",
   ]) assert.match(combined, new RegExp(`\\b${helper}\\b`));
-  assert.match(page, /identities: encounterWorkspace\.selectedEncounter!\.participants/);
+  assert.doesNotMatch(page, /buildInitiativeTrackerReadModel/);
   assert.match(actions, /campaignSessionEncounterParticipant\.characterId/);
   assert.match(actions, /resolveInitiativeCapacityOptionsInTransaction/);
   assert.doesNotMatch(combined, /Math\.random|\bd20\b|\bd100\b|rollInitiative|initiativeRoll/i);
-  assert.doesNotMatch(ui, /campaignCharacterAttribute|raceMovementMode|currentInitiative\s*[-+*/]=|normalTotalInitiative\s*[-+*/]=/);
-  for (const state of ["Health", "Mana", "Conditions", "Inventory", "Equipment", "Creature snapshots"]) {
-    assert.doesNotMatch(ui, new RegExp(`(?:Apply|Spend|Edit|Set|Use) ${state}`, "i"));
-  }
 });
 
 test("Initiative identity remains an authoritative read join rather than persisted copied columns", () => {

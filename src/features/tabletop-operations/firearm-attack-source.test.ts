@@ -83,20 +83,6 @@ test("the firearm transaction reuses Rolls, defenses, Initiative, readiness, and
   assert.doesNotMatch(service, /lockActiveHealthInTransaction|persistPlannedMechanicalEffectInTransaction|Math\.random/);
 });
 
-test("Tabletop exposes G.O.D.-only attack review without global authoring or Player controls", () => {
-  const actions = read("src/app/heavens/tabletop/firearm-attack-actions.ts");
-  const workspace = read("src/app/heavens/tabletop/firearm-attack-workspace.tsx");
-  const player = read("src/app/realms/characters/[characterId]/encounter/player-encounter-console.tsx");
-  assert.match(actions, /requireGod\(\)/);
-  assert.match(actions, /lockOwnedEncounterRuntimeInTransaction/);
-  assert.match(workspace, /Aim, Trigger &amp; Damage/);
-  assert.match(workspace, /Called Shot/);
-  assert.match(workspace, /Attack and response Rolls are saved independently/);
-  assert.match(workspace, /Action Effect Plan review/);
-  assert.match(workspace, /Review global Equipment/);
-  assert.doesNotMatch(workspace, /saveWeapon|updateWeapon|saveAmmunition|updateAmmunition/);
-  assert.doesNotMatch(player, /FirearmAttackWorkspace|firearm-attack-actions/);
-});
 
 test("Pass 10 accepts no browser-authored round count, damage, armor, soak, or consequence payload", () => {
   const actions = read("src/app/heavens/tabletop/firearm-attack-actions.ts");

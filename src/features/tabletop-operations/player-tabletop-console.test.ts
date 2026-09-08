@@ -97,7 +97,8 @@ test("an active Encounter is read-only and blocks standalone source use", () => 
   });
   assert.equal(state.kind, "active-encounter");
   assert.equal(state.noncombatSourceUseAllowed, false);
-  assert.match(state.detail, /read-only/);
+  assert.match(state.detail, /timing review/);
+  assert.equal(state.label, "Active Scene");
 });
 
 test("recent Roll history is descending and bounded", () => {

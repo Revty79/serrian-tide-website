@@ -56,28 +56,11 @@ test("Creature Catalog spawning creates only direct encounter-scoped occurrences
   assert.match(action, /spawnEncounterCreaturesInTransaction\(tx, context/);
 });
 
-test("Build 8 UI keeps G.O.D. choices explicit", () => {
-  const operations = read("src/app/heavens/tabletop/combat-aid-operations.tsx");
-  const catalog = read("src/app/heavens/tabletop/creature-catalog-spawn.tsx");
-  for (const label of [
-    "Final numeric damage", "Exact Hit Location", "Manual G.O.D. resolution required",
-    "Action confirmation", "Expected completion", "Dodge", "Parry with", "No Reaction",
-    "Keep Cost", "Refund Cost", "Interrupt Action", "Saved Raw Formula", "Raw Casting circumstance",
-  ]) assert.match(operations, new RegExp(label));
-  const combatAid = read("src/features/tabletop-operations/combat-aid-service.ts");
-  assert.match(combatAid, /canParticipantReactToAction/);
-  assert.match(combatAid, /canHoldingParticipantIntervene/);
-  assert.match(operations, /reactionOpportunityActionIds/);
-  for (const label of ["Creature Catalog", "Quantity", "Join Initiative now"]) {
-    assert.match(catalog, new RegExp(label));
-  }
-});
 
 test("Runtime Integration invents neither Weapon Skill mappings nor armor resolution", () => {
   const sources = [
     read("src/features/tabletop-operations/runtime-integration.ts"),
     read("src/features/tabletop-operations/runtime-integration-service.ts"),
-    read("src/app/heavens/tabletop/combat-aid-operations.tsx"),
   ].join("\n");
   assert.doesNotMatch(sources, /weaponType\s*\.\s*includes|includes\(["'](?:sword|rifle|bow|pistol)["']\)/i);
   assert.doesNotMatch(sources, /automatic.*(?:armor|soak)|(?:armor|soak).*automatic/i);

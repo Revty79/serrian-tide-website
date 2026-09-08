@@ -64,25 +64,7 @@ test("closeout increments spendable XP only and finalizes in one transaction bou
 test("Creature suggestions never infer outcomes from Health or CR", () => {
   const domain = read("src/features/tabletop-operations/encounter-closeout.ts");
   const service = read("src/features/tabletop-operations/encounter-closeout-service.ts");
-  const ui = read("src/app/heavens/tabletop/encounter-closeout.tsx");
-  const sources = `${domain}\n${service}\n${ui}`;
+  const sources = `${domain}\n${service}`;
   assert.match(domain, /core[\s\S]*killXp/);
   assert.doesNotMatch(sources, /Math\.random|challengeRating|\bCR\b|remainingHp|totalDamage|health\s*[<=>]+\s*0/i);
-  assert.match(ui, /new Set\(\)/);
-  assert.match(ui, /Unchecked by default/);
-  assert.match(ui, /Health never decides/);
-});
-
-test("Encounter workspace exposes operational Closeout as the fourth tab", () => {
-  const workspace = read("src/app/heavens/tabletop/encounter-workspace.tsx");
-  const closeout = read("src/app/heavens/tabletop/encounter-closeout.tsx");
-  assert.match(workspace, /Encounter Prep[\s\S]*Initiative Tracker[\s\S]*Combat Aid[\s\S]*Closeout/);
-  assert.match(workspace, /<EncounterCloseout/);
-  for (const label of [
-    "RUNTIME STATUS",
-    "DURATION REVIEW",
-    "CREATURE REWARD REFERENCES",
-    "RECIPIENTS",
-    "Finalize Encounter",
-  ]) assert.match(closeout, new RegExp(label));
 });

@@ -10,7 +10,6 @@ import type {
   RollWorkspaceView,
 } from "@/features/tabletop-operations/roll-runtime-service";
 import {
-  getHitLocationFromPercentile,
   PERCENTILE_ROLL_LABEL,
   type RollMethod,
   type RollPurpose,
@@ -25,8 +24,9 @@ import {
   voidGodRoll,
 } from "./roll-actions";
 import { RollTray } from "./roll-tray";
+import { isTabletopReferenceRoll, TABLETOP_ROLL_PURPOSES } from "@/features/tabletop-operations/tabletop-ui-policy";
 
-type ScopeFilter = "session" | "scene" | "encounter";
+type ScopeFilter = "session" | "scene";
 
 function methodLabel(method: RollMethod): string {
   return method === "random" ? "Website Roll" : "Physical Roll";
@@ -145,15 +145,12 @@ function RollCard({ roll, onChanged }: { roll: RollLedgerEntry; onChanged: (roll
   return <article className={`roll-ledger-card is-${roll.status}`}>
     <header>
       <div><strong>{roll.effectiveResultTotal}</strong><span>{PERCENTILE_ROLL_LABEL}</span></div>
-      <div><b>{roll.label || "Unlabeled Roll"}</b><small>{roll.purposeKind} · {methodLabel(roll.method)} · {visibilityLabel(roll.visibility)}</small>{roll.purposeKind === "attack" ? <small>Original Hit Location: {getHitLocationFromPercentile(roll.resultTotal)}{roll.effectiveResultTotal !== roll.resultTotal ? ` · Effective: ${getHitLocationFromPercentile(roll.effectiveResultTotal)}` : ""}</small> : null}</div>
+      <div><b>{roll.label || "Unlabeled Roll"}</b><small>{roll.purposeKind} · {methodLabel(roll.method)} · {visibilityLabel(roll.visibility)}</small></div>
       <em>{roll.status}</em>
     </header>
     <div className="roll-ledger-context">
       <span>{roll.rollerCharacterName ?? "No Character"}{roll.targetCharacterName ? ` → ${roll.targetCharacterName}` : ""}</span>
-      <span>{roll.encounterTitle ? `Encounter: ${roll.encounterTitle}` : roll.sceneTitle ? `Scene: ${roll.sceneTitle}` : "Session Roll"}</span>
-      {roll.roundNumber !== null ? <span>Round {roll.roundNumber} / Step {roll.stepNumber}</span> : null}
-      {roll.pendingActionId !== null ? <span>Action #{roll.pendingActionId} · {roll.pendingActionLabel}</span> : null}
-      {roll.reactionId !== null ? <span>Reaction #{roll.reactionId} · {roll.reactionType}</span> : null}
+      <span>{roll.sceneTitle ? `Scene: ${roll.sceneTitle}` : "Session Roll"}</span>
     </div>
     <dl>
       <div><dt>Original raw Roll</dt><dd>{roll.resultTotal}</dd></div>
@@ -176,7 +173,7 @@ function RollCard({ roll, onChanged }: { roll: RollLedgerEntry; onChanged: (roll
 }
 
 export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceView }) {
-  const [rolls, setRolls] = useState(workspace.initialHistory.rolls);
+  const [rolls, setRolls] = useState(workspace.initialHistory.rolls.filter(isTabletopReferenceRoll));
   const [nextBeforeId, setNextBeforeId] = useState(workspace.initialHistory.nextBeforeId);
   const [scope, setScope] = useState<ScopeFilter>("session");
   const [characterId, setCharacterId] = useState("");
@@ -189,8 +186,8 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
 
   function filters(beforeId: number | null = null): RollLedgerFilters {
     return {
-      sceneId: scope === "scene" || scope === "encounter" ? workspace.selectedScene?.id ?? null : null,
-      encounterId: scope === "encounter" ? workspace.selectedEncounter?.id ?? null : null,
+      sceneId: scope === "scene" ? workspace.selectedScene?.id ?? null : null,
+      encounterId: null,
       characterId: characterId ? Number(characterId) : null,
       method: method || null,
       visibility: visibility || null,
@@ -206,7 +203,7 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
     setFeedback("");
     try {
       const page = await getGodRollHistory(workspace.session.id, filters());
-      setRolls(page.rolls);
+      setRolls(page.rolls.filter(isTabletopReferenceRoll));
       setNextBeforeId(page.nextBeforeId);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Roll history could not be loaded.");
@@ -221,7 +218,7 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
     setFeedback("");
     try {
       const page = await getGodRollHistory(workspace.session.id, filters(nextBeforeId));
-      setRolls((current) => [...current, ...page.rolls.filter((roll) => !current.some(({ id }) => id === roll.id))]);
+      setRolls((current) => [...current, ...page.rolls.filter(isTabletopReferenceRoll).filter((roll) => !current.some(({ id }) => id === roll.id))]);
       setNextBeforeId(page.nextBeforeId);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Older Rolls could not be loaded.");
@@ -239,13 +236,13 @@ export function SessionRollWorkspace({ workspace }: { workspace: RollWorkspaceVi
     <section className="roll-ledger">
       <header><div><span>IMMUTABLE TABLE HISTORY</span><h3 className="font-sans">Session Roll Ledger</h3><p>Latest 50 per page. Corrections, rulings, and voids preserve the untouched original Roll.</p></div><strong>{rolls.length} loaded</strong></header>
       <div className="roll-ledger-filters">
-        <label><span>Context</span><select value={scope} onChange={(event) => setScope(event.target.value as ScopeFilter)}><option value="session">Current Session</option>{workspace.selectedScene ? <option value="scene">Current Scene</option> : null}{workspace.selectedEncounter ? <option value="encounter">Current Encounter</option> : null}</select></label>
+        <label><span>Context</span><select value={scope} onChange={(event) => setScope(event.target.value as ScopeFilter)}><option value="session">Current Session</option>{workspace.selectedScene ? <option value="scene">Current Scene</option> : null}</select></label>
         <label><span>Character</span><select value={characterId} onChange={(event) => setCharacterId(event.target.value)}><option value="">All Characters</option>{workspace.characters.map((character) => <option key={character.characterId} value={character.characterId}>{character.name}</option>)}</select></label>
         <label><span>Method</span><select value={method} onChange={(event) => setMethod(event.target.value as typeof method)}><option value="">All methods</option><option value="random">Website Roll</option><option value="entered">Physical Roll</option></select></label>
         <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as typeof visibility)}><option value="">All visibility</option><option value="table">Table-visible</option><option value="private">Private</option><option value="god-only">G.O.D. Only</option></select></label>
-        <label><span>Purpose</span><select value={purposeKind} onChange={(event) => setPurposeKind(event.target.value as typeof purposeKind)}><option value="">All purposes</option>{["free", "attribute", "skill", "attack", "defense", "ability", "other"].map((purpose) => <option key={purpose} value={purpose}>{purpose}</option>)}</select></label>
+        <label><span>Purpose</span><select value={purposeKind} onChange={(event) => setPurposeKind(event.target.value as typeof purposeKind)}><option value="">All purposes</option>{TABLETOP_ROLL_PURPOSES.map((purpose) => <option key={purpose} value={purpose}>{purpose}</option>)}</select></label>
         <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="">Active and voided</option><option value="recorded">Recorded</option><option value="voided">Voided</option></select></label>
-        <button type="button" disabled={busy || scope === "scene" && !workspace.selectedScene || scope === "encounter" && !workspace.selectedEncounter} onClick={() => void applyFilters()}>{busy ? "Loading…" : "Apply Filters"}</button>
+        <button type="button" disabled={busy || scope === "scene" && !workspace.selectedScene} onClick={() => void applyFilters()}>{busy ? "Loading…" : "Apply Filters"}</button>
       </div>
       {feedback ? <p className="tabletop-feedback is-error">{feedback}</p> : null}
       <div className="roll-ledger-list">{rolls.map((roll) => <RollCard key={roll.id} roll={roll} onChanged={updateRoll} />)}{!rolls.length ? <p className="tabletop-empty">No Rolls match the selected ledger filters.</p> : null}</div>

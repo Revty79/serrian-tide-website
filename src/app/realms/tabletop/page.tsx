@@ -13,12 +13,14 @@ import {
 } from "@/features/tabletop-operations/player-tabletop-console";
 import {
   listPlayerTabletopCharacters,
-  readPlayerTabletopRuntime,
+  readPlayerTabletopState,
 } from "@/features/tabletop-operations/player-tabletop-console-service";
 import { requirePlayer } from "@/lib/server-access";
 import { readPlayerShopVisitInTransaction } from "@/features/tabletop-operations/shop-visit-service";
 import { db } from "@/db";
 import { readShopCommerceInTransaction } from "@/features/tabletop-operations/shop-commerce-service";
+
+import { isTabletopReferenceRoll } from "@/features/tabletop-operations/tabletop-ui-policy";
 
 import { PlayerTabletopWorkspace } from "./player-tabletop-workspace";
 import styles from "./player-tabletop.module.css";
@@ -71,7 +73,7 @@ export default async function PlayerTabletopPage({
   const characterId = selection.character.characterId;
   const [aggregate, runtime] = await Promise.all([
     getCharacter(characterId, false),
-    readPlayerTabletopRuntime(characterId),
+    readPlayerTabletopState(characterId),
   ]);
   const shopVisit = await db.transaction((tx) => readPlayerShopVisitInTransaction(tx, characterId, access.user.id));
   const shopCommerce = shopVisit
@@ -99,7 +101,6 @@ export default async function PlayerTabletopPage({
     } : null,
     scene: runtime.hierarchy.scene,
     locations: runtime.locations,
-    encounter: runtime.hierarchy.encounter,
     health: runtime.health,
     mana: runtime.mana,
     effects: runtime.effects,
@@ -108,7 +109,7 @@ export default async function PlayerTabletopPage({
       equipment: runtime.equipment,
       charges: runtime.charges,
       effectDetails: runtime.itemEffects,
-      firearmStates: runtime.firearmStates,
+      firearmStates: [],
     }),
     spells: assemblePlayerTabletopSpells(aggregate),
     derivedAbilities: assemblePlayerTabletopDerivedAbilities(aggregate),
@@ -117,11 +118,9 @@ export default async function PlayerTabletopPage({
       const bounded = boundPlayerCalledCheckWorkspace(workspace);
       return bounded ? [bounded] : [];
     }),
-    rolls: boundPlayerRollHistory(runtime.rolls),
+    rolls: boundPlayerRollHistory(runtime.rolls.filter(isTabletopReferenceRoll)),
     recentSessions: runtime.recentSessions,
     derivedAbilityUses: runtime.derivedAbilityUses,
-    combatAvailability: runtime.combatAvailability,
-    combat: runtime.combat,
   };
 
   return <PlayerTabletopWorkspace characters={characters} view={view} shopVisit={shopVisit} shopCommerce={shopCommerce} />;

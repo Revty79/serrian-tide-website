@@ -1,0 +1,2622 @@
+{
+  "auditedAt": "2026-09-08T15:08:03.956Z",
+  "database": "serrian_tide_dev",
+  "readOnly": true,
+  "migrationCount": {
+    "expected": 41,
+    "applied": 41
+  },
+  "migrationLedgerMatches": true,
+  "migrations": [
+    {
+      "tag": "0000_serrian_tide_baseline",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0001_runtime_foundation",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0002_campaign_overview",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0003_creature_effective_statistics",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0004_persisted_creature_hp",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0005_tabletop_operations_session_foundation",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0006_tabletop_operations_session_roster",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0007_tabletop_operations_scenes",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0008_tabletop_operations_encounters",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0009_tabletop_operations_initiative_runtime",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0010_tabletop_operations_runtime_integration",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0011_tabletop_operations_duration_closeout",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0012_tabletop_operations_roll_runtime",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0013_chat_foundation",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0014_chat_room_membership",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0015_derived_abilities_campaign_system",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0016_legacy_derived_ability_compatibility",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0017_expanded_derived_ability_domain",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0018_migrate_derived_ability_requirements",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0019_derived_ability_mechanical_effects",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0020_derived_ability_character_runtime",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0021_structured_firearm_timing_profiles",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0022_immutable_roll_ledger_snapshots",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0023_canonical_weapon_skill_governance",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0024_character_weapon_governance_overrides",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0025_action_declaration_initiative_windows",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0026_defense_intervention_runtime",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0027_action_source_effect_bridge",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0028_firearm_readiness_ammunition_runtime",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0029_firearm_attack_runtime",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0030_called_checks_high_low",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0031_player_combat_ruling_requests",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0032_safe_entity_lifecycles",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0033_admin_account_lifecycle",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0034_verification_user_delete_guard",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0035_campaign_shop_foundation",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0036_campaign_town_builder",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0037_site_appearance",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0038_tabletop_location_placement",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0039_tabletop_shop_visits",
+      "timestampMatches": true,
+      "hashMatches": true
+    },
+    {
+      "tag": "0040_tabletop_shop_transactions",
+      "timestampMatches": true,
+      "hashMatches": true
+    }
+  ],
+  "tables": [
+    {
+      "name": "campaign_character_firearm_event",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "item_instance_id",
+        "campaign_id",
+        "character_id",
+        "preparation_id",
+        "event_kind",
+        "reason",
+        "before_state_json",
+        "after_state_json",
+        "metadata_json",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_character_firearm_preparation",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "item_instance_id",
+        "campaign_id",
+        "character_id",
+        "item_id",
+        "weapon_profile_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "action_declaration_id",
+        "pending_action_id",
+        "operation",
+        "status",
+        "state_version",
+        "target_firing_mode_id",
+        "ammunition_item_id",
+        "ammunition_profile_id",
+        "requested_rounds",
+        "replace_current_load",
+        "partial_load_disposition",
+        "initiative_cost",
+        "timing_source",
+        "frozen_snapshot_json",
+        "reason",
+        "idempotency_key",
+        "created_by_user_id",
+        "resolved_by_user_id",
+        "created_at",
+        "updated_at",
+        "resolved_at"
+      ]
+    },
+    {
+      "name": "campaign_character_firearm_state",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "item_instance_id",
+        "campaign_id",
+        "character_id",
+        "item_id",
+        "weapon_profile_id",
+        "selected_firing_mode_id",
+        "loaded_ammunition_item_id",
+        "loaded_ammunition_profile_id",
+        "loaded_ammunition_unit_cost_credits",
+        "loaded_rounds",
+        "capacity_rounds",
+        "capacity_source",
+        "readiness_mode",
+        "readiness_mode_source",
+        "readied",
+        "requires_cycling",
+        "requires_recoil_recovery",
+        "version",
+        "initialization_key",
+        "initialized_by_user_id",
+        "updated_by_user_id",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session",
+      "count": 1,
+      "statuses": [
+        {
+          "status": "active",
+          "count": 1
+        }
+      ],
+      "columns": [
+        "id",
+        "campaign_id",
+        "title",
+        "sequence_number",
+        "status",
+        "planned_for",
+        "god_notes",
+        "started_at",
+        "completed_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_called_check_batch",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "campaign_id",
+        "session_id",
+        "scene_id",
+        "encounter_id",
+        "issued_by_user_id",
+        "source_kind",
+        "attribute_key",
+        "endpoint_skill_id",
+        "selected_skill_path_json",
+        "purpose",
+        "instructions",
+        "recipient_scope",
+        "visibility",
+        "roll_method",
+        "modifiers_json",
+        "idempotency_key",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_called_check_event",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "request_id",
+        "campaign_id",
+        "session_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata_json",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_called_check_request",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "batch_id",
+        "campaign_id",
+        "session_id",
+        "scene_id",
+        "encounter_id",
+        "recipient_character_id",
+        "recipient_kind",
+        "status",
+        "governing_source_json",
+        "governing_snapshot_json",
+        "original_target",
+        "modifiers_json",
+        "final_target",
+        "resolution_json",
+        "roll_id",
+        "parent_request_id",
+        "response_idempotency_key",
+        "cancellation_reason",
+        "reroll_reason",
+        "ruling_text",
+        "revealed_visibility",
+        "revealed_by_user_id",
+        "issued_at",
+        "responded_at",
+        "resolved_at",
+        "cancelled_at",
+        "revealed_at"
+      ]
+    },
+    {
+      "name": "campaign_session_effect_duration_binding",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "campaign_id",
+        "session_id",
+        "scene_id",
+        "encounter_id",
+        "character_id",
+        "condition_id",
+        "modifier_id",
+        "duration_kind",
+        "remaining_value",
+        "status",
+        "closed_at",
+        "close_reason",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter",
+      "count": 2,
+      "statuses": [
+        {
+          "status": "completed",
+          "count": 2
+        }
+      ],
+      "columns": [
+        "id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "sequence_number",
+        "title",
+        "status",
+        "encounter_type",
+        "description",
+        "god_notes",
+        "started_at",
+        "completed_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_action_declaration",
+      "count": 17,
+      "statuses": [
+        {
+          "status": "cancelled",
+          "count": 5
+        },
+        {
+          "status": "resolved",
+          "count": 12
+        }
+      ],
+      "columns": [
+        "id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "actor_character_id",
+        "pending_action_id",
+        "supersedes_declaration_id",
+        "status",
+        "version_number",
+        "draft_json",
+        "locked_snapshot_json",
+        "ruling_reason",
+        "ruling_notes",
+        "created_by_user_id",
+        "locked_by_user_id",
+        "committed_by_user_id",
+        "ended_by_user_id",
+        "locked_at",
+        "committed_at",
+        "ended_at",
+        "created_at",
+        "updated_at",
+        "defense_resolution_json",
+        "defense_resolved_by_user_id",
+        "defense_resolved_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_action_declaration_event",
+      "count": 128,
+      "statuses": [],
+      "columns": [
+        "id",
+        "declaration_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_effect",
+      "count": 13,
+      "statuses": [
+        {
+          "status": "applied",
+          "count": 1
+        },
+        {
+          "status": "approved",
+          "count": 1
+        },
+        {
+          "status": "declined",
+          "count": 11
+        }
+      ],
+      "columns": [
+        "id",
+        "plan_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "target_participant_id",
+        "effect_key",
+        "effect_type",
+        "source_kind",
+        "source_identity",
+        "authored_value_json",
+        "calculated_value_json",
+        "final_value_json",
+        "unit",
+        "resource",
+        "application_supported",
+        "god_review_required",
+        "status",
+        "amendment_reason",
+        "amended_by_user_id",
+        "applied_result_json",
+        "applied_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_effect_plan",
+      "count": 14,
+      "statuses": [
+        {
+          "status": "applied",
+          "count": 12
+        },
+        {
+          "status": "approved",
+          "count": 1
+        },
+        {
+          "status": "calculated",
+          "count": 1
+        }
+      ],
+      "columns": [
+        "id",
+        "declaration_id",
+        "pending_action_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "actor_participant_id",
+        "source_kind",
+        "source_identity",
+        "source_id",
+        "source_instance_id",
+        "status",
+        "target_snapshot_json",
+        "source_snapshot_json",
+        "governing_roll_snapshot_json",
+        "defense_resolution_json",
+        "initiative_commitment_json",
+        "resource_costs_json",
+        "source_divergence_json",
+        "explanation",
+        "created_by_user_id",
+        "reviewed_by_user_id",
+        "applied_by_user_id",
+        "reviewed_at",
+        "applied_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_effect_plan_event",
+      "count": 40,
+      "statuses": [],
+      "columns": [
+        "id",
+        "plan_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_firearm_attack",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "actor_participant_id",
+        "target_participant_id",
+        "item_instance_id",
+        "item_id",
+        "weapon_profile_id",
+        "firing_mode_id",
+        "ammunition_item_id",
+        "ammunition_profile_id",
+        "aim_declaration_id",
+        "aim_pending_action_id",
+        "trigger_declaration_id",
+        "trigger_pending_action_id",
+        "attack_roll_id",
+        "effect_plan_id",
+        "status",
+        "state_version_before",
+        "aim_initiative",
+        "called_shot_declared",
+        "called_shot_objective",
+        "called_shot_location_number",
+        "called_shot_penalty",
+        "called_shot_reason",
+        "firing_duration_initiative",
+        "rounds_per_cadence",
+        "rounds_declared",
+        "rounds_consumed",
+        "rounds_loaded_before",
+        "rounds_loaded_after",
+        "final_target",
+        "frozen_snapshot_json",
+        "governing_snapshot_json",
+        "attack_roll_snapshot_json",
+        "defense_resolution_json",
+        "bullet_allocation_json",
+        "damage_resolution_json",
+        "post_shot_state_json",
+        "ruling_reasons_json",
+        "idempotency_key",
+        "created_by_user_id",
+        "fired_by_user_id",
+        "cancelled_by_user_id",
+        "created_at",
+        "updated_at",
+        "fired_at",
+        "cancelled_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_firearm_attack_event",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "attack_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata_json",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_firearm_bullet",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "attack_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "bullet_index",
+        "status",
+        "cancelled_by_reaction_id",
+        "hit_location_number",
+        "hit_location_name",
+        "hp_pool_key",
+        "authored_damage",
+        "dex_damage_modifier",
+        "additional_success_damage",
+        "gross_damage",
+        "armor",
+        "soak",
+        "proposed_net_damage",
+        "armor_snapshot_json",
+        "ruling_reasons_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_initiative",
+      "count": 2,
+      "statuses": [
+        {
+          "status": "closed",
+          "count": 2
+        }
+      ],
+      "columns": [
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "status",
+        "round_number",
+        "step_number",
+        "timeline_initiative",
+        "started_at",
+        "closed_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_initiative_participant",
+      "count": 4,
+      "statuses": [],
+      "columns": [
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "normal_total_initiative",
+        "current_initiative",
+        "participation_status",
+        "deferred_initiative_cost",
+        "last_satisfied_step",
+        "movement_mode",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_participant",
+      "count": 4,
+      "statuses": [],
+      "columns": [
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "sort_order",
+        "prep_notes",
+        "created_at",
+        "updated_at",
+        "participant_id",
+        "participant_kind",
+        "creature_id",
+        "display_label",
+        "creature_snapshot_json",
+        "local_state_json"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_pending_action",
+      "count": 14,
+      "statuses": [
+        {
+          "status": "completed",
+          "count": 14
+        }
+      ],
+      "columns": [
+        "id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "actor_character_id",
+        "label",
+        "action_kind",
+        "allows_multi_round",
+        "original_initiative_cost",
+        "initiative_spent",
+        "remaining_initiative_cost",
+        "start_initiative",
+        "start_timeline_initiative",
+        "expected_completion_initiative",
+        "status",
+        "started_round",
+        "completed_round",
+        "created_at",
+        "updated_at",
+        "additional_initiative_cost"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_pending_action_source",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "pending_action_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "source_character_id",
+        "source_kind",
+        "source_ref",
+        "source_instance_id",
+        "payload_json",
+        "resolution_status",
+        "resolved_at",
+        "resolution_summary",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_reaction",
+      "count": 4,
+      "statuses": [
+        {
+          "status": "resolved",
+          "count": 4
+        }
+      ],
+      "columns": [
+        "id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "pending_action_id",
+        "reactor_character_id",
+        "reaction_type",
+        "defending_item_id",
+        "defending_instance_id",
+        "committed_initiative_cost",
+        "status",
+        "outcome",
+        "defender_final_cost",
+        "attacker_additional_cost",
+        "resolved_at",
+        "created_at",
+        "updated_at",
+        "protected_target_character_id",
+        "target_character_id",
+        "opposes_reaction_id",
+        "declaration_snapshot_json",
+        "objective_comparison_json",
+        "resolution_snapshot_json",
+        "roll_required",
+        "god_approval_reason",
+        "declared_by_user_id",
+        "god_approved_by_user_id",
+        "ruling_reason",
+        "ruled_by_user_id",
+        "ruled_at",
+        "original_action_disposition",
+        "reconciliation_applied_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_reaction_event",
+      "count": 6,
+      "statuses": [],
+      "columns": [
+        "id",
+        "reaction_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_responder_opportunity",
+      "count": 6,
+      "statuses": [
+        {
+          "status": "cancelled",
+          "count": 4
+        },
+        {
+          "status": "declined",
+          "count": 1
+        },
+        {
+          "status": "ineligible",
+          "count": 1
+        }
+      ],
+      "columns": [
+        "id",
+        "declaration_id",
+        "pending_action_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "responder_character_id",
+        "reaction_id",
+        "source",
+        "status",
+        "window_sequence",
+        "reached_at_initiative",
+        "reason",
+        "requires_god_confirmation",
+        "response_label",
+        "ruling_reason",
+        "created_by_user_id",
+        "reconciled_by_user_id",
+        "reconciled_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_encounter_reward",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "reward_kind",
+        "amount",
+        "note",
+        "awarded_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_high_low_event",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "request_id",
+        "campaign_id",
+        "session_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata_json",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_high_low_request",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "campaign_id",
+        "session_id",
+        "scene_id",
+        "encounter_id",
+        "mode",
+        "participant_character_id",
+        "visibility",
+        "roll_method",
+        "purpose",
+        "status",
+        "called_side",
+        "caller_user_id",
+        "roll_id",
+        "result_snapshot_json",
+        "parent_request_id",
+        "issue_idempotency_key",
+        "call_idempotency_key",
+        "response_idempotency_key",
+        "cancellation_reason",
+        "reroll_reason",
+        "ruling_text",
+        "created_by_user_id",
+        "called_at",
+        "responded_at",
+        "resolved_at",
+        "cancelled_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_player_ruling_request",
+      "count": 1,
+      "statuses": [
+        {
+          "status": "approved",
+          "count": 1
+        }
+      ],
+      "columns": [
+        "id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "target_participant_id",
+        "request_type",
+        "source_kind",
+        "source_ref",
+        "source_instance_id",
+        "intent",
+        "requested_timing",
+        "blocked_reason",
+        "frozen_request_json",
+        "status",
+        "idempotency_key",
+        "god_response",
+        "ruling_json",
+        "linked_declaration_id",
+        "linked_reaction_id",
+        "linked_firearm_attack_id",
+        "requested_by_user_id",
+        "resolved_by_user_id",
+        "created_at",
+        "updated_at",
+        "resolved_at"
+      ]
+    },
+    {
+      "name": "campaign_session_player_ruling_request_event",
+      "count": 2,
+      "statuses": [],
+      "columns": [
+        "id",
+        "request_id",
+        "encounter_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "from_status",
+        "to_status",
+        "event_kind",
+        "reason",
+        "metadata_json",
+        "actor_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_prepared_shop",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "session_id",
+        "campaign_id",
+        "shop_id",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_prepared_town",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "session_id",
+        "campaign_id",
+        "town_id",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_roll",
+      "count": 13,
+      "statuses": [
+        {
+          "status": "recorded",
+          "count": 13
+        }
+      ],
+      "columns": [
+        "id",
+        "campaign_id",
+        "session_id",
+        "scene_id",
+        "encounter_id",
+        "roller_character_id",
+        "target_character_id",
+        "pending_action_id",
+        "reaction_id",
+        "recorded_by_user_id",
+        "method",
+        "visibility",
+        "purpose_kind",
+        "label",
+        "result_total",
+        "target_number",
+        "notes",
+        "round_number",
+        "step_number",
+        "status",
+        "voided_at",
+        "void_reason",
+        "voided_by_user_id",
+        "created_at",
+        "mechanical_snapshot"
+      ]
+    },
+    {
+      "name": "campaign_session_roll_amendment",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "roll_id",
+        "campaign_id",
+        "session_id",
+        "previous_amendment_id",
+        "kind",
+        "reason",
+        "mechanical_snapshot",
+        "ruling_text",
+        "created_by_user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "campaign_session_roster",
+      "count": 1,
+      "statuses": [],
+      "columns": [
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "sort_order",
+        "prep_notes",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene",
+      "count": 1,
+      "statuses": [
+        {
+          "status": "active",
+          "count": 1
+        }
+      ],
+      "columns": [
+        "id",
+        "session_id",
+        "campaign_id",
+        "sequence_number",
+        "title",
+        "status",
+        "location_label",
+        "description",
+        "god_notes",
+        "started_at",
+        "completed_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_member",
+      "count": 1,
+      "statuses": [],
+      "columns": [
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_shop",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "shop_id",
+        "sort_order",
+        "revealed",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_shop_visit",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "shop_id",
+        "placement_kind",
+        "town_id",
+        "mode",
+        "status",
+        "closed_shop_override",
+        "closed_shop_override_reason",
+        "started_by_user_id",
+        "started_at",
+        "ended_by_user_id",
+        "ended_at",
+        "end_reason",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_shop_visit_member",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "visit_id",
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "character_id",
+        "status",
+        "entered_by_user_id",
+        "entered_at",
+        "exited_by_user_id",
+        "exited_at",
+        "exit_kind",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_town",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "town_id",
+        "sort_order",
+        "revealed",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_town_npc",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "town_id",
+        "npc_character_id",
+        "included",
+        "revealed",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_town_place",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "town_id",
+        "place_id",
+        "included",
+        "revealed",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "campaign_session_scene_town_shop",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "scene_id",
+        "session_id",
+        "campaign_id",
+        "town_id",
+        "shop_id",
+        "included",
+        "revealed",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "defense_skill_path_mapping",
+      "count": 0,
+      "statuses": [],
+      "columns": [
+        "id",
+        "defense_type",
+        "endpoint_skill_id",
+        "conditional",
+        "circumstance_label",
+        "review_state",
+        "sort_order",
+        "notes",
+        "updated_by_user_id",
+        "created_at",
+        "updated_at"
+      ]
+    }
+  ],
+  "unfinishedPlansInCompletedEncounters": [
+    {
+      "encounter_status": "completed",
+      "plan_status": "calculated",
+      "declaration_status": "cancelled",
+      "count": 1
+    },
+    {
+      "encounter_status": "completed",
+      "plan_status": "approved",
+      "declaration_status": "cancelled",
+      "count": 1
+    }
+  ],
+  "foreignKeys": [
+    {
+      "child_table": "campaign_character_firearm_event",
+      "parent_table": "user",
+      "name": "campaign_character_firearm_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_event",
+      "parent_table": "campaign_character_firearm_preparation",
+      "name": "campaign_character_firearm_event_preparation_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (preparation_id, item_instance_id, campaign_id, character_id) REFERENCES campaign_character_firearm_preparation(id, item_instance_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_event",
+      "parent_table": "campaign_character_firearm_state",
+      "name": "campaign_character_firearm_event_state_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (item_instance_id, campaign_id, character_id) REFERENCES campaign_character_firearm_state(item_instance_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "weapon_profiles",
+      "name": "campaign_character_firearm_preparation_ammunition_profile_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (ammunition_profile_id, ammunition_item_id) REFERENCES weapon_profiles(id, item_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "user",
+      "name": "campaign_character_firearm_preparation_created_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_character_firearm_preparation_declaration_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (action_declaration_id, pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, pending_action_id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_character_firearm_preparation_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "user",
+      "name": "campaign_character_firearm_preparation_resolved_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (resolved_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "campaign_character_firearm_state",
+      "name": "campaign_character_firearm_preparation_state_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (item_instance_id, campaign_id, character_id, item_id, weapon_profile_id) REFERENCES campaign_character_firearm_state(item_instance_id, campaign_id, character_id, item_id, weapon_profile_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_preparation",
+      "parent_table": "weapon_firing_modes",
+      "name": "campaign_character_firearm_preparation_target_mode_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (target_firing_mode_id, weapon_profile_id) REFERENCES weapon_firing_modes(id, weapon_profile_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "items",
+      "name": "campaign_character_firearm_state_ammunition_item_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (loaded_ammunition_item_id) REFERENCES items(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "weapon_profiles",
+      "name": "campaign_character_firearm_state_ammunition_profile_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (loaded_ammunition_profile_id, loaded_ammunition_item_id) REFERENCES weapon_profiles(id, item_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "campaign_character",
+      "name": "campaign_character_firearm_state_character_campaign_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (character_id, campaign_id) REFERENCES campaign_character(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "user",
+      "name": "campaign_character_firearm_state_initialized_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (initialized_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "weapon_firing_modes",
+      "name": "campaign_character_firearm_state_mode_profile_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (selected_firing_mode_id, weapon_profile_id) REFERENCES weapon_firing_modes(id, weapon_profile_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "campaign_character_item_instance",
+      "name": "campaign_character_firearm_state_owned_instance_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (item_instance_id, character_id, item_id) REFERENCES campaign_character_item_instance(id, character_id, item_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "weapon_profiles",
+      "name": "campaign_character_firearm_state_profile_item_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (weapon_profile_id, item_id) REFERENCES weapon_profiles(id, item_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_character_firearm_state",
+      "parent_table": "user",
+      "name": "campaign_character_firearm_state_updated_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session",
+      "parent_table": "campaign",
+      "name": "campaign_session_campaign_id_campaign_id_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_called_check_batch",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_called_check_batch_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_batch",
+      "parent_table": "skill",
+      "name": "campaign_session_called_check_batch_endpoint_skill_id_skill_id_",
+      "validated": true,
+      "definition": "FOREIGN KEY (endpoint_skill_id) REFERENCES skill(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_batch",
+      "parent_table": "user",
+      "name": "campaign_session_called_check_batch_issuer_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (issued_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_batch",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_called_check_batch_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_batch",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_called_check_batch_session_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_event",
+      "parent_table": "user",
+      "name": "campaign_session_called_check_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_event",
+      "parent_table": "campaign_session_called_check_request",
+      "name": "campaign_session_called_check_event_request_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (request_id, campaign_id, session_id) REFERENCES campaign_session_called_check_request(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "campaign_session_called_check_batch",
+      "name": "campaign_session_called_check_request_batch_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (batch_id, campaign_id, session_id) REFERENCES campaign_session_called_check_batch(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_called_check_request_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "campaign_session_called_check_request",
+      "name": "campaign_session_called_check_request_parent_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (parent_request_id, campaign_id, session_id) REFERENCES campaign_session_called_check_request(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "user",
+      "name": "campaign_session_called_check_request_revealer_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (revealed_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "campaign_session_roll",
+      "name": "campaign_session_called_check_request_roll_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (roll_id, campaign_id, session_id) REFERENCES campaign_session_roll(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "campaign_session_roster",
+      "name": "campaign_session_called_check_request_roster_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, recipient_character_id) REFERENCES campaign_session_roster(session_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_called_check_request",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_called_check_request_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_effect_duration_binding",
+      "parent_table": "campaign_character",
+      "name": "campaign_session_effect_duration_binding_character_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (character_id, campaign_id) REFERENCES campaign_character(id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_effect_duration_binding",
+      "parent_table": "campaign_character_active_condition",
+      "name": "campaign_session_effect_duration_binding_condition_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (condition_id, character_id) REFERENCES campaign_character_active_condition(id, character_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_effect_duration_binding",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_effect_duration_binding_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_effect_duration_binding",
+      "parent_table": "campaign_character_active_modifier",
+      "name": "campaign_session_effect_duration_binding_modifier_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (modifier_id, character_id) REFERENCES campaign_character_active_modifier(id, character_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_effect_duration_binding",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_effect_duration_binding_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_encounter_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "campaign_session_encounter_initiative_participant",
+      "name": "campaign_session_encounter_action_declaration_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, actor_character_id) REFERENCES campaign_session_encounter_initiative_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_action_declaration_committed_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (committed_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_action_declaration_created_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_action_declaration_defense_resolved_",
+      "validated": true,
+      "definition": "FOREIGN KEY (defense_resolved_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_action_declaration_ended_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (ended_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_action_declaration_locked_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (locked_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "campaign_session_encounter_pending_action",
+      "name": "campaign_session_encounter_action_declaration_pending_action_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_pending_action(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_encounter_action_declaration_revision_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (supersedes_declaration_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration_event",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_action_declaration_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_action_declaration_event",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_encounter_action_declaration_event_declaration",
+      "validated": true,
+      "definition": "FOREIGN KEY (declaration_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_effect_amended_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (amended_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect",
+      "parent_table": "campaign_session_encounter_effect_plan",
+      "name": "campaign_session_encounter_effect_plan_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (plan_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_effect_plan(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_effect_target_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, target_participant_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_effect_plan_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, actor_participant_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_effect_plan_applied_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (applied_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_effect_plan_created_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_encounter_effect_plan_declaration_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (declaration_id, pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, pending_action_id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_effect_plan_reviewed_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (reviewed_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan_event",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_effect_plan_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_effect_plan_event",
+      "parent_table": "campaign_session_encounter_effect_plan",
+      "name": "campaign_session_encounter_effect_plan_event_plan_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (plan_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_effect_plan(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_firearm_attack_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, actor_participant_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_encounter_firearm_attack_aim_declaration_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (aim_declaration_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_pending_action",
+      "name": "campaign_session_encounter_firearm_attack_aim_pending_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (aim_pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_pending_action(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "weapon_profiles",
+      "name": "campaign_session_encounter_firearm_attack_ammunition_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (ammunition_profile_id, ammunition_item_id) REFERENCES weapon_profiles(id, item_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_firearm_attack_cancelled_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (cancelled_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_firearm_attack_created_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_effect_plan",
+      "name": "campaign_session_encounter_firearm_attack_effect_plan_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (effect_plan_id) REFERENCES campaign_session_encounter_effect_plan(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_encounter_firearm_attack_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_firearm_attack_fired_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (fired_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "weapon_firing_modes",
+      "name": "campaign_session_encounter_firearm_attack_mode_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (firing_mode_id, weapon_profile_id) REFERENCES weapon_firing_modes(id, weapon_profile_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_roll",
+      "name": "campaign_session_encounter_firearm_attack_roll_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (attack_roll_id) REFERENCES campaign_session_roll(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_character_firearm_state",
+      "name": "campaign_session_encounter_firearm_attack_state_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (item_instance_id, campaign_id, actor_participant_id, item_id, weapon_profile_id) REFERENCES campaign_character_firearm_state(item_instance_id, campaign_id, character_id, item_id, weapon_profile_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_firearm_attack_target_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, target_participant_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_encounter_firearm_attack_trigger_declaration_f",
+      "validated": true,
+      "definition": "FOREIGN KEY (trigger_declaration_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack",
+      "parent_table": "campaign_session_encounter_pending_action",
+      "name": "campaign_session_encounter_firearm_attack_trigger_pending_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (trigger_pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_pending_action(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack_event",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_firearm_attack_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_attack_event",
+      "parent_table": "campaign_session_encounter_firearm_attack",
+      "name": "campaign_session_encounter_firearm_attack_event_attack_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (attack_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_firearm_attack(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_bullet",
+      "parent_table": "campaign_session_encounter_firearm_attack",
+      "name": "campaign_session_encounter_firearm_bullet_attack_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (attack_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_firearm_attack(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_firearm_bullet",
+      "parent_table": "campaign_session_encounter_reaction",
+      "name": "campaign_session_encounter_firearm_bullet_reaction_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (cancelled_by_reaction_id) REFERENCES campaign_session_encounter_reaction(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_initiative",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_encounter_initiative_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_encounter_initiative_participant",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_initiative_participant_encounter_par",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_initiative_participant",
+      "parent_table": "campaign_session_encounter_initiative",
+      "name": "campaign_session_encounter_initiative_participant_runtime_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_initiative(encounter_id, scene_id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_encounter_participant",
+      "parent_table": "creatures",
+      "name": "campaign_session_encounter_participant_creature_id_creatures_id",
+      "validated": true,
+      "definition": "FOREIGN KEY (creature_id) REFERENCES creatures(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_participant",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_encounter_participant_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_encounter_pending_action",
+      "parent_table": "campaign_session_encounter_initiative_participant",
+      "name": "campaign_session_encounter_pending_action_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, actor_character_id) REFERENCES campaign_session_encounter_initiative_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_encounter_pending_action_source",
+      "parent_table": "campaign_session_encounter_pending_action",
+      "name": "campaign_session_encounter_pending_action_source_action_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (pending_action_id, encounter_id, scene_id, session_id, campaign_id, source_character_id) REFERENCES campaign_session_encounter_pending_action(id, encounter_id, scene_id, session_id, campaign_id, actor_character_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_encounter_pending_action_source",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_pending_action_source_participant_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, source_character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "campaign_session_encounter_pending_action",
+      "name": "campaign_session_encounter_reaction_action_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_pending_action(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_reaction_declared_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (declared_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_reaction_god_approved_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (god_approved_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "campaign_session_encounter_reaction",
+      "name": "campaign_session_encounter_reaction_opposes_reaction_id_campaig",
+      "validated": true,
+      "definition": "FOREIGN KEY (opposes_reaction_id) REFERENCES campaign_session_encounter_reaction(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_reaction_protected_target_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, protected_target_character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "campaign_session_encounter_initiative_participant",
+      "name": "campaign_session_encounter_reaction_reactor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, reactor_character_id) REFERENCES campaign_session_encounter_initiative_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_reaction_ruled_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (ruled_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_reaction_target_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, target_character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction_event",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_reaction_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reaction_event",
+      "parent_table": "campaign_session_encounter_reaction",
+      "name": "campaign_session_encounter_reaction_event_reaction_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (reaction_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_reaction(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_responder_opportunity",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_responder_opportunity_created_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_responder_opportunity",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_encounter_responder_opportunity_declaration_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (declaration_id, pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, pending_action_id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_responder_opportunity",
+      "parent_table": "campaign_session_encounter_reaction",
+      "name": "campaign_session_encounter_responder_opportunity_reaction_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (reaction_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_reaction(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_responder_opportunity",
+      "parent_table": "user",
+      "name": "campaign_session_encounter_responder_opportunity_reconciled_by_",
+      "validated": true,
+      "definition": "FOREIGN KEY (reconciled_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_responder_opportunity",
+      "parent_table": "campaign_session_encounter_initiative_participant",
+      "name": "campaign_session_encounter_responder_opportunity_responder_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, responder_character_id) REFERENCES campaign_session_encounter_initiative_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reward",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_encounter_reward_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reward",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_encounter_reward_participant_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_encounter_reward",
+      "parent_table": "campaign_character_profile",
+      "name": "campaign_session_encounter_reward_profile_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (character_id) REFERENCES campaign_character_profile(character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_event",
+      "parent_table": "user",
+      "name": "campaign_session_high_low_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_event",
+      "parent_table": "campaign_session_high_low_request",
+      "name": "campaign_session_high_low_event_request_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (request_id, campaign_id, session_id) REFERENCES campaign_session_high_low_request(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "user",
+      "name": "campaign_session_high_low_request_caller_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (caller_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "user",
+      "name": "campaign_session_high_low_request_creator_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_high_low_request_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "campaign_session_high_low_request",
+      "name": "campaign_session_high_low_request_parent_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (parent_request_id, campaign_id, session_id) REFERENCES campaign_session_high_low_request(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "campaign_session_roll",
+      "name": "campaign_session_high_low_request_roll_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (roll_id, campaign_id, session_id) REFERENCES campaign_session_roll(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "campaign_session_roster",
+      "name": "campaign_session_high_low_request_roster_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, participant_character_id) REFERENCES campaign_session_roster(session_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_high_low_request_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_high_low_request",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_high_low_request_session_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "campaign_session_encounter_initiative_participant",
+      "name": "campaign_session_player_ruling_request_character_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, character_id) REFERENCES campaign_session_encounter_initiative_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "campaign_session_encounter_action_declaration",
+      "name": "campaign_session_player_ruling_request_declaration_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (linked_declaration_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_action_declaration(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_player_ruling_request_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "campaign_session_encounter_firearm_attack",
+      "name": "campaign_session_player_ruling_request_firearm_attack_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (linked_firearm_attack_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_firearm_attack(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "campaign_session_encounter_reaction",
+      "name": "campaign_session_player_ruling_request_reaction_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (linked_reaction_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_reaction(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "user",
+      "name": "campaign_session_player_ruling_request_requested_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (requested_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "user",
+      "name": "campaign_session_player_ruling_request_resolved_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (resolved_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_player_ruling_request_target_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, target_participant_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request_event",
+      "parent_table": "user",
+      "name": "campaign_session_player_ruling_request_event_actor_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (actor_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_player_ruling_request_event",
+      "parent_table": "campaign_session_player_ruling_request",
+      "name": "campaign_session_player_ruling_request_event_request_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (request_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_player_ruling_request(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_prepared_shop",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_prepared_shop_session_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_prepared_shop",
+      "parent_table": "shop",
+      "name": "campaign_session_prepared_shop_shop_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (shop_id, campaign_id) REFERENCES shop(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_prepared_town",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_prepared_town_session_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_prepared_town",
+      "parent_table": "town",
+      "name": "campaign_session_prepared_town_town_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (town_id, campaign_id) REFERENCES town(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session_encounter",
+      "name": "campaign_session_roll_encounter_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter(id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session_encounter_pending_action",
+      "name": "campaign_session_roll_pending_action_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (pending_action_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_pending_action(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session_encounter_reaction",
+      "name": "campaign_session_roll_reaction_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (reaction_id, encounter_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_encounter_reaction(id, encounter_id, scene_id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "user",
+      "name": "campaign_session_roll_recorded_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (recorded_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_roll_roller_encounter_participant_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, roller_character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_roll_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_roll_session_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "campaign_session_encounter_participant",
+      "name": "campaign_session_roll_target_encounter_participant_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id, scene_id, session_id, campaign_id, target_character_id) REFERENCES campaign_session_encounter_participant(encounter_id, scene_id, session_id, campaign_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll",
+      "parent_table": "user",
+      "name": "campaign_session_roll_voided_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (voided_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll_amendment",
+      "parent_table": "user",
+      "name": "campaign_session_roll_amendment_created_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll_amendment",
+      "parent_table": "campaign_session_roll_amendment",
+      "name": "campaign_session_roll_amendment_previous_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (previous_amendment_id, roll_id, campaign_id, session_id) REFERENCES campaign_session_roll_amendment(id, roll_id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roll_amendment",
+      "parent_table": "campaign_session_roll",
+      "name": "campaign_session_roll_amendment_roll_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (roll_id, campaign_id, session_id) REFERENCES campaign_session_roll(id, campaign_id, session_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_roster",
+      "parent_table": "campaign_character",
+      "name": "campaign_session_roster_character_campaign_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (character_id, campaign_id) REFERENCES campaign_character(id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_roster",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_roster_session_campaign_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene",
+      "parent_table": "campaign_session",
+      "name": "campaign_session_scene_session_campaign_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id) REFERENCES campaign_session(id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_member",
+      "parent_table": "campaign_session_roster",
+      "name": "campaign_session_scene_member_roster_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, character_id) REFERENCES campaign_session_roster(session_id, character_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_member",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_scene_member_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_shop",
+      "parent_table": "campaign_session_prepared_shop",
+      "name": "campaign_session_scene_shop_prepared_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id, shop_id) REFERENCES campaign_session_prepared_shop(session_id, campaign_id, shop_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_scene_shop_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_shop",
+      "parent_table": "shop",
+      "name": "campaign_session_scene_shop_source_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (shop_id, campaign_id) REFERENCES shop(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit",
+      "parent_table": "user",
+      "name": "campaign_session_scene_shop_visit_ended_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (ended_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_scene_shop_visit_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit",
+      "parent_table": "shop",
+      "name": "campaign_session_scene_shop_visit_shop_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (shop_id, campaign_id) REFERENCES shop(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit",
+      "parent_table": "user",
+      "name": "campaign_session_scene_shop_visit_started_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (started_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit",
+      "parent_table": "town",
+      "name": "campaign_session_scene_shop_visit_town_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (town_id, campaign_id) REFERENCES town(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit_member",
+      "parent_table": "campaign_character",
+      "name": "campaign_session_scene_shop_visit_member_character_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (character_id, campaign_id) REFERENCES campaign_character(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit_member",
+      "parent_table": "user",
+      "name": "campaign_session_scene_shop_visit_member_entered_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (entered_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit_member",
+      "parent_table": "user",
+      "name": "campaign_session_scene_shop_visit_member_exited_by_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (exited_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_shop_visit_member",
+      "parent_table": "campaign_session_scene_shop_visit",
+      "name": "campaign_session_scene_shop_visit_member_visit_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id, scene_id, session_id, campaign_id) REFERENCES campaign_session_scene_shop_visit(id, scene_id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_town",
+      "parent_table": "campaign_session_prepared_town",
+      "name": "campaign_session_scene_town_prepared_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id, campaign_id, town_id) REFERENCES campaign_session_prepared_town(session_id, campaign_id, town_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_town",
+      "parent_table": "campaign_session_scene",
+      "name": "campaign_session_scene_town_scene_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id) REFERENCES campaign_session_scene(id, session_id, campaign_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_town",
+      "parent_table": "town",
+      "name": "campaign_session_scene_town_source_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (town_id, campaign_id) REFERENCES town(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_town_npc",
+      "parent_table": "campaign_session_scene_town",
+      "name": "campaign_session_scene_town_npc_placement_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id, town_id) REFERENCES campaign_session_scene_town(scene_id, session_id, campaign_id, town_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_town_npc",
+      "parent_table": "campaign_character",
+      "name": "campaign_session_scene_town_npc_source_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (npc_character_id, campaign_id) REFERENCES campaign_character(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_town_place",
+      "parent_table": "campaign_session_scene_town",
+      "name": "campaign_session_scene_town_place_placement_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id, town_id) REFERENCES campaign_session_scene_town(scene_id, session_id, campaign_id, town_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_town_place",
+      "parent_table": "town_place",
+      "name": "campaign_session_scene_town_place_source_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (place_id, town_id, campaign_id) REFERENCES town_place(id, town_id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "campaign_session_scene_town_shop",
+      "parent_table": "campaign_session_scene_town",
+      "name": "campaign_session_scene_town_shop_placement_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id, session_id, campaign_id, town_id) REFERENCES campaign_session_scene_town(scene_id, session_id, campaign_id, town_id) ON DELETE CASCADE"
+    },
+    {
+      "child_table": "campaign_session_scene_town_shop",
+      "parent_table": "shop",
+      "name": "campaign_session_scene_town_shop_source_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (shop_id, campaign_id) REFERENCES shop(id, campaign_id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "character_derived_ability_recharge",
+      "parent_table": "campaign_session_encounter",
+      "name": "character_derived_ability_recharge_encounter_id_campaign_sessio",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id) REFERENCES campaign_session_encounter(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "character_derived_ability_recharge",
+      "parent_table": "campaign_session_scene",
+      "name": "character_derived_ability_recharge_scene_id_campaign_session_sc",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id) REFERENCES campaign_session_scene(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "character_derived_ability_recharge",
+      "parent_table": "campaign_session",
+      "name": "character_derived_ability_recharge_session_id_campaign_session_",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id) REFERENCES campaign_session(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "character_derived_ability_use",
+      "parent_table": "campaign_session_encounter",
+      "name": "character_derived_ability_use_encounter_id_campaign_session_enc",
+      "validated": true,
+      "definition": "FOREIGN KEY (encounter_id) REFERENCES campaign_session_encounter(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "character_derived_ability_use",
+      "parent_table": "campaign_session_scene",
+      "name": "character_derived_ability_use_scene_id_campaign_session_scene_i",
+      "validated": true,
+      "definition": "FOREIGN KEY (scene_id) REFERENCES campaign_session_scene(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "character_derived_ability_use",
+      "parent_table": "campaign_session",
+      "name": "character_derived_ability_use_session_id_campaign_session_id_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (session_id) REFERENCES campaign_session(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "defense_skill_path_mapping",
+      "parent_table": "skill",
+      "name": "defense_skill_path_mapping_endpoint_skill_id_skill_id_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (endpoint_skill_id) REFERENCES skill(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "defense_skill_path_mapping",
+      "parent_table": "user",
+      "name": "defense_skill_path_mapping_updated_by_user_id_user_id_fk",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by_user_id) REFERENCES \"user\"(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "shop_transaction_request",
+      "parent_table": "campaign_session_scene_shop_visit",
+      "name": "shop_transaction_request_visit_id_campaign_session_scene_shop_v",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES campaign_session_scene_shop_visit(id) ON DELETE RESTRICT"
+    },
+    {
+      "child_table": "shop_transaction_request",
+      "parent_table": "campaign_session_scene_shop_visit_member",
+      "name": "shop_transaction_request_visit_member_id_campaign_session_scene",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_member_id) REFERENCES campaign_session_scene_shop_visit_member(id) ON DELETE RESTRICT"
+    }
+  ],
+  "unvalidatedForeignKeys": []
+}

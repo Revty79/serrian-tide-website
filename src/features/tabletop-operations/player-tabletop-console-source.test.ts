@@ -16,7 +16,7 @@ const css = readFileSync("src/app/realms/tabletop/player-tabletop.module.css", "
 test("the stable Realms route resolves every selection server-side", () => {
   assert.match(page, /searchParams: Promise/);
   assert.match(page, /resolvePlayerTabletopSelection/);
-  assert.match(page, /readPlayerTabletopRuntime/);
+  assert.match(page, /readPlayerTabletopState/);
   assert.doesNotMatch(page, /localStorage|sessionStorage/);
 });
 
@@ -50,8 +50,7 @@ test("Player combat reads distinguish Encounter membership, Initiative enrollmen
   assert.match(service, /lockedRuntime\.status !== "active"/);
   assert.match(service, /error instanceof Error && error\.message === "The assigned Player Character is not an exact active Initiative participant in this Encounter\."/);
   assert.match(service, /campaignSessionEncounterInitiative\.encounterId, context\.encounterId[\s\S]*\.for\("share"\)/);
-  assert.match(workspace, /view\.combatAvailability\.reason/);
-  assert.match(workspace, /role="status"/);
+  assert.doesNotMatch(workspace, /view\.combatAvailability|view\.encounter/);
 });
 
 test("the console uses authoritative Active State readers", () => {
@@ -144,8 +143,8 @@ test("the Player live endpoint rechecks role, assignment, and membership", () =>
   );
 });
 
-test("Pass 13 combat controls extend the accepted console without exposing effect application", () => {
-  assert.match(workspace, /PlayerCombatConsole/);
+test("the Player console omits combat controls and effect application", () => {
+  assert.doesNotMatch(workspace, /PlayerCombatConsole|PlayerCombatIntentButton/);
   assert.match(workspace, /TabletopLiveRefresh mode="player"/);
   assert.doesNotMatch(workspace + clientActions + serverActions, /applyEncounterDamage|approveActionEffect|correctInitiative/);
 });
