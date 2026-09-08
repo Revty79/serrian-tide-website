@@ -157,7 +157,7 @@ test("location references participate in deletion previews and Campaign child-fi
 
 test("0038 is the additive migration tail", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 45);
+  assert.equal(journal.entries.length, 46);
   assert.equal(journal.entries[37]?.tag, "0037_site_appearance");
   assert.equal(journal.entries[38]?.tag, "0038_tabletop_location_placement");
   assert.equal(journal.entries[39]?.tag, "0039_tabletop_shop_visits");

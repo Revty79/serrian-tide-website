@@ -45,6 +45,12 @@ import {
 } from "@/features/tabletop-operations/runtime-integration-service";
 import type { RollMethod } from "@/features/tabletop-operations/roll-runtime";
 import { requirePlayer } from "@/lib/server-access";
+import { declareCombatMovementInTransaction, type CombatMovementCommand } from "@/features/tabletop-operations/combat-movement-service";
+
+export async function declarePlayerCombatMovement(characterId: number, encounterId: number, command: Omit<CombatMovementCommand, "participantId">) {
+  return withPlayerCombat(characterId, encounterId, "action", (tx, context, actor) =>
+    declareCombatMovementInTransaction(tx, context, actor, { ...command, participantId: actor.characterId }));
+}
 
 type PlayerActor = { authority: "player"; userId: string; characterId: number };
 

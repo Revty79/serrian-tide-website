@@ -2,6 +2,7 @@ import "server-only";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { isDeepStrictEqual } from "node:util";
 
 import {
   CREATURE_CR_IMPACTS,
@@ -52,6 +53,7 @@ export type SpawnEncounterCreaturesInput = {
   quantity: number;
   joinInitiative: boolean;
   movementMode?: string;
+  requestKey?: string;
 };
 
 export type SpawnEncounterCreaturesResult = {
@@ -233,8 +235,24 @@ export async function spawnEncounterCreaturesInTransaction(
   actingUserId: string,
   input: SpawnEncounterCreaturesInput,
 ): Promise<SpawnEncounterCreaturesResult> {
+  return tx.transaction((spawnTx) => spawnEncounterCreaturesInternal(spawnTx, context, actingUserId, input));
+}
+
+async function spawnEncounterCreaturesInternal(tx: RuntimeIntegrationTransaction, context: OwnedEncounterRuntimeContext,
+  actingUserId: string, input: SpawnEncounterCreaturesInput): Promise<SpawnEncounterCreaturesResult> {
   if (actingUserId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may add encounter Creatures.");
   await assertCombatWritableInTransaction(tx, context.encounterId);
+  if (context.encounterStatus === "active" && (!input.requestKey?.trim() || input.requestKey.length > 200)) throw new Error("Combat arrivals require a stable spawn request identity.");
+  const originalRequest = JSON.parse(JSON.stringify(input));
+  if (input.requestKey) {
+    const previous = await tx.select().from(campaignSessionEncounterParticipant).where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
+      sql`${campaignSessionEncounterParticipant.localStateJson}->'spawnRequest'->>'requestKey' = ${input.requestKey}`)).orderBy(asc(campaignSessionEncounterParticipant.participantId));
+    if (previous.length) {
+      if (!previous.every((row) => isDeepStrictEqual((row.localStateJson as { spawnRequest?: unknown }).spawnRequest, originalRequest))) throw new Error("That spawn request already identifies different Creature arrivals.");
+      return { creatureId: previous[0].creatureId!, templateName: (previous[0].creatureSnapshotJson as { core: { canonicalName: string } }).core.canonicalName,
+        created: previous.map((row) => ({ participantId: row.participantId, runtimeParticipantKey: row.characterId, name: row.displayLabel, joinedInitiative: input.joinInitiative })) };
+    }
+  }
   if (context.encounterStatus === "completed") throw new Error("Completed Encounters cannot receive new Creatures.");
   if (context.sessionStatus === "completed" || context.sceneStatus === "completed") {
     throw new Error("Completed Session or Scene history cannot receive new Creatures.");
@@ -288,6 +306,7 @@ export async function spawnEncounterCreaturesInTransaction(
       displayLabel: name,
       creatureSnapshotJson: snapshot,
       localStateJson: {
+        spawnRequest: originalRequest,
         occurrenceNumber: greatestOccurrenceNumber + index + 1,
         health: { totalDamage: 0, poolDamage: {} },
         conditions: [],

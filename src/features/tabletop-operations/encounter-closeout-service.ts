@@ -18,6 +18,7 @@ import {
   campaignSession,
   campaignSessionEncounter,
   campaignSessionEncounterActionDeclaration,
+  campaignSessionEncounterEffectPlan,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
@@ -43,6 +44,7 @@ import {
   type TabletopDurationBindingView,
 } from "./duration-lifecycle-service";
 import { assertCampaignSessionOwner } from "./session-foundation";
+import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 export type EncounterCloseoutTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -117,6 +119,7 @@ export type EncounterCloseoutView = {
 export type FinalizeEncounterCloseoutInput = {
   awards: readonly ExperienceAwardInput[];
   rewardNote?: string;
+  combatXpDecisions?: readonly import("./combat-xp-service").CombatExperienceDecisionInput[];
 };
 
 function positiveId(value: number, label: string): number {
@@ -294,7 +297,14 @@ export async function readEncounterCloseoutInTransaction(
     }];
   });
   const initiative = initiativeRows[0] ?? null;
-  const blockers = buildEncounterCloseoutBlockers({
+  const openCheckpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
+  const effectPlans = await tx.select({ id: campaignSessionEncounterEffectPlan.id, status: campaignSessionEncounterEffectPlan.status,
+    actorParticipantId: campaignSessionEncounterEffectPlan.actorParticipantId }).from(campaignSessionEncounterEffectPlan)
+    .where(eq(campaignSessionEncounterEffectPlan.encounterId, context.encounterId));
+  // Even the owning G.O.D. must not learn a sealed choice from its closeout blocker.
+  const blockers: EncounterCloseoutBlocker[] = openCheckpoint ? [{ code: "declaration-checkpoint-open", characterId: null,
+    message: "Complete or explicitly recover the simultaneous declaration checkpoint before closeout." }] : buildEncounterCloseoutBlockers({
+    effectPlans,
     initiativeStatus: initiative?.status ?? null,
     actionDeclarations: declarationRows,
     pendingActions: pendingRows,
@@ -354,8 +364,17 @@ export async function finalizeEncounterCloseoutInTransaction(
   context: EncounterCloseoutContext,
   input: FinalizeEncounterCloseoutInput,
 ): Promise<EncounterCloseoutView> {
+  return tx.transaction((closeoutTx) => finalizeEncounterCloseoutInternal(closeoutTx, context, input));
+}
+
+async function finalizeEncounterCloseoutInternal(
+  tx: EncounterCloseoutTransaction, context: EncounterCloseoutContext, input: FinalizeEncounterCloseoutInput,
+): Promise<EncounterCloseoutView> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
+  if (input.combatXpDecisions?.length && input.awards.length) throw new Error("Use the explicit combat XP decisions without also entering legacy closeout awards for the same rewards.");
   if (context.encounterStatus === "completed") {
+    const { awardCombatExperienceInTransaction } = await import("./combat-xp-service");
+    for (const decision of input.combatXpDecisions ?? []) await awardCombatExperienceInTransaction(tx, context.encounterId, { authority: "god-owner", userId: context.ownerUserId }, decision);
     return readEncounterCloseoutInTransaction(tx, context);
   }
   if (context.encounterStatus !== "active") {
@@ -366,12 +385,44 @@ export async function finalizeEncounterCloseoutInTransaction(
   if (current.blockers.length) {
     throw new Error(`Encounter closeout is blocked: ${current.blockers.map(({ message }) => message).join(" ")}`);
   }
+  const { awardCombatExperienceInTransaction } = await import("./combat-xp-service");
+  for (const decision of input.combatXpDecisions ?? []) await awardCombatExperienceInTransaction(tx, context.encounterId, { authority: "god-owner", userId: context.ownerUserId }, decision);
   const awards = normalizeExperienceAwards(input.awards);
   if (current.hasRewardHistory && awards.length) {
     throw new Error("This Encounter already has immutable XP reward history. Re-complete it without another award.");
   }
   const note = input.rewardNote?.trim() ?? "";
   if (!current.hasRewardHistory && awards.length) {
+    await applyEncounterExperienceAwardsInTransaction(tx, context, awards, note);
+  }
+  const next = transitionEncounter({
+    status: context.encounterStatus,
+    startedAt: context.encounterStartedAt,
+    completedAt: context.encounterCompletedAt,
+  }, "complete");
+  const [completed] = await tx.update(campaignSessionEncounter).set({
+    ...next,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(campaignSessionEncounter.id, context.encounterId),
+    eq(campaignSessionEncounter.status, "active"),
+  )).returning({ id: campaignSessionEncounter.id });
+  if (!completed) throw new Error("The Encounter changed before closeout completed.");
+  return readEncounterCloseoutInTransaction(tx, {
+    ...context,
+    encounterStatus: "completed",
+    encounterCompletedAt: next.completedAt,
+  });
+}
+
+/** Shared retained XP writer; callers hold the Encounter and record the reward decision. */
+export async function applyEncounterExperienceAwardsInTransaction(
+  tx: EncounterCloseoutTransaction, context: EncounterCloseoutContext,
+  input: readonly ExperienceAwardInput[], note: string, decisionId: number | null = null,
+): Promise<void> {
+    await assertCombatWritableInTransaction(tx, context.encounterId);
+    const awards = normalizeExperienceAwards(input);
+    if (!awards.length) return;
     const recipientIds = awards.map(({ characterId }) => characterId).sort((left, right) => left - right);
     const recipients = await tx.select({
       characterId: campaignCharacterProfile.characterId,
@@ -403,26 +454,8 @@ export async function finalizeEncounterCloseoutInTransaction(
       campaignId: context.campaignId,
       characterId: award.characterId,
       rewardKind: "experience" as const,
+      decisionId,
       amount: award.amount,
       note,
     })));
-  }
-  const next = transitionEncounter({
-    status: context.encounterStatus,
-    startedAt: context.encounterStartedAt,
-    completedAt: context.encounterCompletedAt,
-  }, "complete");
-  const [completed] = await tx.update(campaignSessionEncounter).set({
-    ...next,
-    updatedAt: new Date(),
-  }).where(and(
-    eq(campaignSessionEncounter.id, context.encounterId),
-    eq(campaignSessionEncounter.status, "active"),
-  )).returning({ id: campaignSessionEncounter.id });
-  if (!completed) throw new Error("The Encounter changed before closeout completed.");
-  return readEncounterCloseoutInTransaction(tx, {
-    ...context,
-    encounterStatus: "completed",
-    encounterCompletedAt: next.completedAt,
-  });
 }

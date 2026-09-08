@@ -98,8 +98,8 @@ export async function finishDeclarationCheckpointChoiceInTransaction(tx: Transac
 
 export async function assertDeclarationCheckpointRevealed(tx: Transaction, checkpointId: number | null): Promise<void> {
   if (checkpointId === null) return; // Retained historical declarations predate checkpoints.
-  const [row] = await tx.select({ revealedAt: checkpoint.revealedAt }).from(checkpoint).where(eq(checkpoint.id, checkpointId)).limit(1);
-  if (!row?.revealedAt) throw new Error("Declarations and Rolls remain sealed until every current participant commits its choice.");
+  const [row] = await tx.select().from(checkpoint).where(eq(checkpoint.id, checkpointId)).limit(1);
+  if (!row?.revealedAt || (row.beforeStateJson as { withdrawal?: unknown }).withdrawal) throw new Error("Declarations and Rolls remain sealed until every current participant commits its choice.");
 }
 
 export async function assertNoOpenDeclarationCheckpoint(tx: Transaction, encounterId: number): Promise<void> {
@@ -113,11 +113,11 @@ export function revealedCombatRollPredicate() {
   return sql`NOT EXISTS (
     SELECT 1 FROM campaign_session_encounter_action_declaration declaration
     JOIN campaign_session_encounter_declaration_checkpoint boundary ON boundary.id = declaration.checkpoint_id
-    WHERE declaration.pending_action_id = ${campaignSessionRoll.pendingActionId} AND boundary.revealed_at IS NULL
+    WHERE declaration.pending_action_id = ${campaignSessionRoll.pendingActionId} AND (boundary.revealed_at IS NULL OR boundary.before_state_json ? 'withdrawal')
   ) AND NOT EXISTS (
     SELECT 1 FROM campaign_session_encounter_reaction reaction
     JOIN campaign_session_encounter_declaration_checkpoint boundary ON boundary.id = reaction.checkpoint_id
-    WHERE reaction.id = ${campaignSessionRoll.reactionId} AND boundary.revealed_at IS NULL
+    WHERE reaction.id = ${campaignSessionRoll.reactionId} AND (boundary.revealed_at IS NULL OR boundary.before_state_json ? 'withdrawal')
   )`;
 }
 

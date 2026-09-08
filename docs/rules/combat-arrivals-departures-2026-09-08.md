@@ -1,0 +1,14 @@
+# Combat arrivals, departures and fleeing
+
+User-authorized addition to Pass 7 on main tracking origin/main. No new screen, escape Roll, fixed flee cost, automatic opportunity attack, death or XP award is introduced.
+
+- A Player declares movement with `intent: "flee"`. Distance and Initiative come from the existing authored movement mode. The combatant remains active and targetable until the Campaign-owning G.O.D. confirms escape.
+- The owning G.O.D. may withdraw or return a Player Character, persistent NPC or exact negative Creature occurrence. Departure uses suspension; encounter membership, resources, Roll history and effects remain. Participation decisions record the reason, actor, original request, revision and prior Initiative in occurrence-local history.
+- New positive arrivals must already be unarchived members of the Scene; they use the existing authoritative capacity and late-enrollment rule. Exact new Creature occurrences reuse the spawn service and frozen authored statistics. Combat spawns require a stable request key; repeat submissions return the original occurrence identities.
+- Re-entry reactivates the existing Initiative row. It preserves current balance, deferred costs, history and immediate effect changes. Departed participants do not accumulate round Initiative while outside combat. Duration bindings continue under their existing combat/Scene rules; departure itself does not cleanse or advance them.
+- Withdrawal cancels the departing actor's unfinished work without refunding resources. Already fired portions and completed outcomes remain applicable even if Apply arrives after departure. Unfinished incoming attacks whose target leaves require an explicit G.O.D. ruling; the backend does not invent their fictional outcome or retarget them.
+- Already committed responses to due outcomes remain. Pending opportunities for absent responders are closed. Future cancelled responses retain their committed costs. The G.O.D. can use the existing ruling/cancellation/recovery actions to settle remaining work.
+- An uncommitted departing member is removed from the current checkpoint's required set, with its original membership retained in the checkpoint's departure history. Other choices stay sealed until all remaining members commit. A committed departing member's choice is retained. Arrivals do not retroactively join an already-open group.
+- Participation changes do not fabricate a Combat Step. Departed combatants no longer block later progression. Freeze, ownership, Encounter transaction locks and request/revision checks apply to every operation.
+
+The later card projection includes participation status, revision, departure reason and action/response availability. Cards remain inspectable. XP recipients remain an explicit G.O.D. selection under the separate XP contract.

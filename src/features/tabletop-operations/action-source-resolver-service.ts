@@ -853,5 +853,14 @@ export async function resolveLockedActionSourceInTransaction(
     const resolved = await resolveCreatureSource(participant, draft);
     return draft.sourceKind === "creature-ability" ? applyRecordedSourceResolutionInTransaction(tx, context, draft, resolved) : resolved;
   }
-  return resolveNoRollOrManual(context, actor, participant, declarationId, draft);
+  const descriptive = resolveNoRollOrManual(context, actor, participant, declarationId, draft);
+  if (draft.actionKind === "combat-movement") {
+    const request = sourcePayload(draft).movementRequest;
+    if (!isRecord(request) || typeof request.movementMode !== "string" || typeof request.distance !== "number") throw new Error("Movement requires its exact authored segment request.");
+    const { resolveCombatMovementInTransaction } = await import("./combat-movement-service");
+    const movement = await resolveCombatMovementInTransaction(tx, context, draft.actorCharacterId, request.movementMode, request.distance);
+    return { ...descriptive, authoritativeInitiativeCost: movement.initiativeCost,
+      snapshot: { ...descriptive.snapshot, authoredData: { ...descriptive.snapshot.authoredData, movement } } };
+  }
+  return descriptive;
 }

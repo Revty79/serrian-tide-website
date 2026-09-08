@@ -606,6 +606,10 @@ async function loadUsePlanInTransaction(
   const resolvedStatus = state.resolution.statuses.find(({ abilityId }) => abilityId === request.derivedAbilityId);
   if (!ability || !resolvedStatus) throw new Error("Derived Ability not found.");
   const runtime = await loadRuntimeContext(tx, state.entity, lock);
+  if (!lock && runtime) {
+    const { assertNoOpenDeclarationCheckpoint } = await import("@/features/tabletop-operations/declaration-checkpoint-service");
+    await assertNoOpenDeclarationCheckpoint(tx, runtime.encounterId);
+  }
   const mana = await readActiveManaInTransaction(tx, state.entity.characterId);
   const useRows = await tx.select().from(characterDerivedAbilityUse).where(and(
     eq(characterDerivedAbilityUse.characterId, state.entity.characterId),

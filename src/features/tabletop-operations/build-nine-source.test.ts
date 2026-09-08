@@ -19,7 +19,7 @@ test("duration passage observes authoritative Initiative transitions and exclude
   const normalActions = read("src/app/heavens/tabletop/initiative-actions.ts");
   const runtimeIntegration = read("src/features/tabletop-operations/runtime-integration-service.ts");
   const durationService = read("src/features/tabletop-operations/duration-lifecycle-service.ts");
-  assert.match(normalActions, /applyInitiativeDurationTransitionInTransaction/);
+  assert.match(normalActions, /persistInitiativeEngineInTransaction/);
   assert.match(runtimeIntegration, /applyInitiativeDurationTransitionInTransaction/);
   assert.match(normalActions, /correctEncounterInitiativeRuntime[\s\S]*durationPassage:\s*"correction"/);
   assert.match(durationService, /after\.stepNumber - before\.stepNumber|combatStepBoundaries/);

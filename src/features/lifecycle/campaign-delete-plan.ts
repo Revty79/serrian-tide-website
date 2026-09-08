@@ -1,5 +1,6 @@
 export type CampaignDeleteScope =
   | "campaign"
+  | "encounter"
   | "character"
   | "chat-room"
   | "shop-request"
@@ -72,6 +73,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_session_encounter_reaction_event", scope: "campaign" },
   { tableName: "campaign_session_encounter_responder_opportunity", scope: "campaign" },
   { tableName: "campaign_session_encounter_reward", scope: "campaign" },
+  { tableName: "campaign_session_encounter_reward_decision", scope: "campaign" },
   { tableName: "campaign_character_profile", scope: "character" },
   { tableName: "campaign_session_high_low_event", scope: "campaign" },
   { tableName: "campaign_session_high_low_request", scope: "campaign" },
@@ -85,6 +87,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_session_roll_amendment", scope: "campaign" },
   { tableName: "campaign_session_roll", scope: "campaign" },
   { tableName: "campaign_session_encounter_reaction", scope: "campaign" },
+  { tableName: "campaign_session_encounter_declaration_checkpoint", scope: "encounter" },
   { tableName: "campaign_session_encounter_pending_action", scope: "campaign" },
   { tableName: "campaign_session_encounter_initiative_participant", scope: "campaign" },
   { tableName: "campaign_session_encounter_initiative", scope: "campaign" },

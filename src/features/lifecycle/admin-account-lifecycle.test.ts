@@ -69,7 +69,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the current 80-FK User closure", () => {
+test("the account plan classifies the current 81-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -88,11 +88,11 @@ test("the account plan classifies the current 80-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 80);
-  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 80);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 81);
+  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 81);
   assert.deepEqual(planned, actual);
-  assert.equal(currentMigration.tag, "0044_combat_firing_portions");
-  assert.equal(snapshotPath, "drizzle/meta/0044_snapshot.json");
+  assert.equal(currentMigration.tag, "0045_combat_reward_decisions");
+  assert.equal(snapshotPath, "drizzle/meta/0045_snapshot.json");
 });
 
 test("only authentication and membership associations are cleanup FKs", () => {
@@ -111,7 +111,7 @@ test("only authentication and membership associations are cleanup FKs", () => {
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    75,
+    76,
   );
   assert.ok(
     USER_ACCOUNT_FOREIGN_KEY_PLAN

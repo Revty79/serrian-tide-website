@@ -98,6 +98,7 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "chat_message", columnName: "author_user_id", constraintName: "chat_message_author_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Authored Chat messages" },
   { tableName: "chat_message", columnName: "deleted_by_user_id", constraintName: "chat_message_deleted_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Chat moderation attribution" },
   { tableName: "chat_room_member", columnName: "user_id", constraintName: "chat_room_member_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Chat room memberships" },
+  { tableName: "campaign_session_encounter_reward_decision", columnName: "awarded_by_user_id", constraintName: "combat_reward_decision_awarded_by_fk", onDelete: "restrict", disposition: "block", label: "Combat XP reward decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 80;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 81;

@@ -275,10 +275,10 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
   }
 
   const requiresGod = unresolved || proposals.some(({ status }) => status === "requires-god-ruling");
-  const explanation = stopped
-    ? "Defense/intervention stopped the action. Authored consequences remain visible but are not applicable."
-    : failedRoll
-      ? "The governing Roll failed. Authored consequences remain visible but are not applicable."
+  const explanation = failedRoll
+    ? "The governing Roll failed. Authored consequences remain visible but are not applicable."
+    : stopped
+      ? "Defense/intervention stopped the action. Authored consequences remain visible but are not applicable."
       : requiresGod
         ? "At least one consequence needs an explicit G.O.D. ruling or manual resolution."
         : proposals.length

@@ -316,6 +316,13 @@
       "when": 1788896654586,
       "tag": "0044_combat_firing_portions",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1788898239375,
+      "tag": "0045_combat_reward_decisions",
+      "breakpoints": true
     }
   ]
 }

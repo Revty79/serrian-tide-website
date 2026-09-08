@@ -174,7 +174,7 @@ test("guarded Pass 8 plans freeze sources and apply Character or direct-Creature
       createdByUserId: base.godId,
     }).returning({ id: creature.id, canonicalName: creature.canonicalName });
     assert.ok(masterCreature);
-    const spawned = await spawnEncounterCreaturesInTransaction(tx, context, base.godId, {
+    const spawned = await spawnEncounterCreaturesInTransaction(tx, context, base.godId, { requestKey: crypto.randomUUID(),
       creatureId: masterCreature.id,
       quantity: 2,
       joinInitiative: false,

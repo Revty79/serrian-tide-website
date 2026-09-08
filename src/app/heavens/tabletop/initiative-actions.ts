@@ -14,15 +14,12 @@ import {
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
   campaignSessionEncounterPendingAction,
-  campaignSessionEncounterPendingActionSource,
-  campaignSessionEncounterReaction,
   campaignSessionScene,
 } from "@/db/tabletop-operations-schema";
 import {
   resolveInitiativeCapacityInTransaction,
   resolveInitiativeCapacityOptionsInTransaction,
 } from "@/features/tabletop-operations/initiative-capacity-service";
-import { applyInitiativeDurationTransitionInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 import type { InitiativeTrackerCapacityInput } from "@/features/tabletop-operations/initiative-tracker";
 import {
   addDeferredInitiativeCost,
@@ -35,7 +32,6 @@ import {
   completePendingInitiativeActionManually,
   correctInitiativeRuntimePosition,
   endPendingInitiativeAction,
-  enrollLateInitiativeParticipant,
   holdInitiative,
   initializeInitiativeRuntime,
   interruptPendingInitiativeAction,
@@ -44,7 +40,6 @@ import {
   resumePendingInitiativeAction,
   resumePendingInitiativeActionWithAdjustedCost,
   setCurrentInitiative,
-  setInitiativeParticipationStatus,
   settleDeferredInitiativeCost,
   abandonPendingInitiativeAction,
   type CapacityChangeMode,
@@ -58,12 +53,12 @@ import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-op
 import { assertCombatParticipantKey } from "@/features/tabletop-operations/combat-participant-identity";
 import { assertActionChoiceAuthority } from "@/features/tabletop-operations/action-declaration-service";
 import { requireGod } from "@/lib/server-access";
+import { initiativeStateToken, assertExpectedInitiativeState } from "@/features/tabletop-operations/initiative-state-token";
 import {
   assertNoOpenDeclarationCheckpoint, beginDeclarationCheckpointInTransaction,
   finishDeclarationCheckpointChoiceInTransaction, projectRevealedInitiativeInTransaction,
 } from "@/features/tabletop-operations/declaration-checkpoint-service";
 import {
-  recordActionTimingCompletionsInTransaction,
   recordLongActionRoundContinuationsInTransaction,
 } from "@/features/tabletop-operations/action-declaration-service";
 
@@ -81,6 +76,7 @@ type OwnedEncounterContext = {
 };
 
 export type InitiativeRuntimeView = {
+  stateToken: string;
   runtime: {
     encounterId: number;
     status: InitiativeRuntimeStatus;
@@ -239,6 +235,7 @@ async function loadInitiativeEngine(
 
 function toView(state: InitiativeEngineState): InitiativeRuntimeView {
   return {
+    stateToken: initiativeStateToken(state),
     runtime: {
       ...state.runtime,
       startedAt: state.runtime.startedAt.toISOString(),
@@ -256,139 +253,8 @@ async function persistEngine(
   after: InitiativeEngineState,
   durationPassage: "elapsed" | "correction" = "elapsed",
 ): Promise<void> {
-  const now = new Date();
-  await tx
-    .update(campaignSessionEncounterInitiative)
-    .set({
-      status: after.runtime.status,
-      roundNumber: after.runtime.roundNumber,
-      stepNumber: after.runtime.stepNumber,
-      timelineInitiative: after.runtime.timelineInitiative,
-      closedAt: after.runtime.closedAt,
-      updatedAt: now,
-    })
-    .where(and(
-      eq(campaignSessionEncounterInitiative.encounterId, context.encounterId),
-      eq(campaignSessionEncounterInitiative.status, before.runtime.status),
-    ));
-
-  const beforeParticipantIds = new Set(before.participants.map(({ characterId }) => characterId));
-  for (const participant of after.participants) {
-    const values = {
-      normalTotalInitiative: participant.normalTotalInitiative,
-      currentInitiative: participant.currentInitiative,
-      participationStatus: participant.participationStatus,
-      deferredInitiativeCost: participant.deferredInitiativeCost,
-      lastSatisfiedStep: participant.lastSatisfiedStep,
-      movementMode: participant.movementMode,
-      updatedAt: now,
-    };
-    if (beforeParticipantIds.has(participant.characterId)) {
-      await tx
-        .update(campaignSessionEncounterInitiativeParticipant)
-        .set(values)
-        .where(and(
-          eq(campaignSessionEncounterInitiativeParticipant.encounterId, context.encounterId),
-          eq(campaignSessionEncounterInitiativeParticipant.characterId, participant.characterId),
-        ));
-    } else {
-      await tx.insert(campaignSessionEncounterInitiativeParticipant).values({
-        encounterId: context.encounterId,
-        sceneId: context.sceneId,
-        sessionId: context.sessionId,
-        campaignId: context.campaignId,
-        characterId: participant.characterId,
-        ...values,
-      });
-    }
-  }
-
-  const beforeActionIds = new Set(before.pendingActions.map(({ id }) => id));
-  for (const action of after.pendingActions) {
-    const values = {
-      label: action.label,
-      actionKind: action.actionKind,
-      allowsMultiRound: action.allowsMultiRound,
-      originalInitiativeCost: action.originalInitiativeCost,
-      initiativeSpent: action.initiativeSpent,
-      remainingInitiativeCost: action.remainingInitiativeCost,
-      startInitiative: action.startInitiative,
-      startTimelineInitiative: action.startTimelineInitiative,
-      expectedCompletionInitiative: action.expectedCompletionInitiative,
-      status: action.status,
-      startedRound: action.startedRound,
-      completedRound: action.completedRound,
-      updatedAt: now,
-    };
-    if (beforeActionIds.has(action.id)) {
-      await tx
-        .update(campaignSessionEncounterPendingAction)
-        .set(values)
-        .where(and(
-          eq(campaignSessionEncounterPendingAction.id, action.id),
-          eq(campaignSessionEncounterPendingAction.encounterId, context.encounterId),
-        ));
-    } else {
-      await tx.insert(campaignSessionEncounterPendingAction).values({
-        id: action.id,
-        encounterId: context.encounterId,
-        sceneId: context.sceneId,
-        sessionId: context.sessionId,
-        campaignId: context.campaignId,
-        actorCharacterId: action.actorCharacterId,
-        ...values,
-      });
-    }
-  }
-
-  const beforeActionById = new Map(before.pendingActions.map((action) => [action.id, action]));
-  const completedActionIds: number[] = [];
-  for (const action of after.pendingActions) {
-    const prior = beforeActionById.get(action.id);
-    if (!prior || prior.status === action.status) continue;
-    if (action.status === "completed") completedActionIds.push(action.id);
-    if (action.status === "abandoned" || action.status === "ended") {
-      await tx.update(campaignSessionEncounterPendingActionSource).set({
-        resolutionStatus: "cancelled",
-        resolutionSummary: `Pending action ${action.status}; authored consequences were not executed.`,
-        resolvedAt: now,
-        updatedAt: now,
-      }).where(and(
-        eq(campaignSessionEncounterPendingActionSource.pendingActionId, action.id),
-        eq(campaignSessionEncounterPendingActionSource.encounterId, context.encounterId),
-        eq(campaignSessionEncounterPendingActionSource.resolutionStatus, "pending"),
-      ));
-    }
-    if (action.status === "interrupted" || action.status === "abandoned" || action.status === "ended") {
-      await tx.update(campaignSessionEncounterReaction).set({
-        status: "needs-ruling",
-        outcome: "Source action stopped before Reaction resolution.",
-        resolvedAt: now,
-        updatedAt: now,
-      }).where(and(
-        eq(campaignSessionEncounterReaction.pendingActionId, action.id),
-        eq(campaignSessionEncounterReaction.status, "declared"),
-      ));
-    }
-  }
-  const { reconcileActionResponseWindowsInTransaction } = await import("@/features/tabletop-operations/action-declaration-service");
-  if (before) await reconcileActionResponseWindowsInTransaction(tx, context, before, after);
-  const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("@/features/tabletop-operations/firearm-readiness-service");
-  await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
-  await recordActionTimingCompletionsInTransaction(
-    tx,
-    context,
-    completedActionIds,
-    context.ownerUserId,
-  );
-
-  await applyInitiativeDurationTransitionInTransaction(
-    tx,
-    context,
-    before.runtime,
-    after.runtime,
-    durationPassage,
-  );
+  const { persistInitiativeEngineInTransaction } = await import("@/features/tabletop-operations/runtime-integration-service");
+  await persistInitiativeEngineInTransaction(tx, context, before, after, durationPassage);
 }
 
 async function assertLegacyPendingActionControl(
@@ -587,29 +453,11 @@ export async function initializeEncounterInitiative(
   return toView(initialized);
 }
 
-export async function enrollLateEncounterInitiativeParticipant(
-  encounterId: number,
-  characterId: number,
-  movementMode?: string,
-): Promise<InitiativeRuntimeView> {
-  assertCombatParticipantKey(characterId);
-  return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
-    const [encounterParticipant] = await tx
-      .select({ characterId: campaignSessionEncounterParticipant.characterId })
-      .from(campaignSessionEncounterParticipant)
-      .where(and(
-        eq(campaignSessionEncounterParticipant.encounterId, encounterId),
-        eq(campaignSessionEncounterParticipant.sceneId, context.sceneId),
-        eq(campaignSessionEncounterParticipant.sessionId, context.sessionId),
-        eq(campaignSessionEncounterParticipant.campaignId, context.campaignId),
-        eq(campaignSessionEncounterParticipant.characterId, characterId),
-      ))
-      .limit(1)
-      .for("update");
-    if (!encounterParticipant) throw new Error("Initiative enrollment requires an existing Encounter Participant.");
-    const capacity = await resolveInitiativeCapacityInTransaction(tx, characterId, context.campaignId, movementMode);
-    return enrollLateInitiativeParticipant(state, capacity);
-  });
+export async function enrollLateEncounterInitiativeParticipant(encounterId: number, characterId: number, movementMode?: string): Promise<InitiativeRuntimeView> {
+  const { changeCombatParticipation } = await import("./combat-participation-actions");
+  await changeCombatParticipation(encounterId, { participantId: characterId, operation: "arrive", movementMode,
+    expectedRevision: 0, requestKey: `retained-enrollment-${characterId}`, reason: "G.O.D. confirmed late Initiative enrollment." });
+  return (await getEncounterInitiativeRuntime(encounterId))!;
 }
 
 export async function beginGenericInitiativeAction(
@@ -629,8 +477,11 @@ export async function beginGenericInitiativeAction(
   throw new Error("Create, lock, and commit an Action Declaration for this participant. Untracked generic starts are retired; the declaration ID identifies retries.");
 }
 
-export async function advanceEncounterInitiativeTimeline(encounterId: number): Promise<InitiativeRuntimeView> {
-  return mutateOwnedInitiative(encounterId, (state) => advanceInitiativeToNextEvent(state));
+export async function advanceEncounterInitiativeTimeline(encounterId: number, expectedStateToken: string): Promise<InitiativeRuntimeView> {
+  return mutateOwnedInitiative(encounterId, (state) => {
+    assertExpectedInitiativeState(state, expectedStateToken);
+    return advanceInitiativeToNextEvent(state);
+  });
 }
 
 export async function holdEncounterInitiative(encounterId: number, characterId: number): Promise<InitiativeRuntimeView> {
@@ -643,25 +494,19 @@ export async function passEncounterInitiative(encounterId: number, characterId: 
   return mutateOwnedInitiative(encounterId, (state) => passInitiative(state, characterId), { disposition: { participantId: characterId, kind: "pass" } });
 }
 
-export async function setEncounterInitiativeParticipationStatus(
-  encounterId: number,
-  characterId: number,
-  status: InitiativeParticipationStatus,
-): Promise<InitiativeRuntimeView> {
-  assertCombatParticipantKey(characterId);
-  return mutateOwnedInitiative(encounterId, (state) => setInitiativeParticipationStatus(state, characterId, status));
+export async function setEncounterInitiativeParticipationStatus(encounterId: number, characterId: number, status: InitiativeParticipationStatus,
+  expectedRevision = 0, requestKey = `retained-participation-${characterId}-${status}-${expectedRevision}`): Promise<InitiativeRuntimeView> {
+  if (status === "holding") return holdEncounterInitiative(encounterId, characterId);
+  if (status === "passed") return passEncounterInitiative(encounterId, characterId);
+  if (status !== "active" && status !== "suspended") throw new Error("Choose a valid participation state.");
+  const { changeCombatParticipation } = await import("./combat-participation-actions");
+  await changeCombatParticipation(encounterId, { participantId: characterId, operation: status === "active" ? "arrive" : "withdraw",
+    expectedRevision, requestKey, reason: "G.O.D. confirmed participation through the retained Initiative control." });
+  return (await getEncounterInitiativeRuntime(encounterId))!;
 }
 
-export async function resumeSuspendedEncounterInitiative(
-  encounterId: number,
-  characterId: number,
-): Promise<InitiativeRuntimeView> {
-  assertCombatParticipantKey(characterId);
-  return mutateOwnedInitiative(encounterId, (state) => {
-    const participant = state.participants.find((entry) => entry.characterId === characterId);
-    if (participant?.participationStatus !== "suspended") throw new Error("Only a suspended Initiative Participant may resume.");
-    return setInitiativeParticipationStatus(state, characterId, "active");
-  });
+export async function resumeSuspendedEncounterInitiative(encounterId: number, characterId: number, expectedRevision: number, requestKey: string): Promise<InitiativeRuntimeView> {
+  return setEncounterInitiativeParticipationStatus(encounterId, characterId, "active", expectedRevision, requestKey);
 }
 
 export async function overrideCurrentEncounterInitiative(
@@ -812,8 +657,10 @@ export async function completeEncounterPendingActionManually(
 export async function advanceEncounterInitiativeRound(
   encounterId: number,
   force = false,
+  expectedStateToken: string,
 ): Promise<InitiativeRuntimeView> {
   return mutateOwnedInitiative(encounterId, async (state, context, tx) => {
+    assertExpectedInitiativeState(state, expectedStateToken);
     const changed = advanceInitiativeRound(state, force);
     await recordLongActionRoundContinuationsInTransaction(
       tx,

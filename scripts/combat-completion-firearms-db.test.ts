@@ -7,11 +7,14 @@ import { item, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@
 import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import { campaignCharacterFirearmState as stateTable, campaignSessionEncounterFirearmAttack as attackTable, campaignSessionEncounterFirearmBullet as bulletTable,
   campaignSessionEncounterInitiativeParticipant as participant, campaignSessionEncounterParticipant as occurrence,
-  campaignSessionEncounterResponderOpportunity as opportunity, campaignSessionRoll, campaignSessionEncounterActionDeclaration as declarationTable } from "@/db/tabletop-operations-schema";
+  campaignSessionEncounterResponderOpportunity as opportunity, campaignSessionRoll, campaignSessionEncounterActionDeclaration as declarationTable,
+  campaignSessionEncounterEffectPlan as planTable, campaignSessionEncounterEffect as effectTable } from "@/db/tabletop-operations-schema";
 import { declareFirearmAttackInTransaction, commitFirearmAttackTriggerInTransaction, fireFirearmAttackInTransaction, cancelFirearmAttackInTransaction,
   previewFirearmAttackInTransaction, type DeclareFirearmAttackCommand } from "@/features/tabletop-operations/firearm-attack-service";
 import { startFirearmPreparationInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
-import { reconcileResponderOpportunityInTransaction, interruptActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { reconcileResponderOpportunityInTransaction, interruptActionDeclarationInTransaction, resumeInterruptedActionDeclarationInTransaction,
+  restartInterruptedActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { changeCombatParticipationInTransaction } from "@/features/tabletop-operations/combat-participation-service";
 import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
@@ -19,6 +22,9 @@ import { advanceInitiativeTimeline, getNextInitiativeTimelineEvent } from "@/fea
 import { setCombatFrozenInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { getAttributeModifier } from "@/features/characters/character-rules";
 import { completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
+import { cancelAuthoredActionBindingInTransaction, ruleOnInterruptedReactionInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
+import { closeInitiativeRuntime } from "@/features/tabletop-operations/initiative-runtime";
+import { lockEncounterCloseoutContextInTransaction, finalizeEncounterCloseoutInTransaction } from "@/features/tabletop-operations/encounter-closeout-service";
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
@@ -112,6 +118,21 @@ for (const kind of ["player", "npc"] as const) for (const burst of [false, true]
     await assert.rejects(cancelFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, "Retry cancellation after a real shot"), /fired attack cannot/);
     const [other] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[1]));
     assert.equal((other.localStateJson as { health: { totalDamage: number } }).health.totalDamage, 0);
+    await cancelAuthoredActionBindingInTransaction(tx, f.context, f.pendingActionId, "Settle unrelated retained fixture binding before closeout.");
+    await ruleOnInterruptedReactionInTransaction(tx, f.context, f.reactionId, "keep");
+    const beforeClose = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, beforeClose, closeInitiativeRuntime(beforeClose));
+    const decision = { kind: "encounter" as const, amountPerCharacter: 10, recipientCharacterIds: [f.heroId, f.defenderId], requestKey: crypto.randomUUID() };
+    for (let retry = 0; retry < 2; retry++) {
+      const closed = await finalizeEncounterCloseoutInTransaction(tx, await lockEncounterCloseoutContextInTransaction(tx, f.encounterId, f.godId), { awards: [], combatXpDecisions: [decision] });
+      assert.equal(closed.encounter.status, "completed");
+      assert.deepEqual(closed.recipients.map(({ currentExperience }) => currentExperience), [22, 18]);
+      assert.equal(closed.rewards.length, 2);
+    }
+    assert.equal((await f.state()).loadedRounds, burst ? 0 : 2);
+    assert.equal((await f.state()).requiresCycling, true);
+    assert.equal((await f.state()).requiresRecoilRecovery, true);
+    assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId, true)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative, 21);
     throw rollback;
   }), (error) => error === rollback);
 });
@@ -254,6 +275,9 @@ for (const interrupted of [false, true]) test(`sustained firing resolves 21,20,1
     }
     if (interrupted) {
       await interruptActionDeclarationInTransaction(tx, f.context, f.god, attack.triggerDeclarationId, "Stop after the second completed portion.");
+      for (const resume of [resumeInterruptedActionDeclarationInTransaction, restartInterruptedActionDeclarationInTransaction]) {
+        await assert.rejects(resume(tx, f.context, f.god, attack.triggerDeclarationId, "Attempt to reuse the interrupted original."), /Declare a new firing action/);
+      }
       assert.equal((await f.attack(attack.id)).status, "cancelled");
       assert.equal((await f.state()).loadedRounds, 2);
       assert.equal((await f.state()).requiresCycling, true);
@@ -295,4 +319,49 @@ test("a lower-Initiative defense waits for its firing point and cannot cancel al
     assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.occurrences[0])!.currentInitiative, 19);
     throw rollback;
   }), (error) => error === rollback);
+});
+
+for (const sustained of [false, true]) test(`departure preserves fired ammunition and pending bullet consequences; sustained=${sustained}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "npc");
+    let command = f.command;
+    if (sustained) {
+      const [mode] = await tx.insert(weaponFiringMode).values({ weaponProfileId: f.profile.id, name: "Sustained", normalizedName: "sustained", sortOrder: 2,
+        baseCyclingInitiativeCost: 1, baseRecoilResetInitiativeCost: 2, deliveryCadence: "sustained-per-initiative", roundsPerCadence: 2 }).returning();
+      await tx.update(stateTable).set({ selectedFiringModeId: mode.id, loadedRounds: 6 }).where(eq(stateTable.itemInstanceId, f.instance.id));
+      // Missing authored protection produces a real pending ruling for the fired
+      // portion, instead of fabricating damage or applying it before withdrawal.
+      const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+      const body = target.creatureSnapshotJson as { hitLocations: Record<string, unknown>[] };
+      await tx.update(occurrence).set({ creatureSnapshotJson: { ...body, hitLocations: body.hitLocations.map((location) => ({ ...location, naturalArmor: null })) } })
+        .where(eq(occurrence.characterId, f.occurrences[0]));
+      command = { ...command, firingModeId: mode.id, firingDurationInitiative: 3, roll: { method: "entered", enteredTotal: 90 } };
+    }
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, command);
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 21));
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    const [plan] = await tx.select().from(planTable).where(eq(planTable.id, fired.effectPlanId!));
+    const effectsBefore = await tx.select().from(effectTable).where(eq(effectTable.planId, plan.id));
+    const request = { participantId: f.actorId, operation: "withdraw" as const, expectedRevision: 0,
+      requestKey: crypto.randomUUID(), reason: "Shooter leaves after the first actual firing point." };
+    await changeCombatParticipationInTransaction(tx, f.encounterId, f.god, request);
+    await changeCombatParticipationInTransaction(tx, f.encounterId, f.god, request);
+    assert.equal((await f.state()).loadedRounds, sustained ? 4 : 2);
+    assert.equal((await tx.select().from(planTable).where(eq(planTable.id, plan.id)))[0].status, plan.status);
+    assert.deepEqual(await tx.select().from(effectTable).where(eq(effectTable.planId, plan.id)), effectsBefore);
+    if (sustained) {
+      assert.equal((await f.attack(attack.id)).status, "cancelled");
+      assert.equal((await f.attack(attack.id)).firingPortionsResolved, 1);
+      assert.equal(plan.status, "requires-god-ruling");
+    } else {
+      for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId)).status, "applied");
+      const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+      assert.equal((target.localStateJson as { health: { totalDamage: number } }).health.totalDamage, 5);
+    }
+    assert.equal((await f.rolls()).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

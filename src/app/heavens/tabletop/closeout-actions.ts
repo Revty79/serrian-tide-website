@@ -86,7 +86,7 @@ export async function finalizeEncounterCloseout(
     );
     return finalized;
   });
-  refreshCloseout(input.awards.map(({ characterId }) => characterId));
+  refreshCloseout([...input.awards.map(({ characterId }) => characterId), ...(input.combatXpDecisions ?? []).flatMap(({ recipientCharacterIds }) => recipientCharacterIds)]);
   return result;
 }
 

@@ -30,7 +30,7 @@ export async function completionServiceFixture(tx: BuildTenDbTransaction, label:
     await tx.insert(campaignCharacterItemEquipmentState).values({ characterId, itemId: weapon.id, state: "wielded", quantity: 1 });
   }
   const [template] = await tx.insert(creature).values({ canonicalId: `COMPLETION-${crypto.randomUUID()}`.toUpperCase(), canonicalName: "Fixture Goblin", size: "Medium", totalHp: 30, createdByUserId: base.godId }).returning();
-  const occurrences = (await spawnEncounterCreaturesInTransaction(tx, context, base.godId, { creatureId: template.id, quantity: 2, joinInitiative: false })).created.map(({ runtimeParticipantKey }) => runtimeParticipantKey);
+  const occurrences = (await spawnEncounterCreaturesInTransaction(tx, context, base.godId, { requestKey: crypto.randomUUID(), creatureId: template.id, quantity: 2, joinInitiative: false })).created.map(({ runtimeParticipantKey }) => runtimeParticipantKey);
   const creatureSnapshot = { core: { canonicalName: "Fixture Goblin", totalHp: 30, size: "Medium" },
     attacks: [{ canonicalId: "fixture-shortsword", attackName: "Shortsword", attackPercentage: 50, damage: "4", damageType: "Slashing" }],
     defenses: [{ defenseType: "Dodge", value: "40", seedIdentity: "fixture-dodge" }, { defenseType: "Block", value: "50", seedIdentity: "fixture-block" }],

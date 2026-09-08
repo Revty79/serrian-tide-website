@@ -304,7 +304,7 @@ function dependencySpecs(target: TabletopLifecycleTargetInput): DependencySpec[]
       entityId,
     ) },
     { label: "Encounter reward history", blocking: true, query: countTables(
-      ["campaign_session_encounter_reward"],
+      ["campaign_session_encounter_reward", "campaign_session_encounter_reward_decision"],
       entityKind,
       entityId,
     ) },

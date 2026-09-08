@@ -1,0 +1,10 @@
+{
+  "verifiedAt": "2026-09-08T21:24:09.284Z",
+  "database": "serrian_tide_dev",
+  "migration": "0045_combat_reward_decisions",
+  "preservedTables": 32,
+  "allExistingCountsAndDigestsMatch": true,
+  "historicalUnfinishedPlansUnchanged": true,
+  "appliedMigrations": 46,
+  "pendingMigrations": []
+}

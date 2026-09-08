@@ -30,6 +30,11 @@ import { lockOwnedEncounterRuntimeInTransaction } from "@/features/tabletop-oper
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGod } from "@/lib/server-access";
 import { recordCombatSourceResolutionInTransaction, type CombatSourceResolutionRuling } from "@/features/tabletop-operations/combat-source-resolution-service";
+import { declareCombatMovementInTransaction, type CombatMovementCommand } from "@/features/tabletop-operations/combat-movement-service";
+
+export async function declareGodCombatMovement(encounterId: number, command: CombatMovementCommand) {
+  return mutateDeclaration(encounterId, (tx, context, actor) => declareCombatMovementInTransaction(tx, context, actor, command));
+}
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

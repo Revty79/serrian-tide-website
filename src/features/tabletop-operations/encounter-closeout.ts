@@ -1,5 +1,7 @@
 export type EncounterCloseoutBlockerCode =
   | "initiative-active"
+  | "declaration-checkpoint-open"
+  | "effect-plan-unresolved"
   | "action-declaration-open"
   | "pending-action-active"
   | "pending-action-interrupted"
@@ -21,6 +23,7 @@ export type ExperienceAwardInput = {
 
 export function buildEncounterCloseoutBlockers(input: {
   initiativeStatus: "active" | "closed" | null;
+  effectPlans?: ReadonlyArray<{ id: number; status: string; actorParticipantId: number }>;
   actionDeclarations?: ReadonlyArray<{
     status: "draft" | "locked" | "committed" | "rolling-ready" | "rolling" | "awaiting-god-ruling" | "resolved" | "cancelled" | "interrupted" | "abandoned";
     label: string;
@@ -43,6 +46,11 @@ export function buildEncounterCloseoutBlockers(input: {
   }>;
 }): EncounterCloseoutBlocker[] {
   const blockers: EncounterCloseoutBlocker[] = [];
+  for (const plan of input.effectPlans ?? []) {
+    if (["applied", "declined", "cancelled", "superseded"].includes(plan.status)) continue;
+    blockers.push({ code: "effect-plan-unresolved", characterId: plan.actorParticipantId,
+      message: `Effect Plan #${plan.id} is ${plan.status}. Apply it or explicitly settle its unapplied remainder before closeout.` });
+  }
   if (input.initiativeStatus === "active") {
     blockers.push({
       code: "initiative-active",

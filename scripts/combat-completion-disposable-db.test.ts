@@ -51,8 +51,11 @@ test("combat completion service cases use a new disposable migrated PostgreSQL c
     pool = null;
     const childEnvironment = { ...process.env };
     delete childEnvironment.NODE_TEST_CONTEXT;
-    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts", "scripts/combat-completion-damage-db.test.ts", "scripts/combat-completion-freeze-db.test.ts", "scripts/combat-completion-spells-db.test.ts", "scripts/combat-completion-effects-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-firearms-db.test.ts"]) {
+    let executedScripts = 0;
+    for (const script of ["scripts/combat-completion-checkpoints-db.test.ts", "scripts/combat-completion-participants-db.test.ts", "scripts/combat-completion-damage-db.test.ts", "scripts/combat-completion-freeze-db.test.ts", "scripts/combat-completion-spells-db.test.ts", "scripts/combat-completion-effects-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-firearms-db.test.ts", "scripts/combat-completion-xp-db.test.ts", "scripts/combat-completion-recovery-db.test.ts", "scripts/combat-completion-trace-db.test.ts", "scripts/combat-completion-participation-db.test.ts"]) {
       let output: string;
+      if (process.env.COMBAT_COMPLETION_CASE_FILTER && !script.includes(process.env.COMBAT_COMPLETION_CASE_FILTER)) continue;
+      executedScripts++;
       try { output = execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
         cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: 180_000,
         env: { ...childEnvironment, DATABASE_URL: databaseUrl, NODE_ENV: "test", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true" },
@@ -67,6 +70,7 @@ test("combat completion service cases use a new disposable migrated PostgreSQL c
       assert.ok(executed && Number(executed[1]) > 0, `${script} must execute tests, not silently skip its child runner.`);
       assert.match(output, /# fail 0\b/);
     }
+    assert.ok(executedScripts > 0, "The combat case filter must match at least one service test script.");
   } finally {
     if (pool) await pool.end();
     if (started && existsSync(path.join(data, "postmaster.pid"))) {

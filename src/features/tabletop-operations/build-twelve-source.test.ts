@@ -81,7 +81,7 @@ test("migration 0027 is additive and follows immutable Pass 7", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as {
     entries: Array<{ idx: number; tag: string }>;
   };
-  assert.equal(journal.entries.length, 45);
+  assert.equal(journal.entries.length, 46);
   assert.deepEqual(journal.entries[27], {
     idx: 27,
     version: "7",

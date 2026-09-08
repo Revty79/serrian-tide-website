@@ -58,7 +58,7 @@ export async function recordCombatDamageOutcomeInTransaction(tx: Transaction, co
     credit: null, distribution: null, awards: [], recordedAt: new Date().toISOString() };
   await tx.update(campaignSessionEncounterParticipant).set({ localStateJson: local, updatedAt: new Date() })
     .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId), eq(campaignSessionEncounterParticipant.characterId, effect.targetParticipantId)));
-  if (defeated) {
+  if (defeated && context.encounterStatus === "active") {
     const before = await loadInitiativeEngineInTransaction(tx, context.encounterId);
     const actor = before.participants.find(({ characterId }) => characterId === effect.targetParticipantId);
     if (actor && actor.participationStatus !== "suspended") await persistInitiativeEngineInTransaction(tx, context, before,

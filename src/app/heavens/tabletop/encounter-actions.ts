@@ -668,6 +668,13 @@ export async function addCampaignSessionEncounterParticipant(
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertEncounterIsEditable(locked.status, locked.sessionStatus, locked.sceneStatus);
+    if (locked.status === "active") {
+      const { changeCombatParticipationInTransaction } = await import("@/features/tabletop-operations/combat-participation-service");
+      await changeCombatParticipationInTransaction(tx, encounterId, { authority: "god-owner", userId: access.user.id }, {
+        participantId: characterId, operation: "arrive", expectedRevision: 0, requestKey: `retained-arrival-${characterId}`, reason: "G.O.D. added this Scene member to active combat." });
+      await publishEncounterHierarchy(tx, locked, [characterId]);
+      return;
+    }
     const [sceneMember] = await tx
       .select({
         characterId: campaignSessionSceneMember.characterId,
@@ -727,6 +734,7 @@ export async function removeCampaignSessionEncounterParticipant(
   await db.transaction(async (tx) => {
     const locked = await lockOwnedEncounter(tx, encounterId, access.user.id);
     assertEncounterIsEditable(locked.status, locked.sessionStatus, locked.sceneStatus);
+    if (locked.status === "active") throw new Error("Use G.O.D. withdrawal from active combat; Encounter membership and history must be preserved.");
     const [initiativeHistory] = await tx
       .select({ characterId: campaignSessionEncounterInitiativeParticipant.characterId })
       .from(campaignSessionEncounterInitiativeParticipant)

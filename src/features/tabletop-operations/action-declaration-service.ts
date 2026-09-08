@@ -9,6 +9,7 @@ import { item, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import { campaignCharacter, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
+  campaignSessionEncounterDeclarationCheckpoint,
   campaignSessionEncounterActionDeclarationEvent,
   campaignSessionEncounterEffect,
   campaignSessionEncounterEffectPlan,
@@ -266,7 +267,7 @@ async function assertParticipants(
   characterIds: readonly number[],
 ): Promise<void> {
   const expected = [...new Set(characterIds.map((id) => participantKey(id, "Encounter Participant")))];
-  const rows = expected.length ? await tx.select({ characterId: campaignSessionEncounterParticipant.characterId })
+  const rows = expected.length ? await tx.select({ characterId: campaignSessionEncounterParticipant.characterId, localState: campaignSessionEncounterParticipant.localStateJson })
     .from(campaignSessionEncounterParticipant)
     .where(and(
       eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
@@ -277,6 +278,8 @@ async function assertParticipants(
     )) : [];
   const found = new Set(rows.map(({ characterId }) => characterId));
   if (found.size !== expected.length) throw new Error("Every declaration Character must be an exact Encounter Participant.");
+  const { combatParticipationState } = await import("./combat-participation-service");
+  if (rows.some(({ localState }) => combatParticipationState(localState).departed)) throw new Error("A selected combatant has left active combat. The G.O.D. must confirm its return before new declarations or targeting.");
 }
 
 async function lockDeclaration(
@@ -1097,12 +1100,14 @@ async function transitionCommittedDeclaration(
   nextStatus: Extract<ActionDeclarationStatus, "awaiting-god-ruling" | "rolling-ready" | "resolved" | "interrupted" | "cancelled" | "abandoned">,
   reasonInput: string,
   notesInput = "",
+  preserveFiredPortions = false,
 ): Promise<void> {
   const row = await lockDeclaration(tx, context, declarationId);
   await assertActorAuthority(tx, context, actor, row.actorCharacterId);
   if (actor.authority === "player" && nextStatus !== "resolved") {
     throw new Error("A Player may only complete their own objectively finished declaration; other dispositions require the G.O.D.");
   }
+  if (row.status === nextStatus && ["resolved", "cancelled", "abandoned", "interrupted"].includes(nextStatus)) return;
   assertActionDeclarationTransition(row.status, nextStatus);
   const reasonRequired = nextStatus === "awaiting-god-ruling"
     || row.status === "awaiting-god-ruling"
@@ -1111,13 +1116,20 @@ async function transitionCommittedDeclaration(
   const notes = boundedReason(notesInput, "G.O.D. ruling notes", false);
   const now = new Date();
   if (nextStatus === "cancelled" || nextStatus === "abandoned") {
-    const [existingEffectPlan] = await tx.select({ status: campaignSessionEncounterEffectPlan.status })
+    const existingEffectPlans = await tx.select({ status: campaignSessionEncounterEffectPlan.status })
       .from(campaignSessionEncounterEffectPlan)
       .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id))
-      .limit(1)
       .for("update");
-    if (existingEffectPlan?.status === "partially-applied") {
-      throw new Error("A partially applied Action Effect Plan must be explicitly completed before its declaration can end.");
+    if (!preserveFiredPortions && existingEffectPlans.some(({ status }) => status === "partially-applied")) {
+      throw new Error("A partially applied Action Effect Plan must be completed or its unapplied remainder explicitly recovered before its declaration can end.");
+    }
+    if (row.pendingActionId !== null) {
+      const [timing] = await tx.select({ status: campaignSessionEncounterPendingAction.status }).from(campaignSessionEncounterPendingAction)
+        .where(eq(campaignSessionEncounterPendingAction.id, row.pendingActionId));
+      const completedAimOnly = row.lockedSnapshotJson !== null && parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson).actionKind.startsWith("firearm-aim:");
+      if (timing?.status === "completed" && (!existingEffectPlans.length && !completedAimOnly || existingEffectPlans.some(({ status }) => !["applied", "declined", "cancelled", "superseded"].includes(status)))) {
+        throw new Error("This action already completed. Apply its due consequences or explicitly resolve/decline their effect plans before cancelling; completed damage cannot be discarded by ending the action.");
+      }
     }
   }
   if (nextStatus === "resolved") {
@@ -1132,11 +1144,10 @@ async function transitionCommittedDeclaration(
     if (!pending || pending.status !== "completed" || pending.remaining !== 0) {
       throw new Error("Resolution requires the committed action to reach Initiative completion.");
     }
-    const [effectPlan] = await tx.select({ status: campaignSessionEncounterEffectPlan.status })
+    const effectPlans = await tx.select({ status: campaignSessionEncounterEffectPlan.status })
       .from(campaignSessionEncounterEffectPlan)
-      .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id))
-      .limit(1);
-    if (effectPlan && effectPlan.status !== "applied" && effectPlan.status !== "declined") {
+      .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id));
+    if (effectPlans.some(({ status }) => !["applied", "declined", "cancelled", "superseded"].includes(status))) {
       throw new Error("The Action Effect Plan must be applied or declined before this declaration resolves.");
     }
   }
@@ -1176,11 +1187,11 @@ async function transitionCommittedDeclaration(
     updatedAt: now,
   }).where(eq(campaignSessionEncounterActionDeclaration.id, row.id));
   if (nextStatus === "cancelled" || nextStatus === "abandoned") {
-    const [plan] = await tx.select().from(campaignSessionEncounterEffectPlan)
+    const plans = await tx.select().from(campaignSessionEncounterEffectPlan)
       .where(eq(campaignSessionEncounterEffectPlan.declarationId, row.id))
-      .limit(1)
       .for("update");
-    if (plan && !["applied", "declined", "cancelled", "superseded"].includes(plan.status)) {
+    for (const plan of plans.filter(({ status }) => !["applied", "declined", "cancelled", "superseded"].includes(status))) {
+      if (preserveFiredPortions && plan.firearmPortion > 0) continue;
       await tx.update(campaignSessionEncounterEffect).set({
         status: "declined",
         amendmentReason: reason || `Originating declaration ${nextStatus}.`,
@@ -1260,6 +1271,7 @@ export async function cancelActionDeclarationInTransaction(
   actor: ActionDeclarationActor,
   declarationId: number,
   reason = "",
+  preserveFiredPortions = false,
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
@@ -1269,7 +1281,7 @@ export async function cancelActionDeclarationInTransaction(
     throw new Error("A committed action requires a G.O.D. cancellation ruling.");
   }
   if (actor.authority === "god-owner" && row.pendingActionId !== null) {
-    return transitionCommittedDeclaration(tx, context, actor, declarationId, "cancelled", reason);
+    return transitionCommittedDeclaration(tx, context, actor, declarationId, "cancelled", reason, "", preserveFiredPortions);
   }
   assertActionDeclarationTransition(row.status, "cancelled");
   const now = new Date();
@@ -1319,6 +1331,7 @@ export async function resumeInterruptedActionDeclarationInTransaction(
   const reason = boundedReason(reasonInput, "Resume ruling reason");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   const before = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  if (snapshot.actionKind.startsWith("firearm-attack:")) throw new Error("An interrupted firing declaration retains its completed portions. Declare a new firing action for new shots; Freeze/Resume alone preserves pending firing.");
   const after = resumePendingInitiativeAction(before, row.pendingActionId);
   await persistInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context, before, after);
   await tx.update(campaignSessionEncounterResponderOpportunity).set({
@@ -1373,6 +1386,7 @@ export async function restartInterruptedActionDeclarationInTransaction(
   if (row.status !== "interrupted" || row.pendingActionId === null) throw new Error("Only a committed interrupted action may restart.");
   const reason = boundedReason(reasonInput, "Restart ruling reason");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
+  if (snapshot.actionKind.startsWith("firearm-attack:")) throw new Error("An interrupted firing declaration retains its completed portions. Declare a new firing action for new shots; Freeze/Resume alone preserves pending firing.");
   const before = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const prior = before.pendingActions.find(({ id }) => id === row.pendingActionId);
   if (!prior) throw new Error("The committed pending action no longer exists.");
@@ -1712,6 +1726,9 @@ export async function readActionDeclarationWorkspaceInTransaction(
   const allDeclarationRows = await tx.select().from(campaignSessionEncounterActionDeclaration)
     .where(eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclaration.id));
+  const withdrawnCheckpointIds = new Set((await tx.select({ id: campaignSessionEncounterDeclarationCheckpoint.id })
+    .from(campaignSessionEncounterDeclarationCheckpoint).where(and(eq(campaignSessionEncounterDeclarationCheckpoint.encounterId, context.encounterId),
+      sql`${campaignSessionEncounterDeclarationCheckpoint.beforeStateJson} ? 'withdrawal'`))).map(({ id }) => id));
   const opportunityRows = await tx.select().from(campaignSessionEncounterResponderOpportunity)
     .where(eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterResponderOpportunity.id));
@@ -1745,6 +1762,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
     : allDeclarationRows.filter(({ id }) => visibleDeclarationIds.has(id));
   const declarationRows = permittedDeclarationRows.filter((row) => (
     (openCheckpoint === null || row.checkpointId !== openCheckpoint.id)
+    && (row.checkpointId === null || !withdrawnCheckpointIds.has(row.checkpointId))
     && (!["draft", "locked"].includes(row.status) || row.createdByUserId === actor.userId)
   ));
   const pendingById = new Map(engine.pendingActions.map((entry) => [entry.id, entry]));

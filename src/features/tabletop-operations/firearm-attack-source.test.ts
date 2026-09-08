@@ -27,7 +27,7 @@ test("Pass 10 owns one exact attack, bullet, and event persistence model", () =>
 
 test("migration 0029 remains after immutable 0028 in the forward-only ledger", () => {
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<Record<string, unknown>> };
-  assert.equal(journal.entries.length, 45);
+  assert.equal(journal.entries.length, 46);
   assert.deepEqual(journal.entries[28], {
     idx: 28,
     version: "7",

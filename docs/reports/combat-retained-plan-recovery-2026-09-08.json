@@ -1,0 +1,155 @@
+{
+  "mode": "applied",
+  "database": "serrian_tide_dev",
+  "authorization": "Explicit user instruction in this assignment",
+  "correctedAt": "2026-09-08T21:42:30.922Z",
+  "before": {
+    "dog": {
+      "participantId": -4,
+      "name": "Dog 1",
+      "health": {
+        "poolDamage": {},
+        "totalDamage": 0
+      }
+    },
+    "plans": [
+      {
+        "id": 13,
+        "status": "approved"
+      },
+      {
+        "id": 14,
+        "status": "calculated"
+      }
+    ],
+    "declarations": [
+      {
+        "id": 13,
+        "status": "cancelled"
+      },
+      {
+        "id": 15,
+        "status": "cancelled"
+      }
+    ],
+    "effects": [
+      {
+        "id": 12,
+        "status": "approved",
+        "appliedAt": null,
+        "receipt": null
+      },
+      {
+        "id": 13,
+        "status": "declined",
+        "appliedAt": null,
+        "receipt": null
+      }
+    ],
+    "runtime": {
+      "encounterId": 2,
+      "sceneId": 1,
+      "sessionId": 1,
+      "campaignId": 1,
+      "status": "closed",
+      "roundNumber": 1,
+      "stepNumber": 9,
+      "timelineInitiative": 14,
+      "startedAt": "2026-09-08T12:07:12.529Z",
+      "closedAt": "2026-09-08T12:25:12.543Z",
+      "createdAt": "2026-09-08T06:07:12.525Z",
+      "updatedAt": "2026-09-08T12:25:12.543Z"
+    },
+    "awards": []
+  },
+  "after": {
+    "dog": {
+      "participantId": -4,
+      "name": "Dog 1",
+      "health": {
+        "poolDamage": {
+          "HP-DOG-HEAD": 8
+        },
+        "totalDamage": 8
+      }
+    },
+    "plans": [
+      {
+        "id": 13,
+        "status": "applied"
+      },
+      {
+        "id": 14,
+        "status": "declined"
+      }
+    ],
+    "declarations": [
+      {
+        "id": 13,
+        "status": "resolved"
+      },
+      {
+        "id": 15,
+        "status": "resolved"
+      }
+    ],
+    "effects": [
+      {
+        "id": 12,
+        "status": "applied",
+        "appliedAt": "2026-09-08T21:42:30.852Z",
+        "receipt": {
+          "kind": "health.damage",
+          "after": 8,
+          "before": 0,
+          "poolKey": "HP-DOG-HEAD",
+          "totalDamage": 8,
+          "combatOutcome": {
+            "ruling": null,
+            "poolKey": "HP-DOG-HEAD",
+            "defeated": false,
+            "effectId": 12,
+            "location": 0,
+            "totalDamage": 8,
+            "damageAmount": 8,
+            "totalMaximumHp": 45,
+            "locationMaximumHp": null
+          }
+        }
+      },
+      {
+        "id": 13,
+        "status": "declined",
+        "appliedAt": null,
+        "receipt": null
+      }
+    ],
+    "runtime": {
+      "encounterId": 2,
+      "sceneId": 1,
+      "sessionId": 1,
+      "campaignId": 1,
+      "status": "closed",
+      "roundNumber": 1,
+      "stepNumber": 9,
+      "timelineInitiative": 14,
+      "startedAt": "2026-09-08T12:07:12.529Z",
+      "closedAt": "2026-09-08T12:25:12.543Z",
+      "createdAt": "2026-09-08T06:07:12.525Z",
+      "updatedAt": "2026-09-08T12:25:12.543Z"
+    },
+    "awards": []
+  },
+  "receipts": [
+    {
+      "planId": 13,
+      "status": "applied",
+      "reused": false
+    },
+    {
+      "planId": 14,
+      "status": "declined",
+      "reused": false
+    }
+  ]
+}

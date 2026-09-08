@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-09-08T21:43:14.942Z",
+  "database": "serrian_tide_dev",
+  "changedTables": [
+    "campaign_session_encounter_action_declaration",
+    "campaign_session_encounter_action_declaration_event",
+    "campaign_session_encounter_effect",
+    "campaign_session_encounter_effect_plan",
+    "campaign_session_encounter_effect_plan_event",
+    "campaign_session_encounter_participant"
+  ],
+  "unchangedTables": 26,
+  "unfinishedPlans": [],
+  "migrationsUnchanged": true
+}

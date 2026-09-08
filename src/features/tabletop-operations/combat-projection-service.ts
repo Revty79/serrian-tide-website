@@ -10,6 +10,8 @@ import { readActionDeclarationWorkspaceInTransaction, type ActionDeclarationActo
 import { canHoldingParticipantIntervene, canParticipantReactToAction, getNextInitiativeTimelineEvent } from "./initiative-runtime";
 import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext, type RuntimeIntegrationTransaction } from "./runtime-integration-service";
 import { hasUnresolvedCompletedActionsInTransaction, projectRevealedInitiativeInTransaction, readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
+import { initiativeStateToken } from "./initiative-state-token";
+import { combatParticipationState } from "./combat-participation-service";
 
 /** One authorized, sealed-state-safe projection for the later combat cards.
  * Availability describes an opportunity, not approval of every possible source/cost.
@@ -23,7 +25,10 @@ export async function readCombatProjectionInTransaction(
   const next = getNextInitiativeTimelineEvent(engine);
   const checkpoint = workspace.checkpoint;
   const pendingOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, context.encounterId);
+  const members = await tx.select({ id: campaignSessionEncounterParticipant.characterId, local: campaignSessionEncounterParticipant.localStateJson })
+    .from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId));
   const entities = workspace.participants.map((entity) => {
+    const participation = combatParticipationState(members.find(({ id }) => id === entity.characterId)?.local);
     const participant = engine.participants.find(({ characterId }) => characterId === entity.characterId)!;
     const canControl = actor.authority === "god-owner" ? entity.choiceOwner === "god" : actor.characterId === entity.characterId;
     const choicesSealed = checkpoint?.committedParticipantIds.includes(entity.characterId) ?? false;
@@ -48,7 +53,7 @@ export async function readCombatProjectionInTransaction(
           || canHoldingParticipantIntervene(engine.runtime, participant)));
     });
     const checkpointBlocksResponse = checkpoint != null && (!checkpoint.participantIds.includes(entity.characterId) || choicesSealed);
-    const common = workspace.pause.message ?? (!capable ? participant.participationStatus === "suspended"
+    const common = workspace.pause.message ?? (participation.departed ? `Left active combat: ${participation.reason}` : !capable ? participant.participationStatus === "suspended"
       ? "Unable to participate." : "No Initiative opportunity remains." : choicesSealed ? "Choice committed; waiting for simultaneous choices." : null);
     const actionReason = common ?? (heldInterventionAvailable ? null : pendingOutcomes ? "Resolve the outcomes completing at this point." : active ? "An action is underway."
       : participant.participationStatus === "holding" ? "Holding Initiative; waiting for a legitimate intervention point."
@@ -58,14 +63,14 @@ export async function readCombatProjectionInTransaction(
     const canActNow = actionReason === null;
     const canRespondNow = responseReason === null;
     return { participantId: entity.characterId, name: entity.name, currentInitiative: entity.currentInitiative,
-      participationStatus: participant.participationStatus, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
+      participationStatus: participant.participationStatus, participation, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
       canInspect: true as const, actionReason, responseReason,
       statusText: canActNow && canRespondNow ? "Can choose an action or response." : canRespondNow ? "Can respond now."
         : canActNow ? "Can choose an action now." : common ?? actionReason ?? responseReason!,
       responseOpportunityIds: canControl && canRespondNow ? eligibleResponses.map(({ id }) => id) : [],
     };
   });
-  return { context: workspace.context, runtime: workspace.runtime, pause: workspace.pause, entities,
+  return { context: workspace.context, runtime: workspace.runtime, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities,
     checkpoint: checkpoint ?? null, declarations: workspace.declarations };
 }
 
@@ -84,13 +89,25 @@ export async function readCombatEntityInformationInTransaction(
     .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
       eq(campaignSessionEncounterParticipant.characterId, participantId))).limit(1);
   if (!row) throw new Error("That entity no longer belongs to this Encounter.");
-  if (row.kind === "creature") return { entity, pause: projection.pause,
-    resources: { kind: "creature" as const, anatomyAndStatistics: row.snapshot, state: row.localState } };
-  const health = await readActiveHealthInTransaction(tx, participantId, row.npcKind ?? "race");
-  const mana = await readActiveManaInTransaction(tx, participantId);
+  if (row.kind === "creature") {
+    const local = row.localState as Record<string, unknown>;
+    // Participation audit balances can include a response committed in the
+    // currently sealed group. The card needs only the public participation state.
+    const state = projection.checkpoint && local?.combatParticipation
+      ? { ...local, combatParticipation: combatParticipationState(local) } : row.localState;
+    return { entity, pause: projection.pause,
+      resources: { kind: "creature" as const, anatomyAndStatistics: row.snapshot, state } };
+  }
+  const issues: string[] = [];
+  const health = await readActiveHealthInTransaction(tx, participantId, row.npcKind ?? "race").catch((error: unknown) => {
+    issues.push(error instanceof Error ? error.message : "Health information is incomplete."); return null;
+  });
+  const mana = await readActiveManaInTransaction(tx, participantId).catch((error: unknown) => {
+    issues.push(error instanceof Error ? error.message : "Mana information is incomplete."); return null;
+  });
   const effects = await readActiveEffectsInTransaction(tx, participantId);
   const checkpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
   const before = checkpoint?.beforeStateJson as { manaBefore?: Record<string, typeof mana> } | undefined;
   return { entity, pause: projection.pause, resources: { kind: "character" as const,
-    health: health.view, mana: before?.manaBefore?.[String(participantId)] ?? mana, effects } };
+    health: health?.view ?? null, mana: before?.manaBefore?.[String(participantId)] ?? (checkpoint ? null : mana), effects, issues } };
 }

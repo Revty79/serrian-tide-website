@@ -411,7 +411,7 @@ async function recordRollInternal(
     eq(campaignSession.campaignId, actor.campaignId),
   )).limit(1).for("update", { of: campaignSession });
   if (!session) throw new Error("That Roll Session does not belong to the authorized Campaign.");
-  if (session.status === "completed") throw new Error("Reopen the completed Session before recording another Roll.");
+  let closedReason: string | null = session.status === "completed" ? "Reopen the completed Session before recording another Roll." : null;
 
   let sceneStatus: "planned" | "active" | "completed" | null = null;
   if (request.sceneId !== null) {
@@ -424,7 +424,7 @@ async function recordRollInternal(
       )).limit(1);
     if (!scene) throw new Error("That Roll Scene does not belong to the selected Session.");
     sceneStatus = scene.status;
-    if (scene.status === "completed") throw new Error("Reopen the completed Scene before recording a Scene-scoped Roll.");
+    if (scene.status === "completed") closedReason ??= "Reopen the completed Scene before recording a Scene-scoped Roll.";
   }
 
   if (request.encounterId !== null) {
@@ -437,8 +437,8 @@ async function recordRollInternal(
         eq(campaignSessionEncounter.campaignId, session.campaignId),
       )).limit(1);
     if (!encounter) throw new Error("That Roll Encounter does not belong to the selected Scene and Session.");
-    if (encounter.status === "completed") throw new Error("Reopen the completed Encounter before recording an Encounter-scoped Roll.");
-    if (sceneStatus === "completed") throw new Error("Reopen the completed Scene before recording an Encounter-scoped Roll.");
+    if (encounter.status === "completed") closedReason ??= "Reopen the completed Encounter before recording an Encounter-scoped Roll.";
+    if (sceneStatus === "completed") closedReason ??= "Reopen the completed Scene before recording an Encounter-scoped Roll.";
   }
 
   const context = {
@@ -548,6 +548,8 @@ async function recordRollInternal(
       await assertResponseRollAllowedInTransaction(tx, snapshot.actionDeclarationId);
     }
   }
+
+  if (closedReason) throw new Error(closedReason);
 
   const initiative = request.encounterId === null ? null : (await tx.select({
     roundNumber: campaignSessionEncounterInitiative.roundNumber,

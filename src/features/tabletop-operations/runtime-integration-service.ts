@@ -7,6 +7,7 @@ import {
 } from "./declaration-checkpoint-service";
 
 import { and, asc, eq } from "drizzle-orm";
+import { isDeepStrictEqual } from "node:util";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
@@ -320,6 +321,7 @@ async function requireEncounterParticipants(
 export async function loadInitiativeEngineInTransaction(
   tx: RuntimeIntegrationTransaction,
   encounterId: number,
+  allowClosed = false,
 ): Promise<InitiativeEngineState> {
   const [runtime] = await tx.select({
     encounterId: campaignSessionEncounterInitiative.encounterId,
@@ -333,7 +335,7 @@ export async function loadInitiativeEngineInTransaction(
     .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId))
     .limit(1)
     .for("update");
-  if (!runtime || runtime.status !== "active") throw new Error("This Encounter has no active Initiative runtime.");
+  if (!runtime || !allowClosed && runtime.status !== "active") throw new Error("This Encounter has no active Initiative runtime.");
   const participants = await tx.select({
       encounterId: campaignSessionEncounterInitiativeParticipant.encounterId,
       characterId: campaignSessionEncounterInitiativeParticipant.characterId,
@@ -376,15 +378,27 @@ export async function persistInitiativeEngineInTransaction(
   context: OwnedEncounterRuntimeContext,
   before: InitiativeEngineState,
   after: InitiativeEngineState,
+  durationPassage: "elapsed" | "correction" = "elapsed",
 ): Promise<void> {
-  return tx.transaction((persistTx) => persistInitiativeEngineInternal(persistTx, context, before, after));
+  return tx.transaction((persistTx) => persistInitiativeEngineInternal(persistTx, context, before, after, durationPassage));
 }
 
 async function persistInitiativeEngineInternal(
   tx: RuntimeIntegrationTransaction, context: OwnedEncounterRuntimeContext,
-  before: InitiativeEngineState, after: InitiativeEngineState,
+  before: InitiativeEngineState, after: InitiativeEngineState, durationPassage: "elapsed" | "correction",
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
+  if (!isDeepStrictEqual(before, await loadInitiativeEngineInTransaction(tx, context.encounterId))) {
+    throw new Error("Combat state changed or this request already completed. Refresh before changing Initiative.");
+  }
+  if (before.runtime.roundNumber !== after.runtime.roundNumber) {
+    const { combatParticipationState } = await import("./combat-participation-service");
+    const members = await tx.select({ id: campaignSessionEncounterParticipant.characterId, local: campaignSessionEncounterParticipant.localStateJson })
+      .from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId));
+    const absent = new Set(members.filter(({ local }) => combatParticipationState(local).departed).map(({ id }) => id));
+    after = { ...after, participants: after.participants.map((entry) => absent.has(entry.characterId)
+      ? { ...entry, currentInitiative: before.participants.find(({ characterId }) => characterId === entry.characterId)!.currentInitiative } : entry) };
+  }
   if (before.runtime.timelineInitiative !== after.runtime.timelineInitiative
     || before.runtime.roundNumber !== after.runtime.roundNumber
     || after.pendingActions.some((action) => {
@@ -463,13 +477,46 @@ async function persistInitiativeEngineInternal(
       });
     }
   }
-  const { reconcileActionResponseWindowsInTransaction } = await import("./action-declaration-service");
+  const beforeActionById = new Map(before.pendingActions.map((action) => [action.id, action]));
+  const completedActionIds: number[] = [];
+  for (const action of after.pendingActions) {
+    const prior = beforeActionById.get(action.id);
+    if (!prior || prior.status === action.status) continue;
+    if (action.status === "completed") completedActionIds.push(action.id);
+    if (action.status === "abandoned" || action.status === "ended") {
+      await tx.update(campaignSessionEncounterPendingActionSource).set({
+        resolutionStatus: "cancelled",
+        resolutionSummary: `Pending action ${action.status}; authored consequences were not executed.`,
+        resolvedAt: now,
+        updatedAt: now,
+      }).where(and(
+        eq(campaignSessionEncounterPendingActionSource.pendingActionId, action.id),
+        eq(campaignSessionEncounterPendingActionSource.encounterId, context.encounterId),
+        eq(campaignSessionEncounterPendingActionSource.resolutionStatus, "pending"),
+      ));
+    }
+    if (action.status === "interrupted" || action.status === "abandoned" || action.status === "ended") {
+      await tx.update(campaignSessionEncounterReaction).set({
+        status: "needs-ruling",
+        outcome: "Source action stopped before Reaction resolution.",
+        resolvedAt: now,
+        updatedAt: now,
+      }).where(and(
+        eq(campaignSessionEncounterReaction.pendingActionId, action.id),
+        eq(campaignSessionEncounterReaction.status, "declared"),
+      ));
+    }
+  }
+  const { reconcileActionResponseWindowsInTransaction, recordActionTimingCompletionsInTransaction } = await import("./action-declaration-service");
+  await recordActionTimingCompletionsInTransaction(tx, context, completedActionIds, context.ownerUserId);
   const { reconcileSustainedFireProgressInTransaction } = await import("./firearm-attack-service");
   await reconcileSustainedFireProgressInTransaction(tx, context, before, after);
+  const { recordCombatMovementProgressInTransaction } = await import("./combat-movement-service");
+  await recordCombatMovementProgressInTransaction(tx, context, before, after);
   await reconcileActionResponseWindowsInTransaction(tx, context, before, after);
   const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("./firearm-readiness-service");
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
-  await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime);
+  await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime, durationPassage);
 }
 
 export async function holdParticipantInitiativeInTransaction(

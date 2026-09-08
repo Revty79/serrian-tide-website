@@ -104,6 +104,11 @@ test("a required governing Roll is immutable input and failed Rolls decline cons
   assert.equal(plan.effects[0]?.status, "declined");
   assert.equal(plan.effects[0]?.finalValue, null);
   assert.match(plan.effects[0]?.amendmentReason ?? "", /immutable governing Roll failed/);
+  const failedAndStopped = buildActionEffectPlanProposal({
+    source: source({ resolutionMode: "opposed-roll" }), actorParticipantId: 7,
+    targetParticipantIds: [9], governingRoll: roll, defenseResolution: { originalActionDisposition: "stopped" }, initiativeComplete: true,
+  });
+  assert.match(failedAndStopped.explanation, /governing Roll failed/);
 });
 
 test("No Defense permits consequences while a stopped attack preserves but declines them", () => {

@@ -1,0 +1,192 @@
+{
+  "auditedAt": "2026-09-08T21:23:13.012Z",
+  "database": "serrian_tide_dev",
+  "appliedMigrations": 45,
+  "repositoryMigrations": 46,
+  "appliedPrefixMatches": true,
+  "pending": [
+    "0045_combat_reward_decisions"
+  ],
+  "preserved": [
+    {
+      "table": "campaign_session_encounter",
+      "count": 2,
+      "digest": "0aa60e423a0d9b59e586009787709f5f"
+    },
+    {
+      "table": "campaign_session_encounter_participant",
+      "count": 4,
+      "digest": "1e838e05645dc31f5e729a70d6e68f31"
+    },
+    {
+      "table": "campaign_session_encounter_initiative",
+      "count": 2,
+      "digest": "5a23a54422e1b137f7bde09177d8714e"
+    },
+    {
+      "table": "campaign_session_encounter_initiative_participant",
+      "count": 4,
+      "digest": "5eee858226c35e2514a49c01997f5073"
+    },
+    {
+      "table": "campaign_session_encounter_pending_action",
+      "count": 14,
+      "digest": "6e028d9982c074bae15789456f9117f2"
+    },
+    {
+      "table": "campaign_session_encounter_pending_action_source",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_encounter_action_declaration",
+      "count": 17,
+      "digest": "cf650531808c28074ae07a983bc0566d"
+    },
+    {
+      "table": "campaign_session_encounter_reaction",
+      "count": 4,
+      "digest": "44738dd1a010f8a39fc0edfe72e481c8"
+    },
+    {
+      "table": "campaign_session_encounter_effect_plan",
+      "count": 14,
+      "digest": "ce01f528742ff3ddb3d8d3e57bceebbb"
+    },
+    {
+      "table": "campaign_session_encounter_effect",
+      "count": 13,
+      "digest": "11b762e1717786e64f9d41c9636a56f4"
+    },
+    {
+      "table": "campaign_session_encounter_effect_plan_event",
+      "count": 40,
+      "digest": "f347669405753a8a8facbe4476b9ae75"
+    },
+    {
+      "table": "campaign_session_roll",
+      "count": 13,
+      "digest": "e8e055171194cf61f6ed885aa9ca5aac"
+    },
+    {
+      "table": "campaign_session_roll_amendment",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_encounter_firearm_attack",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_encounter_firearm_bullet",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_character_firearm_state",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_encounter_reward",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_character_profile",
+      "count": 1,
+      "digest": "ee661fc015ea2663203662439e5070c0"
+    },
+    {
+      "table": "campaign_character_active_health",
+      "count": 1,
+      "digest": "4c67259dc3d57f1327f2bfe715a879d1"
+    },
+    {
+      "table": "campaign_character_active_health_pool",
+      "count": 1,
+      "digest": "30aa6fd4de43370bb5dc35fcdbcd2ae5"
+    },
+    {
+      "table": "campaign_character_active_mana",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_character_item",
+      "count": 3,
+      "digest": "7f1b874dbb565202a9c759fc3c037a79"
+    },
+    {
+      "table": "campaign_character_item_instance",
+      "count": 1,
+      "digest": "056d3b50adbf6e72680cec448c53def2"
+    },
+    {
+      "table": "campaign_character_active_condition",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_character_active_modifier",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_character_injury",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_effect_duration_binding",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_encounter_responder_opportunity",
+      "count": 6,
+      "digest": "8fe1eabff11c3d08b55db8c42ee19c64"
+    },
+    {
+      "table": "campaign_session_encounter_declaration_checkpoint",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    },
+    {
+      "table": "campaign_session_encounter_action_declaration_event",
+      "count": 128,
+      "digest": "9d905fc5bd0b38ba8a543e79892a18d0"
+    },
+    {
+      "table": "campaign_session_encounter_reaction_event",
+      "count": 6,
+      "digest": "6302616561571c269ff4be008a72e668"
+    },
+    {
+      "table": "campaign_session_encounter_firearm_attack_event",
+      "count": 0,
+      "digest": "d751713988987e9331980363e24189ce"
+    }
+  ],
+  "unfinishedPlans": [
+    {
+      "plan_id": 13,
+      "encounter_id": 2,
+      "encounter_status": "completed",
+      "declaration_id": 13,
+      "declaration_status": "cancelled",
+      "plan_status": "approved",
+      "applied_effects": 0
+    },
+    {
+      "plan_id": 14,
+      "encounter_id": 2,
+      "encounter_status": "completed",
+      "declaration_id": 15,
+      "declaration_status": "cancelled",
+      "plan_status": "calculated",
+      "applied_effects": 0
+    }
+  ]
+}

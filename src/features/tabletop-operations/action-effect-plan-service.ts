@@ -8,6 +8,7 @@ import type { db } from "@/db";
 import { campaignCharacter, campaignCharacterItem } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
+  campaignSessionEncounterActionDeclarationEvent,
   campaignSessionEncounterEffect,
   campaignSessionEncounterEffectPlan,
   campaignSessionEncounterEffectPlanEvent,
@@ -472,6 +473,17 @@ async function generateActionEffectPlanInternal(
     effectCount: proposal.effects.length,
     divergence: divergence?.status ?? null,
   });
+  // A completed attack with only declined effects has nothing left to approve
+  // or apply. Finish its plan now rather than requiring an empty Apply request.
+  if (proposal.status === "calculated" && proposal.effects.length > 0 && proposal.effects.every(({ status }) => status === "declined")) {
+    const now = new Date();
+    await tx.update(campaignSessionEncounterEffectPlan).set({ status: "applied", appliedByUserId: actor.userId, appliedAt: now, updatedAt: now,
+      explanation: "Every proposed consequence was already declined. This completed action applies no damage or resource changes." })
+      .where(eq(campaignSessionEncounterEffectPlan.id, created.id));
+    await recordEvent(tx, context, created.id, proposal.status, "applied", "no-applicable-consequences", actor.userId,
+      "Every proposed consequence was already declined; no damage or resource change was applied.", { appliedEffectIds: [] });
+    await resolveActionDeclarationInTransaction(tx, context, actor, declaration.id, "All consequences were declined; completed with no effects applied.");
+  }
   return created.id;
 }
 
@@ -964,6 +976,7 @@ async function applyActionEffectPlanInternal(
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
   planId: number,
+  resolveDeclaration = true,
 ): Promise<ActionEffectPlanStatus> {
   const plan = await lockPlan(tx, context, planId);
   if (plan.status === "applied") return "applied";
@@ -1005,7 +1018,7 @@ async function applyActionEffectPlanInternal(
     updatedAt: now,
   }).where(eq(campaignSessionEncounterEffectPlan.id, plan.id));
   await recordEvent(tx, context, plan.id, plan.status, nextStatus, "effect-plan-applied", actor.userId, "", { appliedEffectIds: appliedIds });
-  if (nextStatus === "applied") {
+  if (nextStatus === "applied" && resolveDeclaration) {
     const [timing] = await tx.select({ status: campaignSessionEncounterPendingAction.status }).from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.id, plan.pendingActionId));
     if (plan.firearmPortion === 0 || timing?.status === "completed") {
@@ -1150,6 +1163,58 @@ export async function applyActionEffectPlanInTransaction(tx: ActionEffectPlanTra
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   return applyActionEffectPlanInternal(tx, context, actor, planId);
+}
+
+/** Explicit G.O.D. correction of approved Health outcomes retained after closeout.
+ * Uses the normal effect receipts and Health services, never reopens combat or
+ * replays a source's resource costs. Unsupported historical work stays a ruling.
+ */
+export async function completeRetainedCombatEffectPlanInTransaction(tx: ActionEffectPlanTransaction, encounterId: number,
+  actor: ActionDeclarationActor, input: { planId: number; reason: string }) {
+  return tx.transaction(async (recoveryTx) => {
+    if (actor.authority !== "god-owner") throw new Error("Only the Campaign-owning G.O.D. may complete retained combat consequences.");
+    const { lockEncounterCloseoutContextInTransaction } = await import("./encounter-closeout-service");
+    const context = await lockEncounterCloseoutContextInTransaction(recoveryTx, encounterId, actor.userId);
+    await assertCombatWritableInTransaction(recoveryTx, encounterId);
+    await assertNoOpenDeclarationCheckpoint(recoveryTx, encounterId);
+    const reason = boundedReason(input.reason, "Historical completion ruling");
+    if (context.encounterStatus !== "completed") throw new Error("Use ordinary consequence application for an active Encounter.");
+    const plan = await lockPlan(recoveryTx, context, input.planId);
+    if (plan.status === "applied" || plan.status === "declined") return { planId: plan.id, status: plan.status, reused: true };
+    const [timing] = await recoveryTx.select().from(campaignSessionEncounterPendingAction).where(eq(campaignSessionEncounterPendingAction.id, plan.pendingActionId)).for("update");
+    const [declaration] = await recoveryTx.select().from(campaignSessionEncounterActionDeclaration).where(eq(campaignSessionEncounterActionDeclaration.id, plan.declarationId)).for("update");
+    if (!timing || timing.status !== "completed" || timing.remainingInitiativeCost !== 0 || !declaration) throw new Error("Historical completion requires the exact action's already-completed Initiative timing.");
+    const { assertDeclarationCheckpointRevealed } = await import("./declaration-checkpoint-service");
+    await assertDeclarationCheckpointRevealed(recoveryTx, declaration.checkpointId);
+    const effects = await recoveryTx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, plan.id)).for("update");
+    const allDeclined = effects.length > 0 && effects.every(({ status }) => status === "declined");
+    let status: ActionEffectPlanStatus;
+    if (allDeclined) {
+      status = "declined";
+      await recoveryTx.update(campaignSessionEncounterEffectPlan).set({ status, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffectPlan.id, plan.id));
+    } else {
+      if (!["approved", "partially-applied", "application-failed"].includes(plan.status)) throw new Error("Only previously approved retained consequences may be completed.");
+      const remaining = effects.filter(({ status }) => !["applied", "manual-resolved", "declined"].includes(status));
+      if (remaining.some((effect) => effect.appliedAt !== null || !effect.applicationSupported || !["approved", "application-failed"].includes(effect.status)
+        || !["health.damage", "health.heal"].includes(effect.effectType))) throw new Error("Historical automatic recovery supports approved Health consequences only; resource or duration changes require a separate explicit recovery ruling.");
+      status = await applyActionEffectPlanInternal(recoveryTx, context, actor, plan.id, false);
+      if (status !== "applied") throw new Error("The retained approved consequences could not be completed. No recovery changes were committed.");
+    }
+    const now = new Date();
+    const relatedPlans = await recoveryTx.select({ status: campaignSessionEncounterEffectPlan.status }).from(campaignSessionEncounterEffectPlan)
+      .where(eq(campaignSessionEncounterEffectPlan.declarationId, declaration.id));
+    const allPlansSettled = relatedPlans.every(({ status }) => ["applied", "declined", "cancelled", "superseded"].includes(status));
+    const correctedDeclarationStatus = allPlansSettled ? "resolved" as const : declaration.status;
+    if (allPlansSettled) await recoveryTx.update(campaignSessionEncounterActionDeclaration).set({ status: correctedDeclarationStatus, rulingReason: reason,
+      endedByUserId: actor.userId, endedAt: now, updatedAt: now }).where(eq(campaignSessionEncounterActionDeclaration.id, declaration.id));
+    await recoveryTx.insert(campaignSessionEncounterActionDeclarationEvent).values({ declarationId: declaration.id, encounterId,
+      sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+      fromStatus: declaration.status, toStatus: correctedDeclarationStatus, eventKind: "historical-consequences-completed", actorUserId: actor.userId, reason,
+      metadata: { planId: plan.id, planStatus: status, allPlansSettled, timingReplayed: false, resourcesReplayed: false } });
+    await recordEvent(recoveryTx, context, plan.id, plan.status, status, "historical-consequences-completed", actor.userId, reason,
+      { originalDeclarationStatus: declaration.status, correctedDeclarationStatus, noNewResourceCosts: true });
+    return { planId: plan.id, status, reused: false };
+  });
 }
 
 /** Exact owner execution of objectively supported completed consequences, with actual caller attribution. */

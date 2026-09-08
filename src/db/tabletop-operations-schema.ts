@@ -1796,6 +1796,35 @@ export const campaignSessionEffectDurationBinding = pgTable(
   ],
 );
 
+export const campaignSessionEncounterRewardDecision = pgTable(
+  "campaign_session_encounter_reward_decision",
+  {
+    id: serial("id").primaryKey(),
+    encounterId: integer("encounter_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    campaignId: integer("campaign_id").notNull(),
+    sourceKey: text("source_key").notNull(),
+    requestKey: text("request_key").notNull(),
+    defeatedParticipantId: integer("defeated_participant_id"),
+    frozenDecisionJson: jsonb("frozen_decision_json").notNull(),
+    awardedByUserId: text("awarded_by_user_id").notNull(),
+    awardedAt: timestamp("awarded_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("combat_reward_decision_source_uq").on(table.encounterId, table.sourceKey),
+    uniqueIndex("combat_reward_decision_request_uq").on(table.encounterId, table.requestKey),
+    unique("combat_reward_decision_hierarchy_uq").on(table.id, table.encounterId, table.sceneId, table.sessionId, table.campaignId),
+    foreignKey({ columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounter.id, campaignSessionEncounter.sceneId, campaignSessionEncounter.sessionId, campaignSessionEncounter.campaignId], name: "combat_reward_decision_encounter_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.defeatedParticipantId],
+      foreignColumns: [campaignSessionEncounterParticipant.encounterId, campaignSessionEncounterParticipant.sceneId, campaignSessionEncounterParticipant.sessionId, campaignSessionEncounterParticipant.campaignId, campaignSessionEncounterParticipant.characterId], name: "combat_reward_decision_defeated_fk" }).onDelete("restrict"),
+    foreignKey({ columns: [table.awardedByUserId], foreignColumns: [user.id], name: "combat_reward_decision_awarded_by_fk" }).onDelete("restrict"),
+    check("combat_reward_decision_keys_valid", sql`length(trim(${table.sourceKey})) > 0 AND length(trim(${table.requestKey})) > 0`),
+    check("combat_reward_decision_snapshot_valid", sql`jsonb_typeof(${table.frozenDecisionJson}) = 'object'`),
+  ],
+);
+
 export const campaignSessionEncounterReward = pgTable(
   "campaign_session_encounter_reward",
   {
@@ -1805,6 +1834,7 @@ export const campaignSessionEncounterReward = pgTable(
     sessionId: integer("session_id").notNull(),
     campaignId: integer("campaign_id").notNull(),
     characterId: integer("character_id").notNull(),
+    decisionId: integer("decision_id"),
     rewardKind: campaignSessionEncounterRewardKind("reward_kind").default("experience").notNull(),
     amount: doublePrecision("amount").notNull(),
     note: text("note").default("").notNull(),
@@ -1848,7 +1878,10 @@ export const campaignSessionEncounterReward = pgTable(
       table.encounterId,
       table.characterId,
       table.rewardKind,
-    ),
+    ).where(sql`${table.decisionId} IS NULL`),
+    uniqueIndex("combat_reward_decision_recipient_uq").on(table.decisionId, table.characterId, table.rewardKind),
+    foreignKey({ columns: [table.decisionId, table.encounterId, table.sceneId, table.sessionId, table.campaignId],
+      foreignColumns: [campaignSessionEncounterRewardDecision.id, campaignSessionEncounterRewardDecision.encounterId, campaignSessionEncounterRewardDecision.sceneId, campaignSessionEncounterRewardDecision.sessionId, campaignSessionEncounterRewardDecision.campaignId], name: "combat_reward_decision_receipt_fk" }).onDelete("restrict"),
     index("campaign_session_encounter_reward_history_idx").on(
       table.encounterId,
       table.awardedAt,

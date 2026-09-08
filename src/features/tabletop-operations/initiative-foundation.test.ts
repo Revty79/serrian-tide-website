@@ -61,7 +61,11 @@ test("Initiative server actions are G.O.D.-authorized, server-authoritative, ser
   assert.match(actions, /Initiative requires an active Session, Scene, and Encounter/);
   assert.match(actions, /\.for\("update"\)/);
   assert.match(actions, /resolveInitiativeCapacityInTransaction/);
-  assert.match(actions, /Initiative enrollment requires an existing Encounter Participant/);
+  assert.match(actions, /changeCombatParticipation/);
+  const participation = readSource("src/features/tabletop-operations/combat-participation-service.ts");
+  assert.match(participation, /unarchived member of this exact Scene/);
+  assert.match(participation, /resolveInitiativeCapacityInTransaction/);
+  assert.match(participation, /enrollLateInitiativeParticipant/);
 
   for (const operation of [
     "initializeEncounterInitiative",

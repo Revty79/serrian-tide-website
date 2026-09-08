@@ -78,7 +78,7 @@ test("paused inspection and sealed readiness preserve Hold, Rolls, pending work 
     { userId: f.godId, campaignId: f.campaignId, readAs: "god-owner", canRecordGodOnly: true }, f.sessionId, { encounterId: f.encounterId }));
   assert.equal(ledger.rolls.length, 0);
   const info = await db.transaction((tx) => readCombatEntityInformationInTransaction(tx, f.context, f.player, f.heroId));
-  assert.equal(info.resources?.kind, "character"); assert.ok(info.resources && "health" in info.resources && info.resources.health.tracks.length > 0);
+  assert.equal(info.resources?.kind, "character"); assert.ok(info.resources && "health" in info.resources && info.resources.health && info.resources.health.tracks.length > 0);
   const creature = await db.transaction((tx) => readCombatEntityInformationInTransaction(tx, f.context, f.god, f.occurrences[0]));
   assert.equal(creature.resources?.kind, "creature");
   for (const write of [

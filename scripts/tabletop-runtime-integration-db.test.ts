@@ -266,7 +266,7 @@ async function addInitiative(tx: Tx, data: Awaited<ReturnType<typeof fixture>>, 
 test("Creature Catalog adds independent encounter occurrences without Character, NPC, roster, or Scene membership", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const data = await fixture(tx, "Spawn");
-    const result = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+    const result = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, { requestKey: crypto.randomUUID(),
       creatureId: data.masterCreatureId,
       quantity: 3,
       joinInitiative: false,
@@ -297,7 +297,7 @@ test("Creature Catalog adds independent encounter occurrences without Character,
     assert.deepEqual(await tx.select().from(creature).where(eq(creature.id, data.masterCreatureId)), canonicalBefore);
     await tx.delete(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.participantId, participantIds[1]!));
     assert.equal((await tx.select().from(creature).where(eq(creature.id, data.masterCreatureId))).length, 1);
-    const replacement = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+    const replacement = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, { requestKey: crypto.randomUUID(),
       creatureId: data.masterCreatureId,
       quantity: 1,
       joinInitiative: false,
@@ -449,7 +449,7 @@ test("Creature spawn can explicitly late-enroll without moving the shared timeli
       currentInitiative: 20,
       movementMode: "Land",
     });
-    const result = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+    const result = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, { requestKey: crypto.randomUUID(),
       creatureId: data.masterCreatureId,
       quantity: 2,
       joinInitiative: true,
@@ -475,7 +475,7 @@ test("direct Creatures participate in Pass 6 windows, use exact authored Dodge, 
       campaignId: data.campaignId, characterId: data.targetCharacterId,
       normalTotalInitiative: 30, currentInitiative: 30, movementMode: "Land",
     });
-    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, { requestKey: crypto.randomUUID(),
       creatureId: data.masterCreatureId,
       quantity: 1,
       joinInitiative: true,
@@ -570,7 +570,7 @@ test("authored Creature attacks defer damage, reconcile Dodge, preserve history,
   await assert.rejects(db.transaction(async (tx) => {
     const data = await fixture(tx, "Timing");
     await addInitiative(tx, data, 30);
-    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+    const spawned = await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, { requestKey: crypto.randomUUID(),
       creatureId: data.masterCreatureId,
       quantity: 1,
       joinInitiative: false,
@@ -687,7 +687,7 @@ test("a mid-batch encounter-Creature failure rolls back every occurrence", async
       create trigger ${functionName}_trigger before insert on campaign_session_encounter_participant
       for each row execute function ${functionName}();
     `));
-    await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, {
+    await spawnEncounterCreaturesInTransaction(tx, data.context, data.godId, { requestKey: crypto.randomUUID(),
       creatureId: data.masterCreatureId,
       quantity: 3,
       joinInitiative: false,

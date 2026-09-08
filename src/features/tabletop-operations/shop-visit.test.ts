@@ -34,7 +34,7 @@ test("0039 adds normalized Shop visits and membership without changing earlier m
   assert.match(schema, /townId/);
   assert.doesNotMatch(migration, /\b(?:DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)\b/i);
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 45);
+  assert.equal(journal.entries.length, 46);
   assert.equal(journal.entries[39]?.idx, 39);
   assert.equal(journal.entries[39]?.tag, "0039_tabletop_shop_visits");
   assert.equal(journal.entries[40]?.tag, "0040_tabletop_shop_transactions");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { currentMigrationSnapshotName } from "../../../scripts/current-migration-snapshot";
 
 import {
   CAMPAIGN_GRAPH_DELETE_STEPS,
@@ -18,7 +19,7 @@ type SnapshotTable = {
 };
 
 const snapshot = JSON.parse(
-  readFileSync("drizzle/meta/0040_snapshot.json", "utf8"),
+  readFileSync(`drizzle/meta/${currentMigrationSnapshotName()}`, "utf8"),
 ) as { tables: Record<string, SnapshotTable> };
 
 function campaignOwnedClosure(): Set<string> {
@@ -76,6 +77,8 @@ test("delete scopes match a trusted Campaign predicate", () => {
       assert.ok(table.columns.room_id, `${step.tableName} lacks room_id`);
     } else if (step.scope === "shop-request") {
       assert.ok(table.columns.request_id, `${step.tableName} lacks request_id`);
+    } else if (step.scope === "encounter") {
+      assert.ok(table.columns.encounter_id, `${step.tableName} lacks encounter_id`);
     } else {
       assert.ok(table.columns.transaction_id, `${step.tableName} lacks transaction_id`);
     }
