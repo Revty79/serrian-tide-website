@@ -1,6 +1,6 @@
 # Combat completion: Pass 7 and backend handoff
 
-Date: 8 September 2026. Branch: `main`, tracking `origin/main`. Starting commit: `683fe71` (completed Pass 6). Ending implementation commit: recorded in the progress ledger after this report is committed.
+Date: 8 September 2026. Branch: `main`, tracking `origin/main`. Starting commit: `683fe71` (completed Pass 6). Ending implementation commit: `72b023c` (`Complete combat participation, XP and historical outcome recovery`).
 
 The seven-pass backend assignment now includes recovery, explicit XP decisions, movement, confirmed escape, withdrawal and return, with complete fixed-input service encounters. No replacement screen was built. Earlier UI removal and noncombat Tabletop functions remain intact. The [progress ledger](combat-completion-progress.md) records each preceding pass; the [rules-to-service contract](../rules/combat-completion-contract.md) and [screen handoff](../rules/combat-freeze-and-ui-handoff-2026-09-08.md) describe the integration boundary.
 
