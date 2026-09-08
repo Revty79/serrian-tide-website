@@ -50,3 +50,14 @@ test("opening corrections or losing connectivity pauses automatic progression", 
   }
   assert.equal(canAutomaticallyProgressCombat({ ...ready, toolsOpen: false }), true);
 });
+
+test("a mechanical result does not hide a remaining owned roll", () => {
+  const tasks = [task("apply-result", -2, "result"), task("roll-defense", -2, "roll")];
+  assert.equal(canControlCombatTask(tasks[0], roster, "god"), false);
+  assert.equal(selectRunnerTask(tasks, null, roster, "god")?.key, "roll");
+});
+test("a Player actor's ruling is still a GOD task, not a Player wait", () => {
+  const ruling = task("ruling", 1, "ruling");
+  assert.equal(canControlCombatTask(ruling, roster, "god"), true);
+  assert.equal(canControlCombatTask(ruling, roster, "player"), false);
+});

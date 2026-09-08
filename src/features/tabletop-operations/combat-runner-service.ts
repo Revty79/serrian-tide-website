@@ -26,6 +26,7 @@ import { publishTabletopInvalidationInTransaction } from "./tabletop-live-events
 
 export type CombatRunnerSnapshot = Readonly<{
   revision: string;
+  rollRevisions?: Readonly<Record<string, string>>;
   progression: CombatProgression;
   autoContinue: boolean;
   heldNames: readonly string[];
@@ -65,13 +66,27 @@ export async function readCombatRunnerInTransaction(tx: RuntimeIntegrationTransa
     reactions: defenses.reactions.map((entry) => [entry.id, entry.status, entry.rollId]),
     plans: effects.plans.map((entry) => [entry.id, entry.status, entry.effects]),
   })).digest("hex");
+  // Another combatant's roll may change the encounter revision without changing
+  // this immutable roll slot. Readiness and ownership are rechecked on submit.
+  const rollRevisions = Object.fromEntries(progression.tasks.flatMap((task) => {
+    if (task.kind !== "roll-attack" && task.kind !== "roll-defense") return [];
+    const declaration = declarations.declarations.find(({ id }) => id === task.declarationId);
+    const reaction = task.kind === "roll-defense" ? defenses.reactions.find(({ id }) => id === task.recordId) : null;
+    const token = createHash("sha256").update(JSON.stringify({
+      encounterId: context.encounterId, taskKey: task.key, participantId: task.participantId,
+      recordId: task.recordId, pendingActionId: declaration?.pendingActionId,
+      version: declaration?.versionNumber, action: declaration?.lockedSnapshot,
+      defense: reaction?.declaration ?? null,
+    })).digest("hex");
+    return [[task.key, token]];
+  }));
   const heldNames = engine.participants.filter(({ participationStatus }) => participationStatus === "holding")
     .map(({ characterId }) => declarations.participants.find((entry) => entry.characterId === characterId)?.name ?? "Holding combatant");
   const routine = progression.tasks.length > 0 && progression.tasks.every(({ kind, declarationId }) =>
     (kind === "apply-result" || kind === "resolve-exchange") && !declarations.declarations.some((entry) =>
       entry.id === declarationId && entry.draft.actionKind.startsWith("firearm-")));
   const applicationFailed = effects.plans.some(({ status }) => status === "application-failed" || status === "partially-applied");
-  const snapshot: CombatRunnerSnapshot = { revision, progression, heldNames,
+  const snapshot: CombatRunnerSnapshot = { revision, rollRevisions, progression, heldNames,
     autoContinue: !applicationFailed && (routine || progression.canAdvanceTime && heldNames.length === 0) };
   return { snapshot, engine, declarations, defenses, effects, actor };
 }

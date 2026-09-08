@@ -40,6 +40,8 @@ try {
   await task(player,'choose-action').waitFor();await task(god,'choose-action').waitFor();
   await god.screenshot({path:join(output,'god-start.png'),fullPage:true});await player.screenshot({path:join(output,'player-start.png'),fullPage:true});
   console.log('VISIBLE: Initiative and current action controls on both combat screens');
+  const damage = async () => (await pool.query('select character_id,total_damage from campaign_character_active_health where character_id=any($1::int[]) order by character_id',[[fixture.heroId,fixture.defenderId]])).rows;
+  const beforeDamage=await damage();
   await click(player,'choose-action','Commit attack');
   await god.getByRole('navigation',{name:'Current combat decisions'}).waitFor({state:'detached'});
   await click(god,'choose-action','Commit attack');
@@ -56,9 +58,12 @@ try {
   await task(player,'choose-action').waitFor();await task(god,'choose-action').waitFor();
   const rolls=(await pool.query('select roller_character_id,pending_action_id,reaction_id,method,result_total from campaign_session_roll where encounter_id=$1',[fixture.encounterId])).rows;
   assert.equal(rolls.length,2);assert.ok(rolls.every(r=>r.pending_action_id&&r.reaction_id===null&&r.result_total===89));
-  console.log('RESOLVED: linked rolls, both results applied, another action available');
+  const appliedDamage=await damage();
+  assert.equal(appliedDamage.length,2);assert.ok(appliedDamage.every((row,i)=>row.total_damage>beforeDamage[i].total_damage));
+  console.log('RESOLVED: linked rolls, actual damage applied to both combatants, another action available');
   await player.reload();await god.reload();await task(player,'choose-action').waitFor();await task(god,'choose-action').waitFor();
   assert.equal((await pool.query('select id from campaign_session_encounter_effect_plan where encounter_id=$1',[fixture.encounterId])).rows.length,2);
+  assert.deepEqual(await damage(),appliedDamage,'Reload must not apply damage again');
   await click(player,'choose-action','Commit attack');
   await god.getByRole('navigation',{name:'Current combat decisions'}).waitFor({state:'detached'});
   await click(god,'choose-action','Pass this round');
@@ -70,6 +75,13 @@ try {
   const positions=(await pool.query('select current_initiative from campaign_session_encounter_initiative_participant where encounter_id=$1 order by character_id',[fixture.encounterId])).rows;
   assert.deepEqual(positions.map(p=>p.current_initiative),[14,18]);
   console.log('SECOND ROUND: miss resolved and unused Initiative carried (14,18)');
+  await click(god,'choose-action','Commit attack');
+  await click(god,'eligibility','Allow response');
+  await click(player,'choose-response','No Defense');
+  await click(god,'roll-attack','Roll d100');
+  const randomRolls=(await pool.query("select pending_action_id,roller_character_id,method,result_total from campaign_session_roll where encounter_id=$1 and method='random'",[fixture.encounterId])).rows;
+  assert.equal(randomRolls.length,1);assert.equal(randomRolls[0].roller_character_id,fixture.defenderId);assert.ok(randomRolls[0].pending_action_id);assert.ok(randomRolls[0].result_total>=1&&randomRolls[0].result_total<=100);
+  console.log('WEBSITE ROLL: d100 saved to the exact GOD attack, not a general roll');
   await god.getByRole('button',{name:'End encounter',exact:true}).click();await god.getByRole('button',{name:'End encounter anyway',exact:true}).click();
   await checkDb('select status from campaign_session_encounter where id=$1',r=>r[0]?.status==='completed','Encounter did not close');
   console.log('ENDED: independent GOD encounter exit');assert.deepEqual(errors,[]);

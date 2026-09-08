@@ -38,9 +38,13 @@ export async function submitCombatRunnerDecisionInTransaction(
   }
   if (actor.authority === "god-owner" && actor.userId !== context.ownerUserId) throw new Error("Only this Campaign's G.O.D. may run its combat.");
   const current = await readCombatRunnerInTransaction(tx, context);
-  if (input.revision !== current.snapshot.revision) return { changed: false, stale: true, rollTotal: null };
   const task = current.snapshot.progression.tasks.find(({ key }) => key === input.taskKey);
   if (!task) return { changed: false, stale: true, rollTotal: null };
+  const sameOpenRoll = input.decision.kind === "roll"
+    && (task.kind === "roll-attack" || task.kind === "roll-defense")
+    && typeof input.rollRevision === "string" && /^[a-f0-9]{64}$/.test(input.rollRevision)
+    && input.rollRevision === current.snapshot.rollRevisions?.[task.key];
+  if (input.revision !== current.snapshot.revision && !sameOpenRoll) return { changed: false, stale: true, rollTotal: null };
   const participant = current.declarations.participants.find(({ characterId }) => characterId === task.participantId);
   const decision = input.decision;
   if (decision.kind === "eligibility") {
@@ -132,7 +136,7 @@ export async function submitCombatRunnerDecisionInTransaction(
     } else if (decision.kind === "roll") {
       if (task.recordId === null || task.declarationId === null || !["roll-attack", "roll-defense"].includes(task.kind)) throw new Error("This task has no open roll slot.");
       const declaration = current.declarations.declarations.find(({ id }) => id === task.declarationId)!;
-      if (declaration.draft.actionKind.startsWith("firearm-")) throw new Error("Use this shot's firearm roll, not an ordinary attack roll.");
+      if (task.kind === "roll-attack" && declaration.draft.actionKind.startsWith("firearm-")) throw new Error("Use this shot's firearm roll, not an ordinary attack roll.");
       const roll = task.kind === "roll-attack"
         ? await recordDeclaredAttackRollInTransaction(tx, context, actor, task.recordId, decision)
         : await recordDeclaredResponseRollInTransaction(tx, context, actor, task.recordId, decision);

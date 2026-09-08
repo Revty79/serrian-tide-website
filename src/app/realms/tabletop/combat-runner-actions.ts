@@ -22,7 +22,11 @@ export async function getPlayerCombatRunner(encounterId: number, characterId: nu
     // No opponent intentions, hidden eligibility, secret sources or rolls leave
     // the server through the coordination view. Existing authorized projections
     // provide the player's actual action/response details.
-    return { ...snapshot, autoContinue: false, heldNames: [], progression: {
+    return { ...snapshot, autoContinue: false, heldNames: [],
+      rollRevisions: Object.fromEntries(own.flatMap((task) => {
+        const token = snapshot.rollRevisions?.[task.key];
+        return token ? [[task.key, token]] : [];
+      })), progression: {
       ...snapshot.progression, canAdvanceTime: false, canStartRound: false,
       actingParticipantIds: own.filter(({ kind }) => kind === "choose-action").map(() => characterId),
       tasks: own.length ? own : [{ key: "waiting", kind: "blocked" as const,

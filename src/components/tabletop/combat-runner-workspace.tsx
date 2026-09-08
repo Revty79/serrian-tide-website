@@ -59,13 +59,13 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
       if (!automatic) setFeedback({ error: false, text: result.stale
         ? "Combat changed before this submission. Review the refreshed choice; nothing was submitted twice."
         : result.rollTotal != null ? `Roll: ${result.rollTotal} — saved for this combat action.` : "Choice saved." });
-      await reload(); router.refresh();
+      await reload();
     } catch (error) {
       setFeedback({ error: true, text: error instanceof Error ? error.message : "The choice could not be confirmed. Refresh before retrying." });
       if (automatic) setPaused(true);
       await reload();
     } finally { inFlight.current = false; setBusy(false); }
-  }, [reload, router]);
+  }, [reload]);
   useEffect(() => {
     if (!continueCombat || !snapshot || !canAutomaticallyProgressCombat({
       canGovern: true, serverReady: snapshot.autoContinue, paused, toolsOpen: showTools,
@@ -83,12 +83,12 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
   const current = selectRunnerTask(tasks, requestedTask, controllers, role);
   const actor = combatants.find(({ characterId }) => characterId === current?.participantId) ?? null;
   const declaration = declarations.find(({ id }) => id === current?.declarationId) ?? null;
-  const isFirearm = declaration?.draft.actionKind.startsWith("firearm-") ?? false;
+  const isFirearm = current?.kind !== "roll-defense" && (declaration?.draft.actionKind.startsWith("firearm-") ?? false);
   const readyResults = tasks.length > 0 && tasks.every(({ kind }) => kind === "apply-result" || kind === "resolve-exchange");
   const pending = declarations.filter(({ status }) => !["resolved", "cancelled", "abandoned"].includes(status));
   const history = declarations.filter(({ status }) => ["resolved", "cancelled", "abandoned"].includes(status)).slice(-6).reverse();
   const decide = (decision: CombatRunnerDecision) => {
-    if (snapshot && current) startTransition(() => perform(() => submitDecision({ revision: snapshot.revision, taskKey: current.key, decision })));
+    if (snapshot && current) startTransition(() => perform(() => submitDecision({ revision: snapshot.revision, taskKey: current.key, rollRevision: snapshot.rollRevisions?.[current.key], decision })));
   };
   return <section className={styles.runner} aria-label="Guided combat runner" data-combat-runner="connected" data-combat-revision={snapshot?.revision}>
     <header className={styles.header}><div><p className={styles.eyebrow}>COMBAT</p><h1>{title}</h1>
@@ -122,7 +122,7 @@ export function CombatRunnerWorkspace({ title, round, timeline, combatants, decl
             {declaration ? <p className={styles.actionLabel}>{declaration.actorName} — {declaration.lockedSnapshot?.label ?? declaration.draft.label}</p> : null}
             {canControl(current) && !isFirearm ? <fieldset disabled={busy || Boolean(loadError)} className={styles.controls}>
               <DecisionControls key={current.key} task={current} actor={actor} combatants={combatants} declaration={declaration} defenses={defenses} decide={decide} />
-            </fieldset> : current.participantId !== null && !canControl(current) ? <p className={styles.feedback}>Waiting for this combatant&apos;s Player. Their required controls are on their combat screen.</p> : null}
+            </fieldset> : current.participantId !== null && ["choose-action", "choose-response", "roll-attack", "roll-defense"].includes(current.kind) && !canControl(current) ? <p className={styles.feedback}>Waiting for this combatant&apos;s Player. Their required controls are on their combat screen.</p> : null}
             {current.kind === "ruling" || current.kind === "blocked" || isFirearm ? renderException?.(current) : null}
             {continueCombat && (snapshot.progression.canAdvanceTime || readyResults || snapshot.progression.canStartRound) ? <div className={styles.continue}>
               {snapshot.heldNames.length ? <p>{snapshot.heldNames.join(", ")} {snapshot.heldNames.length === 1 ? "is" : "are"} holding. Check for an intervention before continuing.</p> : null}
@@ -187,7 +187,7 @@ function DecisionControls({ task, actor, combatants, declaration, defenses, deci
   if (task.kind === "choose-response") {
     const targets = declaration?.lockedSnapshot?.targetCharacterIds ?? declaration?.draft.targetCharacterIds ?? [];
     const selfTarget = actor !== null && targets.includes(actor.characterId);
-    const dodge = defenses.dodgeMappings.some(({ reviewState, conditional }) => reviewState === "approved" && !conditional);
+    const dodge = (actor !== null && actor.characterId < 0) || defenses.dodgeMappings.some(({ reviewState, conditional }) => reviewState === "approved" && !conditional);
     return <>
       <button type="button" className="st-button is-primary" onClick={() => decide({ kind: "defense", reactionType: "no-reaction" })}>{selfTarget ? "No Defense" : "Do not intervene"}</button>
       {selfTarget ? <><button type="button" className="st-button" disabled={!dodge} onClick={() => decide({ kind: "defense", reactionType: "dodge" })}>Dodge · 1 Initiative</button>

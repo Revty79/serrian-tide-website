@@ -11,5 +11,6 @@ export type CombatRunnerDecision =
 export type CombatRunnerSubmission = Readonly<{
   revision: string;
   taskKey: string;
+  rollRevision?: string;
   decision: CombatRunnerDecision;
 }>;

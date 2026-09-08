@@ -40,6 +40,8 @@ jobs:
       - run: npm ci
       - name: Install isolated Chromium
         run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Check progression and task ownership
+        run: node --import tsx --test src/features/tabletop-operations/combat-progression.test.ts src/features/tabletop-operations/combat-runner-presentation.test.ts
       - name: Construct disposable fixture schema
         run: node scripts/combat-runner-disposable-schema.mjs
       - name: Rehearse guarded database commands

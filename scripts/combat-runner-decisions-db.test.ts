@@ -91,8 +91,21 @@ test("revision-checked screen commands preserve ownership, simultaneous attacks,
     assert.deepEqual(due.snapshot.progression.tasks.map(({ kind }) => kind), ["roll-attack", "roll-attack"]);
     await assert.rejects(continueCombatRunnerInTransaction(tx, context, { revision: due.snapshot.revision, command: "continue" }), /choice, roll/);
     assert.equal((await continueCombatRunnerInTransaction(tx, context, { revision: ready.snapshot.revision, command: "continue" })).stale, true);
+    // Both browsers saw the same encounter revision. Recording one roll must
+    // not invalidate the other still-open immutable roll slot.
     for (const id of [first, second]) {
-      await choose(id === first ? base.heroId : base.defenderId, "roll-attack", { kind: "roll", method: "entered", enteredTotal: 89 });
+      const task = due.snapshot.progression.tasks.find(({ recordId }) => recordId === id)!;
+      const actor = id === first ? player : god;
+      const input = { revision: due.snapshot.revision, taskKey: task.key,
+        rollRevision: due.snapshot.rollRevisions?.[task.key],
+        decision: { kind: "roll" as const, method: "entered" as const, enteredTotal: 89 } };
+      if (id === second) {
+        const wrong = await submitCombatRunnerDecisionInTransaction(tx, context, actor, { ...input, rollRevision: "0".repeat(64) });
+        assert.equal(wrong.changed, false, "a changed or forged stale slot must not be accepted");
+      }
+      assert.equal((await submitCombatRunnerDecisionInTransaction(tx, context, actor, input)).changed, true);
+      const duplicate = await submitCombatRunnerDecisionInTransaction(tx, context, actor, input);
+      assert.equal(duplicate.changed, false, "the recorded slot cannot roll again");
     }
     const rolled = await read();
     await continueCombatRunnerInTransaction(tx, context, { revision: rolled.snapshot.revision, command: "continue" });
