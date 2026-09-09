@@ -37,6 +37,7 @@ import {
   createItemVariant,
   findRelatedCreatures,
   findRelatedItems,
+  findMagazineItems,
   getItem,
   getWeaponSkillGovernance,
   listItemAuthoringReferences,
@@ -59,13 +60,14 @@ import type {
   WeaponSkillPathMappingDraft,
 } from "@/features/items/weapon-skill-governance-service";
 
-type Tab = "overview" | "properties" | "effects" | "weapon" | "armor" | "tags" | "variants" | "preview";
+type Tab = "overview" | "properties" | "effects" | "magazine" | "weapon" | "armor" | "tags" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "properties", label: "Properties" },
   { id: "effects", label: "Effects" },
   { id: "weapon", label: "Weapon / Ammunition" },
+  { id: "magazine", label: "Magazine" },
   { id: "armor", label: "Armor" },
   { id: "tags", label: "Tags" },
   { id: "variants", label: "Variants" },
@@ -355,6 +357,7 @@ export function ItemWorkspace({
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "effects" ? <Effects draft={draft} skills={references.skills} onChange={change} /> : null}
           {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} onChange={change} /> : null}
+          {activeTab === "magazine" ? <Magazine draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
@@ -843,6 +846,7 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
   const ammunitionProfile = profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition";
   return <div className="item-section item-form-grid">
     <div className="item-profile-banner item-field--wide"><div><p>WEAPON / AMMUNITION PROFILE</p><h3>{ammunitionProfile ? "Ammunition Damage & Mechanics" : "Combat Equipment"}</h3></div><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: null }))}>Remove Profile</button></div>
+    {!ammunitionProfile ? <div className="item-field--wide"><Field label="Reload Type"><select className="st-control" aria-label="Reload Type" value={profile.reloadType ?? ""} onChange={(event) => patch({ reloadType: event.target.value === "Single" || event.target.value === "Magazine" ? event.target.value : null })}><option value="">Unconfigured</option><option>Single</option><option>Magazine</option></select></Field><p>Single: reload cost per inserted round, shell or projectile. Magazine: reload cost for a complete magazine swap. These definitions do not change combat reload timing yet.</p><MagazineLinks kind="magazine" excludeItemId={draft.id} selected={profile.compatibleMagazines ?? []} onChange={(compatibleMagazines) => patch({ compatibleMagazines })} /><p>Single-loading capacity belongs to the weapon. Each magazine model has its own capacity, including extended models. The existing weapon Capacity (Rounds) still governs combat until magazine integration.</p></div> : null}
     <Field label="Profile Record Type"><input value={profile.profileRecordType} onChange={(e) => patch({ profileRecordType: e.target.value })} /></Field>
     <Field label="Weapon Type"><input value={profile.weaponType} onChange={(e) => patch({ weaponType: e.target.value })} /></Field><Field label="Handedness"><input value={profile.handedness} onChange={(e) => patch({ handedness: e.target.value })} /></Field>
     <Field label="Damage Source"><input value={profile.damageSource} onChange={(e) => patch({ damageSource: e.target.value })} /></Field><Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
@@ -955,4 +959,20 @@ function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string;
 
 function patchProperty(draft: ItemDraft, onChange: (draft: ItemDraft) => void, index: number, update: Partial<ItemDraft["properties"][number]>) {
   onChange({ ...draft, properties: draft.properties.map((entry, i) => i === index ? { ...entry, ...update } : entry) });
+}
+
+function MagazineLinks({ kind, excludeItemId, selected, onChange }: { kind: "ammunition" | "magazine"; excludeItemId?: number; selected: { id: number; name: string }[]; onChange: (items: { id: number; name: string }[]) => void }) {
+  const [search, setSearch] = useState(""), [candidates, setCandidates] = useState<{ id: number; name: string }[]>([]), [error, setError] = useState("");
+  useEffect(() => { let active = true; const timer = setTimeout(() => { void findMagazineItems(kind, search, excludeItemId).then((rows) => { if (active) { setCandidates(rows); setError(""); } }).catch((caught) => { if (active) setError(caught.message); }); }, 180); return () => { active = false; clearTimeout(timer); }; }, [kind, search, excludeItemId]);
+  const label = kind === "magazine" ? "Compatible Magazines" : "Compatible Ammunition";
+  return <fieldset><legend>{label}</legend><label className="st-field">Search {label}<input className="st-control" type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+    <label className="st-field">Add {label}<select className="st-control" aria-label={`Add ${label}`} value="" onChange={(event) => { const chosen = candidates.find((row) => row.id === Number(event.target.value)); if (chosen && !selected.some((row) => row.id === chosen.id)) onChange([...selected, chosen]); }}><option value="">Choose an exact item</option>{candidates.filter((row) => !selected.some((entry) => entry.id === row.id)).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+    {selected.map((row) => <p key={row.id}>{row.name} <button type="button" className="st-button" onClick={() => onChange(selected.filter((entry) => entry.id !== row.id))}>Remove {row.name}</button></p>)}{error ? <p role="alert">{error}</p> : null}</fieldset>;
+}
+function Magazine({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemDraft) => void }) {
+  const profile = draft.magazineProfile;
+  if (!profile) return <section className="item-section"><h3>Magazine Profile</h3><p>A magazine is an individual equipment copy with its own capacity and exact ammunition compatibility.</p><button type="button" className="st-button is-primary" disabled={!!draft.weaponProfile || !!draft.armorProfile || draft.runtimeProfile.useMode !== "none"} onClick={() => onChange({ ...draft, core: { ...draft.core, recordType: "Magazine" }, magazineProfile: { capacityRounds: 1, ammunition: [] } })}>Add Magazine Profile</button>{draft.weaponProfile || draft.armorProfile || draft.runtimeProfile.useMode !== "none" ? <p>Use a separate item without weapon, armor, or Item-use mechanics for a magazine model.</p> : null}</section>;
+  return <section className="item-section"><h3>Magazine Profile</h3><label className="st-field">Capacity (Rounds)<input className="st-control" type="number" min={1} step={1} required value={profile.capacityRounds} onChange={(event) => onChange({ ...draft, magazineProfile: { ...profile, capacityRounds: Number(event.target.value) } })} /></label>
+    <MagazineLinks kind="ammunition" excludeItemId={draft.id} selected={profile.ammunition} onChange={(ammunition) => onChange({ ...draft, magazineProfile: { ...profile, ammunition } })} /><p>Each copy starts empty. Only one ammunition type may be loaded at a time; empty it before changing types. Physical weapon compatibility is set separately in the weapon editor.</p>
+    <button type="button" className="st-button is-danger" onClick={() => onChange({ ...draft, magazineProfile: null })}>Remove Magazine Profile</button></section>;
 }

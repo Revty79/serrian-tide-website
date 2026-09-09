@@ -1,0 +1,22 @@
+.magazine-panel {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid var(--st-border-strong);
+  border-radius: 8px;
+  background: var(--st-surface);
+  color: var(--st-text);
+}
+
+.magazine-panel > h3 { margin-top: 0; }
+.magazine-panel p { font-size: .8rem; }
+.magazine-panel fieldset {
+  min-width: 0;
+  margin: 14px 0 0;
+  padding: 12px;
+  border: 1px solid var(--st-border);
+  border-radius: 6px;
+  background: var(--st-surface-raised);
+}
+.magazine-panel legend { font-weight: 650; }
+.magazine-panel .st-field { margin-bottom: 10px; }
+.magazine-panel .st-button { margin: 2px 0; }

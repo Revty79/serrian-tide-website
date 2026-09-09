@@ -52,6 +52,7 @@ import { CharacterHitLocationChart } from "./character-hit-location-chart";
 import { CharacterPrintCenter } from "./character-print-center";
 import { ItemUseDialog } from "./item-use-dialog";
 import { EquipmentStatePanel } from "./equipment-state-panel";
+import { MagazinePanel } from "./magazine-panel";
 import { ItemChargePanel } from "./item-charge-panel";
 import { DerivedAbilityPanel } from "./derived-ability-panel";
 
@@ -347,6 +348,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
         <ActiveManaPanel mana={activeMana} disabled={activeManaDisabled || !canOperateRuntime} disabledReason={!canOperateRuntime ? "Live Mana is read-only; only the Campaign-owning G.O.D. can change it." : undefined} onManaChange={onActiveManaChange} />
         <ActiveEffectsPanel state={activeEffects} godMode={godMode} disabled={!canOperateRuntime} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
         <EquipmentStatePanel state={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} includeEffectHistory={godMode} onChange={onEquipmentStateChange} onActiveEffectsChange={onActiveEffectsChange} />
+        <MagazinePanel characterId={aggregate.character.id} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
         <ItemChargePanel state={chargeState} disabled={chargeStateDisabled || !canOperateRuntime} onChange={onChargeStateChange} />
 
         <section className="character-sheet__summary-grid" aria-label="Core character record">
@@ -565,9 +567,9 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
 
         {draft.itemInstances.length ? (
           <section className="character-sheet__section character-sheet__inventory">
-            <div className="character-sheet__section-heading"><p>INDIVIDUAL POSSESSIONS</p><h3>Charged Item Copies</h3><span>Each copy keeps its own identity and charge state.</span></div>
+            <div className="character-sheet__section-heading"><p>INDIVIDUAL POSSESSIONS</p><h3>Individual Item Copies</h3><span>Each copy keeps its own identity. Magazine contents are shown in Magazines above.</span></div>
             <div className="character-sheet__table-scroll">
-              <table><thead><tr><th>Item</th><th>Copy</th><th>Classification</th><th>Current Charges</th><th>Unit Cost</th></tr></thead><tbody>
+              <table><thead><tr><th>Item</th><th>Copy</th><th>Classification</th><th>State</th><th>Unit Cost</th></tr></thead><tbody>
                 {draft.itemInstances.map((owned, index) => {
                   const persisted = owned.instanceId === null
                     ? null
@@ -577,7 +579,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
                     currentCharges: persisted?.currentCharges ?? definition?.runtimeProfile.maximumCharges ?? 0,
                     maximumCharges: definition?.runtimeProfile.maximumCharges ?? null,
                   });
-                  return <tr key={owned.draftId}><th>{definition?.name ?? persisted?.name ?? `Item ${owned.itemId}`}</th><td>{owned.instanceId === null ? `New copy ${index + 1}` : `#${owned.instanceId}`}</td><td>{definition?.isMagical || persisted?.isMagical ? "Magical · Charged" : "Charged"}</td><td>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? <small> · Above current maximum</small> : null}</td><td>{displayNumber(owned.unitCostCredits)} cr</td></tr>;
+                  return <tr key={owned.draftId}><th>{definition?.name ?? persisted?.name ?? `Item ${owned.itemId}`}</th><td>{owned.instanceId === null ? `New copy ${index + 1}` : `#${owned.instanceId}`}</td><td>{definition?.isMagical || persisted?.isMagical ? "Magical · Charged" : "Charged"}</td><td>{definition?.isMagazine ? "See Magazines above" : chargeDisplay.label}{!definition?.isMagazine && chargeDisplay.exceedsCurrentMaximum ? <small> · Above current maximum</small> : null}</td><td>{displayNumber(owned.unitCostCredits)} cr</td></tr>;
                 })}
               </tbody></table>
             </div>

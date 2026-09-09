@@ -686,6 +686,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
       weaponProfileId: weaponProfile.id,
+      isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
       weaponType: weaponProfile.weaponType,
       handedness: weaponProfile.handedness,
@@ -824,7 +825,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     definitions: authorizedRows.map((entry) => ({
       itemId: entry.id,
       runtimeProfile: readItemRuntimeProfile(entry),
-      requiresExactInstance: entry.isFirearm === true,
+      requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true,
     })),
     stacks: ownedItems,
     instances: ownedItemInstances,
@@ -1050,6 +1051,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       runtimeProfile: readItemRuntimeProfile(entry),
       weaponProfileId: entry.weaponProfileId,
       isFirearm: entry.isFirearm,
+      isMagazine: entry.isMagazine,
       weaponType: entry.weaponType,
       handedness: entry.handedness,
       damageSource: entry.damageSource,
@@ -1134,7 +1136,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       throw new Error("Archived Items cannot be added to or increased in Character possessions.");
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name, {
-      requiresExactInstance: authorized.isFirearm === true,
+      requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true,
       allowLegacyExactStack: true,
     });
     if (!godMode && (authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
@@ -1166,7 +1168,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       throw new Error("Archived Items cannot be added as new owned instances.");
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name, {
-      requiresExactInstance: authorized.isFirearm === true,
+      requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true,
     });
 
     if (entry.instanceId === null) {
@@ -1196,7 +1198,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     definitions: aggregate.authorizedItems.map((entry) => ({
       itemId: entry.id,
       runtimeProfile: entry.runtimeProfile,
-      requiresExactInstance: entry.isFirearm === true,
+      requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true,
     })),
     stacks: items,
     instances: itemInstances,
@@ -1510,7 +1512,7 @@ export async function saveCharacter(
           itemId: entry.itemId,
           currentCharges: getStartingItemInstanceCharges(
             authorized.runtimeProfile,
-            authorized.isFirearm === true,
+            authorized.isFirearm === true || authorized.isMagazine === true,
           ),
           unitCostCredits: entry.unitCostCredits,
         };

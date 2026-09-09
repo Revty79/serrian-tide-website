@@ -1062,7 +1062,7 @@ export function evaluateCharacterReadiness(
       }
       try {
         assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
-          requiresExactInstance: source.isFirearm === true,
+          requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
           allowLegacyExactStack: true,
         });
       } catch {
@@ -1081,7 +1081,7 @@ export function evaluateCharacterReadiness(
       }
       try {
         assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
-          requiresExactInstance: source.isFirearm === true,
+          requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
         });
       } catch {
         return false;

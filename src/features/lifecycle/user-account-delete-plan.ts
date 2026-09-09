@@ -18,6 +18,7 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "magazine_inventory_operation", columnName: "actor_user_id", constraintName: "magazine_inventory_operation_actor_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Magazine inventory operation attribution" },
   { tableName: "account", columnName: "user_id", constraintName: "account_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Authentication provider and credential accounts" },
   { tableName: "session", columnName: "user_id", constraintName: "session_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Authenticated sessions" },
   { tableName: "user_role", columnName: "user_id", constraintName: "user_role_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Serrian Tide role assignments" },
@@ -101,4 +102,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "campaign_session_encounter_reward_decision", columnName: "awarded_by_user_id", constraintName: "combat_reward_decision_awarded_by_fk", onDelete: "restrict", disposition: "block", label: "Combat XP reward decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 81;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 82;

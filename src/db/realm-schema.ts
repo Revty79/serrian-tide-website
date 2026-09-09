@@ -526,6 +526,9 @@ export const campaignCharacterItemInstance = pgTable(
       .notNull()
       .references(() => item.id, { onDelete: "restrict" }),
     currentCharges: integer("current_charges").notNull(),
+    loadedAmmunitionItemId: integer("loaded_ammunition_item_id").references(() => item.id, { onDelete: "restrict" }),
+    loadedRounds: integer("loaded_rounds").default(0).notNull(),
+    loadedAmmunitionUnitCostCredits: doublePrecision("loaded_ammunition_unit_cost_credits").default(0).notNull(),
     equipmentState: text("equipment_state").default("inactive").notNull(),
     unitCostCredits: doublePrecision("unit_cost_credits").notNull(),
     provenanceSourceInstanceId: integer("provenance_source_instance_id").references(
@@ -544,6 +547,7 @@ export const campaignCharacterItemInstance = pgTable(
       table.characterId,
       table.itemId,
     ),
+    check("owned_magazine_contents_valid", sql`${table.loadedRounds} >= 0 AND ${table.loadedAmmunitionUnitCostCredits} >= 0 AND ((${table.loadedRounds} = 0 AND ${table.loadedAmmunitionItemId} IS NULL AND ${table.loadedAmmunitionUnitCostCredits} = 0) OR (${table.loadedRounds} > 0 AND ${table.loadedAmmunitionItemId} IS NOT NULL))`),
     index("campaign_character_item_instance_character_idx").on(
       table.characterId,
       table.itemId,

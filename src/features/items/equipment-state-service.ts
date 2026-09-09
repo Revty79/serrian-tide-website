@@ -1,7 +1,7 @@
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
-import { and, asc, eq, inArray, isNull, like } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, like, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -97,6 +97,7 @@ type OwnedEquipmentSnapshot = {
     ownedQuantity: number;
   }>;
   instances: Array<{
+    isMagazine?: boolean;
     instanceId: number;
     itemId: number;
     itemName: string;
@@ -157,6 +158,7 @@ async function loadOwnedEquipmentInTransaction(
       itemName: item.name,
       equipmentGroup: item.equipmentGroup,
       currentCharges: campaignCharacterItemInstance.currentCharges,
+      isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       state: campaignCharacterItemInstance.equipmentState,
     }).from(campaignCharacterItemInstance)
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
@@ -569,13 +571,14 @@ export async function validateEquipmentOwnershipMutationInTransaction(
     }
   }
   if (input.removedInstanceIds.length) {
-    const rows = await tx.select({ id: campaignCharacterItemInstance.id, state: campaignCharacterItemInstance.equipmentState })
+    const rows = await tx.select({ id: campaignCharacterItemInstance.id, state: campaignCharacterItemInstance.equipmentState, loadedRounds: campaignCharacterItemInstance.loadedRounds })
       .from(campaignCharacterItemInstance)
       .where(and(
         eq(campaignCharacterItemInstance.characterId, input.characterId),
         inArray(campaignCharacterItemInstance.id, [...input.removedInstanceIds]),
         isNull(campaignCharacterItemInstance.retiredAt),
       )).for("update");
+    if (rows.some((row) => row.loadedRounds > 0)) throw new Error("Empty the magazine before removing its owned copy.");
     if (rows.some(({ state }) => state !== "inactive")) {
       throw new Error("Set an owned Item copy to Inactive before removing it.");
     }

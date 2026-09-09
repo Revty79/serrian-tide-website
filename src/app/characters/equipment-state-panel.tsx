@@ -61,7 +61,7 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
         })}</div>
       </article>)}
       {state.instances.map((entry) => <article key={`instance-${entry.instanceId}`}>
-        <header><div><strong>{entry.itemName} · Copy #{entry.instanceId}</strong><span>{entry.equipmentGroup} · {entry.currentCharges} Charges</span></div></header>
+        <header><div><strong>{entry.itemName} · Copy #{entry.instanceId}</strong><span>{entry.equipmentGroup} · {entry.isMagazine ? "Magazine" : `${entry.currentCharges} Charges`}</span></div></header>
         <label>Equipment State<select disabled={disabled || busy} value={entry.state} onChange={(event) => void run(() => setInstanceEquipmentStateAction({ characterId: state.characterId, instanceId: entry.instanceId, state: event.target.value as EquipmentState, includeEffectHistory }))}>{EQUIPMENT_STATES.map((equipmentState) => <option key={equipmentState} value={equipmentState}>{stateLabel(equipmentState)}</option>)}</select></label>
       </article>)}
     </div>

@@ -55,7 +55,7 @@ test("Creature NPCs share campaignCharacter instance ownership and preserve curr
   const workspace = source("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx");
   assert.match(actions, /campaignCharacterItemInstance/);
   assert.match(actions, /existing\.currentCharges !== entry\.currentCharges/);
-  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm\)/);
+  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm === true \|\| source\.isMagazine === true\)/);
   assert.match(actions, /requiresExactInstance: source\.isFirearm/);
   assert.match(actions, /existingInstanceIds: current\.itemInstances\.flatMap/);
   assert.match(workspace, /Remove this copy/);
@@ -70,5 +70,6 @@ test("ownership UI remains read-only for charges and exposes no Item execution a
   assert.doesNotMatch(combined, /Use Item/);
   assert.doesNotMatch(combined, /Spend Charge/);
   assert.doesNotMatch(combined, /Restore Charge/);
-  assert.match(characterSheet, /Each copy keeps its own identity and charge state/);
+  assert.match(characterSheet, /Each copy keeps its own identity/);
+  assert.match(characterSheet, /Magazine contents are shown in Magazines above/);
 });

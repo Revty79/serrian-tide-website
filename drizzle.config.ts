@@ -20,6 +20,7 @@ export default defineConfig({
     "./src/db/creature-schema.ts",
     "./src/db/derived-ability-schema.ts",
     "./src/db/item-schema.ts",
+    "./src/db/magazine-schema.ts",
     "./src/db/realm-schema.ts",
     "./src/db/shop-schema.ts",
     "./src/db/town-schema.ts",

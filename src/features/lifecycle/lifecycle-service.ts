@@ -42,6 +42,12 @@ import type {
 
 export type LifecycleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+async function assertNoLoadedMagazineContents(tx: LifecycleTransaction, itemId: number) {
+  await tx.select({ id: item.id }).from(item).where(eq(item.id, itemId)).for("update");
+  const loaded = await tx.execute(sql`select 1 from campaign_character_item_instance where loaded_rounds > 0 and (item_id = ${itemId} or loaded_ammunition_item_id = ${itemId}) limit 1`);
+  if (loaded.rows.length) throw new Error("Empty the affected magazines before archiving or deleting their model or ammunition.");
+}
+
 type RootSnapshot = {
   id: number;
   name: string;
@@ -248,6 +254,7 @@ async function countSerializedFrameworkSkillReferences(
 
 function campaignDependencySpecs(campaignId: number): DependencySpec[] {
   return [
+    { label: "Magazine inventory history", blocking: false, query: sql<CountRow>`select count(*)::int as value from magazine_inventory_operation i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Campaign memberships", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_player where campaign_id = ${campaignId}` },
     { label: "Player Characters", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character where campaign_id = ${campaignId} and is_npc = false` },
     { label: "Race NPCs", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character where campaign_id = ${campaignId} and is_npc = true and npc_kind = 'race'` },
@@ -646,6 +653,7 @@ async function updateRootArchiveState(
       break;
     }
     case "item": {
+      if (archived) await assertNoLoadedMagazineContents(tx, target.entityId);
       const [updated] = await tx.update(item).set(values).where(and(
         eq(item.id, target.entityId),
         expectedState(item.archivedAt),
@@ -762,6 +770,7 @@ async function deleteNonCampaignRoot(
       break;
     }
     case "item": {
+      await assertNoLoadedMagazineContents(tx, target.entityId);
       const [removed] = await tx.delete(item).where(eq(item.id, target.entityId)).returning({ id: item.id });
       removedId = removed?.id;
       break;

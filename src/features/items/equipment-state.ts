@@ -30,6 +30,7 @@ export type StackEquipmentState = {
 };
 
 export type InstanceEquipmentState = {
+  isMagazine?: boolean;
   instanceId: number;
   itemId: number;
   itemName: string;

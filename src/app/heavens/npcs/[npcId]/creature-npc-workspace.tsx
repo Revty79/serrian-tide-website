@@ -43,6 +43,7 @@ import { ItemUseDialog } from "@/app/characters/item-use-dialog";
 import { EquipmentStatePanel } from "@/app/characters/equipment-state-panel";
 import { getCharacterEquipmentState } from "@/app/characters/equipment-state-actions";
 import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
+import { MagazinePanel } from "@/app/characters/magazine-panel";
 import { ItemChargePanel } from "@/app/characters/item-charge-panel";
 import { getCharacterItemChargeState } from "@/app/characters/item-charge-actions";
 import type { CharacterItemChargeStateView } from "@/features/items/item-charge";
@@ -191,7 +192,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
     {!canOperateRuntime ? <section className="creature-npc-warning is-runtime-read-only" role="note"><strong>Administrator record access</strong><span>Live Campaign state is read-only. You may edit and save this permanent NPC record, but only a G.O.D. who owns this Campaign can operate Health, effects, Equipment State, Item Charges, Items, or Creature Abilities.</span></section> : null}
     <div className="creature-npc-layout"><nav className="creature-npc-tabs">{TABS.map((entry) => <button type="button" key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><section className="creature-npc-editor">
       {tab === "identity" ? <Identity draft={draft} onChange={change} /> : null}
-      {tab === "current" ? <><ActiveHealthPanel health={activeHealth} disabled={!canOperateRuntime} onHealthChange={setActiveHealth} context="creature" /><ActiveEffectsPanel state={activeEffects} godMode disabled={!canOperateRuntime} skillOptions={draft.currentSnapshot.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} movementModes={draft.currentSnapshot.movement.map(({ movementMode }) => movementMode)} onChange={setActiveEffects} /><EquipmentStatePanel state={equipmentState} disabled={dirty || saving || !canOperateRuntime} includeEffectHistory onChange={setEquipmentState} onActiveEffectsChange={setActiveEffects} /><ItemChargePanel state={chargeState} disabled={dirty || saving || !canOperateRuntime} onChange={acceptChargeState} /></> : null}
+      {tab === "current" ? <><ActiveHealthPanel health={activeHealth} disabled={!canOperateRuntime} onHealthChange={setActiveHealth} context="creature" /><ActiveEffectsPanel state={activeEffects} godMode disabled={!canOperateRuntime} skillOptions={draft.currentSnapshot.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} movementModes={draft.currentSnapshot.movement.map(({ movementMode }) => movementMode)} onChange={setActiveEffects} /><EquipmentStatePanel state={equipmentState} disabled={dirty || saving || !canOperateRuntime} includeEffectHistory onChange={setEquipmentState} onActiveEffectsChange={setActiveEffects} /><MagazinePanel characterId={draft.characterId} disabled={dirty || saving || !canOperateRuntime} onChange={refreshRuntimeState} /><ItemChargePanel state={chargeState} disabled={dirty || saving || !canOperateRuntime} onChange={acceptChargeState} /></> : null}
       {tab === "stats" ? <Stats snapshot={draft.currentSnapshot} onChange={changeSnapshot} /> : null}
       {tab === "hp" ? <Hp snapshot={draft.currentSnapshot} hpAdjustment={draft.hpAdjustment} onChange={changeSnapshot} /> : null}
       {tab === "combat" ? <Combat snapshot={draft.currentSnapshot} onChange={changeSnapshot} /> : null}
@@ -238,20 +239,20 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
   function addSelectedItem() {
     const selected = draft.authorizedItems.find(({ id }) => id === Number(itemId));
     if (!selected) return;
-    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm) === "instance") {
+    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true) === "instance") {
       const [created] = createDraftOwnedItemInstances({
         itemId: selected.id,
         quantity: 1,
         unitCostCredits: selected.credits ?? 0,
         runtimeProfile: selected.runtimeProfile,
-        requiresExactInstance: selected.isFirearm,
+        requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true,
         createDraftId: () => nextInstanceDraftId.current--,
       });
       onChange({
         ...draft,
         itemInstances: [...draft.itemInstances, {
           ...created,
-          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm),
+          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true),
           acquiredAt: null,
         }],
       });

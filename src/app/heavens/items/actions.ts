@@ -80,6 +80,9 @@ import {
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
+import { magazineProfile, magazineAmmunition, weaponMagazine } from "@/db/magazine-schema";
+import { saveMagazineCatalogInTransaction, type MagazineProfileDraft } from "@/features/items/magazine-catalog-service";
+
 export type ItemLibraryFilters = {
   catalogScope: ItemCatalogScope;
   search?: string;
@@ -194,6 +197,7 @@ export type ItemDraft = {
     notes: string;
     sortOrder: number;
   }>;
+  magazineProfile?: MagazineProfileDraft | null;
   weaponProfile: null | {
     profileRecordType: string;
     weaponType: string;
@@ -209,6 +213,8 @@ export type ItemDraft = {
     compatibility: string;
     capacity: string;
     capacityRounds: number | null;
+    reloadType?: "Single" | "Magazine" | null;
+    compatibleMagazines?: { id: number; name: string }[];
     readinessMode: "draw-is-ready" | "separate-ready-action" | null;
     drawInitiativeCost: number | null;
     readyInitiativeCost: number | null;
@@ -261,6 +267,8 @@ function nonNegativeInteger(value: number | null, label: string) { if (value ===
 function wholeInteger(value: number, label: string) { if (!Number.isSafeInteger(value)) throw new Error(`${label} must be a whole number.`); return value; }
 
 function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
+  if (input.magazineProfile && (input.weaponProfile || input.armorProfile || input.runtimeProfile.useMode !== "none")) throw new Error("Magazine models use their dedicated profile and no Item-use mode, weapon or armor profile.");
+  if (input.weaponProfile?.reloadType != null && !["Single", "Magazine"].includes(input.weaponProfile.reloadType)) throw new Error("Reload Type must be Single, Magazine, or unconfigured.");
   const equipmentGroup = input.core.catalogScope === "equipment" ? input.core.equipmentGroup ?? "general" : null;
   if (input.core.catalogScope === "equipment" && !EQUIPMENT_GROUPS.includes(equipmentGroup as EquipmentCatalogGroup)) {
     throw new Error("Equipment Group must be Weapon, Armor, or General.");
@@ -319,6 +327,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
     ammunitionItemName: input.weaponProfile.ammunitionItemId ? optionalText(input.weaponProfile.ammunitionItemName) : null,
     compatibility: clean(input.weaponProfile.compatibility),
     capacity: clean(input.weaponProfile.capacity),
+    reloadType: input.weaponProfile.reloadType ?? null,
     capacityRounds: positiveInteger(input.weaponProfile.capacityRounds, "Structured firearm capacity"),
     readinessMode: input.weaponProfile.readinessMode === "draw-is-ready" || input.weaponProfile.readinessMode === "separate-ready-action"
       ? input.weaponProfile.readinessMode
@@ -603,6 +612,9 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       sortOrder: itemPassiveEffect.sortOrder,
     }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id)).orderBy(asc(itemPassiveEffect.sortOrder), asc(itemPassiveEffect.id)),
   ]);
+  const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
+  const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
+  const compatibleMagazines = weaponRows[0] ? await db.select({ id: item.id, name: item.name }).from(weaponMagazine).innerJoin(item, eq(item.id, weaponMagazine.magazineItemId)).where(eq(weaponMagazine.weaponProfileId, weaponRows[0].id)) : [];
   const relatedItemIds = properties.map(({ relatedItemId }) => relatedItemId).filter((value): value is number => value !== null);
   const relatedCreatureIds = properties.map(({ relatedCreatureCanonicalId }) => relatedCreatureCanonicalId).filter((value): value is string => value !== null);
   const [relatedItems, relatedCreatures] = await Promise.all([
@@ -668,7 +680,9 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       relatedCreatureName: property.relatedCreatureCanonicalId ? creatureNames.get(property.relatedCreatureCanonicalId) ?? null : null,
       notes: property.notes, sortOrder: property.sortOrder,
     })),
+    magazineProfile: magazine ? { capacityRounds: magazine.capacityRounds, ammunition: magazineAmmo } : null,
     weaponProfile: weapon ? {
+      reloadType: weapon.reloadType as "Single" | "Magazine" | null, compatibleMagazines,
       profileRecordType: weapon.profileRecordType, weaponType: weapon.weaponType, handedness: weapon.handedness,
       damageSource: weapon.damageSource, damage: weapon.damage, initiativeCost: weapon.initiativeCost,
       damageType: weapon.damageType, range: weapon.rangeText,
@@ -975,6 +989,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         compatibility: normalized.weapon.compatibility,
         capacity: normalized.weapon.capacity,
         capacityRounds: normalized.weapon.capacityRounds,
+        reloadType: normalized.weapon.reloadType,
         readinessMode: normalized.weapon.readinessMode,
         drawInitiativeCost: normalized.weapon.drawInitiativeCost,
         readyInitiativeCost: normalized.weapon.readyInitiativeCost,
@@ -1059,6 +1074,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       if (tagRows.length !== normalized.tags.length) throw new Error("One or more selected Item tags no longer exist.");
       await tx.insert(itemTagLink).values(tagRows.map(({ id: tagId }) => ({ itemId: id!, tagId })));
     }
+    await saveMagazineCatalogInTransaction(tx, id!, input.magazineProfile ?? null, input.weaponProfile?.compatibleMagazines ?? []);
     return id;
   });
 
@@ -1106,4 +1122,14 @@ export async function createItemVariant(parentItemId: number, variantName: strin
     variants: [],
   };
   return saveItemDefinition(clone, true);
+}
+
+export async function findMagazineItems(kind: "ammunition" | "magazine", search: string, excludeItemId?: number) {
+  await requireGodOrAdminAccessContext();
+  const conditions: SQL[] = [isNull(item.archivedAt)];
+  if (excludeItemId) conditions.push(ne(item.id, excludeItemId));
+  if (search.trim()) conditions.push(or(ilike(item.name, `%${search.trim()}%`), ilike(item.canonicalId, `%${search.trim()}%`))!);
+  conditions.push(kind === "magazine" ? sql`exists(select 1 from ${magazineProfile} where ${magazineProfile.itemId} = ${item.id})`
+    : sql`(lower(trim(${item.recordType})) = 'ammunition' or exists(select 1 from ${weaponProfile} where ${weaponProfile.itemId} = ${item.id} and lower(trim(${weaponProfile.profileRecordType})) = 'ammunition'))`);
+  return db.select({ id: item.id, name: item.name }).from(item).where(and(...conditions)).orderBy(asc(item.name), asc(item.id)).limit(40);
 }

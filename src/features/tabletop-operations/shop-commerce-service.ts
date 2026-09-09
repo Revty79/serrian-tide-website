@@ -204,6 +204,7 @@ type ItemDefinition = Readonly<{
   activationLabel: string;
   useNotes: string;
   isFirearm: boolean;
+  isMagazine?: boolean;
 }>;
 
 const MONEY_EPSILON = 0.000001;
@@ -484,6 +485,7 @@ async function loadItemDefinitions(
     weaponProfileId: weaponProfile.id,
     weaponProfileRecordType: weaponProfile.profileRecordType,
     ammunitionItemId: weaponProfile.ammunitionItemId,
+    isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
     isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from weapon_firing_modes where weapon_firing_modes.weapon_profile_id = ${weaponProfile.id})), false)`,
   }).from(campaignInventoryItem)
     .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
@@ -509,6 +511,7 @@ async function loadItemDefinitions(
     activationLabel: row.activationLabel ?? "Use",
     useNotes: row.useNotes ?? "",
     isFirearm: row.isFirearm,
+    isMagazine: row.isMagazine,
   }]));
 }
 
@@ -525,7 +528,7 @@ function runtimeProfile(definition: ItemDefinition) {
 }
 
 function ownershipStrategy(definition: ItemDefinition): "stack" | "instance" {
-  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm);
+  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true);
 }
 
 type LockedCommerceContext = Readonly<{
@@ -865,7 +868,7 @@ async function createOwnedInstance(
     itemId: input.definition.id,
     currentCharges: input.currentCharges ?? getStartingItemInstanceCharges(
       runtimeProfile(input.definition),
-      input.definition.isFirearm,
+      input.definition.isFirearm === true || input.definition.isMagazine === true,
     ),
     unitCostCredits: input.unitCostCredits,
     provenanceSourceInstanceId: input.provenanceSourceInstanceId ?? null,
@@ -1037,6 +1040,7 @@ async function removeSoldOwnership(
       .where(inArray(campaignCharacterFirearmState.itemInstanceId, instanceIds));
     const firearmByInstance = new Map(firearmStates.map((state) => [state.itemInstanceId, state]));
     for (const instance of instances) {
+      if (instance.loadedRounds > 0) throw new Error("Empty the magazine before selling or retiring its copy.");
       const firearmState = firearmByInstance.get(instance.id) ?? null;
       const stateSnapshot = {
         currentCharges: instance.currentCharges,

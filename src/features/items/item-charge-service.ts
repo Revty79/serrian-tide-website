@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -125,6 +125,7 @@ export async function readCharacterItemChargeStateInTransaction(
     .where(and(
       eq(campaignCharacterItemInstance.characterId, characterId),
       isNull(campaignCharacterItemInstance.retiredAt),
+      sql`not exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
     ))
     .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id));
   return { characterId, instances: rows.map(stateFromRow) };

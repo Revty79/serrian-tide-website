@@ -111,6 +111,7 @@ export type CreatureNpcDraft = {
     runtimeProfile: ItemRuntimeProfile;
     weaponProfileId: number | null;
     isFirearm: boolean;
+    isMagazine?: boolean;
     archived: boolean;
   }>;
 };
@@ -742,6 +743,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
       weaponProfileId: weaponProfile.id,
+      isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     })
       .from(campaignCharacterItem)
@@ -763,6 +765,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
       weaponProfileId: weaponProfile.id,
+      isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     })
       .from(campaignCharacterItemInstance)
@@ -793,6 +796,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
       weaponProfileId: weaponProfile.id,
+      isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
@@ -804,8 +808,8 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
 
   assertNoStackInstanceOwnershipCollision({
     definitions: [
-      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm })),
-      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm })),
+      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
+      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
     ],
     stacks: ownedItems,
     instances: ownedItemInstances,
@@ -850,6 +854,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeProfile: readItemRuntimeProfile(entry),
       weaponProfileId: entry.weaponProfileId,
       isFirearm: entry.isFirearm,
+      isMagazine: entry.isMagazine,
       archived: entry.archivedAt !== null,
     })),
   };
@@ -938,7 +943,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       throw new Error("Archived Items cannot be added to or increased in Creature NPC inventory.");
     }
     assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
-      requiresExactInstance: source.isFirearm,
+      requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
       allowLegacyExactStack: true,
     });
     return {
@@ -962,14 +967,14 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     const source = authorizedById.get(entry.itemId);
     if (!source) throw new Error("Creature NPC Item instances must use Campaign-authorized Items.");
     assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
-      requiresExactInstance: source.isFirearm,
+      requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
     });
     if (entry.instanceId === null) {
       if (entry.draftId >= 0) throw new Error("An unsaved Creature NPC Item instance needs a temporary draft identity.");
       if (source.archived) throw new Error("Archived Items cannot be added as new Creature NPC instances.");
       return {
         ...entry,
-        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm),
+        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm === true || source.isMagazine === true),
         unitCostCredits: source.credits ?? entry.unitCostCredits,
         acquiredAt: null,
       };
@@ -991,7 +996,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     return entry;
   });
   assertNoStackInstanceOwnershipCollision({
-    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, requiresExactInstance: entry.isFirearm })),
+    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
     stacks: items,
     instances: itemInstances,
   });
