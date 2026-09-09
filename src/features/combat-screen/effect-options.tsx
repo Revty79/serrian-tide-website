@@ -9,7 +9,8 @@ export function EffectOptions({ scope, source, roster, values, onChange }: { sco
   const [locations, setLocations] = useState<Record<number, Awaited<ReturnType<typeof readCombatTargetAnatomy>>>>({});
   const targets = JSON.stringify([...new Set(source.effects.flatMap((effect) => effect.targetParticipantIds))]);
   useEffect(() => { let active = true; void Promise.all((JSON.parse(targets) as number[]).map(async (id) => [id, await readCombatTargetAnatomy(scope, id)] as const)).then((rows) => { if (active) setLocations(Object.fromEntries(rows)); }).catch(() => {}); return () => { active = false; }; }, [scope, targets]);
-  return <>{source.effects.filter((entry) => entry.effect?.kind === "health.damage" || entry.effect?.kind === "health.heal" && entry.effect.scope === "area").flatMap((entry) => entry.targetParticipantIds.map((target) => {
+  return <>{source.effects.filter((entry) => !entry.instruction.areaReport && entry.instruction.hitLocationMode !== "standard-roll"
+    && (entry.effect?.kind === "health.damage" || entry.effect?.kind === "health.heal" && entry.effect.scope === "area")).flatMap((entry) => entry.targetParticipantIds.map((target) => {
     const key = source.kind === "spell" ? `${entry.instruction.spellEffectId}:${target}` : source.kind === "creature-ability" ? `${entry.instruction.effectKey}:${target}` : source.kind === "derived-ability" ? String(entry.instruction.sortOrder) : entry.key.replace("item-effect:", "");
     const selection = values[key];
     return <label key={`${entry.key}:${target}`} className="st-field">{roster.find((member) => member.participantId === target)?.name}: {entry.effect?.kind === "health.heal" ? "area to heal" : "damage location"}

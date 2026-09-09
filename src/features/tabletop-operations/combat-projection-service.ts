@@ -13,6 +13,8 @@ import { hasUnresolvedCompletedActionsInTransaction, projectRevealedInitiativeIn
 import { initiativeStateToken } from "./initiative-state-token";
 import { combatParticipationState } from "./combat-participation-service";
 import { combatConditionState, combatConditionMessage, combatObject } from "./combat-condition-state";
+import { combatLimbConditions } from "./combat-limb-state";
+import { combatConditionAlerts } from "./combat-condition-alerts";
 
 /** One authorized, sealed-state-safe projection for the later combat cards.
  * Availability describes an opportunity, not approval of every possible source/cost.
@@ -32,6 +34,8 @@ export async function readCombatProjectionInTransaction(
   const entities = workspace.participants.map((entity) => {
     const participation = combatParticipationState(members.find(({ id }) => id === entity.characterId)?.local);
     const condition = combatConditionState(members.find(({ id }) => id === entity.characterId)?.local);
+    const limbConditions = actor.authority === "god-owner" || actor.characterId === entity.characterId
+      ? combatLimbConditions(members.find(({ id }) => id === entity.characterId)?.local).filter((limb) => !limb.recoveredAt).map(({ poolKey, name }) => ({ poolKey, name })) : [];
     const participant = engine.participants.find(({ characterId }) => characterId === entity.characterId)!;
     const canControl = actor.authority === "god-owner" ? entity.choiceOwner === "god" : actor.characterId === entity.characterId;
     const choicesSealed = checkpoint?.committedParticipantIds.includes(entity.characterId) ?? false;
@@ -68,7 +72,7 @@ export async function readCombatProjectionInTransaction(
     const canActNow = actionReason === null;
     const canRespondNow = responseReason === null;
     return { participantId: entity.characterId, name: entity.name, currentInitiative: entity.currentInitiative,
-      participationStatus: participant.participationStatus, participation, condition, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
+      participationStatus: participant.participationStatus, participation, condition, limbConditions, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
       canInspect: true as const, actionReason, responseReason, mustChooseNow: canActNow && !heldInterventionAvailable && !!normalNow,
       statusText: canActNow && canRespondNow ? "Can choose an action or response." : canRespondNow ? "Can respond now."
         : canActNow && heldInterventionAvailable ? "Holding Initiative; may intervene when legitimate. No ordinary choice is required."
@@ -84,6 +88,8 @@ export async function readCombatProjectionInTransaction(
       : next?.kind === "none" ? "No further Initiative event is pending. Holding combatants may wait for a legitimate intervention or choose Pass; no automatic advancement is needed."
       : "Waiting for the remaining ordinary choices at this Initiative.") };
   return { context: workspace.context, runtime: { ...workspace.runtime, status: engine.runtime.status }, closed, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities, progression,
+    alerts: combatConditionAlerts(workspace.participants.map((entity) => ({ participantId: entity.characterId, name: entity.name,
+      local: members.find(({ id }) => id === entity.characterId)?.local })), actor),
     checkpoint: checkpoint ?? null, declarations: workspace.declarations };
 }
 

@@ -68,7 +68,7 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     try {
       const aggregate = await getCharacter(participantId, scope.role === "god");
       for (const spell of assemblePlayerTabletopSpells(aggregate)) sources.push({ kind: "spell", ref: spell.castSource?.kind === "catalog" ? `catalog:${spell.castSource.allocationId}` : spell.castSource && "savedSpellId" in spell.castSource ? `${spell.castSource.kind}:${spell.castSource.savedSpellId}` : spell.key,
-        name: spell.name, instanceId: null, itemId: null, description: [spell.tradition, spell.activationLabel, ...spell.effects].join(" · "), unavailable: !spell.available || !spell.castSource ? spell.issues.join(" ") || "The required casting source is unavailable." : undefined });
+        name: spell.name, instanceId: null, itemId: null, description: [spell.tradition, spell.activationLabel, ...spell.effects].join(" · "), unavailable: !spell.available || !spell.castSource ? spell.issues.join(" ") || "The required casting source is unavailable." : spell.castSource.kind !== "catalog" ? "Learn this spell as a Skill before casting it in combat." : undefined });
       for (const ability of assemblePlayerTabletopDerivedAbilities(aggregate)) sources.push({ kind: "derived-ability", ref: `derived-ability:${ability.id}`, name: ability.name, instanceId: null, itemId: null, description: [ability.description, ...ability.costs, ...ability.limits].join(" · "), unavailable: ability.availability === "Available" ? undefined : ability.availability });
       for (const owned of aggregate.items) {
         const profile = aggregate.authorizedItems.find((entry) => entry.id === owned.itemId)?.runtimeProfile;

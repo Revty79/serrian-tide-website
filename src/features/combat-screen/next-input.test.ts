@@ -14,7 +14,7 @@ function fixture() {
 }
 test("the guide resolves the completed Bite, offers the Cat its next choice, and leaves an unfinished critical sword alone", () => {
   const data = fixture(), projection = data.projection!;
-  assert.deepEqual(combatNextInput(data, operations), { kind: "resolve", declarationId: 2, label: "Resolve Cat's Bite", explanation: "This action has completed its timing. Apply its recorded result; actions still underway retain their remaining Initiative." });
+  assert.deepEqual(combatNextInput(data, operations), { kind: "resolve", declarationId: 2, label: "Prepare Cat's Bite result", explanation: "Timing is complete. Prepare the result report using the recorded Roll and defense." });
   projection.declarations = projection.declarations.map((entry) => entry.id === 2 ? { ...entry, status: "resolved" } : entry);
   projection.entities[0].mustChooseNow = true;
   const next = combatNextInput(data, operations);
@@ -57,4 +57,13 @@ test("a reached response during an unfinished action stops automatic advancement
   const next = combatNextInput(data, operations);
   assert.match(next.label, /Can Cat notice and respond/);
   assert.equal(automaticCombatInputKey(next, "state-a"), null);
+});
+
+test("automatic flow stops at one ordinary attack report, including when its critical needs a ruling", () => {
+  for (const status of ["calculated", "requires-god-ruling"]) {
+    const next = combatNextInput(fixture(), { ...operations, plans: [{ id: 7, declarationId: 2, status, sourceKind: "creature-attack", sourceSnapshot: { identity: "bite" } }] as unknown as CombatOperations["plans"] });
+    assert.equal(next.kind, "review");
+    assert.equal(next.kind === "review" && next.planId, 7);
+    assert.equal(automaticCombatInputKey(next, "state-a"), null);
+  }
 });

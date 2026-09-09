@@ -2,6 +2,12 @@
 
 Authority: [Brannan's settled assignment, 8 September 2026](combat-completion-assignment-2026-09-08.md). Existing code and the earlier audit are implementation evidence. This contract introduces no replacement UI or alternate combat engine.
 
+Head damage follows the [9 September clarification](combat-head-health-clarification-2026-09-09.md): accumulated head HP at 0 causes unconsciousness; -1 or lower causes death. The earlier severing example is not the minimum death threshold.
+
+The [limb and whole-body clarification](combat-limb-and-body-health-clarification-2026-09-09.md) adds automatic limb incapacity at 0 HP, whole-body incapacity/death thresholds for creatures such as Slime, and G.O.D./affected-Player condition alerts.
+
+The [spell resolution clarification](combat-spell-resolution-clarification-2026-09-09.md) establishes the spell's own Skill Roll, fixed/per-success effects, ordinary spell hit locations, and temporary AoE calculation/report completion without applying effects to individual occupants.
+
 ## Separate boundaries
 
 1. **Declaration:** validate the controlled participant, exact source, targets, and current choice entitlement; freeze the choice and record its Roll. Starting a cast spends Mana here, exactly once. Invalid requests never begin casting.
@@ -25,7 +31,7 @@ These are the implemented authoritative routes. The [Pass 7 report](../reports/c
 | Operation | Source / commitment | Timing and resolution | Application / retry identity |
 | --- | --- | --- | --- |
 | Weapon / Creature attack | `action-source-resolver-service`, `action-declaration-service`: exact weapon/occurrence attack, frozen targets/governance | `initiative-runtime`; declaration Roll via `defense-intervention-service`, shared `percentile-resolution` | `action-effect-plan-service` and owning Health service or occurrence state; declaration submission identity, one original Roll, one plan/effect application |
-| Spell | Same declaration source route, actual known/personal Spell; no prepared-spell prerequisite | Roll and Mana at start, timing in existing Initiative engine; failed/interrupted cast retains Mana expenditure | Structured effects at completion via effect plan; cast-start expenditure belongs to the original declaration, not each retry |
+| Spell | Same declaration source route; the combat screen requires the exact learned spell Skill, with no prepared-spell prerequisite. Retained personal-source service records are historical/explicit paths | Owned Skill Roll and Mana at start, timing in existing Initiative engine; failed/interrupted cast retains Mana expenditure | Direct structured effects use one report approval and standard damage location. Temporary AoE reports complete automatically without affecting occupants; retries reuse the original Roll/cost/result |
 | Item / ability | Exact owned item/instance or available ability via source adapters | Existing authored timing, governance, supported costs | Existing quantity/charge/consumption and effect services invoked once on the chosen route; no second legacy application |
 | Movement / flee intent | `combat-movement-service`: exact authored mode and positive distance, `intent: move/flee` | Existing Initiative action and `getMaximumMovementDistance`; cost is distance divided by authoritative movement | Occurrence-local completed-segment history from actual elapsed Initiative; stable request key; no automatic escape |
 | Dodge / Block / Parry / intervention | Persisted opportunity plus authority/awareness; `defense-intervention-service` | Declaration Roll; existing immediate/deferred commitment, opposed comparison and refund/extension | Exact reaction identity and resolution events; do not spend/refund twice |

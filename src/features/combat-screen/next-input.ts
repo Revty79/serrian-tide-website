@@ -1,5 +1,6 @@
 import type { readCombatOperations } from "./operation-actions";
 import type { CombatScreenData } from "./screen-types";
+import { isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
 
 export type CombatOperations = Awaited<ReturnType<typeof readCombatOperations>>;
 export type CombatFocus = { participantId: number; kind: "action" | "response" | "ruling"; planId?: number; sequence: number };
@@ -9,6 +10,7 @@ export type CombatNextInput = {
   | { kind: "inspect"; participantId: number; focus: CombatFocus["kind"]; planId?: number }
   | { kind: "awareness"; opportunityId: number; participantId: number }
   | { kind: "resolve"; declarationId: number; firearmId?: number }
+  | { kind: "review"; planId: number }
   | { kind: "trigger"; attackId: number });
 
 export function automaticCombatInputKey(input: CombatNextInput, token: string): string | null {
@@ -51,6 +53,8 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
     if (response) return respond(action, response);
     const defense = operations.defenses?.reactions.find((entry) => entry.declarationId === action.id && entry.status === "needs-ruling");
     if (defense) return { kind: "inspect", participantId: defense.responderCharacterId, focus: "response", label: `Rule on the defense against ${label}`, explanation: "Resolve the specific defense question before applying the attack." };
+    const report = operations.plans.find((entry) => entry.declarationId === action.id && (isOrdinaryAttackReport(entry) || isSpellResultReport(entry)) && ["calculated", "requires-god-ruling", "approved", "application-failed"].includes(entry.status));
+    if (report) return { kind: "review", planId: report.id, label: `Review ${action.actorName}'s ${label}`, explanation: report.sourceKind === "spell" ? "Review the spell report below, then approve its calculated effects in one step." : "Review the attack report below, then approve its location and damage in one step." };
     const plan = operations.plans.find((entry) => entry.declarationId === action.id && ["requires-god-ruling", "partially-applied"].includes(entry.status));
     if (plan) return { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling", planId: plan.id,
       label: `Rule on ${label} outcome`, explanation: plan.explanation };
@@ -61,7 +65,7 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
         : { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling", label: `Inspect ${action.actorName}'s completed Aim`, explanation: "The controlling Player can begin firing with the original Roll." };
     }
     return { kind: "resolve", declarationId: action.id, ...(firearm ? { firearmId: firearm.id } : {}),
-      label: `Resolve ${action.actorName}'s ${label}`, explanation: "This action has completed its timing. Apply its recorded result; actions still underway retain their remaining Initiative." };
+      label: `Prepare ${action.actorName}'s ${label} result`, explanation: "Timing is complete. Prepare the result report using the recorded Roll and defense." };
   }
   if (choice) return choose();
   // Reached responses can be due while an action is still underway (including

@@ -65,6 +65,7 @@ import { parseRollMechanicalSnapshot, type RollMechanicalSnapshot } from "./roll
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { buildOrdinaryAttackConsequenceProposalInTransaction, type OrdinaryAttackRuling } from "./ordinary-attack-consequence-service";
 import { recordCombatDamageOutcomeInTransaction } from "./combat-damage-outcome-service";
+import { resolveSpellHitLocationsInTransaction } from "./combat-spell-location-service";
 
 export type ActionEffectPlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type GodActionEffectActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -389,7 +390,7 @@ async function generateActionEffectPlanInternal(
     name: target.kind === "creature" ? target.displayLabel : target.characterName,
   })).sort((left, right) => targetIds.indexOf(left.participantId) - targetIds.indexOf(right.participantId));
   const defenseResolution = isRecord(declaration.defenseResolutionJson) ? declaration.defenseResolutionJson : null;
-  const proposal = (source.kind === "weapon" || source.kind === "creature-attack") && locked.weapon?.firingModeId == null && governingRoll
+  const initialProposal = (source.kind === "weapon" || source.kind === "creature-attack") && locked.weapon?.firingModeId == null && governingRoll
     ? await buildOrdinaryAttackConsequenceProposalInTransaction(tx, context, locked, governingRoll, defenseResolution, ordinaryRuling)
     : buildActionEffectPlanProposal({
     source,
@@ -399,6 +400,7 @@ async function generateActionEffectPlanInternal(
     defenseResolution,
     initiativeComplete: true,
   });
+  const proposal = await resolveSpellHitLocationsInTransaction(tx, context.encounterId, source, governingRoll, initialProposal);
   const divergence = await currentSourceDivergence(
     tx,
     context,
@@ -957,19 +959,23 @@ async function applySupportedEffects(
   const applicable = effects.filter((effect) => effect.applicationSupported && (effect.status === "approved" || effect.status === "application-failed"));
   const appliedIds: number[] = [];
   for (const effectRow of applicable) {
-    const result = effectRow.targetParticipantId < 0
+    const areaReport = effectRow.effectType === "spell.area-report";
+    if (areaReport && (plan.sourceKind !== "spell" || !isRecord(effectRow.finalValueJson) || !isRecord(effectRow.finalValueJson.areaReport))) {
+      throw new Error("The area report must come from its frozen spell result.");
+    }
+    const result = areaReport ? { kind: "spell-area-report", report: effectRow.finalValueJson, combatantsAffected: false } : effectRow.targetParticipantId < 0
       ? await applyDirectCreatureEffect(tx, context, effectRow)
       : await applyCharacterEffect(tx, context, plan, effectRow);
     await tx.update(campaignSessionEncounterEffect).set({
       status: "applied",
-      appliedResultJson: await recordCombatDamageOutcomeInTransaction(tx, context, effectRow, result),
+      appliedResultJson: areaReport ? result : await recordCombatDamageOutcomeInTransaction(tx, context, effectRow, result),
       appliedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(campaignSessionEncounterEffect.id, effectRow.id));
     appliedIds.push(effectRow.id);
   }
   const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");
-  for (const id of new Set(applicable.map(({ targetParticipantId }) => targetParticipantId))) {
+  for (const id of new Set(applicable.filter((effect) => effect.effectType !== "spell.area-report").map(({ targetParticipantId }) => targetParticipantId))) {
     await reconcileCombatRecoveryInTransaction(tx, context, id);
   }
   return appliedIds;

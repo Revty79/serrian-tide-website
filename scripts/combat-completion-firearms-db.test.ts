@@ -77,6 +77,29 @@ async function noDefense(tx: Tx, f: Awaited<ReturnType<typeof fixture>>, declara
   }
 }
 
+test("a firearm hit on a creature with blank armor and soak applies its full damage once", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(occurrence).set({ creatureSnapshotJson: { ...f.creatureSnapshot,
+      hpPools: [{ canonicalId: "fixture-body", poolName: "Body", maximumHp: 30 }],
+      hitLocations: [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "fixture-body", naturalArmor: null, soak: null }] } })
+      .where(eq(occurrence.characterId, f.occurrences[0]));
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    await complete(tx, f, attack.triggerPendingActionId!);
+    await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId)).status, "applied");
+    const [bullet] = await tx.select().from(bulletTable).where(eq(bulletTable.attackId, attack.id));
+    assert.equal(bullet.armor, 0); assert.equal(bullet.soak, 0); assert.equal(bullet.proposedNetDamage, 8);
+    const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+    assert.deepEqual((target.localStateJson as { health: unknown }).health, { totalDamage: 8, poolDamage: { "fixture-body": 8 } });
+    assert.equal((await f.state()).loadedRounds, 2);
+    assert.deepEqual((await f.rolls()).map(({ resultTotal }) => resultTotal), [70]);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
 for (const kind of ["player", "npc"] as const) for (const burst of [false, true]) test(`${kind} ${burst ? "burst" : "single"}: declaration Roll, exact ammo, Freeze and consequence retry`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, kind, burst);
@@ -329,11 +352,11 @@ for (const sustained of [false, true]) test(`departure preserves fired ammunitio
       const [mode] = await tx.insert(weaponFiringMode).values({ weaponProfileId: f.profile.id, name: "Sustained", normalizedName: "sustained", sortOrder: 2,
         baseCyclingInitiativeCost: 1, baseRecoilResetInitiativeCost: 2, deliveryCadence: "sustained-per-initiative", roundsPerCadence: 2 }).returning();
       await tx.update(stateTable).set({ selectedFiringModeId: mode.id, loadedRounds: 6 }).where(eq(stateTable.itemInstanceId, f.instance.id));
-      // Missing authored protection produces a real pending ruling for the fired
+      // Malformed authored protection produces a real pending ruling for the fired
       // portion, instead of fabricating damage or applying it before withdrawal.
       const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
       const body = target.creatureSnapshotJson as { hitLocations: Record<string, unknown>[] };
-      await tx.update(occurrence).set({ creatureSnapshotJson: { ...body, hitLocations: body.hitLocations.map((location) => ({ ...location, naturalArmor: null })) } })
+      await tx.update(occurrence).set({ creatureSnapshotJson: { ...body, hitLocations: body.hitLocations.map((location) => ({ ...location, naturalArmor: "unresolved protection" })) } })
         .where(eq(occurrence.characterId, f.occurrences[0]));
       command = { ...command, firingModeId: mode.id, firingDurationInitiative: 3, roll: { method: "entered", enteredTotal: 90 } };
     }

@@ -65,7 +65,7 @@ export async function recordCombatConditionInTransaction(tx: Tx, context: OwnedE
   if (input.status === "able") for (const blocker of blockers) { if (!blocker.resolvedAt) { blocker.resolvedAt = new Date().toISOString(); blocker.resolution = input.reason; } }
   else blockers.push({ key: input.requestKey, status: input.status, reason: input.reason, conditionId: input.conditionId, evidence: input.evidence });
   const status = blockers.some((blocker) => !blocker.resolvedAt && blocker.status === "dead") ? "dead" as const : input.status;
-  const next = { status, reason: blockers.filter((blocker) => !blocker.resolvedAt).map(({ reason }) => reason).join(" ") || input.reason, revision: state.revision + 1 };
+  const next = { status, reason: [...new Set(blockers.filter((blocker) => !blocker.resolvedAt).map(({ reason }) => reason))].join(" ") || input.reason, revision: state.revision + 1 };
   await tx.update(participant).set({ localStateJson: { ...object(latest.localStateJson), combatCondition: { ...next,
     conditionId: input.status === "able" ? null : input.conditionId ?? null, evidence: input.evidence ?? null, blockers,
     history: [...history, { request: input, actorUserId: context.ownerUserId, recordedAt: new Date().toISOString(), previous: state }] } }, updatedAt: new Date() })
@@ -108,10 +108,12 @@ export async function ruleCombatConditionInTransaction(tx: Tx, encounterId: numb
       const maximum = health?.anatomy.totalMaximumHp ?? object(object(member.snapshot).core).totalHp;
       const damage = health?.view.totalDamage ?? object(local.health).totalDamage ?? 0;
       if (typeof maximum === "number" && Number(damage) >= maximum) throw new Error("Restore the combatant's Health through the existing Health service before resolving its condition.");
-      const evidence = object(previous.evidence);
-      if (evidence.rule === "fatal-head") {
-        const poolDamage = health?.state.pools.find(({ poolKey }) => poolKey === evidence.poolKey)?.damage ?? object(object(local.health).poolDamage)[String(evidence.poolKey)] ?? 0;
-        if (Number(poolDamage) > 2 * Number(evidence.locationMaximumHp)) throw new Error("Resolve the recorded fatal head damage before ruling that the combatant can return.");
+      for (const blocker of combatBlockers(local).filter((entry) => !entry.resolvedAt && ["head-hp-zero", "whole-body-hp-zero", "fatal-head", "fatal-whole-body"].includes(String(entry.evidence?.rule)))) {
+        const key = String(blocker.evidence?.poolKey);
+        const poolMaximum = health ? health.anatomy.pools.find((entry) => entry.key === key)?.maximumHp
+          : (Array.isArray(object(member.snapshot).hpPools) ? object(member.snapshot).hpPools as unknown[] : []).map(object).find((entry) => entry.canonicalId === key)?.maximumHp;
+        const poolDamage = health?.state.pools.find((entry) => entry.poolKey === key)?.damage ?? object(object(local.health).poolDamage)[key] ?? 0;
+        if (typeof poolMaximum !== "number" || Number(poolDamage) >= poolMaximum) throw new Error(`Restore the exact ${blocker.evidence?.rule === "whole-body-hp-zero" ? "whole-body" : "head"} HP above 0 before resolving incapacity or returning to combat.`);
       }
     } else if (state.status === "dead" && input.status === "incapacitated") {
       throw new Error("Resolve the recorded death explicitly before applying a nonfatal condition.");

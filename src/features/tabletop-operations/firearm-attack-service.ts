@@ -1,6 +1,7 @@
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
+import { creatureProtectionValue } from "./creature-protection";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
@@ -979,13 +980,8 @@ function directCreatureProtection(
   const locations = isRecord(snapshot) && Array.isArray(snapshot.hitLocations) ? snapshot.hitLocations : [];
   const location = hitLocationNumber === null ? null : locations.find((entry) => isRecord(entry) && entry.hitLocationNumber === hitLocationNumber);
   if (!isRecord(location)) reasons.push("The frozen direct-Creature anatomy does not contain the resolved Hit Location.");
-  const numericProtection = (value: unknown): number | null => {
-    if (typeof value !== "number" && (typeof value !== "string" || !/^(?:\d+\.?\d*|\.\d+)$/.test(value.trim()))) return null;
-    const amount = Number(value);
-    return Number.isFinite(amount) && amount >= 0 ? amount : null;
-  };
-  const armor = isRecord(location) ? numericProtection(location.naturalArmor) : null;
-  const soak = isRecord(location) ? numericProtection(location.soak) : null;
+  const armor = isRecord(location) ? creatureProtectionValue(location.naturalArmor) : null;
+  const soak = isRecord(location) ? creatureProtectionValue(location.soak) : null;
   if (armor === null || soak === null) reasons.push("The exact Creature location needs authored numeric armor and Soak or a G.O.D. ruling.");
   if ((armor !== null && armor < 0) || (soak !== null && soak < 0)) reasons.push("Frozen Creature armor or soak is negative and requires a G.O.D. ruling.");
   if (isRecord(location) && typeof location.locationEffect === "string" && location.locationEffect.trim()) {

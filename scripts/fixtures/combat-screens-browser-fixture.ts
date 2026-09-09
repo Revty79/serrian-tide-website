@@ -9,12 +9,10 @@ import { campaignInventoryItem, campaignAllowedRace, campaignCharacter, campaign
 import { campaignSessionEncounterParticipant as member, campaignSessionEncounterInitiativeParticipant as enrollment, campaignSessionEncounterPendingActionSource as source, campaignSessionEncounterReaction as reaction } from "@/db/tabletop-operations-schema";
 import { completionServiceFixture } from "./combat-completion-service-fixture";
 import type { BuildTenDbTransaction as Tx } from "../tabletop-build-ten-db-fixture";
-import { skill } from "@/db/skill-schema";
 import { item, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
-import { campaignCharacterSkillAllocation, campaignCharacterSpellDocument, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { campaignCharacterItemInstance } from "@/db/realm-schema";
 import { campaignCharacterFirearmState } from "@/db/tabletop-operations-schema";
-import { createEmptySpell, createContainer } from "@/features/spell-construction/utilities/spellFactory";
-import { recordCombatSourceResolutionInTransaction } from "@/features/tabletop-operations/combat-source-resolution-service";
+import { addLearnedCombatSpell } from "./combat-learned-spell-fixture";
 export const SCREEN_PASSWORD = "Combat-Browser-Only-2026!";
 export async function screenFixture(tx: Tx, label: string, simultaneous = false) {
   if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true") throw new Error("Only the disposable screen harness may seed these fixtures.");
@@ -56,14 +54,8 @@ export async function screenFixture(tx: Tx, label: string, simultaneous = false)
   if (simultaneous) await tx.update(enrollment).set({ participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.defenderId)));
   return { ...f, templateId, playerId, player: { authority: "player" as const, userId: playerId, characterId: f.heroId } };
 }
-export async function addScreenSpell(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
-  const [spellcraft, channeling] = await tx.insert(skill).values([{ name: "Spellcraft", classification: "standard", tier: 1, primaryAttribute: "INT", createdByUserId: f.godId }, { name: "Channeling", classification: "standard", tier: 1, primaryAttribute: "WIS", createdByUserId: f.godId }]).returning();
-  await tx.insert(campaignCharacterSkillAllocation).values([{ characterId: f.heroId, skillId: spellcraft.id, points: 1 }, { characterId: f.heroId, skillId: channeling.id, points: 20 }]);
-  await tx.update(campaignCharacterProfile).set({ baseMagicSteps: 4 }).where(eq(campaignCharacterProfile.characterId, f.heroId));
-  const spell = { ...createEmptySpell(), name: "Screen Arc Bolt", castingSystem: "Spellcraft" as const, sphere: "Force", frameworkSkillId: spellcraft.id, containers: [{ ...createContainer("target"), id: "bolt-target", effects: [{ id: "bolt-damage", ruleId: "damage", quantity: 2, description: "Isolated browser damage spell" }] }] };
-  const [saved] = await tx.insert(campaignCharacterSpellDocument).values({ characterId: f.heroId, documentId: spell.id, name: spell.name, tradition: spell.tradition, inSpellbook: true, documentJson: JSON.stringify(spell) }).returning();
-  await recordCombatSourceResolutionInTransaction(tx, f.context, f.god, { participantId: f.heroId, sourceKind: "spell", sourceRef: `personal:${saved.id}`, mode: "automatic-no-roll", governing: null, effectScaling: {}, reason: "Explicit isolated no-roll spell authority for the screen test." });
-  return saved;
+export async function addScreenSpell(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>, area = false) {
+  return addLearnedCombatSpell(tx, f, { area });
 }
 export async function addScreenFirearm(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
   const [ammo, gun] = await tx.insert(item).values([

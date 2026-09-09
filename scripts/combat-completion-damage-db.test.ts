@@ -71,11 +71,11 @@ test("Rowan's owned weapon/Skill Roll 90 and failed Block 20 derive 11/3 fatal h
   }), (error) => error === rollback);
 });
 
-for (const armor of [2, 6]) test(`normal location uses exact authored protection ${armor}+1 and records actual damage once`, async () => {
+for (const [armor, soak, expectedDamage] of [[2, 1, 3], [6, 1, 0], [null, null, 6], [undefined, undefined, 6], ["", " ", 6], [0, 0, 6]] as const) test(`normal location protection ${String(armor)} / ${String(soak)} applies ${expectedDamage} damage exactly once`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await completionServiceFixture(tx, `armor-${armor}`);
     await tx.update(occurrence).set({ creatureSnapshotJson: { ...f.creatureSnapshot,
-      hpPools: [{ canonicalId: "fixture-body", poolName: "Body", maximumHp: 15 }], hitLocations: [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "fixture-body", naturalArmor: armor, soak: 1 }] } })
+      hpPools: [{ canonicalId: "fixture-body", poolName: "Body", maximumHp: 15 }], hitLocations: [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "fixture-body", naturalArmor: armor, soak }] } })
       .where(eq(occurrence.characterId, f.occurrences[0]));
     await setActor(tx, f, f.heroId, 22);
     const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId });
@@ -84,11 +84,12 @@ for (const armor of [2, 6]) test(`normal location uses exact authored protection
     await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
     await advance(tx, f, 18);
     const id = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
-    assert.equal((await tx.select().from(plan).where(eq(plan.id, id)))[0].status, armor === 2 ? "calculated" : "applied",
+    assert.equal((await tx.select().from(plan).where(eq(plan.id, id)))[0].status, expectedDamage > 0 ? "calculated" : "applied",
       "A fully absorbed hit finishes automatically with no applicable damage.");
     assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, declaration)).status, "applied");
     assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, declaration)).status, "applied");
-    assert.equal((await health(tx, f, f.occurrences[0])).health.totalDamage, armor === 2 ? 3 : 0);
+    assert.equal((await health(tx, f, f.occurrences[0])).health.totalDamage, expectedDamage);
+    assert.equal((await health(tx, f, f.occurrences[0])).health.poolDamage["fixture-body"] ?? 0, expectedDamage);
     assert.equal((await health(tx, f, f.occurrences[0])).defeat, undefined);
     throw rollback;
   }), (error) => error === rollback);

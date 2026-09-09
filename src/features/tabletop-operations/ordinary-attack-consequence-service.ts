@@ -12,6 +12,7 @@ import type { LockedActionDeclarationSnapshot } from "./action-declaration";
 import type { ActionEffectPlanProposal, ActionEffectProposal } from "./action-effect-bridge";
 import type { RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { creatureProtectionValue } from "./creature-protection";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -79,8 +80,8 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       const pool = records(snapshot.hpPools).find((entry) => entry.canonicalId === poolKey);
       poolMaximumHp = numeric(pool?.maximumHp);
       totalMaximumHp = numeric(object(snapshot.core).totalHp);
-      armor = numeric(location?.naturalArmor);
-      soak = numeric(location?.soak);
+      armor = location ? creatureProtectionValue(location.naturalArmor) : null;
+      soak = location ? creatureProtectionValue(location.soak) : null;
       if (location?.locationEffect) issues.push("Authored location special effect needs a specific ruling.");
     } else {
       const health = await readActiveHealthInTransaction(tx, targetParticipantId, target.npcKind ?? "race");

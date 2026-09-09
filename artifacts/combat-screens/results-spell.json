@@ -1,0 +1,7 @@
+{
+  "passed": [
+    "Learned spell Skill Roll, automatic hit location and one result approval commits and completes through the screen/server flow.",
+    "AoE casting Rolls once, spends Mana once, records the authored area and scaled damage for G.O.D. and caster, and completes automatically without changing combatant HP."
+  ],
+  "errors": []
+}

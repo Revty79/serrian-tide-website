@@ -36,18 +36,34 @@ export function combatConditionMessage(state: CombatConditionState): string | nu
 }
 
 type AnatomyLocation = { name: string; poolKey: string | null; specialEffect?: unknown };
-/** Confirmed rule: a hit exceeding twice the HP of the single authored head
- * is fatal. No rule is inferred for another location, shared/multiple heads,
- * or anatomy carrying an exceptional location mechanic. */
-export function fatalHeadDamage(input: {
-  damage: number; poolKey: string | null; poolName: string; maximumHp: number | null;
+/** Current accumulated head damage governs condition: 0 HP is unconscious,
+ * -1 HP or lower is dead. Exceptional/shared/multiple-head anatomy still needs
+ * its own supported rule. The severing example is not the death threshold. */
+export function headDamageCondition(input: {
+  poolDamage: number; poolKey: string | null; poolName: string; maximumHp: number | null;
   location: AnatomyLocation | undefined; locations: AnatomyLocation[];
-}): boolean {
+}): "unconscious" | "dead" | null {
   const isHead = (name: string) => name.trim().toLowerCase() === "head";
-  return input.poolKey !== null && input.maximumHp !== null && input.maximumHp > 0
-    && input.damage > 2 * input.maximumHp && isHead(input.poolName)
+  const supported = input.poolKey !== null && input.maximumHp !== null && Number.isFinite(input.maximumHp) && input.maximumHp > 0
+    && Number.isFinite(input.poolDamage) && input.poolDamage >= 0 && isHead(input.poolName)
     && input.location !== undefined && isHead(input.location.name) && !input.location.specialEffect
     && input.locations.filter(({ name }) => /head/i.test(name)).length === 1
     && input.locations.filter(({ name }) => /head/i.test(name)).every((location) => isHead(location.name) && location.poolKey === input.poolKey && !location.specialEffect)
     && input.locations.filter(({ poolKey }) => poolKey === input.poolKey).every(({ name }) => isHead(name));
+  if (!supported) return null;
+  const remaining = input.maximumHp! - input.poolDamage;
+  return remaining <= -1 ? "dead" : remaining <= 0 ? "unconscious" : null;
+}
+
+/** One authored pool covering the whole creature, including repeated Roll
+ * locations that all refer to the same Body (as on Slime). */
+export function wholeBodyDamageCondition(input: {
+  poolKey: string | null; poolCount: number; poolDamage: number; maximumHp: number | null;
+  totalMaximumHp: number | null; locations: AnatomyLocation[];
+}): "incapacitated" | "dead" | null {
+  if (input.poolKey === null || input.poolCount !== 1 || input.maximumHp === null || !Number.isFinite(input.maximumHp)
+    || input.maximumHp <= 0 || input.maximumHp !== input.totalMaximumHp || !Number.isFinite(input.poolDamage)
+    || !input.locations.length || !input.locations.every((entry) => entry.poolKey === input.poolKey && !entry.specialEffect)) return null;
+  const remaining = input.maximumHp - input.poolDamage;
+  return remaining <= -1 ? "dead" : remaining <= 0 ? "incapacitated" : null;
 }

@@ -13,6 +13,7 @@ import { assertFrozenActionSourceSnapshot } from "./action-effect-bridge";
 import { combatRecoverySpellAuthority } from "./combat-recovery-spells";
 import { combatBlockers, combatConditionState, combatObject as object } from "./combat-condition-state";
 import { combatParticipationState } from "./combat-participation-service";
+import { combatLimbConditions } from "./combat-limb-state";
 import { recordCombatConditionInTransaction } from "./combat-condition-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
@@ -66,14 +67,35 @@ export async function reconcileCombatRecoveryInTransaction(tx: Tx, context: Owne
       row = await targetRow(tx, context.encounterId, id); local = object(row.local);
     }
     const previous = combatConditionState(local), condition = object(local.combatCondition), blockers = combatBlockers(local);
-    const health = id > 0 && blockers.some((blocker) => !blocker.resolvedAt && blocker.evidence?.rule === "total-hp-exhausted")
+    const limbs = combatLimbConditions(local);
+    const health = id > 0 && (limbs.some((limb) => !limb.recoveredAt) || blockers.some((blocker) => !blocker.resolvedAt && ["total-hp-exhausted", "head-hp-zero", "whole-body-hp-zero"].includes(String(blocker.evidence?.rule))))
       ? await readActiveHealthInTransaction(tx, id, row.npcKind ?? "race") : null;
     const maximum = health?.anatomy.totalMaximumHp ?? object(object(row.snapshot).core).totalHp;
     const damage = health?.view.totalDamage ?? object(local.health).totalDamage;
     let changed = false;
+    let limbsChanged = false;
+    for (const limb of limbs.filter((entry) => !entry.recoveredAt)) {
+      const poolMaximum = health ? health.anatomy.pools.find((entry) => entry.key === limb.poolKey)?.maximumHp
+        : records(object(row.snapshot).hpPools).find((entry) => entry.canonicalId === limb.poolKey)?.maximumHp;
+      const poolDamage = health?.state.pools.find((entry) => entry.poolKey === limb.poolKey)?.damage ?? object(object(local.health).poolDamage)[limb.poolKey] ?? 0;
+      if (typeof poolMaximum === "number" && Number(poolDamage) < poolMaximum) {
+        limb.recoveredAt = new Date().toISOString(); limbsChanged = true;
+      }
+    }
+    if (limbsChanged) {
+      local = { ...local, limbConditions: limbs };
+      await tx.update(member).set({ localStateJson: local, updatedAt: new Date() }).where(eq(member.participantId, row.id));
+    }
     for (const blocker of blockers.filter((entry) => !entry.resolvedAt && entry.status === "incapacitated")) {
       const ended = blocker.conditionId !== undefined && await conditionEnded(tx, id, blocker.conditionId, local);
-      const healed = blocker.evidence?.rule === "total-hp-exhausted" && typeof maximum === "number" && typeof damage === "number" && damage < maximum;
+      const totalRestored = typeof maximum === "number" && typeof damage === "number" && damage < maximum;
+      const key = String(blocker.evidence?.poolKey);
+      const poolMaximum = health ? health.anatomy.pools.find((entry) => entry.key === key)?.maximumHp
+        : records(object(row.snapshot).hpPools).find((entry) => entry.canonicalId === key)?.maximumHp;
+      const poolDamage = health?.state.pools.find((entry) => entry.poolKey === key)?.damage ?? object(object(local.health).poolDamage)[key] ?? 0;
+      const poolRestored = ["head-hp-zero", "whole-body-hp-zero"].includes(String(blocker.evidence?.rule)) && typeof poolMaximum === "number" && Number(poolDamage) < poolMaximum
+        && (typeof maximum !== "number" || totalRestored);
+      const healed = blocker.evidence?.rule === "total-hp-exhausted" && totalRestored || poolRestored;
       if (ended || healed) { blocker.resolvedAt = new Date().toISOString(); blocker.resolution = "The owning effect/Health service resolved this blocker."; changed = true; }
     }
     const active = blockers.filter((entry) => !entry.resolvedAt);
@@ -153,8 +175,8 @@ export async function resolveCombatSpellRecoveryInTransaction(tx: Tx, encounterI
       const restored = new Set(input.restoredPoolKeys ?? []);
       const pools = health ? health.anatomy.pools.map(({ key }) => key) : records(object(row.snapshot).hpPools).map((entry) => String(entry.canonicalId));
       if ([...restored].some((key) => !pools.includes(key))) throw new Error("Anatomy recovery must name exact authored HP pools.");
-      for (const blocker of blockers.filter((entry) => !entry.resolvedAt && entry.evidence?.rule === "fatal-head")) {
-        if (!restored.has(String(blocker.evidence?.poolKey))) throw new Error("This fatal head outcome requires a specific anatomy-restoration ruling selecting its exact HP pool.");
+      for (const blocker of blockers.filter((entry) => !entry.resolvedAt && ["fatal-head", "fatal-whole-body"].includes(String(entry.evidence?.rule)))) {
+        if (!restored.has(String(blocker.evidence?.poolKey))) throw new Error("This fatal head or whole-body outcome requires a specific anatomy-restoration ruling selecting its exact HP pool.");
       }
       healthReceipt = { before: health?.state ?? local.health, remainingHp: authority.reviveHp, restoredPoolKeys: [...restored] };
       if (health) await persistActiveHealthStateInTransaction(recoveryTx, health.anatomy, { ...health.state, totalDamage: maximum - authority.reviveHp!,

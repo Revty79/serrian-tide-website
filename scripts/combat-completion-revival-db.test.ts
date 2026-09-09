@@ -3,7 +3,7 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
-import { skill, skillExtension } from "@/db/skill-schema";
+import { skill, skillExtension, skillRelationship } from "@/db/skill-schema";
 import { campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterSkillAllocation } from "@/db/realm-schema";
 import { campaignSessionEncounterParticipant as member, campaignSessionEncounterInitiative as runtime,
   campaignSessionEncounterInitiativeParticipant as participant,
@@ -46,6 +46,7 @@ async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", ta
   const authored = catalog.records.find((entry) => entry.name === name && entry.extension_type === "spell-construction")!;
   const document = { ...parseSpellDocument(authored.data_json), frameworkSkillId: root.id };
   const [source] = await tx.insert(skill).values({ name, tier: 3, classification: "spell", primaryAttribute: "INT", sourceSystem: "serrian-tide-core", sourceExternalId: authored.source_external_id, createdByUserId: f.godId }).returning();
+  await tx.insert(skillRelationship).values({ skillId: source.id, relatedSkillId: root.id, relationshipType: "parent" });
   await tx.insert(skillExtension).values({ skillId: source.id, extensionType: "spell-construction", schemaVersion: 6, dataJson: JSON.stringify(document) });
   const [allocation] = await tx.insert(campaignCharacterSkillAllocation).values({ characterId: f.heroId, skillId: source.id, parentAllocationId: rootAllocation.id, points: 1 }).returning();
   const id = targetKind === "npc" ? f.defenderId : f.occurrences[0];

@@ -16,6 +16,7 @@ async function authorizedChoice(tx: Tx, context: OwnedEncounterRuntimeContext, a
   if (!["weapon", "spell", "item", "derived-ability", "creature-attack", "creature-ability"].includes(choice.source.kind)) throw new Error("Choose a supported authored combat source.");
   if (actor.authority === "player" && (choice.participantId !== actor.characterId || choice.godTiming)) throw new Error("A Player cannot supply another combatant or a G.O.D. timing ruling.");
   if ((choice.firearm || ["weapon", "creature-attack"].includes(choice.source.kind)) && choice.targetIds.includes(choice.participantId)) throw new Error("Choose another combatant as the attack target. The combat screen cannot submit an accidental attack against its own actor.");
+  if (choice.source.kind === "spell" && !/^catalog:[1-9]\d*$/.test(choice.source.ref)) throw new Error("Learn this spell as a Skill before casting it in combat.");
   if (choice.calledShot && !choice.firearm) {
     if (choice.targetIds.length !== 1) throw new Error("A Called Shot requires one exact target.");
     if (actor.authority === "player") {

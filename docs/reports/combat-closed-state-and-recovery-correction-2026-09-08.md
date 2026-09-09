@@ -2,6 +2,8 @@
 
 Date: 8 September 2026. Base: `6eb5b1d` on `main`, tracking `origin/main`.
 
+The head-death threshold described below is historical. The [9 September clarification](../rules/combat-head-health-clarification-2026-09-09.md) establishes unconsciousness at 0 head HP and death at -1 or lower, based on accumulated head damage.
+
 This follow-up preserves the completed seven-pass work and its historical reports. It changes backend behavior and adds isolated regression scenarios. It does not build screens, migrate/reset a database, or correct ordinary campaign records.
 
 ## Closed combat inspection

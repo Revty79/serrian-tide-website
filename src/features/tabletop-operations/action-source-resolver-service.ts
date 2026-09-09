@@ -139,7 +139,7 @@ function structuredEffect(
 ): FrozenActionAuthoredEffect {
   const application = isRecord(instruction.application) ? instruction.application : null;
   const selectionRequired = effect.kind === "health.damage" || (effect.kind === "health.heal" && effect.scope === "area");
-  const selectionPresent = !selectionRequired || (application !== null && (
+  const selectionPresent = !selectionRequired || instruction.hitLocationMode === "standard-roll" || (application !== null && (
     typeof application.poolKey === "string" && application.poolKey.trim().length > 0
     || Number.isSafeInteger(application.hitLocationNumber)
   ));
@@ -453,6 +453,10 @@ async function resolveSpell(
   const selectedTargets = Object.values(targetGroups).flat();
   if (selectedTargets.length) assertSameTargets(selectedTargets, draft.targetCharacterIds, "Spell target selection");
   const loaded = await loadSpellDocument(tx, draft.actorCharacterId, source);
+  const spellSkill = source.kind === "catalog" ? resolveCharacterSkillLineageSelection(
+    await loadCharacterSkillLineageInputInTransaction(tx, draft.actorCharacterId), { kind: "skill", allocationId: source.allocationId },
+  ) : null;
+  if (source.kind === "catalog" && !spellSkill) throw new Error("This owned spell Skill has no usable percentage. Repair its Skill allocation before casting.");
   const preview = await prepareCharacterSpellCastInTransaction(tx, {
     casterCharacterId: draft.actorCharacterId,
     source,
@@ -466,12 +470,18 @@ async function resolveSpell(
     if (!preview.plan.targetGroups.some(({ id }) => id === groupId)) throw new Error(`Unknown authored Spell target group ${groupId}.`);
   }
   for (const group of preview.plan.targetGroups) {
+    if (group.kind === "aoe") {
+      if (targetGroups[group.id]?.length) throw new Error("Area spells currently report their area result; mapped target selection is not available yet.");
+      targetGroups[group.id] = [];
+      continue;
+    }
     const selection = resolveSpellCastTargetSelection(group, draft.actorCharacterId, targetGroups[group.id]);
     if (selection.issue) throw new Error(selection.issue);
     if (!selection.selected.length) throw new Error(`Select the exact Encounter participants for Spell target group ${group.id}.`);
     targetGroups[group.id] = selection.selected;
   }
-  if (preview.plan.targetGroups.length) assertSameTargets(Object.values(targetGroups).flat(), allTargets(draft), "Spell target selection");
+  if (preview.plan.targetGroups.length) assertSameTargets(Object.values(targetGroups).flat(),
+    preview.plan.targetGroups.every((group) => group.kind === "aoe") ? draft.targetCharacterIds : allTargets(draft), "Spell target selection");
   const targets = allTargets(draft);
   const spellModifiers = [...loaded.spell.modifiers];
   const collectModifiers = (containers: typeof loaded.spell.containers) => {
@@ -483,6 +493,11 @@ async function resolveSpell(
   const effects = adapted.valid
     ? adapted.effects.flatMap((entry) => {
         const groupId = [...entry.containerPath].reverse().find((id) => targetGroups[id] !== undefined);
+        const group = preview.plan.targetGroups.find((candidate) => candidate.id === groupId);
+        if (group?.kind === "aoe") return [{ ...structuredEffect(
+          `spell-area:${entry.spellEffectId}`, entry.definition.effect, [draft.actorCharacterId], false,
+          { spellEffectId: entry.spellEffectId, ruleId: entry.ruleId, areaReport: { groupId, label: group.label, range: group.rangeLabel, shape: group.shapeLabel }, application: {} },
+        ), applicationSupported: true, requiresGodReview: false, scaling: perSuccess ? "per-success" as const : "fixed" as const }];
         const exactTargets = groupId ? targetGroups[groupId]! : targets;
         return exactTargets.map((targetId) => ({ ...structuredEffect(
           `spell-effect:${entry.spellEffectId}:target:${targetId}`,
@@ -493,19 +508,22 @@ async function resolveSpell(
             spellEffectId: entry.spellEffectId,
             ruleId: entry.ruleId,
             containerPath: entry.containerPath,
-            application: isRecord(spellSelections[`${entry.spellEffectId}:${targetId}`])
+            ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
+            application: spellSkill && entry.definition.effect.kind === "health.damage" ? {} : isRecord(spellSelections[`${entry.spellEffectId}:${targetId}`])
               ? spellSelections[`${entry.spellEffectId}:${targetId}`] as Record<string, unknown>
               : {},
           },
         ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
-  const authoredData = { spell: loaded.spell, casting: preview.plan, catalogSourceId: loaded.catalogSourceId ?? null };
+  const authoredData = { spell: loaded.spell, casting: preview.plan, catalogSourceId: loaded.catalogSourceId ?? null,
+    ...(spellSkill ? { combatSpellSkill: spellSkill.rollGoverningSourceSnapshot } : {}) };
   const recovery = combatRecoverySpellAuthority(authoredData);
   if (recovery) effects.push({ ...manualEffect("spell-combat-recovery", `${recovery.name} recovery ruling`, { combatRecovery: recovery }, targets), scaling: "fixed" });
   return {
     authoritativeInitiativeCost: preview.plan.finalInitiativeCost,
-    governing: {
+    governing: spellSkill ? { status: "resolved", source: spellSkill.rollGoverningSource,
+      rollOverTarget: spellSkill.source.originalTarget, explanation: "Use this character's exact owned spell Skill percentage." } : {
       status: "needs-god-ruling",
       source: null,
       rollOverTarget: null,
@@ -520,9 +538,9 @@ async function resolveSpell(
       displayName: loaded.spell.name,
       authoringHref: `/realms/characters/${draft.actorCharacterId}/spellbook`,
       liveRevision: loaded.revision,
-      resolutionMode: "manual-god-ruling",
-      governingSource: null,
-      governingSnapshot: null,
+      resolutionMode: spellSkill ? "skill-roll" : "manual-god-ruling",
+      governingSource: spellSkill?.rollGoverningSource ?? null,
+      governingSnapshot: spellSkill?.rollGoverningSourceSnapshot ?? null,
       authoredData,
       resourceCosts: [{
         key: `spell-mana:${preview.plan.source.identity}`,
@@ -535,7 +553,7 @@ async function resolveSpell(
       }],
       effects,
       warnings: [
-        "The Spell source and costs are frozen, but its casting Roll mode requires an explicit G.O.D. ruling.",
+        ...(spellSkill ? [] : ["This saved spell has no linked owned spell Skill. Its casting source must be supplied explicitly."]),
         ...preview.plan.warnings,
         ...preview.plan.issues,
       ],

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
+import { weaponProfile } from "@/db/item-schema";
 import { campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterActiveHealth } from "@/db/realm-schema";
 import { campaignSessionEncounter as encounter, campaignSessionEncounterInitiative as runtime,
   campaignSessionEncounterInitiativeParticipant as initiativeParticipant, campaignSessionEncounterParticipant as member,
@@ -16,14 +17,14 @@ import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction
 import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { advanceInitiativeTimeline, advanceInitiativeRound, setInitiativeParticipationStatus } from "@/features/tabletop-operations/initiative-runtime";
 import { ruleCombatConditionInTransaction as rule, type CombatConditionCommand } from "@/features/tabletop-operations/combat-condition-service";
-import { combatConditionState, fatalHeadDamage } from "@/features/tabletop-operations/combat-condition-state";
+import { combatConditionState, headDamageCondition } from "@/features/tabletop-operations/combat-condition-state";
 import { changeCombatParticipationInTransaction as change } from "@/features/tabletop-operations/combat-participation-service";
 import { readCombatProjectionInTransaction, readCombatEntityInformationInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { awardCombatExperienceInTransaction as award } from "@/features/tabletop-operations/combat-xp-service";
 import { setCombatFrozenInTransaction as freeze } from "@/features/tabletop-operations/combat-freeze-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
 import { applyConditionInTransaction, resolveConditionInTransaction } from "@/features/active-state/active-effects-service";
-import { readActiveHealthInTransaction, healFullBodyInTransaction } from "@/features/active-state/active-health-service";
+import { readActiveHealthInTransaction, healFullBodyInTransaction, applyLocalizedDamageInTransaction } from "@/features/active-state/active-health-service";
 import { reconcileCombatRecoveryInTransaction } from "@/features/tabletop-operations/combat-spell-recovery-service";
 import { completionDraft, completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
 
@@ -205,15 +206,94 @@ test("closed Initiative and completed Encounter projections remain authorized an
   await inspect();
 });
 
-test("fatal head rule has a strict threshold and does not infer death for a limb or multiple heads", () => {
+test("head HP at 0 is unconscious, -1 is dead, and exceptional anatomy needs its own rule", () => {
   const head = { name: "Head", poolKey: "head" };
-  const input = { damage: 11, poolKey: "head", poolName: "Head", maximumHp: 3, location: head, locations: [head] };
-  assert.equal(fatalHeadDamage(input), true);
-  assert.equal(fatalHeadDamage({ ...input, damage: 6 }), false);
-  assert.equal(fatalHeadDamage({ ...input, maximumHp: null }), false);
-  assert.equal(fatalHeadDamage({ ...input, location: { name: "Arm", poolKey: "head" } }), false);
-  assert.equal(fatalHeadDamage({ ...input, locations: [head, { name: "Second Head", poolKey: "second" }] }), false);
-  assert.equal(fatalHeadDamage({ ...input, location: { ...head, specialEffect: "Head regrowth needs a ruling." } }), false);
+  const input = { poolDamage: 11, poolKey: "head", poolName: "Head", maximumHp: 11, location: head, locations: [head] };
+  assert.equal(headDamageCondition({ ...input, poolDamage: 10 }), null);
+  assert.equal(headDamageCondition(input), "unconscious");
+  assert.equal(headDamageCondition({ ...input, poolDamage: 12 }), "dead");
+  assert.equal(headDamageCondition({ ...input, poolDamage: 14 }), "dead");
+  assert.equal(headDamageCondition({ ...input, maximumHp: null }), null);
+  assert.equal(headDamageCondition({ ...input, location: { name: "Arm", poolKey: "head" } }), null);
+  assert.equal(headDamageCondition({ ...input, locations: [head, { name: "Second Head", poolKey: "second" }] }), null);
+  assert.equal(headDamageCondition({ ...input, location: { ...head, specialEffect: "Head regrowth needs a ruling." } }), null);
+});
+
+for (const kind of ["pc", "npc", "creature"] as const) for (const remainingHp of [0, -1]) test(`${kind} accumulated head HP ${remainingHp} automatically removes choices and preserves death through ordinary healing`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx), id = kind === "pc" ? f.heroId : kind === "npc" ? f.defenderId : f.occurrences[0];
+    const actorId = kind === "creature" ? f.heroId : f.occurrences[1];
+    const head = id > 0 ? (await readActiveHealthInTransaction(tx, id, "race")).anatomy.pools.find((entry) => entry.name === "Head")! : { key: "fixture-head", maximumHp: 11 };
+    assert.ok(head.maximumHp);
+    const priorDamage = 2;
+    if (id > 0) await applyLocalizedDamageInTransaction(tx, { characterId: id, poolKey: head.key, amount: priorDamage }, "race");
+    else await tx.update(member).set({ localStateJson: { ...await local(tx, f, id), health: { totalDamage: priorDamage, poolDamage: { [head.key]: priorDamage } } },
+      creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, totalHp: 105 },
+        hpPools: [{ canonicalId: head.key, poolName: "Head", maximumHp: head.maximumHp }] } }).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, id)));
+    const baseDamage = head.maximumHp - priorDamage - remainingHp - 2; // Roll 70 against 50 adds 2.
+    if (actorId > 0) await tx.update(weaponProfile).set({ damage: String(baseDamage) }).where(eq(weaponProfile.itemId, f.weaponId));
+    else await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, attacks: [{ ...f.creatureSnapshot.attacks[0], damage: String(baseDamage) }] } })
+      .where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, actorId)));
+    await activate(tx, f, actorId, 200); await activate(tx, f, id, 1);
+    await tx.update(runtime).set({ timelineInitiative: 200 }).where(eq(runtime.encounterId, f.encounterId));
+    const action = await attack(tx, f, actorId, id);
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, action);
+    const pending = (await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.find((entry) => entry.actorCharacterId === actorId && entry.status === "active")!;
+    await advance(tx, f, pending.expectedCompletionInitiative);
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action)).status, "applied");
+    const saved = await local(tx, f, id), expectedStatus = remainingHp === 0 ? "incapacitated" : "dead";
+    assert.equal(combatConditionState(saved).status, expectedStatus);
+    const outcomes = saved.damageOutcomes as Record<string, unknown>[];
+    assert.equal(outcomes.length, 1); assert.equal(outcomes[0].locationRemainingHp, remainingHp);
+    assert.equal(outcomes[0].unconscious, remainingHp === 0);
+    assert.equal(Boolean(saved.defeat), remainingHp < 0);
+    const card = (await readCombatProjectionInTransaction(tx, f.context, f.god)).entities.find((entry) => entry.participantId === id)!;
+    assert.equal(card.canActNow, false); assert.equal(card.canRespondNow, false); assert.equal(card.mustChooseNow, false);
+    assert.equal(card.canInspect, true);
+    if (remainingHp === 0) assert.equal(card.currentInitiative, 0, "Unconsciousness removes positive Initiative under the existing knockout rule.");
+    await assert.rejects(rule(tx, f.encounterId, f.god, command(id, "able", card.condition.revision)), remainingHp === 0 ? /head HP above 0/ : /revival/);
+    await reconcileCombatRecoveryInTransaction(tx, f.context, id);
+    assert.equal(combatConditionState(await local(tx, f, id)).status, expectedStatus, "Total HP above 0 does not clear unconsciousness.");
+    const beforeHealing = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    if (id > 0) await healFullBodyInTransaction(tx, id, "race", 2);
+    else await tx.update(member).set({ localStateJson: { ...saved, health: { totalDamage: head.maximumHp - remainingHp - 2,
+      poolDamage: { [head.key]: head.maximumHp - remainingHp - 2 } } } }).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, id)));
+    await reconcileCombatRecoveryInTransaction(tx, f.context, id);
+    assert.equal(combatConditionState(await local(tx, f, id)).status, remainingHp === 0 ? "able" : "dead");
+    const afterHealing = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(afterHealing.runtime.stepNumber, beforeHealing.runtime.stepNumber);
+    assert.equal(afterHealing.participants.find((entry) => entry.characterId === id)!.currentInitiative, beforeHealing.participants.find((entry) => entry.characterId === id)!.currentInitiative);
+    throw rollback;
+  }), expected);
+});
+
+test("Ysra's 14 damage automatically kills the 11-HP-head bull without a death ruling or another turn", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx), id = f.occurrences[0];
+    await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot,
+      core: { ...f.creatureSnapshot.core, canonicalName: "Bull", totalHp: 105 },
+      hpPools: [{ canonicalId: "fixture-head", poolName: "Head", maximumHp: 11 }],
+    } }).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, id)));
+    await tx.update(weaponProfile).set({ damage: "12" }).where(eq(weaponProfile.itemId, f.weaponId));
+    await activate(tx, f, f.heroId); await activate(tx, f, id, 15);
+    const action = await attack(tx, f, f.heroId, id);
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, action);
+    await advance(tx, f, 18);
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action)).status, "applied");
+    const saved = await local(tx, f, id), after = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.deepEqual(saved.health, { totalDamage: 14, poolDamage: { "fixture-head": 14 } });
+    const outcomes = saved.damageOutcomes as Record<string, unknown>[];
+    assert.equal(outcomes.length, 1); assert.equal(outcomes[0].locationRemainingHp, -3);
+    assert.equal(outcomes[0].ruling, null);
+    assert.equal(combatConditionState(saved).status, "dead");
+    assert.equal(after.runtime.stepNumber, before.runtime.stepNumber);
+    assert.equal(after.participants.find((entry) => entry.characterId === id)!.participationStatus, "suspended");
+    const card = (await readCombatProjectionInTransaction(tx, f.context, f.god)).entities.find((entry) => entry.participantId === id)!;
+    assert.equal(card.mustChooseNow, false); assert.equal(card.canActNow, false); assert.equal(card.canRespondNow, false);
+    assert.equal(card.canInspect, true);
+    throw rollback;
+  }), expected);
 });
 
 for (const kind of ["pc", "npc"] as const) test(`normal authored damage derives ${kind} fatal head death while retaining earlier XP`, async () => {

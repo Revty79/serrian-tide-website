@@ -7,7 +7,7 @@ import { campaignSessionEncounterParticipant as member, campaignSessionEncounter
 import { lockOwnedEncounterRuntimeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction, type RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
 import { lockPlayerCombatContextInTransaction, readGodCombatRulingRequestsInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
-import { readActionEffectWorkspaceInTransaction, applyRoutineCombatConsequencesInTransaction, ruleOrdinaryAttackConsequenceInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
+import { readActionEffectWorkspaceInTransaction, generateActionEffectPlanInTransaction, applyRoutineCombatConsequencesInTransaction, ruleOrdinaryAttackConsequenceInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { readDefenseInterventionWorkspaceInTransaction, resolveDeclaredDefensesIfReadyInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { readFirearmAttackWorkspaceInTransaction, commitFirearmAttackTriggerInTransaction, fireFirearmAttackInTransaction, finalizeFirearmAttackConsequencesInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
 import { campaignSessionEncounterFirearmAttack as firearmAttack, campaignSessionRoll as combatRoll, campaignSessionEncounterPendingAction as pending } from "@/db/tabletop-operations-schema";
@@ -22,6 +22,8 @@ import type { OrdinaryAttackRuling } from "@/features/tabletop-operations/ordina
 import type { CombatScreenScope } from "./screen-types";
 import { readCombatEntityInformationInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { combatEffectSummary } from "./result-summary";
+import { attackReportSignature, isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
+import { forceEndCombatInTransaction } from "@/features/tabletop-operations/combat-force-end-service";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");
@@ -43,7 +45,7 @@ export async function readCombatOperations(scope: CombatScreenScope) {
     const firearms = sealed ? null : await readFirearmAttackWorkspaceInTransaction(tx, context, actor);
     const requests = actor.authority === "god-owner" && !sealed ? await readGodCombatRulingRequestsInTransaction(tx, context.encounterId) : [];
     return { rolls: rolls.rolls, sealed: !!sealed, plans: actor.authority === "god-owner" ? effects?.plans ?? [] : [], defenses, firearms, requests,
-      outcomes: effects?.plans.flatMap((plan) => plan.effects.filter((effect) => actor.authority === "god-owner" || plan.actorParticipantId === actor.characterId || effect.targetParticipantId === actor.characterId).map((effect) => ({ id: effect.id, actor: plan.actorName, target: effect.targetName,
+      outcomes: effects?.plans.flatMap((plan) => plan.effects.filter((effect) => actor.authority === "god-owner" || plan.actorParticipantId === actor.characterId || effect.targetParticipantId === actor.characterId).map((effect) => ({ id: effect.id, actor: plan.actorName, target: effect.effectType === "spell.area-report" ? "Area" : effect.targetName,
         declarationId: plan.declarationId, actorId: plan.actorParticipantId, targetId: effect.targetParticipantId,
         summary: combatEffectSummary(effect, actor.authority === "god-owner" || rolls.rolls.some((roll) => roll.pendingActionId === plan.pendingActionId && roll.reactionId === null && !!roll.effectiveMechanicalSnapshot)),
         label: plan.sourceSnapshot.displayName, status: effect.status, appliedAt: effect.appliedAt, amount: typeof effect.finalValue === "number" ? effect.finalValue : typeof object(effect.finalValue).netDamage === "number" ? Number(object(effect.finalValue).netDamage) : typeof object(object(effect.finalValue).effect).amount === "number" ? Number(object(object(effect.finalValue).effect).amount) : null }))) ?? [] };
@@ -58,10 +60,29 @@ export async function readCombatRecoveryConditions(encounterId: number, particip
     return (Array.isArray(conditions) ? conditions.map(object) : []).filter((entry) => !entry.expiredAt && !entry.endedAt && typeof entry.effectPlanEffectId === "number").map((entry) => ({ id: Number(entry.effectPlanEffectId), name: String(entry.name), description: String(entry.description ?? "") }));
   });
 }
-export async function applyCombatResult(scope: CombatScreenScope, declarationId: number, planId?: number) {
+export async function prepareCombatResult(scope: CombatScreenScope, declarationId: number) {
   return authorized(scope, async (tx, context, actor) => {
+    if (actor.authority !== "god-owner") throw new Error("The G.O.D. reviews completed attack reports.");
     await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, declarationId);
+    const planId = await generateActionEffectPlanInTransaction(tx, context, actor, declarationId);
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, context)).plans.find((entry) => entry.id === planId)!;
+    if (isOrdinaryAttackReport(plan) || isSpellResultReport(plan)) return { planId, status: plan.status === "applied" ? "applied" : "awaiting-approval" };
     return applyRoutineCombatConsequencesInTransaction(tx, context, actor, declarationId, planId);
+  }, true);
+}
+export async function confirmCombatAttackReport(encounterId: number, planId: number, signature: string, ruling?: OrdinaryAttackRuling) {
+  return authorized({ role: "god", encounterId }, async (tx, context, actor) => {
+    if (actor.authority !== "god-owner") throw new Error("Only the G.O.D. may approve an attack report.");
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, context)).plans.find((entry) => entry.id === planId);
+    if (!plan || !isOrdinaryAttackReport(plan)) throw new Error("That ordinary attack report is unavailable.");
+    if (plan.status === "applied") return { planId, status: "applied" };
+    if (attackReportSignature(plan) !== signature) throw new Error("This attack report changed. Review the refreshed report before approving it.");
+    if (["approved", "application-failed"].includes(plan.status)) {
+      if (ruling) throw new Error("Retry the already approved attack before changing its result.");
+      return { planId, status: await applyActionEffectPlanInTransaction(tx, context, actor, planId) };
+    }
+    if (ruling) await ruleOrdinaryAttackConsequenceInTransaction(tx, context, actor, planId, ruling);
+    return applyRoutineCombatConsequencesInTransaction(tx, context, actor, plan.declarationId, planId);
   }, true);
 }
 export async function applyCombatAttackRuling(encounterId: number, planId: number, declarationId: number, ruling: OrdinaryAttackRuling) {
@@ -69,6 +90,17 @@ export async function applyCombatAttackRuling(encounterId: number, planId: numbe
     if (actor.authority !== "god-owner") throw new Error("Only the G.O.D. may rule on damage.");
     await ruleOrdinaryAttackConsequenceInTransaction(tx, context, actor, planId, ruling);
     return applyRoutineCombatConsequencesInTransaction(tx, context, actor, declarationId, planId);
+  }, true);
+}
+export async function confirmCombatSpellReport(encounterId: number, planId: number, signature: string) {
+  return authorized({ role: "god", encounterId }, async (tx, context, actor) => {
+    if (actor.authority !== "god-owner") throw new Error("Only the G.O.D. may approve a spell report.");
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, context)).plans.find((entry) => entry.id === planId);
+    if (!plan || plan.sourceKind !== "spell") throw new Error("That spell report is unavailable.");
+    if (plan.status === "applied") return { planId, status: "applied" };
+    if (!isSpellResultReport(plan) || attackReportSignature(plan) !== signature) throw new Error("This spell report changed. Review the current result before approving it.");
+    if (["approved", "application-failed"].includes(plan.status)) return { planId, status: await applyActionEffectPlanInTransaction(tx, context, actor, planId) };
+    return applyRoutineCombatConsequencesInTransaction(tx, context, actor, plan.declarationId, planId);
   }, true);
 }
 export async function commitCombatFirearmTrigger(scope: CombatScreenScope, attackId: number) {
@@ -130,4 +162,8 @@ export async function endCombatWithAwards(encounterId: number, expectedStateToke
     }
     return finalizeEncounterCloseoutInTransaction(tx, closeoutContext, input);
   }, true);
+}
+export async function forceEndCombat(encounterId: number, note = "") {
+  const access = await requireGod();
+  return db.transaction((tx) => forceEndCombatInTransaction(tx, encounterId, { authority: "god-owner", userId: access.user.id }, note));
 }

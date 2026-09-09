@@ -157,7 +157,7 @@ test("departing an uncommitted member releases its sealed checkpoint without can
   }), expectedRollback);
 });
 
-for (const departingActor of [false, true]) test(`a completed hit survives departure before Apply; departing source=${departingActor}`, async () => {
+for (const departingActor of [false, true]) test(`a completed fatal head hit survives departure before Apply; departing source=${departingActor}`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx); await f.activate(f.heroId);
     const id = await f.attack(f.heroId, f.occurrences[0]);
@@ -167,7 +167,10 @@ for (const departingActor of [false, true]) test(`a completed hit survives depar
     for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id)).status, "applied");
     const [target] = await tx.select().from(member).where(eq(member.characterId, f.occurrences[0]));
     assert.equal((target.localStateJson as { health: { totalDamage: number } }).health.totalDamage, 6);
-    assert.equal((target.localStateJson as { defeat?: unknown }).defeat, undefined);
+    // Six damage to this fixture's three-HP head is now fatal, independently
+    // of whether the attacker or target withdrew before applying the due hit.
+    assert.ok((target.localStateJson as { defeat?: unknown }).defeat);
+    assert.equal((target.localStateJson as { combatCondition: { status: string } }).combatCondition.status, "dead");
     throw rollback;
   }), expectedRollback);
 });

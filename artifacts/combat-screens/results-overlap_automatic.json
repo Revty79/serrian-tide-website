@@ -1,0 +1,7 @@
+{
+  "passed": [
+    "The main next-input control resolves a faster Creature action, offers its next action while the critical sword is unfinished, then opens the sword's exact ruling only at completion; death cancels the later unfinished action.",
+    "Automatic flow prepares one attack report, applies it after approval, respects Freeze, stops for the next Player choice, and preserves one Roll/cost/outcome with two G.O.D. screens and reconnect."
+  ],
+  "errors": []
+}
