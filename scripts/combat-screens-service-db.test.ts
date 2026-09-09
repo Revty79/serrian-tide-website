@@ -112,6 +112,22 @@ test("invalid physical Roll rolls back the entire screen declaration", async () 
     throw rollback;
   }), (error) => error === rollback);
 });
+
+test("screen attacks reject their own actor before spending, including the firearm entry path", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx), before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    for (const firearm of [undefined, { firingModeId: 1, aimInitiative: 0, firingDurationInitiative: 1 }]) {
+      const choice = { ...f.input.choice, targetIds: [f.heroId], ...(firearm ? { firearm } : {}) };
+      await assert.rejects(previewCombatChoiceInTransaction(tx, f.context, f.player, choice), /another combatant/);
+      await assert.rejects(tx.transaction((savepoint) => submitCombatChoiceInTransaction(savepoint, f.context, f.player, { ...f.input, choice })), /another combatant/);
+      if (firearm) await assert.rejects(tx.transaction((savepoint) => submitCombatChoiceInTransaction(savepoint, f.context, f.player, { ...f.input, choice: { ...choice, source: { ...choice.source, kind: "spell" } } })), /another combatant/);
+    }
+    assert.deepEqual(await loadInitiativeEngineInTransaction(tx, f.encounterId), before);
+    assert.equal((await tx.select().from(declaration).where(eq(declaration.encounterId, f.encounterId))).length, 0);
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 0);
+    throw rollback;
+  }), (error) => error === rollback);
+});
 test("screen choice authority keeps Player choices with the Player; G.O.D. can apply their completed result", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx);

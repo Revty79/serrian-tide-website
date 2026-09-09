@@ -15,7 +15,8 @@
 .card[aria-pressed=true] { outline: 2px solid var(--st-focus); outline-offset: -2px; background: var(--st-selection); }
 .card:focus-visible, .page a:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
 .notice { margin: .6rem 0; padding: .7rem .9rem; border: 1px solid var(--st-border); background: var(--st-surface-soft); border-radius: 3px; font-size: .9rem; }
-.nextInput { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem; border-color: var(--st-primary-border); }
+.nextInput { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem; min-height: 150px; border-color: var(--st-primary-border); }
+.feedback { min-height: 3.5rem; }
 .nextInput > div { flex: 1 1 280px; }
 .nextInput p { margin: .3rem 0 0; line-height: 1.45; }
 .paused { border-color: var(--st-warning); background: color-mix(in srgb, var(--st-warning) 9%, var(--st-surface)); }

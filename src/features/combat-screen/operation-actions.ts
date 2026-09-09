@@ -21,6 +21,7 @@ import type { ActionDeclarationActor } from "@/features/tabletop-operations/acti
 import type { OrdinaryAttackRuling } from "@/features/tabletop-operations/ordinary-attack-consequence-service";
 import type { CombatScreenScope } from "./screen-types";
 import { readCombatEntityInformationInTransaction } from "@/features/tabletop-operations/combat-projection-service";
+import { combatEffectSummary } from "./result-summary";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");
@@ -43,6 +44,8 @@ export async function readCombatOperations(scope: CombatScreenScope) {
     const requests = actor.authority === "god-owner" && !sealed ? await readGodCombatRulingRequestsInTransaction(tx, context.encounterId) : [];
     return { rolls: rolls.rolls, sealed: !!sealed, plans: actor.authority === "god-owner" ? effects?.plans ?? [] : [], defenses, firearms, requests,
       outcomes: effects?.plans.flatMap((plan) => plan.effects.filter((effect) => actor.authority === "god-owner" || plan.actorParticipantId === actor.characterId || effect.targetParticipantId === actor.characterId).map((effect) => ({ id: effect.id, actor: plan.actorName, target: effect.targetName,
+        declarationId: plan.declarationId, actorId: plan.actorParticipantId, targetId: effect.targetParticipantId,
+        summary: combatEffectSummary(effect, actor.authority === "god-owner" || rolls.rolls.some((roll) => roll.pendingActionId === plan.pendingActionId && roll.reactionId === null && !!roll.effectiveMechanicalSnapshot)),
         label: plan.sourceSnapshot.displayName, status: effect.status, appliedAt: effect.appliedAt, amount: typeof effect.finalValue === "number" ? effect.finalValue : typeof object(effect.finalValue).netDamage === "number" ? Number(object(effect.finalValue).netDamage) : typeof object(object(effect.finalValue).effect).amount === "number" ? Number(object(object(effect.finalValue).effect).amount) : null }))) ?? [] };
   });
 }

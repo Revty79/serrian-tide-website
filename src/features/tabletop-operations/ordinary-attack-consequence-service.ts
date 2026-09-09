@@ -119,7 +119,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       finalValue: declined ? null : { effect: netDamage !== null && netDamage > 0 ? { kind: "health.damage", application: "localized", amount: netDamage } : null, application },
       unit: "Health", resource: "", applicationSupported: !declined && supported, godReviewRequired: !declined && !supported,
       status: declined ? "declined" : supported ? "calculated" : "requires-god-ruling",
-      amendmentReason: prevented ? "The recorded attack failed or its resolved defense prevented damage." : declined ? "Armor and soak absorbed the complete hit." : adjudicated?.reason ?? issues.join(" ") });
+      amendmentReason: !roll.resolution.succeeded ? "The recorded attack failed. No damage was applied." : prevented ? "The resolved defense prevented the attack's damage." : declined ? "Armor and soak absorbed the complete hit." : adjudicated?.reason ?? issues.join(" ") });
   }
   const unresolvedCritical = !ruling && (roll.resolution.requiresGodRuling || defense?.originalActionDisposition === "awaiting-god-ruling");
   return { status: unresolvedCritical || proposals.some(({ status }) => status === "requires-god-ruling") ? "requires-god-ruling" : "calculated", effects: proposals,

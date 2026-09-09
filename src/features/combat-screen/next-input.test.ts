@@ -36,7 +36,8 @@ test("a completed attack opens a needed response or exact ruling before offering
   const data = fixture(), action = data.projection!.declarations[1];
   data.projection!.declarations = [data.projection!.declarations[0], { ...action, opportunities: [{ id: 4, responderCharacterId: -8, responderName: "Cat", status: "pending", reactionId: null, requiresGodConfirmation: true }] as unknown as typeof action.opportunities }];
   let next = combatNextInput(data, operations);
-  assert.equal(next.kind, "inspect"); assert.match(next.label, /Review Cat's response/);
+  assert.equal(next.kind, "awareness"); assert.match(next.label, /Can Cat notice and respond/);
+  assert.equal(next.kind === "awareness" && next.opportunityId, 4);
   data.projection!.declarations = [data.projection!.declarations[0], action];
   next = combatNextInput(data, { ...operations, plans: [{ id: 7, declarationId: 2, status: "requires-god-ruling", explanation: "Select the authored hit location." }] as unknown as CombatOperations["plans"] });
   assert.equal(next.kind, "inspect"); assert.equal(next.kind === "inspect" && next.planId, 7);
@@ -54,6 +55,6 @@ test("a reached response during an unfinished action stops automatic advancement
   const action = data.projection!.declarations[0];
   data.projection!.declarations = [{ ...action, opportunities: [{ id: 4, responderCharacterId: -8, responderName: "Cat", status: "pending", reactionId: null, requiresGodConfirmation: true }] as unknown as typeof action.opportunities }];
   const next = combatNextInput(data, operations);
-  assert.match(next.label, /Review Cat's response/);
+  assert.match(next.label, /Can Cat notice and respond/);
   assert.equal(automaticCombatInputKey(next, "state-a"), null);
 });

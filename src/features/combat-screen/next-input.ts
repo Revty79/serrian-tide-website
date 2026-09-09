@@ -7,6 +7,7 @@ export type CombatNextInput = {
   label: string; explanation: string;
 } & ({ kind: "wait" | "advance" | "round" }
   | { kind: "inspect"; participantId: number; focus: CombatFocus["kind"]; planId?: number }
+  | { kind: "awareness"; opportunityId: number; participantId: number }
   | { kind: "resolve"; declarationId: number; firearmId?: number }
   | { kind: "trigger"; attackId: number });
 
@@ -27,6 +28,16 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
   const choice = projection.entities.find((entity) => entity.mustChooseNow);
   const choose = (): CombatNextInput => ({ kind: "inspect", participantId: choice!.participantId, focus: "action",
     label: choice!.canControl ? `Choose ${choice!.name}'s action` : `View ${choice!.name}'s turn`, explanation: choice!.canControl ? `${choice!.name} can choose now. Other actions keep their remaining timing.` : `${choice!.name}'s Player chooses on their combat screen.` });
+  const respond = (action: NonNullable<CombatScreenData["projection"]>["declarations"][number], response: typeof action.opportunities[number]): CombatNextInput => {
+    const name = action.lockedSnapshot?.label ?? action.draft.label;
+    if (response.requiresGodConfirmation) return { kind: "awareness", opportunityId: response.id, participantId: response.responderCharacterId,
+      label: `Can ${response.responderName} notice and respond to ${action.actorName}'s ${name}?`,
+      explanation: `Decide from the situation at the table. Yes lets ${response.responderName} choose a defense or no reaction. No continues this attack without that response. Neither choice applies damage early.` };
+    const controlled = projection.entities.find((entity) => entity.participantId === response.responderCharacterId)?.canControl;
+    return { kind: "inspect", participantId: response.responderCharacterId, focus: "response",
+      label: controlled ? `Choose ${response.responderName}'s response` : `View ${response.responderName}'s response`,
+      explanation: `${action.actorName}'s ${name} is waiting for ${response.responderName}${controlled ? " to choose a defense or no reaction below." : "'s Player to choose Defend, then a defense or no reaction on their screen."}` };
+  };
   // Never infer a sealed choice from result readiness or committed resources.
   if (projection.checkpoint || operations.sealed) return choice ? choose() : wait(projection.progression.reason);
   const completed = projection.declarations.filter((entry) => entry.timing?.status === "completed" && !["resolved", "cancelled", "abandoned"].includes(entry.status));
@@ -37,9 +48,7 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
       return opportunity.status === "pending" && opportunity.reactionId === null && entity && !entity.participation.departed && entity.condition.status === "able"
         && (opportunity.requiresGodConfirmation || entity.canRespondNow);
     });
-    if (response) return { kind: "inspect", participantId: response.responderCharacterId, focus: "response",
-      label: response.requiresGodConfirmation ? `Review ${response.responderName}'s response` : `Choose ${response.responderName}'s response`,
-      explanation: `${action.actorName}'s ${label} has completed its timing. ${response.requiresGodConfirmation ? "Confirm whether this response is legitimate." : "Choose the legitimate defense or no reaction before resolving the result."}` };
+    if (response) return respond(action, response);
     const defense = operations.defenses?.reactions.find((entry) => entry.declarationId === action.id && entry.status === "needs-ruling");
     if (defense) return { kind: "inspect", participantId: defense.responderCharacterId, focus: "response", label: `Rule on the defense against ${label}`, explanation: "Resolve the specific defense question before applying the attack." };
     const plan = operations.plans.find((entry) => entry.declarationId === action.id && ["requires-god-ruling", "partially-applied"].includes(entry.status));
@@ -63,9 +72,7 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
       return opportunity.status === "pending" && opportunity.reactionId === null && entity && !entity.participation.departed && entity.condition.status === "able"
         && (opportunity.requiresGodConfirmation || entity.canRespondNow);
     });
-    if (response) return { kind: "inspect", participantId: response.responderCharacterId, focus: "response",
-      label: response.requiresGodConfirmation ? `Review ${response.responderName}'s response` : `Choose ${response.responderName}'s response`,
-      explanation: `${action.actorName}'s ${action.lockedSnapshot?.label ?? action.draft.label} is underway. ${response.requiresGodConfirmation ? "Confirm whether this reached response opportunity is legitimate." : "Choose the legitimate defense or no reaction."}` };
+    if (response) return respond(action, response);
     const portion = operations.plans.find((plan) => plan.declarationId === action.id && plan.sourceSnapshot.identity.startsWith("firearm-attack:") && ["requires-god-ruling", "partially-applied"].includes(plan.status));
     if (portion) return { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling", planId: portion.id, label: `Rule on ${portion.sourceSnapshot.displayName} firing result`, explanation: portion.explanation };
   }

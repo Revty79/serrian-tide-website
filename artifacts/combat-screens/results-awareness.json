@@ -1,0 +1,7 @@
+{
+  "passed": [
+    "Direct awareness No without typed notes records a miss and zero damage, reaches the lower-Initiative Player's Hold, preserves 20 Initiative, and continues automatically with one Roll and the selected target.",
+    "Direct awareness Yes and Player no-reaction records 6 damage and updates both HP displays, reaches the lower-Initiative Player's Hold, preserves 20 Initiative, and continues automatically with one Roll and the selected target."
+  ],
+  "errors": []
+}

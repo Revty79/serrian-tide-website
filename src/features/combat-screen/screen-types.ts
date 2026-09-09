@@ -16,6 +16,8 @@ export function combatScreenPrompt(data: CombatScreenData, selected: CombatEntit
   if (!data.initialized) return "The G.O.D. must prepare the roster and start Initiative.";
   if (!data.projection) return "Waiting for the G.O.D. to enroll your Character in Initiative.";
   if (!selected) return "Select a combatant to inspect it.";
+  if (selected.canControl && selected.canRespondNow) return `${selected.name} can respond now. Choose Defend, then a defense or no reaction. Hold does not answer an attack.`;
+  if (selected.canControl && selected.actionReason === "Waiting for this combatant's Initiative opportunity.") return `Combat is at Initiative ${data.projection.runtime.timelineInitiative}. ${selected.name}'s next ordinary choice, including Hold, is at ${selected.currentInitiative}. Waiting for the G.O.D. to continue combat.`;
   if (selected.heldInterventionAvailable && !selected.mustChooseNow) return `${selected.statusText} ${data.projection.progression.reason}`;
   return selected.statusText;
 }

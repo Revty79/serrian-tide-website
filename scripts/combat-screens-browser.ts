@@ -24,7 +24,7 @@ async function until(check: () => Promise<boolean>, label: string, timeout = 25_
   throw new Error(`Timed out: ${label}`);
 }
 function screen(page: Page) { return page.locator("[data-combat-screen]"); }
-async function login(id: string, role: "god" | "player", f: Fixture) {
+async function login(id: string, role: "god" | "player", f: Fixture, automatic = false) {
   const context = await browser!.newContext({ viewport: { width: 1365, height: 1000 } });
   const page = await context.newPage(); page.setDefaultTimeout(25_000);
   page.on("pageerror", (error) => errors.push(error.message));
@@ -33,6 +33,7 @@ async function login(id: string, role: "god" | "player", f: Fixture) {
   await page.goto(`${base}/${role === "god" ? "heavens" : "realms"}/tabletop?combat=${f.encounterId}${role === "player" ? `&character=${f.heroId}` : ""}`);
   await screen(page).waitFor(); await until(() => screen(page).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "combat first read");
   await screen(page).getByText("Live", { exact: true }).waitFor();
+  if (role === "god" && !automatic && await screen(page).getByRole("checkbox", { name: "Automatic flow", exact: true }).count()) await screen(page).getByRole("checkbox", { name: "Automatic flow", exact: true }).uncheck();
   return page;
 }
 async function selectGod(page: Page, name: string) { await screen(page).getByRole("region", { name: "Combatants", exact: true }).getByRole("button", { name: new RegExp(`^${name}`) }).click(); await screen(page).getByRole("region", { name: "Selected combatant detail" }).getByRole("heading", { name, exact: true }).waitFor(); await until(() => screen(page).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "selected information refreshed"); }
@@ -42,7 +43,7 @@ async function chooseAttack(page: Page, target: number, roll = "80", source = "F
   await until(async () => await view.getByRole("combobox", { name: /^Attack source/ }).locator("option").count() > 1, "owned Attack source");
   await view.getByRole("combobox", { name: /^Attack source/ }).selectOption({ label: source });
   await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(target));
-  await view.getByRole("button", { name: "Check action", exact: true }).click();
+  await view.getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
   await view.getByLabel("Percentile result", { exact: true }).fill(roll);
 }
 async function commitAttack(page: Page) { await screen(page).getByRole("button", { name: "Commit Attack & Roll", exact: true }).click(); }
@@ -96,6 +97,7 @@ try {
     await screen(director).getByRole("button", { name: "Initialize combat", exact: true }).click();
     const created = (await pool.query("select id from campaign_session_encounter where scene_id=$1 and title='Screen-started fight'", [f.sceneId])).rows[0].id;
     await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_initiative_participant where encounter_id=$1", [created])).rows[0].n === 3, "all selected combatants initialized");
+    await screen(director).getByRole("checkbox", { name: "Automatic flow", exact: true }).uncheck();
     const participant = await login(f.playerId, "player", { ...f, encounterId: created });
     await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Hold", exact: true }).click();
     await screen(participant).getByRole("button", { name: "Hold Initiative", exact: true }).click();
@@ -108,7 +110,7 @@ try {
     await screen(director).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Attack", exact: true }).click();
     await screen(director).getByRole("combobox", { name: /^Attack source/ }).selectOption({ label: "Shortsword" });
     await screen(director).getByRole("combobox", { name: /^Target/ }).selectOption(String(f.heroId));
-    await screen(director).getByRole("button", { name: "Check action", exact: true }).click();
+    await screen(director).getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
     await screen(director).getByLabel("Percentile result", { exact: true }).fill("20");
     await commitAttack(director);
     await until(async () => (await declarations({ ...f, encounterId: created })).length === 1, "direct Creature attack committed");
@@ -245,13 +247,11 @@ try {
         await until(() => screen(director).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "ready to read next response");
         await screen(director).getByRole("button", { name: "Refresh", exact: true }).click();
         await until(() => screen(director).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "fresh next response");
-        await until(async () => await guide.getByRole("button").count() === 1 && await guide.getByRole("button").isEnabled(), "next input loaded");
-        if (!/^Review .* response$/.test(await guide.getByRole("button").innerText())) return;
+        await until(async () => await guide.getByRole("button").count() > 0 && await guide.getByRole("button").first().isEnabled(), "next input loaded");
+        if (!await guide.getByRole("button", { name: "No, cannot respond", exact: true }).count()) return;
         const pendingCount = async () => (await pool.query("select count(*)::int n from campaign_session_encounter_responder_opportunity where encounter_id=$1 and status='pending'", [f.encounterId])).rows[0].n;
         const before = await pendingCount();
-        await guide.getByRole("button").click();
-        await screen(director).getByRole("textbox", { name: /^Ruling \/ participation reason/ }).fill("Explicit fixture ruling: no legitimate additional response during this committed action.");
-        await screen(director).getByRole("button", { name: "Response unavailable", exact: true }).click();
+        await guide.getByRole("button", { name: "No, cannot respond", exact: true }).click();
         await until(async () => await pendingCount() < before, "response ruling committed");
       }
     }
@@ -280,6 +280,50 @@ try {
     const unfinished = (await declarations(f)).find((entry) => entry.actor_character_id === f.occurrences[0] && entry.id !== bite.id)!;
     assert.equal(unfinished.status, "cancelled");
     results.push("The main next-input control resolves a faster Creature action, offers its next action while the critical sword is unfinished, then opens the sword's exact ruling only at completion; death cancels the later unfinished action.");
+    await director.context().close(); await participant.context().close();
+  }
+  if (include("awareness")) for (const canRespond of [false, true]) {
+    const f = await db.transaction((tx) => screenFixture(tx, `awareness-hold-${canRespond}`));
+    await pool.query("update campaign_session_encounter_initiative set timeline_initiative=21 where encounter_id=$1", [f.encounterId]);
+    await pool.query("update campaign_session_encounter_initiative_participant set current_initiative=20 where encounter_id=$1 and character_id=$2", [f.encounterId, f.heroId]);
+    await pool.query("update campaign_session_encounter_initiative_participant set current_initiative=21, participation_status='active' where encounter_id=$1 and character_id=$2", [f.encounterId, f.occurrences[0]]);
+    const director = await login(f.godId, "god", f, true), participant = await login(f.playerId, "player", f);
+    const guide = screen(director).getByRole("region", { name: "Next combat input" });
+    assert.equal(await screen(director).getByRole("checkbox", { name: "Automatic flow", exact: true }).isChecked(), true);
+    await guide.getByRole("button", { name: "Choose Fixture Goblin 1's action", exact: true }).click();
+    await chooseAttack(director, f.heroId, canRespond ? "70" : "28", "Shortsword");
+    assert.equal(await screen(director).getByRole("combobox", { name: /^Target/ }).locator(`option[value='${f.occurrences[0]}']`).count(), 0, "The attack menu excludes its own actor.");
+    assert.equal((await declarations(f)).length, 0, "Reading options never commits an action or Roll.");
+    await commitAttack(director);
+    await guide.getByRole("heading", { name: /Can Rowan notice and respond/ }).waitFor();
+    await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Hold", exact: true }).click();
+    assert.equal(await screen(participant).getByRole("button", { name: "Hold Initiative", exact: true }).isDisabled(), true);
+    await until(async () => (await screen(participant).innerText()).includes("next ordinary choice, including Hold, is at 20"), "Player sees why Hold is waiting without learning an unconfirmed attack");
+    await guide.getByRole("button", { name: canRespond ? "Yes, can respond" : "No, cannot respond", exact: true }).click();
+    if (canRespond) {
+      await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Defend", exact: true }).click();
+      await screen(participant).getByRole("combobox", { name: /^Defense/ }).selectOption("no-reaction");
+      await screen(participant).getByRole("button", { name: "Check defense", exact: true }).click();
+      await screen(participant).getByRole("button", { name: "Commit response", exact: true }).click();
+      await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Hold", exact: true }).click();
+    }
+    await until(() => screen(participant).getByRole("button", { name: "Hold Initiative", exact: true }).isEnabled(), "automatic progression reaches the Player's Hold opportunity");
+    await screen(participant).getByRole("button", { name: "Hold Initiative", exact: true }).click();
+    await until(async () => (await declarations(f))[0]?.status === "resolved", "miss completes after the Player holds");
+    await until(async () => (await screen(director).getByRole("region", { name: "Combat activity" }).innerText()).includes(canRespond ? "6 damage applied to Head" : "Miss - no damage applied."), "recent activity explains the actual damage outcome");
+    const after = (await pool.query("select current_initiative, participation_status from campaign_session_encounter_initiative_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.heroId])).rows[0];
+    assert.deepEqual(after, { current_initiative: 20, participation_status: "holding" });
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    assert.equal((await pool.query("select total_damage from campaign_character_active_health where character_id=$1", [f.heroId])).rows[0].total_damage, canRespond ? 6 : 0);
+    if (canRespond) {
+      await until(async () => (await screen(participant).getByRole("region", { name: "Selected combatant detail" }).innerText()).includes("99 / 105"), "Player HP updates from applied damage without reload");
+      await selectGod(director, "Rowan");
+      assert.ok((await screen(director).getByRole("region", { name: "Selected combatant detail" }).innerText()).includes("99 / 105"));
+      await selectGod(director, "Fixture Goblin 1");
+      assert.equal(await screen(director).getByRole("combobox", { name: /^Target/ }).inputValue(), String(f.heroId), "Inspecting another actor preserves this Creature's own target draft.");
+    }
+    await until(() => guide.getByRole("button", { name: "Choose Fixture Goblin 1's action", exact: true }).isEnabled(), "the Creature can act again without reprompting the holding Player");
+    results.push(`Direct awareness ${canRespond ? "Yes and Player no-reaction records 6 damage and updates both HP displays" : "No without typed notes records a miss and zero damage"}, reaches the lower-Initiative Player's Hold, preserves 20 Initiative, and continues automatically with one Roll and the selected target.`);
     await director.context().close(); await participant.context().close();
   }
   if (include("hold")) for (const tied of [false, true]) {
@@ -325,7 +369,7 @@ try {
     await until(() => screen(director).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "automatic reconnect read");
     assert.deepEqual(await readOutcome(), final);
     await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor();
-    assert.equal(await screen(director).getByRole("checkbox", { name: "Automatic flow", exact: true }).isChecked(), false);
+    assert.equal(await screen(director).getByRole("checkbox", { name: "Automatic flow", exact: true }).isChecked(), true);
     assert.equal((await declarations(f)).length, 1); assert.deepEqual(await readOutcome(), final);
     results.push("Automatic flow advances and resolves a supported attack without manual timing/result clicks, respects Freeze, stops for the next Player choice, and preserves one Roll/cost/outcome with two G.O.D. screens and reconnect.");
     await director.context().close(); await secondDirector.context().close(); await participant.context().close();
@@ -341,8 +385,7 @@ try {
     await sourceControl.selectOption((await sourceControl.locator("option").filter({ hasText: mode === "spell" ? /^Screen Arc Bolt$/ : /^Screen Pistol/ }).getAttribute("value"))!);
     await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(fixture.occurrences[0]));
     if (mode === "spell") await view.getByRole("combobox", { name: /^Spell target 1/ }).selectOption(String(fixture.occurrences[0]));
-    await view.getByRole("button", { name: "Check action", exact: true }).click();
-    if (mode === "spell") { await view.getByRole("combobox", { name: /damage location/ }).selectOption("0"); await view.getByRole("button", { name: "Check action", exact: true }).click(); }
+    if (mode === "spell") await view.getByRole("combobox", { name: /damage location/ }).selectOption("0");
     else await view.getByLabel("Percentile result", { exact: true }).fill("70");
     await view.getByRole("button", { name: mode === "spell" ? "Commit Cast" : "Commit Attack & Roll", exact: true }).click();
     await until(async () => (await declarations(fixture)).length > 0, `${mode} committed`);

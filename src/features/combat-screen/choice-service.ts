@@ -15,6 +15,7 @@ async function authorizedChoice(tx: Tx, context: OwnedEncounterRuntimeContext, a
   const choice = structuredClone(input);
   if (!["weapon", "spell", "item", "derived-ability", "creature-attack", "creature-ability"].includes(choice.source.kind)) throw new Error("Choose a supported authored combat source.");
   if (actor.authority === "player" && (choice.participantId !== actor.characterId || choice.godTiming)) throw new Error("A Player cannot supply another combatant or a G.O.D. timing ruling.");
+  if ((choice.firearm || ["weapon", "creature-attack"].includes(choice.source.kind)) && choice.targetIds.includes(choice.participantId)) throw new Error("Choose another combatant as the attack target. The combat screen cannot submit an accidental attack against its own actor.");
   if (choice.calledShot && !choice.firearm) {
     if (choice.targetIds.length !== 1) throw new Error("A Called Shot requires one exact target.");
     if (actor.authority === "player") {
@@ -55,8 +56,8 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
     if (!isDeepStrictEqual(parseActionDeclarationDraft(prior.draft).sourcePayload?.screenRequest, request)) throw new Error("This retry identity already describes a different command or Roll.");
     return { declarationId: prior.id, reused: true };
   }
-  if (input.choice.firearm) return declareFirearmAttackInTransaction(tx, context, actor, { ...firearmCommand(input.choice), idempotencyKey: input.requestKey, roll: input.roll });
   const choice = await authorizedChoice(tx, context, actor, input.choice);
+  if (choice.firearm) return declareFirearmAttackInTransaction(tx, context, actor, { ...firearmCommand(choice), idempotencyKey: input.requestKey, roll: input.roll });
   const baseDraft = choiceDraft(choice);
   const draft = { ...baseDraft, sourcePayload: { ...baseDraft.sourcePayload, screenRequestKey: input.requestKey, screenRequest: request,
     calledShotLocation: choice.calledShot ? { number: choice.calledShot.locationNumber, reason: choice.calledShot.reason } : null } };
