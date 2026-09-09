@@ -1,5 +1,7 @@
 # Combat completion contract
 
+**Latest rulings:** read [COMBAT-RESUME.md](../../COMBAT-RESUME.md) before resuming. Its busy-actor prohibition supersedes this historical contract's permission to defend during an unfinished action. Its affordability/carryover rule also governs new commitments. Reconcile affected tests explicitly; preserve historical records.
+
 Authority: [Brannan's settled assignment, 8 September 2026](combat-completion-assignment-2026-09-08.md). Existing code and the earlier audit are implementation evidence. This contract introduces no replacement UI or alternate combat engine.
 
 Head damage follows the [9 September clarification](combat-head-health-clarification-2026-09-09.md): accumulated head HP at 0 causes unconsciousness; -1 or lower causes death. The earlier severing example is not the minimum death threshold.

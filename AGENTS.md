@@ -13,3 +13,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 All new or modified interfaces must use the shared semantic theme variables for appearance colors. Extend the shared system when necessary instead of introducing independent page palettes.
 
 See [Theme development](docs/architecture/theme-development.md) for the permanent implementation standard and intentional exceptions.
+
+## Resuming combat work
+
+When the user says “let's finish fixing combat,” “resume combat,” or similar, read [COMBAT-RESUME.md](COMBAT-RESUME.md) first. Check for intervening checkout changes, briefly recap the status, and start with the first unresolved priority under the user's current direction. Update that handoff after each completed combat fix so Cody and Ember share the same record. Its latest confirmed rulings supersede the older combat notes it identifies.

@@ -219,6 +219,8 @@ The full database rehearsal invokes every accepted guarded Tabletop database sui
 
 ## Human walkthrough status — 2026-09-09
 
+Combat work is paused. Start resumption from [COMBAT-RESUME.md](../../COMBAT-RESUME.md), which consolidates these findings, newer rulings, source/test links and the clean retest plan for Cody and Ember.
+
 - User reports that magic appeared to work in the cases tried. This records the observed walkthrough result, not exhaustive spell acceptance.
 - User reports that the tested combat attacks worked apart from the crossover/response eligibility and insufficient-Initiative issues recorded below. These fixes remain open and have not been implemented during this walkthrough.
 - Ranged weapons/firearms testing and further work are paused at the user's request. Resume later as a separate focus; do not treat ranged combat as accepted. Magazine inventory preparation is implemented separately, while combat magazine insertion, swapping and firing integration remain deferred (see `docs/magazine-inventory-handoff.md`).

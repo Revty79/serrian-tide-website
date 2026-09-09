@@ -1,5 +1,7 @@
 Serrian Tide combat engine completion plan
 
+**Resumption notice:** [COMBAT-RESUME.md](../../COMBAT-RESUME.md) records the latest priorities and rulings. Its prohibition on responses during an unfinished action supersedes the permissions in this historical assignment. Apply its new-commitment affordability rule and retain the original trace as historical evidence.
+
 Date: 8 September 2026
 
 Status: Ready for Cody to implement. The rules questions raised during this planning walkthrough are settled. Execute all seven passes as one backend assignment.

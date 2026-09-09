@@ -1,5 +1,7 @@
 # Serrian Tide Initiative Rules Contract
 
+**Resumption notice:** reconcile this historical contract with [COMBAT-RESUME.md](../../COMBAT-RESUME.md). The latest rule rejects unaffordable actions before commitment and carries unused Initiative, while leaving additional costs after a valid commitment separately governed. Do not use older multi-round descriptions to justify the recorded Bull/Ysra starts.
+
 ## 1. Core Principle
 
 Serrian Tide Initiative is a **continuous combat-time system**, not a conventional turn-order system.

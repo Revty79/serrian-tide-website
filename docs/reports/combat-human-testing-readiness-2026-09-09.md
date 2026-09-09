@@ -1,5 +1,7 @@
 # What remains before human combat testing
 
+**Resumption notice:** use [COMBAT-RESUME.md](../../COMBAT-RESUME.md) for the latest ordered work and rulings. This older report's mixed-scaling completion claim, open awareness/injury questions and single-count magazine assumptions are superseded or qualified there. Magic/ordinary attacks passed only the user's tried cases; ranged combat is not accepted.
+
 Prepared 9 September 2026 from the current checkout, a read-only audit of the loopback development catalog, and Brannan's latest instructions. Updated with learned-spell casting, automatic spell hit locations, and temporary AoE reports. Firearms still require catalog completion and preparation work below. No live campaign or catalog records were changed.
 
 The intended flow is: choose a legal action and target, Roll, let the engine advance time and calculate the result, review the requested damage/location report once, and continue. Routine eligibility, percentages, success counts, costs, ammunition, HP, conditions and timing belong to the engine. Missing implementation or incomplete catalog data should be repaired at their source instead of becoming repeated G.O.D. rulings during combat.
