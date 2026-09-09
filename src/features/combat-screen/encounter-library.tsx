@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createCampaignSessionEncounter, addCampaignSessionEncounterParticipant, type EncounterWorkspaceData } from "@/app/heavens/tabletop/encounter-actions";
 import { ENCOUNTER_TYPES, type EncounterType } from "@/features/tabletop-operations/encounter-foundation";
 import styles from "./combat-screen.module.css";
+import { CreaturePicker } from "./creature-picker";
 
 export function EncounterLibrary({ data }: { data: EncounterWorkspaceData }) {
   const router = useRouter();
@@ -25,6 +26,7 @@ export function EncounterLibrary({ data }: { data: EncounterWorkspaceData }) {
         catch (error) { setMessage(error instanceof Error ? error.message : "Combatant could not be added."); }
         finally { setBusy(false); }
       }}><label className="st-field">Scene member<select className="st-control" value={arrival} onChange={(event) => setArrival(event.target.value)}><option value="">Choose a Character or NPC</option>{selected.availableSceneMembers.map((entry) => <option key={entry.characterId} value={entry.characterId}>{entry.name}</option>)}</select></label><button className="st-button" disabled={busy || !arrival}>Add to encounter</button></form> : null}
+      {selected.editable && data.canOperate ? <CreaturePicker key={selected.id} encounterId={selected.id} disabled={busy} onAdded={() => router.refresh()} /> : null}
     </article> : null}
     {data.canCreate ? <details><summary>Prepare an encounter</summary><form onSubmit={async (event) => {
       event.preventDefault(); if (busy) return; setBusy(true); setMessage("");

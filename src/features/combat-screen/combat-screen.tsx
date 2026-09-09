@@ -9,6 +9,9 @@ import { addCampaignSessionEncounterParticipant, startCampaignSessionEncounter }
 import { readCombatScreen } from "./screen-actions";
 import { COMBAT_COMMANDS, combatScreenPrompt, type CombatCommand, type CombatScreenData, type CombatScreenScope } from "./screen-types";
 import styles from "./combat-screen.module.css";
+import { CreaturePicker } from "./creature-picker";
+import { CommandPanel } from "./command-panel";
+import { OperationPanel } from "./operation-panel";
 
 export function combatMessage(message: string) {
   return message.replace(/simultaneous declaration checkpoint/gi, "simultaneous choices").replace(/checkpoint/gi, "simultaneous choices")
@@ -97,9 +100,10 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
         {information ? <CombatResources information={information} /> : <p className={styles.muted}>{loading ? "Loading information…" : "Information becomes available after Initiative enrollment."}</p>}
         {selected?.currentAction ? <p className={styles.notice}>{selected.currentAction.label}: {selected.currentAction.remaining} Initiative remaining; expected finish {selected.currentAction.expectedFinish}.</p> : null}
         <nav className={styles.commands} aria-label="Combat commands">{COMBAT_COMMANDS.map((entry) => <button className="st-button" key={entry} aria-pressed={command === entry} onClick={() => setCommand(entry)}>{entry}</button>)}</nav>
-        <h3>{command}</h3><label className="st-field">Target<select className="st-control" value={target} onChange={(event) => setTarget(event.target.value)}><option value="">Choose a target</option>{target && !data.roster.some((entry) => String(entry.participantId) === target) ? <option value={target}>Selected target is no longer available</option> : null}{data.roster.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
-        <p className={styles.muted}>{selected?.canControl ? combatMessage(command === "Defend" ? selected.responseReason ?? "A response is available now." : selected.actionReason ?? "Choose an action and its exact source.") : "You can inspect this combatant; its Player retains its choices."}</p>
+        {selected ? <CommandPanel scope={scope} entity={selected} data={data} command={command} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /> : <p>Initialize Initiative to choose combat actions.</p>}
+        {selected ? <OperationPanel scope={scope} data={data} entity={selected} disabled={busy || stale || connection !== "live" || data.pause.frozen} refresh={() => reload()} /> : null}
         {scope.role === "god" && !data.projection?.closed ? <details><summary>Roster &amp; combat setup</summary>
+          <CreaturePicker encounterId={scope.encounterId} initialized={data.initialized} disabled={disabled} onAdded={() => reload()} />
           <div className={styles.fields}><label className="st-field">Add from Scene<select className="st-control" value={arrival} onChange={(event) => setArrival(event.target.value)}><option value="">Choose a Character or NPC</option>{data.setup?.selectedEncounter?.availableSceneMembers.map((entry) => <option key={entry.characterId} value={entry.characterId}>{entry.name}</option>)}</select></label></div>
           <div className={styles.actions}><button className="st-button" disabled={disabled || !arrival} onClick={() => void run(() => addCampaignSessionEncounterParticipant(scope.encounterId, Number(arrival)), "Combatant added.")}>Add combatant</button>
           {selectedRoster && !selectedRoster.enrolled && data.initialized ? <button className="st-button" disabled={disabled} onClick={() => void run(() => enrollLateEncounterInitiativeParticipant(scope.encounterId, selectedRoster.participantId), "Combatant enrolled at the ongoing fight's position.")}>Enroll selected combatant</button> : null}

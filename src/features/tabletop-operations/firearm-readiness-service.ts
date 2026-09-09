@@ -1058,8 +1058,13 @@ export async function readFirearmWorkspaceInTransaction(
   context: OwnedEncounterRuntimeContext,
   selectedCharacterIdInput: number | null,
   selectedItemInstanceIdInput: number | null,
+  controller?: ActionDeclarationActor,
 ): Promise<FirearmWorkspaceView> {
-  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
+  // A controller can inspect its own equipment while simultaneous choices are
+  // sealed. Retained unrestricted workspaces keep their original privacy gate.
+  if (controller && selectedCharacterIdInput !== null) {
+    await assertActionChoiceAuthority(tx, context, controller, selectedCharacterIdInput);
+  } else await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const characters = await tx.select({
     id: campaignSessionEncounterParticipant.characterId,
     name: sql<string>`case when ${campaignSessionEncounterParticipant.participantKind} = 'creature' then ${campaignSessionEncounterParticipant.displayLabel} else ${campaignCharacter.name} end`,

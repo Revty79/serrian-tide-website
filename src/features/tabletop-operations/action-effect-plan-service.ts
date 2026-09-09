@@ -1229,7 +1229,10 @@ export async function applyRoutineCombatConsequencesInTransaction(tx: ActionEffe
     eq(campaignSessionEncounterActionDeclaration.id, declarationId), eq(campaignSessionEncounterActionDeclaration.encounterId, context.encounterId),
   )).limit(1).for("update");
   if (!declaration) throw new Error("That exact combat declaration no longer exists.");
-  await assertActionChoiceAuthority(tx, context, actor, declaration.actorCharacterId);
+  // Applying an already chosen, completed outcome is G.O.D. authority too;
+  // it must not be confused with choosing a Player's declaration for them.
+  if (actor.authority === "god-owner") assertGod(context, actor);
+  else await assertActionChoiceAuthority(tx, context, actor, declaration.actorCharacterId);
   await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const planId = exactPlanId ?? await generateActionEffectPlanInternal(tx, context, actor, declarationId);
   const plan = await lockPlan(tx, context, planId);

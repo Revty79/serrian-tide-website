@@ -807,6 +807,14 @@ async function insertReactionEvent(
   });
 }
 
+export async function previewDefenseInterventionInTransaction(tx: DefenseInterventionTransaction, context: OwnedEncounterRuntimeContext,
+  actor: ActionDeclarationActor, input: DefenseDeclarationInput) {
+  const loaded = await loadResponseContext(tx, context, input.opportunityId);
+  await assertResponseChoiceAuthority(tx, context, actor, loaded.opportunity.responderCharacterId);
+  if (!loaded.lockedAction.targetCharacterIds.includes(input.protectedTargetCharacterId)) throw new Error("Choose an exact target of the original action to protect.");
+  return buildSourceAndCost(tx, context, actor, loaded, input);
+}
+
 export async function declareDefenseInterventionInTransaction(
   tx: DefenseInterventionTransaction,
   context: OwnedEncounterRuntimeContext,

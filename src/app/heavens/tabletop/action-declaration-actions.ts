@@ -143,12 +143,13 @@ export async function addExceptionalResponder(
   responderCharacterId: number,
   reason: string,
 ): Promise<void> {
+  if (!Number.isSafeInteger(responderCharacterId) || responderCharacterId === 0) throw new Error("Choose an exact responder in this Encounter.");
   return mutateDeclaration(encounterId, (tx, context, actor) => addExceptionalResponderOpportunityInTransaction(
     tx,
     context,
     actor,
     positiveId(declarationId, "Action declaration"),
-    positiveId(responderCharacterId, "Responder Character"),
+    responderCharacterId,
     reason,
   ));
 }

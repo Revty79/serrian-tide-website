@@ -205,7 +205,7 @@ async function assertRequestedSource(
   if ((input.requestType === "called-shot" || input.requestType === "firearm-preparation") && sourceKind !== "weapon") {
     throw new Error("A firearm ruling request must reference an exact owned weapon source.");
   }
-  if ((input.requestType === "called-shot" || input.requestType === "firearm-preparation") && input.sourceInstanceId == null) {
+  if (input.requestType === "firearm-preparation" && input.sourceInstanceId == null) {
     throw new Error("This firearm request requires an exact owned Item instance.");
   }
   if (input.sourceInstanceId !== undefined && input.sourceInstanceId !== null) {

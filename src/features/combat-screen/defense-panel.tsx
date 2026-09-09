@@ -1,0 +1,42 @@
+"use client";
+import { useRef, useState } from "react";
+import { DEFENSE_INTERVENTION_TYPES, type DefenseInterventionType } from "@/features/tabletop-operations/defense-intervention";
+import type { DefenseDeclarationInput } from "@/features/tabletop-operations/defense-intervention-service";
+import { previewCombatDefense, submitCombatDefense, type readCombatCommandSources } from "./command-actions";
+import type { CombatEntity, CombatScreenData, CombatScreenScope } from "./screen-types";
+import { RollFields, emptyRoll, rollInput, combatMessage } from "./form-controls";
+import styles from "./combat-screen.module.css";
+export function DefensePanel({ scope, entity, data, sources, disabled, refresh }: { scope: CombatScreenScope; entity: CombatEntity; data: CombatScreenData; sources: Awaited<ReturnType<typeof readCombatCommandSources>> | null; disabled: boolean; refresh: () => Promise<void> }) {
+  const [opportunity, setOpportunity] = useState(""), [kind, setKind] = useState<DefenseInterventionType>("dodge"), [weapon, setWeapon] = useState("");
+  const [protect, setProtect] = useState(""), [governing, setGoverning] = useState(""), [cost, setCost] = useState(""), [reason, setReason] = useState("");
+  const [roll, setRoll] = useState(emptyRoll), [busy, setBusy] = useState(false), [message, setMessage] = useState("");
+  const [checked, setChecked] = useState<{ key: string; result: Awaited<ReturnType<typeof previewCombatDefense>> } | null>(null);
+  const running = useRef(false);
+  const opportunities = data.projection?.declarations.flatMap((declaration) => declaration.opportunities.filter((entry) => entity.responseOpportunityIds.includes(entry.id)).map((entry) => ({ ...entry, declaration }))) ?? [];
+  const selected = opportunities.find((entry) => String(entry.id) === opportunity) ?? (!opportunity && opportunities.length === 1 ? opportunities[0] : null);
+  const source = sources?.defense?.weapons.find((entry) => entry.ownershipKey === weapon);
+  const targets = selected?.declaration.lockedSnapshot?.targetCharacterIds ?? [];
+  const input: DefenseDeclarationInput = { opportunityId: selected?.id ?? 0, reactionType: kind,
+    protectedTargetCharacterId: Number(protect) || (targets.includes(entity.participantId) ? entity.participantId : targets.length === 1 ? targets[0] : 0),
+    ...(source ? { itemId: source.itemId, instanceId: source.instanceId, sourceRef: source.ownershipKey } : {}),
+    ...(scope.role === "god" ? { governingSelection: sources?.defense?.governingChoices.find((entry) => entry.key === governing)?.selection,
+      initiativeCost: cost === "" ? undefined : Number(cost), godApprovalReason: reason, godOverrideReason: reason,
+      ...(kind === "intervention" || kind === "tackle" ? { sourceKind: "manual" as const, manualLabel: reason, manualTarget: governing.startsWith("manual:") ? Number(governing.slice(7)) : undefined } : {}) } : {}) };
+  const fingerprint = JSON.stringify(input), preview = checked?.key === fingerprint ? checked.result : null;
+  return <div><p className={styles.muted}>{combatMessage(entity.responseReason ?? "Choose a response to this confirmed opportunity.")}</p>
+    <div className={styles.fields}><label className="st-field">Respond to<select className="st-control" value={selected?.id ?? opportunity} onChange={(event) => setOpportunity(event.target.value)}><option value="">Choose a confirmed opportunity</option>{opportunities.map((entry) => <option key={entry.id} value={entry.id}>{entry.declaration.actorName} · {entry.declaration.lockedSnapshot?.label ?? entry.declaration.draft.label}</option>)}</select></label>
+    <label className="st-field">Defense<select className="st-control" value={kind} onChange={(event) => setKind(event.target.value as DefenseInterventionType)}>{DEFENSE_INTERVENTION_TYPES.filter((entry) => scope.role === "god" || !["tackle", "intervention"].includes(entry)).map((entry) => <option key={entry}>{entry}</option>)}</select></label>
+    <label className="st-field">Protect<select className="st-control" value={input.protectedTargetCharacterId || ""} onChange={(event) => setProtect(event.target.value)}><option value="">Choose the target being protected</option>{targets.map((id) => <option key={id} value={id}>{data.roster.find((entry) => entry.participantId === id)?.name}</option>)}</select></label>
+    {kind === "block" || kind === "parry" ? <label className="st-field">Defending weapon<select className="st-control" value={weapon} onChange={(event) => setWeapon(event.target.value)}><option value="">Choose a wielded weapon</option>{sources?.defense?.weapons.map((entry) => <option key={entry.ownershipKey} value={entry.ownershipKey}>{entry.name}</option>)}</select></label> : null}</div>
+    {scope.role === "god" ? <details><summary>Specific defense ruling</summary><div className={styles.fields}><label className="st-field">Governing source<select className="st-control" value={governing} onChange={(event) => setGoverning(event.target.value)}><option value="">Use established governance</option>{sources?.defense?.governingChoices.map((entry) => <option key={entry.key} value={entry.key}>{entry.label} · {entry.originalTarget}</option>)}</select></label><label className="st-field">Missing authored cost<input className="st-control" type="number" min="0" step="any" value={cost} onChange={(event) => setCost(event.target.value)} /></label><label className="st-field">Ruling reason<input className="st-control" value={reason} onChange={(event) => setReason(event.target.value)} /></label></div></details> : null}
+    <button className="st-button" disabled={!selected || busy || !entity.canControl || !entity.canRespondNow} onClick={async () => { try { setChecked({ key: fingerprint, result: await previewCombatDefense(scope, input) }); setMessage(""); } catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "Defense is unavailable.")); } }}>Check defense</button>
+    {preview ? <><p>{preview.source.label} · {preview.initiativeCost} Initiative</p>{preview.rollRequired ? <RollFields value={roll} onChange={setRoll} disabled={busy} /> : <p>No Roll required.</p>}
+      <button className="st-button is-primary" disabled={disabled || busy || !entity.canControl || !entity.canRespondNow} onClick={async () => {
+        if (running.current) return; running.current = true; setBusy(true);
+        try { await submitCombatDefense(scope, input, preview.rollRequired ? rollInput(roll) : undefined); setMessage("Response committed."); await refresh(); }
+        catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "Response was not confirmed.")); await refresh(); }
+        finally { running.current = false; setBusy(false); }
+      }}>Commit response{preview.rollRequired ? " & Roll" : ""}</button></> : null}
+    {message ? <p role="status">{message}</p> : null}
+  </div>;
+}

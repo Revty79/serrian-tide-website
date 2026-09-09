@@ -354,7 +354,7 @@ function snapshotDraft(snapshot: LockedActionDeclarationSnapshot): ActionDeclara
 async function buildAuthoritativeSnapshot(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
-  row: LockedDeclarationRow,
+  row: Pick<LockedDeclarationRow, "id" | "createdByUserId" | "createdAt">,
   draftInput: ActionDeclarationDraft,
   actor: ActionDeclarationActor,
   now: Date,
@@ -503,6 +503,10 @@ async function buildAuthoritativeSnapshot(
     governing,
   });
   governing = resolvedSource.governing;
+  if (draft.sourcePayload?.combatScreen === true && ["item", "derived-ability", "creature-ability"].includes(draft.sourceKind)
+    && resolvedSource.authoritativeInitiativeCost === null) {
+    throw new Error("This exact source needs a G.O.D. Initiative cost ruling before declaration.");
+  }
   if (actor.authority === "player" && ["item", "derived-ability"].includes(draft.sourceKind)
     && resolvedSource.authoritativeInitiativeCost === null) {
     throw new Error("This exact source has no authored combat timing. The G.O.D. must record its Initiative cost before the Player chooses to use it.");
@@ -529,6 +533,14 @@ async function buildAuthoritativeSnapshot(
     authoredAt: row.createdAt,
     lockedAt: now,
   });
+}
+
+/** Read-only preparation using the same source/governance builder as commitment. */
+export async function previewCombatDeclarationInTransaction(tx: ActionDeclarationTransaction, context: OwnedEncounterRuntimeContext,
+  actor: ActionDeclarationActor, draft: ActionDeclarationDraft) {
+  await assertActorAuthority(tx, context, actor, draft.actorCharacterId);
+  const now = new Date();
+  return buildAuthoritativeSnapshot(tx, context, { id: 0, createdByUserId: actor.userId, createdAt: now }, draft, actor, now);
 }
 
 export async function createActionDeclarationDraftInTransaction(

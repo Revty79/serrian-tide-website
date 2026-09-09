@@ -26,6 +26,9 @@
 .commands { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; margin: 1rem 0; }
 .commands button[aria-pressed=true] { background: var(--st-primary-soft); color: var(--st-primary-soft-text); border-color: var(--st-primary-border); }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .7rem; margin: .8rem 0; }
+.check { display: inline-flex; align-items: center; gap: .4rem; margin: .4rem .8rem .4rem 0; }
+.page fieldset { border: 1px solid var(--st-border); padding: .7rem; margin: .7rem 0; }
+.page details { margin-block: .7rem; } .page summary { cursor: pointer; }
 .activity { margin-top: 1rem; } .activity ol { padding-left: 1.2rem; } .activity li { padding: .3rem 0; font-size: .85rem; }
 .activity details { margin-top: .7rem; } .activity summary { cursor: pointer; color: var(--st-text-secondary); }
 .library { padding: 1rem; border: 1px solid var(--st-border); background: var(--st-surface); border-radius: 5px; margin-top: 1rem; }
