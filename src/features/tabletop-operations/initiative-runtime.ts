@@ -483,6 +483,7 @@ export function advanceInitiativeToNextEvent(state: InitiativeEngineState): Init
 export function holdInitiative(state: InitiativeEngineState, characterId: number): InitiativeEngineState {
   requireActiveRuntime(state);
   const participant = participantById(state, characterId);
+  if (participant.participationStatus === "holding") return state;
   if (participant.participationStatus !== "active") throw new Error("Only an active Participant may Hold.");
   if (activeActionFor(state, characterId)) throw new Error("A Participant with an active pending action cannot Hold.");
   const event = getNextInitiativeTimelineEvent(state);

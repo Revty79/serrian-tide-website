@@ -228,6 +228,39 @@ test("Held 23 to 21 intervention spends retained Initiative and completes before
   });
 });
 
+test("higher Initiative Hold is one zero-cost choice; lower choices finish the full Step once", () => {
+  let engine = holdInitiative(state(35, 20), 1);
+  assert.equal(participant(engine, 1).currentInitiative, 35);
+  assert.equal(engine.runtime.stepNumber, 1);
+  assert.equal(participant(engine, 1).lastSatisfiedStep, 1);
+  assert.equal(holdInitiative(engine, 1), engine);
+  assert.deepEqual(getNextInitiativeTimelineEvent(engine), { kind: "normal-opportunity", initiative: 20, characterIds: [2] });
+  engine = advanceInitiativeToNextEvent(engine);
+  assert.equal(engine.runtime.stepNumber, 1);
+  engine = holdInitiative(engine, 2);
+  assert.equal(engine.runtime.stepNumber, 2);
+  assert.deepEqual(engine.participants.map((entry) => entry.currentInitiative), [35, 20]);
+  const held = engine;
+  for (let retry = 0; retry < 5; retry++) {
+    engine = holdInitiative(holdInitiative(engine, 1), 2);
+    assert.equal(getNextInitiativeTimelineEvent(engine).kind, "none");
+    assert.throws(() => advanceInitiativeToNextEvent(engine), /no further Initiative event/);
+  }
+  assert.equal(engine, held);
+  assert.equal(engine.pendingActions.length, 0);
+  assert.equal(canHoldingParticipantIntervene(engine.runtime, participant(engine, 1)), true);
+});
+
+test("everyone Holding at one opportunity completes exactly one full Step and cannot loop advancement", () => {
+  let engine = state(22, 22, 22);
+  for (const id of [1, 2, 3]) engine = holdInitiative(engine, id);
+  assert.equal(engine.runtime.stepNumber, 2);
+  assert.deepEqual(engine.participants.map((entry) => entry.currentInitiative), [22, 22, 22]);
+  assert.equal(getNextInitiativeTimelineEvent(engine).kind, "none");
+  assert.equal(holdInitiative(engine, 1), engine);
+  assert.equal(advanceInitiativeTimeline(engine, 22).runtime.stepNumber, 2);
+});
+
 test("a Held 23 action at timeline 21 consumes its retained span before continuing to 18", () => {
   let engine = state(23, 21);
   engine = holdInitiative(engine, 1);

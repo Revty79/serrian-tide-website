@@ -67,8 +67,8 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
   if (participantId > 0) {
     try {
       const aggregate = await getCharacter(participantId, scope.role === "god");
-      for (const spell of assemblePlayerTabletopSpells(aggregate)) if (spell.castSource) sources.push({ kind: "spell", ref: spell.castSource.kind === "catalog" ? `catalog:${spell.castSource.allocationId}` : "savedSpellId" in spell.castSource ? `${spell.castSource.kind}:${spell.castSource.savedSpellId}` : spell.key,
-        name: spell.name, instanceId: null, itemId: null, description: [spell.tradition, spell.activationLabel, ...spell.effects].join(" · "), unavailable: !spell.available ? spell.issues.join(" ") || "The required casting source is unavailable." : undefined });
+      for (const spell of assemblePlayerTabletopSpells(aggregate)) sources.push({ kind: "spell", ref: spell.castSource?.kind === "catalog" ? `catalog:${spell.castSource.allocationId}` : spell.castSource && "savedSpellId" in spell.castSource ? `${spell.castSource.kind}:${spell.castSource.savedSpellId}` : spell.key,
+        name: spell.name, instanceId: null, itemId: null, description: [spell.tradition, spell.activationLabel, ...spell.effects].join(" · "), unavailable: !spell.available || !spell.castSource ? spell.issues.join(" ") || "The required casting source is unavailable." : undefined });
       for (const ability of assemblePlayerTabletopDerivedAbilities(aggregate)) sources.push({ kind: "derived-ability", ref: `derived-ability:${ability.id}`, name: ability.name, instanceId: null, itemId: null, description: [ability.description, ...ability.costs, ...ability.limits].join(" · "), unavailable: ability.availability === "Available" ? undefined : ability.availability });
       for (const owned of aggregate.items) {
         const profile = aggregate.authorizedItems.find((entry) => entry.id === owned.itemId)?.runtimeProfile;
@@ -77,6 +77,9 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
       for (const owned of aggregate.itemInstances) if (owned.runtimeProfile.useMode !== "none") sources.push({ kind: "item", ref: `item:${owned.itemId}`, name: `${owned.name} · copy ${owned.id}`, instanceId: owned.id, itemId: null, description: `${owned.currentCharges ?? "?"} charges · ${owned.runtimeProfile.activationLabel}` });
     } catch (error) { aggregateIssue = error instanceof Error ? error.message : "Some owned sources could not be read."; }
   }
+  if (scope.role === "god" && participantId > 0 && !loaded.isNpc) await authorized(scope, async (tx, context) => {
+    if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) throw new Error("Inspect source rulings after simultaneous choices are revealed.");
+  });
   return { ...loaded, sources, aggregateIssue };
 }
 

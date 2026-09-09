@@ -21,7 +21,7 @@ export function TabletopLiveRefresh(props: TabletopLiveRefreshProps & { onRefres
     const query = mode === "god"
       ? `mode=god&campaignId=${subscriptionId}`
       : `mode=player&characterId=${subscriptionId}${playerScope ? `&scope=${playerScope}` : ""}`;
-    const source = new EventSource(`/api/tabletop/live?${query}`);
+    let source: EventSource;
     const refresh = () => {
       if (refreshTimer.current) return;
       refreshTimer.current = setTimeout(() => {
@@ -30,15 +30,29 @@ export function TabletopLiveRefresh(props: TabletopLiveRefreshProps & { onRefres
         else router.refresh();
       }, 80);
     };
-    source.addEventListener("ready", () => {
-      setStatus("live");
-      callbacks.current.onStatus?.("live");
-      refresh();
-    });
-    source.addEventListener("invalidation", refresh);
-    source.onerror = () => { setStatus("reconnecting"); callbacks.current.onStatus?.("reconnecting"); };
+    const connect = () => {
+      source?.close();
+      source = new EventSource(`/api/tabletop/live?${query}`);
+      source.addEventListener("ready", () => {
+        setStatus("live");
+        callbacks.current.onStatus?.("live");
+        refresh();
+      });
+      source.addEventListener("invalidation", refresh);
+      source.onerror = () => { setStatus("reconnecting"); callbacks.current.onStatus?.("reconnecting"); };
+    };
+    const offline = () => {
+      source?.close();
+      if (refreshTimer.current) { clearTimeout(refreshTimer.current); refreshTimer.current = null; }
+      setStatus("reconnecting"); callbacks.current.onStatus?.("reconnecting");
+    };
+    if (navigator.onLine) connect(); else offline();
+    window.addEventListener("offline", offline);
+    window.addEventListener("online", connect);
     return () => {
-      source.close();
+      source?.close();
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("online", connect);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
   }, [mode, playerScope, router, subscriptionId]);

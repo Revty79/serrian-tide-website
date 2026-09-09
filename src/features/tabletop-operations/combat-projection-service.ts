@@ -7,7 +7,7 @@ import { readActiveHealthInTransaction } from "@/features/active-state/active-he
 import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
 import { readActionDeclarationWorkspaceInTransaction, type ActionDeclarationActor } from "./action-declaration-service";
-import { canHoldingParticipantIntervene, canParticipantReactToAction, getNextInitiativeTimelineEvent } from "./initiative-runtime";
+import { canAdvanceInitiativeRound, canHoldingParticipantIntervene, canParticipantReactToAction, getNextInitiativeTimelineEvent } from "./initiative-runtime";
 import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext, type RuntimeIntegrationTransaction } from "./runtime-integration-service";
 import { hasUnresolvedCompletedActionsInTransaction, projectRevealedInitiativeInTransaction, readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 import { initiativeStateToken } from "./initiative-state-token";
@@ -69,13 +69,21 @@ export async function readCombatProjectionInTransaction(
     const canRespondNow = responseReason === null;
     return { participantId: entity.characterId, name: entity.name, currentInitiative: entity.currentInitiative,
       participationStatus: participant.participationStatus, participation, condition, currentAction, canActNow, canRespondNow, canControl, heldInterventionAvailable: canActNow && heldInterventionAvailable,
-      canInspect: true as const, actionReason, responseReason,
+      canInspect: true as const, actionReason, responseReason, mustChooseNow: canActNow && !heldInterventionAvailable && !!normalNow,
       statusText: canActNow && canRespondNow ? "Can choose an action or response." : canRespondNow ? "Can respond now."
+        : canActNow && heldInterventionAvailable ? "Holding Initiative; may intervene when legitimate. No ordinary choice is required."
         : canActNow ? "Can choose an action now." : common ?? actionReason ?? responseReason!,
       responseOpportunityIds: canControl && canRespondNow ? eligibleResponses.map(({ id }) => id) : [],
     };
   });
-  return { context: workspace.context, runtime: { ...workspace.runtime, status: engine.runtime.status }, closed, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities,
+  const canAdvanceTimeline = !closed && !workspace.pause.frozen && !checkpoint && !pendingOutcomes && next?.kind !== "none"
+    && !(next?.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative);
+  const progression = { canAdvanceTimeline, canAdvanceRound: !closed && !workspace.pause.frozen && !checkpoint && !pendingOutcomes && canAdvanceInitiativeRound(engine),
+    reason: closed ? "Combat has ended." : workspace.pause.message ?? (checkpoint ? "Waiting for the remaining simultaneous choices."
+      : pendingOutcomes ? "Resolve the outcomes completing at this point." : canAdvanceTimeline ? "The G.O.D. can advance combat to the next engine event."
+      : next?.kind === "none" ? "No further Initiative event is pending. Holding combatants may wait for a legitimate intervention or choose Pass; no automatic advancement is needed."
+      : "Waiting for the remaining ordinary choices at this Initiative.") };
+  return { context: workspace.context, runtime: { ...workspace.runtime, status: engine.runtime.status }, closed, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities, progression,
     checkpoint: checkpoint ?? null, declarations: workspace.declarations };
 }
 

@@ -1,0 +1,21 @@
+{
+  "passed": [
+    "Scene → Encounter setup adds Characters and a direct Creature, starts and initializes combat, and lets the G.O.D. command the NPC and Creature.",
+    "An actual offline/reconnect cycle preserves target, Roll draft, focus and scroll without submitting a choice.",
+    "Freeze/Resume is shared; inspection and the Player action draft remain available.",
+    "Player weapon declaration and original percentile Roll resolve through timing to fatal head damage; the dead direct Creature remains inspectable.",
+    "The real Add Creatures control adds two direct occurrences, enrolls them late, and leaves NPC records unchanged.",
+    "G.O.D. withdrawal, return with preserved Initiative, and confirmed escape update the exact occurrence.",
+    "An incapacitated PC stays eligible: full Creature XP plus full encounter XP preview and apply once; both roles inspect completed combat after reload.",
+    "Simultaneous Player/NPC declarations, Player first, preserve hidden action history and record one Roll each.",
+    "Simultaneous Player/NPC declarations, NPC first, preserve hidden action history and record one Roll each.",
+    "The main next-input control resolves a faster Creature action, offers its next action while the critical sword is unfinished, then opens the sword's exact ruling only at completion; death cancels the later unfinished action.",
+    "Higher-to-lower Initiative Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "Simultaneous Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "Automatic flow advances and resolves a supported attack without manual timing/result clicks, respects Freeze, stops for the next Player choice, and preserves one Roll/cost/outcome with two G.O.D. screens and reconnect.",
+    "Spell target group and authored location selection commits and completes through the screen/server flow.",
+    "Exact firearm commits and completes through the screen/server flow.",
+    "An unavailable defense is blocked; a confirmed direct Creature Block uses its authored weapon and Roll, and prevents damage."
+  ],
+  "errors": []
+}

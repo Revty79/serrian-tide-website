@@ -16,6 +16,9 @@
 # next.js
 /.next/
 /.next-crossroads-navigation-browser/
+/.next-combat-screens-browser/
+/artifacts/combat-screens/*.log
+/artifacts/combat-screens/failure-*
 /out/
 
 # production

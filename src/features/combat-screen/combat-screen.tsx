@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import { setEncounterCombatFrozen } from "@/app/heavens/tabletop/combat-freeze-actions";
-import { initializeEncounterInitiative, enrollLateEncounterInitiativeParticipant } from "@/app/heavens/tabletop/initiative-actions";
+import { initializeEncounterInitiative, enrollLateEncounterInitiativeParticipant, advanceEncounterInitiativeTimeline, advanceEncounterInitiativeRound } from "@/app/heavens/tabletop/initiative-actions";
 import { addCampaignSessionEncounterParticipant, startCampaignSessionEncounter } from "@/app/heavens/tabletop/encounter-actions";
 import { readCombatScreen } from "./screen-actions";
-import { COMBAT_COMMANDS, combatScreenPrompt, type CombatCommand, type CombatScreenData, type CombatScreenScope } from "./screen-types";
+import { COMBAT_COMMANDS, combatActionStatus, combatScreenPrompt, type CombatCommand, type CombatScreenData, type CombatScreenScope } from "./screen-types";
 import styles from "./combat-screen.module.css";
 import { CreaturePicker } from "./creature-picker";
 import { CommandPanel } from "./command-panel";
 import { OperationPanel } from "./operation-panel";
+import { readCombatOperations, applyCombatResult, applyCombatFirearmResult, commitCombatFirearmTrigger } from "./operation-actions";
+import { combatNextInput, automaticCombatInputKey, type CombatOperations, type CombatFocus } from "./next-input";
 
 export function combatMessage(message: string) {
   return message.replace(/simultaneous declaration checkpoint/gi, "simultaneous choices").replace(/checkpoint/gi, "simultaneous choices")
@@ -50,6 +52,27 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
   const [connection, setConnection] = useState<"connecting" | "live" | "reconnecting">("connecting");
   const [modes, setModes] = useState<Record<number, string>>({});
   const [arrival, setArrival] = useState("");
+  const [operationRead, setOperationRead] = useState<{ data: CombatScreenData; value: CombatOperations } | null>(null);
+  const [focus, setFocus] = useState<CombatFocus | null>(null);
+  const [automatic, setAutomatic] = useState(false);
+  const automaticAttempts = useRef(new Set<string>());
+  const commandRef = useRef<HTMLDivElement>(null), operationRef = useRef<HTMLDivElement>(null), focused = useRef(0);
+  useEffect(() => {
+    if (!data.projection) return;
+    let active = true;
+    void readCombatOperations(scope).then((value) => { if (active) setOperationRead({ data, value }); }).catch((error: unknown) => {
+      if (active) setFeedback(error instanceof Error ? error.message : "The next combat input could not be read. Refresh to retry.");
+    });
+    return () => { active = false; };
+  }, [scope, data]);
+  useEffect(() => {
+    if (!focus || focus.sequence === focused.current || loading || selectedId !== focus.participantId) return;
+    const destination = focus.kind === "action" ? commandRef.current : operationRef.current;
+    destination?.focus({ preventScroll: true }); destination?.scrollIntoView({ block: "center", behavior: "smooth" });
+    focused.current = focus.sequence;
+  }, [focus, loading, selectedId]);
+  const operations = operationRead?.data === data ? operationRead.value : null;
+  const nextInput = useMemo(() => combatNextInput(data, operations), [data, operations]);
   const reload = useCallback(async (id = selectedRef.current) => {
     const version = ++generation.current;
     setLoading(true);
@@ -60,20 +83,54 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
       if (version === generation.current) { setStale(true); setFeedback(error instanceof Error ? error.message : "Live information could not be reloaded. Retry to reconnect."); }
     } finally { if (version === generation.current) setLoading(false); }
   }, [scope]);
-  async function run(operation: () => Promise<unknown>, success: string) {
-    if (mutation.current) return;
+  const run = useCallback(async (operation: () => Promise<unknown>, success: string) => {
+    if (mutation.current) return false;
     mutation.current = true; setBusy(true); setFeedback("");
-    try { await operation(); setFeedback(success); }
+    let confirmed = false;
+    try {
+      const result = object(await operation()); confirmed = true;
+      setFeedback(["requires-god-ruling", "partially-applied"].includes(String(result.status)) ? "A specific G.O.D. ruling is needed. Use the next combat input to open it."
+        : result.status === "awaiting-response" ? "A response must be resolved before applying this result."
+        : result.status === "awaiting-completion" ? "The defense added Initiative. The remaining timing must finish before consequences apply." : success);
+    }
     catch (error) { setFeedback(error instanceof Error ? error.message : "The command could not be confirmed. Inspect the current state before retrying."); }
     finally { mutation.current = false; setBusy(false); await reload(); }
-  }
+    return confirmed;
+  }, [reload]);
   const selected = data.projection?.entities.find((entity) => entity.participantId === selectedId);
   const selectedRoster = data.roster.find((entry) => entry.participantId === selectedId);
   const information = data.information?.entity.participantId === selectedId ? data.information : null;
-  const disabled = busy || stale || connection !== "live" || data.pause.frozen || !!data.projection?.closed;
+  const disabled = busy || loading || stale || connection !== "live" || data.pause.frozen || !!data.projection?.closed;
   const back = scope.role === "god" ? `/heavens/tabletop?campaign=${data.context.campaignId}&session=${data.context.sessionId}&scene=${data.context.sceneId}&workspace=scenes&encounter=${scope.encounterId}` : `/realms/tabletop?character=${scope.characterId}`;
   const declarations = data.projection?.declarations ?? [];
-  function choose(id: number) { selectedRef.current = id; setSelectedId(id); void reload(id); }
+  const choose = useCallback((id: number) => { selectedRef.current = id; setSelectedId(id); void reload(id); }, [reload]);
+  const followNextInput = useCallback(async () => {
+    switch (nextInput.kind) {
+      case "inspect":
+        choose(nextInput.participantId);
+        setCommand(nextInput.focus === "response" ? "Defend" : "Attack");
+        setFocus((previous) => ({ participantId: nextInput.participantId, kind: nextInput.focus, planId: nextInput.planId, sequence: (previous?.sequence ?? 0) + 1 }));
+        break;
+      case "resolve": return run(() => nextInput.firearmId ? applyCombatFirearmResult(scope, nextInput.firearmId) : applyCombatResult(scope, nextInput.declarationId), "Completed result reconciled. The next combat input is ready.");
+      case "advance": return run(() => advanceEncounterInitiativeTimeline(scope.encounterId, data.projection!.stateToken), "Combat advanced to the next engine event.");
+      case "round": return run(() => advanceEncounterInitiativeRound(scope.encounterId, false, data.projection!.stateToken), "Next round started with preserved pending work and debt.");
+      case "trigger": return run(() => commitCombatFirearmTrigger(scope, nextInput.attackId), "Firing committed with the original declaration Roll.");
+    }
+  }, [choose, data.projection, nextInput, run, scope]);
+  useEffect(() => {
+    if (!automatic || scope.role !== "god" || disabled || !operations) return;
+    const key = automaticCombatInputKey(nextInput, data.projection!.stateToken);
+    if (!key || automaticAttempts.current.has(key)) return;
+    let active = true;
+    void Promise.resolve().then(async () => {
+      if (!active || mutation.current || automaticAttempts.current.has(key)) return;
+      automaticAttempts.current.add(key);
+      // A fresh authorized read is required between events. Failed/stale requests
+      // stop automation and require the G.O.D. to deliberately restart it.
+      if (await followNextInput() === false) setAutomatic(false);
+    });
+    return () => { active = false; };
+  }, [automatic, scope.role, disabled, operations, nextInput, data.projection, followNextInput]);
   return <main className={styles.page} data-combat-screen={scope.role}>
     <header className={styles.header}><div><p className={styles.eyebrow}>SERRIAN TIDE · {scope.role === "god" ? "G.O.D." : "PLAYER"} COMBAT</p><h1>{data.title}</h1></div><div className={styles.bar}>
       <TabletopLiveRefresh {...(scope.role === "god" ? { mode: "god" as const, campaignId: data.context.campaignId } : { mode: "player" as const, characterId: scope.characterId, scope: "console" as const })} onRefresh={() => void reload()} onStatus={setConnection} />
@@ -83,7 +140,12 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
     <p className={`${styles.notice} ${data.pause.frozen ? styles.paused : ""}`} role="status">{combatMessage(combatScreenPrompt(data, selected))}</p>
     {connection === "reconnecting" || stale ? <p className={`${styles.notice} ${styles.error}`} role="alert">Connection interrupted. The last information stays visible. Commands wait for a fresh server response; nothing will be resubmitted automatically.</p> : null}
     {feedback ? <p className={styles.notice} role="status">{combatMessage(feedback)}</p> : null}
-    <div className={styles.layout}>
+    {scope.role === "god" && data.projection && !data.projection.closed ? <section className={`${styles.notice} ${styles.nextInput}`} aria-label="Next combat input"><div><h2>Next combat input</h2><p>{combatMessage(nextInput.explanation)}</p></div>
+      {nextInput.kind !== "wait" ? <button className="st-button is-primary" disabled={disabled} onClick={followNextInput}>{nextInput.label}</button> : null}
+      <label className={styles.check}><input type="checkbox" checked={automatic} onChange={(event) => { if (event.target.checked) automaticAttempts.current.clear(); setAutomatic(event.target.checked); }} /> Automatic flow</label><p className={styles.muted}>{automatic ? "Routine timing and results run automatically. Waiting for choices, responses, rulings, or the next round." : "Enable Automatic flow to run routine timing and results, stopping for choices and rulings."}</p>
+    </section> : null}
+    <div className={scope.role === "player" ? styles.playerLayout : styles.layout}>
+      {scope.role === "god" ? <>
       <section className={styles.window} aria-label="Combatants"><div className={styles.bar}><h2>{scope.role === "god" ? "Combatants" : "Targets"}</h2>{data.projection ? <span className={styles.muted}>Round {data.projection.runtime.roundNumber} · Initiative {data.projection.runtime.timelineInitiative}</span> : null}</div>
         <div className={styles.cards}>{data.roster.map((entry) => {
           const entity = data.projection?.entities.find(({ participantId }) => participantId === entry.participantId);
@@ -95,13 +157,14 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
           </button>;
         })}</div>{!data.roster.length ? <p className={styles.muted}>The encounter roster is empty. Add combatants below.</p> : null}
       </section>
+      </> : null}
       <section className={styles.window} aria-label="Selected combatant detail"><h2>{selected?.name ?? selectedRoster?.name ?? "Select a combatant"}</h2>
         {selected ? <p className={styles.muted}>{selected.condition.status === "able" ? selected.participation.departed ? `Withdrawn: ${selected.participation.reason}` : "In combat" : combatMessage(selected.condition.reason)} · {selected.canControl ? "You control this combatant." : "Its Player chooses its actions."}</p> : null}
         {information ? <CombatResources information={information} /> : <p className={styles.muted}>{loading ? "Loading information…" : "Information becomes available after Initiative enrollment."}</p>}
         {selected?.currentAction ? <p className={styles.notice}>{selected.currentAction.label}: {selected.currentAction.remaining} Initiative remaining; expected finish {selected.currentAction.expectedFinish}.</p> : null}
         <nav className={styles.commands} aria-label="Combat commands">{COMBAT_COMMANDS.map((entry) => <button className="st-button" key={entry} aria-pressed={command === entry} onClick={() => setCommand(entry)}>{entry}</button>)}</nav>
-        {selected ? <CommandPanel scope={scope} entity={selected} data={data} command={command} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /> : <p>Initialize Initiative to choose combat actions.</p>}
-        {selected ? <OperationPanel scope={scope} data={data} entity={selected} disabled={busy || stale || connection !== "live" || data.pause.frozen} refresh={() => reload()} /> : null}
+        <div ref={commandRef} tabIndex={-1}>{selected ? <CommandPanel scope={scope} entity={selected} data={data} command={command} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /> : <p>Initialize Initiative to choose combat actions.</p>}</div>
+        <div ref={operationRef} tabIndex={-1}>{selected ? <OperationPanel scope={scope} data={data} entity={selected} operations={operationRead?.value ?? null} focus={focus} disabled={busy || loading || stale || connection !== "live" || data.pause.frozen || !operations} refresh={() => reload()} /> : null}</div>
         {scope.role === "god" && !data.projection?.closed ? <details><summary>Roster &amp; combat setup</summary>
           <CreaturePicker encounterId={scope.encounterId} initialized={data.initialized} disabled={disabled} onAdded={() => reload()} />
           <div className={styles.fields}><label className="st-field">Add from Scene<select className="st-control" value={arrival} onChange={(event) => setArrival(event.target.value)}><option value="">Choose a Character or NPC</option>{data.setup?.selectedEncounter?.availableSceneMembers.map((entry) => <option key={entry.characterId} value={entry.characterId}>{entry.name}</option>)}</select></label></div>
@@ -112,7 +175,7 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
         </details> : null}
       </section>
     </div>
-    <section className={`${styles.window} ${styles.activity}`} aria-label="Combat activity"><h2>Recent activity</h2>{!declarations.length ? <p className={styles.muted}>No revealed actions yet.</p> : <ol>{declarations.slice(-5).reverse().map((entry) => <li key={entry.id}><strong>{entry.actorName}: {entry.lockedSnapshot?.label ?? entry.draft.label}</strong> · {entry.status.replaceAll("-", " ")}{entry.timing ? ` · ${entry.timing.remainingInitiativeCost} Initiative remaining` : ""}</li>)}</ol>}
+    <section className={`${styles.window} ${styles.activity}`} aria-label="Combat activity"><h2>Recent activity</h2>{!declarations.length ? <p className={styles.muted}>No revealed actions yet.</p> : <ol>{declarations.slice(-5).reverse().map((entry) => <li key={entry.id}><strong>{entry.actorName}: {entry.lockedSnapshot?.label ?? entry.draft.label}</strong> · {combatActionStatus(entry)}{entry.timing ? ` · ${entry.timing.remainingInitiativeCost} Initiative remaining` : ""}</li>)}</ol>}
       <details><summary>Full authorized history</summary><ol>{declarations.flatMap((entry) => entry.events.map((event) => <li key={event.id}><strong>{entry.actorName} · {entry.lockedSnapshot?.label ?? entry.draft.label}</strong>: {combatMessage(event.reason || event.toStatus.replaceAll("-", " "))}</li>))}</ol></details>
     </section>
   </main>;

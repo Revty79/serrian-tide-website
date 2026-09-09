@@ -215,6 +215,7 @@ async function loadInitiativeEngine(
       actionKind: campaignSessionEncounterPendingAction.actionKind,
       allowsMultiRound: campaignSessionEncounterPendingAction.allowsMultiRound,
       originalInitiativeCost: campaignSessionEncounterPendingAction.originalInitiativeCost,
+      additionalInitiativeCost: campaignSessionEncounterPendingAction.additionalInitiativeCost,
       initiativeSpent: campaignSessionEncounterPendingAction.initiativeSpent,
       remainingInitiativeCost: campaignSessionEncounterPendingAction.remainingInitiativeCost,
       startInitiative: campaignSessionEncounterPendingAction.startInitiative,

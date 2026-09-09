@@ -128,7 +128,7 @@ test("only possessed Derived Abilities are projected without acquisition mutatio
 test("one console-scoped event stream reloads authoritative state and cleans up", () => {
   assert.equal((workspace.match(/TabletopLiveRefresh/g) ?? []).length, 2);
   assert.match(workspace, /scope="console"/);
-  assert.match(liveClient, /source\.close\(\)/);
+  assert.match(liveClient, /source(?:\?|)\.close\(\)/);
   assert.match(liveClient, /clearTimeout/);
   assert.match(liveRoute, /consoleScope \? null/);
 });

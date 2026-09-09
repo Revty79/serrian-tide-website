@@ -9,7 +9,8 @@ import { lockPlayerCombatContextInTransaction, readGodCombatRulingRequestsInTran
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
 import { readActionEffectWorkspaceInTransaction, applyRoutineCombatConsequencesInTransaction, ruleOrdinaryAttackConsequenceInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { readDefenseInterventionWorkspaceInTransaction, resolveDeclaredDefensesIfReadyInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
-import { readFirearmAttackWorkspaceInTransaction, commitFirearmAttackTriggerInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
+import { readFirearmAttackWorkspaceInTransaction, commitFirearmAttackTriggerInTransaction, fireFirearmAttackInTransaction, finalizeFirearmAttackConsequencesInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
+import { campaignSessionEncounterFirearmAttack as firearmAttack, campaignSessionRoll as combatRoll, campaignSessionEncounterPendingAction as pending } from "@/db/tabletop-operations-schema";
 import { readRollLedgerInTransaction } from "@/features/tabletop-operations/roll-runtime-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { lockEncounterCloseoutContextInTransaction, readEncounterCloseoutInTransaction, finalizeEncounterCloseoutInTransaction, type FinalizeEncounterCloseoutInput } from "@/features/tabletop-operations/encounter-closeout-service";
@@ -42,7 +43,7 @@ export async function readCombatOperations(scope: CombatScreenScope) {
     const requests = actor.authority === "god-owner" && !sealed ? await readGodCombatRulingRequestsInTransaction(tx, context.encounterId) : [];
     return { rolls: rolls.rolls, sealed: !!sealed, plans: actor.authority === "god-owner" ? effects?.plans ?? [] : [], defenses, firearms, requests,
       outcomes: effects?.plans.flatMap((plan) => plan.effects.filter((effect) => actor.authority === "god-owner" || plan.actorParticipantId === actor.characterId || effect.targetParticipantId === actor.characterId).map((effect) => ({ id: effect.id, actor: plan.actorName, target: effect.targetName,
-        label: plan.sourceSnapshot.displayName, status: effect.status, appliedAt: effect.appliedAt, amount: typeof effect.finalValue === "number" ? effect.finalValue : typeof object(effect.finalValue).netDamage === "number" ? Number(object(effect.finalValue).netDamage) : null }))) ?? [] };
+        label: plan.sourceSnapshot.displayName, status: effect.status, appliedAt: effect.appliedAt, amount: typeof effect.finalValue === "number" ? effect.finalValue : typeof object(effect.finalValue).netDamage === "number" ? Number(object(effect.finalValue).netDamage) : typeof object(object(effect.finalValue).effect).amount === "number" ? Number(object(object(effect.finalValue).effect).amount) : null }))) ?? [] };
   });
 }
 export async function readCombatRecoveryConditions(encounterId: number, participantId: number) {
@@ -69,6 +70,22 @@ export async function applyCombatAttackRuling(encounterId: number, planId: numbe
 }
 export async function commitCombatFirearmTrigger(scope: CombatScreenScope, attackId: number) {
   return authorized(scope, (tx, context, actor) => commitFirearmAttackTriggerInTransaction(tx, context, actor, attackId), true);
+}
+export async function applyCombatFirearmResult(scope: CombatScreenScope, attackId: number) {
+  return authorized(scope, async (tx, context, actor) => {
+    const [attack] = await tx.select().from(firearmAttack).where(and(eq(firearmAttack.id, attackId), eq(firearmAttack.encounterId, context.encounterId))).for("update");
+    if (!attack?.triggerPendingActionId) throw new Error("This firearm has no committed firing action.");
+    const [recorded] = await tx.select({ id: combatRoll.id }).from(combatRoll).where(and(eq(combatRoll.pendingActionId, attack.triggerPendingActionId), eq(combatRoll.status, "recorded"))).limit(1);
+    if (!recorded && !attack.attackRollId) throw new Error("The original declaration Roll is required; resolving a result cannot create another Roll.");
+    const receipt = await fireFirearmAttackInTransaction(tx, context, actor, attack.id, { method: "random" });
+    if (receipt.waitingForDefenseRolls) return { status: "awaiting-response" };
+    let planId = receipt.effectPlanId;
+    if (planId === null && receipt.status === "fired-awaiting-timing" && actor.authority === "god-owner") {
+      const [timing] = await tx.select().from(pending).where(eq(pending.id, attack.triggerPendingActionId));
+      if (timing?.status === "completed") planId = await finalizeFirearmAttackConsequencesInTransaction(tx, context, actor.userId, attack.id);
+    }
+    return planId === null ? { status: "awaiting-completion" } : applyRoutineCombatConsequencesInTransaction(tx, context, actor, attack.triggerDeclarationId, planId);
+  }, true);
 }
 export async function confirmCombatEffectRuling(encounterId: number, planId: number, reason: string) {
   return authorized({ role: "god", encounterId }, async (tx, context, actor) => {
