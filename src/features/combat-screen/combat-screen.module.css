@@ -1,7 +1,7 @@
 .page { max-width: 1180px; margin: 0 auto; padding: clamp(.7rem, 2vw, 1.7rem); color: var(--st-text); font-family: var(--font-geist-sans), sans-serif; }
 .playerLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-.page *, .library * { box-sizing: border-box; min-width: 0; }
-.page h1, .page h2, .page h3, .library h2 { color: var(--st-text-strong); margin: 0; font-family: inherit; }
+.page * { box-sizing: border-box; min-width: 0; }
+.page h1, .page h2, .page h3 { color: var(--st-text-strong); margin: 0; font-family: inherit; }
 .page h1 { font-size: clamp(1.3rem, 2vw, 1.9rem); } .page h2 { font-size: 1.08rem; } .page h3 { font-size: .95rem; }
 .header, .bar, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; }
 .header { justify-content: space-between; margin-bottom: 1rem; }
@@ -35,8 +35,5 @@
 .page details { margin-block: .7rem; } .page summary { cursor: pointer; }
 .activity { margin-top: 1rem; } .activity ol { padding-left: 1.2rem; } .activity li { padding: .3rem 0; font-size: .85rem; }
 .activity details { margin-top: .7rem; } .activity summary { cursor: pointer; color: var(--st-text-secondary); }
-.library { padding: 1rem; border: 1px solid var(--st-border); background: var(--st-surface); border-radius: 5px; margin-top: 1rem; }
-.library a { color: var(--st-text-secondary); } .library ul { display: grid; gap: .5rem; list-style: none; padding: 0; }
-.library li { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--st-border); padding: .5rem 0; }
 @media (max-width: 720px) { .layout { grid-template-columns: minmax(0, 1fr); } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 280px; } .window { padding: .8rem; } }
 @media (max-width: 390px) { .commands { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cards { grid-template-columns: minmax(0, 1fr); } }

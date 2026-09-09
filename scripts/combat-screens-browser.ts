@@ -10,6 +10,7 @@ async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
 const artifacts = path.resolve("artifacts/combat-screens");
 await mkdir(artifacts, { recursive: true });
+const resultPath = path.join(artifacts, process.env.COMBAT_SCREEN_CASE_FILTER ? `results-${process.env.COMBAT_SCREEN_CASE_FILTER.replace(/[^a-z0-9_-]/gi, "_")}.json` : "results.json");
 const listener = createServer(); await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
 const address = listener.address(); assert.ok(address && typeof address === "object"); const port = address.port;
 await new Promise<void>((resolve) => listener.close(() => resolve()));
@@ -82,7 +83,11 @@ try {
     await library.getByText("Add Creatures", { exact: true }).click();
     await library.getByRole("combobox", { name: /^Creature/ }).selectOption(String(f.templateId));
     await library.getByRole("button", { name: "Add Creatures to Encounter", exact: true }).click();
-    await library.getByText("Fixture Goblin 1 · Encounter Creature", { exact: true }).waitFor();
+    await library.locator(".tabletop-scene-member").filter({ hasText: "Fixture Goblin 1" }).getByText("Encounter Creature", { exact: true }).waitFor();
+    await library.screenshot({ path: path.join(artifacts, "encounter-library-desktop.png") });
+    await director.setViewportSize({ width: 390, height: 844 });
+    await library.screenshot({ path: path.join(artifacts, "encounter-library-narrow.png") });
+    await director.setViewportSize({ width: 1365, height: 1000 });
     await library.getByRole("link", { name: "Open Combat", exact: true }).click();
     await screen(director).getByText("Live", { exact: true }).waitFor();
     await screen(director).getByText("Roster & combat setup", { exact: true }).click();
@@ -382,14 +387,14 @@ try {
     await director.context().close(); await participant.context().close();
   }
   assert.deepEqual(errors, [], "No browser runtime errors");
-  await writeFile(path.join(artifacts, "results.json"), JSON.stringify({ passed: results, errors }, null, 2));
+  await writeFile(resultPath, JSON.stringify({ passed: results, errors }, null, 2));
   console.log(JSON.stringify({ passed: results }, null, 2));
 } catch (error) {
   for (const [index, context] of (browser?.contexts() ?? []).entries()) for (const [pageIndex, page] of context.pages().entries()) {
     await page.screenshot({ path: path.join(artifacts, `failure-${index}-${pageIndex}.png`), fullPage: true }).catch(() => {});
     await writeFile(path.join(artifacts, `failure-${index}-${pageIndex}.txt`), await page.locator("body").innerText().catch(() => "unreadable"));
   }
-  await writeFile(path.join(artifacts, "results.json"), JSON.stringify({ passed: results, errors, failure: String(error) }, null, 2));
+  await writeFile(resultPath, JSON.stringify({ passed: results, errors, failure: String(error) }, null, 2));
   throw error;
 } finally {
   await browser?.close();

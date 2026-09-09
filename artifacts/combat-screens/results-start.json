@@ -1,0 +1,6 @@
+{
+  "passed": [
+    "Scene → Encounter setup adds Characters and a direct Creature, starts and initializes combat, and lets the G.O.D. command the NPC and Creature."
+  ],
+  "errors": []
+}
