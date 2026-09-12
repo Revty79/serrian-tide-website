@@ -1,0 +1,44 @@
+{
+  "date": "2026-09-12",
+  "scope": "Six-attribute Skill workbook reconciliation in localhost/serrian_tide_dev",
+  "focusedTests": {
+    "command": "node --import tsx --test src/features/skills/recursive-skill-library.test.ts src/features/items/weapon-skill-governance.test.ts src/features/characters/character-creation.test.ts",
+    "passed": 38,
+    "failed": 0,
+    "timing": "Before database application; fixture-based application regression tests"
+  },
+  "eslint": {
+    "command": "npx.cmd eslint scripts/audit-skill-rebuild.mjs scripts/prepare-skill-rebuild-plan.mjs scripts/reconcile-six-attribute-skills.mjs scripts/verify-six-attribute-skill-hierarchy.ts",
+    "exitCode": 0
+  },
+  "typecheck": {
+    "command": "npx.cmd tsc --noEmit --incremental false",
+    "exitCode": 0
+  },
+  "liveDataValidation": {
+    "applicationReport": "application.json",
+    "postCommitReadOnlyReport": "verification.json",
+    "applicationCanonicalPathReport": "hierarchy-verification.json",
+    "workbookRecordsMatched": 637,
+    "canonicalPathsVerified": 637,
+    "remainingChangesWithinWorkbookMap": 0,
+    "additionalDexRecordsPreservedForReview": 28,
+    "duplicateNameGroupsAcrossMappedAndExtraRecords": 5
+  },
+  "publicationCleanup": {
+    "date": "2026-09-12",
+    "eslintExitCode": 0,
+    "typecheckExitCode": 0,
+    "existingMapOverwriteGuard": "Passed: preparation refused the existing file with EEXIST; canonical map bytes unchanged",
+    "review": "12 intended files reviewed; no credential-pattern findings; raw database backup and extraction/audit cache excluded",
+    "databaseOperations": "None; earlier application and verification evidence preserved",
+    "broadTestsOrBrowserRunsRepeated": false
+  },
+  "limits": {
+    "humanAcceptance": "Pending",
+    "extraDexRecordDisposition": "Pending; no archival, merging, deletion, or replacement mapping was inferred",
+    "broadBrowserRun": "Not run",
+    "production": "Not inspected or modified; deployment status unknown",
+    "backupRestoreRehearsal": "Not run; archive listing and complete archive decode passed"
+  }
+}

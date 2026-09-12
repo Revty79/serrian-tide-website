@@ -1,0 +1,80 @@
+{
+  "checkedAt": "2026-09-12T20:01:12.569Z",
+  "database": "serrian_tide_dev",
+  "transaction": "read only",
+  "sourceSha256": "93d81f4294fef756fc53c0c442a2ea4065b6fccb3789ed0c41a4a5bbb5620181",
+  "matchedWorkbookRecords": 637,
+  "verifiedCanonicalPaths": 637,
+  "attributeTierCounts": {
+    "STR": [
+      6,
+      18,
+      54
+    ],
+    "DEX": [
+      10,
+      34,
+      99
+    ],
+    "CON": [
+      7,
+      21,
+      63
+    ],
+    "INT": [
+      8,
+      24,
+      72
+    ],
+    "WIS": [
+      9,
+      27,
+      81
+    ],
+    "CHA": [
+      8,
+      24,
+      72
+    ]
+  },
+  "brokenGraphReasons": [],
+  "duplicateNamesStillForHumanReview": [
+    {
+      "name": "air-powered weapons",
+      "ids": [
+        139,
+        1155
+      ]
+    },
+    {
+      "name": "aircraft",
+      "ids": [
+        167,
+        1163
+      ]
+    },
+    {
+      "name": "firearms",
+      "ids": [
+        136,
+        1139
+      ]
+    },
+    {
+      "name": "rifles",
+      "ids": [
+        137,
+        1141
+      ]
+    },
+    {
+      "name": "shotguns",
+      "ids": [
+        138,
+        1142
+      ]
+    }
+  ],
+  "humanAcceptance": "Not performed",
+  "production": "Not inspected or modified"
+}

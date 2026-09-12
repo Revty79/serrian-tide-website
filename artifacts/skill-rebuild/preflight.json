@@ -1,0 +1,127 @@
+{
+  "checkedAt": "2026-09-12T19:58:52.189Z",
+  "database": "serrian_tide_dev",
+  "sourceFile": "Serrian_Tide_FINAL_Skill_Rebuild_ALL_6_ATTRIBUTES.xlsx",
+  "sourceSha256": "93d81f4294fef756fc53c0c442a2ea4065b6fccb3789ed0c41a4a5bbb5620181",
+  "mode": "read-only",
+  "status": "ready",
+  "targetSkillCount": 637,
+  "skillCountBefore": 1166,
+  "changedFieldCounts": {
+    "name": 447,
+    "tier": 0,
+    "definition": 637
+  },
+  "parentChanges": [
+    {
+      "relationshipId": 1060,
+      "skillId": 135,
+      "from": 1139,
+      "to": 136
+    },
+    {
+      "relationshipId": 1080,
+      "skillId": 139,
+      "from": 1155,
+      "to": 132
+    },
+    {
+      "relationshipId": 1189,
+      "skillId": 167,
+      "from": 1163,
+      "to": 166
+    },
+    {
+      "relationshipId": 1135,
+      "skillId": 182,
+      "from": 192,
+      "to": 179
+    },
+    {
+      "relationshipId": 1201,
+      "skillId": 208,
+      "from": 207,
+      "to": 205
+    },
+    {
+      "relationshipId": 262,
+      "skillId": 284,
+      "from": 913,
+      "to": 283
+    },
+    {
+      "relationshipId": 263,
+      "skillId": 285,
+      "from": 913,
+      "to": 283
+    },
+    {
+      "relationshipId": 264,
+      "skillId": 286,
+      "from": 913,
+      "to": 283
+    }
+  ],
+  "newSkills": 0,
+  "deletedSkills": 0,
+  "newRelationships": 0,
+  "additionalDexSkillIdsPreserved": [
+    1139,
+    1140,
+    1141,
+    1142,
+    1143,
+    1144,
+    1145,
+    1146,
+    1147,
+    1148,
+    1149,
+    1150,
+    1151,
+    1152,
+    1153,
+    1154,
+    1155,
+    1156,
+    1157,
+    1158,
+    1159,
+    1160,
+    1161,
+    1162,
+    1163,
+    1164,
+    1165,
+    1166
+  ],
+  "nameCollisionsForHumanReview": [
+    {
+      "targetId": 136,
+      "finalName": "Firearms",
+      "otherId": 1139
+    },
+    {
+      "targetId": 137,
+      "finalName": "Rifles",
+      "otherId": 1141
+    },
+    {
+      "targetId": 138,
+      "finalName": "Shotguns",
+      "otherId": 1142
+    },
+    {
+      "targetId": 139,
+      "finalName": "Air-Powered Weapons",
+      "otherId": 1155
+    },
+    {
+      "targetId": 167,
+      "finalName": "Aircraft",
+      "otherId": 1163
+    }
+  ],
+  "humanAcceptance": "Pending: workbook target mapping and extra DEX records need a human walkthrough. Automated validation does not accept these rules on the user's behalf.",
+  "productionStatus": "Not inspected or modified. Not pushed or deployed."
+}
