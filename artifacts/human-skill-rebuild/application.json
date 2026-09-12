@@ -1,0 +1,1487 @@
+{
+  "checkedAt": "2026-09-12T21:32:48.461Z",
+  "database": "serrian_tide_dev",
+  "sourceSha256": "7dd476986b5b56dae6c579a7580f1650e32d53818ca2dbadb11ff7fb9634108f",
+  "sqlSha256": "cadc9a2bb7379b78766dc2d178b400aadc7dbf4bbabeca063857f63cefa21ba8",
+  "status": "applied-and-verified",
+  "targetSkillCount": 637,
+  "activeStandardSkillCount": 637,
+  "skillCountBefore": 1166,
+  "skillCountAfter": 1166,
+  "newSkills": 0,
+  "deletedSkills": 0,
+  "changedFieldCounts": {
+    "name": 504,
+    "tier": 193,
+    "primaryAttribute": 113,
+    "secondaryAttribute": 0,
+    "definition": 637
+  },
+  "parentOperations": {
+    "insert": 30,
+    "update": 460,
+    "delete": 23
+  },
+  "relationshipCountBefore": 1051,
+  "relationshipCountAfter": 1058,
+  "extraDisposition": "archived; existing IDs, definitions, source identities, relationships and history preserved",
+  "archivedSkillIds": [
+    1139,
+    1140,
+    1141,
+    1142,
+    1143,
+    1144,
+    1145,
+    1146,
+    1147,
+    1148,
+    1149,
+    1150,
+    1151,
+    1152,
+    1153,
+    1154,
+    1155,
+    1156,
+    1157,
+    1158,
+    1159,
+    1160,
+    1161,
+    1162,
+    1163,
+    1164,
+    1165,
+    1166
+  ],
+  "activeDuplicateNames": [],
+  "protectedNonStandardSkillRowsUnchanged": 501,
+  "extensionRowsUnchanged": 742,
+  "unrelatedTablesUnchanged": 146,
+  "characterAllocationsUnchanged": 53,
+  "allocationsRequiringHumanReview": [
+    {
+      "allocationId": 89,
+      "characterId": 12,
+      "skillId": 313,
+      "points": 0,
+      "currentName": "Research & Analysis",
+      "finalName": "Process Engineering",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 312,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 90,
+      "characterId": 12,
+      "skillId": 391,
+      "points": 0,
+      "currentName": "Tactical Planning",
+      "finalName": "Astrophysics",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 389,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 91,
+      "characterId": 12,
+      "skillId": 378,
+      "points": 0,
+      "currentName": "Language, Codes & Symbols",
+      "finalName": "Biochemistry",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 374,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 92,
+      "characterId": 12,
+      "skillId": 326,
+      "points": 0,
+      "currentName": "Engineering",
+      "finalName": "Network Security",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 325,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 93,
+      "characterId": 12,
+      "skillId": 352,
+      "points": 0,
+      "currentName": "Medicine",
+      "finalName": "Orthopedic Surgery",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 350,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 199,
+      "characterId": 7,
+      "skillId": 499,
+      "points": 0,
+      "currentName": "Navigation",
+      "finalName": "Working Animals",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 492,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 203,
+      "characterId": 7,
+      "skillId": 557,
+      "points": 10,
+      "currentName": "Deception",
+      "finalName": "Individual Motivation",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 556,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 210,
+      "characterId": 7,
+      "skillId": 326,
+      "points": 0,
+      "currentName": "Engineering",
+      "finalName": "Network Security",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 325,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 211,
+      "characterId": 7,
+      "skillId": 313,
+      "points": 0,
+      "currentName": "Research & Analysis",
+      "finalName": "Process Engineering",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 312,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 338,
+      "characterId": 14,
+      "skillId": 313,
+      "points": 0,
+      "currentName": "Research & Analysis",
+      "finalName": "Process Engineering",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 312,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 339,
+      "characterId": 14,
+      "skillId": 391,
+      "points": 0,
+      "currentName": "Tactical Planning",
+      "finalName": "Astrophysics",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 389,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 340,
+      "characterId": 14,
+      "skillId": 378,
+      "points": 0,
+      "currentName": "Language, Codes & Symbols",
+      "finalName": "Biochemistry",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 374,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 341,
+      "characterId": 14,
+      "skillId": 326,
+      "points": 0,
+      "currentName": "Engineering",
+      "finalName": "Network Security",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 325,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 342,
+      "characterId": 14,
+      "skillId": 352,
+      "points": 0,
+      "currentName": "Medicine",
+      "finalName": "Orthopedic Surgery",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 350,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 359,
+      "characterId": 19,
+      "skillId": 512,
+      "points": 0,
+      "currentName": "Herbalism",
+      "finalName": "Policy Analysis",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 415,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 361,
+      "characterId": 19,
+      "skillId": 473,
+      "points": 0,
+      "currentName": "Animal Handling",
+      "finalName": "Infrastructure Navigation",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 471,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 362,
+      "characterId": 19,
+      "skillId": 499,
+      "points": 0,
+      "currentName": "Navigation",
+      "finalName": "Working Animals",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 492,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 367,
+      "characterId": 19,
+      "skillId": 248,
+      "points": 5,
+      "currentName": "Biological Resistance",
+      "finalName": "Hypoxic Training",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 246,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 368,
+      "characterId": 19,
+      "skillId": 274,
+      "points": 5,
+      "currentName": "Trauma Tolerance",
+      "finalName": "Thrown Entangling Weapons",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 140,
+      "finalParentAlreadyAllocated": false
+    },
+    {
+      "allocationId": 371,
+      "characterId": 19,
+      "skillId": 261,
+      "points": 5,
+      "currentName": "Environmental Tolerance",
+      "finalName": "Pain Management",
+      "existingParentSkillId": null,
+      "finalParentSkillId": 260,
+      "finalParentAlreadyAllocated": false
+    }
+  ],
+  "backup": {
+    "path": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-human-skills-PHnz3G\\serrian_tide_dev.dump",
+    "bytes": 1560126,
+    "sha256": "37de7d1f0a566afa555603804d124453f21ea3f3a02588307a2ce37ea73f3550",
+    "archiveListingVerified": true,
+    "fullArchiveDecodeVerified": true,
+    "restoreRehearsalRun": false,
+    "catalogSnapshotPath": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-human-skills-PHnz3G\\catalog-before.json",
+    "catalogSnapshotSha256": "a17519fd092dd8b411a3d6736d6a67c38793db0f2bd97b1ea4d4d0d869b88117"
+  },
+  "beforeTables": {
+    "drizzle.__drizzle_migrations": {
+      "count": 49,
+      "hash": "0ee5538a169e164e068e98f3ac28a3c7"
+    },
+    "public.account": {
+      "count": 6,
+      "hash": "4ad7842fabf074660bfdeb7ca85fb148"
+    },
+    "public.armor_location_reference": {
+      "count": 10,
+      "hash": "7881594b5d0640c2815bf2b90a96ef85"
+    },
+    "public.armor_locations": {
+      "count": 204,
+      "hash": "23888e2a483ef333a6c6f4ed846edd97"
+    },
+    "public.armor_profiles": {
+      "count": 47,
+      "hash": "bc78954f0c6098b4de851649f0cb65de"
+    },
+    "public.attribute_score_reference": {
+      "count": 400,
+      "hash": "013ae43f5bd76e9a07395d6cc33b5e64"
+    },
+    "public.campaign": {
+      "count": 4,
+      "hash": "31b6ea8538e22a991245c4910e28883d"
+    },
+    "public.campaign_allowed_derived_ability": {
+      "count": 6,
+      "hash": "a7b9926752a92923ffc2f3ac832132fa"
+    },
+    "public.campaign_allowed_race": {
+      "count": 45,
+      "hash": "d22dab0b6f09c3d6a497e4a256c9c362"
+    },
+    "public.campaign_allowed_system": {
+      "count": 27,
+      "hash": "3139d8e624f0c8b2218b8e9d9843c3c1"
+    },
+    "public.campaign_character": {
+      "count": 10,
+      "hash": "d39786895b02cae28215802378ed6fbd"
+    },
+    "public.campaign_character_active_condition": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_active_health": {
+      "count": 2,
+      "hash": "80f55d318861d45d76b394f3f7903bb2"
+    },
+    "public.campaign_character_active_health_pool": {
+      "count": 2,
+      "hash": "5efa1de546133b4f87a71da59f686dbc"
+    },
+    "public.campaign_character_active_mana": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_active_modifier": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_attribute": {
+      "count": 60,
+      "hash": "c7e213233f87069f09aec6603437dec5"
+    },
+    "public.campaign_character_currency_holding": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_firearm_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_firearm_preparation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_firearm_state": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_injury": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_item": {
+      "count": 28,
+      "hash": "84cd9031e4c3f5fdf9232a2a1741dfcf"
+    },
+    "public.campaign_character_item_equipment_state": {
+      "count": 4,
+      "hash": "5d3b0e2fc81121d98381080c50003625"
+    },
+    "public.campaign_character_item_instance": {
+      "count": 1,
+      "hash": "f7b6873dffd1052867d21fed31b50f41"
+    },
+    "public.campaign_character_profile": {
+      "count": 10,
+      "hash": "f1d095501108746a54a2dbaf0d4d14e3"
+    },
+    "public.campaign_character_skill_allocation": {
+      "count": 53,
+      "hash": "c99b6d7944713fa3c8850c3450a469c9"
+    },
+    "public.campaign_character_spell_document": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_weapon_override": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_creature_npc_profile": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_derived_currency": {
+      "count": 2,
+      "hash": "e9cff69a10fca29ea26b9c7aca2e1955"
+    },
+    "public.campaign_inventory_item": {
+      "count": 2018,
+      "hash": "33df3f2eab90c5671b30e9eef983d1b8"
+    },
+    "public.campaign_inventory_tag": {
+      "count": 10,
+      "hash": "fa7b46102da668b033fac95b6927ff71"
+    },
+    "public.campaign_player": {
+      "count": 9,
+      "hash": "d985c11525a917f4804d42ebe10d8321"
+    },
+    "public.campaign_session": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_called_check_batch": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_called_check_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_called_check_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_effect_duration_binding": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_action_declaration": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_action_declaration_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_declaration_checkpoint": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_effect": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_effect_plan": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_effect_plan_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_firearm_attack": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_firearm_attack_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_firearm_bullet": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_initiative": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_initiative_participant": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_participant": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_pending_action": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_pending_action_source": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reaction": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reaction_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_responder_opportunity": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reward": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reward_decision": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_high_low_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_high_low_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_player_ruling_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_player_ruling_request_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_prepared_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_prepared_town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_roll": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_roll_amendment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_roster": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_shop_visit": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_shop_visit_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town_npc": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town_place": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.challenge_rating_reference": {
+      "count": 50,
+      "hash": "c1e89c8bedbe37a68349a35a3e94a055"
+    },
+    "public.character_derived_ability": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.character_derived_ability_recharge": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.character_derived_ability_use": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.chat_message": {
+      "count": 6,
+      "hash": "6b01b4ac60f21aac16a64ff1cb293c8d"
+    },
+    "public.chat_room": {
+      "count": 5,
+      "hash": "46311b38cf1a9c54be97bf1beba469b1"
+    },
+    "public.chat_room_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creature_abilities": {
+      "count": 48,
+      "hash": "cd5cb3bcbefed0453b11a2f2ee3068bc"
+    },
+    "public.creature_ability_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creature_attacks": {
+      "count": 171,
+      "hash": "e93792e0b271d1f0b18d0dd19b5cda64"
+    },
+    "public.creature_attributes": {
+      "count": 552,
+      "hash": "5fc974b18d8c47f9785b47b44a13fffa"
+    },
+    "public.creature_defenses": {
+      "count": 23,
+      "hash": "d0f79f9d030886e943d53d8e04a2bd37"
+    },
+    "public.creature_hit_locations": {
+      "count": 850,
+      "hash": "04c316a6730b3aeb29e7fa78aa1d5da1"
+    },
+    "public.creature_hp_pools": {
+      "count": 564,
+      "hash": "d1a821c7df1908ab7095741a34c81c82"
+    },
+    "public.creature_movement": {
+      "count": 133,
+      "hash": "11739e9b0d9f7b0d376406b393b6841b"
+    },
+    "public.creature_skill_links": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creature_uses": {
+      "count": 38,
+      "hash": "638de5b0470fa44a9d7b049bacf65393"
+    },
+    "public.creature_variants": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creatures": {
+      "count": 92,
+      "hash": "f40be26abbf5cd82b299359757e29922"
+    },
+    "public.defense_skill_path_mapping": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability": {
+      "count": 6,
+      "hash": "2af7f5c102dd0fbd0072b9491e188467"
+    },
+    "public.derived_ability_cost": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability_effect": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability_requirement": {
+      "count": 6,
+      "hash": "d9d6916dcf192b4c057f941a900e9880"
+    },
+    "public.derived_ability_trigger": {
+      "count": 6,
+      "hash": "37876776c5be959a164bca5540c550a0"
+    },
+    "public.derived_ability_use_condition": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability_use_limit": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.firearm_magazine_attachment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.item_armor_damage_modifiers": {
+      "count": 128,
+      "hash": "47095c230d1b94b7f1404b28e34a1841"
+    },
+    "public.item_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.item_passive_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.item_properties": {
+      "count": 257,
+      "hash": "250fc32963ab2864a17b137b5d6cc35b"
+    },
+    "public.item_rules": {
+      "count": 16,
+      "hash": "f273d73c57a25500bc82a1b832bdba7c"
+    },
+    "public.item_runtime_profiles": {
+      "count": 10,
+      "hash": "7631713729588af38339a8d84eb832f8"
+    },
+    "public.item_tag_links": {
+      "count": 1265,
+      "hash": "d1502991a5650bc2162f988e1e5f8be5"
+    },
+    "public.item_tags_catalog": {
+      "count": 8,
+      "hash": "d13cabfcaf458ceaf80ae65530533b1a"
+    },
+    "public.items": {
+      "count": 1016,
+      "hash": "00f7e4f0fba67b4b615011c0af60f982"
+    },
+    "public.lifecycle_audit_event": {
+      "count": 7,
+      "hash": "2ce2b9d01082d2cd144dc6f7a377ff3b"
+    },
+    "public.magazine_ammunition": {
+      "count": 1,
+      "hash": "c724689c82d06bb563957d2624607b9a"
+    },
+    "public.magazine_inventory_operation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.magazine_profiles": {
+      "count": 1,
+      "hash": "2813e33086b7b590f05bb8b1b4d19a21"
+    },
+    "public.race_attribute_caps": {
+      "count": 336,
+      "hash": "6fe2acd16a930f37f3e42ffd947888fd"
+    },
+    "public.race_movement_modes": {
+      "count": 57,
+      "hash": "aab7fa867d925f150540cfcb3f3d7b51"
+    },
+    "public.race_skill_links": {
+      "count": 283,
+      "hash": "035ededed43e3f6cb4a4943a1f5af00e"
+    },
+    "public.races": {
+      "count": 56,
+      "hash": "4e265234a42c003617aa89f954cda2e2"
+    },
+    "public.session": {
+      "count": 112,
+      "hash": "3263be27980dc4f92d47be38b547a21d"
+    },
+    "public.shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_commerce_operation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_money_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_offering": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_resale_item_instance": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_staff_assignment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction_line": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction_request_line": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.site_appearance_setting": {
+      "count": 1,
+      "hash": "58bbe018f24698b40ee034a67f5330c1"
+    },
+    "public.skill": {
+      "count": 1166,
+      "hash": "68904144b83606881e51d2b1d8ed36b5"
+    },
+    "public.skill_extension": {
+      "count": 742,
+      "hash": "51289b33200403bc73302cddc2e0ec6c"
+    },
+    "public.skill_relationship": {
+      "count": 1051,
+      "hash": "54ae39f1ef39233cf2511a79fe24fadc"
+    },
+    "public.town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.town_npc_association": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.town_place": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.town_shop_membership": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.user": {
+      "count": 6,
+      "hash": "ccdf9aa9217a27da6330347f44a1a23c"
+    },
+    "public.user_role": {
+      "count": 12,
+      "hash": "8d5463cf8a0fd5bf7915edab1fe38ca5"
+    },
+    "public.verification": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.weapon_firing_modes": {
+      "count": 81,
+      "hash": "85f14aa8f7da19195998dddabc2bdfb4"
+    },
+    "public.weapon_magazines": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.weapon_profiles": {
+      "count": 222,
+      "hash": "64893cce67369e5bccec9dd0832aaa15"
+    },
+    "public.weapon_skill_path_mappings": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "afterTables": {
+    "drizzle.__drizzle_migrations": {
+      "count": 49,
+      "hash": "0ee5538a169e164e068e98f3ac28a3c7"
+    },
+    "public.account": {
+      "count": 6,
+      "hash": "4ad7842fabf074660bfdeb7ca85fb148"
+    },
+    "public.armor_location_reference": {
+      "count": 10,
+      "hash": "7881594b5d0640c2815bf2b90a96ef85"
+    },
+    "public.armor_locations": {
+      "count": 204,
+      "hash": "23888e2a483ef333a6c6f4ed846edd97"
+    },
+    "public.armor_profiles": {
+      "count": 47,
+      "hash": "bc78954f0c6098b4de851649f0cb65de"
+    },
+    "public.attribute_score_reference": {
+      "count": 400,
+      "hash": "013ae43f5bd76e9a07395d6cc33b5e64"
+    },
+    "public.campaign": {
+      "count": 4,
+      "hash": "31b6ea8538e22a991245c4910e28883d"
+    },
+    "public.campaign_allowed_derived_ability": {
+      "count": 6,
+      "hash": "a7b9926752a92923ffc2f3ac832132fa"
+    },
+    "public.campaign_allowed_race": {
+      "count": 45,
+      "hash": "d22dab0b6f09c3d6a497e4a256c9c362"
+    },
+    "public.campaign_allowed_system": {
+      "count": 27,
+      "hash": "3139d8e624f0c8b2218b8e9d9843c3c1"
+    },
+    "public.campaign_character": {
+      "count": 10,
+      "hash": "d39786895b02cae28215802378ed6fbd"
+    },
+    "public.campaign_character_active_condition": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_active_health": {
+      "count": 2,
+      "hash": "80f55d318861d45d76b394f3f7903bb2"
+    },
+    "public.campaign_character_active_health_pool": {
+      "count": 2,
+      "hash": "5efa1de546133b4f87a71da59f686dbc"
+    },
+    "public.campaign_character_active_mana": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_active_modifier": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_attribute": {
+      "count": 60,
+      "hash": "c7e213233f87069f09aec6603437dec5"
+    },
+    "public.campaign_character_currency_holding": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_firearm_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_firearm_preparation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_firearm_state": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_injury": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_item": {
+      "count": 28,
+      "hash": "84cd9031e4c3f5fdf9232a2a1741dfcf"
+    },
+    "public.campaign_character_item_equipment_state": {
+      "count": 4,
+      "hash": "5d3b0e2fc81121d98381080c50003625"
+    },
+    "public.campaign_character_item_instance": {
+      "count": 1,
+      "hash": "f7b6873dffd1052867d21fed31b50f41"
+    },
+    "public.campaign_character_profile": {
+      "count": 10,
+      "hash": "f1d095501108746a54a2dbaf0d4d14e3"
+    },
+    "public.campaign_character_skill_allocation": {
+      "count": 53,
+      "hash": "c99b6d7944713fa3c8850c3450a469c9"
+    },
+    "public.campaign_character_spell_document": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_character_weapon_override": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_creature_npc_profile": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_derived_currency": {
+      "count": 2,
+      "hash": "e9cff69a10fca29ea26b9c7aca2e1955"
+    },
+    "public.campaign_inventory_item": {
+      "count": 2018,
+      "hash": "33df3f2eab90c5671b30e9eef983d1b8"
+    },
+    "public.campaign_inventory_tag": {
+      "count": 10,
+      "hash": "fa7b46102da668b033fac95b6927ff71"
+    },
+    "public.campaign_player": {
+      "count": 9,
+      "hash": "d985c11525a917f4804d42ebe10d8321"
+    },
+    "public.campaign_session": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_called_check_batch": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_called_check_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_called_check_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_effect_duration_binding": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_action_declaration": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_action_declaration_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_declaration_checkpoint": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_effect": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_effect_plan": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_effect_plan_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_firearm_attack": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_firearm_attack_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_firearm_bullet": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_initiative": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_initiative_participant": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_participant": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_pending_action": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_pending_action_source": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reaction": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reaction_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_responder_opportunity": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reward": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_encounter_reward_decision": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_high_low_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_high_low_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_player_ruling_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_player_ruling_request_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_prepared_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_prepared_town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_roll": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_roll_amendment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_roster": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_shop_visit": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_shop_visit_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town_npc": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town_place": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.campaign_session_scene_town_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.challenge_rating_reference": {
+      "count": 50,
+      "hash": "c1e89c8bedbe37a68349a35a3e94a055"
+    },
+    "public.character_derived_ability": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.character_derived_ability_recharge": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.character_derived_ability_use": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.chat_message": {
+      "count": 6,
+      "hash": "6b01b4ac60f21aac16a64ff1cb293c8d"
+    },
+    "public.chat_room": {
+      "count": 5,
+      "hash": "46311b38cf1a9c54be97bf1beba469b1"
+    },
+    "public.chat_room_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creature_abilities": {
+      "count": 48,
+      "hash": "cd5cb3bcbefed0453b11a2f2ee3068bc"
+    },
+    "public.creature_ability_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creature_attacks": {
+      "count": 171,
+      "hash": "e93792e0b271d1f0b18d0dd19b5cda64"
+    },
+    "public.creature_attributes": {
+      "count": 552,
+      "hash": "5fc974b18d8c47f9785b47b44a13fffa"
+    },
+    "public.creature_defenses": {
+      "count": 23,
+      "hash": "d0f79f9d030886e943d53d8e04a2bd37"
+    },
+    "public.creature_hit_locations": {
+      "count": 850,
+      "hash": "04c316a6730b3aeb29e7fa78aa1d5da1"
+    },
+    "public.creature_hp_pools": {
+      "count": 564,
+      "hash": "d1a821c7df1908ab7095741a34c81c82"
+    },
+    "public.creature_movement": {
+      "count": 133,
+      "hash": "11739e9b0d9f7b0d376406b393b6841b"
+    },
+    "public.creature_skill_links": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creature_uses": {
+      "count": 38,
+      "hash": "638de5b0470fa44a9d7b049bacf65393"
+    },
+    "public.creature_variants": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.creatures": {
+      "count": 92,
+      "hash": "f40be26abbf5cd82b299359757e29922"
+    },
+    "public.defense_skill_path_mapping": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability": {
+      "count": 6,
+      "hash": "2af7f5c102dd0fbd0072b9491e188467"
+    },
+    "public.derived_ability_cost": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability_effect": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability_requirement": {
+      "count": 6,
+      "hash": "d9d6916dcf192b4c057f941a900e9880"
+    },
+    "public.derived_ability_trigger": {
+      "count": 6,
+      "hash": "37876776c5be959a164bca5540c550a0"
+    },
+    "public.derived_ability_use_condition": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.derived_ability_use_limit": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.firearm_magazine_attachment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.item_armor_damage_modifiers": {
+      "count": 128,
+      "hash": "47095c230d1b94b7f1404b28e34a1841"
+    },
+    "public.item_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.item_passive_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.item_properties": {
+      "count": 257,
+      "hash": "250fc32963ab2864a17b137b5d6cc35b"
+    },
+    "public.item_rules": {
+      "count": 16,
+      "hash": "f273d73c57a25500bc82a1b832bdba7c"
+    },
+    "public.item_runtime_profiles": {
+      "count": 10,
+      "hash": "7631713729588af38339a8d84eb832f8"
+    },
+    "public.item_tag_links": {
+      "count": 1265,
+      "hash": "d1502991a5650bc2162f988e1e5f8be5"
+    },
+    "public.item_tags_catalog": {
+      "count": 8,
+      "hash": "d13cabfcaf458ceaf80ae65530533b1a"
+    },
+    "public.items": {
+      "count": 1016,
+      "hash": "00f7e4f0fba67b4b615011c0af60f982"
+    },
+    "public.lifecycle_audit_event": {
+      "count": 7,
+      "hash": "2ce2b9d01082d2cd144dc6f7a377ff3b"
+    },
+    "public.magazine_ammunition": {
+      "count": 1,
+      "hash": "c724689c82d06bb563957d2624607b9a"
+    },
+    "public.magazine_inventory_operation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.magazine_profiles": {
+      "count": 1,
+      "hash": "2813e33086b7b590f05bb8b1b4d19a21"
+    },
+    "public.race_attribute_caps": {
+      "count": 336,
+      "hash": "6fe2acd16a930f37f3e42ffd947888fd"
+    },
+    "public.race_movement_modes": {
+      "count": 57,
+      "hash": "aab7fa867d925f150540cfcb3f3d7b51"
+    },
+    "public.race_skill_links": {
+      "count": 283,
+      "hash": "035ededed43e3f6cb4a4943a1f5af00e"
+    },
+    "public.races": {
+      "count": 56,
+      "hash": "4e265234a42c003617aa89f954cda2e2"
+    },
+    "public.session": {
+      "count": 112,
+      "hash": "3263be27980dc4f92d47be38b547a21d"
+    },
+    "public.shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_commerce_operation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_money_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_offering": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_resale_item_instance": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_staff_assignment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction_line": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.shop_transaction_request_line": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.site_appearance_setting": {
+      "count": 1,
+      "hash": "58bbe018f24698b40ee034a67f5330c1"
+    },
+    "public.skill": {
+      "count": 1166,
+      "hash": "805a8e8eb4581527d29be8c821b59b81"
+    },
+    "public.skill_extension": {
+      "count": 742,
+      "hash": "51289b33200403bc73302cddc2e0ec6c"
+    },
+    "public.skill_relationship": {
+      "count": 1058,
+      "hash": "a2231407b445a8a7ee6e93204b778108"
+    },
+    "public.town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.town_npc_association": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.town_place": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.town_shop_membership": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.user": {
+      "count": 6,
+      "hash": "ccdf9aa9217a27da6330347f44a1a23c"
+    },
+    "public.user_role": {
+      "count": 12,
+      "hash": "8d5463cf8a0fd5bf7915edab1fe38ca5"
+    },
+    "public.verification": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.weapon_firing_modes": {
+      "count": 81,
+      "hash": "85f14aa8f7da19195998dddabc2bdfb4"
+    },
+    "public.weapon_magazines": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.weapon_profiles": {
+      "count": 222,
+      "hash": "64893cce67369e5bccec9dd0832aaa15"
+    },
+    "public.weapon_skill_path_mappings": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "finalSnapshotSha256": "fe72089f5a22d2e528cb707f998348012d45e747ed3bf97c8e9bf99048388aa1",
+  "sourceSqlAdaptation": "Exact source metadata and parent/order targets verified against the workbook. Updated parent rows in place where possible. The raw SQL's 637-total-standard guard was replaced with the reviewed current-baseline and extra-record disposition checks; no source file was executed or edited.",
+  "humanAcceptance": "Pending; existing investment IDs and points preserved for review, without inventing new parent anchors or reallocating purchases.",
+  "production": "Not inspected or modified. No deployment performed."
+}

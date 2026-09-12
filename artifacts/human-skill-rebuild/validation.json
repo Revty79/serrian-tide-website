@@ -1,0 +1,91 @@
+{
+  "date": "2026-09-12",
+  "database": "localhost/serrian_tide_dev",
+  "sourceAgreement": {
+    "workbookAndSqlSkillRecords": 637,
+    "workbookAndSqlParentRecords": 596,
+    "treeViewRecords": 637,
+    "allAttributeTierCountsMatched": true
+  },
+  "focusedRegressionTests": {
+    "command": "node --import tsx --test src/features/skills/recursive-skill-library.test.ts src/features/skills/shared-library-lifecycle-interface.test.ts src/features/items/weapon-skill-governance.test.ts src/features/characters/character-creation.test.ts src/features/creatures/creature-canonical-ids.test.ts src/features/tabletop-operations/called-check.test.ts",
+    "passed": 63,
+    "failed": 0,
+    "timing": "Before application; fixture-based application regression tests"
+  },
+  "eslint": {
+    "command": "npx.cmd eslint scripts/audit-human-skill-rebuild.mjs scripts/reconcile-human-skills.mjs scripts/verify-human-skill-hierarchy.ts",
+    "exitCode": 0
+  },
+  "typecheck": {
+    "command": "npx.cmd tsc --noEmit --incremental false",
+    "exitCode": 0
+  },
+  "initialApplicationVerification": {
+    "timing": "Initial rebuild, before the later user-authorized removal of archived extras",
+    "report": "hierarchy-verification.json",
+    "canonicalPaths": 637,
+    "parentIdsAndSortOrders": 596,
+    "activeStandardSkills": 637,
+    "activeDuplicateNames": 0,
+    "archivedExtraSkills": 28,
+    "newSkills": 0,
+    "deletedSkills": 0,
+    "unrelatedTablesUnchanged": 146,
+    "all53CharacterAllocationsUnchanged": true,
+    "pendingMappedMetadataOrParentChanges": 0
+  },
+  "archivedSkillRemovalVerification": {
+    "report": "archived-skill-removal.json",
+    "status": "removed-and-verified",
+    "deletedArchivedSkills": 28,
+    "deletedObsoleteParentLinks": 28,
+    "remainingTotalSkills": 1138,
+    "activeStandardSkillsUnchanged": 637,
+    "nonStandardSkillsUnchanged": 501,
+    "remainingTotalRelationships": 1030,
+    "unrelatedTablesUnchanged": 146,
+    "all53CharacterAllocationsUnchanged": true,
+    "newSkills": 0,
+    "repeatReadOnlyRemovalCheck": "already-removed",
+    "canonicalPathsVerifiedAfterRemoval": 637,
+    "parentIdsAndSortOrdersVerifiedAfterRemoval": 596,
+    "pendingMappedMetadataOrParentChanges": 0,
+    "humanPaidPathReviewsStillPending": 4,
+    "freshBackupListingAndFullDecodePassed": true,
+    "restoreRehearsalRun": false
+  },
+  "cleanupChecks": {
+    "eslint": {
+      "command": "npx.cmd eslint scripts/audit-human-skill-rebuild.mjs scripts/reconcile-human-skills.mjs scripts/remove-superseded-human-skills.mjs scripts/verify-human-skill-hierarchy.ts",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "command": "npx.cmd tsc --noEmit --incremental false",
+      "exitCode": 0
+    },
+    "pythonSourceParse": "scripts/prepare-human-skill-map.py passed ast.parse",
+    "readOnlyCommandsPassed": [
+      "node scripts/reconcile-human-skills.mjs",
+      "node scripts/remove-superseded-human-skills.mjs",
+      "node --env-file=.env.local --import tsx scripts/verify-human-skill-hierarchy.ts"
+    ],
+    "publicationReview": "Reviewed the 16 intended files for unrelated changes, conflict markers, common credential patterns, and local environment secret values; no findings. Raw backups and database snapshots remain outside Git.",
+    "testBoundary": "The 63 fixture tests above passed during the original rebuild. The cleanup repeated live read-only hierarchy and preservation checks, lint, and typecheck; it did not rerun broad tests or browser sessions."
+  },
+  "characterLoaderVerification": {
+    "helper": "reconcileRacialSkillAnchors",
+    "usesActualSavedAllocationsAndRaceLinks": true,
+    "storedPathDifferences": 20,
+    "automaticallyHandledInEditorDraft": 16,
+    "paidAllocationsStillRequiringReview": 4,
+    "pointsPreservedOnThosePaidAllocations": 25,
+    "characterWritesPerformed": 0
+  },
+  "limits": {
+    "humanAcceptance": "Pending",
+    "broadBrowserRehearsal": "Not run",
+    "production": "Not inspected or modified; deployment status unknown",
+    "backupRestoreRehearsal": "Not run; full archive decode and selected-table data extraction passed"
+  }
+}

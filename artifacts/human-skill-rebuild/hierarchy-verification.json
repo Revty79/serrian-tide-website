@@ -1,0 +1,100 @@
+{
+  "checkedAt": "2026-09-12T21:52:00.620Z",
+  "mode": "read-only committed catalog",
+  "sourceSha256": "7dd476986b5b56dae6c579a7580f1650e32d53818ca2dbadb11ff7fb9634108f",
+  "database": "serrian_tide_dev",
+  "canonicalPathsVerified": 637,
+  "parentEdgesVerified": 596,
+  "attributeTierCounts": {
+    "STR": [
+      4,
+      13,
+      38
+    ],
+    "DEX": [
+      10,
+      39,
+      123
+    ],
+    "CON": [
+      4,
+      14,
+      34
+    ],
+    "INT": [
+      10,
+      42,
+      136
+    ],
+    "WIS": [
+      7,
+      24,
+      59
+    ],
+    "CHA": [
+      6,
+      23,
+      51
+    ]
+  },
+  "activeDuplicateNames": 0,
+  "characterDraftReview": [
+    {
+      "characterId": 12,
+      "storedAllocationPathDifferences": 5,
+      "draftAnchorsCreatedAutomatically": 14,
+      "remainingDraftPathDifferences": []
+    },
+    {
+      "characterId": 7,
+      "storedAllocationPathDifferences": 4,
+      "draftAnchorsCreatedAutomatically": 8,
+      "remainingDraftPathDifferences": [
+        {
+          "allocationId": 203,
+          "skillId": 557,
+          "name": "Individual Motivation",
+          "points": 10,
+          "expectedParentSkillId": 556
+        }
+      ]
+    },
+    {
+      "characterId": 14,
+      "storedAllocationPathDifferences": 5,
+      "draftAnchorsCreatedAutomatically": 14,
+      "remainingDraftPathDifferences": []
+    },
+    {
+      "characterId": 19,
+      "storedAllocationPathDifferences": 6,
+      "draftAnchorsCreatedAutomatically": 8,
+      "remainingDraftPathDifferences": [
+        {
+          "allocationId": 367,
+          "skillId": 248,
+          "name": "Hypoxic Training",
+          "points": 5,
+          "expectedParentSkillId": 246
+        },
+        {
+          "allocationId": 368,
+          "skillId": 274,
+          "name": "Thrown Entangling Weapons",
+          "points": 5,
+          "expectedParentSkillId": 140
+        },
+        {
+          "allocationId": 371,
+          "skillId": 261,
+          "name": "Pain Management",
+          "points": 5,
+          "expectedParentSkillId": 260
+        }
+      ]
+    }
+  ],
+  "characterChangesPersisted": 0,
+  "humanAcceptance": "Pending",
+  "production": "Not inspected or modified"
+}

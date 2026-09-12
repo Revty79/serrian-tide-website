@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-12",
+  "sourceBackup": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-human-skills-PHnz3G\\serrian_tide_dev.dump",
+  "sourceBackupSha256": "37de7d1f0a566afa555603804d124453f21ea3f3a02588307a2ce37ea73f3550",
+  "exactPriorTableData": {
+    "path": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-human-skills-PHnz3G\\catalog-before-data.sql",
+    "bytes": 752742,
+    "sha256": "833c27130a8299fe6582b0d91224f56a01c20f0f93f0b23866398108ed166ddc",
+    "tables": [
+      "public.campaign_character_skill_allocation",
+      "public.skill",
+      "public.skill_relationship"
+    ],
+    "method": "Read-only pg_restore data extraction from the pre-change archive; preserves PostgreSQL timestamp precision",
+    "executedAgainstDatabase": false
+  },
+  "jsonSnapshot": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-human-skills-PHnz3G\\catalog-before.json",
+  "jsonSnapshotLimit": "Convenient inspection/fingerprint data; pg Date serialization has millisecond precision. Use the archive/table-data extraction when preparing an exact reversal.",
+  "rollbackExecuted": false,
+  "restoreRehearsalRun": false,
+  "futureRollbackRequirement": "Compare and preserve intervening character/runtime edits before choosing a scoped reversal or full DEV restore. Do not execute the extracted COPY data directly into populated live tables."
+}

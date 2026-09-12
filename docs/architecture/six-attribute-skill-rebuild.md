@@ -1,8 +1,10 @@
 # Six-attribute Skill workbook reconciliation
 
-## Current result — DEV applied on 2026-09-12
+> Historical baseline: the later [human Skill system rebuild](human-skill-rebuild.md) superseded this catalog in DEV on 2026-09-12. Read that handoff for the current data, extra-record removal, character review, and rollback evidence. The figures and commands below describe the earlier round; do not reapply its map to resume current work.
 
-All **637 existing Skill IDs** in `Serrian_Tide_FINAL_Skill_Rebuild_ALL_6_ATTRIBUTES.xlsx` now match the workbook's final names, definitions, tiers, and exact parent IDs in `localhost/serrian_tide_dev`, including DEX. Matching fields were left alone. **No Skills or relationships were inserted, deleted, recreated, or renumbered.** This was a scoped catalog update; no schema migration was added or rerun.
+## Earlier result — superseded in DEV on 2026-09-12
+
+At completion of this earlier round, all **637 existing Skill IDs** in `Serrian_Tide_FINAL_Skill_Rebuild_ALL_6_ATTRIBUTES.xlsx` matched that workbook's final names, definitions, tiers, and exact parent IDs in `localhost/serrian_tide_dev`, including DEX. Matching fields were left alone. **No Skills or relationships were inserted, deleted, recreated, or renumbered in this earlier round.** This was a scoped catalog update; no schema migration was added or rerun.
 
 This confirms the workbook's mapped records, not that the entire catalog contains only that map. **28 pre-existing DEX records outside the workbook remain unchanged for review.** Five now share names with mapped records; those distinct IDs were not merged, archived, deleted, or reassigned. The source workbook supplies no replacement mapping for those extra IDs. Human acceptance and the extra-record decision remain pending.
 

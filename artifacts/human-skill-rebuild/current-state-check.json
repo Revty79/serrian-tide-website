@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-09-12T21:51:59.837Z",
+  "database": "serrian_tide_dev",
+  "sourceSha256": "7dd476986b5b56dae6c579a7580f1650e32d53818ca2dbadb11ff7fb9634108f",
+  "mode": "read only",
+  "status": "mapped-records-already-match",
+  "metadataRows": 0,
+  "parentOperations": 0,
+  "extraSkills": [],
+  "extraDisposition": "removed by the separately recorded, user-approved cleanup",
+  "removalEvidence": "archived-skill-removal.json",
+  "baselineStoredAllocationPathDifferences": 20,
+  "currentCharacterReview": "See hierarchy-verification.json for current editor-draft reconciliation and remaining paid path reviews."
+}
