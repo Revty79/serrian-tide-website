@@ -1,0 +1,9 @@
+{
+  "passed": [
+    "Planned Session and Scene show the start prerequisites; G.O.D. starts each from combat setup, initializes Characters and a direct Creature, and commands the NPC and Creature.",
+    "Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.",
+    "Higher-to-lower Initiative Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "Simultaneous Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops."
+  ],
+  "errors": []
+}

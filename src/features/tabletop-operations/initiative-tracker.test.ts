@@ -8,6 +8,7 @@ import {
   closeInitiativeRuntime,
   correctInitiativeRuntimePosition,
   enrollLateInitiativeParticipant,
+  extendPendingInitiativeActionCost,
   holdInitiative,
   initializeInitiativeRuntime,
   passInitiative,
@@ -125,8 +126,9 @@ test("next-event presentation distinguishes normal opportunity, completion prece
   let boundary = setCurrentInitiative(state({ characterId: 1, normalTotalInitiative: 10 }), 1, 5);
   boundary = correctInitiativeRuntimePosition(boundary, { roundNumber: 1, stepNumber: 1, timelineInitiative: 5 });
   boundary = startInitiativeAction(boundary, {
-    id: 12, actorCharacterId: 1, label: "Ritual", initiativeCost: 12, allowsMultiRound: true,
+    id: 12, actorCharacterId: 1, label: "Ritual", initiativeCost: 5, allowsMultiRound: true,
   });
+  boundary = extendPendingInitiativeActionCost(boundary, 12, 7);
   assert.equal(model(boundary).nextEvent?.kind, "round-boundary");
 
   const none = passInitiative(state({ characterId: 1, normalTotalInitiative: 20 }), 1);

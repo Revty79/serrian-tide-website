@@ -391,6 +391,13 @@ async function persistInitiativeEngineInternal(
   if (!isDeepStrictEqual(before, await loadInitiativeEngineInTransaction(tx, context.encounterId))) {
     throw new Error("Combat state changed or this request already completed. Refresh before changing Initiative.");
   }
+  if (after.runtime.status === "active" && (after.runtime.timelineInitiative !== before.runtime.timelineInitiative || after.runtime.roundNumber !== before.runtime.roundNumber
+    || after.pendingActions.some((entry) => entry.initiativeSpent > (before.pendingActions.find((prior) => prior.id === entry.id)?.initiativeSpent ?? entry.initiativeSpent)))) {
+    const { readMaturedSustainedFireInTransaction } = await import("./firearm-progress-service");
+    if ((await readMaturedSustainedFireInTransaction(tx, context.encounterId)).length) {
+      throw new Error("Resolve the pending firing result at this Initiative before advancing. Confirm any eligible response, then finish this firing portion.");
+    }
+  }
   const { assertCombatantCanChooseInTransaction } = await import("./combat-condition-service");
   for (const entry of after.participants) {
     const prior = before.participants.find(({ characterId }) => characterId === entry.characterId);
@@ -524,6 +531,8 @@ async function persistInitiativeEngineInternal(
   await reconcileActionResponseWindowsInTransaction(tx, context, before, after);
   const { reconcileFirearmInitiativeTransitionsInTransaction } = await import("./firearm-readiness-service");
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
+  const { reconcileMagazineFillProgress } = await import("./combat-magazine-fill-service");
+  await reconcileMagazineFillProgress(tx, before, after, context.ownerUserId);
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime, durationPassage);
   if (before.runtime.stepNumber !== after.runtime.stepNumber || before.runtime.roundNumber !== after.runtime.roundNumber || before.runtime.status !== after.runtime.status) {
     const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");

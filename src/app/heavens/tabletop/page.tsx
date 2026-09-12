@@ -75,7 +75,7 @@ export default async function TabletopOperationsPage({
     <TabletopWorkspace
       key={`${workspace.selectedCampaignId ?? "none"}:${selectedSessionId ?? "none"}`}
       initialData={workspace}
-      encounterLibrary={encounters ? <EncounterLibrary data={encounters} /> : null}
+      encounterLibrary={encounters ? <EncounterLibrary key="encounter-library" data={encounters} /> : null}
       initialPrepData={prepWorkspace}
       initialSceneData={sceneWorkspace}
       initialLocationData={locationWorkspace}

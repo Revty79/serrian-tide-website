@@ -1,0 +1,6 @@
+{
+  "passed": [
+    "Player initializes an exact empty firearm, loads two loose rounds, and readies it through ordinary equipment setup outside combat."
+  ],
+  "errors": []
+}

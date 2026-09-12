@@ -18,6 +18,7 @@ import {
   completePendingInitiativeActionManually,
   correctInitiativeRuntimePosition,
   endPendingInitiativeAction,
+  extendPendingInitiativeActionCost,
   enrollLateInitiativeParticipant,
   getDodgeInitiativeCost,
   getMaximumMovementDistance,
@@ -131,16 +132,22 @@ test("direct Initiative deltas change Current only and may create debt", () => {
   assert.equal(participant(engine).currentInitiative, -3);
 });
 
-test("ordinary unaffordable actions reject while explicit long actions persist", () => {
-  const engine = setCurrentInitiative(state(24), 1, 5);
-  assert.throws(() => startInitiativeAction(engine, {
-    id: 1, actorCharacterId: 1, label: "Ordinary attack", initiativeCost: 8, allowsMultiRound: false,
-  }), /ordinary action cannot cost more/i);
-  const long = startInitiativeAction(engine, {
-    id: 1, actorCharacterId: 1, label: "Long spell", initiativeCost: 12, allowsMultiRound: true,
+test("every known action cost must fit before commitment, including long and held actions", () => {
+  const engine = correctInitiativeRuntimePosition(setCurrentInitiative(state(24), 1, 2), { roundNumber: 1, stepNumber: 1, timelineInitiative: 2 });
+  for (const allowsMultiRound of [false, true]) for (const heldIntervention of [false, true]) {
+    assert.throws(() => startInitiativeAction(heldIntervention ? holdInitiative(engine, 1) : engine, {
+      id: 1, actorCharacterId: 1, label: "Unaffordable attack or spell", initiativeCost: 4, allowsMultiRound, heldIntervention,
+    }), /costs 4 Initiative; only 2 remains/);
+  }
+  assert.equal(engine.pendingActions.length, 0);
+  const exact = startInitiativeAction(engine, {
+    id: 1, actorCharacterId: 1, label: "Exact-cost action", initiativeCost: 2, allowsMultiRound: true,
   });
-  assert.equal(action(long).remainingInitiativeCost, 12);
-  assert.equal(action(long).status, "active");
+  assert.equal(action(exact).remainingInitiativeCost, 2);
+  assert.equal(participant(exact).currentInitiative, 2);
+  const next = advanceInitiativeRound(passInitiative(engine, 1));
+  assert.equal(participant(next).currentInitiative, 26);
+  assert.equal(next.pendingActions.length, 0);
 });
 
 test("action time elapses progressively and interruption loses only elapsed Initiative", () => {
@@ -325,12 +332,14 @@ test("Pass banks Current Initiative, prevents normal same-round entry, and reset
   assert.equal(participant(engine).participationStatus, "active");
 });
 
-test("a multi-round action stops at zero, survives the Round, and completes from replenished Initiative", () => {
+test("costs imposed after an affordable commitment can cross the Round without rewriting the original cost", () => {
   let engine = setCurrentInitiative(state(24), 1, 5);
   engine = correctInitiativeRuntimePosition(engine, { roundNumber: 1, stepNumber: 1, timelineInitiative: 5 });
   engine = startInitiativeAction(engine, {
-    id: 1, actorCharacterId: 1, label: "Long spell", initiativeCost: 12, allowsMultiRound: true,
+    id: 1, actorCharacterId: 1, label: "Interrupted spell", initiativeCost: 5, allowsMultiRound: true,
   });
+  engine = extendPendingInitiativeActionCost(engine, 1, 7);
+  assert.equal(action(engine).originalInitiativeCost, 5);
   assert.deepEqual(getNextInitiativeTimelineEvent(engine), {
     kind: "pending-round-boundary", initiative: 0, actionIds: [1],
   });

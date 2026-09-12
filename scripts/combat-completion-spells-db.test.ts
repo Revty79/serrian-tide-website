@@ -17,7 +17,7 @@ import { declareDefenseInterventionInTransaction, resolveDeclaredDefensesInTrans
 import { campaignSessionEncounterResponderOpportunity as opportunity, campaignSessionEncounterInitiative as runtime } from "@/db/tabletop-operations-schema";
 import { applyRoutineCombatConsequencesInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction, holdParticipantInitiativeInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
-import { advanceInitiativeTimeline, advanceInitiativeRound } from "@/features/tabletop-operations/initiative-runtime";
+import { advanceInitiativeTimeline, advanceInitiativeRound, applyDirectInitiativeDelta } from "@/features/tabletop-operations/initiative-runtime";
 import { setCombatFrozenInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { projectSealedCombatManaInTransaction } from "@/features/tabletop-operations/combat-resource-projection-service";
 import { parseLockedActionDeclarationSnapshot } from "@/features/tabletop-operations/action-declaration";
@@ -64,6 +64,21 @@ async function fixture(tx: Tx, name: string, fixedArcBolt: boolean, mode: Combat
   assert.equal(mana.currentMana, 20);
   return { ...f, declarationId, locked, savedSpellId: saved.id, manaCost: locked.authoredSource!.resourceCosts[0].amount!, initiativeCost: locked.initiativeCost };
 }
+
+test("an unaffordable locked spell spends no Mana and records no Roll or pending action", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "unaffordable", true);
+    await tx.update(participant).set({ currentInitiative: 2 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
+    await tx.update(runtime).set({ timelineInitiative: 2 }).where(eq(runtime.encounterId, f.encounterId));
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await assert.rejects(tx.transaction((savepoint) => commitActionDeclarationInTransaction(savepoint, f.context, f.player, f.declarationId, { method: "entered", enteredTotal: 70 })), /costs 4 Initiative; only 2 remains/);
+    assert.deepEqual(await loadInitiativeEngineInTransaction(tx, f.encounterId), before);
+    assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find(({ system }) => system === "Spellcraft")!.currentMana, 20);
+    assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, f.encounterId))).length, 0);
+    assert.equal((await tx.select().from(declaration).where(eq(declaration.id, f.declarationId)))[0].status, "locked");
+    throw rollback;
+  }), (error) => error === rollback);
+});
 
 for (const outcome of ["failed", "successful", "cancelled", "interrupted"] as const) test(`owned Spell ${outcome}: Mana spends at start, immutable Roll, no refund or duplicate application`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
@@ -163,7 +178,7 @@ test("a locked Spell removed from the exact owner's Spellbook cannot begin or sp
   }), (error) => error === rollback);
 });
 
-test("authored concentration carries a begun cast across the round and keeps one Mana cost and original Roll", async () => {
+test("an affordable concentration cast retains its Mana and Roll when a later Initiative penalty carries it across the round", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "concentration-round", false);
     const [saved] = await tx.select().from(campaignCharacterSpellDocument).where(eq(campaignCharacterSpellDocument.id, f.savedSpellId));
@@ -171,8 +186,8 @@ test("authored concentration carries a begun cast across the round and keeps one
     spell.modifiers = [{ id: "focus", ruleId: "concentration", quantity: 2, description: "Two authored concentration points" }];
     await tx.update(campaignCharacterSpellDocument).set({ documentJson: JSON.stringify(spell) }).where(eq(campaignCharacterSpellDocument.id, saved.id));
     await tx.update(participant).set({ participationStatus: "suspended" }).where(eq(participant.encounterId, f.encounterId));
-    await tx.update(participant).set({ participationStatus: "active", currentInitiative: 2 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
-    await tx.update(runtime).set({ timelineInitiative: 2 }).where(eq(runtime.encounterId, f.encounterId));
+    await tx.update(participant).set({ participationStatus: "active", currentInitiative: 5 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
+    await tx.update(runtime).set({ timelineInitiative: 5 }).where(eq(runtime.encounterId, f.encounterId));
     const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]),
       sourceKind: "spell", sourceRef: `personal:${saved.id}`, actionKind: "spell-cast", windowKind: "ordinary", allowsMultiRound: true,
       sourcePayload: { selections: { targetGroups: { "bolt-target": [f.occurrences[0]] }, applications: { [`bolt-damage:${f.occurrences[0]}`]: { hitLocationNumber: 0 } } } } });
@@ -184,6 +199,8 @@ test("authored concentration carries a begun cast across the round and keeps one
     // rounds the casting cost to 1 Mana, with 1 + 4 concentration Initiative.
     assert.equal(before.pendingActions.find(({ id }) => id === pendingId)!.originalInitiativeCost, 5);
     assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools[0].currentMana, 19);
+    await persistInitiativeEngineInTransaction(tx, f.context, before, applyDirectInitiativeDelta(before, f.heroId, -3));
+    before = await engine();
     await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 0));
     before = await engine();
     assert.equal(before.pendingActions.find(({ id }) => id === pendingId)!.remainingInitiativeCost, 3);

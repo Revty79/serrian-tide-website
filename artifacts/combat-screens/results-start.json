@@ -1,6 +1,6 @@
 {
   "passed": [
-    "Scene → Encounter setup adds Characters and a direct Creature, starts and initializes combat, and lets the G.O.D. command the NPC and Creature."
+    "Planned Session and Scene show the start prerequisites; G.O.D. starts each from combat setup, initializes Characters and a direct Creature, and commands the NPC and Creature."
   ],
   "errors": []
 }

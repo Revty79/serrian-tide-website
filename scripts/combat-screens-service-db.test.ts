@@ -9,7 +9,8 @@ import { previewCombatChoiceInTransaction, submitCombatChoiceInTransaction } fro
 import { physicalPercentile, type CombatSubmission } from "@/features/combat-screen/choice-types";
 import { applyRoutineCombatConsequencesInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { declareDefenseInterventionInTransaction, previewDefenseInterventionInTransaction, resolveDeclaredDefensesInTransaction, resolveDeclaredDefensesIfReadyInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
-import { advanceInitiativeTimeline } from "@/features/tabletop-operations/initiative-runtime";
+import { advanceInitiativeTimeline, advanceInitiativeRound } from "@/features/tabletop-operations/initiative-runtime";
+import { declareCombatMovementInTransaction, resolveCombatMovementInTransaction } from "@/features/tabletop-operations/combat-movement-service";
 import { holdParticipantInitiativeInTransaction, passParticipantInitiativeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { readCombatProjectionInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
@@ -84,6 +85,55 @@ test("Hold satisfies its sealed choice, keeps Initiative, and never demands anot
   }), (error) => error === rollback);
 });
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+test("two Initiative rejects a four-point attack without records, permits exact cost, and banks unused Initiative", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    await tx.update(enrollment).set({ currentInitiative: 2 }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.heroId)));
+    await tx.update(runtime).set({ timelineInitiative: 2 }).where(eq(runtime.encounterId, f.encounterId));
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    for (let retry = 0; retry < 2; retry++) await assert.rejects(tx.transaction((savepoint) => submitCombatChoiceInTransaction(savepoint, f.context, f.player, f.input)), /costs 4 Initiative; only 2 remains/);
+    assert.deepEqual(await loadInitiativeEngineInTransaction(tx, f.encounterId), before);
+    assert.equal((await tx.select().from(declaration).where(eq(declaration.encounterId, f.encounterId))).length, 0);
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 0);
+    assert.equal(await readOpenDeclarationCheckpoint(tx, f.encounterId), null);
+    await holdParticipantInitiativeInTransaction(tx, f.context, f.heroId);
+    await passParticipantInitiativeInTransaction(tx, f.context, f.heroId);
+    const held = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(held.participants.find((entry) => entry.characterId === f.heroId)!.currentInitiative, 2);
+    const next = advanceInitiativeRound(held);
+    assert.equal(next.participants.find((entry) => entry.characterId === f.heroId)!.currentInitiative, 24);
+    assert.deepEqual(next.pendingActions, before.pendingActions);
+    // Restore only this disposable fixture to demonstrate the exact-cost alternative.
+    await persistInitiativeEngineInTransaction(tx, f.context, held, before);
+    await tx.update(weaponProfile).set({ initiativeCost: 2 }).where(eq(weaponProfile.itemId, f.weaponId));
+    const receipt = await submitCombatChoiceInTransaction(tx, f.context, f.player, f.input);
+    assert.ok("declarationId" in receipt);
+    const record = (await tx.select().from(declaration).where(eq(declaration.id, receipt.declarationId)))[0];
+    const exact = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(exact.pendingActions.find((entry) => entry.id === record.pendingActionId)!.originalInitiativeCost, 2);
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 1);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
+test("direct Creature movement checks distance affordability before recording a segment", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx), creatureId = f.occurrences[0];
+    await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, movement: [{ movementMode: "Land", movementValue: 2 }] } }).where(eq(member.characterId, creatureId));
+    await tx.update(enrollment).set({ participationStatus: "passed" }).where(eq(enrollment.encounterId, f.encounterId));
+    await tx.update(enrollment).set({ currentInitiative: 2, participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, creatureId)));
+    await tx.update(runtime).set({ timelineInitiative: 2 }).where(eq(runtime.encounterId, f.encounterId));
+    const movement = await resolveCombatMovementInTransaction(tx, f.context, creatureId, "Land", 1);
+    const command = { participantId: creatureId, movementMode: "Land", distance: movement.baseMovement * 3, requestKey: crypto.randomUUID() };
+    await assert.rejects(declareCombatMovementInTransaction(tx, f.context, f.god, command), /costs 3 Initiative; only 2 remains/);
+    assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.filter((entry) => entry.status === "active").length, 0);
+    const exact = await declareCombatMovementInTransaction(tx, f.context, f.god, { ...command, distance: movement.baseMovement * 2 });
+    assert.ok(exact.pendingActionId);
+    assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.find((entry) => entry.id === exact.pendingActionId)!.originalInitiativeCost, 2);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
 async function fixture(tx: Tx) {
   const f = await completionServiceFixture(tx, "screen-command");
   await tx.update(enrollment).set({ participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.heroId)));

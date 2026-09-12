@@ -28,6 +28,7 @@ async function login(id: string, role: "god" | "player", f: Fixture, automatic =
   const context = await browser!.newContext({ viewport: { width: 1365, height: 1000 } });
   const page = await context.newPage(); page.setDefaultTimeout(25_000);
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error" && /unique.*key|same key/i.test(message.text())) errors.push(message.text()); });
   const signedIn = await context.request.post(`${base}/api/auth/sign-in/email`, { headers: { Origin: base }, data: { email: `${id}@example.invalid`, password: SCREEN_PASSWORD } });
   assert.equal(signedIn.status(), 200, "The disposable account authenticates through the real auth endpoint.");
   await page.goto(`${base}/${role === "god" ? "heavens" : "realms"}/tabletop?combat=${f.encounterId}${role === "player" ? `&character=${f.heroId}` : ""}`);
@@ -69,6 +70,8 @@ try {
     const f = await db.transaction((tx) => screenFixture(tx, "start"));
     await pool.query("update campaign_session_encounter set status='completed', completed_at=now() where id=$1", [f.encounterId]);
     await pool.query("update campaign_session_encounter_initiative set status='closed', closed_at=now() where encounter_id=$1", [f.encounterId]);
+    await pool.query("update campaign_session_scene set status='planned', started_at=null where id=$1", [f.sceneId]);
+    await pool.query("update campaign_session set status='planned', started_at=null where id=$1", [f.sessionId]);
     const director = await login(f.godId, "god", f);
     await screen(director).getByRole("link", { name: "Back to Scene", exact: true }).click();
     const library = director.getByRole("region", { name: "Encounter library", exact: true });
@@ -91,7 +94,11 @@ try {
     await director.setViewportSize({ width: 1365, height: 1000 });
     await library.getByRole("link", { name: "Open Combat", exact: true }).click();
     await screen(director).getByText("Live", { exact: true }).waitFor();
-    await screen(director).getByText("Roster & combat setup", { exact: true }).click();
+    assert.equal(await screen(director).getByRole("button", { name: "Start encounter", exact: true }).isDisabled(), true);
+    assert.equal(await screen(director).getByRole("button", { name: "Initialize combat", exact: true }).isDisabled(), true);
+    await screen(director).getByText("Start the Session, then the Scene and encounter.", { exact: false }).waitFor();
+    await screen(director).getByRole("button", { name: "Start Session", exact: true }).click();
+    await screen(director).getByRole("button", { name: "Start Scene", exact: true }).click();
     await screen(director).getByRole("button", { name: "Start encounter", exact: true }).click();
     await until(() => screen(director).getByRole("button", { name: "Initialize combat", exact: true }).isEnabled(), "active Encounter setup");
     await screen(director).getByRole("button", { name: "Initialize combat", exact: true }).click();
@@ -115,8 +122,29 @@ try {
     await commitAttack(director);
     await until(async () => (await declarations({ ...f, encounterId: created })).length === 1, "direct Creature attack committed");
     assert.ok((await declarations({ ...f, encounterId: created }))[0].actor_character_id < 0);
-    results.push("Scene → Encounter setup adds Characters and a direct Creature, starts and initializes combat, and lets the G.O.D. command the NPC and Creature.");
+    results.push("Planned Session and Scene show the start prerequisites; G.O.D. starts each from combat setup, initializes Characters and a direct Creature, and commands the NPC and Creature.");
     await director.context().close(); await participant.context().close();
+  }
+  if (include("affordability")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "affordability"));
+    await pool.query("update campaign_session_encounter_initiative_participant set current_initiative=2 where encounter_id=$1 and character_id=$2", [f.encounterId, f.heroId]);
+    await pool.query("update campaign_session_encounter_initiative set timeline_initiative=2 where encounter_id=$1", [f.encounterId]);
+    const participant = await login(f.playerId, "player", f);
+    await chooseAttack(participant, f.occurrences[0]);
+    await screen(participant).getByText(/This action costs 4 Initiative; only 2 remains/).waitFor();
+    assert.equal(await screen(participant).getByRole("button", { name: "Commit Attack & Roll", exact: true }).isDisabled(), true);
+    assert.equal((await declarations(f)).length, 0);
+    await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Move", exact: true }).click();
+    await screen(participant).getByLabel("Distance in feet", { exact: true }).fill("4");
+    await screen(participant).getByRole("button", { name: "Check movement cost", exact: true }).click();
+    await screen(participant).getByText("4 feet · 2 Initiative", { exact: true }).waitFor();
+    await screen(participant).getByRole("button", { name: "Declare movement", exact: true }).click();
+    await until(async () => (await declarations(f)).length === 1, "exact-cost movement commits");
+    const [record] = await declarations(f);
+    assert.equal(record.locked_snapshot_json.initiativeCost, 2);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
+    results.push("Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.");
+    await participant.context().close();
   }
   if (include("playable")) {
   const f = await db.transaction((tx) => screenFixture(tx, "playable"));
@@ -435,6 +463,60 @@ try {
     results.push(`${mode === "spell" ? "Learned spell Skill Roll, automatic hit location and one result approval" : "Exact firearm"} commits and completes through the screen/server flow.`);
     await director.context().close(); await participant.context().close();
   }
+  if (include("firearm-setup")) {
+    const { f, gun } = await db.transaction(async (tx) => { const f = await screenFixture(tx, "firearm-setup"); return { f, gun: await addScreenFirearm(tx, f) }; });
+    // A fresh, empty equipment baseline in the isolated fixture, before combat.
+    await pool.query("update campaign_session_encounter set status='completed', completed_at=now() where id=$1", [f.encounterId]);
+    await pool.query("update campaign_session_encounter_initiative set status='closed', closed_at=now() where encounter_id=$1", [f.encounterId]);
+    await pool.query("delete from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id]);
+    const profile = (await pool.query("update weapon_profiles set reload_type='Single' where item_id=$1 returning ammunition_item_id", [gun.gun.id])).rows[0];
+    await pool.query("insert into campaign_character_item(character_id,item_id,quantity,unit_cost_credits) values($1,$2,6,1)", [f.heroId, profile.ammunition_item_id]);
+    const player = await login(f.playerId, "player", f);
+    await player.goto(`${base}/realms/characters/${f.heroId}`); await player.waitForLoadState("networkidle");
+    await player.getByRole("navigation", { name: "Character creation sections" }).getByRole("button", { name: /Sheet/ }).click();
+    const setup = player.getByRole("region", { name: "Firearm equipment setup", exact: true });
+    await setup.getByRole("button", { name: "Initialize empty firearm", exact: true }).click();
+    await setup.getByRole("spinbutton", { name: "Loose rounds to insert", exact: true }).fill("2");
+    await setup.getByRole("button", { name: "Load loose rounds", exact: true }).click();
+    await setup.getByText(/2 rounds/).waitFor();
+    await setup.getByRole("button", { name: "Ready firearm", exact: true }).click();
+    await until(async () => (await pool.query("select readied from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0]?.readied === true, "ordinary equipment readies the owned firearm");
+    assert.equal((await pool.query("select quantity from campaign_character_item where character_id=$1 and item_id=$2", [f.heroId, profile.ammunition_item_id])).rows[0].quantity, 4);
+    await setup.screenshot({ path: path.join(artifacts, "firearm-equipment-setup.png") });
+    results.push("Player initializes an exact empty firearm, loads two loose rounds, and readies it through ordinary equipment setup outside combat.");
+    await player.context().close();
+  }
+  if (include("magazine-combat")) {
+    const { f, gun } = await db.transaction(async (tx) => { const f = await screenFixture(tx, "magazine-combat"); return { f, gun: await addScreenFirearm(tx, f) }; });
+    const profile = (await pool.query("update weapon_profiles set reload_type='Magazine' where item_id=$1 returning id,ammunition_item_id", [gun.gun.id])).rows[0];
+    await pool.query("update campaign_character_firearm_state set loaded_rounds=0,loaded_ammunition_item_id=null,loaded_ammunition_profile_id=null,loaded_ammunition_unit_cost_credits=null where item_instance_id=$1", [gun.instance.id]);
+    const model = (await pool.query("insert into items(canonical_id,name,catalog_scope,equipment_group,record_type,family,category,price_basis,created_by_user_id) values($1,'Combat Magazine','equipment','general','Magazine','Test','Test','unit',$2) returning id", [`COMBAT-MAG-${crypto.randomUUID()}`.toUpperCase(), f.godId])).rows[0];
+    await pool.query("insert into magazine_profiles(item_id,capacity_rounds,fill_initiative_cost_per_round) values($1,6,2)", [model.id]);
+    await pool.query("insert into magazine_ammunition values($1,$2)", [model.id, profile.ammunition_item_id]);
+    await pool.query("insert into weapon_magazines values($1,$2)", [profile.id, model.id]);
+    const copies = (await pool.query("insert into campaign_character_item_instance(character_id,item_id,current_charges,unit_cost_credits,loaded_rounds,loaded_ammunition_item_id,loaded_ammunition_unit_cost_credits) values($1,$2,0,1,2,$3,1),($1,$2,0,1,0,null,0) returning id", [f.heroId, model.id, profile.ammunition_item_id])).rows;
+    await pool.query("insert into campaign_character_item(character_id,item_id,quantity,unit_cost_credits) values($1,$2,6,1)", [f.heroId, profile.ammunition_item_id]);
+    const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
+    const attackSource = screen(player).getByRole("combobox", { name: /^Attack source/ });
+    await until(async () => await attackSource.locator("option").filter({ hasText: /^Screen Pistol/ }).count() === 1, "owned firearm source");
+    await attackSource.selectOption(await attackSource.locator("option").filter({ hasText: /^Screen Pistol/ }).getAttribute("value") ?? "");
+    await screen(player).getByText(/^Ammunition & preparation/).click();
+    await screen(player).getByRole("combobox", { name: "Preparation", exact: true }).selectOption("reload");
+    await screen(player).getByRole("combobox", { name: "Replacement magazine", exact: true }).selectOption(String(copies[0].id));
+    await screen(player).getByRole("button", { name: "Begin preparation", exact: true }).click();
+    await until(async () => (await pool.query("select magazine_instance_id from firearm_magazine_attachment where weapon_instance_id=$1", [gun.instance.id])).rows[0]?.magazine_instance_id === copies[0].id, "magazine swap completes through Initiative");
+    await screen(player).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Item", exact: true }).click();
+    await screen(player).getByText("Fill magazine", { exact: true }).click();
+    await screen(player).getByRole("combobox", { name: "Magazine to fill", exact: true }).selectOption(String(copies[1].id));
+    await screen(player).getByRole("spinbutton", { name: "Rounds to insert", exact: true }).fill("2");
+    await screen(player).getByRole("button", { name: "Begin magazine filling", exact: true }).click();
+    await until(async () => (await pool.query("select loaded_rounds from campaign_character_item_instance where id=$1", [copies[1].id])).rows[0].loaded_rounds === 2, "detached magazine fills at two Initiative per round");
+    assert.equal((await pool.query("select quantity from campaign_character_item where character_id=$1 and item_id=$2", [f.heroId, profile.ammunition_item_id])).rows[0].quantity, 4);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
+    await screenshot(player, "magazine-combat-preparation");
+    results.push("Player swaps an exact magazine and fills a separate detached copy through Initiative; G.O.D. automatic flow completes both with conserved ammunition and no Rolls.");
+    await player.context().close(); await director.context().close();
+  }
   if (include("magazine")) {
     const f = await db.transaction((tx) => screenFixture(tx, "magazine"));
     const director = await login(f.godId, "god", f);
@@ -458,7 +540,8 @@ try {
     const model = (await pool.query("select id from items where name='Walkthrough Magazine'")).rows[0];
     await editor.getByRole("button", { name: "Save Item", exact: true }).waitFor();
     await director.getByRole("searchbox", { name: "Search", exact: true }).fill("Fixture Shortsword");
-    await director.locator(".skill-library__row").filter({ hasText: "Fixture Shortsword" }).click();
+    const weaponCanonicalId = (await pool.query("select canonical_id from items where id=$1", [f.weaponId])).rows[0].canonical_id;
+    await director.locator(".skill-library__row").filter({ hasText: weaponCanonicalId }).click();
     await editor.getByRole("heading", { name: "Fixture Shortsword", exact: true }).waitFor();
     await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
     await editor.getByLabel("Reload Type", { exact: true }).selectOption("Magazine");

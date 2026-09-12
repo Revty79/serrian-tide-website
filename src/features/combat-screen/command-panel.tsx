@@ -9,14 +9,16 @@ import { MovementPanel } from "./movement-panel";
 import { DefensePanel } from "./defense-panel";
 import { SourceRuling } from "./source-ruling";
 import { FirearmControls } from "./firearm-controls";
+import { MagazineFillControls } from "./magazine-fill-controls";
 import { EffectOptions } from "./effect-options";
 import { TargetDropdowns } from "./target-dropdowns";
 import styles from "./combat-screen.module.css";
+import { initiativeAffordabilityIssue } from "@/features/tabletop-operations/initiative-affordability";
 type Sources = Awaited<ReturnType<typeof readCombatCommandSources>>;
 type Preview = Awaited<ReturnType<typeof previewCombatChoice>>;
 type Draft = { source: string; targets: number[]; groups: Record<string, number[]>; applications: Record<string, { poolKey?: string; hitLocationNumber?: number }>;
-  location: string; objective: string; penalty: string; reason: string; mode: string; aim: string; duration: string; roll: RollDraft };
-const blank: Draft = { source: "", targets: [], groups: {}, applications: {}, location: "", objective: "", penalty: "", reason: "", mode: "", aim: "0", duration: "1", roll: emptyRoll };
+  location: string; objective: string; penalty: string; reason: string; mode: string; aim: string; duration: string; weaponHands: string; roll: RollDraft };
+const blank: Draft = { source: "", targets: [], groups: {}, applications: {}, location: "", objective: "", penalty: "", reason: "", mode: "", aim: "0", duration: "1", weaponHands: "", roll: emptyRoll };
 const sourceKey = (source: Sources["sources"][number]) => `${source.kind}/${source.ref}/${source.instanceId ?? "stack"}`;
 export function CommandPanel({ scope, entity, data, command, target: selectedTarget, setTarget, disabled, refresh }: { scope: CombatScreenScope; entity: CombatEntity; data: CombatScreenData;
   command: CombatCommand; target: string; setTarget: (value: string) => void; disabled: boolean; refresh: () => Promise<void> }) {
@@ -46,15 +48,20 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
   const choice: CombatChoice | null = source ? { participantId: entity.participantId, source, targetIds: targets,
     effectSelections: draft.applications,
     heldIntervention: entity.heldInterventionAvailable,
+    ...(draft.weaponHands === "1" || draft.weaponHands === "2" ? { weaponHands: Number(draft.weaponHands) as 1 | 2 } : {}),
     ...(command === "Cast" ? { spellSelections: { targetGroups: Object.fromEntries(groups.map((group) => [group.id, group.selected])), applications: draft.applications } } : {}),
     ...(command === "Called Shot" && location ? { calledShot: { locationNumber: location.number, label: location.name, objective: draft.objective,
       ...(scope.role === "god" ? { penalty: draft.penalty === "" ? undefined : Number(draft.penalty), reason: draft.reason } : { requestId: ruling?.id }) } } : {}),
     ...(firearm ? { firearm: { firingModeId: Number(draft.mode) || firearm.state?.selectedFiringModeId || firearm.modes[0]?.id || 0, aimInitiative: Number(draft.aim), firingDurationInitiative: Number(draft.duration) } } : {}) } : null;
   const fingerprint = JSON.stringify(choice), preview = checked?.key === fingerprint ? checked.value : null;
   const authored = preview?.kind === "declaration" ? preview.snapshot.authoredSource : null;
+  const injuryTiming = authored?.authoredData.injuryTiming as { explanation?: string | null } | undefined;
   const optionSource = checked?.sourceKey === `${entity.participantId}:${draft.source}` && checked.value.kind === "declaration" ? checked.value.snapshot.authoredSource : null;
   const needsRuling = preview?.kind === "firearm" ? preview.preview.rulingReasons.length > 0 : authored?.resolutionMode === "manual-god-ruling" || preview?.kind === "declaration" && preview.snapshot.governing?.status === "needs-god-ruling";
   const needsRoll = preview?.kind === "firearm" || !!authored && ["skill-roll", "attribute-roll", "opposed-roll"].includes(authored.resolutionMode);
+  const affordabilityIssue = preview ? initiativeAffordabilityIssue(preview.kind === "firearm"
+    ? preview.preview.timing.aimInitiativeCost + preview.preview.timing.firingInitiativeCost
+    : preview.snapshot.initiativeCost, entity.currentInitiative) : null;
   function edit(change: Partial<Draft>) { setDrafts((values) => ({ ...values, [key]: { ...draft, ...change } })); delete submitted.current[key]; }
   const previewReady = !!choice && !source?.unavailable && !["Hold", "Move", "Defend"].includes(command)
     && (command !== "Cast" || !!currentSpell && groups.every((group) => group.kind === "aoe" || group.selected.length > 0))
@@ -70,7 +77,7 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
       }).catch((error: unknown) => { if (active) setPreviewError({ key: fingerprint, message: combatMessage(error instanceof Error ? error.message : "Action options could not be read. Retry below.") }); });
     }, 150);
     return () => { active = false; clearTimeout(timer); };
-  }, [scope, fingerprint, previewReady, previewSourceKey, previewRetry]);
+  }, [scope, fingerprint, previewReady, previewSourceKey, previewRetry, data.projection?.stateToken]);
   useEffect(() => {
     const version = ++revision.current;
     void readCombatCommandSources(scope, entity.participantId).then((value) => { if (version === revision.current) setCache((prior) => ({ ...prior, [entity.participantId]: value })); })
@@ -103,11 +110,13 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
     finally { running.current = false; setBusy(false); }
   }
   return <div><h3>{command}</h3>
+    {command === "Item" && sources?.magazines ? <MagazineFillControls scope={scope} entity={entity} inventory={sources.magazines} disabled={disabled} refresh={refresh} /> : null}
     {sources?.aggregateIssue ? <p className={styles.notice} role="status">Some owned sources could not be loaded: {combatMessage(sources.aggregateIssue)}</p> : null}
-    {command === "Hold" || command === "Move" ? <MovementPanel scope={scope} participantId={entity.participantId} modes={sources?.movement ?? []} disabled={disabled || !entity.canControl || !entity.canActNow} hold={command === "Hold"} holding={entity.participationStatus === "holding"} refresh={refresh} /> : command === "Defend" ? <DefensePanel scope={scope} entity={entity} data={data} sources={sources} disabled={disabled} refresh={refresh} /> : <>
+    {command === "Hold" || command === "Move" ? <MovementPanel key={data.projection?.stateToken} scope={scope} participantId={entity.participantId} currentInitiative={entity.currentInitiative} modes={sources?.movement ?? []} disabled={disabled || !entity.canControl || !entity.canActNow} hold={command === "Hold"} holding={entity.participationStatus === "holding"} refresh={refresh} /> : command === "Defend" ? <DefensePanel scope={scope} entity={entity} data={data} sources={sources} disabled={disabled} refresh={refresh} /> : <>
       <div className={styles.fields}><label className="st-field">{command} source<select className="st-control" value={draft.source} disabled={busy} onChange={(event) => edit({ source: event.target.value, groups: {}, applications: {}, mode: "" })}><option value="">Choose an exact source</option>{draft.source && !source ? <option value={draft.source}>Selected source is no longer available</option> : null}{options.map((entry) => <option key={sourceKey(entry)} value={sourceKey(entry)}>{entry.name}{entry.unavailable ? " · unavailable" : ""}</option>)}</select></label>
       {command !== "Cast" ? <label className="st-field">Target<select className="st-control" value={target} disabled={busy} onChange={(event) => { setTarget(event.target.value); delete submitted.current[key]; }}><option value="">Choose a target</option>{data.roster.filter((entry) => !attackCommand || entry.participantId !== entity.participantId).map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label> : null}</div>
       {source ? <p className={styles.muted}>{source.description}{source.unavailable ? ` · ${source.unavailable}` : ""}</p> : <p className={styles.muted}>{sources ? "Choose an owned or authored source to see its options." : "Reading combat sources…"}</p>}
+      {source?.handedness?.toLowerCase() === "versatile" ? <label className="st-field">Weapon use<select className="st-control" value={draft.weaponHands} disabled={busy} onChange={(event) => edit({ weaponHands: event.target.value })}><option value="">Choose how to use this weapon</option><option value="1">One-handed</option><option value="2">Two-handed</option></select></label> : null}
       {command === "Cast" && currentSpell ? <><p>Mastery: {currentSpell.mastery} · {currentSpell.manaCost} Mana · {currentSpell.initiativeCost} Initiative</p>{groups.map((group) => <fieldset key={group.id}><legend>{group.label} · {group.rangeLabel}{group.kind === "target" ? ` · ${group.capacity} target(s)` : ""}</legend>{group.kind === "aoe" ? <p>{group.shapeLabel ? `${group.shapeLabel}. ` : ""}The area result is calculated and reported when casting finishes. Choosing who is inside the area will come with the mapped tabletop.</p> : group.selfTargeted ? <p>Self: {entity.name}</p> : <TargetDropdowns label="Spell target" roster={data.roster} selected={group.selected} maximum={group.capacity ?? undefined} disabled={busy} onChange={(ids) => edit({ groups: { ...draft.groups, [group.id]: ids } })} />}</fieldset>)}</> : null}
       {command === "Ability" || command === "Cast" && !groups.length ? <details><summary>Additional targets</summary><TargetDropdowns label="Additional target" roster={data.roster} selected={draft.targets} onChange={(targets) => edit({ targets })} /></details> : null}
       {command === "Called Shot" ? <><div className={styles.fields}><label className="st-field">Target location<select className="st-control" value={draft.location} onChange={(event) => edit({ location: event.target.value })}><option value="">Choose an authored location</option>{anatomy?.id === Number(target) ? anatomy.entries.map((entry) => <option key={entry.number} value={entry.number}>{entry.name}</option>) : null}</select></label><label className="st-field">Called Shot objective<input className="st-control" value={draft.objective} onChange={(event) => edit({ objective: event.target.value })} /></label>
@@ -123,10 +132,13 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
       {firearm ? <><div className={styles.fields}><label className="st-field">Firing mode<select className="st-control" value={choice?.firearm?.firingModeId} onChange={(event) => edit({ mode: event.target.value })}>{firearm.modes.map((mode) => <option key={mode.id} value={mode.id ?? ""}>{mode.name}</option>)}</select></label><label className="st-field">Aim Initiative<input className="st-control" type="number" min="0" step="1" value={draft.aim} onChange={(event) => edit({ aim: event.target.value })} /></label><label className="st-field">Firing duration (includes trigger)<input className="st-control" type="number" min="1" step="1" value={draft.duration} onChange={(event) => edit({ duration: event.target.value })} /></label></div><FirearmControls scope={scope} entity={entity} firearm={firearm} disabled={disabled} refresh={refresh} /></> : null}
       {previewError?.key === fingerprint ? <p role="status">{previewError.message} <button className="st-button" disabled={busy} onClick={() => setPreviewRetry((value) => value + 1)}>Retry action options</button></p> : previewReady && !preview ? <p role="status">Reading action cost and Roll options...</p> : null}
       {optionSource ? <EffectOptions scope={scope} source={optionSource} roster={data.roster} values={draft.applications} onChange={(applications) => edit({ applications })} /> : null}
-      {preview ? <div className={styles.notice}><p><strong>{entity.name} uses {source?.name}{targets.length ? ` on ${targets.map((id) => data.roster.find((entry) => entry.participantId === id)?.name ?? "Unknown target").join(", ")}` : ""}.</strong></p><p>{preview.kind === "firearm" ? `${preview.preview.aim.initiative} Aim + ${preview.preview.delivery.firingDurationInitiative} firing Initiative · ${preview.preview.delivery.declaredRounds} rounds · ${preview.preview.governing.label} target ${preview.preview.finalTarget}` : `${preview.snapshot.initiativeCost} Initiative · ${preview.snapshot.governing?.status === "resolved" ? `Roll target ${preview.snapshot.governing.rollOverTarget}` : preview.snapshot.governing?.explanation ?? "No governing Roll required."}`}</p>
+      {preview ? <div className={styles.notice}><p><strong>{entity.name} uses {source?.name}{targets.length ? ` on ${targets.map((id) => data.roster.find((entry) => entry.participantId === id)?.name ?? "Unknown target").join(", ")}` : ""}.</strong></p><p>{preview.kind === "firearm" ? `${preview.preview.timing.aimInitiativeCost} Aim + ${preview.preview.timing.firingInitiativeCost} firing Initiative · ${preview.preview.delivery.declaredRounds} rounds · ${preview.preview.governing.label} target ${preview.preview.finalTarget}` : `${preview.snapshot.initiativeCost} Initiative · ${preview.snapshot.governing?.status === "resolved" ? `Roll target ${preview.snapshot.governing.rollOverTarget}` : preview.snapshot.governing?.explanation ?? "No governing Roll required."}`}</p>
+        {preview.kind === "firearm" && preview.preview.timing.explanation ? <p>{preview.preview.timing.explanation}</p> : null}
         {authored?.resourceCosts.map((cost) => <p key={cost.key}>{cost.amount ?? "G.O.D. ruling"} {cost.kind.replaceAll("-", " ")} · {cost.instruction}</p>)}
         {authored?.warnings.map((warning) => <p key={warning}>{combatMessage(warning)}</p>)}
-        {needsRuling ? <p>A specific G.O.D. source ruling is needed before this action can be committed.</p> : <>{needsRoll ? <RollFields value={draft.roll} disabled={busy} onChange={(roll) => edit({ roll })} /> : <p>No Roll required for this source.</p>}<button className="st-button is-primary" disabled={disabled || busy || !entity.canControl || !entity.canActNow} onClick={() => void commit()}>Commit {command}{needsRoll ? " & Roll" : ""}</button></>}
+        {affordabilityIssue ? <p role="status">{affordabilityIssue}</p> : null}
+        {injuryTiming?.explanation ? <p>{injuryTiming.explanation}</p> : null}
+        {needsRuling ? <p>A specific G.O.D. source ruling is needed before this action can be committed.</p> : <>{needsRoll ? <RollFields value={draft.roll} disabled={busy} onChange={(roll) => edit({ roll })} /> : <p>No Roll required for this source.</p>}<button className="st-button is-primary" disabled={disabled || busy || !!affordabilityIssue || !entity.canControl || !entity.canActNow} onClick={() => void commit()}>Commit {command}{needsRoll ? " & Roll" : ""}</button></>}
       </div> : null}
       {scope.role === "god" && source && ["spell", "item", "derived-ability", "creature-ability"].includes(source.kind) ? <details><summary>Specific source ruling</summary><SourceRuling scope={scope} entity={entity} source={source} sources={sources} authored={authored ?? null} disabled={disabled} refresh={async () => { setChecked(null); setPreviewRetry((value) => value + 1); await refresh(); }} /></details> : null}
     </>}

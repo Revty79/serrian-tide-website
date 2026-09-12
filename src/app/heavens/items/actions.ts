@@ -680,7 +680,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       relatedCreatureName: property.relatedCreatureCanonicalId ? creatureNames.get(property.relatedCreatureCanonicalId) ?? null : null,
       notes: property.notes, sortOrder: property.sortOrder,
     })),
-    magazineProfile: magazine ? { capacityRounds: magazine.capacityRounds, ammunition: magazineAmmo } : null,
+    magazineProfile: magazine ? { capacityRounds: magazine.capacityRounds, fillInitiativeCostPerRound: magazine.fillInitiativeCostPerRound, ammunition: magazineAmmo } : null,
     weaponProfile: weapon ? {
       reloadType: weapon.reloadType as "Single" | "Magazine" | null, compatibleMagazines,
       profileRecordType: weapon.profileRecordType, weaponType: weapon.weaponType, handedness: weapon.handedness,

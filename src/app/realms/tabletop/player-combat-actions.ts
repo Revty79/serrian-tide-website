@@ -187,6 +187,7 @@ export async function startPlayerFirearmPreparation(
     itemInstanceId: number;
     operation: FirearmPreparationOperation;
     requestedRounds?: number | null;
+    magazineInstanceId?: number | null;
     replaceCurrentLoad?: boolean;
     partialLoadDisposition?: FirearmPartialLoadDisposition;
     discardReason?: string;
@@ -200,6 +201,7 @@ export async function startPlayerFirearmPreparation(
       itemInstanceId: positiveId(input.itemInstanceId, "Firearm instance"),
       operation: input.operation,
       requestedRounds: input.requestedRounds,
+      magazineInstanceId: input.magazineInstanceId == null ? input.magazineInstanceId : positiveId(input.magazineInstanceId, "Magazine instance"),
       replaceCurrentLoad: input.replaceCurrentLoad,
       partialLoadDisposition: input.partialLoadDisposition,
       godReason: input.partialLoadDisposition === "discard"

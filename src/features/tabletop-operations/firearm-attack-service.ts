@@ -83,7 +83,12 @@ import { resolvePercentileCheck, type PercentileTargetModifier } from "./percent
 import { getHitLocationFromPercentile, type RollMethod, type RollVisibility } from "./roll-runtime";
 import { readEffectiveRollSnapshotInTransaction, type AuthorizedRollActor } from "./roll-runtime-service";
 import type { RollGoverningSourceRequest, RollGoverningSourceSnapshot, RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
-import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { initiativeAffordabilityIssue } from "./initiative-affordability";
+import { isFirearmWeaponType } from "@/features/items/firearm-classification";
+import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/features/items/firearm-magazine-service";
+import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
+import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-injury-timing";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 
 export type FirearmAttackTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -97,6 +102,7 @@ export type FirearmAttackCommand = Readonly<{
   itemInstanceId: number;
   firingModeId: number;
   aimInitiative: number;
+  weaponHands?: 1 | 2;
   firingDurationInitiative?: number | null;
   calledShot: Readonly<{
     declared: boolean;
@@ -133,6 +139,7 @@ export type FirearmAttackPreview = Readonly<{
     effectiveRecoilResetInitiativeCost: number;
   };
   delivery: FirearmDeliveryPlan;
+  timing: { multiplier: number; aimInitiativeCost: number; firingInitiativeCost: number; explanation: string | null };
   readiness: { status: string; blockers: readonly FirearmReadinessBlocker[] };
   governing: {
     status: string;
@@ -189,6 +196,7 @@ export type FirearmAttackView = Readonly<{
   triggerDeclarationStatus: string;
   triggerPendingActionId: number | null;
   triggerTimingStatus: string | null;
+  firingPortionReady: boolean;
   responderOpportunities: readonly Readonly<{
     id: number;
     phase: "aim" | "trigger";
@@ -385,8 +393,8 @@ async function loadFoundation(
     eq(campaignCharacterFirearmState.campaignId, context.campaignId),
   )).limit(1);
   const states = lock ? await stateQuery.for("update") : await stateQuery;
-  const state = states[0];
-  if (!state) throw new Error("This exact owned firearm instance has no initialized runtime state.");
+  if (!states[0]) throw new Error("This exact owned firearm instance has no initialized runtime state.");
+  const state = await readEffectiveFirearmState(tx, states[0], lock);
   if (state.selectedFiringModeId !== positiveId(command.firingModeId, "Firing Mode")) {
     throw new Error("The selected Firing Mode does not match this exact firearm's authoritative runtime state.");
   }
@@ -408,6 +416,7 @@ async function loadFoundation(
     eq(weaponProfile.itemId, state.itemId),
   )).limit(1);
   if (!profile) throw new Error("The exact Weapon Profile no longer belongs to this firearm Item.");
+  if (!isFirearmWeaponType(profile.weaponType)) throw new Error("This Weapon Type is not an explicitly supported firearm family. Review Weapon Type in Heavens → Items before using firearm combat.");
   const [mode] = await tx.select().from(weaponFiringMode).where(and(
     eq(weaponFiringMode.id, state.selectedFiringModeId),
     eq(weaponFiringMode.weaponProfileId, state.weaponProfileId),
@@ -483,6 +492,7 @@ async function loadFoundation(
   }
   if (command.aimInitiative > 0 && !profile.rangeText.trim()) throw new Error("Aim applies only to an authored ranged attack.");
   const aimInitiative = nonnegativeWhole(command.aimInitiative, "Aim Initiative");
+  const injury = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, actorParticipantId, profile.id, 1, command.weaponHands);
   const calledShot = {
     declared: command.calledShot.declared === true,
     objective: command.calledShot.declared ? boundedText(command.calledShot.objective, "Called Shot objective", true, 240) : "",
@@ -600,6 +610,8 @@ async function loadFoundation(
         effectiveRecoilResetInitiativeCost: selectedMode.timing!.effectiveRecoilResetInitiativeCost,
       },
       delivery,
+      timing: { multiplier: injury.multiplier, aimInitiativeCost: aimInitiative * injury.multiplier,
+        firingInitiativeCost: delivery.firingDurationInitiative * injury.multiplier, explanation: injury.explanation },
       readiness,
       governing: {
         status: governance.status,
@@ -718,6 +730,11 @@ async function declareFirearmAttackInternal(
   const actor = foundation.actor;
   const actorUserId = actor.userId;
   const preview = foundation.preview;
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const participant = engine.participants.find((entry) => entry.characterId === command.actorParticipantId);
+  if (!participant) throw new Error("The firearm actor must be enrolled in Initiative.");
+  const affordabilityIssue = initiativeAffordabilityIssue(preview.timing.aimInitiativeCost + preview.timing.firingInitiativeCost, participant.currentInitiative);
+  if (affordabilityIssue) throw new Error(affordabilityIssue);
   const sequence = await tx.execute(sql<{ id: number }>`select nextval(pg_get_serial_sequence('campaign_session_encounter_firearm_attack', 'id'))::integer as id`);
   const attackId = positiveId(Number(sequence.rows[0]?.id), "Firearm Attack");
   const governancePayload = preview.governing.oneActionOverride === null ? {} : { weaponGovernanceOverride: preview.governing.oneActionOverride };
@@ -729,11 +746,11 @@ async function declareFirearmAttackInternal(
     sourceKind: "weapon",
     sourceRef: `instance:${preview.firearm.itemInstanceId}`,
     sourceInstanceId: preview.firearm.itemInstanceId,
-    sourcePayload: { firearmAttackId: attackId, ...governancePayload },
+    sourcePayload: { firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier, weaponHands: command.weaponHands ?? null, ...governancePayload },
     weaponItemId: preview.firearm.itemId,
     firingModeId: preview.firearm.firingModeId,
     attackMode: preview.firearm.firingModeName,
-    initiativeCost: preview.delivery.firingDurationInitiative,
+    initiativeCost: preview.timing.firingInitiativeCost,
     allowsMultiRound: preview.delivery.kind === "sustained",
     heldIntervention: false,
     windowKind: preview.delivery.kind === "sustained" ? "firearm-sustained" : "firearm-trigger",
@@ -766,7 +783,7 @@ async function declareFirearmAttackInternal(
       weaponItemId: null,
       firingModeId: null,
       attackMode: "Aim",
-      initiativeCost: preview.aim.initiative,
+      initiativeCost: preview.timing.aimInitiativeCost,
       allowsMultiRound: true,
       heldIntervention: false,
       windowKind: "preparation",
@@ -774,7 +791,7 @@ async function declareFirearmAttackInternal(
       calledShot: { declared: false, label: "", assignedPenalty: null },
       explicitModifiers: [],
       preparesForDeclarationId: triggerDeclarationId,
-      godNotes: "Aim Initiative is committed separately from the later one-Initiative trigger pull.",
+      godNotes: "Aim timing is committed separately from firing; the frozen injury adjustment changes time without increasing the Aim bonus or ammunition delivery.",
     };
     aimDeclarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, aimDraft);
     await lockActionDeclarationInTransaction(tx, context, actor, aimDeclarationId);
@@ -1047,14 +1064,15 @@ async function ensureFirearmStillFireable(
   tx: FirearmAttackTransaction,
   attack: LockedAttack,
 ): Promise<typeof campaignCharacterFirearmState.$inferSelect> {
-  const [state] = await tx.select().from(campaignCharacterFirearmState).where(and(
+  const [stored] = await tx.select().from(campaignCharacterFirearmState).where(and(
     eq(campaignCharacterFirearmState.itemInstanceId, attack.itemInstanceId),
     eq(campaignCharacterFirearmState.campaignId, attack.campaignId),
     eq(campaignCharacterFirearmState.characterId, attack.actorParticipantId),
     eq(campaignCharacterFirearmState.itemId, attack.itemId),
     eq(campaignCharacterFirearmState.weaponProfileId, attack.weaponProfileId),
   )).limit(1).for("update");
-  if (!state) throw new Error("The exact owned firearm state no longer exists.");
+  if (!stored) throw new Error("The exact owned firearm state no longer exists.");
+  const state = await readEffectiveFirearmState(tx, stored, true);
   if (state.version !== attack.stateVersionBefore) throw new Error("The firearm runtime state changed after declaration; firing was rejected before Roll or ammunition consumption.");
   if (state.selectedFiringModeId !== attack.firingModeId) throw new Error("The exact Firing Mode changed after declaration; accumulated Aim is no longer valid.");
   if (!state.readied || state.requiresCycling || state.requiresRecoilRecovery) throw new Error("The firearm is no longer authoritatively ready.");
@@ -1102,7 +1120,7 @@ async function createFirearmEffectPlan(
     eq(campaignSessionEncounterPendingAction.id, attack.triggerPendingActionId),
     eq(campaignSessionEncounterPendingAction.encounterId, context.encounterId),
   )).limit(1).for("update");
-  if (!pending || (sustained ? portion < 1 || pending.initiativeSpent < portion : pending.status !== "completed" || pending.remainingInitiativeCost !== 0)) {
+  if (!pending || (sustained ? portion < 1 || completedFirearmPortions(attack.frozenSnapshotJson, pending.initiativeSpent) < portion : pending.status !== "completed" || pending.remainingInitiativeCost !== 0)) {
     throw new Error("Firearm consequences remain recoverably pending until all original and defense-added Initiative Cost completes.");
   }
   const preview = attack.frozenSnapshotJson as FirearmAttackPreview;
@@ -1168,10 +1186,10 @@ async function createFirearmEffectPlan(
       expectedCompletionInitiative: pending.expectedCompletionInitiative,
       startedRound: pending.startedRound,
       completedRound: pending.completedRound,
-      triggerPullInitiativeCost: 1,
+      triggerPullInitiativeCost: firearmTimingMultiplier(preview),
       firingPortion: portion,
       cumulativeRoundsConsumed: attack.roundsConsumed,
-      aimInitiativeCost: attack.aimInitiative,
+      aimInitiativeCost: attack.aimInitiative * firearmTimingMultiplier(preview),
     },
     resourceCostsJson: [],
     sourceDivergenceJson: null,
@@ -1514,7 +1532,7 @@ async function fireFirearmAttackInternal(
     eq(campaignSessionEncounterPendingAction.encounterId, context.encounterId),
   )).limit(1).for("update");
   const sustained = (attack.frozenSnapshotJson as FirearmAttackPreview).delivery.kind === "sustained";
-  if (!pending || (sustained ? pending.initiativeSpent < 1 || !["active", "completed"].includes(pending.status) : pending.status !== "completed" || pending.remainingInitiativeCost !== 0)) {
+  if (!pending || (sustained ? completedFirearmPortions(attack.frozenSnapshotJson, pending.initiativeSpent) < 1 || !["active", "completed"].includes(pending.status) : pending.status !== "completed" || pending.remainingInitiativeCost !== 0)) {
     throw new Error("The committed firearm action must finish before ammunition and bullet consequences are applied. Its declaration Roll is preserved.");
   }
   const firingPoint = pending.expectedCompletionInitiative + pending.remainingInitiativeCost;
@@ -1666,20 +1684,7 @@ async function fireFirearmAttackInternal(
     updatedByUserId: actorUserId,
     updatedAt: now,
   };
-  await tx.update(campaignCharacterFirearmState).set({
-    loadedAmmunitionItemId: afterState.loadedAmmunitionItemId,
-    loadedAmmunitionProfileId: afterState.loadedAmmunitionProfileId,
-    loadedAmmunitionUnitCostCredits: afterState.loadedAmmunitionUnitCostCredits,
-    loadedRounds: afterState.loadedRounds,
-    requiresCycling: afterState.requiresCycling,
-    requiresRecoilRecovery: afterState.requiresRecoilRecovery,
-    version: afterState.version,
-    updatedByUserId: actorUserId,
-    updatedAt: now,
-  }).where(and(
-    eq(campaignCharacterFirearmState.itemInstanceId, state.itemInstanceId),
-    eq(campaignCharacterFirearmState.version, state.version),
-  ));
+  await writeFirearmAmmunitionState(tx, state, afterState);
   await tx.insert(campaignCharacterFirearmEvent).values({
     itemInstanceId: state.itemInstanceId,
     campaignId: state.campaignId,
@@ -1773,9 +1778,9 @@ async function continueSustainedFireInTransaction(
     status: attack.status as FirearmAttackStatus, roundsConsumed: attack.roundsConsumed, reused, waitingForDefenseRolls: false });
   const [pending] = await tx.select().from(campaignSessionEncounterPendingAction).where(eq(campaignSessionEncounterPendingAction.id, attack.triggerPendingActionId!)).for("update");
   if (!pending || !["active", "completed"].includes(pending.status) || attack.firingPortionsResolved >= attack.firingDurationInitiative
-    || Math.floor(pending.initiativeSpent) <= attack.firingPortionsResolved) return receipt(true);
+    || completedFirearmPortions(attack.frozenSnapshotJson, pending.initiativeSpent) <= attack.firingPortionsResolved) return receipt(true);
   const portion = attack.firingPortionsResolved + 1;
-  if (Math.floor(pending.initiativeSpent) !== portion) throw new Error("Resolve sustained fire at each completed Initiative point before advancing again.");
+  if (completedFirearmPortions(attack.frozenSnapshotJson, pending.initiativeSpent) !== portion) throw new Error("Resolve sustained fire at each completed firing portion before advancing again.");
   const [unresolved] = await tx.select({ id: campaignSessionEncounterEffectPlan.id }).from(campaignSessionEncounterEffectPlan).where(and(
     eq(campaignSessionEncounterEffectPlan.declarationId, attack.triggerDeclarationId),
     inArray(campaignSessionEncounterEffectPlan.status, ["calculated", "requires-god-ruling", "approved", "partially-applied", "application-failed"]),
@@ -1814,7 +1819,8 @@ async function continueSustainedFireInTransaction(
     await recordAttackEvent(tx, context, attack.id, attack.status as FirearmAttackStatus, attack.status as FirearmAttackStatus, "later-sustained-defense-applied", actor.userId,
       "Only uncompleted bullet portions may be cancelled by a later response.", { firingPortion: portion, defenseContributions: nextAllocation.defenseContributions, previousAllocation: allocation });
   }
-  const [state] = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, attack.itemInstanceId)).for("update");
+  const [storedState] = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, attack.itemInstanceId)).for("update");
+  const state = storedState ? await readEffectiveFirearmState(tx, storedState, true) : null;
   if (!state || state.version !== attack.stateVersionBefore + attack.firingPortionsResolved || state.loadedRounds !== attack.roundsLoadedAfter
     || state.characterId !== attack.actorParticipantId || state.selectedFiringModeId !== attack.firingModeId || !state.readied) {
     throw new Error("The exact firearm changed during sustained fire. Interrupt the remaining firing before changing its readiness or ammunition.");
@@ -1831,7 +1837,7 @@ async function continueSustainedFireInTransaction(
     loadedAmmunitionUnitCostCredits: loadedRounds === 0 ? null : state.loadedAmmunitionUnitCostCredits,
     requiresCycling: last && postShot.requiresCycling, requiresRecoilRecovery: last && postShot.requiresRecoilRecovery,
     updatedAt: new Date(), updatedByUserId: actor.userId };
-  await tx.update(campaignCharacterFirearmState).set(afterState).where(eq(campaignCharacterFirearmState.itemInstanceId, state.itemInstanceId));
+  await writeFirearmAmmunitionState(tx, state, afterState);
   await tx.insert(campaignCharacterFirearmEvent).values({ itemInstanceId: state.itemInstanceId, campaignId: context.campaignId, characterId: attack.actorParticipantId,
     eventKind: "firearm-portion-fired", beforeStateJson: state, afterStateJson: afterState,
     metadataJson: { firearmAttackId: attack.id, attackRollId: attack.attackRollId, firingPortion: portion, roundsConsumed: rounds }, actorUserId: actor.userId });
@@ -1872,11 +1878,18 @@ export async function reconcileSustainedFireProgressInTransaction(
         "Completed portions retain their ammunition and consequences; uncompleted portions do not fire.", { completedPortions: attack.firingPortionsResolved, roundsConsumed: attack.roundsConsumed });
       continue;
     }
-    if (pending.initiativeSpent <= prior.initiativeSpent || pending.initiativeSpent > attack.firingDurationInitiative) continue;
-    if (pending.initiativeSpent - prior.initiativeSpent > 1) throw new Error("Sustained fire must resolve one completed Initiative point at a time.");
+    const reached = completedFirearmPortions(attack.frozenSnapshotJson, pending.initiativeSpent);
+    const previouslyReached = completedFirearmPortions(attack.frozenSnapshotJson, prior.initiativeSpent);
+    if (reached <= previouslyReached || reached > attack.firingDurationInitiative) continue;
+    if (reached - previouslyReached > 1) throw new Error("Sustained fire must resolve one completed firing portion at a time.");
     const [character] = await tx.select({ isNpc: campaignCharacter.isNpc }).from(campaignCharacter).where(eq(campaignCharacter.id, attack.actorParticipantId));
     const actor: FirearmAttackActor = character?.isNpc ? { authority: "god-owner", userId: context.ownerUserId }
       : { authority: "player", userId: attack.createdByUserId, characterId: attack.actorParticipantId };
+    const firingPoint = pending.expectedCompletionInitiative + pending.remainingInitiativeCost;
+    const defense = await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, attack.triggerDeclarationId, firingPoint);
+    // Reaching a response opportunity must commit the clock position even when
+    // this firing portion needs a choice. No ammunition is consumed until then.
+    if (!defense || defense.status !== "resolved") continue;
     const receipt = await fireFirearmAttackInTransaction(tx, context, actor, attack.id, { method: "random" }, true);
     if (!receipt.reused && receipt.effectPlanId !== null) completedPortions.push({ actor, declarationId: attack.triggerDeclarationId, planId: receipt.effectPlanId });
   }
@@ -1973,7 +1986,7 @@ export async function readFirearmAttackWorkspaceInTransaction(
   }).from(campaignSessionEncounterResponderOpportunity)
     .where(inArray(campaignSessionEncounterResponderOpportunity.declarationId, declarationIds))
     .orderBy(asc(campaignSessionEncounterResponderOpportunity.id));
-  const pendingActions = pendingIds.length ? await tx.select({ id: campaignSessionEncounterPendingAction.id, status: campaignSessionEncounterPendingAction.status, remaining: campaignSessionEncounterPendingAction.remainingInitiativeCost })
+  const pendingActions = pendingIds.length ? await tx.select({ id: campaignSessionEncounterPendingAction.id, status: campaignSessionEncounterPendingAction.status, remaining: campaignSessionEncounterPendingAction.remainingInitiativeCost, spent: campaignSessionEncounterPendingAction.initiativeSpent })
     .from(campaignSessionEncounterPendingAction).where(inArray(campaignSessionEncounterPendingAction.id, pendingIds)) : [];
   const stagedAttackRolls = pendingIds.length ? await tx.select({
     id: campaignSessionRoll.id,
@@ -2039,6 +2052,8 @@ export async function readFirearmAttackWorkspaceInTransaction(
       triggerDeclarationStatus: declarationById.get(attack.triggerDeclarationId)?.status ?? "missing",
       triggerPendingActionId: attack.triggerPendingActionId,
       triggerTimingStatus: triggerPending?.status ?? null,
+      firingPortionReady: preview.delivery.kind === "sustained" && attack.status !== "cancelled" && !!triggerPending
+        && ["active", "completed"].includes(triggerPending.status) && completedFirearmPortions(preview, triggerPending.spent) > attack.firingPortionsResolved,
       responderOpportunities: responderOpportunities.filter(({ declarationId }) => declarationId === attack.triggerDeclarationId || declarationId === attack.aimDeclarationId).map((opportunity) => ({
         id: opportunity.id,
         phase: opportunity.declarationId === attack.aimDeclarationId ? "aim" : "trigger",

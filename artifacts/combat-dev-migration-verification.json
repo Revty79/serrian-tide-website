@@ -1,0 +1,598 @@
+{
+  "database": "serrian_tide_dev",
+  "verifiedAt": "2026-09-12T19:21:01.816Z",
+  "migrations": [
+    "0047_single_reload_timing",
+    "0048_combat_magazine_attachment"
+  ],
+  "ledgerCount": 49,
+  "existingTablesChecked": 146,
+  "existingCountsAndValuesUnchanged": true,
+  "backup": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-combat-before-0047-8E8ObY\\serrian_tide_dev.dump",
+  "tables": {
+    "account": {
+      "count": 6,
+      "digest": "3cf4c2581ff96769e77d4bd73cc250b2"
+    },
+    "armor_location_reference": {
+      "count": 10,
+      "digest": "4c55044425fdbc36735ad68d13bf7ca5"
+    },
+    "armor_locations": {
+      "count": 204,
+      "digest": "fe42a19a005c397e1eb1064ea26dc8bd"
+    },
+    "armor_profiles": {
+      "count": 47,
+      "digest": "a246cfdf590785228b88883617a4cdc2"
+    },
+    "attribute_score_reference": {
+      "count": 400,
+      "digest": "69b3ffe7b8b5a2b49ede6492afb1821d"
+    },
+    "campaign": {
+      "count": 4,
+      "digest": "c57950df3eba61a25a17f84b79f98241"
+    },
+    "campaign_allowed_derived_ability": {
+      "count": 6,
+      "digest": "5238dcfe8de34154a0288c1b068f86ab"
+    },
+    "campaign_allowed_race": {
+      "count": 45,
+      "digest": "a14284829a4ef3764a9a597645bc9c82"
+    },
+    "campaign_allowed_system": {
+      "count": 27,
+      "digest": "5ef028a5124425fb606caaf46a3babcb"
+    },
+    "campaign_character": {
+      "count": 10,
+      "digest": "8ed85a9a8688b8e766ee4d4b2cb0c371"
+    },
+    "campaign_character_active_condition": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_active_health": {
+      "count": 2,
+      "digest": "40726802a78466fd6bac4127c4b17551"
+    },
+    "campaign_character_active_health_pool": {
+      "count": 2,
+      "digest": "a48f29b5f976a23e53b3122cab146c0f"
+    },
+    "campaign_character_active_mana": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_active_modifier": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_attribute": {
+      "count": 60,
+      "digest": "9e0d5b84c3a123ab0a49df48dcad113b"
+    },
+    "campaign_character_currency_holding": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_firearm_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_firearm_preparation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_firearm_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_injury": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_item": {
+      "count": 28,
+      "digest": "1b12ce834fb7d5f05b74eecc404aae7e"
+    },
+    "campaign_character_item_equipment_state": {
+      "count": 4,
+      "digest": "8a21989387761ae6f83c93e274ae66e6"
+    },
+    "campaign_character_item_instance": {
+      "count": 1,
+      "digest": "f7b6873dffd1052867d21fed31b50f41"
+    },
+    "campaign_character_profile": {
+      "count": 10,
+      "digest": "d4eea207bfbb0d40adcb919b2ce4c317"
+    },
+    "campaign_character_skill_allocation": {
+      "count": 53,
+      "digest": "8247ded08df0d7d0cc0cbdf5c563b4f1"
+    },
+    "campaign_character_spell_document": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_weapon_override": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_creature_npc_profile": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_derived_currency": {
+      "count": 2,
+      "digest": "ab254db225eae155c5478fa61b65fb18"
+    },
+    "campaign_inventory_item": {
+      "count": 2018,
+      "digest": "390841630b309778d81cd43154fb160e"
+    },
+    "campaign_inventory_tag": {
+      "count": 10,
+      "digest": "868dd13f79275ddc65b8773466c6f53a"
+    },
+    "campaign_player": {
+      "count": 9,
+      "digest": "28393a7aeb7bb5281ca17d234ff64da1"
+    },
+    "campaign_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_called_check_batch": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_called_check_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_called_check_request": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_effect_duration_binding": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_action_declaration": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_action_declaration_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_declaration_checkpoint": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_effect": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_effect_plan": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_effect_plan_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_firearm_attack": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_firearm_attack_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_firearm_bullet": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_initiative": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_initiative_participant": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_participant": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_pending_action": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_pending_action_source": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reaction": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reaction_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_responder_opportunity": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reward": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reward_decision": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_high_low_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_high_low_request": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_player_ruling_request": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_player_ruling_request_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_prepared_shop": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_prepared_town": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_roll": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_roll_amendment": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_roster": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_member": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_shop": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_shop_visit": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_shop_visit_member": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town_npc": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town_place": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town_shop": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "challenge_rating_reference": {
+      "count": 50,
+      "digest": "96b5751086ebbe02901337730227bac6"
+    },
+    "character_derived_ability": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "character_derived_ability_recharge": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "character_derived_ability_use": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "chat_message": {
+      "count": 6,
+      "digest": "ef89f87ed03c6fd5df7259439d3f68ba"
+    },
+    "chat_room": {
+      "count": 5,
+      "digest": "d7f26c52618e9aa77d1dcbba8f92ecc0"
+    },
+    "chat_room_member": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creature_abilities": {
+      "count": 48,
+      "digest": "c658f48c8abb88c9bf5a682b6b53e382"
+    },
+    "creature_ability_effects": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creature_attacks": {
+      "count": 171,
+      "digest": "2abbbac8915774542c85b8ed2dc9e8d1"
+    },
+    "creature_attributes": {
+      "count": 552,
+      "digest": "2a51fc7dff1e1719492e487a0d292742"
+    },
+    "creature_defenses": {
+      "count": 23,
+      "digest": "1cf81a3932bfb0d93c597cf480acabb1"
+    },
+    "creature_hit_locations": {
+      "count": 850,
+      "digest": "5421e255c36f384156df598d1ddc94a5"
+    },
+    "creature_hp_pools": {
+      "count": 564,
+      "digest": "966c816221c078acfe87b0b21b278326"
+    },
+    "creature_movement": {
+      "count": 133,
+      "digest": "c34d52deb505e2eb6e395ca5e371f884"
+    },
+    "creature_skill_links": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creature_uses": {
+      "count": 38,
+      "digest": "889294605003a09bc2b1caed31ec792e"
+    },
+    "creature_variants": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creatures": {
+      "count": 92,
+      "digest": "13e501f1796fd235faa2d15de695484e"
+    },
+    "defense_skill_path_mapping": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability": {
+      "count": 6,
+      "digest": "1218ffac13bed72d1abdb9b09a6d09dc"
+    },
+    "derived_ability_cost": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability_effect": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability_requirement": {
+      "count": 6,
+      "digest": "769ecbbb9e83e9c0fc8ba12c375616c9"
+    },
+    "derived_ability_trigger": {
+      "count": 6,
+      "digest": "a603be5e11c189f2f87130bf60f4881b"
+    },
+    "derived_ability_use_condition": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability_use_limit": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "item_armor_damage_modifiers": {
+      "count": 128,
+      "digest": "0724606ae0b6ea6242572871d4e9b574"
+    },
+    "item_effects": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "item_passive_effects": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "item_properties": {
+      "count": 257,
+      "digest": "6bd13bf70a1bcc233e7ff252703ebc3c"
+    },
+    "item_rules": {
+      "count": 16,
+      "digest": "6a83d08818f7797bb92c60c64c2ba29a"
+    },
+    "item_runtime_profiles": {
+      "count": 10,
+      "digest": "4dc60612acf909c93e902bc8c4f9ea63"
+    },
+    "item_tag_links": {
+      "count": 1265,
+      "digest": "fec146144d71feb758dd159e65f7ab31"
+    },
+    "item_tags_catalog": {
+      "count": 8,
+      "digest": "8245d9a452908e419ee4f6d33b1f4aa5"
+    },
+    "items": {
+      "count": 1016,
+      "digest": "9c888e8cffdc23dfed1df9bada406c71"
+    },
+    "lifecycle_audit_event": {
+      "count": 7,
+      "digest": "28d0c6dd8888ec2d48235ca9a9366092"
+    },
+    "magazine_ammunition": {
+      "count": 1,
+      "digest": "c724689c82d06bb563957d2624607b9a"
+    },
+    "magazine_inventory_operation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "magazine_profiles": {
+      "count": 1,
+      "digest": "909fa3aca5022a83f84ad9a3c6f5ab32"
+    },
+    "race_attribute_caps": {
+      "count": 336,
+      "digest": "060b26794d4afdeae717d65b4171ef15"
+    },
+    "race_movement_modes": {
+      "count": 57,
+      "digest": "24aaa6b87f614aa6579c568fd23cf776"
+    },
+    "race_skill_links": {
+      "count": 283,
+      "digest": "f48c4c24eb7335eb009672b156388314"
+    },
+    "races": {
+      "count": 56,
+      "digest": "aa692ab69abbbab342e740fba3734996"
+    },
+    "session": {
+      "count": 111,
+      "digest": "2e513f9ad008151ed2f88f30c7650d0b"
+    },
+    "shop": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_commerce_operation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_money_event": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_offering": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_resale_item_instance": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_staff_assignment": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction_line": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction_request": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction_request_line": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "site_appearance_setting": {
+      "count": 1,
+      "digest": "58bbe018f24698b40ee034a67f5330c1"
+    },
+    "skill": {
+      "count": 1166,
+      "digest": "6feb291a7bc4d09de09adb3138d6f326"
+    },
+    "skill_extension": {
+      "count": 742,
+      "digest": "357bfd4b5fd79f10564c5ba07b670e75"
+    },
+    "skill_relationship": {
+      "count": 1051,
+      "digest": "1eb4a71bc8b4fe50df486e0aa8083efa"
+    },
+    "town": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "town_npc_association": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "town_place": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "town_shop_membership": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "user": {
+      "count": 6,
+      "digest": "69a357c44bf05c788a0f1f81eef3286f"
+    },
+    "user_role": {
+      "count": 12,
+      "digest": "e57364ddf84248b04140f6da0a34647c"
+    },
+    "verification": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "weapon_firing_modes": {
+      "count": 81,
+      "digest": "5922ccc28300ac5e21547eb09849bd34"
+    },
+    "weapon_magazines": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "weapon_profiles": {
+      "count": 222,
+      "digest": "293a724e69e129e0e4249696887e097f"
+    },
+    "weapon_skill_path_mappings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  }
+}

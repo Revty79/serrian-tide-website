@@ -45,6 +45,7 @@ test("Rowan's owned weapon/Skill Roll 90 and failed Block 20 derive 11/3 fatal h
     const [roll] = await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.pendingActionId, pendingId));
     assert.equal((roll.mechanicalSnapshot as { resolution: { originalTarget: number } }).resolution.originalTarget, 40);
     const [window] = await tx.select().from(opportunity).where(eq(opportunity.declarationId, declaration));
+    await advance(tx, f, 22);
     await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id, { decision: "allow" });
     await declareDefenseInterventionInTransaction(tx, f.context, f.god, { opportunityId: window.id, reactionType: "block", protectedTargetCharacterId: f.occurrences[0], sourceRef: "fixture-shortsword" }, { method: "entered", enteredTotal: 20 });
     await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
@@ -107,8 +108,8 @@ for (const reversed of [false, true]) test(`simultaneous completed attacks survi
       declarations.push(declaration);
     }
     for (const declaration of declarations) {
-      for (const window of await tx.select().from(opportunity).where(eq(opportunity.declarationId, declaration))) await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id,
-        { decision: "ineligible", reason: "Fixture ruling: neither notices the simultaneous attack in time to defend." });
+      const windows = await tx.select().from(opportunity).where(eq(opportunity.declarationId, declaration));
+      assert.ok(windows.every((window) => window.status !== "pending"), "Both actors are busy; the authoritative service excludes their response opportunities.");
       await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
     }
     await advance(tx, f, 18);

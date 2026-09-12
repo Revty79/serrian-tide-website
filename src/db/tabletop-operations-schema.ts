@@ -1370,6 +1370,7 @@ export const campaignCharacterFirearmPreparation = pgTable(
     ammunitionItemId: integer("ammunition_item_id"),
     ammunitionProfileId: integer("ammunition_profile_id"),
     requestedRounds: integer("requested_rounds"),
+    roundsCompleted: integer("rounds_completed").default(0).notNull(),
     replaceCurrentLoad: boolean("replace_current_load").default(false).notNull(),
     partialLoadDisposition: text("partial_load_disposition").default("none").notNull(),
     initiativeCost: integer("initiative_cost").notNull(),

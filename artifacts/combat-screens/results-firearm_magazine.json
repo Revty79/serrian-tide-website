@@ -1,0 +1,9 @@
+{
+  "passed": [
+    "Exact firearm commits and completes through the screen/server flow.",
+    "Player initializes an exact empty firearm, loads two loose rounds, and readies it through ordinary equipment setup outside combat.",
+    "Player swaps an exact magazine and fills a separate detached copy through Initiative; G.O.D. automatic flow completes both with conserved ammunition and no Rolls.",
+    "Magazine UI: author capacity/ammunition, link a weapon, acquire two empty copies in the existing store, fill/top up/empty, and preserve separate contents and ammunition conservation after reload."
+  ],
+  "errors": []
+}

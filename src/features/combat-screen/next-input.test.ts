@@ -89,3 +89,19 @@ test("busy actors and future candidates never demand response decisions", () => 
   entity.responseDecisionOpportunityIds = [];
   assert.equal(combatNextInput(data, operations).kind, "advance");
 });
+
+test("a matured firing portion waits for its reached response, then finishes before advancing", () => {
+  const data = fixture(), action = data.projection!.declarations[0];
+  data.projection!.declarations = [{ ...action, opportunities: [{ id: 4, responderCharacterId: -8, responderName: "Cat", status: "pending", reactionId: null, requiresGodConfirmation: true }] as unknown as typeof action.opportunities }];
+  const firing = { ...operations, firearms: { attacks: [{ id: 9, triggerDeclarationId: action.id, firingPortionReady: true }] } } as unknown as CombatOperations;
+  assert.equal(combatNextInput(data, firing).kind, "awareness");
+  data.projection!.declarations = [{ ...data.projection!.declarations[0], opportunities: [] }];
+  const ruling = { ...firing, defenses: { reactions: [{ declarationId: action.id, responderCharacterId: -8, status: "needs-ruling" }] } } as unknown as CombatOperations;
+  assert.equal(combatNextInput(data, ruling).kind, "inspect");
+  const next = combatNextInput(data, firing);
+  assert.equal(next.kind, "resolve");
+  assert.equal(next.kind === "resolve" && next.firearmId, 9);
+  assert.equal(automaticCombatInputKey(next, "at-response"), `at-response:resolve:${action.id}:9`);
+  assert.equal(combatNextInput(data, { ...firing, sealed: true }).kind, "wait");
+  assert.equal(combatNextInput(data, operations).kind, "advance");
+});

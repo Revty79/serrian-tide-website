@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { item } from "@/db/item-schema";
-import { magazineProfile, magazineAmmunition, magazineInventoryOperation } from "@/db/magazine-schema";
+import { magazineProfile, magazineAmmunition, magazineInventoryOperation, firearmMagazineAttachment } from "@/db/magazine-schema";
 import { campaignCharacter, campaignCharacterProfile, campaignCharacterItem as loose, campaignCharacterItemInstance as copy } from "@/db/realm-schema";
 import { campaignSessionEncounter as encounter, campaignSessionEncounterParticipant as participant } from "@/db/tabletop-operations-schema";
 import { canMutateActiveHealth, canReadActiveState } from "@/features/active-state/authorization";
@@ -32,11 +32,17 @@ async function combatActive(tx: MagazineTransaction, characterId: number, lock =
   return rows.some((row) => row.status === "active");
 }
 
+export async function assertOutsideCombatEquipmentHandling(tx: MagazineTransaction, characterId: number) {
+  if (await combatActive(tx, characterId, true)) throw new Error("This Character is in active combat. Use combat preparation and its Initiative costs.");
+}
+
 export async function readMagazineInventoryInTransaction(tx: MagazineTransaction, characterId: number, userId: string) {
   const canManage = await access(tx, characterId, userId, false);
   const instances = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, capacity: magazineProfile.capacityRounds,
-    loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, archived: item.archivedAt }).from(copy)
+    fillInitiativeCostPerRound: magazineProfile.fillInitiativeCostPerRound,
+    loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, archived: item.archivedAt, attachedWeaponInstanceId: firearmMagazineAttachment.weaponInstanceId }).from(copy)
     .innerJoin(item, eq(item.id, copy.itemId)).innerJoin(magazineProfile, eq(magazineProfile.itemId, copy.itemId))
+    .leftJoin(firearmMagazineAttachment, eq(firearmMagazineAttachment.magazineInstanceId, copy.id))
     .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt))).orderBy(asc(copy.id));
   const magazines = [];
   for (const entry of instances) {
@@ -63,6 +69,8 @@ export async function handleMagazineInTransaction(tx: MagazineTransaction, userI
   if (await combatActive(tx, command.characterId, true)) throw new Error("Magazine filling and emptying are unavailable during active combat. End combat before handling magazine inventory.");
   const [owned] = await tx.select().from(copy).where(and(eq(copy.id, command.instanceId), eq(copy.characterId, command.characterId), isNull(copy.retiredAt))).for("update");
   if (!owned) throw new Error("That magazine copy is not owned by this character.");
+  const [attached] = await tx.select().from(firearmMagazineAttachment).where(eq(firearmMagazineAttachment.magazineInstanceId, owned.id));
+  if (attached) throw new Error(`Remove this magazine from firearm copy #${attached.weaponInstanceId} before filling or emptying it.`);
   const [model] = await tx.select({ capacity: magazineProfile.capacityRounds, archived: item.archivedAt }).from(item)
     .innerJoin(magazineProfile, eq(magazineProfile.itemId, item.id)).where(eq(item.id, owned.itemId)).for("share", { of: item });
   if (!model) throw new Error("That copy is not a magazine.");

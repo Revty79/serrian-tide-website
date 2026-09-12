@@ -17,6 +17,7 @@ import {
   setStackEquipmentStateAction,
 } from "./equipment-state-actions";
 import "./equipment-state-panel.css";
+import { FirearmSetupPanel } from "./firearm-setup-panel";
 
 type Props = {
   state: CharacterEquipmentStateView;
@@ -67,6 +68,7 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
     </div>
     {state.wornArmor.length ? <section className="equipment-state-panel__context"><h4>Worn Armor Context</h4><p>Armor contributions remain individual; Base Soak is not summed.</p>{state.wornArmor.map((armor) => <article key={armor.ownershipKey}><strong>{armor.itemName}{armor.activeQuantity > 1 ? ` ×${armor.activeQuantity}` : ""}</strong><span>Base Soak: {armor.baseSoak ?? "Not recorded"} · Coverage: {armor.coverage || "Not recorded"}</span><small>Locations: {armor.coveredLocationKeys.join(", ") || "Not recorded"}{armor.armorType ? ` · ${armor.armorType}` : ""}</small>{armor.rulesText ? <p>{armor.rulesText}</p> : null}</article>)}</section> : null}
     {state.wieldedWeapons.length ? <section className="equipment-state-panel__context"><h4>Wielded Weapon Context</h4><p>Profiles are exposed for future Combat; nothing is rolled, spent, or applied.</p>{state.wieldedWeapons.map((weapon) => <article key={weapon.ownershipKey}><strong>{weapon.itemName}{weapon.activeQuantity > 1 ? ` ×${weapon.activeQuantity}` : ""}</strong><span>Damage: {weapon.damage || "Not recorded"}{weapon.damageType ? ` ${weapon.damageType}` : ""} · Initiative Cost: {weapon.initiativeCost ?? "Not recorded"}</span><small>{[weapon.weaponType, weapon.handedness, weapon.range, weapon.reach].filter(Boolean).join(" · ") || "No additional structured profile"}</small>{weapon.rulesText ? <p>{weapon.rulesText}</p> : null}</article>)}</section> : null}
+    <FirearmSetupPanel characterId={state.characterId} equipmentRevision={state.instances.map((entry) => `${entry.instanceId}:${entry.state}`).join(",")} disabled={disabled || busy} />
     {state.activeManualPassives.length ? <section className="equipment-state-panel__manual"><h4>Manual Passive Effects · G.O.D. Resolution Required</h4>{state.activeManualPassives.map((entry) => <article key={entry.passiveEffectId}><strong>{entry.title}</strong><span>{entry.itemName} · {entry.lifecycleLabel}</span><p>{entry.description}</p></article>)}</section> : null}
   </section>;
 }

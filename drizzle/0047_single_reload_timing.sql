@@ -1,0 +1,3 @@
+ALTER TABLE "magazine_profiles" ADD COLUMN "fill_initiative_cost_per_round" integer;--> statement-breakpoint
+ALTER TABLE "campaign_character_firearm_preparation" ADD COLUMN "rounds_completed" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "magazine_profiles" ADD CONSTRAINT "magazine_fill_cost_nonnegative" CHECK ("magazine_profiles"."fill_initiative_cost_per_round" IS NULL OR "magazine_profiles"."fill_initiative_cost_per_round" >= 0);

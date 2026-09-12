@@ -1,6 +1,8 @@
-{
-  "passed": [
-    "Magazine UI: author capacity/ammunition, link a weapon, acquire two empty copies in the existing store, fill/top up/empty, and preserve separate contents and ammunition conservation after reload."
-  ],
-  "errors": []
+﻿{
+    "passed":  [
+                   "Magazine UI: author capacity/ammunition, link a weapon, acquire two empty copies in the existing store, fill/top up/empty, and preserve separate contents and ammunition conservation after reload."
+               ],
+    "errors":  [
+
+               ]
 }

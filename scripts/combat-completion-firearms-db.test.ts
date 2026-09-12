@@ -4,7 +4,11 @@ import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { item, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
-import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute } from "@/db/realm-schema";
+import { magazineProfile, magazineAmmunition, weaponMagazine, firearmMagazineAttachment } from "@/db/magazine-schema";
+import { readEffectiveFirearmState, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
+import { startCombatMagazineFill } from "@/features/tabletop-operations/combat-magazine-fill-service";
+import { applyLocalizedDamageInTransaction, readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import { campaignCharacterFirearmState as stateTable, campaignSessionEncounterFirearmAttack as attackTable, campaignSessionEncounterFirearmBullet as bulletTable,
   campaignSessionEncounterInitiativeParticipant as participant, campaignSessionEncounterParticipant as occurrence,
   campaignSessionEncounterResponderOpportunity as opportunity, campaignSessionRoll, campaignSessionEncounterActionDeclaration as declarationTable,
@@ -42,7 +46,7 @@ async function fixture(tx: Tx, kind: "player" | "npc", burst = false) {
   ]).returning();
   const [ammoProfile] = await tx.insert(weaponProfile).values({ itemId: ammunition.id, profileRecordType: "Ammunition", damage: "8", damageType: "Ballistic", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }).returning();
   const [profile] = await tx.insert(weaponProfile).values({ itemId: firearm.id, profileRecordType: "Weapon", weaponType: "Handgun", damageSource: "Ammunition", ammunitionItemId: ammunition.id,
-    rangeText: "Ranged", capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 2, readyInitiativeCost: 1, reloadInitiativeCost: 3, unloadInitiativeCost: 2, firingModeChangeInitiativeCost: 1 }).returning();
+    rangeText: "Ranged", reloadType: "Single", capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 2, readyInitiativeCost: 1, reloadInitiativeCost: 3, unloadInitiativeCost: 2, firingModeChangeInitiativeCost: 1 }).returning();
   await tx.insert(weaponSkillPathMapping).values({ weaponProfileId: profile.id, endpointSkillId: f.skillId, reviewState: "approved", sortOrder: 0, updatedByUserId: f.godId });
   const modes = await tx.insert(weaponFiringMode).values([1, 3].map((rounds, index) => ({ weaponProfileId: profile.id, name: rounds === 1 ? "Single" : "Burst", normalizedName: rounds === 1 ? "single" : "burst", sortOrder: index,
     baseCyclingInitiativeCost: 1, baseRecoilResetInitiativeCost: 2, deliveryCadence: "per-trigger" as const, roundsPerCadence: rounds }))).returning();
@@ -64,6 +68,20 @@ async function fixture(tx: Tx, kind: "player" | "npc", burst = false) {
     rolls: () => tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, f.encounterId)) };
 }
 
+test("Aim and firing must fit together before a firearm declaration starts", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(participant).set({ currentInitiative: 2 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+    const before = await f.state();
+    await assert.rejects(declareFirearmAttackInTransaction(tx, f.context, f.actor, { ...f.command, aimInitiative: 2 }), /costs 3 Initiative; only 2 remains/);
+    assert.deepEqual(await f.state(), before);
+    assert.equal((await f.rolls()).length, 0);
+    assert.equal((await tx.select().from(attackTable).where(eq(attackTable.encounterId, f.encounterId))).length, 0);
+    assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.filter((entry) => entry.status === "active").length, 0);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
 async function complete(tx: Tx, f: Awaited<ReturnType<typeof fixture>>, pendingId: number) {
   const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
   const action = before.pendingActions.find(({ id }) => id === pendingId)!;
@@ -76,6 +94,40 @@ async function noDefense(tx: Tx, f: Awaited<ReturnType<typeof fixture>>, declara
     await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id, { decision: "ineligible", reason: "No aware participant has a legitimate response in this isolated shot." });
   }
 }
+
+for (const sustained of [false, true]) test(`injured two-handed ${sustained ? "sustained" : "single"} fire doubles time without doubling ammunition`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.insert(campaignCharacterAttribute).values({ characterId: f.actorId, attributeKey: "CON", value: 50 });
+    await tx.update(weaponProfile).set({ handedness: "Two-Handed" }).where(eq(weaponProfile.id, f.profile.id));
+    const arm = (await readActiveHealthInTransaction(tx, f.actorId, "race")).anatomy.pools.find((entry) => entry.key === "leftArm")!;
+    await applyLocalizedDamageInTransaction(tx, { characterId: f.actorId, poolKey: arm.key, amount: arm.maximumHp! }, "race");
+    if (sustained) await tx.update(weaponFiringMode).set({ deliveryCadence: "sustained-per-initiative" }).where(eq(weaponFiringMode.id, f.command.firingModeId));
+    const command = { ...f.command, firingDurationInitiative: sustained ? 2 : 1 };
+    const preview = await previewFirearmAttackInTransaction(tx, f.context, f.actor, { ...command, aimInitiative: 1 });
+    assert.equal(preview.timing.aimInitiativeCost, 2);
+    assert.equal(preview.aim.targetOffset, 2);
+    assert.equal(preview.timing.firingInitiativeCost, sustained ? 4 : 2);
+    assert.equal(preview.delivery.declaredRounds, sustained ? 2 : 1);
+    await tx.update(participant).set({ currentInitiative: 1 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+    await assert.rejects(declareFirearmAttackInTransaction(tx, f.context, f.actor, command), /only 1 remains/);
+    assert.equal((await f.rolls()).length, 0);
+    const timeline = (await loadInitiativeEngineInTransaction(tx, f.encounterId)).runtime.timelineInitiative;
+    await tx.update(participant).set({ currentInitiative: timeline }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, command), attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    for (let spent = 1; spent <= (sustained ? 4 : 2); spent++) {
+      const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, timeline - spent));
+      if (sustained) assert.equal((await f.state()).loadedRounds, 3 - Math.floor(spent / 2));
+      else if (spent === 1) await assert.rejects(fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" }), /must finish/);
+    }
+    if (!sustained) await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    assert.equal((await f.state()).loadedRounds, sustained ? 1 : 2);
+    assert.equal((await f.rolls()).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
 
 test("a firearm hit on a creature with blank armor and soak applies its full damage once", async () => {
   await assert.rejects(db.transaction(async (tx) => {
@@ -196,12 +248,13 @@ test("Aim records no attack Roll; changed target loses Aim and a fresh trigger r
   }), (error) => error === rollback);
 });
 
-test("authored draw, reload, cycling and recoil complete through Initiative with no attack Rolls", async () => {
+test("authored draw, Single reload, ready including cocking, and recoil complete without attack Rolls", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "player");
     await tx.update(campaignCharacterItemInstance).set({ equipmentState: "inactive" }).where(eq(campaignCharacterItemInstance.id, f.instance.id));
-    await tx.update(stateTable).set({ readied: false, requiresCycling: true, requiresRecoilRecovery: true }).where(eq(stateTable.itemInstanceId, f.instance.id));
-    for (const [operation, cost] of [["draw", 2], ["reload", 3], ["cycle", 1], ["recover-recoil", 2]] as const) {
+    await tx.update(weaponProfile).set({ reloadInitiativeCost: 1, readinessMode: "separate-ready-action" }).where(eq(weaponProfile.id, f.profile.id));
+    await tx.update(stateTable).set({ readied: false, readinessMode: "separate-ready-action", requiresCycling: true, requiresRecoilRecovery: true }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    for (const [operation, cost] of [["draw", 2], ["reload", 3], ["ready", 1], ["recover-recoil", 2]] as const) {
       const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation, requestedRounds: operation === "reload" ? 3 : undefined, idempotencyKey: crypto.randomUUID() };
       const before = (await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative;
       const preparation = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
@@ -215,6 +268,7 @@ test("authored draw, reload, cycling and recoil complete through Initiative with
     assert.equal(state.readied, true);
     assert.equal(state.loadedRounds, 6);
     assert.equal(state.requiresCycling, false);
+    await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "cycle", idempotencyKey: crypto.randomUUID() }), /does not currently require cycling/);
     assert.equal(state.requiresRecoilRecovery, false);
     assert.equal((await f.rolls()).length, 0);
     assert.equal((await previewFirearmAttackInTransaction(tx, f.context, f.actor, f.command)).firearm.roundsLoaded, 6);
@@ -234,6 +288,156 @@ test("authored draw, reload, cycling and recoil complete through Initiative with
     assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative, 8);
     throw rollback;
   }), (error) => error === rollback);
+});
+
+test("Single reload checks the full cost and retains each completed insertion through interruption", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "reload" as const, requestedRounds: 3, idempotencyKey: crypto.randomUUID() };
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId), timeline = before.runtime.timelineInitiative;
+    await tx.update(participant).set({ currentInitiative: 8 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+    await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, command), /costs 9 Initiative; only 8 remains/);
+    assert.equal((await f.state()).loadedRounds, 3);
+    await tx.update(participant).set({ currentInitiative: timeline }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+    const started = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
+    const [declaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, started.pendingActionId!));
+    await noDefense(tx, f, declaration.id);
+    for (const spent of [2, 3, 4]) {
+      const current = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      await persistInitiativeEngineInTransaction(tx, f.context, current, advanceInitiativeTimeline(current, timeline - spent));
+      assert.equal((await f.state()).loadedRounds, 3 + Math.floor(spent / 3));
+    }
+    await interruptActionDeclarationInTransaction(tx, f.context, f.god, declaration.id, "Interrupted during the second insertion.");
+    assert.equal((await f.state()).loadedRounds, 4);
+    assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).reused, true);
+    const [inventory] = await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.actorId), eq(campaignCharacterItem.itemId, f.ammunition.id)));
+    assert.equal(inventory.quantity, 8);
+    assert.equal((await f.rolls()).length, 0);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("an ammunition relationship does not authorize a bow as a firearm or an ordinary ammunition-free attack", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(weaponProfile).set({ weaponType: "Bow" }).where(eq(weaponProfile.id, f.profile.id));
+    await assert.rejects(previewFirearmAttackInTransaction(tx, f.context, f.actor, f.command), /not an explicitly supported firearm/);
+    await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "reload", requestedRounds: 1, idempotencyKey: crypto.randomUUID() }), /not an explicitly supported firearm/);
+    const { previewCombatChoiceInTransaction } = await import("@/features/combat-screen/choice-service");
+    await assert.rejects(previewCombatChoiceInTransaction(tx, f.context, f.actor, { participantId: f.actorId, targetIds: [f.occurrences[0]],
+      source: { kind: "weapon", ref: `instance:${f.instance.id}`, instanceId: f.instance.id, itemId: f.instance.itemId, name: "Bow", description: "" } }), /no supported combat ammunition workflow/);
+    assert.equal((await f.state()).loadedRounds, 3);
+    assert.equal((await f.rolls()).length, 0);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+for (const interrupted of [false, true]) test(`physical magazine swap preserves copy contents and becomes usable only on completion; interrupted=${interrupted}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(weaponProfile).set({ reloadType: "Magazine" }).where(eq(weaponProfile.id, f.profile.id));
+    const [model] = await tx.insert(item).values({ canonicalId: `MAG-${crypto.randomUUID()}`.toUpperCase(), name: "Extended Magazine", catalogScope: "equipment", equipmentGroup: "general", recordType: "Magazine", family: "Fixture", category: "Magazine", priceBasis: "unit", createdByUserId: f.godId }).returning();
+    await tx.insert(magazineProfile).values({ itemId: model.id, capacityRounds: 8, fillInitiativeCostPerRound: 2 });
+    await tx.insert(magazineAmmunition).values({ magazineItemId: model.id, ammunitionItemId: f.ammunition.id });
+    await tx.insert(weaponMagazine).values({ weaponProfileId: f.profile.id, magazineItemId: model.id });
+    const magazines = await tx.insert(campaignCharacterItemInstance).values([6, 2].map((rounds) => ({ characterId: f.actorId, itemId: model.id, currentCharges: 0,
+      loadedAmmunitionItemId: f.ammunition.id, loadedRounds: rounds, loadedAmmunitionUnitCostCredits: 2, unitCostCredits: 10 }))).returning();
+    const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "reload" as const, magazineInstanceId: magazines[0].id, idempotencyKey: crypto.randomUUID() };
+    await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, command), /Unload the existing internal rounds/);
+    const unload = await startFirearmPreparationInTransaction(tx, f.context, f.actor, { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "unload", partialLoadDisposition: "retain", idempotencyKey: crypto.randomUUID() });
+    const [unloadDeclaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, unload.pendingActionId!));
+    await noDefense(tx, f, unloadDeclaration.id); await complete(tx, f, unload.pendingActionId!);
+    const started = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
+    const [declaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, started.pendingActionId!));
+    await noDefense(tx, f, declaration.id);
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, before.runtime.timelineInitiative - 1));
+    assert.equal((await tx.select().from(firearmMagazineAttachment).where(eq(firearmMagazineAttachment.weaponInstanceId, f.instance.id))).length, 0);
+    assert.equal((await readEffectiveFirearmState(tx, await f.state())).loadedRounds, 0);
+    if (interrupted) {
+      await interruptActionDeclarationInTransaction(tx, f.context, f.god, declaration.id, "Stop the incomplete magazine swap.");
+      assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, magazines[0].id)))[0].loadedRounds, 6);
+    } else {
+      await complete(tx, f, started.pendingActionId!);
+      assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).reused, true);
+      const ready = await previewFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+      assert.equal(ready.firearm.roundsLoaded, 6); assert.equal(ready.firearm.capacityRounds, 8);
+      assert.equal((await f.state()).loadedRounds, 0, "The weapon stores no second copy of magazine rounds.");
+      await assert.rejects(validateMagazineSwap(tx, await f.state(), magazines[0].id), /already attached/);
+      const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command), attack = await f.attack(declared.attackId);
+      await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
+      await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+      await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+      await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId);
+      const swap = await startFirearmPreparationInTransaction(tx, f.context, f.actor, { ...command, magazineInstanceId: magazines[1].id, idempotencyKey: crypto.randomUUID() });
+      const [swapDeclaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, swap.pendingActionId!));
+      await noDefense(tx, f, swapDeclaration.id); await complete(tx, f, swap.pendingActionId!);
+      assert.equal((await readEffectiveFirearmState(tx, await f.state())).loadedRounds, 2);
+      assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, magazines[0].id)))[0].loadedRounds, 5);
+      assert.equal((await f.rolls()).length, 1);
+    }
+    const [loose] = await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.actorId), eq(campaignCharacterItem.itemId, f.ammunition.id)));
+    assert.equal(loose.quantity, 12, "Only the explicit initial unload returns rounds to loose inventory.");
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("zero-cost filling preserves ordinary choice and cannot bypass a busy actor", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "npc");
+    const [model] = await tx.insert(item).values({ canonicalId: `ZERO-MAG-${crypto.randomUUID()}`.toUpperCase(), name: "Zero Fill Magazine", catalogScope: "equipment", equipmentGroup: "general", recordType: "Magazine", family: "Fixture", category: "Magazine", priceBasis: "unit", createdByUserId: f.godId }).returning();
+    await tx.insert(magazineProfile).values({ itemId: model.id, capacityRounds: 6, fillInitiativeCostPerRound: 0 });
+    await tx.insert(magazineAmmunition).values({ magazineItemId: model.id, ammunitionItemId: f.ammunition.id });
+    const [magazine] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.actorId, itemId: model.id, currentCharges: 0, unitCostCredits: 10 }).returning();
+    const command = { characterId: f.actorId, instanceId: magazine.id, ammunitionItemId: f.ammunition.id, rounds: 1, requestKey: crypto.randomUUID() };
+    await tx.update(participant).set({ participationStatus: "holding" }).where(eq(participant.characterId, f.actorId));
+    await assert.rejects(startCombatMagazineFill(tx, f.context, f.actor, command), /ordinary Initiative opportunity/);
+    await tx.update(participant).set({ participationStatus: "active" }).where(eq(participant.characterId, f.actorId));
+    assert.equal((await startCombatMagazineFill(tx, f.context, f.actor, command)).status, "completed");
+    assert.equal((await startCombatMagazineFill(tx, f.context, f.actor, command)).roundsCompleted, 1);
+    await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    await assert.rejects(startCombatMagazineFill(tx, f.context, f.actor, { ...command, requestKey: crypto.randomUUID() }), /unfinished action/);
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, magazine.id)))[0].loadedRounds, 1);
+    assert.equal((await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.actorId), eq(campaignCharacterItem.itemId, f.ammunition.id))))[0].quantity, 8);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+for (const interrupted of [false, true]) test(`detached magazine filling uses an authored cost per round and preserves completed rounds; interrupted=${interrupted}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "npc");
+    const [model] = await tx.insert(item).values({ canonicalId: `FILL-MAG-${crypto.randomUUID()}`.toUpperCase(), name: "Fill Magazine", catalogScope: "equipment", equipmentGroup: "general", recordType: "Magazine", family: "Fixture", category: "Magazine", priceBasis: "unit", createdByUserId: f.godId }).returning();
+    await tx.insert(magazineProfile).values({ itemId: model.id, capacityRounds: 6 });
+    await tx.insert(magazineAmmunition).values({ magazineItemId: model.id, ammunitionItemId: f.ammunition.id });
+    const [magazine] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.actorId, itemId: model.id, currentCharges: 0, unitCostCredits: 10 }).returning();
+    const command = { characterId: f.actorId, instanceId: magazine.id, ammunitionItemId: f.ammunition.id, rounds: 3, requestKey: crypto.randomUUID() };
+    await assert.rejects(startCombatMagazineFill(tx, f.context, f.actor, command), /Set Fill Initiative per Round/);
+    await tx.update(magazineProfile).set({ fillInitiativeCostPerRound: 2 }).where(eq(magazineProfile.itemId, model.id));
+    await tx.update(participant).set({ currentInitiative: 5 }).where(eq(participant.characterId, f.actorId));
+    await assert.rejects(startCombatMagazineFill(tx, f.context, f.actor, command), /6 Initiative/);
+    await tx.update(participant).set({ currentInitiative: 22 }).where(eq(participant.characterId, f.actorId));
+    const started = await startCombatMagazineFill(tx, f.context, f.actor, command);
+    assert.equal((await startCombatMagazineFill(tx, f.context, f.actor, command)).pendingActionId, started.pendingActionId);
+    await noDefense(tx, f, started.declarationId!);
+    const initial = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(initial.pendingActions.find((entry) => entry.id === started.pendingActionId)!.originalInitiativeCost, 6);
+    for (const spent of [1, 2, 3]) {
+      const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, initial.runtime.timelineInitiative - spent));
+      assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, magazine.id)))[0].loadedRounds, Math.floor(spent / 2));
+    }
+    if (interrupted) await interruptActionDeclarationInTransaction(tx, f.context, f.god, started.declarationId!, "Interrupted midway through the next magazine insertion.");
+    else await complete(tx, f, started.pendingActionId!);
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, magazine.id)))[0].loadedRounds, interrupted ? 1 : 3);
+    const receipt = await startCombatMagazineFill(tx, f.context, f.actor, command);
+    assert.equal(receipt.roundsCompleted, interrupted ? 1 : 3);
+    assert.equal(receipt.status, interrupted ? "interrupted" : "completed");
+    if (!interrupted) assert.equal((await tx.select().from(declarationTable).where(eq(declarationTable.id, started.declarationId!)))[0].status, "resolved");
+    const [stock] = await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.actorId), eq(campaignCharacterItem.itemId, f.ammunition.id)));
+    assert.equal(stock.quantity, interrupted ? 8 : 6);
+    assert.equal((await f.rolls()).length, 0);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });
 
 test("an aware exact Creature Dodge cancels burst bullet hits, with one defense cost and all fired ammo spent", async () => {
@@ -276,7 +480,7 @@ for (const interrupted of [false, true]) test(`sustained firing resolves 21,20,1
     const timing = starting.pendingActions.find(({ id }) => id === attack.triggerPendingActionId)!;
     assert.equal(timing.originalInitiativeCost, 3);
     assert.equal(timing.expectedCompletionInitiative, 19);
-    await assert.rejects(persistInitiativeEngineInTransaction(tx, f.context, starting, advanceInitiativeTimeline(starting, 19)), /one completed Initiative point/);
+    await assert.rejects(persistInitiativeEngineInTransaction(tx, f.context, starting, advanceInitiativeTimeline(starting, 19)), /one completed firing portion/);
     assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).runtime.timelineInitiative, 22);
     for (let portion = 1; portion <= (interrupted ? 2 : 3); portion++) {
       const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
@@ -324,12 +528,16 @@ test("a lower-Initiative defense waits for its firing point and cannot cancel al
     const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
     await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 21));
     const at21 = await loadInitiativeEngineInTransaction(tx, f.encounterId);
-    await assert.rejects(persistInitiativeEngineInTransaction(tx, f.context, at21, advanceInitiativeTimeline(at21, 20)), /responses at this firing point/);
+    await persistInitiativeEngineInTransaction(tx, f.context, at21, advanceInitiativeTimeline(at21, 20));
     assert.equal((await f.state()).loadedRounds, 4);
+    const at20 = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(at20.runtime.timelineInitiative, 20);
+    await assert.rejects(persistInitiativeEngineInTransaction(tx, f.context, at20, advanceInitiativeTimeline(at20, 19)), /pending firing result/);
     const [window] = await tx.select().from(opportunity).where(and(eq(opportunity.declarationId, attack.triggerDeclarationId), eq(opportunity.responderCharacterId, f.occurrences[0])));
     await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id, { decision: "allow" });
     await declareDefenseInterventionInTransaction(tx, f.context, f.god, { opportunityId: window.id, reactionType: "dodge", protectedTargetCharacterId: f.occurrences[0] }, { method: "entered", enteredTotal: 90 });
-    for (const point of [20, 19]) {
+    await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    for (const point of [19]) {
       const next = await loadInitiativeEngineInTransaction(tx, f.encounterId);
       await persistInitiativeEngineInTransaction(tx, f.context, next, advanceInitiativeTimeline(next, point));
       const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));

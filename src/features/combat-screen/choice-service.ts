@@ -39,7 +39,7 @@ export async function previewCombatChoiceInTransaction(tx: Tx, context: OwnedEnc
     const preview = await previewFirearmAttackInTransaction(tx, context, actor, firearmCommand(choice));
     // The action menu needs its own costs and governing target, not another
     // combatant's complete anatomy/HP snapshot from the internal preparation.
-    return { kind: "firearm" as const, preview: { aim: preview.aim, delivery: preview.delivery,
+    return { kind: "firearm" as const, preview: { aim: preview.aim, delivery: preview.delivery, timing: preview.timing,
       governing: { label: preview.governing.label }, finalTarget: preview.finalTarget, rulingReasons: preview.rulingReasons, readiness: preview.readiness } };
   }
   const snapshot = await previewCombatDeclarationInTransaction(tx, context, actor, choiceDraft(choice));

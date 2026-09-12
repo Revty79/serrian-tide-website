@@ -8,7 +8,7 @@ const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf
 test("migration 0030 is additive, follows immutable 0029, and adds normalized audit-safe identity", () => {
   const migration = read("drizzle/0030_called_checks_high_low.sql");
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: Array<Record<string, unknown>> };
-  assert.equal(journal.entries.length, 47);
+  assert.ok(journal.entries.length >= 47, "Published migrations remain in the forward-only ledger.");
   assert.deepEqual(journal.entries[29], { idx: 29, version: "7", when: 1788555142922, tag: "0029_firearm_attack_runtime", breakpoints: true });
   assert.deepEqual(journal.entries[30], { idx: 30, version: "7", when: 1788561124817, tag: "0030_called_checks_high_low", breakpoints: true });
   assert.equal(journal.entries[31]?.tag, "0031_player_combat_ruling_requests");

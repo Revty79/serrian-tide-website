@@ -1,4 +1,5 @@
 import "server-only";
+import { readMaturedSustainedFireInTransaction } from "./firearm-progress-service";
 
 import { and, eq } from "drizzle-orm";
 import { campaignCharacter } from "@/db/realm-schema";
@@ -28,7 +29,8 @@ export async function readCombatProjectionInTransaction(
   const closed = engine.runtime.status !== "active" || context.encounterStatus === "completed";
   const next = closed ? null : getNextInitiativeTimelineEvent(engine);
   const checkpoint = workspace.checkpoint;
-  const pendingOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, context.encounterId);
+  const pendingOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, context.encounterId)
+    || !checkpoint && (await readMaturedSustainedFireInTransaction(tx, context.encounterId)).length > 0;
   const members = await tx.select({ id: campaignSessionEncounterParticipant.characterId, local: campaignSessionEncounterParticipant.localStateJson })
     .from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId));
   const entities = workspace.participants.map((entity) => {

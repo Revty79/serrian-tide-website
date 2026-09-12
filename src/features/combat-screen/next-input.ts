@@ -79,6 +79,10 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
     if (response) return respond(action, response);
     const portion = operations.plans.find((plan) => plan.declarationId === action.id && plan.sourceSnapshot.identity.startsWith("firearm-attack:") && ["requires-god-ruling", "partially-applied"].includes(plan.status));
     if (portion) return { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling", planId: portion.id, label: `Rule on ${portion.sourceSnapshot.displayName} firing result`, explanation: portion.explanation };
+    const defense = operations.defenses?.reactions.find((entry) => entry.declarationId === action.id && entry.status === "needs-ruling");
+    if (defense) return { kind: "inspect", participantId: defense.responderCharacterId, focus: "response", label: "Resolve the firing response", explanation: "Resolve the specific defense question at this Initiative before continuing the firing portion." };
+    const firearm = operations.firearms?.attacks.find((entry) => entry.triggerDeclarationId === action.id && entry.firingPortionReady);
+    if (firearm) return { kind: "resolve", declarationId: action.id, firearmId: firearm.id, label: `Finish ${action.actorName}'s firing portion`, explanation: "This portion has reached its firing point. Resolve it with the original Roll before advancing again." };
   }
   if (projection.progression.canAdvanceTimeline) return { kind: "advance", label: "Advance combat", explanation: "Continue to the next action opportunity or completion. No unfinished hit is applied early." };
   if (projection.progression.canAdvanceRound) return { kind: "round", label: "Next round", explanation: "Continue with preserved Initiative debt and pending work." };

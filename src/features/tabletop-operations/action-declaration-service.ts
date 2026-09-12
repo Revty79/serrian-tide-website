@@ -6,6 +6,7 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import { campaignPlayer } from "@/db/campaign-schema";
 import { item, weaponFiringMode, weaponProfile } from "@/db/item-schema";
+import { isFirearmWeaponType, UNSUPPORTED_PROJECTILE_MESSAGE } from "@/features/items/firearm-classification";
 import { campaignCharacter, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
@@ -424,11 +425,21 @@ async function buildAuthoritativeSnapshot(
     const [profile] = await tx.select({
       id: weaponProfile.id,
       itemName: item.name,
+      weaponType: weaponProfile.weaponType,
+      ammunitionItemId: weaponProfile.ammunitionItemId,
     }).from(weaponProfile)
       .innerJoin(item, eq(item.id, weaponProfile.itemId))
       .where(eq(weaponProfile.itemId, sourceItemId))
       .limit(1);
     if (!profile) throw new Error("The declared Weapon Profile no longer exists.");
+    if (!firearmPreparation && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind) && (profile.ammunitionItemId !== null || equipped!.firingModes.length)) {
+      throw new Error(isFirearmWeaponType(profile.weaponType) ? "Use this exact firearm's ammunition and preparation controls before declaring a firearm attack." : UNSUPPORTED_PROJECTILE_MESSAGE);
+    }
+    if (draft.windowKind === "firearm-trigger") {
+      const { readWeaponInjuryTimingInTransaction } = await import("./combat-injury-timing-service");
+      const timing = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, draft.actorCharacterId, profile.id, 1, draft.sourcePayload?.weaponHands);
+      if (draft.initiativeCost !== timing.initiativeCost) throw new Error(`The firearm trigger costs ${timing.initiativeCost} Initiative with this actor's current injury. Prepare the firearm action again.`);
+    }
     weaponDisplayName = profile.itemName;
     weaponSourceItemId = sourceItemId;
     const mode = draft.firingModeId === null
@@ -479,7 +490,7 @@ async function buildAuthoritativeSnapshot(
           explanation: resolution.explanation,
         };
   }
-  const resolvedSource = firearmPreparation ? {
+  let resolvedSource = firearmPreparation ? {
     authoritativeInitiativeCost: null,
     governing: null,
     snapshot: {
@@ -516,6 +527,12 @@ async function buildAuthoritativeSnapshot(
   if (resolvedSource.authoritativeInitiativeCost !== null && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind)) {
     draft = { ...draft, initiativeCost: resolvedSource.authoritativeInitiativeCost };
   }
+  if (weapon && !firearmPreparation && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind)) {
+    const { readWeaponInjuryTimingInTransaction } = await import("./combat-injury-timing-service");
+    const injuryTiming = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, draft.actorCharacterId, weapon.weaponProfileId, draft.initiativeCost, draft.sourcePayload?.weaponHands);
+    draft = { ...draft, initiativeCost: injuryTiming.initiativeCost };
+    resolvedSource = { ...resolvedSource, snapshot: { ...resolvedSource.snapshot, authoredData: { ...resolvedSource.snapshot.authoredData, injuryTiming } } };
+  }
   return buildLockedActionDeclarationSnapshot({
     draft,
     context: {
@@ -543,6 +560,22 @@ export async function previewCombatDeclarationInTransaction(tx: ActionDeclaratio
   await assertActorAuthority(tx, context, actor, draft.actorCharacterId);
   const now = new Date();
   return buildAuthoritativeSnapshot(tx, context, { id: 0, createdByUserId: actor.userId, createdAt: now }, draft, actor, now);
+}
+
+/** Instant preparation still requires a living, free actor's ordinary opportunity. */
+export async function assertInstantPreparationOpportunity(
+  tx: ActionDeclarationTransaction, context: OwnedEncounterRuntimeContext, characterId: number,
+): Promise<void> {
+  assertContextLive(context);
+  await assertParticipants(tx, context, [characterId]);
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const { getNextInitiativeTimelineEvent, hasUnfinishedInitiativeAction } = await import("./initiative-runtime");
+  if (hasUnfinishedInitiativeAction(engine.pendingActions, characterId)) throw new Error("Finish or cancel this combatant's unfinished action before beginning preparation, even when its cost is zero.");
+  const participant = engine.participants.find((entry) => entry.characterId === characterId);
+  const next = getNextInitiativeTimelineEvent(engine);
+  if (participant?.participationStatus !== "active" || next.kind !== "normal-opportunity" || !next.characterIds.includes(characterId)) {
+    throw new Error("Wait for this combatant's ordinary Initiative opportunity before beginning preparation, even when its cost is zero.");
+  }
 }
 
 export async function createActionDeclarationDraftInTransaction(
@@ -732,6 +765,19 @@ async function commitActionDeclarationInternal(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  const injuryTiming = snapshot.authoredSource?.authoredData.injuryTiming;
+  if (snapshot.weapon && !snapshot.actionKind.startsWith("firearm-preparation:") && !["firearm-trigger", "firearm-sustained"].includes(snapshot.windowKind)) {
+    const { readWeaponInjuryTimingInTransaction } = await import("./combat-injury-timing-service");
+    const baseCost = injuryTiming && typeof injuryTiming === "object" && "baseCost" in injuryTiming && typeof injuryTiming.baseCost === "number" ? injuryTiming.baseCost : snapshot.initiativeCost;
+    const current = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, snapshot.actorCharacterId, snapshot.weapon.weaponProfileId, baseCost, snapshotDraft(snapshot).sourcePayload?.weaponHands);
+    if (current.initiativeCost !== snapshot.initiativeCost) throw new Error("The injury cost changed after this action was prepared. Prepare a new action with the current cost before committing.");
+  }
+  if (snapshot.actionKind === "combat-movement") {
+    const request = snapshotDraft(snapshot).sourcePayload?.movementRequest as { movementMode: string; distance: number };
+    const { resolveCombatMovementInTransaction } = await import("./combat-movement-service");
+    const current = await resolveCombatMovementInTransaction(tx, context, snapshot.actorCharacterId, request.movementMode, request.distance);
+    if (current.initiativeCost !== snapshot.initiativeCost) throw new Error("The movement cost changed after this segment was prepared. Check movement cost again before committing.");
+  }
   await assertLockedSpellOwnershipInTransaction(tx, snapshotDraft(snapshot));
   if (snapshot.source.kind === "weapon") {
     const firearmPreparation = snapshot.windowKind === "preparation"

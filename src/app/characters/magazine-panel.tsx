@@ -26,13 +26,14 @@ export function MagazinePanel({ characterId, disabled = false, onChange }: { cha
     finally { running.current = false; setBusy(false); }
   }
   return <section className="magazine-panel" aria-label="Magazine inventory">
-    <h3>Magazines</h3><p>Prepare individual magazines outside combat. Combat cannot insert or fire from these magazines yet; loaded rounds are separate from loose ammunition.</p>
+    <h3>Magazines</h3><p>Prepare individual magazines here outside combat. In combat, use ammunition preparation to swap a magazine or Item → Fill magazine to load a detached copy with Initiative.</p>
     <button type="button" className="st-button" disabled={busy} onClick={() => void preserveScroll(refresh)}>Refresh magazines</button>
     {message ? <p role="status">{message}</p> : null}
     {view?.combatActive ? <p role="status">Magazine filling and emptying are unavailable during active combat.</p> : null}
     {view && !view.magazines.length ? <p>No magazine copies owned. Acquire a campaign-authorized magazine from the store or a Shop.</p> : null}
-    {view?.magazines.map((entry) => { const blocked = disabled || busy || !view.canManage || view.combatActive; return <fieldset key={entry.instanceId}>
+    {view?.magazines.map((entry) => { const blocked = disabled || busy || !view.canManage || view.combatActive || !!entry.attachedWeaponInstanceId; return <fieldset key={entry.instanceId}>
       <legend>{entry.name} · Copy #{entry.instanceId}</legend><p><strong>{entry.loadedRounds} / {entry.capacity} rounds</strong> · {entry.ammunition.find((ammo) => ammo.id === entry.ammunitionItemId)?.name ?? "Empty"}</p>
+      {entry.attachedWeaponInstanceId ? <p>Attached to firearm copy #{entry.attachedWeaponInstanceId}. Remove it before filling or emptying this copy.</p> : null}
       <label className="st-field">Ammunition<select className="st-control" aria-label={`Ammunition for copy ${entry.instanceId}`} disabled={blocked || entry.loadedRounds > 0} value={entry.ammunitionItemId ?? selection[entry.instanceId] ?? entry.ammunition[0]?.id ?? ""} onChange={(event) => setSelection((current) => ({ ...current, [entry.instanceId]: event.target.value }))}>
         {!entry.ammunition.length ? <option value="">No compatible ammunition</option> : null}{entry.ammunition.map((ammo) => <option key={ammo.id} value={ammo.id} disabled={ammo.archived}>{ammo.name} · {ammo.quantity} loose{ammo.archived ? " (archived)" : ""}</option>)}
       </select></label>

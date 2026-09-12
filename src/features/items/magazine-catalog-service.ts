@@ -4,7 +4,7 @@ import type { db } from "@/db";
 import { item, weaponProfile } from "@/db/item-schema";
 import { magazineProfile, magazineAmmunition, weaponMagazine } from "@/db/magazine-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
-export type MagazineProfileDraft = { capacityRounds: number; ammunition: { id: number; name: string }[] };
+export type MagazineProfileDraft = { capacityRounds: number; fillInitiativeCostPerRound?: number | null; ammunition: { id: number; name: string }[] };
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export async function saveMagazineCatalogInTransaction(tx: Tx, itemId: number, profile: MagazineProfileDraft | null,
@@ -18,6 +18,8 @@ export async function saveMagazineCatalogInTransaction(tx: Tx, itemId: number, p
   }
   if (profile) {
     if (!Number.isSafeInteger(profile.capacityRounds) || profile.capacityRounds <= 0 || profile.capacityRounds > 2147483647) throw new Error("Magazine Capacity (Rounds) must be a positive whole number.");
+    const fillInitiativeCostPerRound = profile.fillInitiativeCostPerRound ?? null;
+    if (fillInitiativeCostPerRound !== null && (!Number.isSafeInteger(fillInitiativeCostPerRound) || fillInitiativeCostPerRound < 0 || fillInitiativeCostPerRound > 2147483647)) throw new Error("Magazine Fill Initiative per Round must be a nonnegative whole number, or blank until authored.");
     const ids = [...new Set(profile.ammunition.map((entry) => entry.id))];
     if (!ids.length || ids.includes(itemId) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Select at least one exact compatible ammunition item.");
     const ammo = await tx.select({ id: item.id }).from(item).leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
@@ -30,7 +32,7 @@ export async function saveMagazineCatalogInTransaction(tx: Tx, itemId: number, p
     }
     const loaded = await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.itemId, itemId));
     if (loaded.some((entry) => entry.loadedRounds > profile.capacityRounds || entry.loadedRounds > 0 && !ids.includes(entry.loadedAmmunitionItemId!))) throw new Error("Empty the affected magazine copies before reducing capacity or removing their ammunition compatibility.");
-    await tx.insert(magazineProfile).values({ itemId, capacityRounds: profile.capacityRounds }).onConflictDoUpdate({ target: magazineProfile.itemId, set: { capacityRounds: profile.capacityRounds } });
+    await tx.insert(magazineProfile).values({ itemId, capacityRounds: profile.capacityRounds, fillInitiativeCostPerRound }).onConflictDoUpdate({ target: magazineProfile.itemId, set: { capacityRounds: profile.capacityRounds, fillInitiativeCostPerRound } });
     const previous = await tx.select().from(magazineAmmunition).where(eq(magazineAmmunition.magazineItemId, itemId));
     for (const row of previous) if (!ids.includes(row.ammunitionItemId)) await tx.delete(magazineAmmunition).where(and(eq(magazineAmmunition.magazineItemId, itemId), eq(magazineAmmunition.ammunitionItemId, row.ammunitionItemId)));
     for (const ammunitionItemId of ids) await tx.insert(magazineAmmunition).values({ magazineItemId: itemId, ammunitionItemId }).onConflictDoNothing();
@@ -42,7 +44,8 @@ export async function saveMagazineCatalogInTransaction(tx: Tx, itemId: number, p
       const valid = await tx.select({ id: item.id }).from(magazineProfile).innerJoin(item, eq(item.id, magazineProfile.itemId)).where(and(inArray(item.id, ids), isNull(item.archivedAt)));
       if (valid.length !== ids.length) throw new Error("Choose existing, active magazine models for weapon compatibility.");
     }
-    await tx.delete(weaponMagazine).where(eq(weaponMagazine.weaponProfileId, weapon.id));
-    for (const magazineItemId of ids) await tx.insert(weaponMagazine).values({ weaponProfileId: weapon.id, magazineItemId });
+    const previous = await tx.select().from(weaponMagazine).where(eq(weaponMagazine.weaponProfileId, weapon.id));
+    for (const link of previous) if (!ids.includes(link.magazineItemId)) await tx.delete(weaponMagazine).where(and(eq(weaponMagazine.weaponProfileId, weapon.id), eq(weaponMagazine.magazineItemId, link.magazineItemId)));
+    for (const magazineItemId of ids) await tx.insert(weaponMagazine).values({ weaponProfileId: weapon.id, magazineItemId }).onConflictDoNothing();
   } else if (magazines.length) throw new Error("Magazine compatibility requires a weapon profile.");
 }

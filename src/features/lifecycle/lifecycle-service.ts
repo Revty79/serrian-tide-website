@@ -254,6 +254,7 @@ async function countSerializedFrameworkSkillReferences(
 
 function campaignDependencySpecs(campaignId: number): DependencySpec[] {
   return [
+    { label: "Attached magazine copies", blocking: false, query: sql<CountRow>`select count(*)::int as value from firearm_magazine_attachment where campaign_id = ${campaignId}` },
     { label: "Magazine inventory history", blocking: false, query: sql<CountRow>`select count(*)::int as value from magazine_inventory_operation i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Campaign memberships", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_player where campaign_id = ${campaignId}` },
     { label: "Player Characters", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character where campaign_id = ${campaignId} and is_npc = false` },
@@ -740,6 +741,7 @@ async function deleteNonCampaignRoot(
       if (root.campaign_id === null) throw new Error("Character Campaign context is missing.");
       // Firearm state is mutable Character-owned state, but its history is a
       // blocker. Removing it first permits the verified Character cascade.
+      await tx.execute(sql`delete from firearm_magazine_attachment where campaign_id = ${root.campaign_id} and character_id = ${target.entityId}`);
       await tx.execute(sql`
         delete from campaign_character_firearm_state
         where campaign_id = ${root.campaign_id} and character_id = ${target.entityId}

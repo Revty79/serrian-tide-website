@@ -40,10 +40,8 @@ import {
 } from "@/features/characters/character-spell-runtime-service";
 import { resolveSpellCastTargetSelection, type SpellCastSourceRequest } from "@/features/characters/character-spell-runtime";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAttributeKey } from "@/features/characters/models";
-import {
-  adaptProgressiveSpellToMechanicalEffects,
-  adaptSpellToMechanicalEffects,
-} from "@/features/spell-construction/mechanical-effects-adapter";
+import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { resolveProgressiveSpellForLevel } from "@/features/spell-construction/engine/progressiveSpell";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 
 import type {
@@ -462,9 +460,10 @@ async function resolveSpell(
     source,
     selections: { targetGroups: {}, applications: {} },
   }, actingUserId);
-  const adapted = preview.plan.activeProgressiveTier
-    ? adaptProgressiveSpellToMechanicalEffects(loaded.spell, preview.plan.activeProgressiveTier)
-    : adaptSpellToMechanicalEffects(loaded.spell);
+  const effectSpell = preview.plan.activeProgressiveTier
+    ? resolveProgressiveSpellForLevel(loaded.spell, preview.plan.activeProgressiveTier).resolvedSpell
+    : loaded.spell;
+  const adapted = adaptSpellToMechanicalEffects(effectSpell);
   if (preview.plan.status === "invalid") throw new Error(`The exact authored Spell is invalid: ${preview.plan.issues.join(" ")}`);
   for (const groupId of Object.keys(targetGroups)) {
     if (!preview.plan.targetGroups.some(({ id }) => id === groupId)) throw new Error(`Unknown authored Spell target group ${groupId}.`);
@@ -483,11 +482,11 @@ async function resolveSpell(
   if (preview.plan.targetGroups.length) assertSameTargets(Object.values(targetGroups).flat(),
     preview.plan.targetGroups.every((group) => group.kind === "aoe") ? draft.targetCharacterIds : allTargets(draft), "Spell target selection");
   const targets = allTargets(draft);
-  const spellModifiers = [...loaded.spell.modifiers];
+  const spellModifiers = [...effectSpell.modifiers];
   const collectModifiers = (containers: typeof loaded.spell.containers) => {
     for (const container of containers) { spellModifiers.push(...container.modifiers); collectModifiers(container.children); }
   };
-  collectModifiers(loaded.spell.containers);
+  collectModifiers(effectSpell.containers);
   const perSuccess = spellModifiers.some(({ ruleId }) => ruleId === "per-success-assignment")
     && !spellModifiers.some(({ ruleId }) => ruleId === "static-assignment");
   const effects = adapted.valid

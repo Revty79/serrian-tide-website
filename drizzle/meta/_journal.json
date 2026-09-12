@@ -330,6 +330,20 @@
       "when": 1788982406327,
       "tag": "0046_magazine_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789237884248,
+      "tag": "0047_single_reload_timing",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1789238356418,
+      "tag": "0048_combat_magazine_attachment",
+      "breakpoints": true
     }
   ]
 }

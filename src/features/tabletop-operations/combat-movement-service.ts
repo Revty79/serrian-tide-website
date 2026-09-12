@@ -11,10 +11,12 @@ import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTrans
 import { parseLockedActionDeclarationSnapshot, type ActionDeclarationDraft } from "./action-declaration";
 import { getMaximumMovementDistance, type InitiativeEngineState } from "./initiative-runtime";
 import type { OwnedEncounterRuntimeContext, RuntimeIntegrationTransaction } from "./runtime-integration-service";
+import { movementInjuryTiming, type InjuryTiming } from "./combat-injury-timing";
+import { readTimingLimbsInTransaction } from "./combat-injury-timing-service";
 
 type Tx = RuntimeIntegrationTransaction;
 export type CombatMovementCommand = { participantId: number; movementMode: string; distance: number; requestKey: string; intent?: "move" | "flee" };
-type Movement = { movementMode: string; baseMovement: number; distance: number; initiativeCost: number };
+type Movement = { movementMode: string; baseMovement: number; distance: number; initiativeCost: number; injuryTiming: InjuryTiming };
 const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 export async function resolveCombatMovementInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext, participantId: number, mode: string, distance: number): Promise<Movement> {
@@ -43,9 +45,10 @@ export async function resolveCombatMovementInTransaction(tx: Tx, context: OwnedE
     movementMode = capacity.movementMode;
   }
   if (!Number.isFinite(baseMovement) || baseMovement <= 0) throw new Error("This participant currently has no positive movement in the selected mode.");
-  const initiativeCost = distance / baseMovement;
+  const injuryTiming = movementInjuryTiming(distance / baseMovement, await readTimingLimbsInTransaction(tx, context.encounterId, participantId));
+  const initiativeCost = injuryTiming.initiativeCost;
   if (!Number.isFinite(initiativeCost) || initiativeCost <= 0) throw new Error("The movement segment exceeds the supported timing range.");
-  return { movementMode, baseMovement, distance, initiativeCost };
+  return { movementMode, baseMovement, distance, initiativeCost, injuryTiming };
 }
 
 export async function declareCombatMovementInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor, command: CombatMovementCommand) {
@@ -87,7 +90,8 @@ export async function recordCombatMovementProgressInTransaction(tx: Tx, context:
     const local = structuredClone(object(row.localStateJson));
     const history = Array.isArray(local.movementHistory) ? local.movementHistory : [];
     const alreadyRecorded = history.filter((entry) => object(entry).declarationId === source.id).reduce((sum, entry) => sum + Number(object(entry).distance), 0);
-    const reached = Math.min(movement.distance, getMaximumMovementDistance(movement.baseMovement, action.initiativeSpent));
+    const multiplier = movement.injuryTiming?.multiplier ?? 1;
+    const reached = Math.min(movement.distance, getMaximumMovementDistance(movement.baseMovement, action.initiativeSpent / multiplier));
     const delta = reached - alreadyRecorded;
     if (delta > 0) {
       history.push({ declarationId: source.id, pendingActionId: action.id, movementMode: movement.movementMode, distance: delta,

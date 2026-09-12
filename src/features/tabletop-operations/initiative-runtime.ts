@@ -1,4 +1,5 @@
 import { getMovementInitiative } from "@/features/characters/character-rules";
+import { initiativeAffordabilityIssue } from "./initiative-affordability";
 
 export const INITIATIVE_RUNTIME_STATUSES = ["active", "closed"] as const;
 export const INITIATIVE_PARTICIPATION_STATUSES = ["active", "holding", "passed", "suspended"] as const;
@@ -262,7 +263,7 @@ export function getNextInitiativeTimelineEvent(state: InitiativeEngineState): In
     if (action.status !== "active") return [];
     const actor = participantById(state, action.actorCharacterId);
     const availableThisRound = Math.max(0, actor.currentInitiative);
-    if (action.actionKind.startsWith("firearm-attack:") && action.originalInitiativeCost > 1 && availableThisRound > 0
+    if ((action.actionKind.startsWith("firearm-attack:") || action.actionKind.startsWith("magazine-fill:") || /^firearm-preparation:(load|reload)$/.test(action.actionKind)) && action.originalInitiativeCost > 1 && availableThisRound > 0
       && action.initiativeSpent < action.originalInitiativeCost) {
       return [{ id: action.id, initiative: availableThisRound - Math.min(1, action.remainingInitiativeCost) }];
     }
@@ -364,9 +365,8 @@ export function startInitiativeAction(
       throw new Error("That Participant does not have the next normal Initiative opportunity.");
     }
   }
-  if (!input.allowsMultiRound && initiativeCost > participant.currentInitiative) {
-    throw new Error("An ordinary action cannot cost more than the Participant's Current Initiative.");
-  }
+  const affordabilityIssue = initiativeAffordabilityIssue(initiativeCost, participant.currentInitiative);
+  if (affordabilityIssue) throw new Error(affordabilityIssue);
   const activeParticipant = {
     ...participant,
     participationStatus: "active" as const,
@@ -464,7 +464,7 @@ export function advanceInitiativeToNextEvent(state: InitiativeEngineState): Init
     for (const actionId of event.actionIds) {
       const action = actionById(resolved, actionId);
       const actor = participantById(resolved, action.actorCharacterId);
-      const portion = action.actionKind.startsWith("firearm-attack:") && action.originalInitiativeCost > 1 && action.initiativeSpent < action.originalInitiativeCost;
+      const portion = (action.actionKind.startsWith("firearm-attack:") || action.actionKind.startsWith("magazine-fill:") || /^firearm-preparation:(load|reload)$/.test(action.actionKind)) && action.originalInitiativeCost > 1 && action.initiativeSpent < action.originalInitiativeCost;
       const spent = portion ? Math.min(1, action.remainingInitiativeCost) : action.remainingInitiativeCost;
       if (action.status !== "active" || spent > Math.max(0, actor.currentInitiative)) {
         throw new Error("The retained Initiative completion is no longer resolvable.");

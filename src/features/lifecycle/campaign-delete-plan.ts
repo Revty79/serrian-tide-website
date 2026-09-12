@@ -17,6 +17,7 @@ export type CampaignDeleteStep = {
  * conscious deletion-policy decision and a matching test update.
  */
 export const CAMPAIGN_GRAPH_DELETE_STEPS = [
+  { tableName: "firearm_magazine_attachment", scope: "campaign" },
   { tableName: "magazine_inventory_operation", scope: "character" },
   { tableName: "campaign_allowed_derived_ability", scope: "campaign" },
   { tableName: "campaign_allowed_race", scope: "campaign" },

@@ -7,7 +7,8 @@ import { campaignCharacterAttribute } from "@/db/realm-schema";
 import { campaignSessionEncounterParticipant as member, campaignSessionEncounterInitiative as runtime,
   campaignSessionEncounterInitiativeParticipant as enrollment } from "@/db/tabletop-operations-schema";
 import { applyLocalizedDamageInTransaction, readActiveHealthInTransaction, healAreaInTransaction } from "@/features/active-state/active-health-service";
-import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction, previewCombatDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { declareCombatMovementInTransaction, resolveCombatMovementInTransaction } from "@/features/tabletop-operations/combat-movement-service";
 import { applyRoutineCombatConsequencesInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { resolveDeclaredDefensesInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { advanceInitiativeTimeline } from "@/features/tabletop-operations/initiative-runtime";
@@ -23,6 +24,60 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Fixture = Awaited<ReturnType<typeof completionServiceFixture>>;
 const rollback = new Error("ROLLBACK_LIMB_TEST");
 const expected = (error: unknown) => { if (error !== rollback) console.error(error); return error === rollback; };
+
+for (const handedness of ["One-Handed", "Two-Handed"]) test(`${handedness} injury timing checks full cost before committing and uses current health`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "injury-timing");
+    await tx.insert(campaignCharacterAttribute).values({ characterId: f.heroId, attributeKey: "CON", value: 50 });
+    await tx.update(weaponProfile).set({ handedness }).where(eq(weaponProfile.itemId, f.weaponId));
+    await tx.update(enrollment).set({ currentInitiative: 6, participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.heroId)));
+    await tx.update(runtime).set({ timelineInitiative: 6 }).where(eq(runtime.encounterId, f.encounterId));
+    const health = await readActiveHealthInTransaction(tx, f.heroId, "race"), arm = health.anatomy.pools.find((entry) => entry.key === "leftArm")!;
+    const draft = { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon" as const, weaponItemId: f.weaponId };
+    const oldId = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, draft);
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, oldId);
+    await applyLocalizedDamageInTransaction(tx, { characterId: f.heroId, poolKey: arm.key, amount: arm.maximumHp! }, "race");
+    const preview = await previewCombatDeclarationInTransaction(tx, f.context, f.player, draft);
+    assert.equal(preview.initiativeCost, handedness === "Two-Handed" ? 8 : 4);
+    if (handedness === "Two-Handed") {
+      await assert.rejects(commitActionDeclarationInTransaction(tx, f.context, f.player, oldId), /injury cost changed/);
+      const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, draft);
+      await lockActionDeclarationInTransaction(tx, f.context, f.player, id);
+      await assert.rejects(commitActionDeclarationInTransaction(tx, f.context, f.player, id), /costs 8 Initiative; only 6 remains/);
+      await tx.update(enrollment).set({ currentInitiative: 8 }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.heroId)));
+      const pendingId = await commitActionDeclarationInTransaction(tx, f.context, f.player, id, { method: "entered", enteredTotal: 20 });
+      assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.find((entry) => entry.id === pendingId)!.originalInitiativeCost, 8);
+    } else {
+      const pendingId = await commitActionDeclarationInTransaction(tx, f.context, f.player, oldId, { method: "entered", enteredTotal: 20 });
+      assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.find((entry) => entry.id === pendingId)!.originalInitiativeCost, 4);
+    }
+    throw rollback;
+  }), expected);
+});
+
+test("a two-legged Creature pays double movement timing and progresses at the injured speed", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "injured-movement"), id = f.occurrences[0];
+    await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, movement: [{ movementMode: "Walk", movementValue: 2 }],
+      hpPools: [{ canonicalId: "left", poolName: "Left Leg", maximumHp: 5 }, { canonicalId: "right", poolName: "Right Leg", maximumHp: 5 }] },
+      localStateJson: { health: { totalDamage: 5, poolDamage: { left: 5 } } } }).where(eq(member.characterId, id));
+    await tx.update(enrollment).set({ currentInitiative: 3, participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, id)));
+    await tx.update(runtime).set({ timelineInitiative: 3 }).where(eq(runtime.encounterId, f.encounterId));
+    const command = { participantId: id, movementMode: "Walk", distance: 4, requestKey: crypto.randomUUID() };
+    assert.equal((await resolveCombatMovementInTransaction(tx, f.context, id, "Walk", 4)).initiativeCost, 4);
+    await assert.rejects(declareCombatMovementInTransaction(tx, f.context, f.god, command), /costs 4 Initiative; only 3 remains/);
+    await tx.update(enrollment).set({ currentInitiative: 4 }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, id)));
+    await tx.update(runtime).set({ timelineInitiative: 4 }).where(eq(runtime.encounterId, f.encounterId));
+    await declareCombatMovementInTransaction(tx, f.context, f.god, command);
+    for (const point of [3, 0]) {
+      const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, point));
+      const history = (await local(tx, f, id)).movementHistory as { cumulativeSegmentDistance: number }[];
+      assert.equal(history.at(-1)!.cumulativeSegmentDistance, 4 - point);
+    }
+    throw rollback;
+  }), expected);
+});
 async function local(tx: Tx, f: Fixture, id: number) {
   return (await tx.select().from(member).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, id))))[0].localStateJson as Record<string, unknown>;
 }

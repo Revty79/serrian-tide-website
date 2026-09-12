@@ -23,9 +23,12 @@ import {
   campaignSessionEncounterResponderOpportunity,
 } from "@/db/tabletop-operations-schema";
 import type { ResolvedFirearmFiringMode } from "@/features/items/firearm-timing";
+import { FIREARM_WEAPON_TYPES, isFirearmWeaponType } from "@/features/items/firearm-classification";
+import { readEffectiveFirearmState, readCompatibleMagazineCopies, swapFirearmMagazine, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
+import { firearmMagazineAttachment } from "@/db/magazine-schema";
 import { setInstanceEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 
-import { assertActionChoiceAuthority, type ActionDeclarationActor } from "./action-declaration-service";
+import { assertActionChoiceAuthority, assertInstantPreparationOpportunity, type ActionDeclarationActor } from "./action-declaration-service";
 import type { InitiativeEngineState } from "./initiative-runtime";
 import type {
   OwnedEncounterRuntimeContext,
@@ -60,6 +63,7 @@ export type StartFirearmPreparationCommand = Readonly<{
   itemInstanceId: number;
   operation: FirearmPreparationOperation;
   requestedRounds?: number | null;
+  magazineInstanceId?: number | null;
   replaceCurrentLoad?: boolean;
   partialLoadDisposition?: FirearmPartialLoadDisposition;
   targetFiringModeId?: number | null;
@@ -103,6 +107,8 @@ export type FirearmInstanceView = Readonly<{
   weaponProfileId: number;
   equipmentState: string;
   canonical: {
+    handedness: string;
+    reloadType: string | null;
     ammunitionItemId: number | null;
     ammunitionName: string | null;
     capacityRounds: number | null;
@@ -116,6 +122,8 @@ export type FirearmInstanceView = Readonly<{
   };
   modes: readonly ResolvedFirearmFiringMode[];
   inventoryAmmunitionQuantity: number;
+  magazines: Awaited<ReturnType<typeof readCompatibleMagazineCopies>>;
+  attachedMagazineInstanceId: number | null;
   state: null | {
     selectedFiringModeId: number;
     loadedAmmunitionItemId: number | null;
@@ -292,6 +300,8 @@ async function loadProfileAndModes(
   const [profile] = await tx.select({
     id: weaponProfile.id,
     itemId: weaponProfile.itemId,
+    weaponType: weaponProfile.weaponType,
+    reloadType: weaponProfile.reloadType,
     ammunitionItemId: weaponProfile.ammunitionItemId,
     capacityRounds: weaponProfile.capacityRounds,
     capacity: weaponProfile.capacity,
@@ -304,6 +314,7 @@ async function loadProfileAndModes(
     updatedAt: weaponProfile.updatedAt,
   }).from(weaponProfile).where(and(eq(weaponProfile.id, weaponProfileId), eq(weaponProfile.itemId, itemId))).limit(1);
   if (!profile) throw new Error("The exact Weapon Profile no longer belongs to this firearm Item.");
+  if (!isFirearmWeaponType(profile.weaponType)) throw new Error("This Weapon Type is not an explicitly supported firearm family. Review Weapon Type in Heavens → Items before using firearm preparation.");
   const modes = await tx.select().from(weaponFiringMode)
     .where(eq(weaponFiringMode.weaponProfileId, profile.id))
     .orderBy(asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id));
@@ -331,12 +342,17 @@ async function loadAmmunitionDefinition(
 
 export async function initializeFirearmStateInTransaction(
   tx: FirearmReadinessTransaction,
-  context: OwnedEncounterRuntimeContext,
+  context: OwnedEncounterRuntimeContext | { campaignId: number; encounterId: null },
   actorUserId: string,
   command: InitializeFirearmStateCommand,
 ): Promise<{ itemInstanceId: number; stateVersion: number; reused: boolean }> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
-  await assertPersistentParticipant(tx, context, command.characterId);
+  if (context.encounterId !== null) await assertPersistentParticipant(tx, context, command.characterId);
+  else {
+    const [character] = await tx.select({ id: campaignCharacter.id }).from(campaignCharacter)
+      .where(and(eq(campaignCharacter.id, command.characterId), eq(campaignCharacter.campaignId, context.campaignId)));
+    if (!character) throw new Error("Choose a saved Character in this Campaign before initializing equipment.");
+  }
   positiveId(command.itemId, "Firearm Item");
   positiveId(command.selectedFiringModeId, "Selected Firing Mode");
   const idempotencyKey = boundedText(command.idempotencyKey, "Initialization request ID", true, 200);
@@ -352,7 +368,8 @@ export async function initializeFirearmStateInTransaction(
     eq(campaignCharacterFirearmState.initializationKey, idempotencyKey),
   )).limit(1);
   if (reused) {
-    if (reused.characterId !== command.characterId || reused.itemId !== command.itemId || reused.selectedFiringModeId !== command.selectedFiringModeId) {
+    if (reused.characterId !== command.characterId || reused.itemId !== command.itemId || reused.selectedFiringModeId !== command.selectedFiringModeId
+      || command.itemInstanceId !== null && reused.itemInstanceId !== command.itemInstanceId) {
       throw new Error("That initialization request ID was already used for a different firearm state.");
     }
     return { itemInstanceId: reused.itemInstanceId, stateVersion: reused.version, reused: true };
@@ -362,6 +379,7 @@ export async function initializeFirearmStateInTransaction(
     itemName: item.name,
     weaponProfileId: weaponProfile.id,
     profileRecordType: weaponProfile.profileRecordType,
+    weaponType: weaponProfile.weaponType,
     capacityRounds: weaponProfile.capacityRounds,
     readinessMode: weaponProfile.readinessMode,
     runtimeUseMode: itemRuntimeProfile.useMode,
@@ -370,6 +388,7 @@ export async function initializeFirearmStateInTransaction(
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
     .where(eq(item.id, command.itemId)).limit(1);
   if (!catalog) throw new Error("The selected Item has no exact Weapon Profile.");
+  if (!isFirearmWeaponType(catalog.weaponType)) throw new Error("This Weapon Type is not an explicitly supported firearm family. Review Weapon Type in Heavens → Items before initializing it as a firearm.");
   if (catalog.profileRecordType.trim().toLowerCase() === "ammunition") {
     throw new Error("An Ammunition Profile cannot be initialized as an owned firearm.");
   }
@@ -525,6 +544,34 @@ async function updateAmmunitionInventory(
   }
 }
 
+async function progressSingleLoading(tx: FirearmReadinessTransaction, preparationId: number, initiativeSpent: number, actorUserId: string) {
+  const [preparation] = await tx.select().from(campaignCharacterFirearmPreparation)
+    .where(eq(campaignCharacterFirearmPreparation.id, preparationId)).for("update");
+  if (!preparation || !["pending", "interrupted"].includes(preparation.status)) return;
+  const loading = (preparation.frozenSnapshotJson as { singleLoading?: { costPerRound: number; requestedRounds: number } }).singleLoading;
+  if (!loading) return;
+  const reached = Math.min(loading.requestedRounds, loading.costPerRound === 0 ? loading.requestedRounds : Math.floor(initiativeSpent / loading.costPerRound));
+  const inserted = reached - preparation.roundsCompleted;
+  if (inserted <= 0) return;
+  const state = await lockState(tx, { campaignId: preparation.campaignId, sessionId: preparation.sessionId, sceneId: preparation.sceneId,
+    encounterId: preparation.encounterId, ownerUserId: actorUserId, encounterStatus: "active", sceneStatus: "active", sessionStatus: "active" }, preparation.characterId, preparation.itemInstanceId);
+  if (state.version !== preparation.stateVersion) throw new Error("The firearm changed during Single loading. Resolve the preparation before continuing.");
+  if (!preparation.ammunitionItemId || !preparation.ammunitionProfileId || state.capacityRounds === null || state.loadedRounds + inserted > state.capacityRounds
+    || state.loadedRounds > 0 && state.loadedAmmunitionItemId !== preparation.ammunitionItemId) throw new Error("The remaining Single insertions no longer fit this firearm and its exact ammunition.");
+  const inventory = await ammunitionInventoryRow(tx, state.characterId, preparation.ammunitionItemId, true);
+  if (!inventory || inventory.quantity < inserted) throw new Error("The next completed insertion needs compatible loose ammunition. Restore the missing rounds or interrupt this reload.");
+  const loadedRounds = state.loadedRounds + inserted;
+  const unitCost = (state.loadedRounds * (state.loadedAmmunitionUnitCostCredits ?? 0) + inserted * inventory.unitCostCredits) / loadedRounds;
+  await updateAmmunitionInventory(tx, state.characterId, preparation.ammunitionItemId, inventory, inventory.quantity - inserted, inventory.unitCostCredits);
+  const [after] = await tx.update(campaignCharacterFirearmState).set({ loadedRounds, loadedAmmunitionItemId: preparation.ammunitionItemId,
+    loadedAmmunitionProfileId: preparation.ammunitionProfileId, loadedAmmunitionUnitCostCredits: unitCost,
+    version: state.version + 1, updatedByUserId: actorUserId, updatedAt: new Date() }).where(eq(campaignCharacterFirearmState.itemInstanceId, state.itemInstanceId)).returning();
+  await tx.update(campaignCharacterFirearmPreparation).set({ roundsCompleted: reached, stateVersion: after.version, updatedAt: new Date() })
+    .where(eq(campaignCharacterFirearmPreparation.id, preparation.id));
+  await recordFirearmEvent(tx, after, { preparationId, eventKind: "single-rounds-inserted", before: stateSnapshot(state), after: stateSnapshot(after),
+    metadata: { inserted, roundsCompleted: reached, requestedRounds: loading.requestedRounds, initiativeSpent, costPerRound: loading.costPerRound }, actorUserId });
+}
+
 async function completeFirearmPreparationById(
   tx: FirearmReadinessTransaction,
   preparationId: number,
@@ -574,8 +621,10 @@ async function completeFirearmPreparationById(
       state: "wielded",
     });
     updates.readied = state.readinessMode === "draw-is-ready";
+    if (updates.readied) updates.requiresCycling = false;
   } else if (preparation.operation === "ready") {
     updates.readied = true;
+    updates.requiresCycling = false;
   } else if (preparation.operation === "change-mode") {
     if (preparation.targetFiringModeId === null) throw new Error("A mode-change preparation lost its exact target Firing Mode.");
     updates.selectedFiringModeId = preparation.targetFiringModeId;
@@ -583,6 +632,11 @@ async function completeFirearmPreparationById(
     updates.requiresCycling = false;
   } else if (preparation.operation === "recover-recoil") {
     updates.requiresRecoilRecovery = false;
+  } else if ((preparation.frozenSnapshotJson as { singleLoading?: unknown }).singleLoading) {
+    if (preparation.roundsCompleted !== preparation.requestedRounds) throw new Error("Finish the remaining Single insertions before completing reload.");
+  } else if ((preparation.frozenSnapshotJson as { magazineSwap?: unknown }).magazineSwap) {
+    const swap = (preparation.frozenSnapshotJson as { magazineSwap: { replacementId: number | null } }).magazineSwap;
+    await swapFirearmMagazine(tx, state, swap.replacementId);
   } else {
     const ammunitionItemId = preparation.operation === "unload"
       ? state.loadedAmmunitionItemId
@@ -750,7 +804,7 @@ async function startFirearmPreparationInternal(
   if (command.operation === "change-mode" && (!targetMode || targetMode.id === state.selectedFiringModeId)) {
     throw new Error("Choose a different exact Firing Mode from this Weapon Profile.");
   }
-  if (command.operation === "draw" && owned.equipmentState === "wielded") throw new Error("This exact firearm is already drawn or wielded.");
+  if (command.operation === "draw" && owned.equipmentState === "wielded" && (state.readied || state.readinessMode !== "draw-is-ready")) throw new Error("This exact firearm is already drawn or wielded.");
   if ((command.operation === "draw" || command.operation === "ready") && state.readinessMode === null) {
     throw new Error("The firearm readiness relationship requires a G.O.D. ruling before this operation.");
   }
@@ -762,7 +816,18 @@ async function startFirearmPreparationInternal(
     throw new Error("The target Firing Mode delivery and follow-up timing are still review-required.");
   }
 
-  if (command.operation === "load" || command.operation === "reload" || command.operation === "unload") {
+  const [attached] = await tx.select().from(firearmMagazineAttachment).where(eq(firearmMagazineAttachment.weaponInstanceId, state.itemInstanceId));
+  const magazineSwap = ["load", "reload", "unload"].includes(command.operation) && profile.reloadType === "Magazine"
+    && (command.operation !== "unload" || !!attached)
+    ? { replacementId: command.operation === "unload" ? null : command.magazineInstanceId ?? null, beforeMagazineId: attached?.magazineInstanceId ?? null } : null;
+  if (magazineSwap) {
+    if (command.operation !== "unload" && !magazineSwap.replacementId) throw new Error("Select a compatible owned magazine copy before starting the swap.");
+    await validateMagazineSwap(tx, state, magazineSwap.replacementId);
+  } else if (command.operation === "load" || command.operation === "reload" || command.operation === "unload") {
+    if (command.operation !== "unload" && profile.reloadType !== "Single") throw new Error(profile.reloadType === "Magazine"
+      ? "Select a compatible owned magazine for this weapon. Loose-round loading cannot stand in for a magazine swap."
+      : "Set Reload Type to Single or Magazine in Heavens → Items → Weapon Profile before loading this weapon.");
+    if (command.operation !== "unload" && command.replaceCurrentLoad) throw new Error("Single reloads insert additional rounds. Unload first if you intend to replace the existing ammunition.");
     const ammoItemId = command.operation === "unload" ? state.loadedAmmunitionItemId : profile.ammunitionItemId;
     if (ammoItemId === null || !ammunition) throw new Error("The Weapon Profile has no exact supported ammunition Profile relationship.");
     const inventory = await ammunitionInventoryRow(tx, state.characterId, ammoItemId, false);
@@ -794,11 +859,25 @@ async function startFirearmPreparationInternal(
     godReason: command.godReason,
   });
   if (timing.status === "requires-god-ruling") throw new Error(`${timing.reason} Supply an explicit nonnegative cost and reason.`);
+  const singleLoading = (command.operation === "load" || command.operation === "reload") && profile.reloadType === "Single"
+    ? { costPerRound: timing.initiativeCost, requestedRounds: command.requestedRounds! } : null;
+  const totalInitiativeCost = timing.initiativeCost * (singleLoading?.requestedRounds ?? 1);
+  if (totalInitiativeCost === 0) await assertInstantPreparationOpportunity(tx, context, command.characterId);
+  if (totalInitiativeCost > 0) {
+    const { loadInitiativeEngineInTransaction } = await import("./runtime-integration-service");
+    const { initiativeAffordabilityIssue } = await import("./initiative-affordability");
+    const participant = (await loadInitiativeEngineInTransaction(tx, context.encounterId)).participants.find((entry) => entry.characterId === command.characterId);
+    if (!participant) throw new Error("Enroll this combatant in Initiative before beginning preparation.");
+    const issue = initiativeAffordabilityIssue(totalInitiativeCost, participant.currentInitiative);
+    if (issue) throw new Error(issue);
+  }
   const reason = boundedText(timing.reason || command.godReason || "", "Firearm preparation reason", false);
   const disposition = command.partialLoadDisposition ?? "none";
   if (disposition === "discard" && !reason) throw new Error("Deliberately discarding ammunition requires an explicit reason.");
   const frozenSnapshot = {
     schemaVersion: 1,
+    singleLoading,
+    magazineSwap,
     originalRequest,
     operation: command.operation,
     state: stateSnapshot(state),
@@ -818,12 +897,12 @@ async function startFirearmPreparationInternal(
       partialLoadDisposition: disposition,
       targetFiringModeId: command.targetFiringModeId ?? null,
     },
-    timing: { initiativeCost: timing.initiativeCost, source: timing.source, reason },
+    timing: { initiativeCost: totalInitiativeCost, source: timing.source, reason },
   };
 
   let actionDeclarationId: number | null = null;
   let pendingActionId: number | null = null;
-  if (timing.initiativeCost > 0) {
+  if (totalInitiativeCost > 0) {
     const {
       commitActionDeclarationInTransaction,
       createActionDeclarationDraftInTransaction,
@@ -841,7 +920,7 @@ async function startFirearmPreparationInternal(
       weaponItemId: state.itemId,
       firingModeId: targetMode?.id ?? state.selectedFiringModeId,
       attackMode: targetMode?.name ?? currentMode.name,
-      initiativeCost: timing.initiativeCost,
+      initiativeCost: totalInitiativeCost,
       allowsMultiRound: true,
       heldIntervention: false,
       windowKind: "preparation",
@@ -875,7 +954,7 @@ async function startFirearmPreparationInternal(
     requestedRounds: command.requestedRounds ?? null,
     replaceCurrentLoad: command.replaceCurrentLoad === true,
     partialLoadDisposition: disposition,
-    initiativeCost: timing.initiativeCost,
+    initiativeCost: totalInitiativeCost,
     timingSource: timing.source,
     frozenSnapshotJson: frozenSnapshot,
     reason,
@@ -891,10 +970,13 @@ async function startFirearmPreparationInternal(
     metadata: frozenSnapshot,
     actorUserId,
   });
-  if (timing.initiativeCost === 0) await completeFirearmPreparationById(tx, preparation.id, actorUserId);
+  if (totalInitiativeCost === 0) {
+    if (singleLoading) await progressSingleLoading(tx, preparation.id, 0, actorUserId);
+    await completeFirearmPreparationById(tx, preparation.id, actorUserId);
+  }
   return {
     preparationId: preparation.id,
-    status: timing.initiativeCost === 0 ? "completed" : "pending",
+    status: totalInitiativeCost === 0 ? "completed" : "pending",
     pendingActionId,
     reused: false,
   };
@@ -996,10 +1078,11 @@ export async function reconcileFirearmInitiativeTransitionsInTransaction(
   const beforeById = new Map(before.pendingActions.map((action) => [action.id, action]));
   for (const action of after.pendingActions) {
     const prior = beforeById.get(action.id);
-    if (!prior || prior.status === action.status) continue;
+    if (!prior || prior.status === action.status && prior.initiativeSpent === action.initiativeSpent) continue;
     const [preparation] = await tx.select().from(campaignCharacterFirearmPreparation)
       .where(eq(campaignCharacterFirearmPreparation.pendingActionId, action.id)).limit(1).for("update");
     if (!preparation) continue;
+    if (action.initiativeSpent > prior.initiativeSpent) await progressSingleLoading(tx, preparation.id, action.initiativeSpent, actorUserId);
     if (action.status === "completed") {
       await completeFirearmPreparationById(tx, preparation.id, actorUserId);
       continue;
@@ -1051,6 +1134,8 @@ export async function reconcileFirearmPreparationAfterResponderInTransaction(
       eq(campaignCharacterFirearmPreparation.status, "pending"),
     )).limit(1);
   if (preparation) await completeFirearmPreparationById(tx, preparation.id, actorUserId);
+  const { finalizeMagazineFillDeclaration } = await import("./combat-magazine-fill-service");
+  await finalizeMagazineFillDeclaration(tx, declarationId, actorUserId);
 }
 
 export async function readFirearmWorkspaceInTransaction(
@@ -1107,6 +1192,8 @@ export async function readFirearmWorkspaceInTransaction(
     canonicalId: item.canonicalId,
     equipmentState: campaignCharacterItemInstance.equipmentState,
     weaponProfileId: weaponProfile.id,
+    handedness: weaponProfile.handedness,
+    reloadType: weaponProfile.reloadType,
     ammunitionItemId: weaponProfile.ammunitionItemId,
     capacityRounds: weaponProfile.capacityRounds,
     capacity: weaponProfile.capacity,
@@ -1123,7 +1210,7 @@ export async function readFirearmWorkspaceInTransaction(
       eq(campaignCharacterItemInstance.characterId, selectedCharacterId),
       isNull(campaignCharacterItemInstance.retiredAt),
       sql`lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition'`,
-      sql`(${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} firearm_mode where firearm_mode.weapon_profile_id = ${weaponProfile.id}))`,
+      inArray(sql`lower(trim(${weaponProfile.weaponType}))`, FIREARM_WEAPON_TYPES),
     ))
     .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id));
   const legacyRows = await tx.select({
@@ -1138,7 +1225,7 @@ export async function readFirearmWorkspaceInTransaction(
     .where(and(
       eq(campaignCharacterItem.characterId, selectedCharacterId),
       sql`lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition'`,
-      sql`(${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} firearm_mode where firearm_mode.weapon_profile_id = ${weaponProfile.id}))`,
+      inArray(sql`lower(trim(${weaponProfile.weaponType}))`, FIREARM_WEAPON_TYPES),
     ))
     .orderBy(asc(item.name), asc(item.id));
   const profileIds = [...new Set([...instanceRows, ...legacyRows].map(({ weaponProfileId }) => weaponProfileId))];
@@ -1147,8 +1234,11 @@ export async function readFirearmWorkspaceInTransaction(
     .orderBy(asc(weaponFiringMode.weaponProfileId), asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id)) : [];
   const modesByProfile = new Map<number, typeof modeRows>();
   for (const mode of modeRows) modesByProfile.set(mode.weaponProfileId, [...(modesByProfile.get(mode.weaponProfileId) ?? []), mode]);
-  const stateRows = instanceRows.length ? await tx.select().from(campaignCharacterFirearmState)
+  const storedStateRows = instanceRows.length ? await tx.select().from(campaignCharacterFirearmState)
     .where(inArray(campaignCharacterFirearmState.itemInstanceId, instanceRows.map(({ itemInstanceId }) => itemInstanceId))) : [];
+  const stateRows = await Promise.all(storedStateRows.map((state) => readEffectiveFirearmState(tx, state)));
+  const magazinesByWeapon = new Map<number, Awaited<ReturnType<typeof readCompatibleMagazineCopies>>>();
+  for (const row of instanceRows) if (row.reloadType === "Magazine") magazinesByWeapon.set(row.itemInstanceId, await readCompatibleMagazineCopies(tx, selectedCharacterId, row.weaponProfileId));
   const states = new Map(stateRows.map((state) => [state.itemInstanceId, state]));
   const preparationRows = instanceRows.length ? await tx.select({
     id: campaignCharacterFirearmPreparation.id,
@@ -1269,7 +1359,11 @@ export async function readFirearmWorkspaceInTransaction(
       canonicalId: row.canonicalId,
       weaponProfileId: row.weaponProfileId,
       equipmentState: row.equipmentState,
+      magazines: magazinesByWeapon.get(row.itemInstanceId) ?? [],
+      attachedMagazineInstanceId: magazinesByWeapon.get(row.itemInstanceId)?.find((entry) => entry.attachedWeaponInstanceId === row.itemInstanceId)?.instanceId ?? null,
       canonical: {
+        handedness: row.handedness,
+        reloadType: row.reloadType,
         ammunitionItemId: row.ammunitionItemId,
         ammunitionName: ammunition?.itemName ?? null,
         capacityRounds: row.capacityRounds,

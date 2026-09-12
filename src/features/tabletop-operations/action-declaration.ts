@@ -221,7 +221,7 @@ export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): 
   if (!ACTION_DECLARATION_SOURCE_KINDS.includes(input.sourceKind)) throw new Error("Action source kind is invalid.");
   if (!ACTION_WINDOW_KINDS.includes(input.windowKind)) throw new Error("Action window kind is invalid.");
   const initiativeCost = positive(input.initiativeCost, "Initiative Cost");
-  if (input.windowKind === "firearm-trigger" && initiativeCost !== 1) {
+  if (input.windowKind === "firearm-trigger" && initiativeCost !== 1 && !(initiativeCost === 2 && input.sourcePayload?.firearmInjuryMultiplier === 2)) {
     throw new Error("A firearm trigger window must cost exactly 1 Initiative.");
   }
   const targetCharacterIds = [...new Set(input.targetCharacterIds.map((id) => participantKey(id, "Target Participant")))];
@@ -392,11 +392,11 @@ export function parseLockedActionDeclarationSnapshot(value: unknown): LockedActi
 
 export function deriveActionWindow(
   startInitiative: number,
-  snapshot: Pick<LockedActionDeclarationSnapshot, "initiativeCost" | "windowKind" | "preparesForDeclarationId">,
+  snapshot: Pick<LockedActionDeclarationSnapshot, "initiativeCost" | "windowKind" | "preparesForDeclarationId"> & Partial<Pick<LockedActionDeclarationSnapshot, "source">>,
 ): ActionWindow {
   const start = finite(startInitiative, "Start Initiative");
   const cost = positive(snapshot.initiativeCost, "Initiative Cost");
-  if (snapshot.windowKind === "firearm-trigger" && cost !== 1) {
+  if (snapshot.windowKind === "firearm-trigger" && cost !== 1 && !(cost === 2 && snapshot.source?.payload?.firearmInjuryMultiplier === 2)) {
     throw new Error("A firearm trigger window must cost exactly 1 Initiative.");
   }
   return {
