@@ -52,6 +52,7 @@ import {
   extendPendingInitiativeActionCost,
   interruptPendingInitiativeAction,
   getNextInitiativeTimelineEvent,
+  hasUnfinishedInitiativeAction,
   restartPendingInitiativeAction,
   resumePendingInitiativeAction,
   startInitiativeAction,
@@ -70,6 +71,7 @@ import {
   readOpenDeclarationCheckpoint,
   projectRevealedInitiativeInTransaction,
   assertDeclarationCheckpointRevealed,
+  assertNoOpenDeclarationCheckpoint,
 } from "./declaration-checkpoint-service";
 import type { RollMethod, RollVisibility } from "./roll-runtime";
 
@@ -685,7 +687,8 @@ async function insertObjectiveOpportunities(
   const originalWindow = deriveActionWindow(startInitiative, snapshot);
   const window = expectedCompletionInitiative === undefined ? originalWindow
     : { ...originalWindow, nominalCompletionInitiative: expectedCompletionInitiative };
-  const candidates = deriveResponderCandidates(window, snapshot.actorCharacterId, participants)
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  const candidates = deriveResponderCandidates(window, snapshot.actorCharacterId, participants, engine.pendingActions)
     .filter(({ included, characterId }) => included && !excludedResponderIds.has(characterId));
   if (candidates.length) {
     await tx.insert(campaignSessionEncounterResponderOpportunity).values(candidates.map((candidate) => ({
@@ -838,7 +841,7 @@ async function commitActionDeclarationInternal(
   }
   await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
     participantId: snapshot.actorCharacterId, kind: "action", declarationId, reactionId: null,
-  });
+  }, context);
   if (commitmentReceipts.length) await recordEvent(tx, context, row.id, "committed", "committed", "cast-resources-committed", actor.userId,
     "Mana spent when casting began. Failure, interruption and voluntary cancellation do not refund a begun cast.", { receipts: commitmentReceipts });
   return pendingActionId;
@@ -887,6 +890,11 @@ export async function reconcileActionResponseWindowsInTransaction(
   after: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>,
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
+  // Include actors whose work finishes on this transition: they were busy while
+  // the timeline crossed the window and cannot answer it retroactively.
+  const pendingActions = [...before.pendingActions, ...after.pendingActions];
+  if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) return;
+  await reconcileBusyResponderOpportunitiesInTransaction(tx, context, pendingActions);
   const participantsChanged = after.participants.some((participant) => {
     const prior = before.participants.find(({ characterId }) => characterId === participant.characterId);
     return !prior || prior.currentInitiative !== participant.currentInitiative || prior.participationStatus !== participant.participationStatus;
@@ -900,6 +908,7 @@ export async function reconcileActionResponseWindowsInTransaction(
     const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity)
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, row.id));
     const candidates = after.participants.filter((participant) => participant.characterId !== action.actorCharacterId
+      && !hasUnfinishedInitiativeAction(after.pendingActions, participant.characterId)
       && ["active", "holding"].includes(participant.participationStatus) && participant.currentInitiative > 0
       && (participant.participationStatus === "holding" && participant.currentInitiative >= after.runtime.timelineInitiative
         || participant.currentInitiative <= action.startTimelineInitiative && participant.currentInitiative >= action.expectedCompletionInitiative));
@@ -927,6 +936,40 @@ export async function reconcileActionResponseWindowsInTransaction(
     }
     await recordEvent(tx, context, row.id, row.status, row.status, "response-window-retimed", context.ownerUserId, timingReason,
       { previousCompletion: prior.expectedCompletionInitiative, expectedCompletion: action.expectedCompletionInitiative });
+    await reconcileRollingReadiness(tx, context, row, context.ownerUserId);
+  }
+}
+
+/** Close obsolete unanswered prompts with an audit event, preserving all prior
+ * declarations and responses. Also repairs retained windows from older rules. */
+export async function reconcileBusyResponderOpportunitiesInTransaction(
+  tx: ActionDeclarationTransaction,
+  context: OwnedEncounterRuntimeContext,
+  pendingActions?: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>["pendingActions"],
+): Promise<void> {
+  await assertCombatWritableInTransaction(tx, context.encounterId);
+  if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) return;
+  const actions = pendingActions ?? (await loadInitiativeEngineInTransaction(tx, context.encounterId)).pendingActions;
+  const busyIds = [...new Set(actions.filter((action) => hasUnfinishedInitiativeAction([action], action.actorCharacterId))
+    .map((action) => action.actorCharacterId))];
+  if (!busyIds.length) return;
+  const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
+    eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId),
+    eq(campaignSessionEncounterResponderOpportunity.status, "pending"),
+    isNull(campaignSessionEncounterResponderOpportunity.reactionId),
+    inArray(campaignSessionEncounterResponderOpportunity.responderCharacterId, busyIds),
+  )).for("update");
+  const reason = "This combatant is committed to an unfinished action and cannot respond or intervene.";
+  for (const opportunity of opportunities) {
+    const row = await lockDeclaration(tx, context, opportunity.declarationId);
+    const now = new Date();
+    await tx.update(campaignSessionEncounterResponderOpportunity).set({
+      status: "ineligible", requiresGodConfirmation: false, rulingReason: reason,
+      reconciledAt: now, reconciledByUserId: context.ownerUserId, updatedAt: now,
+    }).where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
+    await recordEvent(tx, context, row.id, row.status, row.status, "busy-responder-excluded", context.ownerUserId, reason,
+      { opportunityId: opportunity.id, responderCharacterId: opportunity.responderCharacterId });
+    await reconcileRollingReadiness(tx, context, row, context.ownerUserId);
   }
 }
 
@@ -1020,7 +1063,19 @@ export async function reconcileResponderOpportunityInTransaction(
   const row = await lockDeclaration(tx, context, opportunity.declarationId);
   if (!["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) throw new Error("Responder opportunities can be reconciled only while the declaration window is open.");
   await assertDeclarationCheckpointRevealed(tx, row.checkpointId);
+  const openCheckpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
+  if (openCheckpoint?.choicesJson.some((choice) => choice.participantId === opportunity.responderCharacterId)) {
+    throw new Error("This combatant's choice is sealed until the simultaneous checkpoint is complete.");
+  }
   const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
+  if (input.decision === "allow" && hasUnfinishedInitiativeAction(engine.pendingActions, opportunity.responderCharacterId)) {
+    throw new Error("An unfinished action prevents this combatant from responding or intervening.");
+  }
+  const responder = engine.participants.find(({ characterId }) => characterId === opportunity.responderCharacterId);
+  if (input.decision === "allow" && opportunity.source !== "god-exception"
+    && (!responder || responder.currentInitiative < engine.runtime.timelineInitiative)) {
+    throw new Error("Advance to this combatant's Initiative opportunity before confirming a response.");
+  }
   const next = getNextInitiativeTimelineEvent(engine);
   const pendingAction = row.pendingActionId === null ? null : engine.pendingActions.find(({ id }) => id === row.pendingActionId) ?? null;
   if (
@@ -1066,12 +1121,17 @@ export async function addExceptionalResponderOpportunityInTransaction(
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   if (actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may add an exceptional responder.");
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
   const row = await lockDeclaration(tx, context, declarationId);
   if (row.status !== "committed") throw new Error("Exceptional responders may be added only while the declaration window is open.");
   const reason = boundedReason(reasonInput, "Exceptional responder reason");
   const responderId = participantKey(responderCharacterId, "Responder Participant");
   if (responderId === row.actorCharacterId) throw new Error("The acting Character cannot respond to their own action.");
   await assertParticipants(tx, context, [responderId]);
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  if (hasUnfinishedInitiativeAction(engine.pendingActions, responderId)) {
+    throw new Error("An unfinished action prevents this combatant from responding or intervening.");
+  }
   const [pending] = row.pendingActionId === null ? [] : await tx.select({
     expectedCompletionInitiative: campaignSessionEncounterPendingAction.expectedCompletionInitiative,
   }).from(campaignSessionEncounterPendingAction).where(and(
@@ -1116,12 +1176,19 @@ async function transitionCommittedDeclaration(
   notesInput = "",
   preserveFiredPortions = false,
 ): Promise<void> {
-  const row = await lockDeclaration(tx, context, declarationId);
+  let row = await lockDeclaration(tx, context, declarationId);
   await assertActorAuthority(tx, context, actor, row.actorCharacterId);
   if (actor.authority === "player" && nextStatus !== "resolved") {
     throw new Error("A Player may only complete their own objectively finished declaration; other dispositions require the G.O.D.");
   }
   if (row.status === nextStatus && ["resolved", "cancelled", "abandoned", "interrupted"].includes(nextStatus)) return;
+  if (nextStatus === "resolved" && row.status === "committed") {
+    // Conditions and departures may close the last response after timing ends.
+    // Refresh readiness for no-roll actions too, without bypassing pending choices.
+    await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
+    await reconcileRollingReadiness(tx, context, row, actor.userId);
+    row = await lockDeclaration(tx, context, declarationId);
+  }
   assertActionDeclarationTransition(row.status, nextStatus);
   const reasonRequired = nextStatus === "awaiting-god-ruling"
     || row.status === "awaiting-god-ruling"

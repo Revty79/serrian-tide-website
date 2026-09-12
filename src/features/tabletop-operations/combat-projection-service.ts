@@ -51,15 +51,17 @@ export async function readCombatProjectionInTransaction(
     } : null;
     const normalNow = next?.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative && next.characterIds.includes(entity.characterId);
     const heldInterventionAvailable = !closed && checkpoint == null && !active && canHoldingParticipantIntervene(engine.runtime, participant);
-    const eligibleResponses = workspace.declarations.flatMap((declaration) => {
-      if (closed) return [];
+    const availableResponses = workspace.declarations.flatMap((declaration) => {
+      if (closed || active) return [];
       const pending = engine.pendingActions.find(({ id }) => id === declaration.pendingActionId);
       if (!pending || !["active", "completed"].includes(pending.status)) return [];
       return declaration.opportunities.filter((opportunity) => opportunity.responderCharacterId === entity.characterId
-        && opportunity.status === "pending" && opportunity.reactionId === null && !opportunity.requiresGodConfirmation
+        && opportunity.status === "pending" && opportunity.reactionId === null
+        && (opportunity.source === "god-exception" || participant.currentInitiative >= engine.runtime.timelineInitiative)
         && (opportunity.source === "god-exception" || canParticipantReactToAction(pending, participant.currentInitiative)
           || canHoldingParticipantIntervene(engine.runtime, participant)));
     });
+    const eligibleResponses = availableResponses.filter((opportunity) => !opportunity.requiresGodConfirmation);
     const checkpointBlocksResponse = checkpoint != null && (!checkpoint.participantIds.includes(entity.characterId) || choicesSealed);
     const common = (closed ? "Combat has ended. Actions and responses are closed; information and history remain available." : null)
       ?? workspace.pause.message ?? combatConditionMessage(condition) ?? (participation.departed ? `Left active combat: ${participation.reason}` : !capable ? participant.participationStatus === "suspended"
@@ -67,7 +69,7 @@ export async function readCombatProjectionInTransaction(
     const actionReason = common ?? (heldInterventionAvailable ? null : pendingOutcomes ? "Resolve the outcomes completing at this point." : active ? "An action is underway."
       : participant.participationStatus === "holding" ? "Holding Initiative; waiting for a legitimate intervention point."
       : !normalNow ? "Waiting for this combatant's Initiative opportunity." : null);
-    const responseReason = common ?? (checkpointBlocksResponse ? "Waiting for the simultaneous declaration checkpoint."
+    const responseReason = common ?? (active ? "An unfinished action prevents a defense, response or intervention." : checkpointBlocksResponse ? "Waiting for the simultaneous declaration checkpoint."
       : !eligibleResponses.length ? "No confirmed response opportunity is available now." : null);
     const canActNow = actionReason === null;
     const canRespondNow = responseReason === null;
@@ -78,6 +80,8 @@ export async function readCombatProjectionInTransaction(
         : canActNow && heldInterventionAvailable ? "Holding Initiative; may intervene when legitimate. No ordinary choice is required."
         : canActNow ? "Can choose an action now." : common ?? actionReason ?? responseReason!,
       responseOpportunityIds: canControl && canRespondNow ? eligibleResponses.map(({ id }) => id) : [],
+      responseDecisionOpportunityIds: actor.authority === "god-owner" && !common && !checkpoint
+        ? availableResponses.filter((opportunity) => opportunity.requiresGodConfirmation).map(({ id }) => id) : [],
     };
   });
   const canAdvanceTimeline = !closed && !workspace.pause.frozen && !checkpoint && !pendingOutcomes && next?.kind !== "none"

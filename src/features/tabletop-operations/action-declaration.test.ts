@@ -181,6 +181,15 @@ test("one-Initiative trigger and longer preparation windows remain distinct", ()
   ]).filter(({ included }) => included).map(({ characterId }) => characterId), [12, 13]);
 });
 
+test("busy participants are excluded from crossed response windows until their action finishes", () => {
+  for (const status of ["active", "interrupted", "completed"] as const) {
+    const candidates = deriveResponderCandidates(deriveActionWindow(35, snapshot()), 11, [participant(12, 30)],
+      [{ actorCharacterId: 12, status }] as PendingInitiativeActionState[]);
+    assert.equal(candidates[0].included, status === "completed");
+    assert.equal(candidates[0].requiresGodConfirmation, status === "completed");
+  }
+});
+
 test("melee admission uses the original window and records overlap without deciding an outcome", () => {
   const window = deriveActionWindow(35, snapshot({ windowKind: "melee-overlap", initiativeCost: 8 }));
   assert.equal(initiativePositionIsInActionWindow(window, 30), true);

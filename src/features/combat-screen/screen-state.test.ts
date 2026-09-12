@@ -3,6 +3,10 @@ import test from "node:test";
 import { combatActionStatus, combatScreenPrompt, type CombatEntity, type CombatScreenData } from "./screen-types";
 
 const state = (frozen = false, closed = false) => ({ pause: { frozen }, initialized: true, projection: { closed } }) as CombatScreenData;
+test("ordinary choices keep their own targets when a defense is also available", () => {
+  const entity = { name: "Ysra", canControl: true, mustChooseNow: true, canActNow: true, canRespondNow: true } as CombatEntity;
+  assert.match(combatScreenPrompt(state(), entity), /own legal target, Hold or Pass/);
+});
 test("Freeze and ended combat prompts override an earlier available opportunity", () => {
   const entity = { canActNow: true, statusText: "Can choose an action now." } as CombatEntity;
   assert.match(combatScreenPrompt(state(true), entity), /paused/);

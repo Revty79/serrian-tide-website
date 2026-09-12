@@ -8,8 +8,9 @@ import {
   campaignSessionEncounterInitiative,
   campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
-import { getNextInitiativeTimelineEvent, type InitiativeEngineState } from "./initiative-runtime";
+import { getNextInitiativeTimelineEvent, hasUnfinishedInitiativeAction, type InitiativeEngineState } from "./initiative-runtime";
 import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
+import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Choice = (typeof checkpoint.$inferSelect)["choicesJson"][number];
@@ -40,6 +41,9 @@ export async function beginDeclarationCheckpointInTransaction(
   // All choices serialize on the same runtime before capturing membership.
   await tx.select({ id: campaignSessionEncounterInitiative.encounterId }).from(campaignSessionEncounterInitiative)
     .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId)).for("update");
+  if (hasUnfinishedInitiativeAction(engine.pendingActions, participantId)) {
+    throw new Error("An unfinished action prevents this combatant from choosing another action, defense or intervention.");
+  }
   const existing = await readOpenDeclarationCheckpoint(tx, encounterId);
   if (existing) {
     if (!existing.participantIdsJson.includes(participantId)) throw new Error("Complete the current simultaneous declaration checkpoint before intervening.");
@@ -81,7 +85,7 @@ export async function beginDeclarationCheckpointInTransaction(
   return created.id;
 }
 
-export async function finishDeclarationCheckpointChoiceInTransaction(tx: Transaction, checkpointId: number, choice: Choice): Promise<void> {
+export async function finishDeclarationCheckpointChoiceInTransaction(tx: Transaction, checkpointId: number, choice: Choice, context: OwnedEncounterRuntimeContext): Promise<void> {
   const [row] = await tx.select().from(checkpoint).where(eq(checkpoint.id, checkpointId)).limit(1).for("update");
   if (!row || !row.participantIdsJson.includes(choice.participantId)) throw new Error("The choice does not belong to this exact checkpoint.");
   const previous = row.choicesJson.find((entry) => entry.participantId === choice.participantId);
@@ -94,6 +98,12 @@ export async function finishDeclarationCheckpointChoiceInTransaction(tx: Transac
   const complete = row.participantIdsJson.every((id) => choices.some((entry) => entry.participantId === id));
   await tx.update(checkpoint).set({ choicesJson: choices, revealedAt: complete ? new Date() : null })
     .where(eq(checkpoint.id, row.id));
+  if (complete) {
+    const after = await loadInitiativeEngineInTransaction(tx, row.encounterId);
+    const before = row.beforeStateJson as Pick<InitiativeEngineState, "participants" | "pendingActions">;
+    const { reconcileActionResponseWindowsInTransaction } = await import("./action-declaration-service");
+    await reconcileActionResponseWindowsInTransaction(tx, context, { ...after, ...before }, after);
+  }
 }
 
 export async function assertDeclarationCheckpointRevealed(tx: Transaction, checkpointId: number | null): Promise<void> {

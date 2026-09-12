@@ -1,4 +1,5 @@
 import type { InitiativeParticipantState, PendingInitiativeActionState } from "./initiative-runtime";
+import { hasUnfinishedInitiativeAction } from "./initiative-runtime";
 import type { FrozenActionSourceSnapshot } from "./action-effect-bridge";
 
 export const ACTION_DECLARATION_STATUSES = [
@@ -419,6 +420,7 @@ export function deriveResponderCandidates(
   window: ActionWindow,
   actorCharacterId: number,
   participants: readonly InitiativeParticipantState[],
+  pendingActions: readonly PendingInitiativeActionState[] = [],
 ): ResponderCandidate[] {
   return participants.map((participant): ResponderCandidate => {
     if (participant.characterId === actorCharacterId) {
@@ -427,6 +429,15 @@ export function deriveResponderCandidates(
         initiativePosition: participant.currentInitiative,
         included: false,
         reason: "The acting Participant is excluded from their own action window.",
+        requiresGodConfirmation: false,
+      };
+    }
+    if (hasUnfinishedInitiativeAction(pendingActions, participant.characterId)) {
+      return {
+        characterId: participant.characterId,
+        initiativePosition: participant.currentInitiative,
+        included: false,
+        reason: "An unfinished action prevents this Participant from responding or intervening.",
         requiresGodConfirmation: false,
       };
     }

@@ -112,6 +112,13 @@ function activeActionFor(state: InitiativeEngineState, characterId: number): Pen
   return state.pendingActions.find((action) => action.actorCharacterId === characterId && action.status === "active") ?? null;
 }
 
+export function hasUnfinishedInitiativeAction(
+  pendingActions: readonly PendingInitiativeActionState[], characterId: number,
+): boolean {
+  return pendingActions.some((action) => action.actorCharacterId === characterId
+    && (action.status === "active" || action.status === "interrupted"));
+}
+
 function actionById(state: InitiativeEngineState, actionId: number): PendingInitiativeActionState {
   const action = state.pendingActions.find((entry) => entry.id === actionId);
   if (!action) throw new Error("That pending Initiative action does not exist.");
@@ -266,7 +273,7 @@ export function getNextInitiativeTimelineEvent(state: InitiativeEngineState): In
   });
   const opportunityCandidates = state.participants.flatMap((participant) => {
     if (participant.participationStatus !== "active" || participant.currentInitiative <= 0) return [];
-    if (activeActionFor(state, participant.characterId)) return [];
+    if (hasUnfinishedInitiativeAction(state.pendingActions, participant.characterId)) return [];
     return [{
       characterId: participant.characterId,
       initiative: Math.min(participant.currentInitiative, timeline),
@@ -337,8 +344,8 @@ export function startInitiativeAction(
   if (!label) throw new Error("Pending Action label is required.");
   if (state.pendingActions.some(({ id }) => id === input.id)) throw new Error("Pending Action identity already exists.");
   const participant = participantById(state, input.actorCharacterId);
-  if (activeActionFor(state, input.actorCharacterId)) {
-    throw new Error("This Participant is already committed to an active pending action.");
+  if (hasUnfinishedInitiativeAction(state.pendingActions, input.actorCharacterId)) {
+    throw new Error("This Participant is already committed to an unfinished action.");
   }
   const heldIntervention = input.heldIntervention === true;
   if (heldIntervention) {

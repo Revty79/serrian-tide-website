@@ -6,7 +6,7 @@ const operations = { sealed: false, plans: [], defenses: { reactions: [] }, fire
 function fixture() {
   return { pause: { frozen: false }, projection: { closed: false, checkpoint: null,
     progression: { canAdvanceTimeline: true, canAdvanceRound: false, reason: "Wait" },
-    entities: [{ participantId: -8, name: "Cat", canControl: true, mustChooseNow: false, canRespondNow: false, participation: { departed: false }, condition: { status: "able" } }],
+    entities: [{ participantId: -8, name: "Cat", canControl: true, mustChooseNow: false, canRespondNow: false, responseDecisionOpportunityIds: [4], currentAction: null, participation: { departed: false }, condition: { status: "able" } }],
     declarations: [
       { id: 1, actorCharacterId: 1, actorName: "Player", draft: { label: "Longsword" }, status: "awaiting-god-ruling", timing: { status: "active", remainingInitiativeCost: 4 }, opportunities: [] },
       { id: 2, actorCharacterId: -8, actorName: "Cat", draft: { label: "Bite" }, status: "rolling", timing: { status: "completed" }, opportunities: [] },
@@ -66,4 +66,26 @@ test("automatic flow stops at one ordinary attack report, including when its cri
     assert.equal(next.kind === "review" && next.planId, 7);
     assert.equal(automaticCombatInputKey(next, "state-a"), null);
   }
+});
+
+test("a crossover offers an independent ordinary choice before an optional response", () => {
+  const data = fixture();
+  data.projection!.declarations = [{ ...data.projection!.declarations[0], opportunities: [{ id: 4, responderCharacterId: -8, status: "pending", reactionId: null, requiresGodConfirmation: true }] as unknown as NonNullable<CombatScreenData["projection"]>["declarations"][number]["opportunities"] }];
+  data.projection!.entities[0].mustChooseNow = true;
+  data.projection!.entities[0].canRespondNow = true;
+  const next = combatNextInput(data, operations);
+  assert.equal(next.kind, "inspect");
+  assert.equal(next.kind === "inspect" && next.focus, "action");
+  assert.match(next.explanation, /own legal target, Hold or Pass/);
+});
+
+test("busy actors and future candidates never demand response decisions", () => {
+  const data = fixture();
+  data.projection!.declarations = [{ ...data.projection!.declarations[0], opportunities: [{ id: 4, responderCharacterId: -8, status: "pending", reactionId: null, requiresGodConfirmation: true }] as unknown as NonNullable<CombatScreenData["projection"]>["declarations"][number]["opportunities"] }];
+  const entity = data.projection!.entities[0];
+  entity.currentAction = { declarationId: 3, label: "Bite", status: "active", originalCost: 4, elapsed: 1, remaining: 3, expectedFinish: 10 };
+  assert.equal(combatNextInput(data, operations).kind, "advance");
+  entity.currentAction = null;
+  entity.responseDecisionOpportunityIds = [];
+  assert.equal(combatNextInput(data, operations).kind, "advance");
 });

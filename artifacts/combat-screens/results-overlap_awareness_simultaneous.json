@@ -1,0 +1,10 @@
+{
+  "passed": [
+    "Simultaneous Player/NPC declarations, Player first, preserve hidden action history and record one Roll each.",
+    "Simultaneous Player/NPC declarations, NPC first, preserve hidden action history and record one Roll each.",
+    "The main next-input control resolves a faster Creature action, offers its next action while the critical sword is unfinished, then opens the sword's exact ruling only at completion; death cancels the later unfinished action.",
+    "Direct awareness No without typed notes records a miss and zero damage, reaches the lower-Initiative Player's Hold, preserves 20 Initiative, and continues automatically with one Roll and the selected target.",
+    "Direct awareness Yes and Player no-reaction records 6 damage and updates both HP displays, reaches the lower-Initiative Player's Hold, preserves 20 Initiative, and continues automatically with one Roll and the selected target."
+  ],
+  "errors": []
+}

@@ -6,6 +6,7 @@ import {
   beginDeclarationCheckpointInTransaction,
   finishDeclarationCheckpointChoiceInTransaction,
   assertNoOpenDeclarationCheckpoint,
+  readOpenDeclarationCheckpoint,
 } from "./declaration-checkpoint-service";
 import { recordDeclarationRollInTransaction } from "./roll-runtime-service";
 
@@ -51,6 +52,7 @@ import {
   extendActionDeclarationCostInTransaction,
   refreshActionDeclarationRollingReadinessInTransaction,
   recordActionDeclarationAuditEventInTransaction,
+  reconcileBusyResponderOpportunitiesInTransaction,
   type ActionDeclarationActor,
 } from "./action-declaration-service";
 import {
@@ -70,7 +72,7 @@ import {
   type IndividualDefenseOutcome,
   type OriginalActionDisposition,
 } from "./defense-intervention";
-import { applyDirectInitiativeDelta, canParticipantReactToAction, canHoldingParticipantIntervene } from "./initiative-runtime";
+import { applyDirectInitiativeDelta, canParticipantReactToAction, canHoldingParticipantIntervene, hasUnfinishedInitiativeAction } from "./initiative-runtime";
 import type { PercentileTargetModifier } from "./percentile-resolution";
 import { parseRollGoverningSourceSnapshot } from "./roll-mechanical-snapshot";
 import type { RollGoverningSourceRequest } from "./roll-mechanical-snapshot";
@@ -319,10 +321,20 @@ async function loadResponseContext(
     throw new Error("The related pending action cannot accept a response.");
   }
   await assertDeclarationCheckpointRevealed(tx, declaration.checkpointId);
+  const openCheckpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
+  if (openCheckpoint?.choicesJson.some((choice) => choice.participantId === opportunity.responderCharacterId)) {
+    throw new Error("This combatant's choice is sealed until the simultaneous checkpoint is complete.");
+  }
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  if (hasUnfinishedInitiativeAction(engine.pendingActions, opportunity.responderCharacterId)) {
+    throw new Error("An unfinished action prevents this combatant from responding or intervening.");
+  }
   const { assertCombatantCanChooseInTransaction } = await import("./combat-condition-service");
   await assertCombatantCanChooseInTransaction(tx, context.encounterId, opportunity.responderCharacterId);
   const participant = engine.participants.find(({ characterId }) => characterId === opportunity.responderCharacterId);
+  if (opportunity.source !== "god-exception" && participant && participant.currentInitiative < engine.runtime.timelineInitiative) {
+    throw new Error("Advance to this combatant's Initiative opportunity before choosing a response.");
+  }
   if (!participant || !["active", "holding"].includes(participant.participationStatus) || participant.currentInitiative <= 0
     || opportunity.source !== "god-exception" && !canParticipantReactToAction(pendingAction, participant.currentInitiative)
       && !canHoldingParticipantIntervene(engine.runtime, participant)) {
@@ -955,7 +967,7 @@ export async function declareDefenseInterventionInTransaction(
   if (snapshot.rollRequired) await recordDeclaredResponseRollInTransaction(tx, context, actor, created.id, rollInput, true);
   await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
     participantId: loaded.opportunity.responderCharacterId, kind: "response", declarationId: loaded.declaration.id, reactionId: created.id,
-  });
+  }, context);
   return created.id;
 }
 
@@ -1151,6 +1163,8 @@ export async function resolveDeclaredDefensesInTransaction(
   } else {
     await assertActorAuthority(tx, context, actor, declaration.actorCharacterId);
   }
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
+  await reconcileBusyResponderOpportunitiesInTransaction(tx, context);
   const opportunities = (await tx.select().from(campaignSessionEncounterResponderOpportunity)
     .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declaration.id)).for("update"))
     .filter((opportunity) => throughInitiative === undefined || opportunity.status !== "pending" || opportunity.source === "god-exception"
@@ -1363,6 +1377,8 @@ export async function resolveDeclaredDefensesIfReadyInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const { row: declaration } = await lockedActionForRoll(tx, context, declarationId);
   if (!declaration.pendingActionId) return null;
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
+  await reconcileBusyResponderOpportunitiesInTransaction(tx, context);
   const opportunities = (await tx.select({
     status: campaignSessionEncounterResponderOpportunity.status,
     reactionId: campaignSessionEncounterResponderOpportunity.reactionId,

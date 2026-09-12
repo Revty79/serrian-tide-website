@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
-import { campaignCharacter } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterAttribute } from "@/db/realm-schema";
 import { weaponProfile } from "@/db/item-schema";
-import { campaignSessionEncounterInitiativeParticipant as enrollment, campaignSessionEncounterActionDeclaration as declaration, campaignSessionEncounterParticipant as member, campaignSessionRoll as roll } from "@/db/tabletop-operations-schema";
+import { campaignSessionEncounterInitiative as runtime, campaignSessionEncounterInitiativeParticipant as enrollment, campaignSessionEncounterActionDeclaration as declaration, campaignSessionEncounterParticipant as member, campaignSessionRoll as roll } from "@/db/tabletop-operations-schema";
 import { previewCombatChoiceInTransaction, submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
 import { physicalPercentile, type CombatSubmission } from "@/features/combat-screen/choice-types";
 import { applyRoutineCombatConsequencesInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
-import { resolveDeclaredDefensesInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
+import { declareDefenseInterventionInTransaction, previewDefenseInterventionInTransaction, resolveDeclaredDefensesInTransaction, resolveDeclaredDefensesIfReadyInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { advanceInitiativeTimeline } from "@/features/tabletop-operations/initiative-runtime";
-import { holdParticipantInitiativeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
+import { holdParticipantInitiativeInTransaction, passParticipantInitiativeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { readCombatProjectionInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
 import { reconcileResponderOpportunityInTransaction } from "@/features/tabletop-operations/action-declaration-service";
@@ -18,6 +18,8 @@ import { campaignSessionEncounterResponderOpportunity as response } from "@/db/t
 import { ruleOrdinaryAttackConsequenceInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
 import { spawnEncounterCreaturesInTransaction } from "@/features/tabletop-operations/creature-spawn-service";
+import { combatNextInput, type CombatOperations } from "@/features/combat-screen/next-input";
+import type { CombatScreenData } from "@/features/combat-screen/screen-types";
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the disposable combat completion harness.");
 after(() => pool.end());
 const rollback = new Error("ROLLBACK_SCREEN_FIXTURE");
@@ -88,6 +90,96 @@ async function fixture(tx: Tx) {
   const input: CombatSubmission = { choice: { participantId: f.heroId, targetIds: [f.occurrences[0]], source: { kind: "weapon", ref: `stack:${f.weaponId}`, name: "Shortsword", itemId: f.weaponId, instanceId: null, description: "" } }, requestKey: crypto.randomUUID(), roll: { method: "entered", enteredTotal: 70 } };
   return { ...f, input };
 }
+
+test("busy-response cleanup stays sealed until every simultaneous choice is made", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    await tx.update(runtime).set({ timelineInitiative: 24 }).where(eq(runtime.encounterId, f.encounterId));
+    await tx.update(enrollment).set({ currentInitiative: 24, participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.occurrences[0])));
+    await tx.update(enrollment).set({ participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.defenderId)));
+    const first = await submitCombatChoiceInTransaction(tx, f.context, f.god, { requestKey: crypto.randomUUID(), choice: { participantId: f.occurrences[0], targetIds: [f.heroId], source: { kind: "creature-attack", ref: "fixture-shortsword", name: "Shortsword", itemId: null, instanceId: null, description: "" } }, roll: { method: "entered", enteredTotal: 20 } });
+    assert.ok("declarationId" in first);
+    const readOpportunity = async () => (await tx.select().from(response).where(and(eq(response.declarationId, first.declarationId), eq(response.responderCharacterId, f.heroId))))[0];
+    const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 22));
+    await submitCombatChoiceInTransaction(tx, f.context, f.player, f.input);
+    assert.ok(await readOpenDeclarationCheckpoint(tx, f.encounterId));
+    assert.equal((await readOpportunity()).status, "pending", "an earlier public window must not reveal the sealed action choice");
+    const visible = await readCombatProjectionInTransaction(tx, f.context, f.god);
+    assert.equal(visible.entities.find((entry) => entry.participantId === f.heroId)!.currentAction, null);
+    assert.equal(visible.declarations.some((entry) => entry.actorCharacterId === f.heroId), false);
+    await assert.rejects(reconcileResponderOpportunityInTransaction(tx, f.context, f.god, (await readOpportunity()).id, { decision: "allow" }), /sealed/);
+    await holdParticipantInitiativeInTransaction(tx, f.context, f.defenderId);
+    assert.equal(await readOpenDeclarationCheckpoint(tx, f.encounterId), null);
+    assert.equal((await readOpportunity()).status, "ineligible");
+    assert.ok((await readCombatProjectionInTransaction(tx, f.context, f.god)).entities.find((entry) => entry.participantId === f.heroId)!.currentAction);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
+for (const declineFirst of [false, true]) test(`a free Player crosses an attack, chooses a different target and leaves no busy prompts; no-reaction first=${declineFirst}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    await tx.insert(campaignCharacterAttribute).values({ characterId: f.heroId, attributeKey: "CON", value: 50 });
+    await tx.update(enrollment).set({ currentInitiative: 20 }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.heroId)));
+    await tx.update(enrollment).set({ participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.occurrences[0])));
+    const first = await submitCombatChoiceInTransaction(tx, f.context, f.god, { requestKey: crypto.randomUUID(), choice: { participantId: f.occurrences[0], targetIds: [f.heroId], source: { kind: "creature-attack", ref: "fixture-shortsword", name: "Shortsword", itemId: null, instanceId: null, description: "" } }, roll: { method: "entered", enteredTotal: 20 } });
+    assert.ok("declarationId" in first);
+    const readOpportunity = async () => (await tx.select().from(response).where(and(eq(response.declarationId, first.declarationId), eq(response.responderCharacterId, f.heroId))))[0];
+    const opportunity = await readOpportunity();
+    assert.ok(opportunity);
+    await assert.rejects(tx.transaction((savepoint) => reconcileResponderOpportunityInTransaction(savepoint, f.context, f.god, opportunity.id, { decision: "allow" })), /Advance/);
+    let engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 20));
+    await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, opportunity.id, { decision: "allow" });
+    let projection = await readCombatProjectionInTransaction(tx, f.context, f.player);
+    let hero = projection.entities.find((entry) => entry.participantId === f.heroId)!;
+    assert.equal(hero.mustChooseNow, true); assert.equal(hero.canRespondNow, true);
+    const operations = { sealed: false, plans: [], defenses: { reactions: [] }, firearms: { attacks: [] } } as unknown as CombatOperations;
+    const next = combatNextInput({ pause: projection.pause, projection } as CombatScreenData, operations);
+    assert.equal(next.kind === "inspect" && next.focus, "action");
+    if (declineFirst) {
+      const noReaction = { opportunityId: opportunity.id, reactionType: "no-reaction" as const, protectedTargetCharacterId: f.heroId };
+      const id = await declareDefenseInterventionInTransaction(tx, f.context, f.player, noReaction);
+      assert.equal(await declareDefenseInterventionInTransaction(tx, f.context, f.player, noReaction), id);
+      projection = await readCombatProjectionInTransaction(tx, f.context, f.player);
+      hero = projection.entities.find((entry) => entry.participantId === f.heroId)!;
+      assert.equal(hero.currentInitiative, 20); assert.equal(hero.mustChooseNow, true); assert.equal(hero.participationStatus, "active");
+    }
+    const second = await submitCombatChoiceInTransaction(tx, f.context, f.player, { ...f.input, choice: { ...f.input.choice, targetIds: [f.occurrences[1]] }, roll: { method: "entered", enteredTotal: 20 } });
+    assert.ok("declarationId" in second);
+    const secondRow = (await tx.select().from(declaration).where(eq(declaration.id, second.declarationId)))[0];
+    assert.deepEqual((secondRow.lockedSnapshotJson as { targetCharacterIds: number[] }).targetCharacterIds, [f.occurrences[1]]);
+    assert.equal((await readOpportunity()).status, declineFirst ? "response-declared" : "ineligible");
+    assert.equal((await tx.select().from(response).where(eq(response.declarationId, second.declarationId))).length, 0, "the original attacker is busy and gets no response prompt");
+    if (!declineFirst) {
+      // Emulate an unanswered opportunity retained from the superseded busy-defense rule.
+      await tx.update(response).set({ status: "pending", requiresGodConfirmation: false, reconciledAt: null, reconciledByUserId: null }).where(eq(response.id, opportunity.id));
+      const request = { opportunityId: opportunity.id, reactionType: "dodge" as const, protectedTargetCharacterId: f.heroId };
+      await assert.rejects(previewDefenseInterventionInTransaction(tx, f.context, f.player, request), /unfinished action/);
+      for (const reactionType of ["dodge", "block", "intervention", "no-reaction"] as const) {
+        await assert.rejects(tx.transaction((savepoint) => declareDefenseInterventionInTransaction(savepoint, f.context, f.player, { ...request, reactionType })), /unfinished action/);
+      }
+      const busy = (await readCombatProjectionInTransaction(tx, f.context, f.player)).entities.find((entry) => entry.participantId === f.heroId)!;
+      assert.equal(busy.canActNow, false); assert.equal(busy.canRespondNow, false); assert.deepEqual(busy.responseOpportunityIds, []);
+      await assert.rejects(tx.transaction((savepoint) => submitCombatChoiceInTransaction(savepoint, f.context, f.player, { ...f.input, requestKey: crypto.randomUUID() })), /unfinished action/);
+      await resolveDeclaredDefensesIfReadyInTransaction(tx, f.context, f.god, first.declarationId);
+      assert.equal((await readOpportunity()).status, "ineligible", "retained busy prompts reconcile without a fabricated defense");
+    }
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 18));
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, first.declarationId);
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, first.declarationId)).status, "applied");
+    await passParticipantInitiativeInTransaction(tx, f.context, f.occurrences[0]);
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 16));
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.player, second.declarationId);
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, second.declarationId)).status, "applied");
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 2);
+    assert.equal((await readCombatProjectionInTransaction(tx, f.context, f.player)).entities.find((entry) => entry.participantId === f.heroId)!.mustChooseNow, true);
+    throw rollback;
+  }), (error) => error === rollback);
+});
 test("screen preview does not create declarations, spend resources or roll; declaration and Roll commit exactly once", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx);

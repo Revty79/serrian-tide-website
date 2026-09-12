@@ -59,6 +59,16 @@ function action(engine: InitiativeEngineState, actionId = 1) {
   return engine.pendingActions.find((entry) => entry.id === actionId)!;
 }
 
+test("unfinished active and interrupted actions prevent another ordinary action", () => {
+  const input = { id: 1, actorCharacterId: 1, label: "First action", actionKind: "attack", initiativeCost: 4, allowsMultiRound: false };
+  const active = startInitiativeAction(state(22, 20), input);
+  for (const engine of [active, interruptPendingInitiativeAction(active, 1)]) {
+    assert.throws(() => startInitiativeAction(engine, { ...input, id: 2 }), /unfinished action/);
+    const next = getNextInitiativeTimelineEvent(engine);
+    assert.ok(next.kind !== "normal-opportunity" || !next.characterIds.includes(1));
+  }
+});
+
 test("canonical Base Initiative and movement totals reuse Character rules without randomness", () => {
   assert.equal(calculateNormalTotalInitiative(1, 1), 1);
   assert.equal(calculateNormalTotalInitiative(4, 1), 1);

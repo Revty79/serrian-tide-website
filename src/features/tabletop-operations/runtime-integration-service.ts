@@ -544,7 +544,7 @@ export async function holdParticipantInitiativeInTransaction(
   const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, state, characterId);
   const changed = holdInitiative(state, characterId);
   await persistInitiativeEngineInTransaction(tx, context, state, changed);
-  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, { participantId: characterId, kind: "hold", declarationId: null, reactionId: null });
+  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, { participantId: characterId, kind: "hold", declarationId: null, reactionId: null }, context);
 }
 
 /** Player and G.O.D. controllers share the authoritative Initiative engine. */
@@ -562,7 +562,7 @@ export async function passParticipantInitiativeInTransaction(
   const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, state, characterId, participant?.participationStatus === "holding");
   const changed = passInitiative(state, characterId);
   await persistInitiativeEngineInTransaction(tx, context, state, changed);
-  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, { participantId: characterId, kind: "pass", declarationId: null, reactionId: null });
+  await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, { participantId: characterId, kind: "pass", declarationId: null, reactionId: null }, context);
 }
 
 /**

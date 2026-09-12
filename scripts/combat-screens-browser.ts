@@ -295,11 +295,12 @@ try {
     assert.equal(await screen(director).getByRole("combobox", { name: /^Target/ }).locator(`option[value='${f.occurrences[0]}']`).count(), 0, "The attack menu excludes its own actor.");
     assert.equal((await declarations(f)).length, 0, "Reading options never commits an action or Roll.");
     await commitAttack(director);
-    await guide.getByRole("heading", { name: /Can Rowan notice and respond/ }).waitFor();
+    await guide.getByRole("button", { name: "View Rowan's turn", exact: true }).waitFor();
     await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Hold", exact: true }).click();
-    assert.equal(await screen(participant).getByRole("button", { name: "Hold Initiative", exact: true }).isDisabled(), true);
-    await until(async () => (await screen(participant).innerText()).includes("next ordinary choice, including Hold, is at 20"), "Player sees why Hold is waiting without learning an unconfirmed attack");
-    await guide.getByRole("button", { name: canRespond ? "Yes, can respond" : "No, cannot respond", exact: true }).click();
+    await until(() => screen(participant).getByRole("button", { name: "Hold Initiative", exact: true }).isEnabled(), "crossover gives the Player an independent ordinary choice");
+    await until(async () => (await screen(participant).innerText()).includes("own legal target, Hold or Pass"), "Player sees independent choices at the crossover");
+    await selectGod(director, "Rowan");
+    await screen(director).getByRole("region", { name: "Selected combatant detail" }).getByRole("button", { name: canRespond ? "Yes, can respond" : "No, cannot respond", exact: true }).click();
     if (canRespond) {
       await screen(participant).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Defend", exact: true }).click();
       await screen(participant).getByRole("combobox", { name: /^Defense/ }).selectOption("no-reaction");

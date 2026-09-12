@@ -305,7 +305,7 @@ async function mutateOwnedInitiative(
     await persistEngine(tx, context, current, changed, options.durationPassage);
     if (checkpointId !== null && disposition) await finishDeclarationCheckpointChoiceInTransaction(tx, checkpointId, {
       participantId: disposition.participantId, kind: disposition.kind, declarationId: null, reactionId: null,
-    });
+    }, context);
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: context.campaignId,
       sessionId: context.sessionId,

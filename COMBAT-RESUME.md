@@ -2,15 +2,27 @@
 
 ## Read this first
 
-Saved **9 September 2026** for Brannan, Cody and Ember. Combat work is paused for a few days. This document consolidates the walkthrough and Brannan's latest supplied pause instructions. It implements no fixes.
+Updated **12 September 2026** for Brannan, Cody and Ember. The first action-opportunity fix is implemented and combat work is paused at Brannan's request. The remaining priorities below retain the supplied rules and order.
 
 - Magic and ordinary attacks appeared to work in the cases Brannan tried; this is **not exhaustive acceptance**.
-- **First priority:** independent crossover action choices and no responses from actors already committed to unfinished actions.
-- **Second priority:** reject unaffordable actions before commitment; preserve unused Initiative for next round. Bull 1 and Ysra demonstrated this bug.
+- **Implemented; human retest pending:** independent crossover action choices and no responses from actors already committed to unfinished actions.
+- **Next implementation priority:** reject unaffordable actions before commitment; preserve unused Initiative for next round. Bull 1 and Ysra demonstrated this bug.
 - Preserve completed spell, health, report, force-end and magazine-inventory work. Firearm/ranged work remains paused and unaccepted.
 - Follow the latest rulings below over conflicting old notes/tests. Do not reconstruct rules from old traces or invent missing rules.
 
-## Current position
+## 12 September stopping point
+
+- Started from clean `main` at `6d94f2d` (the 9 September handoff); no intervening code changes were present on resumption.
+- Priority 1 now excludes busy actors when creating response opportunities, validates that prohibition at action/response/exceptional-intervention submission, and removes busy response controls from the combat projection. Interrupted unfinished work also prevents a second ordinary action.
+- An ordinary Initiative crossing retains the actor's independent target, Hold and Pass choices. G.O.D. response confirmation is available beside the selected combatant, including Player-controlled Characters; a future crossing no longer demands an early response. No-reaction remains a zero-cost response and preserves the ordinary choice.
+- Obsolete unanswered busy prompts become ineligible through the existing service and `busy-responder-excluded` audit events. Cleanup waits for simultaneous choices to reveal. Existing declared responses, Rolls and results are retained.
+- Readiness also refreshes after response-window reconciliation and before completion when a condition/departure has closed the last response. This fixes the reversed-submission movement completion failure without permitting pending responses to be skipped.
+- Validation: **1,291 unit tests**, **10 screen-service DB cases**, **3 checkpoint DB cases**, **2 fixed combat-trace cases**, and **5 browser scenarios** passed. Browser coverage includes both simultaneous submission orders, overlapping actions, and G.O.D. Yes/No with Player no-reaction and Hold. See [browser results](artifacts/combat-screens/results-overlap_awareness_simultaneous.json). Typecheck, lint, production build, Drizzle consistency and whitespace checks passed.
+- All DB/browser tests used disposable migrated loopback PostgreSQL clusters. **No schema change, development/production migration, live encounter repair, push or deployment.** Current development/production database and deployed revision remain unverified.
+- This implementation and handoff are saved together in a local commit; identify it with `git log -1 --format="%h %s" -- COMBAT-RESUME.md`. It is ready for review and push.
+- **Human acceptance is still pending.** Use a fresh authorized encounter or the disposable harness. Retest free/busy overlaps first; then resume priority 2. Affordability, mixed spell scaling, injury costs, firearms and combat magazine integration were not implemented in this pass.
+
+## Historical 9 September snapshot
 
 | Item | Verified snapshot before this documentation commit |
 | --- | --- |
@@ -30,7 +42,7 @@ Historical magazine validation: 1,286 unit tests; 8 magazine DB tests including 
 
 ## Ordered tasks
 
-### 1. Action opportunities and busy actors — open bug; first priority
+### 1. Action opportunities and busy actors — implemented; human retest pending
 
 When an ongoing action crosses a **free** combatant's Initiative, that combatant gets an independent choice: a legitimate interruption attempt or a normal action against their own legal target, with applicable Hold/Pass choices. They must not be forced into Defend/no-reaction against the original attacker. Preserve overlapping action timing; reconcile obsolete response prompts that otherwise block progression through the authoritative services/audit trail.
 
@@ -38,7 +50,7 @@ When an ongoing action crosses a **free** combatant's Initiative, that combatant
 
 Being free does not automatically authorize a defense. G.O.D. still decides legitimate response eligibility. Preserve the prominent **Yes, can respond / No, cannot respond** controls for real response decisions. **Ambush checks happen before combat.** Preserve simultaneous-choice privacy; shared Initiative must not expose another actor's sealed choice or grant foreknowledge.
 
-Observed implementation: mathematical crossings become response candidates; prompts steer actors toward defense/no-reaction, including prioritizing response text when they can otherwise act. Pending eligibility/response records can block resolution.
+Before this fix, mathematical crossings became response candidates; prompts steered actors toward defense/no-reaction, including prioritizing response text when they could otherwise act. Pending eligibility/response records could block resolution. The 12 September changes above address this; automated checks do not replace Brannan's retest.
 
 Sources: [windows](src/features/tabletop-operations/action-declaration.ts), [declaration service](src/features/tabletop-operations/action-declaration-service.ts), [defense service](src/features/tabletop-operations/defense-intervention-service.ts), [projection](src/features/tabletop-operations/combat-projection-service.ts), [checkpoints](src/features/tabletop-operations/declaration-checkpoint-service.ts), [next input](src/features/combat-screen/next-input.ts), [prompts](src/features/combat-screen/screen-types.ts), [choices](src/features/combat-screen/choice-service.ts), [response panel](src/features/combat-screen/defense-panel.tsx).
 
@@ -130,7 +142,9 @@ Evidence/tests: [health/report implementation](docs/reports/combat-health-and-at
 
 If implementation exposes another scope/cost/timing conflict, record the exact question and ask Brannan rather than guessing.
 
-## Workaround and clean retest starting point
+## Historical workaround and clean retest starting point
+
+The following workaround describes the old implementation. Priority 1 now handles busy prompts automatically through audited service reconciliation and preserves free actors' ordinary choices. The clean-encounter guidance and warning about invalid unaffordable commitments still apply.
 
 For the incorrect crossover prompt, select **No, cannot respond** for an already-busy actor or a free actor taking no response. This dismisses that opportunity without spending Initiative or marking them Passed. Busy actors continue their action; free actors choose normally when available. For a free actor this records an ineligibility ruling: it is a workaround, not the intended flow.
 
@@ -152,4 +166,4 @@ When Brannan says “let's finish fixing combat,” “resume combat,” or simi
 6. Use the [disposable DB harness](scripts/combat-completion-disposable-db.test.ts) and [disposable browser harness](scripts/combat-screens-disposable-browser.test.ts); inspect filters before selecting focused cases. Do not run live-DB scripts blindly. Keep intentionally absent legacy Step 13 fixtures absent; do not seed them to force a validation pass.
 7. Update this file after each completed fix: status, ruling, changed code, commit, focused checks, human acceptance, remaining limits and actual migration/deployment state. Cody and Ember resume from this same record. Do not push/deploy without current authorization.
 
-This pause pass checks documentation links/whitespace and commits locally only. No fixes, broad tests, database migration or deployment are part of it.
+The 12 September stopping point includes priority 1 code, tests and this handoff in a local commit. No live database migration, push or deployment is part of it.
