@@ -1,0 +1,2430 @@
+{
+  "verifiedAt": "2026-09-13T15:58:21.233Z",
+  "target": {
+    "database": "serrian_tide_dev",
+    "address": "::1",
+    "port": 5432
+  },
+  "backup": {
+    "path": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-magazine-catalog-xVJ2BU\\serrian_tide_dev.dump",
+    "bytes": 1554995,
+    "sha256": "46e46fd1f96e314a7591afbad8baa241ecc3644f7ed2bad24d39ec7f47e7c0c4",
+    "fullArchiveDecodeVerified": true,
+    "restoreRehearsalRun": false
+  },
+  "migrationCount": 50,
+  "planDigest": "621e4a06f9a9abfc4ad900e056b9223c88369eab9dfc0be061ffca49303d8ce1",
+  "approvedByUserId": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+  "itemsCreated": [
+    {
+      "id": 1035,
+      "canonical_id": "MAG-WEAPON-0001",
+      "name": "5.56 mm Rifle Magazine (30 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for 5.56 mm Semi-Automatic Rifle (Item 1). Capacity 30. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "1:30",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1036,
+      "canonical_id": "MAG-WEAPON-0002",
+      "name": "9x19 mm Carbine Magazine (30 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for 9×19 mm Carbine (Item 2). Capacity 30. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "2:30",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1037,
+      "canonical_id": "MAG-WEAPON-0003",
+      "name": "9mm Luger Magazine (15 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for 9mm Luger (Item 3). Capacity 15. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "3:15",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1038,
+      "canonical_id": "MAG-WEAPON-0108",
+      "name": "Repeating Crossbow Magazine (5 bolts)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for Repeating Crossbow (Item 108). Capacity 5. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "108:5",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1039,
+      "canonical_id": "MAG-WEAPON-0061",
+      "name": "Heavy Machine Gun Feed Box (100 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for Heavy Machine Gun (Item 61). Capacity 100. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring. Prepared belt boxes use the game's Magazine workflow; belt links and routing are not separate simulated resources.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "61:100",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1040,
+      "canonical_id": "MAG-WEAPON-0061-500",
+      "name": "Heavy Machine Gun Belt Can (500 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for Heavy Machine Gun (Item 61). Capacity 500. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring. Prepared belt boxes use the game's Magazine workflow; belt links and routing are not separate simulated resources.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "61:500",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1041,
+      "canonical_id": "MAG-WEAPON-0082",
+      "name": "Machine Gun Feed Box (100 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for Machine Gun (Item 82). Capacity 100. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring. Prepared belt boxes use the game's Magazine workflow; belt links and routing are not separate simulated resources.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "82:100",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1042,
+      "canonical_id": "MAG-WEAPON-0130",
+      "name": "Steam Rifle Magazine (30 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for Steam Rifle (Item 130). Capacity 30. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring. Fictional projectile magazine; pressure supply remains a separate G.O.D. ruling.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "130:30",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    },
+    {
+      "id": 1043,
+      "canonical_id": "MAG-WEAPON-0134",
+      "name": "Submachine Gun Drum (100 rounds)",
+      "catalog_scope": "inventory",
+      "equipment_group": null,
+      "record_type": "Magazine",
+      "family": "Ammunition Equipment",
+      "category": "Magazine",
+      "subtype": "",
+      "description": "Purpose-built detachable ammunition container for Submachine Gun (Item 134). Capacity 100. Physical compatibility is limited to explicitly linked weapons. Price and Fill Initiative per Round await authoring.",
+      "weight": null,
+      "weight_unit": "",
+      "size": "",
+      "durability": null,
+      "credits": null,
+      "price_basis": "per magazine",
+      "parent_item_id": null,
+      "created_by_user_id": "SpA0DkGF8bhFUFhWnxgofw1nLBS7IGZ7",
+      "source_system": "magazine-catalog-repair-2026-09-13",
+      "source_external_id": "134:100",
+      "created_at": "2026-09-13T15:58:20.404Z",
+      "updated_at": "2026-09-13T15:58:20.404Z",
+      "is_magical": false,
+      "archived_at": null,
+      "archived_by_user_id": null,
+      "archive_reason": ""
+    }
+  ],
+  "links": [
+    {
+      "weaponItemId": 1,
+      "weaponProfileId": 1,
+      "magazineItemId": 1035,
+      "ammunitionItemId": 155,
+      "capacity": 30
+    },
+    {
+      "weaponItemId": 2,
+      "weaponProfileId": 2,
+      "magazineItemId": 1036,
+      "ammunitionItemId": 156,
+      "capacity": 30
+    },
+    {
+      "weaponItemId": 3,
+      "weaponProfileId": 224,
+      "magazineItemId": 1037,
+      "ammunitionItemId": 156,
+      "capacity": 15
+    },
+    {
+      "weaponItemId": 108,
+      "weaponProfileId": 108,
+      "magazineItemId": 1038,
+      "ammunitionItemId": 159,
+      "capacity": 5
+    },
+    {
+      "weaponItemId": 61,
+      "weaponProfileId": 61,
+      "magazineItemId": 1039,
+      "ammunitionItemId": 1027,
+      "capacity": 100
+    },
+    {
+      "weaponItemId": 61,
+      "weaponProfileId": 61,
+      "magazineItemId": 1040,
+      "ammunitionItemId": 1027,
+      "capacity": 500
+    },
+    {
+      "weaponItemId": 82,
+      "weaponProfileId": 82,
+      "magazineItemId": 1041,
+      "ammunitionItemId": 1030,
+      "capacity": 100
+    },
+    {
+      "weaponItemId": 130,
+      "weaponProfileId": 130,
+      "magazineItemId": 1042,
+      "ammunitionItemId": 1032,
+      "capacity": 30
+    },
+    {
+      "weaponItemId": 134,
+      "weaponProfileId": 134,
+      "magazineItemId": 1043,
+      "ammunitionItemId": 1033,
+      "capacity": 100
+    }
+  ],
+  "profileChanges": [
+    {
+      "itemId": 1,
+      "profileId": 1,
+      "fields": {
+        "capacity_rounds": 30,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 1,
+        "item_id": 1,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Rifle",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300 ft",
+        "reach_text": "",
+        "ammunition_item_id": 155,
+        "compatibility": "",
+        "capacity": "30",
+        "fire_modes": "[\"Semi\"]",
+        "rate_of_fire": "1 shot/trigger",
+        "reload_initiative": "3",
+        "rules_text": "Uses detachable magazines.",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 1,
+        "item_id": 1,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Rifle",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300 ft",
+        "reach_text": "",
+        "ammunition_item_id": 155,
+        "compatibility": "",
+        "capacity": "30",
+        "fire_modes": "[\"Semi\"]",
+        "rate_of_fire": "1 shot/trigger",
+        "reload_initiative": "3",
+        "rules_text": "Uses detachable magazines.",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 30,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 2,
+      "profileId": 2,
+      "fields": {
+        "capacity_rounds": 30,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 2,
+        "item_id": 2,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 156,
+        "compatibility": "Accepts Attachment: Telescopic Sight",
+        "capacity": "30 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 2,
+        "item_id": 2,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 156,
+        "compatibility": "Accepts Attachment: Telescopic Sight",
+        "capacity": "30 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 30,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 3,
+      "profileId": 224,
+      "fields": {
+        "capacity_rounds": 15,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 224,
+        "item_id": 3,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Pistol",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100 ft",
+        "reach_text": "",
+        "ammunition_item_id": 156,
+        "compatibility": "",
+        "capacity": "15",
+        "fire_modes": "[\"Semi\"]",
+        "rate_of_fire": "1 shot/trigger",
+        "reload_initiative": "3",
+        "rules_text": "Uses detachable magazines.",
+        "created_at": "2026-08-27T08:15:32.017Z",
+        "updated_at": "2026-08-27T08:15:32.017Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 224,
+        "item_id": 3,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Pistol",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100 ft",
+        "reach_text": "",
+        "ammunition_item_id": 156,
+        "compatibility": "",
+        "capacity": "15",
+        "fire_modes": "[\"Semi\"]",
+        "rate_of_fire": "1 shot/trigger",
+        "reload_initiative": "3",
+        "rules_text": "Uses detachable magazines.",
+        "created_at": "2026-08-27T08:15:32.017Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 15,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 61,
+      "profileId": 61,
+      "fields": {
+        "capacity_rounds": 100,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 61,
+        "item_id": 61,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1027,
+        "compatibility": "",
+        "capacity": "100 rounds",
+        "fire_modes": "[\"Full-Auto\"]",
+        "rate_of_fire": "Sustained fire / Initiative",
+        "reload_initiative": "5",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 61,
+        "item_id": 61,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1027,
+        "compatibility": "",
+        "capacity": "100 rounds",
+        "fire_modes": "[\"Full-Auto\"]",
+        "rate_of_fire": "Sustained fire / Initiative",
+        "reload_initiative": "5",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 100,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 82,
+      "profileId": 82,
+      "fields": {
+        "capacity_rounds": 100,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 82,
+        "item_id": 82,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1030,
+        "compatibility": "",
+        "capacity": "100 rounds",
+        "fire_modes": "[\"Full-Auto\"]",
+        "rate_of_fire": "Sustained fire / Initiative",
+        "reload_initiative": "4",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 82,
+        "item_id": 82,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1030,
+        "compatibility": "",
+        "capacity": "100 rounds",
+        "fire_modes": "[\"Full-Auto\"]",
+        "rate_of_fire": "Sustained fire / Initiative",
+        "reload_initiative": "4",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 100,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 130,
+      "profileId": 130,
+      "fields": {
+        "capacity_rounds": 30,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 130,
+        "item_id": 130,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1032,
+        "compatibility": "",
+        "capacity": "30 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 130,
+        "item_id": 130,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1032,
+        "compatibility": "",
+        "capacity": "30 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 30,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 134,
+      "profileId": 134,
+      "fields": {
+        "capacity_rounds": 100,
+        "reload_type": "Magazine"
+      },
+      "before": {
+        "id": 134,
+        "item_id": 134,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1033,
+        "compatibility": "",
+        "capacity": "100 rounds",
+        "fire_modes": "[\"Full-Auto\"]",
+        "rate_of_fire": "Sustained fire / Initiative",
+        "reload_initiative": "4",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 134,
+        "item_id": 134,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1033,
+        "compatibility": "",
+        "capacity": "100 rounds",
+        "fire_modes": "[\"Full-Auto\"]",
+        "rate_of_fire": "Sustained fire / Initiative",
+        "reload_initiative": "4",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 100,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Magazine"
+      }
+    },
+    {
+      "itemId": 10,
+      "profileId": 10,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 10,
+        "item_id": 10,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "30.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1023,
+        "compatibility": "",
+        "capacity": "1 round",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "8",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 10,
+        "item_id": 10,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "30.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1023,
+        "compatibility": "",
+        "capacity": "1 round",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "8",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 16,
+      "profileId": 16,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 16,
+        "item_id": 16,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 158,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 16,
+        "item_id": 16,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "300.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 158,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 26,
+      "profileId": 26,
+      "fields": {
+        "capacity_rounds": 2,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 26,
+        "item_id": 26,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "40.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1024,
+        "compatibility": "",
+        "capacity": "2 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "3",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 26,
+        "item_id": 26,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "40.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1024,
+        "compatibility": "",
+        "capacity": "2 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "3",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 2,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 42,
+      "profileId": 42,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 42,
+        "item_id": 42,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "50.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 164,
+        "compatibility": "",
+        "capacity": "1 cartridge",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 42,
+        "item_id": 42,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "50.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 164,
+        "compatibility": "",
+        "capacity": "1 cartridge",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 43,
+      "profileId": 43,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 43,
+        "item_id": 43,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "40.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 166,
+        "compatibility": "",
+        "capacity": "1 round",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "8",
+        "rules_text": "Damage comes from the loaded ammunition; Short-barrel override: 6 Piercing damage with a Musket Ball.",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 43,
+        "item_id": 43,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "40.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 166,
+        "compatibility": "",
+        "capacity": "1 round",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "8",
+        "rules_text": "Damage comes from the loaded ammunition; Short-barrel override: 6 Piercing damage with a Musket Ball.",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 54,
+      "profileId": 54,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 54,
+        "item_id": 54,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "60.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1025,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 54,
+        "item_id": 54,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "One-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "60.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1025,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 56,
+      "profileId": 56,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 56,
+        "item_id": 56,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1026,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 56,
+        "item_id": 56,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1026,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 63,
+      "profileId": 63,
+      "fields": {
+        "capacity_rounds": 5,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 63,
+        "item_id": 63,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "150.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1028,
+        "compatibility": "",
+        "capacity": "5 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "3",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 63,
+        "item_id": 63,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "150.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1028,
+        "compatibility": "",
+        "capacity": "5 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "3",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 5,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 75,
+      "profileId": 75,
+      "fields": {
+        "capacity_rounds": 6,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 75,
+        "item_id": 75,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "150.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1029,
+        "compatibility": "",
+        "capacity": "6 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "1 per round",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 75,
+        "item_id": 75,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "150.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1029,
+        "compatibility": "",
+        "capacity": "6 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "1 per round",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 6,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 87,
+      "profileId": 87,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 87,
+        "item_id": 87,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 166,
+        "compatibility": "",
+        "capacity": "1 round",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "8",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 87,
+        "item_id": 87,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 166,
+        "compatibility": "",
+        "capacity": "1 round",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "8",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 109,
+      "profileId": 109,
+      "fields": {
+        "capacity_rounds": 6,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 109,
+        "item_id": 109,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 166,
+        "compatibility": "",
+        "capacity": "6 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "6",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 109,
+        "item_id": 109,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "100.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 166,
+        "compatibility": "",
+        "capacity": "6 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "6",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 6,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 119,
+      "profileId": 119,
+      "fields": {
+        "capacity_rounds": 5,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 119,
+        "item_id": 119,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "30.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 170,
+        "compatibility": "",
+        "capacity": "5 shells",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "1 per shell",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-08-27T00:12:34.597Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 119,
+        "item_id": 119,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "30.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 170,
+        "compatibility": "",
+        "capacity": "5 shells",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "1 per shell",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 5,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 123,
+      "profileId": 123,
+      "fields": {
+        "capacity_rounds": 5,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 123,
+        "item_id": 123,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "500.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1031,
+        "compatibility": "",
+        "capacity": "5 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "3",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 123,
+        "item_id": 123,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "500.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1031,
+        "compatibility": "",
+        "capacity": "5 rounds",
+        "fire_modes": "[\"Single\"]",
+        "rate_of_fire": "1 shot / Initiative",
+        "reload_initiative": "3",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 5,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    },
+    {
+      "itemId": 507,
+      "profileId": 201,
+      "fields": {
+        "capacity_rounds": 1,
+        "reload_type": "Single"
+      },
+      "before": {
+        "id": 201,
+        "item_id": 507,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1034,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:23:48.084Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": null,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": null
+      },
+      "after": {
+        "id": 201,
+        "item_id": 507,
+        "profile_record_type": "Weapon",
+        "weapon_type": "Firearm",
+        "handedness": "Two-Handed",
+        "damage_source": "Ammunition",
+        "damage": "",
+        "damage_type": "",
+        "range_text": "80.0 ft",
+        "reach_text": "",
+        "ammunition_item_id": 1034,
+        "compatibility": "",
+        "capacity": "15 rounds",
+        "fire_modes": "[\"Semi-Auto\"]",
+        "rate_of_fire": "1 trigger pull / Initiative",
+        "reload_initiative": "2",
+        "rules_text": "",
+        "created_at": "2026-08-27T00:12:34.597Z",
+        "updated_at": "2026-09-13T15:58:20.404Z",
+        "initiative_cost": null,
+        "ammunition_cycling_initiative_modifier": 0,
+        "ammunition_recoil_reset_initiative_modifier": 0,
+        "capacity_rounds": 1,
+        "readiness_mode": null,
+        "draw_initiative_cost": null,
+        "ready_initiative_cost": null,
+        "reload_initiative_cost": null,
+        "unload_initiative_cost": null,
+        "firing_mode_change_initiative_cost": null,
+        "reload_type": "Single"
+      }
+    }
+  ],
+  "preservedTables": {
+    "account": {
+      "count": 6,
+      "hash": "4ad7842fabf074660bfdeb7ca85fb148"
+    },
+    "armor_location_reference": {
+      "count": 10,
+      "hash": "7881594b5d0640c2815bf2b90a96ef85"
+    },
+    "armor_locations": {
+      "count": 204,
+      "hash": "23888e2a483ef333a6c6f4ed846edd97"
+    },
+    "armor_profiles": {
+      "count": 47,
+      "hash": "bc78954f0c6098b4de851649f0cb65de"
+    },
+    "attribute_score_reference": {
+      "count": 400,
+      "hash": "013ae43f5bd76e9a07395d6cc33b5e64"
+    },
+    "campaign": {
+      "count": 4,
+      "hash": "c83f5583616249bb7f188f6b5543e6a3"
+    },
+    "campaign_allowed_derived_ability": {
+      "count": 6,
+      "hash": "a7b9926752a92923ffc2f3ac832132fa"
+    },
+    "campaign_allowed_race": {
+      "count": 45,
+      "hash": "d22dab0b6f09c3d6a497e4a256c9c362"
+    },
+    "campaign_allowed_system": {
+      "count": 28,
+      "hash": "527627ba343c44b1b554709d7176180f"
+    },
+    "campaign_character": {
+      "count": 10,
+      "hash": "ac3d41a2e9da4971eb3bcbe76f444690"
+    },
+    "campaign_character_active_condition": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_active_health": {
+      "count": 2,
+      "hash": "80f55d318861d45d76b394f3f7903bb2"
+    },
+    "campaign_character_active_health_pool": {
+      "count": 2,
+      "hash": "5efa1de546133b4f87a71da59f686dbc"
+    },
+    "campaign_character_active_mana": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_active_modifier": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_attribute": {
+      "count": 60,
+      "hash": "c7e213233f87069f09aec6603437dec5"
+    },
+    "campaign_character_currency_holding": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_firearm_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_firearm_preparation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_firearm_state": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_injury": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_item": {
+      "count": 28,
+      "hash": "7a80f6b5742e89fb15ff00991dc334ef"
+    },
+    "campaign_character_item_equipment_state": {
+      "count": 5,
+      "hash": "2f1809307876a69781b380ae834797cf"
+    },
+    "campaign_character_item_instance": {
+      "count": 2,
+      "hash": "5ad561136d95b44853d4f6a5db581778"
+    },
+    "campaign_character_profile": {
+      "count": 10,
+      "hash": "f3eb80a62ae1c0a5949fbb6389e27e8d"
+    },
+    "campaign_character_skill_allocation": {
+      "count": 64,
+      "hash": "dca975ae54b96cbcc693cc9560a37b86"
+    },
+    "campaign_character_spell_document": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_character_weapon_override": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_creature_npc_profile": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_derived_currency": {
+      "count": 2,
+      "hash": "e9cff69a10fca29ea26b9c7aca2e1955"
+    },
+    "campaign_inventory_item": {
+      "count": 2019,
+      "hash": "7590667bda4f9ff68de7b6a9bede184f"
+    },
+    "campaign_inventory_tag": {
+      "count": 10,
+      "hash": "fa7b46102da668b033fac95b6927ff71"
+    },
+    "campaign_player": {
+      "count": 9,
+      "hash": "d985c11525a917f4804d42ebe10d8321"
+    },
+    "campaign_session": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_called_check_batch": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_called_check_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_called_check_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_effect_duration_binding": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_action_declaration": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_action_declaration_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_declaration_checkpoint": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_effect": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_effect_plan": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_effect_plan_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_firearm_attack": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_firearm_attack_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_firearm_bullet": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_initiative": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_initiative_participant": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_participant": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_pending_action": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_pending_action_source": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reaction": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reaction_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_responder_opportunity": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reward": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_encounter_reward_decision": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_high_low_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_high_low_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_player_ruling_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_player_ruling_request_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_prepared_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_prepared_town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_roll": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_roll_amendment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_roster": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_shop_visit": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_shop_visit_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town_npc": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town_place": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "campaign_session_scene_town_shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "challenge_rating_reference": {
+      "count": 50,
+      "hash": "c1e89c8bedbe37a68349a35a3e94a055"
+    },
+    "character_derived_ability": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "character_derived_ability_recharge": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "character_derived_ability_use": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "chat_message": {
+      "count": 6,
+      "hash": "6b01b4ac60f21aac16a64ff1cb293c8d"
+    },
+    "chat_room": {
+      "count": 5,
+      "hash": "c33382202dd41b0c7b585f028d2caff2"
+    },
+    "chat_room_member": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creature_abilities": {
+      "count": 48,
+      "hash": "cd5cb3bcbefed0453b11a2f2ee3068bc"
+    },
+    "creature_ability_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creature_attacks": {
+      "count": 171,
+      "hash": "e93792e0b271d1f0b18d0dd19b5cda64"
+    },
+    "creature_attributes": {
+      "count": 552,
+      "hash": "5fc974b18d8c47f9785b47b44a13fffa"
+    },
+    "creature_defenses": {
+      "count": 23,
+      "hash": "d0f79f9d030886e943d53d8e04a2bd37"
+    },
+    "creature_hit_locations": {
+      "count": 850,
+      "hash": "04c316a6730b3aeb29e7fa78aa1d5da1"
+    },
+    "creature_hp_pools": {
+      "count": 564,
+      "hash": "d1a821c7df1908ab7095741a34c81c82"
+    },
+    "creature_movement": {
+      "count": 133,
+      "hash": "11739e9b0d9f7b0d376406b393b6841b"
+    },
+    "creature_skill_links": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creature_uses": {
+      "count": 38,
+      "hash": "638de5b0470fa44a9d7b049bacf65393"
+    },
+    "creature_variants": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "creatures": {
+      "count": 92,
+      "hash": "f40be26abbf5cd82b299359757e29922"
+    },
+    "defense_skill_path_mapping": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability": {
+      "count": 6,
+      "hash": "2af7f5c102dd0fbd0072b9491e188467"
+    },
+    "derived_ability_cost": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability_effect": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability_requirement": {
+      "count": 6,
+      "hash": "d9d6916dcf192b4c057f941a900e9880"
+    },
+    "derived_ability_trigger": {
+      "count": 6,
+      "hash": "37876776c5be959a164bca5540c550a0"
+    },
+    "derived_ability_use_condition": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "derived_ability_use_limit": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "firearm_magazine_attachment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "item_armor_damage_modifiers": {
+      "count": 128,
+      "hash": "47095c230d1b94b7f1404b28e34a1841"
+    },
+    "item_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "item_passive_effects": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "item_properties": {
+      "count": 257,
+      "hash": "ad93cd8d4308532ddefaf72b9ba78612"
+    },
+    "item_rules": {
+      "count": 16,
+      "hash": "f273d73c57a25500bc82a1b832bdba7c"
+    },
+    "item_runtime_profiles": {
+      "count": 16,
+      "hash": "ce857aab31f54086f8a83cac097862b0"
+    },
+    "item_tag_links": {
+      "count": 1270,
+      "hash": "f51cf3eee4c32ad918ca38d0f5b0af07"
+    },
+    "item_tags_catalog": {
+      "count": 8,
+      "hash": "d13cabfcaf458ceaf80ae65530533b1a"
+    },
+    "items": {
+      "count": 1029,
+      "hash": "400449402ee61dc89c12b2a2a53e0c9b"
+    },
+    "lifecycle_audit_event": {
+      "count": 7,
+      "hash": "2ce2b9d01082d2cd144dc6f7a377ff3b"
+    },
+    "magazine_inventory_operation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "race_attribute_caps": {
+      "count": 336,
+      "hash": "6fe2acd16a930f37f3e42ffd947888fd"
+    },
+    "race_movement_modes": {
+      "count": 57,
+      "hash": "aab7fa867d925f150540cfcb3f3d7b51"
+    },
+    "race_skill_links": {
+      "count": 283,
+      "hash": "035ededed43e3f6cb4a4943a1f5af00e"
+    },
+    "races": {
+      "count": 56,
+      "hash": "4e265234a42c003617aa89f954cda2e2"
+    },
+    "session": {
+      "count": 119,
+      "hash": "00693024592e653d38e28f006bcc819d"
+    },
+    "shop": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_commerce_operation": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_money_event": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_offering": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_resale_item_instance": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_staff_assignment": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction_line": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction_request": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "shop_transaction_request_line": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "site_appearance_setting": {
+      "count": 1,
+      "hash": "203288d90c085b120f92907a31119f4d"
+    },
+    "skill": {
+      "count": 1138,
+      "hash": "80d0d5daf667a8ea21da0eca8d80e580"
+    },
+    "skill_extension": {
+      "count": 742,
+      "hash": "51289b33200403bc73302cddc2e0ec6c"
+    },
+    "skill_relationship": {
+      "count": 1030,
+      "hash": "31e2e524e9d714c8ed5c013731a6f349"
+    },
+    "town": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "town_npc_association": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "town_place": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "town_shop_membership": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "user": {
+      "count": 6,
+      "hash": "ccdf9aa9217a27da6330347f44a1a23c"
+    },
+    "user_role": {
+      "count": 12,
+      "hash": "8d5463cf8a0fd5bf7915edab1fe38ca5"
+    },
+    "verification": {
+      "count": 0,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "weapon_firing_modes": {
+      "count": 81,
+      "hash": "e1a0e7f48774398fba64786eac6343fa"
+    },
+    "weapon_skill_path_mappings": {
+      "count": 111,
+      "hash": "36ff7f7c6d59979600177bc937f99c29"
+    }
+  },
+  "existingCatalogRowsPreserved": true,
+  "inventoryAndHistoryUnchanged": true,
+  "repeatPlanHasNoChanges": true,
+  "costsGuessed": false,
+  "productionAccessed": false
+}

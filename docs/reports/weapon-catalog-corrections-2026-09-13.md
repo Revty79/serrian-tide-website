@@ -1,17 +1,19 @@
 # Weapon catalog repair and correction list
 
-Recorded 2026-09-13T15:23:48.891Z. Database: **localhost:5432/serrian_tide_dev**. Production was not accessed.
+Recorded 2026-09-13T15:58:21.233Z. Database: **localhost:5432/serrian_tide_dev**. Production was not accessed.
 
 ## What changed
 
 - Added 105 approved default Skill mappings, validated through the current exact canonical ancestry. Existing six mappings are unchanged.
 - Filled capacity, loading type and confirmed preparation cost on six bow/crossbow profiles: 18 previously blank fields. Longbow's newer authored values, including preparation cost 2, are preserved.
 - Created 12 weapon-specific ammunition Items and 12 Ammunition profiles; changed the corresponding 12 weapon ammunition links away from generic Item 163. All retain the previous 8 Piercing damage and 1-credit price. These are user-authorized catalog identities, not asserted real-world calibers or a damage rebalance.
-- No magazine Items created. No costs guessed. No Skill definitions, allocations, owned stock, loaded copies, encounters or history changed. Full backup decoded before the transaction; protected rows checked by count and digest.
+- Follow-up created 9 exact magazine models with physical weapon fit and ammunition links, and configured 21 weapon loading profiles. This includes the 9mm Carbine and the 500-round Heavy Machine Gun belt can. Prices and unconfirmed Initiative costs remain TBD. No Skill definitions, allocations, owned stock, loaded copies, encounters or history changed; both transactions have decoded backups and preservation checks.
 - 111 of 204 weapons now have approved valid default paths; 93 still need review. This is **not** a claim that 111 weapons are gameplay-ready.
 
 Exact receipt: [applied-1789313028907.json](../../artifacts/weapon-catalog-repair/applied-1789313028907.json). It records every inserted mapping ID, before/after profile values, created Item/profile IDs and preservation checks.
 Backup: `C:\Users\birev\AppData\Local\Temp\serrian-before-weapon-catalog-y8wTSE\serrian_tide_dev.dump`; SHA-256 `5cd8f47a45f38260f10c97b9065805d01a5c8b63aff5c1b9b5508baf0ab5e700`. Full archive decode passed; a full restore rehearsal was not performed.
+Magazine follow-up receipt: [applied-1789315101233.json](../../artifacts/magazine-catalog-repair/applied-1789315101233.json). Backup: `C:\Users\birev\AppData\Local\Temp\serrian-before-magazine-catalog-xVJ2BU\serrian_tide_dev.dump`; SHA-256 `46e46fd1f96e314a7591afbad8baa241ecc3644f7ed2bad24d39ec7f47e7c0c4`. Full archive decode passed; a full restore rehearsal was not performed.
+The tables below include both committed repair receipts, not a claim of ongoing live synchronization. Later manual catalog edits must be reviewed separately.
 
 ## Fill In These Values
 
@@ -23,36 +25,36 @@ Bow shot cost includes nock/draw/release; Crossbow release and firearm trigger c
 
 | Item / Profile | Weapon | Capacity | Load Type | Readiness | Draw | Ready | Load / Nock-Draw-Shoot | Unload | Change Mode | Legacy Capacity / Reload |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 / 1 | 5.56 mm Semi-Automatic Rifle | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 30 / 3 |
-| 2 / 2 | 9×19 mm Carbine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 30 rounds / 2 |
-| 3 / 224 | 9mm Luger | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 / 3 |
-| 10 / 10 | Blunderbuss | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 round / 8 |
-| 16 / 16 | Cannon | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
+| 1 / 1 | 5.56 mm Semi-Automatic Rifle | 30 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 30 / 3 |
+| 2 / 2 | 9×19 mm Carbine | 30 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 30 rounds / 2 |
+| 3 / 224 | 9mm Luger | 15 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 / 3 |
+| 10 / 10 | Blunderbuss | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 round / 8 |
+| 16 / 16 | Cannon | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
 | 20 / 20 | Composite Bow | 1 | Single | **TBD** | **TBD** | **TBD** | 1 | **TBD** | N/A: sole mode | 1 arrow / 1 |
-| 26 / 26 | Derringer Pistol | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 2 rounds / 3 |
-| 42 / 42 | Flare Gun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 cartridge / 2 |
-| 43 / 43 | Flintlock Pistol | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 round / 8 |
-| 54 / 54 | Hand Cannon | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
+| 26 / 26 | Derringer Pistol | 2 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 2 rounds / 3 |
+| 42 / 42 | Flare Gun | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 cartridge / 2 |
+| 43 / 43 | Flintlock Pistol | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 round / 8 |
+| 54 / 54 | Hand Cannon | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
 | 55 / 55 | Hand Crossbow | 1 | Single | **TBD** | **TBD** | **TBD** | 3 | **TBD** | N/A: sole mode | 1 bolt / 3 |
-| 56 / 56 | Hand Mortar | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
+| 56 / 56 | Hand Mortar | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
 | 59 / 59 | Harpoon Gun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 bolt / 4 |
 | 60 / 60 | Heavy Crossbow | 1 | Single | **TBD** | **TBD** | **TBD** | 6 | **TBD** | N/A: sole mode | 1 bolt / 6 |
-| 61 / 61 | Heavy Machine Gun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 100 rounds / 5 |
-| 63 / 63 | Hunting Rifle | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 5 rounds / 3 |
-| 75 / 75 | Lever-Action Rifle | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 6 rounds / 1 per round |
+| 61 / 61 | Heavy Machine Gun | 100 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 100 rounds / 5 |
+| 63 / 63 | Hunting Rifle | 5 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 5 rounds / 3 |
+| 75 / 75 | Lever-Action Rifle | 6 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 6 rounds / 1 per round |
 | 76 / 76 | Light Crossbow | 1 | Single | **TBD** | **TBD** | **TBD** | 4 | **TBD** | N/A: sole mode | 1 bolt / 4 |
 | 77 / 77 | Longbow | 1 | Single | draw-is-ready | 2 | 2 | 2 | **TBD** | N/A: sole mode | 1 arrow / 1 |
-| 82 / 82 | Machine Gun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 100 rounds / 4 |
-| 87 / 87 | Musket | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 round / 8 |
+| 82 / 82 | Machine Gun | 100 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 100 rounds / 4 |
+| 87 / 87 | Musket | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 1 round / 8 |
 | 108 / 108 | Repeating Crossbow | 5 | Magazine | **TBD** | **TBD** | **TBD** | 2 | **TBD** | N/A: sole mode | 5 bolts / 2 |
-| 109 / 109 | Repeating Musket | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 6 rounds / 6 |
+| 109 / 109 | Repeating Musket | 6 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 6 rounds / 6 |
 | 112 / 242 | .357 Revolver | 6 | Single | draw-is-ready | 2 | 2 | 4 | 2 | N/A: sole mode | 6 rounds / 4 |
 | 117 / 117 | Shortbow | 1 | Single | **TBD** | **TBD** | **TBD** | 1 | **TBD** | N/A: sole mode | 1 arrow / 1 |
-| 119 / 119 | Shotgun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 5 shells / 1 per shell |
-| 123 / 123 | Sniper Rifle | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 5 rounds / 3 |
-| 130 / 130 | Steam Rifle | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 30 rounds / 2 |
-| 134 / 134 | Submachine Gun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 100 rounds / 4 |
-| 507 / 201 | Whaling Gun | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
+| 119 / 119 | Shotgun | 5 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 5 shells / 1 per shell |
+| 123 / 123 | Sniper Rifle | 5 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 5 rounds / 3 |
+| 130 / 130 | Steam Rifle | 30 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 30 rounds / 2 |
+| 134 / 134 | Submachine Gun | 100 | Magazine | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 100 rounds / 4 |
+| 507 / 201 | Whaling Gun | 1 | Single | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | N/A: sole mode | 15 rounds / 2 |
 
 ### Firearm Mode Costs
 
@@ -291,16 +293,34 @@ These definitions belong in Inventory with an Ammunition profile. Owned generic 
 
 ## Magazines and Loading Decisions
 
-| Magazine Item | Model | Capacity | Fill Initiative / Round | Ammo Items | Physical Weapon Profiles |
-| --- | --- | --- | --- | --- | --- |
-| 1021 | 5.56x45 mm magazine 5rd | 5 | **TBD** | 155 | **TBD** |
-| 1022 | 357 revolver drum | 6 | 0 | 1008 | 242 |
+| Magazine Item | Model | Capacity | Credits | Fill Initiative / Round | Ammo Items | Physical Weapon Profiles |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1021 | 5.56x45 mm magazine 5rd | 5 | 25 | **TBD** | 155 | **TBD** |
+| 1022 | 357 revolver drum | 6 | **TBD** | 0 | 1008 | 242 |
+| 1035 | 5.56 mm Rifle Magazine (30 rounds) | 30 | **TBD** | **TBD** | 155 | 1 |
+| 1036 | 9x19 mm Carbine Magazine (30 rounds) | 30 | **TBD** | **TBD** | 156 | 2 |
+| 1037 | 9mm Luger Magazine (15 rounds) | 15 | **TBD** | **TBD** | 156 | 224 |
+| 1038 | Repeating Crossbow Magazine (5 bolts) | 5 | **TBD** | **TBD** | 159 | 108 |
+| 1039 | Heavy Machine Gun Feed Box (100 rounds) | 100 | **TBD** | **TBD** | 1027 | 61 |
+| 1040 | Heavy Machine Gun Belt Can (500 rounds) | 500 | **TBD** | **TBD** | 1027 | 61 |
+| 1041 | Machine Gun Feed Box (100 rounds) | 100 | **TBD** | **TBD** | 1030 | 82 |
+| 1042 | Steam Rifle Magazine (30 rounds) | 30 | **TBD** | **TBD** | 1032 | 130 |
+| 1043 | Submachine Gun Drum (100 rounds) | 100 | **TBD** | **TBD** | 1033 | 134 |
 
 - **Confirmed revolver decision:** .357 Revolver 112 retains six-round capacity and Single loading. Insert individual rounds; firing does not require a reload after each shot. Existing draw 2, ready 2, reload 4, unload 2 and Single mode 1/1 remain unchanged. Drum 1022 stays in the catalog with explicit fill cost 0, but is not enabled as a swappable magazine.
-- Rifle 1, Carbine 2 and Luger 3 need exact detachable models. Provide each model's capacity, price, fill cost and weapon fit; existing ammo links are 155,156,156 respectively. Model 1021 remains five rounds, with no confirmed fit; it was not resized to 30 or linked by caliber alone.
-- Repeating Crossbow 108 uses Magazine, capacity 5, swap cost 2. Provide a five-bolt model's price and fill cost; no owned magazine is manufactured. Its exact physical link and Bolt 159 compatibility can then be authored together.
-- Hand Cannon 54 says single-shot but legacy capacity/mode says 15/Semi-Auto. Cannon 16 and Hand Mortar 56 also have suspicious 15/Semi-Auto entries. Confirm capacity and mechanism before filling structured fields.
-- Confirm internal, detachable, belt or other feed for remaining guns. Current runtime supports Single insertion and exact detachable magazines, not an automatically inferred belt/pressure/energy system.
+- Rifle 1, Carbine 2 and Luger 3 now have separate exact detachable models with capacities 30, 30 and 15. Carbine and Luger both use Ammo 156 but cannot exchange these purpose-built magazines. Existing five-round model 1021 is preserved without inferring a fit from caliber.
+- Repeating Crossbow 108 now has an exact five-bolt Magazine linked to Bolt 159. Its authored swap cost remains 2. The new model's price and fill cost still need authoring; no owned copies or free bolts were created.
+- Hunting Rifle 63 and Sniper Rifle 123 each have five-round internal capacity and Single insertion, per Brannan. Lever-Action Rifle 75 has six internal rounds; Shotgun 119 has five; Repeating Musket 109 has six. None requires a swappable inventory magazine.
+- Machine Gun 82 uses a 100-round feed box. Heavy Machine Gun 61 accepts both a 100-round box and a 500-round belt can. Each is a Magazine with exact fit/ammo links; its attached capacity controls usable contents even though the weapon default remains 100. Prepared belts/cans are the game's magazine abstraction, not separately simulated links or feed routing.
+- Submachine Gun 134 has a 100-round drum and Steam Rifle 130 has a 30-round projectile magazine, retaining their catalog capacities. Steam pressure remains a separate fictional mechanism requiring a G.O.D. ruling; no pressure engine was added.
+- Under Brannan's delegated loading-design decision, Cannon 16, Hand Cannon 54 and Hand Mortar 56 are now structured as one-shot Single loaders. Their contradictory legacy 15/Semi-Auto text is retained for review; this pass does not validate or rewrite their imported firing modes. Blunderbuss, Flare Gun, Flintlock, Musket and Whaling Gun also use one-shot Single loading; Derringer has two internal rounds.
+- Catalog loading and compatibility are repaired, not every gameplay prerequisite. Finish the TBD readiness, preparation, firing-mode and magazine-fill values above. A firearm with a missing mode/cost can still refuse combat; a new magazine with no price still needs catalog pricing before ordinary purchasing. Existing owned ammunition was not converted to the new definitions.
+
+### Research and Design Boundary
+
+Belt-fed machine-gun catalog choices are informed by the manufacturer descriptions of the [FN MINIMI](https://fnherstal.com/en/defence/portable-weapons/fn-minimi-556-mk3/) and [US Ordnance M2HB](https://www.usord.com/weapons/m2hb). The [Winchester Model 94 manual](https://www.winchesterguns.com/support/owners-manuals/model-94.html) supports an internal tubular-feed interpretation for the generic lever-action rifle. These sources inform feed categories only, not Serrian costs, damage, physical fit, or capacities.
+
+The 500-round can is Brannan's explicit game-design request. Other retained capacities come from this catalog; the two five-round internal rifles follow his explicit ruling. Steam Rifle is fictional. Magazine identity and exact physical links are authored for these game weapons, not assertions that same-caliber real weapons share magazines.
 
 ## Deferred Proposed Mappings
 
@@ -337,14 +357,15 @@ The repair test loads a sanitized copy of the reviewed catalog into a disposable
 
 These checks do not certify a live weapon with TBD fields as usable. Gameplay fixtures and human acceptance are distinct from catalog authoring. No shared DEV encounter was driven or rewritten for verification.
 
+The magazine follow-up also tests all nine models through authoritative fill/attach/detach/empty services, individual loading to five rounds for both internal rifles, exact compatibility rejection, conservation and retries, and complete rollback on an injected failure. A separate combat test fires from a full 500-round can, leaving 499 with one original Roll on retry. Runtime fixtures explicitly supply readiness/timing rulings; they do not silently fill the live TBD fields.
+
 ## Repeatable Commands
 
 ```powershell
-node --import tsx scripts/repair-weapon-catalog-dev.ts --plan
-node --import tsx scripts/repair-weapon-catalog-dev.ts --apply <reviewed-plan-digest> <administrator-user-id>
-node --import tsx --test scripts/weapon-catalog-repair.test.ts
-$env:COMBAT_COMPLETION_CASE_FILTER='weapon-catalog-repair'
+node --conditions=react-server --import tsx scripts/repair-magazine-catalog-dev.ts --plan
+node --conditions=react-server --import tsx --test scripts/magazine-catalog-repair.test.ts
+$env:COMBAT_COMPLETION_CASE_FILTER='magazine-catalog-repair'
 npm.cmd run validate:combat-completion-db
 ```
 
-The reviewed snapshot is immutable and capture uses exclusive creation. Re-running a completed repair is a no-op. Later human catalog changes require re-review, never restoring the old snapshot. No schema migration is introduced; the existing 50 migration hashes were verified.
+The latest magazine re-plan is a no-op immediately after application. The earlier weapon-repair snapshot predates the new loading choices and is intentionally stale: do not rerun its live apply or restore its old values. Both reviewed snapshots remain immutable. Later human catalog edits require re-review. No schema migration is introduced; all 50 migration hashes were verified.

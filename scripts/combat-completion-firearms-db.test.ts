@@ -452,6 +452,34 @@ for (const weaponType of ["Handgun", "Crossbow"]) for (const interrupted of [fal
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });
 
+test("a 500-round belt can fires through combat without clamping to the weapon's 100-round default or consuming twice", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(weaponProfile).set({ reloadType: "Magazine", capacityRounds: 100 }).where(eq(weaponProfile.id, f.profile.id));
+    await tx.update(stateTable).set({ capacityRounds: 100, loadedRounds: 0, loadedAmmunitionItemId: null, loadedAmmunitionProfileId: null, loadedAmmunitionUnitCostCredits: null }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    const [model] = await tx.insert(item).values({ canonicalId: `BELT-${crypto.randomUUID()}`.toUpperCase(), name: "500-round Belt Can", catalogScope: "inventory", recordType: "Magazine", family: "Fixture", category: "Magazine", priceBasis: "unit", createdByUserId: f.godId }).returning();
+    await tx.insert(magazineProfile).values({ itemId: model.id, capacityRounds: 500 });
+    await tx.insert(magazineAmmunition).values({ magazineItemId: model.id, ammunitionItemId: f.ammunition.id });
+    await tx.insert(weaponMagazine).values({ weaponProfileId: f.profile.id, magazineItemId: model.id });
+    const [can] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.actorId, itemId: model.id, currentCharges: 0, loadedAmmunitionItemId: f.ammunition.id, loadedRounds: 500, loadedAmmunitionUnitCostCredits: 2, unitCostCredits: 10 }).returning();
+    await tx.insert(firearmMagazineAttachment).values({ weaponInstanceId: f.instance.id, magazineInstanceId: can.id, characterId: f.actorId, campaignId: f.campaignId, weaponItemId: f.profile.itemId, weaponProfileId: f.profile.id, magazineItemId: model.id });
+    const preview = await previewFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    assert.equal(preview.firearm.roundsLoaded, 500); assert.equal(preview.firearm.capacityRounds, 500);
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    assert.equal((await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" })).rollId, fired.rollId);
+    const effective = await readEffectiveFirearmState(tx, await f.state());
+    assert.equal(effective.loadedRounds, 499); assert.equal(effective.capacityRounds, 500);
+    assert.equal((await f.state()).loadedRounds, 0); assert.equal((await f.state()).capacityRounds, 100);
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, can.id)))[0].loadedRounds, 499);
+    assert.equal((await f.rolls()).length, 1);
+    assert.equal((await tx.select().from(bulletTable).where(eq(bulletTable.attackId, attack.id))).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
 test("zero-cost filling preserves ordinary choice and cannot bypass a busy actor", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "npc");

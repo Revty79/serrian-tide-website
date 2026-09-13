@@ -1,0 +1,10 @@
+{
+  "target": {
+    "database": "serrian_tide_dev",
+    "address": "::1",
+    "port": 5432
+  },
+  "digest": "3edc726e0f290de5039756dc8d8527d2a88115667a1a2c0c405dd5ac425b703a",
+  "models": [],
+  "patches": []
+}
