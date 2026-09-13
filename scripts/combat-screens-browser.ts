@@ -441,6 +441,74 @@ try {
     results.push("The G.O.D. ends frozen combat with an unrevealed action through the header override, without a mandatory note or resource refund; the Player receives the closed state live.");
     await director.context().close(); await participant.context().close();
   }
+  for (const weaponType of ["Bow", "Crossbow"] as const) {
+    const scenario = `projectile-${weaponType.toLowerCase()}`;
+    if (!include(scenario)) continue;
+    const { f, gun } = await db.transaction(async (tx) => { const f = await screenFixture(tx, scenario); return { f, gun: await addScreenFirearm(tx, f) }; });
+    await pool.query("update items set name=$1 where id=$2", [`Screen ${weaponType}`, gun.gun.id]);
+    await pool.query("update weapon_profiles set weapon_type=$1,reload_type='Single',capacity_rounds=1,reload_initiative_cost=$2 where item_id=$3", [weaponType, weaponType === "Bow" ? 1.5 : 4, gun.gun.id]);
+    await pool.query("update weapon_firing_modes set base_cycling_initiative_cost=null,base_recoil_reset_initiative_cost=null,delivery_cadence=null,rounds_per_cadence=null,mechanics_review_required=true where weapon_profile_id=(select id from weapon_profiles where item_id=$1)", [gun.gun.id]);
+    await pool.query("insert into campaign_character_item (character_id,item_id,quantity,unit_cost_credits) select character_id,loaded_ammunition_item_id,5,1 from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id]);
+    await pool.query("update campaign_character_firearm_state set capacity_rounds=1,loaded_rounds=0,loaded_ammunition_item_id=null,loaded_ammunition_profile_id=null,loaded_ammunition_unit_cost_credits=null where item_instance_id=$1", [gun.instance.id]);
+    if (weaponType === "Crossbow") await pool.query("update campaign_character set is_npc=true,npc_build_mode='detailed',player_user_id=$2 where id=$1", [f.heroId, f.godId]);
+    const director = await login(f.godId, "god", f);
+    const actor = weaponType === "Bow" ? await login(f.playerId, "player", f) : director;
+    const finishTiming = async (pendingId: number) => {
+      const remaining = async () => Number((await pool.query("select remaining_initiative_cost from campaign_session_encounter_pending_action where id=$1", [pendingId])).rows[0].remaining_initiative_cost);
+      for (let step = 0; step < 10 && await remaining() > 0; step++) {
+        const before = await remaining();
+        await screen(director).getByRole("button", { name: "Refresh", exact: true }).click();
+        await until(() => screen(director).getByRole("button", { name: "Advance combat", exact: true }).isEnabled(), "next projectile timing step");
+        await screen(director).getByRole("button", { name: "Advance combat", exact: true }).click();
+        await until(async () => await remaining() < before, "projectile timing progresses");
+      }
+      assert.equal(await remaining(), 0);
+    };
+    if (weaponType === "Crossbow") await selectGod(director, "Rowan");
+    const view = screen(actor), command = weaponType === "Crossbow" ? "Called Shot" : "Attack";
+    await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: command, exact: true }).click();
+    const source = view.getByRole("combobox", { name: `${command} source`, exact: true });
+    await until(async () => await source.locator("option").filter({ hasText: `Screen ${weaponType}` }).count() === 1, "projectile source available");
+    await source.selectOption((await source.locator("option").filter({ hasText: `Screen ${weaponType}` }).getAttribute("value"))!);
+    await view.getByRole("button", { name: weaponType === "Bow" ? "Select arrow (0 Initiative)" : "Load / cock crossbow (4 Initiative)", exact: true }).click();
+    if (weaponType === "Crossbow") {
+      await until(async () => (await declarations(f)).length === 1, "crossbow loading committed");
+      await finishTiming((await declarations(f))[0].pending_action_id);
+    }
+    await until(async () => (await pool.query("select loaded_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].loaded_rounds === 1, "projectile selected or loaded");
+    await view.getByRole("combobox", { name: "Target", exact: true }).selectOption(String(f.occurrences[0]));
+    if (weaponType === "Crossbow") {
+      await view.getByRole("combobox", { name: "Target location", exact: true }).selectOption("0");
+      await view.getByLabel("Called Shot objective", { exact: true }).fill("Head");
+      await view.getByLabel("G.O.D. penalty", { exact: true }).fill("2");
+      await view.getByLabel("Penalty reason", { exact: true }).fill("Authored Head location in the isolated projectile walkthrough.");
+      await view.getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
+    }
+    await view.getByLabel("Aim Initiative", { exact: true }).fill("1");
+    await view.getByLabel("Percentile result", { exact: true }).fill("70");
+    await until(() => view.getByRole("button", { name: "Fire & Roll", exact: true }).isEnabled(), "projectile Aim and shot preflight");
+    await actor.evaluate(() => window.scrollTo(0, 0));
+    await screenshot(actor, `${scenario}-desktop`);
+    await actor.evaluate(() => window.scrollTo(0, 0));
+    await screenshot(actor, `${scenario}-mobile`, 390);
+    await view.getByRole("button", { name: "Fire & Roll", exact: true }).click();
+    const attack = async () => (await pool.query("select * from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0];
+    await until(async () => !!await attack(), "aiming projectile recorded");
+    await finishTiming((await attack()).aim_pending_action_id);
+    await view.getByRole("button", { name: "Aim complete: begin firing", exact: true }).click();
+    await until(async () => !!(await attack()).trigger_pending_action_id, "release committed after Aim");
+    const release = (await pool.query("select original_initiative_cost from campaign_session_encounter_pending_action where id=$1", [(await attack()).trigger_pending_action_id])).rows[0];
+    assert.equal(release.original_initiative_cost, weaponType === "Bow" ? 1.5 : 1);
+    await finishTiming((await attack()).trigger_pending_action_id);
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare Rowan's Screen .* result$/ }).click();
+    await until(async () => (await attack()).rounds_consumed === 1, "one projectile consumed");
+    await actor.reload(); await screen(actor).getByText("Live", { exact: true }).waitFor();
+    assert.equal((await attack()).rounds_consumed, 1);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    results.push(`${weaponType}: exact ammunition loading, Aim, ${command}, correct release cost and one original Roll through desktop/mobile controls.`);
+    if (actor !== director) await actor.context().close();
+    await director.context().close();
+  }
   for (const mode of ["spell", "firearm"] as const) {
     if (!include(mode)) continue;
     const setup = await db.transaction(async (tx) => { const fixture = await screenFixture(tx, mode); const extra = mode === "spell" ? await addScreenSpell(tx, fixture) : await addScreenFirearm(tx, fixture); return { fixture, extra }; });

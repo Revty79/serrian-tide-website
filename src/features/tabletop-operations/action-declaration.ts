@@ -218,11 +218,20 @@ function optionalId(value: number | null | undefined, label: string): number | n
   return value === null || value === undefined ? null : positiveId(value, label);
 }
 
+function validRangedShotCost(cost: number, payload: Readonly<Record<string, unknown>> | null | undefined): boolean {
+  const bowCost = payload?.bowShotInitiativeCost;
+  if (bowCost !== undefined) {
+    return typeof bowCost === "number" && Number.isFinite(bowCost) && bowCost > 0
+      && cost === bowCost * (payload?.firearmInjuryMultiplier === 2 ? 2 : 1);
+  }
+  return cost === 1 || cost === 2 && payload?.firearmInjuryMultiplier === 2;
+}
+
 export function normalizeActionDeclarationDraft(input: ActionDeclarationDraft): ActionDeclarationDraft {
   if (!ACTION_DECLARATION_SOURCE_KINDS.includes(input.sourceKind)) throw new Error("Action source kind is invalid.");
   if (!ACTION_WINDOW_KINDS.includes(input.windowKind)) throw new Error("Action window kind is invalid.");
   const initiativeCost = positive(input.initiativeCost, "Initiative Cost");
-  if (input.windowKind === "firearm-trigger" && initiativeCost !== 1 && !(initiativeCost === 2 && input.sourcePayload?.firearmInjuryMultiplier === 2)) {
+  if (input.windowKind === "firearm-trigger" && !validRangedShotCost(initiativeCost, input.sourcePayload)) {
     throw new Error("A firearm trigger window must cost exactly 1 Initiative.");
   }
   const targetCharacterIds = [...new Set(input.targetCharacterIds.map((id) => participantKey(id, "Target Participant")))];
@@ -396,10 +405,9 @@ export function deriveActionWindow(
   snapshot: Pick<LockedActionDeclarationSnapshot, "initiativeCost" | "windowKind" | "preparesForDeclarationId"> & Partial<Pick<LockedActionDeclarationSnapshot, "source">>,
 ): ActionWindow {
   const start = finite(startInitiative, "Start Initiative");
+  // A live window can describe remaining time or an approved extension, not
+  // another shot. Full shot costs are validated when the declaration locks.
   const cost = positive(snapshot.initiativeCost, "Initiative Cost");
-  if (snapshot.windowKind === "firearm-trigger" && cost !== 1 && !(cost === 2 && snapshot.source?.payload?.firearmInjuryMultiplier === 2)) {
-    throw new Error("A firearm trigger window must cost exactly 1 Initiative.");
-  }
   return {
     kind: snapshot.windowKind,
     startInitiative: start,

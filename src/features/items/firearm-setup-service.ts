@@ -8,7 +8,7 @@ import { firearmMagazineAttachment } from "@/db/magazine-schema";
 import { readMagazineInventoryInTransaction, assertOutsideCombatEquipmentHandling } from "./magazine-inventory-service";
 import { readCompatibleMagazineCopies, readEffectiveFirearmState, swapFirearmMagazine } from "./firearm-magazine-service";
 import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
-import { FIREARM_WEAPON_TYPES } from "./firearm-classification";
+import { AMMUNITION_WEAPON_TYPES } from "./firearm-classification";
 import { initializeFirearmStateInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
 import { planFirearmAmmunitionTransition } from "@/features/tabletop-operations/firearm-readiness";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -17,14 +17,14 @@ export async function readCharacterFirearmSetup(tx: Tx, characterId: number, use
   const access = await readMagazineInventoryInTransaction(tx, characterId, userId);
   const owned = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, equipmentState: copy.equipmentState, profile: weaponProfile })
     .from(copy).innerJoin(item, eq(item.id, copy.itemId)).innerJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
-    .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt), inArray(sql`lower(trim(${weaponProfile.weaponType}))`, FIREARM_WEAPON_TYPES)));
+    .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt), inArray(sql`lower(trim(${weaponProfile.weaponType}))`, AMMUNITION_WEAPON_TYPES)));
   const firearms = [];
   for (const row of owned) {
     const [stored] = await tx.select().from(stateTable).where(eq(stateTable.itemInstanceId, row.instanceId));
     const state = stored ? await readEffectiveFirearmState(tx, stored) : null;
     const modes = await tx.select({ id: weaponFiringMode.id, name: weaponFiringMode.name }).from(weaponFiringMode).where(eq(weaponFiringMode.weaponProfileId, row.profile.id));
     const magazines = row.profile.reloadType === "Magazine" ? await readCompatibleMagazineCopies(tx, characterId, row.profile.id) : [];
-    firearms.push({ instanceId: row.instanceId, itemId: row.itemId, name: row.name, equipmentState: row.equipmentState, modes, magazines,
+    firearms.push({ instanceId: row.instanceId, itemId: row.itemId, name: row.name, weaponType: row.profile.weaponType, equipmentState: row.equipmentState, modes, magazines,
       readinessMode: row.profile.readinessMode, reloadType: row.profile.reloadType, state: state ? { version: state.version, loadedRounds: state.loadedRounds, readied: state.readied, needsRecovery: state.requiresCycling || state.requiresRecoilRecovery, selectedFiringModeId: state.selectedFiringModeId } : null,
       attachedMagazineInstanceId: magazines.find((entry) => entry.attachedWeaponInstanceId === row.instanceId)?.instanceId ?? null });
   }

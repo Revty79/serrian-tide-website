@@ -1,0 +1,7 @@
+{
+  "passed": [
+    "Bow: exact ammunition loading, Aim, Attack, correct release cost and one original Roll through desktop/mobile controls.",
+    "Crossbow: exact ammunition loading, Aim, Called Shot, correct release cost and one original Roll through desktop/mobile controls."
+  ],
+  "errors": []
+}

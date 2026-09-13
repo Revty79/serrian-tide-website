@@ -190,6 +190,15 @@ test("busy participants are excluded from crossed response windows until their a
   }
 });
 
+test("partially completed bow windows retain fractional time without permitting a free new shot", () => {
+  const bow = snapshot({ windowKind: "firearm-trigger", initiativeCost: 1.5, sourcePayload: { bowShotInitiativeCost: 1.5 } });
+  const remaining = deriveActionWindow(20, { ...bow, initiativeCost: 0.5 });
+  assert.equal(remaining.nominalCompletionInitiative, 19.5);
+  assert.equal(remaining.initiativeCost, 0.5);
+  assert.throws(() => normalizeActionDeclarationDraft(draft({ windowKind: "firearm-trigger", initiativeCost: 0.5, sourcePayload: { bowShotInitiativeCost: 1.5 } })), /exactly 1/);
+  assert.throws(() => normalizeActionDeclarationDraft(draft({ windowKind: "firearm-trigger", initiativeCost: 0, sourcePayload: { bowShotInitiativeCost: 0 } })), /greater than zero/);
+});
+
 test("melee admission uses the original window and records overlap without deciding an outcome", () => {
   const window = deriveActionWindow(35, snapshot({ windowKind: "melee-overlap", initiativeCost: 8 }));
   assert.equal(initiativePositionIsInActionWindow(window, 30), true);

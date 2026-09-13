@@ -24,7 +24,8 @@ import {
   campaignSessionEncounterResponderOpportunity,
 } from "@/db/tabletop-operations-schema";
 import type { ResolvedFirearmFiringMode } from "@/features/items/firearm-timing";
-import { FIREARM_WEAPON_TYPES, isFirearmWeaponType } from "@/features/items/firearm-classification";
+import { AMMUNITION_WEAPON_TYPES, isSupportedAmmunitionWeaponType } from "@/features/items/firearm-classification";
+import { ammunitionSelectionInitiativeCost, resolveAmmunitionWeaponMode } from "@/features/items/projectile-combat";
 import { readEffectiveFirearmState, readCompatibleMagazineCopies, swapFirearmMagazine, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
 import { firearmMagazineAttachment } from "@/db/magazine-schema";
 import { setInstanceEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
@@ -38,7 +39,6 @@ import type {
 import {
   evaluateFirearmReadiness,
   planFirearmAmmunitionTransition,
-  resolveFirearmMode,
   resolveFirearmPreparationTiming,
   type FirearmPartialLoadDisposition,
   type FirearmPreparationOperation,
@@ -109,6 +109,7 @@ export type FirearmInstanceView = Readonly<{
   weaponProfileId: number;
   equipmentState: string;
   canonical: {
+    weaponType?: string;
     handedness: string;
     reloadType: string | null;
     ammunitionItemId: number | null;
@@ -316,7 +317,7 @@ async function loadProfileAndModes(
     updatedAt: weaponProfile.updatedAt,
   }).from(weaponProfile).where(and(eq(weaponProfile.id, weaponProfileId), eq(weaponProfile.itemId, itemId))).limit(1);
   if (!profile) throw new Error("The exact Weapon Profile no longer belongs to this firearm Item.");
-  if (!isFirearmWeaponType(profile.weaponType)) throw new Error("This Weapon Type is not an explicitly supported firearm family. Review Weapon Type in Heavens → Items before using firearm preparation.");
+  if (!isSupportedAmmunitionWeaponType(profile.weaponType)) throw new Error("This Weapon Type has no supported ammunition preparation workflow.");
   const modes = await tx.select().from(weaponFiringMode)
     .where(eq(weaponFiringMode.weaponProfileId, profile.id))
     .orderBy(asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id));
@@ -390,7 +391,7 @@ export async function initializeFirearmStateInTransaction(
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
     .where(eq(item.id, command.itemId)).limit(1);
   if (!catalog) throw new Error("The selected Item has no exact Weapon Profile.");
-  if (!isFirearmWeaponType(catalog.weaponType)) throw new Error("This Weapon Type is not an explicitly supported firearm family. Review Weapon Type in Heavens → Items before initializing it as a firearm.");
+  if (!isSupportedAmmunitionWeaponType(catalog.weaponType)) throw new Error("This Weapon Type has no supported ammunition preparation workflow.");
   if (catalog.profileRecordType.trim().toLowerCase() === "ammunition") {
     throw new Error("An Ammunition Profile cannot be initialized as an owned firearm.");
   }
@@ -794,11 +795,9 @@ async function startFirearmPreparationInternal(
   if (!owned) throw new Error("The exact firearm instance is no longer owned by this Character.");
   const { profile, modes } = await loadProfileAndModes(tx, state.itemId, state.weaponProfileId);
   const ammunition = await loadAmmunitionDefinition(tx, profile.ammunitionItemId);
-  const resolvedModes = modes.map((mode) => resolveFirearmMode({
-    mode: { ...mode, deliveryCadence: mode.deliveryCadence as Parameters<typeof resolveFirearmMode>[0]["mode"]["deliveryCadence"] },
-    ammunitionCyclingModifier: ammunition?.cyclingModifier ?? 0,
-    ammunitionRecoilModifier: ammunition?.recoilModifier ?? 0,
-  }));
+  const resolvedModes = modes.map((mode) => resolveAmmunitionWeaponMode(profile.weaponType,
+    { ...mode, deliveryCadence: mode.deliveryCadence as ResolvedFirearmFiringMode["deliveryCadence"] },
+    ammunition?.cyclingModifier ?? 0, ammunition?.recoilModifier ?? 0));
   const currentMode = resolvedModes.find(({ id }) => id === state.selectedFiringModeId) ?? null;
   const targetMode = command.operation === "change-mode"
     ? resolvedModes.find(({ id }) => id === command.targetFiringModeId) ?? null
@@ -856,7 +855,7 @@ async function startFirearmPreparationInternal(
     authored: {
       drawInitiativeCost: profile.drawInitiativeCost,
       readyInitiativeCost: profile.readyInitiativeCost,
-      reloadInitiativeCost: profile.reloadInitiativeCost,
+      reloadInitiativeCost: ammunitionSelectionInitiativeCost(profile),
       unloadInitiativeCost: profile.unloadInitiativeCost,
       firingModeChangeInitiativeCost: profile.firingModeChangeInitiativeCost,
       selectedMode: targetMode,
@@ -1250,6 +1249,7 @@ export async function readFirearmWorkspaceInTransaction(
     equipmentState: campaignCharacterItemInstance.equipmentState,
     weaponProfileId: weaponProfile.id,
     handedness: weaponProfile.handedness,
+    weaponType: weaponProfile.weaponType,
     reloadType: weaponProfile.reloadType,
     ammunitionItemId: weaponProfile.ammunitionItemId,
     capacityRounds: weaponProfile.capacityRounds,
@@ -1267,7 +1267,7 @@ export async function readFirearmWorkspaceInTransaction(
       eq(campaignCharacterItemInstance.characterId, selectedCharacterId),
       isNull(campaignCharacterItemInstance.retiredAt),
       sql`lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition'`,
-      inArray(sql`lower(trim(${weaponProfile.weaponType}))`, FIREARM_WEAPON_TYPES),
+      inArray(sql`lower(trim(${weaponProfile.weaponType}))`, AMMUNITION_WEAPON_TYPES),
     ))
     .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id));
   const legacyRows = await tx.select({
@@ -1282,7 +1282,7 @@ export async function readFirearmWorkspaceInTransaction(
     .where(and(
       eq(campaignCharacterItem.characterId, selectedCharacterId),
       sql`lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition'`,
-      inArray(sql`lower(trim(${weaponProfile.weaponType}))`, FIREARM_WEAPON_TYPES),
+      inArray(sql`lower(trim(${weaponProfile.weaponType}))`, AMMUNITION_WEAPON_TYPES),
     ))
     .orderBy(asc(item.name), asc(item.id));
   const profileIds = [...new Set([...instanceRows, ...legacyRows].map(({ weaponProfileId }) => weaponProfileId))];
@@ -1354,11 +1354,9 @@ export async function readFirearmWorkspaceInTransaction(
   const firearms = instanceRows.map((row): FirearmInstanceView => {
     const state = states.get(row.itemInstanceId) ?? null;
     const ammunition = row.ammunitionItemId === null ? null : ammoById.get(row.ammunitionItemId) ?? null;
-    const modes = (modesByProfile.get(row.weaponProfileId) ?? []).map((mode) => resolveFirearmMode({
-      mode: { ...mode, deliveryCadence: mode.deliveryCadence as Parameters<typeof resolveFirearmMode>[0]["mode"]["deliveryCadence"] },
-      ammunitionCyclingModifier: ammunition?.cyclingModifier ?? 0,
-      ammunitionRecoilModifier: ammunition?.recoilModifier ?? 0,
-    }));
+    const modes = (modesByProfile.get(row.weaponProfileId) ?? []).map((mode) => resolveAmmunitionWeaponMode(row.weaponType,
+      { ...mode, deliveryCadence: mode.deliveryCadence as ResolvedFirearmFiringMode["deliveryCadence"] },
+      ammunition?.cyclingModifier ?? 0, ammunition?.recoilModifier ?? 0));
     const selectedMode = state ? modes.find(({ id }) => id === state.selectedFiringModeId) ?? null : null;
     const preparation = preparations.get(row.itemInstanceId) ?? null;
     const nextCostKnown = !state
@@ -1419,6 +1417,7 @@ export async function readFirearmWorkspaceInTransaction(
       magazines: magazinesByWeapon.get(row.itemInstanceId) ?? [],
       attachedMagazineInstanceId: magazinesByWeapon.get(row.itemInstanceId)?.find((entry) => entry.attachedWeaponInstanceId === row.itemInstanceId)?.instanceId ?? null,
       canonical: {
+        weaponType: row.weaponType,
         handedness: row.handedness,
         reloadType: row.reloadType,
         ammunitionItemId: row.ammunitionItemId,

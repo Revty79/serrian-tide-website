@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type MouseEvent, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
+
+import styles from "./authenticated-navigation.module.css";
 
 import { authClient } from "@/lib/auth-client";
 import {
@@ -34,6 +36,8 @@ export function AuthenticatedNavigation({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const navigationRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDetailsElement>(null);
   const navigationItems = getContextNavigationItems(context, pathname);
   const contextHomeHref = getContextHomeHref(context);
   const alternateRoleDestinations = getAlternateRoleDestinations(roles, context);
@@ -49,6 +53,27 @@ export function AuthenticatedNavigation({
     campaignId,
     searchParams.get("player"),
   );
+
+  useEffect(() => {
+    const navigation = navigationRef.current;
+    if (!navigation) return;
+    const updateHeight = () => document.documentElement.style.setProperty(
+      "--st-navigation-height", `${navigation.getBoundingClientRect().height}px`,
+    );
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(navigation);
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const menu = mobileMenuRef.current;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.documentElement.style.removeProperty("--st-navigation-height");
+    };
+  }, []);
 
   async function signOut() {
     setSigningOut(true);
@@ -85,8 +110,8 @@ export function AuthenticatedNavigation({
   );
 
   return (
-    <div className="authenticated-navigation st-surface-soft-bg sticky top-0 z-50 border-b border-white/10 shadow-2xl backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-[1500px] items-center gap-4 px-4 py-3 sm:px-6">
+    <div ref={navigationRef} className={`authenticated-navigation ${styles.navigation} st-surface-soft-bg sticky top-0 z-50 border-b border-white/10 shadow-2xl backdrop-blur-xl`}>
+      <div className={`${styles.toolbar} mx-auto flex w-full max-w-[1500px] items-center gap-4 px-4 py-3 sm:px-6`}>
         <Link href={contextHomeHref} className="shrink-0 border-r border-white/10 pr-4" aria-label={`${contextNames[context]} dashboard`}>
           <strong className="font-evanescent st-brand block text-lg">
             SERRIAN TIDE
@@ -100,11 +125,17 @@ export function AuthenticatedNavigation({
           {links}
         </nav>
 
-        <details className="relative ml-auto lg:hidden">
+        <details ref={mobileMenuRef} className="relative ml-auto lg:hidden" onKeyDown={(event) => {
+          if (event.key === "Escape" && event.currentTarget.open) {
+            event.preventDefault();
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector("summary")?.focus();
+          }
+        }}>
           <summary className="cursor-pointer list-none rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm text-slate-200">
             Navigate
           </summary>
-          <nav className="st-surface-raised-bg absolute right-0 top-12 grid w-[min(88vw,22rem)] gap-1 rounded-2xl border border-white/15 p-3 shadow-2xl" aria-label={`${contextNames[context]} mobile navigation`}>
+          <nav className={`${styles.mobileMenu} st-surface-raised-bg absolute right-0 top-12 grid gap-1 rounded-lg border border-white/15 p-3 shadow-2xl`} aria-label={`${contextNames[context]} mobile navigation`}>
             {links}
             {alternateRoleDestinations.length > 0 ? (
               <>
@@ -119,6 +150,12 @@ export function AuthenticatedNavigation({
                 ))}
               </>
             ) : null}
+            <div className={`${styles.mobileAccount} border-t border-white/10 pt-2 md:hidden`}>
+              <span className="text-sm text-slate-300">{username}</span>
+              <button type="button" disabled={signingOut} onClick={() => void signOut()} className="st-button">
+                {signingOut ? "Signing out..." : "Log Out"}
+              </button>
+            </div>
           </nav>
         </details>
 
@@ -150,7 +187,7 @@ export function AuthenticatedNavigation({
         </div>
       </div>
 
-      <nav className="mx-auto flex w-full max-w-[1500px] items-center gap-2 overflow-x-auto border-t border-white/5 px-4 py-2 text-xs sm:px-6" aria-label="Breadcrumb">
+      <nav className={`${styles.breadcrumbs} mx-auto flex w-full max-w-[1500px] items-center gap-2 overflow-x-auto border-t border-white/5 px-4 py-2 text-xs sm:px-6`} aria-label="Breadcrumb">
         {breadcrumbs.map((breadcrumb, index) => (
           <span key={`${breadcrumb.href}-${index}`} className="flex shrink-0 items-center gap-2">
             {index > 0 ? <span className="text-slate-700">→</span> : null}
@@ -161,12 +198,6 @@ export function AuthenticatedNavigation({
             )}
           </span>
         ))}
-        <div className="ml-auto flex items-center gap-2 md:hidden">
-          {alternateRoleDestinations.length > 0 ? <Link href="/access" className="text-purple-200">Paths</Link> : null}
-          <button type="button" disabled={signingOut} onClick={() => void signOut()} className="text-slate-300 hover:text-red-200">
-            {signingOut ? "Signing out…" : "Log Out"}
-          </button>
-        </div>
       </nav>
     </div>
   );

@@ -23,7 +23,7 @@ import type { CombatChoice, CombatSubmission, CombatSourceChoice } from "./choic
 import type { CombatScreenScope } from "./screen-types";
 import { readPlayerCombatRulingRequestsInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { resolveCombatMovementInTransaction } from "@/features/tabletop-operations/combat-movement-service";
-import { isFirearmWeaponType, UNSUPPORTED_PROJECTILE_MESSAGE } from "@/features/items/firearm-classification";
+import { isSupportedAmmunitionWeaponType, UNSUPPORTED_PROJECTILE_MESSAGE } from "@/features/items/firearm-classification";
 import { readMagazineInventoryInTransaction } from "@/features/items/magazine-inventory-service";
 import { startCombatMagazineFill, type CombatMagazineFillCommand } from "@/features/tabletop-operations/combat-magazine-fill-service";
 
@@ -64,8 +64,8 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
   });
   const sources: CombatSourceChoice[] = [];
   for (const weapon of loaded.equipment?.wieldedWeapons ?? []) sources.push({ kind: "weapon", ref: weapon.ownershipKey, name: weapon.itemName, instanceId: weapon.instanceId, itemId: weapon.itemId, handedness: weapon.handedness,
-    unavailable: !isFirearmWeaponType(weapon.weaponType) && (weapon.ammunitionTiming || weapon.firingModes.length) ? UNSUPPORTED_PROJECTILE_MESSAGE : undefined,
-    description: isFirearmWeaponType(weapon.weaponType) ? "Firearm preparation and firing costs are shown below." : weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
+    unavailable: !isSupportedAmmunitionWeaponType(weapon.weaponType) && (weapon.ammunitionTiming || weapon.firingModes.length) ? UNSUPPORTED_PROJECTILE_MESSAGE : undefined,
+    description: isSupportedAmmunitionWeaponType(weapon.weaponType) ? "" : weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
   for (const firearm of loaded.firearms?.firearms ?? []) if (!sources.some((source) => source.instanceId === firearm.itemInstanceId)) sources.push({ kind: "weapon", ref: `instance:${firearm.itemInstanceId}`, name: firearm.itemName, instanceId: firearm.itemInstanceId, itemId: firearm.itemId, handedness: firearm.canonical.handedness, description: "Inspect ammunition and preparation before firing." });
   for (const attack of records(object(loaded.snapshot).attacks)) sources.push({ kind: "creature-attack", ref: String(attack.canonicalId), name: String(attack.attackName), instanceId: null, itemId: null, description: `${attack.attackPercentage ?? "?"}% · ${attack.damage ?? "?"} damage` });
   for (const ability of records(object(loaded.snapshot).abilities)) sources.push({ kind: "creature-ability", ref: String(ability.canonicalId), name: String(ability.abilityName), instanceId: null, itemId: null, description: String(ability.description ?? "") });

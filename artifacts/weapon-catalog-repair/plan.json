@@ -1,0 +1,4812 @@
+{
+  "target": {
+    "database": "serrian_tide_dev",
+    "address": "::1",
+    "port": 5432
+  },
+  "digest": "d836b2d31d21e25edfd8c969ddc292bf0621d116fee0980eba939372a52739a0",
+  "additions": [],
+  "patches": [],
+  "ammunition": [],
+  "audit": [
+    {
+      "itemId": 1,
+      "profileId": 1,
+      "name": "5.56 mm Semi-Automatic Rifle",
+      "weaponType": "Rifle",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 13,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 155,
+        "name": "5.56×45 mm Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 1 Semi: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 2,
+      "profileId": 2,
+      "name": "9×19 mm Carbine",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 14,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 156,
+        "name": "9×19 mm Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 2 Semi-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 4,
+      "profileId": 4,
+      "name": "Acid Grenade",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 5,
+      "profileId": 5,
+      "name": "Acid Sprayer",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 6,
+      "profileId": 6,
+      "name": "Baton",
+      "weaponType": "Blunt / Close Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 16,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 7,
+      "profileId": 7,
+      "name": "Battleaxe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 17,
+          "modeId": null,
+          "endpoint": 121
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 8,
+      "profileId": 8,
+      "name": "Bio-Rifle",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 9,
+      "profileId": 9,
+      "name": "Blackjack",
+      "weaponType": "Blunt / Close Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 18,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 10,
+      "profileId": 10,
+      "name": "Blunderbuss",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 19,
+          "modeId": null,
+          "endpoint": 68
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1023,
+        "name": "Blunderbuss Shot Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 4 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 11,
+      "profileId": 11,
+      "name": "Bo Staff",
+      "weaponType": "Staff",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 20,
+          "modeId": null,
+          "endpoint": 130
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 12,
+      "profileId": 12,
+      "name": "Boarding Axe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 21,
+          "modeId": null,
+          "endpoint": 121
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 13,
+      "profileId": 13,
+      "name": "Boomerang",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown-only delivery and recovery are unsupported; do not expose throwing as melee proficiency.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 14,
+      "profileId": 14,
+      "name": "Bowie Knife",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 22,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 15,
+      "profileId": 15,
+      "name": "Brass Knuckles",
+      "weaponType": "Blunt / Close Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 16,
+      "profileId": 16,
+      "name": "Cannon",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 158,
+        "name": "Cannonball",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 5 Semi-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 17,
+      "profileId": 17,
+      "name": "Chainsaw Sword",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 23,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 18,
+      "profileId": 18,
+      "name": "Claw Gauntlets",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 19,
+      "profileId": 19,
+      "name": "Combat Knife",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 24,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 20,
+      "profileId": 20,
+      "name": "Composite Bow",
+      "weaponType": "Bow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 25,
+          "modeId": null,
+          "endpoint": 134
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 157,
+        "name": "Arrow",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 21,
+      "profileId": 21,
+      "name": "Concealed Blade",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 26,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 22,
+      "profileId": 22,
+      "name": "Cryo Blaster",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 23,
+      "profileId": 23,
+      "name": "Cryo Grenade",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 24,
+      "profileId": 24,
+      "name": "Cutlass",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 27,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 25,
+      "profileId": 25,
+      "name": "Dagger",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 28,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 26,
+      "profileId": 26,
+      "name": "Derringer Pistol",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 29,
+          "modeId": null,
+          "endpoint": 135
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1024,
+        "name": "Derringer Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 9 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 27,
+      "profileId": 27,
+      "name": "Disintegrator Ray",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 28,
+      "profileId": 28,
+      "name": "Disruptor Grenade",
+      "weaponType": "Explosive / Disruption",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 29,
+      "profileId": 29,
+      "name": "Disruptor Pistol",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 30,
+      "profileId": 30,
+      "name": "Electro Net",
+      "weaponType": "Exotic",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 167,
+        "name": "Net Projectile",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 6 Energy damage per shot.; On hit, the net restrains the target and may deliver a 6 Energy shock.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 31,
+      "profileId": 31,
+      "name": "Electro-Gauntlets",
+      "weaponType": "Electroshock",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 32,
+      "profileId": 32,
+      "name": "Electroshock Stun Device",
+      "weaponType": "Electroshock",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Deals no normal HP damage; use as an electroshock incapacitation/control tool.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 33,
+      "profileId": 33,
+      "name": "Energy Baton",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 30,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 34,
+      "profileId": 34,
+      "name": "Energy Blaster",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 35,
+      "profileId": 35,
+      "name": "Energy Chakram",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown energy disc needs delivery, recovery and energy rules.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 36,
+      "profileId": 36,
+      "name": "Energy Pistol",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 8 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 37,
+      "profileId": 37,
+      "name": "Energy Sword",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 31,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 38,
+      "profileId": 38,
+      "name": "Energy Whip",
+      "weaponType": "Whip",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 32,
+          "modeId": null,
+          "endpoint": 64
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 39,
+      "profileId": 39,
+      "name": "Falchion",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 33,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 40,
+      "profileId": 40,
+      "name": "Flail",
+      "weaponType": "Mace",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 34,
+          "modeId": null,
+          "endpoint": 62
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 41,
+      "profileId": 41,
+      "name": "Flamethrower",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 42,
+      "profileId": 42,
+      "name": "Flare Gun",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 35,
+          "modeId": null,
+          "endpoint": 135
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 164,
+        "name": "Flare Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 19 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 43,
+      "profileId": 43,
+      "name": "Flintlock Pistol",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 36,
+          "modeId": null,
+          "endpoint": 135
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 166,
+        "name": "Musket Ball",
+        "definitionValid": true,
+        "appropriateness": "missing-link-or-output-override-review"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 20 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Short-barrel override: 6 Piercing damage with a Musket Ball.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 44,
+      "profileId": 44,
+      "name": "Frag Grenade",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 45,
+      "profileId": 45,
+      "name": "Fungal Spore Launcher",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 46,
+      "profileId": 46,
+      "name": "Garrote Wire",
+      "weaponType": "Garrote",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Deals no automatic HP damage; intended for close-contact restraint and strangulation situations.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 47,
+      "profileId": 47,
+      "name": "Gauss Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 48,
+      "profileId": 48,
+      "name": "Gladius",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 37,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 49,
+      "profileId": 49,
+      "name": "Glaive",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 38,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 50,
+      "profileId": 50,
+      "name": "Gravity Hammer",
+      "weaponType": "Hammer",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 39,
+          "modeId": null,
+          "endpoint": 125
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 52,
+      "profileId": 52,
+      "name": "Grenade Launcher",
+      "weaponType": "Explosive",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Grenade-launcher delivery and area payload mechanics need separate runtime support.",
+      "ammunition": {
+        "itemId": 165,
+        "name": "Grenade Round",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 53,
+      "profileId": 53,
+      "name": "Halberd",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 41,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 54,
+      "profileId": 54,
+      "name": "Hand Cannon",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 42,
+          "modeId": null,
+          "endpoint": 135
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1025,
+        "name": "Hand Cannon Ball Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 24 Semi-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 55,
+      "profileId": 55,
+      "name": "Hand Crossbow",
+      "weaponType": "Crossbow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 43,
+          "modeId": null,
+          "endpoint": 133
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 159,
+        "name": "Crossbow Bolt",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 56,
+      "profileId": 56,
+      "name": "Hand Mortar",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 1026,
+        "name": "Hand Mortar Projectile",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 26 Semi-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 57,
+      "profileId": 57,
+      "name": "Handaxe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 44,
+          "modeId": null,
+          "endpoint": 121
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 58,
+      "profileId": 58,
+      "name": "Harpoon",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Description explicitly says ranged use; Spears is a melee path. Confirm thrusting versus throwing.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 59,
+      "profileId": 59,
+      "name": "Harpoon Gun",
+      "weaponType": "Crossbow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": null,
+        "name": null,
+        "definitionValid": false,
+        "appropriateness": "missing-link-or-output-override-review"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 60,
+      "profileId": 60,
+      "name": "Heavy Crossbow",
+      "weaponType": "Crossbow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 45,
+          "modeId": null,
+          "endpoint": 133
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 159,
+        "name": "Crossbow Bolt",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 61,
+      "profileId": 61,
+      "name": "Heavy Machine Gun",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 46,
+          "modeId": null,
+          "endpoint": 70
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1027,
+        "name": "Heavy Machine Gun Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 29 Full-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 63,
+      "profileId": 63,
+      "name": "Hunting Rifle",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 48,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1028,
+        "name": "Hunting Rifle Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 30 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 64,
+      "profileId": 64,
+      "name": "Ion Cannon",
+      "weaponType": "Cannon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 65,
+      "profileId": 65,
+      "name": "Javelin",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Description explicitly says thrown javelin; Spears is a melee path. Confirm intended uses.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 67,
+      "profileId": 67,
+      "name": "Laser Cannon",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 30 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 68,
+      "profileId": 68,
+      "name": "Laser Carbine",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 12 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 69,
+      "profileId": 69,
+      "name": "Laser Lance",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 50,
+          "modeId": null,
+          "endpoint": 128
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 70,
+      "profileId": 70,
+      "name": "Laser Pistol",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 8 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 71,
+      "profileId": 71,
+      "name": "Laser Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 12 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 72,
+      "profileId": 72,
+      "name": "Laser Sword",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 10,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 73,
+      "profileId": 73,
+      "name": "Lasso",
+      "weaponType": "Flexible / Control",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Deals no normal HP damage; used to catch, restrain, or control a target within its listed range.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 74,
+      "profileId": 74,
+      "name": "Lead Pipe",
+      "weaponType": "Blunt / Close Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 51,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 75,
+      "profileId": 75,
+      "name": "Lever-Action Rifle",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 52,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1029,
+        "name": "Lever-Action Rifle Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 36 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 76,
+      "profileId": 76,
+      "name": "Light Crossbow",
+      "weaponType": "Crossbow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 53,
+          "modeId": null,
+          "endpoint": 133
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 159,
+        "name": "Crossbow Bolt",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 77,
+      "profileId": 77,
+      "name": "Longbow",
+      "weaponType": "Bow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 9,
+          "modeId": null,
+          "endpoint": 134
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 157,
+        "name": "Arrow",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 79,
+      "profileId": 79,
+      "name": "Lucerne Hammer",
+      "weaponType": "Hammer",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 54,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 80,
+      "profileId": 80,
+      "name": "Mace",
+      "weaponType": "Mace",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 55,
+          "modeId": null,
+          "endpoint": 126
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 81,
+      "profileId": 81,
+      "name": "Machete",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 56,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 82,
+      "profileId": 82,
+      "name": "Machine Gun",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 57,
+          "modeId": null,
+          "endpoint": 70
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1030,
+        "name": "Machine Gun Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 39 Full-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 83,
+      "profileId": 83,
+      "name": "Meteor Hammer",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 58,
+          "modeId": null,
+          "endpoint": 65
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 84,
+      "profileId": 84,
+      "name": "Molotov Cocktail",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 85,
+      "profileId": 85,
+      "name": "Monofilament Whip",
+      "weaponType": "Whip",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 59,
+          "modeId": null,
+          "endpoint": 64
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 86,
+      "profileId": 86,
+      "name": "Morningstar",
+      "weaponType": "Mace",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 60,
+          "modeId": null,
+          "endpoint": 126
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 87,
+      "profileId": 87,
+      "name": "Musket",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 61,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 166,
+        "name": "Musket Ball",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 41 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 88,
+      "profileId": 88,
+      "name": "Nanite Swarm Grenade",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 89,
+      "profileId": 89,
+      "name": "Particle Cannon",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 20 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 90,
+      "profileId": 90,
+      "name": "Particle Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 18 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 91,
+      "profileId": 91,
+      "name": "Partisan",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 62,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 92,
+      "profileId": 92,
+      "name": "Pepper Spray",
+      "weaponType": "Chemical",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Deals no normal HP damage; use as a short-range chemical incapacitation/control tool.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 93,
+      "profileId": 93,
+      "name": "Plasma Blaster",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 169,
+        "name": "Plasma Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 94,
+      "profileId": 94,
+      "name": "Plasma Knife",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 63,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 95,
+      "profileId": 95,
+      "name": "Plasma Pistol",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 169,
+        "name": "Plasma Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 96,
+      "profileId": 96,
+      "name": "Plasma Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 169,
+        "name": "Plasma Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 16 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 97,
+      "profileId": 97,
+      "name": "Plasma Thrower",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 98,
+      "profileId": 98,
+      "name": "Poleaxe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 64,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 99,
+      "profileId": 99,
+      "name": "Powder Bomb",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 100,
+      "profileId": 100,
+      "name": "Power Fists",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 101,
+      "profileId": 101,
+      "name": "Pulse Blade",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 65,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 102,
+      "profileId": 102,
+      "name": "Pulse Cannon",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 20 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 103,
+      "profileId": 103,
+      "name": "Pulse Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: 12 Energy damage per shot.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 104,
+      "profileId": 104,
+      "name": "Quarterstaff",
+      "weaponType": "Staff",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 66,
+          "modeId": null,
+          "endpoint": 130
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 105,
+      "profileId": 105,
+      "name": "Rail Cannon",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 106,
+      "profileId": 106,
+      "name": "Rail Pistol",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 107,
+      "profileId": 107,
+      "name": "Rapier",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 67,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 108,
+      "profileId": 108,
+      "name": "Repeating Crossbow",
+      "weaponType": "Crossbow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 68,
+          "modeId": null,
+          "endpoint": 133
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 159,
+        "name": "Crossbow Bolt",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 109,
+      "profileId": 109,
+      "name": "Repeating Musket",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 69,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 166,
+        "name": "Musket Ball",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 57 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 110,
+      "profileId": 110,
+      "name": "Retractable Baton",
+      "weaponType": "Blunt / Close Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 70,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 111,
+      "profileId": 111,
+      "name": "Retractable Staff",
+      "weaponType": "Staff",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 71,
+          "modeId": null,
+          "endpoint": 130
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 113,
+      "profileId": 113,
+      "name": "Rocket Launcher",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Rocket-launcher delivery and area payload mechanics need separate runtime support.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 114,
+      "profileId": 114,
+      "name": "Rocket Spear",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Propelled one-use spear is not established as a melee thrusting weapon.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 115,
+      "profileId": 115,
+      "name": "Sabre",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 72,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 116,
+      "profileId": 116,
+      "name": "Scimitar",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 73,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 117,
+      "profileId": 117,
+      "name": "Shortbow",
+      "weaponType": "Bow",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 74,
+          "modeId": null,
+          "endpoint": 134
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 157,
+        "name": "Arrow",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 119,
+      "profileId": 119,
+      "name": "Shotgun",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 75,
+          "modeId": null,
+          "endpoint": 68
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 170,
+        "name": "Shotgun Shell",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 60 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 120,
+      "profileId": 120,
+      "name": "Sling",
+      "weaponType": "Sling",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Sling ammunition delivery is unsupported; keep the proposed Sling path pending.",
+      "ammunition": {
+        "itemId": 171,
+        "name": "Sling Stone",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 121,
+      "profileId": 121,
+      "name": "Slingshot",
+      "weaponType": "Sling",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Slingshot ammunition delivery is unsupported; keep the proposed Slingshots path pending.",
+      "ammunition": {
+        "itemId": 168,
+        "name": "Pellet",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 122,
+      "profileId": 122,
+      "name": "Sludge Launcher",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 123,
+      "profileId": 123,
+      "name": "Sniper Rifle",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 76,
+          "modeId": null,
+          "endpoint": 67
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1031,
+        "name": "Sniper Rifle Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 63 Single: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 124,
+      "profileId": 124,
+      "name": "Sonic Blaster",
+      "weaponType": "Sonic Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: this launcher converts its charge to 10 Sonic damage.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 125,
+      "profileId": 125,
+      "name": "Sonic Cannon",
+      "weaponType": "Sonic Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: this launcher converts its charge to 20 Sonic damage.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 126,
+      "profileId": 126,
+      "name": "Spear",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 77,
+          "modeId": null,
+          "endpoint": 128
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 127,
+      "profileId": 127,
+      "name": "Spetum",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 78,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 128,
+      "profileId": 128,
+      "name": "Stasis Ray Gun",
+      "weaponType": "Energy Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Special output: deals no normal HP damage; use the listed Energy / Control effect.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 129,
+      "profileId": 129,
+      "name": "Steam Gauntlets",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 130,
+      "profileId": 130,
+      "name": "Steam Rifle",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 1032,
+        "name": "Steam Rifle Projectile",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 67 Semi-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 131,
+      "profileId": 131,
+      "name": "Stiletto Dagger",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 79,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 132,
+      "profileId": 132,
+      "name": "Stun Baton",
+      "weaponType": "Staff",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 80,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 133,
+      "profileId": 133,
+      "name": "Stun Blaster",
+      "weaponType": "Electroshock / Energy",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 161,
+        "name": "Energy Charge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 134,
+      "profileId": 134,
+      "name": "Submachine Gun",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 81,
+          "modeId": null,
+          "endpoint": 69
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1033,
+        "name": "Submachine Gun Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 69 Full-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 136,
+      "profileId": 136,
+      "name": "Switchblade",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 82,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 137,
+      "profileId": 137,
+      "name": "Tanto",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 83,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 138,
+      "profileId": 138,
+      "name": "Tesla Coil Gauntlet",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 139,
+      "profileId": 139,
+      "name": "Tesla Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 140,
+      "profileId": 140,
+      "name": "Throwing Axe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown Axes must not grant ordinary melee eligibility; use-specific governance/delivery is pending.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 142,
+      "profileId": 142,
+      "name": "Throwing Spear",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown Spears must not grant ordinary melee eligibility; use-specific governance/delivery is pending.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 143,
+      "profileId": 143,
+      "name": "Throwing Stars",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown Blades must not grant ordinary melee eligibility; use-specific governance/delivery is pending.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 144,
+      "profileId": 144,
+      "name": "Throwing Tomahawk",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown Axes must not grant ordinary melee eligibility; use-specific governance/delivery is pending.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 145,
+      "profileId": 145,
+      "name": "Tranquilizer Dart Gun",
+      "weaponType": "Dart Weapon",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 160,
+        "name": "Dart",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 147,
+      "profileId": 147,
+      "name": "Tribal Blowgun",
+      "weaponType": "Exotic",
+      "runtime": "unsupported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Blowgun ammunition delivery and its prose damage override are unsupported.",
+      "ammunition": {
+        "itemId": 160,
+        "name": "Dart",
+        "definitionValid": true,
+        "appropriateness": "missing-link-or-output-override-review"
+      },
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": "Damage comes from the loaded ammunition; Output override: this launcher converts its charge to 4 Piercing damage.",
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 148,
+      "profileId": 148,
+      "name": "Trident",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 85,
+          "modeId": null,
+          "endpoint": 128
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 149,
+      "profileId": 149,
+      "name": "Tuning Fork Blade",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 150,
+      "profileId": 150,
+      "name": "War Club",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 86,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 151,
+      "profileId": 151,
+      "name": "Warhammer",
+      "weaponType": "Hammer",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 87,
+          "modeId": null,
+          "endpoint": 125
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 152,
+      "profileId": 152,
+      "name": "Warp Rifle",
+      "weaponType": "Energy Weapon",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 153,
+      "profileId": 153,
+      "name": "Whip",
+      "weaponType": "Whip",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 88,
+          "modeId": null,
+          "endpoint": 64
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 154,
+      "profileId": 154,
+      "name": "Wooden Stake",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 341,
+      "profileId": 172,
+      "name": "Magic Wand",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 359,
+      "profileId": 173,
+      "name": "Bone Saw",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 89,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 364,
+      "profileId": 174,
+      "name": "Chainsaw",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 366,
+      "profileId": 175,
+      "name": "Cleaver",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 90,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 373,
+      "profileId": 176,
+      "name": "Crowbar",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 91,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 384,
+      "profileId": 177,
+      "name": "Fire Axe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 92,
+          "modeId": null,
+          "endpoint": 121
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 386,
+      "profileId": 178,
+      "name": "Fire Poker",
+      "weaponType": "Improvised / Tool",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Fire Poker: clarify striking versus point use before choosing Clubs or a thrusting path.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 391,
+      "profileId": 179,
+      "name": "Fishing Spear",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 93,
+          "modeId": null,
+          "endpoint": 128
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 398,
+      "profileId": 180,
+      "name": "Frying Pan",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 94,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 411,
+      "profileId": 181,
+      "name": "Harpoon Spear",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 95,
+          "modeId": null,
+          "endpoint": 128
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 412,
+      "profileId": 182,
+      "name": "Hatchet",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 96,
+          "modeId": null,
+          "endpoint": 121
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 423,
+      "profileId": 183,
+      "name": "Ice Pick",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 97,
+          "modeId": null,
+          "endpoint": 60
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 425,
+      "profileId": 184,
+      "name": "Kitchen Knife",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 98,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 428,
+      "profileId": 185,
+      "name": "Large Wrench",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 99,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 433,
+      "profileId": 186,
+      "name": "Locking Utility Blade",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 100,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 437,
+      "profileId": 187,
+      "name": "Meat Hook",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 438,
+      "profileId": 188,
+      "name": "Meat Tenderizer",
+      "weaponType": "Hammer",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 101,
+          "modeId": null,
+          "endpoint": 125
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 452,
+      "profileId": 189,
+      "name": "Pickaxe",
+      "weaponType": "Axe",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 102,
+          "modeId": null,
+          "endpoint": 60
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 453,
+      "profileId": 190,
+      "name": "Pipe Wrench",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 103,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 454,
+      "profileId": 191,
+      "name": "Pitchfork",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 104,
+          "modeId": null,
+          "endpoint": 128
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 459,
+      "profileId": 192,
+      "name": "Pocket Knife",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 105,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 470,
+      "profileId": 193,
+      "name": "Scalpel",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 106,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 473,
+      "profileId": 194,
+      "name": "Scythe",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 107,
+          "modeId": null,
+          "endpoint": 129
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 475,
+      "profileId": 195,
+      "name": "Shovel",
+      "weaponType": "Polearm",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 476,
+      "profileId": 196,
+      "name": "Sickle",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 108,
+          "modeId": null,
+          "endpoint": 59
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 480,
+      "profileId": 197,
+      "name": "Sledgehammer",
+      "weaponType": "Hammer",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 109,
+          "modeId": null,
+          "endpoint": 125
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 488,
+      "profileId": 198,
+      "name": "Staple Gun",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 489,
+      "profileId": 199,
+      "name": "Steam Drill",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 498,
+      "profileId": 200,
+      "name": "Tire Iron",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 110,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 507,
+      "profileId": 201,
+      "name": "Whaling Gun",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": {
+        "itemId": 1034,
+        "name": "Whaling Gun Harpoon",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 74 Semi-Auto: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 562,
+      "profileId": 202,
+      "name": "Baseball Bat",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 111,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 563,
+      "profileId": 203,
+      "name": "Billiard Cue",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 112,
+          "modeId": null,
+          "endpoint": 130
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 565,
+      "profileId": 204,
+      "name": "Brick",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Brick: confirm improvised striking versus throwing; solid object is not automatically club technique.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 575,
+      "profileId": 205,
+      "name": "Heavy Chains",
+      "weaponType": "Whip",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 113,
+          "modeId": null,
+          "endpoint": 64
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 577,
+      "profileId": 206,
+      "name": "Laptop",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Laptop: ordinary-function description does not establish a canonical club-like combat technique.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 581,
+      "profileId": 207,
+      "name": "Rebar Club",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 114,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 582,
+      "profileId": 208,
+      "name": "Refrigerator Door",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Refrigerator Door: unwieldy smash use needs an improvised-weapon ruling, not automatic Clubs.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 584,
+      "profileId": 209,
+      "name": "Rust Sawblade",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 585,
+      "profileId": 210,
+      "name": "Rusty Pipe",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 115,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 586,
+      "profileId": 211,
+      "name": "Sharpened Bone",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 116,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 588,
+      "profileId": 212,
+      "name": "Spiked Bat",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 117,
+          "modeId": null,
+          "endpoint": 124
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 591,
+      "profileId": 213,
+      "name": "Toilet Lid",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Toilet Lid: confirm the intended improvised combat technique.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 592,
+      "profileId": 214,
+      "name": "Traffic Sign",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Traffic Sign: description says swung like a blade; reconcile that with proposed Clubs.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 612,
+      "profileId": 215,
+      "name": "Mantrap Jaw",
+      "weaponType": "Exotic",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 615,
+      "profileId": 216,
+      "name": "Remote-Detonated Explosive",
+      "weaponType": "Explosive / Trap",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 616,
+      "profileId": 217,
+      "name": "Shrapnel Mine",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 665,
+      "profileId": 218,
+      "name": "Flashbang",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 705,
+      "profileId": 219,
+      "name": "Poison Gas Grenade",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 719,
+      "profileId": 220,
+      "name": "Smoke Bomb",
+      "weaponType": "Explosive",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Mechanism / intended-use / governing-path review required.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 816,
+      "profileId": 221,
+      "name": "Chair",
+      "weaponType": "Club",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Chair: ordinary-function description does not establish a canonical club-like combat technique.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 3,
+      "profileId": 224,
+      "name": "9mm Luger",
+      "weaponType": "Pistol",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 15,
+          "modeId": null,
+          "endpoint": 135
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 156,
+        "name": "9×19 mm Cartridge",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [
+        "capacity_rounds",
+        "reload_type",
+        "readiness_mode",
+        "draw_initiative_cost",
+        "ready_initiative_cost",
+        "reload_initiative_cost",
+        "unload_initiative_cost"
+      ],
+      "firingModeProblems": [
+        "Mode 80 Semi: mechanics review required"
+      ],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 118,
+      "profileId": 229,
+      "name": "Shortsword",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 12,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 62,
+      "profileId": 230,
+      "name": "Hunting Knife",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 47,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 135,
+      "profileId": 231,
+      "name": "Survival Knife",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 8,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 141,
+      "profileId": 232,
+      "name": "Throwing Knife",
+      "weaponType": "Knife",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [],
+      "defaultGovernanceValid": false,
+      "proposalDeferred": "Thrown Blades must not grant ordinary melee eligibility; use-specific governance/delivery is pending.",
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 146,
+      "profileId": 233,
+      "name": "Trench Knife",
+      "weaponType": "Knife / Blade",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 84,
+          "modeId": null,
+          "endpoint": 122
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 66,
+      "profileId": 236,
+      "name": "Katana",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 49,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [
+        "initiative_cost"
+      ],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 51,
+      "profileId": 238,
+      "name": "Greatsword",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 40,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 78,
+      "profileId": 239,
+      "name": "Longsword",
+      "weaponType": "Sword",
+      "runtime": "ordinary-attack-only-special-or-thrown-use-not-certified",
+      "approvedPaths": [
+        {
+          "mappingId": 11,
+          "modeId": null,
+          "endpoint": 120
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": null,
+      "missingFields": [],
+      "firingModeProblems": [],
+      "magazineLinks": [],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    },
+    {
+      "itemId": 112,
+      "profileId": 242,
+      "name": ".357 Revolver",
+      "weaponType": "Firearm",
+      "runtime": "supported-ammunition-family",
+      "approvedPaths": [
+        {
+          "mappingId": 7,
+          "modeId": null,
+          "endpoint": 135
+        }
+      ],
+      "defaultGovernanceValid": true,
+      "proposalDeferred": null,
+      "ammunition": {
+        "itemId": 1008,
+        "name": "357 Round",
+        "definitionValid": true,
+        "appropriateness": "catalog-link-not-runtime-certification"
+      },
+      "missingFields": [],
+      "firingModeProblems": [],
+      "magazineLinks": [
+        {
+          "weapon_profile_id": 242,
+          "magazine_item_id": 1022
+        }
+      ],
+      "rulesRequiringReview": null,
+      "gameplayVerified": false
+    }
+  ]
+}

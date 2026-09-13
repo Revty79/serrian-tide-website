@@ -15,6 +15,7 @@ import { EffectOptions } from "./effect-options";
 import { TargetDropdowns } from "./target-dropdowns";
 import styles from "./combat-screen.module.css";
 import { initiativeAffordabilityIssue } from "@/features/tabletop-operations/initiative-affordability";
+import { projectileWeaponFamily } from "@/features/items/firearm-classification";
 type Sources = Awaited<ReturnType<typeof readCombatCommandSources>>;
 type Preview = Awaited<ReturnType<typeof previewCombatChoice>>;
 type Draft = { source: string; targets: number[]; groups: Record<string, number[]>; applications: Record<string, { poolKey?: string; hitLocationNumber?: number }>;
@@ -41,6 +42,7 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
     source: stored?.source || (available.length === 1 ? sourceKey(available[0]) : "") };
   const source = options.find((entry) => sourceKey(entry) === draft.source);
   const firearm = source?.instanceId ? sources?.firearms?.firearms.find((entry) => entry.itemInstanceId === source.instanceId) : null;
+  const projectileFamily = projectileWeaponFamily(firearm?.canonical.weaponType ?? "");
   const currentSpell = spell?.key === `${entity.participantId}:${draft.source}` ? spell.value : null;
   const groups = currentSpell?.groups.map((group) => ({ ...group, selected: group.kind === "aoe" ? [] : group.selfTargeted ? [entity.participantId] : draft.groups[group.id] ?? [] })) ?? [];
   const targets = command === "Cast" && groups.length ? [...new Set(groups.flatMap((group) => group.selected))] : command === "Cast" || command === "Ability" ? [...new Set([...(target ? [Number(target)] : []), ...draft.targets])] : target ? [Number(target)] : [];
@@ -133,11 +135,11 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
         finally { running.current = false; setBusy(false); }
       }}>Request Called Shot ruling</button> : null}</> : null}
       {firearm ? <><FirearmControls key={firearm.itemInstanceId} scope={scope} entity={entity} firearm={firearm} selectedModeId={choice?.firearm?.firingModeId ?? 0} inventory={sources?.magazines ?? null} disabled={disabled} refresh={refresh} />
-        <fieldset><legend>Aim and fire</legend>
+        <fieldset><legend>{projectileFamily ? "Aim and shoot" : "Aim and fire"}</legend>
           {firearm.modes.length > 1 ? <label className="st-field">Firing mode<select className="st-control" value={choice?.firearm?.firingModeId} onChange={(event) => edit({ mode: event.target.value, duration: "1" })}>{firearm.modes.map((mode) => <option key={mode.id} value={mode.id ?? ""}>{mode.name}</option>)}</select></label> : <p>Firing mode: {firingMode?.name ?? "Needs configuration"}{firearm.modes.length === 1 ? " (selected automatically)" : ""}</p>}
           <div className={styles.fields}><label className="st-field">Aim Initiative<input className="st-control" type="number" min="0" step="1" value={draft.aim} onChange={(event) => edit({ aim: event.target.value })} /></label>
           {firingMode?.deliveryCadence === "sustained-per-initiative" ? <label className="st-field">Firing duration (includes trigger)<input className="st-control" type="number" min="1" step="1" value={draft.duration} onChange={(event) => edit({ duration: event.target.value })} /></label> : null}</div>
-          <p className={styles.muted}>Aim 0 fires without spending extra time aiming. {firingMode?.deliveryCadence === "per-trigger" ? `One trigger uses ${firingMode.roundsPerCadence ?? "?"} round(s).` : firingMode?.deliveryCadence === "sustained-per-initiative" ? "Firing duration controls how long sustained fire continues." : ""} The full Initiative cost and round count appear before you fire.</p>
+          {projectileFamily ? <p className={styles.muted}>{projectileFamily === "bow" ? `Nock / draw / shoot: ${firearm.canonical.reloadInitiativeCost ?? "Unconfigured"} Initiative` : "Release bolt: 1 Initiative"} &middot; Aim bonus: {Number(draft.aim) * 2}</p> : <p className={styles.muted}>Aim 0 fires without spending extra time aiming. {firingMode?.deliveryCadence === "per-trigger" ? `One trigger uses ${firingMode.roundsPerCadence ?? "?"} round(s).` : firingMode?.deliveryCadence === "sustained-per-initiative" ? "Firing duration controls how long sustained fire continues." : ""} The full Initiative cost and round count appear before you fire.</p>}
           {!firearmReady ? <p>Resolve the weapon status above to see the firing cost and Roll.</p> : !targets.length ? <p>Choose a target above to see the firing cost and Roll.</p> : null}
         </fieldset></> : null}
       {firearmReady && previewError?.key === fingerprint ? <p role="status">{previewError.message} <button className="st-button" disabled={busy} onClick={() => setPreviewRetry((value) => value + 1)}>Retry action options</button></p> : previewReady && !preview ? <p role="status">Reading action cost and Roll options...</p> : null}

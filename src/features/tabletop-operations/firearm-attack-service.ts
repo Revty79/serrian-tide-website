@@ -63,7 +63,6 @@ import {
 } from "./defense-intervention-service";
 import {
   evaluateFirearmReadiness,
-  resolveFirearmMode,
   type FirearmPreparationOperation,
   type FirearmReadinessBlocker,
 } from "./firearm-readiness";
@@ -85,7 +84,8 @@ import { readEffectiveRollSnapshotInTransaction, type AuthorizedRollActor } from
 import type { RollGoverningSourceRequest, RollGoverningSourceSnapshot, RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { initiativeAffordabilityIssue } from "./initiative-affordability";
-import { isFirearmWeaponType } from "@/features/items/firearm-classification";
+import { isSupportedAmmunitionWeaponType, projectileWeaponFamily } from "@/features/items/firearm-classification";
+import { rangedShotInitiativeCost, resolveAmmunitionWeaponMode } from "@/features/items/projectile-combat";
 import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/features/items/firearm-magazine-service";
 import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
 import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-injury-timing";
@@ -139,7 +139,7 @@ export type FirearmAttackPreview = Readonly<{
     effectiveRecoilResetInitiativeCost: number;
   };
   delivery: FirearmDeliveryPlan;
-  timing: { multiplier: number; aimInitiativeCost: number; firingInitiativeCost: number; explanation: string | null };
+  timing: { multiplier: number; aimInitiativeCost: number; firingInitiativeCost: number; explanation: string | null; bowShotInitiativeCost?: number };
   readiness: { status: string; blockers: readonly FirearmReadinessBlocker[] };
   governing: {
     status: string;
@@ -416,7 +416,7 @@ async function loadFoundation(
     eq(weaponProfile.itemId, state.itemId),
   )).limit(1);
   if (!profile) throw new Error("The exact Weapon Profile no longer belongs to this firearm Item.");
-  if (!isFirearmWeaponType(profile.weaponType)) throw new Error("This Weapon Type is not an explicitly supported firearm family. Review Weapon Type in Heavens → Items before using firearm combat.");
+  if (!isSupportedAmmunitionWeaponType(profile.weaponType)) throw new Error("This Weapon Type has no supported ammunition combat workflow.");
   const [mode] = await tx.select().from(weaponFiringMode).where(and(
     eq(weaponFiringMode.id, state.selectedFiringModeId),
     eq(weaponFiringMode.weaponProfileId, state.weaponProfileId),
@@ -438,11 +438,13 @@ async function loadFoundation(
     eq(item.id, state.loadedAmmunitionItemId),
     eq(weaponProfile.id, state.loadedAmmunitionProfileId),
   )).limit(1);
-  const selectedMode = resolveFirearmMode({
-    mode: { ...mode, deliveryCadence: mode.deliveryCadence as "per-trigger" | "sustained-per-initiative" | null },
-    ammunitionCyclingModifier: ammunition?.cyclingModifier ?? 0,
-    ammunitionRecoilModifier: ammunition?.recoilModifier ?? 0,
-  });
+  const selectedMode = resolveAmmunitionWeaponMode(profile.weaponType,
+    { ...mode, deliveryCadence: mode.deliveryCadence as "per-trigger" | "sustained-per-initiative" | null },
+    ammunition?.cyclingModifier ?? 0, ammunition?.recoilModifier ?? 0);
+  const shotCost = rangedShotInitiativeCost(profile);
+  if (projectileWeaponFamily(profile.weaponType) === "bow" && (profile.reloadType !== "Single" || state.capacityRounds !== 1)) {
+    throw new Error("A bow requires Single loading with capacity 1 arrow.");
+  }
   const delivery = planFirearmDelivery({
     deliveryCadence: selectedMode.deliveryCadence,
     roundsPerCadence: selectedMode.roundsPerCadence,
@@ -611,7 +613,8 @@ async function loadFoundation(
       },
       delivery,
       timing: { multiplier: injury.multiplier, aimInitiativeCost: aimInitiative * injury.multiplier,
-        firingInitiativeCost: delivery.firingDurationInitiative * injury.multiplier, explanation: injury.explanation },
+        firingInitiativeCost: delivery.firingDurationInitiative * shotCost * injury.multiplier, explanation: injury.explanation,
+        ...(projectileWeaponFamily(profile.weaponType) === "bow" ? { bowShotInitiativeCost: shotCost } : {}) },
       readiness,
       governing: {
         status: governance.status,
@@ -746,7 +749,9 @@ async function declareFirearmAttackInternal(
     sourceKind: "weapon",
     sourceRef: `instance:${preview.firearm.itemInstanceId}`,
     sourceInstanceId: preview.firearm.itemInstanceId,
-    sourcePayload: { firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier, weaponHands: command.weaponHands ?? null, ...governancePayload },
+    sourcePayload: { firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier,
+      ...(preview.timing.bowShotInitiativeCost !== undefined ? { bowShotInitiativeCost: preview.timing.bowShotInitiativeCost } : {}),
+      weaponHands: command.weaponHands ?? null, ...governancePayload },
     weaponItemId: preview.firearm.itemId,
     firingModeId: preview.firearm.firingModeId,
     attackMode: preview.firearm.firingModeName,
@@ -936,7 +941,8 @@ async function commitFirearmAttackTriggerInternal(
   if (attack.status !== "aiming" || attack.aimDeclarationId === null || attack.aimPendingActionId === null) {
     throw new Error("Only an attack with completed declared Aim may commit its trigger pull.");
   }
-  const [state] = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, attack.itemInstanceId)).limit(1).for("update");
+  const [storedState] = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, attack.itemInstanceId)).limit(1).for("update");
+  const state = storedState ? await readEffectiveFirearmState(tx, storedState) : null;
   const identityChanged = !state
     || state.campaignId !== attack.campaignId
     || state.characterId !== attack.actorParticipantId
@@ -975,7 +981,7 @@ async function commitFirearmAttackTriggerInternal(
   }).where(eq(campaignSessionEncounterFirearmAttack.id, attack.id));
   await recordAttackEvent(tx, context, attack.id, "trigger-ready", "committed", "trigger-pull-initiative-committed", actor.userId, "", {
     triggerPendingActionId,
-    triggerInitiativeCost: 1,
+    triggerInitiativeCost: (attack.frozenSnapshotJson as FirearmAttackPreview).timing?.firingInitiativeCost ?? 1,
   });
   return triggerPendingActionId;
 }
@@ -1186,7 +1192,7 @@ async function createFirearmEffectPlan(
       expectedCompletionInitiative: pending.expectedCompletionInitiative,
       startedRound: pending.startedRound,
       completedRound: pending.completedRound,
-      triggerPullInitiativeCost: firearmTimingMultiplier(preview),
+      triggerPullInitiativeCost: (preview.timing?.bowShotInitiativeCost ?? 1) * firearmTimingMultiplier(preview),
       firingPortion: portion,
       cumulativeRoundsConsumed: attack.roundsConsumed,
       aimInitiativeCost: attack.aimInitiative * firearmTimingMultiplier(preview),

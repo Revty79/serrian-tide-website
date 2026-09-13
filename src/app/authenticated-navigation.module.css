@@ -1,0 +1,69 @@
+.mobileMenu {
+  background: var(--st-surface-raised);
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mobileMenu a,
+.toolbar summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 0.875rem;
+  letter-spacing: 0;
+}
+
+.mobileAccount {
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mobileAccount span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .toolbar {
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .mobileAccount {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .mobileAccount button {
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+
+  .breadcrumbs {
+    min-height: 44px;
+    padding-block: 0;
+  }
+
+  .breadcrumbs > span {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .breadcrumbs > span:not(:nth-last-child(-n + 2)) {
+    display: none;
+  }
+
+  .breadcrumbs a,
+  .breadcrumbs [aria-current] {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media print {
+  .navigation { display: none; }
+}

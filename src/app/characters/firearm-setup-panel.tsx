@@ -13,12 +13,12 @@ export function FirearmSetupPanel({ characterId, equipmentRevision, disabled }: 
     if (running.current) return; running.current = true; setBusy(true);
     const fingerprint = JSON.stringify(command);
     if (retry.current?.fingerprint !== fingerprint) retry.current = { fingerprint, key: crypto.randomUUID() };
-    try { setView(await prepareFirearmSetup({ ...command, requestKey: retry.current.key })); retry.current = null; setMessage("Firearm setup saved."); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Firearm setup could not be confirmed."); setView(await readFirearmSetup(characterId)); }
+    try { setView(await prepareFirearmSetup({ ...command, requestKey: retry.current.key })); retry.current = null; setMessage("Weapon setup saved."); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Weapon setup could not be confirmed."); setView(await readFirearmSetup(characterId)); }
     finally { running.current = false; setBusy(false); }
   }
   if (view && !view.firearms.length && !message) return null;
-  return <section className="equipment-state-panel__firearms" aria-label="Firearm equipment setup"><h4>Prepare your firearms</h4><p>Before combat: confirm the copy, load ammunition, then ready the weapon. Each copy below shows its next step.</p>
+  return <section className="equipment-state-panel__firearms" aria-label="Firearm equipment setup"><h4>Ranged weapon setup</h4><p>Before combat: confirm the copy, load ammunition, then ready the weapon. Each copy below shows its next step.</p>
     {message ? <p role="status">{message}</p> : null}{view?.combatActive ? <p>Active combat: open Combat, choose Attack and select this weapon. Loading, magazine filling, readying and firing are together there, with their Initiative costs.</p> : null}
     <button className="st-button" disabled={busy} onClick={() => void readFirearmSetup(characterId).then(setView).catch((error) => setMessage(error.message))}>Refresh firearm setup</button>
     {view?.firearms.map((entry) => { const blocked = disabled || busy || !view.canManage || view.combatActive, input = { characterId, instanceId: entry.instanceId, expectedVersion: entry.state?.version };
@@ -26,7 +26,7 @@ export function FirearmSetupPanel({ characterId, equipmentRevision, disabled }: 
       return <fieldset key={entry.instanceId}><legend>{entry.name} · Copy #{entry.instanceId}</legend><p><strong>Next: {next}.</strong></p>
         {!entry.state ? <><label className="st-field">Initial firing mode<select className="st-control" value={modes[entry.instanceId] ?? entry.modes[0]?.id ?? ""} onChange={(event) => setModes({ ...modes, [entry.instanceId]: event.target.value })}>{entry.modes.map((mode) => <option key={mode.id} value={mode.id}>{mode.name}</option>)}</select></label>
           {!entry.modes.length ? <p>Add an authored Firing Mode in Heavens → Items → Weapon Profile before initializing this copy.</p> : null}
-          <button className="st-button" disabled={blocked || !entry.modes.length} onClick={() => void run({ ...input, operation: "initialize", firingModeId: Number(modes[entry.instanceId]) || entry.modes[0]?.id })}>Initialize empty firearm</button></>
+          <button className="st-button" disabled={blocked || !entry.modes.length} onClick={() => void run({ ...input, operation: "initialize", firingModeId: Number(modes[entry.instanceId]) || entry.modes[0]?.id })}>{entry.weaponType === "Bow" || entry.weaponType === "Crossbow" ? "Initialize empty weapon" : "Initialize empty firearm"}</button></>
           : <><p>{entry.state.loadedRounds} rounds · {entry.state.readied && !entry.state.needsRecovery ? entry.state.loadedRounds ? "Loaded and readied" : "Readied, but empty" : "Needs preparation"}</p>
             {entry.equipmentState !== "wielded" ? <p>Set Equipment State to Wielded above before readying this copy.</p> : !entry.readinessMode ? <p>Set the drawing/readying relationship in Heavens → Items → Weapon Profile.</p> : null}
             <button className="st-button" disabled={blocked || entry.equipmentState !== "wielded" || !entry.readinessMode || entry.state.readied && !entry.state.needsRecovery} onClick={() => void run({ ...input, operation: "ready" })}>Ready firearm</button>

@@ -6,7 +6,8 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import { campaignPlayer } from "@/db/campaign-schema";
 import { item, weaponFiringMode, weaponProfile } from "@/db/item-schema";
-import { isFirearmWeaponType, UNSUPPORTED_PROJECTILE_MESSAGE } from "@/features/items/firearm-classification";
+import { isSupportedAmmunitionWeaponType, projectileWeaponFamily, UNSUPPORTED_PROJECTILE_MESSAGE } from "@/features/items/firearm-classification";
+import { rangedShotInitiativeCost } from "@/features/items/projectile-combat";
 import { campaignCharacter, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   campaignSessionEncounterActionDeclaration,
@@ -427,18 +428,23 @@ async function buildAuthoritativeSnapshot(
       itemName: item.name,
       weaponType: weaponProfile.weaponType,
       ammunitionItemId: weaponProfile.ammunitionItemId,
+      reloadInitiativeCost: weaponProfile.reloadInitiativeCost,
     }).from(weaponProfile)
       .innerJoin(item, eq(item.id, weaponProfile.itemId))
       .where(eq(weaponProfile.itemId, sourceItemId))
       .limit(1);
     if (!profile) throw new Error("The declared Weapon Profile no longer exists.");
     if (!firearmPreparation && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind) && (profile.ammunitionItemId !== null || equipped!.firingModes.length)) {
-      throw new Error(isFirearmWeaponType(profile.weaponType) ? "Use this exact firearm's ammunition and preparation controls before declaring a firearm attack." : UNSUPPORTED_PROJECTILE_MESSAGE);
+      throw new Error(isSupportedAmmunitionWeaponType(profile.weaponType) ? "Use this exact weapon's ammunition and preparation controls before declaring a ranged attack." : UNSUPPORTED_PROJECTILE_MESSAGE);
     }
     if (draft.windowKind === "firearm-trigger") {
       const { readWeaponInjuryTimingInTransaction } = await import("./combat-injury-timing-service");
-      const timing = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, draft.actorCharacterId, profile.id, 1, draft.sourcePayload?.weaponHands);
-      if (draft.initiativeCost !== timing.initiativeCost) throw new Error(`The firearm trigger costs ${timing.initiativeCost} Initiative with this actor's current injury. Prepare the firearm action again.`);
+      const baseCost = rangedShotInitiativeCost(profile);
+      if (draft.sourcePayload?.bowShotInitiativeCost !== (projectileWeaponFamily(profile.weaponType) === "bow" ? baseCost : undefined)) {
+        throw new Error("The bow shot cost must match its exact authored weapon profile.");
+      }
+      const timing = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, draft.actorCharacterId, profile.id, baseCost, draft.sourcePayload?.weaponHands);
+      if (draft.initiativeCost !== timing.initiativeCost) throw new Error(`The ranged shot costs ${timing.initiativeCost} Initiative with this actor's current injury. Prepare the action again.`);
     }
     weaponDisplayName = profile.itemName;
     weaponSourceItemId = sourceItemId;
