@@ -1,0 +1,6 @@
+{
+  "passed": [
+    "Force end preserves a critical shot's applied damage and CR 4 Fame, closes without the cancelled-plan constraint error, returns the Player to Tabletop, and awards 3 XP afterward. One original Roll and one round spent."
+  ],
+  "errors": []
+}

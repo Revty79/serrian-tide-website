@@ -574,6 +574,16 @@ export async function amendActionEffectAmountInTransaction(
   });
 }
 
+/** A last explicit ruling completes an already-applied result; no new effect is approved here. */
+async function completeSettledRemainder(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext, actor: GodActionEffectActor, plan: LoadedPlan) {
+  if (plan.status !== "partially-applied") return;
+  const effects = await tx.select({ status: campaignSessionEncounterEffect.status }).from(campaignSessionEncounterEffect)
+    .where(eq(campaignSessionEncounterEffect.planId, plan.id));
+  if (effects.length && effects.every(({ status }) => ["applied", "manual-resolved", "declined"].includes(status))) {
+    await applyActionEffectPlanInternal(tx, context, actor, plan.id);
+  }
+}
+
 export async function declineActionEffectInTransaction(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -585,9 +595,9 @@ export async function declineActionEffectInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
-  if (!["calculated", "requires-god-ruling", "approved", "partially-applied", "application-failed"].includes(plan.status)) throw new Error("This plan no longer accepts effect rulings.");
   const effectRow = await lockEffect(tx, plan, effectId);
   if (effectRow.status === "declined") return;
+  if (!["calculated", "requires-god-ruling", "approved", "partially-applied", "application-failed"].includes(plan.status)) throw new Error("This plan no longer accepts effect rulings.");
   if (effectRow.status === "applied" || effectRow.status === "manual-resolved") throw new Error("An applied or manually resolved effect cannot be declined.");
   const reason = boundedReason(reasonInput, "Decline reason");
   await tx.update(campaignSessionEncounterEffect).set({
@@ -597,6 +607,7 @@ export async function declineActionEffectInTransaction(
     updatedAt: new Date(),
   }).where(eq(campaignSessionEncounterEffect.id, effectRow.id));
   await recordEvent(tx, context, plan.id, plan.status, plan.status, "effect-declined", actor.userId, reason, { effectId: effectRow.id });
+  await completeSettledRemainder(tx, context, actor, plan);
 }
 
 export async function addManualActionEffectInTransaction(
@@ -678,9 +689,9 @@ export async function resolveManualActionEffectInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
-  if (!["calculated", "requires-god-ruling", "approved", "partially-applied"].includes(plan.status)) throw new Error("This plan no longer accepts manual resolutions.");
   const effectRow = await lockEffect(tx, plan, effectId);
   if (effectRow.status === "manual-resolved") return;
+  if (!["calculated", "requires-god-ruling", "approved", "partially-applied"].includes(plan.status)) throw new Error("This plan no longer accepts manual resolutions.");
   if (effectRow.applicationSupported || effectRow.status === "applied" || effectRow.status === "declined") {
     throw new Error("Only an unresolved manual effect can receive a manual outcome.");
   }
@@ -697,6 +708,7 @@ export async function resolveManualActionEffectInTransaction(
     updatedAt: now,
   }).where(eq(campaignSessionEncounterEffect.id, effectRow.id));
   await recordEvent(tx, context, plan.id, plan.status, plan.status, "manual-effect-resolved", actor.userId, reason, { effectId: effectRow.id, outcome });
+  await completeSettledRemainder(tx, context, actor, plan);
 }
 
 export async function declineActionEffectPlanInTransaction(

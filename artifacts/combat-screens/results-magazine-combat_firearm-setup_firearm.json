@@ -1,0 +1,8 @@
+{
+  "passed": [
+    "Exact firearm commits and completes through the screen/server flow.",
+    "Player initializes an exact empty firearm, loads two loose rounds, and readies it through ordinary equipment setup outside combat.",
+    "Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. After authoring the fixture mode, refresh enables firing with one Roll and one round consumed."
+  ],
+  "errors": []
+}

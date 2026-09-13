@@ -23,12 +23,12 @@ after(() => pool.end());
 const rollback = new Error("ROLLBACK_LEARNED_SPELL");
 const expected = (error: unknown) => { if (error !== rollback) console.error(error); return error === rollback; };
 
-for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-static", "failed", "area", "area-failed", "area-critical", "unlearned"] as const) test(`learned spell ${scenario}: actual Skill, original Roll, automatic location or area report`, async () => {
+for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-static", "failed", "area", "area-static", "area-failed", "area-critical", "unlearned"] as const) test(`learned spell ${scenario}: actual Skill, original Roll, automatic location or area report`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await completionServiceFixture(tx, `learned-${scenario}`);
     await tx.insert(userRole).values([{ userId: f.godId, role: "god" }, { userId: f.godId, role: "player" }]);
-    const area = scenario.startsWith("area"), fixed = scenario === "static" || scenario === "progressive-static";
-    const learned = await addLearnedCombatSpell(tx, f, { area, fixed: scenario === "static" });
+    const area = scenario.startsWith("area"), fixed = scenario === "static" || scenario === "progressive-static" || scenario === "area-static";
+    const learned = await addLearnedCombatSpell(tx, f, { area, fixed: scenario === "static" || scenario === "area-static" });
     if (scenario.startsWith("progressive")) {
       const originalScaling = learned.spell.modifiers[0];
       learned.spell.modifiers = [createModifierSelection("progressive-spell"), ...(fixed ? [originalScaling] : [])];
@@ -85,12 +85,12 @@ for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-s
     const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find((entry) => entry.id === planId)!;
     const value = plan.effects[0].finalValue as { application?: { hitLocationNumber: number; poolKey: string }; amount?: number; effect: { amount: number } };
     const successes = plan.governingRollSnapshot!.resolution.succeeded ? plan.governingRollSnapshot!.resolution.totalSuccesses : 0;
-    if (area) { assert.equal(plan.status, "calculated"); assert.equal(plan.effects[0].effectType, "spell.area-report"); assert.equal(value.amount, 2 * successes); }
-    else if (scenario !== "failed") { assert.equal(value.application?.hitLocationNumber, 2); assert.equal(value.application?.poolKey, "fixture-arm"); assert.equal(value.effect.amount, fixed ? 2 : 2 * successes); }
+    if (area) { assert.equal(plan.status, "calculated"); assert.equal(plan.effects[0].effectType, "spell.area-report"); assert.equal(value.amount, fixed ? 2 + plan.governingRollSnapshot!.resolution.additionalSuccesses : 2 * successes); }
+    else if (scenario !== "failed") { assert.equal(value.application?.hitLocationNumber, 2); assert.equal(value.application?.poolKey, "fixture-arm"); assert.equal(value.effect.amount, fixed ? 2 + plan.governingRollSnapshot!.resolution.additionalSuccesses : 2 * successes); }
     for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action.id, planId)).status, "applied");
     const [target] = await tx.select().from(member).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, f.occurrences[0])));
     const health = (target.localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> } }).health;
-    assert.equal(health.totalDamage, area || scenario === "failed" ? 0 : fixed ? 2 : 2 * successes);
+    assert.equal(health.totalDamage, area || scenario === "failed" ? 0 : fixed ? 2 + plan.governingRollSnapshot!.resolution.additionalSuccesses : 2 * successes);
     assert.equal(health.poolDamage["fixture-head"] ?? 0, 0, "A browser-supplied head location cannot replace the casting Roll's location.");
     assert.deepEqual(await tx.select().from(campaignCharacterActiveHealth).where(eq(campaignCharacterActiveHealth.characterId, f.heroId)), beforeHealth, "The caster is never damaged by an area report.");
     assert.equal((await tx.select().from(declaration).where(eq(declaration.id, action.id)))[0].status, "resolved");

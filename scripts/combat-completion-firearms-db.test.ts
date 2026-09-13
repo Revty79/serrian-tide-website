@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { item, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
-import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute } from "@/db/realm-schema";
+import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute, campaignCharacterProfile } from "@/db/realm-schema";
 import { magazineProfile, magazineAmmunition, weaponMagazine, firearmMagazineAttachment } from "@/db/magazine-schema";
 import { readEffectiveFirearmState, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
 import { startCombatMagazineFill } from "@/features/tabletop-operations/combat-magazine-fill-service";
@@ -15,12 +15,12 @@ import { campaignCharacterFirearmState as stateTable, campaignSessionEncounterFi
   campaignSessionEncounterEffectPlan as planTable, campaignSessionEncounterEffect as effectTable } from "@/db/tabletop-operations-schema";
 import { declareFirearmAttackInTransaction, commitFirearmAttackTriggerInTransaction, fireFirearmAttackInTransaction, cancelFirearmAttackInTransaction,
   previewFirearmAttackInTransaction, type DeclareFirearmAttackCommand } from "@/features/tabletop-operations/firearm-attack-service";
-import { startFirearmPreparationInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
+import { startFirearmPreparationInTransaction, applyFirearmCatalogConfigurationInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
 import { reconcileResponderOpportunityInTransaction, interruptActionDeclarationInTransaction, resumeInterruptedActionDeclarationInTransaction,
   restartInterruptedActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
 import { changeCombatParticipationInTransaction } from "@/features/tabletop-operations/combat-participation-service";
 import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
-import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
+import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction, declineActionEffectInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { advanceInitiativeTimeline, getNextInitiativeTimelineEvent } from "@/features/tabletop-operations/initiative-runtime";
 import { setCombatFrozenInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
@@ -466,6 +466,36 @@ test("an aware exact Creature Dodge cancels burst bullet hits, with one defense 
   }), (error) => error === rollback);
 });
 
+test("a free Creature may move at a sustained-fire crossing before the pending portion resolves", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "npc"), mover = f.occurrences[0];
+    await tx.update(occurrence).set({ creatureSnapshotJson: { ...f.creatureSnapshot, movement: [{ movementMode: "Land", movementValue: 2 }] } }).where(eq(occurrence.characterId, mover));
+    const [mode] = await tx.insert(weaponFiringMode).values({ weaponProfileId: f.profile.id, name: "Sustained", normalizedName: "sustained", sortOrder: 2,
+      baseCyclingInitiativeCost: 1, baseRecoilResetInitiativeCost: 2, deliveryCadence: "sustained-per-initiative", roundsPerCadence: 2 }).returning();
+    await tx.update(stateTable).set({ selectedFiringModeId: mode.id, loadedRounds: 6 }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    await tx.update(participant).set({ participationStatus: "active", currentInitiative: 21 }).where(eq(participant.characterId, mover));
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, { ...f.command, firingModeId: mode.id,
+      firingDurationInitiative: 3, roll: { method: "entered", enteredTotal: 70 } });
+    const initial = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, initial, advanceInitiativeTimeline(initial, 21));
+    const { readCombatProjectionInTransaction } = await import("@/features/tabletop-operations/combat-projection-service");
+    const projection = await readCombatProjectionInTransaction(tx, f.context, f.god);
+    const entity = projection.entities.find((entry) => entry.participantId === mover)!;
+    assert.equal(entity.mustChooseNow, true); assert.deepEqual(entity.responseDecisionOpportunityIds, []);
+    assert.equal(projection.progression.canAdvanceTimeline, false);
+    assert.equal((await f.state()).loadedRounds, 6, "The reached choice precedes the pending firing portion.");
+    const { declareCombatMovementInTransaction, resolveCombatMovementInTransaction } = await import("@/features/tabletop-operations/combat-movement-service");
+    const movement = await resolveCombatMovementInTransaction(tx, f.context, mover, "Land", 1);
+    await declareCombatMovementInTransaction(tx, f.context, f.god, { participantId: mover, movementMode: "Land", distance: movement.baseMovement, requestKey: crypto.randomUUID() });
+    const firing = await f.attack(declared.attackId);
+    await fireFirearmAttackInTransaction(tx, f.context, f.actor, firing.id, { method: "random" });
+    assert.equal((await f.state()).loadedRounds, 4);
+    assert.equal((await f.rolls()).length, 1);
+    assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.find((entry) => entry.id === firing.triggerPendingActionId)!.remainingInitiativeCost, 2);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
 for (const interrupted of [false, true]) test(`sustained firing resolves 21,20,19 once from 22; interruption=${interrupted}`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "npc");
@@ -593,6 +623,170 @@ for (const sustained of [false, true]) test(`departure preserves fired ammunitio
       assert.equal((target.localStateJson as { health: { totalDamage: number } }).health.totalDamage, 5);
     }
     assert.equal((await f.rolls()).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+
+test("catalog configuration adoption preserves ammunition, readiness and Initiative and retries once", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(stateTable).set({ capacityRounds: null, capacitySource: null, readinessMode: null, readinessModeSource: null, readied: false }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    const before = await f.state(), engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    const command = { characterId: f.actorId, itemInstanceId: f.instance.id, expectedVersion: before.version };
+    const version = await applyFirearmCatalogConfigurationInTransaction(tx, f.context, f.actor, command);
+    assert.equal(await applyFirearmCatalogConfigurationInTransaction(tx, f.context, f.actor, command), version);
+    const after = await f.state();
+    assert.equal(after.capacityRounds, 6); assert.equal(after.readinessMode, "draw-is-ready");
+    assert.equal(after.capacitySource, "canonical"); assert.equal(after.version, before.version + 1);
+    assert.equal(after.loadedRounds, before.loadedRounds); assert.equal(after.loadedAmmunitionItemId, before.loadedAmmunitionItemId);
+    assert.equal(after.readied, false); assert.equal((await f.rolls()).length, 0);
+    assert.deepEqual((await loadInitiativeEngineInTransaction(tx, f.encounterId)).runtime, engine.runtime);
+    const { campaignCharacterFirearmEvent } = await import("@/db/tabletop-operations-schema");
+    const events = await tx.select().from(campaignCharacterFirearmEvent).where(and(eq(campaignCharacterFirearmEvent.itemInstanceId, f.instance.id), eq(campaignCharacterFirearmEvent.eventKind, "catalog-configuration-applied")));
+    assert.equal(events.length, 1); assert.equal((events[0].beforeStateJson as Record<string, unknown>).loadedRounds, (events[0].afterStateJson as Record<string, unknown>).loadedRounds);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("catalog adoption rejects another Player, Freeze, stale versions, over-capacity and unfinished actions", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    const command = { characterId: f.actorId, itemInstanceId: f.instance.id, expectedVersion: (await f.state()).version };
+    await assert.rejects(applyFirearmCatalogConfigurationInTransaction(tx, f.context, { authority: "player", characterId: f.actorId, userId: `${f.godId}-other` }, command), /assigned non-NPC/);
+    await setCombatFrozenInTransaction(tx, f.encounterId, { authority: "god-owner", userId: f.godId }, { frozen: true, expectedRevision: 0 });
+    await assert.rejects(applyFirearmCatalogConfigurationInTransaction(tx, f.context, f.actor, command), /paused/);
+    await setCombatFrozenInTransaction(tx, f.encounterId, { authority: "god-owner", userId: f.godId }, { frozen: false, expectedRevision: 1 });
+    await tx.update(weaponProfile).set({ capacityRounds: 2 }).where(eq(weaponProfile.id, f.profile.id));
+    await assert.rejects(applyFirearmCatalogConfigurationInTransaction(tx, f.context, f.actor, command), /excess internal rounds/);
+    await tx.update(weaponProfile).set({ capacityRounds: 8 }).where(eq(weaponProfile.id, f.profile.id));
+    await assert.rejects(applyFirearmCatalogConfigurationInTransaction(tx, f.context, f.actor, { ...command, expectedVersion: command.expectedVersion - 1 }), /changed/);
+    await tx.update(weaponProfile).set({ capacityRounds: 6 }).where(eq(weaponProfile.id, f.profile.id));
+    await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    await assert.rejects(applyFirearmCatalogConfigurationInTransaction(tx, f.context, f.actor, command), /unfinished action/);
+    assert.equal((await f.state()).loadedRounds, 3);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("combined next-shot preparation charges and freezes the remaining costs, completing both requirements once", async () => {
+  for (const [cycling, recoil, cost] of [[true, true, 3], [true, false, 1], [false, true, 2]] as const) {
+    await assert.rejects(db.transaction(async (tx) => {
+      const f = await fixture(tx, "player");
+      await tx.update(stateTable).set({ requiresCycling: cycling, requiresRecoilRecovery: recoil }).where(eq(stateTable.itemInstanceId, f.instance.id));
+      const beforeState = await f.state();
+      const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      const available = before.participants.find((entry) => entry.characterId === f.actorId)!.currentInitiative;
+      await tx.update(participant).set({ currentInitiative: cost - 1 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+      const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "recover-recoil" as const, combineFollowUp: true, idempotencyKey: crypto.randomUUID() };
+      await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, command), /Initiative|afford/);
+      assert.deepEqual(await f.state(), beforeState);
+      await tx.update(participant).set({ currentInitiative: available }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.actorId)));
+      const preparation = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
+      assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).preparationId, preparation.preparationId);
+      const [declaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, preparation.pendingActionId!));
+      await noDefense(tx, f, declaration.id);
+      const started = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      assert.equal(started.pendingActions.find((entry) => entry.id === preparation.pendingActionId)!.originalInitiativeCost, cost);
+      if (cost > 1) {
+        await persistInitiativeEngineInTransaction(tx, f.context, started, advanceInitiativeTimeline(started, started.runtime.timelineInitiative - 1));
+        const partial = await f.state();
+        assert.equal(partial.requiresCycling, cycling);
+        assert.equal(partial.requiresRecoilRecovery, recoil);
+      }
+      await tx.update(weaponFiringMode).set({ baseCyclingInitiativeCost: 9, baseRecoilResetInitiativeCost: 9 }).where(eq(weaponFiringMode.id, f.modes[0].id));
+      await complete(tx, f, preparation.pendingActionId!);
+      const done = await f.state();
+      assert.equal(done.requiresCycling, false);
+      assert.equal(done.requiresRecoilRecovery, false);
+      assert.equal(done.loadedRounds, beforeState.loadedRounds);
+      assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find((entry) => entry.characterId === f.actorId)!.currentInitiative, available - cost);
+      assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).preparationId, preparation.preparationId);
+      assert.deepEqual(await f.state(), done);
+      assert.equal((await f.rolls()).length, 0);
+      throw rollback;
+    }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+  }
+});
+
+for (const forceEnd of [false, true]) test("a Player firearm kill retains CR Fame and applied damage through " + (forceEnd ? "force end" : "the final critical ruling"), async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(occurrence).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, challengeRating: 4 },
+      hpPools: [{ canonicalId: "fixture-head", poolName: "Head", maximumHp: 2 }],
+      hitLocations: [{ hitLocationNumber: 0, locationName: "Head", hpPoolCanonicalId: "fixture-head", naturalArmor: 0, soak: 0 }] } })
+      .where(eq(occurrence.characterId, f.occurrences[0]));
+    const profile = async () => (await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, f.heroId)))[0];
+    const before = await profile();
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, { ...f.command, roll: { method: "entered", enteredTotal: 100 } });
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    await approveActionEffectPlanInTransaction(tx, f.context, f.god, fired.effectPlanId!, "Apply supported damage while the critical remains a specific decision.");
+    assert.equal(await applyActionEffectPlanInTransaction(tx, f.context, f.god, fired.effectPlanId!), "partially-applied");
+    assert.equal((await profile()).fame, before.fame + 4);
+    assert.equal((await profile()).experience, before.experience);
+    assert.equal(await applyActionEffectPlanInTransaction(tx, f.context, f.god, fired.effectPlanId!), "partially-applied");
+    assert.equal((await profile()).fame, before.fame + 4);
+    const rows = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
+    const manual = rows.find((entry) => entry.effectType === "manual")!;
+    if (forceEnd) {
+      const { forceEndCombatInTransaction } = await import("@/features/tabletop-operations/combat-force-end-service");
+      const beforePlan = (await tx.select().from(planTable).where(eq(planTable.id, fired.effectPlanId!)))[0];
+      const beforeTarget = (await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0])))[0];
+      await setCombatFrozenInTransaction(tx, f.encounterId, f.god, { frozen: true, expectedRevision: 0 });
+      assert.equal((await forceEndCombatInTransaction(tx, f.encounterId, f.god)).reused, false);
+      assert.equal((await forceEndCombatInTransaction(tx, f.encounterId, f.god)).reused, true);
+      const closedPlan = (await tx.select().from(planTable).where(eq(planTable.id, fired.effectPlanId!)))[0];
+      assert.equal(closedPlan.status, "applied"); assert.deepEqual(closedPlan.appliedAt, beforePlan.appliedAt);
+      assert.equal(closedPlan.appliedByUserId, beforePlan.appliedByUserId);
+      assert.deepEqual((await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0])))[0], beforeTarget);
+      assert.deepEqual((await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!))).filter((entry) => entry.status === "applied"), rows.filter((entry) => entry.status === "applied"));
+      assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId, true)).runtime.status, "closed");
+      assert.equal((await profile()).fame, before.fame + 4);
+      assert.equal((await profile()).experience, before.experience);
+      assert.equal((await f.state()).loadedRounds, 2); assert.equal((await f.rolls()).length, 1);
+      throw rollback;
+    }
+    await declineActionEffectInTransaction(tx, f.context, f.god, fired.effectPlanId!, manual.id, "No additional critical effect.");
+    assert.equal((await tx.select().from(planTable).where(eq(planTable.id, fired.effectPlanId!)))[0].status, "applied");
+    assert.equal((await tx.select().from(declarationTable).where(eq(declarationTable.id, attack.triggerDeclarationId)))[0].status, "resolved");
+    await declineActionEffectInTransaction(tx, f.context, f.god, fired.effectPlanId!, manual.id, "No additional critical effect.");
+    assert.equal((await profile()).fame, before.fame + 4);
+    assert.equal((await f.state()).loadedRounds, 2);
+    assert.equal((await f.rolls()).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("decimal cycling and recoil costs persist, freeze and finish without rounding or another Roll", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(weaponFiringMode).set({ baseCyclingInitiativeCost: 0.2, baseRecoilResetInitiativeCost: 0.25 }).where(eq(weaponFiringMode.id, f.modes[0].id));
+    await tx.update(weaponProfile).set({ ammunitionCyclingInitiativeModifier: -0.1, ammunitionRecoilResetInitiativeModifier: -0.05 }).where(eq(weaponProfile.itemId, f.ammunition.id));
+    await tx.update(stateTable).set({ requiresCycling: true, requiresRecoilRecovery: true }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId), beforeState = await f.state();
+    const available = before.participants.find((entry) => entry.characterId === f.actorId)!.currentInitiative;
+    const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "recover-recoil" as const, combineFollowUp: true, idempotencyKey: crypto.randomUUID() };
+    const preparation = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
+    const [declaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, preparation.pendingActionId!));
+    await noDefense(tx, f, declaration.id);
+    let engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(engine.pendingActions.find((entry) => entry.id === preparation.pendingActionId)!.originalInitiativeCost, 0.3);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, available - 0.1));
+    assert.equal((await f.state()).requiresCycling, true);
+    await tx.update(weaponFiringMode).set({ baseCyclingInitiativeCost: 9, baseRecoilResetInitiativeCost: 9 }).where(eq(weaponFiringMode.id, f.modes[0].id));
+    await complete(tx, f, preparation.pendingActionId!);
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(engine.pendingActions.find((entry) => entry.id === preparation.pendingActionId)!.remainingInitiativeCost, 0);
+    assert.equal(engine.participants.find((entry) => entry.characterId === f.actorId)!.currentInitiative, available - 0.3);
+    const done = await f.state();
+    assert.equal(done.requiresCycling, false); assert.equal(done.requiresRecoilRecovery, false);
+    assert.equal(done.loadedRounds, beforeState.loadedRounds);
+    assert.equal((await f.rolls()).length, 0);
+    assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).preparationId, preparation.preparationId);
+    assert.deepEqual(await f.state(), done);
     throw rollback;
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

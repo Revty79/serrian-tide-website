@@ -940,7 +940,7 @@ export async function reconcileActionResponseWindowsInTransaction(
   // the timeline crossed the window and cannot answer it retroactively.
   const pendingActions = [...before.pendingActions, ...after.pendingActions];
   if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) return;
-  await reconcileBusyResponderOpportunitiesInTransaction(tx, context, pendingActions);
+  await reconcileUnavailableResponderOpportunitiesInTransaction(tx, context, pendingActions);
   const participantsChanged = after.participants.some((participant) => {
     const prior = before.participants.find(({ characterId }) => characterId === participant.characterId);
     return !prior || prior.currentInitiative !== participant.currentInitiative || prior.participationStatus !== participant.participationStatus;
@@ -958,7 +958,8 @@ export async function reconcileActionResponseWindowsInTransaction(
       && ["active", "holding"].includes(participant.participationStatus) && participant.currentInitiative > 0
       && (participant.participationStatus === "holding" && participant.currentInitiative >= after.runtime.timelineInitiative
         || participant.currentInitiative <= action.startTimelineInitiative && participant.currentInitiative >= action.expectedCompletionInitiative));
-    const timingReason = "Response window changed with current Initiative; awareness must be confirmed separately.";
+    const timingReason = "Response window changed with current Initiative.";
+    const historicalTimingReason = "Response window changed with current Initiative; awareness must be confirmed separately.";
     for (const opportunity of opportunities) {
       if (opportunity.reactionId !== null || opportunity.source !== "initiative") continue;
       const candidate = candidates.find(({ characterId }) => characterId === opportunity.responderCharacterId);
@@ -966,9 +967,9 @@ export async function reconcileActionResponseWindowsInTransaction(
         await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "ineligible", reason: timingReason, rulingReason: timingReason,
           reconciledAt: new Date(), reconciledByUserId: context.ownerUserId, updatedAt: new Date() })
           .where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
-      } else if (candidate && (opportunity.status === "pending" || opportunity.rulingReason === timingReason)) {
+      } else if (candidate && (opportunity.status === "pending" || opportunity.rulingReason === timingReason || opportunity.rulingReason === historicalTimingReason)) {
         await tx.update(campaignSessionEncounterResponderOpportunity).set({ status: "pending", reachedAtInitiative: candidate.currentInitiative,
-          requiresGodConfirmation: opportunity.status === "ineligible" || opportunity.requiresGodConfirmation, rulingReason: "",
+          requiresGodConfirmation: false, rulingReason: "",
           reconciledAt: null, reconciledByUserId: null, updatedAt: new Date() })
           .where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
       }
@@ -978,7 +979,7 @@ export async function reconcileActionResponseWindowsInTransaction(
       await tx.insert(campaignSessionEncounterResponderOpportunity).values({ declarationId: row.id, pendingActionId: action.id,
         encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
         responderCharacterId: candidate.characterId, source: "initiative", windowSequence: sequence,
-        reachedAtInitiative: candidate.currentInitiative, reason: timingReason, requiresGodConfirmation: true });
+        reachedAtInitiative: candidate.currentInitiative, reason: timingReason, requiresGodConfirmation: false });
     }
     await recordEvent(tx, context, row.id, row.status, row.status, "response-window-retimed", context.ownerUserId, timingReason,
       { previousCompletion: prior.expectedCompletionInitiative, expectedCompletion: action.expectedCompletionInitiative });
@@ -988,32 +989,40 @@ export async function reconcileActionResponseWindowsInTransaction(
 
 /** Close obsolete unanswered prompts with an audit event, preserving all prior
  * declarations and responses. Also repairs retained windows from older rules. */
-export async function reconcileBusyResponderOpportunitiesInTransaction(
+export async function reconcileUnavailableResponderOpportunitiesInTransaction(
   tx: ActionDeclarationTransaction,
   context: OwnedEncounterRuntimeContext,
   pendingActions?: Awaited<ReturnType<typeof loadInitiativeEngineInTransaction>>["pendingActions"],
 ): Promise<void> {
   await assertCombatWritableInTransaction(tx, context.encounterId);
   if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) return;
-  const actions = pendingActions ?? (await loadInitiativeEngineInTransaction(tx, context.encounterId)).pendingActions;
-  const busyIds = [...new Set(actions.filter((action) => hasUnfinishedInitiativeAction([action], action.actorCharacterId))
-    .map((action) => action.actorCharacterId))];
-  if (!busyIds.length) return;
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId, true);
+  const actions = pendingActions ?? engine.pendingActions;
+  const exclusions = new Map<number, { event: string; reason: string }>();
+  for (const participant of engine.participants) {
+    if (hasUnfinishedInitiativeAction(actions, participant.characterId)) exclusions.set(participant.characterId, {
+      event: "busy-responder-excluded", reason: "This combatant is committed to an unfinished action and cannot respond or intervene." });
+    else if (!["active", "holding"].includes(participant.participationStatus) || participant.currentInitiative <= 0) exclusions.set(participant.characterId, {
+      event: "unavailable-responder-excluded", reason: participant.participationStatus === "passed"
+        ? "This combatant chose Pass for the round; its unanswered response opportunity is closed."
+        : "This combatant has no remaining eligible Initiative opportunity; its unanswered response opportunity is closed." });
+  }
+  if (!exclusions.size) return;
   const opportunities = await tx.select().from(campaignSessionEncounterResponderOpportunity).where(and(
     eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId),
     eq(campaignSessionEncounterResponderOpportunity.status, "pending"),
     isNull(campaignSessionEncounterResponderOpportunity.reactionId),
-    inArray(campaignSessionEncounterResponderOpportunity.responderCharacterId, busyIds),
+    inArray(campaignSessionEncounterResponderOpportunity.responderCharacterId, [...exclusions.keys()]),
   )).for("update");
-  const reason = "This combatant is committed to an unfinished action and cannot respond or intervene.";
   for (const opportunity of opportunities) {
+    const { event, reason } = exclusions.get(opportunity.responderCharacterId)!;
     const row = await lockDeclaration(tx, context, opportunity.declarationId);
     const now = new Date();
     await tx.update(campaignSessionEncounterResponderOpportunity).set({
       status: "ineligible", requiresGodConfirmation: false, rulingReason: reason,
       reconciledAt: now, reconciledByUserId: context.ownerUserId, updatedAt: now,
     }).where(eq(campaignSessionEncounterResponderOpportunity.id, opportunity.id));
-    await recordEvent(tx, context, row.id, row.status, row.status, "busy-responder-excluded", context.ownerUserId, reason,
+    await recordEvent(tx, context, row.id, row.status, row.status, event, context.ownerUserId, reason,
       { opportunityId: opportunity.id, responderCharacterId: opportunity.responderCharacterId });
     await reconcileRollingReadiness(tx, context, row, context.ownerUserId);
   }
@@ -1105,7 +1114,6 @@ export async function reconcileResponderOpportunityInTransaction(
     eq(campaignSessionEncounterResponderOpportunity.campaignId, context.campaignId),
   )).limit(1).for("update");
   if (!opportunity || opportunity.status !== "pending") throw new Error("Only a pending responder opportunity may be reconciled.");
-  if (!opportunity.requiresGodConfirmation) throw new Error("This responder is already eligible and must choose their own response.");
   const row = await lockDeclaration(tx, context, opportunity.declarationId);
   if (!["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(row.status)) throw new Error("Responder opportunities can be reconciled only while the declaration window is open.");
   await assertDeclarationCheckpointRevealed(tx, row.checkpointId);
@@ -1857,9 +1865,14 @@ export async function readActionDeclarationWorkspaceInTransaction(
   const withdrawnCheckpointIds = new Set((await tx.select({ id: campaignSessionEncounterDeclarationCheckpoint.id })
     .from(campaignSessionEncounterDeclarationCheckpoint).where(and(eq(campaignSessionEncounterDeclarationCheckpoint.encounterId, context.encounterId),
       sql`${campaignSessionEncounterDeclarationCheckpoint.beforeStateJson} ? 'withdrawal'`))).map(({ id }) => id));
-  const opportunityRows = await tx.select().from(campaignSessionEncounterResponderOpportunity)
+  const storedOpportunityRows = await tx.select().from(campaignSessionEncounterResponderOpportunity)
     .where(eq(campaignSessionEncounterResponderOpportunity.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterResponderOpportunity.id));
+  // Initiative supplies eligibility. Read retained unanswered windows under the
+  // current rule without rewriting historical rulings or committed responses.
+  const opportunityRows = storedOpportunityRows.map((opportunity) => ({ ...opportunity,
+    requiresGodConfirmation: opportunity.source !== "initiative" && opportunity.requiresGodConfirmation,
+  }));
   const eventRows = await tx.select().from(campaignSessionEncounterActionDeclarationEvent)
     .where(eq(campaignSessionEncounterActionDeclarationEvent.encounterId, context.encounterId))
     .orderBy(asc(campaignSessionEncounterActionDeclarationEvent.id));
@@ -1972,7 +1985,7 @@ export async function readActionDeclarationWorkspaceInTransaction(
         windowSequence: opportunity.windowSequence,
         reachedAtInitiative: opportunity.reachedAtInitiative,
         reason: actor.authority === "player" && opportunity.status === "pending"
-          ? "The G.O.D. confirmed that you may respond. Choose a response or No Defense."
+          ? "When your Initiative is reached, you may choose a response or No Defense. Your ordinary action choice remains available."
           : opportunity.reason,
         requiresGodConfirmation: opportunity.requiresGodConfirmation,
         responseLabel: opportunity.responseLabel,

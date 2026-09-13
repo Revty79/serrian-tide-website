@@ -131,6 +131,17 @@ test("missing timing requires a reasoned G.O.D. value and never defaults to zero
   });
 });
 
+test("Prepare next shot sums only the remaining cycling and recoil requirements", () => {
+  for (const [requiresCycling, requiresRecoilRecovery, expected] of [[true, true, 5], [true, false, 2], [false, true, 3], [false, false, 0]] as const) {
+    const timing = resolveFirearmPreparationTiming({ operation: "recover-recoil", authored, followUp: { requiresCycling, requiresRecoilRecovery } });
+    assert.equal(timing.initiativeCost, expected);
+    assert.equal(timing.status, "resolved");
+  }
+  const missing = resolveFirearmPreparationTiming({ operation: "recover-recoil", authored: { ...authored, selectedMode: null }, followUp: { requiresCycling: true, requiresRecoilRecovery: true } });
+  assert.equal(missing.status, "requires-god-ruling");
+  assert.throws(() => resolveFirearmPreparationTiming({ operation: "cycle", authored, followUp: { requiresCycling: true, requiresRecoilRecovery: true } }), /Combined follow-up/);
+});
+
 test("load uses exact ammunition identity and changes only modeled quantities", () => {
   assert.deepEqual(planFirearmAmmunitionTransition({ operation: "load", loadedRounds: 0, inventoryRounds: 20, capacityRounds: 12, requestedRounds: 6, loadedAmmunitionItemId: null, requestedAmmunitionItemId: 30, canonicalAmmunitionItemId: 30 }), {
     loadedRounds: 6, inventoryRounds: 14, retainedRounds: 0, discardedRounds: 0,

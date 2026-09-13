@@ -1,3 +1,4 @@
+import { decimalAdd, decimalSubtract } from "@/lib/decimal";
 import { getMovementInitiative } from "@/features/characters/character-rules";
 import { initiativeAffordabilityIssue } from "./initiative-affordability";
 
@@ -135,7 +136,7 @@ function replaceParticipant(
     participants: state.participants.map((entry) => entry.characterId === changed.characterId ? changed : entry),
     pendingActions: state.pendingActions.map((action) => action.actorCharacterId === changed.characterId
       && (action.status === "active" || action.status === "interrupted")
-      ? { ...action, expectedCompletionInitiative: changed.currentInitiative - action.remainingInitiativeCost }
+      ? { ...action, expectedCompletionInitiative: decimalSubtract(changed.currentInitiative, action.remainingInitiativeCost) }
       : action),
   };
 }
@@ -153,7 +154,7 @@ function settleAllDeferredCost(
   if (participant.deferredInitiativeCost === 0) return participant;
   return {
     ...participant,
-    currentInitiative: participant.currentInitiative - participant.deferredInitiativeCost,
+    currentInitiative: decimalSubtract(participant.currentInitiative, participant.deferredInitiativeCost),
     deferredInitiativeCost: 0,
   };
 }
@@ -265,10 +266,10 @@ export function getNextInitiativeTimelineEvent(state: InitiativeEngineState): In
     const availableThisRound = Math.max(0, actor.currentInitiative);
     if ((action.actionKind.startsWith("firearm-attack:") || action.actionKind.startsWith("magazine-fill:") || /^firearm-preparation:(load|reload)$/.test(action.actionKind)) && action.originalInitiativeCost > 1 && availableThisRound > 0
       && action.initiativeSpent < action.originalInitiativeCost) {
-      return [{ id: action.id, initiative: availableThisRound - Math.min(1, action.remainingInitiativeCost) }];
+      return [{ id: action.id, initiative: decimalSubtract(availableThisRound, Math.min(1, action.remainingInitiativeCost)) }];
     }
     if (action.remainingInitiativeCost <= availableThisRound) {
-      return [{ id: action.id, initiative: availableThisRound - action.remainingInitiativeCost }];
+      return [{ id: action.id, initiative: decimalSubtract(availableThisRound, action.remainingInitiativeCost) }];
     }
     return [];
   });
@@ -385,7 +386,7 @@ export function startInitiativeAction(
     remainingInitiativeCost: initiativeCost,
     startInitiative: participant.currentInitiative,
     startTimelineInitiative: state.runtime.timelineInitiative,
-    expectedCompletionInitiative: participant.currentInitiative - initiativeCost,
+    expectedCompletionInitiative: decimalSubtract(participant.currentInitiative, initiativeCost),
     status: "active",
     startedRound: state.runtime.roundNumber,
     completedRound: null,
@@ -416,16 +417,16 @@ export function advanceInitiativeTimeline(
     let actor = participants[participantIndex]!;
     const from = Math.max(0, actor.currentInitiative);
     const to = Math.max(0, Math.min(from, targetInitiative));
-    const elapsed = Math.min(action.remainingInitiativeCost, from - to);
+    const elapsed = Math.min(action.remainingInitiativeCost, decimalSubtract(from, to));
     if (elapsed > 0) {
       progressed = true;
       actor = {
         ...actor,
-        currentInitiative: actor.currentInitiative - elapsed,
+        currentInitiative: decimalSubtract(actor.currentInitiative, elapsed),
         lastSatisfiedStep: state.runtime.stepNumber,
       };
-      action.initiativeSpent += elapsed;
-      action.remainingInitiativeCost -= elapsed;
+      action.initiativeSpent = decimalAdd(action.initiativeSpent, elapsed);
+      action.remainingInitiativeCost = decimalSubtract(action.remainingInitiativeCost, elapsed);
     }
     if (action.remainingInitiativeCost === 0) {
       actor = settleAllDeferredCost(actor);
@@ -471,13 +472,13 @@ export function advanceInitiativeToNextEvent(state: InitiativeEngineState): Init
       }
       resolved = replaceParticipant(resolved, settleAllDeferredCost({
         ...actor,
-        currentInitiative: actor.currentInitiative - spent,
+        currentInitiative: decimalSubtract(actor.currentInitiative, spent),
         lastSatisfiedStep: resolved.runtime.stepNumber,
       }));
       resolved = replaceAction(resolved, {
         ...action,
-        initiativeSpent: action.initiativeSpent + spent,
-        remainingInitiativeCost: action.remainingInitiativeCost - spent,
+        initiativeSpent: decimalAdd(action.initiativeSpent, spent),
+        remainingInitiativeCost: decimalSubtract(action.remainingInitiativeCost, spent),
         status: action.remainingInitiativeCost === spent ? "completed" : "active",
         completedRound: action.remainingInitiativeCost === spent ? resolved.runtime.roundNumber : null,
       });
@@ -558,7 +559,7 @@ export function applyDirectInitiativeDelta(
   requireActiveRuntime(state);
   finite(delta, "Initiative delta");
   const participant = participantById(state, characterId);
-  return replaceParticipant(state, { ...participant, currentInitiative: participant.currentInitiative + delta });
+  return replaceParticipant(state, { ...participant, currentInitiative: decimalAdd(participant.currentInitiative, delta) });
 }
 
 export function changeNormalTotalInitiative(
@@ -572,12 +573,12 @@ export function changeNormalTotalInitiative(
   const newTotal = positive(newNormalTotalInitiative, "Normal Total Initiative");
   if (mode !== "ordinary" && mode !== "penalty-recovery") throw new Error("Capacity change mode is invalid.");
   const participant = participantById(state, characterId);
-  const difference = newTotal - participant.normalTotalInitiative;
+  const difference = decimalSubtract(newTotal, participant.normalTotalInitiative);
   const deferRecovery = mode === "penalty-recovery" && difference > 0 && participant.currentInitiative < 0;
   return replaceParticipant(state, {
     ...participant,
     normalTotalInitiative: newTotal,
-    currentInitiative: deferRecovery ? participant.currentInitiative : participant.currentInitiative + difference,
+    currentInitiative: deferRecovery ? participant.currentInitiative : decimalAdd(participant.currentInitiative, difference),
     movementMode: movementMode?.trim() || participant.movementMode,
   });
 }
@@ -592,7 +593,7 @@ export function addDeferredInitiativeCost(
   const participant = participantById(state, characterId);
   return replaceParticipant(state, {
     ...participant,
-    deferredInitiativeCost: participant.deferredInitiativeCost + amount,
+    deferredInitiativeCost: decimalAdd(participant.deferredInitiativeCost, amount),
   });
 }
 
@@ -611,8 +612,8 @@ export function settleDeferredInitiativeCost(
   }
   return replaceParticipant(state, {
     ...participant,
-    currentInitiative: participant.currentInitiative - settlement,
-    deferredInitiativeCost: participant.deferredInitiativeCost - settlement,
+    currentInitiative: decimalSubtract(participant.currentInitiative, settlement),
+    deferredInitiativeCost: decimalSubtract(participant.deferredInitiativeCost, settlement),
   });
 }
 
@@ -682,7 +683,7 @@ function resumeAction(
     remainingInitiativeCost: remaining,
     startInitiative: participant.currentInitiative,
     startTimelineInitiative: state.runtime.timelineInitiative,
-    expectedCompletionInitiative: participant.currentInitiative - remaining,
+    expectedCompletionInitiative: decimalSubtract(participant.currentInitiative, remaining),
     startedRound: state.runtime.roundNumber,
     completedRound: null,
   });
@@ -714,7 +715,7 @@ export function adjustPendingInitiativeActionRemainingCost(
     ...action,
     remainingInitiativeCost: remaining,
     expectedCompletionInitiative: action.status === "active"
-      ? actor.currentInitiative - remaining
+      ? decimalSubtract(actor.currentInitiative, remaining)
       : action.expectedCompletionInitiative,
   });
 }
@@ -737,9 +738,9 @@ export function extendPendingInitiativeActionCost(
   const actor = participantById(state, action.actorCharacterId);
   return replaceAction(state, {
     ...action,
-    additionalInitiativeCost: (action.additionalInitiativeCost ?? 0) + addition,
-    remainingInitiativeCost: action.remainingInitiativeCost + addition,
-    expectedCompletionInitiative: actor.currentInitiative - (action.remainingInitiativeCost + addition),
+    additionalInitiativeCost: decimalAdd(action.additionalInitiativeCost ?? 0, addition),
+    remainingInitiativeCost: decimalAdd(action.remainingInitiativeCost, addition),
+    expectedCompletionInitiative: decimalSubtract(actor.currentInitiative, decimalAdd(action.remainingInitiativeCost, addition)),
     status: "active",
     completedRound: null,
   });
@@ -772,7 +773,7 @@ export function advanceInitiativeRound(
   }
   const participants = state.participants.map((participant): InitiativeParticipantState => ({
     ...participant,
-    currentInitiative: participant.currentInitiative + participant.normalTotalInitiative,
+    currentInitiative: decimalAdd(participant.currentInitiative, participant.normalTotalInitiative),
     participationStatus: participant.participationStatus === "suspended" ? "suspended" : "active",
   }));
   const eligible = participants.filter(({ participationStatus }) => participationStatus === "active");
@@ -788,7 +789,7 @@ export function advanceInitiativeRound(
     const actor = participants.find(({ characterId }) => characterId === action.actorCharacterId)!;
     return {
       ...action,
-      expectedCompletionInitiative: actor.currentInitiative - action.remainingInitiativeCost,
+      expectedCompletionInitiative: decimalSubtract(actor.currentInitiative, action.remainingInitiativeCost),
     };
   });
   return { runtime, participants, pendingActions };
@@ -831,6 +832,6 @@ export function resolveBlockParryInitiativeCosts(
   positive(attackerInitiativeCost, "Attacker Initiative Cost");
   positive(defenderWeaponInitiativeCost, "Defender Weapon Initiative Cost");
   return defenseSucceeded
-    ? { attackerCost: attackerInitiativeCost + defenderWeaponInitiativeCost, defenderCost: 1 }
+    ? { attackerCost: decimalAdd(attackerInitiativeCost, defenderWeaponInitiativeCost), defenderCost: 1 }
     : { attackerCost: attackerInitiativeCost, defenderCost: defenderWeaponInitiativeCost };
 }

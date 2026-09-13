@@ -586,3 +586,20 @@ test("Initiative foundation contains no circular clock or one-action-per-Round m
   engine = applyDirectInitiativeDelta(engine, 1, -15);
   assert.equal(participant(engine).currentInitiative, -7);
 });
+
+test("fractional preparation completes at its exact crossing and repeated tenths reach zero", () => {
+  let engine = state(1);
+  for (let index = 1; index <= 10; index++) {
+    engine = startInitiativeAction(engine, { id: index, actorCharacterId: 1, label: "Decimal preparation", actionKind: "firearm-preparation:cycle", initiativeCost: 0.1, allowsMultiRound: false });
+    engine = advanceInitiativeToNextEvent(engine);
+    assert.equal(action(engine, index).remainingInitiativeCost, 0);
+    assert.equal(action(engine, index).status, "completed");
+  }
+  assert.equal(participant(engine).currentInitiative, 0);
+  assert.equal(canAdvanceInitiativeRound(engine), true);
+  let crossing = startInitiativeAction(state(22, 21.7), { id: 1, actorCharacterId: 1, label: "Prepare", actionKind: "firearm-preparation:recover-recoil", initiativeCost: 0.3, allowsMultiRound: false });
+  crossing = advanceInitiativeToNextEvent(crossing);
+  assert.equal(action(crossing).status, "completed");
+  assert.equal(crossing.runtime.timelineInitiative, 21.7);
+  assert.deepEqual(getNextInitiativeTimelineEvent(crossing), { kind: "normal-opportunity", initiative: 21.7, characterIds: [1, 2] });
+});

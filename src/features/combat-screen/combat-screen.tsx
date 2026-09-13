@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import { setEncounterCombatFrozen } from "@/app/heavens/tabletop/combat-freeze-actions";
-import { reconcileResponderOpportunity } from "@/app/heavens/tabletop/action-declaration-actions";
 import { initializeEncounterInitiative, enrollLateEncounterInitiativeParticipant, advanceEncounterInitiativeTimeline, advanceEncounterInitiativeRound } from "@/app/heavens/tabletop/initiative-actions";
 import { addCampaignSessionEncounterParticipant, startCampaignSessionEncounter } from "@/app/heavens/tabletop/encounter-actions";
 import { startCampaignSession } from "@/app/heavens/tabletop/actions";
@@ -14,6 +14,7 @@ import { COMBAT_COMMANDS, combatActionStatus, combatScreenPrompt, type CombatCom
 import styles from "./combat-screen.module.css";
 import { CreaturePicker } from "./creature-picker";
 import { CommandPanel } from "./command-panel";
+import { CloseoutPanel } from "./closeout-panel";
 import { OperationPanel } from "./operation-panel";
 import { readCombatOperations, prepareCombatResult, applyCombatFirearmResult, commitCombatFirearmTrigger, forceEndCombat } from "./operation-actions";
 import { combatNextInput, automaticCombatInputKey, type CombatOperations, type CombatFocus } from "./next-input";
@@ -41,6 +42,7 @@ export function CombatResources({ information }: { information: CombatScreenData
       {resources.mana?.pools.map((pool) => <div className={styles.resource} key={pool.system}><span>{pool.system} Mana</span><strong>{pool.currentMana} / {pool.maximumMana}</strong></div>)}
       {!resources.mana ? <div className={styles.resource}><span>Mana</span><strong>Hidden until choices reveal</strong></div> : !resources.mana.pools.length ? <div className={styles.resource}><span>Mana</span><strong>None</strong></div> : null}
       <div className={styles.resource}><span>Initiative</span><strong>{information.entity.currentInitiative}</strong></div>
+      {resources.advancement ? <><div className={styles.resource}><span>XP</span><strong>{resources.advancement.experience}</strong></div><div className={styles.resource}><span>Fame</span><strong>{resources.advancement.fame}</strong></div></> : null}
     </div>
     <div className={styles.locations} aria-label="HP by location">{resources.health?.tracks.filter((track) => track.key !== "total").map((track) => <div className={styles.location} key={track.key}><span>{track.name}</span><strong>{track.maximumHp === null ? "?" : track.maximumHp - track.damage} / {track.maximumHp ?? "?"}</strong></div>)}</div>
     {resources.effects.conditions.filter((entry) => !entry.resolvedAt).map((entry) => <p className={styles.muted} key={entry.id}>{entry.name}: {entry.description || entry.duration.label}</p>)}
@@ -67,6 +69,10 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
   const [operationRead, setOperationRead] = useState<{ data: CombatScreenData; value: CombatOperations } | null>(null);
   const [focus, setFocus] = useState<CombatFocus | null>(null);
   const [automatic, setAutomatic] = useState(true);
+  const router = useRouter();
+  useEffect(() => {
+    if (scope.role === "player" && data.status === "completed") router.replace("/realms/tabletop?character=" + scope.characterId);
+  }, [router, scope, data.status]);
   const automaticAttempts = useRef(new Set<string>());
   const commandRef = useRef<HTMLDivElement>(null), operationRef = useRef<HTMLDivElement>(null), focused = useRef(0);
   useEffect(() => {
@@ -85,6 +91,9 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
   }, [focus, loading, selectedId]);
   const operations = operationRead?.data === data ? operationRead.value : null;
   const nextInput = useMemo(() => combatNextInput(data, operations ?? operationRead?.value ?? null), [data, operations, operationRead]);
+  const currentFeedback = feedback === "A specific G.O.D. ruling is needed. Use the next combat input to open it."
+    && operations && !operations.plans.some((plan) => ["requires-god-ruling", "partially-applied", "application-failed"].includes(plan.status))
+    ? "The result is recorded. Follow the next combat input." : feedback;
   const reload = useCallback(async (id = selectedRef.current) => {
     const version = ++generation.current;
     setLoading(true);
@@ -149,23 +158,27 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
       <TabletopLiveRefresh {...(scope.role === "god" ? { mode: "god" as const, campaignId: data.context.campaignId } : { mode: "player" as const, characterId: scope.characterId, scope: "console" as const })} onRefresh={() => void reload()} onStatus={setConnection} />
       <Link href={back}>{scope.role === "god" ? "Back to Scene" : "Player Tabletop"}</Link><button className="st-button" disabled={loading} onClick={() => void reload()}>{loading ? "Refreshing…" : "Refresh"}</button>
       {scope.role === "god" && (data.pause.canFreeze || data.pause.canResume) ? <button className="st-button is-secondary" disabled={busy || stale || connection !== "live"} onClick={() => void run(() => setEncounterCombatFrozen(scope.encounterId, !data.pause.frozen, data.pause.revision), data.pause.frozen ? "Combat resumed." : "Combat frozen.")}>{data.pause.frozen ? "Resume Combat" : "Freeze Combat"}</button> : null}
+      {scope.role === "god" && data.projection ? <a href="#combat-closeout" onClick={() => { const detail = document.getElementById("combat-closeout"); if (detail instanceof HTMLDetailsElement) detail.open = true; }}>{data.status === "completed" ? "XP & award history" : "End Combat & XP"}</a> : null}
       {scope.role === "god" && data.status !== "completed" ? <ForceEndDialog disabled={busy || connection !== "live"} onEnd={(note) => run(() => forceEndCombat(scope.encounterId, note), "Combat ended by G.O.D. override. Unfinished work was cancelled; spent resources and history were preserved.")} /> : null}
     </div></header>
     <p className={`${styles.notice} ${data.pause.frozen ? styles.paused : ""}`} role="status">{combatMessage(combatScreenPrompt(data, selected))}</p>
     {connection === "reconnecting" || stale ? <p className={`${styles.notice} ${styles.error}`} role="alert">Connection interrupted. The last information stays visible. Commands wait for a fresh server response; nothing will be resubmitted automatically.</p> : null}
-    <p className={`${styles.notice} ${styles.feedback}`} role="status">{feedback ? combatMessage(feedback) : "Choices and results are recorded as combat progresses."}</p>
+    <p className={`${styles.notice} ${styles.feedback}`} role="status">{currentFeedback ? combatMessage(currentFeedback) : "Choices and results are recorded as combat progresses."}</p>
     <ConditionAlerts key={`${scope.role}:${scope.encounterId}:${scope.role === "player" ? scope.characterId : "owner"}`}
       storageKey={`combat-condition-alerts:${scope.role}:${scope.encounterId}:${scope.role === "player" ? scope.characterId : "owner"}`}
       alerts={data.projection?.alerts ?? []} onInspect={choose} />
-    {scope.role === "god" && data.projection && !data.projection.closed ? <section className={`${styles.notice} ${styles.nextInput}`} aria-label="Next combat input"><div><h2>{nextInput.kind === "awareness" ? nextInput.label : "What happens next"}</h2><p>{combatMessage(nextInput.explanation)}</p></div>
-      {nextInput.kind === "awareness" ? <div className={styles.actions}>{(["allow", "ineligible"] as const).map((decision) => <button className={`st-button ${decision === "allow" ? "is-primary" : ""}`} key={decision} disabled={disabled || !operations} onClick={() => void run(() => reconcileResponderOpportunity(scope.encounterId, nextInput.opportunityId, { decision,
-        reason: `G.O.D. decision: ${nextInput.label} ${decision === "allow" ? "Yes, a response is possible." : "No, a response is not possible in this situation."}` }), decision === "allow" ? "Response available. The combatant's controller chooses Defend or no reaction." : "Response unavailable. Combat can continue.")}>{decision === "allow" ? "Yes, can respond" : "No, cannot respond"}</button>)}</div>
-        : nextInput.kind !== "wait" && nextInput.kind !== "review" ? <button className="st-button is-primary" disabled={disabled || !operations} onClick={followNextInput}>{nextInput.label}</button> : null}
+    {scope.role === "god" && data.projection && !data.projection.closed ? <section className={`${styles.notice} ${styles.nextInput}`} aria-label="Next combat input"><div><h2>{nextInput.kind === "inspect" && nextInput.focus === "action" ? nextInput.label : "What happens next"}</h2><p>{combatMessage(nextInput.explanation)}</p>{data.projection.runtime.timelineInitiative === 0 ? <p>{nextInput.kind === "round" ? `Round ${data.projection.runtime.roundNumber} is complete. Start the next round below.` : "Initiative has reached 0. Finish the result or ruling shown here; Next round appears when the remaining outcomes are settled."}</p> : null}</div>
+      {nextInput.kind !== "wait" && nextInput.kind !== "review" ? <button className="st-button is-primary" disabled={disabled || !operations} onClick={followNextInput}>{nextInput.label}</button> : null}
       <label className={styles.check}><input type="checkbox" checked={automatic} onChange={(event) => { if (event.target.checked) automaticAttempts.current.clear(); setAutomatic(event.target.checked); }} /> Automatic flow</label><p className={styles.muted}>{automatic ? "Timing and calculations run automatically. Review damage before it applies; misses are recorded in Recent activity." : "Enable Automatic flow to advance timing and prepare attack reports for approval."}</p>
     </section> : null}
     {scope.role === "god" && nextInput.kind === "review" ? (operations ?? operationRead?.value)?.plans.filter((plan) => plan.id === nextInput.planId).map((plan) => plan.sourceKind === "spell"
       ? <SpellReport key={attackReportSignature(plan)} encounterId={scope.encounterId} plan={plan} disabled={disabled || !operations} refresh={() => reload()} />
       : <AttackReport key={attackReportSignature(plan)} encounterId={scope.encounterId} plan={plan} disabled={disabled || !operations} refresh={() => reload()} />) : null}
+    {scope.role === "god" && data.projection ? <CloseoutPanel encounterId={scope.encounterId} token={data.projection.stateToken} encounterEnded={data.status === "completed"}
+      resultRevision={JSON.stringify(data.projection.declarations.map((entry) => [entry.id, entry.status]))}
+      disabled={busy || loading || stale || connection !== "live" || data.pause.frozen || !operations} operations={operations}
+      onInspect={(participantId, planId) => { choose(participantId); setFocus((previous) => ({ participantId, kind: "ruling", planId, sequence: (previous?.sequence ?? 0) + 1 })); }}
+      refresh={() => reload()} /> : null}
     <div className={scope.role === "player" ? styles.playerLayout : styles.layout}>
       {scope.role === "god" ? <>
       <section className={styles.window} aria-label="Combatants"><div className={styles.bar}><h2>{scope.role === "god" ? "Combatants" : "Targets"}</h2>{data.projection ? <span className={styles.muted}>Round {data.projection.runtime.roundNumber} · Initiative {data.projection.runtime.timelineInitiative}</span> : null}</div>
@@ -181,7 +194,7 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
       </section>
       </> : null}
       <section className={styles.window} aria-label="Selected combatant detail"><h2>{selected?.name ?? selectedRoster?.name ?? "Select a combatant"}</h2>
-        {selected ? <p className={selected.condition.status === "able" ? styles.muted : styles.notice}>{selected.condition.status === "able" ? selected.participation.departed ? `Withdrawn: ${selected.participation.reason}` : "In combat" : combatMessage(combatConditionMessage(selected.condition)!)} · {selected.canControl ? "You control this combatant." : "Its Player chooses its actions."}</p> : null}
+        {selected ? <p className={selected.condition.status === "able" ? styles.muted : styles.notice}>{selected.condition.status === "able" ? selected.participation.departed ? (selected.participation.departureKind === "surrender" ? "Surrendered / yielded: " : "Withdrawn: ") + selected.participation.reason : "In combat" : combatMessage(combatConditionMessage(selected.condition)!)} · {selected.canControl ? "You control this combatant." : "Its Player chooses its actions."}</p> : null}
         {information ? <CombatResources information={information} /> : <p className={styles.muted}>{loading ? "Loading information…" : "Information becomes available after Initiative enrollment."}</p>}
         {selected?.limbConditions.map((limb) => <p className={`${styles.notice} ${styles.error}`} key={limb.poolKey}>{limb.name} incapacitated — this limb cannot be used.</p>)}
         {selected?.currentAction ? <p className={styles.notice}>{selected.currentAction.label}: {selected.currentAction.remaining} Initiative remaining; expected finish {selected.currentAction.expectedFinish}.</p> : null}

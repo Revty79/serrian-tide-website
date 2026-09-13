@@ -24,7 +24,9 @@ export function SpellReport({ encounterId, plan, disabled, refresh }: {
       return <div key={effect.id}><strong>{effect.effectType === "spell.area-report" ? "Area result" : effect.targetName}</strong>
         <p>{combatEffectSummary(effect, true)}</p>
         {typeof base === "number" && typeof amount === "number" && original ? <p className={styles.muted}>{original.scaling === "per-success"
-          ? `${base} per success × ${roll?.totalSuccesses ?? 0} = ${amount}` : `${amount} fixed by the spell.`}</p> : null}
+          ? `${base} per success × ${roll?.totalSuccesses ?? 0} = ${amount}`
+          : original.effect?.kind === "health.damage" ? `${base} spell damage + ${amount - base} additional-success damage = ${amount}`
+          : `${amount} fixed by the spell.`}</p> : null}
       </div>;
     })}
     <p className={styles.muted}>Casting time is complete. Mana was already spent when casting began.</p>

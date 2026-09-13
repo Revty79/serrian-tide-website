@@ -1,4 +1,5 @@
 import "server-only";
+import { decimalMultiply, completedDecimalUnits } from "@/lib/decimal";
 import { and, eq, sql } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
 import { magazineInventoryOperation as receiptTable } from "@/db/magazine-schema";
@@ -41,7 +42,7 @@ export async function startCombatMagazineFill(tx: Tx, context: OwnedEncounterRun
   if (selected.loadedRounds > 0 && selected.ammunitionItemId !== command.ammunitionItemId) throw new Error("Choose the ammunition already in this magazine; mixed loads are not supported.");
   if (selected.loadedRounds + command.rounds > selected.capacity) throw new Error("These rounds exceed the magazine's capacity. Add fewer rounds.");
   if (selected.fillInitiativeCostPerRound === null) throw new Error("Set Fill Initiative per Round in Heavens → Items → Magazine before filling this magazine in combat.");
-  const cost = selected.fillInitiativeCostPerRound * command.rounds;
+  const cost = decimalMultiply(selected.fillInitiativeCostPerRound, command.rounds);
   if (cost === 0) await assertInstantPreparationOpportunity(tx, context, command.characterId);
   const actorState = (await loadInitiativeEngineInTransaction(tx, context.encounterId)).participants.find((entry) => entry.characterId === command.characterId);
   if (!actorState) throw new Error("Enroll the combatant in Initiative before filling a magazine.");
@@ -68,7 +69,7 @@ async function progressFill(tx: Tx, receiptId: number, spent: number, actionStat
   const [receipt] = await tx.select().from(receiptTable).where(eq(receiptTable.id, receiptId)).for("update");
   const request = receipt.request as FillRequest, result = receipt.result as FillResult;
   if (request.operation !== "combat-fill" || ["completed", "cancelled"].includes(result.status)) return;
-  const reached = Math.min(request.rounds, request.costPerRound === 0 ? request.rounds : Math.floor(spent / request.costPerRound));
+  const reached = Math.min(request.rounds, request.costPerRound === 0 ? request.rounds : completedDecimalUnits(spent, request.costPerRound));
   const inserted = reached - result.roundsCompleted;
   if (inserted > 0) {
     const view = await readMagazineInventoryInTransaction(tx, request.characterId, actorUserId), selected = view.magazines.find((entry) => entry.instanceId === request.instanceId);

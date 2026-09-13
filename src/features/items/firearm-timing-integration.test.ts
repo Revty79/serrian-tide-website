@@ -19,8 +19,8 @@ test("schema adds normalized ordered firing modes with stable identity and casca
   assert.match(schema, /"weapon_firing_modes"/);
   assert.match(schema, /weaponProfileId: integer\("weapon_profile_id"\)\.notNull\(\)\.references\(\(\) => weaponProfile\.id, \{ onDelete: "cascade" \}\)/);
   assert.match(schema, /uniqueIndex\("weapon_firing_modes_profile_name_uq"\)/);
-  assert.match(schema, /baseCyclingInitiativeCost: integer\("base_cycling_initiative_cost"\)/);
-  assert.match(schema, /baseRecoilResetInitiativeCost: integer\("base_recoil_reset_initiative_cost"\)/);
+  assert.match(schema, /baseCyclingInitiativeCost: doublePrecision\("base_cycling_initiative_cost"\)/);
+  assert.match(schema, /baseRecoilResetInitiativeCost: doublePrecision\("base_recoil_reset_initiative_cost"\)/);
   assert.match(schema, /deliveryCadence: text\("delivery_cadence"\)/);
   assert.match(schema, /roundsPerCadence: integer\("rounds_per_cadence"\)/);
   assert.match(schema, /mechanicsReviewRequired: boolean\("mechanics_review_required"\)/);
@@ -36,18 +36,18 @@ test("one additive migration preserves legacy mode names and order without inven
   assert.doesNotMatch(migration, /reload_initiative[^;]*(?:cycling|recoil)/i);
 });
 
-test("ammunition modifiers are signed integer properties on the ammunition definition", () => {
-  assert.match(schema, /ammunitionCyclingInitiativeModifier: integer\("ammunition_cycling_initiative_modifier"\)\.default\(0\)\.notNull\(\)/);
-  assert.match(schema, /ammunitionRecoilResetInitiativeModifier: integer\("ammunition_recoil_reset_initiative_modifier"\)\.default\(0\)\.notNull\(\)/);
+test("ammunition modifiers are signed numeric properties on the ammunition definition", () => {
+  assert.match(schema, /ammunitionCyclingInitiativeModifier: doublePrecision\("ammunition_cycling_initiative_modifier"\)\.default\(0\)\.notNull\(\)/);
+  assert.match(schema, /ammunitionRecoilResetInitiativeModifier: doublePrecision\("ammunition_recoil_reset_initiative_modifier"\)\.default\(0\)\.notNull\(\)/);
   assert.match(actions, /Ammunition Cycling Initiative modifier/);
-  assert.match(actions, /wholeInteger/);
+  assert.match(actions, /finiteNumber/);
   assert.match(equipmentService, /ammunition\.cyclingInitiativeModifier/);
   assert.match(equipmentService, /ammunition\.recoilResetInitiativeModifier/);
 });
 
 test("Equipment authoring uses repeatable structured modes with review, totals, and reorder controls", () => {
   assert.doesNotMatch(editor, /profile\.fireModes\.join/);
-  assert.match(editor, /title="Structured Firing Modes"/);
+  assert.match(editor, /id="firearm-firing-modes"/);
   assert.match(editor, /Cycling Initiative Cost/);
   assert.match(editor, /Recoil Reset Initiative Cost/);
   assert.match(editor, /Delivery Cadence/);

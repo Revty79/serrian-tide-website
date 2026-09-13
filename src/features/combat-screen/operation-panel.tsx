@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { reconcileResponderOpportunity, addExceptionalResponder, cancelActionDeclaration, abandonActionDeclaration, continueActionDeclarationAfterRuling, resumeInterruptedActionDeclaration } from "@/app/heavens/tabletop/action-declaration-actions";
+import { addExceptionalResponder, cancelActionDeclaration, abandonActionDeclaration, continueActionDeclarationAfterRuling, resumeInterruptedActionDeclaration } from "@/app/heavens/tabletop/action-declaration-actions";
 import { ruleGodPlayerCombatRequest } from "@/app/heavens/tabletop/player-combat-ruling-actions";
 import { changeCombatParticipation, ruleCombatCondition, resolveCombatRevivalExpiration } from "@/app/heavens/tabletop/combat-participation-actions";
 import { ruleOnDefenseIntervention } from "@/app/heavens/tabletop/defense-intervention-actions";
@@ -8,7 +8,6 @@ import { withdrawCombatCheckpoint } from "@/app/heavens/tabletop/combat-recovery
 import { applyCombatFirearmResult, commitCombatFirearmTrigger } from "./operation-actions";
 import type { CombatFocus, CombatOperations } from "./next-input";
 import { EffectRuling, EffectEvidence } from "./effect-ruling";
-import { CloseoutPanel } from "./closeout-panel";
 import { combatMessage } from "./form-controls";
 import { combatRollSummary } from "./result-summary";
 import { isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
@@ -20,10 +19,9 @@ export function OperationPanel({ scope, data, entity, operations, focus, disable
   const [reason, setReason] = useState(""), [penalty, setPenalty] = useState(""), [treatment, setTreatment] = useState<"preserve" | "zero">("preserve");
   const running = useRef(false), requests = useRef<Record<string, string>>({});
   const controls = useRef<HTMLDetailsElement>(null);
-  useEffect(() => { if (focus?.participantId === entity.participantId && focus.kind === "response" && controls.current) controls.current.open = true; }, [focus, entity.participantId]);
-  const closed = !!data.projection?.closed, frozen = data.pause.frozen, ordinaryDisabled = disabled || closed || busy;
+  useEffect(() => { if (focus?.participantId === entity.participantId && (focus.kind === "response" || focus.kind === "ruling" && !focus.planId) && controls.current) controls.current.open = true; }, [focus, entity.participantId]);
+  const closed = !!data.projection?.closed, ordinaryDisabled = disabled || closed || busy;
   const actions = data.projection?.declarations.filter((entry) => entry.actorCharacterId === entity.participantId) ?? [];
-  const opportunities = data.projection?.declarations.flatMap((action) => action.opportunities.filter((entry) => entry.responderCharacterId === entity.participantId && entry.status === "pending" && entry.reactionId === null).map((entry) => ({ ...entry, action }))) ?? [];
   const revivals = (data.information?.entity.participantId === entity.participantId ? data.information.combatHistory?.revivals : []) ?? [];
   async function run(operation: () => Promise<unknown>, success = "Combat updated.") {
     if (running.current) return; running.current = true; setBusy(true); setMessage("");
@@ -34,17 +32,22 @@ export function OperationPanel({ scope, data, entity, operations, focus, disable
   }
   function request(value: unknown) { const key = JSON.stringify(value); return requests.current[key] ||= crypto.randomUUID(); }
   return <div>
-    {scope.role === "god" ? opportunities.filter((entry) => entity.responseDecisionOpportunityIds.includes(entry.id)).map((entry) => <div className={styles.notice} key={entry.id}><p>{entry.action.actorName}: {entry.action.lockedSnapshot?.label ?? entry.action.draft.label}. Can {entry.responderName} legitimately respond?</p><p>A confirmed response is optional. Any ordinary action choice remains available.</p><div className={styles.actions}>
-      <button className="st-button is-primary" disabled={ordinaryDisabled} onClick={() => void run(() => reconcileResponderOpportunity(scope.encounterId, entry.id, { decision: "allow" }), "Response opportunity confirmed.")}>Yes, can respond</button><button className="st-button" disabled={ordinaryDisabled} onClick={() => void run(() => reconcileResponderOpportunity(scope.encounterId, entry.id, { decision: "ineligible", reason: reason.trim() || `G.O.D. confirms ${entry.responderName} cannot notice and respond to this ${entry.action.lockedSnapshot?.label ?? entry.action.draft.label} in the current situation.` }), "Response ruled unavailable.")}>No, cannot respond</button></div></div>) : null}
     {actions.filter((entry) => entry.timing?.status === "active" && entry.status === "awaiting-god-ruling").map((entry) => <p className={styles.notice} key={entry.id}>{entry.lockedSnapshot?.label ?? entry.draft.label}: the recorded Roll needs a G.O.D. ruling. The action still has {entry.timing?.remainingInitiativeCost} Initiative remaining. Its damage and final outcome have not been applied. Resolve any earlier completed actions before advancing to this action’s completion.</p>)}
     {scope.role === "player" ? actions.filter((entry) => entry.timing?.status === "completed" && !["resolved", "cancelled", "abandoned"].includes(entry.status)).map((entry) => <p className={styles.notice} key={entry.id}>{entry.lockedSnapshot?.label ?? entry.draft.label}: timing complete. Waiting for the G.O.D. to review the result. Your next action becomes available after this result is settled.</p>) : null}
-    {operations?.firearms?.attacks.filter((attack) => attack.actorParticipantId === entity.participantId).map((attack) => <details key={attack.id}><summary>{attack.itemName} · {attack.effectiveStatus.replaceAll("-", " ")}</summary><p>{attack.roundsConsumed} rounds fired · {attack.firingPortionsResolved} firing portions completed</p>{attack.rulingReasons.map((reason) => <p key={reason}>{combatMessage(reason)}</p>)}
+    {operations?.firearms?.attacks.filter((attack) => attack.actorParticipantId === entity.participantId).map((attack) => <details key={attack.id}><summary>{attack.itemName} · {attack.attackFinalized && attack.effectPlanStatus === "applied" && attack.effectiveStatus !== "cancelled" ? "resolved" : attack.effectiveStatus.replaceAll("-", " ")}</summary><p>{attack.roundsConsumed} rounds fired · {attack.firingPortionsResolved} firing portions completed</p>{attack.rulingReasons.map((reason) => <p key={reason}>{combatMessage(reason)}</p>)}
       {attack.aimTimingStatus === "completed" && !attack.triggerPendingActionId ? <button className="st-button" disabled={ordinaryDisabled || !entity.canControl} onClick={() => void run(() => commitCombatFirearmTrigger(scope, attack.id), "Firing committed with the original declaration Roll.")}>Aim complete: begin firing</button> : null}
       {(scope.role === "god" || entity.canControl) && attack.triggerTimingStatus === "completed" && attack.effectPlanStatus !== "applied" ? <button className="st-button" disabled={ordinaryDisabled} onClick={() => void run(() => applyCombatFirearmResult(scope, attack.id), "Firearm consequences reconciled with the original Roll.")}>Resolve firearm result</button> : null}
       {attack.bullets.map((bullet) => <div key={bullet.id}><p>Bullet {bullet.bulletIndex} · {bullet.status} · {bullet.hitLocationName} · {bullet.proposedNetDamage ?? "ruling required"} damage</p>
         {bullet.grossDamage !== null ? <p className={styles.muted}>{bullet.authoredDamage} ammunition damage + {bullet.dexDamageModifier} DEX + {bullet.additionalSuccessDamage} additional-success damage = {bullet.grossDamage} before protection. Armor {bullet.armor ?? "requires ruling"} · Soak {bullet.soak ?? "requires ruling"} · net {bullet.proposedNetDamage ?? "requires ruling"}. Damage cannot fall below zero.</p> : null}
       </div>)}
     </details>)}
+    {scope.role === "god" && entity.participantId > 0 && entity.canControl && !closed ? <div className={styles.notice}>
+      <p>{entity.participation.departureKind === "surrender" ? "This NPC has surrendered / yielded. Actions and responses are stopped; their condition and history are preserved." : "If this NPC gives up the fight, record their surrender here. G.O.D. assigns any XP and Fame in closeout."}</p>
+      <button className="st-button" disabled={ordinaryDisabled || entity.condition.status !== "able" || entity.participation.departed}
+        onClick={() => void run(() => changeCombatParticipation(scope.encounterId, { participantId: entity.participantId, operation: "surrender",
+          reason: reason.trim() || "NPC surrendered / yielded.", expectedRevision: entity.participation.revision,
+          requestKey: request({ participant: entity.participantId, operation: "surrender", revision: entity.participation.revision, reason }) }), "Surrender recorded. The NPC no longer receives action or response prompts.")}>Surrender / Yield</button>
+    </div> : null}
     {scope.role === "god" ? <details><summary>Death, incapacitation &amp; participation</summary><label className="st-field">Condition / participation reason<textarea className="st-control" value={reason} onChange={(event) => setReason(event.target.value)} /></label><p>{combatMessage(entity.statusText)}</p><div className={styles.actions}>
         {(["withdraw", "confirm-escape", "arrive"] as const).map((operation) => <button className="st-button" key={operation} disabled={ordinaryDisabled || !reason.trim() || operation === "arrive" && !entity.participation.departed} onClick={() => void run(() => changeCombatParticipation(scope.encounterId, { participantId: entity.participantId, operation, reason, expectedRevision: entity.participation.revision,
           requestKey: request({ participant: entity.participantId, operation, revision: entity.participation.revision, reason }) }), operation === "arrive" ? "Combatant returned with preserved Initiative and debt." : "Departure recorded. Membership and history are preserved.")}>{operation === "withdraw" ? "Withdraw from combat" : operation === "confirm-escape" ? "Confirm escape" : "Return to combat"}</button>)}
@@ -68,7 +71,6 @@ export function OperationPanel({ scope, data, entity, operations, focus, disable
     <details><summary>Rolls &amp; results</summary>{operations?.rolls.filter((roll) => roll.rollerCharacterId === entity.participantId || roll.targetCharacterId === entity.participantId).map((roll) => <p key={roll.id}>{roll.rollerCharacterName} · {roll.label}: {combatRollSummary(roll)}{roll.rulingText ? ` · ${roll.rulingText}` : ""}</p>)}{operations?.outcomes.filter((outcome) => outcome.actorId === entity.participantId || outcome.targetId === entity.participantId).map((outcome) => <p key={outcome.id}>{outcome.actor} → {outcome.target}: {outcome.label} · {outcome.summary}</p>)}
       {scope.role === "god" ? operations?.plans.filter((plan) => ["applied", "cancelled", "declined", "superseded"].includes(plan.status) && (plan.actorParticipantId === entity.participantId || plan.effects.some((effect) => effect.targetParticipantId === entity.participantId))).map((plan) => <EffectRuling key={plan.id} encounterId={scope.encounterId} plan={plan} disabled closed={closed} refresh={refresh} />) : null}
     </details>
-    {scope.role === "god" && data.projection ? <CloseoutPanel encounterId={scope.encounterId} token={data.projection.stateToken} disabled={disabled || busy || frozen} refresh={refresh} /> : null}
     {message ? <p role="status">{message}</p> : null}
   </div>;
 }

@@ -17,7 +17,7 @@ import { parseLockedActionDeclarationSnapshot } from "./action-declaration";
 import { combatConditionState, combatConditionMessage } from "./combat-condition-state";
 
 export type CombatParticipationCommand = {
-  participantId: number; operation: "arrive" | "withdraw" | "confirm-escape";
+  participantId: number; operation: "arrive" | "withdraw" | "confirm-escape" | "surrender";
   requestKey: string; expectedRevision: number; reason: string; movementMode?: string;
 };
 export type CombatParticipationState = { revision: number; departed: boolean; reason: string; departureKind: string | null };
@@ -35,7 +35,7 @@ export async function changeCombatParticipationInTransaction(tx: Tx, encounterId
     await assertCombatWritableInTransaction(changeTx, encounterId);
     if (context.encounterStatus !== "active" || context.sceneStatus !== "active" || context.sessionStatus !== "active") throw new Error("Combat participation requires an active Encounter, Scene and Session.");
     if (!Number.isSafeInteger(input.participantId) || input.participantId === 0 || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0
-      || !input.requestKey.trim() || input.requestKey.length > 200 || !["arrive", "withdraw", "confirm-escape"].includes(input.operation)) throw new Error("Combat participation requires an exact identity, operation, revision and stable request identity.");
+      || !input.requestKey.trim() || input.requestKey.length > 200 || !["arrive", "withdraw", "confirm-escape", "surrender"].includes(input.operation)) throw new Error("Combat participation requires an exact identity, operation, revision and stable request identity.");
     const reason = input.reason.trim();
     if (!reason || reason.length > 1000) throw new Error("Record a concise G.O.D. arrival or departure reason.");
     const request = JSON.parse(JSON.stringify({ ...input, reason }));
@@ -61,6 +61,13 @@ export async function changeCombatParticipationInTransaction(tx: Tx, encounterId
       }
     }
     if (!member) throw new Error("The exact Creature occurrence or departing combatant must already belong to this Encounter.");
+    if (input.operation === "surrender") {
+      const [npc] = await changeTx.select({ isNpc: campaignCharacter.isNpc }).from(campaignCharacter)
+        .where(and(eq(campaignCharacter.id, input.participantId), eq(campaignCharacter.campaignId, context.campaignId)));
+      if (!npc?.isNpc) throw new Error("Surrender / Yield requires an exact NPC in this Encounter.");
+      const condition = combatConditionMessage(combatConditionState(member.localStateJson));
+      if (condition) throw new Error(condition);
+    }
     const before = await loadInitiativeEngineInTransaction(changeTx, encounterId);
     const enrolled = before.participants.find(({ characterId }) => characterId === input.participantId);
     const departure = input.operation !== "arrive";
@@ -77,7 +84,7 @@ export async function changeCombatParticipationInTransaction(tx: Tx, encounterId
           ? { ...entry, participationStatus: "active" as const } : entry) });
       }
     } else if (!state.departed) {
-      await suspendCombatantInTransaction(changeTx, context, actor, input.participantId, reason, true);
+      await suspendCombatantInTransaction(changeTx, context, actor, input.participantId, reason, input.operation !== "surrender");
     }
     const [latest] = await changeTx.select().from(participant).where(eq(participant.participantId, member.participantId));
     const local = object(latest.localStateJson);

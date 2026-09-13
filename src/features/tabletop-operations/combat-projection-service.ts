@@ -2,7 +2,7 @@ import "server-only";
 import { readMaturedSustainedFireInTransaction } from "./firearm-progress-service";
 
 import { and, eq } from "drizzle-orm";
-import { campaignCharacter } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterProfile } from "@/db/realm-schema";
 import { campaignSessionEncounterParticipant } from "@/db/tabletop-operations-schema";
 import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
@@ -10,7 +10,7 @@ import { readActiveEffectsInTransaction } from "@/features/active-state/active-e
 import { readActionDeclarationWorkspaceInTransaction, type ActionDeclarationActor } from "./action-declaration-service";
 import { canAdvanceInitiativeRound, canHoldingParticipantIntervene, canParticipantReactToAction, getNextInitiativeTimelineEvent } from "./initiative-runtime";
 import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext, type RuntimeIntegrationTransaction } from "./runtime-integration-service";
-import { hasUnresolvedCompletedActionsInTransaction, projectRevealedInitiativeInTransaction, readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
+import { hasUnresolvedCompletedActionsInTransaction, projectRevealedInitiativeInTransaction, readOpenDeclarationCheckpoint, readCompletionActionOpportunitiesInTransaction } from "./declaration-checkpoint-service";
 import { initiativeStateToken } from "./initiative-state-token";
 import { combatParticipationState } from "./combat-participation-service";
 import { combatConditionState, combatConditionMessage, combatObject } from "./combat-condition-state";
@@ -29,8 +29,9 @@ export async function readCombatProjectionInTransaction(
   const closed = engine.runtime.status !== "active" || context.encounterStatus === "completed";
   const next = closed ? null : getNextInitiativeTimelineEvent(engine);
   const checkpoint = workspace.checkpoint;
-  const pendingOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, context.encounterId)
-    || !checkpoint && (await readMaturedSustainedFireInTransaction(tx, context.encounterId)).length > 0;
+  const completedOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, context.encounterId);
+  const completionChoices = completedOutcomes ? checkpoint?.participantIds ?? await readCompletionActionOpportunitiesInTransaction(tx, engine) : [];
+  const pendingOutcomes = completedOutcomes || !checkpoint && (await readMaturedSustainedFireInTransaction(tx, context.encounterId)).length > 0;
   const members = await tx.select({ id: campaignSessionEncounterParticipant.characterId, local: campaignSessionEncounterParticipant.localStateJson })
     .from(campaignSessionEncounterParticipant).where(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId));
   const entities = workspace.participants.map((entity) => {
@@ -66,13 +67,13 @@ export async function readCombatProjectionInTransaction(
     const eligibleResponses = availableResponses.filter((opportunity) => !opportunity.requiresGodConfirmation);
     const checkpointBlocksResponse = checkpoint != null && (!checkpoint.participantIds.includes(entity.characterId) || choicesSealed);
     const common = (closed ? "Combat has ended. Actions and responses are closed; information and history remain available." : null)
-      ?? workspace.pause.message ?? combatConditionMessage(condition) ?? (participation.departed ? `Left active combat: ${participation.reason}` : !capable ? participant.participationStatus === "suspended"
+      ?? workspace.pause.message ?? combatConditionMessage(condition) ?? (participation.departed ? (participation.departureKind === "surrender" ? "Surrendered / yielded: " : "Left active combat: ") + participation.reason : !capable ? participant.participationStatus === "suspended"
       ? "Unable to participate." : "No Initiative opportunity remains." : choicesSealed ? "Choice committed; waiting for simultaneous choices." : null);
-    const actionReason = common ?? (heldInterventionAvailable ? null : pendingOutcomes ? "Resolve the outcomes completing at this point." : active ? "An action is underway."
+    const actionReason = common ?? (heldInterventionAvailable ? null : completedOutcomes && !completionChoices.includes(entity.characterId) ? "Resolve the outcomes completing at this point." : active ? "An action is underway."
       : participant.participationStatus === "holding" ? "Holding Initiative; waiting for a legitimate intervention point."
       : !normalNow ? "Waiting for this combatant's Initiative opportunity." : null);
     const responseReason = common ?? (active ? "An unfinished action prevents a defense, response or intervention." : checkpointBlocksResponse ? "Waiting for the simultaneous declaration checkpoint."
-      : !eligibleResponses.length ? "No confirmed response opportunity is available now." : null);
+      : !eligibleResponses.length ? "No response opportunity is available now." : null);
     const canActNow = actionReason === null;
     const canRespondNow = responseReason === null;
     return { participantId: entity.characterId, name: entity.name, currentInitiative: entity.currentInitiative,
@@ -88,9 +89,10 @@ export async function readCombatProjectionInTransaction(
   });
   const canAdvanceTimeline = !closed && !workspace.pause.frozen && !checkpoint && !pendingOutcomes && next?.kind !== "none"
     && !(next?.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative);
-  const progression = { canAdvanceTimeline, canAdvanceRound: !closed && !workspace.pause.frozen && !checkpoint && !pendingOutcomes && canAdvanceInitiativeRound(engine),
+  const canAdvanceRound = !closed && !workspace.pause.frozen && !checkpoint && !pendingOutcomes && canAdvanceInitiativeRound(engine);
+  const progression = { canAdvanceTimeline, canAdvanceRound,
     reason: closed ? "Combat has ended." : workspace.pause.message ?? (checkpoint ? "Waiting for the remaining simultaneous choices."
-      : pendingOutcomes ? "Resolve the outcomes completing at this point." : canAdvanceTimeline ? "The G.O.D. can advance combat to the next engine event."
+      : pendingOutcomes ? "Resolve the outcomes completing at this point." : canAdvanceRound ? "The round is complete. The G.O.D. can start the next round; unused Initiative and unfinished work are preserved." : canAdvanceTimeline ? "The G.O.D. can advance combat to the next engine event."
       : next?.kind === "none" ? "No further Initiative event is pending. Holding combatants may wait for a legitimate intervention or choose Pass; no automatic advancement is needed."
       : "Waiting for the remaining ordinary choices at this Initiative.") };
   return { context: workspace.context, runtime: { ...workspace.runtime, status: engine.runtime.status }, closed, stateToken: initiativeStateToken(engine), pause: workspace.pause, entities, progression,
@@ -140,8 +142,9 @@ export async function readCombatEntityInformationInTransaction(
     issues.push(error instanceof Error ? error.message : "Mana information is incomplete."); return null;
   });
   const effects = await readActiveEffectsInTransaction(tx, participantId);
+  const [advancement] = await tx.select({ experience: campaignCharacterProfile.experience, fame: campaignCharacterProfile.fame }).from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, participantId));
   const checkpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
   const before = checkpoint?.beforeStateJson as { manaBefore?: Record<string, typeof mana> } | undefined;
   return { entity, pause: projection.pause, combatHistory, resources: { kind: "character" as const,
-    health: health?.view ?? null, mana: before?.manaBefore?.[String(participantId)] ?? (checkpoint ? null : mana), effects, issues } };
+    advancement: advancement ?? null, health: health?.view ?? null, mana: before?.manaBefore?.[String(participantId)] ?? (checkpoint ? null : mana), effects, issues } };
 }

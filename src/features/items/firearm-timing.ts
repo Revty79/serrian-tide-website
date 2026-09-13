@@ -1,3 +1,5 @@
+import { decimalAdd } from "@/lib/decimal";
+
 export const ORDINARY_TRIGGER_PULL_INITIATIVE_COST = 1 as const;
 export const FIREARM_DELIVERY_CADENCES = ["per-trigger", "sustained-per-initiative"] as const;
 
@@ -37,26 +39,31 @@ function requireWholeNumber(value: number, label: string): number {
   return value;
 }
 
+function requireFiniteNumber(value: number, label: string): number {
+  if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number.`);
+  return value;
+}
+
 function requireBaseCost(value: number | null, label: string): number {
   if (value === null) throw new Error(`${label} must be reviewed and authored before firearm timing can be calculated.`);
-  const whole = requireWholeNumber(value, label);
-  if (whole < 0) throw new Error(`${label} must be zero or greater.`);
-  return whole;
+  const cost = requireFiniteNumber(value, label);
+  if (cost < 0) throw new Error(`${label} must be zero or greater.`);
+  return cost;
 }
 
 export function calculateFirearmTiming(input: FirearmTimingInput): FirearmTimingResult {
   const baseCycling = requireBaseCost(input.baseCyclingInitiativeCost, "Base cycling Initiative Cost");
   const baseRecoilReset = requireBaseCost(input.baseRecoilResetInitiativeCost, "Base recoil-reset Initiative Cost");
-  const cyclingModifier = requireWholeNumber(input.ammunitionCyclingInitiativeModifier, "Ammunition cycling Initiative modifier");
-  const recoilModifier = requireWholeNumber(input.ammunitionRecoilResetInitiativeModifier, "Ammunition recoil-reset Initiative modifier");
-  const effectiveCyclingInitiativeCost = Math.max(0, baseCycling + cyclingModifier);
-  const effectiveRecoilResetInitiativeCost = Math.max(0, baseRecoilReset + recoilModifier);
-  const followUpPreparationInitiativeCost = effectiveCyclingInitiativeCost + effectiveRecoilResetInitiativeCost;
+  const cyclingModifier = requireFiniteNumber(input.ammunitionCyclingInitiativeModifier, "Ammunition cycling Initiative modifier");
+  const recoilModifier = requireFiniteNumber(input.ammunitionRecoilResetInitiativeModifier, "Ammunition recoil-reset Initiative modifier");
+  const effectiveCyclingInitiativeCost = Math.max(0, decimalAdd(baseCycling, cyclingModifier));
+  const effectiveRecoilResetInitiativeCost = Math.max(0, decimalAdd(baseRecoilReset, recoilModifier));
+  const followUpPreparationInitiativeCost = decimalAdd(effectiveCyclingInitiativeCost, effectiveRecoilResetInitiativeCost);
   return {
     effectiveCyclingInitiativeCost,
     effectiveRecoilResetInitiativeCost,
     followUpPreparationInitiativeCost,
-    totalThroughNextTriggerPullInitiativeCost: followUpPreparationInitiativeCost + ORDINARY_TRIGGER_PULL_INITIATIVE_COST,
+    totalThroughNextTriggerPullInitiativeCost: decimalAdd(followUpPreparationInitiativeCost, ORDINARY_TRIGGER_PULL_INITIATIVE_COST),
   };
 }
 

@@ -1373,7 +1373,7 @@ export const campaignCharacterFirearmPreparation = pgTable(
     roundsCompleted: integer("rounds_completed").default(0).notNull(),
     replaceCurrentLoad: boolean("replace_current_load").default(false).notNull(),
     partialLoadDisposition: text("partial_load_disposition").default("none").notNull(),
-    initiativeCost: integer("initiative_cost").notNull(),
+    initiativeCost: doublePrecision("initiative_cost").notNull(),
     timingSource: text("timing_source").notNull(),
     frozenSnapshotJson: jsonb("frozen_snapshot_json").notNull(),
     reason: text("reason").default("").notNull(),

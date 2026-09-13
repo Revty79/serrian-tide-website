@@ -38,6 +38,34 @@ function source(overrides: Partial<FrozenActionSourceSnapshot> = {}): FrozenActi
   };
 }
 
+for (const area of [false, true]) for (const scaling of ["fixed", "per-success"] as const) {
+  test(`${area ? "area" : "targeted"} spell damage: ${scaling} uses the original Roll's correct success calculation`, () => {
+    const roll = buildRollMechanicalSnapshot({ kind: "manual", label: "Spell", originalTarget: 40 }, 72, [], "original-roll");
+    assert.equal(roll.resolution.totalSuccesses, 4);
+    const frozen = source({ kind: "spell", resolutionMode: "skill-roll", effects: [{ key: "damage", scaling,
+      effect: { kind: "health.damage", amount: 2, application: "localized" }, instruction: area ? { areaReport: { shape: "sphere" } } : {},
+      applicationSupported: true, requiresGodReview: false, targetParticipantIds: [area ? 7 : 9] }] });
+    const before = structuredClone(frozen);
+    const input = { source: frozen, actorParticipantId: 7, targetParticipantIds: area ? [] : [9], governingRoll: roll, defenseResolution: null, initiativeComplete: true };
+    const plan = buildActionEffectPlanProposal(input);
+    assert.equal(plan.effects[0].calculatedValue, scaling === "fixed" ? 5 : 8);
+    assert.deepEqual(frozen, before);
+    const failed = buildActionEffectPlanProposal({ ...input, governingRoll: buildRollMechanicalSnapshot({ kind: "manual", label: "Spell", originalTarget: 40 }, 20, [], "original-roll") });
+    assert.equal(failed.effects[0].calculatedValue, area ? 0 : null);
+    if (!area) assert.equal(buildActionEffectPlanProposal({ ...input, defenseResolution: { originalActionDisposition: "stopped" } }).effects[0].status, "declined");
+  });
+}
+
+test("additional-success damage does not change fixed healing or item damage", () => {
+  const roll = buildRollMechanicalSnapshot({ kind: "manual", label: "Roll", originalTarget: 40 }, 72, [], "original-roll");
+  for (const [kind, effectKind] of [["spell", "health.heal"], ["item", "health.damage"]] as const) {
+    const plan = buildActionEffectPlanProposal({ source: source({ kind, resolutionMode: "skill-roll", effects: [{ key: "fixed", scaling: "fixed",
+      effect: effectKind === "health.heal" ? { kind: "health.heal", amount: 2, scope: "full-body" } : { kind: "health.damage", amount: 2, application: "localized" }, instruction: {}, applicationSupported: true, requiresGodReview: false, targetParticipantIds: [9] }] }),
+    actorParticipantId: 7, targetParticipantIds: [9], governingRoll: roll, defenseResolution: null, initiativeComplete: true });
+    assert.equal(plan.effects[0].calculatedValue, 2);
+  }
+});
+
 test("Pass 8 exposes every exact source kind and every required plan state", () => {
   assert.deepEqual(ACTION_EFFECT_SOURCE_KINDS, [
     "weapon", "item", "spell", "derived-ability", "skill", "attribute",

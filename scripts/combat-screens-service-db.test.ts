@@ -14,7 +14,7 @@ import { declareCombatMovementInTransaction, resolveCombatMovementInTransaction 
 import { holdParticipantInitiativeInTransaction, passParticipantInitiativeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { readCombatProjectionInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
-import { reconcileResponderOpportunityInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { reconcileResponderOpportunityInTransaction, reconcileUnavailableResponderOpportunitiesInTransaction } from "@/features/tabletop-operations/action-declaration-service";
 import { campaignSessionEncounterResponderOpportunity as response } from "@/db/tabletop-operations-schema";
 import { ruleOrdinaryAttackConsequenceInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
@@ -141,6 +141,35 @@ async function fixture(tx: Tx) {
   return { ...f, input };
 }
 
+test("a free Creature moves at an attack crossing without permission and preserves overlapping progress", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx), mover = f.occurrences[0];
+    await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, movement: [{ movementMode: "Land", movementValue: 2 }] } }).where(eq(member.characterId, mover));
+    await tx.update(enrollment).set({ currentInitiative: 20, participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, mover)));
+    const attack = await submitCombatChoiceInTransaction(tx, f.context, f.player, f.input);
+    assert.ok("declarationId" in attack);
+    let engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 20));
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    const pendingAttack = engine.pendingActions.find((entry) => entry.actorCharacterId === f.heroId && entry.status === "active")!;
+    assert.equal(pendingAttack.initiativeSpent, 2); assert.equal(pendingAttack.remainingInitiativeCost, 2);
+    const projection = await readCombatProjectionInTransaction(tx, f.context, f.god);
+    const entity = projection.entities.find((entry) => entry.participantId === mover)!;
+    assert.equal(entity.mustChooseNow, true); assert.deepEqual(entity.responseDecisionOpportunityIds, []);
+    assert.equal(projection.progression.canAdvanceTimeline, false);
+    const movement = await resolveCombatMovementInTransaction(tx, f.context, mover, "Land", 1);
+    const receipt = await declareCombatMovementInTransaction(tx, f.context, f.god, { participantId: mover, movementMode: "Land", distance: movement.baseMovement, requestKey: crypto.randomUUID() });
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.deepEqual(engine.pendingActions.find((entry) => entry.id === pendingAttack.id), pendingAttack);
+    assert.equal((await tx.select().from(response).where(eq(response.declarationId, attack.declarationId)))[0].status, "ineligible");
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 19));
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.equal(engine.pendingActions.find((entry) => entry.id === receipt.pendingActionId)!.status, "completed");
+    assert.equal(engine.pendingActions.find((entry) => entry.id === pendingAttack.id)!.remainingInitiativeCost, 1);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
 test("busy-response cleanup stays sealed until every simultaneous choice is made", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx);
@@ -178,13 +207,16 @@ for (const declineFirst of [false, true]) test(`a free Player crosses an attack,
     const readOpportunity = async () => (await tx.select().from(response).where(and(eq(response.declarationId, first.declarationId), eq(response.responderCharacterId, f.heroId))))[0];
     const opportunity = await readOpportunity();
     assert.ok(opportunity);
-    await assert.rejects(tx.transaction((savepoint) => reconcileResponderOpportunityInTransaction(savepoint, f.context, f.god, opportunity.id, { decision: "allow" })), /Advance/);
+    assert.equal(opportunity.requiresGodConfirmation, false);
+    await assert.rejects(tx.transaction((savepoint) => previewDefenseInterventionInTransaction(savepoint, f.context, f.player, { opportunityId: opportunity.id, reactionType: "no-reaction", protectedTargetCharacterId: f.heroId })), /Advance/);
     let engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
     await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 20));
-    await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, opportunity.id, { decision: "allow" });
+    // Retained windows must also work without a permission step or a data reset.
+    if (declineFirst) await tx.update(response).set({ requiresGodConfirmation: true }).where(eq(response.id, opportunity.id));
     let projection = await readCombatProjectionInTransaction(tx, f.context, f.player);
     let hero = projection.entities.find((entry) => entry.participantId === f.heroId)!;
     assert.equal(hero.mustChooseNow, true); assert.equal(hero.canRespondNow, true);
+    assert.deepEqual((await readCombatProjectionInTransaction(tx, f.context, f.god)).entities.find((entry) => entry.participantId === f.heroId)!.responseDecisionOpportunityIds, []);
     const operations = { sealed: false, plans: [], defenses: { reactions: [] }, firearms: { attacks: [] } } as unknown as CombatOperations;
     const next = combatNextInput({ pause: projection.pause, projection } as CombatScreenData, operations);
     assert.equal(next.kind === "inspect" && next.focus, "action");
@@ -300,4 +332,57 @@ test("adding and retrying Creature occurrences creates no NPC records", async ()
     assert.equal((await tx.select().from(campaignCharacter).where(eq(campaignCharacter.campaignId, f.campaignId))).length, count);
     throw rollback;
   }), (error) => error === rollback);
+});
+
+
+for (const unavailable of ["passed", "exhausted", "suspended"] as const) test(`${unavailable} combatants cannot leave an unanswered response blocking the round`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    const receipt = await submitCombatChoiceInTransaction(tx, f.context, f.player, f.input);
+    assert.ok("declarationId" in receipt);
+    const [action] = await tx.select().from(declaration).where(eq(declaration.id, receipt.declarationId));
+    // A retained unanswered window from before participation changed, like the reported saved encounter.
+    await tx.insert(response).values({ declarationId: action.id, pendingActionId: action.pendingActionId!, encounterId: f.encounterId,
+      sceneId: f.sceneId, sessionId: f.sessionId, campaignId: f.campaignId, responderCharacterId: f.defenderId,
+      source: "initiative", status: "pending", reachedAtInitiative: 1, reason: "Retained response before Pass", requiresGodConfirmation: false });
+    await tx.update(enrollment).set({ participationStatus: unavailable === "exhausted" ? "active" : unavailable, currentInitiative: unavailable === "exhausted" ? 0 : 1 })
+      .where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.defenderId)));
+    const beforeRolls = await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId));
+    await reconcileUnavailableResponderOpportunitiesInTransaction(tx, f.context);
+    await reconcileUnavailableResponderOpportunitiesInTransaction(tx, f.context);
+    const [closed] = await tx.select().from(response).where(and(eq(response.declarationId, action.id), eq(response.responderCharacterId, f.defenderId)));
+    assert.equal(closed.status, "ineligible"); assert.equal(closed.requiresGodConfirmation, false);
+    assert.equal(closed.reactionId, null); assert.match(closed.rulingReason, /unanswered response opportunity is closed/);
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, beforeRolls.length);
+    const [participant] = await tx.select().from(enrollment).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, f.defenderId)));
+    assert.equal(participant.currentInitiative, unavailable === "exhausted" ? 0 : 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("a free actor may start independent movement when an incoming action completes at its Initiative", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx), mover = f.occurrences[0];
+    await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, movement: [{ movementMode: "Land", movementValue: 2 }] } }).where(eq(member.characterId, mover));
+    await tx.update(enrollment).set({ currentInitiative: 18, participationStatus: "active" }).where(and(eq(enrollment.encounterId, f.encounterId), eq(enrollment.characterId, mover)));
+    const attack = await submitCombatChoiceInTransaction(tx, f.context, f.player, f.input);
+    assert.ok("declarationId" in attack);
+    let engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 18));
+    const projection = await readCombatProjectionInTransaction(tx, f.context, f.god);
+    assert.equal(projection.entities.find((entry) => entry.participantId === mover)!.mustChooseNow, true);
+    assert.equal(projection.entities.find((entry) => entry.participantId === f.heroId)!.mustChooseNow, false);
+    const original = (await loadInitiativeEngineInTransaction(tx, f.encounterId)).pendingActions.find((entry) => entry.actorCharacterId === f.heroId && entry.id !== f.pendingActionId)!;
+    assert.equal(original.status, "completed");
+    const movement = await resolveCombatMovementInTransaction(tx, f.context, mover, "Land", 1);
+    const receipt = await declareCombatMovementInTransaction(tx, f.context, f.god, { participantId: mover, movementMode: "Land", distance: movement.baseMovement, requestKey: crypto.randomUUID() });
+    assert.equal(await readOpenDeclarationCheckpoint(tx, f.encounterId), null, "the actor awaiting its prior outcome is not added to a new choice checkpoint");
+    engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    assert.deepEqual(engine.pendingActions.find((entry) => entry.id === original.id), original);
+    assert.equal(engine.pendingActions.find((entry) => entry.id === receipt.pendingActionId)!.status, "active");
+    const [window] = await tx.select().from(response).where(and(eq(response.declarationId, attack.declarationId), eq(response.responderCharacterId, mover)));
+    assert.equal(window.status, "ineligible");
+    assert.equal((await tx.select().from(declaration).where(eq(declaration.id, attack.declarationId)))[0].status, "rolling", "the incoming attack outcome is still pending");
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

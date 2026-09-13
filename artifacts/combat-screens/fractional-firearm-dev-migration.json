@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-09-13T02:17:48.857Z",
+  "database": "localhost/serrian_tide_dev",
+  "migration": "0049_fractional_firearm_preparation",
+  "migrationCount": 50,
+  "allMigrationHashesMatch": true,
+  "backup": {
+    "path": "C:\\Users\\birev\\AppData\\Local\\Temp\\serrian-before-fractional-firearms-rxPFwF\\serrian_tide_dev.dump",
+    "bytes": 1654958,
+    "sha256": "414ad49025e26fe8d0ef40d6b5db7a73bbff74eb2f58f6a402d656fbb8e18198",
+    "fullArchiveDecodeVerified": true,
+    "restoreRehearsalRun": false
+  },
+  "preservedTables": {
+    "campaign_character_firearm_preparation": {
+      "count": 12,
+      "hash": "4a77f5f9d071e6ddb66bb7dc369107e9"
+    },
+    "magazine_profiles": {
+      "count": 1,
+      "hash": "2813e33086b7b590f05bb8b1b4d19a21"
+    },
+    "weapon_firing_modes": {
+      "count": 81,
+      "hash": "ae814e9a3dff421fc3bdb0eac07948eb"
+    },
+    "weapon_profiles": {
+      "count": 222,
+      "hash": "dd51825d29b3167a3479fd3544554e8a"
+    }
+  },
+  "rowValuesUnchanged": true,
+  "catalogValuesAuthored": false,
+  "encounterRecordsEdited": false,
+  "productionAccessed": false
+}

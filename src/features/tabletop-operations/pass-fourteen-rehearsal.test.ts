@@ -111,37 +111,11 @@ test("Pass 14 guide is complete and migration 0031 and earlier remain untouched"
     .trim()
     .split(/\r?\n/)
     .filter(Boolean);
+  const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: { idx: number; tag: string }[] };
   const allowedForwardFiles = new Set([
-    "drizzle/0032_safe_entity_lifecycles.sql",
-    "drizzle/meta/0032_snapshot.json",
-    "drizzle/0033_admin_account_lifecycle.sql",
-    "drizzle/meta/0033_snapshot.json",
-    "drizzle/0034_verification_user_delete_guard.sql",
-    "drizzle/meta/0034_snapshot.json",
-    "drizzle/0035_campaign_shop_foundation.sql",
-    "drizzle/meta/0035_snapshot.json",
-    "drizzle/0036_campaign_town_builder.sql",
-    "drizzle/meta/0036_snapshot.json",
-    "drizzle/0037_site_appearance.sql",
-    "drizzle/meta/0037_snapshot.json",
-    "drizzle/0038_tabletop_location_placement.sql",
-    "drizzle/meta/0038_snapshot.json",
-    "drizzle/0039_tabletop_shop_visits.sql",
-    "drizzle/meta/0039_snapshot.json",
-    "drizzle/0040_tabletop_shop_transactions.sql",
-    "drizzle/meta/0040_snapshot.json",
-    "drizzle/0041_combat_declaration_checkpoints.sql",
-    "drizzle/meta/0041_snapshot.json",
-    "drizzle/0042_creature_authored_defense.sql",
-    "drizzle/meta/0042_snapshot.json",
-    "drizzle/0043_combat_freeze.sql",
-    "drizzle/meta/0043_snapshot.json",
-    "drizzle/0044_combat_firing_portions.sql",
-    "drizzle/meta/0044_snapshot.json",
-    "drizzle/0045_combat_reward_decisions.sql",
-    "drizzle/meta/0045_snapshot.json",
-    "drizzle/0046_magazine_inventory.sql",
-    "drizzle/meta/0046_snapshot.json",
+    ...journal.entries.filter(({ idx }) => idx > 31).flatMap(({ idx, tag }) => [
+      `drizzle/${tag}.sql`, `drizzle/meta/${String(idx).padStart(4, "0")}_snapshot.json`,
+    ]),
     "drizzle/meta/_journal.json",
   ]);
   assert.deepEqual(

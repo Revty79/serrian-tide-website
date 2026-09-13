@@ -1,0 +1,34 @@
+﻿{
+    "dateUtc":  "2026-09-12T23:37:31.3853047Z",
+    "baseCommit":  "e6977f28b42a67f5ff28bdf555cfc33ee3ddd7aa",
+    "branch":  "main",
+    "worktree":  "Combat follow-up and documentation uncommitted",
+    "unit":  {
+                 "log":  "followup-all-unit.log",
+                 "files":  153,
+                 "failed":  0,
+                 "passed":  1301
+             },
+    "services":  {
+                     "log":  "followup-service-regression.log",
+                     "scripts":  19,
+                     "database":  "New disposable migrated loopback PostgreSQL cluster",
+                     "failed":  0,
+                     "passed":  173
+                 },
+    "browser":  {
+                    "errors":  [
+
+                               ],
+                    "results":  "results-initiative-crossing_incapacitated-xp.json",
+                    "passed":  3
+                },
+    "typecheck":  "passed",
+    "targetedLint":  "passed",
+    "productionBuild":  "passed in separate temporary output directory; not deployed",
+    "whitespace":  "passed",
+    "humanAcceptance":  "pending",
+    "devDatabaseChanges":  "none",
+    "production":  "not accessed; deployed revision and migration status unverified",
+    "push":  "none"
+}

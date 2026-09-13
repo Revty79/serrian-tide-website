@@ -1,0 +1,8 @@
+{
+  "passed": [
+    "Initiative automatically offers the Player a choice without G.O.D. permission: movement completes while the original attack remains pending, then Hold preserves 19 Initiative and the attack misses. One original Roll, no approval prompt, no timing reset.",
+    "Initiative automatically offers the Player a choice without G.O.D. permission: no-reaction then Hold preserves 20 Initiative and the original attack applies 6 damage. One original Roll, no approval prompt, no timing reset.",
+    "The XP screen includes an incapacitated living Creature, previews and awards its authored 3 XP once, and preserves incapacitation after closeout and reload."
+  ],
+  "errors": []
+}

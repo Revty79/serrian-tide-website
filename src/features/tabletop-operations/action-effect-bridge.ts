@@ -200,6 +200,11 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
   const proposals: ActionEffectProposal[] = [];
 
   for (const authored of input.source.effects) {
+    // Static Assignment fixes the authored damage, not the normal bonus for
+    // additional successes. Per-success damage already uses its own multiplier.
+    const additionalDamage = input.source.kind === "spell" && authored.effect?.kind === "health.damage"
+      && authored.scaling !== "per-success" && input.governingRoll?.resolution.succeeded
+      ? input.governingRoll.resolution.additionalSuccesses : 0;
     const targets = authored.targetParticipantIds.length
       ? authored.targetParticipantIds
       : originalTargets.length ? originalTargets : [input.actorParticipantId];
@@ -210,7 +215,7 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         const base = authored.effect && "amount" in authored.effect && typeof authored.effect.amount === "number" ? authored.effect.amount : null;
         const successes = input.governingRoll?.resolution.succeeded ? input.governingRoll.resolution.totalSuccesses : 0;
         const amount = failedRoll ? 0 : base !== null && authored.scaling === "per-success" && input.governingRoll
-          ? calculatePerSuccessQuantity(input.governingRoll.resolution, base).appliedQuantity : base;
+          ? calculatePerSuccessQuantity(input.governingRoll.resolution, base).appliedQuantity : base === null ? null : base + additionalDamage;
         proposals.push({ effectKey: `${authored.key}:report`, effectType: "spell.area-report", targetParticipantId,
           authoredValue: { effect: authored.effect, instruction: authored.instruction }, calculatedValue: amount,
           finalValue: { areaReport: authored.instruction.areaReport, effect: authored.effect, baseAmount: base, amount,
@@ -241,6 +246,8 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
           throw new Error("Per-success scaling requires a recorded Roll and an explicitly numeric authored effect.");
         }
         resolvedEffect = { ...resolvedEffect, amount: calculatePerSuccessQuantity(input.governingRoll.resolution, resolvedEffect.amount).appliedQuantity };
+      } else if (!objectivelyPrevented && additionalDamage > 0 && resolvedEffect?.kind === "health.damage") {
+        resolvedEffect = { ...resolvedEffect, amount: resolvedEffect.amount + additionalDamage };
       }
       const calculatedValue = objectivelyPrevented ? null : effectAmount(resolvedEffect);
       proposals.push({

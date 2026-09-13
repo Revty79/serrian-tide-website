@@ -1,5 +1,6 @@
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
+import { decimalMultiply, completedDecimalUnits } from "@/lib/decimal";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -62,6 +63,7 @@ export type StartFirearmPreparationCommand = Readonly<{
   characterId: number;
   itemInstanceId: number;
   operation: FirearmPreparationOperation;
+  combineFollowUp?: boolean;
   requestedRounds?: number | null;
   magazineInstanceId?: number | null;
   replaceCurrentLoad?: boolean;
@@ -550,7 +552,7 @@ async function progressSingleLoading(tx: FirearmReadinessTransaction, preparatio
   if (!preparation || !["pending", "interrupted"].includes(preparation.status)) return;
   const loading = (preparation.frozenSnapshotJson as { singleLoading?: { costPerRound: number; requestedRounds: number } }).singleLoading;
   if (!loading) return;
-  const reached = Math.min(loading.requestedRounds, loading.costPerRound === 0 ? loading.requestedRounds : Math.floor(initiativeSpent / loading.costPerRound));
+  const reached = Math.min(loading.requestedRounds, loading.costPerRound === 0 ? loading.requestedRounds : completedDecimalUnits(initiativeSpent, loading.costPerRound));
   const inserted = reached - preparation.roundsCompleted;
   if (inserted <= 0) return;
   const state = await lockState(tx, { campaignId: preparation.campaignId, sessionId: preparation.sessionId, sceneId: preparation.sceneId,
@@ -632,6 +634,7 @@ async function completeFirearmPreparationById(
     updates.requiresCycling = false;
   } else if (preparation.operation === "recover-recoil") {
     updates.requiresRecoilRecovery = false;
+    if ((preparation.frozenSnapshotJson as { combinedFollowUp?: unknown }).combinedFollowUp) updates.requiresCycling = false;
   } else if ((preparation.frozenSnapshotJson as { singleLoading?: unknown }).singleLoading) {
     if (preparation.roundsCompleted !== preparation.requestedRounds) throw new Error("Finish the remaining Single insertions before completing reload.");
   } else if ((preparation.frozenSnapshotJson as { magazineSwap?: unknown }).magazineSwap) {
@@ -811,7 +814,9 @@ async function startFirearmPreparationInternal(
   if (command.operation === "ready" && owned.equipmentState !== "wielded") throw new Error("Draw the exact firearm before readying it.");
   if (command.operation === "ready" && state.readinessMode !== "separate-ready-action") throw new Error("This firearm has no authored separate ready action.");
   if (command.operation === "cycle" && !state.requiresCycling) throw new Error("This firearm does not currently require cycling.");
-  if (command.operation === "recover-recoil" && !state.requiresRecoilRecovery) throw new Error("This firearm does not currently require recoil recovery.");
+  if (command.combineFollowUp !== undefined && typeof command.combineFollowUp !== "boolean") throw new Error("Combined preparation must be explicitly selected.");
+  if (command.combineFollowUp && command.operation !== "recover-recoil") throw new Error("Choose Prepare next shot for combined cycling and recoil recovery.");
+  if (command.operation === "recover-recoil" && !state.requiresRecoilRecovery && !(command.combineFollowUp && state.requiresCycling)) throw new Error("This firearm does not currently require follow-up preparation.");
   if (command.operation === "change-mode" && (!targetMode?.timing || !targetMode.deliveryCadence || !targetMode.roundsPerCadence)) {
     throw new Error("The target Firing Mode delivery and follow-up timing are still review-required.");
   }
@@ -847,6 +852,7 @@ async function startFirearmPreparationInternal(
 
   const timing = resolveFirearmPreparationTiming({
     operation: command.operation,
+    ...(command.combineFollowUp ? { followUp: { requiresCycling: state.requiresCycling, requiresRecoilRecovery: state.requiresRecoilRecovery } } : {}),
     authored: {
       drawInitiativeCost: profile.drawInitiativeCost,
       readyInitiativeCost: profile.readyInitiativeCost,
@@ -861,7 +867,7 @@ async function startFirearmPreparationInternal(
   if (timing.status === "requires-god-ruling") throw new Error(`${timing.reason} Supply an explicit nonnegative cost and reason.`);
   const singleLoading = (command.operation === "load" || command.operation === "reload") && profile.reloadType === "Single"
     ? { costPerRound: timing.initiativeCost, requestedRounds: command.requestedRounds! } : null;
-  const totalInitiativeCost = timing.initiativeCost * (singleLoading?.requestedRounds ?? 1);
+  const totalInitiativeCost = decimalMultiply(timing.initiativeCost, singleLoading?.requestedRounds ?? 1);
   if (totalInitiativeCost === 0) await assertInstantPreparationOpportunity(tx, context, command.characterId);
   if (totalInitiativeCost > 0) {
     const { loadInitiativeEngineInTransaction } = await import("./runtime-integration-service");
@@ -876,6 +882,9 @@ async function startFirearmPreparationInternal(
   if (disposition === "discard" && !reason) throw new Error("Deliberately discarding ammunition requires an explicit reason.");
   const frozenSnapshot = {
     schemaVersion: 1,
+    ...(command.combineFollowUp ? { combinedFollowUp: { requiresCycling: state.requiresCycling, requiresRecoilRecovery: state.requiresRecoilRecovery,
+      cyclingCost: state.requiresCycling ? currentMode.timing?.effectiveCyclingInitiativeCost ?? null : 0,
+      recoilCost: state.requiresRecoilRecovery ? currentMode.timing?.effectiveRecoilResetInitiativeCost ?? null : 0 } } : {}),
     singleLoading,
     magazineSwap,
     originalRequest,
@@ -911,7 +920,7 @@ async function startFirearmPreparationInternal(
     actionDeclarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, {
       actorCharacterId: state.characterId,
       targetCharacterIds: [],
-      label: `${command.operation.replaceAll("-", " ")} ${currentMode.name}`,
+      label: command.combineFollowUp ? `Prepare next shot (${currentMode.name})` : `${command.operation.replaceAll("-", " ")} ${currentMode.name}`,
       actionKind: `firearm-preparation:${command.operation}`,
       sourceKind: "weapon",
       sourceRef: `instance:${state.itemInstanceId}`,
@@ -980,6 +989,54 @@ async function startFirearmPreparationInternal(
     pendingActionId,
     reused: false,
   };
+}
+
+/** Explicitly adopt authored configuration without loading, readying, or changing an action. */
+export async function applyFirearmCatalogConfigurationInTransaction(
+  tx: FirearmReadinessTransaction, context: OwnedEncounterRuntimeContext, actorInput: ActionDeclarationActor,
+  command: { characterId: number; itemInstanceId: number; expectedVersion: number },
+): Promise<number> {
+  await assertCombatWritableInTransaction(tx, context.encounterId);
+  await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
+  await assertPersistentParticipant(tx, context, command.characterId);
+  const actor = await resolvePreparationActor(tx, context, actorInput, command.characterId);
+  const state = await lockState(tx, context, command.characterId, command.itemInstanceId);
+  const { loadInitiativeEngineInTransaction } = await import("./runtime-integration-service");
+  const { hasUnfinishedInitiativeAction } = await import("./initiative-runtime");
+  const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
+  if (hasUnfinishedInitiativeAction(engine.pendingActions, command.characterId)) throw new Error("Finish or cancel this combatant's unfinished action before applying updated item settings.");
+  const { campaignSessionEncounterFirearmAttack } = await import("@/db/tabletop-operations-schema");
+  const [firing] = await tx.select({ id: campaignSessionEncounterFirearmAttack.id }).from(campaignSessionEncounterFirearmAttack)
+    .where(and(eq(campaignSessionEncounterFirearmAttack.itemInstanceId, state.itemInstanceId),
+      inArray(campaignSessionEncounterFirearmAttack.status, ["aiming", "trigger-ready", "committed", "fired-awaiting-timing"]))).limit(1);
+  if (firing) throw new Error("Finish or cancel this copy's committed firearm attack before applying updated item settings.");
+  const [open] = await tx.select({ id: campaignCharacterFirearmPreparation.id }).from(campaignCharacterFirearmPreparation)
+    .where(and(eq(campaignCharacterFirearmPreparation.itemInstanceId, state.itemInstanceId),
+      inArray(campaignCharacterFirearmPreparation.status, ["pending", "interrupted", "requires-god-ruling"]))).limit(1);
+  if (open) throw new Error("Resolve the open firearm preparation before applying updated item settings.");
+  const [owned] = await tx.select({ id: campaignCharacterItemInstance.id }).from(campaignCharacterItemInstance)
+    .where(and(eq(campaignCharacterItemInstance.id, state.itemInstanceId), eq(campaignCharacterItemInstance.characterId, state.characterId),
+      eq(campaignCharacterItemInstance.itemId, state.itemId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1).for("update");
+  if (!owned) throw new Error("This exact firearm copy is no longer owned by this Character.");
+  const { profile } = await loadProfileAndModes(tx, state.itemId, state.weaponProfileId);
+  if (profile.capacityRounds !== null && (!Number.isSafeInteger(profile.capacityRounds) || profile.capacityRounds <= 0)
+    || profile.readinessMode !== null && !["draw-is-ready", "separate-ready-action"].includes(profile.readinessMode)) throw new Error("Review the item's capacity and drawing/readying relationship.");
+  if (profile.capacityRounds === null && profile.readinessMode === null) throw new Error("Author the weapon's capacity or drawing/readying relationship before applying its settings.");
+  const capacityRounds = profile.capacityRounds ?? state.capacityRounds;
+  const capacitySource = profile.capacityRounds === null ? state.capacitySource : "canonical";
+  const readinessMode = profile.readinessMode ?? state.readinessMode;
+  const readinessModeSource = profile.readinessMode === null ? state.readinessModeSource : "canonical";
+  if (capacityRounds !== null && state.loadedRounds > capacityRounds) throw new Error("Unload excess internal rounds before reducing this copy's capacity.");
+  if (state.capacityRounds === capacityRounds && state.capacitySource === capacitySource
+    && state.readinessMode === readinessMode && state.readinessModeSource === readinessModeSource) return state.version;
+  if (!Number.isSafeInteger(command.expectedVersion) || command.expectedVersion !== state.version) throw new Error("This firearm copy changed. Refresh and review its settings again.");
+  const [after] = await tx.update(campaignCharacterFirearmState).set({ capacityRounds, capacitySource,
+    readinessMode, readinessModeSource, version: state.version + 1, updatedAt: new Date(), updatedByUserId: actor.userId })
+    .where(and(eq(campaignCharacterFirearmState.itemInstanceId, state.itemInstanceId), eq(campaignCharacterFirearmState.version, state.version))).returning();
+  if (!after) throw new Error("This firearm copy changed before its settings could be applied.");
+  await recordFirearmEvent(tx, after, { eventKind: "catalog-configuration-applied", reason: "Explicitly applied the current item profile's capacity and drawing/readying relationship.",
+    before: stateSnapshot(state), after: stateSnapshot(after), actorUserId: actor.userId, metadata: { weaponProfileId: profile.id } });
+  return after.version;
 }
 
 export async function correctFirearmStateInTransaction(

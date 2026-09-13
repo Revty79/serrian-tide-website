@@ -1,0 +1,8 @@
+{
+  "passed": [
+    "Higher-to-lower Initiative Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "Simultaneous Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "A target passes while the final attack is declared, the attack reaches Initiative zero and its report is approved, then Next round starts Round 2 with the passed combatant's unused Initiative preserved. No obsolete response, repeat Roll or G.O.D. permission prompt blocks it."
+  ],
+  "errors": []
+}

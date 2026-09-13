@@ -1,0 +1,47 @@
+{
+  "scope": "Independent firearm, Initiative crossing, round-boundary and XP follow-up; broader resolution-policy review unfinished",
+  "branch": "main",
+  "head": "e6977f28b42a67f5ff28bdf555cfc33ee3ddd7aa",
+  "implementation": "uncommitted",
+  "unit": {
+    "passed": 1309,
+    "featureFiles": 154
+  },
+  "services": {
+    "fullRegressionPassed": 180,
+    "scripts": 19,
+    "afterFinalXpChange": {
+      "xpCasesPassed": 8,
+      "includesNewPostCombatAwardCase": true
+    }
+  },
+  "browser": {
+    "passed": 4,
+    "evidence": [
+      "results-firearm-completion-crossing_magazine-combat_incapacitated-xp.json",
+      "results-ended-xp.json"
+    ],
+    "fullMatrixRepeated": false
+  },
+  "static": {
+    "typecheck": "passed",
+    "changedFileLint": "passed",
+    "productionBuild": "passed; network font access required",
+    "gitDiffCheck": "passed"
+  },
+  "preservation": {
+    "liveDatabaseTools": "read-only inspections only",
+    "migrations": "only disposable test databases",
+    "catalogValues": "authored by user, not tools",
+    "generatedBuildAndConfig": "removed/restored",
+    "push": false,
+    "deployment": false,
+    "productionStatus": "unknown/unverified"
+  },
+  "pending": [
+    "Brannan's resolution/approval policy decision",
+    "Remaining end-to-end Player/G.O.D. review after that decision",
+    "Human acceptance",
+    "Existing mixed-scope spell decision and deferred scope in COMBAT-RESUME.md"
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "verifiedAt": "2026-09-13T02:47:33.022424+00:00",
+  "scope": "Completed combat follow-up: Initiative, static spell damage, firearms and decimals, NPC surrender, XP/Fame, normal/forced critical closeout and Player Tabletop exit",
+  "branch": "main",
+  "baseCommit": "e6977f28b42a67f5ff28bdf555cfc33ee3ddd7aa",
+  "implementationCommit": "The commit containing this report; use git log -1 when resuming.",
+  "unit": {
+    "passed": 1312,
+    "featureFiles": 155
+  },
+  "services": {
+    "fullRegressionPassed": 185,
+    "scripts": 19,
+    "afterFinalForceEndChange": {
+      "firearmCasesPassed": 30,
+      "forceEndCasesPassed": 4
+    },
+    "currentUniqueCasesCovered": 186,
+    "database": "disposable newly migrated PostgreSQL only"
+  },
+  "browser": {
+    "uniqueScenariosPassed": 33,
+    "runtimeErrors": 0,
+    "completeMatrixCoveredAcrossSegments": true,
+    "singleUninterruptedFullHarnessPass": false,
+    "evidence": [
+      "final-followup/results-main-regression.json",
+      "final-followup/results-remaining-regression.json",
+      "final-followup/results-kill-fame-force-end.json"
+    ],
+    "runBoundaries": [
+      "Initial full launch interrupted by a development-server restart during the concurrent build; rerun without a concurrent build.",
+      "The next full run passed 25 scenarios before an obsolete Allow response test step; updated to assert rules-based eligibility.",
+      "Continuation passed eight scenarios before its final force-end test read XP before the separate award committed; corrected the wait and the final isolated force-end case passed."
+    ],
+    "humanAcceptance": false
+  },
+  "static": {
+    "typecheck": "passed",
+    "changedFileLint": "passed, including final changed files",
+    "drizzleConsistency": "passed",
+    "productionBuild": "passed; separate build directory removed and original Next/TypeScript configuration restored",
+    "gitDiffCheck": "passed"
+  },
+  "localMigration": {
+    "tag": "0049_fractional_firearm_preparation",
+    "count": 50,
+    "allHashesVerified": true,
+    "evidence": "fractional-firearm-dev-migration.json",
+    "rowValuesPreserved": true,
+    "backupCreatedAndDecoded": true
+  },
+  "preservation": {
+    "catalogValuesAuthored": false,
+    "encounterRecordsEditedByDatabaseTools": false,
+    "characterSheetRedesignRestored": false,
+    "historicalMigrationFilesEdited": false,
+    "productionAccessed": false,
+    "deployedRevision": "unknown/unverified",
+    "productionMigrationState": "unknown/unverified"
+  },
+  "pending": [
+    "Human walkthrough in COMBAT-RESUME.md",
+    "User-authored catalog values in the repair report",
+    "Mixed spell scope/container inheritance decision",
+    "Broader automatic damage approval policy, if the user wants to change it",
+    "Existing explicitly deferred scope"
+  ],
+  "cleanup": {
+    "generatedBuildDirectoryRemoved": true,
+    "originalNextAndTypeScriptConfigurationRestored": true,
+    "intendedChangedFiles": 115,
+    "unrelatedChangesIdentified": false,
+    "newCredentialMatches": 0
+  }
+}

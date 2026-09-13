@@ -9,6 +9,7 @@ import { MovementPanel } from "./movement-panel";
 import { DefensePanel } from "./defense-panel";
 import { SourceRuling } from "./source-ruling";
 import { FirearmControls } from "./firearm-controls";
+import { firearmGuidance } from "./firearm-guidance";
 import { MagazineFillControls } from "./magazine-fill-controls";
 import { EffectOptions } from "./effect-options";
 import { TargetDropdowns } from "./target-dropdowns";
@@ -53,7 +54,9 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
     ...(command === "Called Shot" && location ? { calledShot: { locationNumber: location.number, label: location.name, objective: draft.objective,
       ...(scope.role === "god" ? { penalty: draft.penalty === "" ? undefined : Number(draft.penalty), reason: draft.reason } : { requestId: ruling?.id }) } } : {}),
     ...(firearm ? { firearm: { firingModeId: Number(draft.mode) || firearm.state?.selectedFiringModeId || firearm.modes[0]?.id || 0, aimInitiative: Number(draft.aim), firingDurationInitiative: Number(draft.duration) } } : {}) } : null;
-  const fingerprint = JSON.stringify(choice), preview = checked?.key === fingerprint ? checked.value : null;
+  const firingMode = firearm?.modes.find((entry) => entry.id === choice?.firearm?.firingModeId);
+  const firearmReady = !firearm || firearmGuidance(firearm, choice?.firearm?.firingModeId).canFire;
+  const fingerprint = JSON.stringify(choice), preview = firearmReady && checked?.key === fingerprint ? checked.value : null;
   const authored = preview?.kind === "declaration" ? preview.snapshot.authoredSource : null;
   const injuryTiming = authored?.authoredData.injuryTiming as { explanation?: string | null } | undefined;
   const optionSource = checked?.sourceKey === `${entity.participantId}:${draft.source}` && checked.value.kind === "declaration" ? checked.value.snapshot.authoredSource : null;
@@ -63,7 +66,7 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
     ? preview.preview.timing.aimInitiativeCost + preview.preview.timing.firingInitiativeCost
     : preview.snapshot.initiativeCost, entity.currentInitiative) : null;
   function edit(change: Partial<Draft>) { setDrafts((values) => ({ ...values, [key]: { ...draft, ...change } })); delete submitted.current[key]; }
-  const previewReady = !!choice && !source?.unavailable && !["Hold", "Move", "Defend"].includes(command)
+  const previewReady = firearmReady && !!choice && !source?.unavailable && !["Hold", "Move", "Defend"].includes(command)
     && (command !== "Cast" || !!currentSpell && groups.every((group) => group.kind === "aoe" || group.selected.length > 0))
     && (!["Attack", "Called Shot"].includes(command) || targets.length > 0)
     && (command !== "Called Shot" || !!location && (scope.role === "god" || !!ruling));
@@ -129,8 +132,15 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
         } catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "Ruling request was not confirmed.")); }
         finally { running.current = false; setBusy(false); }
       }}>Request Called Shot ruling</button> : null}</> : null}
-      {firearm ? <><div className={styles.fields}><label className="st-field">Firing mode<select className="st-control" value={choice?.firearm?.firingModeId} onChange={(event) => edit({ mode: event.target.value })}>{firearm.modes.map((mode) => <option key={mode.id} value={mode.id ?? ""}>{mode.name}</option>)}</select></label><label className="st-field">Aim Initiative<input className="st-control" type="number" min="0" step="1" value={draft.aim} onChange={(event) => edit({ aim: event.target.value })} /></label><label className="st-field">Firing duration (includes trigger)<input className="st-control" type="number" min="1" step="1" value={draft.duration} onChange={(event) => edit({ duration: event.target.value })} /></label></div><FirearmControls scope={scope} entity={entity} firearm={firearm} disabled={disabled} refresh={refresh} /></> : null}
-      {previewError?.key === fingerprint ? <p role="status">{previewError.message} <button className="st-button" disabled={busy} onClick={() => setPreviewRetry((value) => value + 1)}>Retry action options</button></p> : previewReady && !preview ? <p role="status">Reading action cost and Roll options...</p> : null}
+      {firearm ? <><FirearmControls key={firearm.itemInstanceId} scope={scope} entity={entity} firearm={firearm} selectedModeId={choice?.firearm?.firingModeId ?? 0} inventory={sources?.magazines ?? null} disabled={disabled} refresh={refresh} />
+        <fieldset><legend>Aim and fire</legend>
+          {firearm.modes.length > 1 ? <label className="st-field">Firing mode<select className="st-control" value={choice?.firearm?.firingModeId} onChange={(event) => edit({ mode: event.target.value, duration: "1" })}>{firearm.modes.map((mode) => <option key={mode.id} value={mode.id ?? ""}>{mode.name}</option>)}</select></label> : <p>Firing mode: {firingMode?.name ?? "Needs configuration"}{firearm.modes.length === 1 ? " (selected automatically)" : ""}</p>}
+          <div className={styles.fields}><label className="st-field">Aim Initiative<input className="st-control" type="number" min="0" step="1" value={draft.aim} onChange={(event) => edit({ aim: event.target.value })} /></label>
+          {firingMode?.deliveryCadence === "sustained-per-initiative" ? <label className="st-field">Firing duration (includes trigger)<input className="st-control" type="number" min="1" step="1" value={draft.duration} onChange={(event) => edit({ duration: event.target.value })} /></label> : null}</div>
+          <p className={styles.muted}>Aim 0 fires without spending extra time aiming. {firingMode?.deliveryCadence === "per-trigger" ? `One trigger uses ${firingMode.roundsPerCadence ?? "?"} round(s).` : firingMode?.deliveryCadence === "sustained-per-initiative" ? "Firing duration controls how long sustained fire continues." : ""} The full Initiative cost and round count appear before you fire.</p>
+          {!firearmReady ? <p>Resolve the weapon status above to see the firing cost and Roll.</p> : !targets.length ? <p>Choose a target above to see the firing cost and Roll.</p> : null}
+        </fieldset></> : null}
+      {firearmReady && previewError?.key === fingerprint ? <p role="status">{previewError.message} <button className="st-button" disabled={busy} onClick={() => setPreviewRetry((value) => value + 1)}>Retry action options</button></p> : previewReady && !preview ? <p role="status">Reading action cost and Roll options...</p> : null}
       {optionSource ? <EffectOptions scope={scope} source={optionSource} roster={data.roster} values={draft.applications} onChange={(applications) => edit({ applications })} /> : null}
       {preview ? <div className={styles.notice}><p><strong>{entity.name} uses {source?.name}{targets.length ? ` on ${targets.map((id) => data.roster.find((entry) => entry.participantId === id)?.name ?? "Unknown target").join(", ")}` : ""}.</strong></p><p>{preview.kind === "firearm" ? `${preview.preview.timing.aimInitiativeCost} Aim + ${preview.preview.timing.firingInitiativeCost} firing Initiative · ${preview.preview.delivery.declaredRounds} rounds · ${preview.preview.governing.label} target ${preview.preview.finalTarget}` : `${preview.snapshot.initiativeCost} Initiative · ${preview.snapshot.governing?.status === "resolved" ? `Roll target ${preview.snapshot.governing.rollOverTarget}` : preview.snapshot.governing?.explanation ?? "No governing Roll required."}`}</p>
         {preview.kind === "firearm" && preview.preview.timing.explanation ? <p>{preview.preview.timing.explanation}</p> : null}
@@ -138,7 +148,7 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
         {authored?.warnings.map((warning) => <p key={warning}>{combatMessage(warning)}</p>)}
         {affordabilityIssue ? <p role="status">{affordabilityIssue}</p> : null}
         {injuryTiming?.explanation ? <p>{injuryTiming.explanation}</p> : null}
-        {needsRuling ? <p>A specific G.O.D. source ruling is needed before this action can be committed.</p> : <>{needsRoll ? <RollFields value={draft.roll} disabled={busy} onChange={(roll) => edit({ roll })} /> : <p>No Roll required for this source.</p>}<button className="st-button is-primary" disabled={disabled || busy || !!affordabilityIssue || !entity.canControl || !entity.canActNow} onClick={() => void commit()}>Commit {command}{needsRoll ? " & Roll" : ""}</button></>}
+        {needsRuling ? <p>A specific G.O.D. source ruling is needed before this action can be committed.</p> : <>{needsRoll ? <RollFields value={draft.roll} disabled={busy} onChange={(roll) => edit({ roll })} /> : <p>No Roll required for this source.</p>}<button className="st-button is-primary" disabled={disabled || busy || !!affordabilityIssue || !entity.canControl || !entity.canActNow} onClick={() => void commit()}>{firearm ? "Fire & Roll" : <>Commit {command}{needsRoll ? " & Roll" : ""}</>}</button></>}
       </div> : null}
       {scope.role === "god" && source && ["spell", "item", "derived-ability", "creature-ability"].includes(source.kind) ? <details><summary>Specific source ruling</summary><SourceRuling scope={scope} entity={entity} source={source} sources={sources} authored={authored ?? null} disabled={disabled} refresh={async () => { setChecked(null); setPreviewRetry((value) => value + 1); await refresh(); }} /></details> : null}
     </>}

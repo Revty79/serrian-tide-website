@@ -118,5 +118,10 @@ export async function recordCombatDamageOutcomeInTransaction(tx: Transaction, co
     participantId: effect.targetParticipantId, status: defeated ? "dead" : "incapacitated", reason,
     requestKey: `damage-effect:${effect.id}`, initiativeTreatment: unconscious ? "zero" : "preserve", evidence,
   });
+  if (defeated && combatConditionState(participant.local).status !== "dead") {
+    const { recordCreatureKillFameInTransaction } = await import("./combat-fame-service");
+    await recordCreatureKillFameInTransaction(tx, context, { participantId: effect.targetParticipantId, effectId: effect.id,
+      requestKey: "automatic-kill-fame:" + effect.id, reason, automatic: true });
+  }
   return { ...result, combatOutcome: evidence };
 }

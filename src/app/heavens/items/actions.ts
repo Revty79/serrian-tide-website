@@ -263,8 +263,7 @@ function required(value: string | null | undefined, label: string) { const resul
 function nonNegative(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater, or left blank.`); return value; }
 function positive(value: number | null, label: string) { if (value === null) return null; if (!Number.isFinite(value) || value <= 0) throw new Error(`${label} must be greater than zero, or left blank.`); return value; }
 function positiveInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a whole number greater than zero, or left blank.`); return value; }
-function nonNegativeInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${label} must be a whole number zero or greater, or left blank.`); return value; }
-function wholeInteger(value: number, label: string) { if (!Number.isSafeInteger(value)) throw new Error(`${label} must be a whole number.`); return value; }
+function finiteNumber(value: number, label: string) { if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number.`); return value; }
 
 function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
   if (input.magazineProfile && (input.weaponProfile || input.armorProfile || input.runtimeProfile.useMode !== "none")) throw new Error("Magazine models use their dedicated profile and no Item-use mode, weapon or armor profile.");
@@ -332,16 +331,16 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
     readinessMode: input.weaponProfile.readinessMode === "draw-is-ready" || input.weaponProfile.readinessMode === "separate-ready-action"
       ? input.weaponProfile.readinessMode
       : null,
-    drawInitiativeCost: nonNegativeInteger(input.weaponProfile.drawInitiativeCost, "Draw Initiative Cost"),
-    readyInitiativeCost: nonNegativeInteger(input.weaponProfile.readyInitiativeCost, "Ready Initiative Cost"),
-    reloadInitiativeCost: nonNegativeInteger(input.weaponProfile.reloadInitiativeCost, "Reload Initiative Cost"),
-    unloadInitiativeCost: nonNegativeInteger(input.weaponProfile.unloadInitiativeCost, "Unload Initiative Cost"),
-    firingModeChangeInitiativeCost: nonNegativeInteger(input.weaponProfile.firingModeChangeInitiativeCost, "Firing Mode Change Initiative Cost"),
+    drawInitiativeCost: nonNegative(input.weaponProfile.drawInitiativeCost, "Draw Initiative Cost"),
+    readyInitiativeCost: nonNegative(input.weaponProfile.readyInitiativeCost, "Ready Initiative Cost"),
+    reloadInitiativeCost: nonNegative(input.weaponProfile.reloadInitiativeCost, "Reload Initiative Cost"),
+    unloadInitiativeCost: nonNegative(input.weaponProfile.unloadInitiativeCost, "Unload Initiative Cost"),
+    firingModeChangeInitiativeCost: nonNegative(input.weaponProfile.firingModeChangeInitiativeCost, "Firing Mode Change Initiative Cost"),
     firingModes: normalizeFirearmFiringModes(input.weaponProfile.firingModes, { allowUnreviewedNewModes }),
     rateOfFire: clean(input.weaponProfile.rateOfFire),
     reloadInitiative: clean(input.weaponProfile.reloadInitiative),
-    ammunitionCyclingInitiativeModifier: weaponIsAmmunition ? wholeInteger(input.weaponProfile.ammunitionCyclingInitiativeModifier, "Ammunition Cycling Initiative modifier") : 0,
-    ammunitionRecoilResetInitiativeModifier: weaponIsAmmunition ? wholeInteger(input.weaponProfile.ammunitionRecoilResetInitiativeModifier, "Ammunition Recoil Reset Initiative modifier") : 0,
+    ammunitionCyclingInitiativeModifier: weaponIsAmmunition ? finiteNumber(input.weaponProfile.ammunitionCyclingInitiativeModifier, "Ammunition Cycling Initiative modifier") : 0,
+    ammunitionRecoilResetInitiativeModifier: weaponIsAmmunition ? finiteNumber(input.weaponProfile.ammunitionRecoilResetInitiativeModifier, "Ammunition Recoil Reset Initiative modifier") : 0,
     rulesText: clean(input.weaponProfile.rulesText),
   } : null;
 

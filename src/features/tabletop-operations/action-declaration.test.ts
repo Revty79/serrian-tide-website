@@ -157,7 +157,7 @@ test("objective responder candidates exclude actor and authoritative nonparticip
   assert.equal(candidates.find(({ characterId }) => characterId === 14)?.included, false);
   assert.equal(candidates.find(({ characterId }) => characterId === 15)?.included, false);
   assert.equal(candidates.find(({ characterId }) => characterId === 16)?.included, false);
-  assert.equal(candidates.find(({ characterId }) => characterId === 12)?.requiresGodConfirmation, true);
+  assert.equal(candidates.find(({ characterId }) => characterId === 12)?.requiresGodConfirmation, false);
 });
 
 test("one-Initiative trigger and longer preparation windows remain distinct", () => {
@@ -186,7 +186,7 @@ test("busy participants are excluded from crossed response windows until their a
     const candidates = deriveResponderCandidates(deriveActionWindow(35, snapshot()), 11, [participant(12, 30)],
       [{ actorCharacterId: 12, status }] as PendingInitiativeActionState[]);
     assert.equal(candidates[0].included, status === "completed");
-    assert.equal(candidates[0].requiresGodConfirmation, status === "completed");
+    assert.equal(candidates[0].requiresGodConfirmation, false);
   }
 });
 

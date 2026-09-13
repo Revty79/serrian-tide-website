@@ -98,9 +98,9 @@ for (const kind of ["pc", "npc", "creature"] as const) for (const status of ["de
     const awardInput = { kind: "encounter" as const, amountPerCharacter: 10, recipientCharacterIds: [f.heroId, f.defenderId], requestKey: crypto.randomUUID() };
     await award(tx, f.encounterId, f.god, awardInput); await award(tx, f.encounterId, f.god, awardInput);
     assert.equal((await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, f.heroId)))[0].experience, xpBefore + 10);
-    if (kind === "creature" && status === "incapacitated") await assert.rejects(award(tx, f.encounterId, f.god, {
+    if (kind === "creature" && status === "incapacitated") await award(tx, f.encounterId, f.god, {
       kind: "creature", defeatedParticipantId: id, mode: "full-to-each", recipientCharacterIds: [f.heroId], requestKey: crypto.randomUUID(), valueRuling: { value: 3, reason: "Fixture value." },
-    }), /defeat before awarding/);
+    });
     await persistInitiativeEngineInTransaction(tx, f.context, after, advanceInitiativeRound(after));
     assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === id)!.currentInitiative, 21);
     throw rollback;

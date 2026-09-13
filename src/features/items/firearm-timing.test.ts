@@ -65,9 +65,9 @@ test("negative ammunition modifiers clamp cycling and recoil reset independently
   assert.equal(result.totalThroughNextTriggerPullInitiativeCost, 3);
 });
 
-test("timing rejects negative, fractional, and unreviewed base costs", () => {
+test("timing rejects negative, nonfinite, and unreviewed base costs", () => {
   assert.throws(() => calculateFirearmTiming({ baseCyclingInitiativeCost: -1, baseRecoilResetInitiativeCost: 0, ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }), /zero or greater/);
-  assert.throws(() => calculateFirearmTiming({ baseCyclingInitiativeCost: 1.5, baseRecoilResetInitiativeCost: 0, ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }), /whole number/);
+  assert.throws(() => calculateFirearmTiming({ baseCyclingInitiativeCost: Infinity, baseRecoilResetInitiativeCost: 0, ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }), /finite number/);
   assert.throws(() => calculateFirearmTiming({ baseCyclingInitiativeCost: null, baseRecoilResetInitiativeCost: 0, ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }), /reviewed and authored/);
   assert.throws(() => calculateFirearmTiming({ baseCyclingInitiativeCost: 0, baseRecoilResetInitiativeCost: null, ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }), /reviewed and authored/);
 });
@@ -130,4 +130,9 @@ test("variant copies own independent firing-mode records", () => {
   assert.notEqual(clone[0], parent[0]);
   clone[0]!.name = "Variant Burst";
   assert.equal(parent[0]!.name, "Burst");
+});
+
+test("decimal base costs and signed ammunition modifiers retain their fractional timing", () => {
+  const resolved = resolveFirearmFiringMode(normalizeFirearmFiringModes([mode({ baseCyclingInitiativeCost: 0.2, baseRecoilResetInitiativeCost: 0.25 })])[0], 0.1, -0.05);
+  assert.deepEqual(resolved.timing, { effectiveCyclingInitiativeCost: 0.3, effectiveRecoilResetInitiativeCost: 0.2, followUpPreparationInitiativeCost: 0.5, totalThroughNextTriggerPullInitiativeCost: 1.5 });
 });

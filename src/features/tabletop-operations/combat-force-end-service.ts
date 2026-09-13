@@ -49,12 +49,25 @@ export async function forceEndCombatInTransaction(tx: Tx, encounterId: number, a
     await tx.insert(reactionEvent).values(reactions.map((row) => ({ ...audit, reactionId: row.id, fromStatus: row.status, toStatus: "cancelled" as const })));
   }
   const plans = await tx.select().from(plan).where(and(eq(plan.encounterId, encounterId), notInArray(plan.status, ["applied", "declined", "cancelled", "superseded"]))).for("update");
+  const completedPlanIds: number[] = [];
   if (plans.length) {
+    const retained = await tx.select({ planId: effect.planId }).from(effect).where(and(inArray(effect.planId, plans.map((row) => row.id)), inArray(effect.status, ["applied", "manual-resolved"])));
+    const retainedPlanIds = new Set(retained.map((row) => row.planId));
     const ids = plans.map((row) => row.id);
     await tx.update(effect).set({ status: "declined", amendmentReason: reason, amendedByUserId: actor.userId, updatedAt: now })
       .where(and(inArray(effect.planId, ids), isNull(effect.appliedAt), notInArray(effect.status, ["applied", "manual-resolved", "declined"])));
-    await tx.update(plan).set({ status: "cancelled", updatedAt: now }).where(inArray(plan.id, ids));
-    await tx.insert(planEvent).values(plans.map((row) => ({ ...audit, planId: row.id, fromStatus: row.status, toStatus: "cancelled" as const })));
+    for (const row of plans) {
+      // Applied evidence cannot become a cancelled result. Decline only its
+      // unfinished remainder and close the retained result without replaying it.
+      const retainedResult = row.appliedAt !== null || retainedPlanIds.has(row.id);
+      const status = retainedResult ? "applied" as const : "cancelled" as const;
+      if (retainedResult) completedPlanIds.push(row.id);
+      await tx.update(plan).set({ status, updatedAt: now, ...(retainedResult ? {
+        appliedAt: row.appliedAt ?? now, appliedByUserId: row.appliedByUserId ?? actor.userId,
+      } : {}) }).where(eq(plan.id, row.id));
+      await tx.insert(planEvent).values({ ...audit, planId: row.id, fromStatus: row.status, toStatus: status,
+        metadata: { ...audit.metadata, retainedAppliedResult: retainedResult, unfinishedEffectsDeclined: true } });
+    }
   }
   const preparations = await tx.update(preparation).set({ status: "cancelled", reason, resolvedByUserId: actor.userId, resolvedAt: now, updatedAt: now })
     .where(and(eq(preparation.encounterId, encounterId), inArray(preparation.status, ["pending", "interrupted", "requires-god-ruling"]))).returning({ id: preparation.id });
@@ -70,7 +83,7 @@ export async function forceEndCombatInTransaction(tx: Tx, encounterId: number, a
     campaignIdSnapshot: context.campaignId, ownerUserIdSnapshot: context.ownerUserId, actorUserId: actor.userId, reason,
     dependencySummaryJson: { forced: true, previousStatus: context.encounterStatus, withdrawnCheckpointIds: groups.map((row) => row.id),
       cancelledDeclarationIds: declarations.map((row) => row.id), endedPendingActionIds: endedActions.map((row) => row.id), cancelledSourceIds: endedSources.map((row) => row.id),
-      cancelledReactionIds: reactions.map((row) => row.id), cancelledPlanIds: plans.map((row) => row.id), cancelledPreparationIds: preparations.map((row) => row.id),
+      cancelledReactionIds: reactions.map((row) => row.id), cancelledPlanIds: plans.filter((row) => !completedPlanIds.includes(row.id)).map((row) => row.id), completedRetainedPlanIds: completedPlanIds, cancelledPreparationIds: preparations.map((row) => row.id),
       cancelledFirearmAttackIds: firearms.map((row) => row.id), resourcesRefunded: false, consequencesApplied: false, xpAwarded: false } });
   await publishTabletopInvalidationInTransaction(tx, { ...scope, characterIds: [], category: "initiative" });
   return { status: "completed" as const, reused: false };

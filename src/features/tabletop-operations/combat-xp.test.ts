@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { allocateCreatureExperience, allocateEncounterExperience } from "./combat-xp";
+import { allocateCreatureExperience, allocateEncounterExperience, creatureExperienceEvidence } from "./combat-xp";
+
+test("incapacitation supports XP without recording death or inventing an XP value", () => {
+  const local = { combatCondition: { status: "incapacitated", revision: 1, reason: "Whole-body HP reached zero." } };
+  const before = structuredClone(local);
+  assert.deepEqual(creatureExperienceEvidence(local), { reason: local.combatCondition.reason, conditionEvidence: local.combatCondition });
+  assert.deepEqual(local, before);
+  assert.equal(creatureExperienceEvidence({ combatCondition: { status: "able" } }), null);
+  assert.equal(creatureExperienceEvidence({}), null);
+  const defeat = { defeatValueXp: 3, credit: { characterId: 2 }, awards: [{ decisionId: 5 }] };
+  assert.deepEqual(creatureExperienceEvidence({ ...local, defeat }), defeat);
+});
 
 test("Creature XP explicitly distinguishes killer-only, full-to-each and shared split", () => {
   assert.deepEqual(allocateCreatureExperience({ value: 3, mode: "killer-only", recipientCharacterIds: [2], killerCharacterId: 2 }), [{ characterId: 2, amount: 3 }]);

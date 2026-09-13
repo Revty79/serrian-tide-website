@@ -23,6 +23,24 @@ export async function hasUnresolvedCompletedActionsInTransaction(tx: Transaction
   return unfinished.rows.length > 0;
 }
 
+/** A reached Initiative window grants a free actor a normal choice even when
+ * the crossing action finishes at that same point. Its outcome stays pending. */
+export async function readCompletionActionOpportunitiesInTransaction(tx: Transaction, engine: InitiativeEngineState): Promise<number[]> {
+  const rows = await tx.execute(sql`SELECT DISTINCT opportunity.responder_character_id AS id
+    FROM campaign_session_encounter_responder_opportunity opportunity
+    JOIN campaign_session_encounter_pending_action action ON action.id = opportunity.pending_action_id
+    JOIN campaign_session_encounter_action_declaration declaration ON declaration.id = opportunity.declaration_id
+    WHERE opportunity.encounter_id = ${engine.runtime.encounterId}
+      AND opportunity.status = 'pending' AND opportunity.reaction_id IS NULL AND opportunity.source = 'initiative'
+      AND opportunity.reached_at_initiative >= ${engine.runtime.timelineInitiative}
+      AND action.status = 'completed' AND declaration.status NOT IN ('resolved', 'cancelled', 'abandoned')`);
+  return rows.rows.map((row) => Number(row.id)).filter((id) => {
+    const participant = engine.participants.find((entry) => entry.characterId === id);
+    return participant?.participationStatus === "active" && participant.currentInitiative > 0
+      && !hasUnfinishedInitiativeAction(engine.pendingActions, id);
+  });
+}
+
 export async function readOpenDeclarationCheckpoint(tx: Transaction, encounterId: number) {
   const [row] = await tx.select().from(checkpoint)
     .where(and(eq(checkpoint.encounterId, encounterId), isNull(checkpoint.revealedAt)))
@@ -52,12 +70,12 @@ export async function beginDeclarationCheckpointInTransaction(
     }
     return existing.id;
   }
-  if (!response) {
-    if (await hasUnresolvedCompletedActionsInTransaction(tx, encounterId)) throw new Error("Resolve every action completing at this point before committing the next ordinary choice; simultaneous outcomes must remain intact.");
-  }
+  const pendingOutcomes = await hasUnresolvedCompletedActionsInTransaction(tx, encounterId);
+  const completionChoices = pendingOutcomes ? await readCompletionActionOpportunitiesInTransaction(tx, engine) : [];
+  if (!response && pendingOutcomes && !completionChoices.includes(participantId)) throw new Error("Resolve every action completing at this point before committing the next ordinary choice; simultaneous outcomes must remain intact.");
   const next = getNextInitiativeTimelineEvent(engine);
   const currentIds = next.kind === "normal-opportunity" && next.initiative === engine.runtime.timelineInitiative
-    ? next.characterIds
+    ? next.characterIds.filter((id) => !pendingOutcomes || completionChoices.includes(id))
     : [];
   const participant = engine.participants.find(({ characterId }) => characterId === participantId);
   if (!participant || !["active", "holding"].includes(participant.participationStatus) || participant.currentInitiative <= 0) {

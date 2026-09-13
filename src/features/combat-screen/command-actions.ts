@@ -7,7 +7,7 @@ import { campaignSessionEncounterParticipant as member } from "@/db/tabletop-ope
 import { getCharacter } from "@/app/characters/actions";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
-import { readFirearmWorkspaceInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
+import { readFirearmWorkspaceInTransaction, applyFirearmCatalogConfigurationInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
 import { readDefenseInterventionWorkspaceInTransaction, declareDefenseInterventionInTransaction, previewDefenseInterventionInTransaction, type DefenseDeclarationInput } from "@/features/tabletop-operations/defense-intervention-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
 import { lockOwnedEncounterRuntimeInTransaction, type RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
@@ -65,7 +65,7 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
   const sources: CombatSourceChoice[] = [];
   for (const weapon of loaded.equipment?.wieldedWeapons ?? []) sources.push({ kind: "weapon", ref: weapon.ownershipKey, name: weapon.itemName, instanceId: weapon.instanceId, itemId: weapon.itemId, handedness: weapon.handedness,
     unavailable: !isFirearmWeaponType(weapon.weaponType) && (weapon.ammunitionTiming || weapon.firingModes.length) ? UNSUPPORTED_PROJECTILE_MESSAGE : undefined,
-    description: weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
+    description: isFirearmWeaponType(weapon.weaponType) ? "Firearm preparation and firing costs are shown below." : weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
   for (const firearm of loaded.firearms?.firearms ?? []) if (!sources.some((source) => source.instanceId === firearm.itemInstanceId)) sources.push({ kind: "weapon", ref: `instance:${firearm.itemInstanceId}`, name: firearm.itemName, instanceId: firearm.itemInstanceId, itemId: firearm.itemId, handedness: firearm.canonical.handedness, description: "Inspect ammunition and preparation before firing." });
   for (const attack of records(object(loaded.snapshot).attacks)) sources.push({ kind: "creature-attack", ref: String(attack.canonicalId), name: String(attack.attackName), instanceId: null, itemId: null, description: `${attack.attackPercentage ?? "?"}% · ${attack.damage ?? "?"} damage` });
   for (const ability of records(object(loaded.snapshot).abilities)) sources.push({ kind: "creature-ability", ref: String(ability.canonicalId), name: String(ability.abilityName), instanceId: null, itemId: null, description: String(ability.description ?? "") });
@@ -123,4 +123,8 @@ export async function previewCombatMovement(scope: CombatScreenScope, participan
 
 export async function fillCombatMagazine(scope: CombatScreenScope, command: CombatMagazineFillCommand) {
   return authorized(scope, (tx, context, actor) => startCombatMagazineFill(tx, context, actor, command), true);
+}
+
+export async function applyCombatFirearmCatalog(scope: CombatScreenScope, command: { characterId: number; itemInstanceId: number; expectedVersion: number }) {
+  return authorized(scope, (tx, context, actor) => applyFirearmCatalogConfigurationInTransaction(tx, context, actor, command), true);
 }

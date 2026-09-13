@@ -1,0 +1,6 @@
+{
+  "passed": [
+    "After the G.O.D. ends combat, the header opens XP and award history. A dead Creature's authored 3 XP is awarded once, with completed encounter and death preserved; reload shows already awarded."
+  ],
+  "errors": []
+}

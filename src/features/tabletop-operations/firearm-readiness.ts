@@ -1,3 +1,4 @@
+import { decimalAdd } from "@/lib/decimal";
 import { resolveFirearmFiringMode, type ResolvedFirearmFiringMode } from "@/features/items/firearm-timing";
 
 export const FIREARM_PREPARATION_OPERATIONS = [
@@ -192,14 +193,25 @@ export type FirearmPreparationTimingResolution =
   | Readonly<{ status: "resolved"; initiativeCost: number; source: "canonical" | "god-ruling"; reason: string }>
   | Readonly<{ status: "requires-god-ruling"; initiativeCost: null; source: null; reason: string }>;
 
+function nonNegativeCost(value: number, label: string): number {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be a finite number zero or greater.`);
+  return value;
+}
+
 export function resolveFirearmPreparationTiming(input: {
   operation: FirearmPreparationOperation;
   authored: FirearmAuthoredPreparationTiming;
   godInitiativeCost?: number | null;
   godReason?: string;
+  followUp?: { requiresCycling: boolean; requiresRecoilRecovery: boolean };
 }): FirearmPreparationTimingResolution {
   if (!FIREARM_PREPARATION_OPERATIONS.includes(input.operation)) throw new Error("Firearm preparation operation is invalid.");
-  const canonical = input.operation === "draw"
+  if (input.followUp && input.operation !== "recover-recoil") throw new Error("Combined follow-up must use recoil recovery preparation.");
+  const followUpTiming = input.authored.selectedMode?.timing;
+  const canonical = input.followUp ? followUpTiming
+    ? decimalAdd(input.followUp.requiresCycling ? followUpTiming.effectiveCyclingInitiativeCost : 0,
+      input.followUp.requiresRecoilRecovery ? followUpTiming.effectiveRecoilResetInitiativeCost : 0)
+    : null : input.operation === "draw"
     ? input.authored.drawInitiativeCost
     : input.operation === "ready"
       ? input.authored.readyInitiativeCost
@@ -213,7 +225,7 @@ export function resolveFirearmPreparationTiming(input: {
               ? input.authored.selectedMode?.timing?.effectiveCyclingInitiativeCost ?? null
               : input.authored.selectedMode?.timing?.effectiveRecoilResetInitiativeCost ?? null;
   if (canonical !== null) {
-    return { status: "resolved", initiativeCost: nonNegativeWhole(canonical, "Canonical Initiative Cost"), source: "canonical", reason: "" };
+    return { status: "resolved", initiativeCost: nonNegativeCost(canonical, "Canonical Initiative Cost"), source: "canonical", reason: "" };
   }
   if (input.godInitiativeCost === null || input.godInitiativeCost === undefined) {
     return {
@@ -227,7 +239,7 @@ export function resolveFirearmPreparationTiming(input: {
   if (!reason) throw new Error("A G.O.D.-assigned Initiative Cost requires a reason.");
   return {
     status: "resolved",
-    initiativeCost: nonNegativeWhole(input.godInitiativeCost, "G.O.D.-assigned Initiative Cost"),
+    initiativeCost: nonNegativeCost(input.godInitiativeCost, "G.O.D.-assigned Initiative Cost"),
     source: "god-ruling",
     reason,
   };

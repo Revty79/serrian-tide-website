@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, integer, text, jsonb, timestamp, serial, primaryKey, unique, check, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, doublePrecision, integer, text, jsonb, timestamp, serial, primaryKey, unique, check, foreignKey } from "drizzle-orm/pg-core";
 import { item, weaponProfile } from "./item-schema";
 import { campaignCharacter, campaignCharacterItemInstance } from "./realm-schema";
 import { campaignCharacterFirearmState } from "./tabletop-operations-schema";
@@ -8,7 +8,7 @@ import { user } from "./auth-schema";
 export const magazineProfile = pgTable("magazine_profiles", {
   itemId: integer("item_id").primaryKey().references(() => item.id, { onDelete: "cascade" }),
   capacityRounds: integer("capacity_rounds").notNull(),
-  fillInitiativeCostPerRound: integer("fill_initiative_cost_per_round"),
+  fillInitiativeCostPerRound: doublePrecision("fill_initiative_cost_per_round"),
 }, (t) => [check("magazine_capacity_positive", sql`${t.capacityRounds} > 0`),
   check("magazine_fill_cost_nonnegative", sql`${t.fillInitiativeCostPerRound} IS NULL OR ${t.fillInitiativeCostPerRound} >= 0`)]);
 

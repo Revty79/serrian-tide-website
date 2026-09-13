@@ -14,6 +14,7 @@ export type EncounterCloseoutBlocker = {
   code: EncounterCloseoutBlockerCode;
   message: string;
   characterId: number | null;
+  planId?: number;
 };
 
 export type ExperienceAwardInput = {
@@ -48,7 +49,7 @@ export function buildEncounterCloseoutBlockers(input: {
   const blockers: EncounterCloseoutBlocker[] = [];
   for (const plan of input.effectPlans ?? []) {
     if (["applied", "declined", "cancelled", "superseded"].includes(plan.status)) continue;
-    blockers.push({ code: "effect-plan-unresolved", characterId: plan.actorParticipantId,
+    blockers.push({ code: "effect-plan-unresolved", characterId: plan.actorParticipantId, planId: plan.id,
       message: `Effect Plan #${plan.id} is ${plan.status}. Apply it or explicitly settle its unapplied remainder before closeout.` });
   }
   if (input.initiativeStatus === "active") {

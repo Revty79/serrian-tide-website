@@ -186,6 +186,7 @@ export async function startPlayerFirearmPreparation(
   input: {
     itemInstanceId: number;
     operation: FirearmPreparationOperation;
+    combineFollowUp?: boolean;
     requestedRounds?: number | null;
     magazineInstanceId?: number | null;
     replaceCurrentLoad?: boolean;
@@ -200,6 +201,7 @@ export async function startPlayerFirearmPreparation(
       characterId: actor.characterId,
       itemInstanceId: positiveId(input.itemInstanceId, "Firearm instance"),
       operation: input.operation,
+      combineFollowUp: input.combineFollowUp,
       requestedRounds: input.requestedRounds,
       magazineInstanceId: input.magazineInstanceId == null ? input.magazineInstanceId : positiveId(input.magazineInstanceId, "Magazine instance"),
       replaceCurrentLoad: input.replaceCurrentLoad,

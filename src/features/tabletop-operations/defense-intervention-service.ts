@@ -52,7 +52,7 @@ import {
   extendActionDeclarationCostInTransaction,
   refreshActionDeclarationRollingReadinessInTransaction,
   recordActionDeclarationAuditEventInTransaction,
-  reconcileBusyResponderOpportunitiesInTransaction,
+  reconcileUnavailableResponderOpportunitiesInTransaction,
   type ActionDeclarationActor,
 } from "./action-declaration-service";
 import {
@@ -302,7 +302,7 @@ async function loadResponseContext(
   if (!opportunity || opportunity.status !== "pending" || opportunity.reactionId !== null) {
     throw new Error("Only an exact pending responder opportunity may receive a declaration.");
   }
-  if (opportunity.requiresGodConfirmation) {
+  if (opportunity.source !== "initiative" && opportunity.requiresGodConfirmation) {
     throw new Error("The Campaign-owning G.O.D. must first confirm that this combatant can respond in the current fiction.");
   }
   const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
@@ -1164,7 +1164,7 @@ export async function resolveDeclaredDefensesInTransaction(
     await assertActorAuthority(tx, context, actor, declaration.actorCharacterId);
   }
   await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
-  await reconcileBusyResponderOpportunitiesInTransaction(tx, context);
+  await reconcileUnavailableResponderOpportunitiesInTransaction(tx, context);
   const opportunities = (await tx.select().from(campaignSessionEncounterResponderOpportunity)
     .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, declaration.id)).for("update"))
     .filter((opportunity) => throughInitiative === undefined || opportunity.status !== "pending" || opportunity.source === "god-exception"
@@ -1378,7 +1378,7 @@ export async function resolveDeclaredDefensesIfReadyInTransaction(
   const { row: declaration } = await lockedActionForRoll(tx, context, declarationId);
   if (!declaration.pendingActionId) return null;
   await assertNoOpenDeclarationCheckpoint(tx, context.encounterId);
-  await reconcileBusyResponderOpportunitiesInTransaction(tx, context);
+  await reconcileUnavailableResponderOpportunitiesInTransaction(tx, context);
   const opportunities = (await tx.select({
     status: campaignSessionEncounterResponderOpportunity.status,
     reactionId: campaignSessionEncounterResponderOpportunity.reactionId,

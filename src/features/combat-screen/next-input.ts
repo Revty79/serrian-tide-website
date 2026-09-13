@@ -8,7 +8,6 @@ export type CombatNextInput = {
   label: string; explanation: string;
 } & ({ kind: "wait" | "advance" | "round" }
   | { kind: "inspect"; participantId: number; focus: CombatFocus["kind"]; planId?: number }
-  | { kind: "awareness"; opportunityId: number; participantId: number }
   | { kind: "resolve"; declarationId: number; firearmId?: number }
   | { kind: "review"; planId: number }
   | { kind: "trigger"; attackId: number });
@@ -29,12 +28,9 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
   if (!operations) return wait("Reading the next combat input…");
   const choice = projection.entities.find((entity) => entity.mustChooseNow);
   const choose = (): CombatNextInput => ({ kind: "inspect", participantId: choice!.participantId, focus: "action",
-    label: choice!.canControl ? `Choose ${choice!.name}'s action` : `View ${choice!.name}'s turn`, explanation: `${choice!.name} can choose an action against their own legal target, Hold or Pass. For a legitimate response, select Defend; the G.O.D. confirms eligibility. Other actions keep their remaining timing.${choice!.canControl ? "" : ` ${choice!.name}'s Player makes the choice.`}` });
+    label: `${choice!.name} can act now`, explanation: `${choice!.name} can move, choose an action against their own legal target, Hold or Pass. Select Defend to use an available response. Combat time waits for their choice; unfinished actions keep their progress.${choice!.canControl ? "" : ` ${choice!.name}'s Player makes the choice.`}` });
   const respond = (action: NonNullable<CombatScreenData["projection"]>["declarations"][number], response: typeof action.opportunities[number]): CombatNextInput => {
     const name = action.lockedSnapshot?.label ?? action.draft.label;
-    if (response.requiresGodConfirmation) return { kind: "awareness", opportunityId: response.id, participantId: response.responderCharacterId,
-      label: `Can ${response.responderName} notice and respond to ${action.actorName}'s ${name}?`,
-      explanation: `Decide from the situation at the table. Yes makes a response available; ${response.responderName} keeps any ordinary action choice. No continues this attack without that response. Neither choice applies damage early.` };
     const controlled = projection.entities.find((entity) => entity.participantId === response.responderCharacterId)?.canControl;
     return { kind: "inspect", participantId: response.responderCharacterId, focus: "response",
       label: controlled ? `Choose ${response.responderName}'s response` : `View ${response.responderName}'s response`,
@@ -43,12 +39,14 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
   // Never infer a sealed choice from result readiness or committed resources.
   if (projection.checkpoint || operations.sealed) return choice ? choose() : wait(projection.progression.reason);
   const completed = projection.declarations.filter((entry) => entry.timing?.status === "completed" && !["resolved", "cancelled", "abandoned"].includes(entry.status));
+  if (choice && completed.some((entry) => entry.opportunities.some((opportunity) => opportunity.responderCharacterId === choice.participantId
+    && opportunity.status === "pending" && opportunity.reactionId === null && opportunity.source === "initiative"))) return choose();
   for (const action of completed) {
     const label = action.lockedSnapshot?.label ?? action.draft.label;
     const response = action.opportunities.find((opportunity) => {
       const entity = projection.entities.find((entry) => entry.participantId === opportunity.responderCharacterId);
       return opportunity.status === "pending" && opportunity.reactionId === null && entity && !entity.currentAction && !entity.participation.departed && entity.condition.status === "able"
-        && (entity.responseDecisionOpportunityIds.includes(opportunity.id) || entity.canRespondNow);
+        && entity.canRespondNow && !opportunity.requiresGodConfirmation;
     });
     if (response) return respond(action, response);
     const defense = operations.defenses?.reactions.find((entry) => entry.declarationId === action.id && entry.status === "needs-ruling");
@@ -74,7 +72,7 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
     const response = action.opportunities.find((opportunity) => {
       const entity = projection.entities.find((entry) => entry.participantId === opportunity.responderCharacterId);
       return opportunity.status === "pending" && opportunity.reactionId === null && entity && !entity.currentAction && !entity.participation.departed && entity.condition.status === "able"
-        && (entity.responseDecisionOpportunityIds.includes(opportunity.id) || entity.canRespondNow);
+        && entity.canRespondNow && !opportunity.requiresGodConfirmation;
     });
     if (response) return respond(action, response);
     const portion = operations.plans.find((plan) => plan.declarationId === action.id && plan.sourceSnapshot.identity.startsWith("firearm-attack:") && ["requires-god-ruling", "partially-applied"].includes(plan.status));

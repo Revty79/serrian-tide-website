@@ -34,8 +34,7 @@ for (const kind of ["player", "npc", "creature"] as const) test(`${kind} uses ex
     assert.ok(window);
     const response = { opportunityId: window.id, reactionType: "block" as const, protectedTargetCharacterId: defenderId,
       itemId: kind === "creature" ? null : f.weaponId, sourceRef: kind === "creature" ? "fixture-shortsword" : undefined };
-    await assert.rejects(declareDefenseInterventionInTransaction(tx, f.context, defender, response), /must first confirm/);
-    await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id, { decision: "allow" });
+    assert.equal(window.requiresGodConfirmation, false, "Reached Initiative supplies eligibility without G.O.D. permission.");
     const reaction = await declareDefenseInterventionInTransaction(tx, f.context, defender, response, { method: "entered", enteredTotal: 78 });
     assert.equal(await declareDefenseInterventionInTransaction(tx, f.context, defender, response), reaction);
     const result = await resolveDeclaredDefensesInTransaction(tx, f.context, actor, declarationId);
@@ -54,7 +53,7 @@ for (const kind of ["player", "npc", "creature"] as const) test(`${kind} uses ex
   }), (error) => error === rollback);
 });
 
-test("Mira's explicit simultaneous Hold permits a later aware response with fresh Roll 36; unaware variant never rolls", async () => {
+test("Mira's simultaneous Hold reveals the checkpoint and permits a response with fresh Roll 36 without permission", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await completionServiceFixture(tx, "hold-awareness");
     await tx.update(participant).set({ participationStatus: "active" }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
@@ -67,8 +66,7 @@ test("Mira's explicit simultaneous Hold permits a later aware response with fres
     await holdParticipantInitiativeInTransaction(tx, f.context, f.heroId);
     assert.equal(await readOpenDeclarationCheckpoint(tx, f.encounterId), null);
     const dodge = { opportunityId: window.id, reactionType: "dodge" as const, protectedTargetCharacterId: f.heroId };
-    await assert.rejects(declareDefenseInterventionInTransaction(tx, f.context, f.player, dodge, { method: "entered", enteredTotal: 94 }), /must first confirm/);
-    await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id, { decision: "allow" });
+    assert.equal(window.requiresGodConfirmation, false);
     await declareDefenseInterventionInTransaction(tx, f.context, f.player, dodge, { method: "entered", enteredTotal: 36 });
     assert.deepEqual((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, f.encounterId))).map(({ resultTotal }) => resultTotal).sort((a, b) => a - b), [36, 55]);
     assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.heroId)?.currentInitiative, 21);

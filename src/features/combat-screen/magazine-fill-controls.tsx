@@ -1,4 +1,5 @@
 "use client";
+import { decimalMultiply } from "@/lib/decimal";
 import { useRef, useState } from "react";
 import type { MagazineInventoryView } from "@/features/items/magazine-inventory-service";
 import type { CombatEntity, CombatScreenScope } from "./screen-types";
@@ -13,7 +14,7 @@ export function MagazineFillControls({ scope, entity, inventory, disabled, refre
   const selected = inventory.magazines.find((entry) => entry.instanceId === Number(selectedId));
   const ammunitionItemId = selected?.ammunitionItemId ?? (Number(ammoId) || selected?.ammunition[0]?.id);
   const ammo = selected?.ammunition.find((entry) => entry.id === ammunitionItemId), count = Number(rounds);
-  const cost = selected?.fillInitiativeCostPerRound === null || !selected ? null : selected.fillInitiativeCostPerRound * count;
+  const cost = selected?.fillInitiativeCostPerRound === null || !selected || !Number.isSafeInteger(count) ? null : decimalMultiply(selected.fillInitiativeCostPerRound, count);
   const issue = disabled ? "Resolve the current combat pause or blocking choice first." : !entity.canControl || !entity.canActNow ? entity.actionReason
     : !selected ? "Choose an owned, detached magazine copy." : selected.attachedWeaponInstanceId ? "Remove this magazine from its firearm before filling it."
       : selected.archived ? "Restore this magazine model in Items before filling it." : cost === null ? "Set Fill Initiative per Round in Heavens → Items → Magazine."

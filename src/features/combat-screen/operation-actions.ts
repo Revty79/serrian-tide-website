@@ -24,6 +24,8 @@ import { readCombatEntityInformationInTransaction } from "@/features/tabletop-op
 import { combatEffectSummary } from "./result-summary";
 import { attackReportSignature, isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
 import { forceEndCombatInTransaction } from "@/features/tabletop-operations/combat-force-end-service";
+import { creatureExperienceEvidence, npcRewardEvidence } from "@/features/tabletop-operations/combat-xp";
+import { combatConditionState } from "@/features/tabletop-operations/combat-condition-state";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");
@@ -136,16 +138,37 @@ export async function readCombatCloseout(encounterId: number) {
     const closeout = await readEncounterCloseoutInTransaction(tx, await lockEncounterCloseoutContextInTransaction(tx, encounterId, actor.userId));
     const receipts = await tx.select().from(decision).where(eq(decision.encounterId, encounterId));
     const rows = await tx.select({ id: member.characterId, name: member.displayLabel, snapshot: member.creatureSnapshotJson, local: member.localStateJson,
-      characterName: campaignCharacter.name, npcKind: campaignCharacter.npcKind, persistent: campaignCreatureNpcProfile.currentSnapshotJson }).from(member)
+      characterName: campaignCharacter.name, isNpc: campaignCharacter.isNpc, npcKind: campaignCharacter.npcKind, persistent: campaignCreatureNpcProfile.currentSnapshotJson }).from(member)
       .leftJoin(campaignCharacter, eq(campaignCharacter.id, member.characterId)).leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, member.characterId))
       .where(and(eq(member.encounterId, context.encounterId), eq(member.campaignId, context.campaignId)));
-    const creatures = rows.filter((row) => (row.id < 0 || row.npcKind === "creature") && Object.keys(object(object(row.local).defeat)).length).map((row) => {
-      const defeat = object(object(row.local).defeat), snapshot = row.snapshot ?? (row.persistent ? JSON.parse(row.persistent) : {});
+    const creatures = rows.filter((row) => row.id < 0 && creatureExperienceEvidence(row.local)).map((row) => {
+      const defeat = creatureExperienceEvidence(row.local)!, snapshot = row.snapshot ?? (row.persistent ? JSON.parse(row.persistent) : {});
       const value = defeat.defeatValueXp ?? object(object(snapshot).core).killXp;
-      return { participantId: row.id, name: row.characterName || row.name, value: typeof value === "number" ? value : null,
+      return { participantId: row.id, name: row.characterName || row.name, condition: combatConditionState(row.local).status, value: typeof value === "number" ? value : null,
         killerId: typeof object(defeat.credit).characterId === "number" ? Number(object(defeat.credit).characterId) : null, awarded: receipts.some((receipt) => receipt.sourceKey === `creature:${row.id}`) };
     });
-    return { closeout, creatures, encounterAwarded: receipts.some((receipt) => receipt.sourceKey === "encounter") };
+    const npcs = rows.filter((row) => row.isNpc && npcRewardEvidence(row.local)).map((row) => ({
+      participantId: row.id, name: row.characterName || row.name,
+      condition: object(object(row.local).combatParticipation).departureKind === "surrender" && combatConditionState(row.local).status === "able"
+        ? "surrendered / yielded" : combatConditionState(row.local).status,
+      awarded: receipts.some((receipt) => receipt.sourceKey === "npc:" + row.id || receipt.sourceKey === "creature:" + row.id),
+    }));
+    const kills = rows.filter((row) => (row.id < 0 || row.npcKind === "creature") && (combatConditionState(row.local).status === "dead" || Object.keys(object(object(row.local).kill)).length > 0)).map((row) => {
+      const kill = object(object(row.local).kill), defeat = object(object(row.local).defeat);
+      const snapshot = row.snapshot ?? (row.persistent ? JSON.parse(row.persistent) : {});
+      const cr = kill.challengeRating ?? object(object(snapshot).core).challengeRating;
+      const killer = kill.killerId ?? object(defeat.credit).characterId;
+      return { participantId: row.id, name: row.characterName || row.name, challengeRating: typeof cr === "number" ? cr : null,
+        killerId: typeof killer === "number" ? killer : null, awarded: receipts.some((receipt) => receipt.sourceKey === "creature-kill-fame:" + row.id) };
+    });
+    const fameHistory = receipts.flatMap((receipt) => {
+      const frozen = object(receipt.frozenDecisionJson), awards = frozen.fameAwards;
+      return Array.isArray(awards) ? awards.map(object).filter((award) => typeof award.amount === "number" && award.amount > 0).map((award) => ({
+        decisionId: receipt.id, characterId: Number(award.characterId), amount: Number(award.amount),
+        source: receipt.sourceKey.startsWith("creature-kill-fame:") ? "Creature kill CR" : "G.O.D. NPC award" })) : [];
+    });
+    return { closeout, creatures, npcs, kills, fameHistory, playerIds: rows.filter((row) => row.id > 0 && row.isNpc === false).map((row) => row.id),
+      encounterAwarded: receipts.some((receipt) => receipt.sourceKey === "encounter") };
   });
 }
 export async function endCombatWithAwards(encounterId: number, expectedStateToken: string, input: FinalizeEncounterCloseoutInput) {

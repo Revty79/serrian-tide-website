@@ -1,0 +1,8 @@
+{
+  "passed": [
+    "At the exact Initiative where an incoming attack completes, the free Player can Fire & Roll without a defense-only gate. The incoming result remains recorded; the independent shot consumes one round and applies 2 damage.",
+    "Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. The actual item editor saves the sole mode; refresh enables firing without a mode selector, with one Roll, one round consumed and 2 damage applied once. One Prepare next shot completes cycling 3 plus recoil 2 for 5 Initiative without spending ammunition.",
+    "The XP screen includes an incapacitated living Creature, previews and awards its authored 3 XP once, and preserves incapacitation after closeout and reload."
+  ],
+  "errors": []
+}

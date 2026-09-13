@@ -1,0 +1,15 @@
+{
+  "passed": [
+    "Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. The actual item editor saves the sole mode; refresh enables firing without a mode selector, with one Roll, one round consumed and 2 damage applied once. One Prepare next shot completes cycling 0.1 plus recoil 0.2 for 0.3 Initiative without spending ammunition.",
+    "An unavailable defense is blocked; a rules-eligible direct Creature Block uses its authored weapon and Roll, and prevents damage.",
+    "The XP screen includes an incapacitated living Creature, previews and awards its authored 3 XP once, and preserves incapacitation after closeout and reload.",
+    "After the G.O.D. ends combat, the header opens XP and award history. A dead Creature's authored 3 XP is awarded once, with completed encounter and death preserved; reload shows already awarded.",
+    "An ordinary Player attack runs to one report automatically; one approval applies whole-body incapacitation and alerts the G.O.D.",
+    "Limb incapacity and head death alert both roles live; acknowledgement survives reload and leaves the current condition visible.",
+    "G.O.D. records NPC Surrender / Yield, selects 6 XP and 2 Fame, previews and closes combat atomically. The Player returns to their exact Tabletop view. Reconnect shows one award and retains surrender.",
+    "A Player's Double Ott firearm hit kills the Creature and adds its CR 4 Fame once. Closeout opens the actual outstanding critical; settling that last effect completes the result, preserves XP selections, awards 3 XP, and returns the Player to Tabletop. One original Roll and one round spent."
+  ],
+  "errors": [],
+  "fullHarnessPassed": false,
+  "boundary": "All prior scenarios passed. The final force-end test read XP before its separate asynchronous award committed; that test now explicitly waits for the award and is rerun separately."
+}

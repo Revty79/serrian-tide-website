@@ -1,4 +1,15 @@
 import { normalizeExperienceAwards, type ExperienceAwardInput } from "./encounter-closeout";
+import { combatConditionState, combatObject } from "./combat-condition-state";
+
+/** Existing defeat records and recorded incapacity both support an XP decision.
+ * This reads evidence only; an XP award never changes the combatant's condition. */
+export function creatureExperienceEvidence(localState: unknown): Record<string, unknown> | null {
+  const local = combatObject(localState), defeat = combatObject(local.defeat);
+  if (Object.keys(defeat).length) return defeat;
+  const condition = combatConditionState(local);
+  if (condition.status !== "incapacitated" && condition.status !== "dead") return null;
+  return { reason: condition.reason, conditionEvidence: structuredClone(local.combatCondition) };
+}
 
 export type CreatureExperienceMode = "killer-only" | "full-to-each" | "shared-split";
 
@@ -42,4 +53,13 @@ export function allocateEncounterExperience(amount: number, recipientCharacterId
 export function positiveExperienceAwards(awards: readonly ExperienceAwardInput[]): ExperienceAwardInput[] {
   for (const award of awards) wholeExperience(award.amount);
   return normalizeExperienceAwards(awards);
+}
+
+
+export function npcRewardEvidence(localState: unknown): Record<string, unknown> | null {
+  const local = combatObject(localState), condition = combatConditionState(local), participation = combatObject(local.combatParticipation);
+  if (["dead", "incapacitated"].includes(condition.status) || participation.departed === true && participation.departureKind === "surrender") {
+    return { condition: structuredClone(local.combatCondition), participation: structuredClone(local.combatParticipation) };
+  }
+  return null;
 }

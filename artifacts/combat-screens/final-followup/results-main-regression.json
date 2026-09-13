@@ -1,0 +1,32 @@
+{
+  "passed": [
+    "Planned Session and Scene show the start prerequisites; G.O.D. starts each from combat setup, initializes Characters and a direct Creature, and commands the NPC and Creature.",
+    "Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.",
+    "An actual offline/reconnect cycle preserves target, Roll draft, focus and scroll without submitting a choice.",
+    "Freeze/Resume is shared; inspection and the Player action draft remain available.",
+    "Player weapon declaration and original percentile Roll resolve through timing to fatal head damage; the dead direct Creature remains inspectable.",
+    "The real Add Creatures control adds two direct occurrences, enrolls them late, and leaves NPC records unchanged.",
+    "G.O.D. withdrawal, return with preserved Initiative, and confirmed escape update the exact occurrence.",
+    "An incapacitated PC stays eligible: full Creature XP plus full encounter XP preview and apply once; the Player returns to Tabletop and G.O.D. inspects completed combat after reload.",
+    "Simultaneous Player/NPC declarations, Player first, preserve hidden action history and record one Roll each.",
+    "Simultaneous Player/NPC declarations, NPC first, preserve hidden action history and record one Roll each.",
+    "The main next-input control resolves a faster Creature action, offers its next action while the critical sword is unfinished, then opens the sword's exact ruling only at completion; death cancels the later unfinished action.",
+    "Initiative automatically offers the Player a choice without G.O.D. permission: movement completes while the original attack remains pending, then Hold preserves 19 Initiative and the attack misses. One original Roll, no approval prompt, no timing reset.",
+    "Initiative automatically offers the Player a choice without G.O.D. permission: no-reaction then Hold preserves 20 Initiative and the original attack applies 6 damage. One original Roll, no approval prompt, no timing reset.",
+    "Higher-to-lower Initiative Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "Simultaneous Holds advance required choices once, preserve Initiative, and stop at all-Hold without ordinary-input or advancement loops.",
+    "Automatic flow prepares one attack report, applies it after approval, respects Freeze, stops for the next Player choice, and preserves one Roll/cost/outcome with two G.O.D. screens and reconnect.",
+    "The G.O.D. ends frozen combat with an unrevealed action through the header override, without a mandatory note or resource refund; the Player receives the closed state live.",
+    "Learned spell Skill Roll, automatic hit location and one result approval commits and completes through the screen/server flow.",
+    "Exact firearm commits and completes through the screen/server flow.",
+    "Player initializes an exact empty firearm, loads two loose rounds, and readies it through ordinary equipment setup outside combat.",
+    "At the exact Initiative where an incoming attack completes, the free Player can Fire & Roll without a defense-only gate. The incoming result remains recorded; the independent shot consumes one round and applies 2 damage.",
+    "A target passes while the final attack is declared, the attack reaches Initiative zero and its report is approved, then Next round starts Round 2 with the passed combatant's unused Initiative preserved. No obsolete response, repeat Roll or G.O.D. permission prompt blocks it.",
+    "Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. The actual item editor saves the sole mode; refresh enables firing without a mode selector, with one Roll, one round consumed and 2 damage applied once. One Prepare next shot completes cycling 0.1 plus recoil 0.2 for 0.3 Initiative without spending ammunition.",
+    "Magazine UI: author capacity/ammunition, link a weapon, acquire two empty copies in the existing store, fill/top up/empty, and preserve separate contents and ammunition conservation after reload.",
+    "AoE casting Rolls once, spends Mana once, records the authored area and scaled damage for G.O.D. and caster, and completes automatically without changing combatant HP."
+  ],
+  "errors": [],
+  "fullHarnessPassed": false,
+  "boundary": "Stopped at the obsolete Allow response instruction in the defense test. Earlier scenarios passed; defense and remaining scenarios are rerun under the confirmed rules-based eligibility."
+}

@@ -19,7 +19,7 @@ export async function saveMagazineCatalogInTransaction(tx: Tx, itemId: number, p
   if (profile) {
     if (!Number.isSafeInteger(profile.capacityRounds) || profile.capacityRounds <= 0 || profile.capacityRounds > 2147483647) throw new Error("Magazine Capacity (Rounds) must be a positive whole number.");
     const fillInitiativeCostPerRound = profile.fillInitiativeCostPerRound ?? null;
-    if (fillInitiativeCostPerRound !== null && (!Number.isSafeInteger(fillInitiativeCostPerRound) || fillInitiativeCostPerRound < 0 || fillInitiativeCostPerRound > 2147483647)) throw new Error("Magazine Fill Initiative per Round must be a nonnegative whole number, or blank until authored.");
+    if (fillInitiativeCostPerRound !== null && (!Number.isFinite(fillInitiativeCostPerRound) || fillInitiativeCostPerRound < 0 || fillInitiativeCostPerRound > 2147483647)) throw new Error("Magazine Fill Initiative per Round must be a finite nonnegative number, or blank until authored.");
     const ids = [...new Set(profile.ammunition.map((entry) => entry.id))];
     if (!ids.length || ids.includes(itemId) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Select at least one exact compatible ammunition item.");
     const ammo = await tx.select({ id: item.id }).from(item).leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))

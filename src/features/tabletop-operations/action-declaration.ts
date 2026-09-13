@@ -1,3 +1,4 @@
+import { decimalSubtract } from "@/lib/decimal";
 import type { InitiativeParticipantState, PendingInitiativeActionState } from "./initiative-runtime";
 import { hasUnfinishedInitiativeAction } from "./initiative-runtime";
 import type { FrozenActionSourceSnapshot } from "./action-effect-bridge";
@@ -402,7 +403,7 @@ export function deriveActionWindow(
   return {
     kind: snapshot.windowKind,
     startInitiative: start,
-    nominalCompletionInitiative: start - cost,
+    nominalCompletionInitiative: decimalSubtract(start, cost),
     initiativeCost: cost,
     includesBoundaryEquality: true,
     wraps: false,
@@ -467,7 +468,7 @@ export function deriveResponderCandidates(
       reason: included
         ? `${participant.participationStatus === "holding" ? "Holding" : "Active"} Initiative ${participant.currentInitiative} is reached by the inclusive ${window.startInitiative} to ${window.nominalCompletionInitiative} window.`
         : `Initiative ${participant.currentInitiative} lies outside the inclusive ${window.startInitiative} to ${window.nominalCompletionInitiative} window.`,
-      requiresGodConfirmation: included,
+      requiresGodConfirmation: false,
     };
   });
 }
@@ -497,11 +498,11 @@ export function calculateInterruptedActionProgress(input: {
   const interruption = finite(input.interruptionInitiative, "Interruption Initiative");
   const original = positive(input.originalInitiativeCost, "Original Initiative Cost");
   if (interruption > start) throw new Error("Interruption cannot rewind Initiative.");
-  const initiativeSpent = Math.min(original, start - interruption);
+  const initiativeSpent = Math.min(original, decimalSubtract(start, interruption));
   return {
     initiativeSpent,
-    remainingInitiativeCost: original - initiativeSpent,
-    currentInitiative: start - initiativeSpent,
+    remainingInitiativeCost: decimalSubtract(original, initiativeSpent),
+    currentInitiative: decimalSubtract(start, initiativeSpent),
   };
 }
 
@@ -552,7 +553,7 @@ export function calculateHasTheRun(input: {
   const eligibleActor = actor.participationStatus === "active" || actor.participationStatus === "holding";
   const hasTheRun = eligibleActor && actor.currentInitiative > 0 && !activeAction && ahead;
   const maximumWindowBeforeInterference = hasTheRun && nearest
-    ? actor.currentInitiative - nearest.initiativePosition
+    ? decimalSubtract(actor.currentInitiative, nearest.initiativePosition)
     : nearest === null && hasTheRun ? null : 0;
   const proposedInitiativeCost = input.proposedInitiativeCost === null || input.proposedInitiativeCost === undefined
     ? null
