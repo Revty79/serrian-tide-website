@@ -15,6 +15,7 @@ import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema
 import {
   campaignSession,
   campaignSessionEncounter,
+  campaignSessionEncounterActionDeclaration,
   campaignSessionEncounterInitiative,
   campaignSessionEncounterInitiativeParticipant,
   campaignSessionEncounterParticipant,
@@ -533,6 +534,12 @@ async function persistInitiativeEngineInternal(
   await reconcileFirearmInitiativeTransitionsInTransaction(tx, before, after, context.ownerUserId);
   const { reconcileMagazineFillProgress } = await import("./combat-magazine-fill-service");
   await reconcileMagazineFillProgress(tx, before, after, context.ownerUserId);
+  const { completeMeleeDraw } = await import("./combat-melee-draw-service");
+  for (const action of after.pendingActions.filter((entry) => entry.actionKind === "combat-melee-draw" && entry.status === "completed")) {
+    const [draw] = await tx.select({ id: campaignSessionEncounterActionDeclaration.id }).from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, action.id));
+    if (draw) await completeMeleeDraw(tx, draw.id, context.ownerUserId);
+  }
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime, durationPassage);
   if (before.runtime.stepNumber !== after.runtime.stepNumber || before.runtime.roundNumber !== after.runtime.roundNumber || before.runtime.status !== after.runtime.status) {
     const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");

@@ -1356,6 +1356,27 @@
   margin-bottom: 1.5rem;
 }
 
+.combatEquipment {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.75rem;
+  background: var(--st-surface-soft);
+}
+
+.combatEquipment > details {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.5rem;
+}
+
+.combatEquipment summary { cursor: pointer; min-height: 44px; }
+.combatEquipment button { min-height: 44px; }
+
 .equipmentTools :global(.equipment-state-panel--compact),
 .equipmentTools :global(.magazine-panel--compact) {
   margin: 0 0 1.25rem;

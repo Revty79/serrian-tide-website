@@ -668,6 +668,48 @@ export function getCharacterEquipmentState(characterId: number): Promise<Charact
   return withEquipmentReadAccess(characterId, ({ tx }) => readCharacterEquipmentStateInTransaction(tx, characterId));
 }
 
+export type ReadyOwnedWeaponCommand = {
+  characterId: number;
+  itemId: number;
+  instanceId: number | null;
+  /** Absolute target makes a repeated stack request harmless. */
+  wieldedQuantity: number;
+};
+
+export async function readyOwnedWeaponInTransaction(tx: EquipmentStateTransaction, command: ReadyOwnedWeaponCommand): Promise<EquipmentStateMutationResult> {
+  const { assertOutsideCombatEquipmentHandling } = await import("./magazine-inventory-service");
+  await assertOutsideCombatEquipmentHandling(tx, command.characterId);
+  await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  positiveId(command.itemId, "Weapon");
+  const [profile] = await tx.select({ id: weaponProfile.id }).from(weaponProfile)
+    .innerJoin(item, eq(item.id, weaponProfile.itemId))
+    .where(and(eq(item.id, command.itemId), isNull(item.archivedAt), eq(weaponProfile.profileRecordType, "Weapon")));
+  if (!profile) throw new Error("Choose an active owned weapon.");
+  const equipment = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
+  if (command.instanceId !== null) {
+    const owned = equipment.instances.find((entry) => entry.instanceId === command.instanceId && entry.itemId === command.itemId);
+    if (!owned) throw new Error("Choose an exact owned weapon copy.");
+    return setInstanceEquipmentStateInTransaction(tx, { characterId: command.characterId, instanceId: owned.instanceId, state: "wielded" });
+  }
+  const owned = equipment.stacks.find((entry) => entry.itemId === command.itemId);
+  if (!owned || !Number.isSafeInteger(command.wieldedQuantity) || command.wieldedQuantity < 1
+    || command.wieldedQuantity > owned.ownedQuantity
+    || ![owned.wieldedQuantity, owned.wieldedQuantity + 1].includes(command.wieldedQuantity)) {
+    throw new Error("The weapon quantity changed. Refresh Equipment and choose a weapon again.");
+  }
+  if (command.wieldedQuantity > owned.wieldedQuantity && owned.inactiveQuantity === 0) {
+    const from = owned.equippedQuantity > 0 ? "equipped" : "worn";
+    await setStackEquipmentStateInTransaction(tx, { characterId: command.characterId, itemId: command.itemId,
+      state: from, quantity: (from === "equipped" ? owned.equippedQuantity : owned.wornQuantity) - 1 });
+  }
+  return setStackEquipmentStateInTransaction(tx, { characterId: command.characterId, itemId: command.itemId,
+    state: "wielded", quantity: command.wieldedQuantity });
+}
+
+export function readyOwnedWeapon(command: ReadyOwnedWeaponCommand) {
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => readyOwnedWeaponInTransaction(tx, command));
+}
+
 export async function setStackEquipmentStateInTransaction(
   tx: EquipmentStateTransaction,
   command: SetStackEquipmentStateCommand,

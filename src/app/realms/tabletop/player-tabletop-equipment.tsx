@@ -9,6 +9,7 @@ import { EquipmentStatePanel } from "@/app/characters/equipment-state-panel";
 import { MagazinePanel } from "@/app/characters/magazine-panel";
 import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
 import styles from "./player-tabletop.module.css";
+import { PlayerTabletopCombatEquipment } from "./player-tabletop-combat-equipment";
 
 export function PlayerTabletopEquipment({ initial, combatId }: { initial: CharacterEquipmentStateView; combatId: number | null }) {
   const router = useRouter();
@@ -23,6 +24,8 @@ export function PlayerTabletopEquipment({ initial, combatId }: { initial: Charac
   }
 
   return <div className={styles.equipmentTools}>
+    {combatId !== null ? <PlayerTabletopCombatEquipment key={`${initial.characterId}:${combatId}`} characterId={initial.characterId} encounterId={combatId} onChange={refresh} />
+      : <p>Use <strong>Ready weapon</strong> to wield an owned weapon before combat. Ranged weapons also need ammunition; use Ranged weapon setup below.</p>}
     {combatId !== null ? <p className={styles.notice}>Combat is active. Preparation uses combat actions and Initiative. <Link href={`/realms/tabletop?character=${initial.characterId}&combat=${combatId}`}><Swords size={16} aria-hidden="true" />Open encounter</Link></p> : null}
     <EquipmentStatePanel
       state={state}

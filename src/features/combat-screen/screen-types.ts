@@ -2,7 +2,7 @@ import type { readCombatScreen } from "./screen-actions";
 export type CombatScreenScope = { role: "god"; encounterId: number } | { role: "player"; encounterId: number; characterId: number };
 export type CombatScreenData = Awaited<ReturnType<typeof readCombatScreen>>;
 export type CombatEntity = NonNullable<CombatScreenData["projection"]>["entities"][number];
-export const COMBAT_COMMANDS = ["Attack", "Cast", "Item", "Ability", "Defend", "Hold", "Move", "Called Shot"] as const;
+export const COMBAT_COMMANDS = ["Attack", "Weapons", "Cast", "Item", "Ability", "Defend", "Hold", "Move", "Called Shot"] as const;
 export type CombatCommand = typeof COMBAT_COMMANDS[number];
 export function combatActionStatus(entry: NonNullable<CombatScreenData["projection"]>["declarations"][number]) {
   if (["resolved", "cancelled", "abandoned"].includes(entry.status)) return entry.status;

@@ -1186,6 +1186,8 @@ export async function reconcileFirearmPreparationAfterResponderInTransaction(
   if (preparation) await completeFirearmPreparationById(tx, preparation.id, actorUserId);
   const { finalizeMagazineFillDeclaration } = await import("./combat-magazine-fill-service");
   await finalizeMagazineFillDeclaration(tx, declarationId, actorUserId);
+  const { completeMeleeDraw } = await import("./combat-melee-draw-service");
+  await completeMeleeDraw(tx, declarationId, actorUserId);
 }
 
 export async function readFirearmWorkspaceInTransaction(

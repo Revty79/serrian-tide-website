@@ -16,6 +16,7 @@ import type { EquipmentStateMutationResult } from "@/features/items/equipment-st
 import {
   setInstanceEquipmentStateAction,
   setStackEquipmentStateAction,
+  readyOwnedWeaponAction,
 } from "./equipment-state-actions";
 import "./equipment-state-panel.css";
 import { FirearmSetupPanel } from "./firearm-setup-panel";
@@ -60,6 +61,9 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
     <div className="equipment-state-panel__owned">
       {state.stacks.map((entry) => <article key={`stack-${entry.itemId}`}>
         <header><div><strong>{entry.itemName} ×{entry.ownedQuantity}</strong><span>{entry.equipmentGroup} · Stack-owned</span></div><b>Inactive: {entry.inactiveQuantity}</b></header>
+        {entry.equipmentGroup === "weapon" ? <button type="button" className="st-button" disabled={disabled || busy || entry.wieldedQuantity >= entry.ownedQuantity}
+          aria-label={`Ready weapon ${entry.itemName}`} onClick={() => void run(() => readyOwnedWeaponAction({ characterId: state.characterId, itemId: entry.itemId, instanceId: null, wieldedQuantity: entry.wieldedQuantity + 1 }))}>
+          {entry.wieldedQuantity >= entry.ownedQuantity ? "Weapon wielded" : entry.wieldedQuantity > 0 ? "Ready another weapon" : "Ready weapon"}</button> : null}
         <div className="equipment-state-panel__quantity-grid">{ACTIVE_EQUIPMENT_STATES.map((equipmentState) => {
           const quantity = quantityFor(entry, equipmentState);
           return <div key={equipmentState}><span>{stateLabel(equipmentState)}</span><button type="button" aria-label={`Decrease ${stateLabel(equipmentState)} ${entry.itemName}`} title={`Decrease ${stateLabel(equipmentState)}`} disabled={disabled || busy || quantity <= 0} onClick={() => changeStack(entry.itemId, equipmentState, quantity - 1)}><Minus size={16} aria-hidden="true" /></button><strong>{quantity}</strong><button type="button" aria-label={`Increase ${stateLabel(equipmentState)} ${entry.itemName}`} title={`Increase ${stateLabel(equipmentState)}`} disabled={disabled || busy || entry.inactiveQuantity <= 0} onClick={() => changeStack(entry.itemId, equipmentState, quantity + 1)}><Plus size={16} aria-hidden="true" /></button></div>;
@@ -67,6 +71,9 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
       </article>)}
       {state.instances.map((entry) => <article key={`instance-${entry.instanceId}`}>
         <header><div><strong>{entry.itemName} · Copy #{entry.instanceId}</strong><span>{entry.equipmentGroup} · {entry.isMagazine ? "Magazine" : `${entry.currentCharges} Charges`}</span></div></header>
+        {entry.equipmentGroup === "weapon" && !entry.isMagazine ? <button type="button" className="st-button" disabled={disabled || busy || entry.state === "wielded"}
+          aria-label={`Ready weapon ${entry.itemName} copy ${entry.instanceId}`} onClick={() => void run(() => readyOwnedWeaponAction({ characterId: state.characterId, itemId: entry.itemId, instanceId: entry.instanceId, wieldedQuantity: 1 }))}>
+          {entry.state === "wielded" ? "Weapon wielded" : "Ready weapon"}</button> : null}
         <label>Equipment State<select disabled={disabled || busy} value={entry.state} onChange={(event) => void run(() => setInstanceEquipmentStateAction({ characterId: state.characterId, instanceId: entry.instanceId, state: event.target.value as EquipmentState, includeEffectHistory }))}>{EQUIPMENT_STATES.map((equipmentState) => <option key={equipmentState} value={equipmentState}>{stateLabel(equipmentState)}</option>)}</select></label>
       </article>)}
     </div>

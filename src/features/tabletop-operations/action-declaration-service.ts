@@ -771,6 +771,10 @@ async function commitActionDeclarationInternal(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  if (snapshot.actionKind === "combat-melee-draw") {
+    const { validateMeleeDrawCommit } = await import("./combat-melee-draw-service");
+    await validateMeleeDrawCommit(tx, snapshot);
+  }
   const injuryTiming = snapshot.authoredSource?.authoredData.injuryTiming;
   if (snapshot.weapon && !snapshot.actionKind.startsWith("firearm-preparation:") && !["firearm-trigger", "firearm-sustained"].includes(snapshot.windowKind)) {
     const { readWeaponInjuryTimingInTransaction } = await import("./combat-injury-timing-service");

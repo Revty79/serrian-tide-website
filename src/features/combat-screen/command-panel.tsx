@@ -11,6 +11,7 @@ import { SourceRuling } from "./source-ruling";
 import { FirearmControls } from "./firearm-controls";
 import { firearmGuidance } from "./firearm-guidance";
 import { MagazineFillControls } from "./magazine-fill-controls";
+import { MeleeDrawControls } from "./melee-draw-controls";
 import { EffectOptions } from "./effect-options";
 import { TargetDropdowns } from "./target-dropdowns";
 import styles from "./combat-screen.module.css";
@@ -22,8 +23,8 @@ type Draft = { source: string; targets: number[]; groups: Record<string, number[
   location: string; objective: string; penalty: string; reason: string; mode: string; aim: string; duration: string; weaponHands: string; roll: RollDraft };
 const blank: Draft = { source: "", targets: [], groups: {}, applications: {}, location: "", objective: "", penalty: "", reason: "", mode: "", aim: "0", duration: "1", weaponHands: "", roll: emptyRoll };
 const sourceKey = (source: Sources["sources"][number]) => `${source.kind}/${source.ref}/${source.instanceId ?? "stack"}`;
-export function CommandPanel({ scope, entity, data, command, target: selectedTarget, setTarget, disabled, refresh }: { scope: CombatScreenScope; entity: CombatEntity; data: CombatScreenData;
-  command: CombatCommand; target: string; setTarget: (value: string) => void; disabled: boolean; refresh: () => Promise<void> }) {
+export function CommandPanel({ scope, entity, data, command, setCommand, target: selectedTarget, setTarget, disabled, refresh }: { scope: CombatScreenScope; entity: CombatEntity; data: CombatScreenData;
+  command: CombatCommand; setCommand: (value: CombatCommand) => void; target: string; setTarget: (value: string) => void; disabled: boolean; refresh: () => Promise<void> }) {
   const key = `${entity.participantId}:${command}`;
   const attackCommand = command === "Attack" || command === "Called Shot";
   const target = attackCommand && Number(selectedTarget) === entity.participantId ? "" : selectedTarget;
@@ -68,7 +69,7 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
     ? preview.preview.timing.aimInitiativeCost + preview.preview.timing.firingInitiativeCost
     : preview.snapshot.initiativeCost, entity.currentInitiative) : null;
   function edit(change: Partial<Draft>) { setDrafts((values) => ({ ...values, [key]: { ...draft, ...change } })); delete submitted.current[key]; }
-  const previewReady = firearmReady && !!choice && !source?.unavailable && !["Hold", "Move", "Defend"].includes(command)
+  const previewReady = firearmReady && !!choice && !source?.unavailable && !["Hold", "Move", "Defend", "Weapons"].includes(command)
     && (command !== "Cast" || !!currentSpell && groups.every((group) => group.kind === "aoe" || group.selected.length > 0))
     && (!["Attack", "Called Shot"].includes(command) || targets.length > 0)
     && (command !== "Called Shot" || !!location && (scope.role === "god" || !!ruling));
@@ -114,10 +115,35 @@ export function CommandPanel({ scope, entity, data, command, target: selectedTar
     } catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "The command was not confirmed. Retry preserves its original choice and Roll.")); await refresh(); }
     finally { running.current = false; setBusy(false); }
   }
+  function useWeapon(ownershipKey: string) {
+    const weapon = sources?.sources.find((entry) => entry.kind === "weapon" && entry.ref === ownershipKey);
+    if (!weapon) return;
+    const attackKey = `${entity.participantId}:Attack`;
+    setDrafts((values) => ({ ...values, [attackKey]: { ...(values[attackKey] ?? blank), source: sourceKey(weapon), mode: "", weaponHands: "" } }));
+    delete submitted.current[attackKey];
+    setCommand("Attack");
+  }
   return <div><h3>{command}</h3>
+    {attackCommand && entity.canControl ? <button className="st-button" onClick={() => setCommand("Weapons")}>Draw / change weapon</button> : null}
+    {command === "Item" && sources ? <MeleeDrawControls key={entity.participantId} scope={scope} entity={entity} options={sources.meleeDraws} disabled={disabled} refresh={refresh} /> : null}
     {command === "Item" && sources?.magazines ? <MagazineFillControls scope={scope} entity={entity} inventory={sources.magazines} disabled={disabled} refresh={refresh} /> : null}
     {sources?.aggregateIssue ? <p className={styles.notice} role="status">Some owned sources could not be loaded: {combatMessage(sources.aggregateIssue)}</p> : null}
-    {command === "Hold" || command === "Move" ? <MovementPanel key={data.projection?.stateToken} scope={scope} participantId={entity.participantId} currentInitiative={entity.currentInitiative} modes={sources?.movement ?? []} disabled={disabled || !entity.canControl || !entity.canActNow} hold={command === "Hold"} holding={entity.participationStatus === "holding"} refresh={refresh} /> : command === "Defend" ? <DefensePanel scope={scope} entity={entity} data={data} sources={sources} disabled={disabled} refresh={refresh} /> : <>
+    {command === "Weapons" ? <section aria-label="Combat weapons">
+      <p>Choose a wielded weapon for your next attack, or draw another owned weapon. Drawing uses its Initiative cost and finishes on the combat timeline.</p>
+      {!sources ? <p role="status">Reading your weapons…</p> : <>
+        <section aria-label="Wielded weapons"><h4>Wielded weapons</h4>
+          {sources.equipment?.wieldedWeapons.length ? <div className={styles.actions}>{sources.equipment.wieldedWeapons.map((weapon) =>
+            <button key={weapon.ownershipKey} className="st-button" disabled={disabled || !entity.canControl} onClick={() => useWeapon(weapon.ownershipKey)}>Use {weapon.itemName} for attack</button>)}</div>
+            : <p>No weapon is wielded. Draw one below to make it available for attacks and parries.</p>}
+        </section>
+        <MeleeDrawControls key={entity.participantId} scope={scope} entity={entity} options={sources.meleeDraws} disabled={disabled} refresh={refresh} expanded />
+        {sources.firearms?.firearms.map((weapon) => <details key={weapon.itemInstanceId}>
+          <summary>{weapon.itemName} · Copy #{weapon.itemInstanceId}</summary>
+          <FirearmControls scope={scope} entity={entity} firearm={weapon} selectedModeId={weapon.state?.selectedFiringModeId ?? weapon.modes[0]?.id ?? 0}
+            inventory={sources.magazines} disabled={disabled} refresh={refresh} preparationOnly />
+        </details>)}
+      </>}
+    </section> : command === "Hold" || command === "Move" ? <MovementPanel key={data.projection?.stateToken} scope={scope} participantId={entity.participantId} currentInitiative={entity.currentInitiative} modes={sources?.movement ?? []} disabled={disabled || !entity.canControl || !entity.canActNow} hold={command === "Hold"} holding={entity.participationStatus === "holding"} refresh={refresh} /> : command === "Defend" ? <DefensePanel scope={scope} entity={entity} data={data} sources={sources} disabled={disabled} refresh={refresh} /> : <>
       <div className={styles.fields}><label className="st-field">{command} source<select className="st-control" value={draft.source} disabled={busy} onChange={(event) => edit({ source: event.target.value, groups: {}, applications: {}, mode: "" })}><option value="">Choose an exact source</option>{draft.source && !source ? <option value={draft.source}>Selected source is no longer available</option> : null}{options.map((entry) => <option key={sourceKey(entry)} value={sourceKey(entry)}>{entry.name}{entry.unavailable ? " · unavailable" : ""}</option>)}</select></label>
       {command !== "Cast" ? <label className="st-field">Target<select className="st-control" value={target} disabled={busy} onChange={(event) => { setTarget(event.target.value); delete submitted.current[key]; }}><option value="">Choose a target</option>{data.roster.filter((entry) => !attackCommand || entry.participantId !== entity.participantId).map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label> : null}</div>
       {source ? <p className={styles.muted}>{source.description}{source.unavailable ? ` · ${source.unavailable}` : ""}</p> : <p className={styles.muted}>{sources ? "Choose an owned or authored source to see its options." : "Reading combat sources…"}</p>}

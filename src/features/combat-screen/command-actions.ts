@@ -26,6 +26,7 @@ import { resolveCombatMovementInTransaction } from "@/features/tabletop-operatio
 import { isSupportedAmmunitionWeaponType, UNSUPPORTED_PROJECTILE_MESSAGE } from "@/features/items/firearm-classification";
 import { readMagazineInventoryInTransaction } from "@/features/items/magazine-inventory-service";
 import { startCombatMagazineFill, type CombatMagazineFillCommand } from "@/features/tabletop-operations/combat-magazine-fill-service";
+import { readMeleeDrawOptions, startMeleeDraw, type MeleeDrawCommand } from "@/features/tabletop-operations/combat-melee-draw-service";
 
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");
@@ -53,13 +54,14 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     const checkpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
     if (checkpoint && actor.authority === "god-owner" && participantId > 0 && !row.isNpc) throw new Error("Inspect source rulings after simultaneous choices are revealed.");
     const equipment = participantId > 0 ? await readCharacterEquipmentStateInTransaction(tx, participantId) : null;
+    const meleeDraws = participantId > 0 ? await readMeleeDrawOptions(tx, participantId) : [];
     const magazines = participantId > 0 ? await readMagazineInventoryInTransaction(tx, participantId, actor.userId) : null;
     const firearms = participantId > 0 ? await readFirearmWorkspaceInTransaction(tx, context, participantId, null, actor.authority === "player" || row.isNpc ? actor : undefined) : null;
     const defenses = checkpoint ? null : await readDefenseInterventionWorkspaceInTransaction(tx, context, actor);
     const requests = actor.authority === "player" ? await readPlayerCombatRulingRequestsInTransaction(tx, context.encounterId, actor.characterId, actor.userId) : [];
     const movement = await resolveInitiativeCapacityOptionsInTransaction(tx, participantId, context.campaignId).catch(() => null);
     const snapshot = row.snapshot ?? (row.persistentSnapshot ? JSON.parse(row.persistentSnapshot) : null);
-    return { equipment, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
+    return { equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
       movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, rulings: records(object(row.local).combatSourceResolutionHistory) };
   });
   const sources: CombatSourceChoice[] = [];
@@ -123,6 +125,10 @@ export async function previewCombatMovement(scope: CombatScreenScope, participan
 
 export async function fillCombatMagazine(scope: CombatScreenScope, command: CombatMagazineFillCommand) {
   return authorized(scope, (tx, context, actor) => startCombatMagazineFill(tx, context, actor, command), true);
+}
+
+export async function drawCombatMeleeWeapon(scope: CombatScreenScope, command: MeleeDrawCommand) {
+  return authorized(scope, (tx, context, actor) => startMeleeDraw(tx, context, actor, command), true);
 }
 
 export async function applyCombatFirearmCatalog(scope: CombatScreenScope, command: { characterId: number; itemInstanceId: number; expectedVersion: number }) {

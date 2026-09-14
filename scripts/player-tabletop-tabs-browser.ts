@@ -13,6 +13,7 @@ import { tabletopToolsFixture } from "./fixtures/tabletop-tools-fixture";
 import { runTabletopToolsBrowser } from "./tabletop-tools-browser";
 import { closeoutAwardsFixture } from "./fixtures/closeout-awards-fixture";
 import { runCloseoutAwardsBrowser } from "./closeout-awards-browser";
+import { runTabletopWeaponReadyBrowser } from "./tabletop-weapon-ready-browser";
 
 assert.equal(process.env.SERRIAN_DISPOSABLE_TABLETOP_TABS, "true");
 const database = new URL(process.env.DATABASE_URL!);
@@ -78,6 +79,11 @@ async function main() {
       try { return (await fetch(`${base}/login`, { redirect: "manual" })).status < 500; } catch { return false; }
     }, "Next did not start");
     browser = await chromium.launch({ executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", headless: true });
+    if (process.env.SERRIAN_BROWSER_SCENARIO === "weapon-ready") {
+      await runTabletopWeaponReadyBrowser(browser, base, pool, artifacts);
+      await writeFile(path.join(artifacts, "results-weapon-ready.json"), JSON.stringify({ passed: true, precombatStackAndCopy: true, tabletopCombatDraw: true, attackSource: true, desktopAndMobile: true }, null, 2) + "\n");
+      return;
+    }
     if (process.env.SERRIAN_BROWSER_SCENARIO === "closeout-awards") {
       const f = await db.transaction((tx) => closeoutAwardsFixture(tx, "closeout-awards-browser"));
       await runCloseoutAwardsBrowser(browser, base, pool, f, artifacts);
