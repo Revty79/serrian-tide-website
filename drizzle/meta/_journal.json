@@ -351,6 +351,20 @@
       "when": 1789265451744,
       "tag": "0049_fractional_firearm_preparation",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1789340108668,
+      "tag": "0050_tabletop_source_use_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1789342824135,
+      "tag": "0051_manual_closeout_awards",
+      "breakpoints": true
     }
   ]
 }

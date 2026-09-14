@@ -296,6 +296,23 @@ function dependencySpecs(target: TabletopLifecycleTargetInput): DependencySpec[]
   const { entityKind, entityId } = target;
   return [
     ...preparationDependencySpecs(target),
+    ...(entityKind === "encounter" ? [] : [{
+      label: "Scene and Session award history", blocking: true,
+      query: countTables(["tabletop_closeout_award_decision"], entityKind, entityId, [sql`(
+        select count(*) from tabletop_closeout_award a
+        inner join tabletop_closeout_award_decision d on d.id = a.decision_id
+        where d.${sql.identifier(scopeColumn(entityKind))} = ${entityId}
+      )`]),
+    }]),
+    ...(entityKind === "encounter" ? [] : [{
+      label: "Tabletop Spell and Item ruling history",
+      blocking: true,
+      query: countTables(["tabletop_source_use_request"], entityKind, entityId, [sql`(
+        select count(*) from tabletop_source_use_event e
+        inner join tabletop_source_use_request r on r.id = e.request_id
+        where r.${sql.identifier(scopeColumn(entityKind))} = ${entityId}
+      )`]),
+    }]),
     { label: "Initiative runtime and history", blocking: true, query: countTables(INITIATIVE_TABLES, entityKind, entityId) },
     { label: "Action and reaction runtime/history", blocking: true, query: countTables(ACTION_HISTORY_TABLES, entityKind, entityId) },
     { label: "Effect plans, effects, and duration history", blocking: true, query: countTables(

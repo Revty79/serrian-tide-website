@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -20,6 +21,7 @@ export function RealmsDashboard({
 }) {
   const router = useRouter();
   const [campaignId, setCampaignId] = useState("");
+  const [campaignOverviewExpanded, setCampaignOverviewExpanded] = useState(false);
   const [characterId, setCharacterId] = useState("");
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [loadingCharacters, setLoadingCharacters] = useState(false);
@@ -42,6 +44,7 @@ export function RealmsDashboard({
 
   function changeCampaign(nextCampaignId: string) {
     setCampaignId(nextCampaignId);
+    setCampaignOverviewExpanded(false);
     setCharacterId("");
     setCharacters([]);
     setFeedback("");
@@ -151,15 +154,22 @@ export function RealmsDashboard({
         </section>
 
         {selectedCampaign ? (
-          <section className="mt-6 rounded-[26px] border border-white/10 bg-black/35 p-6 shadow-2xl backdrop-blur-2xl">
-            <div className="border-b border-white/10 pb-4">
-              <p className="m-0 text-xs uppercase tracking-[0.14em] text-purple-200">Campaign Overview</p>
-              <h2 className="font-sans mt-2 text-3xl font-normal text-slate-100">{selectedCampaign.name}</h2>
-            </div>
-            <p className="mb-0 mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-300">
+          <details
+            key={selectedCampaign.id}
+            className="realms-campaign-overview"
+            open={campaignOverviewExpanded}
+          >
+            <summary onClick={(event) => { event.preventDefault(); setCampaignOverviewExpanded((value) => !value); }}>
+              <div>
+                <p>Campaign Overview</p>
+                <h2 className="font-sans">{selectedCampaign.name}</h2>
+              </div>
+              <ChevronDown size={20} aria-hidden="true" />
+            </summary>
+            <p>
               {selectedCampaign.overview || "No Campaign overview has been provided yet."}
             </p>
-          </section>
+          </details>
         ) : null}
 
         <section className="realms-actions">

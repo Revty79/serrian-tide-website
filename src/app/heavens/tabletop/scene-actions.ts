@@ -53,6 +53,8 @@ import {
 } from "@/lib/server-access";
 import { expireSceneDurationsInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
+import { applyCloseoutAwardsInTransaction, readCloseoutAwardViewInTransaction } from "@/features/tabletop-operations/closeout-award-service";
+import type { CloseoutAwardInput, CloseoutAwardView } from "@/features/tabletop-operations/closeout-awards";
 import {
   assertNoActiveShopMembershipInTransaction,
   endActiveShopVisitsForSceneInTransaction,
@@ -85,6 +87,7 @@ export type SceneMemberView = SessionRosterEntityView & {
 };
 
 export type CampaignSceneDetail = CampaignSceneSummary & {
+  closeoutAwards: CloseoutAwardView;
   editable: boolean;
   members: SceneMemberView[];
   availableRosterMembers: SessionRosterEntityView[];
@@ -171,6 +174,9 @@ function isUniqueViolation(error: unknown): boolean {
 function refreshScenes(): void {
   revalidatePath("/heavens/tabletop");
   revalidatePath("/heavens");
+  revalidatePath("/realms/tabletop");
+  revalidatePath("/realms/characters", "layout");
+  revalidatePath("/heavens/characters", "layout");
 }
 
 async function lockOwnedSession(
@@ -344,6 +350,7 @@ export async function getSessionSceneWorkspace(
     selectedSceneId,
     selectedScene: {
       ...selectedSummary,
+      closeoutAwards: await db.transaction((tx) => readCloseoutAwardViewInTransaction(tx, { sessionId, sceneId: selectedSceneId }, actor)),
       editable: canAuthor
         && context.sessionStatus !== "completed"
         && selectedSummary.status !== "completed",
@@ -429,6 +436,7 @@ export async function updateCampaignSessionScene(
 async function applySceneLifecycleTransition(
   sceneId: number,
   transition: SceneTransition,
+  awards: CloseoutAwardInput = { awards: [], note: "" },
 ): Promise<CampaignSceneSummary> {
   const access = await requireGodOrAdminAccessContext();
   const actor: LifecycleActor = {
@@ -445,6 +453,10 @@ async function applySceneLifecycleTransition(
       );
       const locked = await lockOwnedScene(tx, sceneId, actor);
       assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Scene");
+      if (transition === "complete" && locked.status === "completed") {
+        if (awards.awards.length || awards.note) await applyCloseoutAwardsInTransaction(tx, { sessionId: locked.sessionId, sceneId }, actor, awards);
+        return locked;
+      }
       if (transition === "start") assertSceneMayStart(locked.sessionStatus);
       if (transition === "complete") {
         assertSceneMayComplete(locked.sessionStatus);
@@ -474,6 +486,7 @@ async function applySceneLifecycleTransition(
       }
       if (transition === "complete") {
         await endActiveShopVisitsForSceneInTransaction(tx, sceneId, actor.userId);
+        await applyCloseoutAwardsInTransaction(tx, { sessionId: locked.sessionId, sceneId }, actor, awards);
       }
       const [row] = await tx
         .update(campaignSessionScene)
@@ -520,8 +533,8 @@ export async function startCampaignSessionScene(sceneId: number): Promise<Campai
   return applySceneLifecycleTransition(sceneId, "start");
 }
 
-export async function completeCampaignSessionScene(sceneId: number): Promise<CampaignSceneSummary> {
-  return applySceneLifecycleTransition(sceneId, "complete");
+export async function completeCampaignSessionScene(sceneId: number, awards: CloseoutAwardInput = { awards: [], note: "" }): Promise<CampaignSceneSummary> {
+  return applySceneLifecycleTransition(sceneId, "complete", awards);
 }
 
 export async function reopenCampaignSessionScene(sceneId: number): Promise<CampaignSceneSummary> {

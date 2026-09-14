@@ -8,6 +8,7 @@ import {
   answerHighLowInTransaction,
   callHighLowInTransaction,
   readPlayerCalledCheckWorkspaceInTransaction,
+  type CalledRollAnswerInput,
 } from "@/features/tabletop-operations/called-check-service";
 import type { HighLowSide } from "@/features/tabletop-operations/called-check";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
@@ -46,7 +47,7 @@ export async function getPlayerCalledCheckWorkspace(characterId: number) {
   return db.transaction((tx) => readPlayerCalledCheckWorkspaceInTransaction(tx, characterId, access.user.id));
 }
 
-export async function answerPlayerCalledCheck(characterId: number, input: { requestId: number; enteredTotal?: number | null; idempotencyKey: string }): Promise<number> {
+export async function answerPlayerCalledCheck(characterId: number, input: CalledRollAnswerInput): Promise<number> {
   return mutatePlayerCalledCheck(characterId, (tx, userId) => answerCalledCheckInTransaction(
     tx,
     { kind: "player", userId, characterId },
@@ -58,7 +59,7 @@ export async function lockPlayerHighLowCall(characterId: number, input: { reques
   await mutatePlayerCalledCheck(characterId, (tx, userId) => callHighLowInTransaction(tx, userId, characterId, input));
 }
 
-export async function answerPlayerHighLow(characterId: number, input: { requestId: number; enteredTotal?: number | null; idempotencyKey: string }): Promise<number> {
+export async function answerPlayerHighLow(characterId: number, input: CalledRollAnswerInput): Promise<number> {
   return mutatePlayerCalledCheck(characterId, (tx, userId) => answerHighLowInTransaction(
     tx,
     { kind: "player", userId, characterId },

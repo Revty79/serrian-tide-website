@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Minus, Plus } from "lucide-react";
 
 import {
   ACTIVE_EQUIPMENT_STATES,
@@ -23,6 +24,9 @@ type Props = {
   state: CharacterEquipmentStateView;
   disabled?: boolean;
   includeEffectHistory?: boolean;
+  compact?: boolean;
+  revision?: string;
+  onPreparationChange?: () => void;
   onChange: (state: CharacterEquipmentStateView) => void;
   onActiveEffectsChange: (state: ActiveEffectsView) => void;
 };
@@ -31,7 +35,7 @@ function stateLabel(state: EquipmentState) {
   return state[0].toUpperCase() + state.slice(1);
 }
 
-export function EquipmentStatePanel({ state, disabled = false, includeEffectHistory = false, onChange, onActiveEffectsChange }: Props) {
+export function EquipmentStatePanel({ state, disabled = false, includeEffectHistory = false, compact = false, revision = "", onPreparationChange, onChange, onActiveEffectsChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function run(operation: () => Promise<EquipmentStateMutationResult>) {
@@ -49,8 +53,8 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
   function changeStack(itemId: number, equipmentState: ActiveEquipmentState, quantity: number) {
     void run(() => setStackEquipmentStateAction({ characterId: state.characterId, itemId, state: equipmentState, quantity, includeEffectHistory }));
   }
-  return <section className="equipment-state-panel" aria-label="Equipment State">
-    <header><div><p>RUNTIME EQUIPMENT</p><h3>Equipment State</h3></div><span>State is explicit. No slots, armor stacking, attacks, or Initiative spending are inferred.</span></header>
+  return <section className={`equipment-state-panel${compact ? " equipment-state-panel--compact" : ""}`} aria-label="Equipment State">
+    <header><div>{!compact ? <p>RUNTIME EQUIPMENT</p> : null}<h3>{compact ? "Wear & wield" : "Equipment State"}</h3></div>{!compact ? <span>State is explicit. No slots, armor stacking, attacks, or Initiative spending are inferred.</span> : null}</header>
     {error ? <p className="equipment-state-panel__error" role="alert">{error}</p> : null}
     {!state.stacks.length && !state.instances.length ? <p className="equipment-state-panel__empty">No owned Equipment is available for an active role.</p> : null}
     <div className="equipment-state-panel__owned">
@@ -58,7 +62,7 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
         <header><div><strong>{entry.itemName} ×{entry.ownedQuantity}</strong><span>{entry.equipmentGroup} · Stack-owned</span></div><b>Inactive: {entry.inactiveQuantity}</b></header>
         <div className="equipment-state-panel__quantity-grid">{ACTIVE_EQUIPMENT_STATES.map((equipmentState) => {
           const quantity = quantityFor(entry, equipmentState);
-          return <div key={equipmentState}><span>{stateLabel(equipmentState)}</span><button type="button" disabled={disabled || busy || quantity <= 0} onClick={() => changeStack(entry.itemId, equipmentState, quantity - 1)}>−</button><strong>{quantity}</strong><button type="button" disabled={disabled || busy || entry.inactiveQuantity <= 0} onClick={() => changeStack(entry.itemId, equipmentState, quantity + 1)}>+</button></div>;
+          return <div key={equipmentState}><span>{stateLabel(equipmentState)}</span><button type="button" aria-label={`Decrease ${stateLabel(equipmentState)} ${entry.itemName}`} title={`Decrease ${stateLabel(equipmentState)}`} disabled={disabled || busy || quantity <= 0} onClick={() => changeStack(entry.itemId, equipmentState, quantity - 1)}><Minus size={16} aria-hidden="true" /></button><strong>{quantity}</strong><button type="button" aria-label={`Increase ${stateLabel(equipmentState)} ${entry.itemName}`} title={`Increase ${stateLabel(equipmentState)}`} disabled={disabled || busy || entry.inactiveQuantity <= 0} onClick={() => changeStack(entry.itemId, equipmentState, quantity + 1)}><Plus size={16} aria-hidden="true" /></button></div>;
         })}</div>
       </article>)}
       {state.instances.map((entry) => <article key={`instance-${entry.instanceId}`}>
@@ -68,7 +72,7 @@ export function EquipmentStatePanel({ state, disabled = false, includeEffectHist
     </div>
     {state.wornArmor.length ? <section className="equipment-state-panel__context"><h4>Worn Armor Context</h4><p>Armor contributions remain individual; Base Soak is not summed.</p>{state.wornArmor.map((armor) => <article key={armor.ownershipKey}><strong>{armor.itemName}{armor.activeQuantity > 1 ? ` ×${armor.activeQuantity}` : ""}</strong><span>Base Soak: {armor.baseSoak ?? "Not recorded"} · Coverage: {armor.coverage || "Not recorded"}</span><small>Locations: {armor.coveredLocationKeys.join(", ") || "Not recorded"}{armor.armorType ? ` · ${armor.armorType}` : ""}</small>{armor.rulesText ? <p>{armor.rulesText}</p> : null}</article>)}</section> : null}
     {state.wieldedWeapons.length ? <section className="equipment-state-panel__context"><h4>Wielded Weapon Context</h4><p>Profiles are exposed for future Combat; nothing is rolled, spent, or applied.</p>{state.wieldedWeapons.map((weapon) => <article key={weapon.ownershipKey}><strong>{weapon.itemName}{weapon.activeQuantity > 1 ? ` ×${weapon.activeQuantity}` : ""}</strong><span>Damage: {weapon.damage || "Not recorded"}{weapon.damageType ? ` ${weapon.damageType}` : ""} · Initiative Cost: {weapon.initiativeCost ?? "Not recorded"}</span><small>{[weapon.weaponType, weapon.handedness, weapon.range, weapon.reach].filter(Boolean).join(" · ") || "No additional structured profile"}</small>{weapon.rulesText ? <p>{weapon.rulesText}</p> : null}</article>)}</section> : null}
-    <FirearmSetupPanel characterId={state.characterId} equipmentRevision={state.instances.map((entry) => `${entry.instanceId}:${entry.state}`).join(",")} disabled={disabled || busy} />
+    <FirearmSetupPanel characterId={state.characterId} equipmentRevision={`${revision}:${state.instances.map((entry) => `${entry.instanceId}:${entry.state}`).join(",")}`} disabled={disabled || busy} compact={compact} onChange={onPreparationChange} />
     {state.activeManualPassives.length ? <section className="equipment-state-panel__manual"><h4>Manual Passive Effects · G.O.D. Resolution Required</h4>{state.activeManualPassives.map((entry) => <article key={entry.passiveEffectId}><strong>{entry.title}</strong><span>{entry.itemName} · {entry.lifecycleLabel}</span><p>{entry.description}</p></article>)}</section> : null}
   </section>;
 }

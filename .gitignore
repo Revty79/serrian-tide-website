@@ -17,6 +17,9 @@
 /.next/
 /.next-crossroads-navigation-browser/
 /.next-combat-screens-browser/
+/.next-player-tabletop-tabs-browser/
+/.next-realms-campaign-browser/
+/artifacts/player-tabletop-tabs/
 /artifacts/combat-screens/**/*.log
 /artifacts/combat-screens/**/failure-*
 /out/

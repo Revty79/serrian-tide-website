@@ -28,6 +28,8 @@ export default defineConfig({
     "./src/db/tabletop-operations-schema.ts",
     "./src/db/tabletop-location-schema.ts",
     "./src/db/tabletop-shop-visit-schema.ts",
+    "./src/db/tabletop-source-use-schema.ts",
+    "./src/db/tabletop-closeout-award-schema.ts",
     "./src/db/chat-schema.ts",
   ],
   out: "./drizzle",

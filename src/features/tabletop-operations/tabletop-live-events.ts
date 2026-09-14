@@ -1,6 +1,7 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
+import { campaignSession, campaignSessionRoster } from "@/db/tabletop-operations-schema";
 
 export const TABLETOP_LIVE_CHANNEL = "serrian_tide_tabletop";
 export const TABLETOP_INVALIDATION_CATEGORIES = [
@@ -88,4 +89,14 @@ export async function publishTabletopInvalidationInTransaction(
   const event = parseTabletopInvalidation(input);
   if (!event) throw new Error("Tabletop live invalidation is invalid.");
   await tx.execute(sql`select pg_notify(${TABLETOP_LIVE_CHANNEL}, ${JSON.stringify(event)})`);
+}
+
+export async function publishCharacterStateInvalidationInTransaction(tx: LiveEventTransaction, characterId: number): Promise<void> {
+  const sessions = await tx.select({ sessionId: campaignSession.id, campaignId: campaignSession.campaignId })
+    .from(campaignSessionRoster)
+    .innerJoin(campaignSession, and(eq(campaignSession.id, campaignSessionRoster.sessionId), eq(campaignSession.campaignId, campaignSessionRoster.campaignId)))
+    .where(and(eq(campaignSessionRoster.characterId, characterId), eq(campaignSession.status, "active")));
+  for (const session of sessions) {
+    await publishTabletopInvalidationInTransaction(tx, { ...session, sceneId: null, encounterId: null, characterIds: [characterId], category: "character-state" });
+  }
 }

@@ -30,6 +30,7 @@ import {
   type SceneWorkspaceData,
 } from "./scene-actions";
 import { SceneLocationWorkspace } from "./location-workspace";
+import { CloseoutAwardFields, CloseoutAwardHistory, useCloseoutAwardDraft } from "./closeout-award-fields";
 
 type Feedback = { kind: "success" | "error"; message: string };
 type TransitionMode = "start" | "complete" | "reopen" | "start-parent";
@@ -149,6 +150,7 @@ export function SceneWorkspace({
 }) {
   const router = useRouter();
   const selectedScene = initialData.selectedScene;
+  const awards = useCloseoutAwardDraft(`scene:${selectedScene?.id}`, selectedScene?.closeoutAwards ?? { recipients: [], decision: null });
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<SceneMetadataInput>(() => selectedScene
     ? metadataFromScene(selectedScene)
@@ -222,7 +224,7 @@ export function SceneWorkspace({
       const updated = action === "start"
         ? await startCampaignSessionScene(selectedScene.id)
         : action === "complete"
-          ? await completeCampaignSessionScene(selectedScene.id)
+          ? await completeCampaignSessionScene(selectedScene.id, awards.input())
           : await reopenCampaignSessionScene(selectedScene.id);
       setFeedback({ kind: "success", message: `Scene ${updated.sequenceNumber} is now ${updated.status}.` });
       setTransitionMode(null);
@@ -400,6 +402,7 @@ export function SceneWorkspace({
       </section>
     </div>
     {initialLocationData ? <SceneLocationWorkspace data={initialLocationData} visits={initialShopVisitData} canOperate={initialData.canOperate} /> : null}
+    {selectedScene ? <CloseoutAwardHistory view={selectedScene.closeoutAwards} label="Scene" /> : null}
     {selectedScene ? <LifecycleConfirmationDialog
       open={initialData.canOperate && transitionMode !== null}
       titleId="transition-tabletop-scene-title"
@@ -418,7 +421,7 @@ export function SceneWorkspace({
         : transitionMode === "start"
           ? "This activates the planned Scene inside its active Session. Existing members and Campaign state are preserved."
           : transitionMode === "complete"
-            ? "This makes the Scene organizationally historical. Its members, Encounters, and deeper history remain preserved."
+            ? "This closes the Scene and applies the manual awards below once. Blank amounts grant no reward. Scene durations and Shop visits end; existing history is preserved."
             : "This returns the completed Scene to active for corrections without erasing its deeper history."}
       dependencies={(transitionPreview?.dependencies ?? [])
         .filter(({ count }) => count > 0)
@@ -445,7 +448,7 @@ export function SceneWorkspace({
       error={feedback?.kind === "error" ? feedback.message : undefined}
       onCancel={() => { setTransitionMode(null); setTransitionPreview(null); setFeedback(null); }}
       onConfirm={confirmTransition}
-    /> : null}
+    >{transitionMode === "complete" ? <CloseoutAwardFields view={selectedScene.closeoutAwards} draft={awards.draft} onChange={awards.setDraft} disabled={busy} label="Scene" /> : null}</LifecycleConfirmationDialog> : null}
     {selectedScene ? <LifecycleConfirmationDialog
       open={deleteConfirmationOpen}
       titleId="delete-tabletop-scene-title"

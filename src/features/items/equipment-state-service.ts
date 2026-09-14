@@ -1,4 +1,5 @@
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
+import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import "server-only";
 
 import { and, asc, eq, inArray, isNull, like, sql } from "drizzle-orm";
@@ -649,7 +650,9 @@ async function withEquipmentAccess<T>(
       ? canReadActiveState(subject, accessEntity)
       : canMutateActiveHealth(subject, accessEntity);
     if (!authorized) throw new Error(`You do not have permission to ${access === "read" ? "view" : "manage"} this entity's Equipment State.`);
-    return operation({ tx });
+    const result = await operation({ tx });
+    if (access === "mutate") await publishCharacterStateInvalidationInTransaction(tx, characterId);
+    return result;
   });
 }
 

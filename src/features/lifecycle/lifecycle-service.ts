@@ -254,6 +254,8 @@ async function countSerializedFrameworkSkillReferences(
 
 function campaignDependencySpecs(campaignId: number): DependencySpec[] {
   return [
+    { label: "Scene and Session award history", blocking: false, query: sql<CountRow>`select ((select count(*) from tabletop_closeout_award where campaign_id = ${campaignId}) + (select count(*) from tabletop_closeout_award_decision where campaign_id = ${campaignId}))::int as value` },
+    { label: "Tabletop Spell and Item ruling history", blocking: false, query: sql<CountRow>`select ((select count(*) from tabletop_source_use_request where campaign_id = ${campaignId}) + (select count(*) from tabletop_source_use_event e inner join tabletop_source_use_request r on r.id = e.request_id where r.campaign_id = ${campaignId}))::int as value` },
     { label: "Attached magazine copies", blocking: false, query: sql<CountRow>`select count(*)::int as value from firearm_magazine_attachment where campaign_id = ${campaignId}` },
     { label: "Magazine inventory history", blocking: false, query: sql<CountRow>`select count(*)::int as value from magazine_inventory_operation i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Campaign memberships", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_player where campaign_id = ${campaignId}` },
@@ -301,6 +303,8 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
 
 function characterDependencySpecs(characterId: number, campaignId: number): DependencySpec[] {
   return [
+    { label: "Scene and Session award history", blocking: true, query: sql<CountRow>`select count(*)::int as value from tabletop_closeout_award where campaign_id = ${campaignId} and character_id = ${characterId}` },
+    { label: "Tabletop Spell and Item ruling requests", blocking: true, query: sql<CountRow>`select count(*)::int as value from tabletop_source_use_request where campaign_id = ${campaignId} and character_id = ${characterId}` },
     { label: "Character profile", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_profile where character_id = ${characterId}` },
     { label: "Attributes", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_attribute where character_id = ${characterId}` },
     { label: "Skills", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_skill_allocation where character_id = ${characterId}` },
@@ -682,7 +686,7 @@ async function updateRootArchiveState(
 }
 
 function scopedCampaignPredicate(
-  scope: "campaign" | "encounter" | "character" | "chat-room" | "shop-request" | "shop-transaction",
+  scope: "campaign" | "encounter" | "character" | "chat-room" | "shop-request" | "shop-transaction" | "source-use-request",
   campaignId: number,
 ): SQL {
   if (scope === "campaign") return sql`campaign_id = ${campaignId}`;
@@ -695,6 +699,9 @@ function scopedCampaignPredicate(
   }
   if (scope === "shop-request") {
     return sql`request_id in (select id from shop_transaction_request where campaign_id = ${campaignId})`;
+  }
+  if (scope === "source-use-request") {
+    return sql`request_id in (select id from tabletop_source_use_request where campaign_id = ${campaignId})`;
   }
   return sql`transaction_id in (select id from shop_transaction where campaign_id = ${campaignId})`;
 }

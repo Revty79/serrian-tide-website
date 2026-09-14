@@ -11,6 +11,8 @@ import {
 } from "@/features/items/equipment-state-service";
 
 function refresh(characterId: number) {
+  revalidatePath("/realms/tabletop");
+  revalidatePath("/heavens/tabletop");
   revalidatePath(`/realms/characters/${characterId}`);
   revalidatePath(`/heavens/characters/${characterId}`);
   revalidatePath(`/heavens/npcs/${characterId}`);

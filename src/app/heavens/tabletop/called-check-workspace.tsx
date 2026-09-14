@@ -5,7 +5,8 @@ import { useMemo, useState, useTransition } from "react";
 
 import type { CalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
 import type { CharacterAttributeKey } from "@/features/characters/models";
-import type { RollMethod, RollVisibility } from "@/features/tabletop-operations/roll-runtime";
+import type { RollVisibility } from "@/features/tabletop-operations/roll-runtime";
+import { CalledRollControl } from "@/features/tabletop-operations/called-roll-control";
 
 import {
   answerGodCalledCheck,
@@ -56,7 +57,6 @@ export function CalledCheckWorkspace({
   const [purpose, setPurpose] = useState("");
   const [instructions, setInstructions] = useState("");
   const [visibility, setVisibility] = useState<RollVisibility>("table");
-  const [rollMethod, setRollMethod] = useState<RollMethod>("random");
   const [bonusLabel, setBonusLabel] = useState("");
   const [bonusMagnitude, setBonusMagnitude] = useState("");
   const [penaltyLabel, setPenaltyLabel] = useState("");
@@ -65,15 +65,17 @@ export function CalledCheckWorkspace({
   const [highLowCharacterId, setHighLowCharacterId] = useState<number | null>(view.recipients.find(({ kind }) => kind === "pc")?.characterId ?? null);
   const [highLowPurpose, setHighLowPurpose] = useState("");
   const [highLowVisibility, setHighLowVisibility] = useState<RollVisibility>("table");
-  const [highLowMethod, setHighLowMethod] = useState<RollMethod>("random");
 
   function run(success: string, operation: () => Promise<unknown>): void {
     setFeedback(null);
-    startTransition(() => {
-      void operation().then(() => {
+    startTransition(async () => {
+      try {
+        await operation();
         setFeedback({ kind: "success", message: success });
         router.refresh();
-      }).catch((error) => setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The request failed." }));
+      } catch (error) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The request failed." });
+      }
     });
   }
 
@@ -109,20 +111,14 @@ export function CalledCheckWorkspace({
       recipientScope,
       recipientCharacterIds: recipientScope === "all-pcs" ? [] : recipientIds,
       visibility,
-      rollMethod,
       modifiers,
       idempotencyKey: idempotencyKey(),
     }));
   }
 
-  function godRollCalled(requestId: number, method: RollMethod): void {
-    const entered = method === "entered" ? window.prompt("Enter the physical percentile result (1-100).") : null;
-    if (method === "entered" && entered === null) return;
-    run("Called Check Roll recorded.", () => answerGodCalledCheck(view.session.id, {
-      requestId,
-      enteredTotal: method === "entered" ? Number(entered) : null,
-      idempotencyKey: idempotencyKey(),
-    }));
+  function recorded(message: string) {
+    setFeedback({ kind: "success", message });
+    router.refresh();
   }
 
   function reasoned(label: string, operation: (reason: string) => Promise<unknown>): void {
@@ -146,7 +142,6 @@ export function CalledCheckWorkspace({
           {sourceKind === "attribute" ? <label><span>Attribute</span><select value={attributeKey} onChange={(event) => setAttributeKey(event.target.value as CharacterAttributeKey)}>{["STR", "DEX", "CON", "INT", "WIS", "CHR"].map((key) => <option key={key}>{key}</option>)}</select></label> : <label className="is-wide"><span>Canonical Skill endpoint and exact ancestry</span><select value={skillPathKey} onChange={(event) => setSkillPathKey(event.target.value)}>{validSkillPaths.map((path) => <option key={`${path.endpointSkillId}:${path.rootToEndpointSkillIds.join(":")}`} value={path.rootToEndpointSkillIds.join(":")}>{path.endpointName} — {path.pathLabel}</option>)}</select><small>Duplicate names remain separate because IDs and the complete route are preserved.</small></label>}
           <label><span>Recipient scope</span><select value={recipientScope} onChange={(event) => { const scope = event.target.value as typeof recipientScope; setRecipientScope(scope); if (scope === "one") setRecipientIds((ids) => ids.slice(0, 1)); }}><option value="one">One recipient</option><option value="selected">Selected recipients</option><option value="all-pcs">Every Player Character</option></select></label>
           <label><span>Visibility</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as RollVisibility)}><option value="table">Table-visible</option><option value="private">Private Player / G.O.D.</option><option value="god-only">Secret / G.O.D.-only</option></select></label>
-          <label><span>Roll method</span><select value={rollMethod} onChange={(event) => setRollMethod(event.target.value as RollMethod)}><option value="random">Website Roll</option><option value="entered">Entered physical Roll</option></select></label>
           <label className="is-wide"><span>Purpose</span><input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="What is being checked?" /></label>
           <label className="is-wide"><span>Instructions</span><textarea rows={3} value={instructions} onChange={(event) => setInstructions(event.target.value)} /></label>
           <label><span>Bonus label</span><input value={bonusLabel} onChange={(event) => setBonusLabel(event.target.value)} /></label>
@@ -170,25 +165,25 @@ export function CalledCheckWorkspace({
           }}><option value="neutral">Neutral</option><option value="player-calls-rolls">Player calls and rolls</option><option value="player-calls-god-rolls">Player calls; G.O.D. rolls</option></select></label>
           {highLowMode !== "neutral" ? <label><span>Player Character</span><select value={highLowCharacterId ?? ""} onChange={(event) => setHighLowCharacterId(Number(event.target.value))}>{view.recipients.filter(({ kind }) => kind === "pc").map((recipient) => <option key={recipient.characterId} value={recipient.characterId}>{recipient.name}</option>)}</select></label> : null}
           <label><span>Visibility</span><select value={highLowVisibility} onChange={(event) => setHighLowVisibility(event.target.value as RollVisibility)}><option value="table">Table-visible</option>{highLowMode !== "neutral" ? <option value="private">Private</option> : null}<option value="god-only" disabled={highLowMode !== "neutral"}>G.O.D.-only</option></select></label>
-          <label><span>Roll method</span><select value={highLowMethod} onChange={(event) => setHighLowMethod(event.target.value as RollMethod)}><option value="random">Website Roll</option><option value="entered">Entered physical Roll</option></select></label>
           <label className="is-wide"><span>Purpose</span><input value={highLowPurpose} onChange={(event) => setHighLowPurpose(event.target.value)} /></label>
         </div>
         <p className="tabletop-readonly-notice">01–50 is Low; 51–100 is High. High/Low has no target or normal success count.</p>
-        <button type="button" className="is-primary called-check-submit" disabled={busy || !highLowPurpose.trim() || (highLowMode !== "neutral" && highLowCharacterId === null)} onClick={() => run("High/Low request issued.", () => issueHighLow({ sessionId: view.session.id, sceneId, encounterId, mode: highLowMode, participantCharacterId: highLowCharacterId, visibility: highLowVisibility, rollMethod: highLowMethod, purpose: highLowPurpose, idempotencyKey: idempotencyKey() }))}>{busy ? "Issuing…" : "Issue High / Low"}</button>
+        <button type="button" className="is-primary called-check-submit" disabled={busy || !highLowPurpose.trim() || (highLowMode !== "neutral" && highLowCharacterId === null)} onClick={() => run("High/Low request issued.", () => issueHighLow({ sessionId: view.session.id, sceneId, encounterId, mode: highLowMode, participantCharacterId: highLowCharacterId, visibility: highLowVisibility, purpose: highLowPurpose, idempotencyKey: idempotencyKey() }))}>{busy ? "Issuing…" : "Issue High / Low"}</button>
       </section>
     </div>
 
     <section className="called-check-history">
       <header><span>CALLED CHECK HISTORY</span><strong>{view.batches.length} batches</strong></header>
       {view.batches.map((batch) => <article key={batch.id} className="called-check-batch">
-        <header><div><span>Batch #{batch.id} · {statusLabel(batch.visibility)} · {batch.rollMethod === "random" ? "WEBSITE" : "PHYSICAL"}</span><strong>{batch.purpose}</strong><small>{batch.sourceLabel} · {displayTime(batch.createdAt)}</small></div><dl><div><dt>Pending</dt><dd>{batch.summary.pending}</dd></div><div><dt>Resolved</dt><dd>{batch.summary.resolved}</dd></div><div><dt>Ruling</dt><dd>{batch.summary.requiresGodRuling}</dd></div><div><dt>Cancelled</dt><dd>{batch.summary.cancelled}</dd></div></dl></header>
+        <header><div><span>Batch #{batch.id} · {statusLabel(batch.visibility)}</span><strong>{batch.purpose}</strong><small>{batch.sourceLabel} · {displayTime(batch.createdAt)}</small></div><dl><div><dt>Pending</dt><dd>{batch.summary.pending}</dd></div><div><dt>Resolved</dt><dd>{batch.summary.resolved}</dd></div><div><dt>Ruling</dt><dd>{batch.summary.requiresGodRuling}</dd></div><div><dt>Cancelled</dt><dd>{batch.summary.cancelled}</dd></div></dl></header>
         {batch.instructions ? <p>{batch.instructions}</p> : null}
         <div className="called-check-attempts">{batch.requests.map((request) => <article key={request.id} className={`called-check-attempt is-${request.status}`}>
           <header><div><strong>{request.recipientName}</strong><span>{request.recipientKind === "npc" ? "Persistent NPC" : "Player Character"} · Attempt #{request.id}{request.parentRequestId ? ` after #${request.parentRequestId}` : ""}</span></div><em>{statusLabel(request.status)}</em></header>
           <dl><div><dt>Frozen source</dt><dd>{request.sourceLabel}</dd></div><div><dt>Target</dt><dd>{request.originalTarget ?? "—"} → {request.finalTarget ?? "—"}</dd></div>{request.rollId ? <div><dt>Roll</dt><dd>#{request.rollId}: {request.resolution?.resultTotal}</dd></div> : null}{request.resolution ? <div><dt>Result</dt><dd>{request.resolution.succeeded ? "Successful" : "Failed"} · {request.resolution.totalSuccesses} successes</dd></div> : null}</dl>
           {request.rulingText ? <p className="tabletop-readonly-notice">{request.rulingText}</p> : null}
+          {request.resultMethod ? <p>Method: {request.resultMethod === "random" ? "Digital percentile" : "Physical percentile"}</p> : null}
+          {request.status === "pending" && (batch.visibility === "god-only" || request.recipientKind === "npc") ? <CalledRollControl requestId={request.id} disabled={busy} onSubmit={(input) => answerGodCalledCheck(view.session.id, input)} onRecorded={() => recorded("Called Check Roll recorded.")} /> : null}
           <div className="called-check-controls">
-            {request.status === "pending" && (batch.visibility === "god-only" || request.recipientKind === "npc") ? <button disabled={busy} onClick={() => godRollCalled(request.id, batch.rollMethod)}>Record {batch.rollMethod === "random" ? "Secret / NPC Roll" : "Physical Result"}</button> : null}
             {(request.status === "pending" || request.status === "requires-god-ruling" && request.rollId === null) ? <button className="is-danger" disabled={busy} onClick={() => reasoned("Cancellation", (reason) => cancelCalledCheck(view.session.id, request.id, reason))}>Cancel</button> : null}
             {request.status === "resolved" || request.status === "requires-god-ruling" && request.rollId !== null ? <button disabled={busy} onClick={() => reasoned("Reroll", (reason) => rerollCalledCheck(view.session.id, request.id, reason))}>Order Reroll</button> : null}
             {request.status === "requires-god-ruling" ? <button className="is-ruling" disabled={busy} onClick={() => reasoned("G.O.D. ruling", (ruling) => ruleCalledCheck(view.session.id, request.id, ruling))}>Record Ruling</button> : null}
@@ -205,12 +200,9 @@ export function CalledCheckWorkspace({
       <div className="called-check-attempts">{view.highLow.map((request) => <article key={request.id} className={`called-check-attempt is-${request.status}`}>
         <header><div><strong>{request.purpose}</strong><span>#{request.id} · {statusLabel(request.mode)} · {request.participantName ?? "G.O.D."}</span></div><em>{statusLabel(request.status)}</em></header>
         <dl><div><dt>Locked call</dt><dd>{request.calledSide ? statusLabel(request.calledSide) : request.mode === "neutral" ? "Neutral — no call" : "Awaiting Player"}</dd></div>{request.result ? <><div><dt>Raw Roll</dt><dd>{request.result.resultTotal}</dd></div><div><dt>Side</dt><dd>{statusLabel(request.result.rolledSide)}</dd></div><div><dt>Match</dt><dd>{request.result.matchedCall === null ? "Not applicable" : request.result.matchedCall ? "Match" : "Mismatch"}</dd></div><div><dt>Critical</dt><dd>{request.result.criticalFailure ? "Critical failure" : request.result.doubleOtt ? "Double ott critical success" : "None"}</dd></div></> : null}</dl>
+        {request.resultMethod ? <p>Method: {request.resultMethod === "random" ? "Digital percentile" : "Physical percentile"}</p> : null}
+        {request.status === "pending" && (request.mode === "neutral" || request.mode === "player-calls-god-rolls" && request.calledSide) ? <CalledRollControl requestId={request.id} disabled={busy} onSubmit={(input) => answerGodHighLow(view.session.id, input)} onRecorded={() => recorded("High/Low Roll recorded.")} /> : null}
         <div className="called-check-controls">
-          {request.status === "pending" && (request.mode === "neutral" || request.mode === "player-calls-god-rolls" && request.calledSide) ? <button disabled={busy} onClick={() => {
-            const entered = request.rollMethod === "entered" ? window.prompt("Enter physical percentile result (1-100).") : null;
-            if (request.rollMethod === "entered" && entered === null) return;
-            run("High/Low Roll recorded.", () => answerGodHighLow(view.session.id, { requestId: request.id, enteredTotal: request.rollMethod === "entered" ? Number(entered) : null, idempotencyKey: idempotencyKey() }));
-          }}>G.O.D. {request.rollMethod === "random" ? "Roll" : "Enter Result"}</button> : null}
           {request.status === "pending" ? <button className="is-danger" disabled={busy} onClick={() => reasoned("Cancellation", (reason) => cancelHighLow(view.session.id, request.id, reason))}>Cancel</button> : null}
           {request.status === "resolved" || request.status === "requires-god-ruling" ? <button disabled={busy} onClick={() => reasoned("Reroll", (reason) => rerollHighLow(view.session.id, request.id, reason))}>Order Reroll</button> : null}
           {request.status === "requires-god-ruling" ? <button className="is-ruling" disabled={busy} onClick={() => reasoned("G.O.D. ruling", (ruling) => ruleHighLow(view.session.id, request.id, ruling))}>Record Ruling</button> : null}

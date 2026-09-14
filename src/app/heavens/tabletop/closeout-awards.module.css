@@ -1,0 +1,32 @@
+.fields {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  margin: 0;
+  padding: 1rem 0;
+  border: 0;
+  border-top: 1px solid var(--st-border);
+  color: var(--st-text);
+}
+.fields legend, .history h4 {
+  padding: 0;
+  color: var(--st-text-strong);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.recipient { display: grid; min-width: 0; gap: 0.5rem; }
+.recipient strong { font-size: 0.875rem; overflow-wrap: anywhere; }
+.amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.amounts label { min-width: 0; overflow-wrap: anywhere; }
+.amounts input { width: 100%; min-width: 0; min-height: 44px; }
+.history { min-width: 0; padding: 1rem 0; border-top: 1px solid var(--st-border); color: var(--st-text); }
+.history h4 { margin: 0 0 0.4rem; }
+.history p, .notice { color: var(--st-text-soft); font-size: 0.875rem; overflow-wrap: anywhere; }
+.history ul { display: grid; gap: 0.75rem; padding: 0; list-style: none; }
+.history li { display: grid; gap: 0.2rem; font-size: 0.875rem; overflow-wrap: anywhere; }
+.history li span { color: var(--st-text-soft); }
+.note { white-space: pre-wrap; }
+@media (max-width: 380px) {
+  .amounts { grid-template-columns: minmax(0, 1fr); }
+}

@@ -17,10 +17,15 @@ import {
 import type { LifecycleActor } from "@/features/lifecycle/types";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { applyCloseoutAwardsInTransaction } from "@/features/tabletop-operations/closeout-award-service";
+import type { CloseoutAwardInput } from "@/features/tabletop-operations/closeout-awards";
 
 function refreshSessionCloseout(): void {
   revalidatePath("/heavens/tabletop");
   revalidatePath("/heavens");
+  revalidatePath("/realms/tabletop");
+  revalidatePath("/realms/characters", "layout");
+  revalidatePath("/heavens/characters", "layout");
 }
 
 export async function getSessionCloseout(sessionId: number): Promise<SessionCloseoutView> {
@@ -35,7 +40,7 @@ export async function getSessionCloseout(sessionId: number): Promise<SessionClos
   });
 }
 
-export async function finalizeSessionCloseout(sessionId: number): Promise<SessionCloseoutView> {
+export async function finalizeSessionCloseout(sessionId: number, awards: CloseoutAwardInput = { awards: [], note: "" }): Promise<SessionCloseoutView> {
   const access = await requireGodOrAdminAccessContext();
   const actor: LifecycleActor = {
     userId: access.session.user.id,
@@ -49,6 +54,10 @@ export async function finalizeSessionCloseout(sessionId: number): Promise<Sessio
     );
     const context = await lockSessionCloseoutContextInTransaction(tx, sessionId, actor);
     assertCampaignRuntimeOperator(actor, context.ownerUserId, "Session closeout");
+    if (context.status !== "completed" || awards.awards.length || awards.note) {
+      await applyCloseoutAwardsInTransaction(tx, { sessionId, sceneId: null }, actor, awards);
+    }
+    if (context.status === "completed") return readSessionCloseoutInTransaction(tx, context);
     const finalized = await finalizeSessionCloseoutInTransaction(tx, context);
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: context.campaignId,

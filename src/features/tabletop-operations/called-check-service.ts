@@ -16,6 +16,7 @@ import {
   campaignSessionHighLowEvent,
   campaignSessionHighLowRequest,
   campaignSessionRoster,
+  campaignSessionRoll,
   campaignSessionScene,
 } from "@/db/tabletop-operations-schema";
 import { loadCharacterSkillLineageInputInTransaction } from "@/features/items/character-weapon-governance-service";
@@ -47,6 +48,13 @@ import {
 
 export type CalledCheckTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+export type CalledRollAnswerInput = Readonly<{
+  requestId: number;
+  method?: RollMethod;
+  enteredTotal?: number | null;
+  idempotencyKey: string;
+}>;
+
 export type CalledCheckIssueInput = Readonly<{
   sessionId: number;
   sceneId?: number | null;
@@ -57,7 +65,7 @@ export type CalledCheckIssueInput = Readonly<{
   recipientScope: "one" | "selected" | "all-pcs";
   recipientCharacterIds?: readonly number[];
   visibility: RollVisibility;
-  rollMethod: RollMethod;
+  rollMethod?: RollMethod;
   modifiers?: readonly PercentileTargetModifier[];
   idempotencyKey: string;
 }>;
@@ -69,7 +77,7 @@ export type HighLowIssueInput = Readonly<{
   mode: HighLowMode;
   participantCharacterId?: number | null;
   visibility: RollVisibility;
-  rollMethod: RollMethod;
+  rollMethod?: RollMethod;
   purpose: string;
   idempotencyKey: string;
 }>;
@@ -98,6 +106,7 @@ export type CalledCheckRequestView = Readonly<{
   modifiers: readonly PercentileTargetModifier[];
   resolution: PercentileResolution | null;
   rollId: number | null;
+  resultMethod?: RollMethod | null;
   parentRequestId: number | null;
   cancellationReason: string;
   rerollReason: string;
@@ -141,6 +150,7 @@ export type HighLowRequestView = Readonly<{
   status: CalledCheckStatus;
   calledSide: HighLowSide | null;
   rollId: number | null;
+  resultMethod?: RollMethod | null;
   result: HighLowResolution | null;
   parentRequestId: number | null;
   cancellationReason: string;
@@ -368,7 +378,7 @@ export async function issueCalledCheckInTransaction(
   const recipientScope = enumValue(["one", "selected", "all-pcs"] as const, input.recipientScope, "Recipient scope");
   const recipients = await sessionRecipients(tx, context, recipientScope, input.recipientCharacterIds ?? []);
   const visibility = enumValue(["table", "private", "god-only"] as const, input.visibility, "Visibility");
-  const rollMethod = enumValue(["random", "entered"] as const, input.rollMethod, "Roll method");
+  const rollMethod = enumValue(["random", "entered"] as const, input.rollMethod ?? "random", "Roll method");
   const purpose = requiredText(input.purpose, "Purpose", 500);
   const instructions = optionalText(input.instructions, "Instructions", 2000);
   const modifiers = resolvePercentileCheck({
@@ -474,16 +484,25 @@ function rollActor(userId: string, campaignId: number, readAs: "god-owner" | "pl
   return { userId, campaignId, readAs, canRecordGodOnly: readAs === "god-owner", characterId };
 }
 
+async function replayAnsweredRoll(tx: CalledCheckTransaction, rollId: number, userId: string, method: RollMethod, input: CalledRollAnswerInput): Promise<number> {
+  const [roll] = await tx.select({ method: campaignSessionRoll.method, result: campaignSessionRoll.resultTotal, userId: campaignSessionRoll.recordedByUserId })
+    .from(campaignSessionRoll).where(eq(campaignSessionRoll.id, rollId)).limit(1);
+  if (!roll || roll.userId !== userId || roll.method !== method
+    || (method === "entered" ? roll.result !== input.enteredTotal : input.enteredTotal != null)) {
+    throw new Error("This response identity already belongs to a different Roll submission.");
+  }
+  return rollId;
+}
+
 export async function answerCalledCheckInTransaction(
   tx: CalledCheckTransaction,
   actor: { kind: "god" | "player"; userId: string; characterId?: number | null },
-  input: { requestId: number; enteredTotal?: number | null; idempotencyKey: string },
+  input: CalledRollAnswerInput,
   randomSource?: RollRandomSource,
 ): Promise<number> {
   const { request, batch } = await lockCalledRequest(tx, input.requestId);
   const idempotencyKey = requiredText(input.idempotencyKey, "Response idempotency key", 200);
-  if (request.responseIdempotencyKey === idempotencyKey && request.rollId !== null) return request.rollId;
-  if (request.status !== "pending" || request.rollId !== null) throw new Error("This Called Check no longer has an open Roll slot.");
+  const method = enumValue(["random", "entered"] as const, input.method ?? batch.rollMethod, "Roll method");
   const session = actor.kind === "god"
     ? await loadGodSession(tx, request.sessionId, actor.userId, false)
     : null;
@@ -496,6 +515,8 @@ export async function answerCalledCheckInTransaction(
     if (character.characterId !== actor.characterId || character.campaignId !== request.campaignId) throw new Error("A Player cannot answer another Character's Called Check.");
     if (batch.visibility === "god-only" || request.recipientKind !== "pc") throw new Error("This Called Check is not answerable by a Player.");
   }
+  if (request.responseIdempotencyKey === idempotencyKey && request.rollId !== null) return replayAnsweredRoll(tx, request.rollId, actor.userId, method, input);
+  if (request.status !== "pending" || request.rollId !== null) throw new Error("This Called Check no longer has an open Roll slot.");
   if (session && session.status !== "active") throw new Error("Reopen the Session before answering this Called Check.");
   const governingSnapshot = parseRollGoverningSourceSnapshot(request.governingSnapshotJson);
   const governingSource = request.governingSourceJson as RollGoverningSourceRequest;
@@ -508,7 +529,7 @@ export async function answerCalledCheckInTransaction(
       sceneId: request.sceneId,
       encounterId: request.encounterId,
       rollerCharacterId: request.recipientCharacterId,
-      method: batch.rollMethod,
+      method,
       visibility: batch.visibility,
       purposeKind: batch.sourceKind,
       enteredTotal: input.enteredTotal,
@@ -538,7 +559,7 @@ export async function answerCalledCheckInTransaction(
     eq(campaignSessionCalledCheckRequest.status, "pending"),
   )).returning({ id: campaignSessionCalledCheckRequest.id });
   if (!updated) throw new Error("This Called Check was answered concurrently.");
-  await insertCalledEvent(tx, request, actor.userId, "pending", status, "answered", "", { rollId: ledger.id });
+  await insertCalledEvent(tx, request, actor.userId, "pending", status, "answered", "", { rollId: ledger.id, method });
   return ledger.id;
 }
 
@@ -658,7 +679,7 @@ export async function issueHighLowInTransaction(
   if (existing) return existing.id;
   const mode = enumValue(["neutral", "player-calls-rolls", "player-calls-god-rolls"] as const, input.mode, "High/Low mode");
   const visibility = enumValue(["table", "private", "god-only"] as const, input.visibility, "Visibility");
-  const rollMethod = enumValue(["random", "entered"] as const, input.rollMethod, "Roll method");
+  const rollMethod = enumValue(["random", "entered"] as const, input.rollMethod ?? "random", "Roll method");
   let participantCharacterId: number | null = null;
   if (mode !== "neutral") {
     participantCharacterId = positiveId(input.participantCharacterId, "High/Low Player Character");
@@ -717,14 +738,12 @@ export async function callHighLowInTransaction(
 export async function answerHighLowInTransaction(
   tx: CalledCheckTransaction,
   actor: { kind: "god" | "player"; userId: string; characterId?: number | null },
-  input: { requestId: number; enteredTotal?: number | null; idempotencyKey: string },
+  input: CalledRollAnswerInput,
   randomSource?: RollRandomSource,
 ): Promise<number> {
   const request = await lockHighLowRequest(tx, input.requestId);
   const idempotencyKey = requiredText(input.idempotencyKey, "Response idempotency key", 200);
-  if (request.responseIdempotencyKey === idempotencyKey && request.rollId !== null) return request.rollId;
-  if (request.status !== "pending" || request.rollId !== null) throw new Error("This High/Low request no longer has an open Roll slot.");
-  if (request.mode !== "neutral" && request.calledSide === null) throw new Error("The Player must lock High or Low before the Roll.");
+  const method = enumValue(["random", "entered"] as const, input.method ?? request.rollMethod, "Roll method");
   if (actor.kind === "god") {
     await loadGodSession(tx, request.sessionId, actor.userId, false);
     if (request.mode === "player-calls-rolls") throw new Error("This High/Low Roll belongs to the assigned Player.");
@@ -735,6 +754,9 @@ export async function answerHighLowInTransaction(
       throw new Error("A Player may roll only their own player-called/player-rolled High/Low request.");
     }
   }
+  if (request.responseIdempotencyKey === idempotencyKey && request.rollId !== null) return replayAnsweredRoll(tx, request.rollId, actor.userId, method, input);
+  if (request.status !== "pending" || request.rollId !== null) throw new Error("This High/Low request no longer has an open Roll slot.");
+  if (request.mode !== "neutral" && request.calledSide === null) throw new Error("The Player must lock High or Low before the Roll.");
   const ledger = await recordRollInTransaction(tx, rollActor(
     actor.userId,
     request.campaignId,
@@ -745,7 +767,7 @@ export async function answerHighLowInTransaction(
     sceneId: request.sceneId,
     encounterId: request.encounterId,
     rollerCharacterId: request.participantCharacterId,
-    method: request.rollMethod,
+    method,
     visibility: request.visibility,
     purposeKind: "other",
     enteredTotal: input.enteredTotal,
@@ -765,7 +787,7 @@ export async function answerHighLowInTransaction(
   }).where(and(eq(campaignSessionHighLowRequest.id, request.id), eq(campaignSessionHighLowRequest.status, "pending")))
     .returning({ id: campaignSessionHighLowRequest.id });
   if (!updated) throw new Error("This High/Low request was answered concurrently.");
-  await insertHighLowEvent(tx, request, actor.userId, "pending", status, "answered", "", { rollId: ledger.id, rolledSide: result.rolledSide });
+  await insertHighLowEvent(tx, request, actor.userId, "pending", status, "answered", "", { rollId: ledger.id, method, rolledSide: result.rolledSide });
   return ledger.id;
 }
 
@@ -838,8 +860,10 @@ async function readCalledCheckData(
   const requests = await tx.select({
     request: campaignSessionCalledCheckRequest,
     recipientName: campaignCharacter.name,
+    resultMethod: campaignSessionRoll.method,
   }).from(campaignSessionCalledCheckRequest)
     .innerJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionCalledCheckRequest.recipientCharacterId))
+    .leftJoin(campaignSessionRoll, eq(campaignSessionRoll.id, campaignSessionCalledCheckRequest.rollId))
     .where(and(
       eq(campaignSessionCalledCheckRequest.sessionId, session.id),
       eq(campaignSessionCalledCheckRequest.campaignId, session.campaignId),
@@ -851,8 +875,10 @@ async function readCalledCheckData(
   const highLowRows = await tx.select({
     request: campaignSessionHighLowRequest,
     participantName: campaignCharacter.name,
+    resultMethod: campaignSessionRoll.method,
   }).from(campaignSessionHighLowRequest)
     .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionHighLowRequest.participantCharacterId))
+    .leftJoin(campaignSessionRoll, eq(campaignSessionRoll.id, campaignSessionHighLowRequest.rollId))
     .where(and(
       eq(campaignSessionHighLowRequest.sessionId, session.id),
       eq(campaignSessionHighLowRequest.campaignId, session.campaignId),
@@ -870,7 +896,7 @@ async function readCalledCheckData(
     actorUserId: event.actorUserId,
     createdAt: event.createdAt.toISOString(),
   });
-  const requestViews = requests.map(({ request, recipientName }): CalledCheckRequestView => {
+  const requestViews = requests.map(({ request, recipientName, resultMethod }): CalledCheckRequestView => {
     const governingSource = request.governingSnapshotJson === null ? null : parseRollGoverningSourceSnapshot(request.governingSnapshotJson);
     return {
       id: request.id,
@@ -886,6 +912,7 @@ async function readCalledCheckData(
       modifiers: asModifiers(request.modifiersJson),
       resolution: request.resolutionJson as PercentileResolution | null,
       rollId: request.rollId,
+      resultMethod,
       parentRequestId: request.parentRequestId,
       cancellationReason: request.cancellationReason,
       rerollReason: request.rerollReason,
@@ -929,7 +956,7 @@ async function readCalledCheckData(
       summary: summarizeCalledCheckBatch(currentAttempts.map(({ status }) => status)),
     };
   });
-  const highLow = highLowRows.map(({ request, participantName }): HighLowRequestView => ({
+  const highLow = highLowRows.map(({ request, participantName, resultMethod }): HighLowRequestView => ({
     id: request.id,
     mode: request.mode,
     participantCharacterId: request.participantCharacterId,
@@ -940,6 +967,7 @@ async function readCalledCheckData(
     status: request.status,
     calledSide: request.calledSide,
     rollId: request.rollId,
+    resultMethod,
     result: request.resultSnapshotJson as HighLowResolution | null,
     parentRequestId: request.parentRequestId,
     cancellationReason: request.cancellationReason,

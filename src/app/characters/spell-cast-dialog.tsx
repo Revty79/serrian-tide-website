@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   executeCharacterSpellCastAction,
@@ -44,6 +44,7 @@ export function SpellCastDialog({
   prepareCast = prepareCharacterSpellCast,
   executeCast = executeImmediateSpellCast,
   confirmationLabel,
+  confirmationContent,
 }: {
   casterCharacterId: number;
   source: SpellCastSourceRequest;
@@ -52,6 +53,7 @@ export function SpellCastDialog({
   prepareCast?: (request: SpellCastRequest) => Promise<SpellCastPreparation>;
   executeCast?: (request: SpellCastRequest) => Promise<SpellCastExecutionResult | null>;
   confirmationLabel?: string;
+  confirmationContent?: ReactNode;
 }) {
   const [selections, setSelections] = useState<SpellCastRuntimeSelections>(EMPTY_SELECTIONS);
   const [preparation, setPreparation] = useState<SpellCastPreparation | null>(null);
@@ -351,6 +353,7 @@ export function SpellCastDialog({
               </div>
             ) : null}
 
+            {confirmationContent}
             <footer className="spell-cast-dialog__actions">
               <button type="button" onClick={onClose}>Cancel</button>
               <button type="button" disabled={busy} onClick={() => void preview()}>

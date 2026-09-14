@@ -224,6 +224,11 @@ async function login(page: Page, email: string): Promise<void> {
 }
 
 async function runConsoleWorkflows(page: Page, fixture: Fixture, pool: pg.Pool): Promise<void> {
+  const openTab = async (name: string) => {
+    const tab = page.getByRole("tab", { name: new RegExp(`^${name}(?:\\s|$)`) });
+    await tab.click();
+    await eventually(async () => await tab.getAttribute("aria-selected") === "true", `${name} tab did not open.`);
+  };
   // 1. Multiple Characters require explicit selection and Campaign identity is visible.
   await page.goto(`${BASE_URL}/realms/tabletop`);
   await page.getByRole("heading", { name: "Choose your Character" }).waitFor();
@@ -234,33 +239,43 @@ async function runConsoleWorkflows(page: Page, fixture: Fixture, pool: pg.Pool):
   // 2. No-active-Session state retains persistent Character and Campaign information.
   await page.goto(`${BASE_URL}/realms/tabletop?character=${fixture.waitingCharacterId}`);
   await page.getByRole("heading", { name: "Waiting Browser Hero", level: 1 }).waitFor();
+  await openTab("Table");
   assert.match(await page.locator("main").innerText(), /Waiting for an active Session/);
   assert.match(await page.locator("main").innerText(), /No active Session/);
 
   // 3. Active but unrostered state cannot use live Session mechanics.
   await page.goto(`${BASE_URL}/realms/tabletop?character=${fixture.unrosteredCharacterId}`);
+  await openTab("Rolls");
   assert.match(await page.locator("main").innerText(), /Session active · not rostered/);
   assert.equal(await page.getByRole("button", { name: "Roll percentile" }).isDisabled(), true);
 
   // 4. Rostered state includes the exact active Scene and Active State.
   await page.goto(`${BASE_URL}/realms/tabletop?character=${fixture.activeCharacterId}`);
   await page.getByRole("heading", { name: "Active Browser Hero", level: 1 }).waitFor();
+  await openTab("Table");
   assert.match(await page.locator("main").innerText(), /Browser Active Session/);
   assert.match(await page.locator("main").innerText(), /Lantern Quay/);
+  await openTab("Status");
   assert.match(await page.locator("main").innerText(), /Salt-Blind/);
   assert.equal((await page.locator("main").innerText()).includes("PRIVATE PLAN"), false);
 
   // 5. Item, Spell, and Derived Ability areas present exact owned or explicit empty state.
+  await openTab("Equipment");
   assert.match(await page.getByRole("region", { name: "Items & equipment" }).innerText(), /Pass 12 Tonic/);
+  await openTab("Spells");
   assert.match(await page.getByRole("region", { name: "Spells" }).innerText(), /No known or personal Spells/);
+  await openTab("Abilities");
   assert.match(await page.getByRole("region", { name: "Possessed abilities" }).innerText(), /No Derived Abilities/);
 
   // 6. General Rolls use the Roll ledger and remain visibly separate from requests.
+  await openTab("Rolls");
   await page.getByRole("button", { name: "Roll percentile" }).click();
   await page.getByText(/Roll recorded: \d+\./).waitFor();
+  await openTab("History");
   await eventually(async () => await page.getByRole("region", { name: "History" }).getByText(/General percentile Roll/).count() === 1, "General Roll did not enter bounded history.");
 
   // 7. Live Active State invalidation reloads authoritative Health and Conditions.
+  await openTab("Status");
   await pool.query("update campaign_character_active_health set total_damage=4,updated_at=now() where character_id=$1", [fixture.activeCharacterId]);
   await pool.query(`insert into campaign_character_active_condition (
     character_id,name,description,source_kind,source_id,source_name,duration_kind,duration_label
@@ -303,6 +318,7 @@ async function runConsoleWorkflows(page: Page, fixture: Fixture, pool: pg.Pool):
   // 11. Narrow phone layout has touch controls and no document-level overflow.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
+  await openTab("Rolls");
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
   const rollButtonBox = await page.getByRole("button", { name: "Roll percentile" }).boundingBox();
   assert.ok(rollButtonBox && rollButtonBox.height >= 44);

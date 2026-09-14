@@ -87,7 +87,6 @@ test("G.O.D. and minimal Player surfaces expose the required workflow without gl
     "Purpose",
     "Instructions",
     "Visibility",
-    "Roll method",
     "Issue Called Check",
     "Order Reroll",
     "Record Ruling",
@@ -99,6 +98,10 @@ test("G.O.D. and minimal Player surfaces expose the required workflow without gl
     assert.match(player, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   }
   assert.doesNotMatch(god, /saveWeaponSkillGovernance|weaponSkillPathMapping|canonical authoring/i);
+  assert.doesNotMatch(god, /<span>Roll method<\/span>/);
+  assert.match(god, /<CalledRollControl/);
+  assert.match(player, /<CalledRollControl/);
+  assert.match(read("src/features/tabletop-operations/called-roll-control.tsx"), /<RollFields/);
   assert.doesNotMatch(player, /cancelCalledCheck|rerollCalledCheck|ruleCalledCheck|issueCalledCheck/);
   assert.match(tabletop, /<CalledCheckWorkspace\s+key=\{selectedSession\.id\}/);
   assert.doesNotMatch(tabletop, /key=\{`\$\{initialCalledChecks\.(?:batches|highLow)/);

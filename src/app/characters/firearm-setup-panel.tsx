@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { prepareFirearmSetup, readFirearmSetup } from "./firearm-setup-actions";
 import type { CharacterFirearmSetup } from "@/features/items/firearm-setup-service";
 
-export function FirearmSetupPanel({ characterId, equipmentRevision, disabled }: { characterId: number; equipmentRevision: string; disabled: boolean }) {
+export function FirearmSetupPanel({ characterId, equipmentRevision, disabled, compact = false, onChange }: { characterId: number; equipmentRevision: string; disabled: boolean; compact?: boolean; onChange?: () => void }) {
   const [view, setView] = useState<CharacterFirearmSetup | null>(null), [message, setMessage] = useState("");
   const [modes, setModes] = useState<Record<number, string>>({}), [magazines, setMagazines] = useState<Record<number, string>>({}), [busy, setBusy] = useState(false);
   const [rounds, setRounds] = useState<Record<number, string>>({});
@@ -13,12 +13,15 @@ export function FirearmSetupPanel({ characterId, equipmentRevision, disabled }: 
     if (running.current) return; running.current = true; setBusy(true);
     const fingerprint = JSON.stringify(command);
     if (retry.current?.fingerprint !== fingerprint) retry.current = { fingerprint, key: crypto.randomUUID() };
-    try { setView(await prepareFirearmSetup({ ...command, requestKey: retry.current.key })); retry.current = null; setMessage("Weapon setup saved."); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Weapon setup could not be confirmed."); setView(await readFirearmSetup(characterId)); }
+    try { setView(await prepareFirearmSetup({ ...command, requestKey: retry.current.key })); retry.current = null; setMessage("Weapon setup saved."); onChange?.(); }
+    catch (error) {
+      setMessage(error instanceof Error ? error.message : "Weapon setup could not be confirmed.");
+      try { setView(await readFirearmSetup(characterId)); } catch { /* Keep the original failure and retry identity. */ }
+    }
     finally { running.current = false; setBusy(false); }
   }
   if (view && !view.firearms.length && !message) return null;
-  return <section className="equipment-state-panel__firearms" aria-label="Firearm equipment setup"><h4>Ranged weapon setup</h4><p>Before combat: confirm the copy, load ammunition, then ready the weapon. Each copy below shows its next step.</p>
+  return <section className="equipment-state-panel__firearms" aria-label="Firearm equipment setup"><h4>Ranged weapon setup</h4>{!compact ? <p>Before combat: confirm the copy, load ammunition, then ready the weapon. Each copy below shows its next step.</p> : null}
     {message ? <p role="status">{message}</p> : null}{view?.combatActive ? <p>Active combat: open Combat, choose Attack and select this weapon. Loading, magazine filling, readying and firing are together there, with their Initiative costs.</p> : null}
     <button className="st-button" disabled={busy} onClick={() => void readFirearmSetup(characterId).then(setView).catch((error) => setMessage(error.message))}>Refresh firearm setup</button>
     {view?.firearms.map((entry) => { const blocked = disabled || busy || !view.canManage || view.combatActive, input = { characterId, instanceId: entry.instanceId, expectedVersion: entry.state?.version };

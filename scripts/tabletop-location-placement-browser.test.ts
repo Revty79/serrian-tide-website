@@ -223,7 +223,7 @@ async function main(): Promise<void> {
     await godPage.getByText("Night Cart", { exact: true }).waitFor();
     await godPage.locator(".tabletop-location-prep").screenshot({ path: join(screenshotDirectory, "session-preparation-desktop.png") });
 
-    await playerPage.goto(`${baseUrl}/realms/tabletop?character=${fixture.characterId}`);
+    await playerPage.goto(`${baseUrl}/realms/tabletop?character=${fixture.characterId}&tab=table`);
     await playerPage.getByRole("heading", { name: "Revealed locations" }).waitFor();
     await playerPage.getByText("No Scene locations have been revealed to players.").waitFor();
 

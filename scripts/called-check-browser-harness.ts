@@ -141,10 +141,6 @@ async function eventually(check: () => Promise<boolean>, message: string, attemp
   throw new Error(message);
 }
 
-function handlePrompt(page: Page, value: string): void {
-  page.once("dialog", async (dialog) => dialog.accept(value));
-}
-
 async function selectRecipient(compose: ReturnType<Page["locator"]>, name: string): Promise<void> {
   const label = compose.locator(".called-check-recipients label").filter({ hasText: name });
   await label.locator("input").check();
@@ -156,26 +152,24 @@ async function godWorkflow(page: Page, fixture: Fixture, baseUrl: string, pool: 
   const calledCompose = page.locator(".called-check-compose").first();
   await selectRecipient(calledCompose, "Persistent Browser NPC");
   await calledCompose.getByLabel("Purpose").fill("G.O.D. browser NPC check");
-  await calledCompose.getByLabel("Roll method").selectOption("entered");
   await calledCompose.getByRole("button", { name: "Issue Called Check" }).click();
   const batch = page.locator(".called-check-batch").filter({ hasText: "G.O.D. browser NPC check" });
   await batch.waitFor();
   assert.match(await batch.innerText(), /Persistent Browser NPC/);
   assert.match(await batch.innerText(), /WIS straight Attribute \(45\)/);
   assert.match(await batch.innerText(), /55 → 55/);
-  handlePrompt(page, "75");
+  await batch.getByLabel("Percentile result").fill("75");
   await batch.getByRole("button", { name: "Record Physical Result" }).click();
   await eventually(async () => /#\d+: 75/.test(await batch.innerText()), "G.O.D. physical Called Check did not resolve.");
   assert.match(await batch.innerText(), /Successful/);
 
   const highLowCompose = page.locator(".called-check-compose").nth(1);
-  await highLowCompose.getByLabel("Roll method").selectOption("entered");
   await highLowCompose.getByLabel("Purpose").fill("G.O.D. neutral browser High Low");
   await highLowCompose.getByRole("button", { name: "Issue High / Low" }).click();
   const highLow = page.locator(".called-check-attempt").filter({ hasText: "G.O.D. neutral browser High Low" });
   await highLow.waitFor();
-  handlePrompt(page, "25");
-  await highLow.getByRole("button", { name: "G.O.D. Enter Result" }).click();
+  await highLow.getByLabel("Percentile result").fill("25");
+  await highLow.getByRole("button", { name: "Record Physical Result" }).click();
   await eventually(async () => /Raw Roll\s*25/i.test(await highLow.innerText()), "Neutral High/Low did not persist its raw result.");
   assert.match(await highLow.innerText(), /LOW/);
 
@@ -198,13 +192,12 @@ async function godWorkflow(page: Page, fixture: Fixture, baseUrl: string, pool: 
 async function playerWorkflow(godPage: Page, playerPage: Page, fixture: Fixture, baseUrl: string, pool: pg.Pool): Promise<void> {
   await godPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&workspace=checks`);
   await godPage.getByRole("heading", { name: "Called Checks & High/Low" }).waitFor();
-  await playerPage.goto(`${baseUrl}/realms/tabletop?character=${fixture.characterId}`);
+  await playerPage.goto(`${baseUrl}/realms/tabletop?character=${fixture.characterId}&tab=rolls`);
   assert.equal(await playerPage.getByText("Private browser Called Check").count(), 0);
 
   let compose = godPage.locator(".called-check-compose").first();
   await selectRecipient(compose, "Persistent Browser Hero");
   await compose.getByLabel("Visibility").selectOption("private");
-  await compose.getByLabel("Roll method").selectOption("entered");
   await compose.getByLabel("Purpose").fill("Private browser Called Check");
   await compose.getByLabel("Instructions").fill("Answer from the Character surface.");
   await compose.getByRole("button", { name: "Issue Called Check" }).click();
@@ -212,14 +205,13 @@ async function playerWorkflow(godPage: Page, playerPage: Page, fixture: Fixture,
   const playerCheck = playerPage.locator("article").filter({ hasText: "Private browser Called Check" });
   assert.match(await playerCheck.innerText(), /WIS straight Attribute \(45\)/);
   assert.match(await playerCheck.innerText(), /Final target\s*55/);
-  handlePrompt(playerPage, "80");
-  await playerCheck.getByRole("button", { name: "Enter Physical Result" }).click();
+  await playerCheck.getByLabel("Percentile result").fill("80");
+  await playerCheck.getByRole("button", { name: "Record Physical Result" }).click();
   await eventually(async () => /Raw Roll\s*80/i.test(await playerCheck.innerText()), "Player physical Called Check did not persist.");
 
   const highLowCompose = godPage.locator(".called-check-compose").nth(1);
   await highLowCompose.getByLabel("Mode").selectOption("player-calls-rolls");
   await highLowCompose.getByLabel("Visibility").selectOption("private");
-  await highLowCompose.getByLabel("Roll method").selectOption("entered");
   await highLowCompose.getByLabel("Purpose").fill("Player browser High Low");
   const issueHighLowButton = highLowCompose.getByRole("button", { name: "Issue High / Low" });
   await eventually(
@@ -232,15 +224,14 @@ async function playerWorkflow(godPage: Page, playerPage: Page, fixture: Fixture,
   const playerHighLow = playerPage.locator("article").filter({ hasText: "Player browser High Low" });
   await playerHighLow.getByRole("button", { name: "Call High" }).click();
   await eventually(async () => /Locked call\s*HIGH/i.test(await playerHighLow.innerText()), "Player High call did not lock.");
-  handlePrompt(playerPage, "75");
-  await playerHighLow.getByRole("button", { name: "Enter Physical Result" }).click();
+  await playerHighLow.getByLabel("Percentile result").fill("75");
+  await playerHighLow.getByRole("button", { name: "Record Physical Result" }).click();
   await eventually(async () => /Raw Roll\s*75/i.test(await playerHighLow.innerText()), "Player High/Low result did not persist.");
   assert.match(await playerHighLow.innerText(), /Match\s*Match/i);
 
   compose = godPage.locator(".called-check-compose").first();
   await selectRecipient(compose, "Persistent Browser Hero");
   await compose.getByLabel("Visibility").selectOption("god-only");
-  await compose.getByLabel("Roll method").selectOption("random");
   await compose.getByLabel("Purpose").fill("INVISIBLE SECRET BROWSER CHECK");
   await compose.getByRole("button", { name: "Issue Called Check" }).click();
   const secret = godPage.locator(".called-check-batch").filter({ hasText: "INVISIBLE SECRET BROWSER CHECK" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   executeCharacterItemUse,
@@ -23,6 +23,9 @@ type Props = {
   activationLabel: string;
   disabled?: boolean;
   onComplete: () => void | Promise<void>;
+  executeUse?: (request: ItemUseRequest) => Promise<ItemUseExecutionResult | null>;
+  confirmationLabel?: string;
+  confirmationContent?: ReactNode;
 };
 
 function displayNumber(value: number): string {
@@ -58,6 +61,9 @@ export function ItemUseDialog({
   activationLabel,
   disabled = false,
   onComplete,
+  executeUse = executeCharacterItemUse,
+  confirmationLabel,
+  confirmationContent,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [request, setRequest] = useState<ItemUseRequest | null>(null);
@@ -124,8 +130,14 @@ export function ItemUseDialog({
     setBusy(true);
     setError(null);
     try {
-      setResult(await executeCharacterItemUse(request));
+      const completed = await executeUse(request);
+      setResult(completed);
       setPreparation(null);
+      if (completed === null) {
+        setOpen(false);
+        setRequest(null);
+        await onComplete();
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "This Item use could not be completed.");
       try {
@@ -188,7 +200,8 @@ export function ItemUseDialog({
 
           {preparation.plan.issues.length ? <div className="item-use-feedback is-error">{preparation.plan.issues.map((issue) => <p key={issue}>{issue}</p>)}</div> : null}
           {preparation.plan.status === "needs-selection" ? <p className="item-use-feedback">Choose every required anatomy target before confirming.</p> : null}
-          <footer><button type="button" disabled={busy} onClick={() => void close()}>Cancel</button><button type="button" className="is-primary" disabled={busy || !preparation.plan.ready} onClick={() => void confirm()}>{busy ? "Resolving…" : `Confirm ${preparation.plan.item.activationLabel}`}</button></footer>
+          {confirmationContent}
+          <footer><button type="button" disabled={busy} onClick={() => void close()}>Cancel</button><button type="button" className="is-primary" disabled={busy || !preparation.plan.ready} onClick={() => void confirm()}>{busy ? "Resolving…" : confirmationLabel ?? `Confirm ${preparation.plan.item.activationLabel}`}</button></footer>
         </div> : null}
 
         {result ? <div className="item-use-result" aria-live="polite"><strong>{result.item.activationLabel} completed.</strong><p>{result.item.name} affected {result.target.name}.</p><p>{resultResourceSummary(result)}</p>{result.automaticEffects.length ? <section><h3>Applied automatically</h3><ul>{result.automaticEffects.map((effect) => <li key={effect.effectId}>{effect.summary}</li>)}</ul></section> : null}{result.manualEffects.length ? <section className="item-use-result-manual"><h3>Manual G.O.D. Resolution Required</h3>{result.manualEffects.map((effect) => <article key={effect.effectId}><strong>{effect.title}</strong><p>{effect.description}</p></article>)}</section> : null}<button type="button" className="is-primary" onClick={() => void close()}>Done</button></div> : null}

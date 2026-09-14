@@ -11,6 +11,7 @@ import { reopenCampaignSession } from "./actions";
 import { finalizeSessionCloseout } from "./session-closeout-actions";
 import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
 import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
+import { CloseoutAwardFields, CloseoutAwardHistory, useCloseoutAwardDraft } from "./closeout-award-fields";
 
 function timestamp(value: string | null): string {
   if (!value) return "—";
@@ -37,16 +38,17 @@ export function SessionCloseout({
   const [lifecyclePreview, setLifecyclePreview] = useState<TabletopLifecyclePreview | null>(null);
   const preserveScroll = useInPlaceScrollPreservation();
   const historical = data.session.status === "completed";
+  const awards = useCloseoutAwardDraft(`session:${data.session.id}`, data.closeoutAwards);
 
   async function finalize(): Promise<void> {
     if (!canOperate) return;
     setBusy(true);
     setFeedback(null);
     try {
-      await finalizeSessionCloseout(data.session.id);
+      await finalizeSessionCloseout(data.session.id, awards.input());
       setConfirmationMode(null);
       setLifecyclePreview(null);
-      setFeedback({ kind: "success", message: "Session finalized. Character state, rewards, durations, and Rolls were preserved." });
+      setFeedback({ kind: "success", message: "Session finalized. Awards recorded; existing history preserved." });
       router.refresh();
     } catch (error) {
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Session closeout failed." });
@@ -124,9 +126,10 @@ export function SessionCloseout({
     </div>
 
     <footer className="session-closeout-finalize">
-      <div><strong>{historical ? "Session history preserved" : data.canFinalize ? "Ready to finalize" : "Resolve every blocker first"}</strong><span>Finalization never heals, restores, clears, deletes, awards, or resets Character state.</span></div>
+      <div><strong>{historical ? "Session history preserved" : data.canFinalize ? "Ready to finalize" : "Resolve every blocker first"}</strong><span>Only confirmed G.O.D. awards change Character balances. Existing health, Mana, and history are preserved.</span></div>
       {canOperate ? historical ? <button type="button" disabled={busy} onClick={() => void openConfirmation("reopen")}>{busy ? "Reopening…" : "Reopen Session"}</button> : <button type="button" className="is-primary" disabled={busy || !data.canFinalize} onClick={() => void openConfirmation("finalize")}>{busy ? "Finalizing…" : "Finalize Session"}</button> : <span className="tabletop-readonly-notice">Read-only for administrators who do not own this Campaign as its G.O.D.</span>}
     </footer>
+    <CloseoutAwardHistory view={data.closeoutAwards} label="Session" />
     <LifecycleConfirmationDialog
       open={canOperate && confirmationMode !== null}
       titleId="finalize-tabletop-session-title"
@@ -136,7 +139,7 @@ export function SessionCloseout({
       preview={lifecyclePreview}
       consequence={confirmationMode === "reopen"
         ? "This returns the completed Session to active for corrections. It does not erase its deeper history or alter living Character state."
-        : "This makes the Session organizationally historical. It does not reset or delete living Character state, rewards, durations, or Rolls."}
+        : "This closes the Session and applies the manual awards below once. Blank amounts grant no reward. Health, Mana, and existing history are preserved."}
       dependencies={(lifecyclePreview?.dependencies ?? [])
         .filter(({ count }) => count > 0)
         .map(({ label, count }) => `${label}: ${count}`)}
@@ -151,6 +154,6 @@ export function SessionCloseout({
       error={feedback?.kind === "error" ? feedback.message : undefined}
       onCancel={() => { setConfirmationMode(null); setLifecyclePreview(null); setFeedback(null); }}
       onConfirm={() => confirmationMode === "reopen" ? reopen() : finalize()}
-    />
+    >{confirmationMode === "finalize" ? <CloseoutAwardFields view={data.closeoutAwards} draft={awards.draft} onChange={awards.setDraft} disabled={busy} label="Session" /> : null}</LifecycleConfirmationDialog>
   </section>;
 }

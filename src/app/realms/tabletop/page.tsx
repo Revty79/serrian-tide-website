@@ -16,6 +16,8 @@ import {
   readPlayerTabletopState,
 } from "@/features/tabletop-operations/player-tabletop-console-service";
 import { requirePlayer } from "@/lib/server-access";
+import { readSourceUseRequestsInTransaction } from "@/features/tabletop-operations/source-use-service";
+import { readPlayerCloseoutAwardsInTransaction } from "@/features/tabletop-operations/closeout-award-service";
 import { readPlayerShopVisitInTransaction } from "@/features/tabletop-operations/shop-visit-service";
 import { db } from "@/db";
 import { readShopCommerceInTransaction } from "@/features/tabletop-operations/shop-commerce-service";
@@ -37,7 +39,7 @@ function selectedId(value: string | string[] | undefined): number | null {
 export default async function PlayerTabletopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string | string[]; combat?: string }>;
+  searchParams: Promise<{ character?: string | string[]; combat?: string; tab?: string; request?: string }>;
 }) {
   const access = await requirePlayer().catch(() => redirect("/access"));
   const characters = await listPlayerTabletopCharacters();
@@ -45,7 +47,11 @@ export default async function PlayerTabletopPage({
   const selection = resolvePlayerTabletopSelection(characters, selectedId(query.character));
 
   if (selection.kind === "single-available") {
-    redirect(`/realms/tabletop?character=${selection.characterId}${query.combat ? `&combat=${encodeURIComponent(query.combat)}` : ""}`);
+    const params = new URLSearchParams({ character: String(selection.characterId) });
+    for (const key of ["combat", "tab", "request"] as const) {
+      if (typeof query[key] === "string") params.set(key, query[key]);
+    }
+    redirect(`/realms/tabletop?${params}`);
   }
 
   if (selection.kind !== "selected") {
@@ -75,6 +81,8 @@ export default async function PlayerTabletopPage({
   const characterId = selection.character.characterId;
   if (query.combat) return <CombatRoute key={`player:${characterId}:${query.combat}`} scope={{ role: "player", characterId, encounterId: Number(query.combat) }} />;
   const combatEncounters = await listPlayerCombatEncounters(characterId);
+  const sourceUses = await db.transaction((tx) => readSourceUseRequestsInTransaction(tx, { role: "player", userId: access.user.id }, { characterId }));
+  const closeoutAwards = await db.transaction((tx) => readPlayerCloseoutAwardsInTransaction(tx, characterId, access.user.id));
   const [aggregate, runtime] = await Promise.all([
     getCharacter(characterId, false),
     readPlayerTabletopState(characterId),
@@ -127,10 +135,5 @@ export default async function PlayerTabletopPage({
     derivedAbilityUses: runtime.derivedAbilityUses,
   };
 
-  const activeEncounters = combatEncounters.filter((entry) => entry.status === "active");
-  const combatLinks = combatEncounters.length ? <section className={styles.section} aria-label="Character encounters"><h2>Encounters</h2>
-    {activeEncounters.map((entry) => <p key={entry.id}><a className="st-button is-primary" href={`/realms/tabletop?character=${characterId}&combat=${entry.id}`}>Open Combat · {entry.title}</a></p>)}
-    <details><summary>Encounter records</summary>{combatEncounters.filter((entry) => entry.status !== "active").map((entry) => <p key={entry.id}><a href={`/realms/tabletop?character=${characterId}&combat=${entry.id}`}>{entry.title} · {entry.status}</a></p>)}</details>
-  </section> : null;
-  return <PlayerTabletopWorkspace characters={characters} view={view} shopVisit={shopVisit} shopCommerce={shopCommerce} combatLinks={combatLinks} />;
+  return <PlayerTabletopWorkspace key={characterId} characters={characters} view={view} equipmentState={runtime.equipment} shopVisit={shopVisit} shopCommerce={shopCommerce} combatEncounters={combatEncounters} sourceUses={sourceUses} closeoutAwards={closeoutAwards} />;
 }

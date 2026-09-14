@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { ItemUseDialog } from "@/app/characters/item-use-dialog";
 import { SpellCastDialog } from "@/app/characters/spell-cast-dialog";
@@ -9,6 +9,8 @@ import type { SpellCastSourceRequest } from "@/features/characters/character-spe
 import type { PlayerTabletopOwnedItem } from "@/features/tabletop-operations/player-tabletop-console";
 
 import { recordPlayerTabletopFreeRoll } from "./actions";
+import { executeTabletopItemUse, executeTabletopSpellUse, requestTabletopSourceUse } from "@/app/tabletop/source-use-actions";
+import { stableSourceUseJson, type TabletopSourceUse } from "@/features/tabletop-operations/source-use";
 import styles from "./player-tabletop.module.css";
 
 function idempotencyKey(): string {
@@ -69,43 +71,78 @@ export function PlayerTabletopDice({
   </form>;
 }
 
+function useRulingRequest(sessionId: number | null) {
+  const router = useRouter();
+  const [intent, setIntent] = useState("");
+  const [message, setMessage] = useState("");
+  const retry = useRef<{ signature: string; key: string } | null>(null);
+  async function submit(source: TabletopSourceUse) {
+    if (sessionId === null) throw new Error("Join an active Session to request a G.O.D. ruling.");
+    const signature = stableSourceUseJson({ sessionId, source, intent });
+    if (retry.current?.signature !== signature) retry.current = { signature, key: crypto.randomUUID() };
+    const id = await requestTabletopSourceUse({ sessionId, source, intent, idempotencyKey: retry.current.key });
+    retry.current = null;
+    setIntent("");
+    setMessage(`Request #${id} sent to G.O.D. No resources spent.`);
+    router.refresh();
+    return null;
+  }
+  const field = <label className="st-field"><span>Intent / circumstances</span><textarea className="st-control" maxLength={2000} rows={3} value={intent} onChange={(event) => setIntent(event.target.value)} /></label>;
+  return { submit, field, message };
+}
+
 export function PlayerTabletopItemUse({
   characterId,
   item,
   disabled,
+  sessionId,
 }: {
   characterId: number;
   item: PlayerTabletopOwnedItem;
   disabled: boolean;
+  sessionId: number | null;
 }) {
   const router = useRouter();
-  return <ItemUseDialog
+  const ruling = useRulingRequest(sessionId);
+  return <><ItemUseDialog
     sourceCharacterId={characterId}
     itemId={item.itemId}
     itemInstanceId={item.instanceId}
     itemName={item.name}
-    activationLabel={item.runtimeProfile.activationLabel}
-    disabled={disabled}
+    activationLabel={item.requiresGodRuling ? "Request use" : item.runtimeProfile.activationLabel}
+    disabled={disabled || (item.requiresGodRuling && sessionId === null)}
+    executeUse={item.requiresGodRuling ? (request) => ruling.submit({ kind: "item", request }) : executeTabletopItemUse}
+    confirmationLabel={item.requiresGodRuling ? "Request G.O.D. ruling" : undefined}
+    confirmationContent={item.requiresGodRuling ? ruling.field : undefined}
     onComplete={() => router.refresh()}
-  />;
+  />{ruling.message ? <p role="status">{ruling.message}</p> : null}</>;
 }
 
 export function PlayerTabletopSpellUse({
   characterId,
   source,
   label,
+  requiresGodRuling,
+  sessionId,
 }: {
   characterId: number;
   source: SpellCastSourceRequest;
   label: string;
+  requiresGodRuling: boolean;
+  sessionId: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const ruling = useRulingRequest(sessionId);
   return <>
-    <button type="button" onClick={() => setOpen(true)}>Use {label}</button>
+    <button type="button" disabled={requiresGodRuling && sessionId === null} onClick={() => setOpen(true)}>{requiresGodRuling ? "Request" : "Use"} {label}</button>
+    {ruling.message ? <p role="status">{ruling.message}</p> : null}
     {open ? <SpellCastDialog
       casterCharacterId={characterId}
       source={source}
+      executeCast={requiresGodRuling ? (request) => ruling.submit({ kind: "spell", request }) : executeTabletopSpellUse}
+      confirmationLabel={requiresGodRuling ? "Request G.O.D. ruling" : undefined}
+      confirmationContent={requiresGodRuling ? ruling.field : undefined}
       onClose={() => setOpen(false)}
       onCast={() => {
         setOpen(false);

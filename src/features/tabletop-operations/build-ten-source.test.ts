@@ -83,7 +83,9 @@ test("Session workspace exposes active table, Rolls, and Closeout without replac
   assert.match(workspace, /ACTIVE TABLE/);
   assert.match(workspace, /<SessionRollWorkspace/);
   assert.match(workspace, /<SessionCloseout/);
-  assert.match(closeout, /Finalization never heals, restores, clears, deletes, awards, or resets Character state/);
+  assert.match(closeout, /Only confirmed G\.O\.D\. awards change Character balances/);
+  assert.match(closeout, /Existing health, Mana, and history are preserved/);
+  assert.match(closeout, /<CloseoutAwardFields/);
 });
 
 test("Active Table Roll navigation selects, scrolls to, and focuses the shared Roll workspace", () => {

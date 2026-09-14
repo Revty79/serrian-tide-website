@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import type { PlayerCalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
+import { CalledRollControl } from "@/features/tabletop-operations/called-roll-control";
 
 import {
   answerPlayerCalledCheck,
@@ -27,56 +28,45 @@ export function PlayerCalledCheckPanel({ view }: { view: PlayerCalledCheckWorksp
   const [busy, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ error: boolean; message: string } | null>(null);
   const pendingOwnChecks = view.calledChecks.filter(({ recipientCharacterId, status }) => recipientCharacterId === view.characterId && status === "pending");
-  const pendingOwnHighLow = view.highLow.filter(({ participantCharacterId, status }) => participantCharacterId === view.characterId && status === "pending");
+  const pendingOwnHighLow = view.highLow.filter(({ participantCharacterId, status, mode, calledSide }) => participantCharacterId === view.characterId && status === "pending" && mode !== "neutral" && (calledSide === null || mode === "player-calls-rolls"));
 
   function run(success: string, operation: () => Promise<unknown>): void {
     setFeedback(null);
-    startTransition(() => {
-      void operation().then(() => {
+    startTransition(async () => {
+      try {
+        await operation();
         setFeedback({ error: false, message: success });
         router.refresh();
-      }).catch((error) => setFeedback({ error: true, message: error instanceof Error ? error.message : "The table request failed." }));
+      } catch (error) {
+        setFeedback({ error: true, message: error instanceof Error ? error.message : "The table request failed." });
+      }
     });
   }
 
-  function answerCalled(request: PlayerCalledCheckWorkspaceView["calledChecks"][number]): void {
-    const entered = request.rollMethod === "entered" ? window.prompt("Enter your physical percentile result (1-100).") : null;
-    if (request.rollMethod === "entered" && entered === null) return;
-    run("Your Called Check Roll was recorded.", () => answerPlayerCalledCheck(view.characterId, {
-      requestId: request.id,
-      enteredTotal: request.rollMethod === "entered" ? Number(entered) : null,
-      idempotencyKey: idempotencyKey(),
-    }));
-  }
-
-  function answerHighLow(request: PlayerCalledCheckWorkspaceView["highLow"][number]): void {
-    const entered = request.rollMethod === "entered" ? window.prompt("Enter your physical percentile result (1-100).") : null;
-    if (request.rollMethod === "entered" && entered === null) return;
-    run("Your High/Low Roll was recorded.", () => answerPlayerHighLow(view.characterId, {
-      requestId: request.id,
-      enteredTotal: request.rollMethod === "entered" ? Number(entered) : null,
-      idempotencyKey: idempotencyKey(),
-    }));
+  function recorded(message: string) {
+    setFeedback({ error: false, message });
+    router.refresh();
   }
 
   function renderCalledCheck(request: PlayerCalledCheckWorkspaceView["calledChecks"][number]) {
-    return <article key={`check:${request.id}`} className={request.status === "pending" && request.recipientCharacterId === view.characterId ? styles.pending : ""}>
+    return <article key={`check:${request.id}`} id={`player-request-check-${request.id}`} tabIndex={-1} className={request.status === "pending" && request.recipientCharacterId === view.characterId ? styles.pending : ""}>
       <header><span>CALLED CHECK · {label(request.visibility)}</span><em>{label(request.status)}</em></header>
       <h3>{request.purpose}</h3>
       {request.instructions ? <p>{request.instructions}</p> : null}
-      <dl><div><dt>Recipient</dt><dd>{request.recipientName}</dd></div><div><dt>Frozen source</dt><dd>{request.sourceLabel}</dd></div><div><dt>Final target</dt><dd>{request.finalTarget ?? "G.O.D. ruling"}</dd></div><div><dt>Method</dt><dd>{request.rollMethod === "random" ? "Website Roll" : "Physical result"}</dd></div>{request.resolution ? <><div><dt>Raw Roll</dt><dd>{request.resolution.resultTotal}</dd></div><div><dt>Outcome</dt><dd>{request.resolution.succeeded ? "Success" : "Failure"} · {request.resolution.totalSuccesses} total successes</dd></div></> : null}</dl>
-      {request.status === "pending" && request.recipientCharacterId === view.characterId ? <button disabled={busy} onClick={() => answerCalled(request)}>{busy ? "Recording…" : request.rollMethod === "random" ? "Roll Percentile" : "Enter Physical Result"}</button> : null}
+      <dl><div><dt>Recipient</dt><dd>{request.recipientName}</dd></div><div><dt>Frozen source</dt><dd>{request.sourceLabel}</dd></div><div><dt>Final target</dt><dd>{request.finalTarget ?? "G.O.D. ruling"}</dd></div>{request.resultMethod ? <div><dt>Method</dt><dd>{request.resultMethod === "random" ? "Digital percentile" : "Physical percentile"}</dd></div> : null}{request.resolution ? <><div><dt>Raw Roll</dt><dd>{request.resolution.resultTotal}</dd></div><div><dt>Outcome</dt><dd>{request.resolution.succeeded ? "Success" : "Failure"} · {request.resolution.totalSuccesses} total successes</dd></div></> : null}</dl>
+      {request.status === "pending" && request.recipientCharacterId === view.characterId ? <CalledRollControl requestId={request.id} disabled={busy} onSubmit={(input) => answerPlayerCalledCheck(view.characterId, input)} onRecorded={() => recorded("Your Called Check Roll was recorded.")} /> : null}
       {request.rulingText && request.status === "resolved" ? <p className={styles.ruling}>G.O.D. ruling: {request.rulingText}</p> : null}
     </article>;
   }
 
   function renderHighLow(request: PlayerCalledCheckWorkspaceView["highLow"][number]) {
-    return <article key={`highlow:${request.id}`} className={request.status === "pending" && request.participantCharacterId === view.characterId ? styles.pending : ""}>
+    return <article key={`highlow:${request.id}`} id={`player-request-high-low-${request.id}`} tabIndex={-1} className={request.status === "pending" && request.participantCharacterId === view.characterId ? styles.pending : ""}>
       <header><span>HIGH / LOW · {label(request.visibility)}</span><em>{label(request.status)}</em></header>
       <h3>{request.purpose}</h3>
       <dl><div><dt>Mode</dt><dd>{label(request.mode)}</dd></div><div><dt>Player</dt><dd>{request.participantName ?? "Neutral"}</dd></div><div><dt>Locked call</dt><dd>{request.calledSide ? label(request.calledSide) : request.mode === "neutral" ? "No call" : "Not called yet"}</dd></div>{request.result ? <><div><dt>Raw Roll</dt><dd>{request.result.resultTotal}</dd></div><div><dt>Rolled side</dt><dd>{label(request.result.rolledSide)}</dd></div><div><dt>Match</dt><dd>{request.result.matchedCall === null ? "Not applicable" : request.result.matchedCall ? "Match" : "Mismatch"}</dd></div><div><dt>Critical</dt><dd>{request.result.criticalFailure ? "Critical failure" : request.result.doubleOtt ? "Double ott critical success" : "None"}</dd></div></> : null}</dl>
       {request.status === "pending" && request.participantCharacterId === view.characterId && request.calledSide === null ? <div className={styles.actions}><button disabled={busy} onClick={() => run("Low was locked before the Roll.", () => lockPlayerHighLowCall(view.characterId, { requestId: request.id, side: "low", idempotencyKey: idempotencyKey() }))}>Call Low</button><button disabled={busy} onClick={() => run("High was locked before the Roll.", () => lockPlayerHighLowCall(view.characterId, { requestId: request.id, side: "high", idempotencyKey: idempotencyKey() }))}>Call High</button></div> : null}
-      {request.status === "pending" && request.participantCharacterId === view.characterId && request.calledSide !== null && request.mode === "player-calls-rolls" ? <button disabled={busy} onClick={() => answerHighLow(request)}>{request.rollMethod === "random" ? "Roll High / Low" : "Enter Physical Result"}</button> : null}
+      {request.status === "pending" && request.participantCharacterId === view.characterId && request.calledSide !== null && request.mode === "player-calls-rolls" ? <CalledRollControl requestId={request.id} disabled={busy} onSubmit={(input) => answerPlayerHighLow(view.characterId, input)} onRecorded={() => recorded("Your High/Low Roll was recorded.")} /> : null}
+      {request.resultMethod ? <p>Method: {request.resultMethod === "random" ? "Digital percentile" : "Physical percentile"}</p> : null}
       {request.status === "pending" && request.mode === "player-calls-god-rolls" && request.calledSide !== null ? <p className={styles.waiting}>Your call is locked. Waiting for the G.O.D. Roll.</p> : null}
     </article>;
   }

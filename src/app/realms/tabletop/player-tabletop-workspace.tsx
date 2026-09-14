@@ -8,6 +8,7 @@ import type {
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import type { ShopVisitView } from "@/features/tabletop-operations/shop-visit-service";
 import type { ShopCommerceView } from "@/features/tabletop-operations/shop-commerce-service";
+import { buildPlayerTabletopAlerts, type PlayerTabletopEncounter } from "@/features/tabletop-operations/player-tabletop-navigation";
 
 import {
   PlayerTabletopDice,
@@ -16,6 +17,13 @@ import {
 } from "./player-tabletop-actions";
 import styles from "./player-tabletop.module.css";
 import { PlayerShopVisit } from "./player-shop-visit";
+import { PlayerTabletopPanel, PlayerTabletopTabs } from "./player-tabletop-tabs";
+import { PlayerTabletopCampaign } from "./player-tabletop-campaign";
+import { PlayerTabletopEquipment } from "./player-tabletop-equipment";
+import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
+import type { SourceUseRequestView } from "@/features/tabletop-operations/source-use";
+import { SourceUseQueue } from "@/features/tabletop-operations/source-use-queue";
+import type { PlayerCloseoutAward } from "@/features/tabletop-operations/closeout-awards";
 
 function dateTime(value: string): string {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -48,18 +56,27 @@ function Section({
 }
 
 export function PlayerTabletopWorkspace({
-  combatLinks,
+  combatEncounters = [],
   characters,
   view,
   shopVisit,
   shopCommerce,
+  equipmentState,
+  sourceUses,
+  closeoutAwards,
 }: {
   characters: readonly PlayerTabletopCharacterOption[];
-  combatLinks?: React.ReactNode;
+  combatEncounters?: readonly PlayerTabletopEncounter[];
   view: PlayerTabletopConsoleView;
   shopVisit: ShopVisitView | null;
   shopCommerce: ShopCommerceView | null;
+  equipmentState: CharacterEquipmentStateView;
+  sourceUses: SourceUseRequestView[];
+  closeoutAwards: PlayerCloseoutAward[];
 }) {
+  const alerts = buildPlayerTabletopAlerts(view.identity.characterId, combatEncounters, view.calledChecks);
+  const openUses = sourceUses.filter(({ status }) => status === "pending" || status === "approved");
+  const sourceSessionId = view.session?.rostered ? view.session.id : null;
   const activeConditions = view.effects.conditions.filter(({ resolvedAt }) => resolvedAt === null);
   const activeModifiers = view.effects.modifiers.filter(({ endedAt }) => endedAt === null);
   const priorEffects = [
@@ -93,7 +110,7 @@ export function PlayerTabletopWorkspace({
               <p>{view.identity.campaignName} · {view.identity.playerUsername}</p>
             </div>
             <nav className={styles.heroNav} aria-label="Player tabletop navigation">
-              {shopVisit ? <a href="#player-shop-visit-title" aria-current="location">In {shopVisit.shop.name}</a> : null}
+              {shopVisit ? <Link href={`/realms/tabletop?character=${view.identity.characterId}&tab=shop`}>In {shopVisit.shop.name}</Link> : null}
               <Link href="/realms">Realms</Link>
               <Link href={`/realms/characters/${view.identity.characterId}`}>Character Sheet</Link>
             </nav>
@@ -114,15 +131,14 @@ export function PlayerTabletopWorkspace({
         <div><span>Table state</span><strong>{view.presence.label}</strong><small>{view.presence.detail}</small></div>
       </section>
 
-      {combatLinks}
-      {shopVisit ? <>
-        <PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} />
-        {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
-      </> : <>
+      <PlayerTabletopTabs characterId={view.identity.characterId} alerts={alerts} hasShop={shopVisit !== null} sourceRequestCount={openUses.length} sourceRequests={openUses.length ? <SourceUseQueue requests={openUses} role="player" combatActive={!view.presence.noncombatSourceUseAllowed} /> : null}>
+      <PlayerTabletopPanel id="table">
 
-      <Section id="tabletop-context" eyebrow="LIVE CONTEXT" title="At the table" detail="The active hierarchy is displayed as recorded; this console never invents Session membership.">
+      <Section id="tabletop-context" eyebrow="LIVE CONTEXT" title="At the table">
         <div className={styles.contextGrid}>
-          <article><span>Campaign</span><h3>{view.identity.campaignName}</h3><p>{view.identity.campaignOverview || "No Campaign overview has been provided."}</p></article>
+          <article>
+            <PlayerTabletopCampaign name={view.identity.campaignName} overview={view.identity.campaignOverview} />
+          </article>
           <article><span>Character</span><h3>{view.identity.characterName}</h3><p>{[view.identity.raceName, view.identity.age ? `Age ${view.identity.age}` : null, view.identity.sex].filter(Boolean).join(" · ") || "No public profile details"}</p><Link href={`/realms/characters/${view.identity.characterId}`}>Open full Character Sheet</Link></article>
           <article><span>Session</span><h3>{view.session?.title ?? "No active Session"}</h3><p>{view.session ? `${view.session.rostered ? "Rostered" : "Not rostered"} · started ${dateTime(view.session.startedAt)}` : "Persistent Character tools remain available."}</p></article>
           <article><span>Scene</span><h3>{view.scene?.title ?? "No active Scene"}</h3><p>{view.scene ? [view.scene.locationLabel, view.scene.description].filter(Boolean).join(" · ") || "No public Scene description" : "This Character has no active Scene membership."}</p></article>
@@ -133,7 +149,6 @@ export function PlayerTabletopWorkspace({
         id="tabletop-scene-locations"
         eyebrow="SCENE DIRECTORY"
         title="Revealed locations"
-        detail="Only descriptive details revealed by the G.O.D. for this Character's active Scene appear here."
       >
         {view.locations.towns.length || view.locations.shops.length ? <div className={styles.locationDirectory}>
           {view.locations.towns.map((town) => <article className={styles.locationTown} key={town.id}>
@@ -155,11 +170,16 @@ export function PlayerTabletopWorkspace({
           </article> : null}
         </div> : <p className={styles.emptyCopy}>No Scene locations have been revealed to players.</p>}
       </Section> : null}
+      </PlayerTabletopPanel>
 
-
+      <PlayerTabletopPanel id="rolls">
       {view.calledChecks ? <PlayerCalledCheckPanel view={view.calledChecks} /> : null}
+      <Section id="tabletop-dice" eyebrow="ROLL TRAY" title="General Rolls">
+        <PlayerTabletopDice characterId={view.identity.characterId} enabled={view.presence.liveActionsAllowed} />
+      </Section>
+      </PlayerTabletopPanel>
 
-      <div className={styles.twoColumn}>
+      <PlayerTabletopPanel id="status">
         <Section id="tabletop-state" eyebrow="ACTIVE STATE" title="Health, Mana & effects">
           <div className={styles.resourceList}>
             {view.health.tracks.map((track) => <article key={track.key}><h3>{track.name}</h3><strong>{track.remainingHp ?? "—"} / {track.maximumHp ?? "—"} HP</strong><span>{track.damage} damage{track.overDamage ? ` · ${track.overDamage} over-damage` : ""}</span></article>)}
@@ -171,23 +191,24 @@ export function PlayerTabletopWorkspace({
           </div>
         </Section>
 
-        <Section id="tabletop-dice" eyebrow="ROLL TRAY" title="General Rolls" detail="Called Checks and High/Low requests stay in the live requests panel.">
-          <PlayerTabletopDice characterId={view.identity.characterId} enabled={view.presence.liveActionsAllowed} />
-        </Section>
-      </div>
+      </PlayerTabletopPanel>
 
-      <Section id="tabletop-items" eyebrow="OWNED SOURCES" title="Items & equipment" detail="Browse owned Items and equipment.">
+      <PlayerTabletopPanel id="equipment">
+      <Section id="tabletop-items" eyebrow="OWNED SOURCES" title="Items & equipment">
+        <PlayerTabletopEquipment initial={equipmentState} combatId={combatEncounters.find(({ status }) => status === "active")?.id ?? null} />
         {view.items.length ? <div className={styles.cardGrid}>{view.items.map((item) => <article className={styles.sourceCard} key={item.ownershipKey}>
           <header><div><span>{item.category}</span><h3>{item.name}</h3></div><strong>{item.quantity > 1 ? `×${item.quantity}` : item.equipmentState}</strong></header>
           {item.description ? <p>{item.description}</p> : null}
           <dl><div><dt>Equipment</dt><dd>{item.equipmentState}</dd></div>{item.maximumCharges !== null ? <div><dt>Charges</dt><dd>{item.currentCharges ?? "—"} / {item.maximumCharges}</dd></div> : null}</dl>
           {item.effects.length ? <ul>{item.effects.map((effect, index) => <li key={index}>{effect}</li>)}</ul> : null}
           {item.requiresGodRuling ? <p className={styles.ruling}>G.O.D. ruling required before use.</p> : null}
-          {item.canUseSafely ? <PlayerTabletopItemUse characterId={view.identity.characterId} item={item} disabled={!view.presence.noncombatSourceUseAllowed} /> : null}
+          {!item.legacyAggregateFirearm && item.runtimeProfile.useMode !== "none" ? <PlayerTabletopItemUse characterId={view.identity.characterId} item={item} sessionId={sourceSessionId} disabled={!view.presence.noncombatSourceUseAllowed} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No owned Items are recorded for this Character.</p>}
       </Section>
+      </PlayerTabletopPanel>
 
-      <Section id="tabletop-spells" eyebrow="KNOWN MAGIC" title="Spells" detail="Catalog Spell lineage and personal Spellbook identity are preserved exactly.">
+      <PlayerTabletopPanel id="spells">
+      <Section id="tabletop-spells" eyebrow="KNOWN MAGIC" title="Spells">
         {view.spells.length ? <div className={styles.cardGrid}>{view.spells.map((spell) => <article className={styles.sourceCard} key={spell.key}>
           <header><div><span>{spell.sourceLabel} · {spell.tradition}</span><h3>{spell.name}</h3></div><strong>{spell.manaCost === null ? "Review" : `${spell.manaCost} Mana`}</strong></header>
           {spell.lineageLabel ? <p className={styles.lineage}>{spell.lineageLabel}</p> : null}
@@ -196,11 +217,13 @@ export function PlayerTabletopWorkspace({
           {spell.issues.map((issue, index) => <p className={styles.ruling} key={index}>{issue}</p>)}
           {!spell.available ? <p className={styles.ruling}>This Character does not currently resolve the required casting source.</p> : null}
           {spell.requiresGodRuling ? <p className={styles.ruling}>Missing or manual mechanics require a G.O.D. ruling.</p> : null}
-          {spell.canUseSafely && spell.castSource && view.presence.noncombatSourceUseAllowed ? <PlayerTabletopSpellUse characterId={view.identity.characterId} source={spell.castSource} label={spell.name} /> : null}
+          {spell.available && spell.castSource && view.presence.noncombatSourceUseAllowed ? <PlayerTabletopSpellUse characterId={view.identity.characterId} source={spell.castSource} label={spell.name} requiresGodRuling={spell.requiresGodRuling} sessionId={sourceSessionId} /> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No known or personal Spells are recorded for this Character.</p>}
       </Section>
+      </PlayerTabletopPanel>
 
-      <Section id="tabletop-abilities" eyebrow="DERIVED ABILITIES" title="Possessed abilities" detail="Availability and authored mechanics are shown without granting, learning, or G.O.D.-confirmation controls.">
+      <PlayerTabletopPanel id="abilities">
+      <Section id="tabletop-abilities" eyebrow="DERIVED ABILITIES" title="Possessed abilities">
         {view.derivedAbilities.length ? <div className={styles.cardGrid}>{view.derivedAbilities.map((ability) => <article className={styles.sourceCard} key={ability.id}>
           <header><div><span>{titleCase(ability.activation)}</span><h3>{ability.name}</h3></div><strong>{ability.availability}</strong></header>
           <p>{ability.description}</p>
@@ -208,8 +231,18 @@ export function PlayerTabletopWorkspace({
           {ability.requiresGodRuling ? <p className={styles.ruling}>Manual mechanics require a G.O.D. ruling.</p> : null}
         </article>)}</div> : <p className={styles.emptyCopy}>No Derived Abilities are currently possessed.</p>}
       </Section>
+      </PlayerTabletopPanel>
 
-      <Section id="tabletop-history" eyebrow="RECENT RECORD" title="History" detail="Recent entries are bounded; this is not an unbounded archive load.">
+      <PlayerTabletopPanel id="history">
+      <Section id="tabletop-award-history" eyebrow="CLOSEOUTS" title="Scene & Session awards">
+        {closeoutAwards.length ? <ol className={styles.awardHistory}>{closeoutAwards.map((award) => <li key={award.id}>
+          <strong>{award.sceneTitle ? `Scene: ${award.sceneTitle}` : `Session: ${award.sessionTitle}`}</strong>
+          <span>{award.experience} XP · {award.fame} Fame · {award.quintessence} Quintessence</span>
+          <small>{dateTime(award.awardedAt)}</small>{award.note ? <p>{award.note}</p> : null}
+        </li>)}</ol> : <p>No closeout awards recorded.</p>}
+      </Section>
+      <Section id="tabletop-source-history" eyebrow="SOURCE USES" title="Spell & item requests"><SourceUseQueue role="player" requests={sourceUses.filter(({ status }) => status !== "pending" && status !== "approved")} /></Section>
+      <Section id="tabletop-history" eyebrow="RECENT RECORD" title="History">
         <div className={styles.historyGrid}>
           <div><h3>Completed table requests</h3>{view.calledCheckHistory.some((entry) => entry.calledChecks.length || entry.highLow.length) ? view.calledCheckHistory.map((entry) => <section key={entry.session.id}><h4>{entry.session.title}</h4><ol>{entry.calledChecks.map((request) => <li key={`check:${request.id}`}><strong>{titleCase(request.status)} · {request.purpose}</strong><span>{request.sourceLabel}{request.resolution ? ` · Roll ${request.resolution.resultTotal} · ${request.resolution.succeeded ? "Success" : "Failure"}` : ""}{request.rulingText ? ` · G.O.D. ruling: ${request.rulingText}` : ""}</span></li>)}{entry.highLow.map((request) => <li key={`high-low:${request.id}`}><strong>{titleCase(request.status)} · {request.purpose}</strong><span>High / Low{request.calledSide ? ` · Called ${titleCase(request.calledSide)}` : ""}{request.result ? ` · Roll ${request.result.resultTotal} · ${titleCase(request.result.rolledSide)}` : ""}{request.rulingText ? ` · G.O.D. ruling: ${request.rulingText}` : ""}</span></li>)}</ol></section>) : <p>No visible requests in completed Sessions.</p>}</div>
           <div><h3>Roll ledger</h3>{view.rolls.length ? <ol>{view.rolls.map((roll) => <li key={roll.id}><strong>{roll.effectiveResultTotal} · {roll.label}</strong><span>{titleCase(roll.purposeKind)} · {titleCase(roll.visibility)} · {dateTime(roll.createdAt)}{roll.status === "voided" ? " · Voided" : ""}</span></li>)}</ol> : <p>No visible Rolls in recent rostered Sessions.</p>}</div>
@@ -218,7 +251,14 @@ export function PlayerTabletopWorkspace({
           <div><h3>Sessions</h3>{view.recentSessions.length ? <ol>{view.recentSessions.map((session) => <li key={session.id}><strong>#{session.sequenceNumber} · {session.title}</strong><span>{titleCase(session.status)} · {dateTime(session.startedAt)}</span>{session.sceneTitles.length ? <small>Scenes: {session.sceneTitles.join(", ")}</small> : null}</li>)}</ol> : <p>No rostered Session history.</p>}</div>
         </div>
       </Section>
-      </>}
+      <Section id="tabletop-encounter-history" eyebrow="ENCOUNTERS" title="Encounter records">
+        {combatEncounters.length ? <ul className={styles.encounterRecords}>{combatEncounters.map((entry) => <li key={entry.id}>
+          <Link href={`/realms/tabletop?character=${view.identity.characterId}&combat=${entry.id}`}>{entry.title}</Link><span>{titleCase(entry.status)}</span>
+        </li>)}</ul> : <p className={styles.emptyCopy}>No encounter records.</p>}
+      </Section>
+      </PlayerTabletopPanel>
+      {shopVisit ? <PlayerTabletopPanel id="shop"><PlayerShopVisit characterId={view.identity.characterId} visit={shopVisit} commerce={shopCommerce!} /></PlayerTabletopPanel> : null}
+      </PlayerTabletopTabs>
     </div>
   </main>;
 }

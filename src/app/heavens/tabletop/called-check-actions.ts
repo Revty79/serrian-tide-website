@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import type { CalledCheckIssueInput, HighLowIssueInput } from "@/features/tabletop-operations/called-check-service";
+import type { CalledCheckIssueInput, HighLowIssueInput, CalledRollAnswerInput } from "@/features/tabletop-operations/called-check-service";
 import {
   answerCalledCheckInTransaction,
   answerHighLowInTransaction,
@@ -88,7 +88,7 @@ export async function issueCalledCheck(input: CalledCheckIssueInput): Promise<nu
   return mutateSession(input.sessionId, (tx, userId) => issueCalledCheckInTransaction(tx, userId, input), batchAudience);
 }
 
-export async function answerGodCalledCheck(sessionId: number, input: { requestId: number; enteredTotal?: number | null; idempotencyKey: string }): Promise<number> {
+export async function answerGodCalledCheck(sessionId: number, input: CalledRollAnswerInput): Promise<number> {
   return mutateSession(sessionId, (tx, userId) => answerCalledCheckInTransaction(tx, { kind: "god", userId }, input), (view) => calledAudience(view, input.requestId), (view) => view.batches.some(({ requests }) => requests.some(({ id }) => id === input.requestId)));
 }
 
@@ -112,7 +112,7 @@ export async function issueHighLow(input: HighLowIssueInput): Promise<number> {
   return mutateSession(input.sessionId, (tx, userId) => issueHighLowInTransaction(tx, userId, input), highLowAudience);
 }
 
-export async function answerGodHighLow(sessionId: number, input: { requestId: number; enteredTotal?: number | null; idempotencyKey: string }): Promise<number> {
+export async function answerGodHighLow(sessionId: number, input: CalledRollAnswerInput): Promise<number> {
   return mutateSession(sessionId, (tx, userId) => answerHighLowInTransaction(tx, { kind: "god", userId }, input), (view) => highLowAudience(view, input.requestId), (view) => view.highLow.some(({ id }) => id === input.requestId));
 }
 

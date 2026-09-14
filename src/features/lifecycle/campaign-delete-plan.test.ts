@@ -75,7 +75,7 @@ test("delete scopes match a trusted Campaign predicate", () => {
       assert.ok(table.columns.character_id, `${step.tableName} lacks character_id`);
     } else if (step.scope === "chat-room") {
       assert.ok(table.columns.room_id, `${step.tableName} lacks room_id`);
-    } else if (step.scope === "shop-request") {
+    } else if (step.scope === "shop-request" || step.scope === "source-use-request") {
       assert.ok(table.columns.request_id, `${step.tableName} lacks request_id`);
     } else if (step.scope === "encounter") {
       assert.ok(table.columns.encounter_id, `${step.tableName} lacks encounter_id`);

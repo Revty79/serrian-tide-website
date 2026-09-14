@@ -123,7 +123,10 @@ test("Campaign Overview is persisted once and is readable in Heavens and Realms"
   );
   assert.match(playerActionSource, /overview: campaign\.overview/);
   assert.match(realmsSource, /selectedCampaign\.overview/);
-  assert.match(realmsSource, /whitespace-pre-wrap/);
+  assert.match(realmsSource, /<details[\s\S]*?className="realms-campaign-overview"/);
+  assert.match(realmsSource, /event\.preventDefault\(\); setCampaignOverviewExpanded\(\(value\) => !value\)/);
+  assert.doesNotMatch(realmsSource, /onToggle=/);
+  assert.match(readSource("src/app/realms/realms.css"), /\.realms-campaign-overview > p\s*\{[^}]*white-space: pre-wrap/);
   assert.match(heavensSource, /selectedCampaign\.overview/);
   assert.match(heavensSource, /whitespace-pre-wrap/);
   assert.equal(realmsSource.includes("dangerouslySetInnerHTML"), false);

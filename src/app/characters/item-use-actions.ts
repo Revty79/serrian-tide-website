@@ -418,6 +418,7 @@ export async function executeCharacterItemUseInCallerTransaction(
   input: ItemUseRequest,
   actingUserId: string,
   onPersistedEffect?: PersistedMechanicalEffectObserver,
+  verifyPlan?: (plan: ItemUsePreparation["plan"]) => void | Promise<void>,
 ): Promise<ItemUseExecutionResult> {
   const request = validateRequest(input);
   const liveContext = await assertStandalonePlayerItemTiming(tx, request.sourceCharacterId, actingUserId);
@@ -427,6 +428,7 @@ export async function executeCharacterItemUseInCallerTransaction(
       await lockEquipmentStateCharacterInTransaction(tx, request.sourceCharacterId);
       await lockActiveItemRootInTransaction(tx, request.itemId);
       loaded = await loadUse(tx, request, actingUserId, true);
+      await verifyPlan?.(loaded.plan);
       return loaded.plan;
     },
     consumeResource: async (resource) => {

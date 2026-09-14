@@ -3,6 +3,7 @@ export type CampaignDeleteScope =
   | "encounter"
   | "character"
   | "chat-room"
+  | "source-use-request"
   | "shop-request"
   | "shop-transaction";
 
@@ -17,6 +18,10 @@ export type CampaignDeleteStep = {
  * conscious deletion-policy decision and a matching test update.
  */
 export const CAMPAIGN_GRAPH_DELETE_STEPS = [
+  { tableName: "tabletop_closeout_award", scope: "campaign" },
+  { tableName: "tabletop_closeout_award_decision", scope: "campaign" },
+  { tableName: "tabletop_source_use_event", scope: "source-use-request" },
+  { tableName: "tabletop_source_use_request", scope: "campaign" },
   { tableName: "firearm_magazine_attachment", scope: "campaign" },
   { tableName: "magazine_inventory_operation", scope: "character" },
   { tableName: "campaign_allowed_derived_ability", scope: "campaign" },

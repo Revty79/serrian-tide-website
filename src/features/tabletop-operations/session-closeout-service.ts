@@ -31,6 +31,8 @@ import {
 } from "@/db/tabletop-operations-schema";
 
 import { assertCampaignSessionOwner, transitionSession } from "./session-foundation";
+import { readCloseoutAwardViewInTransaction } from "./closeout-award-service";
+import type { CloseoutAwardView } from "./closeout-awards";
 import {
   buildSessionCloseoutBlockers,
   buildSessionCloseoutWarnings,
@@ -61,6 +63,7 @@ export type SessionCloseoutUnboundDuration = {
 };
 
 export type SessionCloseoutView = {
+  closeoutAwards: CloseoutAwardView;
   session: {
     id: number;
     campaignId: number;
@@ -373,6 +376,7 @@ export async function readSessionCloseoutInTransaction(
   )) ?? null;
   const rewards = [...rewardByCharacter.entries()].map(([characterId, reward]) => ({ characterId, ...reward }));
   return {
+    closeoutAwards: await readCloseoutAwardViewInTransaction(tx, { sessionId: context.sessionId, sceneId: null }, { userId: context.ownerUserId, roles: ["god"] }),
     session: {
       id: context.sessionId,
       campaignId: context.campaignId,

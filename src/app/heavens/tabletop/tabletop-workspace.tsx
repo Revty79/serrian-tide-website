@@ -36,12 +36,14 @@ import { SceneWorkspace } from "./scene-workspace";
 import { SessionRollWorkspace } from "./roll-ledger";
 import { SessionCloseout } from "./session-closeout";
 import { CalledCheckWorkspace } from "./called-check-workspace";
+import { SourceUseQueue } from "@/features/tabletop-operations/source-use-queue";
+import type { SourceUseRequestView } from "@/features/tabletop-operations/source-use";
 import { LifecycleConfirmationDialog } from "./lifecycle-confirmation-dialog";
 import { SessionLocationPreparation } from "./location-workspace";
 import { previewTabletopLifecycleEntity } from "./lifecycle-actions";
 
 type Feedback = { kind: "success" | "error"; message: string };
-type WorkspaceTab = "record" | "prep" | "scenes" | "rolls" | "checks" | "closeout";
+type WorkspaceTab = "record" | "prep" | "scenes" | "rolls" | "checks" | "requests" | "closeout";
 
 const rosterGroups: { kind: SessionRosterEntityKind; title: string }[] = [
   { kind: "pc", title: "Player Characters" },
@@ -230,6 +232,7 @@ export function TabletopWorkspace({
   initialRollWorkspace,
   initialSessionCloseout,
   initialCalledChecks,
+  initialSourceUses,
   requestedSessionId,
   requestedWorkspace,
 }: {
@@ -242,8 +245,9 @@ export function TabletopWorkspace({
   initialRollWorkspace: RollWorkspaceView | null;
   initialSessionCloseout: SessionCloseoutView | null;
   initialCalledChecks: CalledCheckWorkspaceView | null;
+  initialSourceUses: SourceUseRequestView[];
   requestedSessionId: number | null;
-  requestedWorkspace: "checks" | "scenes" | null;
+  requestedWorkspace: "checks" | "scenes" | "requests" | null;
 }) {
   const router = useRouter();
   const selectedCampaign = initialData.campaigns.find(({ id }) => id === initialData.selectedCampaignId) ?? null;
@@ -494,7 +498,7 @@ export function TabletopWorkspace({
 
         <section className="tabletop-editor">
           <header>
-            <div><p>{creating ? "NEW SESSION" : activeTab === "record" ? "SESSION RECORD" : activeTab === "prep" ? "ROSTER & PREP" : activeTab === "scenes" ? "SCENES" : activeTab === "rolls" ? "ROLLS" : activeTab === "checks" ? "CALLED CHECKS & HIGH/LOW" : "CLOSEOUT"}</p><h2 className="font-sans">{creating ? "Plan a Session" : selectedSession?.title ?? "Select a Session"}</h2></div>
+            <div><p>{creating ? "NEW SESSION" : activeTab === "record" ? "SESSION RECORD" : activeTab === "prep" ? "ROSTER & PREP" : activeTab === "scenes" ? "SCENES" : activeTab === "rolls" ? "ROLLS" : activeTab === "checks" ? "CALLED CHECKS & HIGH/LOW" : activeTab === "requests" ? "SPELL & ITEM REQUESTS" : "CLOSEOUT"}</p><h2 className="font-sans">{creating ? "Plan a Session" : selectedSession?.title ?? "Select a Session"}</h2></div>
             {!creating && selectedSession ? <span className={`tabletop-status is-${selectedSession.status}`}>{selectedSession.status}</span> : null}
           </header>
 
@@ -505,6 +509,7 @@ export function TabletopWorkspace({
             {initialData.canAuthor ? <><button type="button" className={activeTab === "rolls" ? "is-selected" : ""} onClick={openRollWorkspace}>Rolls <span>{initialSessionCloseout?.rolls.total ?? 0}</span></button>
             <button type="button" className={activeTab === "checks" ? "is-selected" : ""} onClick={openCalledChecks}>Called Checks <span>{initialCalledChecks?.batches.reduce((count, batch) => count + batch.summary.pending, 0) ?? 0}</span></button>
             </> : null}
+            {initialData.canOperate ? <button type="button" className={activeTab === "requests" ? "is-selected" : ""} onClick={() => setActiveTab("requests")}>Requests <span>{initialSourceUses.filter(({ status }) => status === "pending").length}</span></button> : null}
             <button type="button" className={activeTab === "closeout" ? "is-selected" : ""} onClick={() => setActiveTab("closeout")}>Closeout {initialSessionCloseout?.blockers.length ? <span>{initialSessionCloseout.blockers.length}</span> : null}</button>
           </nav> : null}
 
@@ -613,6 +618,7 @@ export function TabletopWorkspace({
             encounterId={null}
           /> : null}
 
+          {!creating && selectedSession && activeTab === "requests" ? <SourceUseQueue requests={initialSourceUses} role="god" /> : null}
           {!creating && selectedSession && activeTab === "closeout" && initialSessionCloseout ? <SessionCloseout canOperate={initialData.canOperate} data={initialSessionCloseout} onOpenScenes={() => setActiveTab("scenes")} onOpenRolls={openRollWorkspace} onOpenCalledChecks={openCalledChecks} /> : null}
 
           {!creating && !selectedSession ? <p className="tabletop-empty">Select or create a Session to begin.</p> : null}

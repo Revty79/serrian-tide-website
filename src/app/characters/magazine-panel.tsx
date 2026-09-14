@@ -5,12 +5,12 @@ import { handleMagazine, readMagazineInventory } from "./magazine-actions";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import "./magazine-panel.css";
 
-export function MagazinePanel({ characterId, disabled = false, onChange }: { characterId: number; disabled?: boolean; onChange?: () => void | Promise<void> }) {
+export function MagazinePanel({ characterId, disabled = false, revision = "", compact = false, onChange }: { characterId: number; disabled?: boolean; revision?: string; compact?: boolean; onChange?: () => void | Promise<void> }) {
   const preserveScroll = useInPlaceScrollPreservation();
   const [view, setView] = useState<MagazineInventoryView | null>(null), [message, setMessage] = useState("");
   const [selection, setSelection] = useState<Record<number, string>>({}), [amounts, setAmounts] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false), running = useRef(false), retry = useRef<MagazineCommand | null>(null);
-  useEffect(() => { let active = true; void readMagazineInventory(characterId).then((state) => { if (active) setView(state); }).catch((error) => { if (active) setMessage(error.message); }); return () => { active = false; }; }, [characterId, disabled]);
+  useEffect(() => { let active = true; void readMagazineInventory(characterId).then((state) => { if (active) setView(state); }).catch((error) => { if (active) setMessage(error.message); }); return () => { active = false; }; }, [characterId, disabled, revision]);
   async function refresh() {
     try { setView(await readMagazineInventory(characterId)); } catch (error) { setMessage(error instanceof Error ? error.message : "Magazine inventory could not be refreshed."); }
   }
@@ -25,8 +25,8 @@ export function MagazinePanel({ characterId, disabled = false, onChange }: { cha
     catch (error) { setMessage(error instanceof Error ? error.message : "The operation could not be confirmed. Retry or refresh its contents."); }
     finally { running.current = false; setBusy(false); }
   }
-  return <section className="magazine-panel" aria-label="Magazine inventory">
-    <h3>Magazines</h3><p>Prepare individual magazines here outside combat. In combat, use ammunition preparation to swap a magazine or Item → Fill magazine to load a detached copy with Initiative.</p>
+  return <section className={`magazine-panel${compact ? " magazine-panel--compact" : ""}`} aria-label="Magazine inventory">
+    <h3>Magazines</h3>{!compact ? <p>Prepare individual magazines here outside combat. In combat, use ammunition preparation to swap a magazine or Item → Fill magazine to load a detached copy with Initiative.</p> : null}
     <button type="button" className="st-button" disabled={busy} onClick={() => void preserveScroll(refresh)}>Refresh magazines</button>
     {message ? <p role="status">{message}</p> : null}
     {view?.combatActive ? <p role="status">Magazine filling and emptying are unavailable during active combat.</p> : null}

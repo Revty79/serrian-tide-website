@@ -1,4 +1,6 @@
 "use server";
+import { applyCloseoutAwardsInTransaction } from "@/features/tabletop-operations/closeout-award-service";
+import type { CloseoutAwardInput } from "@/features/tabletop-operations/closeout-awards";
 
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -174,6 +176,9 @@ function isUniqueViolation(error: unknown): boolean {
 function refreshTabletop(): void {
   revalidatePath("/heavens/tabletop");
   revalidatePath("/heavens");
+  revalidatePath("/realms/tabletop");
+  revalidatePath("/realms/characters", "layout");
+  revalidatePath("/heavens/characters", "layout");
 }
 
 type TabletopTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -598,6 +603,7 @@ export async function moveSessionRosterMember(
 async function applyLifecycleTransition(
   sessionId: number,
   transition: SessionTransition,
+  awards: CloseoutAwardInput = { awards: [], note: "" },
 ): Promise<CampaignSessionSummary> {
   const access = await requireGodOrAdminAccessContext();
   const actor: LifecycleActor = {
@@ -622,6 +628,10 @@ async function applyLifecycleTransition(
       if (!locked) throw new Error("That Session no longer exists.");
       assertOwnedRootManager(actor, locked.ownerUserId, "Session");
       assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Session");
+      if (transition === "complete" && locked.status === "completed") {
+        if (awards.awards.length || awards.note) await applyCloseoutAwardsInTransaction(tx, { sessionId, sceneId: null }, actor, awards);
+        return locked;
+      }
       const next = transitionSession(locked, transition);
       if (transition === "complete") {
         const closeout = await readSessionCloseoutInTransaction(tx, {
@@ -650,6 +660,7 @@ async function applyLifecycleTransition(
       }
       if (transition === "complete") {
         await endActiveShopVisitsForSessionInTransaction(tx, sessionId, actor.userId);
+        await applyCloseoutAwardsInTransaction(tx, { sessionId, sceneId: null }, actor, awards);
       }
       const [saved] = await tx
         .update(campaignSession)
@@ -693,8 +704,8 @@ export async function startCampaignSession(sessionId: number): Promise<CampaignS
   return applyLifecycleTransition(sessionId, "start");
 }
 
-export async function completeCampaignSession(sessionId: number): Promise<CampaignSessionSummary> {
-  return applyLifecycleTransition(sessionId, "complete");
+export async function completeCampaignSession(sessionId: number, awards: CloseoutAwardInput = { awards: [], note: "" }): Promise<CampaignSessionSummary> {
+  return applyLifecycleTransition(sessionId, "complete", awards);
 }
 
 export async function reopenCampaignSession(sessionId: number): Promise<CampaignSessionSummary> {

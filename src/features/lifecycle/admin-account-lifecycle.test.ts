@@ -69,7 +69,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the current 82-FK User closure", () => {
+test("the account plan classifies the current 86-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -88,8 +88,8 @@ test("the account plan classifies the current 82-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 82);
-  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 82);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 86);
+  assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, 86);
   assert.deepEqual(planned, actual);
   assert.equal(Number(currentMigrationPrefix), currentMigration.idx, "inspect the latest journal snapshot, including type-only migrations");
 });
@@ -110,7 +110,7 @@ test("only authentication and membership associations are cleanup FKs", () => {
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    77,
+    81,
   );
   assert.ok(
     USER_ACCOUNT_FOREIGN_KEY_PLAN

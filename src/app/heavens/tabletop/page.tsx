@@ -6,6 +6,7 @@ import { getSessionPrepWorkspace, getTabletopWorkspace } from "./actions";
 import { getGodRollWorkspace } from "./roll-actions";
 import { getSessionCloseout } from "./session-closeout-actions";
 import { getGodCalledCheckWorkspace } from "./called-check-actions";
+import { getGodTabletopSourceUses } from "@/app/tabletop/source-use-actions";
 import { getSessionSceneWorkspace } from "./scene-actions";
 import { getLocationPlacementWorkspace } from "./location-actions";
 import { getGodShopVisitWorkspace } from "./shop-visit-actions";
@@ -70,6 +71,7 @@ export default async function TabletopOperationsPage({
   const calledChecks = !canOperateTable || selectedSessionId === null
     ? null
     : await getGodCalledCheckWorkspace(selectedSessionId);
+  const sourceUses = canOperateTable && selectedSessionId !== null ? await getGodTabletopSourceUses(selectedSessionId) : [];
   const encounters = sceneWorkspace?.selectedSceneId ? await getSceneEncounterWorkspace(sceneWorkspace.selectedSceneId, Number(query.encounter) || null) : null;
   return (
     <TabletopWorkspace
@@ -83,8 +85,9 @@ export default async function TabletopOperationsPage({
       initialRollWorkspace={rollWorkspace}
       initialSessionCloseout={sessionCloseout}
       initialCalledChecks={calledChecks}
+      initialSourceUses={sourceUses}
       requestedSessionId={selectedSessionId}
-      requestedWorkspace={query.workspace === "scenes" ? "scenes" : canOperateTable && query.workspace === "checks" ? "checks" : null}
+      requestedWorkspace={query.workspace === "scenes" ? "scenes" : canOperateTable && (query.workspace === "checks" || query.workspace === "requests") ? query.workspace : null}
     />
   );
 }

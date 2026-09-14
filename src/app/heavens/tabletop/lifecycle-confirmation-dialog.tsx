@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import type { TabletopLifecyclePreview } from "@/features/lifecycle/tabletop-lifecycle-types";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
@@ -19,6 +19,7 @@ export function LifecycleConfirmationDialog({
   confirmDisabled = false,
   busy,
   error,
+  children,
   onCancel,
   onConfirm,
 }: {
@@ -35,6 +36,7 @@ export function LifecycleConfirmationDialog({
   confirmDisabled?: boolean;
   busy: boolean;
   error?: string;
+  children?: ReactNode;
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
 }) {
@@ -48,7 +50,7 @@ export function LifecycleConfirmationDialog({
   }, [open]);
 
   if (!open) return null;
-  const cancel = () => void preserveScroll(onCancel);
+  const cancel = () => { if (!busy) void preserveScroll(onCancel); };
   return (
     <dialog
       ref={dialogRef}
@@ -74,6 +76,7 @@ export function LifecycleConfirmationDialog({
           <div><dt className="text-xs uppercase tracking-[0.12em] text-slate-500">Owner</dt><dd>{preview.ownerLabel}</dd></div>
         </dl> : null}
         <p className="text-sm leading-6 text-slate-300">{consequence}</p>
+        {children}
         {dependencies.length ? (
           <ul className="grid gap-2 rounded-xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">
             {dependencies.map((dependency) => <li key={dependency}>{dependency}</li>)}

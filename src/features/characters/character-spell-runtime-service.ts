@@ -597,6 +597,7 @@ export async function executeCharacterSpellCastInCallerTransaction(
   actingUserId: string,
   confirmed: boolean,
   onPersistedEffect?: PersistedMechanicalEffectObserver,
+  verifyPlan?: (plan: SpellCastPreparation["plan"]) => void | Promise<void>,
 ): Promise<SpellCastExecutionResult> {
   const request = validateRequest(input);
   const subject = await loadSubject(tx, actingUserId);
@@ -605,6 +606,7 @@ export async function executeCharacterSpellCastInCallerTransaction(
     async (execute) => execute({
       loadAndPlan: async () => {
         loaded = await loadAuthoritativePlan(tx, request, subject, true);
+        await verifyPlan?.(loaded.plan);
         return loaded.plan;
       },
       spendMana: (plan) => spendActiveManaInTransaction(tx, {

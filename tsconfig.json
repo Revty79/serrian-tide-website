@@ -44,7 +44,11 @@
     ".next-firearm-readiness-browser/types/**/*.ts",
     ".next-firearm-readiness-browser/dev/types/**/*.ts",
     ".next-combat-screens-browser/types/**/*.ts",
-    ".next-combat-screens-browser/dev/types/**/*.ts"
+    ".next-combat-screens-browser/dev/types/**/*.ts",
+    ".next-player-tabletop-tabs-browser/types/**/*.ts",
+    ".next-player-tabletop-tabs-browser/dev/types/**/*.ts",
+    ".next-realms-campaign-browser/types/**/*.ts",
+    ".next-realms-campaign-browser/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
