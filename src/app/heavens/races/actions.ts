@@ -24,6 +24,8 @@ import {
 } from "@/db/race-schema";
 import { skill } from "@/db/skill-schema";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
+import { raceSkillCandidateFilter } from "@/features/races/race-skill-query";
+import { assertRaceSkillsEligible } from "@/features/races/race-skills";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type RaceLibraryFilters = {
@@ -359,15 +361,10 @@ export async function listRaceSkillCandidates(
   classification?: string,
 ): Promise<RaceSkillCandidate[]> {
   await requireGodOrAdminAccessContext();
-  const conditions: SQL[] = [];
-  const needle = cleanText(search);
-  conditions.push(isNull(skill.archivedAt));
-  if (needle) conditions.push(ilike(skill.name, `%${needle}%`));
-  if (cleanText(classification)) conditions.push(eq(skill.classification, cleanText(classification)));
   return db
     .select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
     .from(skill)
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(raceSkillCandidateFilter(search, classification))
     .orderBy(asc(skill.name), asc(skill.id))
     .limit(30);
 }
@@ -445,12 +442,15 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
       const existingSkills = await tx
         .select({
           id: skill.id,
+          name: skill.name,
           classification: skill.classification,
+          tier: skill.tier,
           archivedAt: skill.archivedAt,
         })
         .from(skill)
         .where(inArray(skill.id, skillIds));
       if (existingSkills.length !== skillIds.length) throw new Error("One or more linked Skills no longer exist.");
+      assertRaceSkillsEligible(existingSkills);
       const previouslyLinkedSkillIds = new Set(existingSkillLinks.map(({ skillId }) => skillId));
       const newlyArchivedLink = existingSkills.find(
         (candidate) => candidate.archivedAt && !previouslyLinkedSkillIds.has(candidate.id),
@@ -458,7 +458,7 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
       if (newlyArchivedLink) {
         throw new Error("Archived Skills cannot be added to a Race. Restore the Skill first.");
       }
-      const classifications = new Map(existingSkills.map((candidate) => [candidate.id, candidate.classification.toLowerCase()]));
+      const classifications = new Map(existingSkills.map((candidate) => [candidate.id, candidate.classification.trim().toLowerCase()]));
       for (const link of normalized.skillLinks) {
         if (link.linkType.toLowerCase() === "granted" && classifications.get(link.skillId) !== "special ability") {
           throw new Error("Granted Skills / Racial Abilities must be classified as Special Ability.");

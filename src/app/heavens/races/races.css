@@ -60,11 +60,16 @@
 .race-preview li span { color: color-mix(in srgb, var(--st-primary) 72%, transparent); font-size: 0.75rem; }
 
 @media (max-width: 1050px) {
+  .races-workspace { grid-template-columns: minmax(0, 1fr); }
   .race-skill-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .race-add-link { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {
+  .race-editor .skill-editor__header { align-items: stretch; flex-direction: column; }
+  .race-editor .skill-editor__header > div { min-width: 0; }
+  .race-editor .skill-editor__header h2 { white-space: normal; overflow-wrap: anywhere; }
+  .race-editor .skill-editor__tabs { flex-wrap: wrap; }
   .race-form-grid, .race-preview__grid { grid-template-columns: 1fr; }
   .race-field--wide { grid-column: auto; }
   .race-repeat-row, .race-repeat-row--movement, .race-skill-link { grid-template-columns: 1fr; }

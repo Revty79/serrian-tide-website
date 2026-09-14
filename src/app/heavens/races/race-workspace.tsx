@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
+import { isRaceSkillEligible } from "@/features/races/race-skills";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
@@ -353,6 +354,7 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
   const [selectedId, setSelectedId] = useState("");
   const [linkType, setLinkType] = useState("Skill");
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const preserveScroll = useInPlaceScrollPreservation();
 
   useEffect(() => {
@@ -360,7 +362,8 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
     const timer = window.setTimeout(() => {
       setLoading(true);
       listRaceSkillCandidates(search, classification || undefined)
-        .then((rows) => { if (active) setCandidates(rows); })
+        .then((rows) => { if (active) { setCandidates(rows); setSearchError(""); } })
+        .catch(() => { if (active) { setCandidates([]); setSearchError("Skill search failed. Please try again."); } })
         .finally(() => { if (active) setLoading(false); });
     }, 180);
     return () => { active = false; window.clearTimeout(timer); };
@@ -370,7 +373,7 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
 
   function addLink() {
     const candidate = candidates.find(({ id }) => id === Number(selectedId));
-    if (!candidate) return;
+    if (!candidate || loading || !isRaceSkillEligible(candidate)) return;
     if (draft.skillLinks.some((link) => link.skillId === candidate.id && link.linkType.toLowerCase() === linkType.toLowerCase())) return;
     onChange({ ...draft, skillLinks: [...draft.skillLinks, {
       skillId: candidate.id,
@@ -386,12 +389,13 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
   return <div className="race-section">
     <div className="skill-editor__intro"><p>Skills link to the shared Skill Library. “Granted” entries must be Special Abilities.</p></div>
     <div className="race-skill-picker">
-      <Field label="Search"><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} /></Field>
-      <Field label="Classification"><select value={classification} onChange={(e) => setClassification(e.target.value)}>{classifications.map((value) => <option value={value} key={value}>{value || "All"}</option>)}</select></Field>
+      <Field label="Search"><input type="search" value={search} onChange={(e) => { setSearch(e.target.value); setSelectedId(""); setCandidates([]); setLoading(true); }} /></Field>
+      <Field label="Classification"><select value={classification} onChange={(e) => { setClassification(e.target.value); setSelectedId(""); setCandidates([]); setLoading(true); }}>{classifications.map((value) => <option value={value} key={value}>{value || "All"}</option>)}</select></Field>
       <Field label="Matching Skills"><select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}><option value="">{loading ? "Searching…" : "Select a Skill"}</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.classification}{candidate.tier ? ` · T${candidate.tier}` : ""}</option>)}</select></Field>
       <Field label="Link Type"><select value={linkType} onChange={(e) => setLinkType(e.target.value)}><option>Skill</option><option>Granted</option></select></Field>
-      <button className="skills-primary-button race-add-link" type="button" disabled={!selectedId} onClick={() => void preserveScroll(addLink)}>Add Link</button>
+      <button className="skills-primary-button race-add-link" type="button" disabled={!selectedId || loading} onClick={() => void preserveScroll(addLink)}>Add Link</button>
     </div>
+    {searchError ? <p role="alert">{searchError}</p> : null}
     <div className="race-row-list race-skill-links">{draft.skillLinks.map((link, index) => <article className="race-skill-link" key={`${link.skillId}-${link.linkType}-${index}`}>
       <div><strong>{link.skillName}</strong><span>{link.skillClassification}</span></div>
       <select value={link.linkType} onChange={(e) => onChange({ ...draft, skillLinks: draft.skillLinks.map((entry, i) => i === index ? { ...entry, linkType: e.target.value } : entry) })}><option>Skill</option><option>Granted</option></select>

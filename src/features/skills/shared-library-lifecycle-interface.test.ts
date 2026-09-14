@@ -85,7 +85,8 @@ test("normal shared-library candidates omit archived roots while stored referenc
   const abilities = libraries[3]!.actions;
   const skills = libraries[4]!.actions;
 
-  assert.match(races, /conditions\.push\(isNull\(skill\.archivedAt\)\)/);
+  assert.match(races, /\.where\(raceSkillCandidateFilter\(search, classification\)\)/);
+  assert.match(readFileSync("src/features/races/race-skill-query.ts", "utf8"), /isNull\(skill\.archivedAt\)/);
   assert.match(creatures, /const conditions: SQL\[\] = \[isNull\(skill\.archivedAt\)\]/);
   assert.match(items, /preservedSkillIds/);
   assert.match(items, /candidate\.archivedAt === null \|\| preservedSkillIds\.has/);

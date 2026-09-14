@@ -20,6 +20,7 @@
 /.next-player-tabletop-tabs-browser/
 /.next-realms-campaign-browser/
 /artifacts/player-tabletop-tabs/
+/artifacts/race-skill-cleanup/
 /artifacts/combat-screens/loaded-ready/
 /artifacts/combat-screens/**/*.log
 /artifacts/combat-screens/**/failure-*
