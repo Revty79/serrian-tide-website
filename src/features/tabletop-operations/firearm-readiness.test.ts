@@ -64,7 +64,7 @@ const authored = {
 test("owned alone is not ready and missing runtime is never guessed", () => {
   const result = evaluateFirearmReadiness(ready({ initialized: false, drawn: false, readied: false, loadedRounds: 0 }));
   assert.equal(result.status, "requires-god-ruling");
-  assert.deepEqual(result.blockers.map(({ code }) => code), ["runtime-uninitialized", "not-drawn", "not-readied", "no-ammunition"]);
+  assert.deepEqual(result.blockers.map(({ code }) => code), ["runtime-uninitialized", "not-drawn", "no-ammunition"]);
 });
 
 test("fully valid exact firearm state is ready", () => {
@@ -83,10 +83,11 @@ test("missing capacity and exact ammunition relationship require rulings", () =>
   assert.deepEqual(result.blockers.map(({ code }) => code), ["missing-capacity", "incompatible-ammunition"]);
 });
 
-test("a missing draw-to-ready relationship requires a ruling", () => {
+test("loaded ammunition is ready without a legacy ready flag or drawing relationship", () => {
   const result = evaluateFirearmReadiness(ready({ readinessRelationshipResolved: false, readied: false }));
-  assert.equal(result.status, "requires-god-ruling");
-  assert.deepEqual(result.blockers.map(({ code }) => code), ["missing-readiness-relationship", "not-readied"]);
+  assert.deepEqual(result, { status: "ready", blockers: [] });
+  assert.equal(evaluateFirearmReadiness(ready({ drawn: false, readied: false })).blockers[0]?.code, "not-drawn");
+  assert.equal(evaluateFirearmReadiness(ready({ loadedRounds: 0, readied: true })).blockers[0]?.code, "no-ammunition");
 });
 
 test("unresolved firing mechanics and missing preparation timing explain rulings", () => {

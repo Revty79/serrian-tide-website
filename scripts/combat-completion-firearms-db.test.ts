@@ -20,7 +20,7 @@ import { reconcileResponderOpportunityInTransaction, interruptActionDeclarationI
   restartInterruptedActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
 import { changeCombatParticipationInTransaction } from "@/features/tabletop-operations/combat-participation-service";
 import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
-import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction, declineActionEffectInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
+import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction, declineActionEffectInTransaction, confirmActionEffectRulingInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { advanceInitiativeTimeline, getNextInitiativeTimelineEvent } from "@/features/tabletop-operations/initiative-runtime";
 import { setCombatFrozenInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
@@ -100,7 +100,7 @@ for (const weaponType of ["Bow", "Crossbow"]) for (const calledShot of [false, t
     const f = await fixture(tx, "npc");
     await tx.update(weaponProfile).set({ weaponType, capacityRounds: 1, reloadInitiativeCost: 3 }).where(eq(weaponProfile.id, f.profile.id));
     await tx.update(weaponFiringMode).set({ baseCyclingInitiativeCost: null, baseRecoilResetInitiativeCost: null, deliveryCadence: null, roundsPerCadence: null, mechanicsReviewRequired: true }).where(eq(weaponFiringMode.id, f.command.firingModeId));
-    await tx.update(stateTable).set({ capacityRounds: 1, loadedRounds: 1 }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    await tx.update(stateTable).set({ capacityRounds: 1, loadedRounds: 1, readied: false, readinessMode: null, readinessModeSource: null }).where(eq(stateTable.itemInstanceId, f.instance.id));
     await tx.update(campaignCharacterAttribute).set({ value: 80 }).where(and(eq(campaignCharacterAttribute.characterId, f.actorId), eq(campaignCharacterAttribute.attributeKey, "DEX")));
     const command = { ...f.command, aimInitiative: 2, calledShot: calledShot
       ? { declared: true, objective: "Body", locationNumber: 0, penalty: 4, reason: "Exact projectile Called Shot ruling." } : f.command.calledShot };
@@ -312,13 +312,13 @@ test("Aim records no attack Roll; changed target loses Aim and a fresh trigger r
   }), (error) => error === rollback);
 });
 
-test("authored draw, Single reload, ready including cocking, and recoil complete without attack Rolls", async () => {
+test("drawing and Single loading need no Ready action and do not bypass cycling or recoil", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "player");
     await tx.update(campaignCharacterItemInstance).set({ equipmentState: "inactive" }).where(eq(campaignCharacterItemInstance.id, f.instance.id));
     await tx.update(weaponProfile).set({ reloadInitiativeCost: 1, readinessMode: "separate-ready-action" }).where(eq(weaponProfile.id, f.profile.id));
     await tx.update(stateTable).set({ readied: false, readinessMode: "separate-ready-action", requiresCycling: true, requiresRecoilRecovery: true }).where(eq(stateTable.itemInstanceId, f.instance.id));
-    for (const [operation, cost] of [["draw", 2], ["reload", 3], ["ready", 1], ["recover-recoil", 2]] as const) {
+    for (const [operation, cost] of [["draw", 2], ["reload", 3], ["cycle", 1], ["recover-recoil", 2]] as const) {
       const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation, requestedRounds: operation === "reload" ? 3 : undefined, idempotencyKey: crypto.randomUUID() };
       const before = (await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative;
       const preparation = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
@@ -329,7 +329,7 @@ test("authored draw, Single reload, ready including cocking, and recoil complete
       assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative, before - cost);
     }
     const state = await f.state();
-    assert.equal(state.readied, true);
+    assert.equal(state.readied, false, "Legacy readiness is not rewritten or required");
     assert.equal(state.loadedRounds, 6);
     assert.equal(state.requiresCycling, false);
     await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "cycle", idempotencyKey: crypto.randomUUID() }), /does not currently require cycling/);
@@ -399,7 +399,8 @@ test("an ammunition relationship does not authorize an unsupported projectile or
 for (const weaponType of ["Handgun", "Crossbow"]) for (const interrupted of [false, true]) test(`${weaponType} physical magazine swap preserves copy contents and becomes usable only on completion; interrupted=${interrupted}`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "player");
-    await tx.update(weaponProfile).set({ weaponType, reloadType: "Magazine" }).where(eq(weaponProfile.id, f.profile.id));
+    await tx.update(weaponProfile).set({ weaponType, reloadType: "Magazine", readinessMode: null, readyInitiativeCost: null }).where(eq(weaponProfile.id, f.profile.id));
+    await tx.update(stateTable).set({ readied: false, readinessMode: null, readinessModeSource: null }).where(eq(stateTable.itemInstanceId, f.instance.id));
     const [model] = await tx.insert(item).values({ canonicalId: `MAG-${crypto.randomUUID()}`.toUpperCase(), name: "Extended Magazine", catalogScope: "equipment", equipmentGroup: "general", recordType: "Magazine", family: "Fixture", category: "Magazine", priceBasis: "unit", createdByUserId: f.godId }).returning();
     await tx.insert(magazineProfile).values({ itemId: model.id, capacityRounds: 8, fillInitiativeCostPerRound: 2 });
     await tx.insert(magazineAmmunition).values({ magazineItemId: model.id, ammunitionItemId: f.ammunition.id });
@@ -851,6 +852,65 @@ for (const forceEnd of [false, true]) test("a Player firearm kill retains CR Fam
     assert.equal((await tx.select().from(planTable).where(eq(planTable.id, fired.effectPlanId!)))[0].status, "applied");
     assert.equal((await tx.select().from(declarationTable).where(eq(declarationTable.id, attack.triggerDeclarationId)))[0].status, "resolved");
     await declineActionEffectInTransaction(tx, f.context, f.god, fired.effectPlanId!, manual.id, "No additional critical effect.");
+    assert.equal((await profile()).fame, before.fame + 4);
+    assert.equal((await f.state()).loadedRounds, 2);
+    assert.equal((await f.rolls()).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+for (const scenario of ["fresh", "retained", "separate-effect"] as const) test(`critical confirmation settles only the recorded attack ruling, without duplicate damage: ${scenario}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(weaponProfile).set({ readinessMode: null, readyInitiativeCost: null }).where(eq(weaponProfile.id, f.profile.id));
+    await tx.update(stateTable).set({ readied: false, readinessMode: null, readinessModeSource: null }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    await tx.update(occurrence).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, challengeRating: 4 },
+      hpPools: [{ canonicalId: "fixture-head", poolName: "Head", maximumHp: 2 }],
+      hitLocations: [{ hitLocationNumber: 0, locationName: "Head", hpPoolCanonicalId: "fixture-head", naturalArmor: 0, soak: 0 }] } })
+      .where(eq(occurrence.characterId, f.occurrences[0]));
+    await assert.rejects(startFirearmPreparationInTransaction(tx, f.context, f.actor, { characterId: f.actorId, itemInstanceId: f.instance.id, operation: "ready", idempotencyKey: crypto.randomUUID() }), /do not need a separate Ready/);
+    const profile = async () => (await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, f.heroId)))[0];
+    const before = await profile();
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, { ...f.command, aimInitiative: 1, roll: { method: "entered", enteredTotal: 100 } });
+    let attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.aimDeclarationId!); await complete(tx, f, attack.aimPendingActionId!);
+    await commitFirearmAttackTriggerInTransaction(tx, f.context, f.actor, attack.id, { method: "entered", enteredTotal: 100 });
+    attack = await f.attack(attack.id);
+    await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    if (scenario === "retained") {
+      await approveActionEffectPlanInTransaction(tx, f.context, f.god, fired.effectPlanId!, "Legacy partial approval fixture.");
+      assert.equal(await applyActionEffectPlanInTransaction(tx, f.context, f.god, fired.effectPlanId!), "partially-applied");
+    }
+    await assert.rejects(confirmActionEffectRulingInTransaction(tx, f.context, f.god, fired.effectPlanId!, ""), /ruling/i);
+    await assert.rejects(confirmActionEffectRulingInTransaction(tx, f.context, { ...f.god, userId: "wrong-owner" }, fired.effectPlanId!, "Unauthorized ruling"), /owning|owner/i);
+    if (scenario === "separate-effect") {
+      const [boundary] = await tx.select().from(effectTable).where(and(eq(effectTable.planId, fired.effectPlanId!), eq(effectTable.effectKey, "firearm-ruling-boundary")));
+      await tx.insert(effectTable).values({ ...boundary, id: undefined, effectKey: "firearm-called-automatic-dex", finalValueJson: { effect: { kind: "manual", title: "Separate DEX placement", description: "An additional explicit mechanical placement is required." }, application: {} } });
+    }
+    const confirm = () => confirmActionEffectRulingInTransaction(tx, f.context, f.god, fired.effectPlanId!, "The critical causes the shown head damage; no additional consequence.");
+    const confirmed = await confirm();
+    if (scenario === "separate-effect") {
+      assert.equal(confirmed, "partially-applied");
+      const rows = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
+      assert.equal(rows.find((row) => row.effectKey === "firearm-ruling-boundary")!.status, "manual-resolved");
+      assert.equal(rows.find((row) => row.effectKey === "firearm-called-automatic-dex")!.status, "approved", "Other mechanical rulings are not silently completed or discarded");
+      assert.equal(await confirm(), "partially-applied");
+      assert.equal((await profile()).fame, before.fame + 4);
+      throw rollback;
+    }
+    assert.equal(confirmed, "applied", JSON.stringify(await tx.select({ key: effectTable.effectKey, status: effectTable.status, value: effectTable.finalValueJson }).from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!))));
+    const effects = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
+    assert.equal(effects.find((effect) => effect.effectKey === "firearm-ruling-boundary")!.status, "manual-resolved");
+    assert.equal(effects.filter((effect) => effect.status === "applied").length, 1);
+    assert.equal(effects.some((effect) => effect.status === "declined"), false);
+    assert.equal((await tx.select().from(declarationTable).where(eq(declarationTable.id, attack.triggerDeclarationId)))[0].status, "resolved");
+    const target = (await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0])))[0];
+    assert.equal((target.localStateJson as { combatCondition: { status: string } }).combatCondition.status, "dead");
+    assert.equal(await confirm(), "applied");
+    await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    assert.deepEqual((await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0])))[0], target);
+    assert.deepEqual(await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!)), effects);
     assert.equal((await profile()).fame, before.fame + 4);
     assert.equal((await f.state()).loadedRounds, 2);
     assert.equal((await f.rolls()).length, 1);

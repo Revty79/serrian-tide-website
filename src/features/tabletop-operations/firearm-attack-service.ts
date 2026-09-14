@@ -485,8 +485,7 @@ async function loadFoundation(
     requiredPreparationInitiativeCostKnown: true,
     staleCanonicalRuntimeDivergence: state.weaponProfileId !== profile.id
       || state.selectedFiringModeId !== mode.id
-      || (state.capacitySource === "canonical" && state.capacityRounds !== profile.capacityRounds)
-      || (state.readinessModeSource === "canonical" && state.readinessMode !== profile.readinessMode),
+      || (state.capacitySource === "canonical" && state.capacityRounds !== profile.capacityRounds),
     directCreatureManufacturedFirearm: false,
   });
   if (readiness.status !== "ready") {
@@ -952,7 +951,7 @@ async function commitFirearmAttackTriggerInternal(
   if (identityChanged) {
     throw new Error("The exact firearm/Profile/mode identity changed after Aim. Cancel this declaration and declare the new choice; its accumulated Aim cannot transfer to a different identity.");
   }
-  if (state.version !== attack.stateVersionBefore || state.loadedRounds !== attack.roundsLoadedBefore || !state.readied || state.requiresCycling || state.requiresRecoilRecovery) {
+  if (state.version !== attack.stateVersionBefore || state.loadedRounds !== attack.roundsLoadedBefore || state.loadedRounds <= 0 || state.requiresCycling || state.requiresRecoilRecovery) {
     throw new Error("The exact firearm readiness state changed after Aim. Review or cancel the declaration before committing the trigger.");
   }
   const [aimDeclaration] = await tx.select({ status: campaignSessionEncounterActionDeclaration.status })
@@ -1081,7 +1080,7 @@ async function ensureFirearmStillFireable(
   const state = await readEffectiveFirearmState(tx, stored, true);
   if (state.version !== attack.stateVersionBefore) throw new Error("The firearm runtime state changed after declaration; firing was rejected before Roll or ammunition consumption.");
   if (state.selectedFiringModeId !== attack.firingModeId) throw new Error("The exact Firing Mode changed after declaration; accumulated Aim is no longer valid.");
-  if (!state.readied || state.requiresCycling || state.requiresRecoilRecovery) throw new Error("The firearm is no longer authoritatively ready.");
+  if (state.loadedRounds <= 0 || state.requiresCycling || state.requiresRecoilRecovery) throw new Error("The firearm is empty or still needs cycling or recoil recovery.");
   if (state.loadedAmmunitionItemId !== attack.ammunitionItemId || state.loadedAmmunitionProfileId !== attack.ammunitionProfileId) {
     throw new Error("The exact loaded ammunition identity changed after declaration.");
   }
@@ -1828,7 +1827,7 @@ async function continueSustainedFireInTransaction(
   const [storedState] = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, attack.itemInstanceId)).for("update");
   const state = storedState ? await readEffectiveFirearmState(tx, storedState, true) : null;
   if (!state || state.version !== attack.stateVersionBefore + attack.firingPortionsResolved || state.loadedRounds !== attack.roundsLoadedAfter
-    || state.characterId !== attack.actorParticipantId || state.selectedFiringModeId !== attack.firingModeId || !state.readied) {
+    || state.characterId !== attack.actorParticipantId || state.selectedFiringModeId !== attack.firingModeId || state.loadedRounds <= 0) {
     throw new Error("The exact firearm changed during sustained fire. Interrupt the remaining firing before changing its readiness or ammunition.");
   }
   const rounds = Math.min(attack.roundsPerCadence, attack.roundsDeclared - attack.roundsConsumed);

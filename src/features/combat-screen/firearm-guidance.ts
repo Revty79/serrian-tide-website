@@ -13,12 +13,10 @@ export function firearmGuidance(firearm: FirearmInstanceView, selectedModeId = f
   const family = projectileWeaponFamily(canonical.weaponType ?? "");
   const mode = firearm.modes.find((entry) => entry.id === selectedModeId);
   const catalogUpdate = !!state && (
-    canonical.capacityRounds !== null && canonical.capacityRounds > 0 && state.capacitySource !== "magazine" && state.capacityRounds !== canonical.capacityRounds
-    || ["draw-is-ready", "separate-ready-action"].includes(canonical.readinessMode ?? "") && state.readinessMode !== canonical.readinessMode);
+    canonical.capacityRounds !== null && canonical.capacityRounds > 0 && state.capacitySource !== "magazine" && state.capacityRounds !== canonical.capacityRounds);
   const setup: string[] = [];
   if (!state) setup.push("The G.O.D. must confirm this exact copy's initial state below.");
   if (state?.capacityRounds == null && canonical.reloadType !== "Magazine" && canonical.capacityRounds === null) setup.push("Set Capacity (rounds) in the weapon's item profile. Legacy capacity text alone does not configure combat.");
-  if (!state?.readinessMode && !canonical.readinessMode) setup.push("Set the drawing/readying relationship in the weapon's item profile.");
   if (!canonical.ammunitionName) setup.push("Link this weapon to its exact ammunition item and ammunition profile.");
   if (!mode?.timing || !mode.deliveryCadence || !mode.roundsPerCadence) setup.push(family
     ? "Add or select the weapon's Single firing mode. Bow and crossbow shots use one projectile."
@@ -32,13 +30,12 @@ export function firearmGuidance(firearm: FirearmInstanceView, selectedModeId = f
     if (entry.code === "stale-canonical-runtime-divergence" && !catalogUpdate) setup.push("This copy's saved settings differ from the item profile. The G.O.D. must review the settings before firing.");
   }
   const modeChange = !!state && selectedModeId !== state.selectedFiringModeId;
-  const needsPreparation = !!state && (modeChange || firearm.equipmentState !== "wielded" || !state.loadedRounds || !state.readied
+  const needsPreparation = !!state && (modeChange || firearm.equipmentState !== "wielded" || !state.loadedRounds
     || state.requiresCycling || state.requiresRecoilRecovery || firearm.readiness.blockers.some((entry) => entry.code === "insufficient-rounds"));
   const operation: FirearmPreparationOperation = modeChange ? "change-mode"
     : firearm.equipmentState !== "wielded" ? "draw"
       : !state?.loadedRounds || firearm.readiness.blockers.some((entry) => entry.code === "insufficient-rounds") ? "reload"
-        : !state.readied ? state.readinessMode === "draw-is-ready" ? "draw" : "ready"
-          : state.requiresCycling || state.requiresRecoilRecovery ? "recover-recoil" : "reload";
+        : state.requiresCycling || state.requiresRecoilRecovery ? "recover-recoil" : "reload";
   const canFire = !setup.length && firearm.readiness.status === "ready" && !modeChange && !!mode?.timing && !!mode.deliveryCadence && !!mode.roundsPerCadence;
   const next = setup.length ? "Complete weapon setup"
     : firearm.preparation ? "Preparation in progress"

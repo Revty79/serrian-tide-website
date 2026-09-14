@@ -623,8 +623,6 @@ async function completeFirearmPreparationById(
       instanceId: state.itemInstanceId,
       state: "wielded",
     });
-    updates.readied = state.readinessMode === "draw-is-ready";
-    if (updates.readied) updates.requiresCycling = false;
   } else if (preparation.operation === "ready") {
     updates.readied = true;
     updates.requiresCycling = false;
@@ -806,12 +804,8 @@ async function startFirearmPreparationInternal(
   if (command.operation === "change-mode" && (!targetMode || targetMode.id === state.selectedFiringModeId)) {
     throw new Error("Choose a different exact Firing Mode from this Weapon Profile.");
   }
-  if (command.operation === "draw" && owned.equipmentState === "wielded" && (state.readied || state.readinessMode !== "draw-is-ready")) throw new Error("This exact firearm is already drawn or wielded.");
-  if ((command.operation === "draw" || command.operation === "ready") && state.readinessMode === null) {
-    throw new Error("The firearm readiness relationship requires a G.O.D. ruling before this operation.");
-  }
-  if (command.operation === "ready" && owned.equipmentState !== "wielded") throw new Error("Draw the exact firearm before readying it.");
-  if (command.operation === "ready" && state.readinessMode !== "separate-ready-action") throw new Error("This firearm has no authored separate ready action.");
+  if (command.operation === "draw" && owned.equipmentState === "wielded") throw new Error("This exact firearm is already drawn or wielded.");
+  if (command.operation === "ready") throw new Error("Loaded weapons do not need a separate Ready action. Load ammunition, or finish any required cycling and recoil recovery.");
   if (command.operation === "cycle" && !state.requiresCycling) throw new Error("This firearm does not currently require cycling.");
   if (command.combineFollowUp !== undefined && typeof command.combineFollowUp !== "boolean") throw new Error("Combined preparation must be explicitly selected.");
   if (command.combineFollowUp && command.operation !== "recover-recoil") throw new Error("Choose Prepare next shot for combined cycling and recoil recovery.");
@@ -1363,15 +1357,13 @@ export async function readFirearmWorkspaceInTransaction(
       ? true
       : row.equipmentState !== "wielded"
         ? row.drawInitiativeCost !== null
-        : !state.readied && state.readinessMode === "separate-ready-action"
-          ? row.readyInitiativeCost !== null
-          : state.loadedRounds === 0 && row.ammunitionItemId !== null
-            ? row.reloadInitiativeCost !== null
-            : state.requiresCycling
-              ? selectedMode?.timing?.effectiveCyclingInitiativeCost !== undefined && selectedMode?.timing?.effectiveCyclingInitiativeCost !== null
-              : state.requiresRecoilRecovery
-                ? selectedMode?.timing?.effectiveRecoilResetInitiativeCost !== undefined && selectedMode?.timing?.effectiveRecoilResetInitiativeCost !== null
-                : true;
+        : state.loadedRounds === 0 && row.ammunitionItemId !== null
+          ? row.reloadInitiativeCost !== null
+          : state.requiresCycling
+            ? selectedMode?.timing?.effectiveCyclingInitiativeCost !== undefined && selectedMode?.timing?.effectiveCyclingInitiativeCost !== null
+            : state.requiresRecoilRecovery
+              ? selectedMode?.timing?.effectiveRecoilResetInitiativeCost !== undefined && selectedMode?.timing?.effectiveRecoilResetInitiativeCost !== null
+              : true;
     const readiness = evaluateFirearmReadiness({
       initialized: state !== null,
       exactOwnerValid: true,
@@ -1400,7 +1392,6 @@ export async function readFirearmWorkspaceInTransaction(
       staleCanonicalRuntimeDivergence: Boolean(state && (
         state.weaponProfileId !== row.weaponProfileId
         || (state.capacitySource === "canonical" && state.capacityRounds !== row.capacityRounds)
-        || (state.readinessModeSource === "canonical" && state.readinessMode !== row.readinessMode)
       )),
       directCreatureManufacturedFirearm: false,
     });
@@ -1442,7 +1433,7 @@ export async function readFirearmWorkspaceInTransaction(
         capacitySource: state.capacitySource,
         readinessMode: state.readinessMode,
         readinessModeSource: state.readinessModeSource,
-        readied: state.readied,
+        readied: state.loadedRounds > 0,
         requiresCycling: state.requiresCycling,
         requiresRecoilRecovery: state.requiresRecoilRecovery,
         version: state.version,

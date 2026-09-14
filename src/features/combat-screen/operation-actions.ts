@@ -7,7 +7,7 @@ import { campaignSessionEncounterParticipant as member, campaignSessionEncounter
 import { lockOwnedEncounterRuntimeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction, type RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
 import { lockPlayerCombatContextInTransaction, readGodCombatRulingRequestsInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
-import { readActionEffectWorkspaceInTransaction, generateActionEffectPlanInTransaction, applyRoutineCombatConsequencesInTransaction, ruleOrdinaryAttackConsequenceInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
+import { readActionEffectWorkspaceInTransaction, generateActionEffectPlanInTransaction, applyRoutineCombatConsequencesInTransaction, ruleOrdinaryAttackConsequenceInTransaction, confirmActionEffectRulingInTransaction, applyActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { readDefenseInterventionWorkspaceInTransaction, resolveDeclaredDefensesIfReadyInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { readFirearmAttackWorkspaceInTransaction, commitFirearmAttackTriggerInTransaction, fireFirearmAttackInTransaction, finalizeFirearmAttackConsequencesInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
 import { campaignSessionEncounterFirearmAttack as firearmAttack, campaignSessionRoll as combatRoll, campaignSessionEncounterPendingAction as pending } from "@/db/tabletop-operations-schema";
@@ -128,8 +128,7 @@ export async function confirmCombatEffectRuling(encounterId: number, planId: num
   return authorized({ role: "god", encounterId }, async (tx, context, actor) => {
     if (actor.authority !== "god-owner") throw new Error("Only the G.O.D. may confirm this ruling.");
     if (!reason.trim()) throw new Error("Record the specific effect ruling before applying its supported consequences.");
-    await approveActionEffectPlanInTransaction(tx, context, actor, planId, reason);
-    return applyActionEffectPlanInTransaction(tx, context, actor, planId);
+    return confirmActionEffectRulingInTransaction(tx, context, actor, planId, reason);
   }, true);
 }
 export async function readCombatCloseout(encounterId: number) {

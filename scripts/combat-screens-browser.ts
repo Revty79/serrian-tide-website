@@ -64,9 +64,9 @@ async function screenshot(page: Page, name: string, width = 1365) {
 }
 try {
   server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], { cwd: process.cwd(), windowsHide: true,
-    env: { ...process.env, NODE_ENV: "development", BETTER_AUTH_URL: base, BETTER_AUTH_SECRET: "disposable-screen-auth-secret-with-more-than-32-characters", NEXT_TELEMETRY_DISABLED: "1", SERRIAN_TEST_NEXT_DIST_DIR: ".next-combat-screens-browser" }, stdio: ["ignore", "pipe", "pipe"] });
+    env: { ...process.env, NODE_ENV: "development", BETTER_AUTH_URL: base, BETTER_AUTH_SECRET: "disposable-screen-auth-secret-with-more-than-32-characters", NEXT_TELEMETRY_DISABLED: "1", SERRIAN_TEST_NEXT_DIST_DIR: process.env.SERRIAN_TEST_NEXT_DIST_DIR || ".next-combat-screens-browser" }, stdio: ["ignore", "pipe", "pipe"] });
   server.stdout?.on("data", (chunk) => { serverLog += String(chunk); }); server.stderr?.on("data", (chunk) => { serverLog += String(chunk); });
-  await until(async () => { try { return (await fetch(`${base}/login`)).ok; } catch { return false; } }, "isolated Next server", 150_000);
+  await until(async () => { if (server?.exitCode != null) throw new Error(`Isolated Next server exited: ${serverLog}`); try { return (await fetch(`${base}/login`, { signal: AbortSignal.timeout(10_000) })).ok; } catch { return false; } }, "isolated Next server", 150_000);
   browser = await chromium.launch({ executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", headless: true });
   if (include("start")) {
     const f = await db.transaction((tx) => screenFixture(tx, "start"));
@@ -562,11 +562,11 @@ try {
     await setup.getByRole("spinbutton", { name: "Loose rounds to insert", exact: true }).fill("2");
     await setup.getByRole("button", { name: "Load loose rounds", exact: true }).click();
     await setup.getByText(/2 rounds/).waitFor();
-    await setup.getByRole("button", { name: "Ready firearm", exact: true }).click();
-    await until(async () => (await pool.query("select readied from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0]?.readied === true, "ordinary equipment readies the owned firearm");
+    await setup.getByText("Next: Loaded and ready.", { exact: true }).waitFor();
+    assert.equal(await setup.getByRole("button", { name: "Ready firearm", exact: true }).count(), 0);
     assert.equal((await pool.query("select quantity from campaign_character_item where character_id=$1 and item_id=$2", [f.heroId, profile.ammunition_item_id])).rows[0].quantity, 4);
     await setup.screenshot({ path: path.join(artifacts, "firearm-equipment-setup-guided.png") });
-    results.push("Player initializes an exact empty firearm, loads two loose rounds, and readies it through ordinary equipment setup outside combat.");
+    results.push("Player initializes an exact empty firearm and loads two loose rounds; it is ready without a separate action.");
     await player.context().close();
   }
   if (include("firearm-completion-crossing")) {
@@ -626,7 +626,7 @@ try {
   }
   if (include("magazine-combat")) {
     const { f, gun } = await db.transaction(async (tx) => { const f = await screenFixture(tx, "magazine-combat"); return { f, gun: await addScreenFirearm(tx, f) }; });
-    const profile = (await pool.query("update weapon_profiles set reload_type='Magazine' where item_id=$1 returning id,ammunition_item_id", [gun.gun.id])).rows[0];
+    const profile = (await pool.query("update weapon_profiles set reload_type='Magazine',readiness_mode=null,ready_initiative_cost=null where item_id=$1 returning id,ammunition_item_id", [gun.gun.id])).rows[0];
     await pool.query("update campaign_character_firearm_state set capacity_rounds=null,capacity_source=null,readiness_mode=null,readiness_mode_source=null,readied=false,loaded_rounds=0,loaded_ammunition_item_id=null,loaded_ammunition_profile_id=null,loaded_ammunition_unit_cost_credits=null where item_instance_id=$1", [gun.instance.id]);
     const model = (await pool.query("insert into items(canonical_id,name,catalog_scope,equipment_group,record_type,family,category,price_basis,created_by_user_id) values($1,'Combat Magazine','equipment','general','Magazine','Test','Test','unit',$2) returning id", [`COMBAT-MAG-${crypto.randomUUID()}`.toUpperCase(), f.godId])).rows[0];
     await pool.query("insert into magazine_profiles(item_id,capacity_rounds,fill_initiative_cost_per_round) values($1,6,2)", [model.id]);
@@ -639,14 +639,14 @@ try {
     await until(async () => await attackSource.locator("option").filter({ hasText: /^Screen Pistol/ }).count() === 1, "owned firearm source");
     await attackSource.selectOption(await attackSource.locator("option").filter({ hasText: /^Screen Pistol/ }).getAttribute("value") ?? "");
     await screen(player).getByRole("button", { name: "Apply updated item settings", exact: true }).click();
-    await until(async () => (await pool.query("select readiness_mode from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].readiness_mode === "draw-is-ready", "existing copy adopts authored settings without a reset");
+    await until(async () => (await pool.query("select capacity_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].capacity_rounds === 6, "existing copy adopts authored capacity without a reset");
     assert.equal((await pool.query("select readied from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].readied, false);
     await screen(player).getByRole("button", { name: "Load / swap magazine", exact: true }).click();
     await screen(player).getByRole("combobox", { name: "Replacement magazine", exact: true }).selectOption(String(copies[0].id));
     await screen(player).getByRole("button", { name: /^Load magazine \(/ }).click();
     await until(async () => (await pool.query("select magazine_instance_id from firearm_magazine_attachment where weapon_instance_id=$1", [gun.instance.id])).rows[0]?.magazine_instance_id === copies[0].id, "magazine swap completes through Initiative");
-    await screen(player).getByRole("button", { name: /^Draw weapon \(/ }).click();
-    await until(async () => (await pool.query("select readied from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].readied, "draw also readies once through the visible next step");
+    await screen(player).getByRole("heading", { name: "Ready to fire", exact: true }).waitFor();
+    assert.equal(await screen(player).getByRole("button", { name: /^Ready weapon|^Draw weapon/ }).count(), 0);
     await screen(player).getByText("Fill magazine", { exact: true }).click();
     await screen(player).getByRole("combobox", { name: "Magazine to fill", exact: true }).selectOption(String(copies[1].id));
     await screen(player).getByRole("spinbutton", { name: "Rounds to insert", exact: true }).fill("2");
@@ -659,7 +659,7 @@ try {
     await pool.query("update weapon_firing_modes set base_cycling_initiative_cost=null,base_recoil_reset_initiative_cost=null,delivery_cadence=null,rounds_per_cadence=null,mechanics_review_required=true where weapon_profile_id=$1", [profile.id]);
     await player.reload(); await screen(player).getByText("Live", { exact: true }).waitFor();
     await screen(player).getByRole("combobox", { name: /^Attack source/ }).selectOption(await screen(player).getByRole("combobox", { name: /^Attack source/ }).locator("option").filter({ hasText: /^Screen Pistol/ }).getAttribute("value") ?? "");
-    await screen(player).getByText(/Your loaded magazine and readiness are saved/).waitFor();
+    await screen(player).getByText(/Your ammunition is loaded/).waitFor();
     assert.equal(await screen(player).getByRole("button", { name: /^Load magazine \(/ }).count(), 0);
     assert.equal(await screen(player).getByRole("button", { name: "Retry action options", exact: true }).count(), 0);
     await screenshot(player, "firearm-loaded-missing-mode");
@@ -990,9 +990,18 @@ try {
     await screen(player).getByLabel("Percentile result", { exact: true }).fill("100");
     await screen(player).getByRole("button", { name: "Fire & Roll", exact: true }).click();
     await screen(director).getByRole("button", { name: /^Rule on Screen Pistol/ }).click();
-    await screen(director).getByLabel("Specific ruling / recovery reason", { exact: true }).fill("Apply supported damage; the critical remains an explicit decision.");
-    await screen(director).getByRole("button", { name: "Confirm ruling & apply supported effects", exact: true }).click();
+    await screen(director).getByLabel("Critical / attack ruling", { exact: true }).fill("The critical applies the shown damage, with no additional consequence.");
+    if (!forced) {
+      await screenshot(director, "critical-ruling-desktop");
+      await screenshot(director, "critical-ruling-mobile", 390);
+      await director.setViewportSize({ width: 1365, height: 1000 });
+    }
+    await screen(director).getByRole("button", { name: "Confirm attack ruling & apply result", exact: true }).click();
     await until(async () => (await pool.query("select fame from campaign_character_profile where character_id=$1", [f.heroId])).rows[0].fame === 4, "the actual killing shot awards CR Fame");
+    await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_action_declaration where encounter_id=$1 and status not in ('resolved','cancelled','abandoned')", [f.encounterId])).rows[0].n === 0, "the killing action completes on the first confirmation");
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_effect where encounter_id=$1 and status='declined'", [f.encounterId])).rows[0].n, 0);
+    await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor();
+    assert.equal(await screen(director).getByRole("button", { name: /^Rule on Screen Pistol|^Prepare Rowan's Screen Pistol.* result$/ }).count(), 0);
     await screen(director).getByRole("link", { name: "End Combat & XP", exact: true }).click();
     const closeout = screen(director).locator("#combat-closeout");
     const award = closeout.locator("fieldset").filter({ has: director.locator("legend", { hasText: "Fixture Goblin 1" }) });
@@ -1002,13 +1011,7 @@ try {
       await screen(director).getByRole("button", { name: "Force end combat", exact: true }).click();
       await director.getByRole("dialog", { name: "End combat now?", exact: true }).getByRole("button", { name: "End combat now", exact: true }).click();
       await until(async () => (await pool.query("select status from campaign_session_encounter where id=$1", [f.encounterId])).rows[0].status === "completed", "force end retains applied critical-shot damage");
-    } else {
-      await closeout.getByRole("button", { name: "Open remaining result", exact: true }).click();
-      await screen(director).getByLabel("Specific ruling / recovery reason", { exact: true }).fill("No additional critical consequence.");
-      await screen(director).getByRole("button", { name: "Decline this effect", exact: true }).waitFor();
-      await screen(director).getByRole("button", { name: "Decline this effect", exact: true }).click();
-      await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_effect_plan where encounter_id=$1 and status='partially-applied'", [f.encounterId])).rows[0].n === 0, "the final explicit critical decision also completes the result");
-    }
+    } else assert.equal(await closeout.getByRole("button", { name: "Open remaining result", exact: true }).count(), 0);
     await closeout.getByRole("button", { name: forced ? "Preview XP awards" : "Preview closeout", exact: true }).click();
     await closeout.getByRole("button", { name: forced ? "Award selected XP" : "End Combat & award XP", exact: true }).click();
     await player.waitForURL((url) => url.pathname === "/realms/tabletop" && url.searchParams.get("character") === String(f.heroId) && !url.searchParams.has("combat"));
@@ -1022,7 +1025,7 @@ try {
     await screenshot(director, forced ? "kill-fame-force-end" : "kill-fame-closeout");
     results.push(forced
       ? "Force end preserves a critical shot's applied damage and CR 4 Fame, closes without the cancelled-plan constraint error, returns the Player to Tabletop, and awards 3 XP afterward. One original Roll and one round spent."
-      : "A Player's Double Ott firearm hit kills the Creature and adds its CR 4 Fame once. Closeout opens the actual outstanding critical; settling that last effect completes the result, preserves XP selections, awards 3 XP, and returns the Player to Tabletop. One original Roll and one round spent.");
+      : "A Player's Double Ott firearm kill completes with one G.O.D. ruling confirmation and no Decline workaround. Reload does not repeat the result. CR 4 Fame, 3 closeout XP, one original Roll and one round spent are preserved.");
     await director.context().close(); await player.context().close();
   }
   assert.deepEqual(errors, [], "No browser runtime errors");

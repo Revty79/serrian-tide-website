@@ -516,6 +516,35 @@ export async function approveActionEffectPlanInTransaction(
   await recordEvent(tx, context, plan.id, plan.status, "approved", "effect-plan-approved", actor.userId, reason);
 }
 
+/** Confirming the attack ruling also settles its narrative boundary, not just its damage. */
+export async function confirmActionEffectRulingInTransaction(
+  tx: ActionEffectPlanTransaction,
+  context: OwnedEncounterRuntimeContext,
+  actor: GodActionEffectActor,
+  planId: number,
+  reasonInput: string,
+): Promise<ActionEffectPlanStatus> {
+  if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
+  assertGod(context, actor);
+  const plan = await lockPlan(tx, context, planId);
+  if (plan.status === "applied") return "applied";
+  const reason = boundedReason(reasonInput, "Attack ruling");
+  if (plan.sourceIdentity.startsWith("firearm-attack:")) {
+    const boundaries = await tx.select().from(campaignSessionEncounterEffect).where(and(
+      eq(campaignSessionEncounterEffect.planId, plan.id),
+      eq(campaignSessionEncounterEffect.effectKey, "firearm-ruling-boundary"),
+      eq(campaignSessionEncounterEffect.effectType, "manual"),
+      eq(campaignSessionEncounterEffect.applicationSupported, false),
+    ));
+    for (const effect of boundaries) {
+      if (["applied", "manual-resolved", "declined"].includes(effect.status)) continue;
+      await resolveManualActionEffectInTransaction(tx, context, actor, plan.id, effect.id, reason, reason);
+    }
+  }
+  if (plan.status !== "application-failed") await approveActionEffectPlanInTransaction(tx, context, actor, plan.id, reason);
+  return applyActionEffectPlanInternal(tx, context, actor, plan.id);
+}
+
 export async function amendActionEffectAmountInTransaction(
   tx: ActionEffectPlanTransaction,
   context: OwnedEncounterRuntimeContext,

@@ -21,7 +21,9 @@ The tables below include both committed repair receipts, not a claim of ongoing 
 
 ### Firearms, Bows and Crossbows
 
-Bow shot cost includes nock/draw/release; Crossbow release and firearm trigger cost are 1. Draw means drawing a stowed weapon, not drawing a bowstring. Readiness choices are draw-is-ready or separate-ready-action. Single loading means inserting rounds individually, not capacity one.
+Bow shot cost includes nock/draw/release; Crossbow release and firearm trigger cost are 1. Draw means drawing a stowed weapon, not drawing a bowstring. Single loading means inserting rounds individually, not capacity one.
+
+**Later confirmed ruling, 13 September:** loaded means ready to fire. The Readiness and Ready columns below are historical audit values, no longer missing gameplay prerequisites. Drawing a stowed weapon and after-shot cycling/recoil still apply; their missing costs remain unresolved.
 
 | Item / Profile | Weapon | Capacity | Load Type | Readiness | Draw | Ready | Load / Nock-Draw-Shoot | Unload | Change Mode | Legacy Capacity / Reload |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

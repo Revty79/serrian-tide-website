@@ -40,8 +40,8 @@ export async function runTabletopToolsBrowser(browser: Browser, base: string, po
   await firearm.getByRole("button", { name: "Attach magazine", exact: true }).click();
   await eventually(async () => await scalar("select magazine_instance_id from firearm_magazine_attachment where weapon_instance_id=$1", [f.firearm.id]) === f.magazineCopy.id, "Magazine did not attach");
   await eventually(async () => magazines.getByRole("button", { name: "Empty magazine", exact: true }).isDisabled(), "Attached magazine remained editable");
-  await firearm.getByRole("button", { name: "Ready firearm", exact: true }).click();
-  await eventually(async () => await scalar("select readied from campaign_character_firearm_state where item_instance_id=$1", [f.firearm.id]) === true, "Weapon did not become ready");
+  await firearm.getByText("Next: Loaded and ready.", { exact: true }).waitFor();
+  assert.equal(await firearm.getByRole("button", { name: "Ready firearm", exact: true }).count(), 0);
   for (const width of [1440, 390, 320]) {
     await player.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
     assert.equal(await player.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false, `Equipment overflow at ${width}`);

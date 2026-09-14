@@ -27,7 +27,7 @@ describe("firearm next-step guidance", () => {
     assert.ok(result.setup.join(" ").includes("cycling cost"));
   });
   it("offers catalog adoption for an initialized copy without treating it as loaded or ready", () => {
-    const f = { ...ready, state: { ...ready.state!, readinessMode: null, readied: false, loadedRounds: 0 }, readiness: { status: "not-ready" as const, blockers: [] } };
+    const f = { ...ready, state: { ...ready.state!, capacityRounds: null, capacitySource: null, readinessMode: null, readied: false, loadedRounds: 0 }, readiness: { status: "not-ready" as const, blockers: [] } };
     matches(firearmGuidance(f), { catalogUpdate: true, canFire: false });
     assert.equal(f.state.loadedRounds, 0);
     assert.equal(f.state.readied, false);
@@ -36,6 +36,12 @@ describe("firearm next-step guidance", () => {
     matches(firearmGuidance(ready), { canFire: true, catalogUpdate: false, next: "Ready to fire" });
     const f = { ...ready, canonical: { ...ready.canonical, capacityRounds: null }, state: { ...ready.state!, loadedRounds: 0, capacityRounds: null }, readiness: { status: "not-ready" as const, blockers: [] } };
     matches(firearmGuidance(f), { canFire: false, next: "Load a magazine", operation: "reload", setup: [] });
+  });
+  it("does not ask loaded weapons for legacy readiness settings or a Ready action", () => {
+    for (const readinessMode of [null, "draw-is-ready", "separate-ready-action"]) {
+      const f = { ...ready, canonical: { ...ready.canonical, readinessMode: null, readyInitiativeCost: null }, state: { ...ready.state!, readied: false, readinessMode } };
+      matches(firearmGuidance(f), { canFire: true, next: "Ready to fire", needsPreparation: false, catalogUpdate: false, setup: [] });
+    }
   });
   it("routes a selected mode change through preparation before firing", () => {
     const f = { ...ready, modes: [...ready.modes, { ...ready.modes[0], id: 2, name: "Burst", roundsPerCadence: 3 }] };

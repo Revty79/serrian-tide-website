@@ -240,8 +240,7 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
     await assert.rejects(previewFirearmAttackInTransaction(tx, context, base.godId, { ...command, firingModeId: burstMode.id }), /requires 3 rounds, but only 2/);
     await tx.update(campaignCharacterFirearmState).set({ selectedFiringModeId: mode.id, loadedRounds: 3, readied: false })
       .where(eq(campaignCharacterFirearmState.itemInstanceId, instance.id));
-    await assert.rejects(previewFirearmAttackInTransaction(tx, context, base.godId, command), /not authoritatively ready|not been.*readiness|not-readied|not completed/i);
-    await tx.update(campaignCharacterFirearmState).set({ readied: true }).where(eq(campaignCharacterFirearmState.itemInstanceId, instance.id));
+    assert.equal((await previewFirearmAttackInTransaction(tx, context, base.godId, command)).firearm.roundsLoaded, 3, "Loaded ammunition needs no separate ready flag.");
 
     const preview = await previewFirearmAttackInTransaction(tx, context, base.godId, command);
     assert.equal(preview.finalTarget, 54);

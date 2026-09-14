@@ -60,9 +60,11 @@ export type FirearmReadinessInput = Readonly<{
   firingModeValid: boolean;
   firingModeMechanicsResolved: boolean;
   drawn: boolean;
+  /** Legacy snapshot field; loaded ammunition now satisfies readiness. */
   readied: boolean;
   loadedRounds: number;
   capacityRounds: number | null;
+  /** Retained for older callers, not a firing prerequisite. */
   readinessRelationshipResolved: boolean;
   ammunitionRelationshipResolved: boolean;
   ammunitionRequired: boolean;
@@ -115,11 +117,6 @@ export function evaluateFirearmReadiness(input: FirearmReadinessInput): {
     "invalid",
   ));
   if (input.capacityRounds === null) blockers.push(blocker("missing-capacity", "No authoritative round capacity is available.", "ruling"));
-  if (!input.readinessRelationshipResolved) blockers.push(blocker(
-    "missing-readiness-relationship",
-    "No authoritative relationship between drawing and readying is available.",
-    "ruling",
-  ));
   if (!input.ammunitionRelationshipResolved) blockers.push(blocker(
     "incompatible-ammunition",
     "The Weapon Profile has no exact supported ammunition relationship.",
@@ -132,7 +129,6 @@ export function evaluateFirearmReadiness(input: FirearmReadinessInput): {
     "ruling",
   ));
   if (!input.drawn) blockers.push(blocker("not-drawn", "The exact firearm copy is not drawn or wielded.", "not-ready"));
-  if (!input.readied) blockers.push(blocker("not-readied", "The exact firearm copy has not completed its authored readiness requirement.", "not-ready"));
   if (input.ammunitionRequired && input.loadedRounds === 0) blockers.push(blocker("no-ammunition", "The firearm has no loaded ammunition.", "not-ready"));
   if (input.loadedRounds > 0 && !input.ammunitionCompatible) blockers.push(blocker(
     "incompatible-ammunition",

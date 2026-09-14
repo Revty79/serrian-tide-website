@@ -25,7 +25,7 @@ export async function readCharacterFirearmSetup(tx: Tx, characterId: number, use
     const modes = await tx.select({ id: weaponFiringMode.id, name: weaponFiringMode.name }).from(weaponFiringMode).where(eq(weaponFiringMode.weaponProfileId, row.profile.id));
     const magazines = row.profile.reloadType === "Magazine" ? await readCompatibleMagazineCopies(tx, characterId, row.profile.id) : [];
     firearms.push({ instanceId: row.instanceId, itemId: row.itemId, name: row.name, weaponType: row.profile.weaponType, equipmentState: row.equipmentState, modes, magazines,
-      readinessMode: row.profile.readinessMode, reloadType: row.profile.reloadType, state: state ? { version: state.version, loadedRounds: state.loadedRounds, readied: state.readied, needsRecovery: state.requiresCycling || state.requiresRecoilRecovery, selectedFiringModeId: state.selectedFiringModeId } : null,
+      readinessMode: row.profile.readinessMode, reloadType: row.profile.reloadType, state: state ? { version: state.version, loadedRounds: state.loadedRounds, readied: state.loadedRounds > 0, needsRecovery: state.requiresCycling || state.requiresRecoilRecovery, selectedFiringModeId: state.selectedFiringModeId } : null,
       attachedMagazineInstanceId: magazines.find((entry) => entry.attachedWeaponInstanceId === row.instanceId)?.instanceId ?? null });
   }
   return { canManage: access.canManage, combatActive: access.combatActive, firearms };
@@ -76,9 +76,9 @@ export async function prepareCharacterFirearm(tx: Tx, userId: string, command: {
       version: state.version + 1, updatedByUserId: userId, updatedAt: new Date() }).where(eq(stateTable.itemInstanceId, state.itemInstanceId));
   } else if (command.operation === "ready") {
     if (selected.equipmentState !== "wielded") throw new Error("Set this copy's Equipment State to Wielded before readying it.");
-    const readinessMode = selected.readinessMode ?? state.readinessMode;
-    if (readinessMode !== "draw-is-ready" && readinessMode !== "separate-ready-action") throw new Error("Set the weapon's drawing/readying relationship in Heavens → Items before readying it.");
-    await tx.update(stateTable).set({ readinessMode, readinessModeSource: selected.readinessMode === null ? state.readinessModeSource : "canonical", readied: true, requiresCycling: false, requiresRecoilRecovery: false, version: state.version + 1, updatedByUserId: userId, updatedAt: new Date() }).where(eq(stateTable.itemInstanceId, state.itemInstanceId));
+    // The legacy command now only completes between-shot recovery outside combat.
+    if (!state.requiresCycling && !state.requiresRecoilRecovery) return;
+    await tx.update(stateTable).set({ requiresCycling: false, requiresRecoilRecovery: false, version: state.version + 1, updatedByUserId: userId, updatedAt: new Date() }).where(eq(stateTable.itemInstanceId, state.itemInstanceId));
   } else if (command.operation === "magazine") {
     const [attached] = await tx.select().from(firearmMagazineAttachment).where(eq(firearmMagazineAttachment.weaponInstanceId, state.itemInstanceId));
     const replacement = command.magazineInstanceId ?? null;
