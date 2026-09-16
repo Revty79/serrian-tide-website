@@ -41,6 +41,7 @@ import {
 import { creature } from "@/db/creature-schema";
 import {
   campaignAllowedRace,
+  campaignRace,
   campaignCharacter,
   campaignCharacterAttribute,
   campaignCharacterCurrencyHolding,
@@ -543,6 +544,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     allowedSystemRows,
     legacyDerivedAbilityRows,
     currencies,
+    campaignRaceRows,
     allowedRaceRows,
     skillRows,
     relationshipRows,
@@ -644,6 +646,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       .where(eq(campaignAllowedDerivedAbility.campaignId, row.campaignId))
       .limit(1),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, row.campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder)),
+    db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(campaignRace).innerJoin(race, eq(race.id, campaignRace.raceId)).where(eq(campaignRace.campaignId, row.campaignId)).orderBy(asc(campaignRace.sortOrder), asc(race.name)),
     db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(campaignAllowedRace).innerJoin(race, eq(race.id, campaignAllowedRace.raceId)).where(eq(campaignAllowedRace.campaignId, row.campaignId)).orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name)),
     db.select().from(skill).orderBy(asc(skill.name), asc(skill.id)),
     db.select({ skillId: skillRelationship.skillId, relatedSkillId: skillRelationship.relatedSkillId, relationshipType: skillRelationship.relationshipType, sortOrder: skillRelationship.sortOrder }).from(skillRelationship).where(eq(skillRelationship.relationshipType, "parent")).orderBy(asc(skillRelationship.skillId), asc(skillRelationship.sortOrder)),
@@ -816,8 +819,9 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     if (extension.extensionType === "spell-construction") spellDocuments.set(extension.skillId, extension.dataJson);
   }
 
+  const effectiveAllowedRaceRows = core.isNpc ? campaignRaceRows : allowedRaceRows;
   const selectedRace = profileRow.raceId === null ? null : await readRaceAggregate(profileRow.raceId);
-  if (profileRow.raceId !== null && !allowedRaceRows.some(({ id }) => id === profileRow.raceId)) {
+  if (profileRow.raceId !== null && !effectiveAllowedRaceRows.some(({ id }) => id === profileRow.raceId)) {
     throw new Error("The Character references a Race that is not allowed by its Campaign.");
   }
 
@@ -1011,7 +1015,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       allowedSystems,
       derivedCurrencies: currencies,
     },
-    allowedRaces: allowedRaceRows.map(({ archivedAt, ...entry }) => ({
+    allowedRaces: effectiveAllowedRaceRows.map(({ archivedAt, ...entry }) => ({
       ...entry,
       archived: archivedAt !== null,
     })),
@@ -1089,14 +1093,17 @@ export async function getAllowedRaceForCharacter(
     throw new Error("Choose a saved Race.");
   }
   const { row } = await requireCharacterAccess(characterId, godMode);
+  const [characterRow] = await db.select({ isNpc: campaignCharacter.isNpc }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId)).limit(1);
+  if (!characterRow) throw new Error("Character not found.");
+  const raceSource = characterRow.isNpc ? campaignRace : campaignAllowedRace;
   const [allowed] = await db
-    .select({ raceId: campaignAllowedRace.raceId })
-    .from(campaignAllowedRace)
-    .innerJoin(race, eq(race.id, campaignAllowedRace.raceId))
+    .select({ raceId: raceSource.raceId })
+    .from(raceSource)
+    .innerJoin(race, eq(race.id, raceSource.raceId))
     .where(
       and(
-        eq(campaignAllowedRace.campaignId, row.campaignId),
-        eq(campaignAllowedRace.raceId, raceId),
+        eq(raceSource.campaignId, row.campaignId),
+        eq(raceSource.raceId, raceId),
         isNull(race.archivedAt),
       ),
     )

@@ -220,7 +220,9 @@ function Rules({ draft, onChange }: { draft: CampaignAdminDraft; onChange: (draf
 }
 
 function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAdminDraft; races: CampaignReferenceData["races"]; search: string; onSearch: (value: string) => void; onChange: (draft: CampaignAdminDraft) => void }) {
-  const filtered = races.filter((race) => !search || race.name.toLowerCase().includes(search.toLowerCase()) || race.size.toLowerCase().includes(search.toLowerCase()));
+  const filtered = races
+    .filter((race) => !search || race.name.toLowerCase().includes(search.toLowerCase()) || race.size.toLowerCase().includes(search.toLowerCase()))
+    .sort((left, right) => left.name.localeCompare(right.name) || left.size.localeCompare(right.size) || left.id - right.id);
   const isCampaignRace = (raceId: number) => draft.campaignRaceIds.includes(raceId);
   const isPlayableRace = (raceId: number) => draft.allowedRaceIds.includes(raceId);
 
@@ -260,7 +262,7 @@ function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAd
 }
 
 function RaceColumn({ title, subtitle, entries, selectedIds, onToggle, isSelectable }: { title: string; subtitle: string; entries: CampaignReferenceData["races"]; selectedIds: number[]; onToggle: (raceId: number) => void; isSelectable: boolean }) {
-  return <div className="campaign-selection-column"><header><p>{title}</p><h4>{subtitle}</h4></header><div className="campaign-selection-list">{entries.length ? entries.map((race) => <label key={race.id} className={selectedIds.includes(race.id) ? "is-selected" : ""}><input type="checkbox" checked={selectedIds.includes(race.id)} disabled={!isSelectable} onChange={() => onToggle(race.id)} /><div><strong>{race.name}</strong><span>{race.size}</span></div></label>) : <p className="campaign-empty-state">No races match this filter.</p>}</div></div>;
+  return <div className="campaign-selection-column"><header><p>{title} <span className="campaign-race-count">{entries.length}</span></p><h4>{subtitle}</h4></header><div className="campaign-selection-list">{entries.length ? entries.map((race) => <button key={race.id} type="button" className={selectedIds.includes(race.id) ? "is-selected" : ""} aria-pressed={selectedIds.includes(race.id)} disabled={!isSelectable} onClick={() => onToggle(race.id)}><div><strong>{race.name}</strong><span>{race.size}</span></div><small>{selectedIds.includes(race.id) ? "Selected" : "Available"}</small></button>) : <p className="campaign-empty-state">No races match this filter.</p>}</div></div>;
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {

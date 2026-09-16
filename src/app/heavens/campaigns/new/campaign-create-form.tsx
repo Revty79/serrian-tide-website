@@ -59,13 +59,18 @@ export function CampaignCreateForm({
 
   const filteredRaces = useMemo(() => {
     const search = raceSearch.trim().toLocaleLowerCase();
-    return search
+    const entries = search
       ? references.races.filter((entry) =>
           [entry.name, entry.size].some((value) =>
             value.toLocaleLowerCase().includes(search),
           ),
         )
       : references.races;
+    return [...entries].sort((left, right) =>
+      left.name.localeCompare(right.name) ||
+      left.size.localeCompare(right.size) ||
+      left.id - right.id,
+    );
   }, [raceSearch, references.races]);
 
   function addCampaignRace(raceId: number) {
@@ -726,10 +731,10 @@ function RaceAvailabilityColumn({
   return (
     <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
       <div className="mb-3 border-b border-white/10 pb-3">
-        <p className="text-[0.64rem] uppercase tracking-[0.14em] text-purple-200">{title}</p>
+        <p className="text-[0.64rem] uppercase tracking-[0.14em] text-purple-200">{title} <span className="ml-1 inline-grid min-w-5 place-items-center rounded-full border border-amber-300/25 px-1 text-[0.58rem] tracking-normal text-amber-100">{entries.length}</span></p>
         <h3 className="mt-2 text-lg text-slate-100">{subtitle}</h3>
       </div>
-      <div className="space-y-2">
+      <div className="campaign-race-list max-h-[52vh] overflow-y-auto pr-1 space-y-2">
         {entries.length === 0 ? (
           <p className="rounded-xl border border-dashed border-white/10 bg-black/20 p-3 text-sm text-slate-400">
             No races match this filter.
@@ -738,26 +743,24 @@ function RaceAvailabilityColumn({
           entries.map((race) => {
             const checked = selectedIds.includes(race.id);
             return (
-              <label
+              <button
                 key={race.id}
+                type="button"
+                aria-pressed={checked}
+                disabled={!isSelectable}
+                onClick={() => onToggle(race.id)}
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
                   checked
                     ? "border-amber-300/35 bg-amber-300/10"
                     : "border-white/10 bg-black/30 hover:border-amber-300/25"
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={!isSelectable}
-                  onChange={() => onToggle(race.id)}
-                  className="mt-1 h-4 w-4 accent-amber-300"
-                />
-                <span className="min-w-0">
+                <span className="min-w-0 text-left">
                   <strong className="block text-sm text-slate-100">{race.name}</strong>
                   <small className="mt-1 block text-xs text-slate-300">{race.size || "Size not recorded"}</small>
                 </span>
-              </label>
+                <small className="ml-auto shrink-0 text-xs text-slate-400">{checked ? "Selected" : "Available"}</small>
+              </button>
             );
           })
         )}
