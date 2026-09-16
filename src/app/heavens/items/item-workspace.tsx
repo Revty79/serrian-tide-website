@@ -29,7 +29,6 @@ import {
 import {
   ITEM_POWER_RESOLUTION_MODES,
   ITEM_POWER_RESOURCE_COSTS,
-  ITEM_POWER_TRIGGERS,
   formatItemPowerTrigger,
   type ItemPower,
 } from "@/features/items/item-powers";
@@ -76,13 +75,12 @@ import type {
   WeaponSkillPathMappingDraft,
 } from "@/features/items/weapon-skill-governance-service";
 
-type Tab = "overview" | "properties" | "effects" | "powers" | "magazine" | "weapon" | "armor" | "tags" | "variants" | "preview";
+type Tab = "overview" | "properties" | "abilities" | "magazine" | "weapon" | "armor" | "tags" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "properties", label: "Properties" },
-  { id: "effects", label: "Effects" },
-  { id: "powers", label: "Powers" },
+  { id: "abilities", label: "Abilities" },
   { id: "weapon", label: "Weapon / Ammunition" },
   { id: "magazine", label: "Magazine" },
   { id: "armor", label: "Armor" },
@@ -378,8 +376,7 @@ export function ItemWorkspace({
         <fieldset className="skill-editor__content item-editor__content lifecycle-editor-fields" disabled={isArchived}>
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
-          {activeTab === "effects" ? <Effects draft={draft} skills={references.skills} onChange={change} /> : null}
-          {activeTab === "powers" ? <Powers draft={draft} references={references} onChange={change} /> : null}
+          {activeTab === "abilities" ? <Abilities draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} onChange={change} /> : null}
           {activeTab === "magazine" ? <Magazine draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
@@ -980,8 +977,36 @@ function newPower(sortOrder: number): ItemPower {
   };
 }
 
-function Powers({ draft, references, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; onChange: (draft: ItemDraft) => void }) {
+const ABILITY_WHEN_OPTIONS = [
+  { value: "activated", label: "Activated" },
+  { value: "weapon-hit", label: "On Weapon Hit" },
+  { value: "equipped", label: "While Equipped" },
+  { value: "worn", label: "While Worn" },
+  { value: "wielded", label: "While Wielded" },
+] as const;
+
+function abilityWhen(power: ItemPower): string {
+  if (power.trigger === "activated") return "activated";
+  if (power.trigger === "weapon-hit") return "weapon-hit";
+  return power.requiredEquipmentState ?? "equipped";
+}
+
+function legacyBehaviorExists(draft: ItemDraft): boolean {
+  return draft.runtimeProfile.useMode !== "none" || draft.effects.length > 0 || draft.passiveEffects.length > 0;
+}
+
+function Abilities({ draft, references, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; onChange: (draft: ItemDraft) => void }) {
+  return <div className="item-section item-abilities-editor">
+    <SectionHeading eyebrow="ABILITIES" title="What can this Item do?" action="+ Add Ability" onAction={() => onChange({ ...draft, powers: [...draft.powers, newPower(draft.powers.length)] })} />
+    <p className="item-editor-help">Special things this Item can do. Legacy Item Use behavior stays separate and is never converted automatically.</p>
+    <Powers draft={draft} references={references} onChange={onChange} simple />
+    {legacyBehaviorExists(draft) ? <details className="item-legacy-advanced"><summary>Advanced / Legacy Item Use</summary><p className="item-runtime-note"><strong>Legacy Item Use</strong><br />This Item contains behavior created with the original Item Use system.</p><Effects draft={draft} skills={references.skills} onChange={onChange} /></details> : null}
+  </div>;
+}
+
+function Powers({ draft, references, onChange, simple = false }: { draft: ItemDraft; references: ItemAuthoringReferences; onChange: (draft: ItemDraft) => void; simple?: boolean }) {
   const preserveScroll = useInPlaceScrollPreservation();
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const powers = draft.powers;
   const patch = (index: number, update: Partial<ItemPower>) => onChange({ ...draft, powers: powers.map((power, powerIndex) => powerIndex === index ? { ...power, ...update } : power) });
   const remove = (index: number) => onChange({ ...draft, powers: powers.filter((_, powerIndex) => powerIndex !== index).map((power, sortOrder) => ({ ...power, sortOrder })) });
@@ -995,18 +1020,23 @@ function Powers({ draft, references, onChange }: { draft: ItemDraft; references:
   return <div className="item-section item-powers-editor">
     <SectionHeading eyebrow="FIRST-CLASS CAPABILITIES" title="Powers" action="Add Power" onAction={() => onChange({ ...draft, powers: [...powers, newPower(powers.length)] })} />
     <section className="item-power-resource"><h4>Shared Power Charge Pool</h4><div className="item-form-grid"><label className="item-field"><span>Maximum Charges</span><OptionalNumber value={draft.powerResource?.maximumCharges ?? null} min={1} step={1} onChange={(maximumCharges) => onChange({ ...draft, powerResource: maximumCharges === null ? null : { maximumCharges, rechargeNotes: draft.powerResource?.rechargeNotes ?? "" } })} /></label><label className="item-field item-field--wide"><span>Recharge Rule / Notes</span><textarea rows={2} value={draft.powerResource?.rechargeNotes ?? ""} disabled={!draft.powerResource} onChange={(event) => onChange({ ...draft, powerResource: draft.powerResource ? { ...draft.powerResource, rechargeNotes: event.target.value } : null })} /></label></div><p className="item-runtime-note">This pool is separate from legacy Runtime Use. Each Power defines its own Charge cost.</p></section>
-    <p className="item-editor-help">Powers are authored capabilities shared by mundane and magical Items. Existing Runtime Use, Effects, and Passive Effects remain separate legacy-compatible systems.</p>
-    {powers.length === 0 ? <p className="skill-library__empty">No Powers authored. This Item remains valid with zero Powers.</p> : <div className="item-card-list">{powers.map((power, index) => <article className="item-edit-card" key={power.id ?? `new-power-${index}`}>
-      <header><strong>{power.name || `Power ${index + 1}`}</strong><div><button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move Up</button><button type="button" disabled={index === powers.length - 1} onClick={() => move(index, 1)}>Move Down</button><button className="is-danger" type="button" onClick={() => void preserveScroll(() => remove(index))}>Remove</button></div></header>
+    {!simple ? <p className="item-editor-help">Powers are authored capabilities shared by mundane and magical Items.</p> : null}
+    {powers.length === 0 ? <p className="skill-library__empty">No Abilities authored. This Item remains valid with zero Abilities.</p> : <div className="item-card-list">{powers.map((power, index) => {
+      const isExpanded = power.id === null || expanded.has(power.id);
+      const summary = power.trigger === "activated" ? "Activated" : power.trigger === "weapon-hit" ? "On Weapon Hit" : `While ${power.requiredEquipmentState === "wielded" ? "Wielded" : power.requiredEquipmentState === "worn" ? "Worn" : "Equipped"}`;
+      const effectSummary = power.effects.map((entry) => formatMechanicalEffectSummary(entry.effect)).join(" · ");
+      return <article className="item-edit-card item-ability-card" key={power.id ?? `new-power-${index}`}>
+      <header><div><strong>{power.name || `Ability ${index + 1}`}</strong><span>{summary}{power.initiativeCost !== null ? ` · ${power.initiativeCost} Initiative` : ""}{power.resourceCostKind !== "none" ? ` · ${power.resourceCostAmount ?? "?"} ${power.resourceCostKind === "shared-charges" ? "Charges" : "Item"}` : ""}{effectSummary ? ` · ${effectSummary}` : ""}</span></div><div><button type="button" onClick={() => setExpanded((current) => { const next = new Set(current); if (power.id !== null && next.has(power.id)) next.delete(power.id); else if (power.id !== null) next.add(power.id); return next; })}>{isExpanded ? "Close" : "Edit"}</button><button type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move Up</button><button type="button" disabled={index === powers.length - 1} onClick={() => move(index, 1)}>Move Down</button><button className="is-danger" type="button" onClick={() => void preserveScroll(() => remove(index))}>Remove</button></div></header>
+      {isExpanded ? <>
       <div className="item-form-grid">
         <Field label="Power Name" wide><input value={power.name} onChange={(event) => patch(index, { name: event.target.value })} /></Field>
-        <Field label="Trigger"><select value={power.trigger} onChange={(event) => patch(index, { trigger: event.target.value as ItemPower["trigger"], requiredEquipmentState: event.target.value === "passive" ? "equipped" : null, initiativeCost: event.target.value === "activated" ? power.initiativeCost : null })}>{ITEM_POWER_TRIGGERS.map((trigger) => <option key={trigger} value={trigger}>{formatItemPowerTrigger(trigger)}</option>)}</select></Field>
-        <Field label="Resolution Mode"><select value={power.resolutionMode} onChange={(event) => patch(index, { resolutionMode: event.target.value as ItemPower["resolutionMode"] })}>{ITEM_POWER_RESOLUTION_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</select></Field>
+        <Field label="When does it happen?"><select value={abilityWhen(power)} onChange={(event) => { const value = event.target.value; patch(index, { trigger: value === "activated" ? "activated" : value === "weapon-hit" ? "weapon-hit" : "passive", requiredEquipmentState: value === "activated" || value === "weapon-hit" ? null : value as ItemPower["requiredEquipmentState"], resolutionMode: value === "weapon-hit" ? "weapon-hit" : "automatic", initiativeCost: value === "activated" ? power.initiativeCost : null, resourceCostKind: value === "activated" ? power.resourceCostKind : "none", resourceCostAmount: value === "activated" ? power.resourceCostAmount : null }) }}>{ABILITY_WHEN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
+        {!simple ? <Field label="Resolution Mode"><select value={power.resolutionMode} onChange={(event) => patch(index, { resolutionMode: event.target.value as ItemPower["resolutionMode"] })}>{ITEM_POWER_RESOLUTION_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</select></Field> : null}
         {power.trigger === "activated" ? <><Field label="Activation Label"><input value={power.activationLabel} onChange={(event) => patch(index, { activationLabel: event.target.value })} /></Field><Field label="Initiative Cost"><OptionalNumber value={power.initiativeCost} min={0} step="any" onChange={(initiativeCost) => patch(index, { initiativeCost })} /></Field></> : null}
         {power.trigger === "passive" ? <Field label="Required Equipment State"><select value={power.requiredEquipmentState ?? "equipped"} onChange={(event) => patch(index, { requiredEquipmentState: event.target.value as ItemPower["requiredEquipmentState"] })}>{PASSIVE_REQUIRED_EQUIPMENT_STATES.map((state) => <option key={state} value={state}>{passiveLifecycleLabel(state)}</option>)}</select></Field> : null}
-        <Field label="Resource Cost"><select value={power.resourceCostKind} onChange={(event) => patch(index, { resourceCostKind: event.target.value as ItemPower["resourceCostKind"], resourceCostAmount: event.target.value === "none" ? null : power.resourceCostAmount ?? 1 })}>{ITEM_POWER_RESOURCE_COSTS.map((cost) => <option key={cost} value={cost}>{cost === "shared-charges" ? "Shared Charges" : cost === "consume-item" ? "Consume Item Quantity" : "None"}</option>)}</select></Field>
+        {power.trigger === "activated" ? <Field label="Resource Cost"><select value={power.resourceCostKind} onChange={(event) => patch(index, { resourceCostKind: event.target.value as ItemPower["resourceCostKind"], resourceCostAmount: event.target.value === "none" ? null : power.resourceCostAmount ?? 1 })}>{ITEM_POWER_RESOURCE_COSTS.map((cost) => <option key={cost} value={cost}>{cost === "shared-charges" ? "Shared Charges" : cost === "consume-item" ? "Consume Item Quantity" : "No Cost"}</option>)}</select></Field> : null}
         {power.resourceCostKind !== "none" ? <Field label="Resource Amount"><OptionalNumber value={power.resourceCostAmount} min={1} step={1} onChange={(resourceCostAmount) => patch(index, { resourceCostAmount })} /></Field> : null}
-        {power.resolutionMode === "fixed-roll" ? <Field label="Fixed Roll Target"><OptionalNumber value={power.fixedRollTarget} min={1} step={1} onChange={(fixedRollTarget) => patch(index, { fixedRollTarget })} /></Field> : null}
+        {!simple && power.resolutionMode === "fixed-roll" ? <Field label="Fixed Roll Target"><OptionalNumber value={power.fixedRollTarget} min={1} step={1} onChange={(fixedRollTarget) => patch(index, { fixedRollTarget })} /></Field> : null}
         <Field label="Canonical Source" wide><select value={power.source?.sourceSkillId ?? ""} onChange={(event) => { const source = references.powerSources.find((candidate) => candidate.skillId === Number(event.target.value)); patch(index, { source: source ? { sourceSkillId: source.skillId, sourceSkillName: source.skillName, sourceExtensionType: "spell-construction", sourceSchemaVersion: source.schemaVersion, archived: source.archived } : null }); }}><option value="">No Canonical Source</option>{references.powerSources.map((source) => <option key={source.skillId} value={source.skillId} disabled={source.archived}>{source.skillName}{source.archived ? " · Archived" : ""}</option>)}</select></Field>
         {power.source ? <Field label="Fixed Item Power Level"><select value={power.fixedPowerLevel ?? ""} onChange={(event) => patch(index, { fixedPowerLevel: event.target.value || null })}><option value="">Not configured</option>{PRACTITIONER_LEVELS.map((level) => <option key={level}>{level}</option>)}</select></Field> : null}
         {power.customConstruction ? <Field label="Fixed Custom Magic Power Level"><select value={power.fixedPowerLevel ?? ""} onChange={(event) => patch(index, { fixedPowerLevel: event.target.value || null })}><option value="">Not configured</option>{PRACTITIONER_LEVELS.map((level) => <option key={level}>{level}</option>)}</select></Field> : null}
@@ -1015,7 +1045,7 @@ function Powers({ draft, references, onChange }: { draft: ItemDraft; references:
       </div>
       <div className="item-power-construction"><SectionHeading eyebrow="MAGIC APPROACH" title="Custom Magic Construction" action={power.customConstruction ? "Remove Custom Magic" : "Build Custom Magic"} onAction={() => patch(index, { customConstruction: power.customConstruction ? null : { document: { ...createEmptySpell(), name: power.name || "Item Power" } } })} />{power.customConstruction ? <SpellConstructionEditor document={power.customConstruction.document} onChange={(document) => patch(index, { customConstruction: { document } })} findFrameworkSkills={listSpellFrameworkSkills} /> : <p className="item-editor-help">Build a unique Spell Construction owned by this Power. Its calculated Mana and normal casting time are source information only; Item Initiative and resource costs remain authoritative.</p>}</div>
       <div className="item-power-effects"><SectionHeading eyebrow="POWER EFFECTS" title={`${power.effects.length} custom effect${power.effects.length === 1 ? "" : "s"}`} action="Add Effect" onAction={() => patch(index, { effects: [...power.effects, { id: null, effect: newMechanicalEffect("manual") }] })} />{power.effects.map((entry, effectIndex) => <article className="item-edit-card item-effect-card" key={entry.id ?? effectIndex}><header><strong>{formatMechanicalEffectSummary(entry.effect)}</strong><div className="item-effect-card__actions"><button type="button" disabled={effectIndex === 0} onClick={() => patch(index, { effects: power.effects.map((current, currentIndex, effects) => currentIndex === effectIndex - 1 ? effects[effectIndex]! : currentIndex === effectIndex ? effects[effectIndex - 1]! : current) })}>Move Up</button><button type="button" disabled={effectIndex === power.effects.length - 1} onClick={() => patch(index, { effects: power.effects.map((current, currentIndex, effects) => currentIndex === effectIndex ? effects[effectIndex + 1]! : currentIndex === effectIndex + 1 ? effects[effectIndex]! : current) })}>Move Down</button><button className="is-danger" type="button" onClick={() => patch(index, { effects: power.effects.filter((_, currentIndex) => currentIndex !== effectIndex) })}>Remove</button></div></header><MechanicalEffectEditor effect={entry.effect} skills={references.skills} onKindChange={(kind) => patch(index, { effects: power.effects.map((current, currentIndex) => currentIndex === effectIndex ? { ...current, effect: newMechanicalEffect(kind) } : current) })} onChange={(effect) => patch(index, { effects: power.effects.map((current, currentIndex) => currentIndex === effectIndex ? { ...current, effect } : current) })} /></article>)}</div>
-    </article>)}</div>}
+    </> : null}</article>; })}</div>}
   </div>;
 }
 

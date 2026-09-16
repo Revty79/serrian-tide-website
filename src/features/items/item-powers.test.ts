@@ -172,3 +172,13 @@ test("Item save source reconciles Power identities instead of deleting the Power
   assert.match(actions, /tx\.update\(itemPower\)/);
   assert.doesNotMatch(actions, /await tx\.delete\(itemPower\)\.where\(eq\(itemPower\.itemId, id!\)\)/);
 });
+
+test("Item authoring presents Abilities as the primary composition and keeps legacy behavior advanced", () => {
+  const workspace = readFileSync("src/app/heavens/items/item-workspace.tsx", "utf8");
+  assert.match(workspace, /id: "abilities", label: "Abilities"/);
+  assert.match(workspace, /\+ Add Ability/);
+  assert.match(workspace, /Advanced \/ Legacy Item Use/);
+  assert.match(workspace, /While Equipped/);
+  assert.match(workspace, /On Weapon Hit/);
+  assert.match(workspace, /No Abilities authored/);
+});
