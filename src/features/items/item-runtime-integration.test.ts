@@ -48,6 +48,7 @@ test("Item editor exposes Abilities and legacy behavior without adding Item exec
   assert.match(workspace, /Quantity Consumed Per Use/);
   assert.match(workspace, /Manual \/ G\.O\.D\. Resolution/);
   assert.equal(workspace.includes('scope === "inventory" && tab.id === "effects"'), false);
+  assert.match(workspace, /Localized \(Existing Only\)/);
   assert.equal(workspace.includes("Use Item"), false);
 });
 

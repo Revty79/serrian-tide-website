@@ -284,11 +284,12 @@ export async function bindPeriodicHealthEffectInTransaction(
     npcKind: string;
   },
 ): Promise<number> {
+  await assertCombatWritableInTransaction(tx, context.encounterId);
   if (input.applications <= 0 || !Number.isSafeInteger(input.applications)) throw new Error("Periodic health applications must be a positive whole number.");
   if (!input.applicationKey.trim()) throw new Error("Periodic health requires a nonblank application key.");
   if (!input.sourceKind.trim() || !input.sourceId.trim()) throw new Error("Periodic health requires source identity.");
   const frozenPoolKey = requirePeriodicHealthApplication(input.application, input.poolKey);
-  const [participant] = await tx.select({ characterId: campaignSessionEncounterParticipant.characterId }).from(campaignSessionEncounterParticipant).where(and(
+  const [participant] = await tx.select({ characterId: campaignSessionEncounterParticipant.characterId, participantKind: campaignSessionEncounterParticipant.participantKind }).from(campaignSessionEncounterParticipant).where(and(
     eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
     eq(campaignSessionEncounterParticipant.sceneId, context.sceneId),
     eq(campaignSessionEncounterParticipant.sessionId, context.sessionId),
@@ -296,7 +297,7 @@ export async function bindPeriodicHealthEffectInTransaction(
     eq(campaignSessionEncounterParticipant.characterId, input.characterId),
   )).limit(1);
   if (!participant) throw new Error("Periodic health target is not a Participant in the supplied Encounter context.");
-  if (input.npcKind === "creature") throw new Error("Periodic health for direct Creature participants is not supported yet.");
+  if (participant.participantKind === "creature") throw new Error("Periodic health for direct Creature participants is not supported yet.");
   const healthContext = await lockActiveHealthInTransaction(tx, input.characterId, input.npcKind);
   if (frozenPoolKey && !healthContext.anatomy.pools.some((pool) => pool.key === frozenPoolKey)) throw new Error("Periodic Area Health pool is not part of the target's current anatomy.");
   const [existing] = await tx.select({ id: campaignSessionPeriodicHealthEffect.id }).from(campaignSessionPeriodicHealthEffect).where(and(eq(campaignSessionPeriodicHealthEffect.encounterId, context.encounterId), eq(campaignSessionPeriodicHealthEffect.applicationKey, input.applicationKey.trim()))).limit(1);
