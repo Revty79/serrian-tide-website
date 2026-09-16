@@ -130,6 +130,19 @@ export function planMechanicalEffect(input: PlanMechanicalEffectInput): Mechanic
     };
   }
 
+  if ((effect.kind === "health.heal" || effect.kind === "health.damage") && effect.timing?.mode === "over-time") {
+    return {
+      status: "ready",
+      effect,
+      source,
+      summary,
+      requirements,
+      missingSelections: [],
+      issues: [],
+      healthResult: null,
+    };
+  }
+
   if (!input.health) {
     return {
       status: "ready",

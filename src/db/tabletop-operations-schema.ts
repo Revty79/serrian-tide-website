@@ -1797,6 +1797,43 @@ export const campaignSessionEffectDurationBinding = pgTable(
   ],
 );
 
+export const campaignSessionPeriodicHealthEffect = pgTable(
+  "campaign_session_periodic_health_effect",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id").notNull(),
+    sessionId: integer("session_id").notNull(),
+    sceneId: integer("scene_id").notNull(),
+    encounterId: integer("encounter_id").notNull(),
+    characterId: integer("character_id").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceId: text("source_id").notNull(),
+    effectKind: text("effect_kind").notNull(),
+    amount: doublePrecision("amount").notNull(),
+    application: text("application").notNull(),
+    poolKey: text("pool_key"),
+    frequency: text("frequency").notNull(),
+    remainingApplications: integer("remaining_applications").notNull(),
+    nextStep: integer("next_step").notNull(),
+    nextRound: integer("next_round").notNull(),
+    status: text("status").default("active").notNull(),
+    completedAt: timestamp("completed_at"),
+    closeReason: text("close_reason").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("periodic_health_effect_encounter_idx").on(table.encounterId, table.status, table.frequency),
+    index("periodic_health_effect_character_idx").on(table.characterId, table.status),
+    check("periodic_health_effect_kind_valid", sql`${table.effectKind} IN ('health.heal','health.damage')`),
+    check("periodic_health_effect_application_valid", sql`${table.application} IN ('area','full-body')`),
+    check("periodic_health_effect_frequency_valid", sql`${table.frequency} IN ('combat-steps','combat-rounds')`),
+    check("periodic_health_effect_amount_valid", sql`${table.amount} > 0`),
+    check("periodic_health_effect_remaining_valid", sql`${table.remainingApplications} >= 0`),
+    check("periodic_health_effect_status_valid", sql`${table.status} IN ('active','completed','closed')`),
+  ],
+);
+
 export const campaignSessionEncounterRewardDecision = pgTable(
   "campaign_session_encounter_reward_decision",
   {

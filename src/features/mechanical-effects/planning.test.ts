@@ -75,6 +75,16 @@ test("planning exposes needs-selection and ready statuses without persistence", 
   assert.equal(ready.healthResult, null);
 });
 
+test("Over Time health effects remain lifecycle-ready and do not apply immediately", () => {
+  const plan = planMechanicalEffect({
+    effect: { kind: "health.damage", amount: 2, application: "full-body", timing: { mode: "over-time", frequency: "combat-rounds", applications: 5, firstApplication: "next-interval" } },
+    application: { targetCharacterId: 17 },
+    health: { anatomy: emptyAnatomy(), state: { characterId: 17, totalDamage: 0, pools: [], injuries: [] } },
+  });
+  assert.equal(plan.status, "ready");
+  assert.equal(plan.healthResult, null);
+});
+
 test("planning rejects malformed runtime selections", () => {
   const invalidTarget = planMechanicalEffect({
     effect: fullBodyHeal,

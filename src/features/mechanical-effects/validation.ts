@@ -80,6 +80,14 @@ export function validateMechanicalEffect(input: unknown): MechanicalEffectValida
   }
 
   const issues: MechanicalEffectValidationIssue[] = [];
+  if (input.timing !== undefined) {
+    const timing = input.timing as Record<string, unknown>;
+    if (!timing || typeof timing !== "object" || (timing.mode !== "immediate" && timing.mode !== "over-time")) {
+      issues.push(invalid("invalid-duration", "timing", "Health timing must be Immediate or Over Time."));
+    } else if (timing.mode === "over-time" && (timing.frequency !== "combat-steps" && timing.frequency !== "combat-rounds" || !Number.isSafeInteger(timing.applications) || (timing.applications as number) <= 0 || (timing.firstApplication !== "immediate" && timing.firstApplication !== "next-interval"))) {
+      issues.push(invalid("invalid-duration", "timing", "Over Time health effects require a frequency, positive applications, and a first-application rule."));
+    }
+  }
   switch (input.kind) {
     case "health.heal":
       issues.push(...validateAmount(input.amount));
@@ -162,6 +170,7 @@ export function validateMechanicalEffect(input: unknown): MechanicalEffectValida
         kind: input.kind,
         amount: input.amount as number,
         scope: input.scope as "full-body" | "area",
+        ...(input.timing ? { timing: input.timing as import("./models").HealthEffectTiming } : {}),
       };
       break;
     case "health.damage":
@@ -169,6 +178,7 @@ export function validateMechanicalEffect(input: unknown): MechanicalEffectValida
         kind: input.kind,
         amount: input.amount as number,
         application: input.application as "localized" | "area" | "full-body",
+        ...(input.timing ? { timing: input.timing as import("./models").HealthEffectTiming } : {}),
       };
       break;
     case "condition.apply":

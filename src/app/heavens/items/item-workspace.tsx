@@ -499,7 +499,7 @@ function runtimeProfileForMode(
 
 function newMechanicalEffect(kind: MechanicalEffect["kind"]): MechanicalEffect {
   if (kind === "health.heal") return { kind, amount: 1, scope: "full-body" };
-  if (kind === "health.damage") return { kind, amount: 1, application: "localized" };
+  if (kind === "health.damage") return { kind, amount: 1, application: "area" };
   if (kind === "condition.apply") return { kind, name: "", description: "", duration: { kind: "until-removed", value: null } };
   if (kind === "modifier.apply") return { kind, label: "", channel: "initiative", targetKey: "self", amount: 1, duration: { kind: "until-removed", value: null } };
   return { kind, title: "", description: "" };

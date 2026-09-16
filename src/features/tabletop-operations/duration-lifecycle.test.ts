@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 
 import { RUNTIME_DURATION_KINDS } from "@/features/mechanical-effects";
 
@@ -84,4 +85,13 @@ test("finite runtime values require positive whole counts", () => {
   }
   assert.throws(() => advanceFiniteDuration(2, -1), /nonnegative whole/);
   assert.throws(() => advanceFiniteDuration(2, 1.5), /nonnegative whole/);
+});
+
+test("periodic health lifecycle uses the existing Initiative transition hook and idempotent next-boundary markers", () => {
+  const service = readFileSync("src/features/tabletop-operations/duration-lifecycle-service.ts", "utf8");
+  assert.match(service, /advancePeriodicHealthEffectsInTransaction/);
+  assert.match(service, /campaignSessionPeriodicHealthEffect/);
+  assert.match(service, /eq\(campaignSessionPeriodicHealthEffect\.status, "active"\)/);
+  assert.match(service, /nextStep|nextRound/);
+  assert.match(service, /initiativeClosed/);
 });

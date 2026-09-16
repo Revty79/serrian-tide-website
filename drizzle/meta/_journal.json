@@ -400,6 +400,13 @@
       "when": 1789596231636,
       "tag": "0056_item_power_resource_correction",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1789600610637,
+      "tag": "0057_periodic_health_effects",
+      "breakpoints": true
     }
   ]
 }

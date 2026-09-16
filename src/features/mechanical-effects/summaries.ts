@@ -7,11 +7,9 @@ function formatAmount(amount: number): string {
 export function formatMechanicalEffectSummary(effect: MechanicalEffect): string {
   switch (effect.kind) {
     case "health.heal":
-      return effect.scope === "full-body"
-        ? `Heal ${formatAmount(effect.amount)} · Full Body`
-        : `Heal ${formatAmount(effect.amount)} · Area Applied`;
+      return `${effect.scope === "full-body" ? `Heal ${formatAmount(effect.amount)} · Full Body` : `Heal ${formatAmount(effect.amount)} · Area Applied`}${effect.timing?.mode === "over-time" ? ` · ${effect.timing.applications}× ${effect.timing.frequency}` : ""}`;
     case "health.damage":
-      return `Deal ${formatAmount(effect.amount)} Damage · ${effect.application === "localized" ? "Localized" : effect.application === "area" ? "Area Applied" : "Full Body"}`;
+      return `Deal ${formatAmount(effect.amount)} Damage · ${effect.application === "localized" ? "Localized" : effect.application === "area" ? "Area Applied" : "Full Body"}${effect.timing?.mode === "over-time" ? ` · ${effect.timing.applications}× ${effect.timing.frequency}` : ""}`;
     case "condition.apply":
       return `Apply Condition · ${effect.name.trim()}`;
     case "modifier.apply":

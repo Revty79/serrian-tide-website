@@ -7,9 +7,11 @@ import type { db } from "@/db";
 import {
   campaignCharacterActiveCondition,
   campaignCharacterActiveModifier,
+  campaignCharacter,
 } from "@/db/realm-schema";
 import {
   campaignSessionEffectDurationBinding,
+  campaignSessionPeriodicHealthEffect,
   campaignSessionEncounter,
   campaignSessionEncounterParticipant,
   campaignSessionScene,
@@ -19,6 +21,7 @@ import {
   endModifierInTransaction,
   resolveConditionInTransaction,
 } from "@/features/active-state/active-effects-service";
+import { damageAreaInTransaction, damageFullBodyInTransaction, healAreaInTransaction, healFullBodyInTransaction } from "@/features/active-state/active-health-service";
 import type { PersistedMechanicalEffectIdentity } from "@/features/active-state/mechanical-effect-service";
 
 import {
@@ -28,6 +31,7 @@ import {
   requireFiniteDurationValue,
   type DurationEffectKind,
   type InitiativeDurationPosition,
+  type InitiativeDurationTransition,
   type TabletopBoundDurationKind,
 } from "./duration-lifecycle";
 
@@ -260,6 +264,78 @@ async function activeBindings(
   return query.for("update");
 }
 
+export async function bindPeriodicHealthEffectInTransaction(
+  tx: DurationLifecycleTransaction,
+  context: TabletopDurationContext & { encounterId: number; roundNumber: number; stepNumber: number },
+  input: {
+    characterId: number;
+    sourceKind: string;
+    sourceId: string;
+    effectKind: "health.heal" | "health.damage";
+    amount: number;
+    application: "area" | "full-body";
+    poolKey?: string | null;
+    frequency: "combat-steps" | "combat-rounds";
+    applications: number;
+    firstApplication: "immediate" | "next-interval";
+    npcKind: string;
+  },
+): Promise<number> {
+  if (input.applications <= 0 || !Number.isSafeInteger(input.applications)) throw new Error("Periodic health applications must be a positive whole number.");
+  if (input.application === "area" && !input.poolKey?.trim()) throw new Error("Periodic Area Health requires a frozen HP Pool.");
+  const immediate = input.firstApplication === "immediate";
+  let remaining = input.applications;
+  if (immediate) {
+    if (input.effectKind === "health.heal") {
+      if (input.application === "area") await healAreaInTransaction(tx, input.characterId, input.npcKind, input.poolKey!, input.amount);
+      else await healFullBodyInTransaction(tx, input.characterId, input.npcKind, input.amount);
+    } else if (input.application === "area") await damageAreaInTransaction(tx, input.characterId, input.npcKind, input.poolKey!, input.amount);
+    else await damageFullBodyInTransaction(tx, input.characterId, input.npcKind, input.amount);
+    remaining -= 1;
+  }
+  const [created] = await tx.insert(campaignSessionPeriodicHealthEffect).values({
+    campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId,
+    characterId: input.characterId, sourceKind: input.sourceKind, sourceId: input.sourceId, effectKind: input.effectKind,
+    amount: input.amount, application: input.application, poolKey: input.poolKey?.trim() ?? null, frequency: input.frequency,
+    remainingApplications: remaining, nextStep: context.stepNumber + 1, nextRound: context.roundNumber + 1,
+    status: remaining === 0 ? "completed" : "active", completedAt: remaining === 0 ? new Date() : null,
+  }).returning({ id: campaignSessionPeriodicHealthEffect.id });
+  if (!created) throw new Error("Periodic Health Effect could not be saved.");
+  return created.id;
+}
+
+async function advancePeriodicHealthEffectsInTransaction(
+  tx: DurationLifecycleTransaction,
+  encounterId: number,
+  transition: InitiativeDurationTransition,
+  after: InitiativeDurationPosition,
+): Promise<void> {
+  const rows = await tx.select().from(campaignSessionPeriodicHealthEffect).where(and(eq(campaignSessionPeriodicHealthEffect.encounterId, encounterId), eq(campaignSessionPeriodicHealthEffect.status, "active"))).for("update");
+  for (const row of rows) {
+    const boundaryCount = row.frequency === "combat-steps" ? transition.combatStepBoundaries : transition.combatRoundBoundaries;
+    if (!boundaryCount) continue;
+    const due = row.frequency === "combat-steps" ? after.stepNumber >= row.nextStep : after.roundNumber >= row.nextRound;
+    if (!due) continue;
+    const boundaries = row.frequency === "combat-steps" ? after.stepNumber - row.nextStep + 1 : after.roundNumber - row.nextRound + 1;
+    const [character] = await tx.select({ npcKind: campaignCharacter.npcKind }).from(campaignCharacter).where(eq(campaignCharacter.id, row.characterId)).limit(1);
+    if (!character) continue;
+    let remaining = row.remainingApplications;
+    let nextStep = row.nextStep;
+    let nextRound = row.nextRound;
+    for (let index = 0; index < boundaries && remaining > 0; index += 1) {
+      if (row.effectKind === "health.heal") {
+        if (row.application === "area") await healAreaInTransaction(tx, row.characterId, character.npcKind, row.poolKey!, row.amount);
+        else await healFullBodyInTransaction(tx, row.characterId, character.npcKind, row.amount);
+      } else if (row.application === "area") await damageAreaInTransaction(tx, row.characterId, character.npcKind, row.poolKey!, row.amount);
+      else await damageFullBodyInTransaction(tx, row.characterId, character.npcKind, row.amount);
+      remaining -= 1;
+      nextStep += row.frequency === "combat-steps" ? 1 : 0;
+      nextRound += row.frequency === "combat-rounds" ? 1 : 0;
+    }
+    await tx.update(campaignSessionPeriodicHealthEffect).set({ remainingApplications: remaining, nextStep, nextRound, status: remaining === 0 ? "completed" : "active", completedAt: remaining === 0 ? new Date() : null, updatedAt: new Date() }).where(and(eq(campaignSessionPeriodicHealthEffect.id, row.id), eq(campaignSessionPeriodicHealthEffect.status, "active")));
+  }
+}
+
 export async function applyInitiativeDurationTransitionInTransaction(
   tx: DurationLifecycleTransaction,
   context: TabletopDurationContext & { encounterId: number },
@@ -269,6 +345,10 @@ export async function applyInitiativeDurationTransitionInTransaction(
 ): Promise<void> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   const transition = getInitiativeDurationTransition(before, after, passage);
+  await advancePeriodicHealthEffectsInTransaction(tx, context.encounterId, transition, after);
+  if (transition.initiativeClosed) {
+    await tx.update(campaignSessionPeriodicHealthEffect).set({ status: "closed", completedAt: new Date(), closeReason: "Combat ended when Initiative Runtime closed.", updatedAt: new Date() }).where(and(eq(campaignSessionPeriodicHealthEffect.encounterId, context.encounterId), eq(campaignSessionPeriodicHealthEffect.status, "active")));
+  }
   const { advanceCreatureDurationsInTransaction } = await import("./creature-duration-service");
   await advanceCreatureDurationsInTransaction(tx, { encounterId: context.encounterId }, transition);
   if (transition.initiativeClosed) {

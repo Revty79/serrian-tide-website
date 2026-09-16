@@ -34,12 +34,21 @@ export type HealthHealEffect = {
   kind: "health.heal";
   amount: number;
   scope: "full-body" | "area";
+  timing?: HealthEffectTiming;
 };
 
 export type HealthDamageEffect = {
   kind: "health.damage";
   amount: number;
   application: "localized" | "area" | "full-body";
+  timing?: HealthEffectTiming;
+};
+
+export type HealthEffectTiming = {
+  mode: "immediate" | "over-time";
+  frequency?: "combat-steps" | "combat-rounds";
+  applications?: number;
+  firstApplication?: "immediate" | "next-interval";
 };
 
 export type ManualEffect = {

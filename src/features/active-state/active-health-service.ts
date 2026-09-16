@@ -554,6 +554,41 @@ export async function healAreaInTransaction(
   return (await readActiveHealthInTransaction(tx, characterId, npcKind)).view;
 }
 
+export async function damageFullBodyInTransaction(
+  tx: ActiveHealthTransaction,
+  characterId: number,
+  npcKind: string,
+  amountInput: number,
+): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
+  const amount = positiveAmount(amountInput, "Damage");
+  const context = await lockActiveHealthInTransaction(tx, characterId, npcKind);
+  const now = new Date();
+  await tx.update(campaignCharacterActiveHealth).set({ totalDamage: sql`${campaignCharacterActiveHealth.totalDamage} + ${amount}`, updatedAt: now }).where(eq(campaignCharacterActiveHealth.characterId, characterId));
+  for (const pool of context.anatomy.pools) {
+    await tx.insert(campaignCharacterActiveHealthPool).values({ characterId, poolKey: pool.key, poolNameSnapshot: pool.name, damage: amount, updatedAt: now }).onConflictDoUpdate({ target: [campaignCharacterActiveHealthPool.characterId, campaignCharacterActiveHealthPool.poolKey], set: { poolNameSnapshot: pool.name, damage: sql`${campaignCharacterActiveHealthPool.damage} + ${amount}`, updatedAt: now } });
+  }
+  return (await readActiveHealthInTransaction(tx, characterId, npcKind)).view;
+}
+
+export async function damageAreaInTransaction(
+  tx: ActiveHealthTransaction,
+  characterId: number,
+  npcKind: string,
+  poolKey: string,
+  amountInput: number,
+): Promise<ActiveHealthView> {
+  await assertCharacterCombatWritableInTransaction(tx, characterId);
+  const amount = positiveAmount(amountInput, "Damage");
+  const context = await lockActiveHealthInTransaction(tx, characterId, npcKind);
+  const pool = context.anatomy.pools.find((entry) => entry.key === poolKey);
+  if (!pool) throw new Error(`HP Pool ${JSON.stringify(poolKey)} is not part of the current anatomy.`);
+  const now = new Date();
+  await tx.update(campaignCharacterActiveHealth).set({ totalDamage: sql`${campaignCharacterActiveHealth.totalDamage} + ${amount}`, updatedAt: now }).where(eq(campaignCharacterActiveHealth.characterId, characterId));
+  await tx.insert(campaignCharacterActiveHealthPool).values({ characterId, poolKey: pool.key, poolNameSnapshot: pool.name, damage: amount, updatedAt: now }).onConflictDoUpdate({ target: [campaignCharacterActiveHealthPool.characterId, campaignCharacterActiveHealthPool.poolKey], set: { poolNameSnapshot: pool.name, damage: sql`${campaignCharacterActiveHealthPool.damage} + ${amount}`, updatedAt: now } });
+  return (await readActiveHealthInTransaction(tx, characterId, npcKind)).view;
+}
+
 export async function addInjuryInTransaction(
   tx: ActiveHealthTransaction,
   command: AddInjuryCommand,

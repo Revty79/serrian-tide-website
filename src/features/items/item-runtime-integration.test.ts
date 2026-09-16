@@ -39,9 +39,10 @@ test("Item read/save and variant-copy pipelines include one atomic runtime defin
   }
 });
 
-test("Item editor exposes Effects to both catalogs without adding Item execution", () => {
+test("Item editor exposes Abilities and legacy behavior without adding Item execution", () => {
   const workspace = source("src/app/heavens/items/item-workspace.tsx");
-  assert.match(workspace, /\{ id: "effects", label: "Effects" \}/);
+  assert.match(workspace, /\{ id: "abilities", label: "Abilities" \}/);
+  assert.match(workspace, /Advanced \/ Legacy Item Use/);
   assert.match(workspace, /Magical Item/);
   assert.match(workspace, /Maximum Charges/);
   assert.match(workspace, /Quantity Consumed Per Use/);
