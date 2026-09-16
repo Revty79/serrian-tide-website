@@ -188,6 +188,7 @@ export const itemPower = pgTable(
     requiredEquipmentState: text("required_equipment_state"),
     resolutionMode: text("resolution_mode").default("automatic").notNull(),
     fixedRollTarget: integer("fixed_roll_target"),
+    fixedPowerLevel: text("fixed_power_level"),
     sortOrder: integer("sort_order").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),

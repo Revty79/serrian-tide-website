@@ -41,6 +41,7 @@ function power(overrides: Partial<ItemPower> = {}): ItemPower {
     requiredEquipmentState: null,
     resolutionMode: "automatic",
     fixedRollTarget: null,
+    fixedPowerLevel: null,
     source: null,
     customConstruction: null,
     effects: [],

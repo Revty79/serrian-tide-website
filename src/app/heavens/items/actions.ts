@@ -744,6 +744,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     requiredEquipmentState: power.requiredEquipmentState as ItemPower["requiredEquipmentState"],
     resolutionMode: power.resolutionMode as ItemPower["resolutionMode"],
     fixedRollTarget: power.fixedRollTarget,
+    fixedPowerLevel: power.fixedPowerLevel,
     source: sourceSkillId && sourceSkillName && sourceKind && sourceExtensionType && sourceSchemaVersion
       ? { sourceSkillId, sourceSkillName, sourceKind: "spell-construction" as const, sourceExtensionType: "spell-construction" as const, sourceSchemaVersion, fixedPowerLevel, archived: sourceArchivedAt !== null }
       : null,
@@ -1072,6 +1073,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         requiredEquipmentState: power.requiredEquipmentState,
         resolutionMode: power.resolutionMode,
         fixedRollTarget: power.fixedRollTarget,
+        fixedPowerLevel: power.fixedPowerLevel,
         sortOrder: power.sortOrder,
       }).returning({ id: itemPower.id });
       const encodedPowerEffects = power.effects.map((entry, sortOrder) => ({

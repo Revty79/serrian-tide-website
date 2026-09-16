@@ -1,0 +1,1 @@
+ALTER TABLE "item_powers" ADD COLUMN "fixed_power_level" text;

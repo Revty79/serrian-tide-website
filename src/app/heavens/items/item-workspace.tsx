@@ -970,6 +970,7 @@ function newPower(sortOrder: number): ItemPower {
     requiredEquipmentState: null,
     resolutionMode: "automatic",
     fixedRollTarget: null,
+    fixedPowerLevel: null,
     source: null,
     customConstruction: null,
     effects: [],
@@ -1005,6 +1006,7 @@ function Powers({ draft, references, onChange }: { draft: ItemDraft; references:
         {power.resolutionMode === "fixed-roll" ? <Field label="Fixed Roll Target"><OptionalNumber value={power.fixedRollTarget} min={1} step={1} onChange={(fixedRollTarget) => patch(index, { fixedRollTarget })} /></Field> : null}
         <Field label="Canonical Source" wide><select value={power.source?.sourceSkillId ?? ""} onChange={(event) => { const source = references.powerSources.find((candidate) => candidate.skillId === Number(event.target.value)); patch(index, { source: source ? { sourceSkillId: source.skillId, sourceSkillName: source.skillName, sourceExtensionType: "spell-construction", sourceSchemaVersion: source.schemaVersion, fixedPowerLevel: null, archived: source.archived } : null }); }}><option value="">No Canonical Source</option>{references.powerSources.map((source) => <option key={source.skillId} value={source.skillId} disabled={source.archived}>{source.skillName}{source.archived ? " · Archived" : ""}</option>)}</select></Field>
         {power.source ? <Field label="Fixed Item Power Level"><select value={power.source.fixedPowerLevel ?? ""} onChange={(event) => patch(index, { source: { ...power.source!, fixedPowerLevel: event.target.value || null } })}><option value="">Not configured</option>{PRACTITIONER_LEVELS.map((level) => <option key={level}>{level}</option>)}</select></Field> : null}
+        {power.customConstruction ? <Field label="Fixed Custom Magic Power Level"><select value={power.fixedPowerLevel ?? ""} onChange={(event) => patch(index, { fixedPowerLevel: event.target.value || null })}><option value="">Not configured</option>{PRACTITIONER_LEVELS.map((level) => <option key={level}>{level}</option>)}</select></Field> : null}
         <Field label="Description / Authoring Notes" wide><textarea rows={3} value={power.description} onChange={(event) => patch(index, { description: event.target.value })} /></Field>
       </div>
       <div className="item-power-construction"><SectionHeading eyebrow="MAGIC APPROACH" title="Custom Magic Construction" action={power.customConstruction ? "Remove Custom Magic" : "Build Custom Magic"} onAction={() => patch(index, { customConstruction: power.customConstruction ? null : { document: { ...createEmptySpell(), name: power.name || "Item Power" } } })} />{power.customConstruction ? <SpellConstructionEditor document={power.customConstruction.document} onChange={(document) => patch(index, { customConstruction: { document } })} findFrameworkSkills={listSpellFrameworkSkills} /> : <p className="item-editor-help">Build a unique Spell Construction owned by this Power. Its calculated Mana and normal casting time are source information only; Item Initiative and resource costs remain authoritative.</p>}</div>

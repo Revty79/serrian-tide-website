@@ -386,6 +386,13 @@
       "when": 1789595299238,
       "tag": "0054_item_power_custom_magic",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1789595514802,
+      "tag": "0055_item_power_fixed_level",
+      "breakpoints": true
     }
   ]
 }

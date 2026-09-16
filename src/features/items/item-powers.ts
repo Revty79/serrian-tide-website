@@ -52,6 +52,7 @@ export type ItemPower = {
   requiredEquipmentState: PassiveRequiredEquipmentState | null;
   resolutionMode: ItemPowerResolutionMode;
   fixedRollTarget: number | null;
+  fixedPowerLevel: string | null;
   source: ItemPowerSource | null;
   customConstruction: ItemPowerCustomConstruction | null;
   effects: ItemPowerEffect[];
@@ -100,6 +101,7 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
       throw new Error(`Power ${name} cannot define an amount with no resource cost.`);
     }
     const fixedRollTarget = power.resolutionMode === "fixed-roll" ? positiveWhole(power.fixedRollTarget, `Power ${name} Roll Target`) : null;
+    if (power.fixedPowerLevel !== null && !["Apprentice", "Novice", "Master", "High Master", "Grand Master"].includes(power.fixedPowerLevel)) throw new Error(`Power ${name} Fixed Power Level is invalid.`);
     let customConstruction: ItemPowerCustomConstruction | null = null;
     if (power.customConstruction) {
       const document = parseSpellDocument(JSON.stringify(power.customConstruction.document));
@@ -126,6 +128,7 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
       resourceCostAmount: power.resourceCostKind === "none" ? null : power.resourceCostAmount,
       requiredEquipmentState: power.trigger === "passive" ? power.requiredEquipmentState : null,
       fixedRollTarget,
+      fixedPowerLevel: power.fixedPowerLevel,
       customConstruction,
       effects,
       sortOrder: index,
