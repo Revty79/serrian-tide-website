@@ -252,10 +252,10 @@ function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAd
     });
   };
 
-  return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" /><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /><div className="campaign-selection-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
+  return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" /><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /><div className="campaign-selection-grid">
     <RaceColumn title="All Races" subtitle="Global active catalog" entries={filtered} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} isSelectable={true} />
     <RaceColumn title="Campaign Races" subtitle="World availability" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} isSelectable={true} />
-    <RaceColumn title="Playable Races" subtitle="Character creation subset" entries={filtered.filter((race) => isPlayableRace(race.id))} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} isSelectable={true} />
+    <RaceColumn title="Playable Races" subtitle="Character creation subset" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} isSelectable={true} />
   </div></div>;
 }
 

@@ -436,20 +436,27 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     const existingCampaignRaceRows = await tx.select({ id: campaignRace.raceId })
       .from(campaignRace)
       .where(eq(campaignRace.campaignId, input.id));
-    const requestedRaceIds = [...new Set([...campaignRaceIds, ...raceIds])];
-    const activeRaceRows = requestedRaceIds.length
+    const existingAllowedRaceRows = await tx.select({ id: campaignAllowedRace.raceId })
+      .from(campaignAllowedRace)
+      .where(eq(campaignAllowedRace.campaignId, input.id));
+    const campaignRaceValidationIds = [...new Set([...existingCampaignRaceRows.map(({ id }) => id), ...campaignRaceIds])];
+    const allowedRaceValidationIds = [...new Set([...existingAllowedRaceRows.map(({ id }) => id), ...raceIds])];
+    const activeCampaignRaceRows = campaignRaceValidationIds.length
       ? await tx.select({ id: race.id })
           .from(race)
-          .where(and(inArray(race.id, requestedRaceIds), isNull(race.archivedAt)))
+          .where(and(inArray(race.id, campaignRaceValidationIds), isNull(race.archivedAt)))
       : [];
-    const activeRaceIds = new Set([
-      ...existingCampaignRaceRows.map(({ id }) => id),
-      ...activeRaceRows.map(({ id }) => id),
-    ]);
-    if (campaignRaceIds.some((id) => !activeRaceIds.has(id))) {
+    const activeAllowedRaceRows = allowedRaceValidationIds.length
+      ? await tx.select({ id: race.id })
+          .from(race)
+          .where(and(inArray(race.id, allowedRaceValidationIds), isNull(race.archivedAt)))
+      : [];
+    const activeCampaignRaceIds = new Set(activeCampaignRaceRows.map(({ id }) => id));
+    const activeAllowedRaceIds = new Set(activeAllowedRaceRows.map(({ id }) => id));
+    if (campaignRaceIds.some((id) => !activeCampaignRaceIds.has(id) && !existingCampaignRaceRows.some(({ id: existingId }) => existingId === id))) {
       throw new Error("An archived or unavailable Race cannot be newly added to Campaign Races.");
     }
-    if (raceIds.some((id) => !activeRaceIds.has(id))) {
+    if (raceIds.some((id) => !activeAllowedRaceIds.has(id) && !existingAllowedRaceRows.some(({ id: existingId }) => existingId === id))) {
       throw new Error("An archived or unavailable Race cannot be newly authorized for Character Creation.");
     }
 

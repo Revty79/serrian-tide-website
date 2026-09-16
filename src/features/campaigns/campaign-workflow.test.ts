@@ -156,6 +156,23 @@ test("Campaign deck distinguishes Campaign Races from Playable Races", () => {
   assert.match(workspaceSource, /Campaign Races|Playable Races|All Races/);
 });
 
+test("Campaign race workspace keeps the Playable column aligned to the Campaign set", () => {
+  const workspaceSource = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
+
+  assert.match(workspaceSource, /title="Playable Races"/);
+  assert.match(workspaceSource, /entries=\{filtered\.filter\(\(race\) => isCampaignRace\(race\.id\)\)\}/);
+  assert.doesNotMatch(workspaceSource, /entries=\{filtered\.filter\(\(race\) => isPlayableRace\(race\.id\)\)\}/);
+});
+
+test("Campaign race validation preserves existing memberships before enforcing new archived checks", () => {
+  const adminActionSource = readSource("src/app/heavens/campaigns/actions.ts");
+
+  assert.match(adminActionSource, /existingCampaignRaceRows/);
+  assert.match(adminActionSource, /existingAllowedRaceRows/);
+  assert.match(adminActionSource, /campaignRaceValidationIds/);
+  assert.match(adminActionSource, /allowedRaceValidationIds/);
+});
+
 test("Campaign race invariant is enforced by state and migration backfill", () => {
   const migration = readSource("drizzle/0052_campaign_race_layer.sql");
   const createFormSource = readSource("src/app/heavens/campaigns/new/campaign-create-form.tsx");

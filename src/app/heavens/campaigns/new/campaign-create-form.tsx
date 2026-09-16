@@ -284,7 +284,7 @@ export function CampaignCreateForm({
           <RaceAvailabilityColumn
             title="Playable Races"
             subtitle="Player-selectable subset"
-            entries={filteredRaces.filter((entry) => allowedRaceIds.includes(entry.id))}
+            entries={filteredRaces.filter((entry) => campaignRaceIds.includes(entry.id))}
             selectedIds={allowedRaceIds}
             onToggle={(id) => {
               togglePlayableRace(id);
