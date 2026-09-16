@@ -27,6 +27,9 @@ import {
   itemArmorDamageModifier,
   itemEffect,
   itemPassiveEffect,
+  itemPower,
+  itemPowerEffect,
+  itemPowerSource,
   itemProperty,
   itemRuntimeProfile,
   itemTagCatalog,
@@ -37,7 +40,7 @@ import {
   type EquipmentCatalogGroup,
   type ItemCatalogScope,
 } from "@/db/item-schema";
-import { skill, skillRelationship } from "@/db/skill-schema";
+import { skill, skillExtension, skillRelationship } from "@/db/skill-schema";
 import { campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   copyPassiveItemEffects,
@@ -82,6 +85,13 @@ import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import { magazineProfile, magazineAmmunition, weaponMagazine } from "@/db/magazine-schema";
 import { saveMagazineCatalogInTransaction, type MagazineProfileDraft } from "@/features/items/magazine-catalog-service";
+import {
+  copyItemPowers,
+  validateItemPowers,
+  type ItemPower,
+} from "@/features/items/item-powers";
+import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
+import { PRACTITIONER_LEVELS, type PractitionerLevel } from "@/features/spell-construction/models/rules";
 
 export type ItemLibraryFilters = {
   catalogScope: ItemCatalogScope;
@@ -138,6 +148,14 @@ export type ItemAuthoringReferences = {
     secondaryAttribute: string | null;
     canonicalPath: CanonicalSkillPathValidation;
   }>;
+  powerSources: Array<{
+    skillId: number;
+    skillName: string;
+    extensionType: "spell-construction";
+    schemaVersion: number;
+    progressive: boolean;
+    archived: boolean;
+  }>;
 };
 
 export type RelatedItemCandidate = {
@@ -163,6 +181,7 @@ export type ItemDraft = {
   runtimeProfile: ItemRuntimeProfile;
   effects: MechanicalEffect[];
   passiveEffects: ItemPassiveEffectDefinition[];
+  powers: ItemPower[];
   core: {
     canonicalId: string;
     name: string;
@@ -289,6 +308,11 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
   const passiveEffects = input.passiveEffects.map((entry) => validatePassiveItemEffect(entry));
   const passiveIds = passiveEffects.flatMap(({ id }) => id === null ? [] : [id]);
   if (new Set(passiveIds).size !== passiveIds.length) throw new Error("Passive Effect identities cannot be duplicated.");
+  const powers = validateItemPowers({
+    powers: input.powers,
+    hasWeaponProfile: input.weaponProfile !== null,
+    hasChargePool: input.runtimeProfile.useMode === "charges" && input.runtimeProfile.maximumCharges !== null,
+  });
 
   const properties = input.properties.map((row, sortOrder) => {
     const relatedItemId = row.relationKind === "item" ? row.relatedItemId : null;
@@ -363,6 +387,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
   return {
     ...runtimeValidation.definition,
     passiveEffects,
+    powers,
     core: {
       canonicalId: input.id
         ? required(input.core.canonicalId, "Item ID").toLocaleUpperCase("en-US")
@@ -476,7 +501,7 @@ export async function listItemAuthoringReferences(
         .where(eq(weaponProfile.itemId, forItemId))
     : [];
   const preservedSkillIds = new Set(preservedSkillRows.map(({ id }) => id));
-  const [tags, locations, allSkills, relationships] = await Promise.all([
+  const [tags, locations, allSkills, relationships, sourceRows] = await Promise.all([
     db.select({ name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),
     db.select({ key: armorLocationReference.locationCode, label: armorLocationReference.locationName }).from(armorLocationReference).orderBy(asc(armorLocationReference.sortOrder)),
     db.select({
@@ -495,6 +520,17 @@ export async function listItemAuthoringReferences(
       relationshipType: skillRelationship.relationshipType,
       sortOrder: skillRelationship.sortOrder,
     }).from(skillRelationship).orderBy(asc(skillRelationship.id)),
+    db.select({
+      skillId: skillExtension.skillId,
+      extensionType: skillExtension.extensionType,
+      schemaVersion: skillExtension.schemaVersion,
+      dataJson: skillExtension.dataJson,
+      skillName: skill.name,
+      archivedAt: skill.archivedAt,
+    }).from(skillExtension)
+      .innerJoin(skill, eq(skill.id, skillExtension.skillId))
+      .where(eq(skillExtension.extensionType, "spell-construction"))
+      .orderBy(asc(skill.name), asc(skill.id)),
   ]);
   return {
     tags,
@@ -510,6 +546,22 @@ export async function listItemAuthoringReferences(
         secondaryAttribute: candidate.secondaryAttribute,
         canonicalPath: validateCanonicalSkillPath(candidate.id, allSkills, relationships),
       })),
+    powerSources: sourceRows.map((source) => {
+      let progressive = false;
+      try {
+        progressive = Object.keys(parseSpellDocument(source.dataJson).progressive.milestones ?? {}).length > 0;
+      } catch {
+        progressive = false;
+      }
+      return {
+        skillId: source.skillId,
+        skillName: source.skillName,
+        extensionType: "spell-construction" as const,
+        schemaVersion: source.schemaVersion,
+        progressive,
+        archived: source.archivedAt !== null,
+      };
+    }),
   };
 }
 
@@ -576,7 +628,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     const [parent] = await db.select({ name: item.name }).from(item).where(eq(item.id, row.parentItemId)).limit(1);
     parentItemName = parent?.name ?? null;
   }
-  const [properties, weaponRows, firingModeRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows] = await Promise.all([
+  const [properties, weaponRows, firingModeRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows, powerRows] = await Promise.all([
     db.select().from(itemProperty).where(eq(itemProperty.itemId, id)).orderBy(asc(itemProperty.sortOrder), asc(itemProperty.id)),
     db.select().from(weaponProfile).where(eq(weaponProfile.itemId, id)).limit(1),
     db.select({
@@ -610,6 +662,20 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       effectJson: itemPassiveEffect.effectJson,
       sortOrder: itemPassiveEffect.sortOrder,
     }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id)).orderBy(asc(itemPassiveEffect.sortOrder), asc(itemPassiveEffect.id)),
+    db.select({
+      power: itemPower,
+      sourceSkillName: skill.name,
+      sourceArchivedAt: skill.archivedAt,
+      sourceSchemaVersion: itemPowerSource.sourceSchemaVersion,
+      sourceKind: itemPowerSource.sourceKind,
+      sourceSkillId: itemPowerSource.sourceSkillId,
+      sourceExtensionType: itemPowerSource.sourceExtensionType,
+      fixedPowerLevel: itemPowerSource.fixedPowerLevel,
+    }).from(itemPower)
+      .leftJoin(itemPowerSource, eq(itemPowerSource.itemPowerId, itemPower.id))
+      .leftJoin(skill, eq(skill.id, itemPowerSource.sourceSkillId))
+      .where(eq(itemPower.itemId, id))
+      .orderBy(asc(itemPower.sortOrder), asc(itemPower.id)),
   ]);
   const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
   const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
@@ -655,6 +721,30 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     requiredEquipmentState: entry.requiredEquipmentState as ItemPassiveEffectDefinition["requiredEquipmentState"],
     effect: decodeMechanicalEffect({ schemaVersion: entry.schemaVersion, effectJson: entry.effectJson }),
   }));
+  const powerIds = powerRows.map(({ power }) => power.id);
+  const powerEffectRows = powerIds.length
+    ? await db.select().from(itemPowerEffect).where(inArray(itemPowerEffect.itemPowerId, powerIds)).orderBy(asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id))
+    : [];
+  const effectsByPower = new Map<number, typeof powerEffectRows>();
+  for (const effect of powerEffectRows) effectsByPower.set(effect.itemPowerId, [...(effectsByPower.get(effect.itemPowerId) ?? []), effect]);
+  const powers = powerRows.map(({ power, sourceSkillName, sourceArchivedAt, sourceSchemaVersion, sourceKind, sourceSkillId, sourceExtensionType, fixedPowerLevel }) => ({
+    id: power.id,
+    name: power.name,
+    description: power.description,
+    trigger: power.trigger as ItemPower["trigger"],
+    activationLabel: power.activationLabel,
+    initiativeCost: power.initiativeCost,
+    resourceCostKind: power.resourceCostKind as ItemPower["resourceCostKind"],
+    resourceCostAmount: power.resourceCostAmount,
+    requiredEquipmentState: power.requiredEquipmentState as ItemPower["requiredEquipmentState"],
+    resolutionMode: power.resolutionMode as ItemPower["resolutionMode"],
+    fixedRollTarget: power.fixedRollTarget,
+    source: sourceSkillId && sourceSkillName && sourceKind && sourceExtensionType && sourceSchemaVersion
+      ? { sourceSkillId, sourceSkillName, sourceKind: "spell-construction" as const, sourceExtensionType: "spell-construction" as const, sourceSchemaVersion, fixedPowerLevel, archived: sourceArchivedAt !== null }
+      : null,
+    effects: (effectsByPower.get(power.id) ?? []).map((effect) => ({ id: effect.id, effect: decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }) })),
+    sortOrder: power.sortOrder,
+  }));
   return {
     id: row.id,
     createdByUserId: row.createdByUserId,
@@ -664,6 +754,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     runtimeProfile: runtimeValidation.profile,
     effects,
     passiveEffects,
+    powers,
     core: {
       canonicalId: row.canonicalId, name: row.name, catalogScope: row.catalogScope as ItemCatalogScope,
       equipmentGroup: row.equipmentGroup as EquipmentCatalogGroup | null, recordType: row.recordType, family: row.family,
@@ -917,6 +1008,37 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
     await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
     await tx.delete(itemEffect).where(eq(itemEffect.itemId, id));
     await tx.delete(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id));
+    const existingPowerSources = await tx.select({
+      itemPowerId: itemPowerSource.itemPowerId,
+      sourceSkillId: itemPowerSource.sourceSkillId,
+    }).from(itemPowerSource)
+      .innerJoin(itemPower, eq(itemPower.id, itemPowerSource.itemPowerId))
+      .where(eq(itemPower.itemId, id!));
+    const existingSourceByPowerId = new Map(existingPowerSources.map((entry) => [entry.itemPowerId, entry.sourceSkillId]));
+    const sourceSkillIds = normalized.powers.flatMap((power) => power.source ? [power.source.sourceSkillId] : []);
+    if (sourceSkillIds.length) {
+      const sourceRows = await tx.select({
+        skillId: skillExtension.skillId,
+        schemaVersion: skillExtension.schemaVersion,
+        dataJson: skillExtension.dataJson,
+        archivedAt: skill.archivedAt,
+      }).from(skillExtension)
+        .innerJoin(skill, eq(skill.id, skillExtension.skillId))
+        .where(and(
+          eq(skillExtension.extensionType, "spell-construction"),
+          inArray(skillExtension.skillId, [...new Set(sourceSkillIds)]),
+        ));
+      if (sourceRows.length !== new Set(sourceSkillIds).size) throw new Error("One or more canonical Power sources no longer exist.");
+      for (const power of normalized.powers) {
+        if (!power.source) continue;
+        const source = sourceRows.find((entry) => entry.skillId === power.source!.sourceSkillId);
+        const existingSource = power.id === null ? undefined : existingSourceByPowerId.get(power.id);
+        if (!source || (source.archivedAt && existingSource !== source.skillId)) throw new Error("Archived canonical Power sources cannot be newly selected.");
+        try { parseSpellDocument(source.dataJson); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
+        if (power.source.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.source.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
+      }
+    }
+    await tx.delete(itemPower).where(eq(itemPower.itemId, id!));
 
     await tx.insert(itemRuntimeProfile).values({
       itemId: id!,
@@ -928,6 +1050,37 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         itemId: id!,
         ...effect,
       })));
+    }
+    for (const power of normalized.powers) {
+      const [savedPower] = await tx.insert(itemPower).values({
+        itemId: id!,
+        name: power.name,
+        description: power.description,
+        trigger: power.trigger,
+        activationLabel: power.activationLabel,
+        initiativeCost: power.initiativeCost,
+        resourceCostKind: power.resourceCostKind,
+        resourceCostAmount: power.resourceCostAmount,
+        requiredEquipmentState: power.requiredEquipmentState,
+        resolutionMode: power.resolutionMode,
+        fixedRollTarget: power.fixedRollTarget,
+        sortOrder: power.sortOrder,
+      }).returning({ id: itemPower.id });
+      const encodedPowerEffects = power.effects.map((entry, sortOrder) => ({
+        itemPowerId: savedPower.id,
+        schemaVersion: encodeMechanicalEffect(entry.effect).schemaVersion,
+        effectJson: encodeMechanicalEffect(entry.effect).effectJson,
+        sortOrder,
+      }));
+      if (encodedPowerEffects.length) await tx.insert(itemPowerEffect).values(encodedPowerEffects);
+      if (power.source) await tx.insert(itemPowerSource).values({
+        itemPowerId: savedPower.id,
+        sourceKind: "spell-construction",
+        sourceSkillId: power.source.sourceSkillId,
+        sourceExtensionType: "spell-construction",
+        sourceSchemaVersion: power.source.sourceSchemaVersion,
+        fixedPowerLevel: power.source.fixedPowerLevel,
+      });
     }
     const storedPassiveRows = await tx.select({ id: itemPassiveEffect.id }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));
     const storedPassiveIds = new Set(storedPassiveRows.map(({ id: passiveId }) => passiveId));
@@ -1118,6 +1271,7 @@ export async function createItemVariant(parentItemId: number, variantName: strin
     } : null,
     armorProfile: parent.armorProfile ? { ...parent.armorProfile, damageModifiers: parent.armorProfile.damageModifiers.map((row) => ({ ...row })), coveredBodyLocationKeys: [...parent.armorProfile.coveredBodyLocationKeys] } : null,
     tags: [...parent.tags],
+    powers: copyItemPowers(parent.powers),
     variants: [],
   };
   return saveItemDefinition(clone, true);

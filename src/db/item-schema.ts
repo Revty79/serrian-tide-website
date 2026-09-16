@@ -173,6 +173,75 @@ export const itemPassiveEffect = pgTable(
   ],
 );
 
+export const itemPower = pgTable(
+  "item_powers",
+  {
+    id: serial("id").primaryKey(),
+    itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").default("").notNull(),
+    trigger: text("trigger").notNull(),
+    activationLabel: text("activation_label").default("Activate").notNull(),
+    initiativeCost: doublePrecision("initiative_cost"),
+    resourceCostKind: text("resource_cost_kind").default("none").notNull(),
+    resourceCostAmount: integer("resource_cost_amount"),
+    requiredEquipmentState: text("required_equipment_state"),
+    resolutionMode: text("resolution_mode").default("automatic").notNull(),
+    fixedRollTarget: integer("fixed_roll_target"),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("item_powers_item_order_idx").on(table.itemId, table.sortOrder, table.id),
+    check("item_powers_name_nonblank", sql`length(trim(${table.name})) > 0`),
+    check("item_powers_trigger_valid", sql`${table.trigger} IN ('activated','passive','weapon-hit')`),
+    check("item_powers_resource_kind_valid", sql`${table.resourceCostKind} IN ('none','shared-charges','consume-item')`),
+    check("item_powers_resolution_valid", sql`${table.resolutionMode} IN ('automatic','weapon-hit','fixed-roll','manual')`),
+    check("item_powers_initiative_valid", sql`${table.initiativeCost} IS NULL OR ${table.initiativeCost} >= 0`),
+    check("item_powers_resource_amount_valid", sql`${table.resourceCostAmount} IS NULL OR ${table.resourceCostAmount} > 0`),
+    check("item_powers_roll_target_valid", sql`${table.fixedRollTarget} IS NULL OR ${table.fixedRollTarget} > 0`),
+    check("item_powers_sort_order_valid", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export const itemPowerEffect = pgTable(
+  "item_power_effects",
+  {
+    id: serial("id").primaryKey(),
+    itemPowerId: integer("item_power_id").notNull().references(() => itemPower.id, { onDelete: "cascade" }),
+    schemaVersion: integer("schema_version").notNull(),
+    effectJson: jsonb("effect_json").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+  },
+  (table) => [
+    uniqueIndex("item_power_effects_order_uq").on(table.itemPowerId, table.sortOrder),
+    index("item_power_effects_power_idx").on(table.itemPowerId),
+    check("item_power_effects_schema_version_valid", sql`${table.schemaVersion} > 0`),
+    check("item_power_effects_sort_order_valid", sql`${table.sortOrder} >= 0`),
+    check("item_power_effects_json_object", sql`jsonb_typeof(${table.effectJson}) = 'object'`),
+  ],
+);
+
+export const itemPowerSource = pgTable(
+  "item_power_sources",
+  {
+    itemPowerId: integer("item_power_id").primaryKey().references(() => itemPower.id, { onDelete: "cascade" }),
+    sourceKind: text("source_kind").notNull(),
+    sourceSkillId: integer("source_skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+    sourceExtensionType: text("source_extension_type").notNull(),
+    sourceSchemaVersion: integer("source_schema_version").notNull(),
+    fixedPowerLevel: text("fixed_power_level"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    check("item_power_sources_kind_valid", sql`${table.sourceKind} = 'spell-construction'`),
+    check("item_power_sources_extension_valid", sql`${table.sourceExtensionType} = 'spell-construction'`),
+    check("item_power_sources_schema_valid", sql`${table.sourceSchemaVersion} > 0`),
+  ],
+);
+
 export const weaponProfile = pgTable(
   "weapon_profiles",
   {
