@@ -469,3 +469,10 @@ test("Character editor uses the recursive final workflow, authorized store, and 
   assert.match(guided, />Surprise Me<\/option>/);
   assert.match(guided, /raceId: raceId \? Number\(raceId\) : null/);
 });
+
+test("character race actions keep Player, Race NPC, and Creature NPC sources distinct", () => {
+  const actions = readSource("src/app/characters/actions.ts");
+  assert.match(actions, /const effectiveAllowedRaceRows = core\.isNpc\s*\?\s*core\.npcKind === "race"\s*\?\s*campaignRaceRows\s*:\s*\[\]\s*:\s*allowedRaceRows;/);
+  assert.match(actions, /if \(characterRow\.isNpc && characterRow\.npcKind === "creature"\) \{[\s\S]*?throw new Error\("Creature NPCs do not use Race selection\."\);/);
+  assert.match(actions, /const raceSource = characterRow\.isNpc && characterRow\.npcKind === "race" \? campaignRace : campaignAllowedRace;/);
+});

@@ -819,7 +819,11 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     if (extension.extensionType === "spell-construction") spellDocuments.set(extension.skillId, extension.dataJson);
   }
 
-  const effectiveAllowedRaceRows = core.isNpc ? campaignRaceRows : allowedRaceRows;
+  const effectiveAllowedRaceRows = core.isNpc
+    ? core.npcKind === "race"
+      ? campaignRaceRows
+      : []
+    : allowedRaceRows;
   const selectedRace = profileRow.raceId === null ? null : await readRaceAggregate(profileRow.raceId);
   if (profileRow.raceId !== null && !effectiveAllowedRaceRows.some(({ id }) => id === profileRow.raceId)) {
     throw new Error("The Character references a Race that is not allowed by its Campaign.");
@@ -1093,9 +1097,12 @@ export async function getAllowedRaceForCharacter(
     throw new Error("Choose a saved Race.");
   }
   const { row } = await requireCharacterAccess(characterId, godMode);
-  const [characterRow] = await db.select({ isNpc: campaignCharacter.isNpc }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId)).limit(1);
+  const [characterRow] = await db.select({ isNpc: campaignCharacter.isNpc, npcKind: campaignCharacter.npcKind }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId)).limit(1);
   if (!characterRow) throw new Error("Character not found.");
-  const raceSource = characterRow.isNpc ? campaignRace : campaignAllowedRace;
+  if (characterRow.isNpc && characterRow.npcKind === "creature") {
+    throw new Error("Creature NPCs do not use Race selection.");
+  }
+  const raceSource = characterRow.isNpc && characterRow.npcKind === "race" ? campaignRace : campaignAllowedRace;
   const [allowed] = await db
     .select({ raceId: raceSource.raceId })
     .from(raceSource)
