@@ -39,6 +39,28 @@ export const CHARACTER_ATTRIBUTE_KEYS = [
 
 export type CharacterAttributeKey = (typeof CHARACTER_ATTRIBUTE_KEYS)[number];
 
+export const campaignRace = pgTable(
+  "campaign_race",
+  {
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    raceId: integer("race_id")
+      .notNull()
+      .references(() => race.id, { onDelete: "restrict" }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.campaignId, table.raceId] }),
+    uniqueIndex("campaign_race_order_uq").on(
+      table.campaignId,
+      table.sortOrder,
+    ),
+    index("campaign_race_race_idx").on(table.raceId, table.campaignId),
+    check("campaign_race_order_valid", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
 export const campaignAllowedRace = pgTable(
   "campaign_allowed_race",
   {

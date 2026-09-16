@@ -24,6 +24,7 @@ import {
   campaignAllowedRace,
   campaignInventoryItem,
   campaignInventoryTag,
+  campaignRace,
 } from "@/db/realm-schema";
 import { auth } from "@/lib/auth";
 
@@ -229,7 +230,11 @@ export async function createCampaign(formData: FormData) {
       (typeof campaignSystem.enumValues)[number];
   });
 
+  const campaignRaceIds = readPositiveIntegerList(formData, "campaignRaceIds");
   const allowedRaceIds = readPositiveIntegerList(formData, "allowedRaceIds");
+  if (allowedRaceIds.some((id) => !campaignRaceIds.includes(id))) {
+    throw new Error("Playable Races must always be a subset of Campaign Races.");
+  }
   const inventoryTagIds = readPositiveIntegerList(formData, "inventoryTagIds");
   const explicitInventoryItemIds = readPositiveIntegerList(
     formData,
@@ -241,9 +246,9 @@ export async function createCampaign(formData: FormData) {
   );
 
   const [validRaces, validTags, validItems] = await Promise.all([
-    allowedRaceIds.length
+    campaignRaceIds.length
       ? db.select({ id: race.id }).from(race).where(and(
-          inArray(race.id, allowedRaceIds),
+          inArray(race.id, campaignRaceIds),
           isNull(race.archivedAt),
         ))
       : [],
@@ -264,8 +269,20 @@ export async function createCampaign(formData: FormData) {
       : [],
   ]);
 
-  if (validRaces.length !== allowedRaceIds.length) {
-    throw new Error("An Allowed Race is no longer available.");
+  if (validRaces.length !== campaignRaceIds.length) {
+    throw new Error("A Campaign Race is no longer available.");
+  }
+
+  const validPlayableRaces = await (
+    allowedRaceIds.length
+      ? db.select({ id: race.id }).from(race).where(and(
+          inArray(race.id, allowedRaceIds),
+          isNull(race.archivedAt),
+        ))
+      : Promise.resolve([])
+  );
+  if (validPlayableRaces.length !== allowedRaceIds.length) {
+    throw new Error("A Playable Race is no longer available.");
   }
 
   if (validTags.length !== inventoryTagIds.length) {
@@ -451,6 +468,16 @@ export async function createCampaign(formData: FormData) {
             }),
           ),
         );
+    }
+
+    if (campaignRaceIds.length > 0) {
+      await tx.insert(campaignRace).values(
+        campaignRaceIds.map((raceId, sortOrder) => ({
+          campaignId: createdCampaign.id,
+          raceId,
+          sortOrder,
+        })),
+      );
     }
 
     if (allowedRaceIds.length > 0) {

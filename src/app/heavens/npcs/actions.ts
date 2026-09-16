@@ -17,6 +17,7 @@ import { race } from "@/db/race-schema";
 import {
   campaignAllowedRace,
   campaignCharacter,
+  campaignRace,
   campaignCharacterActiveHealthPool,
   campaignCharacterAttribute,
   campaignCharacterInjury,
@@ -296,13 +297,13 @@ export async function listNpcOrigins(campaignId: number): Promise<NpcOriginOptio
     id: race.id,
     name: race.name,
     detail: race.size,
-  }).from(campaignAllowedRace)
-    .innerJoin(race, eq(race.id, campaignAllowedRace.raceId))
+  }).from(campaignRace)
+    .innerJoin(race, eq(race.id, campaignRace.raceId))
     .where(and(
-      eq(campaignAllowedRace.campaignId, campaignId),
+      eq(campaignRace.campaignId, campaignId),
       isNull(race.archivedAt),
     ))
-    .orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name), asc(race.id));
+    .orderBy(asc(campaignRace.sortOrder), asc(race.name), asc(race.id));
   const creatureRows = await db.select({
     id: creature.id,
     name: creature.canonicalName,
@@ -391,14 +392,14 @@ export async function createNpc(input: CreateNpcValues): Promise<CreateNpcResult
       if (!source) {
         throw new Error("The selected origin Race is archived or no longer exists.");
       }
-      const [allowed] = await tx.select({ raceId: campaignAllowedRace.raceId })
-        .from(campaignAllowedRace)
+      const [allowed] = await tx.select({ raceId: campaignRace.raceId })
+        .from(campaignRace)
         .where(and(
-          eq(campaignAllowedRace.campaignId, normalized.campaignId),
-          eq(campaignAllowedRace.raceId, normalized.sourceId),
+          eq(campaignRace.campaignId, normalized.campaignId),
+          eq(campaignRace.raceId, normalized.sourceId),
         ))
         .limit(1);
-      if (!allowed) throw new Error("The selected origin Race is not allowed in this Campaign.");
+      if (!allowed) throw new Error("The selected origin Race is not in this Campaign's available race catalog.");
       const [created] = await tx.insert(campaignCharacter).values({
         campaignId: normalized.campaignId,
         playerUserId: manager.campaignOwnerUserId,

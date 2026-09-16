@@ -220,7 +220,46 @@ function Rules({ draft, onChange }: { draft: CampaignAdminDraft; onChange: (draf
 }
 
 function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAdminDraft; races: CampaignReferenceData["races"]; search: string; onSearch: (value: string) => void; onChange: (draft: CampaignAdminDraft) => void }) {
-  return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Allowed Races" /><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /><div className="campaign-selection-list">{races.map((race) => <label key={race.id} className={draft.allowedRaceIds.includes(race.id) ? "is-selected" : ""}><input type="checkbox" checked={draft.allowedRaceIds.includes(race.id)} onChange={(e) => onChange({ ...draft, allowedRaceIds: e.target.checked ? [...draft.allowedRaceIds, race.id] : draft.allowedRaceIds.filter((id) => id !== race.id) })} /><div><strong>{race.name}</strong><span>{race.size}</span></div></label>)}</div></div>;
+  const filtered = races.filter((race) => !search || race.name.toLowerCase().includes(search.toLowerCase()) || race.size.toLowerCase().includes(search.toLowerCase()));
+  const isCampaignRace = (raceId: number) => draft.campaignRaceIds.includes(raceId);
+  const isPlayableRace = (raceId: number) => draft.allowedRaceIds.includes(raceId);
+  const toggleCampaignRace = (raceId: number) => {
+    const nextCampaignRaceIds = isCampaignRace(raceId)
+      ? draft.campaignRaceIds.filter((id) => id !== raceId)
+      : [...draft.campaignRaceIds, raceId];
+    const nextPlayableRaceIds = isPlayableRace(raceId)
+      ? draft.allowedRaceIds.filter((id) => id !== raceId)
+      : draft.allowedRaceIds.includes(raceId)
+        ? draft.allowedRaceIds
+        : draft.allowedRaceIds;
+    onChange({
+      ...draft,
+      campaignRaceIds: nextCampaignRaceIds,
+      allowedRaceIds: nextCampaignRaceIds.includes(raceId)
+        ? nextPlayableRaceIds.includes(raceId)
+          ? nextPlayableRaceIds
+          : [...nextPlayableRaceIds, raceId]
+        : nextPlayableRaceIds.filter((id) => id !== raceId),
+    });
+  };
+  const togglePlayableRace = (raceId: number) => {
+    if (!isCampaignRace(raceId)) return;
+    onChange({
+      ...draft,
+      allowedRaceIds: isPlayableRace(raceId)
+        ? draft.allowedRaceIds.filter((id) => id !== raceId)
+        : [...draft.allowedRaceIds, raceId],
+    });
+  };
+  return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" /><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /><div className="campaign-selection-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
+    <RaceColumn title="All Races" subtitle="Global active catalog" entries={filtered} selectedIds={[]} onToggle={() => undefined} isSelectable={false} />
+    <RaceColumn title="Campaign Races" subtitle="World availability" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.campaignRaceIds} onToggle={toggleCampaignRace} isSelectable={true} />
+    <RaceColumn title="Playable Races" subtitle="Character creation subset" entries={filtered.filter((race) => isPlayableRace(race.id))} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} isSelectable={true} />
+  </div></div>;
+}
+
+function RaceColumn({ title, subtitle, entries, selectedIds, onToggle, isSelectable }: { title: string; subtitle: string; entries: CampaignReferenceData["races"]; selectedIds: number[]; onToggle: (raceId: number) => void; isSelectable: boolean }) {
+  return <div className="campaign-selection-column"><header><p>{title}</p><h4>{subtitle}</h4></header><div className="campaign-selection-list">{entries.length ? entries.map((race) => <label key={race.id} className={selectedIds.includes(race.id) ? "is-selected" : ""}><input type="checkbox" checked={selectedIds.includes(race.id)} disabled={!isSelectable} onChange={() => onToggle(race.id)} /><div><strong>{race.name}</strong><span>{race.size}</span></div></label>) : <p className="campaign-empty-state">No races match this filter.</p>}</div></div>;
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {

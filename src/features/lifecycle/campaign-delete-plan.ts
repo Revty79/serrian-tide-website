@@ -25,6 +25,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "firearm_magazine_attachment", scope: "campaign" },
   { tableName: "magazine_inventory_operation", scope: "character" },
   { tableName: "campaign_allowed_derived_ability", scope: "campaign" },
+  { tableName: "campaign_race", scope: "campaign" },
   { tableName: "campaign_allowed_race", scope: "campaign" },
   { tableName: "campaign_allowed_system", scope: "campaign" },
   { tableName: "campaign_character_active_health_pool", scope: "character" },

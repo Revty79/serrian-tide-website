@@ -52,6 +52,7 @@ export function CampaignCreateForm({
     ]);
 
   const [raceSearch, setRaceSearch] = useState("");
+  const [campaignRaceIds, setCampaignRaceIds] = useState<number[]>([]);
   const [selectedRaceIds, setSelectedRaceIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
@@ -66,6 +67,22 @@ export function CampaignCreateForm({
         )
       : references.races;
   }, [raceSearch, references.races]);
+
+  const availableRaceIds = filteredRaces.map(({ id }) => id);
+  const selectedCampaignRaceIds = campaignRaceIds.filter((id) => availableRaceIds.includes(id));
+  const selectedPlayableRaceIds = selectedRaceIds.filter((id) => availableRaceIds.includes(id));
+
+  function handleCampaignRaceToggle(raceId: number) {
+    const next = campaignRaceIds.includes(raceId)
+      ? campaignRaceIds.filter((id) => id !== raceId)
+      : [...campaignRaceIds, raceId];
+    setCampaignRaceIds(next);
+    setSelectedRaceIds((current) => current.filter((id) => !next.includes(id) || id === raceId ? true : false));
+    setSelectedRaceIds((current) => {
+      const playable = current.filter((id) => !next.includes(id) || id === raceId ? true : false);
+      return playable;
+    });
+  }
 
   function toggleId(
     id: number,
@@ -121,6 +138,9 @@ export function CampaignCreateForm({
       action={createCampaign}
       className="space-y-7"
     >
+      {campaignRaceIds.map((id) => (
+        <input key={`campaign-race-${id}`} type="hidden" name="campaignRaceIds" value={id} />
+      ))}
       {selectedRaceIds.map((id) => (
         <input key={`race-${id}`} type="hidden" name="allowedRaceIds" value={id} />
       ))}
@@ -207,6 +227,79 @@ export function CampaignCreateForm({
             label="Starting Credit Amount"
             name="startingCreditAmount"
             type="number"
+          />
+        </div>
+      </section>
+
+      {/* RACE AVAILABILITY */}
+      <section
+        className="
+          rounded-3xl
+          border
+          border-white/10
+          bg-black/35
+          p-6
+          shadow-2xl
+          backdrop-blur-md
+          sm:p-8
+        "
+      >
+        <p className="text-xs uppercase tracking-[0.14em] text-purple-200">
+          Race Availability
+        </p>
+        <h2 className="font-sans mt-2 text-3xl text-slate-100">
+          Campaign Race Workspace
+        </h2>
+        <div className="mt-5 flex flex-col gap-3">
+          <input
+            type="search"
+            value={raceSearch}
+            onChange={(event) => setRaceSearch(event.target.value)}
+            placeholder="Search global races"
+            className="w-full rounded-xl border border-white/15 bg-black/50 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-300/50"
+          />
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <RaceAvailabilityColumn
+            title="All Races"
+            subtitle="Global active catalog"
+            entries={filteredRaces}
+            selectedIds={[]}
+            onToggle={(id) => {
+              if (!campaignRaceIds.includes(id)) {
+                setCampaignRaceIds((current) => [...current, id]);
+              }
+            }}
+            isSelectable={false}
+          />
+
+          <RaceAvailabilityColumn
+            title="Campaign Races"
+            subtitle="Campaign-world races"
+            entries={filteredRaces.filter((entry) => campaignRaceIds.includes(entry.id))}
+            selectedIds={campaignRaceIds}
+            onToggle={(id) => {
+              const isSelected = campaignRaceIds.includes(id);
+              setCampaignRaceIds((current) => isSelected ? current.filter((candidate) => candidate !== id) : [...current, id]);
+              setSelectedRaceIds((current) => (isSelected ? current.filter((candidate) => candidate !== id) : current.includes(id) ? current : [...current, id]));
+            }}
+            isSelectable={true}
+          />
+
+          <RaceAvailabilityColumn
+            title="Playable Races"
+            subtitle="Player-selectable subset"
+            entries={filteredRaces.filter((entry) => selectedRaceIds.includes(entry.id))}
+            selectedIds={selectedRaceIds}
+            onToggle={(id) => {
+              if (selectedRaceIds.includes(id)) {
+                setSelectedRaceIds((current) => current.filter((candidate) => candidate !== id));
+              } else if (campaignRaceIds.includes(id)) {
+                setSelectedRaceIds((current) => [...current, id]);
+              }
+            }}
+            isSelectable={true}
           />
         </div>
       </section>

@@ -141,3 +141,17 @@ test("normal G.O.D. Character links no longer target the removed Settings workfl
   assert.equal(characterPageSource.includes('sourceValue === "campaigns"'), false);
   assert.equal(characterPageSource.includes("tab=players"), false);
 });
+
+test("Campaign deck distinguishes Campaign Races from Playable Races", () => {
+  const createActionSource = readSource("src/app/heavens/campaigns/new/actions.ts");
+  const adminActionSource = readSource("src/app/heavens/campaigns/actions.ts");
+  const createFormSource = readSource("src/app/heavens/campaigns/new/campaign-create-form.tsx");
+  const workspaceSource = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
+
+  assert.match(createActionSource, /campaignRaceIds/);
+  assert.match(createActionSource, /allowedRaceIds/);
+  assert.match(adminActionSource, /campaignRaceIds/);
+  assert.match(adminActionSource, /allowedRaceIds/);
+  assert.match(createFormSource, /campaignRaceIds/);
+  assert.match(workspaceSource, /Campaign Races|Playable Races|All Races/);
+});

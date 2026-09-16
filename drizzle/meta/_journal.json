@@ -365,6 +365,13 @@
       "when": 1789342824135,
       "tag": "0051_manual_closeout_awards",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1789588519011,
+      "tag": "0052_campaign_race_layer",
+      "breakpoints": true
     }
   ]
 }

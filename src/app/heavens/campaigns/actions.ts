@@ -53,6 +53,7 @@ import {
   campaignCharacterProfile,
   campaignInventoryItem,
   campaignInventoryTag,
+  campaignRace,
 } from "@/db/realm-schema";
 import { shop, shopOffering } from "@/db/shop-schema";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
@@ -93,6 +94,7 @@ export type CampaignAdminDraft = {
     description: string;
     creditsPerUnit: number;
   }>;
+  campaignRaceIds: number[];
   allowedRaceIds: number[];
   inventoryTagIds: number[];
   inventoryItemIds: number[];
@@ -208,9 +210,10 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
   await requireOwner(campaignId);
   const [core] = await db.select().from(campaign).where(eq(campaign.id, campaignId)).limit(1);
   if (!core) throw new Error("Campaign not found.");
-  const [systems, currencies, races, tags, items, legacyDerivedAbilities] = await Promise.all([
+  const [systems, currencies, campaignRaceRows, playableRaceRows, tags, items, legacyDerivedAbilities] = await Promise.all([
     db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, campaignId)).orderBy(asc(campaignAllowedSystem.sortOrder)),
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder), asc(campaignDerivedCurrency.id)),
+    db.select({ raceId: campaignRace.raceId }).from(campaignRace).where(eq(campaignRace.campaignId, campaignId)).orderBy(asc(campaignRace.sortOrder)),
     db.select({ raceId: campaignAllowedRace.raceId }).from(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, campaignId)).orderBy(asc(campaignAllowedRace.sortOrder)),
     db.select({ id: campaignInventoryTag.tagId, sortOrder: campaignInventoryTag.sortOrder }).from(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, campaignId)).orderBy(asc(campaignInventoryTag.sortOrder)),
     db.select({ id: campaignInventoryItem.itemId, sortOrder: campaignInventoryItem.sortOrder }).from(campaignInventoryItem).where(eq(campaignInventoryItem.campaignId, campaignId)).orderBy(asc(campaignInventoryItem.sortOrder)),
@@ -242,7 +245,8 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
       },
     ),
     derivedCurrencies: currencies.map(({ id, name, description, creditsPerUnit }) => ({ id, name, description, creditsPerUnit })),
-    allowedRaceIds: races.map(({ raceId }) => raceId),
+    campaignRaceIds: campaignRaceRows.map(({ raceId }) => raceId),
+    allowedRaceIds: playableRaceRows.map(({ raceId }) => raceId),
     inventoryTagIds: inventorySelection.tagIds,
     inventoryItemIds: inventorySelection.itemIds,
   };
@@ -399,7 +403,11 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
   for (const system of allowedSystems) {
     if (!campaignSystem.enumValues.includes(system)) throw new Error(`Unsupported Campaign system: ${system}.`);
   }
+  const campaignRaceIds = [...new Set(input.campaignRaceIds.filter((id) => Number.isInteger(id) && id > 0))];
   const raceIds = [...new Set(input.allowedRaceIds.filter((id) => Number.isInteger(id) && id > 0))];
+  if (raceIds.some((id) => !campaignRaceIds.includes(id))) {
+    throw new Error("Playable Races must always be a subset of Campaign Races.");
+  }
   const inventorySelection = createCampaignInventoryPersistence(
     input.inventoryTagIds,
     input.inventoryItemIds,
@@ -425,20 +433,24 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
   if (validTags.length !== inventorySelection.tagIds.length) throw new Error("An Inventory Tag is no longer available.");
 
   await db.transaction(async (tx) => {
-    const existingRaceRows = await tx.select({ id: campaignAllowedRace.raceId })
-      .from(campaignAllowedRace)
-      .where(eq(campaignAllowedRace.campaignId, input.id));
-    const activeRaceRows = raceIds.length
+    const existingCampaignRaceRows = await tx.select({ id: campaignRace.raceId })
+      .from(campaignRace)
+      .where(eq(campaignRace.campaignId, input.id));
+    const requestedRaceIds = [...new Set([...campaignRaceIds, ...raceIds])];
+    const activeRaceRows = requestedRaceIds.length
       ? await tx.select({ id: race.id })
           .from(race)
-          .where(and(inArray(race.id, raceIds), isNull(race.archivedAt)))
+          .where(and(inArray(race.id, requestedRaceIds), isNull(race.archivedAt)))
       : [];
-    const allowedRaceIds = new Set([
-      ...existingRaceRows.map(({ id }) => id),
+    const activeRaceIds = new Set([
+      ...existingCampaignRaceRows.map(({ id }) => id),
       ...activeRaceRows.map(({ id }) => id),
     ]);
-    if (raceIds.some((id) => !allowedRaceIds.has(id))) {
-      throw new Error("An archived or unavailable Race cannot be newly authorized for a Campaign.");
+    if (campaignRaceIds.some((id) => !activeRaceIds.has(id))) {
+      throw new Error("An archived or unavailable Race cannot be newly added to Campaign Races.");
+    }
+    if (raceIds.some((id) => !activeRaceIds.has(id))) {
+      throw new Error("An archived or unavailable Race cannot be newly authorized for Character Creation.");
     }
 
     const existingItemRows = await tx.select({
@@ -528,6 +540,10 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
       else await tx.insert(campaignDerivedCurrency).values({ campaignId: input.id, name: entry.name, description: entry.description, creditsPerUnit: entry.creditsPerUnit, sortOrder });
     }
 
+    await tx.delete(campaignRace).where(eq(campaignRace.campaignId, input.id));
+    if (campaignRaceIds.length) {
+      await tx.insert(campaignRace).values(campaignRaceIds.map((raceId, sortOrder) => ({ campaignId: input.id, raceId, sortOrder })));
+    }
     await tx.delete(campaignAllowedRace).where(eq(campaignAllowedRace.campaignId, input.id));
     if (raceIds.length) await tx.insert(campaignAllowedRace).values(raceIds.map((raceId, sortOrder) => ({ campaignId: input.id, raceId, sortOrder })));
     await tx.delete(campaignInventoryTag).where(eq(campaignInventoryTag.campaignId, input.id));
