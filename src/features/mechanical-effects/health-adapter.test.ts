@@ -111,6 +111,32 @@ test("localized damage supports direct Pool targeting already accepted by Active
   assert.equal(result.nextState.pools[0]?.damage, 4);
 });
 
+test("area damage adds the authored amount to the selected Pool and Total", () => {
+  const plan = planMechanicalEffect({
+    effect: { kind: "health.damage", amount: 4, application: "area" },
+    application: { targetCharacterId: 15, poolKey: "rightArm" },
+    health: { anatomy: bridgeAnatomy(), state: { characterId: 15, totalDamage: 2, pools: [], injuries: [] } },
+  });
+  const result = requireHealthResult(plan.healthResult);
+  assert.equal(result.nextState.totalDamage, 6);
+  assert.equal(result.nextState.pools[0]?.damage, 4);
+});
+
+test("full-body damage adds the authored amount to Total and every active Pool", () => {
+  const plan = planMechanicalEffect({
+    effect: { kind: "health.damage", amount: 3, application: "full-body" },
+    application: { targetCharacterId: 15 },
+    health: { anatomy: bridgeAnatomy(), state: { characterId: 15, totalDamage: 2, pools: [{ poolKey: "head", poolNameSnapshot: "Head", damage: 1 }], injuries: [] } },
+  });
+  const result = requireHealthResult(plan.healthResult);
+  assert.equal(result.nextState.totalDamage, 5);
+  assert.deepEqual(result.nextState.pools.map(({ poolKey, damage }) => ({ poolKey, damage })), [
+    { poolKey: "head", damage: 4 },
+    { poolKey: "rightArm", damage: 3 },
+    { poolKey: "rightLeg", damage: 3 },
+  ]);
+});
+
 test("creature damage uses non-humanoid Pool identity with calculated maximum HP", () => {
   const anatomy = resolveCreatureHealthAnatomy({
     core: {

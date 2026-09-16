@@ -9,6 +9,7 @@ import { parseSpellDocument } from "@/features/spell-construction/spellDocumentC
 import {
   copyItemPowers,
   formatItemPowerTrigger,
+  resolveItemPowerConstruction,
   validateItemPowers,
   type ItemPower,
 } from "./item-powers";
@@ -125,6 +126,13 @@ test("custom Magic Construction is a lossless Power-owned SpellDocument", () => 
   assert.deepEqual(parseSpellDocument(JSON.stringify(reloaded)), reloaded);
   assert.equal(calculateSpell(reloaded).baseCombatCastingTime >= 0, true);
   assert.equal(adaptSpellToMechanicalEffects(reloaded).valid, true);
+});
+
+test("progressive custom Magic may use its base construction without an Item Power Level", () => {
+  const document = { ...customConstruction("Base Progressive"), modifiers: [{ id: "progressive", ruleId: "progressive-spell", quantity: 1, description: "" }] };
+  assert.doesNotThrow(() => validateItemPowers({ powers: [power({ customConstruction: { document } })], ...validChargePool }));
+  const resolved = resolveItemPowerConstruction(document, null);
+  assert.equal(resolved.progressive, false);
 });
 
 test("custom Magic, canonical source metadata, and direct effects coexist on one Item", () => {

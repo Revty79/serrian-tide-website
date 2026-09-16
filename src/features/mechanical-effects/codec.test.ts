@@ -9,6 +9,8 @@ test("Mechanical Effects codec preserves every version-one effect", () => {
     { kind: "health.heal", amount: 5, scope: "full-body" },
     { kind: "health.heal", amount: 8, scope: "area" },
     { kind: "health.damage", amount: 7, application: "localized" },
+    { kind: "health.damage", amount: 6, application: "area" },
+    { kind: "health.damage", amount: 9, application: "full-body" },
     { kind: "manual", title: "Whispering Glass", description: "The G.O.D. chooses a memory." },
   ];
 

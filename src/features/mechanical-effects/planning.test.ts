@@ -18,6 +18,8 @@ const localizedDamage: MechanicalEffect = {
   amount: 7,
   application: "localized",
 };
+const areaDamage: MechanicalEffect = { kind: "health.damage", amount: 5, application: "area" };
+const fullBodyDamage: MechanicalEffect = { kind: "health.damage", amount: 5, application: "full-body" };
 
 test("target requirements are centralized for each supported effect", () => {
   assert.deepEqual(getMechanicalEffectRequirements(fullBodyHeal), ["target-character"]);
@@ -26,6 +28,8 @@ test("target requirements are centralized for each supported effect", () => {
     "target-character",
     "hit-location-or-hp-pool",
   ]);
+  assert.deepEqual(getMechanicalEffectRequirements(areaDamage), ["target-character", "hp-pool"]);
+  assert.deepEqual(getMechanicalEffectRequirements(fullBodyDamage), ["target-character"]);
   assert.deepEqual(getMechanicalEffectRequirements({
     kind: "manual",
     title: "Omen",
@@ -44,6 +48,8 @@ test("missing selections distinguish full-body, area, and localized targeting", 
     targetCharacterId: 17,
     hitLocationNumber: 3,
   }), []);
+  assert.deepEqual(getMissingMechanicalEffectSelections(areaDamage, { targetCharacterId: 17 }), ["hp-pool"]);
+  assert.deepEqual(getMissingMechanicalEffectSelections(fullBodyDamage, { targetCharacterId: 17 }), []);
   assert.deepEqual(getMissingMechanicalEffectSelections(localizedDamage, {
     targetCharacterId: 17,
     poolKey: "rightLeg",
@@ -114,6 +120,8 @@ test("one formatter produces shared summaries for every initial effect kind", ()
   assert.equal(formatMechanicalEffectSummary(fullBodyHeal), "Heal 5 · Full Body");
   assert.equal(formatMechanicalEffectSummary({ ...areaHeal, amount: 8 }), "Heal 8 · Area Applied");
   assert.equal(formatMechanicalEffectSummary({ ...localizedDamage, amount: 9 }), "Deal 9 Damage · Localized");
+  assert.equal(formatMechanicalEffectSummary(areaDamage), "Deal 5 Damage · Area Applied");
+  assert.equal(formatMechanicalEffectSummary(fullBodyDamage), "Deal 5 Damage · Full Body");
   assert.equal(formatMechanicalEffectSummary({
     kind: "manual",
     title: "Whispers of Shadow",

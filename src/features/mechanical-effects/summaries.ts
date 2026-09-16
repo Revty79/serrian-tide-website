@@ -11,7 +11,7 @@ export function formatMechanicalEffectSummary(effect: MechanicalEffect): string 
         ? `Heal ${formatAmount(effect.amount)} · Full Body`
         : `Heal ${formatAmount(effect.amount)} · Area Applied`;
     case "health.damage":
-      return `Deal ${formatAmount(effect.amount)} Damage · Localized`;
+      return `Deal ${formatAmount(effect.amount)} Damage · ${effect.application === "localized" ? "Localized" : effect.application === "area" ? "Area Applied" : "Full Body"}`;
     case "condition.apply":
       return `Apply Condition · ${effect.name.trim()}`;
     case "modifier.apply":

@@ -39,7 +39,7 @@ export type HealthHealEffect = {
 export type HealthDamageEffect = {
   kind: "health.damage";
   amount: number;
-  application: "localized";
+  application: "localized" | "area" | "full-body";
 };
 
 export type ManualEffect = {

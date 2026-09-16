@@ -1,5 +1,7 @@
 import {
   applyAreaHealing,
+  applyAreaDamage,
+  applyFullBodyDamage,
   applyFullBodyHealing,
   applyLocalizedDamage,
   resolveActiveHealthView,
@@ -54,11 +56,11 @@ export function resolveHealthMechanicalEffect(
       nextState = applyAreaHealing(state, anatomy, application.poolKey?.trim() ?? "", effect.amount);
     }
   } else {
-    nextState = applyLocalizedDamage(state, anatomy, {
-      amount: effect.amount,
-      hitLocationNumber: application.hitLocationNumber,
-      poolKey: application.poolKey,
-    });
+    nextState = effect.application === "localized"
+      ? applyLocalizedDamage(state, anatomy, { amount: effect.amount, hitLocationNumber: application.hitLocationNumber, poolKey: application.poolKey })
+      : effect.application === "area"
+        ? applyAreaDamage(state, anatomy, application.poolKey?.trim() ?? "", effect.amount)
+        : applyFullBodyDamage(state, anatomy, effect.amount);
   }
 
   const before = resolveActiveHealthView(anatomy, state);

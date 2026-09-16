@@ -93,11 +93,11 @@ export function validateMechanicalEffect(input: unknown): MechanicalEffectValida
       break;
     case "health.damage":
       issues.push(...validateAmount(input.amount));
-      if (input.application !== "localized") {
+      if (input.application !== "localized" && input.application !== "area" && input.application !== "full-body") {
         issues.push(invalid(
           "unsupported-application",
           "application",
-          "Damage application must be localized.",
+          "Damage application must be localized, area, or full-body.",
         ));
       }
       break;
@@ -168,7 +168,7 @@ export function validateMechanicalEffect(input: unknown): MechanicalEffectValida
       effect = {
         kind: input.kind,
         amount: input.amount as number,
-        application: "localized",
+        application: input.application as "localized" | "area" | "full-body",
       };
       break;
     case "condition.apply":

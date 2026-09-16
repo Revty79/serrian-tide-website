@@ -13,7 +13,11 @@ export function getMechanicalEffectRequirements(
         ? ["target-character", "hp-pool"]
         : ["target-character"];
     case "health.damage":
-      return ["target-character", "hit-location-or-hp-pool"];
+      return effect.application === "localized"
+        ? ["target-character", "hit-location-or-hp-pool"]
+        : effect.application === "area"
+          ? ["target-character", "hp-pool"]
+          : ["target-character"];
     case "condition.apply":
     case "modifier.apply":
       return ["target-character"];

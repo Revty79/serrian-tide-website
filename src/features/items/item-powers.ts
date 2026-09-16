@@ -72,8 +72,7 @@ export type ItemPowerValidationInput = {
 
 export function resolveItemPowerConstruction(document: SpellDocument, fixedPowerLevel: string | null) {
   const progressive = hasProgressiveSpellModifier(document);
-  if (progressive && !fixedPowerLevel) throw new Error("Progressive Item Power Magic requires a fixed Item Power Level.");
-  if (!progressive) return { progressive: false, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };
+  if (!progressive || !fixedPowerLevel) return { progressive: false, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };
   const level = fixedPowerLevel as PractitionerLevel;
   return { progressive: true, calculation: calculateSpell(document), adapter: adaptProgressiveSpellToMechanicalEffects(document, level) };
 }

@@ -13,6 +13,8 @@ test("validation accepts every initial supported effect shape", () => {
     { kind: "health.heal", amount: 5, scope: "full-body" },
     { kind: "health.heal", amount: 5, scope: "area" },
     { kind: "health.damage", amount: 7, application: "localized" },
+    { kind: "health.damage", amount: 7, application: "area" },
+    { kind: "health.damage", amount: 7, application: "full-body" },
     {
       kind: "manual",
       title: "Whispers of Shadow",

@@ -96,6 +96,39 @@ export function applyLocalizedDamage(
   };
 }
 
+export function applyAreaDamage(
+  state: ActiveHealthState,
+  anatomy: ActiveHealthAnatomy,
+  poolKey: string,
+  amountInput: number,
+): ActiveHealthState {
+  const amount = requirePositiveAmount(amountInput, "Damage");
+  const pool = anatomy.pools.find((entry) => entry.key === poolKey);
+  if (!pool) throw new Error(`HP Pool ${JSON.stringify(poolKey)} is not part of the current anatomy.`);
+  const currentDamage = poolDamageMap(state.pools).get(poolKey)?.damage ?? 0;
+  return {
+    ...state,
+    totalDamage: state.totalDamage + amount,
+    pools: setPoolDamage(state.pools, pool.key, pool.name, currentDamage + amount),
+  };
+}
+
+export function applyFullBodyDamage(
+  state: ActiveHealthState,
+  anatomy: ActiveHealthAnatomy,
+  amountInput: number,
+): ActiveHealthState {
+  const amount = requirePositiveAmount(amountInput, "Damage");
+  return {
+    ...state,
+    totalDamage: state.totalDamage + amount,
+    pools: anatomy.pools.reduce((pools, pool) => {
+      const currentDamage = poolDamageMap(state.pools).get(pool.key)?.damage ?? 0;
+      return setPoolDamage(pools, pool.key, pool.name, currentDamage + amount);
+    }, [...state.pools] as ActiveHealthPoolState[]),
+  };
+}
+
 export function applyFullBodyHealing(
   state: ActiveHealthState,
   amountInput: number,
