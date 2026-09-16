@@ -7,12 +7,12 @@ function read(relativePath: string): string {
   return readFileSync(path.join(process.cwd(), relativePath), "utf8");
 }
 
-test("unified NPC creation validates an active allowed Race or an active Creature master", () => {
+test("unified NPC creation validates a Campaign Race or an active Creature master", () => {
   const actions = read("src/app/heavens/npcs/actions.ts");
   assert.match(actions, /export async function createNpc\(/);
   assert.match(actions, /normalizeCreateNpcValues\(input\)/);
-  assert.match(actions, /eq\(campaignAllowedRace\.campaignId, normalized\.campaignId\)/);
-  assert.match(actions, /eq\(campaignAllowedRace\.raceId, normalized\.sourceId\)/);
+  assert.match(actions, /eq\(campaignRace\.campaignId, normalized\.campaignId\)/);
+  assert.match(actions, /eq\(campaignRace\.raceId, normalized\.sourceId\)/);
   assert.match(actions, /isNull\(race\.archivedAt\)/);
   assert.match(actions, /readCreatureNpcTemplateInTransaction[\s\S]*activeOnly: true/);
   assert.match(actions, /controllerUserId: manager\.campaignOwnerUserId/);

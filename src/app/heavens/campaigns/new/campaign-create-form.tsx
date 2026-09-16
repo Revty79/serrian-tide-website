@@ -53,7 +53,7 @@ export function CampaignCreateForm({
 
   const [raceSearch, setRaceSearch] = useState("");
   const [campaignRaceIds, setCampaignRaceIds] = useState<number[]>([]);
-  const [selectedRaceIds, setSelectedRaceIds] = useState<number[]>([]);
+  const [allowedRaceIds, setAllowedRaceIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
 
@@ -68,31 +68,21 @@ export function CampaignCreateForm({
       : references.races;
   }, [raceSearch, references.races]);
 
-  const availableRaceIds = filteredRaces.map(({ id }) => id);
-  const selectedCampaignRaceIds = campaignRaceIds.filter((id) => availableRaceIds.includes(id));
-  const selectedPlayableRaceIds = selectedRaceIds.filter((id) => availableRaceIds.includes(id));
-
-  function handleCampaignRaceToggle(raceId: number) {
-    const next = campaignRaceIds.includes(raceId)
-      ? campaignRaceIds.filter((id) => id !== raceId)
-      : [...campaignRaceIds, raceId];
-    setCampaignRaceIds(next);
-    setSelectedRaceIds((current) => current.filter((id) => !next.includes(id) || id === raceId ? true : false));
-    setSelectedRaceIds((current) => {
-      const playable = current.filter((id) => !next.includes(id) || id === raceId ? true : false);
-      return playable;
-    });
+  function addCampaignRace(raceId: number) {
+    setCampaignRaceIds((current) => (current.includes(raceId) ? current : [...current, raceId]));
   }
 
-  function toggleId(
-    id: number,
-    selectedIds: number[],
-    setSelectedIds: (ids: number[]) => void,
-  ) {
-    setSelectedIds(
-      selectedIds.includes(id)
-        ? selectedIds.filter((candidate) => candidate !== id)
-        : [...selectedIds, id],
+  function removeCampaignRace(raceId: number) {
+    setCampaignRaceIds((current) => current.filter((id) => id !== raceId));
+    setAllowedRaceIds((current) => current.filter((id) => id !== raceId));
+  }
+
+  function togglePlayableRace(raceId: number) {
+    if (!campaignRaceIds.includes(raceId)) return;
+    setAllowedRaceIds((current) =>
+      current.includes(raceId)
+        ? current.filter((id) => id !== raceId)
+        : [...current, raceId],
     );
   }
 
@@ -141,7 +131,7 @@ export function CampaignCreateForm({
       {campaignRaceIds.map((id) => (
         <input key={`campaign-race-${id}`} type="hidden" name="campaignRaceIds" value={id} />
       ))}
-      {selectedRaceIds.map((id) => (
+      {allowedRaceIds.map((id) => (
         <input key={`race-${id}`} type="hidden" name="allowedRaceIds" value={id} />
       ))}
       {selectedTagIds.map((id) => (
@@ -265,13 +255,15 @@ export function CampaignCreateForm({
             title="All Races"
             subtitle="Global active catalog"
             entries={filteredRaces}
-            selectedIds={[]}
+            selectedIds={campaignRaceIds}
             onToggle={(id) => {
-              if (!campaignRaceIds.includes(id)) {
-                setCampaignRaceIds((current) => [...current, id]);
+              if (campaignRaceIds.includes(id)) {
+                removeCampaignRace(id);
+              } else {
+                addCampaignRace(id);
               }
             }}
-            isSelectable={false}
+            isSelectable={true}
           />
 
           <RaceAvailabilityColumn
@@ -280,9 +272,11 @@ export function CampaignCreateForm({
             entries={filteredRaces.filter((entry) => campaignRaceIds.includes(entry.id))}
             selectedIds={campaignRaceIds}
             onToggle={(id) => {
-              const isSelected = campaignRaceIds.includes(id);
-              setCampaignRaceIds((current) => isSelected ? current.filter((candidate) => candidate !== id) : [...current, id]);
-              setSelectedRaceIds((current) => (isSelected ? current.filter((candidate) => candidate !== id) : current.includes(id) ? current : [...current, id]));
+              if (campaignRaceIds.includes(id)) {
+                removeCampaignRace(id);
+              } else {
+                addCampaignRace(id);
+              }
             }}
             isSelectable={true}
           />
@@ -290,14 +284,10 @@ export function CampaignCreateForm({
           <RaceAvailabilityColumn
             title="Playable Races"
             subtitle="Player-selectable subset"
-            entries={filteredRaces.filter((entry) => selectedRaceIds.includes(entry.id))}
-            selectedIds={selectedRaceIds}
+            entries={filteredRaces.filter((entry) => allowedRaceIds.includes(entry.id))}
+            selectedIds={allowedRaceIds}
             onToggle={(id) => {
-              if (selectedRaceIds.includes(id)) {
-                setSelectedRaceIds((current) => current.filter((candidate) => candidate !== id));
-              } else if (campaignRaceIds.includes(id)) {
-                setSelectedRaceIds((current) => [...current, id]);
-              }
+              togglePlayableRace(id);
             }}
             isSelectable={true}
           />
@@ -637,57 +627,6 @@ export function CampaignCreateForm({
         </div>
       </section>
 
-      {/* ALLOWED RACES */}
-      <section className={sectionClass}>
-        <SelectionHeading
-          eyebrow="Character Creation"
-          title="Allowed Races"
-          count={`${selectedRaceIds.length} selected`}
-          onSelectAll={() => setSelectedRaceIds(references.races.map(({ id }) => id))}
-          onClear={() => setSelectedRaceIds([])}
-          disableSelectAll={references.races.length === 0}
-          disableClear={selectedRaceIds.length === 0}
-        />
-
-        <p className="mt-3 text-sm leading-6 text-slate-400">
-          Players can only choose Races authorized here when creating a Character.
-        </p>
-
-        <SearchField
-          label="Search the Race catalog"
-          value={raceSearch}
-          placeholder="Name or size"
-          onChange={setRaceSearch}
-        />
-
-        <div className="mt-5 grid max-h-[32rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredRaces.map((entry) => {
-            const selected = selectedRaceIds.includes(entry.id);
-            return (
-              <label key={entry.id} className={selectionClass(selected)}>
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={() =>
-                    toggleId(entry.id, selectedRaceIds, setSelectedRaceIds)
-                  }
-                  className="h-4 w-4 accent-amber-300"
-                />
-                <span>
-                  <strong className="block text-sm text-slate-100">{entry.name}</strong>
-                  <small className="mt-1 block text-xs text-slate-300">
-                    {entry.size || "Size not recorded"}
-                  </small>
-                </span>
-              </label>
-            );
-          })}
-          {filteredRaces.length === 0 ? (
-            <p className="text-sm text-slate-300">No Races match that search.</p>
-          ) : null}
-        </div>
-      </section>
-
       <CampaignInventorySelector
         campaignId={null}
         tags={references.tags}
@@ -769,6 +708,64 @@ const inputClass = `
   focus:border-amber-300/50
 `;
 
+function RaceAvailabilityColumn({
+  title,
+  subtitle,
+  entries,
+  selectedIds,
+  onToggle,
+  isSelectable,
+}: {
+  title: string;
+  subtitle: string;
+  entries: CampaignReferenceData["races"];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  isSelectable: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+      <div className="mb-3 border-b border-white/10 pb-3">
+        <p className="text-[0.64rem] uppercase tracking-[0.14em] text-purple-200">{title}</p>
+        <h3 className="mt-2 text-lg text-slate-100">{subtitle}</h3>
+      </div>
+      <div className="space-y-2">
+        {entries.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-white/10 bg-black/20 p-3 text-sm text-slate-400">
+            No races match this filter.
+          </p>
+        ) : (
+          entries.map((race) => {
+            const checked = selectedIds.includes(race.id);
+            return (
+              <label
+                key={race.id}
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
+                  checked
+                    ? "border-amber-300/35 bg-amber-300/10"
+                    : "border-white/10 bg-black/30 hover:border-amber-300/25"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={!isSelectable}
+                  onChange={() => onToggle(race.id)}
+                  className="mt-1 h-4 w-4 accent-amber-300"
+                />
+                <span className="min-w-0">
+                  <strong className="block text-sm text-slate-100">{race.name}</strong>
+                  <small className="mt-1 block text-xs text-slate-300">{race.size || "Size not recorded"}</small>
+                </span>
+              </label>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Field({
   label,
   name,
@@ -804,92 +801,3 @@ function Field({
   );
 }
 
-const sectionClass = `
-  rounded-3xl
-  border
-  border-white/10
-  bg-black/35
-  p-6
-  shadow-2xl
-  backdrop-blur-md
-  sm:p-8
-`;
-
-function selectionClass(selected: boolean) {
-  return `flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
-    selected
-      ? "border-amber-300/35 bg-amber-300/10"
-      : "border-white/10 bg-black/30 hover:border-amber-300/25"
-  }`;
-}
-
-function SelectionHeading({
-  eyebrow,
-  title,
-  count,
-  onSelectAll,
-  onClear,
-  disableSelectAll,
-  disableClear,
-}: {
-  eyebrow: string;
-  title: string;
-  count: string;
-  onSelectAll: () => void;
-  onClear: () => void;
-  disableSelectAll: boolean;
-  disableClear: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-[0.14em] text-purple-200">{eyebrow}</p>
-        <h2 className="font-sans mt-2 text-3xl text-slate-100">{title}</h2>
-        <span className="mt-2 block text-xs text-slate-300">{count}</span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={disableSelectAll}
-          onClick={onSelectAll}
-          className="rounded-full border border-amber-300/30 px-4 py-2 text-xs text-amber-100 disabled:opacity-40"
-        >
-          Select All
-        </button>
-        <button
-          type="button"
-          disabled={disableClear}
-          onClick={onClear}
-          className="rounded-full border border-white/15 px-4 py-2 text-xs text-slate-300 disabled:opacity-40"
-        >
-          Clear
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SearchField({
-  label,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="mt-5 block max-w-xl">
-      <span className="text-sm text-slate-300">{label}</span>
-      <input
-        type="search"
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClass}
-      />
-    </label>
-  );
-}

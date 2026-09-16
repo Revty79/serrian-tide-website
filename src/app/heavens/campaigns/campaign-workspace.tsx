@@ -223,25 +223,25 @@ function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAd
   const filtered = races.filter((race) => !search || race.name.toLowerCase().includes(search.toLowerCase()) || race.size.toLowerCase().includes(search.toLowerCase()));
   const isCampaignRace = (raceId: number) => draft.campaignRaceIds.includes(raceId);
   const isPlayableRace = (raceId: number) => draft.allowedRaceIds.includes(raceId);
-  const toggleCampaignRace = (raceId: number) => {
-    const nextCampaignRaceIds = isCampaignRace(raceId)
-      ? draft.campaignRaceIds.filter((id) => id !== raceId)
-      : [...draft.campaignRaceIds, raceId];
-    const nextPlayableRaceIds = isPlayableRace(raceId)
-      ? draft.allowedRaceIds.filter((id) => id !== raceId)
-      : draft.allowedRaceIds.includes(raceId)
-        ? draft.allowedRaceIds
-        : draft.allowedRaceIds;
+
+  const addCampaignRace = (raceId: number) => {
+    if (isCampaignRace(raceId)) return;
     onChange({
       ...draft,
-      campaignRaceIds: nextCampaignRaceIds,
-      allowedRaceIds: nextCampaignRaceIds.includes(raceId)
-        ? nextPlayableRaceIds.includes(raceId)
-          ? nextPlayableRaceIds
-          : [...nextPlayableRaceIds, raceId]
-        : nextPlayableRaceIds.filter((id) => id !== raceId),
+      campaignRaceIds: [...draft.campaignRaceIds, raceId],
+      allowedRaceIds: draft.allowedRaceIds,
     });
   };
+
+  const removeCampaignRace = (raceId: number) => {
+    if (!isCampaignRace(raceId)) return;
+    onChange({
+      ...draft,
+      campaignRaceIds: draft.campaignRaceIds.filter((id) => id !== raceId),
+      allowedRaceIds: draft.allowedRaceIds.filter((id) => id !== raceId),
+    });
+  };
+
   const togglePlayableRace = (raceId: number) => {
     if (!isCampaignRace(raceId)) return;
     onChange({
@@ -251,9 +251,10 @@ function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAd
         : [...draft.allowedRaceIds, raceId],
     });
   };
+
   return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" /><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /><div className="campaign-selection-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
-    <RaceColumn title="All Races" subtitle="Global active catalog" entries={filtered} selectedIds={[]} onToggle={() => undefined} isSelectable={false} />
-    <RaceColumn title="Campaign Races" subtitle="World availability" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.campaignRaceIds} onToggle={toggleCampaignRace} isSelectable={true} />
+    <RaceColumn title="All Races" subtitle="Global active catalog" entries={filtered} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} isSelectable={true} />
+    <RaceColumn title="Campaign Races" subtitle="World availability" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} isSelectable={true} />
     <RaceColumn title="Playable Races" subtitle="Character creation subset" entries={filtered.filter((race) => isPlayableRace(race.id))} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} isSelectable={true} />
   </div></div>;
 }

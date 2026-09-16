@@ -155,3 +155,19 @@ test("Campaign deck distinguishes Campaign Races from Playable Races", () => {
   assert.match(createFormSource, /campaignRaceIds/);
   assert.match(workspaceSource, /Campaign Races|Playable Races|All Races/);
 });
+
+test("Campaign race invariant is enforced by state and migration backfill", () => {
+  const migration = readSource("drizzle/0052_campaign_race_layer.sql");
+  const createFormSource = readSource("src/app/heavens/campaigns/new/campaign-create-form.tsx");
+  const workspaceSource = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
+
+  assert.match(migration, /INSERT INTO "campaign_race"/);
+  assert.match(migration, /SELECT "campaign_id", "race_id", "sort_order"\s*FROM "campaign_allowed_race"/);
+  assert.match(createFormSource, /All Races/);
+  assert.match(createFormSource, /Campaign Races/);
+  assert.match(createFormSource, /Playable Races/);
+  assert.doesNotMatch(createFormSource, /Allowed Races/);
+  assert.match(workspaceSource, /addCampaignRace/);
+  assert.match(workspaceSource, /removeCampaignRace/);
+  assert.match(workspaceSource, /togglePlayableRace/);
+});

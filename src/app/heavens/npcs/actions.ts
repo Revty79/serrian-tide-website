@@ -15,7 +15,6 @@ import {
 import { item, itemEffect, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import {
-  campaignAllowedRace,
   campaignCharacter,
   campaignRace,
   campaignCharacterActiveHealthPool,
