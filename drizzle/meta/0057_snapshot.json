@@ -1,6 +1,6 @@
 {
-  "id": "6bb294bb-5e97-4696-9cd9-6c7cf7a0fc85",
-  "prevId": "7cd3b8d9-83b0-4abc-843c-0b087cbc408d",
+  "id": "572f006f-bafe-4b0f-ae62-2bdf1c22d41f",
+  "prevId": "6bb294bb-5e97-4696-9cd9-6c7cf7a0fc85",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -24520,6 +24520,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "application_key": {
+          "name": "application_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "source_kind": {
           "name": "source_kind",
           "type": "text",
@@ -24616,6 +24622,27 @@
         }
       },
       "indexes": {
+        "periodic_health_effect_application_uq": {
+          "name": "periodic_health_effect_application_uq",
+          "columns": [
+            {
+              "expression": "encounter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "application_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "periodic_health_effect_encounter_idx": {
           "name": "periodic_health_effect_encounter_idx",
           "columns": [
@@ -24665,7 +24692,29 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "periodic_health_effect_participant_fk": {
+          "name": "periodic_health_effect_participant_fk",
+          "tableFrom": "campaign_session_periodic_health_effect",
+          "tableTo": "campaign_session_encounter_participant",
+          "columnsFrom": [
+            "encounter_id",
+            "scene_id",
+            "session_id",
+            "campaign_id",
+            "character_id"
+          ],
+          "columnsTo": [
+            "encounter_id",
+            "scene_id",
+            "session_id",
+            "campaign_id",
+            "character_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -24693,6 +24742,30 @@
         "periodic_health_effect_status_valid": {
           "name": "periodic_health_effect_status_valid",
           "value": "\"campaign_session_periodic_health_effect\".\"status\" IN ('active','completed','closed')"
+        },
+        "periodic_health_effect_source_kind_nonblank": {
+          "name": "periodic_health_effect_source_kind_nonblank",
+          "value": "length(trim(\"campaign_session_periodic_health_effect\".\"source_kind\")) > 0"
+        },
+        "periodic_health_effect_source_id_nonblank": {
+          "name": "periodic_health_effect_source_id_nonblank",
+          "value": "length(trim(\"campaign_session_periodic_health_effect\".\"source_id\")) > 0"
+        },
+        "periodic_health_effect_application_key_nonblank": {
+          "name": "periodic_health_effect_application_key_nonblank",
+          "value": "length(trim(\"campaign_session_periodic_health_effect\".\"application_key\")) > 0"
+        },
+        "periodic_health_effect_step_positive": {
+          "name": "periodic_health_effect_step_positive",
+          "value": "\"campaign_session_periodic_health_effect\".\"next_step\" > 0"
+        },
+        "periodic_health_effect_round_positive": {
+          "name": "periodic_health_effect_round_positive",
+          "value": "\"campaign_session_periodic_health_effect\".\"next_round\" > 0"
+        },
+        "periodic_health_effect_pool_identity_valid": {
+          "name": "periodic_health_effect_pool_identity_valid",
+          "value": "(\"campaign_session_periodic_health_effect\".\"application\" = 'area' AND \"campaign_session_periodic_health_effect\".\"pool_key\" IS NOT NULL AND length(trim(\"campaign_session_periodic_health_effect\".\"pool_key\")) > 0) OR (\"campaign_session_periodic_health_effect\".\"application\" = 'full-body' AND \"campaign_session_periodic_health_effect\".\"pool_key\" IS NULL)"
         }
       },
       "isRLSEnabled": false

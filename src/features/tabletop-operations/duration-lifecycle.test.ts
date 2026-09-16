@@ -12,6 +12,7 @@ import {
   isTabletopBoundDurationKind,
   requireFiniteDurationValue,
 } from "./duration-lifecycle";
+import { consumePeriodicApplications, getPeriodicDueCount, requirePeriodicHealthApplication } from "./periodic-health";
 
 test("Build 9 keeps the established duration vocabulary exactly unchanged", () => {
   assert.deepEqual(RUNTIME_DURATION_KINDS, ["until-removed", "combat-steps", "combat-rounds", "scene"]);
@@ -94,4 +95,18 @@ test("periodic health lifecycle uses the existing Initiative transition hook and
   assert.match(service, /eq\(campaignSessionPeriodicHealthEffect\.status, "active"\)/);
   assert.match(service, /nextStep|nextRound/);
   assert.match(service, /initiativeClosed/);
+  assert.match(service, /applicationKey/);
+  assert.match(service, /campaignSessionEncounterParticipant/);
+  assert.match(service, /not supported yet/);
+});
+
+test("periodic health application identity and boundary helpers are retry-safe", () => {
+  assert.equal(requirePeriodicHealthApplication("area", " rightArm "), "rightArm");
+  assert.equal(requirePeriodicHealthApplication("full-body", null), null);
+  assert.throws(() => requirePeriodicHealthApplication("area", ""), /frozen HP Pool/);
+  assert.throws(() => requirePeriodicHealthApplication("full-body", "rightArm"), /must not specify/);
+  assert.equal(getPeriodicDueCount("combat-steps", 4, 1, 6, 1, 3), 3);
+  assert.equal(getPeriodicDueCount("combat-rounds", 1, 3, 8, 5, 2), 2);
+  assert.deepEqual(consumePeriodicApplications(5, 1), { remainingApplications: 4, completed: false });
+  assert.deepEqual(consumePeriodicApplications(1, 1), { remainingApplications: 0, completed: true });
 });

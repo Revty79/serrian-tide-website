@@ -1806,6 +1806,7 @@ export const campaignSessionPeriodicHealthEffect = pgTable(
     sceneId: integer("scene_id").notNull(),
     encounterId: integer("encounter_id").notNull(),
     characterId: integer("character_id").notNull(),
+    applicationKey: text("application_key").notNull(),
     sourceKind: text("source_kind").notNull(),
     sourceId: text("source_id").notNull(),
     effectKind: text("effect_kind").notNull(),
@@ -1823,6 +1824,12 @@ export const campaignSessionPeriodicHealthEffect = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.encounterId, table.sceneId, table.sessionId, table.campaignId, table.characterId],
+      foreignColumns: [campaignSessionEncounterParticipant.encounterId, campaignSessionEncounterParticipant.sceneId, campaignSessionEncounterParticipant.sessionId, campaignSessionEncounterParticipant.campaignId, campaignSessionEncounterParticipant.characterId],
+      name: "periodic_health_effect_participant_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("periodic_health_effect_application_uq").on(table.encounterId, table.applicationKey),
     index("periodic_health_effect_encounter_idx").on(table.encounterId, table.status, table.frequency),
     index("periodic_health_effect_character_idx").on(table.characterId, table.status),
     check("periodic_health_effect_kind_valid", sql`${table.effectKind} IN ('health.heal','health.damage')`),
@@ -1831,6 +1838,12 @@ export const campaignSessionPeriodicHealthEffect = pgTable(
     check("periodic_health_effect_amount_valid", sql`${table.amount} > 0`),
     check("periodic_health_effect_remaining_valid", sql`${table.remainingApplications} >= 0`),
     check("periodic_health_effect_status_valid", sql`${table.status} IN ('active','completed','closed')`),
+    check("periodic_health_effect_source_kind_nonblank", sql`length(trim(${table.sourceKind})) > 0`),
+    check("periodic_health_effect_source_id_nonblank", sql`length(trim(${table.sourceId})) > 0`),
+    check("periodic_health_effect_application_key_nonblank", sql`length(trim(${table.applicationKey})) > 0`),
+    check("periodic_health_effect_step_positive", sql`${table.nextStep} > 0`),
+    check("periodic_health_effect_round_positive", sql`${table.nextRound} > 0`),
+    check("periodic_health_effect_pool_identity_valid", sql`(${table.application} = 'area' AND ${table.poolKey} IS NOT NULL AND length(trim(${table.poolKey})) > 0) OR (${table.application} = 'full-body' AND ${table.poolKey} IS NULL)`),
   ],
 );
 
