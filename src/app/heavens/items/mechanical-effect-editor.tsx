@@ -11,12 +11,15 @@ export function MechanicalEffectEditor({
   effect,
   skills,
   onChange,
+  onKindChange,
 }: {
   effect: MechanicalEffect;
   skills: ItemAuthoringReferences["skills"];
   onChange: (effect: MechanicalEffect) => void;
+  onKindChange?: (kind: MechanicalEffect["kind"]) => void;
 }) {
   return <div className="item-form-grid">
+    {onKindChange ? <label className="item-field item-field--wide"><span>Effect Type</span><select value={effect.kind} onChange={(event) => onKindChange(event.target.value as MechanicalEffect["kind"])}><option value="health.damage">Health Damage</option><option value="health.heal">Health Healing</option><option value="condition.apply">Condition</option><option value="modifier.apply">Modifier</option><option value="manual">Manual / G.O.D.</option></select></label> : null}
     {effect.kind === "health.heal" ? <><label className="item-field"><span>Amount</span><input type="number" min={0} step="any" value={effect.amount} onChange={(event) => onChange({ ...effect, amount: Number(event.target.value) })} /></label><label className="item-field"><span>Scope</span><select value={effect.scope} onChange={(event) => onChange({ ...effect, scope: event.target.value as "full-body" | "area" })}><option value="full-body">Full Body</option><option value="area">Area</option></select></label></> : null}
     {effect.kind === "health.damage" ? <label className="item-field"><span>Amount</span><input type="number" min={0} step="any" value={effect.amount} onChange={(event) => onChange({ ...effect, amount: Number(event.target.value) })} /></label> : null}
     {effect.kind === "condition.apply" ? <><label className="item-field"><span>Condition Name</span><input value={effect.name} onChange={(event) => onChange({ ...effect, name: event.target.value })} /></label><label className="item-field"><span>Duration</span><select value={effect.duration.kind} onChange={(event) => { const kind = event.target.value as "until-removed" | "scene" | "combat-steps" | "combat-rounds"; onChange({ ...effect, duration: kind === "combat-steps" || kind === "combat-rounds" ? { kind, value: 1 } : { kind, value: null } }); }}><option value="until-removed">Until Removed</option><option value="scene">Scene</option><option value="combat-steps">Combat Steps</option><option value="combat-rounds">Combat Rounds</option></select></label>{effect.duration.kind === "combat-steps" || effect.duration.kind === "combat-rounds" ? <label className="item-field"><span>Duration Count</span><input type="number" min={1} step={1} value={effect.duration.value ?? 1} onChange={(event) => onChange({ ...effect, duration: { ...effect.duration, value: Number(event.target.value) } })} /></label> : null}<label className="item-field item-field--wide"><span>Description</span><textarea rows={3} value={effect.description} onChange={(event) => onChange({ ...effect, description: event.target.value })} /></label></> : null}

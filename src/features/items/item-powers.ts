@@ -1,5 +1,7 @@
 import {
   PASSIVE_REQUIRED_EQUIPMENT_STATES,
+  passiveLifecycleLabel,
+  validatePassiveItemEffect,
   type PassiveRequiredEquipmentState,
 } from "./equipment-state";
 import {
@@ -137,7 +139,13 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
     const effects = power.effects.map((entry: ItemPowerEffect, effectIndex: number) => {
       if (entry.id !== null && (!Number.isSafeInteger(entry.id) || entry.id <= 0)) throw new Error(`Power ${name} Effect ${effectIndex + 1} has an invalid identity.`);
       const decoded = decodeMechanicalEffect(encodeMechanicalEffect(entry.effect));
-      return { id: entry.id, effect: decoded };
+      const passiveReadyEffect = power.trigger === "passive" && (decoded.kind === "condition.apply" || decoded.kind === "modifier.apply")
+        ? { ...decoded, duration: { kind: "until-removed" as const, value: null, label: passiveLifecycleLabel(power.requiredEquipmentState!) } }
+        : decoded;
+      const effect = power.trigger === "passive"
+        ? validatePassiveItemEffect({ id: entry.id, requiredEquipmentState: power.requiredEquipmentState!, effect: passiveReadyEffect }).effect
+        : passiveReadyEffect;
+      return { id: entry.id, effect };
     });
     return {
       ...power,

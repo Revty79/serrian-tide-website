@@ -151,6 +151,20 @@ test("Power source modes and triggers reject contradictory authoring", () => {
   assert.throws(() => validateItemPowers({ powers: [power({ customConstruction: { document } })], hasWeaponProfile: true, hasChargePool: true, isMagical: false }), /Magical Item/);
 });
 
+test("passive Power Effects reuse passive Item Effect safety and lifecycle rules", () => {
+  const passive = (effect: ItemPower["effects"][number]["effect"]) => validateItemPowers({ powers: [power({ trigger: "passive", requiredEquipmentState: "worn", effects: [{ id: null, effect }] })], ...validChargePool })[0]!.effects[0]!.effect;
+  assert.throws(() => passive({ kind: "health.damage", amount: 1, application: "localized" }), /cannot be automatic passive/);
+  assert.throws(() => passive({ kind: "health.heal", amount: 1, scope: "full-body" }), /cannot be automatic passive/);
+  const condition = passive({ kind: "condition.apply", name: "Fear", description: "", duration: { kind: "scene", value: null } });
+  assert.equal(condition.kind, "condition.apply");
+  if (condition.kind === "condition.apply") assert.deepEqual(condition.duration, { kind: "until-removed", value: null, label: "While Worn" });
+  const modifier = passive({ kind: "modifier.apply", label: "Soak", channel: "initiative", targetKey: "self", amount: 1, duration: { kind: "combat-rounds", value: 2 } });
+  if (modifier.kind === "modifier.apply") assert.deepEqual(modifier.duration, { kind: "until-removed", value: null, label: "While Worn" });
+  assert.equal(passive({ kind: "manual", title: "Judgment", description: "Resolve manually." }).kind, "manual");
+  assert.doesNotThrow(() => validateItemPowers({ powers: [power({ trigger: "activated", effects: [{ id: null, effect: { kind: "health.damage", amount: 1, application: "localized" } }] })], ...validChargePool }));
+  assert.doesNotThrow(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "weapon-hit", effects: [{ id: null, effect: { kind: "health.damage", amount: 1, application: "localized" } }] })], ...validChargePool }));
+});
+
 test("Item save source reconciles Power identities instead of deleting the Power collection", () => {
   const actions = readFileSync("src/app/heavens/items/actions.ts", "utf8");
   assert.match(actions, /existingPowers = await tx\.select\(\)\.from\(itemPower\)/);
