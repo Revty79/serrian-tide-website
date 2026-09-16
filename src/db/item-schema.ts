@@ -242,6 +242,21 @@ export const itemPowerSource = pgTable(
   ],
 );
 
+export const itemPowerConstruction = pgTable(
+  "item_power_constructions",
+  {
+    itemPowerId: integer("item_power_id").primaryKey().references(() => itemPower.id, { onDelete: "cascade" }),
+    schemaVersion: integer("schema_version").notNull(),
+    documentJson: text("document_json").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    check("item_power_constructions_schema_valid", sql`${table.schemaVersion} > 0`),
+    check("item_power_constructions_document_nonblank", sql`length(trim(${table.documentJson})) > 0`),
+  ],
+);
+
 export const weaponProfile = pgTable(
   "weapon_profiles",
   {

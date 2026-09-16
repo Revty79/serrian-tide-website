@@ -28,6 +28,7 @@ import {
   itemEffect,
   itemPassiveEffect,
   itemPower,
+  itemPowerConstruction,
   itemPowerEffect,
   itemPowerSource,
   itemProperty,
@@ -727,6 +728,10 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     : [];
   const effectsByPower = new Map<number, typeof powerEffectRows>();
   for (const effect of powerEffectRows) effectsByPower.set(effect.itemPowerId, [...(effectsByPower.get(effect.itemPowerId) ?? []), effect]);
+  const constructionRows = powerIds.length
+    ? await db.select().from(itemPowerConstruction).where(inArray(itemPowerConstruction.itemPowerId, powerIds))
+    : [];
+  const constructionsByPower = new Map(constructionRows.map((entry) => [entry.itemPowerId, entry]));
   const powers = powerRows.map(({ power, sourceSkillName, sourceArchivedAt, sourceSchemaVersion, sourceKind, sourceSkillId, sourceExtensionType, fixedPowerLevel }) => ({
     id: power.id,
     name: power.name,
@@ -741,6 +746,9 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     fixedRollTarget: power.fixedRollTarget,
     source: sourceSkillId && sourceSkillName && sourceKind && sourceExtensionType && sourceSchemaVersion
       ? { sourceSkillId, sourceSkillName, sourceKind: "spell-construction" as const, sourceExtensionType: "spell-construction" as const, sourceSchemaVersion, fixedPowerLevel, archived: sourceArchivedAt !== null }
+      : null,
+    customConstruction: constructionsByPower.has(power.id)
+      ? { document: parseSpellDocument(constructionsByPower.get(power.id)!.documentJson) }
       : null,
     effects: (effectsByPower.get(power.id) ?? []).map((effect) => ({ id: effect.id, effect: decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }) })),
     sortOrder: power.sortOrder,
@@ -1080,6 +1088,11 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         sourceExtensionType: "spell-construction",
         sourceSchemaVersion: power.source.sourceSchemaVersion,
         fixedPowerLevel: power.source.fixedPowerLevel,
+      });
+      if (power.customConstruction) await tx.insert(itemPowerConstruction).values({
+        itemPowerId: savedPower.id,
+        schemaVersion: power.customConstruction.document.schemaVersion,
+        documentJson: JSON.stringify(power.customConstruction.document),
       });
     }
     const storedPassiveRows = await tx.select({ id: itemPassiveEffect.id }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));

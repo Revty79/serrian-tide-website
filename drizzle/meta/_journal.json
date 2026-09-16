@@ -379,6 +379,13 @@
       "when": 1789594978001,
       "tag": "0053_item_powers",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1789595299238,
+      "tag": "0054_item_power_custom_magic",
+      "breakpoints": true
     }
   ]
 }

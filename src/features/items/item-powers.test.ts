@@ -1,13 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
+import { createContainer, createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
+import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
+import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import {
   copyItemPowers,
   formatItemPowerTrigger,
   validateItemPowers,
   type ItemPower,
 } from "./item-powers";
+
+let constructionSequence = 0;
+
+function customConstruction(name: string) {
+  constructionSequence += 1;
+  return {
+    ...createEmptySpell(),
+    name,
+    frameworkSkillId: 1,
+    sphere: "Charm",
+    containers: [{
+      ...createContainer("target"),
+      effects: [{ id: `effect-${constructionSequence}`, ruleId: "damage", quantity: 1, description: "" }],
+    }],
+  };
+}
 
 function power(overrides: Partial<ItemPower> = {}): ItemPower {
   return {
@@ -23,6 +42,7 @@ function power(overrides: Partial<ItemPower> = {}): ItemPower {
     resolutionMode: "automatic",
     fixedRollTarget: null,
     source: null,
+    customConstruction: null,
     effects: [],
     sortOrder: 0,
     ...overrides,
@@ -90,4 +110,32 @@ test("Power variants receive independent identities and do not share effect obje
   assert.equal(copied[0]!.id, null);
   assert.equal(copied[0]!.effects[0]!.id, null);
   assert.notEqual(copied[0]!.effects[0]!.effect, original[0]!.effects[0]!.effect);
+});
+
+test("custom Magic Construction is a lossless Power-owned SpellDocument", () => {
+  const document = customConstruction("Frozen Nova");
+  const powers = validateItemPowers({
+    powers: [power({ name: "Frozen Nova", initiativeCost: 3, customConstruction: { document } })],
+    ...validChargePool,
+  });
+  const savedJson = JSON.stringify(powers[0]!.customConstruction!.document);
+  const reloaded = parseSpellDocument(savedJson);
+  assert.deepEqual(parseSpellDocument(JSON.stringify(reloaded)), reloaded);
+  assert.equal(calculateSpell(reloaded).baseCombatCastingTime >= 0, true);
+  assert.equal(adaptSpellToMechanicalEffects(reloaded).valid, true);
+});
+
+test("custom Magic, canonical source metadata, and direct effects coexist on one Item", () => {
+  const document = customConstruction("Artifact Surge");
+  const powers = validateItemPowers({
+    powers: [
+      power({ name: "Custom", customConstruction: { document } }),
+      power({ name: "Canonical", source: { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction", sourceSchemaVersion: 1, fixedPowerLevel: "Master", archived: false } }),
+      power({ name: "Direct", effects: [{ id: null, effect: { kind: "manual", title: "Relic", description: "Resolve manually." } }] }),
+    ],
+    ...validChargePool,
+  });
+  assert.equal(powers.filter((entry) => entry.customConstruction).length, 1);
+  assert.equal(powers.filter((entry) => entry.source).length, 1);
+  assert.equal(powers.filter((entry) => entry.effects.length > 0).length, 1);
 });

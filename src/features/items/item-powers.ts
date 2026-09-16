@@ -7,6 +7,11 @@ import {
   encodeMechanicalEffect,
   type MechanicalEffect,
 } from "@/features/mechanical-effects";
+import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
+import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
+import { validateSpell } from "@/features/spell-construction/engine/validateSpell";
+import type { SpellDocument } from "@/features/spell-construction/models/spell";
 
 export const ITEM_POWER_TRIGGERS = ["activated", "passive", "weapon-hit"] as const;
 export type ItemPowerTrigger = (typeof ITEM_POWER_TRIGGERS)[number];
@@ -24,6 +29,10 @@ export type ItemPowerSource = {
   sourceSchemaVersion: number;
   fixedPowerLevel: string | null;
   archived: boolean;
+};
+
+export type ItemPowerCustomConstruction = {
+  document: SpellDocument;
 };
 
 export type ItemPowerEffect = {
@@ -44,6 +53,7 @@ export type ItemPower = {
   resolutionMode: ItemPowerResolutionMode;
   fixedRollTarget: number | null;
   source: ItemPowerSource | null;
+  customConstruction: ItemPowerCustomConstruction | null;
   effects: ItemPowerEffect[];
   sortOrder: number;
 };
@@ -90,6 +100,17 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
       throw new Error(`Power ${name} cannot define an amount with no resource cost.`);
     }
     const fixedRollTarget = power.resolutionMode === "fixed-roll" ? positiveWhole(power.fixedRollTarget, `Power ${name} Roll Target`) : null;
+    let customConstruction: ItemPowerCustomConstruction | null = null;
+    if (power.customConstruction) {
+      const document = parseSpellDocument(JSON.stringify(power.customConstruction.document));
+      const validation = document ? calculateSpell(document) : null;
+      if (!validation) throw new Error(`Power ${name} Custom Magic Construction could not be calculated.`);
+      const spellValidation = validateSpell(document, undefined, validation);
+      if (spellValidation.issues.some((issue) => issue.severity === "ERROR")) throw new Error(`Power ${name} Custom Magic Construction has unresolved validation errors.`);
+      const adapter = adaptSpellToMechanicalEffects(document);
+      if (!adapter.valid) throw new Error(`Power ${name} Custom Magic Construction has unresolved Mechanical Effect errors.`);
+      customConstruction = { document };
+    }
     const effects = power.effects.map((entry: ItemPowerEffect, effectIndex: number) => {
       if (entry.id !== null && (!Number.isSafeInteger(entry.id) || entry.id <= 0)) throw new Error(`Power ${name} Effect ${effectIndex + 1} has an invalid identity.`);
       const decoded = decodeMechanicalEffect(encodeMechanicalEffect(entry.effect));
@@ -105,6 +126,7 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
       resourceCostAmount: power.resourceCostKind === "none" ? null : power.resourceCostAmount,
       requiredEquipmentState: power.trigger === "passive" ? power.requiredEquipmentState : null,
       fixedRollTarget,
+      customConstruction,
       effects,
       sortOrder: index,
     };
@@ -116,6 +138,7 @@ export function copyItemPowers(powers: readonly ItemPower[]): ItemPower[] {
     ...power,
     id: null,
     source: power.source ? { ...power.source } : null,
+    customConstruction: power.customConstruction ? { document: structuredClone(power.customConstruction.document) } : null,
     effects: power.effects.map((entry) => ({ id: null, effect: structuredClone(entry.effect) })),
   }));
 }
