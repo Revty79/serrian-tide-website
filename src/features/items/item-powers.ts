@@ -11,6 +11,9 @@ import { calculateSpell } from "@/features/spell-construction/engine/calculateSp
 import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { validateSpell } from "@/features/spell-construction/engine/validateSpell";
+import { hasProgressiveSpellModifier } from "@/features/spell-construction/engine/progressiveSpell";
+import { adaptProgressiveSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import type { PractitionerLevel } from "@/features/spell-construction/models/rules";
 import type { SpellDocument } from "@/features/spell-construction/models/spell";
 
 export const ITEM_POWER_TRIGGERS = ["activated", "passive", "weapon-hit"] as const;
@@ -27,7 +30,6 @@ export type ItemPowerSource = {
   sourceSkillName: string;
   sourceExtensionType: "spell-construction";
   sourceSchemaVersion: number;
-  fixedPowerLevel: string | null;
   archived: boolean;
 };
 
@@ -63,7 +65,16 @@ export type ItemPowerValidationInput = {
   powers: readonly ItemPower[];
   hasWeaponProfile: boolean;
   hasChargePool: boolean;
+  isMagical: boolean;
 };
+
+export function resolveItemPowerConstruction(document: SpellDocument, fixedPowerLevel: string | null) {
+  const progressive = hasProgressiveSpellModifier(document);
+  if (progressive && !fixedPowerLevel) throw new Error("Progressive Item Power Magic requires a fixed Item Power Level.");
+  if (!progressive) return { progressive: false, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };
+  const level = fixedPowerLevel as PractitionerLevel;
+  return { progressive: true, calculation: calculateSpell(document), adapter: adaptProgressiveSpellToMechanicalEffects(document, level) };
+}
 
 function positiveWhole(value: number | null, label: string): number | null {
   if (value === null) return null;
@@ -89,11 +100,17 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
     if (!name) throw new Error(`Power ${index + 1} Name is required.`);
     if (!ITEM_POWER_TRIGGERS.includes(power.trigger)) throw new Error(`Power ${index + 1} has an invalid trigger.`);
     if (!ITEM_POWER_RESOLUTION_MODES.includes(power.resolutionMode)) throw new Error(`Power ${index + 1} has an invalid resolution mode.`);
+    if (power.trigger === "weapon-hit" && power.resolutionMode !== "weapon-hit") throw new Error(`Weapon-Hit Power ${name} must use Weapon-Hit resolution.`);
+    if (power.trigger === "passive" && (power.resolutionMode === "weapon-hit" || power.resolutionMode === "fixed-roll")) throw new Error(`Passive Power ${name} cannot use activation resolution.`);
+    if (power.trigger === "passive" && power.initiativeCost !== null) throw new Error(`Passive Power ${name} cannot define an activation Initiative.`);
+    if (power.trigger === "weapon-hit" && power.initiativeCost !== null) throw new Error(`Weapon-Hit Power ${name} cannot define a separate Initiative.`);
+    if (power.trigger === "activated" && power.resolutionMode === "weapon-hit") throw new Error(`Activated Power ${name} cannot use Weapon-Hit resolution.`);
     const initiativeCost = power.trigger === "activated" ? nonNegative(power.initiativeCost, `Power ${index + 1} Initiative`) : null;
     if (power.trigger === "passive" && !power.requiredEquipmentState) throw new Error(`Passive Power ${name} requires an Equipment State.`);
     if (power.requiredEquipmentState && !PASSIVE_REQUIRED_EQUIPMENT_STATES.includes(power.requiredEquipmentState)) throw new Error(`Power ${name} has an invalid Equipment State.`);
     if (power.trigger === "weapon-hit" && !input.hasWeaponProfile) throw new Error(`Weapon-Hit Power ${name} requires a Weapon Profile.`);
     if (power.trigger !== "activated" && power.resourceCostKind === "consume-item") throw new Error(`Power ${name} can only consume an Item when Activated.`);
+    if (power.trigger === "passive" && power.resourceCostKind === "shared-charges") throw new Error(`Passive Power ${name} cannot spend Charges.`);
     if (power.resourceCostKind !== "none") {
       positiveWhole(power.resourceCostAmount, `Power ${name} Resource Cost`);
       if (power.resourceCostKind === "shared-charges" && !input.hasChargePool) throw new Error(`Power ${name} spends Charges but this Item has no Charge Pool.`);
@@ -104,15 +121,19 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
     if (power.fixedPowerLevel !== null && !["Apprentice", "Novice", "Master", "High Master", "Grand Master"].includes(power.fixedPowerLevel)) throw new Error(`Power ${name} Fixed Power Level is invalid.`);
     let customConstruction: ItemPowerCustomConstruction | null = null;
     if (power.customConstruction) {
+      if (!input.isMagical) throw new Error(`Power ${name} Custom Magic requires a Magical Item.`);
       const document = parseSpellDocument(JSON.stringify(power.customConstruction.document));
       const validation = document ? calculateSpell(document) : null;
       if (!validation) throw new Error(`Power ${name} Custom Magic Construction could not be calculated.`);
+      resolveItemPowerConstruction(document, power.fixedPowerLevel);
       const spellValidation = validateSpell(document, undefined, validation);
       if (spellValidation.issues.some((issue) => issue.severity === "ERROR")) throw new Error(`Power ${name} Custom Magic Construction has unresolved validation errors.`);
       const adapter = adaptSpellToMechanicalEffects(document);
       if (!adapter.valid) throw new Error(`Power ${name} Custom Magic Construction has unresolved Mechanical Effect errors.`);
       customConstruction = { document };
     }
+    if (power.source && !input.isMagical) throw new Error(`Power ${name} Canonical Source requires a Magical Item.`);
+    if (power.source && power.customConstruction) throw new Error(`Power ${name} cannot use both a Canonical Source and Custom Magic.`);
     const effects = power.effects.map((entry: ItemPowerEffect, effectIndex: number) => {
       if (entry.id !== null && (!Number.isSafeInteger(entry.id) || entry.id <= 0)) throw new Error(`Power ${name} Effect ${effectIndex + 1} has an invalid identity.`);
       const decoded = decodeMechanicalEffect(encodeMechanicalEffect(entry.effect));

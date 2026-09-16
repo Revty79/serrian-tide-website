@@ -28,6 +28,7 @@ import {
   itemEffect,
   itemPassiveEffect,
   itemPower,
+  itemPowerResource,
   itemPowerConstruction,
   itemPowerEffect,
   itemPowerSource,
@@ -88,6 +89,7 @@ import { magazineProfile, magazineAmmunition, weaponMagazine } from "@/db/magazi
 import { saveMagazineCatalogInTransaction, type MagazineProfileDraft } from "@/features/items/magazine-catalog-service";
 import {
   copyItemPowers,
+  resolveItemPowerConstruction,
   validateItemPowers,
   type ItemPower,
 } from "@/features/items/item-powers";
@@ -183,6 +185,7 @@ export type ItemDraft = {
   effects: MechanicalEffect[];
   passiveEffects: ItemPassiveEffectDefinition[];
   powers: ItemPower[];
+  powerResource: { maximumCharges: number; rechargeNotes: string } | null;
   core: {
     canonicalId: string;
     name: string;
@@ -312,8 +315,15 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
   const powers = validateItemPowers({
     powers: input.powers,
     hasWeaponProfile: input.weaponProfile !== null,
-    hasChargePool: input.runtimeProfile.useMode === "charges" && input.runtimeProfile.maximumCharges !== null,
+    hasChargePool: input.powerResource !== null,
+    isMagical: input.isMagical,
   });
+  const powerResource = input.powerResource === null
+    ? null
+    : {
+        maximumCharges: positiveInteger(input.powerResource.maximumCharges, "Power Maximum Charges")!,
+        rechargeNotes: clean(input.powerResource.rechargeNotes),
+      };
 
   const properties = input.properties.map((row, sortOrder) => {
     const relatedItemId = row.relationKind === "item" ? row.relatedItemId : null;
@@ -389,6 +399,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
     ...runtimeValidation.definition,
     passiveEffects,
     powers,
+    powerResource,
     core: {
       canonicalId: input.id
         ? required(input.core.canonicalId, "Item ID").toLocaleUpperCase("en-US")
@@ -629,7 +640,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     const [parent] = await db.select({ name: item.name }).from(item).where(eq(item.id, row.parentItemId)).limit(1);
     parentItemName = parent?.name ?? null;
   }
-  const [properties, weaponRows, firingModeRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows, powerRows] = await Promise.all([
+  const [properties, weaponRows, firingModeRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows, powerRows, powerResourceRow] = await Promise.all([
     db.select().from(itemProperty).where(eq(itemProperty.itemId, id)).orderBy(asc(itemProperty.sortOrder), asc(itemProperty.id)),
     db.select().from(weaponProfile).where(eq(weaponProfile.itemId, id)).limit(1),
     db.select({
@@ -671,12 +682,12 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       sourceKind: itemPowerSource.sourceKind,
       sourceSkillId: itemPowerSource.sourceSkillId,
       sourceExtensionType: itemPowerSource.sourceExtensionType,
-      fixedPowerLevel: itemPowerSource.fixedPowerLevel,
     }).from(itemPower)
       .leftJoin(itemPowerSource, eq(itemPowerSource.itemPowerId, itemPower.id))
       .leftJoin(skill, eq(skill.id, itemPowerSource.sourceSkillId))
       .where(eq(itemPower.itemId, id))
       .orderBy(asc(itemPower.sortOrder), asc(itemPower.id)),
+    db.select().from(itemPowerResource).where(eq(itemPowerResource.itemId, id)).limit(1),
   ]);
   const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
   const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
@@ -732,7 +743,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     ? await db.select().from(itemPowerConstruction).where(inArray(itemPowerConstruction.itemPowerId, powerIds))
     : [];
   const constructionsByPower = new Map(constructionRows.map((entry) => [entry.itemPowerId, entry]));
-  const powers = powerRows.map(({ power, sourceSkillName, sourceArchivedAt, sourceSchemaVersion, sourceKind, sourceSkillId, sourceExtensionType, fixedPowerLevel }) => ({
+  const powers = powerRows.map(({ power, sourceSkillName, sourceArchivedAt, sourceSchemaVersion, sourceKind, sourceSkillId, sourceExtensionType }) => ({
     id: power.id,
     name: power.name,
     description: power.description,
@@ -746,7 +757,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     fixedRollTarget: power.fixedRollTarget,
     fixedPowerLevel: power.fixedPowerLevel,
     source: sourceSkillId && sourceSkillName && sourceKind && sourceExtensionType && sourceSchemaVersion
-      ? { sourceSkillId, sourceSkillName, sourceKind: "spell-construction" as const, sourceExtensionType: "spell-construction" as const, sourceSchemaVersion, fixedPowerLevel, archived: sourceArchivedAt !== null }
+      ? { sourceSkillId, sourceSkillName, sourceKind: "spell-construction" as const, sourceExtensionType: "spell-construction" as const, sourceSchemaVersion, fixedPowerLevel: power.fixedPowerLevel, archived: sourceArchivedAt !== null }
       : null,
     customConstruction: constructionsByPower.has(power.id)
       ? { document: parseSpellDocument(constructionsByPower.get(power.id)!.documentJson) }
@@ -764,6 +775,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     effects,
     passiveEffects,
     powers,
+    powerResource: powerResourceRow[0] ? { maximumCharges: powerResourceRow[0].maximumCharges, rechargeNotes: powerResourceRow[0].rechargeNotes } : null,
     core: {
       canonicalId: row.canonicalId, name: row.name, catalogScope: row.catalogScope as ItemCatalogScope,
       equipmentGroup: row.equipmentGroup as EquipmentCatalogGroup | null, recordType: row.recordType, family: row.family,
@@ -1017,6 +1029,15 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
     await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
     await tx.delete(itemEffect).where(eq(itemEffect.itemId, id));
     await tx.delete(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id));
+    const existingPowers = await tx.select().from(itemPower).where(eq(itemPower.itemId, id!));
+    const existingPowerById = new Map(existingPowers.map((power) => [power.id, power]));
+    const submittedPowerIds = new Set(normalized.powers.flatMap((power) => power.id === null ? [] : [power.id]));
+    if ([...submittedPowerIds].some((powerId) => !existingPowerById.has(powerId))) throw new Error("One or more Power identities do not belong to this Item.");
+    const removedPowerIds = existingPowers.map(({ id: powerId }) => powerId).filter((powerId) => !submittedPowerIds.has(powerId));
+    if (removedPowerIds.length) await tx.delete(itemPower).where(and(eq(itemPower.itemId, id!), inArray(itemPower.id, removedPowerIds)));
+    const existingPowerEffects = existingPowers.length ? await tx.select().from(itemPowerEffect).where(inArray(itemPowerEffect.itemPowerId, existingPowers.map(({ id: powerId }) => powerId))) : [];
+    const effectsByPowerId = new Map<number, typeof existingPowerEffects>();
+    for (const effect of existingPowerEffects) effectsByPowerId.set(effect.itemPowerId, [...(effectsByPowerId.get(effect.itemPowerId) ?? []), effect]);
     const existingPowerSources = await tx.select({
       itemPowerId: itemPowerSource.itemPowerId,
       sourceSkillId: itemPowerSource.sourceSkillId,
@@ -1025,8 +1046,9 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       .where(eq(itemPower.itemId, id!));
     const existingSourceByPowerId = new Map(existingPowerSources.map((entry) => [entry.itemPowerId, entry.sourceSkillId]));
     const sourceSkillIds = normalized.powers.flatMap((power) => power.source ? [power.source.sourceSkillId] : []);
+    let sourceRows: Array<{ skillId: number; schemaVersion: number; dataJson: string; archivedAt: Date | null }> = [];
     if (sourceSkillIds.length) {
-      const sourceRows = await tx.select({
+      sourceRows = await tx.select({
         skillId: skillExtension.skillId,
         schemaVersion: skillExtension.schemaVersion,
         dataJson: skillExtension.dataJson,
@@ -1043,12 +1065,11 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         const source = sourceRows.find((entry) => entry.skillId === power.source!.sourceSkillId);
         const existingSource = power.id === null ? undefined : existingSourceByPowerId.get(power.id);
         if (!source || (source.archivedAt && existingSource !== source.skillId)) throw new Error("Archived canonical Power sources cannot be newly selected.");
-        try { parseSpellDocument(source.dataJson); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
-        if (power.source.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.source.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
+        let sourceDocument;
+        try { sourceDocument = parseSpellDocument(source.dataJson); resolveItemPowerConstruction(sourceDocument, power.fixedPowerLevel); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
+        if (power.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
       }
     }
-    await tx.delete(itemPower).where(eq(itemPower.itemId, id!));
-
     await tx.insert(itemRuntimeProfile).values({
       itemId: id!,
       ...normalized.runtimeProfile,
@@ -1061,42 +1082,28 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       })));
     }
     for (const power of normalized.powers) {
-      const [savedPower] = await tx.insert(itemPower).values({
-        itemId: id!,
-        name: power.name,
-        description: power.description,
-        trigger: power.trigger,
-        activationLabel: power.activationLabel,
-        initiativeCost: power.initiativeCost,
-        resourceCostKind: power.resourceCostKind,
-        resourceCostAmount: power.resourceCostAmount,
-        requiredEquipmentState: power.requiredEquipmentState,
-        resolutionMode: power.resolutionMode,
-        fixedRollTarget: power.fixedRollTarget,
-        fixedPowerLevel: power.fixedPowerLevel,
-        sortOrder: power.sortOrder,
-      }).returning({ id: itemPower.id });
-      const encodedPowerEffects = power.effects.map((entry, sortOrder) => ({
-        itemPowerId: savedPower.id,
-        schemaVersion: encodeMechanicalEffect(entry.effect).schemaVersion,
-        effectJson: encodeMechanicalEffect(entry.effect).effectJson,
-        sortOrder,
-      }));
-      if (encodedPowerEffects.length) await tx.insert(itemPowerEffect).values(encodedPowerEffects);
-      if (power.source) await tx.insert(itemPowerSource).values({
-        itemPowerId: savedPower.id,
-        sourceKind: "spell-construction",
-        sourceSkillId: power.source.sourceSkillId,
-        sourceExtensionType: "spell-construction",
-        sourceSchemaVersion: power.source.sourceSchemaVersion,
-        fixedPowerLevel: power.source.fixedPowerLevel,
-      });
-      if (power.customConstruction) await tx.insert(itemPowerConstruction).values({
-        itemPowerId: savedPower.id,
-        schemaVersion: power.customConstruction.document.schemaVersion,
-        documentJson: JSON.stringify(power.customConstruction.document),
-      });
+      const savedPower = power.id === null
+        ? (await tx.insert(itemPower).values({ itemId: id!, name: power.name, description: power.description, trigger: power.trigger, activationLabel: power.activationLabel, initiativeCost: power.initiativeCost, resourceCostKind: power.resourceCostKind, resourceCostAmount: power.resourceCostAmount, requiredEquipmentState: power.requiredEquipmentState, resolutionMode: power.resolutionMode, fixedRollTarget: power.fixedRollTarget, fixedPowerLevel: power.fixedPowerLevel, sortOrder: power.sortOrder }).returning())[0]!
+        : (await tx.update(itemPower).set({ name: power.name, description: power.description, trigger: power.trigger, activationLabel: power.activationLabel, initiativeCost: power.initiativeCost, resourceCostKind: power.resourceCostKind, resourceCostAmount: power.resourceCostAmount, requiredEquipmentState: power.requiredEquipmentState, resolutionMode: power.resolutionMode, fixedRollTarget: power.fixedRollTarget, fixedPowerLevel: power.fixedPowerLevel, sortOrder: power.sortOrder, updatedAt: new Date() }).where(and(eq(itemPower.id, power.id), eq(itemPower.itemId, id!))).returning())[0]!;
+      const existingEffects = effectsByPowerId.get(savedPower.id) ?? [];
+      const submittedEffectIds = new Set(power.effects.flatMap((entry) => entry.id === null ? [] : [entry.id]));
+      if ([...submittedEffectIds].some((effectId) => !existingEffects.some((entry) => entry.id === effectId))) throw new Error(`One or more Effects do not belong to Power ${power.name}.`);
+      const removedEffectIds = existingEffects.map(({ id: effectId }) => effectId).filter((effectId) => !submittedEffectIds.has(effectId));
+      if (removedEffectIds.length) await tx.delete(itemPowerEffect).where(and(eq(itemPowerEffect.itemPowerId, savedPower.id), inArray(itemPowerEffect.id, removedEffectIds)));
+      for (const [sortOrder, entry] of power.effects.entries()) {
+        const encoded = encodeMechanicalEffect(entry.effect);
+        if (entry.id === null) await tx.insert(itemPowerEffect).values({ itemPowerId: savedPower.id, ...encoded, sortOrder });
+        else await tx.update(itemPowerEffect).set({ ...encoded, sortOrder }).where(and(eq(itemPowerEffect.id, entry.id), eq(itemPowerEffect.itemPowerId, savedPower.id)));
+      }
+      if (power.source) {
+        const source = sourceRows.find((entry) => entry.skillId === power.source!.sourceSkillId)!;
+        await tx.insert(itemPowerSource).values({ itemPowerId: savedPower.id, sourceKind: "spell-construction", sourceSkillId: source.skillId, sourceExtensionType: "spell-construction", sourceSchemaVersion: source.schemaVersion }).onConflictDoUpdate({ target: itemPowerSource.itemPowerId, set: { sourceKind: "spell-construction", sourceSkillId: source.skillId, sourceExtensionType: "spell-construction", sourceSchemaVersion: source.schemaVersion, updatedAt: new Date() } });
+      } else await tx.delete(itemPowerSource).where(eq(itemPowerSource.itemPowerId, savedPower.id));
+      if (power.customConstruction) await tx.insert(itemPowerConstruction).values({ itemPowerId: savedPower.id, schemaVersion: power.customConstruction.document.schemaVersion, documentJson: JSON.stringify(power.customConstruction.document) }).onConflictDoUpdate({ target: itemPowerConstruction.itemPowerId, set: { schemaVersion: power.customConstruction.document.schemaVersion, documentJson: JSON.stringify(power.customConstruction.document), updatedAt: new Date() } });
+      else await tx.delete(itemPowerConstruction).where(eq(itemPowerConstruction.itemPowerId, savedPower.id));
     }
+    if (normalized.powerResource) await tx.insert(itemPowerResource).values({ itemId: id!, ...normalized.powerResource }).onConflictDoUpdate({ target: itemPowerResource.itemId, set: { ...normalized.powerResource, updatedAt: new Date() } });
+    else await tx.delete(itemPowerResource).where(eq(itemPowerResource.itemId, id!));
     const storedPassiveRows = await tx.select({ id: itemPassiveEffect.id }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));
     const storedPassiveIds = new Set(storedPassiveRows.map(({ id: passiveId }) => passiveId));
     const submittedPassiveIds = new Set(normalized.passiveEffects.flatMap(({ id: passiveId }) => passiveId === null ? [] : [passiveId]));
@@ -1287,6 +1294,7 @@ export async function createItemVariant(parentItemId: number, variantName: strin
     armorProfile: parent.armorProfile ? { ...parent.armorProfile, damageModifiers: parent.armorProfile.damageModifiers.map((row) => ({ ...row })), coveredBodyLocationKeys: [...parent.armorProfile.coveredBodyLocationKeys] } : null,
     tags: [...parent.tags],
     powers: copyItemPowers(parent.powers),
+    powerResource: parent.powerResource ? { ...parent.powerResource } : null,
     variants: [],
   };
   return saveItemDefinition(clone, true);

@@ -206,6 +206,20 @@ export const itemPower = pgTable(
   ],
 );
 
+export const itemPowerResource = pgTable(
+  "item_power_resources",
+  {
+    itemId: integer("item_id").primaryKey().references(() => item.id, { onDelete: "cascade" }),
+    maximumCharges: integer("maximum_charges").notNull(),
+    rechargeNotes: text("recharge_notes").default("").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    check("item_power_resources_maximum_charges_valid", sql`${table.maximumCharges} > 0`),
+  ],
+);
+
 export const itemPowerEffect = pgTable(
   "item_power_effects",
   {
@@ -232,7 +246,6 @@ export const itemPowerSource = pgTable(
     sourceSkillId: integer("source_skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
     sourceExtensionType: text("source_extension_type").notNull(),
     sourceSchemaVersion: integer("source_schema_version").notNull(),
-    fixedPowerLevel: text("fixed_power_level"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

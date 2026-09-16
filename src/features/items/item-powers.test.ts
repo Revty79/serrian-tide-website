@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { createContainer, createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
@@ -50,7 +51,7 @@ function power(overrides: Partial<ItemPower> = {}): ItemPower {
   };
 }
 
-const validChargePool = { hasWeaponProfile: true, hasChargePool: true };
+const validChargePool = { hasWeaponProfile: true, hasChargePool: true, isMagical: true };
 
 test("Items may have zero Powers and many independent Powers", () => {
   assert.deepEqual(validateItemPowers({ powers: [], ...validChargePool }), []);
@@ -80,7 +81,7 @@ test("shared Charges require an Item Charge Pool and each Power owns its cost", 
     ...validChargePool,
   });
   assert.deepEqual(powers.map((entry) => entry.resourceCostAmount), [2, 5]);
-  assert.throws(() => validateItemPowers({ powers: [power({ resourceCostKind: "shared-charges", resourceCostAmount: 1 })], hasWeaponProfile: true, hasChargePool: false }), /no Charge Pool/);
+  assert.throws(() => validateItemPowers({ powers: [power({ resourceCostKind: "shared-charges", resourceCostAmount: 1 })], hasWeaponProfile: true, hasChargePool: false, isMagical: true }), /no Charge Pool/);
   assert.throws(() => validateItemPowers({ powers: [power({ resourceCostKind: "shared-charges", resourceCostAmount: 0 })], ...validChargePool }), /positive/);
 });
 
@@ -91,17 +92,17 @@ test("consume-item costs and passive equipment requirements are validated", () =
 });
 
 test("Weapon-Hit Powers require a Weapon Profile", () => {
-  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "weapon-hit" })], hasWeaponProfile: false, hasChargePool: false }), /Weapon Profile/);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "weapon-hit" })], hasWeaponProfile: false, hasChargePool: false, isMagical: true }), /Weapon Profile/);
   assert.doesNotThrow(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "weapon-hit" })], ...validChargePool }));
 });
 
 test("fixed rolls, multiple effects, and canonical progressive source metadata remain authored on the Power", () => {
-  const source = { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction" as const, sourceSchemaVersion: 1, fixedPowerLevel: "Master", archived: false };
+  const source = { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction" as const, sourceSchemaVersion: 1, archived: false };
   const effect = { kind: "manual" as const, title: "Narrative", description: "Describe the flare." };
-  const result = validateItemPowers({ powers: [power({ resolutionMode: "fixed-roll", fixedRollTarget: 12, source, effects: [{ id: null, effect }, { id: null, effect: { kind: "health.damage", amount: 3, application: "localized" } }] })], ...validChargePool });
+  const result = validateItemPowers({ powers: [power({ resolutionMode: "fixed-roll", fixedRollTarget: 12, fixedPowerLevel: "Master", source, effects: [{ id: null, effect }, { id: null, effect: { kind: "health.damage", amount: 3, application: "localized" } }] })], ...validChargePool });
   assert.equal(result[0]!.fixedRollTarget, 12);
   assert.equal(result[0]!.effects.length, 2);
-  assert.equal(result[0]!.source!.fixedPowerLevel, "Master");
+  assert.equal(result[0]!.fixedPowerLevel, "Master");
   assert.equal(createEmptySpell().progressive.milestones.length >= 0, true);
 });
 
@@ -131,7 +132,7 @@ test("custom Magic, canonical source metadata, and direct effects coexist on one
   const powers = validateItemPowers({
     powers: [
       power({ name: "Custom", customConstruction: { document } }),
-      power({ name: "Canonical", source: { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction", sourceSchemaVersion: 1, fixedPowerLevel: "Master", archived: false } }),
+      power({ name: "Canonical", fixedPowerLevel: "Master", source: { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction", sourceSchemaVersion: 1, archived: false } }),
       power({ name: "Direct", effects: [{ id: null, effect: { kind: "manual", title: "Relic", description: "Resolve manually." } }] }),
     ],
     ...validChargePool,
@@ -139,4 +140,21 @@ test("custom Magic, canonical source metadata, and direct effects coexist on one
   assert.equal(powers.filter((entry) => entry.customConstruction).length, 1);
   assert.equal(powers.filter((entry) => entry.source).length, 1);
   assert.equal(powers.filter((entry) => entry.effects.length > 0).length, 1);
+});
+
+test("Power source modes and triggers reject contradictory authoring", () => {
+  const document = customConstruction("Conflict");
+  assert.throws(() => validateItemPowers({ powers: [power({ source: { sourceSkillId: 1, sourceSkillName: "Source", sourceExtensionType: "spell-construction", sourceSchemaVersion: 1, archived: false }, customConstruction: { document } })], ...validChargePool }), /both a Canonical Source/);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "automatic" })], ...validChargePool }), /Weapon-Hit resolution/);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "passive", initiativeCost: 1, requiredEquipmentState: "worn" })], ...validChargePool }), /activation Initiative/);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "passive", resolutionMode: "fixed-roll", requiredEquipmentState: "worn" })], ...validChargePool }), /cannot use activation/);
+  assert.throws(() => validateItemPowers({ powers: [power({ customConstruction: { document } })], hasWeaponProfile: true, hasChargePool: true, isMagical: false }), /Magical Item/);
+});
+
+test("Item save source reconciles Power identities instead of deleting the Power collection", () => {
+  const actions = readFileSync("src/app/heavens/items/actions.ts", "utf8");
+  assert.match(actions, /existingPowers = await tx\.select\(\)\.from\(itemPower\)/);
+  assert.match(actions, /Power identities do not belong to this Item/);
+  assert.match(actions, /tx\.update\(itemPower\)/);
+  assert.doesNotMatch(actions, /await tx\.delete\(itemPower\)\.where\(eq\(itemPower\.itemId, id!\)\)/);
 });

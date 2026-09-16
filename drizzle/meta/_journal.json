@@ -393,6 +393,13 @@
       "when": 1789595514802,
       "tag": "0055_item_power_fixed_level",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1789596231636,
+      "tag": "0056_item_power_resource_correction",
+      "breakpoints": true
     }
   ]
 }
