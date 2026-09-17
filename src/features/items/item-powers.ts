@@ -69,6 +69,29 @@ export type ItemPowerValidationInput = {
   isMagical: boolean;
 };
 
+export function transitionItemPowerTrigger(
+  power: ItemPower,
+  trigger: ItemPowerTrigger,
+  requiredEquipmentState?: PassiveRequiredEquipmentState,
+): ItemPower {
+  const resourceCostKind: ItemPowerResourceCost = trigger === "activated"
+    ? power.resourceCostKind
+    : trigger === "weapon-hit" && power.resourceCostKind === "shared-charges"
+      ? "shared-charges"
+      : "none";
+  return {
+    ...power,
+    trigger,
+    requiredEquipmentState: trigger === "passive"
+      ? requiredEquipmentState ?? power.requiredEquipmentState ?? "equipped"
+      : null,
+    resolutionMode: trigger === "weapon-hit" ? "weapon-hit" : "automatic",
+    initiativeCost: trigger === "activated" ? power.initiativeCost : null,
+    resourceCostKind,
+    resourceCostAmount: resourceCostKind === "none" ? null : power.resourceCostAmount,
+  };
+}
+
 export function resolveItemPowerConstruction(document: SpellDocument, fixedPowerLevel: string | null) {
   const progressive = hasProgressiveSpellModifier(document);
   if (!progressive || !fixedPowerLevel) return { progressive: false, spell: document, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };

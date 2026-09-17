@@ -9,11 +9,13 @@ import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-ta
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import {
   copyItemPowers,
+  transitionItemPowerTrigger,
   formatItemPowerTrigger,
   resolveItemPowerConstruction,
   validateItemPowers,
   type ItemPower,
 } from "./item-powers";
+import { decodeMechanicalEffect, encodeMechanicalEffect } from "@/features/mechanical-effects";
 
 let constructionSequence = 0;
 
@@ -89,6 +91,30 @@ test("shared Charges require an Item Charge Pool and each Power owns its cost", 
   assert.throws(() => validateItemPowers({ powers: [power({ resourceCostKind: "shared-charges", resourceCostAmount: 0 })], ...validChargePool }), /positive/);
 });
 
+test("Weapon-Hit shared Charges are authorable while invalid costs remain rejected", () => {
+  const burningStrike = validateItemPowers({
+    powers: [power({ name: "Burning Strike", trigger: "weapon-hit", resolutionMode: "weapon-hit", resourceCostKind: "shared-charges", resourceCostAmount: 1 })],
+    ...validChargePool,
+  });
+  assert.equal(burningStrike[0]!.resourceCostKind, "shared-charges");
+  assert.equal(burningStrike[0]!.resourceCostAmount, 1);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "weapon-hit", resourceCostKind: "consume-item", resourceCostAmount: 1 })], ...validChargePool }), /only consume/);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "passive", requiredEquipmentState: "wielded", resourceCostKind: "shared-charges", resourceCostAmount: 1 })], ...validChargePool }), /cannot spend Charges/);
+});
+
+test("trigger transitions preserve valid shared Charges and clear invalid costs", () => {
+  const shared = transitionItemPowerTrigger(power({ resourceCostKind: "shared-charges", resourceCostAmount: 2 }), "weapon-hit");
+  assert.equal(shared.resourceCostKind, "shared-charges");
+  assert.equal(shared.resourceCostAmount, 2);
+  const consumed = transitionItemPowerTrigger(power({ resourceCostKind: "consume-item", resourceCostAmount: 1 }), "weapon-hit");
+  assert.equal(consumed.resourceCostKind, "none");
+  assert.equal(consumed.resourceCostAmount, null);
+  const passive = transitionItemPowerTrigger(power({ trigger: "weapon-hit", resolutionMode: "weapon-hit", resourceCostKind: "shared-charges", resourceCostAmount: 1 }), "passive", "wielded");
+  assert.equal(passive.resourceCostKind, "none");
+  assert.equal(passive.resourceCostAmount, null);
+  assert.equal(passive.requiredEquipmentState, "wielded");
+});
+
 test("consume-item costs and passive equipment requirements are validated", () => {
   assert.doesNotThrow(() => validateItemPowers({ powers: [power({ resourceCostKind: "consume-item", resourceCostAmount: 1 })], ...validChargePool }));
   assert.throws(() => validateItemPowers({ powers: [power({ trigger: "passive", resourceCostKind: "consume-item", resourceCostAmount: 1, requiredEquipmentState: "worn" })], ...validChargePool }), /only consume/);
@@ -108,6 +134,16 @@ test("fixed rolls, multiple effects, and canonical progressive source metadata r
   assert.equal(result[0]!.effects.length, 2);
   assert.equal(result[0]!.fixedPowerLevel, "Master");
   assert.equal(createEmptySpell().progressive.milestones.length >= 0, true);
+});
+
+test("localized health damage survives Mechanical Effect encoding and decoding", () => {
+  const effect = {
+    kind: "health.damage" as const,
+    amount: 2,
+    application: "localized" as const,
+    timing: { mode: "over-time" as const, frequency: "combat-rounds" as const, applications: 3, firstApplication: "immediate" as const },
+  };
+  assert.deepEqual(decodeMechanicalEffect(encodeMechanicalEffect(effect)), effect);
 });
 
 test("Power variants receive independent identities and do not share effect objects", () => {
@@ -210,4 +246,11 @@ test("Item authoring presents Abilities as the primary composition and keeps leg
   assert.match(workspace, /While Equipped/);
   assert.match(workspace, /On Weapon Hit/);
   assert.match(workspace, /No Abilities authored/);
+  assert.match(workspace, /draft\.powerResource\?\.maximumCharges/);
+  assert.match(workspace, /newMechanicalEffect\(kind, power\.trigger === "weapon-hit" \? "localized" : "area"\)/);
+  assert.match(workspace, /power\.trigger !== "passive"/);
+  assert.match(workspace, /\["none", "shared-charges"\] as const/);
+  assert.match(workspace, /const isExpanded = expanded\.has\(index\)/);
+  assert.match(workspace, /setExpandedState\(\{ itemId, indices: new Set\(\[index\]\) \}\)/);
+  assert.match(workspace, /Collapse All/);
 });
