@@ -1,18 +1,5 @@
 # Combat resumption handoff
 
-## Equipment / Inventory authoring tabs (17 September 2026)
-
-**Implemented locally from `276601a`; not pushed.** The shared Heavens Item editor now separates `Weapon` and `Ammunition` tabs for both Equipment and Inventory, while preserving the existing Magazine tab and draft/save model. Old `tab=weapon` links remain valid; Inventory now also accepts `item` and `tab` query parameters for direct authoring links.
-
-- Weapon authoring retains classification, handedness, damage, preparation, Skill governance, structured range/reach, firing modes, compatibility and rules. The Ammunition tab either edits the current Ammunition Item itself or edits only the current Weapon's linked ammunition identity with an explicit explanation.
-- Profile Record Type, Handedness and Damage Source use shared supported choices. Existing unsupported values remain visible as `Needs review` and can be saved unchanged; new unsupported values are rejected server-side. A historical value may be deliberately replaced with a supported choice. Weapon Type and Damage Type remain free-form.
-- Existing Abilities, Shared Charges, legacy inspection/reauthoring, Magazine behavior, permissions and unsaved draft state were preserved. No migration or catalog data change was made.
-- Focused authoring/Ability/runtime coverage passes **62/62**; typecheck, changed-file lint and diagnostics pass. No dedicated browser authoring harness exists in the repository, so desktop/mobile save/reopen walkthroughs were not run in this pass.
-
-### Remaining authoring acceptance
-
-Exercise both `/heavens/equipment` and `/heavens/inventory` with disposable records: create a Weapon and a separate Ammunition Item, link them from the Weapon's Ammunition tab, switch tabs before saving, save/reopen from each tab, verify structured ranges/Abilities survive, and confirm `tab=weapon` still opens the linked Weapon. The next planned build remains durable G.O.D. approval of Player shot distance; do not start it in this authoring pass.
-
 ## Bounded stabilization checkpoint (17 September 2026)
 
 **Starting revision:** `e07fcb2351fff6f44114271a5b6dbd20b7d90339`. This local pass repairs the three reviewed unit failures and narrows the existing range integration; publication remains intentionally local.
