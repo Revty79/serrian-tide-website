@@ -4,6 +4,7 @@ import { decimalAdd } from "@/lib/decimal";
 import Link from "next/link";
 import { isSupportedAmmunitionWeaponType, projectileWeaponFamily } from "@/features/items/firearm-classification";
 import { WEAPON_RANGE_MODES, type WeaponRangeMode } from "@/features/items/weapon-range";
+import { WEAPON_DAMAGE_SOURCE_OPTIONS, WEAPON_HANDEDNESS_OPTIONS, WEAPON_PROFILE_RECORD_TYPE_OPTIONS } from "@/features/items/weapon-authoring";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
@@ -77,13 +78,14 @@ import type {
   WeaponSkillPathMappingDraft,
 } from "@/features/items/weapon-skill-governance-service";
 
-type Tab = "overview" | "properties" | "abilities" | "magazine" | "weapon" | "armor" | "tags" | "variants" | "preview";
+type Tab = "overview" | "properties" | "abilities" | "magazine" | "weapon" | "ammunition" | "armor" | "tags" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "properties", label: "Properties" },
   { id: "abilities", label: "Abilities" },
-  { id: "weapon", label: "Weapon / Ammunition" },
+  { id: "weapon", label: "Weapon" },
+  { id: "ammunition", label: "Ammunition" },
   { id: "magazine", label: "Magazine" },
   { id: "armor", label: "Armor" },
   { id: "tags", label: "Tags" },
@@ -147,6 +149,11 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
 
 function OptionalNumber({ value, onChange, ...props }: { value: number | null; onChange: (value: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
   return <input {...props} type="number" value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} />;
+}
+
+function AuthoringChoiceField({ label, value, options, onChange }: { label: string; value: string; options: readonly string[]; onChange: (value: string) => void }) {
+  const known = !value || options.some((option) => option.toLocaleLowerCase("en-US") === value.toLocaleLowerCase("en-US"));
+  return <Field label={label}><select value={value} onChange={(event) => onChange(event.target.value)}><option value="">Unconfigured</option>{!known ? <option value={value}>{value} · Needs review</option> : null}{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>;
 }
 
 function moveFiringMode(modes: readonly FirearmFiringModeDraft[], index: number, direction: -1 | 1): FirearmFiringModeDraft[] {
@@ -380,6 +387,7 @@ export function ItemWorkspace({
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "abilities" ? <Abilities draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} onChange={change} /> : null}
+          {activeTab === "ammunition" ? <Ammunition draft={draft} references={references} itemDirty={dirty} onChange={change} /> : null}
           {activeTab === "magazine" ? <Magazine draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
@@ -856,20 +864,22 @@ function WeaponGovernanceEditor({
   </section>;
 }
 
-function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; itemDirty: boolean; onChange: (draft: ItemDraft) => void }) {
+function Weapon({ draft, references, itemDirty, onChange, view = "weapon" }: { draft: ItemDraft; references: ItemAuthoringReferences; itemDirty: boolean; onChange: (draft: ItemDraft) => void; view?: "weapon" | "ammunition" }) {
   const [ammoSearch, setAmmoSearch] = useState("");
   const [ammoCandidates, setAmmoCandidates] = useState<RelatedItemCandidate[]>([]);
   const preserveScroll = useInPlaceScrollPreservation();
   const profile = draft.weaponProfile;
+  const ammunitionProfile = profile ? profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition" : false;
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (ammoSearch.trim()) void findRelatedItems(ammoSearch, draft.id).then(setAmmoCandidates);
     }, 180);
     return () => window.clearTimeout(timer);
   }, [ammoSearch, draft.id]);
-  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", rangeMode: null, distanceUnit: null, reachDistance: null, shortRangeDistance: null, mediumRangeDistance: null, longRangeDistance: null, ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", capacityRounds: null, readinessMode: null, drawInitiativeCost: null, readyInitiativeCost: null, reloadInitiativeCost: null, unloadInitiativeCost: null, firingModeChangeInitiativeCost: null, firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } }))}>Add Weapon / Ammunition Profile</button></div>;
+  if (!profile) return <div className="item-section item-empty-profile"><p>{view === "ammunition" ? "AMMUNITION PROFILE" : "WEAPON PROFILE"}</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", rangeMode: null, distanceUnit: null, reachDistance: null, shortRangeDistance: null, mediumRangeDistance: null, longRangeDistance: null, ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", capacityRounds: null, readinessMode: null, drawInitiativeCost: null, readyInitiativeCost: null, reloadInitiativeCost: null, unloadInitiativeCost: null, firingModeChangeInitiativeCost: null, firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } }))}>{view === "ammunition" ? "Add Ammunition Profile" : "Add Weapon Profile"}</button></div>;
   const patch = (update: Partial<NonNullable<ItemDraft["weaponProfile"]>>) => onChange({ ...draft, weaponProfile: { ...profile, ...update } });
-  const ammunitionProfile = profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition";
+  if (ammunitionProfile && view === "weapon") return <div className="item-section item-empty-profile"><p>AMMUNITION ITEM</p><h3>This Item is authored as Ammunition.</h3><p className="item-firearm-help">Open the Ammunition tab to edit this Item&apos;s damage and timing. Linking this Item from a Weapon is a separate authoring step.</p></div>;
+  if (!ammunitionProfile && view === "ammunition") return <AmmunitionLinkEditor draft={draft} profile={profile} ammoSearch={ammoSearch} onSearch={setAmmoSearch} candidates={ammoCandidates} preserveScroll={preserveScroll} onChange={onChange} />;
   const projectileFamily = projectileWeaponFamily(profile.weaponType);
   const firearmChecklist = !ammunitionProfile && isSupportedAmmunitionWeaponType(profile.weaponType) ? [
     { label: "1. Ammunition and loading", href: "#firearm-loading", missing: [!profile.ammunitionItemId && "Ammunition Item", !profile.reloadType && "Reload Type", profile.reloadType === "Magazine" && !profile.compatibleMagazines?.length && "compatible magazine models"].filter(Boolean) },
@@ -877,7 +887,7 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
     { label: "3. Firing modes", href: "#firearm-firing-modes", missing: projectileFamily ? profile.firingModes.some((mode) => mode.name.trim().toLowerCase() === "single") ? [] : ["Single mode"] : !profile.firingModes.length ? ["at least one firing mode"] : profile.firingModes.flatMap((mode) => mode.baseCyclingInitiativeCost === null || mode.baseRecoilResetInitiativeCost === null || !mode.deliveryCadence || !mode.roundsPerCadence ? [`${mode.name || "Unnamed mode"}: cycling cost, recoil recovery cost, delivery and rounds`] : []) },
   ] : null;
   return <div className="item-section item-form-grid">
-    <div className="item-profile-banner item-field--wide"><div><p>WEAPON / AMMUNITION PROFILE</p><h3>{ammunitionProfile ? "Ammunition Damage & Mechanics" : "Combat Equipment"}</h3></div><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: null }))}>Remove Profile</button></div>
+    <div className="item-profile-banner item-field--wide"><div><p>{ammunitionProfile ? "AMMUNITION PROFILE" : "WEAPON PROFILE"}</p><h3>{ammunitionProfile ? "Ammunition Item" : "Combat Equipment"}</h3></div><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: null }))}>Remove Profile</button></div>
     {firearmChecklist ? <section className="item-firearm-timing item-field--wide" aria-label="Firearm setup checklist"><h3>{projectileFamily ? "Ranged weapon setup" : "Get this firearm ready for combat"}</h3>
       <p>Complete these item settings, save the item, then prepare an owned copy. Blank means unresolved; enter 0 when a step is free.</p>
       <ol>{firearmChecklist.map((step) => <li key={step.href}><a href={step.href}>{step.label.slice(3)}</a>: {step.missing.length ? `Missing ${step.missing.join(", ")}.` : "Fields filled."}</li>)}</ol>
@@ -885,9 +895,9 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
       <p>After saving, return to combat, choose the weapon and use Refresh weapon. Apply updated item settings if offered, then load and prepare the copy. Outside combat, use the Character&apos;s Firearm setup.</p>
     </section> : null}
     {!ammunitionProfile ? <div id="firearm-loading" className="item-field--wide"><Field label="Reload Type"><select className="st-control" aria-label="Reload Type" value={profile.reloadType ?? ""} onChange={(event) => patch({ reloadType: event.target.value === "Single" || event.target.value === "Magazine" ? event.target.value : null })}><option value="">Unconfigured</option><option>Single</option><option>Magazine</option></select></Field><p>Single: reload cost per inserted round, shell or projectile. Magazine: reload cost for a complete magazine swap. Completed Single insertions stay loaded if interrupted; a replacement magazine becomes usable when its swap completes.</p><MagazineLinks kind="magazine" excludeItemId={draft.id} selected={profile.compatibleMagazines ?? []} onChange={(compatibleMagazines) => patch({ compatibleMagazines })} /><p>Single-loading capacity belongs to the weapon. Each magazine model has its own capacity, including extended models. Combat uses the attached magazine capacity; existing internal rounds must be unloaded before attaching a magazine.</p></div> : null}
-    <Field label="Profile Record Type"><input value={profile.profileRecordType} onChange={(e) => patch({ profileRecordType: e.target.value })} /></Field>
-    <Field label="Weapon Type"><input value={profile.weaponType} onChange={(e) => patch({ weaponType: e.target.value })} /></Field><Field label="Handedness"><input value={profile.handedness} onChange={(e) => patch({ handedness: e.target.value })} /></Field>
-    <Field label="Damage Source"><input value={profile.damageSource} onChange={(e) => patch({ damageSource: e.target.value })} /></Field><Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
+    <AuthoringChoiceField label="Profile Record Type" value={profile.profileRecordType} options={WEAPON_PROFILE_RECORD_TYPE_OPTIONS} onChange={(profileRecordType) => patch({ profileRecordType })} />
+    <Field label={ammunitionProfile ? "Ammunition Type / Family" : "Weapon Type"}><input value={profile.weaponType} onChange={(e) => patch({ weaponType: e.target.value })} /></Field><AuthoringChoiceField label="Handedness" value={profile.handedness} options={WEAPON_HANDEDNESS_OPTIONS} onChange={(handedness) => patch({ handedness })} />
+    <AuthoringChoiceField label="Damage Source" value={profile.damageSource} options={WEAPON_DAMAGE_SOURCE_OPTIONS} onChange={(damageSource) => patch({ damageSource })} /><Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
     <Field label="Damage Type"><input value={profile.damageType} onChange={(e) => patch({ damageType: e.target.value })} /></Field><Field label="Initiative Cost"><OptionalNumber value={profile.initiativeCost} min={1} step={1} onChange={(initiativeCost) => patch({ initiativeCost })} /></Field>
     <Field label="Legacy Range Text"><input value={profile.range} onChange={(e) => patch({ range: e.target.value })} /></Field>
     <Field label="Legacy Reach Text"><input value={profile.reach} onChange={(e) => patch({ reach: e.target.value })} /></Field><Field label="Legacy Capacity Text"><input value={profile.capacity} onChange={(e) => patch({ capacity: e.target.value })} /></Field>
@@ -912,7 +922,6 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
         <Field label="Recoil Reset Initiative Modifier"><input type="number" step="any" value={profile.ammunitionRecoilResetInitiativeModifier} onChange={(e) => patch({ ammunitionRecoilResetInitiativeModifier: Number(e.target.value) })} /></Field>
       </div>
     </section> : <>
-      <Field label="Find Ammunition"><input value={ammoSearch} onChange={(e) => setAmmoSearch(e.target.value)} /></Field><Field label="Ammunition Item"><select value={profile.ammunitionItemId ?? ""} onChange={(e) => { const id = Number(e.target.value); const candidate = ammoCandidates.find((row) => row.id === id); patch({ ammunitionItemId: id || null, ammunitionItemName: candidate?.name ?? null, referencedAmmunition: candidate ? { itemId: candidate.id, name: candidate.name, cyclingInitiativeModifier: candidate.ammunitionCyclingInitiativeModifier, recoilResetInitiativeModifier: candidate.ammunitionRecoilResetInitiativeModifier } : null }); }}><option value="">None</option>{profile.ammunitionItemId && profile.ammunitionItemName ? <option value={profile.ammunitionItemId}>{profile.ammunitionItemName}</option> : null}{ammoCandidates.filter((row) => row.id !== profile.ammunitionItemId).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field>
       <section id="firearm-firing-modes" className="item-firearm-timing item-field--wide">
         {projectileFamily ? <><h3>Single shot</h3><p>1 {projectileFamily === "bow" ? "arrow" : "bolt"} per shot &middot; {projectileFamily === "bow" ? "Release included in Nock / Draw / Shoot" : "Release: 1 Initiative"}</p>
           {!profile.firingModes.some((mode) => mode.name.trim().toLowerCase() === "single") ? <button type="button" onClick={() => patch({ firingModes: [...profile.firingModes, { id: null, name: "Single", sortOrder: profile.firingModes.length, baseCyclingInitiativeCost: 0, baseRecoilResetInitiativeCost: 0, deliveryCadence: "per-trigger", roundsPerCadence: 1, mechanicsReviewRequired: false }] })}>Add Single mode</button> : null}
@@ -935,6 +944,14 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
     <Field label="Compatibility" wide><textarea rows={3} value={profile.compatibility} onChange={(e) => patch({ compatibility: e.target.value })} /></Field>
     <Field label="Weapon Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field>
   </div>;
+}
+
+function Ammunition({ draft, references, itemDirty, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; itemDirty: boolean; onChange: (draft: ItemDraft) => void }) {
+  return <Weapon draft={draft} references={references} itemDirty={itemDirty} onChange={onChange} view="ammunition" />;
+}
+
+function AmmunitionLinkEditor({ draft, profile, ammoSearch, onSearch, candidates, preserveScroll, onChange }: { draft: ItemDraft; profile: NonNullable<ItemDraft["weaponProfile"]>; ammoSearch: string; onSearch: (value: string) => void; candidates: RelatedItemCandidate[]; preserveScroll: ReturnType<typeof useInPlaceScrollPreservation>; onChange: (draft: ItemDraft) => void }) {
+  return <div className="item-section item-form-grid"><div className="item-profile-banner item-field--wide"><div><p>AMMUNITION LINK</p><h3>Which ammunition does this Weapon use?</h3></div><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: null }))}>Remove Profile</button></div><p className="item-firearm-help item-field--wide">This edits the current Weapon&apos;s link only. To edit the linked ammunition Item, open that Item separately in the Ammunition tab.</p><Field label="Find Ammunition"><input value={ammoSearch} onChange={(e) => onSearch(e.target.value)} /></Field><Field label="Ammunition Item"><select value={profile.ammunitionItemId ?? ""} onChange={(e) => { const id = Number(e.target.value); const candidate = candidates.find((row) => row.id === id); onChange({ ...draft, weaponProfile: { ...profile, ammunitionItemId: id || null, ammunitionItemName: candidate?.name ?? null, referencedAmmunition: candidate ? { itemId: candidate.id, name: candidate.name, cyclingInitiativeModifier: candidate.ammunitionCyclingInitiativeModifier, recoilResetInitiativeModifier: candidate.ammunitionRecoilResetInitiativeModifier } : null } }); }}><option value="">None selected</option>{profile.ammunitionItemId && profile.ammunitionItemName ? <option value={profile.ammunitionItemId}>{profile.ammunitionItemName}</option> : null}{candidates.filter((row) => row.id !== profile.ammunitionItemId).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field></div>;
 }
 
 function Armor({ draft, references, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; onChange: (draft: ItemDraft) => void }) {

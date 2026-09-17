@@ -41,6 +41,8 @@ test("Item read/save and variant-copy pipelines include one atomic runtime defin
 
 test("Item editor exposes Abilities and legacy behavior without adding Item execution", () => {
   const workspace = source("src/app/heavens/items/item-workspace.tsx");
+  assert.match(workspace, /\{ id: "weapon", label: "Weapon" \}/);
+  assert.match(workspace, /\{ id: "ammunition", label: "Ammunition" \}/);
   assert.match(workspace, /\{ id: "abilities", label: "Abilities" \}/);
   assert.match(workspace, /Advanced \/ Legacy Item Use/);
   assert.match(workspace, /Magical Item/);
@@ -52,6 +54,15 @@ test("Item editor exposes Abilities and legacy behavior without adding Item exec
   assert.match(workspace, /<option value="area">Specific HP Area<\/option>/);
   assert.doesNotMatch(workspace, /Localized \(Existing Only\)/);
   assert.equal(workspace.includes("Use Item"), false);
+});
+
+test("shared Item authoring keeps Weapon links separate from editing an Ammunition Item", () => {
+  const workspace = source("src/app/heavens/items/item-workspace.tsx");
+  assert.match(workspace, /Which ammunition does this Weapon use\?/);
+  assert.match(workspace, /To edit the linked ammunition Item, open that Item separately/);
+  assert.match(workspace, /Ammunition Item/);
+  assert.match(workspace, /Ammunition Type \/ Family/);
+  assert.match(workspace, /WEAPON PROFILE/);
 });
 
 test("legacy charged Items may only leave Charges through exact-instance Power Pool reauthoring", () => {

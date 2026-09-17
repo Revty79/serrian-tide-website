@@ -95,6 +95,7 @@ import {
 } from "@/features/items/item-powers";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { PRACTITIONER_LEVELS, type PractitionerLevel } from "@/features/spell-construction/models/rules";
+import { validateWeaponAuthoringValues } from "@/features/items/weapon-authoring";
 import { validateStructuredWeaponRange, type WeaponRangeMode } from "@/features/items/weapon-range";
 
 export type ItemLibraryFilters = {
@@ -921,6 +922,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         sourceExternalId: null,
       }).returning({ id: item.id });
       id = created.id;
+      if (normalized.weapon) validateWeaponAuthoringValues(normalized.weapon);
     } else {
       const [stored] = await tx
         .select({
@@ -952,6 +954,14 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         stored.sourceExternalId !== normalized.core.sourceExternalId
       ) {
         throw new Error("Canonical Item source identity cannot be changed.");
+      }
+      if (normalized.weapon) {
+        const [storedWeaponAuthoring] = await tx.select({
+          profileRecordType: weaponProfile.profileRecordType,
+          handedness: weaponProfile.handedness,
+          damageSource: weaponProfile.damageSource,
+        }).from(weaponProfile).where(eq(weaponProfile.itemId, id)).limit(1);
+        validateWeaponAuthoringValues(normalized.weapon, storedWeaponAuthoring ?? null);
       }
       if (normalized.runtimeProfile.useMode !== "charges") {
         const reauthoringToPowerPool = normalized.runtimeProfile.useMode === "none" && normalized.powerResource !== null;

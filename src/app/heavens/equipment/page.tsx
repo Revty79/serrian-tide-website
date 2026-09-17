@@ -29,7 +29,7 @@ export default async function EquipmentPage({ searchParams }: { searchParams: Pr
     <ItemWorkspace
       scope="equipment"
       initialItem={initialItem}
-      initialTab={initialItem && query.tab === "weapon" ? "weapon" : "overview"}
+      initialTab={initialItem && (query.tab === "weapon" || query.tab === "ammunition") ? query.tab : "overview"}
       initialLibrary={initialLibrary}
       initialFacets={initialFacets}
       initialReferences={initialReferences}
