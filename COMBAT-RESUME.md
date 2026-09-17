@@ -1,5 +1,11 @@
 # Combat resumption handoff
 
+## Rejected Equipment / Inventory authoring split (17 September 2026)
+
+The Weapon/Ammunition tab-splitting build from `aac7715c3b9f37bad097ca89f004f48379143a59` was rejected and reverted in `54cc638`. The shared editor is restored to the combined **Weapon / Ammunition** tab and its prior authoring controls; the temporary guardrail helper/tests and entry-point changes were removed. No database, migration, catalog, combat, Charge, structured-range, or Campaign-deletion fix was reverted.
+
+The tab-splitting request is withdrawn for now. Do not restart it without a new explicit request. The next planned feature remains durable G.O.D. approval of Player shot distance; do not begin that work in this rollback.
+
 ## Bounded stabilization checkpoint (17 September 2026)
 
 **Starting revision:** `e07fcb2351fff6f44114271a5b6dbd20b7d90339`. This local pass repairs the three reviewed unit failures and narrows the existing range integration; publication remains intentionally local.
