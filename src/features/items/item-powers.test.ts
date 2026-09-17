@@ -61,7 +61,7 @@ test("Items may have zero Powers and many independent Powers", () => {
       power({ name: "Passive One", trigger: "passive", requiredEquipmentState: "worn" }),
       power({ name: "Passive Two", trigger: "passive", requiredEquipmentState: "wielded" }),
       power({ name: "Activate One" }),
-      power({ name: "Activate Two", initiativeCost: 0 }),
+      power({ name: "Activate Two", initiativeCost: 1 }),
       power({ name: "Hit One", trigger: "weapon-hit", resolutionMode: "weapon-hit" }),
       power({ name: "Hit Two", trigger: "weapon-hit", resolutionMode: "weapon-hit" }),
     ],
@@ -71,8 +71,10 @@ test("Items may have zero Powers and many independent Powers", () => {
   assert.equal(formatItemPowerTrigger(powers[4]!.trigger), "Weapon Hit");
 });
 
-test("Power initiative accepts blank and zero but rejects negative values", () => {
-  assert.equal(validateItemPowers({ powers: [power({ initiativeCost: 0 })], ...validChargePool })[0]!.initiativeCost, 0);
+test("Power initiative accepts blank and positive values but rejects zero/negative values", () => {
+  assert.equal(validateItemPowers({ powers: [power({ initiativeCost: null })], ...validChargePool })[0]!.initiativeCost, null);
+  assert.equal(validateItemPowers({ powers: [power({ initiativeCost: 1 })], ...validChargePool })[0]!.initiativeCost, 1);
+  assert.throws(() => validateItemPowers({ powers: [power({ initiativeCost: 0 })], ...validChargePool }), /greater than zero/);
   assert.throws(() => validateItemPowers({ powers: [power({ initiativeCost: -1 })], ...validChargePool }), /Initiative/);
 });
 

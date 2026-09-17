@@ -208,6 +208,7 @@ test("pending completion precedes a new opportunity at the same Initiative", () 
   assert.equal(engine.runtime.timelineInitiative, 21);
 });
 
+
 test("Held 23 to 21 intervention spends retained Initiative and completes before a new action at 21", () => {
   let engine = state(23, 21);
   engine = holdInitiative(engine, 1);

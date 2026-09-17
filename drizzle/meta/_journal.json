@@ -407,6 +407,13 @@
       "when": 1789600610637,
       "tag": "0057_periodic_health_effects",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1789603149488,
+      "tag": "0058_item_power_initiative_positive",
+      "breakpoints": true
     }
   ]
 }

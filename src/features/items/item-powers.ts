@@ -107,6 +107,7 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
     if (power.trigger === "weapon-hit" && power.initiativeCost !== null) throw new Error(`Weapon-Hit Power ${name} cannot define a separate Initiative.`);
     if (power.trigger === "activated" && power.resolutionMode === "weapon-hit") throw new Error(`Activated Power ${name} cannot use Weapon-Hit resolution.`);
     const initiativeCost = power.trigger === "activated" ? nonNegative(power.initiativeCost, `Power ${index + 1} Initiative`) : null;
+    if (initiativeCost === 0) throw new Error(`Power ${index + 1} Initiative must be greater than zero.`);
     if (power.trigger === "passive" && !power.requiredEquipmentState) throw new Error(`Passive Power ${name} requires an Equipment State.`);
     if (power.requiredEquipmentState && !PASSIVE_REQUIRED_EQUIPMENT_STATES.includes(power.requiredEquipmentState)) throw new Error(`Power ${name} has an invalid Equipment State.`);
     if (power.trigger === "weapon-hit" && !input.hasWeaponProfile) throw new Error(`Weapon-Hit Power ${name} requires a Weapon Profile.`);

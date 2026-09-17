@@ -1,8 +1,10 @@
 "use server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { requireGod, requirePlayer } from "@/lib/server-access";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
+import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { item, itemPower, itemPowerResource } from "@/db/item-schema";
 import { campaignSessionEncounterParticipant as member } from "@/db/tabletop-operations-schema";
 import { getCharacter } from "@/app/characters/actions";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
@@ -60,9 +62,11 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     const defenses = checkpoint ? null : await readDefenseInterventionWorkspaceInTransaction(tx, context, actor);
     const requests = actor.authority === "player" ? await readPlayerCombatRulingRequestsInTransaction(tx, context.encounterId, actor.characterId, actor.userId) : [];
     const movement = await resolveInitiativeCapacityOptionsInTransaction(tx, participantId, context.campaignId).catch(() => null);
+    const abilityStacks = participantId > 0 ? await tx.select({ itemId: campaignCharacterItem.itemId, quantity: campaignCharacterItem.quantity, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItem.characterId, participantId), eq(itemPower.trigger, "activated"))) : [];
+    const abilityInstances = participantId > 0 ? await tx.select({ instanceId: campaignCharacterItemInstance.id, itemId: campaignCharacterItemInstance.itemId, currentCharges: campaignCharacterItemInstance.currentCharges, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItemInstance.characterId, participantId), isNull(campaignCharacterItemInstance.retiredAt), eq(itemPower.trigger, "activated"))) : [];
     const snapshot = row.snapshot ?? (row.persistentSnapshot ? JSON.parse(row.persistentSnapshot) : null);
     return { equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
-      movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, rulings: records(object(row.local).combatSourceResolutionHistory) };
+      movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, rulings: records(object(row.local).combatSourceResolutionHistory) };
   });
   const sources: CombatSourceChoice[] = [];
   for (const weapon of loaded.equipment?.wieldedWeapons ?? []) sources.push({ kind: "weapon", ref: weapon.ownershipKey, name: weapon.itemName, instanceId: weapon.instanceId, itemId: weapon.itemId, handedness: weapon.handedness,
@@ -83,6 +87,8 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
         if (profile && profile.useMode !== "none") sources.push({ kind: "item", ref: `item:${owned.itemId}`, name: owned.name, instanceId: null, itemId: null, description: `${owned.quantity} available · ${profile.activationLabel}` });
       }
       for (const owned of aggregate.itemInstances) if (owned.runtimeProfile.useMode !== "none") sources.push({ kind: "item", ref: `item:${owned.itemId}`, name: `${owned.name} · copy ${owned.id}`, instanceId: owned.id, itemId: null, description: `${owned.currentCharges ?? "?"} charges · ${owned.runtimeProfile.activationLabel}` });
+      for (const ability of loaded.abilityStacks) if (ability.resourceKind !== "shared-charges" && ability.quantity > 0) sources.push({ kind: "item", ref: `item-power:${ability.powerId}`, name: `${ability.itemName} — ${ability.powerName}`, instanceId: null, itemId: ability.itemId, description: `${ability.initiativeCost ?? "?"} Initiative${ability.resourceKind !== "none" ? ` · ${ability.resourceAmount} ${ability.resourceKind === "consume-item" ? "Item" : "Charges"}` : ""}` });
+      for (const ability of loaded.abilityInstances) if (ability.resourceKind === "shared-charges" || ability.resourceKind !== "consume-item") sources.push({ kind: "item", ref: `item-power:${ability.powerId}`, name: `${ability.itemName} — ${ability.powerName}`, instanceId: ability.instanceId, itemId: ability.itemId, description: `${ability.initiativeCost ?? "?"} Initiative${ability.resourceKind !== "none" ? ` · ${ability.resourceAmount} ${ability.resourceKind === "consume-item" ? "Item" : "Charges"}` : ""}`, unavailable: ability.resourceKind === "shared-charges" && ability.hasPowerPool === null ? "This Ability requires a shared Power Charge Pool." : undefined });
     } catch (error) { aggregateIssue = error instanceof Error ? error.message : "Some owned sources could not be read."; }
   }
   if (scope.role === "god" && participantId > 0 && !loaded.isNpc) await authorized(scope, async (tx, context) => {

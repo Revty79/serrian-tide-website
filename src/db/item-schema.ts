@@ -199,7 +199,7 @@ export const itemPower = pgTable(
     check("item_powers_trigger_valid", sql`${table.trigger} IN ('activated','passive','weapon-hit')`),
     check("item_powers_resource_kind_valid", sql`${table.resourceCostKind} IN ('none','shared-charges','consume-item')`),
     check("item_powers_resolution_valid", sql`${table.resolutionMode} IN ('automatic','weapon-hit','fixed-roll','manual')`),
-    check("item_powers_initiative_valid", sql`${table.initiativeCost} IS NULL OR ${table.initiativeCost} >= 0`),
+    check("item_powers_initiative_valid", sql`${table.initiativeCost} IS NULL OR ${table.initiativeCost} > 0`),
     check("item_powers_resource_amount_valid", sql`${table.resourceCostAmount} IS NULL OR ${table.resourceCostAmount} > 0`),
     check("item_powers_roll_target_valid", sql`${table.fixedRollTarget} IS NULL OR ${table.fixedRollTarget} > 0`),
     check("item_powers_sort_order_valid", sql`${table.sortOrder} >= 0`),

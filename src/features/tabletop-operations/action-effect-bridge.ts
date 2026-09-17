@@ -51,6 +51,7 @@ export type ActionSourceResolutionMode =
   | "skill-roll"
   | "attribute-roll"
   | "opposed-roll"
+  | "fixed-roll"
   | "manual-god-ruling";
 
 export type FrozenActionResourceCost = Readonly<{

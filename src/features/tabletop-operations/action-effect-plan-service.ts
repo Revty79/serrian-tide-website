@@ -267,7 +267,8 @@ async function effectiveActionRoll(
 function sourceNeedsRoll(source: FrozenActionSourceSnapshot): boolean {
   return source.resolutionMode === "skill-roll"
     || source.resolutionMode === "attribute-roll"
-    || source.resolutionMode === "opposed-roll";
+    || source.resolutionMode === "opposed-roll"
+    || source.resolutionMode === "fixed-roll";
 }
 
 async function currentSourceDivergence(
