@@ -49,6 +49,7 @@ import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mec
 import { resolveProgressiveSpellForLevel } from "@/features/spell-construction/engine/progressiveSpell";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { resolveItemPowerConstruction } from "@/features/items/item-powers";
+import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
 
 import type {
   FrozenActionAuthoredEffect,
@@ -324,9 +325,10 @@ async function resolveItem(
   tx: ActionSourceResolverTransaction,
   participant: ParticipantSource,
   draft: ActionDeclarationDraft,
+  actorAuthority: ActionDeclarationActor["authority"],
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Item use");
-  if ((draft.sourceRef ?? "").trim().startsWith("item-power:")) return resolveItemPower(tx, participant, draft);
+  if ((draft.sourceRef ?? "").trim().startsWith("item-power:")) return resolveItemPower(tx, participant, draft, actorAuthority);
   const itemId = refId(draft.sourceRef, ["item:"], "Item");
   await lockActiveItemRootInTransaction(tx, itemId);
   const [row] = await tx.select({
@@ -405,6 +407,7 @@ async function resolveItemPower(
   tx: ActionSourceResolverTransaction,
   participant: ParticipantSource,
   draft: ActionDeclarationDraft,
+  actorAuthority: ActionDeclarationActor["authority"],
 ): Promise<ResolvedLockedActionSource> {
   const powerId = positiveId((draft.sourceRef ?? "").replace(/^item-power:/, ""), "Item Ability");
   const [row] = await tx.select({
@@ -442,22 +445,62 @@ async function resolveItemPower(
   }
   const itemPayload = sourcePayload(draft);
   const itemSelections = isRecord(itemPayload.effectSelections) ? itemPayload.effectSelections : {};
+  const spellSelections = isRecord(itemPayload.selections) && isRecord(itemPayload.selections.targetGroups)
+    ? itemPayload.selections.targetGroups
+    : {};
   const effectRows = await tx.select().from(itemPowerEffect).where(eq(itemPowerEffect.itemPowerId, row.power.id)).orderBy(asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
   const targets = allTargets(draft);
+  let magicTargetGroups: unknown[] = [];
   const effects = effectRows.map((effect) => {
     const effectKey = `item-power:${row.power.id}:effect:${effect.id}`;
     const target = targets[0];
     const selectionKey = `${effectKey}:target:${target}`;
     return structuredEffect(effectKey, decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }), targets, false, { selectionKey, application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {} });
   });
-  if (row.constructionJson) {
-    const resolved = resolveItemPowerConstruction(parseSpellDocument(row.constructionJson), row.power.fixedPowerLevel);
-    if (!resolved.adapter.valid) throw new Error("The Item Ability Magic Construction cannot be resolved into combat effects.");
-    for (const adapted of resolved.adapter.effects) { const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`; effects.push(structuredEffect(key, adapted.definition.effect, targets, false, { selectionKey: `${key}:target:${targets[0]}`, application: isRecord(itemSelections[`${key}:target:${targets[0]}`]) ? itemSelections[`${key}:target:${targets[0]}`] : {} })); }
-  } else if (row.sourceDataJson) {
-    const resolvedCanonical = resolveItemPowerConstruction(parseSpellDocument(row.sourceDataJson), row.power.fixedPowerLevel);
-    if (!resolvedCanonical.adapter.valid) throw new Error("The canonical Item Ability Magic source cannot be resolved.");
-    for (const entry of resolvedCanonical.adapter.effects) { const key = `item-power:${row.power.id}:magic:${entry.spellEffectId}`; effects.push(structuredEffect(key, entry.definition.effect, targets, false, { selectionKey: `${key}:target:${targets[0]}`, application: isRecord(itemSelections[`${key}:target:${targets[0]}`]) ? itemSelections[`${key}:target:${targets[0]}`] : {} })); }
+  const magicDocument = row.constructionJson
+    ? parseSpellDocument(row.constructionJson)
+    : row.sourceDataJson
+      ? parseSpellDocument(row.sourceDataJson)
+      : null;
+  if (magicDocument) {
+    const resolved = resolveItemPowerConstruction(magicDocument, row.power.fixedPowerLevel);
+    if (!resolved.adapter.valid) throw new Error("The Item Ability Magic source cannot be resolved into combat effects.");
+    const analysis = analyzeSpellTargetGroups(magicDocument, resolved.adapter.effects);
+    magicTargetGroups = analysis.groups.map((group) => ({ ...group }));
+    const selectedByGroup = new Map<string, number[]>();
+    for (const group of analysis.groups) {
+      const supplied: unknown[] = Array.isArray(spellSelections[group.id]) ? spellSelections[group.id] as unknown[] : [];
+      if (group.kind === "aoe" && actorAuthority !== "god-owner" && supplied.length > 0) {
+        throw new Error("Only the Campaign-owning G.O.D. may choose Item Magic AoE participants.");
+      }
+      const selected: number[] = group.selfTargeted ? [draft.actorCharacterId] : supplied.map((value: unknown) => Number(value));
+      if (new Set(selected).size !== selected.length) throw new Error(`Item Magic target group ${group.id} contains duplicate participants.`);
+      if (group.kind === "target") {
+        if (!selected.length) throw new Error(`Select the exact Encounter participants for Item Magic target group ${group.id}.`);
+        if (group.capacity !== null && selected.length > group.capacity) throw new Error(`Item Magic target group ${group.id} allows at most ${group.capacity} participants.`);
+        if (group.selfTargeted && selected.some((participantId) => participantId !== draft.actorCharacterId)) throw new Error(`Item Magic self target group ${group.id} may only target the caster.`);
+      }
+      selectedByGroup.set(group.id, selected);
+    }
+    const selectedMagicTargets = [...selectedByGroup.values()].flat();
+    if (selectedMagicTargets.length) assertSameTargets(selectedMagicTargets, draft.targetCharacterIds, "Item Magic target selection");
+    for (const adapted of resolved.adapter.effects) {
+      const groupId = analysis.groupByEffectId.get(adapted.spellEffectId);
+      if (!groupId) throw new Error(`Item Magic effect ${adapted.spellEffectId} has no authored Target or AoE container.`);
+      const group = analysis.groups.find(({ id }) => id === groupId)!;
+      const groupTargets = selectedByGroup.get(groupId) ?? [];
+      for (const targetId of groupTargets) {
+        const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
+        const selectionKey = `${key}:target:${targetId}`;
+        effects.push(structuredEffect(key, adapted.definition.effect, [targetId], false, {
+          selectionKey,
+          targetGroupId: groupId,
+          targetGroupKind: group.kind,
+          containerPath: group.containerPath,
+          application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {},
+        }));
+      }
+    }
   }
   const costs: FrozenActionResourceCost[] = row.power.resourceCostKind === "consume-item"
     ? [{ key: `item-power:${row.power.id}:quantity`, kind: "item-quantity", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Consume the authored Ability Item quantity.", applicationSupported: true }]
@@ -465,7 +508,7 @@ async function resolveItemPower(
       ? [{ key: `item-power:${row.power.id}:charges`, kind: "item-charges", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Spend the authored Ability Charges on the exact Item instance.", applicationSupported: true }]
       : [];
   const liveRevision = [row.itemUpdatedAt, row.powerUpdatedAt, row.sourceUpdatedAt, row.constructionUpdatedAt].filter(Boolean).map((date) => date!.toISOString()).sort().at(-1) ?? null;
-  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: row.power, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
+  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: { ...row.power, targetGroups: magicTargetGroups }, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
 }
 
 async function loadSpellDocument(
@@ -514,6 +557,7 @@ async function resolveSpell(
   participant: ParticipantSource,
   draft: ActionDeclarationDraft,
   actingUserId: string,
+  actorAuthority: ActionDeclarationActor["authority"],
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Spell casting");
   const payload = sourcePayload(draft);
@@ -544,8 +588,12 @@ async function resolveSpell(
   }
   for (const group of preview.plan.targetGroups) {
     if (group.kind === "aoe") {
-      if (targetGroups[group.id]?.length) throw new Error("Area spells currently report their area result; mapped target selection is not available yet.");
-      targetGroups[group.id] = [];
+      const selected = targetGroups[group.id] ?? [];
+      if (actorAuthority !== "god-owner" && selected.length > 0) {
+        throw new Error("Only the Campaign-owning G.O.D. may choose Spell AoE participants.");
+      }
+      if (new Set(selected).size !== selected.length) throw new Error(`Spell AoE group ${group.id} contains duplicate participants.`);
+      targetGroups[group.id] = selected;
       continue;
     }
     const selection = resolveSpellCastTargetSelection(group, draft.actorCharacterId, targetGroups[group.id]);
@@ -553,8 +601,8 @@ async function resolveSpell(
     if (!selection.selected.length) throw new Error(`Select the exact Encounter participants for Spell target group ${group.id}.`);
     targetGroups[group.id] = selection.selected;
   }
-  if (preview.plan.targetGroups.length) assertSameTargets(Object.values(targetGroups).flat(),
-    preview.plan.targetGroups.every((group) => group.kind === "aoe") ? draft.targetCharacterIds : allTargets(draft), "Spell target selection");
+  const selectedSpellTargets = Object.values(targetGroups).flat();
+  if (selectedSpellTargets.length) assertSameTargets(selectedSpellTargets, draft.targetCharacterIds, "Spell target selection");
   const targets = allTargets(draft);
   const spellModifiers = [...effectSpell.modifiers];
   const collectModifiers = (containers: typeof loaded.spell.containers) => {
@@ -567,10 +615,26 @@ async function resolveSpell(
     ? adapted.effects.flatMap((entry) => {
         const groupId = [...entry.containerPath].reverse().find((id) => targetGroups[id] !== undefined);
         const group = preview.plan.targetGroups.find((candidate) => candidate.id === groupId);
-        if (group?.kind === "aoe") return [{ ...structuredEffect(
-          `spell-area:${entry.spellEffectId}`, entry.definition.effect, [draft.actorCharacterId], false,
-          { spellEffectId: entry.spellEffectId, ruleId: entry.ruleId, areaReport: { groupId, label: group.label, range: group.rangeLabel, shape: group.shapeLabel }, application: {} },
-        ), applicationSupported: true, requiresGodReview: false, scaling: perSuccess ? "per-success" as const : "fixed" as const }];
+        if (group?.kind === "aoe") {
+          const aoeGroupId = groupId!;
+          return (targetGroups[aoeGroupId] ?? []).map((targetId: number) => ({ ...structuredEffect(
+            `spell-effect:${entry.spellEffectId}:target:${targetId}`,
+            entry.definition.effect,
+            [targetId],
+            false,
+            {
+              spellEffectId: entry.spellEffectId,
+              ruleId: entry.ruleId,
+              containerPath: entry.containerPath,
+              targetGroupId: aoeGroupId,
+              targetGroupKind: "aoe",
+              ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
+              application: spellSkill && entry.definition.effect.kind === "health.damage" ? {} : isRecord(spellSelections[`${entry.spellEffectId}:${targetId}`])
+                ? spellSelections[`${entry.spellEffectId}:${targetId}`] as Record<string, unknown>
+                : {},
+            },
+          ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
+        }
         const exactTargets = groupId ? targetGroups[groupId]! : targets;
         return exactTargets.map((targetId) => ({ ...structuredEffect(
           `spell-effect:${entry.spellEffectId}:target:${targetId}`,
@@ -589,7 +653,7 @@ async function resolveSpell(
         ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
-  const authoredData = { spell: loaded.spell, casting: preview.plan, catalogSourceId: loaded.catalogSourceId ?? null,
+  const authoredData = { spell: loaded.spell, casting: preview.plan, targetGroups: preview.plan.targetGroups, catalogSourceId: loaded.catalogSourceId ?? null,
     ...(spellSkill ? { combatSpellSkill: spellSkill.rollGoverningSourceSnapshot } : {}) };
   const recovery = combatRecoverySpellAuthority(authoredData);
   if (recovery) effects.push({ ...manualEffect("spell-combat-recovery", `${recovery.name} recovery ruling`, { combatRecovery: recovery }, targets), scaling: "fixed" });
@@ -942,8 +1006,8 @@ export async function resolveLockedActionSourceInTransaction(
     if (!existing.weapon) throw new Error("A Weapon source requires the exact locked Weapon Profile.");
     return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing);
   }
-  if (draft.sourceKind === "item") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveItem(tx, participant, draft));
-  if (draft.sourceKind === "spell") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveSpell(tx, participant, draft, actor.userId));
+  if (draft.sourceKind === "item") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveItem(tx, participant, draft, actor.authority));
+  if (draft.sourceKind === "spell") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveSpell(tx, participant, draft, actor.userId, actor.authority));
   if (draft.sourceKind === "derived-ability") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveDerivedAbility(tx, participant, draft, actor.userId));
   if (draft.sourceKind === "skill" || draft.sourceKind === "attribute") return resolveSkillOrAttribute(tx, participant, draft);
   if (draft.sourceKind === "creature-attack" || draft.sourceKind === "creature-ability") {

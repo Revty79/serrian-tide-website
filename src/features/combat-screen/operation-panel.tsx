@@ -5,7 +5,7 @@ import { ruleGodPlayerCombatRequest } from "@/app/heavens/tabletop/player-combat
 import { changeCombatParticipation, ruleCombatCondition, resolveCombatRevivalExpiration } from "@/app/heavens/tabletop/combat-participation-actions";
 import { ruleOnDefenseIntervention } from "@/app/heavens/tabletop/defense-intervention-actions";
 import { withdrawCombatCheckpoint } from "@/app/heavens/tabletop/combat-recovery-actions";
-import { applyCombatFirearmResult, commitCombatFirearmTrigger } from "./operation-actions";
+import { applyCombatFirearmResult, commitCombatFirearmTrigger, prepareCombatResult } from "./operation-actions";
 import type { CombatFocus, CombatOperations } from "./next-input";
 import { EffectRuling, EffectEvidence } from "./effect-ruling";
 import { combatMessage } from "./form-controls";
@@ -13,10 +13,12 @@ import { combatRollSummary } from "./result-summary";
 import { isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
 import type { CombatEntity, CombatScreenData, CombatScreenScope } from "./screen-types";
 import styles from "./combat-screen.module.css";
+import { TargetDropdowns } from "./target-dropdowns";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 export function OperationPanel({ scope, data, entity, operations, focus, disabled, refresh }: { scope: CombatScreenScope; data: CombatScreenData; entity: CombatEntity; operations: CombatOperations | null; focus: CombatFocus | null; disabled: boolean; refresh: () => Promise<void> }) {
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const [reason, setReason] = useState(""), [penalty, setPenalty] = useState(""), [treatment, setTreatment] = useState<"preserve" | "zero">("preserve");
+  const [aoeSelections, setAoeSelections] = useState<Record<number, Record<string, number[]>>>({});
   const running = useRef(false), requests = useRef<Record<string, string>>({});
   const controls = useRef<HTMLDetailsElement>(null);
   useEffect(() => { if (focus?.participantId === entity.participantId && (focus.kind === "response" || focus.kind === "ruling" && !focus.planId) && controls.current) controls.current.open = true; }, [focus, entity.participantId]);
@@ -31,6 +33,13 @@ export function OperationPanel({ scope, data, entity, operations, focus, disable
     finally { running.current = false; setBusy(false); }
   }
   function request(value: unknown) { const key = JSON.stringify(value); return requests.current[key] ||= crypto.randomUUID(); }
+  const pendingAoE = scope.role === "god" ? (data.projection?.declarations ?? []).filter((entry) => {
+    if (entry.actorCharacterId !== entity.participantId) return false;
+    if (entry.timing?.status !== "completed" || operations?.plans.some((plan) => plan.declarationId === entry.id)) return false;
+    const authored = object(entry.lockedSnapshot?.authoredSource);
+    const groups = object(authored.authoredData).targetGroups;
+    return Array.isArray(groups) && groups.some((group) => object(group).kind === "aoe");
+  }) : [];
   return <div>
     {actions.filter((entry) => entry.timing?.status === "active" && entry.status === "awaiting-god-ruling").map((entry) => <p className={styles.notice} key={entry.id}>{entry.lockedSnapshot?.label ?? entry.draft.label}: the recorded Roll needs a G.O.D. ruling. The action still has {entry.timing?.remainingInitiativeCost} Initiative remaining. Its damage and final outcome have not been applied. Resolve any earlier completed actions before advancing to this action’s completion.</p>)}
     {scope.role === "player" ? actions.filter((entry) => entry.timing?.status === "completed" && !entry.draft.actionKind.startsWith("firearm-aim:") && !["resolved", "cancelled", "abandoned"].includes(entry.status)).map((entry) => <p className={styles.notice} key={entry.id}>{entry.lockedSnapshot?.label ?? entry.draft.label}: timing complete. Waiting for the G.O.D. to review the result. Your next action becomes available after this result is settled.</p>) : null}
@@ -67,6 +76,13 @@ export function OperationPanel({ scope, data, entity, operations, focus, disable
         {data.projection?.checkpoint ? <button className="st-button" disabled={ordinaryDisabled || !reason.trim()} onClick={() => void run(() => withdrawCombatCheckpoint(scope.encounterId, { checkpointId: data.projection!.checkpoint!.id, reason }), "Simultaneous choices withdrawn through explicit recovery.")}>Recover incomplete simultaneous choices</button> : null}
       </details>
     </details> : null}
+    {pendingAoE.length ? <details open><summary>AoE membership decisions</summary>{pendingAoE.map((entry) => {
+      const authored = object(entry.lockedSnapshot?.authoredSource);
+      const rawGroups = object(authored.authoredData).targetGroups;
+      const groups = Array.isArray(rawGroups) ? rawGroups.map((group: unknown) => object(group)).filter((group) => group.kind === "aoe") : [];
+      const selected = aoeSelections[entry.id] ?? {};
+      return <fieldset key={entry.id}><legend>{entry.lockedSnapshot?.label ?? entry.draft.label}</legend><p>The Player declared the action. Choose the Encounter participants inside each authored area, or confirm no participants.</p>{groups.map((group) => { const id = String(group.id); const ids = Array.isArray(selected[id]) ? selected[id] : []; return <div key={id}><h4>{String(group.label ?? id)}{group.rangeLabel ? ` · ${String(group.rangeLabel)}` : ""}</h4><p>{[group.shapeLabel, Array.isArray(group.containerPath) ? `Container: ${group.containerPath.join(" / ")}` : null].filter(Boolean).join(" · ") || "Authored area"}</p><TargetDropdowns label="Affected participants" roster={data.roster} selected={ids} disabled={busy} onChange={(next) => setAoeSelections((current) => ({ ...current, [entry.id]: { ...(current[entry.id] ?? {}), [id]: next } }))} /></div>; })}<button className="st-button is-primary" disabled={ordinaryDisabled} onClick={() => void run(() => prepareCombatResult(scope, entry.id, selected), "AoE participants frozen. The result is ready for review.")}>Confirm affected participants</button></fieldset>;
+    })}</details> : null}
     {scope.role === "god" ? operations?.plans.filter((plan) => !["applied", "cancelled", "declined", "superseded"].includes(plan.status) && !isSpellResultReport(plan) && (!isOrdinaryAttackReport(plan) || plan.status === "partially-applied" || plan.effects.length !== 1) && (plan.actorParticipantId === entity.participantId || plan.effects.some((effect) => effect.targetParticipantId === entity.participantId))).map((plan) => <EffectRuling key={plan.id} encounterId={scope.encounterId} plan={plan} focusSequence={focus?.participantId === entity.participantId && focus.planId === plan.id ? focus.sequence : undefined} disabled={disabled || busy} closed={closed} refresh={refresh} />) : null}
     <details><summary>Rolls &amp; results</summary>{operations?.rolls.filter((roll) => roll.rollerCharacterId === entity.participantId || roll.targetCharacterId === entity.participantId).map((roll) => <p key={roll.id}>{roll.rollerCharacterName} · {roll.label}: {combatRollSummary(roll)}{roll.rulingText ? ` · ${roll.rulingText}` : ""}</p>)}{operations?.outcomes.filter((outcome) => outcome.actorId === entity.participantId || outcome.targetId === entity.participantId).map((outcome) => <p key={outcome.id}>{outcome.actor} → {outcome.target}: {outcome.label} · {outcome.summary}</p>)}
       {scope.role === "god" ? operations?.plans.filter((plan) => ["applied", "cancelled", "declined", "superseded"].includes(plan.status) && (plan.actorParticipantId === entity.participantId || plan.effects.some((effect) => effect.targetParticipantId === entity.participantId))).map((plan) => <EffectRuling key={plan.id} encounterId={scope.encounterId} plan={plan} disabled closed={closed} refresh={refresh} />) : null}

@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { requireGod, requirePlayer } from "@/lib/server-access";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
-import { item, itemPower, itemPowerResource } from "@/db/item-schema";
+import { item, itemPower, itemPowerConstruction, itemPowerEffect, itemPowerResource, itemPowerSource } from "@/db/item-schema";
+import { skill, skillExtension } from "@/db/skill-schema";
 import { campaignSessionEncounterParticipant as member } from "@/db/tabletop-operations-schema";
 import { getCharacter } from "@/app/characters/actions";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
@@ -17,6 +18,9 @@ import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operat
 import { resolveInitiativeCapacityOptionsInTransaction } from "@/features/tabletop-operations/initiative-capacity-service";
 import { assemblePlayerTabletopSpells, assemblePlayerTabletopDerivedAbilities } from "@/features/tabletop-operations/player-tabletop-console";
 import { prepareCharacterSpellCastInTransaction } from "@/features/characters/character-spell-runtime-service";
+import { resolveItemPowerConstruction } from "@/features/items/item-powers";
+import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
+import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { publishTabletopInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import type { SpellCastSourceRequest } from "@/features/characters/character-spell-runtime";
 import type { ActionDeclarationActor, DeclarationRollInput } from "@/features/tabletop-operations/action-declaration-service";
@@ -116,6 +120,30 @@ export async function readCombatSpellOptions(scope: CombatScreenScope, participa
     const { plan } = await prepareCharacterSpellCastInTransaction(tx, { casterCharacterId: participantId, source, selections: { targetGroups: {}, applications: {} } }, actor.userId, true);
     return { groups: plan.targetGroups, mastery: plan.caster.practitionerLevel, manaCost: plan.finalManaCost, initiativeCost: plan.finalInitiativeCost,
       warnings: [...plan.issues, ...plan.warnings] };
+  });
+}
+export async function readCombatItemAbilityOptions(scope: CombatScreenScope, participantId: number, powerIdInput: number) {
+  return authorized(scope, async (tx, context, actor) => {
+    if (actor.authority === "player" && participantId !== actor.characterId) throw new Error("Only your own Item Ability sources are readable.");
+    const [row] = await tx.select({ constructionJson: itemPowerConstruction.documentJson, sourceDataJson: skillExtension.dataJson, fixedPowerLevel: itemPower.fixedPowerLevel })
+      .from(itemPower)
+      .innerJoin(item, eq(item.id, itemPower.itemId))
+      .leftJoin(itemPowerSource, eq(itemPowerSource.itemPowerId, itemPower.id))
+      .leftJoin(skill, eq(skill.id, itemPowerSource.sourceSkillId))
+      .leftJoin(skillExtension, and(eq(skillExtension.skillId, itemPowerSource.sourceSkillId), eq(skillExtension.extensionType, "spell-construction")))
+      .leftJoin(itemPowerConstruction, eq(itemPowerConstruction.itemPowerId, itemPower.id))
+      .where(and(eq(itemPower.id, powerIdInput), eq(itemPower.trigger, "activated"))).limit(1);
+    if (!row) throw new Error("That activated Item Ability no longer exists.");
+    const directEffects = await tx.select({ id: itemPowerEffect.id }).from(itemPowerEffect).where(eq(itemPowerEffect.itemPowerId, powerIdInput));
+    const magicJson = row.constructionJson ?? row.sourceDataJson;
+    if (!magicJson) return { groups: [], requiresGenericTarget: true };
+    const document = parseSpellDocument(magicJson);
+    const resolved = resolveItemPowerConstruction(document, row.fixedPowerLevel);
+    if (!resolved.adapter.valid) throw new Error("The Item Ability Magic source cannot be resolved into combat effects.");
+    return {
+      groups: analyzeSpellTargetGroups(document, resolved.adapter.effects).groups,
+      requiresGenericTarget: directEffects.length > 0,
+    };
   });
 }
 export async function previewCombatChoice(scope: CombatScreenScope, choice: CombatChoice) { return authorized(scope, (tx, context, actor) => previewCombatChoiceInTransaction(tx, context, actor, choice)); }

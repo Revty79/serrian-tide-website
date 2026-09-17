@@ -317,6 +317,7 @@ async function generateActionEffectPlanInternal(
   actor: ActionDeclarationActor,
   declarationIdInput: number,
   ordinaryRuling?: OrdinaryAttackRuling,
+  aoeSelections: Readonly<Record<string, readonly number[]>> = {},
 ): Promise<number> {
   const declarationId = positiveId(declarationIdInput, "Action declaration");
   const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(and(
@@ -343,7 +344,24 @@ async function generateActionEffectPlanInternal(
   if (locked.actionKind.startsWith("firearm-attack:")) {
     throw new Error("Resolve this firearm through its exact firearm attack and bullet allocation before applying consequences.");
   }
-  const source = assertFrozenActionSourceSnapshot(locked.authoredSource);
+  let source = assertFrozenActionSourceSnapshot(locked.authoredSource);
+  if (Object.keys(aoeSelections).length > 0) {
+    if (actor.authority !== "god-owner" || actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may choose AoE participants.");
+    if (locked.source.kind !== "spell" && locked.source.kind !== "item") throw new Error("AoE selections require a Spell or Item Magic declaration.");
+    const draft = parseActionDeclarationDraft(declaration.draftJson);
+    const payload = isRecord(draft.sourcePayload) ? structuredClone(draft.sourcePayload) : {};
+    const selections = isRecord(payload.selections) ? structuredClone(payload.selections) : {};
+    const existingGroups = isRecord(selections.targetGroups) ? selections.targetGroups : {};
+    selections.targetGroups = {
+      ...existingGroups,
+      ...Object.fromEntries(Object.entries(aoeSelections).map(([groupId, ids]) => [groupId, [...ids]])),
+    };
+    const refreshed = await resolveLockedActionSourceInTransaction(tx, context, actor, declaration.id, {
+      ...draft,
+      sourcePayload: { ...payload, selections },
+    }, { weapon: locked.weapon, governing: locked.governing });
+    source = refreshed.snapshot;
+  }
   const [pending] = await tx.select().from(campaignSessionEncounterPendingAction).where(and(
     eq(campaignSessionEncounterPendingAction.id, declaration.pendingActionId),
     eq(campaignSessionEncounterPendingAction.encounterId, context.encounterId),
@@ -375,8 +393,11 @@ async function generateActionEffectPlanInternal(
   if (sourceNeedsRoll(source) && !governingRoll) {
     throw new Error("The exact immutable governing Roll is required before consequences are generated.");
   }
-  const targetIds = locked.targetCharacterIds.length ? locked.targetCharacterIds : [locked.actorCharacterId];
-  const targets = await tx.select({
+  const targetIds = [...new Set([
+    ...locked.targetCharacterIds,
+    ...source.effects.flatMap(({ targetParticipantIds }) => targetParticipantIds),
+  ])];
+  const targets = targetIds.length ? await tx.select({
     id: campaignSessionEncounterParticipant.characterId,
     kind: campaignSessionEncounterParticipant.participantKind,
     displayLabel: campaignSessionEncounterParticipant.displayLabel,
@@ -386,7 +407,7 @@ async function generateActionEffectPlanInternal(
     .where(and(
       eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
       inArray(campaignSessionEncounterParticipant.characterId, targetIds),
-    ));
+    )) : [];
   if (targets.length !== new Set(targetIds).size) throw new Error("A locked target no longer belongs to this exact Encounter.");
   const targetSnapshot = targets.map((target) => ({
     participantId: target.id,
@@ -1229,10 +1250,10 @@ export async function readActionEffectWorkspaceInTransaction(
 }
 
 export async function generateActionEffectPlanInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,
-  actor: GodActionEffectActor, declarationId: number, ruling?: OrdinaryAttackRuling): Promise<number> {
+  actor: GodActionEffectActor, declarationId: number, ruling?: OrdinaryAttackRuling, aoeSelections: Readonly<Record<string, readonly number[]>> = {}): Promise<number> {
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
-  return generateActionEffectPlanInternal(tx, context, actor, declarationId, ruling);
+  return generateActionEffectPlanInternal(tx, context, actor, declarationId, ruling, aoeSelections);
 }
 
 export async function applyActionEffectPlanInTransaction(tx: ActionEffectPlanTransaction, context: OwnedEncounterRuntimeContext,

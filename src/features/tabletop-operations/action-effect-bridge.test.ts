@@ -43,18 +43,45 @@ for (const area of [false, true]) for (const scaling of ["fixed", "per-success"]
     const roll = buildRollMechanicalSnapshot({ kind: "manual", label: "Spell", originalTarget: 40 }, 72, [], "original-roll");
     assert.equal(roll.resolution.totalSuccesses, 4);
     const frozen = source({ kind: "spell", resolutionMode: "skill-roll", effects: [{ key: "damage", scaling,
-      effect: { kind: "health.damage", amount: 2, application: "localized" }, instruction: area ? { areaReport: { shape: "sphere" } } : {},
-      applicationSupported: true, requiresGodReview: false, targetParticipantIds: [area ? 7 : 9] }] });
+      effect: { kind: "health.damage", amount: 2, application: "localized" }, instruction: area ? { targetGroupKind: "aoe" } : {},
+      applicationSupported: true, requiresGodReview: false, targetParticipantIds: [9] }] });
     const before = structuredClone(frozen);
-    const input = { source: frozen, actorParticipantId: 7, targetParticipantIds: area ? [] : [9], governingRoll: roll, defenseResolution: null, initiativeComplete: true };
+    const input = { source: frozen, actorParticipantId: 7, targetParticipantIds: [9], governingRoll: roll, defenseResolution: null, initiativeComplete: true };
     const plan = buildActionEffectPlanProposal(input);
     assert.equal(plan.effects[0].calculatedValue, scaling === "fixed" ? 5 : 8);
     assert.deepEqual(frozen, before);
     const failed = buildActionEffectPlanProposal({ ...input, governingRoll: buildRollMechanicalSnapshot({ kind: "manual", label: "Spell", originalTarget: 40 }, 20, [], "original-roll") });
-    assert.equal(failed.effects[0].calculatedValue, area ? 0 : null);
+    assert.equal(failed.effects[0].calculatedValue, null);
     if (!area) assert.equal(buildActionEffectPlanProposal({ ...input, defenseResolution: { originalActionDisposition: "stopped" } }).effects[0].status, "declined");
   });
 }
+
+test("AoE can apply the original governing Roll independently to multiple frozen victims", () => {
+  const roll = buildRollMechanicalSnapshot({ kind: "manual", label: "Spell", originalTarget: 40 }, 72, [], "original-roll");
+  const plan = buildActionEffectPlanProposal({
+    source: source({ kind: "spell", resolutionMode: "skill-roll", effects: [{ key: "area-damage", scaling: "per-success",
+      effect: { kind: "health.damage", amount: 2, application: "full-body" }, instruction: { targetGroupKind: "aoe" },
+      applicationSupported: true, requiresGodReview: false, targetParticipantIds: [9, -4] }] }),
+    actorParticipantId: 7,
+    targetParticipantIds: [9, -4],
+    governingRoll: roll,
+    defenseResolution: null,
+    initiativeComplete: true,
+  });
+  assert.deepEqual(plan.effects.map((effect) => [effect.targetParticipantId, effect.calculatedValue]), [[9, 8], [-4, 8]]);
+});
+
+test("AoE with zero frozen victims creates no effect proposals", () => {
+  const plan = buildActionEffectPlanProposal({
+    source: source({ kind: "spell", effects: [{ key: "empty-area", effect: { kind: "condition.apply", name: "Marked", description: "", duration: { kind: "scene" } }, instruction: { targetGroupKind: "aoe" }, applicationSupported: true, requiresGodReview: false, targetParticipantIds: [] }] }),
+    actorParticipantId: 7,
+    targetParticipantIds: [],
+    governingRoll: null,
+    defenseResolution: null,
+    initiativeComplete: true,
+  });
+  assert.deepEqual(plan.effects, []);
+});
 
 test("additional-success damage does not change fixed healing or item damage", () => {
   const roll = buildRollMechanicalSnapshot({ kind: "manual", label: "Roll", originalTarget: 40 }, 72, [], "original-roll");

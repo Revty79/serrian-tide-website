@@ -25,6 +25,7 @@ import {
   adaptSpellToMechanicalEffects,
   type AdaptedSpellMechanicalEffect,
 } from "@/features/spell-construction/mechanical-effects-adapter";
+import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
 import type { PractitionerLevel } from "@/features/spell-construction/models/rules";
 import type {
   SpellCastingSystem,
@@ -102,7 +103,7 @@ export type SpellCastTargetGroup = {
   shapeLabel: string | null;
   capacity: number | null;
   selfTargeted: boolean;
-  automaticEffectIds: string[];
+  automaticEffectIds: readonly string[];
   selectedTargetIds: number[];
   missingSelection: boolean;
 };
@@ -432,52 +433,38 @@ export function planSpellCast(input: {
         }]
       : [];
   });
-  const locations = locateContainers(effectiveSpell.containers);
-  const effectsByGroup = new Map<string, string[]>();
-  const groupLocations = new Map<string, ContainerLocation>();
+  const targetAnalysis = analyzeSpellTargetGroups(effectiveSpell, automaticEffects);
   const issues: string[] = [];
-  const groupIdByEffectId = new Map<string, string>();
 
   for (const effect of automaticEffects) {
-    const location = targetContainerFor(effect, locations);
-    if (!location) {
+    if (!targetAnalysis.groupByEffectId.has(effect.spellEffectId)) {
       issues.push(
         `${effect.spellEffectId} has no applicable Target or AoE container in its ancestry.`,
       );
-      continue;
     }
-    const groupId = location.container.id;
-    groupIdByEffectId.set(effect.spellEffectId, groupId);
-    groupLocations.set(groupId, location);
-    effectsByGroup.set(groupId, [
-      ...(effectsByGroup.get(groupId) ?? []),
-      effect.spellEffectId,
-    ]);
   }
 
   for (const suppliedGroupId of Object.keys(selections.targetGroups)) {
-    if (!effectsByGroup.has(suppliedGroupId)) {
+    if (!targetAnalysis.groups.some(({ id }) => id === suppliedGroupId)) {
       issues.push(`Runtime target selection references unknown target group ${suppliedGroupId}.`);
     }
   }
 
   const targetGroups: SpellCastTargetGroup[] = [];
-  for (const [groupId, effectIds] of effectsByGroup) {
-    const location = groupLocations.get(groupId)!;
-    const resolved = targetGroupFor(
-      location,
-      effectIds,
+  for (const authoredGroup of targetAnalysis.groups) {
+    const { selected, issue } = resolveSpellCastTargetSelection(
+      authoredGroup,
       input.caster.characterId,
-      selections.targetGroups[groupId],
+      selections.targetGroups[authoredGroup.id],
     );
-    targetGroups.push(resolved.group);
-    if (resolved.issue) issues.push(resolved.issue);
+    targetGroups.push({ ...authoredGroup, selectedTargetIds: selected, missingSelection: selected.length === 0 });
+    if (issue) issues.push(issue);
   }
   const plannedAutomaticEffects: PlannedSpellAutomaticEffect[] = automaticEffects.map(
     (adapted) => ({
       spellEffectId: adapted.spellEffectId,
       ruleId: adapted.ruleId,
-      targetGroupId: groupIdByEffectId.get(adapted.spellEffectId) ?? null,
+      targetGroupId: targetAnalysis.groupByEffectId.get(adapted.spellEffectId) ?? null,
       summary: formatMechanicalEffectSummary(adapted.definition.effect),
     }),
   );
@@ -490,7 +477,7 @@ export function planSpellCast(input: {
   let order = 0;
 
   for (const adapted of automaticEffects) {
-    const groupId = groupIdByEffectId.get(adapted.spellEffectId);
+    const groupId = targetAnalysis.groupByEffectId.get(adapted.spellEffectId);
     const group = groupId ? groupsById.get(groupId) : null;
     if (!group || group.missingSelection) continue;
     for (const targetCharacterId of group.selectedTargetIds) {

@@ -62,11 +62,11 @@ export async function readCombatRecoveryConditions(encounterId: number, particip
     return (Array.isArray(conditions) ? conditions.map(object) : []).filter((entry) => !entry.expiredAt && !entry.endedAt && typeof entry.effectPlanEffectId === "number").map((entry) => ({ id: Number(entry.effectPlanEffectId), name: String(entry.name), description: String(entry.description ?? "") }));
   });
 }
-export async function prepareCombatResult(scope: CombatScreenScope, declarationId: number) {
+export async function prepareCombatResult(scope: CombatScreenScope, declarationId: number, aoeSelections: Readonly<Record<string, readonly number[]>> = {}) {
   return authorized(scope, async (tx, context, actor) => {
     if (actor.authority !== "god-owner") throw new Error("The G.O.D. reviews completed attack reports.");
     await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, declarationId);
-    const planId = await generateActionEffectPlanInTransaction(tx, context, actor, declarationId);
+    const planId = await generateActionEffectPlanInTransaction(tx, context, actor, declarationId, undefined, aoeSelections);
     const plan = (await readActionEffectWorkspaceInTransaction(tx, context)).plans.find((entry) => entry.id === planId)!;
     if (isOrdinaryAttackReport(plan) || isSpellResultReport(plan)) return { planId, status: plan.status === "applied" ? "applied" : "awaiting-approval" };
     return applyRoutineCombatConsequencesInTransaction(tx, context, actor, declarationId, planId);

@@ -208,23 +208,11 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
       ? input.governingRoll.resolution.additionalSuccesses : 0;
     const targets = authored.targetParticipantIds.length
       ? authored.targetParticipantIds
-      : originalTargets.length ? originalTargets : [input.actorParticipantId];
+      : authored.instruction.targetGroupKind === "aoe"
+        ? []
+        : originalTargets.length ? originalTargets : [input.actorParticipantId];
     for (const targetParticipantId of targets) {
       participantKey(targetParticipantId, "Authored effect target");
-      if (input.source.kind === "spell" && isRecord(authored.instruction.areaReport)) {
-        if (targetParticipantId !== input.actorParticipantId) throw new Error("An area report belongs to its caster; it cannot apply to a selected combatant.");
-        const base = authored.effect && "amount" in authored.effect && typeof authored.effect.amount === "number" ? authored.effect.amount : null;
-        const successes = input.governingRoll?.resolution.succeeded ? input.governingRoll.resolution.totalSuccesses : 0;
-        const amount = failedRoll ? 0 : base !== null && authored.scaling === "per-success" && input.governingRoll
-          ? calculatePerSuccessQuantity(input.governingRoll.resolution, base).appliedQuantity : base === null ? null : base + additionalDamage;
-        proposals.push({ effectKey: `${authored.key}:report`, effectType: "spell.area-report", targetParticipantId,
-          authoredValue: { effect: authored.effect, instruction: authored.instruction }, calculatedValue: amount,
-          finalValue: { areaReport: authored.instruction.areaReport, effect: authored.effect, baseAmount: base, amount,
-            scaling: authored.scaling ?? "fixed", successes, failed: failedRoll, critical: input.governingRoll?.resolution.requiresGodRuling ?? false },
-          unit: "Area result", resource: "", applicationSupported: true, godReviewRequired: false,
-          status: "calculated", amendmentReason: "Area result only; no combatant Health or effects are changed." });
-        continue;
-      }
       if (!allowedTargets.has(targetParticipantId)) {
         throw new Error("A frozen authored effect references a participant outside the original target set.");
       }
