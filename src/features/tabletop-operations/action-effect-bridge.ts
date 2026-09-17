@@ -175,7 +175,7 @@ function defenseNeedsRuling(value: Readonly<Record<string, unknown>> | null): bo
 }
 
 function resolutionNeedsRoll(mode: ActionSourceResolutionMode): boolean {
-  return mode === "skill-roll" || mode === "attribute-roll" || mode === "opposed-roll";
+  return mode === "skill-roll" || mode === "attribute-roll" || mode === "opposed-roll" || mode === "fixed-roll";
 }
 
 export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): ActionEffectPlanProposal {
