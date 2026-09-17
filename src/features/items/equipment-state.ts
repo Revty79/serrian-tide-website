@@ -169,6 +169,10 @@ export function passiveSourceEffectKey(passiveEffectId: number): string {
   return `passive:${passiveEffectId}`;
 }
 
+export function passiveSourceEffectKeyForOwner(sourceKey: string, ownerKey: string): string {
+  return ownerKey === "stack" ? sourceKey : `${ownerKey}:${sourceKey}`;
+}
+
 export function shouldPassiveEffectBeActive(input: {
   requiredEquipmentState: PassiveRequiredEquipmentState;
   activeStackQuantities: Partial<Record<ActiveEquipmentState, number>>;

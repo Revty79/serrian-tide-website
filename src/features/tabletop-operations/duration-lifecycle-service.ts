@@ -381,8 +381,8 @@ async function advancePeriodicHealthEffectsInTransaction(
     let remaining = row.remainingApplications;
     let nextStep = row.nextStep;
     let nextRound = row.nextRound;
-    const consumption = consumePeriodicApplications(remaining, boundaries);
-    for (let index = 0; index < remaining - consumption.remainingApplications && remaining > 0; index += 1) {
+    const dueApplications = Math.min(remaining, boundaries);
+    for (let index = 0; index < dueApplications; index += 1) {
       if (participant.kind === "creature") {
         await applyDirectCreatureHealthInTransaction(tx, {
           encounterId, sceneId: row.sceneId, sessionId: row.sessionId, campaignId: row.campaignId, participantId: row.characterId,
@@ -397,8 +397,9 @@ async function advancePeriodicHealthEffectsInTransaction(
       nextStep += row.frequency === "combat-steps" ? 1 : 0;
       nextRound += row.frequency === "combat-rounds" ? 1 : 0;
     }
-    remaining = consumption.remainingApplications;
-    await tx.update(campaignSessionPeriodicHealthEffect).set({ remainingApplications: remaining, nextStep, nextRound, status: consumption.completed ? "completed" : "active", completedAt: consumption.completed ? new Date() : null, updatedAt: new Date() }).where(and(eq(campaignSessionPeriodicHealthEffect.id, row.id), eq(campaignSessionPeriodicHealthEffect.status, "active")));
+    const consumption = consumePeriodicApplications(row.remainingApplications, dueApplications);
+    if (remaining !== consumption.remainingApplications) throw new Error("Periodic Health application accounting changed during tick execution.");
+    await tx.update(campaignSessionPeriodicHealthEffect).set({ remainingApplications: consumption.remainingApplications, nextStep, nextRound, status: consumption.completed ? "completed" : "active", completedAt: consumption.completed ? new Date() : null, updatedAt: new Date() }).where(and(eq(campaignSessionPeriodicHealthEffect.id, row.id), eq(campaignSessionPeriodicHealthEffect.status, "active")));
   }
 }
 

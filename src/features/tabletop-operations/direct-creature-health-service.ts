@@ -76,6 +76,9 @@ export async function applyDirectCreatureHealthInTransaction(
     const before = totalDamage;
     const after = input.effectKind === "health.damage" ? before + input.amount : Math.max(0, before - input.amount);
     health.totalDamage = after;
+    if (input.effectKind === "health.heal") {
+      health.poolDamage = Object.fromEntries(Object.entries(poolDamage).map(([key, damage]) => [key, Math.max(0, damage - input.amount)]));
+    }
     result = { kind: input.effectKind, scope: "full-body", before, after };
   } else {
     const key = poolKeyForSelection(snapshot, input.poolKey, input.hitLocationNumber);

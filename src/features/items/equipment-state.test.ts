@@ -17,6 +17,7 @@ import {
   getInactiveStackQuantity,
   passiveLifecycleLabel,
   passiveSourceEffectKey,
+  passiveSourceEffectKeyForOwner,
   shouldPassiveEffectBeActive,
   stateSatisfiesEquipmentRequirement,
   validatePassiveItemEffect,
@@ -165,13 +166,11 @@ test("29-32: passive Conditions remain descriptive and preserve resolved history
 
 test("33-35: identical active copies contribute one passive until the last qualifying copy deactivates", () => {
   const sourceKey = passiveSourceEffectKey(41);
-  const desiredKeys = new Set([
-    shouldPassiveEffectBeActive({ requiredEquipmentState: "wielded", activeStackQuantities: { wielded: 2 }, instanceStates: [] }) ? sourceKey : "",
-  ]);
-  assert.deepEqual([...desiredKeys], ["passive:41"]);
+  assert.equal(passiveSourceEffectKeyForOwner(sourceKey, "stack"), sourceKey);
+  assert.notEqual(passiveSourceEffectKeyForOwner(sourceKey, "instance:101"), passiveSourceEffectKeyForOwner(sourceKey, "instance:102"));
+  assert.equal(passiveSourceEffectKeyForOwner(sourceKey, "instance:101"), "instance:101:passive:41");
   assert.equal(shouldPassiveEffectBeActive({ requiredEquipmentState: "wielded", activeStackQuantities: { wielded: 1 }, instanceStates: ["inactive"] }), true);
   assert.equal(shouldPassiveEffectBeActive({ requiredEquipmentState: "wielded", activeStackQuantities: {}, instanceStates: ["inactive", "inactive"] }), false);
-  assert.match(service, /new Map\(desired\.map\(\(entry\) => \[`\$\{entry\.itemId\}:\$\{passiveSourceEffectKey\(entry\.id\)\}`/);
 });
 
 test("36-38: distinct Item sources coexist and Step 8 aggregation removes only the ended source", () => {

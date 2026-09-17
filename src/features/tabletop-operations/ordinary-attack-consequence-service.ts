@@ -107,8 +107,16 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     if (roll.resolution.requiresGodRuling && !adjudicated) issues.push("The critical outcome requires an explicit ruling.");
     if (source.authoredData.specialEffect) issues.push("The attack's authored special effect requires a separate ruling.");
     if (locked.targetCharacterIds.length !== 1 && !adjudicated) issues.push("This ordinary attack needs a ruling for its multiple targets.");
+    const weaponHitEffects = source.kind === "weapon" ? source.effects.filter((effect) => (
+      (effect.instruction.weaponHit === true || effect.instruction.passiveWeapon === true) && effect.effect
+    )) : [];
+    const weaponHitDamage = weaponHitEffects.reduce((total, effect) => (
+      effect.effect?.kind === "health.damage" && typeof effect.effect.amount === "number" ? total + effect.effect.amount
+        : effect.effect?.kind === "modifier.apply" && effect.instruction.passiveWeapon === true && effect.effect.channel === "damage" ? total + effect.effect.amount
+          : total
+    ), 0);
     const calculated = base !== null && armor !== null && armor >= 0 && soak !== null && soak >= 0
-      ? calculateOrdinaryAttackDamage(base, roll.resolution.additionalSuccesses, armor, soak) : null;
+      ? calculateOrdinaryAttackDamage((base + weaponHitDamage), roll.resolution.additionalSuccesses, armor, soak) : null;
     const netDamage = adjudicated?.finalDamage ?? calculated?.netDamage ?? null;
     // Location selection alone cannot override unsupported damage mechanics.
     const supported = poolKey !== null && netDamage !== null && (issues.length === 0 || adjudicated?.finalDamage !== undefined);
@@ -121,6 +129,22 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       unit: "Health", resource: "", applicationSupported: !declined && supported, godReviewRequired: !declined && !supported,
       status: declined ? "declined" : supported ? "calculated" : "requires-god-ruling",
       amendmentReason: !roll.resolution.succeeded ? "The recorded attack failed. No damage was applied." : prevented ? "The resolved defense prevented the attack's damage." : declined ? "Armor and soak absorbed the complete hit." : adjudicated?.reason ?? issues.join(" ") });
+    if (!declined) for (const effect of weaponHitEffects.filter(({ effect, instruction }) => effect?.kind !== "health.damage" && instruction.passiveWeapon !== true)) {
+      proposals.push({
+        effectKey: `${effect.key}:target:${targetParticipantId}`,
+        effectType: effect.effect!.kind,
+        targetParticipantId,
+        authoredValue: { source: source.authoredData, effect: effect.effect, hitLocationNumber },
+        calculatedValue: effect.effect,
+        finalValue: { effect: effect.effect, application: { hitLocationNumber, weaponHit: true } },
+        unit: "Effect",
+        resource: "",
+        applicationSupported: effect.applicationSupported,
+        godReviewRequired: effect.requiresGodReview,
+        status: effect.applicationSupported ? "calculated" : "requires-god-ruling",
+        amendmentReason: effect.applicationSupported ? "" : "The Weapon-Hit Item Power rider requires a specific application ruling.",
+      });
+    }
   }
   const unresolvedCritical = !ruling && (roll.resolution.requiresGodRuling || defense?.originalActionDisposition === "awaiting-god-ruling");
   return { status: unresolvedCritical || proposals.some(({ status }) => status === "requires-god-ruling") ? "requires-god-ruling" : "calculated", effects: proposals,

@@ -39,6 +39,7 @@ import {
   type CharacterWeaponGoverningSelection,
 } from "@/features/items/character-weapon-governance";
 import { lockActiveItemRootInTransaction } from "@/features/items/active-item-root-service";
+import { assertConsumableHasInactiveQuantityInTransaction } from "@/features/items/equipment-state-service";
 import { loadCharacterSkillLineageInputInTransaction } from "@/features/items/character-weapon-governance-service";
 import {
   prepareCharacterSpellCastInTransaction,
@@ -306,6 +307,46 @@ async function resolveWeapon(
     rulesText: row.rulesText,
     nonautomation: "Full weapon damage, ammunition, armor, soak, hit location, recoil, and Called Shot rules are deferred.",
   }, allTargets(draft))];
+  const weaponHitRows = await tx.select({
+    powerId: itemPower.id,
+    powerName: itemPower.name,
+    effectId: itemPowerEffect.id,
+    schemaVersion: itemPowerEffect.schemaVersion,
+    effectJson: itemPowerEffect.effectJson,
+  }).from(itemPower)
+    .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
+    .where(and(eq(itemPower.itemId, row.itemId), eq(itemPower.trigger, "weapon-hit")))
+    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  for (const hit of weaponHitRows) {
+    effects.push(structuredEffect(
+      `item-power:${hit.powerId}:effect:${hit.effectId}`,
+      decodeMechanicalEffect({ schemaVersion: hit.schemaVersion, effectJson: hit.effectJson }),
+      allTargets(draft),
+      false,
+      { powerName: hit.powerName, weaponHit: true },
+    ));
+  }
+  const passiveRows = await tx.select({
+    powerId: itemPower.id,
+    powerName: itemPower.name,
+    effectId: itemPowerEffect.id,
+    schemaVersion: itemPowerEffect.schemaVersion,
+    effectJson: itemPowerEffect.effectJson,
+  }).from(itemPower)
+    .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
+    .where(and(eq(itemPower.itemId, row.itemId), eq(itemPower.trigger, "passive"), eq(itemPower.requiredEquipmentState, "wielded")))
+    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  for (const passive of passiveRows) {
+    const effect = decodeMechanicalEffect({ schemaVersion: passive.schemaVersion, effectJson: passive.effectJson });
+    if (effect.kind !== "modifier.apply" || effect.channel !== "damage" || effect.targetKey !== "self") continue;
+    effects.push(structuredEffect(
+      `item-power-passive:${passive.powerId}:effect:${passive.effectId}`,
+      effect,
+      allTargets(draft),
+      false,
+      { passiveWeapon: true, powerName: passive.powerName },
+    ));
+  }
   return {
     authoritativeInitiativeCost: row.initiativeCost,
     governing,
@@ -444,12 +485,24 @@ async function resolveItemPower(
   if (!row) throw new Error("The selected Item Ability no longer exists or is not activated.");
   await lockActiveItemRootInTransaction(tx, row.itemId);
   if (draft.sourceInstanceId === null) {
+    if (row.power.resourceCostKind === "shared-charges") throw new Error("This Ability requires an exact owned Item instance.");
     const [owned] = await tx.select({ quantity: campaignCharacterItem.quantity }).from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, draft.actorCharacterId), eq(campaignCharacterItem.itemId, row.itemId))).limit(1);
     if (!owned || owned.quantity <= 0) throw new Error("The acting Character no longer owns this Item Ability's Item.");
-    if (row.power.resourceCostKind === "shared-charges") throw new Error("This Ability requires an exact owned Item instance.");
+    if (row.power.resourceCostKind === "consume-item") {
+      const amount = row.power.resourceCostAmount;
+      if (amount === null) throw new Error("The Activated Item Ability has no valid consume-item cost.");
+      await assertConsumableHasInactiveQuantityInTransaction(tx, { characterId: draft.actorCharacterId, itemId: row.itemId, ownedQuantity: owned.quantity, consumeQuantity: amount });
+    }
   } else {
+    if (row.power.resourceCostKind === "consume-item") throw new Error("Consume-item Abilities use stack ownership and cannot be locked with an Item-instance identity.");
     const [owned] = await tx.select({ id: campaignCharacterItemInstance.id }).from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.id, draft.sourceInstanceId), eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId), eq(campaignCharacterItemInstance.itemId, row.itemId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1);
     if (!owned) throw new Error("The exact owned Item Ability instance is unavailable.");
+    if (row.power.resourceCostKind === "shared-charges") {
+      const [charge] = await tx.select({ currentCharges: campaignCharacterItemInstance.currentCharges, maximumCharges: itemPowerResource.maximumCharges }).from(campaignCharacterItemInstance)
+        .innerJoin(itemPowerResource, eq(itemPowerResource.itemId, campaignCharacterItemInstance.itemId))
+        .where(and(eq(campaignCharacterItemInstance.id, draft.sourceInstanceId), eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId), eq(campaignCharacterItemInstance.itemId, row.itemId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1);
+      if (!charge || charge.maximumCharges === null || row.power.resourceCostAmount === null || charge.currentCharges < row.power.resourceCostAmount) throw new Error("The exact owned Item Ability instance has insufficient Charges.");
+    }
   }
   const itemPayload = sourcePayload(draft);
   const itemSelections = isRecord(itemPayload.effectSelections) ? itemPayload.effectSelections : {};

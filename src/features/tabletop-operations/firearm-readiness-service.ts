@@ -29,6 +29,8 @@ import { ammunitionSelectionInitiativeCost, resolveAmmunitionWeaponMode } from "
 import { readEffectiveFirearmState, readCompatibleMagazineCopies, swapFirearmMagazine, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
 import { firearmMagazineAttachment } from "@/db/magazine-schema";
 import { setInstanceEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
+import { getStartingItemInstanceCharges } from "@/features/items/item-ownership";
+import { itemPowerResource } from "@/db/item-schema";
 
 import { assertActionChoiceAuthority, assertInstantPreparationOpportunity, type ActionDeclarationActor } from "./action-declaration-service";
 import type { InitiativeEngineState } from "./initiative-runtime";
@@ -387,8 +389,15 @@ export async function initializeFirearmStateInTransaction(
     readinessMode: weaponProfile.readinessMode,
     runtimeUseMode: itemRuntimeProfile.useMode,
     maximumCharges: itemRuntimeProfile.maximumCharges,
+    runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
+    runtimeChargesPerUse: itemRuntimeProfile.chargesPerUse,
+    runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
+    runtimeActivationLabel: itemRuntimeProfile.activationLabel,
+    runtimeUseNotes: itemRuntimeProfile.useNotes,
+    powerMaximumCharges: itemPowerResource.maximumCharges,
   }).from(item).innerJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+    .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
     .where(eq(item.id, command.itemId)).limit(1);
   if (!catalog) throw new Error("The selected Item has no exact Weapon Profile.");
   if (!isSupportedAmmunitionWeaponType(catalog.weaponType)) throw new Error("This Weapon Type has no supported ammunition preparation workflow.");
@@ -440,7 +449,15 @@ export async function initializeFirearmStateInTransaction(
     const [created] = await tx.insert(campaignCharacterItemInstance).values({
       characterId: command.characterId,
       itemId: command.itemId,
-      currentCharges: catalog.runtimeUseMode === "charges" ? catalog.maximumCharges ?? 0 : 0,
+      currentCharges: getStartingItemInstanceCharges({
+        useMode: (catalog.runtimeUseMode ?? "none") as "none" | "consume-item" | "charges" | "unlimited",
+        quantityPerUse: catalog.runtimeQuantityPerUse,
+        maximumCharges: catalog.maximumCharges,
+        chargesPerUse: catalog.runtimeChargesPerUse,
+        rechargeNotes: catalog.runtimeRechargeNotes ?? "",
+        activationLabel: catalog.runtimeActivationLabel ?? "",
+        useNotes: catalog.runtimeUseNotes ?? "",
+      }, true, catalog.powerMaximumCharges === null ? null : { maximumCharges: catalog.powerMaximumCharges }),
       equipmentState,
       unitCostCredits: stack.unitCostCredits,
     }).returning({ id: campaignCharacterItemInstance.id });

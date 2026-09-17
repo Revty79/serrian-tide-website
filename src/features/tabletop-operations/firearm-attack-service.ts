@@ -10,6 +10,8 @@ import type { db } from "@/db";
 import {
   item,
   itemArmorDamageModifier,
+  itemPower,
+  itemPowerEffect,
   weaponFiringMode,
   weaponProfile,
 } from "@/db/item-schema";
@@ -90,6 +92,7 @@ import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/featur
 import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
 import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-injury-timing";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import { decodeMechanicalEffect } from "@/features/mechanical-effects";
 
 export type FirearmAttackTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type GodActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -1153,6 +1156,8 @@ async function createFirearmEffectPlan(
     governingSnapshot: preview.governing.snapshot,
     authoredData: {
       firearmAttackId: attack.id,
+      itemPowerItemId: attack.itemId,
+      itemPowerResourceSource: true,
       frozenFirearmAttack: preview,
       bulletAllocation: attack.bulletAllocationJson,
       damageResolution: attack.damageResolutionJson,
@@ -1389,7 +1394,77 @@ async function createFirearmEffectPlan(
       amendmentReason: "",
     });
   }
+  const eligibleBullets = bulletRows.filter(({ status, hitLocationNumber, hpPoolKey, rulingReasonsJson }) => (
+    status === "surviving" && hitLocationNumber !== null && Boolean(hpPoolKey) && jsonArray(rulingReasonsJson).length === 0
+  ));
+  const weaponHitPowers = await tx.select({
+    powerId: itemPower.id,
+    powerName: itemPower.name,
+    resourceCostKind: itemPower.resourceCostKind,
+    resourceCostAmount: itemPower.resourceCostAmount,
+    effectId: itemPowerEffect.id,
+    schemaVersion: itemPowerEffect.schemaVersion,
+    effectJson: itemPowerEffect.effectJson,
+  }).from(itemPower)
+    .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
+    .where(and(eq(itemPower.itemId, attack.itemId), eq(itemPower.trigger, "weapon-hit")))
+    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  const powerGroups = new Map<number, typeof weaponHitPowers>();
+  for (const row of weaponHitPowers) powerGroups.set(row.powerId, [...(powerGroups.get(row.powerId) ?? []), row]);
+  for (const [powerId, powerRows] of powerGroups) {
+    const power = powerRows[0]!;
+    if (eligibleBullets.length === 1) {
+      const bullet = eligibleBullets[0]!;
+      const application = { hitLocationNumber: bullet.hitLocationNumber, poolKey: bullet.hpPoolKey };
+      for (const row of powerRows) {
+        const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson });
+        effects.push({
+          planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+          targetParticipantId: attack.targetParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:effect:${row.effectId}`,
+          effectType: effect.kind, sourceKind: "weapon", sourceIdentity,
+          authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, effect },
+          calculatedValueJson: effect.kind === "health.damage" || effect.kind === "health.heal" || effect.kind === "modifier.apply" ? effect.amount : effect,
+          finalValueJson: { effect, application }, unit: effect.kind === "health.damage" || effect.kind === "health.heal" ? "Health" : effect.kind === "modifier.apply" ? effect.channel : "Effect",
+          resource: bullet.hpPoolKey, applicationSupported: true, godReviewRequired: false, status: "calculated", amendmentReason: "",
+        });
+      }
+      if (power.resourceCostKind === "shared-charges" && power.resourceCostAmount !== null) effects.push({
+        planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+        targetParticipantId: attack.actorParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:charges`, effectType: "resource.item-charges", sourceKind: "weapon", sourceIdentity,
+        authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex }, calculatedValueJson: power.resourceCostAmount,
+        finalValueJson: { amount: power.resourceCostAmount, resourceKey: String(attack.itemId) }, unit: "Charges", resource: String(attack.itemId), applicationSupported: true, godReviewRequired: false, status: "calculated", amendmentReason: "",
+      });
+    } else if (eligibleBullets.length > 1) {
+      const boundaryKey = `weapon-hit-allocation:${powerId}`;
+      effects.push({
+        planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+        targetParticipantId: attack.targetParticipantId, effectKey: boundaryKey, effectType: "manual", sourceKind: "weapon", sourceIdentity,
+        authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, allocationBoundaryKey: boundaryKey, eligibleBullets: eligibleBullets.map(({ id, bulletIndex }) => ({ id, bulletIndex })), instruction: "Assign this Weapon-Hit Power to one or more eligible successful bullet occurrences. Do not assign a new occurrence after this ruling is frozen." },
+        calculatedValueJson: null, finalValueJson: { effect: { kind: "manual", title: `${power.powerName} allocation`, description: `Eligible bullets: ${eligibleBullets.map(({ bulletIndex }) => bulletIndex).join(", ")}.` } }, unit: "instruction", resource: "", applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
+      });
+      for (const bullet of eligibleBullets) for (const row of powerRows) {
+        const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson });
+        effects.push({
+          planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+          targetParticipantId: attack.targetParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:effect:${row.effectId}`, effectType: effect.kind, sourceKind: "weapon", sourceIdentity,
+          authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, allocationBoundaryKey: boundaryKey, effect }, calculatedValueJson: null, finalValueJson: { effect, application: { hitLocationNumber: bullet.hitLocationNumber, poolKey: bullet.hpPoolKey } }, unit: effect.kind === "health.damage" || effect.kind === "health.heal" ? "Health" : "Effect", resource: bullet.hpPoolKey, applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
+        });
+      }
+      if (power.resourceCostKind === "shared-charges" && power.resourceCostAmount !== null) for (const bullet of eligibleBullets) effects.push({
+        planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+        targetParticipantId: attack.actorParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:charges`, effectType: "resource.item-charges", sourceKind: "weapon", sourceIdentity,
+        authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, allocationBoundaryKey: boundaryKey }, calculatedValueJson: power.resourceCostAmount, finalValueJson: { amount: power.resourceCostAmount, resourceKey: String(attack.itemId) }, unit: "Charges", resource: String(attack.itemId), applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
+      });
+    }
+  }
+  const finalPlanStatus = effects.some(({ status }) => status === "requires-god-ruling")
+    ? "requires-god-ruling" as const
+    : planStatus;
   if (effects.length) await tx.insert(campaignSessionEncounterEffect).values(effects);
+  if (finalPlanStatus !== planStatus) {
+    await tx.update(campaignSessionEncounterEffectPlan).set({ status: finalPlanStatus, updatedAt: new Date() })
+      .where(eq(campaignSessionEncounterEffectPlan.id, created.id));
+  }
   await tx.insert(campaignSessionEncounterEffectPlanEvent).values({
     planId: created.id,
     encounterId: context.encounterId,
@@ -1397,13 +1472,13 @@ async function createFirearmEffectPlan(
     sessionId: context.sessionId,
     campaignId: context.campaignId,
     fromStatus: null,
-    toStatus: planStatus,
+    toStatus: finalPlanStatus,
     eventKind: "firearm-effect-plan-generated",
     reason: "",
     metadata: { firearmAttackId: attack.id, attackRollId: attack.attackRollId, effectCount: effects.length },
     actorUserId,
   });
-  const nextStatus: FirearmAttackStatus = requiresGodRuling ? "requires-god-ruling" : "consequence-planned";
+  const nextStatus: FirearmAttackStatus = finalPlanStatus === "requires-god-ruling" ? "requires-god-ruling" : "consequence-planned";
   await tx.update(campaignSessionEncounterFirearmAttack).set({ effectPlanId: created.id, status: nextStatus, updatedAt: new Date() })
     .where(eq(campaignSessionEncounterFirearmAttack.id, attack.id));
   await recordAttackEvent(tx, context, attack.id, attack.status as FirearmAttackStatus, nextStatus, "firearm-effect-plan-generated", actorUserId, "", { effectPlanId: created.id });

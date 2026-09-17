@@ -2,7 +2,7 @@ import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-
 import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import "server-only";
 
-import { and, asc, eq, inArray, isNull, like, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -12,6 +12,8 @@ import {
   armorProfile,
   item,
   itemPassiveEffect,
+  itemPower,
+  itemPowerEffect,
   weaponFiringMode,
   weaponProfile,
 } from "@/db/item-schema";
@@ -58,7 +60,9 @@ import {
   getInactiveStackQuantity,
   passiveLifecycleLabel,
   passiveSourceEffectKey,
+  passiveSourceEffectKeyForOwner,
   shouldPassiveEffectBeActive,
+  stateSatisfiesEquipmentRequirement,
   validatePassiveItemEffect,
   type ActiveEquipmentState,
   type ActiveManualPassiveEffect,
@@ -114,6 +118,9 @@ type LoadedPassiveEffect = ItemPassiveEffectDefinition & {
   itemId: number;
   itemName: string;
   sortOrder: number;
+  sourceKind: "legacy" | "power";
+  powerId: number | null;
+  ownerKey?: string;
 };
 
 function positiveId(value: number, label: string): number {
@@ -210,15 +217,42 @@ async function loadPassiveEffectsInTransaction(
     .innerJoin(item, eq(item.id, itemPassiveEffect.itemId))
     .where(inArray(itemPassiveEffect.itemId, [...itemIds]))
     .orderBy(asc(itemPassiveEffect.itemId), asc(itemPassiveEffect.sortOrder), asc(itemPassiveEffect.id));
-  return rows.map((row) => {
+  const loaded: LoadedPassiveEffect[] = rows.map((row) => {
     if (row.catalogScope !== "equipment") throw new Error(`Inventory Item ${row.itemName} cannot define active Equipment passives.`);
     const definition = validatePassiveItemEffect({
       id: row.id,
       requiredEquipmentState: row.requiredEquipmentState as PassiveRequiredEquipmentState,
       effect: decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson }),
     });
-    return { ...definition, id: row.id, itemId: row.itemId, itemName: row.itemName, sortOrder: row.sortOrder };
+    return { ...definition, id: row.id, itemId: row.itemId, itemName: row.itemName, sortOrder: row.sortOrder,
+      sourceKind: "legacy" as const, powerId: null };
   });
+  const powerRows = await tx.select({
+    id: itemPowerEffect.id,
+    powerId: itemPower.id,
+    itemId: item.id,
+    itemName: item.name,
+    catalogScope: item.catalogScope,
+    requiredEquipmentState: itemPower.requiredEquipmentState,
+    schemaVersion: itemPowerEffect.schemaVersion,
+    effectJson: itemPowerEffect.effectJson,
+    sortOrder: itemPowerEffect.sortOrder,
+  }).from(itemPowerEffect)
+    .innerJoin(itemPower, eq(itemPower.id, itemPowerEffect.itemPowerId))
+    .innerJoin(item, eq(item.id, itemPower.itemId))
+    .where(and(inArray(itemPower.itemId, [...itemIds]), eq(itemPower.trigger, "passive")))
+    .orderBy(asc(itemPower.itemId), asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  for (const row of powerRows) {
+    if (row.catalogScope !== "equipment") throw new Error(`Inventory Item ${row.itemName} cannot define active Equipment passives.`);
+    const definition = validatePassiveItemEffect({
+      id: row.id,
+      requiredEquipmentState: row.requiredEquipmentState as PassiveRequiredEquipmentState,
+      effect: decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson }),
+    });
+    loaded.push({ ...definition, id: row.id, itemId: row.itemId, itemName: row.itemName, sortOrder: row.sortOrder,
+      sourceKind: "power", powerId: row.powerId });
+  }
+  return loaded;
 }
 
 function itemIsActiveFor(
@@ -465,13 +499,13 @@ export async function reconcileItemPassiveEffectsInTransaction(
   const conditions = await tx.select().from(campaignCharacterActiveCondition).where(and(
       eq(campaignCharacterActiveCondition.characterId, characterId),
       eq(campaignCharacterActiveCondition.sourceKind, "item"),
-      like(campaignCharacterActiveCondition.sourceEffectKey, "passive:%"),
+      or(like(campaignCharacterActiveCondition.sourceEffectKey, "passive:%"), like(campaignCharacterActiveCondition.sourceEffectKey, "power:%"), like(campaignCharacterActiveCondition.sourceEffectKey, "instance:%")),
       isNull(campaignCharacterActiveCondition.resolvedAt),
     )).orderBy(asc(campaignCharacterActiveCondition.createdAt), asc(campaignCharacterActiveCondition.id));
   const modifiers = await tx.select().from(campaignCharacterActiveModifier).where(and(
       eq(campaignCharacterActiveModifier.characterId, characterId),
       eq(campaignCharacterActiveModifier.sourceKind, "item"),
-      like(campaignCharacterActiveModifier.sourceEffectKey, "passive:%"),
+      or(like(campaignCharacterActiveModifier.sourceEffectKey, "passive:%"), like(campaignCharacterActiveModifier.sourceEffectKey, "power:%"), like(campaignCharacterActiveModifier.sourceEffectKey, "instance:%")),
       isNull(campaignCharacterActiveModifier.endedAt),
     )).orderBy(asc(campaignCharacterActiveModifier.createdAt), asc(campaignCharacterActiveModifier.id));
   const requestedIds = itemIds ? new Set(itemIds.map((id) => positiveId(id, "Passive Item"))) : null;
@@ -480,20 +514,38 @@ export async function reconcileItemPassiveEffectsInTransaction(
     ...snapshot.instances.map(({ itemId }) => itemId),
   ];
   const existingIds = [...conditions, ...modifiers].flatMap(({ sourceId }) => {
-    const id = Number(sourceId);
-    return Number.isSafeInteger(id) && id > 0 ? [id] : [];
+    const id = String(sourceId).startsWith("instance:") ? null : Number(sourceId);
+    return id !== null && Number.isSafeInteger(id) && id > 0 ? [id] : [];
   });
   const reconciliationIds = [...new Set(requestedIds ? [...requestedIds] : [...ownedIds, ...existingIds])];
   const passives = await loadPassiveEffectsInTransaction(tx, reconciliationIds);
-  const desired = passives.filter((entry) => itemIsActiveFor(snapshot, entry.itemId, entry.requiredEquipmentState));
-  const desiredByKey = new Map(desired.map((entry) => [`${entry.itemId}:${passiveSourceEffectKey(entry.id)}`, entry]));
+  const desired = passives.flatMap((entry) => {
+    const instances = snapshot.instances.filter((instance) => instance.itemId === entry.itemId
+      && stateSatisfiesEquipmentRequirement(instance.state, entry.requiredEquipmentState));
+    const stackActive = getActiveStackQuantity(snapshot.activeStackQuantities.get(entry.itemId) ?? {}) > 0
+      && itemIsActiveFor({ ...snapshot, instances: [] }, entry.itemId, entry.requiredEquipmentState);
+    const owners = [
+      ...(stackActive ? [{ ownerKey: "stack" }] : []),
+      ...instances.map((instance) => ({ ownerKey: `instance:${instance.instanceId}` })),
+    ];
+    return owners.map(({ ownerKey }) => ({ ...entry, ownerKey }));
+  });
+  const sourceEffectKey = (entry: LoadedPassiveEffect): string => {
+    const base = entry.sourceKind === "legacy" ? passiveSourceEffectKey(entry.id) : `power:${entry.powerId}:effect:${entry.id}`;
+    return passiveSourceEffectKeyForOwner(base, entry.ownerKey ?? "stack");
+  };
+  const desiredByKey = new Map(desired.map((entry) => [`${entry.itemId}:${sourceEffectKey(entry)}`, entry]));
+  const persistedItemId = (sourceId: string): number | null => {
+    const itemId = Number(sourceId);
+    return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
+  };
   const keptConditions = new Set<string>();
   const keptModifiers = new Set<string>();
   const result: PassiveReconciliationResult = { created: [], ended: [], resolved: [], activeManualPassives: [] };
 
   for (const condition of conditions) {
-    const itemId = Number(condition.sourceId);
-    if (requestedIds && !requestedIds.has(itemId)) continue;
+    const itemId = persistedItemId(condition.sourceId);
+    if (itemId === null || requestedIds && !requestedIds.has(itemId)) continue;
     const key = `${itemId}:${condition.sourceEffectKey}`;
     const target = desiredByKey.get(key);
     if (target?.effect.kind === "condition.apply" && !keptConditions.has(key)) {
@@ -504,8 +556,8 @@ export async function reconcileItemPassiveEffectsInTransaction(
     result.resolved.push(key);
   }
   for (const modifier of modifiers) {
-    const itemId = Number(modifier.sourceId);
-    if (requestedIds && !requestedIds.has(itemId)) continue;
+    const itemId = persistedItemId(modifier.sourceId);
+    if (itemId === null || requestedIds && !requestedIds.has(itemId)) continue;
     const key = `${itemId}:${modifier.sourceEffectKey}`;
     const target = desiredByKey.get(key);
     if (target?.effect.kind === "modifier.apply" && !keptModifiers.has(key)) {
@@ -517,8 +569,8 @@ export async function reconcileItemPassiveEffectsInTransaction(
   }
 
   for (const entry of desired) {
-    const sourceEffectKey = passiveSourceEffectKey(entry.id);
-    const key = `${entry.itemId}:${sourceEffectKey}`;
+    const effectKey = sourceEffectKey(entry);
+    const key = `${entry.itemId}:${effectKey}`;
     if (entry.effect.kind === "manual") {
       result.activeManualPassives.push({
         passiveEffectId: entry.id,
@@ -543,7 +595,7 @@ export async function reconcileItemPassiveEffectsInTransaction(
     await persistPlannedMechanicalEffectInTransaction(tx, {
       plan,
       targetCharacterId: characterId,
-      sourceEffectKey,
+      sourceEffectKey: effectKey,
     });
     result.created.push(key);
   }

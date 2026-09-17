@@ -91,8 +91,21 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
         if (profile && profile.useMode !== "none") sources.push({ kind: "item", ref: `item:${owned.itemId}`, name: owned.name, instanceId: null, itemId: null, description: `${owned.quantity} available · ${profile.activationLabel}` });
       }
       for (const owned of aggregate.itemInstances) if (owned.runtimeProfile.useMode !== "none") sources.push({ kind: "item", ref: `item:${owned.itemId}`, name: `${owned.name} · copy ${owned.id}`, instanceId: owned.id, itemId: null, description: `${owned.currentCharges ?? "?"} charges · ${owned.runtimeProfile.activationLabel}` });
-      for (const ability of loaded.abilityStacks) if (ability.resourceKind !== "shared-charges" && ability.quantity > 0) sources.push({ kind: "item", ref: `item-power:${ability.powerId}`, name: `${ability.itemName} — ${ability.powerName}`, instanceId: null, itemId: ability.itemId, description: `${ability.initiativeCost ?? "?"} Initiative${ability.resourceKind !== "none" ? ` · ${ability.resourceAmount} ${ability.resourceKind === "consume-item" ? "Item" : "Charges"}` : ""}` });
-      for (const ability of loaded.abilityInstances) if (ability.resourceKind === "shared-charges" || ability.resourceKind !== "consume-item") sources.push({ kind: "item", ref: `item-power:${ability.powerId}`, name: `${ability.itemName} — ${ability.powerName}`, instanceId: ability.instanceId, itemId: ability.itemId, description: `${ability.initiativeCost ?? "?"} Initiative${ability.resourceKind !== "none" ? ` · ${ability.resourceAmount} ${ability.resourceKind === "consume-item" ? "Item" : "Charges"}` : ""}`, unavailable: ability.resourceKind === "shared-charges" && ability.hasPowerPool === null ? "This Ability requires a shared Power Charge Pool." : undefined });
+      for (const ability of loaded.abilityStacks) if (ability.resourceKind !== "shared-charges" && ability.quantity > 0) {
+        const stack = loaded.equipment?.stacks.find(({ itemId }) => itemId === ability.itemId);
+        const cost = ability.resourceAmount ?? 0;
+        const unavailable = ability.resourceKind === "consume-item" && (!stack || stack.inactiveQuantity < cost)
+          ? "This Ability does not have enough Inactive Item quantity to pay its cost." : undefined;
+        sources.push({ kind: "item", ref: `item-power:${ability.powerId}`, name: `${ability.itemName} — ${ability.powerName}`, instanceId: null, itemId: ability.itemId, description: `${ability.initiativeCost ?? "?"} Initiative${ability.resourceKind !== "none" ? ` · ${ability.resourceAmount} ${ability.resourceKind === "consume-item" ? "Item" : "Charges"}` : ""}`, unavailable });
+      }
+      for (const ability of loaded.abilityInstances) if (ability.resourceKind === "shared-charges" || ability.resourceKind !== "consume-item") {
+        const cost = ability.resourceAmount ?? 0;
+        const unavailable = ability.resourceKind === "shared-charges" && ability.hasPowerPool === null
+          ? "This Ability requires a shared Power Charge Pool."
+          : ability.resourceKind === "shared-charges" && ability.currentCharges < cost
+            ? "This exact Item instance has insufficient Charges." : undefined;
+        sources.push({ kind: "item", ref: `item-power:${ability.powerId}`, name: `${ability.itemName} — ${ability.powerName}`, instanceId: ability.instanceId, itemId: ability.itemId, description: `${ability.initiativeCost ?? "?"} Initiative${ability.resourceKind !== "none" ? ` · ${ability.resourceAmount} ${ability.resourceKind === "consume-item" ? "Item" : "Charges"}` : ""}`, unavailable });
+      }
     } catch (error) { aggregateIssue = error instanceof Error ? error.message : "Some owned sources could not be read."; }
   }
   if (scope.role === "god" && participantId > 0 && !loaded.isNpc) await authorized(scope, async (tx, context) => {

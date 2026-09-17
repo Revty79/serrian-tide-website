@@ -767,6 +767,32 @@ export async function resolveManualActionEffectInTransaction(
   const outcome = boundedReason(outcomeInput, "Manual outcome");
   const reason = boundedReason(reasonInput, "Manual ruling reason");
   const now = new Date();
+  const authored = isRecord(effectRow.authoredValueJson) ? effectRow.authoredValueJson : null;
+  const boundaryKey = typeof authored?.allocationBoundaryKey === "string" ? authored.allocationBoundaryKey : null;
+  if (boundaryKey) {
+    let selectedBulletIndexes: number[] = [];
+    try {
+      const parsed = JSON.parse(outcome);
+      selectedBulletIndexes = Array.isArray(parsed?.bulletIndices) ? parsed.bulletIndices : [];
+    } catch {
+      selectedBulletIndexes = outcome.split(",").map((value) => Number(value.trim().replace(/^bullet:/i, ""))).filter(Number.isSafeInteger);
+    }
+    const eligible = authored && Array.isArray(authored.eligibleBullets) ? authored.eligibleBullets.flatMap((value) => isRecord(value) && Number.isSafeInteger(value.bulletIndex) ? [Number(value.bulletIndex)] : []) : [];
+    selectedBulletIndexes = [...new Set(selectedBulletIndexes)];
+    if (!selectedBulletIndexes.length || selectedBulletIndexes.some((index) => !eligible.includes(index))) {
+      throw new Error("Weapon-Hit allocation must select one or more eligible bullet indexes.");
+    }
+    const candidates = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, plan.id)).for("update");
+    for (const candidate of candidates) {
+      const candidateAuthored = isRecord(candidate.authoredValueJson) ? candidate.authoredValueJson : null;
+      if (candidateAuthored?.allocationBoundaryKey !== boundaryKey) continue;
+      const bulletIndex = Number(candidateAuthored.bulletIndex);
+      await tx.update(campaignSessionEncounterEffect).set(selectedBulletIndexes.includes(bulletIndex)
+        ? { applicationSupported: true, godReviewRequired: false, status: "approved", updatedAt: now }
+        : { status: "declined", amendmentReason: `G.O.D. allocation assigned the Power elsewhere: ${outcome}`, amendedByUserId: actor.userId, updatedAt: now })
+        .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+    }
+  }
   await tx.update(campaignSessionEncounterEffect).set({
     status: "manual-resolved",
     finalValueJson: { manualOutcome: outcome },
@@ -850,10 +876,13 @@ async function applyCharacterEffect(
       return { kind: "mana-spent", system, amount, manaSpent: result.manaSpent, currentMana: result.currentMana };
     }
     const source = assertFrozenActionSourceSnapshot(plan.sourceSnapshotJson);
-    if (source.kind !== "item" || target.id !== plan.actorParticipantId || typeof source.sourceId !== "number") {
+    const firearmItemPowerSource = source.kind === "weapon" && source.authoredData.itemPowerResourceSource === true;
+    if ((!firearmItemPowerSource && source.kind !== "item") || target.id !== plan.actorParticipantId) {
       throw new Error("The frozen Item resource identity is invalid.");
     }
-    const itemId = positiveId(source.sourceId, "Frozen Item");
+    const itemIdValue = firearmItemPowerSource ? source.authoredData.itemPowerItemId : source.sourceId;
+    if (typeof itemIdValue !== "number") throw new Error("The frozen Item resource identity is invalid.");
+    const itemId = positiveId(itemIdValue, "Frozen Item");
     if (effectRow.effectType === "resource.item-quantity") {
       if (!Number.isSafeInteger(amount)) throw new Error("The frozen Item quantity cost is invalid.");
       await lockEquipmentStateCharacterInTransaction(tx, target.id);
@@ -888,7 +917,7 @@ async function applyCharacterEffect(
     if (effectRow.effectType === "resource.item-charges") {
       if (!Number.isSafeInteger(amount) || source.sourceInstanceId === null) throw new Error("The frozen Item Charge cost is invalid.");
       const identity = { characterId: target.id, itemId, instanceId: source.sourceInstanceId };
-      if (source.identity.startsWith("item-power:")) {
+      if (source.identity.startsWith("item-power:") || firearmItemPowerSource) {
         const spent = await spendExactItemPowerChargesInTransaction(tx, identity, amount);
         return { kind: "item-power-charges-spent", itemId, instanceId: source.sourceInstanceId, before: spent.before, after: spent.after, amount };
       }
