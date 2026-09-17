@@ -413,6 +413,9 @@ async function resolveItemPower(
     itemCanonicalId: item.canonicalId,
     itemName: item.name,
     itemUpdatedAt: item.updatedAt,
+    powerUpdatedAt: itemPower.updatedAt,
+    sourceUpdatedAt: itemPowerSource.updatedAt,
+    constructionUpdatedAt: itemPowerConstruction.updatedAt,
     resourceMaximum: itemPowerResource.maximumCharges,
     sourceSkillId: itemPowerSource.sourceSkillId,
     sourceSkillName: skill.name,
@@ -437,24 +440,32 @@ async function resolveItemPower(
     const [owned] = await tx.select({ id: campaignCharacterItemInstance.id }).from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.id, draft.sourceInstanceId), eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId), eq(campaignCharacterItemInstance.itemId, row.itemId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1);
     if (!owned) throw new Error("The exact owned Item Ability instance is unavailable.");
   }
+  const itemPayload = sourcePayload(draft);
+  const itemSelections = isRecord(itemPayload.effectSelections) ? itemPayload.effectSelections : {};
   const effectRows = await tx.select().from(itemPowerEffect).where(eq(itemPowerEffect.itemPowerId, row.power.id)).orderBy(asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
   const targets = allTargets(draft);
-  const effects = effectRows.map((effect) => structuredEffect(`item-power:${row.power.id}:effect:${effect.id}`, decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }), targets, false, {}));
+  const effects = effectRows.map((effect) => {
+    const effectKey = `item-power:${row.power.id}:effect:${effect.id}`;
+    const target = targets[0];
+    const selectionKey = `${effectKey}:target:${target}`;
+    return structuredEffect(effectKey, decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }), targets, false, { selectionKey, application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {} });
+  });
   if (row.constructionJson) {
     const resolved = resolveItemPowerConstruction(parseSpellDocument(row.constructionJson), row.power.fixedPowerLevel);
     if (!resolved.adapter.valid) throw new Error("The Item Ability Magic Construction cannot be resolved into combat effects.");
-    for (const adapted of resolved.adapter.effects) effects.push(structuredEffect(`item-power:${row.power.id}:magic:${adapted.spellEffectId}`, adapted.definition.effect, targets, false, {}));
+    for (const adapted of resolved.adapter.effects) { const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`; effects.push(structuredEffect(key, adapted.definition.effect, targets, false, { selectionKey: `${key}:target:${targets[0]}`, application: isRecord(itemSelections[`${key}:target:${targets[0]}`]) ? itemSelections[`${key}:target:${targets[0]}`] : {} })); }
   } else if (row.sourceDataJson) {
     const resolvedCanonical = resolveItemPowerConstruction(parseSpellDocument(row.sourceDataJson), row.power.fixedPowerLevel);
     if (!resolvedCanonical.adapter.valid) throw new Error("The canonical Item Ability Magic source cannot be resolved.");
-    for (const entry of resolvedCanonical.adapter.effects) effects.push(structuredEffect(`item-power:${row.power.id}:magic:${entry.spellEffectId}`, entry.definition.effect, targets, false, {}));
+    for (const entry of resolvedCanonical.adapter.effects) { const key = `item-power:${row.power.id}:magic:${entry.spellEffectId}`; effects.push(structuredEffect(key, entry.definition.effect, targets, false, { selectionKey: `${key}:target:${targets[0]}`, application: isRecord(itemSelections[`${key}:target:${targets[0]}`]) ? itemSelections[`${key}:target:${targets[0]}`] : {} })); }
   }
   const costs: FrozenActionResourceCost[] = row.power.resourceCostKind === "consume-item"
     ? [{ key: `item-power:${row.power.id}:quantity`, kind: "item-quantity", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Consume the authored Ability Item quantity.", applicationSupported: true }]
     : row.power.resourceCostKind === "shared-charges"
       ? [{ key: `item-power:${row.power.id}:charges`, kind: "item-charges", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Spend the authored Ability Charges on the exact Item instance.", applicationSupported: true }]
       : [];
-  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision: row.itemUpdatedAt.toISOString(), resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: row.power, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
+  const liveRevision = [row.itemUpdatedAt, row.powerUpdatedAt, row.sourceUpdatedAt, row.constructionUpdatedAt].filter(Boolean).map((date) => date!.toISOString()).sort().at(-1) ?? null;
+  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: row.power, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
 }
 
 async function loadSpellDocument(

@@ -12,6 +12,8 @@ export type ItemOwnershipRuntimeProfile = Pick<
   "useMode" | "quantityPerUse" | "maximumCharges" | "chargesPerUse" | "rechargeNotes" | "activationLabel" | "useNotes"
 >;
 
+export type ItemPowerResourceDefinition = { maximumCharges: number } | null;
+
 export type OwnedItemStackLike = {
   itemId: number;
   quantity: number;
@@ -31,6 +33,7 @@ export type DraftOwnedItemInstance = {
 export type ItemOwnershipDefinition = {
   itemId: number;
   runtimeProfile: ItemOwnershipRuntimeProfile;
+  powerResource?: ItemPowerResourceDefinition;
   requiresExactInstance?: boolean;
 };
 
@@ -45,8 +48,9 @@ function readValidRuntimeProfile(profile: ItemOwnershipRuntimeProfile): ItemRunt
 export function getItemOwnershipStrategy(
   runtimeProfile: ItemOwnershipRuntimeProfile,
   requiresExactInstance = false,
+  powerResource: ItemPowerResourceDefinition = null,
 ): ItemOwnershipStrategy {
-  return requiresExactInstance || readValidRuntimeProfile(runtimeProfile).useMode === "charges"
+  return requiresExactInstance || powerResource !== null || readValidRuntimeProfile(runtimeProfile).useMode === "charges"
     ? "instance"
     : "stack";
 }
@@ -61,28 +65,29 @@ export function validateCurrentItemCharges(currentCharges: unknown): number {
 export function getStartingItemInstanceCharges(
   runtimeProfile: ItemOwnershipRuntimeProfile,
   requiresExactInstance = false,
+  powerResource: ItemPowerResourceDefinition = null,
 ): number {
   const profile = readValidRuntimeProfile(runtimeProfile);
-  if (getItemOwnershipStrategy(profile, requiresExactInstance) !== "instance") {
+  if (getItemOwnershipStrategy(profile, requiresExactInstance, powerResource) !== "instance") {
     throw new Error("Only a charged Item or exact-instance Weapon can create an owned Item instance.");
   }
-  return validateCurrentItemCharges(profile.maximumCharges ?? 0);
+  return validateCurrentItemCharges(powerResource?.maximumCharges ?? profile.maximumCharges ?? 0);
 }
 
 export function assertItemOwnershipStrategy(
   runtimeProfile: ItemOwnershipRuntimeProfile,
   actualStrategy: ItemOwnershipStrategy,
   label = "Item",
-  options: { requiresExactInstance?: boolean; allowLegacyExactStack?: boolean } = {},
+  options: { requiresExactInstance?: boolean; allowLegacyExactStack?: boolean; powerResource?: ItemPowerResourceDefinition } = {},
 ): void {
-  const requiredStrategy = getItemOwnershipStrategy(runtimeProfile, options.requiresExactInstance);
+  const requiredStrategy = getItemOwnershipStrategy(runtimeProfile, options.requiresExactInstance, options.powerResource);
   if (requiredStrategy === "instance" && actualStrategy === "stack" && options.allowLegacyExactStack && options.requiresExactInstance) {
     return;
   }
   if (requiredStrategy !== actualStrategy) {
     throw new Error(
       requiredStrategy === "instance"
-        ? `${label} uses charges and must be stored as individual owned instances, not a quantity stack.`
+        ? `${label} uses Charges and must be stored as individual owned instances, not a quantity stack.`
         : `${label} must remain stack-owned in the current Item ownership rules.`,
     );
   }
