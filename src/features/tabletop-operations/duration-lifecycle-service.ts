@@ -36,6 +36,7 @@ import {
   type TabletopBoundDurationKind,
 } from "./duration-lifecycle";
 import { consumePeriodicApplications, getPeriodicDueCount, requirePeriodicHealthApplication } from "./periodic-health";
+import { applyDirectCreatureHealthInTransaction, resolveDirectCreaturePoolInTransaction } from "./direct-creature-health-service";
 
 export type DurationLifecycleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -276,8 +277,9 @@ export async function bindPeriodicHealthEffectInTransaction(
     applicationKey: string;
     effectKind: "health.heal" | "health.damage";
     amount: number;
-    application: "area" | "full-body";
+    application: "area" | "full-body" | "localized";
     poolKey?: string | null;
+    hitLocationNumber?: number | null;
     frequency: "combat-steps" | "combat-rounds";
     applications: number;
     firstApplication: "immediate" | "next-interval";
@@ -288,7 +290,6 @@ export async function bindPeriodicHealthEffectInTransaction(
   if (input.applications <= 0 || !Number.isSafeInteger(input.applications)) throw new Error("Periodic health applications must be a positive whole number.");
   if (!input.applicationKey.trim()) throw new Error("Periodic health requires a nonblank application key.");
   if (!input.sourceKind.trim() || !input.sourceId.trim()) throw new Error("Periodic health requires source identity.");
-  const frozenPoolKey = requirePeriodicHealthApplication(input.application, input.poolKey);
   const [participant] = await tx.select({ characterId: campaignSessionEncounterParticipant.characterId, participantKind: campaignSessionEncounterParticipant.participantKind }).from(campaignSessionEncounterParticipant).where(and(
     eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
     eq(campaignSessionEncounterParticipant.sceneId, context.sceneId),
@@ -297,25 +298,55 @@ export async function bindPeriodicHealthEffectInTransaction(
     eq(campaignSessionEncounterParticipant.characterId, input.characterId),
   )).limit(1);
   if (!participant) throw new Error("Periodic health target is not a Participant in the supplied Encounter context.");
-  if (participant.participantKind === "creature") throw new Error("Periodic health for direct Creature participants is not supported yet.");
-  const healthContext = await lockActiveHealthInTransaction(tx, input.characterId, input.npcKind);
-  if (frozenPoolKey && !healthContext.anatomy.pools.some((pool) => pool.key === frozenPoolKey)) throw new Error("Periodic Area Health pool is not part of the target's current anatomy.");
+  let application: "area" | "full-body";
+  let frozenPoolKey: string | null;
+  let healthContext: Awaited<ReturnType<typeof lockActiveHealthInTransaction>> | null = null;
+  if (participant.participantKind === "creature") {
+    if (input.application === "localized") {
+      frozenPoolKey = await resolveDirectCreaturePoolInTransaction(tx, {
+        encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+        participantId: input.characterId, poolKey: input.poolKey, hitLocationNumber: input.hitLocationNumber,
+      });
+      application = "area";
+    } else {
+      frozenPoolKey = requirePeriodicHealthApplication(input.application, input.poolKey);
+      application = input.application;
+    }
+  } else {
+    healthContext = await lockActiveHealthInTransaction(tx, input.characterId, input.npcKind);
+    if (input.application === "localized") {
+      const resolvedPool = input.poolKey?.trim() || (Number.isSafeInteger(input.hitLocationNumber)
+        ? healthContext.anatomy.hitLocations.find((location) => location.result === input.hitLocationNumber)?.poolKey ?? ""
+        : "");
+      frozenPoolKey = requirePeriodicHealthApplication("area", resolvedPool);
+      application = "area";
+    } else {
+      frozenPoolKey = requirePeriodicHealthApplication(input.application, input.poolKey);
+      application = input.application;
+    }
+    if (frozenPoolKey && !healthContext.anatomy.pools.some((pool) => pool.key === frozenPoolKey)) throw new Error("Periodic Area Health pool is not part of the target's current anatomy.");
+  }
   const [existing] = await tx.select({ id: campaignSessionPeriodicHealthEffect.id }).from(campaignSessionPeriodicHealthEffect).where(and(eq(campaignSessionPeriodicHealthEffect.encounterId, context.encounterId), eq(campaignSessionPeriodicHealthEffect.applicationKey, input.applicationKey.trim()))).limit(1);
   if (existing) return existing.id;
   const immediate = input.firstApplication === "immediate";
   let remaining = input.applications;
   if (immediate) {
-    if (input.effectKind === "health.heal") {
-      if (input.application === "area") await healAreaInTransaction(tx, input.characterId, input.npcKind, input.poolKey!, input.amount);
+    if (participant.participantKind === "creature") {
+      await applyDirectCreatureHealthInTransaction(tx, {
+        encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+        participantId: input.characterId, effectKind: input.effectKind, amount: input.amount, application, poolKey: frozenPoolKey,
+      });
+    } else if (input.effectKind === "health.heal") {
+      if (application === "area") await healAreaInTransaction(tx, input.characterId, input.npcKind, frozenPoolKey!, input.amount);
       else await healFullBodyInTransaction(tx, input.characterId, input.npcKind, input.amount);
-    } else if (input.application === "area") await damageAreaInTransaction(tx, input.characterId, input.npcKind, input.poolKey!, input.amount);
+    } else if (application === "area") await damageAreaInTransaction(tx, input.characterId, input.npcKind, frozenPoolKey!, input.amount);
     else await damageFullBodyInTransaction(tx, input.characterId, input.npcKind, input.amount);
     remaining -= 1;
   }
   const [created] = await tx.insert(campaignSessionPeriodicHealthEffect).values({
     campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId,
     characterId: input.characterId, sourceKind: input.sourceKind.trim(), sourceId: input.sourceId.trim(), applicationKey: input.applicationKey.trim(), effectKind: input.effectKind,
-    amount: input.amount, application: input.application, poolKey: frozenPoolKey, frequency: input.frequency,
+    amount: input.amount, application, poolKey: frozenPoolKey, frequency: input.frequency,
     remainingApplications: remaining, nextStep: context.stepNumber + 1, nextRound: context.roundNumber + 1,
     status: remaining === 0 ? "completed" : "active", completedAt: remaining === 0 ? new Date() : null,
   }).returning({ id: campaignSessionPeriodicHealthEffect.id });
@@ -336,18 +367,32 @@ async function advancePeriodicHealthEffectsInTransaction(
     const isDue = row.frequency === "combat-steps" ? after.stepNumber >= row.nextStep : after.roundNumber >= row.nextRound;
     if (!isDue) continue;
       const boundaries = getPeriodicDueCount(row.frequency as "combat-steps" | "combat-rounds", row.nextStep, row.nextRound, after.stepNumber, after.roundNumber, boundaryCount);
-    const [character] = await tx.select({ npcKind: campaignCharacter.npcKind }).from(campaignCharacter).where(eq(campaignCharacter.id, row.characterId)).limit(1);
-    if (!character) throw new Error("Periodic health target is a direct Creature participant; its health adapter is not supported yet.");
+    const [participant] = await tx.select({ kind: campaignSessionEncounterParticipant.participantKind, npcKind: campaignCharacter.npcKind, snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson }).from(campaignSessionEncounterParticipant)
+      .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
+      .where(and(
+        eq(campaignSessionEncounterParticipant.encounterId, encounterId),
+        eq(campaignSessionEncounterParticipant.sceneId, row.sceneId),
+        eq(campaignSessionEncounterParticipant.sessionId, row.sessionId),
+        eq(campaignSessionEncounterParticipant.campaignId, row.campaignId),
+        eq(campaignSessionEncounterParticipant.characterId, row.characterId),
+      ))
+      .limit(1).for("update", { of: campaignSessionEncounterParticipant });
+    if (!participant) throw new Error("Periodic Health target is no longer an Encounter participant.");
     let remaining = row.remainingApplications;
     let nextStep = row.nextStep;
     let nextRound = row.nextRound;
     const consumption = consumePeriodicApplications(remaining, boundaries);
     for (let index = 0; index < remaining - consumption.remainingApplications && remaining > 0; index += 1) {
-      if (row.effectKind === "health.heal") {
-        if (row.application === "area") await healAreaInTransaction(tx, row.characterId, character.npcKind, row.poolKey!, row.amount);
-        else await healFullBodyInTransaction(tx, row.characterId, character.npcKind, row.amount);
-      } else if (row.application === "area") await damageAreaInTransaction(tx, row.characterId, character.npcKind, row.poolKey!, row.amount);
-      else await damageFullBodyInTransaction(tx, row.characterId, character.npcKind, row.amount);
+      if (participant.kind === "creature") {
+        await applyDirectCreatureHealthInTransaction(tx, {
+          encounterId, sceneId: row.sceneId, sessionId: row.sessionId, campaignId: row.campaignId, participantId: row.characterId,
+          effectKind: row.effectKind as "health.damage" | "health.heal", amount: row.amount, application: row.application as "area" | "full-body", poolKey: row.poolKey,
+        });
+      } else if (row.effectKind === "health.heal") {
+        if (row.application === "area") await healAreaInTransaction(tx, row.characterId, participant.npcKind ?? "race", row.poolKey!, row.amount);
+        else await healFullBodyInTransaction(tx, row.characterId, participant.npcKind ?? "race", row.amount);
+      } else if (row.application === "area") await damageAreaInTransaction(tx, row.characterId, participant.npcKind ?? "race", row.poolKey!, row.amount);
+      else await damageFullBodyInTransaction(tx, row.characterId, participant.npcKind ?? "race", row.amount);
       remaining -= 1;
       nextStep += row.frequency === "combat-steps" ? 1 : 0;
       nextRound += row.frequency === "combat-rounds" ? 1 : 0;

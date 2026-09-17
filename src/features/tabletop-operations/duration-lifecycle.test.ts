@@ -97,9 +97,9 @@ test("periodic health lifecycle uses the existing Initiative transition hook and
   assert.match(service, /initiativeClosed/);
   assert.match(service, /applicationKey/);
   assert.match(service, /campaignSessionEncounterParticipant/);
-  assert.match(service, /not supported yet/);
-  assert.match(service, /await assertCombatWritableInTransaction\(tx, context\.encounterId\);/);
-  assert.match(service, /participantKind/);
+  assert.match(service, /applyDirectCreatureHealthInTransaction/);
+  assert.doesNotMatch(service, /direct Creature participants is not supported yet/);
+  assert.match(service, /application: "area" \| "full-body" \| "localized"/);
 });
 
 test("periodic health application identity and boundary helpers are retry-safe", () => {

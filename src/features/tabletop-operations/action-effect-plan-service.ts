@@ -70,6 +70,7 @@ import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service
 import { buildOrdinaryAttackConsequenceProposalInTransaction, type OrdinaryAttackRuling } from "./ordinary-attack-consequence-service";
 import { recordCombatDamageOutcomeInTransaction } from "./combat-damage-outcome-service";
 import { resolveSpellHitLocationsInTransaction } from "./combat-spell-location-service";
+import { applyDirectCreatureHealthInTransaction } from "./direct-creature-health-service";
 
 export type ActionEffectPlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type GodActionEffectActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -919,8 +920,9 @@ async function applyCharacterEffect(
       applicationKey: `action-effect:${effectRow.id}`,
       effectKind: final.effect.kind,
       amount: final.effect.amount,
-      application: final.effect.kind === "health.heal" ? final.effect.scope : final.effect.application === "localized" ? "full-body" : final.effect.application,
+      application: final.effect.kind === "health.heal" ? final.effect.scope : final.effect.application,
       poolKey: final.application.poolKey ?? null,
+      hitLocationNumber: final.application.hitLocationNumber ?? null,
       frequency: final.effect.timing.frequency!,
       applications: final.effect.timing.applications!,
       firstApplication: final.effect.timing.firstApplication!,
@@ -942,19 +944,6 @@ async function applyCharacterEffect(
     persistedIdentity: persisted ?? null,
     healthResult: planned.healthResult ?? null,
   };
-}
-
-function directCreatureHealth(localState: Record<string, unknown>): { totalDamage: number; poolDamage: Record<string, number> } {
-  const health = isRecord(localState.health) ? localState.health : {};
-  const totalDamage = typeof health.totalDamage === "number" && Number.isFinite(health.totalDamage) && health.totalDamage >= 0
-    ? health.totalDamage
-    : 0;
-  const rawPools = isRecord(health.poolDamage) ? health.poolDamage : {};
-  const poolDamage: Record<string, number> = {};
-  for (const [key, value] of Object.entries(rawPools)) {
-    if (typeof value === "number" && Number.isFinite(value) && value >= 0) poolDamage[key] = value;
-  }
-  return { totalDamage, poolDamage };
 }
 
 function localApplication(value: unknown): Record<string, unknown> {
@@ -982,53 +971,32 @@ async function applyDirectCreatureEffect(
     throw new Error("The direct Creature occurrence-local state is missing or malformed.");
   }
   const final = finalMechanicalEffect(effectRow.finalValueJson);
+  if ((final.effect.kind === "health.damage" || final.effect.kind === "health.heal") && final.effect.timing?.mode === "over-time") {
+    const [initiative] = await tx.select({ roundNumber: campaignSessionEncounterInitiative.roundNumber, stepNumber: campaignSessionEncounterInitiative.stepNumber }).from(campaignSessionEncounterInitiative).where(eq(campaignSessionEncounterInitiative.encounterId, context.encounterId)).limit(1);
+    if (!initiative) throw new Error("The Encounter Initiative Runtime is unavailable for a periodic Health Effect.");
+    const application = localApplication(effectRow.finalValueJson);
+    const periodicId = await bindPeriodicHealthEffectInTransaction(tx, { campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId, roundNumber: initiative.roundNumber, stepNumber: initiative.stepNumber }, {
+      characterId: effectRow.targetParticipantId, sourceKind: "action-effect", sourceId: `action-effect:${effectRow.id}`, applicationKey: `action-effect:${effectRow.id}`,
+      effectKind: final.effect.kind, amount: final.effect.amount,
+      application: final.effect.kind === "health.heal" ? final.effect.scope : final.effect.application,
+      poolKey: application.poolKey as string | null | undefined, hitLocationNumber: application.hitLocationNumber as number | null | undefined,
+      frequency: final.effect.timing.frequency!, applications: final.effect.timing.applications!, firstApplication: final.effect.timing.firstApplication!, npcKind: "creature",
+    });
+    return { kind: "periodic-health-bound", periodicId };
+  }
   const { captureCombatModifierTimingInTransaction, reconcileCombatModifierTimingInTransaction } = await import("./combat-modifier-timing-service");
   const combatTiming = final.effect.kind === "modifier.apply"
     ? await captureCombatModifierTimingInTransaction(tx, effectRow.targetParticipantId, [final.effect]) : [];
   const next = structuredClone(participant.localState);
   const appliedAt = new Date().toISOString();
   if (final.effect.kind === "health.damage" || final.effect.kind === "health.heal") {
-    const health = directCreatureHealth(next);
     const application = localApplication(effectRow.finalValueJson);
-    if (final.effect.kind === "health.heal" && final.effect.scope === "full-body") {
-      const before = health.totalDamage;
-      health.totalDamage = Math.max(0, health.totalDamage - final.effect.amount);
-      for (const key of Object.keys(health.poolDamage)) {
-        health.poolDamage[key] = Math.max(0, health.poolDamage[key] - final.effect.amount);
-      }
-      next.health = health;
-      await tx.update(campaignSessionEncounterParticipant).set({ localStateJson: next, updatedAt: new Date() }).where(and(
-        eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
-        eq(campaignSessionEncounterParticipant.characterId, effectRow.targetParticipantId),
-      ));
-      return { kind: final.effect.kind, scope: "full-body", before, after: health.totalDamage };
-    }
-    let poolKey = typeof application.poolKey === "string" && application.poolKey.trim() ? application.poolKey.trim() : null;
-    if (!poolKey && Number.isSafeInteger(application.hitLocationNumber) && isRecord(participant.snapshot)) {
-      const location = Array.isArray(participant.snapshot.hitLocations)
-        ? participant.snapshot.hitLocations.find((entry) => isRecord(entry) && entry.hitLocationNumber === application.hitLocationNumber)
-        : null;
-      poolKey = isRecord(location) && typeof location.hpPoolCanonicalId === "string" ? location.hpPoolCanonicalId : null;
-    }
-    if (!poolKey) throw new Error("Direct Creature Health application requires the exact HP Pool or Hit Location selection.");
-    const knownPool = isRecord(participant.snapshot) && Array.isArray(participant.snapshot.hpPools)
-      ? participant.snapshot.hpPools.some((entry) => isRecord(entry) && entry.canonicalId === poolKey)
-      : false;
-    if (!knownPool) throw new Error("The selected HP Pool is not part of this direct Creature occurrence's frozen anatomy.");
-    const prior = health.poolDamage[poolKey] ?? 0;
-    const delta = final.effect.kind === "health.damage" ? final.effect.amount : -final.effect.amount;
-    const after = Math.max(0, prior + delta);
-    const totalAfter = final.effect.kind === "health.damage"
-      ? health.totalDamage + (after - prior)
-      : health.totalDamage;
-    health.poolDamage[poolKey] = after;
-    health.totalDamage = totalAfter;
-    next.health = health;
-    await tx.update(campaignSessionEncounterParticipant).set({ localStateJson: next, updatedAt: new Date() }).where(and(
-      eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
-      eq(campaignSessionEncounterParticipant.characterId, effectRow.targetParticipantId),
-    ));
-    return { kind: final.effect.kind, poolKey, before: prior, after, totalDamage: totalAfter };
+    return applyDirectCreatureHealthInTransaction(tx, {
+      encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+      participantId: effectRow.targetParticipantId, effectKind: final.effect.kind, amount: final.effect.amount,
+      application: final.effect.kind === "health.heal" ? final.effect.scope : final.effect.application === "full-body" ? "full-body" : "area",
+      poolKey: application.poolKey as string | null | undefined, hitLocationNumber: application.hitLocationNumber as number | null | undefined,
+    });
   }
   if (final.effect.kind === "condition.apply") {
     const conditions = Array.isArray(next.conditions) ? next.conditions : [];
