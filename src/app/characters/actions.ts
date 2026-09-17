@@ -31,7 +31,7 @@ import {
   derivedAbilityUseCondition,
   derivedAbilityUseLimit,
 } from "@/db/derived-ability-schema";
-import { armorProfile, item, itemEffect, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
+import { armorProfile, item, itemEffect, itemPowerResource, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import {
   race,
   raceAttributeCap,
@@ -603,9 +603,11 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      powerMaximumCharges: itemPowerResource.maximumCharges,
     }).from(campaignCharacterItem)
       .innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
       .where(eq(campaignCharacterItem.characterId, characterId))
       .orderBy(asc(item.name)),
     db.select({
@@ -688,6 +690,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      powerMaximumCharges: itemPowerResource.maximumCharges,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
@@ -715,6 +718,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       .leftJoin(ammunitionWeaponProfile, eq(ammunitionWeaponProfile.itemId, ammunitionItem.id))
       .leftJoin(armorProfile, eq(armorProfile.itemId, item.id))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, row.campaignId))
       .orderBy(asc(campaignInventoryItem.sortOrder), asc(item.name)),
     db.select({
@@ -1078,6 +1082,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       armorDamageModifiers: entry.armorDamageModifiers,
       armorRulesText: entry.armorRulesText,
       archived: entry.archivedAt !== null,
+      powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges },
     })),
     derivedAbilities: derivedAbilityCatalog,
     derivedAbilityOwnerships: ownerships,
@@ -1527,6 +1532,7 @@ export async function saveCharacter(
           currentCharges: getStartingItemInstanceCharges(
             authorized.runtimeProfile,
             authorized.isFirearm === true || authorized.isMagazine === true,
+            authorized.powerResource,
           ),
           unitCostCredits: entry.unitCostCredits,
         };

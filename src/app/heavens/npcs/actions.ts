@@ -12,7 +12,7 @@ import {
   creature,
   type CreatureCrImpact,
 } from "@/db/creature-schema";
-import { item, itemEffect, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
+import { item, itemEffect, itemPowerResource, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import {
   campaignCharacter,
@@ -742,6 +742,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      powerMaximumCharges: itemPowerResource.maximumCharges,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
@@ -749,6 +750,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       .from(campaignCharacterItem)
       .innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
       .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .where(eq(campaignCharacterItem.characterId, characterId)),
     db.select({
@@ -764,6 +766,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      powerMaximumCharges: itemPowerResource.maximumCharges,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
@@ -808,8 +811,8 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
 
   assertNoStackInstanceOwnershipCollision({
     definitions: [
-      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
-      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
+      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges }, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
+      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges }, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
     ],
     stacks: ownedItems,
     instances: ownedItemInstances,

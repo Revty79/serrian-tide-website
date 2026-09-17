@@ -12,7 +12,7 @@ export type ItemOwnershipRuntimeProfile = Pick<
   "useMode" | "quantityPerUse" | "maximumCharges" | "chargesPerUse" | "rechargeNotes" | "activationLabel" | "useNotes"
 >;
 
-export type ItemPowerResourceDefinition = { maximumCharges: number } | null;
+export type ItemPowerResourceDefinition = { maximumCharges: number } | null | undefined;
 
 export type OwnedItemStackLike = {
   itemId: number;

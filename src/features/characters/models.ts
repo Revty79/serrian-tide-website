@@ -244,6 +244,7 @@ export type CharacterAuthorizedItem = {
   isMagical: boolean;
   effectCount: number;
   runtimeProfile: ItemRuntimeProfile;
+  powerResource?: { maximumCharges: number } | null;
   weaponProfileId?: number | null;
   isFirearm?: boolean;
   isMagazine?: boolean;
