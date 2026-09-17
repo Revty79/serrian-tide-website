@@ -63,8 +63,9 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
   const authored = preview?.kind === "declaration" ? preview.snapshot.authoredSource : null;
   const injuryTiming = authored?.authoredData.injuryTiming as { explanation?: string | null } | undefined;
   const optionSource = checked?.sourceKey === `${entity.participantId}:${draft.source}` && checked.value.kind === "declaration" ? checked.value.snapshot.authoredSource : null;
-  const needsRuling = preview?.kind === "firearm" ? preview.preview.rulingReasons.length > 0 : authored?.resolutionMode === "manual-god-ruling" || preview?.kind === "declaration" && preview.snapshot.governing?.status === "needs-god-ruling";
-  const needsRoll = preview?.kind === "firearm" || !!authored && ["skill-roll", "attribute-roll", "opposed-roll"].includes(authored.resolutionMode);
+  const authoredManualItemAbility = source?.kind === "item" && source.ref.startsWith("item-power:") && authored?.resolutionMode === "manual-god-ruling";
+  const needsRuling = preview?.kind === "firearm" ? preview.preview.rulingReasons.length > 0 : !authoredManualItemAbility && (preview?.kind === "declaration" && preview.snapshot.governing?.status === "needs-god-ruling");
+  const needsRoll = preview?.kind === "firearm" || !!authored && ["skill-roll", "attribute-roll", "opposed-roll", "fixed-roll"].includes(authored.resolutionMode);
   const affordabilityIssue = preview ? initiativeAffordabilityIssue(preview.kind === "firearm"
     ? preview.preview.timing.aimInitiativeCost + preview.preview.timing.firingInitiativeCost
     : preview.snapshot.initiativeCost, entity.currentInitiative) : null;
@@ -115,7 +116,7 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
     } catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "The command was not confirmed. Retry preserves its original choice and Roll.")); await refresh(); }
     finally { running.current = false; setBusy(false); }
   }
-  function useWeapon(ownershipKey: string) {
+  function selectWeapon(ownershipKey: string) {
     const weapon = sources?.sources.find((entry) => entry.kind === "weapon" && entry.ref === ownershipKey);
     if (!weapon) return;
     const attackKey = `${entity.participantId}:Attack`;
@@ -133,7 +134,7 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
       {!sources ? <p role="status">Reading your weapons…</p> : <>
         <section aria-label="Wielded weapons"><h4>Wielded weapons</h4>
           {sources.equipment?.wieldedWeapons.length ? <div className={styles.actions}>{sources.equipment.wieldedWeapons.map((weapon) =>
-            <button key={weapon.ownershipKey} className="st-button" disabled={disabled || !entity.canControl} onClick={() => useWeapon(weapon.ownershipKey)}>Use {weapon.itemName} for attack</button>)}</div>
+            <button key={weapon.ownershipKey} className="st-button" disabled={disabled || !entity.canControl} onClick={() => selectWeapon(weapon.ownershipKey)}>Use {weapon.itemName} for attack</button>)}</div>
             : <p>No weapon is wielded. Draw one below to make it available for attacks and parries.</p>}
         </section>
         <MeleeDrawControls key={entity.participantId} scope={scope} entity={entity} options={sources.meleeDraws} disabled={disabled} refresh={refresh} expanded />
