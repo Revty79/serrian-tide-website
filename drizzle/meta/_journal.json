@@ -414,6 +414,13 @@
       "when": 1789603149488,
       "tag": "0058_item_power_initiative_positive",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1789679322293,
+      "tag": "0059_odd_sentry",
+      "breakpoints": true
     }
   ]
 }

@@ -290,8 +290,9 @@ function ActivatedCreatureItems({ draft, disabled, onComplete }: { draft: Creatu
     ...draft.itemInstances.map(({ itemId }) => itemId),
   ].filter((itemId, index, values) => values.indexOf(itemId) === index).flatMap((itemId) => {
     const definition = draft.authorizedItems.find(({ id }) => id === itemId);
-    return definition && definition.runtimeProfile.useMode !== "none" && definition.effectCount <= 0
-      ? [definition]
+    const activatability = definition ? getItemUseActivatability(definition.runtimeProfile, definition.effectCount) : null;
+    return definition && definition.runtimeProfile.useMode !== "none" && activatability && !activatability.executable
+      ? [{ definition, reason: activatability.reason }]
       : [];
   });
   if (!stacks.length && !instances.length && !unavailable.length) return null;
@@ -308,7 +309,7 @@ function ActivatedCreatureItems({ draft, disabled, onComplete }: { draft: Creatu
         });
         return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={draft.characterId} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={disabled} onComplete={onComplete} /></article>;
       })}
-      {unavailable.map((definition) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>Not executable: this activated profile has no Mechanical Effects. Add a Manual effect for descriptive resolution.</span></div></article>)}
+      {unavailable.map(({ definition, reason }) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>{reason}</span></div></article>)}
     </div>
   </section>;
 }

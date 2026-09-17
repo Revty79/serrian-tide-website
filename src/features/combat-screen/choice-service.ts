@@ -10,6 +10,7 @@ import { readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutc
 import { parseActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
 import type { OwnedEncounterRuntimeContext, RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
 import { choiceDraft, firearmCommand, type CombatChoice, type CombatSubmission } from "./choice-types";
+import { calculateFinalPercentileTarget } from "@/features/tabletop-operations/percentile-resolution";
 
 async function authorizedChoice(tx: Tx, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor, input: CombatChoice) {
   const choice = structuredClone(input);
@@ -40,10 +41,11 @@ export async function previewCombatChoiceInTransaction(tx: Tx, context: OwnedEnc
     // The action menu needs its own costs and governing target, not another
     // combatant's complete anatomy/HP snapshot from the internal preparation.
     return { kind: "firearm" as const, preview: { aim: preview.aim, delivery: preview.delivery, timing: preview.timing,
-      governing: { label: preview.governing.label }, finalTarget: preview.finalTarget, rulingReasons: preview.rulingReasons, readiness: preview.readiness } };
+      governing: { label: preview.governing.label }, range: preview.range, finalTarget: preview.finalTarget, rulingReasons: preview.rulingReasons, readiness: preview.readiness } };
   }
   const snapshot = await previewCombatDeclarationInTransaction(tx, context, actor, choiceDraft(choice));
-  return { kind: "declaration" as const, snapshot };
+  const modifiers = snapshot.explicitModifiers.map(({ label, value }) => ({ kind: value >= 0 ? "bonus" as const : "penalty" as const, label, magnitude: Math.abs(value) }));
+  return { kind: "declaration" as const, snapshot, finalTarget: snapshot.governing?.rollOverTarget === null || snapshot.governing?.rollOverTarget === undefined ? null : calculateFinalPercentileTarget(snapshot.governing.rollOverTarget, modifiers) };
 }
 
 export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor, input: CombatSubmission) {

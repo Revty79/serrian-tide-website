@@ -138,6 +138,19 @@ function normalizeModifiers(
   });
 }
 
+export function calculateFinalPercentileTarget(
+  originalTarget: number,
+  modifiers: readonly PercentileTargetModifier[] = [],
+): number {
+  const original = validateBoundedFinite(originalTarget, "Original percentile target");
+  const normalized = normalizeModifiers(modifiers);
+  const totalBonuses = normalized.reduce((total, modifier) => total + (modifier.kind === "bonus" ? modifier.magnitude : 0), 0);
+  const totalPenalties = normalized.reduce((total, modifier) => total + (modifier.kind === "penalty" ? modifier.magnitude : 0), 0);
+  const finalTarget = original - totalBonuses + totalPenalties;
+  if (!Number.isFinite(finalTarget)) throw new Error("Final percentile target must be finite.");
+  return finalTarget === 0 ? 0 : finalTarget;
+}
+
 export function resolvePercentileCheck(input: PercentileResolutionInput): PercentileResolution {
   const resultTotal = validateRollResult(input.resultTotal);
   const originalTarget = validateBoundedFinite(input.originalTarget, "Original percentile target");
@@ -150,8 +163,7 @@ export function resolvePercentileCheck(input: PercentileResolutionInput): Percen
     (total, modifier) => total + (modifier.kind === "penalty" ? modifier.magnitude : 0),
     0,
   );
-  const finalTarget = originalTarget - totalBonuses + totalPenalties;
-  if (!Number.isFinite(finalTarget)) throw new Error("Final percentile target must be finite.");
+  const finalTarget = calculateFinalPercentileTarget(originalTarget, modifiers);
 
   const automaticSuccess = finalTarget <= 0;
   const impossibleTarget = finalTarget > 100;

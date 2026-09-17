@@ -106,7 +106,10 @@ function plan(input: {
 test("activatability covers none, all active modes, and the zero-effect guard", () => {
   assert.equal(getItemUseActivatability(profile("none"), 1).executable, false);
   assert.equal(getItemUseActivatability(profile("consume-item"), 1).executable, true);
-  assert.equal(getItemUseActivatability(profile("charges"), 1).executable, true);
+  assert.deepEqual(getItemUseActivatability(profile("charges"), 1), {
+    executable: false,
+    reason: "Needs rebuilding: legacy charged Item Use is retired. Rebuild this Item with Abilities and a Shared Power Charge Pool.",
+  });
   assert.equal(getItemUseActivatability(profile("unlimited"), 1).executable, true);
   assert.deepEqual(getItemUseActivatability(profile("consume-item"), 0), {
     executable: false,
@@ -136,34 +139,16 @@ test("insufficient consumable rejects before health or quantity changes", () => 
   assert.equal(planned.resource?.after, 1);
 });
 
-test("charged use previews the selected instance and rejects insufficient Charges", () => {
-  const success = plan({
+test("legacy charged use is inspectable but never produces an executable plan", () => {
+  const planned = plan({
     runtimeProfile: profile("charges"),
     resource: { kind: "instance", instanceId: 40, currentCharges: 4 },
     itemInstanceId: 40,
   });
-  assert.deepEqual(success.resource, {
-    kind: "instance", useMode: "charges", instanceId: 40,
-    before: 4, after: 3, consumed: 1, maximumCharges: 10, exceedsCurrentMaximum: false,
-  });
-  const insufficient = plan({
-    runtimeProfile: profile("charges", { maximumCharges: 2, chargesPerUse: 2 }),
-    resource: { kind: "instance", instanceId: 40, currentCharges: 1 },
-    itemInstanceId: 40,
-  });
-  assert.equal(insufficient.status, "insufficient-resource");
-  assert.equal(insufficient.resource?.after, 1);
-  assert.equal(insufficient.initialHealth.totalDamage, insufficient.finalHealth.totalDamage);
-});
-
-test("charged use preserves over-maximum state while decrementing by the current definition", () => {
-  const planned = plan({
-    runtimeProfile: profile("charges", { maximumCharges: 5, chargesPerUse: 2 }),
-    resource: { kind: "instance", instanceId: 41, currentCharges: 8 },
-    itemInstanceId: 41,
-  });
-  assert.equal(planned.resource?.after, 6);
-  assert.equal(planned.resource?.kind === "instance" && planned.resource.exceedsCurrentMaximum, true);
+  assert.equal(planned.status, "not-executable");
+  assert.equal(planned.ready, false);
+  assert.equal(planned.resource, null);
+  assert.match(planned.issues[0] ?? "", /Needs rebuilding/);
 });
 
 test("unlimited use executes without changing the required owned stack", () => {
@@ -366,18 +351,6 @@ test("multi-quantity and unlimited execution commit the planned resource semanti
   });
   assert.equal(unlimited.quantity, 1);
   assert.equal(unlimited.totalDamage, 15);
-});
-
-test("selected charged instance changes while another copy remains unchanged", async () => {
-  const planned = plan({
-    runtimeProfile: profile("charges"),
-    resource: { kind: "instance", instanceId: 70, currentCharges: 3 },
-    itemInstanceId: 70,
-  });
-  const committed: FakeStore = { quantity: 0, charges: { 70: 3, 71: 8 }, totalDamage: 20 };
-  await fakeAtomicExecution({ committed, planned });
-  assert.deepEqual(committed.charges, { 70: 2, 71: 8 });
-  assert.equal(committed.totalDamage, 15);
 });
 
 test("fake transaction rolls back resource when health persistence fails", async () => {

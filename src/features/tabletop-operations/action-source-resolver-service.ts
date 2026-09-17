@@ -64,6 +64,7 @@ import type {
 import type { ActionDeclarationActor } from "./action-declaration-service";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
+import { resolveWeaponRange } from "@/features/items/weapon-range";
 
 export type ActionSourceResolverTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -266,6 +267,7 @@ async function resolveWeapon(
   draft: ActionDeclarationDraft,
   weapon: NonNullable<LockedActionDeclarationSnapshot["weapon"]>,
   governing: LockedActionDeclarationSnapshot["governing"],
+  actorAuthority: ActionDeclarationActor["authority"],
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Weapon use");
   const [row] = await tx.select({
@@ -280,6 +282,12 @@ async function resolveWeapon(
     initiativeCost: weaponProfile.initiativeCost,
     rangeText: weaponProfile.rangeText,
     reachText: weaponProfile.reachText,
+    rangeMode: weaponProfile.rangeMode,
+    distanceUnit: weaponProfile.distanceUnit,
+    reachDistance: weaponProfile.reachDistance,
+    shortRangeDistance: weaponProfile.shortRangeDistance,
+    mediumRangeDistance: weaponProfile.mediumRangeDistance,
+    longRangeDistance: weaponProfile.longRangeDistance,
     ammunitionItemId: weaponProfile.ammunitionItemId,
     rulesText: weaponProfile.rulesText,
     profileUpdatedAt: weaponProfile.updatedAt,
@@ -297,6 +305,20 @@ async function resolveWeapon(
     .limit(1);
   if (!row) throw new Error("The selected canonical Weapon/Profile no longer exists.");
   if (draft.firingModeId !== null && row.firingModeId !== draft.firingModeId) throw new Error("The selected Firing Mode no longer belongs to that Weapon Profile.");
+  const payload = sourcePayload(draft);
+  const rangeMode = payload.rangeAttackMode === "melee" ? "melee" : "ranged";
+  const isRanged = row.ammunitionItemId !== null || row.rangeMode === "ranged" || row.rangeMode === "hybrid";
+  const range = isRanged || row.rangeMode === "melee"
+    ? resolveWeaponRange({
+        profile: { mode: row.rangeMode as "melee" | "ranged" | "hybrid" | null, unit: row.distanceUnit, reach: row.reachDistance, short: row.shortRangeDistance, medium: row.mediumRangeDistance, long: row.longRangeDistance },
+        attackMode: rangeMode,
+        distance: typeof payload.rangeDistance === "number" ? payload.rangeDistance : null,
+        unit: typeof payload.rangeUnit === "string" ? payload.rangeUnit : null,
+        beyondLongModifier: typeof payload.rangeBeyondLongModifier === "number" ? payload.rangeBeyondLongModifier : null,
+        beyondLongReason: typeof payload.rangeBeyondLongReason === "string" ? payload.rangeBeyondLongReason : "",
+      })
+    : null;
+  if (range?.band === "beyond-long" && actorAuthority !== "god-owner") throw new Error("Only the Campaign-owning G.O.D. may confirm a Beyond Long range modifier.");
   const effects = [manualEffect("weapon-damage-instruction", `${row.name} attack`, {
     damage: row.damage,
     damageSource: row.damageSource,
@@ -379,7 +401,7 @@ async function resolveWeapon(
       resolutionMode: governing?.status === "resolved" ? "opposed-roll" : "manual-god-ruling",
       governingSource: governing?.status === "resolved" ? governing.source as FrozenActionSourceSnapshot["governingSource"] : null,
       governingSnapshot: null,
-      authoredData: weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row,
+      authoredData: { ...(weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row), ...(range ? { range } : {}) },
       resourceCosts: [...weaponHitCosts.values()],
       effects,
       warnings: row.firingModeReviewRequired ? ["The selected Firing Mode is still marked mechanics-review-required."] : [],
@@ -411,6 +433,9 @@ async function resolveItem(
     rechargeNotes: itemRuntimeProfile.rechargeNotes,
   }).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(eq(item.id, itemId)).limit(1);
   if (!row) throw new Error("The selected canonical Item no longer exists.");
+  if (row.useMode === "charges") {
+    throw new Error("Needs rebuilding: legacy charged Item Use is retired. Rebuild this Item with Abilities and a Shared Power Charge Pool.");
+  }
   if (draft.sourceInstanceId === null) {
     const [owned] = await tx.select({ quantity: campaignCharacterItem.quantity }).from(campaignCharacterItem).where(and(
       eq(campaignCharacterItem.characterId, draft.actorCharacterId),
@@ -1088,7 +1113,7 @@ export async function resolveLockedActionSourceInTransaction(
   const participant = await loadParticipant(tx, context, draft.actorCharacterId);
   if (draft.sourceKind === "weapon") {
     if (!existing.weapon) throw new Error("A Weapon source requires the exact locked Weapon Profile.");
-    return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing);
+    return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing, actor.authority);
   }
   if (draft.sourceKind === "item") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveItem(tx, participant, draft, actor.authority));
   if (draft.sourceKind === "spell") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveSpell(tx, participant, draft, actor.userId, actor.authority));

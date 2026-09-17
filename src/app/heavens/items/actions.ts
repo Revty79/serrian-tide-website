@@ -95,6 +95,7 @@ import {
 } from "@/features/items/item-powers";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { PRACTITIONER_LEVELS, type PractitionerLevel } from "@/features/spell-construction/models/rules";
+import { validateStructuredWeaponRange, type WeaponRangeMode } from "@/features/items/weapon-range";
 
 export type ItemLibraryFilters = {
   catalogScope: ItemCatalogScope;
@@ -231,6 +232,12 @@ export type ItemDraft = {
     damageType: string;
     range: string;
     reach: string;
+    rangeMode: WeaponRangeMode | null;
+    distanceUnit: string | null;
+    reachDistance: number | null;
+    shortRangeDistance: number | null;
+    mediumRangeDistance: number | null;
+    longRangeDistance: number | null;
     ammunitionItemId: number | null;
     ammunitionItemName: string | null;
     compatibility: string;
@@ -358,6 +365,12 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegac
     damageType: clean(input.weaponProfile.damageType),
     range: clean(input.weaponProfile.range),
     reach: clean(input.weaponProfile.reach),
+    rangeMode: input.weaponProfile.rangeMode ?? null,
+    distanceUnit: optionalText(input.weaponProfile.distanceUnit),
+    reachDistance: positive(input.weaponProfile.reachDistance, "Reach Distance"),
+    shortRangeDistance: positive(input.weaponProfile.shortRangeDistance, "Short Range Distance"),
+    mediumRangeDistance: positive(input.weaponProfile.mediumRangeDistance, "Medium Range Distance"),
+    longRangeDistance: positive(input.weaponProfile.longRangeDistance, "Long Range Distance"),
     ammunitionItemId: input.weaponProfile.ammunitionItemId,
     ammunitionItemName: input.weaponProfile.ammunitionItemId ? optionalText(input.weaponProfile.ammunitionItemName) : null,
     compatibility: clean(input.weaponProfile.compatibility),
@@ -379,6 +392,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegac
     ammunitionRecoilResetInitiativeModifier: weaponIsAmmunition ? finiteNumber(input.weaponProfile.ammunitionRecoilResetInitiativeModifier, "Ammunition Recoil Reset Initiative modifier") : 0,
     rulesText: clean(input.weaponProfile.rulesText),
   } : null;
+  if (weapon) validateStructuredWeaponRange({ mode: weapon.rangeMode, unit: weapon.distanceUnit, reach: weapon.reachDistance, short: weapon.shortRangeDistance, medium: weapon.mediumRangeDistance, long: weapon.longRangeDistance });
 
   const armor = input.armorProfile ? {
     armorType: clean(input.armorProfile.armorType),
@@ -798,7 +812,9 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       profileRecordType: weapon.profileRecordType, weaponType: weapon.weaponType, handedness: weapon.handedness,
       damageSource: weapon.damageSource, damage: weapon.damage, initiativeCost: weapon.initiativeCost,
       damageType: weapon.damageType, range: weapon.rangeText,
-      reach: weapon.reachText, ammunitionItemId: weapon.ammunitionItemId, ammunitionItemName,
+      reach: weapon.reachText, rangeMode: weapon.rangeMode as NonNullable<ItemDraft["weaponProfile"]>["rangeMode"], distanceUnit: weapon.distanceUnit,
+      reachDistance: weapon.reachDistance, shortRangeDistance: weapon.shortRangeDistance, mediumRangeDistance: weapon.mediumRangeDistance, longRangeDistance: weapon.longRangeDistance,
+      ammunitionItemId: weapon.ammunitionItemId, ammunitionItemName,
       compatibility: weapon.compatibility, capacity: weapon.capacity,
       capacityRounds: weapon.capacityRounds,
       readinessMode: weapon.readinessMode as NonNullable<ItemDraft["weaponProfile"]>["readinessMode"],
@@ -1160,6 +1176,12 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         damageType: normalized.weapon.damageType,
         rangeText: normalized.weapon.range,
         reachText: normalized.weapon.reach,
+        rangeMode: normalized.weapon.rangeMode,
+        distanceUnit: normalized.weapon.distanceUnit,
+        reachDistance: normalized.weapon.reachDistance,
+        shortRangeDistance: normalized.weapon.shortRangeDistance,
+        mediumRangeDistance: normalized.weapon.mediumRangeDistance,
+        longRangeDistance: normalized.weapon.longRangeDistance,
         ammunitionItemId: normalized.weapon.ammunitionItemId,
         compatibility: normalized.weapon.compatibility,
         capacity: normalized.weapon.capacity,

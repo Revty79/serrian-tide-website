@@ -197,8 +197,9 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
     ...draft.itemInstances.map(({ itemId }) => itemId),
   ].filter((itemId, index, values) => values.indexOf(itemId) === index).flatMap((itemId) => {
     const definition = itemMap.get(itemId);
-    return definition && definition.runtimeProfile.useMode !== "none" && definition.effectCount <= 0
-      ? [definition]
+    const activatability = definition ? getItemUseActivatability(definition.runtimeProfile, definition.effectCount) : null;
+    return definition && definition.runtimeProfile.useMode !== "none" && activatability && !activatability.executable
+      ? [{ definition, reason: activatability.reason }]
       : [];
   });
   const effectiveMovementModes = (selectedRace?.movementModes ?? []).map((mode) => ({
@@ -560,7 +561,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
                 });
                 return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled || !canOperateRuntime} onComplete={onItemUseComplete} /></article>;
               })}
-              {unavailableActivatedItems.map((definition) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>Not executable: this activated profile has no Mechanical Effects. Add a Manual effect for descriptive resolution.</span></div></article>)}
+              {unavailableActivatedItems.map(({ definition, reason }) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>{reason}</span></div></article>)}
             </div>
           </section>
         ) : null}

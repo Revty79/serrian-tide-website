@@ -94,6 +94,7 @@ import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-inj
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 import { decodeMechanicalEffect, type MechanicalEffect } from "@/features/mechanical-effects";
 import { isSimpleAdditiveWeaponHitDamage } from "./ordinary-attack-consequence-service";
+import { resolveWeaponRange, type ResolvedWeaponRange } from "@/features/items/weapon-range";
 
 export type FirearmAttackTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type GodActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -118,6 +119,10 @@ export type FirearmAttackCommand = Readonly<{
   otherModifiers?: readonly Readonly<{ label: string; value: number }>[];
   manualGovernance?: Readonly<{ label: string; originalTarget: number; reason: string }> | null;
   playerRulingRequestId?: number | null;
+  rangeDistance?: number | null;
+  rangeUnit?: string;
+  rangeBeyondLongModifier?: number | null;
+  rangeBeyondLongReason?: string;
 }>;
 
 export type DeclareFirearmAttackCommand = FirearmAttackCommand & Readonly<{ idempotencyKey: string; roll?: DeclarationRollInput }>;
@@ -155,6 +160,7 @@ export type FirearmAttackPreview = Readonly<{
     oneActionOverride: CharacterWeaponOneActionOverride | null;
   };
   modifiers: readonly PercentileTargetModifier[];
+  range: ResolvedWeaponRange;
   finalTarget: number;
   aim: { initiative: number; targetOffset: number };
   calledShot: FirearmAttackCommand["calledShot"] & { validAtPreview: boolean };
@@ -504,6 +510,24 @@ async function loadFoundation(
   if (readiness.status !== "ready") {
     throw new Error(readiness.blockers.map(({ message }) => message).join(" ") || "The exact firearm is not ready.");
   }
+  if (command.rangeBeyondLongModifier !== null && command.rangeBeyondLongModifier !== undefined && actor.authority !== "god-owner") {
+    throw new Error("Only the Campaign-owning G.O.D. may supply a Beyond Long range modifier.");
+  }
+  const range = resolveWeaponRange({
+    profile: {
+      mode: profile.rangeMode as "melee" | "ranged" | "hybrid" | null,
+      unit: profile.distanceUnit,
+      reach: profile.reachDistance,
+      short: profile.shortRangeDistance,
+      medium: profile.mediumRangeDistance,
+      long: profile.longRangeDistance,
+    },
+    attackMode: "ranged",
+    distance: command.rangeDistance,
+    unit: command.rangeUnit,
+    beyondLongModifier: command.rangeBeyondLongModifier,
+    beyondLongReason: command.rangeBeyondLongReason,
+  });
   if (command.aimInitiative > 0 && !profile.rangeText.trim()) throw new Error("Aim applies only to an authored ranged attack.");
   const aimInitiative = nonnegativeWhole(command.aimInitiative, "Aim Initiative");
   const injury = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, actorParticipantId, profile.id, 1, command.weaponHands);
@@ -546,7 +570,7 @@ async function loadFoundation(
       throw new Error("The Called Shot must exactly match its approved persistent G.O.D. ruling.");
     }
   }
-  const modifiers = firearmDeclarationModifiers({ aimInitiative, calledShot: { declared: calledShot.declared, penalty: calledShot.penalty, reason: calledShot.reason }, other: command.otherModifiers });
+  const modifiers = firearmDeclarationModifiers({ aimInitiative, calledShot: { declared: calledShot.declared, penalty: calledShot.penalty, reason: calledShot.reason }, other: [{ label: `Range: ${range.label}`, value: range.adjustment }, ...(command.otherModifiers ?? [])] });
   const oneActionOverride: CharacterWeaponOneActionOverride | null = command.manualGovernance ? {
     kind: "manual",
     label: boundedText(command.manualGovernance.label, "Manual governing label", true, 200),
@@ -638,6 +662,7 @@ async function loadFoundation(
         oneActionOverride,
       },
       modifiers,
+      range,
       finalTarget,
       aim: { initiative: aimInitiative, targetOffset: aimInitiative * 2 },
       calledShot: { ...calledShot, validAtPreview: validCalledLocation },

@@ -1,5 +1,21 @@
 # Combat resumption handoff
 
+## Focused Power retirement and structured Weapon ranges (17 September 2026)
+
+**Implemented locally after `df2431ca93194a6e01edbe6c80888a5757315a91`; commit/push remains pending explicit release handling.** This pass retires the obsolete charged Item Use path and adds an additive structured range contract without changing combat Initiative, defense, ammunition, critical, retry, or existing Item Ability semantics.
+
+- Legacy `useMode: "charges"` records remain loadable, inspectable and editable for reauthoring, but `getItemUseActivatability`, the Character/NPC displays, combat source discovery and the locked server Item resolver now mark them **Needs rebuilding** and refuse activation. They cannot become stacks. Valid `item-power:` Abilities still resolve independently and use only their own shared Power Pool cost; legacy Charge settings cannot supply a second cost. No legacy rows, effects, descriptions, runtime columns or old tables were deleted.
+- Added migration **0059 structured Weapon ranges** with nullable `rangeMode`, `distanceUnit`, `reachDistance`, `shortRangeDistance`, `mediumRangeDistance` and `longRangeDistance` fields plus positive/order checks. Existing legacy Range/Reach text is descriptive only. Builder authoring supports Melee, Ranged and Hybrid modes; missing structured values remain saveable but block the affected combat attack with authoring guidance.
+- Added one shared range resolver: inclusive Short/Medium/Long boundaries apply `+10`, `0`, and `-10` target adjustments; Beyond Long requires a G.O.D. modifier and reason, accepts explicit zero, and replaces rather than stacks with Long. Distance/unit, attack mode and the resolved range result are carried into the frozen action/Roll snapshot. Firearm and ordinary structured Weapon paths use the same final-target calculation; Hybrid melee uses Reach with no ranged adjustment. Player-supplied Beyond Long overrides are rejected server-side.
+- Focused pure coverage passes for range boundaries, Beyond Long replacement/zero, unfinished authoring, Hybrid Reach, legacy charged retirement, Item authoring, declaration and firearm contracts. The existing flat AoE planner still gives every selected victim equal gross damage and emits one resource-cost proposal; no AoE code was rebuilt. The relevant learned-spell area disposable harness remains the known **6/10** result with four failures reproduced from its prior baseline, so AoE is **not end-to-end verified** in this pass.
+- Migration 0059 is additive and generated but has **not** been applied to shared DEV or production. Human Player/G.O.D. combat acceptance remains pending, including a real pistol at Short/Medium/Long/Beyond Long, missing-distance and unauthorized-ruling checks, retry stability, and a supported non-firearm ranged attack.
+
+### Remaining blockers / resume first
+
+1. Run the focused disposable PostgreSQL/browser acceptance for a charged sword, pistol range flow, and an existing supported AoE scenario. Keep the learned-spell area failures separate and do not call AoE complete unless a relevant victim/protection/retry case passes.
+2. Run final changed-file lint, typecheck, migration-ledger/whitespace checks and the focused feature tests. Review the additive 0059 SQL before any separately authorized DEV migration.
+3. Commit locally only after those checks. Do not push, deploy, or access production without explicit authorization.
+
 ## Final narrow Weapon-Hit correction and persistence pass (17 September 2026)
 
 **Implemented and published in `623e9f5`; human gameplay acceptance remains pending.** This pass stays limited to ordinary and firearm Weapon-Hit consequence semantics and their executable PostgreSQL coverage. It does not add migrations, deployment/VTT changes, Initiative redesign, firearm timing/ammunition redesign, Item Magic redesign, or legacy passive removal.

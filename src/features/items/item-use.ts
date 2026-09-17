@@ -140,6 +140,12 @@ export function getItemUseActivatability(
   if (validation.profile.useMode === "none") {
     return { executable: false, reason: "This Item has no activated use." };
   }
+  if (validation.profile.useMode === "charges") {
+    return {
+      executable: false,
+      reason: "Needs rebuilding: legacy charged Item Use is retired. Rebuild this Item with Abilities and a Shared Power Charge Pool.",
+    };
+  }
   if (!Number.isSafeInteger(effectCount) || effectCount <= 0) {
     return {
       executable: false,

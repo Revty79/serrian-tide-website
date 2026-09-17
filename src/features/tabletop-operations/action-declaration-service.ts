@@ -522,6 +522,11 @@ async function buildAuthoritativeSnapshot(
     governing,
   });
   governing = resolvedSource.governing;
+  const frozenRange = resolvedSource.snapshot.authoredData.range;
+  if (frozenRange && typeof frozenRange === "object" && !Array.isArray(frozenRange) && typeof (frozenRange as { adjustment?: unknown }).adjustment === "number") {
+    const range = frozenRange as { label?: unknown; adjustment: number };
+    draft = { ...draft, explicitModifiers: [...draft.explicitModifiers, { label: `Range: ${typeof range.label === "string" ? range.label : "resolved band"}`, value: range.adjustment }] };
+  }
   if (draft.sourcePayload?.combatScreen === true && ["item", "derived-ability", "creature-ability"].includes(draft.sourceKind)
     && resolvedSource.authoritativeInitiativeCost === null) {
     throw new Error("This exact source needs a G.O.D. Initiative cost ruling before declaration.");
