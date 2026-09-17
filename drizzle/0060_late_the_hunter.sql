@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_session_player_ruling_request_type" ADD VALUE 'weapon-distance' BEFORE 'ally-defense';

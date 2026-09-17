@@ -82,6 +82,7 @@ function automationBlocker(requestType: CampaignSessionPlayerRulingRequestType, 
   if (requestType === "tackle") return "Tackle eligibility, timing, and consequences require a G.O.D. ruling.";
   if (requestType === "intervention") return "Intervention eligibility, timing, and consequences require a G.O.D. ruling.";
   if (requestType === "firearm-preparation") return "Firearm preparation has unresolved authored or runtime mechanics that require a G.O.D. ruling.";
+  if (requestType === "weapon-distance") return "Player-entered shot distance requires a durable Campaign-owning G.O.D. ruling before the attack can commit.";
   if (sourceKind === "spell") return "The canonical Spell model does not author a safe combat Roll resolution mode.";
   if (sourceKind === "item") return "Combat Item timing or resolution requires an authoritative declaration and G.O.D. review.";
   if (sourceKind === "derived-ability") return "Combat activation or resolution requires an authoritative declaration and G.O.D. review.";
@@ -142,6 +143,12 @@ export async function submitPlayerCombatRulingRequest(
     objective?: string;
     locationNumber?: number | null;
     idempotencyKey: string;
+    attackMode?: "melee" | "ranged";
+    distance?: number | null;
+    distanceUnit?: string;
+    firingModeId?: number | null;
+    beyondLongModifier?: number | null;
+    beyondLongReason?: string;
   },
 ): Promise<number> {
   return withPlayerCombat(characterId, encounterId, "action", async (tx, context, actor) => {
@@ -160,6 +167,12 @@ export async function submitPlayerCombatRulingRequest(
         sourceKind: input.sourceKind.trim(),
         sourceRef: input.sourceRef?.trim() ?? "",
         sourceInstanceId: input.sourceInstanceId ?? null,
+          attackMode: input.attackMode ?? null,
+          distance: input.distance ?? null,
+          unit: input.distanceUnit?.trim() ?? "",
+          firingModeId: input.firingModeId ?? null,
+          beyondLongModifier: input.beyondLongModifier ?? null,
+          beyondLongReason: input.beyondLongReason?.trim() ?? "",
         targetParticipantId: input.targetParticipantId ?? null,
       },
       idempotencyKey: key(input.idempotencyKey),

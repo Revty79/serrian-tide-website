@@ -91,7 +91,7 @@ import { rangedShotInitiativeCost, resolveAmmunitionWeaponMode } from "@/feature
 import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/features/items/firearm-magazine-service";
 import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
 import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-injury-timing";
-import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import { assertApprovedWeaponDistanceRequestInTransaction, linkPlayerCombatRulingOutcomeInTransaction, lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 import { decodeMechanicalEffect, type MechanicalEffect } from "@/features/mechanical-effects";
 import { isSimpleAdditiveWeaponHitDamage } from "./ordinary-attack-consequence-service";
 import { resolveWeaponRange, type ResolvedWeaponRange } from "@/features/items/weapon-range";
@@ -123,6 +123,7 @@ export type FirearmAttackCommand = Readonly<{
   rangeUnit?: string;
   rangeBeyondLongModifier?: number | null;
   rangeBeyondLongReason?: string;
+  distanceRulingRequestId?: number | null;
 }>;
 
 export type DeclareFirearmAttackCommand = FirearmAttackCommand & Readonly<{ idempotencyKey: string; roll?: DeclarationRollInput }>;
@@ -510,6 +511,23 @@ async function loadFoundation(
   if (readiness.status !== "ready") {
     throw new Error(readiness.blockers.map(({ message }) => message).join(" ") || "The exact firearm is not ready.");
   }
+  if (lock && actor.authority === "player") {
+    if (command.distanceRulingRequestId === null || command.distanceRulingRequestId === undefined) throw new Error("Request Campaign-owning G.O.D. distance confirmation before committing this ranged attack.");
+    const approval = await assertApprovedWeaponDistanceRequestInTransaction(tx, context, actor, command.distanceRulingRequestId, {
+      sourceRef: `instance:${state.itemInstanceId}`,
+      sourceInstanceId: state.itemInstanceId,
+      weaponItemId: state.itemId,
+      weaponProfileId: state.weaponProfileId,
+      firingModeId: state.selectedFiringModeId,
+      attackMode: "ranged",
+      targetParticipantId,
+      distance: command.rangeDistance ?? -1,
+      unit: command.rangeUnit ?? "",
+    });
+    if (approval.beyondLongModifier !== command.rangeBeyondLongModifier || approval.distance !== command.rangeDistance || approval.unit !== command.rangeUnit?.trim().toLocaleLowerCase("en-US")) {
+      throw new Error("The Player firearm command does not match its approved Weapon distance ruling.");
+    }
+  }
   if (command.rangeBeyondLongModifier !== null && command.rangeBeyondLongModifier !== undefined && actor.authority !== "god-owner") {
     throw new Error("Only the Campaign-owning G.O.D. may supply a Beyond Long range modifier.");
   }
@@ -887,6 +905,9 @@ async function declareFirearmAttackInternal(
     triggerPendingActionId,
     roundsDeclared: preview.delivery.declaredRounds,
   });
+  if (actor.authority === "player" && command.distanceRulingRequestId) {
+    await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, command.distanceRulingRequestId, { firearmAttackId: attackId });
+  }
   return { attackId, status, reused: false };
 }
 

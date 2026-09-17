@@ -1,5 +1,19 @@
 # Combat resumption handoff
 
+## Durable Player shot-distance approval (17 September 2026)
+
+**Implemented locally from `744199d`; commit/push pending final validation.** Player ranged Weapon attacks now use a distinct durable `weapon-distance` request in the existing Player/G.O.D. ruling workflow. The request freezes Campaign/Session/Scene/Encounter, Player owner, actor/target, exact Weapon instance or stack, Weapon/Profile revisions, firing mode, attack mode, authored unit/range limits, and proposed distance/band. The owning G.O.D. approves, rejects, or corrects the distance; Beyond Long approval requires an explicit modifier and reason, including explicit zero.
+
+- Approved distance rulings are revalidated server-side at Player attack commit and consumed atomically by exactly one ordinary declaration or firearm attack. Changed target, source/copy, mode, distance/unit, ownership, request status, range profile or profile revision blocks reuse. Duplicate attack submissions retain the existing attack/declaration identity. G.O.D.-controlled attacks enter distance/rulings directly without self-approval.
+- Player and G.O.D. screens reuse the existing combat command and G.O.D. request panels. Requests never fire, Roll, spend ammunition/Charges/Mana/Initiative, or begin timing. Called Shot approvals remain separate. Approved values are shown before commit and consumed approvals remain linked through refresh.
+- Added additive migration **0060** for the `weapon-distance` request enum value. It must be applied by deployment/test databases before this workflow is available; no shared DEV or production database was changed.
+- **Actual browser acceptance passed** on a fresh migrated disposable PostgreSQL cluster using separate Player and G.O.D. Chrome sessions: Player submitted 25 feet Medium distance, G.O.D. approved it, Player committed one firearm attack, loaded rounds stayed unchanged before normal firing timing, and refresh preserved the consumed request-to-attack link. The harness ran through the existing disposable combat-screen wrapper and verified migration 0060 in the fresh journal.
+
+### Remaining focused acceptance
+
+- The browser case proves the full Medium approval path. Focused pure range tests still cover Short/Medium/Long boundaries and Beyond Long replacement/zero; a browser correction-to-Beyond-Long case and a supported ordinary non-firearm ranged approval case were not run in this pass.
+- Next planned work remains testing the sword, Power Charges, and one supported AoE scenario. Do not restart the rejected Equipment/Inventory tab split or begin another UI project.
+
 ## Rejected Equipment / Inventory authoring split (17 September 2026)
 
 The Weapon/Ammunition tab-splitting build from `aac7715c3b9f37bad097ca89f004f48379143a59` was rejected and reverted in `54cc638`. The shared editor is restored to the combined **Weapon / Ammunition** tab and its prior authoring controls; the temporary guardrail helper/tests and entry-point changes were removed. No database, migration, catalog, combat, Charge, structured-range, or Campaign-deletion fix was reverted.

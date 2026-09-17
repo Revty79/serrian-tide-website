@@ -246,7 +246,7 @@ export const campaignSessionPlayerRulingRequestStatus = pgEnum(
 
 export const campaignSessionPlayerRulingRequestType = pgEnum(
   "campaign_session_player_ruling_request_type",
-  ["manual-action", "called-shot", "ally-defense", "tackle", "intervention", "firearm-preparation"],
+  ["manual-action", "called-shot", "weapon-distance", "ally-defense", "tackle", "intervention", "firearm-preparation"],
 );
 
 export const campaignSession = pgTable(

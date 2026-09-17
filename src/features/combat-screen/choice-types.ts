@@ -11,7 +11,7 @@ export type CombatChoice = { participantId: number; source: CombatSourceChoice; 
   heldIntervention?: boolean; eventKey?: string;
   weaponHands?: 1 | 2;
   calledShot?: { locationNumber: number; label: string; objective: string; penalty?: number; reason?: string; requestId?: number };
-  range?: { attackMode: "melee" | "ranged"; distance: number | null; unit: string; beyondLongModifier?: number | null; beyondLongReason?: string };
+  range?: { attackMode: "melee" | "ranged"; distance: number | null; unit: string; beyondLongModifier?: number | null; beyondLongReason?: string; distanceRulingRequestId?: number | null };
   firearm?: { firingModeId: number; aimInitiative: number; firingDurationInitiative: number };
   godTiming?: { cost: number; reason: string };
 };
@@ -30,7 +30,7 @@ export function choiceDraft(choice: CombatChoice): ActionDeclarationDraft {
 export function firearmCommand(choice: CombatChoice): FirearmAttackCommand {
   if (!choice.firearm || !choice.source.instanceId || choice.targetIds.length !== 1) throw new Error("Choose one exact firearm and target.");
   return { actorParticipantId: choice.participantId, targetParticipantId: choice.targetIds[0], itemInstanceId: choice.source.instanceId,
-    ...choice.firearm, weaponHands: choice.weaponHands, rangeDistance: choice.range?.distance ?? null, rangeUnit: choice.range?.unit ?? "", rangeBeyondLongModifier: choice.range?.beyondLongModifier ?? null, rangeBeyondLongReason: choice.range?.beyondLongReason ?? "", calledShot: { declared: !!choice.calledShot, objective: choice.calledShot?.objective ?? "",
+    ...choice.firearm, weaponHands: choice.weaponHands, rangeDistance: choice.range?.distance ?? null, rangeUnit: choice.range?.unit ?? "", rangeBeyondLongModifier: choice.range?.beyondLongModifier ?? null, rangeBeyondLongReason: choice.range?.beyondLongReason ?? "", distanceRulingRequestId: choice.range?.distanceRulingRequestId ?? null, calledShot: { declared: !!choice.calledShot, objective: choice.calledShot?.objective ?? "",
       locationNumber: choice.calledShot?.locationNumber ?? null, penalty: choice.calledShot?.penalty ?? null, reason: choice.calledShot?.reason ?? "" }, playerRulingRequestId: choice.calledShot?.requestId ?? null };
 }
 export function physicalPercentile(value: string) {

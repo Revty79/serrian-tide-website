@@ -421,6 +421,13 @@
       "when": 1789679322293,
       "tag": "0059_odd_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1789688364154,
+      "tag": "0060_late_the_hunter",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
 import { campaign } from "@/db/campaign-schema";
+import { item, weaponFiringMode, weaponProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
   campaignCharacterItem,
@@ -27,6 +28,7 @@ import {
 } from "@/db/tabletop-operations-schema";
 
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
+import { classifyWeaponRange, resolveWeaponRange, validateStructuredWeaponRange, type StructuredWeaponRange } from "@/features/items/weapon-range";
 
 export type PlayerCombatRulingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -77,6 +79,29 @@ export type CreatePlayerCombatRulingRequest = Readonly<{
   idempotencyKey: string;
 }>;
 
+type WeaponDistanceRequestIdentity = Readonly<{
+  sourceRef: string;
+  sourceInstanceId: number | null;
+  weaponItemId: number;
+  weaponProfileId?: number | null;
+  firingModeId: number | null;
+  attackMode: "melee" | "ranged";
+  targetParticipantId: number;
+  distance: number;
+  unit: string;
+}>;
+
+type WeaponDistanceApproval = WeaponDistanceRequestIdentity & Readonly<{
+  kind: "weapon-distance";
+  rangeProfile: StructuredWeaponRange;
+  profileRevision: { itemUpdatedAt: string; weaponProfileUpdatedAt: string };
+  band: string;
+  adjustment: number;
+  label: string;
+  beyondLongModifier: number | null;
+  beyondLongReason: string;
+}>;
+
 function positiveId(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} is invalid.`);
   return value;
@@ -98,6 +123,138 @@ function text(value: unknown, label: string, maximum: number, required = true): 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object.`);
   return structuredClone(value as Record<string, unknown>);
+}
+
+function finiteDistance(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater.`);
+  return value;
+}
+
+function boundedUnit(value: unknown, label: string): string {
+  return text(value, label, 80).toLocaleLowerCase("en-US");
+}
+
+function optionalPositiveId(value: unknown, label: string): number | null {
+  return value === null || value === undefined ? null : positiveId(Number(value), label);
+}
+
+function rangeProfileFromFrozen(value: unknown): StructuredWeaponRange {
+  const row = object(value, "Frozen Weapon range profile");
+  const numberOrNull = (entry: unknown): number | null => entry === null || entry === undefined ? null : finiteDistance(entry, "Frozen range value");
+  const mode = row.mode === "melee" || row.mode === "ranged" || row.mode === "hybrid" ? row.mode : null;
+  return {
+    mode,
+    unit: typeof row.unit === "string" ? row.unit : null,
+    reach: numberOrNull(row.reach),
+    short: numberOrNull(row.short),
+    medium: numberOrNull(row.medium),
+    long: numberOrNull(row.long),
+  };
+}
+
+function weaponDistanceApprovalFromRequest(request: { frozenRequestJson: unknown; rulingJson: unknown }, candidate: Record<string, unknown>): WeaponDistanceApproval {
+  const frozen = object(request.frozenRequestJson, "Stored Weapon distance request");
+  const profile = rangeProfileFromFrozen(frozen.rangeProfile);
+  const sourceRef = text(frozen.sourceRef, "Frozen Weapon source", 400);
+  const sourceInstanceId = optionalPositiveId(frozen.sourceInstanceId, "Frozen Weapon instance");
+  const weaponItemId = positiveId(Number(frozen.weaponItemId), "Frozen Weapon Item");
+  const weaponProfileId = positiveId(Number(frozen.weaponProfileId), "Frozen Weapon Profile");
+  const firingModeId = optionalPositiveId(frozen.firingModeId, "Frozen Firing Mode");
+  const attackMode = frozen.attackMode === "melee" || frozen.attackMode === "ranged" ? frozen.attackMode : (() => { throw new Error("Frozen Weapon attack mode is invalid."); })();
+  const targetParticipantId = participantKey(Number(frozen.targetParticipantId), "Frozen Weapon target");
+  const distance = finiteDistance(candidate.distance, "Approved distance");
+  const unit = boundedUnit(candidate.unit, "Approved distance unit");
+  const beyondLongModifier = candidate.beyondLongModifier === null || candidate.beyondLongModifier === undefined
+    ? null
+    : finiteDistance(candidate.beyondLongModifier, "Beyond Long modifier");
+  const beyondLongReason = typeof candidate.beyondLongReason === "string" ? candidate.beyondLongReason.trim() : "";
+  if (beyondLongReason.length > 2000) throw new Error("Beyond Long ruling reason must be 2000 characters or fewer.");
+  const resolved = resolveWeaponRange({ profile, attackMode, distance, unit, beyondLongModifier, beyondLongReason });
+  if (resolved.band !== "beyond-long" && beyondLongModifier !== null) throw new Error("A Beyond Long modifier is only valid for a Beyond Long ruling.");
+  const revision = object(frozen.profileRevision, "Frozen Weapon Profile revision");
+  const ruling: WeaponDistanceApproval = {
+    kind: "weapon-distance",
+    sourceRef,
+    sourceInstanceId,
+    weaponItemId,
+    weaponProfileId,
+    firingModeId,
+    attackMode,
+    targetParticipantId,
+    distance,
+    unit,
+    rangeProfile: profile,
+    profileRevision: { itemUpdatedAt: text(revision.itemUpdatedAt, "Frozen Item revision", 100), weaponProfileUpdatedAt: text(revision.weaponProfileUpdatedAt, "Frozen Weapon Profile revision", 100) },
+    band: resolved.band,
+    adjustment: resolved.adjustment,
+    label: resolved.label,
+    beyondLongModifier: resolved.band === "beyond-long" ? beyondLongModifier : null,
+    beyondLongReason: resolved.band === "beyond-long" ? beyondLongReason : "",
+  };
+  return ruling;
+}
+
+async function normalizeWeaponDistanceRequest(
+  tx: PlayerCombatRulingTransaction,
+  context: OwnedEncounterRuntimeContext,
+  player: { userId: string; characterId: number },
+  input: CreatePlayerCombatRulingRequest,
+): Promise<Record<string, unknown>> {
+  if (input.sourceKind.trim() !== "weapon") throw new Error("A Weapon distance request must reference an exact Weapon source.");
+  if (input.targetParticipantId === null || input.targetParticipantId === undefined) throw new Error("A Weapon distance request requires an exact target.");
+  await assertTarget(tx, context, input.targetParticipantId);
+  const sourceRef = text(input.sourceRef ?? "", "Weapon source identity", 400);
+  const sourceInstanceId = input.sourceInstanceId === null || input.sourceInstanceId === undefined ? null : positiveId(input.sourceInstanceId, "Weapon instance");
+  let weaponItemId: number;
+  if (sourceInstanceId !== null) {
+    if (sourceRef !== `instance:${sourceInstanceId}`) throw new Error("The Weapon source identity does not match its exact instance.");
+    const [owned] = await tx.select({ itemId: campaignCharacterItemInstance.itemId }).from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.id, sourceInstanceId), eq(campaignCharacterItemInstance.characterId, player.characterId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1);
+    if (!owned) throw new Error("The exact Weapon instance is not owned by this Player Character.");
+    weaponItemId = owned.itemId;
+  } else {
+    weaponItemId = refId(sourceRef, "stack:", "Weapon stack");
+    const [owned] = await tx.select({ itemId: campaignCharacterItem.itemId }).from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, player.characterId), eq(campaignCharacterItem.itemId, weaponItemId))).limit(1);
+    if (!owned) throw new Error("The Weapon stack is not owned by this Player Character.");
+  }
+  const [profile] = await tx.select({
+    itemId: item.id,
+    itemUpdatedAt: item.updatedAt,
+    profileId: weaponProfile.id,
+    profileUpdatedAt: weaponProfile.updatedAt,
+    rangeMode: weaponProfile.rangeMode,
+    distanceUnit: weaponProfile.distanceUnit,
+    reachDistance: weaponProfile.reachDistance,
+    shortRangeDistance: weaponProfile.shortRangeDistance,
+    mediumRangeDistance: weaponProfile.mediumRangeDistance,
+    longRangeDistance: weaponProfile.longRangeDistance,
+  }).from(weaponProfile).innerJoin(item, eq(item.id, weaponProfile.itemId)).where(eq(weaponProfile.itemId, weaponItemId)).limit(1);
+  if (!profile) throw new Error("The Weapon has no authoritative Weapon Profile.");
+  const frozen = object(input.frozenRequest, "Weapon distance request");
+  const attackMode = frozen.attackMode === "melee" || frozen.attackMode === "ranged" ? frozen.attackMode : (() => { throw new Error("Weapon attack mode is invalid."); })();
+  const distance = finiteDistance(frozen.distance, "Requested distance");
+  const unit = boundedUnit(frozen.unit, "Requested distance unit");
+  const rangeProfile: StructuredWeaponRange = { mode: profile.rangeMode as StructuredWeaponRange["mode"], unit: profile.distanceUnit, reach: profile.reachDistance, short: profile.shortRangeDistance, medium: profile.mediumRangeDistance, long: profile.longRangeDistance };
+  const classified = classifyWeaponRange({ profile: rangeProfile, attackMode, distance, unit });
+  const firingModeId = optionalPositiveId(frozen.firingModeId, "Firing Mode");
+  if (firingModeId !== null) {
+    const [mode] = await tx.select({ id: weaponFiringMode.id }).from(weaponFiringMode).where(and(eq(weaponFiringMode.id, firingModeId), eq(weaponFiringMode.weaponProfileId, profile.profileId))).limit(1);
+    if (!mode) throw new Error("The selected Firing Mode does not belong to the exact Weapon Profile.");
+  }
+  return {
+    kind: "weapon-distance",
+    sourceRef,
+    sourceInstanceId,
+    weaponItemId: profile.itemId,
+    weaponProfileId: profile.profileId,
+    firingModeId,
+    attackMode,
+    targetParticipantId: participantKey(input.targetParticipantId, "Target"),
+    distance,
+    unit,
+    rangeBand: classified.band,
+    rangeProfile,
+    profileRevision: { itemUpdatedAt: profile.itemUpdatedAt.toISOString(), weaponProfileUpdatedAt: profile.profileUpdatedAt.toISOString() },
+  };
 }
 
 export async function lockPlayerCombatContextInTransaction(
@@ -311,6 +468,9 @@ export async function createPlayerCombatRulingRequestInTransaction(
   if (!/^[a-f0-9]{32}$/.test(key)) throw new Error("Request identity must be a 16-byte lowercase hexadecimal value.");
   await assertTarget(tx, context, input.targetParticipantId ?? null);
   await assertRequestedSource(tx, player, input);
+  const frozenRequest = input.requestType === "weapon-distance"
+    ? await normalizeWeaponDistanceRequest(tx, context, player, input)
+    : object(input.frozenRequest, "Frozen request");
   const [existing] = await tx.select().from(campaignSessionPlayerRulingRequest).where(and(
     eq(campaignSessionPlayerRulingRequest.campaignId, context.campaignId),
     eq(campaignSessionPlayerRulingRequest.requestedByUserId, player.userId),
@@ -323,7 +483,8 @@ export async function createPlayerCombatRulingRequestInTransaction(
       || existing.targetParticipantId !== (input.targetParticipantId ?? null)
       || existing.sourceKind !== input.sourceKind.trim()
       || existing.sourceRef !== (input.sourceRef ?? "").trim()
-      || existing.sourceInstanceId !== (input.sourceInstanceId ?? null)) {
+      || existing.sourceInstanceId !== (input.sourceInstanceId ?? null)
+      || (input.requestType === "weapon-distance" && JSON.stringify(existing.frozenRequestJson) !== JSON.stringify(frozenRequest))) {
       throw new Error("That request identity was already used for a different combat ruling request.");
     }
     return { requestId: existing.id, reused: true };
@@ -342,7 +503,7 @@ export async function createPlayerCombatRulingRequestInTransaction(
     intent: text(input.intent, "Player intent", 2000),
     requestedTiming: text(input.requestedTiming ?? "", "Requested timing", 500, false),
     blockedReason: text(input.blockedReason, "Automation blocker", 2000),
-    frozenRequestJson: object(input.frozenRequest, "Frozen request"),
+    frozenRequestJson: frozenRequest,
     idempotencyKey: key,
     requestedByUserId: player.userId,
   }).returning();
@@ -422,7 +583,10 @@ export async function ruleOnPlayerCombatRequestInTransaction(
   const request = await lockRequest(tx, context, requestId);
   if (!["pending", "clarification-requested"].includes(request.status)) throw new Error("Only an open combat ruling request may receive a ruling.");
   const response = text(input.response, "G.O.D. response", 2000);
-  const ruling = object(input.ruling ?? {}, "G.O.D. ruling");
+  let ruling = object(input.ruling ?? {}, "G.O.D. ruling");
+  if (input.status === "approved" && request.requestType === "weapon-distance") {
+    ruling = weaponDistanceApprovalFromRequest(request, ruling) as unknown as Record<string, unknown>;
+  }
   const terminal = input.status === "approved" || input.status === "rejected";
   const now = new Date();
   await tx.update(campaignSessionPlayerRulingRequest).set({
@@ -455,6 +619,51 @@ export async function linkPlayerCombatRulingOutcomeInTransaction(
     updatedAt: new Date(),
   }).where(eq(campaignSessionPlayerRulingRequest.id, request.id));
   await event(tx, request, "approved", "approved", "authoritative-outcome-linked", godUserId, "", links as Record<string, unknown>);
+}
+
+export async function assertApprovedWeaponDistanceRequestInTransaction(
+  tx: PlayerCombatRulingTransaction,
+  context: OwnedEncounterRuntimeContext,
+  player: { userId: string; characterId: number },
+  requestIdInput: number,
+  identity: WeaponDistanceRequestIdentity,
+): Promise<WeaponDistanceApproval> {
+  const request = await lockRequest(tx, context, positiveId(requestIdInput, "Weapon distance request"));
+  if (request.requestType !== "weapon-distance" || request.status !== "approved") throw new Error("A current approved Weapon distance ruling is required before this Player attack.");
+  if (request.characterId !== player.characterId || request.requestedByUserId !== player.userId) throw new Error("This Weapon distance ruling does not belong to the acting Player Character.");
+  if (request.linkedDeclarationId !== null || request.linkedFirearmAttackId !== null || request.linkedReactionId !== null) throw new Error("This Weapon distance ruling was already consumed by another combat outcome.");
+  const approval = weaponDistanceApprovalFromRequest(request, object(request.rulingJson, "Stored Weapon distance ruling"));
+  if (approval.sourceRef !== identity.sourceRef || approval.sourceInstanceId !== identity.sourceInstanceId
+    || approval.weaponItemId !== identity.weaponItemId || (identity.weaponProfileId !== undefined && identity.weaponProfileId !== null && approval.weaponProfileId !== identity.weaponProfileId) || approval.targetParticipantId !== identity.targetParticipantId
+    || approval.attackMode !== identity.attackMode || approval.firingModeId !== identity.firingModeId
+    || approval.distance !== identity.distance || approval.unit !== identity.unit) {
+    throw new Error("The approved Weapon distance ruling does not match this exact target, Weapon, mode, distance, or unit.");
+  }
+  const profileId = positiveId(Number(approval.weaponProfileId), "Approved Weapon Profile");
+  const [current] = await tx.select({
+    itemUpdatedAt: item.updatedAt,
+    profileUpdatedAt: weaponProfile.updatedAt,
+    rangeMode: weaponProfile.rangeMode,
+    distanceUnit: weaponProfile.distanceUnit,
+    reachDistance: weaponProfile.reachDistance,
+    shortRangeDistance: weaponProfile.shortRangeDistance,
+    mediumRangeDistance: weaponProfile.mediumRangeDistance,
+    longRangeDistance: weaponProfile.longRangeDistance,
+  }).from(weaponProfile).innerJoin(item, eq(item.id, weaponProfile.itemId)).where(and(eq(weaponProfile.id, profileId), eq(weaponProfile.itemId, approval.weaponItemId))).limit(1);
+  if (!current) throw new Error("The approved Weapon Profile no longer exists.");
+  if (current.itemUpdatedAt.toISOString() !== approval.profileRevision.itemUpdatedAt || current.profileUpdatedAt.toISOString() !== approval.profileRevision.weaponProfileUpdatedAt) {
+    throw new Error("The Weapon range Profile changed after approval. Request a new distance ruling.");
+  }
+  const currentProfile = validateStructuredWeaponRange({ mode: current.rangeMode as StructuredWeaponRange["mode"], unit: current.distanceUnit, reach: current.reachDistance, short: current.shortRangeDistance, medium: current.mediumRangeDistance, long: current.longRangeDistance });
+  if (JSON.stringify(currentProfile) !== JSON.stringify(validateStructuredWeaponRange(approval.rangeProfile))) throw new Error("The approved Weapon range limits changed after approval. Request a new distance ruling.");
+  if (approval.sourceInstanceId !== null) {
+    const [owned] = await tx.select({ id: campaignCharacterItemInstance.id }).from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.id, approval.sourceInstanceId), eq(campaignCharacterItemInstance.characterId, player.characterId), eq(campaignCharacterItemInstance.itemId, approval.weaponItemId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1);
+    if (!owned) throw new Error("The approved exact Weapon instance is no longer owned.");
+  } else {
+    const [owned] = await tx.select({ itemId: campaignCharacterItem.itemId }).from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, player.characterId), eq(campaignCharacterItem.itemId, approval.weaponItemId))).limit(1);
+    if (!owned) throw new Error("The approved Weapon stack is no longer owned.");
+  }
+  return approval;
 }
 
 async function readRequests(

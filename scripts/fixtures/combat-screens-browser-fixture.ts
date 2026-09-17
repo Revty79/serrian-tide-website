@@ -58,13 +58,14 @@ export async function addScreenSpell(tx: Tx, f: Awaited<ReturnType<typeof screen
   return addLearnedCombatSpell(tx, f, { area });
 }
 export async function addScreenFirearm(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
+  const distanceApproval = (process.env.COMBAT_SCREEN_CASE_FILTER ?? "").includes("distance-approval");
   const [ammo, gun] = await tx.insert(item).values([
     { canonicalId: `SCREEN-AMMO-${crypto.randomUUID()}`.toUpperCase(), name: "Screen Cartridge", catalogScope: "inventory", recordType: "Ammunition", family: "Fixture", category: "Ammunition", priceBasis: "per round", createdByUserId: f.godId },
     { canonicalId: `SCREEN-GUN-${crypto.randomUUID()}`.toUpperCase(), name: "Screen Pistol", catalogScope: "equipment", equipmentGroup: "weapon", recordType: "Weapon", family: "Fixture", category: "Firearm", priceBasis: "unit", createdByUserId: f.godId },
   ]).returning();
   const [ammunition] = await tx.insert(weaponProfile).values({ itemId: ammo.id, profileRecordType: "Ammunition", damage: "2", damageType: "Ballistic", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }).returning();
   await tx.insert(campaignInventoryItem).values([{ campaignId: f.campaignId, itemId: ammo.id, sortOrder: 1 }, { campaignId: f.campaignId, itemId: gun.id, sortOrder: 2 }]);
-  const [profile] = await tx.insert(weaponProfile).values({ itemId: gun.id, profileRecordType: "Weapon", weaponType: "Handgun", damageSource: "Ammunition", ammunitionItemId: ammo.id, rangeText: "Ranged", capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 1, readyInitiativeCost: 1, reloadInitiativeCost: 2, unloadInitiativeCost: 1, firingModeChangeInitiativeCost: 1 }).returning();
+  const [profile] = await tx.insert(weaponProfile).values({ itemId: gun.id, profileRecordType: "Weapon", weaponType: "Handgun", damageSource: "Ammunition", ammunitionItemId: ammo.id, rangeText: distanceApproval ? "" : "Ranged", ...(distanceApproval ? { rangeMode: "ranged" as const, distanceUnit: "feet", shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50 } : {}), capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 1, readyInitiativeCost: 1, reloadInitiativeCost: 2, unloadInitiativeCost: 1, firingModeChangeInitiativeCost: 1 }).returning();
   const [mode] = await tx.insert(weaponFiringMode).values({ weaponProfileId: profile.id, name: "Single", normalizedName: "single", sortOrder: 0, baseCyclingInitiativeCost: 0, baseRecoilResetInitiativeCost: 0, deliveryCadence: "per-trigger", roundsPerCadence: 1 }).returning();
   await tx.insert(weaponSkillPathMapping).values({ weaponProfileId: profile.id, endpointSkillId: f.skillId, reviewState: "approved", sortOrder: 0, updatedByUserId: f.godId });
   const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: gun.id, equipmentState: "wielded", currentCharges: 0, unitCostCredits: 1 }).returning();

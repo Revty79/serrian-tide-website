@@ -105,12 +105,13 @@ test("Drizzle preserves the consolidated baseline and ordered forward migrations
     "0057_periodic_health_effects.sql",
     "0058_item_power_initiative_positive.sql",
     "0059_odd_sentry.sql",
+    "0060_late_the_hunter.sql",
   ]);
 
   const journal = JSON.parse(
     readFileSync(path.resolve(root, "drizzle", "meta", "_journal.json"), "utf8"),
   ) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 60);
+  assert.equal(journal.entries.length, 61);
   assert.equal(journal.entries[0]?.idx, 0);
   assert.equal(journal.entries[0]?.tag, "0000_serrian_tide_baseline");
   assert.equal(journal.entries[1]?.idx, 1);
@@ -198,6 +199,8 @@ test("Drizzle preserves the consolidated baseline and ordered forward migrations
   assert.equal(journal.entries[58]?.tag, "0058_item_power_initiative_positive");
   assert.equal(journal.entries[59]?.idx, 59);
   assert.equal(journal.entries[59]?.tag, "0059_odd_sentry");
+  assert.equal(journal.entries[60]?.idx, 60);
+  assert.equal(journal.entries[60]?.tag, "0060_late_the_hunter");
 });
 
 test("the baseline migration owns the exact Firearm Skill branch", () => {

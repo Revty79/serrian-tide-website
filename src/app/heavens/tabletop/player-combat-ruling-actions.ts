@@ -33,6 +33,10 @@ export async function ruleGodPlayerCombatRequest(
     response: string;
     calledShotPenalty?: number | null;
     rulingReason?: string;
+    distance?: number | null;
+    distanceUnit?: string;
+    beyondLongModifier?: number | null;
+    beyondLongReason?: string;
   },
 ): Promise<void> {
   const access = await requireGod();
@@ -51,6 +55,14 @@ export async function ruleGodPlayerCombatRequest(
       ruling = { penalty: input.calledShotPenalty, reason };
     } else if (input.rulingReason?.trim()) {
       ruling = { reason: input.rulingReason.trim() };
+    }
+    if (input.status === "approved" && request.requestType === "weapon-distance") {
+      ruling = {
+        distance: input.distance,
+        unit: input.distanceUnit?.trim() ?? "",
+        beyondLongModifier: input.beyondLongModifier ?? null,
+        beyondLongReason: input.beyondLongReason?.trim() ?? "",
+      };
     }
     await ruleOnPlayerCombatRequestInTransaction(tx, context, access.user.id, request.id, {
       status: input.status,

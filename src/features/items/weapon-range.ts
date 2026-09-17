@@ -20,6 +20,8 @@ export type ResolvedWeaponRange = {
   label: string;
 };
 
+export type ClassifiedWeaponRange = Pick<ResolvedWeaponRange, "band" | "distance" | "unit">;
+
 function positive(value: number | null, label: string): number | null {
   if (value === null) return null;
   if (!Number.isFinite(value) || value <= 0) throw new Error(`${label} must be positive.`);
@@ -60,20 +62,41 @@ export function resolveWeaponRange(input: {
   const unit = normalizedUnit(input.unit ?? null);
   if (!unit) throw new Error("Enter the target distance unit before declaring this ranged attack.");
   if (!profile.unit || unit !== profile.unit) throw new Error(`Target distance must use the authored unit: ${profile.unit ?? "an authored unit"}.`);
+  const classified = classifyWeaponRange({ profile, attackMode: input.attackMode, distance: input.distance, unit });
   if (input.attackMode === "melee") {
-    if (profile.mode !== "melee" && profile.mode !== "hybrid") throw new Error("This Weapon has no authored melee Reach mode.");
-    if (profile.reach === null) throw new Error("This melee attack needs an authored Reach value and unit.");
-    if (input.distance > profile.reach) throw new Error("The target is beyond this Weapon's authored Reach.");
-    return { band: "reach", distance: input.distance, unit, adjustment: 0, label: `Reach (${input.distance} ${unit})` };
+    return { ...classified, adjustment: 0, label: `Reach (${input.distance} ${unit})` };
   }
-  if (profile.mode !== "ranged" && profile.mode !== "hybrid") throw new Error("This ranged attack needs an authored ranged mode and limits.");
-  if (profile.short === null || profile.medium === null || profile.long === null) throw new Error("This ranged attack needs authored Short, Medium, and Long limits with a unit.");
-  if (input.distance <= profile.short) return { band: "short", distance: input.distance, unit, adjustment: 10, label: `Short (${input.distance} ${unit})` };
-  if (input.distance <= profile.medium) return { band: "medium", distance: input.distance, unit, adjustment: 0, label: `Medium (${input.distance} ${unit})` };
-  if (input.distance <= profile.long) return { band: "long", distance: input.distance, unit, adjustment: -10, label: `Long (${input.distance} ${unit})` };
+  if (classified.band === "short") return { ...classified, adjustment: 10, label: `Short (${input.distance} ${unit})` };
+  if (classified.band === "medium") return { ...classified, adjustment: 0, label: `Medium (${input.distance} ${unit})` };
+  if (classified.band === "long") return { ...classified, adjustment: -10, label: `Long (${input.distance} ${unit})` };
   const modifier = input.beyondLongModifier;
   if (modifier === null || modifier === undefined || !Number.isFinite(modifier)) throw new Error("Beyond Long range requires an explicit G.O.D. modifier; enter zero when the ruling is neutral.");
   const reason = input.beyondLongReason?.trim() ?? "";
   if (!reason) throw new Error("Beyond Long range requires an explicit G.O.D. ruling reason.");
-  return { band: "beyond-long", distance: input.distance, unit, adjustment: modifier === 0 ? 0 : -modifier, label: `Beyond Long (${input.distance} ${unit})` };
+  return { ...classified, adjustment: modifier === 0 ? 0 : -modifier, label: `Beyond Long (${input.distance} ${unit})` };
+}
+
+export function classifyWeaponRange(input: {
+  profile: StructuredWeaponRange;
+  attackMode: "melee" | "ranged";
+  distance: number;
+  unit: string;
+}): ClassifiedWeaponRange {
+  const profile = validateStructuredWeaponRange(input.profile);
+  if (!Number.isFinite(input.distance) || input.distance < 0) throw new Error("Target distance must be zero or greater.");
+  const unit = normalizedUnit(input.unit);
+  if (!unit) throw new Error("Enter the target distance unit before declaring this ranged attack.");
+  if (!profile.unit || unit !== profile.unit) throw new Error(`Target distance must use the authored unit: ${profile.unit ?? "an authored unit"}.`);
+  if (input.attackMode === "melee") {
+    if (profile.mode !== "melee" && profile.mode !== "hybrid") throw new Error("This Weapon has no authored melee Reach mode.");
+    if (profile.reach === null) throw new Error("This melee attack needs an authored Reach value and unit.");
+    if (input.distance > profile.reach) throw new Error("The target is beyond this Weapon's authored Reach.");
+    return { band: "reach", distance: input.distance, unit };
+  }
+  if (profile.mode !== "ranged" && profile.mode !== "hybrid") throw new Error("This ranged attack needs an authored ranged mode and limits.");
+  if (profile.short === null || profile.medium === null || profile.long === null) throw new Error("This ranged attack needs authored Short, Medium, and Long limits with a unit.");
+  if (input.distance <= profile.short) return { band: "short", distance: input.distance, unit };
+  if (input.distance <= profile.medium) return { band: "medium", distance: input.distance, unit };
+  if (input.distance <= profile.long) return { band: "long", distance: input.distance, unit };
+  return { band: "beyond-long", distance: input.distance, unit };
 }

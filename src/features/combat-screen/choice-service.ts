@@ -6,7 +6,7 @@ import { assertCombatWritableInTransaction } from "@/features/tabletop-operation
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction,
   previewCombatDeclarationInTransaction, assertActionChoiceAuthority, type ActionDeclarationActor } from "@/features/tabletop-operations/action-declaration-service";
 import { previewFirearmAttackInTransaction, declareFirearmAttackInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
-import { readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutcomeInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
+import { assertApprovedWeaponDistanceRequestInTransaction, readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutcomeInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { parseActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
 import type { OwnedEncounterRuntimeContext, RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
 import { choiceDraft, firearmCommand, type CombatChoice, type CombatSubmission } from "./choice-types";
@@ -60,6 +60,22 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
     return { declarationId: prior.id, reused: true };
   }
   const choice = await authorizedChoice(tx, context, actor, input.choice);
+  if (actor.authority === "player" && choice.source.kind === "weapon" && choice.range?.attackMode === "ranged") {
+    if (choice.range.distanceRulingRequestId === null || choice.range.distanceRulingRequestId === undefined) {
+      throw new Error("Request Campaign-owning G.O.D. distance confirmation before committing this ranged attack.");
+    }
+    const approval = await assertApprovedWeaponDistanceRequestInTransaction(tx, context, actor, choice.range.distanceRulingRequestId, {
+      sourceRef: choice.source.ref,
+      sourceInstanceId: choice.source.instanceId,
+      weaponItemId: choice.source.itemId ?? 0,
+      firingModeId: choice.firearm?.firingModeId ?? null,
+      attackMode: choice.range.attackMode,
+      targetParticipantId: choice.targetIds.length === 1 ? choice.targetIds[0]! : 0,
+      distance: choice.range.distance ?? -1,
+      unit: choice.range.unit,
+    });
+    choice.range = { ...choice.range, distance: approval.distance, unit: approval.unit, beyondLongModifier: approval.beyondLongModifier, beyondLongReason: approval.beyondLongReason };
+  }
   if (choice.firearm) return declareFirearmAttackInTransaction(tx, context, actor, { ...firearmCommand(choice), idempotencyKey: input.requestKey, roll: input.roll });
   const baseDraft = choiceDraft(choice);
   const draft = { ...baseDraft, sourcePayload: { ...baseDraft.sourcePayload, screenRequestKey: input.requestKey, screenRequest: request,
@@ -68,5 +84,6 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
   await lockActionDeclarationInTransaction(tx, context, actor, id);
   await commitActionDeclarationInTransaction(tx, context, actor, id, input.roll);
   if (choice.calledShot?.requestId && actor.authority === "player") await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, choice.calledShot.requestId, { declarationId: id });
+  if (choice.range?.distanceRulingRequestId && actor.authority === "player") await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, choice.range.distanceRulingRequestId, { declarationId: id });
   return { declarationId: id, reused: false };
 }

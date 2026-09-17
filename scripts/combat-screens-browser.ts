@@ -569,6 +569,45 @@ try {
     results.push("Player initializes an exact empty firearm and loads two loose rounds; it is ready without a separate action.");
     await player.context().close();
   }
+  if (include("distance-approval")) {
+    const { f, gun } = await db.transaction(async (tx) => { const f = await screenFixture(tx, "distance-approval"); return { f, gun: await addScreenFirearm(tx, f) }; });
+    const god = await login(f.godId, "god", f), player = await login(f.playerId, "player", f);
+    const playerScreen = screen(player);
+    await playerScreen.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Attack", exact: true }).click();
+    await until(async () => await playerScreen.getByRole("combobox", { name: /^Attack source/ }).locator("option").filter({ hasText: /^Screen Pistol/ }).count() === 1, "structured pistol source");
+    await playerScreen.getByRole("combobox", { name: /^Attack source/ }).selectOption(await playerScreen.getByRole("combobox", { name: /^Attack source/ }).locator("option").filter({ hasText: /^Screen Pistol/ }).getAttribute("value") ?? "");
+    await playerScreen.getByRole("combobox", { name: /^Target/ }).selectOption(String(f.occurrences[0]));
+    await playerScreen.getByLabel("Target distance", { exact: true }).fill("25");
+    await playerScreen.getByLabel("Distance unit", { exact: true }).fill("feet");
+    const beforeRequest = await pool.query<{ loaded_rounds: number; current_initiative: number }>(`select s.loaded_rounds, i.current_initiative from campaign_character_firearm_state s inner join campaign_session_encounter_initiative_participant i on i.character_id=s.character_id and i.encounter_id=$1 where s.item_instance_id=$2`, [f.encounterId, gun.instance.id]);
+    assert.equal(beforeRequest.rows[0]?.loaded_rounds, 3);
+    await playerScreen.getByRole("button", { name: "Request G.O.D. distance confirmation", exact: true }).click();
+    await playerScreen.getByText("Distance sent to the Campaign-owning G.O.D. for confirmation.", { exact: true }).waitFor();
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
+    assert.equal((await pool.query("select loaded_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].loaded_rounds, 3);
+    await god.reload();
+    await screen(god).getByText("Live", { exact: true }).waitFor();
+    await selectGod(god, "Rowan");
+    const controls = screen(god).getByText("G.O.D. controls for Rowan", { exact: true });
+    await controls.click();
+    const request = screen(god).locator("fieldset").filter({ hasText: "weapon distance" }).first();
+    await screen(god).getByLabel("Ruling / participation reason", { exact: true }).fill("Distance confirmed for this exact Player shot.");
+    await request.getByLabel("Approved distance", { exact: true }).fill("25");
+    await request.getByLabel("Distance unit", { exact: true }).fill("feet");
+    await request.getByRole("button", { name: "Approve", exact: true }).click();
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+    await player.getByRole("button", { name: "Refresh", exact: true }).click();
+    await playerScreen.getByText(/G\.O\.D\. approved distance: 25 feet/).waitFor();
+    await playerScreen.getByLabel("Percentile result", { exact: true }).fill("70");
+    await playerScreen.getByRole("button", { name: "Fire & Roll", exact: true }).click();
+    await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0].n === 1, "approved Player firearm attack committed");
+    const proof = await pool.query<{ request_status: string; linked_attack: number | null; loaded_rounds: number; initiative: number }>(`select r.status request_status,r.linked_firearm_attack_id linked_attack,s.loaded_rounds,i.current_initiative initiative from campaign_session_player_ruling_request r cross join campaign_character_firearm_state s inner join campaign_session_encounter_initiative_participant i on i.character_id=s.character_id and i.encounter_id=$2 where r.encounter_id=$2 and r.request_type='weapon-distance' and s.item_instance_id=$1`, [gun.instance.id, f.encounterId]);
+    assert.equal(proof.rows[0]?.request_status, "approved"); assert.ok(proof.rows[0]?.linked_attack); assert.equal(proof.rows[0]?.loaded_rounds, 3); assert.equal(proof.rows[0]?.initiative, beforeRequest.rows[0]?.current_initiative);
+    await player.reload(); await playerScreen.getByText("Live", { exact: true }).waitFor();
+    assert.equal((await pool.query("select linked_firearm_attack_id from campaign_session_player_ruling_request where encounter_id=$1 and request_type='weapon-distance'", [f.encounterId])).rows[0]?.linked_firearm_attack_id, proof.rows[0]?.linked_attack, "Refresh preserves the consumed approval-to-attack identity.");
+    results.push("Player submitted a structured distance request, G.O.D. approved it in a separate browser session, the Player committed one firearm attack, refresh preserved the approval, and no ammunition was spent before normal firing timing.");
+    await god.context().close(); await player.context().close();
+  }
   if (include("firearm-completion-crossing")) {
     const { f, gun } = await db.transaction(async (tx) => { const f = await screenFixture(tx, "firearm-completion-crossing"); return { f, gun: await addScreenFirearm(tx, f) }; });
     await pool.query("update campaign_session_encounter_initiative set timeline_initiative=21 where encounter_id=$1", [f.encounterId]);
