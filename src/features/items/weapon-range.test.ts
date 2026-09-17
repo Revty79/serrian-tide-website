@@ -23,6 +23,7 @@ test("range validation permits unfinished values but rejects entered disorder an
   assert.doesNotThrow(() => validateStructuredWeaponRange({ mode: "ranged", unit: null, reach: null, short: null, medium: null, long: null }));
   assert.throws(() => validateStructuredWeaponRange({ ...pistol, medium: 5 }), /Short Range/);
   assert.throws(() => validateStructuredWeaponRange({ ...pistol, unit: null }), /distance unit/);
+  assert.throws(() => resolveWeaponRange({ profile: { mode: null, unit: "feet", reach: null, short: null, medium: null, long: null }, attackMode: "ranged", distance: 10, unit: "feet" }), /authored ranged mode and limits/);
 });
 
 test("hybrid melee uses Reach and never receives ranged adjustment", () => {

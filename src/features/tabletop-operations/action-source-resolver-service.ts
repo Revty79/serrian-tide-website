@@ -306,9 +306,15 @@ async function resolveWeapon(
   if (!row) throw new Error("The selected canonical Weapon/Profile no longer exists.");
   if (draft.firingModeId !== null && row.firingModeId !== draft.firingModeId) throw new Error("The selected Firing Mode no longer belongs to that Weapon Profile.");
   const payload = sourcePayload(draft);
-  const rangeMode = payload.rangeAttackMode === "melee" ? "melee" : "ranged";
-  const isRanged = row.ammunitionItemId !== null || row.rangeMode === "ranged" || row.rangeMode === "hybrid";
-  const range = isRanged || row.rangeMode === "melee"
+  const requestedRangeMode = payload.rangeAttackMode === "melee" || payload.rangeAttackMode === "ranged"
+    ? payload.rangeAttackMode
+    : null;
+  const rangeMode = requestedRangeMode
+    ?? (row.rangeMode === "ranged" ? "ranged" : row.rangeMode === "melee" ? "melee" : row.rangeMode === "hybrid" ? null : row.ammunitionItemId !== null ? "ranged" : null);
+  if (row.rangeMode === "hybrid" && rangeMode === null) {
+    throw new Error("Choose whether this Hybrid Weapon attack uses Reach or its ranged limits.");
+  }
+  const range = rangeMode !== null
     ? resolveWeaponRange({
         profile: { mode: row.rangeMode as "melee" | "ranged" | "hybrid" | null, unit: row.distanceUnit, reach: row.reachDistance, short: row.shortRangeDistance, medium: row.mediumRangeDistance, long: row.longRangeDistance },
         attackMode: rangeMode,

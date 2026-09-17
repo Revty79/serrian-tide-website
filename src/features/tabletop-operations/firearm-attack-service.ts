@@ -528,7 +528,6 @@ async function loadFoundation(
     beyondLongModifier: command.rangeBeyondLongModifier,
     beyondLongReason: command.rangeBeyondLongReason,
   });
-  if (command.aimInitiative > 0 && !profile.rangeText.trim()) throw new Error("Aim applies only to an authored ranged attack.");
   const aimInitiative = nonnegativeWhole(command.aimInitiative, "Aim Initiative");
   const injury = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, actorParticipantId, profile.id, 1, command.weaponHands);
   const calledShot = {
@@ -788,7 +787,8 @@ async function declareFirearmAttackInternal(
     sourceInstanceId: preview.firearm.itemInstanceId,
     sourcePayload: { firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier,
       ...(preview.timing.bowShotInitiativeCost !== undefined ? { bowShotInitiativeCost: preview.timing.bowShotInitiativeCost } : {}),
-      weaponHands: command.weaponHands ?? null, ...governancePayload },
+      weaponHands: command.weaponHands ?? null, rangeAttackMode: "ranged", rangeDistance: preview.range.distance, rangeUnit: preview.range.unit,
+      rangeBeyondLongModifier: command.rangeBeyondLongModifier ?? null, rangeBeyondLongReason: command.rangeBeyondLongReason ?? "", ...governancePayload },
     weaponItemId: preview.firearm.itemId,
     firingModeId: preview.firearm.firingModeId,
     attackMode: preview.firearm.firingModeName,

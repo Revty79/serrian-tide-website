@@ -54,6 +54,13 @@ test("Item editor exposes Abilities and legacy behavior without adding Item exec
   assert.equal(workspace.includes("Use Item"), false);
 });
 
+test("legacy charged Items may only leave Charges through exact-instance Power Pool reauthoring", () => {
+  const actions = source("src/app/heavens/items/actions.ts");
+  assert.match(actions, /reauthoringToPowerPool = normalized\.runtimeProfile\.useMode === "none" && normalized\.powerResource !== null/);
+  assert.match(actions, /legacy quantity stack and cannot be reauthored into an exact-instance Power Charge Pool/);
+  assert.match(actions, /current Charges|currentCharges|campaignCharacterItemInstance/);
+});
+
 test("existing stack ownership remains quantity-based while instance state stays separate", () => {
   const realmSchema = source("src/db/realm-schema.ts");
   const start = realmSchema.indexOf("export const campaignCharacterItem = pgTable");

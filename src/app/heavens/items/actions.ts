@@ -43,7 +43,7 @@ import {
   type ItemCatalogScope,
 } from "@/db/item-schema";
 import { skill, skillExtension, skillRelationship } from "@/db/skill-schema";
-import { campaignCharacterItemInstance } from "@/db/realm-schema";
+import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   copyPassiveItemEffects,
   validatePassiveItemEffect,
@@ -954,12 +954,17 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         throw new Error("Canonical Item source identity cannot be changed.");
       }
       if (normalized.runtimeProfile.useMode !== "charges") {
+        const reauthoringToPowerPool = normalized.runtimeProfile.useMode === "none" && normalized.powerResource !== null;
         const [storedRuntime, ownedInstances] = await Promise.all([
           tx.select({ useMode: itemRuntimeProfile.useMode }).from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
           tx.select({ value: count() }).from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.itemId, id)),
         ]);
-        if (storedRuntime[0]?.useMode === "charges" && Number(ownedInstances[0]?.value ?? 0) > 0) {
+        if (storedRuntime[0]?.useMode === "charges" && Number(ownedInstances[0]?.value ?? 0) > 0 && !reauthoringToPowerPool) {
           throw new Error("This charged Item has owned instances. Resolve those stable copies before changing its runtime mode; no automatic stack conversion or data deletion is allowed.");
+        }
+        if (storedRuntime[0]?.useMode === "charges" && reauthoringToPowerPool) {
+          const [ownedStack] = await tx.select({ value: count() }).from(campaignCharacterItem).where(eq(campaignCharacterItem.itemId, id));
+          if (Number(ownedStack?.value ?? 0) > 0) throw new Error("This Item has a legacy quantity stack and cannot be reauthored into an exact-instance Power Charge Pool without resolving that ownership first.");
         }
       }
       const updated = await tx.update(item).set({

@@ -93,3 +93,19 @@ test("Pass 10 accepts no browser-authored round count, damage, armor, soak, or c
   assert.match(service, /resolveProtection/);
   assert.match(service, /calculateFirearmBulletDamage/);
 });
+
+test("Aim depends on structured range resolution, not legacy Range text", () => {
+  const service = read("src/features/tabletop-operations/firearm-attack-service.ts");
+  assert.doesNotMatch(service, /Aim applies only to an authored ranged attack/);
+  assert.match(service, /resolveWeaponRange/);
+  assert.match(service, /shortRangeDistance/);
+  assert.match(service, /rangeDistance/);
+});
+
+test("ordinary ranged declarations cannot bypass missing structured range authoring", () => {
+  const service = read("src/features/tabletop-operations/action-source-resolver-service.ts");
+  assert.match(service, /requestedRangeMode/);
+  assert.match(service, /row\.ammunitionItemId !== null/);
+  assert.match(service, /resolveWeaponRange/);
+  assert.match(service, /Choose whether this Hybrid Weapon attack uses Reach/);
+});

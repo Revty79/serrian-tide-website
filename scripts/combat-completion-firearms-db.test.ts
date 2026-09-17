@@ -46,7 +46,7 @@ async function fixture(tx: Tx, kind: "player" | "npc", burst = false) {
   ]).returning();
   const [ammoProfile] = await tx.insert(weaponProfile).values({ itemId: ammunition.id, profileRecordType: "Ammunition", damage: "8", damageType: "Ballistic", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0 }).returning();
   const [profile] = await tx.insert(weaponProfile).values({ itemId: firearm.id, profileRecordType: "Weapon", weaponType: "Handgun", damageSource: "Ammunition", ammunitionItemId: ammunition.id,
-    rangeText: "Ranged", reloadType: "Single", capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 2, readyInitiativeCost: 1, reloadInitiativeCost: 3, unloadInitiativeCost: 2, firingModeChangeInitiativeCost: 1 }).returning();
+    rangeText: "", rangeMode: "ranged", distanceUnit: "feet", shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50, reloadType: "Single", capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 2, readyInitiativeCost: 1, reloadInitiativeCost: 3, unloadInitiativeCost: 2, firingModeChangeInitiativeCost: 1 }).returning();
   await tx.insert(weaponSkillPathMapping).values({ weaponProfileId: profile.id, endpointSkillId: f.skillId, reviewState: "approved", sortOrder: 0, updatedByUserId: f.godId });
   const modes = await tx.insert(weaponFiringMode).values([1, 3].map((rounds, index) => ({ weaponProfileId: profile.id, name: rounds === 1 ? "Single" : "Burst", normalizedName: rounds === 1 ? "single" : "burst", sortOrder: index,
     baseCyclingInitiativeCost: 1, baseRecoilResetInitiativeCost: 2, deliveryCadence: "per-trigger" as const, roundsPerCadence: rounds }))).returning();
@@ -60,7 +60,7 @@ async function fixture(tx: Tx, kind: "player" | "npc", burst = false) {
   const body = { ...f.creatureSnapshot, hpPools: [{ canonicalId: "fixture-body", poolName: "Body", maximumHp: 30 }],
     hitLocations: [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "fixture-body", naturalArmor: "2", soak: "1" }] };
   await tx.update(occurrence).set({ creatureSnapshotJson: body }).where(eq(occurrence.characterId, f.occurrences[0]));
-  const command: DeclareFirearmAttackCommand = { actorParticipantId: actorId, targetParticipantId: f.occurrences[0], itemInstanceId: instance.id, firingModeId: mode.id,
+  const command: DeclareFirearmAttackCommand = { actorParticipantId: actorId, targetParticipantId: f.occurrences[0], itemInstanceId: instance.id, firingModeId: mode.id, rangeDistance: 25, rangeUnit: "feet",
     aimInitiative: 0, firingDurationInitiative: 1, calledShot: { declared: false, objective: "", locationNumber: null, penalty: null, reason: "" }, idempotencyKey: crypto.randomUUID(), roll: { method: "entered", enteredTotal: 70 } };
   return { ...f, actor, actorId, command, instance, ammunition, modes, profile,
     state: async () => (await tx.select().from(stateTable).where(eq(stateTable.itemInstanceId, instance.id)))[0],

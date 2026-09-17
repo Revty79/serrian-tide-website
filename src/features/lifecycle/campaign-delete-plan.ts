@@ -80,6 +80,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_session_encounter_pending_action_source", scope: "campaign" },
   { tableName: "campaign_session_encounter_reaction_event", scope: "campaign" },
   { tableName: "campaign_session_encounter_responder_opportunity", scope: "campaign" },
+  { tableName: "campaign_session_periodic_health_effect", scope: "campaign" },
   { tableName: "campaign_session_encounter_reward", scope: "campaign" },
   { tableName: "campaign_session_encounter_reward_decision", scope: "campaign" },
   { tableName: "campaign_character_profile", scope: "character" },

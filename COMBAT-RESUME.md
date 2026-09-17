@@ -1,5 +1,21 @@
 # Combat resumption handoff
 
+## Bounded stabilization checkpoint (17 September 2026)
+
+**Starting revision:** `e07fcb2351fff6f44114271a5b6dbd20b7d90339`. This local pass repairs the three reviewed unit failures and narrows the existing range integration; publication remains intentionally local.
+
+- Reconciled the firearm baseline test with every checked-in SQL migration and the Drizzle journal through **0059**. Repaired the real Campaign deletion graph by adding `campaign_session_periodic_health_effect` before its encounter-participant parent; no FK, cascade, authorization, rollback or historical-protection shortcut was changed.
+- Removed the firearm Aim dependency on legacy `rangeText`. Aim now relies on the structured range resolver. Ordinary explicit ranged declarations and ranged/ammunition profiles cannot bypass missing structured mode/limits; legacy melee remains allowed, and Hybrid attacks require an explicit Reach/ranged choice when structured Hybrid data is present.
+- Added focused regressions for missing structured ranged data, Aim with blank legacy text, Hybrid Reach, and the source-level ordinary ranged guard. Updated the disposable firearm fixture with explicit test-only feet limits and blank legacy text.
+- The optional legacy reauthoring guard is corrected: a legacy charged Item may become `useMode: "none"` with a Shared Power Pool only when no legacy quantity stack exists. Exact owned instance IDs, current Charges and history are not changed; unsafe transitions remain blocked.
+- **Distance confirmation is explicitly deferred.** The current Player/G.O.D. ruling infrastructure has no request type and approval linkage that freezes actor, target, weapon/profile, attack mode, distance and unit. Implementing that correctly requires a durable request/UI extension; no weaker client-only confirmation was added.
+- Migration **0059** remains additive and unapplied. No shared DEV or production database was touched. Flat AoE code was not changed; the prior learned-spell area failures remain a separate known issue and no end-to-end AoE acceptance is claimed.
+
+### Validation checkpoint / next step
+
+- Final validation passed: **1,383/1,383 unit tests** across 164 feature files, typecheck, changed-file lint and whitespace checks. The filtered disposable PostgreSQL firearm harness passed **44/44** cases and applied the complete migration journal through **0059** in a fresh cluster; no shared DEV or production database was touched.
+- Exact disposable browser acceptance for a charged sword, pistol distance confirmation, and supported AoE was not run in this 7% pass. The pistol workflow remains blocked on the deferred durable G.O.D. confirmation requirement. Flat AoE remains unchanged and not end-to-end re-certified here.
+
 ## Focused Power retirement and structured Weapon ranges (17 September 2026)
 
 **Implemented locally after `df2431ca93194a6e01edbe6c80888a5757315a91`; commit/push remains pending explicit release handling.** This pass retires the obsolete charged Item Use path and adds an additive structured range contract without changing combat Initiative, defense, ammunition, critical, retry, or existing Item Ability semantics.
