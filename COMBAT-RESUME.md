@@ -2,13 +2,13 @@
 
 ## Final narrow Weapon-Hit correction and persistence pass (17 September 2026)
 
-**Implemented locally; publication is the next step.** This pass stays limited to ordinary and firearm Weapon-Hit consequence semantics and their executable PostgreSQL coverage. It does not add migrations, deployment/VTT changes, Initiative redesign, firearm timing/ammunition redesign, Item Magic redesign, or legacy passive removal.
+**Implemented and published in `623e9f5`; human gameplay acceptance remains pending.** This pass stays limited to ordinary and firearm Weapon-Hit consequence semantics and their executable PostgreSQL coverage. It does not add migrations, deployment/VTT changes, Initiative redesign, firearm timing/ammunition redesign, Item Magic redesign, or legacy passive removal.
 
 - Ordinary Weapon-Hit Powers now classify only immediate localized Health damage as additive base damage. Periodic damage, area/full-body damage, Conditions and Modifiers remain separate riders; riders remain eligible when armor/Soak absorbs the base hit. Deferred shared-Charge costs are frozen once per Power, require the exact owned Item instance, decline on a failed/prevented hit, and apply atomically at consequence time. Passive Powers do not become hit riders.
 - Firearm Weapon-Hit planning merges additive damage into a single eligible bullet without mutating the immutable bullet ledger, while preserving periodic/non-additive riders and allocating multi-bullet riders and Charges as explicit G.O.D. choices. Single-bullet plans retain the authored/base bullet values; the derived Action Effect row carries the merged result.
 - Explicit ordinary rulings refresh the complete persisted proposal, including rider and Charge rows. Insufficient exact Charges fail consequence application atomically and do not leave partial damage, rider effects or resource spending.
 - Validation: ordinary persistence/service coverage **16/16**; focused firearm persistence/service coverage **44/44**; typecheck, lint invocation and whitespace checks passed during this pass. The unfiltered disposable harness was attempted and stops at the pre-existing learned-spell area cases (**6/10** in `combat-completion-learned-spells-db.test.ts`); the same four failures reproduce from starting revision `c03038d`, while the changed ordinary/firearm groups are green. No schema or shared DEV data was changed.
-- Starting revision: **`c03038d57ea7314a6468c8d5bd429bfcadeb136c`** on `main`. Commit and push this focused pass only after the final checks below; verify the published revision and clean worktree in chat. Human gameplay acceptance remains pending.
+- Starting revision: **`c03038d57ea7314a6468c8d5bd429bfcadeb136c`** on `main`; published revision: **`623e9f558fc2734acec60ba2b7cce9c95aff1593`**. Local `HEAD`, `origin/main` and the live remote `main` reference match, and the worktree is clean. No deployment or production database access was performed.
 
 ## Current status / Start here next time
 
