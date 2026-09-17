@@ -5,7 +5,7 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
-import { item, itemRuntimeProfile } from "@/db/item-schema";
+import { item, itemPowerResource, itemRuntimeProfile } from "@/db/item-schema";
 import { campaignCharacter, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   canMutateActiveHealth,
@@ -190,6 +190,24 @@ export function spendItemChargesInTransaction(
   identity: ItemChargeInstanceIdentity,
 ): Promise<ItemChargeState> {
   return updateCurrentChargesInTransaction(tx, identity, (state) => spendItemCharges(state.currentCharges, state.chargesPerUse));
+}
+
+export async function spendExactItemPowerChargesInTransaction(
+  tx: ItemChargeTransaction,
+  identity: ItemChargeInstanceIdentity,
+  amount: number,
+): Promise<{ before: number; after: number; amount: number; maximumCharges: number }> {
+  positiveId(amount, "Power Charge Cost");
+  const [row] = await tx.select({ currentCharges: campaignCharacterItemInstance.currentCharges, maximumCharges: itemPowerResource.maximumCharges })
+    .from(campaignCharacterItemInstance)
+    .innerJoin(itemPowerResource, eq(itemPowerResource.itemId, campaignCharacterItemInstance.itemId))
+    .where(and(eq(campaignCharacterItemInstance.id, identity.instanceId), eq(campaignCharacterItemInstance.characterId, identity.characterId), eq(campaignCharacterItemInstance.itemId, identity.itemId), isNull(campaignCharacterItemInstance.retiredAt)))
+    .limit(1).for("update", { of: campaignCharacterItemInstance });
+  if (!row) throw new Error("The exact owned Item Power Charge instance is unavailable.");
+  if (row.currentCharges < amount) throw new Error("The exact owned Item instance has insufficient Ability Charges.");
+  const after = row.currentCharges - amount;
+  await tx.update(campaignCharacterItemInstance).set({ currentCharges: after, updatedAt: new Date() }).where(and(eq(campaignCharacterItemInstance.id, identity.instanceId), eq(campaignCharacterItemInstance.characterId, identity.characterId), eq(campaignCharacterItemInstance.itemId, identity.itemId)));
+  return { before: row.currentCharges, after, amount, maximumCharges: row.maximumCharges };
 }
 
 export function restoreItemChargesInTransaction(

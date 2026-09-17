@@ -16,6 +16,7 @@ import {
   campaignSessionEncounterPendingAction,
   campaignSessionEncounterReaction,
   campaignSessionEncounterResponderOpportunity,
+  campaignSessionEncounterInitiative,
   campaignSessionRoll,
 } from "@/db/tabletop-operations-schema";
 import { isCharacterMagicSystem } from "@/features/active-state/active-mana";
@@ -36,6 +37,7 @@ import {
 import {
   readItemChargeStateInTransaction,
   spendItemChargesInTransaction,
+  spendExactItemPowerChargesInTransaction,
 } from "@/features/items/item-charge-service";
 
 import {
@@ -57,6 +59,7 @@ import {
 } from "./action-declaration-service";
 import { resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
 import { bindPersistedEffectDurationInTransaction } from "./duration-lifecycle-service";
+import { bindPeriodicHealthEffectInTransaction } from "./duration-lifecycle-service";
 import {
   readEffectiveRollSnapshotInTransaction,
   type AuthorizedRollActor,
@@ -849,11 +852,13 @@ async function applyCharacterEffect(
     if (effectRow.effectType === "resource.item-charges") {
       if (!Number.isSafeInteger(amount) || source.sourceInstanceId === null) throw new Error("The frozen Item Charge cost is invalid.");
       const identity = { characterId: target.id, itemId, instanceId: source.sourceInstanceId };
+      if (source.identity.startsWith("item-power:")) {
+        const spent = await spendExactItemPowerChargesInTransaction(tx, identity, amount);
+        return { kind: "item-power-charges-spent", itemId, instanceId: source.sourceInstanceId, before: spent.before, after: spent.after, amount };
+      }
       const before = await readItemChargeStateInTransaction(tx, identity, true);
       const spent = await spendItemChargesInTransaction(tx, identity);
-      if (before.currentCharges - spent.currentCharges !== amount) {
-        throw new Error("The current Item Charge definition no longer matches the frozen action cost.");
-      }
+      if (before.currentCharges - spent.currentCharges !== amount) throw new Error("The current Item Charge definition no longer matches the frozen action cost.");
       return { kind: "item-charges-spent", itemId, instanceId: source.sourceInstanceId, before: before.currentCharges, after: spent.currentCharges, amount };
     }
     throw new Error("This approved resource effect has no supported executor.");
@@ -868,6 +873,26 @@ async function applyCharacterEffect(
     application: { ...final.application, targetCharacterId: target.id },
     health,
   });
+  if (planned.status === "ready" && (final.effect.kind === "health.heal" || final.effect.kind === "health.damage") && final.effect.timing?.mode === "over-time") {
+    const source = assertFrozenActionSourceSnapshot(plan.sourceSnapshotJson);
+    const [initiative] = await tx.select({ roundNumber: campaignSessionEncounterInitiative.roundNumber, stepNumber: campaignSessionEncounterInitiative.stepNumber }).from(campaignSessionEncounterInitiative).where(eq(campaignSessionEncounterInitiative.encounterId, context.encounterId)).limit(1);
+    if (!initiative) throw new Error("The Encounter Initiative Runtime is unavailable for a periodic Health Effect.");
+    const periodicId = await bindPeriodicHealthEffectInTransaction(tx, { campaignId: context.campaignId, sessionId: context.sessionId, sceneId: context.sceneId, encounterId: context.encounterId, roundNumber: initiative.roundNumber, stepNumber: initiative.stepNumber }, {
+      characterId: target.id,
+      sourceKind: source.kind,
+      sourceId: `action-effect:${effectRow.id}`,
+      applicationKey: `action-effect:${effectRow.id}`,
+      effectKind: final.effect.kind,
+      amount: final.effect.amount,
+      application: final.effect.kind === "health.heal" ? final.effect.scope : final.effect.application === "localized" ? "full-body" : final.effect.application,
+      poolKey: final.application.poolKey ?? null,
+      frequency: final.effect.timing.frequency!,
+      applications: final.effect.timing.applications!,
+      firstApplication: final.effect.timing.firstApplication!,
+      npcKind: target.npcKind,
+    });
+    return { kind: "periodic-health-bound", periodicId, summary: planned.summary, persistedIdentity: null, healthResult: null };
+  }
   if (planned.status !== "ready") throw new Error(`The approved Mechanical Effect is not executable (${planned.status}).`);
   const persisted = await persistPlannedMechanicalEffectInTransaction(tx, {
     plan: planned,

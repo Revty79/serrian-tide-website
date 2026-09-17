@@ -142,7 +142,7 @@ function structuredEffect(
   instruction: Readonly<Record<string, unknown>> = {},
 ): FrozenActionAuthoredEffect {
   const application = isRecord(instruction.application) ? instruction.application : null;
-  const selectionRequired = effect.kind === "health.damage" || (effect.kind === "health.heal" && effect.scope === "area");
+  const selectionRequired = (effect.kind === "health.damage" && (effect.application === "area" || effect.application === "localized")) || (effect.kind === "health.heal" && effect.scope === "area");
   const selectionPresent = !selectionRequired || instruction.hitLocationMode === "standard-roll" || (application !== null && (
     typeof application.poolKey === "string" && application.poolKey.trim().length > 0
     || Number.isSafeInteger(application.hitLocationNumber)
