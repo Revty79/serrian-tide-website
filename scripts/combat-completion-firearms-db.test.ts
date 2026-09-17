@@ -3,7 +3,7 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
-import { item, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
+import { item, itemPower, itemPowerEffect, itemPowerResource, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute, campaignCharacterProfile } from "@/db/realm-schema";
 import { magazineProfile, magazineAmmunition, weaponMagazine, firearmMagazineAttachment } from "@/db/magazine-schema";
 import { readEffectiveFirearmState, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
@@ -12,7 +12,7 @@ import { applyLocalizedDamageInTransaction, readActiveHealthInTransaction } from
 import { campaignCharacterFirearmState as stateTable, campaignSessionEncounterFirearmAttack as attackTable, campaignSessionEncounterFirearmBullet as bulletTable,
   campaignSessionEncounterInitiativeParticipant as participant, campaignSessionEncounterParticipant as occurrence,
   campaignSessionEncounterResponderOpportunity as opportunity, campaignSessionRoll, campaignSessionEncounterActionDeclaration as declarationTable,
-  campaignSessionEncounterEffectPlan as planTable, campaignSessionEncounterEffect as effectTable } from "@/db/tabletop-operations-schema";
+  campaignSessionEncounterEffectPlan as planTable, campaignSessionEncounterEffect as effectTable, campaignSessionPeriodicHealthEffect as periodicTable } from "@/db/tabletop-operations-schema";
 import { declareFirearmAttackInTransaction, commitFirearmAttackTriggerInTransaction, fireFirearmAttackInTransaction, cancelFirearmAttackInTransaction,
   previewFirearmAttackInTransaction, type DeclareFirearmAttackCommand } from "@/features/tabletop-operations/firearm-attack-service";
 import { startFirearmPreparationInTransaction, applyFirearmCatalogConfigurationInTransaction } from "@/features/tabletop-operations/firearm-readiness-service";
@@ -20,7 +20,7 @@ import { reconcileResponderOpportunityInTransaction, interruptActionDeclarationI
   restartInterruptedActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
 import { changeCombatParticipationInTransaction } from "@/features/tabletop-operations/combat-participation-service";
 import { declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
-import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction, declineActionEffectInTransaction, confirmActionEffectRulingInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
+import { applyRoutineCombatConsequencesInTransaction, declineActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction, declineActionEffectInTransaction, confirmActionEffectRulingInTransaction, resolveManualActionEffectInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { advanceInitiativeTimeline, getNextInitiativeTimelineEvent } from "@/features/tabletop-operations/initiative-runtime";
 import { setCombatFrozenInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
@@ -212,6 +212,114 @@ test("a firearm hit on a creature with blank armor and soak applies its full dam
     assert.deepEqual((target.localStateJson as { health: unknown }).health, { totalDamage: 8, poolDamage: { "fixture-body": 8 } });
     assert.equal((await f.state()).loadedRounds, 2);
     assert.deepEqual((await f.rolls()).map(({ resultTotal }) => resultTotal), [70]);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("firearm single-bullet Weapon-Hit damage merges once while periodic and non-additive riders persist", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await tx.update(campaignCharacterItemInstance).set({ currentCharges: 5 }).where(eq(campaignCharacterItemInstance.id, f.instance.id));
+    await tx.insert(itemPowerResource).values({ itemId: f.profile.itemId, maximumCharges: 5 });
+    const [damagePower] = await tx.insert(itemPower).values({ itemId: f.profile.itemId, name: "Charged Shot", description: "Single-bullet Weapon-Hit fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 1, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    const [riderPower] = await tx.insert(itemPower).values({ itemId: f.profile.itemId, name: "Marked Shot", description: "Second single-bullet Weapon-Hit fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 1 }).returning();
+    await tx.insert(itemPowerEffect).values([
+      { itemPowerId: damagePower.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } },
+      { itemPowerId: damagePower.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 3, application: "localized", timing: { mode: "over-time", frequency: "combat-steps", applications: 2, firstApplication: "next-interval" } } },
+      { itemPowerId: damagePower.id, sortOrder: 2, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Charged Mark", description: "Single-bullet Weapon-Hit condition", duration: { kind: "scene" } } },
+      { itemPowerId: riderPower.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "modifier.apply", label: "Marked Shot", channel: "initiative", targetKey: "self", amount: -1, duration: { kind: "scene" } } },
+    ]);
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    const planId = fired.effectPlanId!;
+    const [storedBullet] = await tx.select().from(bulletTable).where(and(eq(bulletTable.attackId, attack.id), eq(bulletTable.bulletIndex, 1)));
+    assert.deepEqual({ grossDamage: storedBullet.grossDamage, proposedNetDamage: storedBullet.proposedNetDamage }, { grossDamage: 8, proposedNetDamage: 5 });
+    const [storedPlan] = await tx.select().from(planTable).where(eq(planTable.id, planId));
+    const source = storedPlan.sourceSnapshotJson as { resourceCosts: unknown[]; authoredData: { itemPowerItemId: number; itemPowerResourceSource: boolean } };
+    assert.deepEqual(source.resourceCosts, []);
+    assert.equal(source.authoredData.itemPowerItemId, f.profile.itemId);
+    assert.equal(source.authoredData.itemPowerResourceSource, true);
+    const beforeApply = await tx.select().from(effectTable).where(eq(effectTable.planId, planId));
+    const bulletEffect = beforeApply.find(({ effectKey }) => effectKey === "firearm-bullet:1");
+    assert.ok(bulletEffect);
+    const bulletAuthored = bulletEffect.authoredValueJson as { baseGrossDamage: number; grossDamage: number; weaponHitAdditiveDamage: number; proposedNetDamage: number };
+    const bulletFinal = bulletEffect.finalValueJson as { effect: { amount: number } };
+    assert.deepEqual({ baseGrossDamage: bulletAuthored.baseGrossDamage, grossDamage: bulletAuthored.grossDamage, additive: bulletAuthored.weaponHitAdditiveDamage, net: bulletAuthored.proposedNetDamage, applied: bulletFinal.effect.amount },
+      { baseGrossDamage: 8, grossDamage: 10, additive: 2, net: 7, applied: 7 });
+    assert.equal(beforeApply.filter(({ effectKey }) => effectKey.startsWith(`weapon-hit:${damagePower.id}:bullet:1:effect:`)).length, 2, "Only the non-additive single-bullet effects remain as separate rows.");
+    assert.equal(beforeApply.filter(({ effectType }) => effectType === "resource.item-charges").length, 2);
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId, planId)).status, "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, f.instance.id)))[0].currentCharges, 2);
+    const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+    const targetState = target.localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> }; conditions: Array<{ name: string }>; modifiers: Array<{ label: string }> };
+    assert.deepEqual(targetState.health, { totalDamage: 7, poolDamage: { "fixture-body": 7 } });
+    assert.equal(targetState.conditions.some(({ name }) => name === "Charged Mark"), true);
+    assert.equal(targetState.modifiers.some(({ label }) => label === "Marked Shot"), true);
+    const periodic = await tx.select().from(periodicTable).where(and(eq(periodicTable.encounterId, f.encounterId), eq(periodicTable.characterId, f.occurrences[0])));
+    assert.equal(periodic.length, 1);
+    assert.equal(periodic[0].remainingApplications, 2);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("firearm multi-bullet Weapon-Hit allocation merges additive damage and applies each rider and Charge once", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player", true);
+    await tx.update(campaignCharacterItemInstance).set({ currentCharges: 5 }).where(eq(campaignCharacterItemInstance.id, f.instance.id));
+    await tx.insert(itemPowerResource).values({ itemId: f.profile.itemId, maximumCharges: 5 });
+    const [firstPower] = await tx.insert(itemPower).values({ itemId: f.profile.itemId, name: "Burst Edge", description: "First burst Weapon-Hit fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 1, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    const [secondPower] = await tx.insert(itemPower).values({ itemId: f.profile.itemId, name: "Burst Mark", description: "Second burst Weapon-Hit fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 1 }).returning();
+    await tx.insert(itemPowerEffect).values([
+      { itemPowerId: firstPower.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } },
+      { itemPowerId: firstPower.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Burst Mark", description: "First burst rider", duration: { kind: "scene" } } },
+      { itemPowerId: secondPower.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 1, application: "localized" } },
+      { itemPowerId: secondPower.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "modifier.apply", label: "Burst Slow", channel: "initiative", targetKey: "self", amount: -1, duration: { kind: "scene" } } },
+    ]);
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    const planId = fired.effectPlanId!;
+    const sourcePlan = (await tx.select().from(planTable).where(eq(planTable.id, planId)))[0].sourceSnapshotJson as { resourceCosts: unknown[]; authoredData: { itemPowerResourceSource: boolean } };
+    assert.deepEqual(sourcePlan.resourceCosts, []);
+    assert.equal(sourcePlan.authoredData.itemPowerResourceSource, true);
+    let rows = await tx.select().from(effectTable).where(eq(effectTable.planId, planId));
+    const boundaries = rows.filter(({ effectType, effectKey }) => effectType === "manual" && effectKey.startsWith("weapon-hit-allocation:"));
+    assert.equal(boundaries.length, 2);
+    const selected = JSON.stringify({ bulletIndices: [1, 2] });
+    for (const boundary of boundaries) await resolveManualActionEffectInTransaction(tx, f.context, f.god, planId, boundary.id, selected, "The first two successful bullets carry this Power.");
+    rows = await tx.select().from(effectTable).where(eq(effectTable.planId, planId));
+    const authored = (row: typeof rows[number]) => row.authoredValueJson as { powerId?: number; bulletIndex?: number; allocationRole?: string };
+    const candidates = (powerId: number, role: string) => rows.filter((row) => authored(row).powerId === powerId && authored(row).allocationRole === role);
+    for (const powerId of [firstPower.id, secondPower.id]) {
+      for (const row of candidates(powerId, "additive-damage")) assert.equal(row.status, [1, 2].includes(authored(row).bulletIndex!) ? "manual-resolved" : "declined");
+      for (const row of candidates(powerId, "rider")) assert.equal(row.status, authored(row).bulletIndex === 1 ? "approved" : "declined");
+      for (const row of candidates(powerId, "resource")) assert.equal(row.status, authored(row).bulletIndex === 1 ? "approved" : "declined");
+    }
+    for (const bulletIndex of [1, 2, 3]) {
+      const bullet = rows.find(({ effectKey }) => effectKey === `firearm-bullet:${bulletIndex}`)!;
+      const final = bullet.finalValueJson as { effect: { amount: number } };
+      assert.equal(final.effect.amount, bulletIndex === 3 ? 5 : 8);
+    }
+    await approveActionEffectPlanInTransaction(tx, f.context, f.god, planId, "The first two successful bullets receive the selected Weapon-Hit Powers.");
+    for (let retry = 0; retry < 2; retry++) assert.equal(await applyActionEffectPlanInTransaction(tx, f.context, f.god, planId), "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, f.instance.id)))[0].currentCharges, 2);
+    const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+    const targetState = target.localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> }; conditions: Array<{ name: string }>; modifiers: Array<{ label: string }> };
+    assert.deepEqual(targetState.health, { totalDamage: 21, poolDamage: { "fixture-body": 21 } });
+    assert.equal(targetState.conditions.filter(({ name }) => name === "Burst Mark").length, 1);
+    assert.equal(targetState.modifiers.filter(({ label }) => label === "Burst Slow").length, 1);
+    rows = await tx.select().from(effectTable).where(eq(effectTable.planId, planId));
+    for (const powerId of [firstPower.id, secondPower.id]) {
+      assert.equal(candidates(powerId, "rider").filter((row) => row.status === "applied").length, 1);
+      assert.equal(candidates(powerId, "resource").filter((row) => row.status === "applied").length, 1);
+      assert.equal(candidates(powerId, "rider").filter((row) => row.status === "declined").length, 2);
+      assert.equal(candidates(powerId, "resource").filter((row) => row.status === "declined").length, 2);
+    }
     throw rollback;
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

@@ -7,6 +7,7 @@ import { campaignSessionEncounterParticipant } from "@/db/tabletop-operations-sc
 import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
 import { getActiveModifierTotal } from "@/features/active-state/active-effects";
+import type { HealthDamageEffect, MechanicalEffect } from "@/features/mechanical-effects";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 import type { LockedActionDeclarationSnapshot } from "./action-declaration";
 import type { ActionEffectPlanProposal, ActionEffectProposal } from "./action-effect-bridge";
@@ -41,6 +42,16 @@ export function calculateOrdinaryAttackDamage(baseDamage: number, extraSuccesses
   return { baseDamage, extraSuccesses, armor, soak, grossDamage, netDamage: Math.max(0, grossDamage - armor - soak) };
 }
 
+type SimpleAdditiveWeaponHitDamage = HealthDamageEffect & {
+  application: "localized";
+  timing?: { mode: "immediate" };
+};
+
+export function isSimpleAdditiveWeaponHitDamage(effect: MechanicalEffect | null): effect is SimpleAdditiveWeaponHitDamage {
+  return effect?.kind === "health.damage" && effect.application === "localized"
+    && (!effect.timing || effect.timing.mode === "immediate");
+}
+
 export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   tx: Transaction, context: OwnedEncounterRuntimeContext, locked: LockedActionDeclarationSnapshot,
   roll: RollMechanicalSnapshot, defense: Record<string, unknown> | null, ruling?: OrdinaryAttackRuling,
@@ -57,6 +68,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   const objective = object(defense?.objective);
   const prevented = !roll.resolution.succeeded || objective.attackStopped === true || ["stopped", "cancel"].includes(String(defense?.originalActionDisposition));
   const proposals: ActionEffectProposal[] = [];
+  let hitEstablishedForResource = false;
   for (const targetParticipantId of locked.targetCharacterIds) {
     const adjudicated = ruling?.targetParticipantId === targetParticipantId ? ruling : undefined;
     const hitLocationNumber = adjudicated?.hitLocationNumber ?? roll.resolution.resultTotal % 10;
@@ -110,41 +122,79 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     const weaponHitEffects = source.kind === "weapon" ? source.effects.filter((effect) => (
       (effect.instruction.weaponHit === true || effect.instruction.passiveWeapon === true) && effect.effect
     )) : [];
-    const weaponHitDamage = weaponHitEffects.reduce((total, effect) => (
-      effect.effect?.kind === "health.damage" && typeof effect.effect.amount === "number" ? total + effect.effect.amount
-        : effect.effect?.kind === "modifier.apply" && effect.instruction.passiveWeapon === true && effect.effect.channel === "damage" ? total + effect.effect.amount
-          : total
-    ), 0);
+    const weaponHitDamage = weaponHitEffects.reduce((total, effect) => {
+      if (effect.instruction.passiveWeapon === true && effect.effect?.kind === "modifier.apply" && effect.effect.channel === "damage") return total + effect.effect.amount;
+      return effect.instruction.weaponHit === true && isSimpleAdditiveWeaponHitDamage(effect.effect)
+        ? total + effect.effect.amount
+        : total;
+    }, 0);
     const calculated = base !== null && armor !== null && armor >= 0 && soak !== null && soak >= 0
       ? calculateOrdinaryAttackDamage((base + weaponHitDamage), roll.resolution.additionalSuccesses, armor, soak) : null;
     const netDamage = adjudicated?.finalDamage ?? calculated?.netDamage ?? null;
     // Location selection alone cannot override unsupported damage mechanics.
     const supported = poolKey !== null && netDamage !== null && (issues.length === 0 || adjudicated?.finalDamage !== undefined);
-    const declined = prevented || supported && netDamage === 0;
+    const hitEstablished = !prevented && supported;
+    hitEstablishedForResource ||= hitEstablished;
+    const baseDamageDeclined = prevented || hitEstablished && netDamage === 0;
     const application = { hitLocationNumber, poolKey, ordinaryAttack: { locationName, poolMaximumHp, totalMaximumHp, calculated,
       appliedDamage: netDamage, ruling: adjudicated ?? null, issues } };
     proposals.push({ effectKey: `ordinary-attack:target:${targetParticipantId}`, effectType: "health.damage", targetParticipantId,
       authoredValue: { source: source.authoredData, roll: roll.resolution, application }, calculatedValue: calculated,
-      finalValue: declined ? null : { effect: netDamage !== null && netDamage > 0 ? { kind: "health.damage", application: "localized", amount: netDamage } : null, application },
-      unit: "Health", resource: "", applicationSupported: !declined && supported, godReviewRequired: !declined && !supported,
-      status: declined ? "declined" : supported ? "calculated" : "requires-god-ruling",
-      amendmentReason: !roll.resolution.succeeded ? "The recorded attack failed. No damage was applied." : prevented ? "The resolved defense prevented the attack's damage." : declined ? "Armor and soak absorbed the complete hit." : adjudicated?.reason ?? issues.join(" ") });
-    if (!declined) for (const effect of weaponHitEffects.filter(({ effect, instruction }) => effect?.kind !== "health.damage" && instruction.passiveWeapon !== true)) {
+      finalValue: baseDamageDeclined ? null : { effect: netDamage !== null && netDamage > 0 ? { kind: "health.damage", application: "localized", amount: netDamage } : null, application },
+      unit: "Health", resource: "", applicationSupported: !baseDamageDeclined && hitEstablished, godReviewRequired: !baseDamageDeclined && !hitEstablished,
+      status: baseDamageDeclined ? "declined" : hitEstablished ? "calculated" : "requires-god-ruling",
+      amendmentReason: !roll.resolution.succeeded ? "The recorded attack failed. No damage was applied." : prevented ? "The resolved defense prevented the attack's damage." : baseDamageDeclined ? "Armor and soak absorbed the complete hit." : adjudicated?.reason ?? issues.join(" ") });
+    for (const effect of weaponHitEffects.filter(({ effect, instruction }) => (
+      effect !== null && !(instruction.passiveWeapon === true && effect.kind === "modifier.apply" && effect.channel === "damage")
+        && !(instruction.weaponHit === true && isSimpleAdditiveWeaponHitDamage(effect))
+    ))) {
+      const rider = effect.effect!;
+      const riderApplication = { hitLocationNumber, poolKey, weaponHit: true };
+      const riderApplicationSupported = rider.kind === "health.damage"
+        ? rider.application === "full-body" || poolKey !== null && Number.isInteger(hitLocationNumber)
+        : rider.kind === "condition.apply" || rider.kind === "modifier.apply";
+      const riderRequiresReview = rider.kind === "manual" || !riderApplicationSupported || !hitEstablished;
       proposals.push({
         effectKey: `${effect.key}:target:${targetParticipantId}`,
-        effectType: effect.effect!.kind,
+        effectType: rider.kind,
         targetParticipantId,
-        authoredValue: { source: source.authoredData, effect: effect.effect, hitLocationNumber },
-        calculatedValue: effect.effect,
-        finalValue: { effect: effect.effect, application: { hitLocationNumber, weaponHit: true } },
+        authoredValue: { source: source.authoredData, effect: rider, hitLocationNumber, poolKey },
+        calculatedValue: rider,
+        finalValue: prevented ? null : { effect: rider, application: riderApplication },
         unit: "Effect",
         resource: "",
-        applicationSupported: effect.applicationSupported,
-        godReviewRequired: effect.requiresGodReview,
-        status: effect.applicationSupported ? "calculated" : "requires-god-ruling",
-        amendmentReason: effect.applicationSupported ? "" : "The Weapon-Hit Item Power rider requires a specific application ruling.",
+        applicationSupported: !prevented && riderApplicationSupported,
+        godReviewRequired: !prevented && riderRequiresReview,
+        status: prevented ? "declined" : riderRequiresReview ? "requires-god-ruling" : "calculated",
+        amendmentReason: prevented
+          ? (!roll.resolution.succeeded ? "The recorded attack failed. No Weapon-Hit rider was applied." : "The resolved defense prevented the attack's Weapon-Hit riders.")
+          : riderApplicationSupported ? "" : "The Weapon-Hit Item Power rider requires a specific application ruling.",
       });
     }
+  }
+  for (const cost of source.resourceCosts) {
+    if (cost.commitAt === "declaration") continue;
+    const supportedCost = cost.applicationSupported
+      && (cost.kind === "mana" || cost.kind === "item-quantity" || cost.kind === "item-charges")
+      && cost.amount !== null;
+    const costDeclined = prevented;
+    const costNeedsRuling = !costDeclined && !hitEstablishedForResource;
+    proposals.push({
+      effectKey: `cost:${cost.key}`,
+      effectType: `resource.${cost.kind}`,
+      targetParticipantId: locked.actorCharacterId,
+      authoredValue: { amount: cost.amount, resourceKey: cost.resourceKey, instruction: cost.instruction },
+      calculatedValue: cost.amount,
+      finalValue: costDeclined ? null : { amount: cost.amount, resourceKey: cost.resourceKey },
+      unit: cost.kind === "mana" ? "Mana" : "resource",
+      resource: cost.resourceKey ?? "",
+      applicationSupported: !costDeclined && supportedCost,
+      godReviewRequired: costNeedsRuling || !supportedCost && !costDeclined,
+      status: costDeclined ? "declined" : costNeedsRuling || !supportedCost ? "requires-god-ruling" : "calculated",
+      amendmentReason: costDeclined
+        ? (!roll.resolution.succeeded ? "The recorded attack failed. The Weapon-Hit Charge cost was not spent." : "The resolved defense prevented the Weapon-Hit Charge cost.")
+        : costNeedsRuling ? "The Weapon-Hit trigger has not yet been objectively established." : !supportedCost ? "The frozen Weapon-Hit resource cost is not executable." : "",
+    });
   }
   const unresolvedCritical = !ruling && (roll.resolution.requiresGodRuling || defense?.originalActionDisposition === "awaiting-god-ruling");
   return { status: unresolvedCritical || proposals.some(({ status }) => status === "requires-god-ruling") ? "requires-god-ruling" : "calculated", effects: proposals,

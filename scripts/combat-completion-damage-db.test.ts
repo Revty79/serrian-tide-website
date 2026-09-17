@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
-import { weaponProfile } from "@/db/item-schema";
-import { campaignCharacterSkillAllocation } from "@/db/realm-schema";
+import { itemPower, itemPowerEffect, itemPowerResource, weaponProfile } from "@/db/item-schema";
+import { campaignCharacterItemInstance, campaignCharacterSkillAllocation } from "@/db/realm-schema";
 import { campaignSessionEncounterInitiative as runtime, campaignSessionEncounterInitiativeParticipant as participant,
   campaignSessionEncounterParticipant as occurrence, campaignSessionEncounterResponderOpportunity as opportunity,
-  campaignSessionEncounterEffect as effect, campaignSessionEncounterEffectPlan as plan, campaignSessionRoll } from "@/db/tabletop-operations-schema";
+  campaignSessionEncounterEffect as effect, campaignSessionEncounterEffectPlan as plan, campaignSessionPeriodicHealthEffect as periodic, campaignSessionRoll } from "@/db/tabletop-operations-schema";
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction, reconcileResponderOpportunityInTransaction } from "@/features/tabletop-operations/action-declaration-service";
 import { declareDefenseInterventionInTransaction, resolveDeclaredDefensesInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
-import { applyRoutineCombatConsequencesInTransaction, generateActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
+import { applyRoutineCombatConsequencesInTransaction, generateActionEffectPlanInTransaction, approveActionEffectPlanInTransaction, applyActionEffectPlanInTransaction, ruleOrdinaryAttackConsequenceInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { advanceInitiativeTimeline } from "@/features/tabletop-operations/initiative-runtime";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { completionDraft, completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
@@ -92,6 +92,143 @@ for (const [armor, soak, expectedDamage] of [[2, 1, 3], [6, 1, 0], [null, null, 
     assert.equal((await health(tx, f, f.occurrences[0])).health.totalDamage, expectedDamage);
     assert.equal((await health(tx, f, f.occurrences[0])).health.poolDamage["fixture-body"] ?? 0, expectedDamage);
     assert.equal((await health(tx, f, f.occurrences[0])).defeat, undefined);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
+for (const absorbed of [false, true]) test(`ordinary Weapon-Hit Powers preserve riders and spend each exact Charge cost once; absorbed=${absorbed}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, `weapon-hit-${absorbed}`);
+    await tx.update(occurrence).set({ creatureSnapshotJson: { ...f.creatureSnapshot,
+      hpPools: [{ canonicalId: "fixture-body", poolName: "Body", maximumHp: 30 }],
+      hitLocations: [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "fixture-body", naturalArmor: absorbed ? "100" : "0", soak: "0" }] } })
+      .where(eq(occurrence.characterId, f.occurrences[0]));
+    const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, currentCharges: 5, equipmentState: "wielded", unitCostCredits: 0 }).returning();
+    await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 5 });
+    const [charged] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Charged Edge", description: "Fixture Weapon-Hit Power", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 1, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    const [second] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Second Edge", description: "Second fixture Weapon-Hit Power", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 1 }).returning();
+    const passive = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Heavy Edge", description: "Wielded passive damage", trigger: "passive", activationLabel: "", resourceCostKind: "none", resolutionMode: "automatic", requiredEquipmentState: "wielded", sortOrder: 2 }).returning();
+    await tx.insert(itemPowerEffect).values([
+      { itemPowerId: charged.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } },
+      { itemPowerId: charged.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 3, application: "localized", timing: { mode: "over-time", frequency: "combat-steps", applications: 2, firstApplication: "next-interval" } } },
+      { itemPowerId: charged.id, sortOrder: 2, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Marked", description: "Weapon-Hit rider", duration: { kind: "scene" } } },
+      { itemPowerId: second.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 1, application: "area" } },
+      { itemPowerId: second.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "modifier.apply", label: "Staggered", channel: "initiative", targetKey: "self", amount: -1, duration: { kind: "scene" } } },
+      { itemPowerId: passive[0].id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "modifier.apply", label: "Heavy Edge", channel: "damage", targetKey: "self", amount: 1, duration: { kind: "until-removed" } } },
+    ]);
+    await setActor(tx, f, f.heroId, 22);
+    const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId, sourceInstanceId: instance.id });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, declaration, { method: "entered", enteredTotal: 70 });
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instance.id)))[0].currentCharges, 5, "Weapon-Hit Charges wait for the consequence stage.");
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
+    await advance(tx, f, 18);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
+    const [storedPlan] = await tx.select().from(plan).where(eq(plan.id, planId));
+    const source = storedPlan.sourceSnapshotJson as { authoredData: { itemPowerItemId: number; itemPowerResourceSource: boolean }; resourceCosts: Array<{ key: string; amount: number; commitAt: string }> };
+    assert.equal(source.authoredData.itemPowerItemId, f.weaponId);
+    assert.equal(source.authoredData.itemPowerResourceSource, true);
+    assert.deepEqual(source.resourceCosts.map(({ key, amount, commitAt }) => ({ key, amount, commitAt })), [
+      { key: `item-power:${charged.id}:charges`, amount: 1, commitAt: "consequence" },
+      { key: `item-power:${second.id}:charges`, amount: 2, commitAt: "consequence" },
+    ]);
+    const rows = await tx.select().from(effect).where(eq(effect.planId, planId));
+    const base = rows.find(({ effectKey }) => effectKey === `ordinary-attack:target:${f.occurrences[0]}`)!;
+    const costRows = rows.filter(({ effectType }) => effectType === "resource.item-charges");
+    assert.deepEqual(costRows.map(({ status }) => status), ["calculated", "calculated"]);
+    assert.equal(base.status, absorbed ? "declined" : "calculated");
+    assert.equal(rows.some(({ effectKey }) => effectKey.includes(`item-power:${charged.id}:effect:`)), true);
+    assert.equal(rows.some(({ effectKey }) => effectKey.includes(`item-power:${second.id}:effect:`)), true);
+    assert.equal(rows.some(({ effectKey }) => effectKey.includes(`item-power:${passive[0].id}:effect:`)), false);
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, declaration)).status, "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instance.id)))[0].currentCharges, 2);
+    const target = await health(tx, f, f.occurrences[0]);
+    const conditions = target as unknown as { conditions: Array<{ name: string }>; modifiers: Array<{ label: string }>; health: { totalDamage: number; poolDamage: Record<string, number> } };
+    assert.equal(conditions.conditions.some(({ name }) => name === "Marked"), true);
+    assert.equal(conditions.modifiers.some(({ label }) => label === "Staggered"), true);
+    assert.equal(conditions.modifiers.some(({ label }) => label === "Heavy Edge"), false);
+    assert.equal((await tx.select().from(periodic).where(and(eq(periodic.encounterId, f.encounterId), eq(periodic.characterId, f.occurrences[0])))).length, 1);
+    assert.equal(conditions.health.totalDamage > 1, !absorbed, "A fully absorbed base hit still keeps its separate Weapon-Hit rider active.");
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
+test("ordinary failed Weapon-Hit attacks decline Charge costs without applying riders", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "weapon-hit-miss");
+    const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, currentCharges: 4, equipmentState: "wielded", unitCostCredits: 0 }).returning();
+    await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 4 });
+    const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Miss Edge", description: "Failed Weapon-Hit fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Should Not Apply", description: "Miss rider", duration: { kind: "scene" } } });
+    await setActor(tx, f, f.heroId, 22);
+    const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId, sourceInstanceId: instance.id });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, declaration, { method: "entered", enteredTotal: 40 });
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
+    await advance(tx, f, 18);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
+    const rows = await tx.select().from(effect).where(eq(effect.planId, planId));
+    assert.equal(rows.find(({ effectType }) => effectType === "resource.item-charges")?.status, "declined");
+    assert.equal(rows.find(({ effectKey }) => effectKey.includes("item-power:"))?.status, "declined");
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, declaration)).status, "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instance.id)))[0].currentCharges, 4);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
+test("ordinary Weapon-Hit ruling refreshes every rider and exact Charge row before application", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "weapon-hit-ruling");
+    const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, currentCharges: 3, equipmentState: "wielded", unitCostCredits: 0 }).returning();
+    await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 3 });
+    const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Ruling Edge", description: "Ruling Weapon-Hit fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 1, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    await tx.insert(itemPowerEffect).values([
+      { itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } },
+      { itemPowerId: power.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Ruling Mark", description: "Ruling Weapon-Hit rider", duration: { kind: "scene" } } },
+    ]);
+    await setActor(tx, f, f.heroId, 22);
+    const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId, sourceInstanceId: instance.id });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, declaration, { method: "entered", enteredTotal: 100 });
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
+    await advance(tx, f, 18);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
+    assert.equal((await tx.select().from(plan).where(eq(plan.id, planId)))[0].status, "requires-god-ruling");
+    await ruleOrdinaryAttackConsequenceInTransaction(tx, f.context, f.god, planId, { targetParticipantId: f.occurrences[0], hitLocationNumber: 0, reason: "The G.O.D. confirms the authored head location and critical consequence." });
+    const rows = await tx.select().from(effect).where(eq(effect.planId, planId));
+    assert.equal(rows.length, 3, "Localized additive damage is merged into the base row; the Condition and Charge remain separate rows.");
+    assert.ok(rows.every(({ status }) => status === "calculated"));
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, declaration)).status, "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instance.id)))[0].currentCharges, 2);
+    const target = await health(tx, f, f.occurrences[0]);
+    const conditions = target as unknown as { conditions: Array<{ name: string }> };
+    assert.ok(target.health.totalDamage > 0);
+    assert.equal(conditions.conditions.some(({ name }) => name === "Ruling Mark"), true);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+
+test("insufficient ordinary Weapon-Hit Charges fail consequence application atomically", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "weapon-hit-insufficient-charges");
+    const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, currentCharges: 1, equipmentState: "wielded", unitCostCredits: 0 }).returning();
+    await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 2 });
+    const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Hungry Edge", description: "Insufficient Charge fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Should Not Apply", description: "Insufficient Charge rider", duration: { kind: "scene" } } });
+    await setActor(tx, f, f.heroId, 22);
+    const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId, sourceInstanceId: instance.id });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, declaration, { method: "entered", enteredTotal: 70 });
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
+    await advance(tx, f, 18);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, declaration, planId)).status, "application-failed");
+    assert.equal((await tx.select().from(plan).where(eq(plan.id, planId)))[0].status, "application-failed");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instance.id)))[0].currentCharges, 1);
+    const target = await health(tx, f, f.occurrences[0]);
+    const conditions = target as unknown as { conditions: Array<{ name: string }> };
+    assert.equal(target.health.totalDamage, 0);
+    assert.equal(conditions.conditions.some(({ name }) => name === "Should Not Apply"), false);
     throw rollback;
   }), (error) => error === rollback);
 });

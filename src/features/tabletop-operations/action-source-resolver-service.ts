@@ -310,6 +310,8 @@ async function resolveWeapon(
   const weaponHitRows = await tx.select({
     powerId: itemPower.id,
     powerName: itemPower.name,
+    resourceCostKind: itemPower.resourceCostKind,
+    resourceCostAmount: itemPower.resourceCostAmount,
     effectId: itemPowerEffect.id,
     schemaVersion: itemPowerEffect.schemaVersion,
     effectJson: itemPowerEffect.effectJson,
@@ -317,6 +319,21 @@ async function resolveWeapon(
     .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
     .where(and(eq(itemPower.itemId, row.itemId), eq(itemPower.trigger, "weapon-hit")))
     .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  const weaponHitCosts = new Map<number, FrozenActionResourceCost>();
+  for (const hit of weaponHitRows) {
+    if (hit.resourceCostKind !== "shared-charges") continue;
+    if (hit.resourceCostAmount === null) throw new Error(`Weapon-Hit Power ${hit.powerName} has no valid Charge cost.`);
+    if (draft.sourceInstanceId === null) throw new Error(`Weapon-Hit Power ${hit.powerName} requires an exact owned Item instance.`);
+    weaponHitCosts.set(hit.powerId, {
+      key: `item-power:${hit.powerId}:charges`,
+      kind: "item-charges",
+      amount: hit.resourceCostAmount,
+      resourceKey: row.canonicalId,
+      instruction: `Spend ${hit.powerName}'s authored Charges on the exact attacking Item instance when its Weapon-Hit trigger succeeds.`,
+      applicationSupported: true,
+      commitAt: "consequence",
+    });
+  }
   for (const hit of weaponHitRows) {
     effects.push(structuredEffect(
       `item-power:${hit.powerId}:effect:${hit.effectId}`,
@@ -362,8 +379,8 @@ async function resolveWeapon(
       resolutionMode: governing?.status === "resolved" ? "opposed-roll" : "manual-god-ruling",
       governingSource: governing?.status === "resolved" ? governing.source as FrozenActionSourceSnapshot["governingSource"] : null,
       governingSnapshot: null,
-      authoredData: row,
-      resourceCosts: [],
+      authoredData: weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row,
+      resourceCosts: [...weaponHitCosts.values()],
       effects,
       warnings: row.firingModeReviewRequired ? ["The selected Firing Mode is still marked mechanics-review-required."] : [],
     }),

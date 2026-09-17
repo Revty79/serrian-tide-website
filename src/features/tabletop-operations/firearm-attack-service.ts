@@ -92,7 +92,8 @@ import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/featur
 import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
 import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-injury-timing";
 import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
-import { decodeMechanicalEffect } from "@/features/mechanical-effects";
+import { decodeMechanicalEffect, type MechanicalEffect } from "@/features/mechanical-effects";
+import { isSimpleAdditiveWeaponHitDamage } from "./ordinary-attack-consequence-service";
 
 export type FirearmAttackTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type GodActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -290,6 +291,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function jsonArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function weaponHitApplicationSupported(effect: MechanicalEffect, application: { hitLocationNumber: number | null; poolKey: string | null }): boolean {
+  if (effect.kind === "manual") return false;
+  if (effect.kind === "health.damage") return effect.application === "full-body"
+    || application.poolKey !== null && Number.isInteger(application.hitLocationNumber);
+  if (effect.kind === "health.heal") return effect.scope === "full-body"
+    || application.poolKey !== null && Number.isInteger(application.hitLocationNumber);
+  return true;
 }
 
 function assertGod(context: OwnedEncounterRuntimeContext, actorUserId: string): GodActor {
@@ -1211,8 +1221,38 @@ async function createFirearmEffectPlan(
   if (!created) throw new Error("The firearm Action Effect Plan could not be saved.");
 
   const effects: Array<typeof campaignSessionEncounterEffect.$inferInsert> = [];
+  const eligibleBullets = bulletRows.filter(({ status, hitLocationNumber, hpPoolKey, rulingReasonsJson }) => (
+    status === "surviving" && hitLocationNumber !== null && Boolean(hpPoolKey) && jsonArray(rulingReasonsJson).length === 0
+  ));
+  const weaponHitPowers = await tx.select({
+    powerId: itemPower.id,
+    powerName: itemPower.name,
+    resourceCostKind: itemPower.resourceCostKind,
+    resourceCostAmount: itemPower.resourceCostAmount,
+    effectId: itemPowerEffect.id,
+    schemaVersion: itemPowerEffect.schemaVersion,
+    effectJson: itemPowerEffect.effectJson,
+  }).from(itemPower)
+    .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
+    .where(and(eq(itemPower.itemId, attack.itemId), eq(itemPower.trigger, "weapon-hit")))
+    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  const powerGroups = new Map<number, typeof weaponHitPowers>();
+  for (const row of weaponHitPowers) powerGroups.set(row.powerId, [...(powerGroups.get(row.powerId) ?? []), row]);
+  const singleWeaponHitDamage = eligibleBullets.length === 1
+    ? [...powerGroups.values()].flatMap((powerRows) => powerRows).reduce((total, row) => {
+      const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson });
+      return isSimpleAdditiveWeaponHitDamage(effect) ? total + effect.amount : total;
+    }, 0)
+    : 0;
   for (const bullet of bulletRows.filter(({ status }) => status !== "cancelled-by-defense")) {
     const rulings = jsonArray(bullet.rulingReasonsJson);
+    const additiveDamage = eligibleBullets.length === 1 && eligibleBullets[0]!.bulletIndex === bullet.bulletIndex
+      ? singleWeaponHitDamage
+      : 0;
+    const effectiveGrossDamage = additiveDamage > 0 && bullet.grossDamage !== null ? bullet.grossDamage + additiveDamage : bullet.grossDamage;
+    const effectiveNetDamage = additiveDamage > 0 && effectiveGrossDamage !== null && bullet.armor !== null && bullet.soak !== null
+      ? Math.max(0, effectiveGrossDamage - bullet.armor - bullet.soak)
+      : bullet.proposedNetDamage;
     const application = bullet.hitLocationNumber === null ? {} : {
       hitLocationNumber: bullet.hitLocationNumber,
       ...(bullet.hpPoolKey ? { poolKey: bullet.hpPoolKey } : {}),
@@ -1226,14 +1266,17 @@ async function createFirearmEffectPlan(
       authoredDamage: bullet.authoredDamage,
       calledShotDexModifier: bullet.dexDamageModifier,
       additionalSuccessDamage: bullet.additionalSuccessDamage,
-      grossDamage: bullet.grossDamage,
+      grossDamage: effectiveGrossDamage,
       armor: bullet.armor,
       soak: bullet.soak,
-      proposedNetDamage: bullet.proposedNetDamage,
+      proposedNetDamage: effectiveNetDamage,
+      baseGrossDamage: bullet.grossDamage,
+      baseProposedNetDamage: bullet.proposedNetDamage,
+      weaponHitAdditiveDamage: additiveDamage,
       armorSnapshot: bullet.armorSnapshotJson,
       rulingReasons: rulings,
     };
-    if (bullet.proposedNetDamage !== null && bullet.proposedNetDamage > 0 && bullet.hitLocationNumber !== null && bullet.hpPoolKey) {
+    if (effectiveNetDamage !== null && effectiveNetDamage > 0 && bullet.hitLocationNumber !== null && bullet.hpPoolKey) {
       effects.push({
         planId: created.id,
         encounterId: context.encounterId,
@@ -1246,8 +1289,8 @@ async function createFirearmEffectPlan(
         sourceKind: "weapon",
         sourceIdentity,
         authoredValueJson: metadata,
-        calculatedValueJson: bullet.proposedNetDamage,
-        finalValueJson: { effect: { kind: "health.damage", amount: bullet.proposedNetDamage, application: "localized" }, application },
+        calculatedValueJson: effectiveNetDamage,
+        finalValueJson: { effect: { kind: "health.damage", amount: effectiveNetDamage, application: "localized" }, application },
         unit: "Health",
         resource: bullet.hpPoolKey,
         applicationSupported: rulings.length === 0,
@@ -1255,7 +1298,7 @@ async function createFirearmEffectPlan(
         status: rulings.length ? "requires-god-ruling" : "calculated",
         amendmentReason: "",
       });
-    } else if (bullet.proposedNetDamage === 0 && rulings.length === 0) {
+    } else if (effectiveNetDamage === 0 && rulings.length === 0) {
       effects.push({
         planId: created.id,
         encounterId: context.encounterId,
@@ -1290,7 +1333,7 @@ async function createFirearmEffectPlan(
         sourceKind: "weapon",
         sourceIdentity,
         authoredValueJson: metadata,
-        calculatedValueJson: bullet.proposedNetDamage,
+        calculatedValueJson: effectiveNetDamage,
         finalValueJson: { effect: { kind: "manual", title: `Firearm bullet ${bullet.bulletIndex}`, description: rulings.join(" ") || "Firearm consequence requires review." }, application },
         unit: "instruction",
         resource: bullet.hpPoolKey,
@@ -1394,23 +1437,6 @@ async function createFirearmEffectPlan(
       amendmentReason: "",
     });
   }
-  const eligibleBullets = bulletRows.filter(({ status, hitLocationNumber, hpPoolKey, rulingReasonsJson }) => (
-    status === "surviving" && hitLocationNumber !== null && Boolean(hpPoolKey) && jsonArray(rulingReasonsJson).length === 0
-  ));
-  const weaponHitPowers = await tx.select({
-    powerId: itemPower.id,
-    powerName: itemPower.name,
-    resourceCostKind: itemPower.resourceCostKind,
-    resourceCostAmount: itemPower.resourceCostAmount,
-    effectId: itemPowerEffect.id,
-    schemaVersion: itemPowerEffect.schemaVersion,
-    effectJson: itemPowerEffect.effectJson,
-  }).from(itemPower)
-    .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
-    .where(and(eq(itemPower.itemId, attack.itemId), eq(itemPower.trigger, "weapon-hit")))
-    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
-  const powerGroups = new Map<number, typeof weaponHitPowers>();
-  for (const row of weaponHitPowers) powerGroups.set(row.powerId, [...(powerGroups.get(row.powerId) ?? []), row]);
   for (const [powerId, powerRows] of powerGroups) {
     const power = powerRows[0]!;
     if (eligibleBullets.length === 1) {
@@ -1418,14 +1444,16 @@ async function createFirearmEffectPlan(
       const application = { hitLocationNumber: bullet.hitLocationNumber, poolKey: bullet.hpPoolKey };
       for (const row of powerRows) {
         const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson });
+        if (isSimpleAdditiveWeaponHitDamage(effect)) continue;
+        const applicationSupported = weaponHitApplicationSupported(effect, application);
         effects.push({
           planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
           targetParticipantId: attack.targetParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:effect:${row.effectId}`,
           effectType: effect.kind, sourceKind: "weapon", sourceIdentity,
           authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, effect },
-          calculatedValueJson: effect.kind === "health.damage" || effect.kind === "health.heal" || effect.kind === "modifier.apply" ? effect.amount : effect,
-          finalValueJson: { effect, application }, unit: effect.kind === "health.damage" || effect.kind === "health.heal" ? "Health" : effect.kind === "modifier.apply" ? effect.channel : "Effect",
-          resource: bullet.hpPoolKey, applicationSupported: true, godReviewRequired: false, status: "calculated", amendmentReason: "",
+          calculatedValueJson: effect.kind === "health.heal" || effect.kind === "modifier.apply" ? effect.amount : effect,
+          finalValueJson: { effect, application }, unit: effect.kind === "health.heal" ? "Health" : effect.kind === "modifier.apply" ? effect.channel : "Effect",
+          resource: bullet.hpPoolKey, applicationSupported, godReviewRequired: !applicationSupported, status: applicationSupported ? "calculated" : "requires-god-ruling", amendmentReason: applicationSupported ? "" : "The Weapon-Hit Item Power rider requires an exact application ruling.",
         });
       }
       if (power.resourceCostKind === "shared-charges" && power.resourceCostAmount !== null) effects.push({
@@ -1444,16 +1472,17 @@ async function createFirearmEffectPlan(
       });
       for (const bullet of eligibleBullets) for (const row of powerRows) {
         const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson });
+        const allocationRole = isSimpleAdditiveWeaponHitDamage(effect) ? "additive-damage" : "rider";
         effects.push({
           planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
           targetParticipantId: attack.targetParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:effect:${row.effectId}`, effectType: effect.kind, sourceKind: "weapon", sourceIdentity,
-          authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, allocationBoundaryKey: boundaryKey, effect }, calculatedValueJson: null, finalValueJson: { effect, application: { hitLocationNumber: bullet.hitLocationNumber, poolKey: bullet.hpPoolKey } }, unit: effect.kind === "health.damage" || effect.kind === "health.heal" ? "Health" : "Effect", resource: bullet.hpPoolKey, applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
+          authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, powerEffectId: row.effectId, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, allocationBoundaryKey: boundaryKey, allocationRole, effect }, calculatedValueJson: null, finalValueJson: { effect, application: { hitLocationNumber: bullet.hitLocationNumber, poolKey: bullet.hpPoolKey } }, unit: effect.kind === "health.damage" || effect.kind === "health.heal" ? "Health" : "Effect", resource: bullet.hpPoolKey, applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
         });
       }
       if (power.resourceCostKind === "shared-charges" && power.resourceCostAmount !== null) for (const bullet of eligibleBullets) effects.push({
         planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
         targetParticipantId: attack.actorParticipantId, effectKey: `weapon-hit:${powerId}:bullet:${bullet.bulletIndex}:charges`, effectType: "resource.item-charges", sourceKind: "weapon", sourceIdentity,
-        authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, allocationBoundaryKey: boundaryKey }, calculatedValueJson: power.resourceCostAmount, finalValueJson: { amount: power.resourceCostAmount, resourceKey: String(attack.itemId) }, unit: "Charges", resource: String(attack.itemId), applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
+        authoredValueJson: { firearmAttackId: attack.id, powerId, powerName: power.powerName, bulletId: bullet.id, bulletIndex: bullet.bulletIndex, allocationBoundaryKey: boundaryKey, allocationRole: "resource" }, calculatedValueJson: power.resourceCostAmount, finalValueJson: { amount: power.resourceCostAmount, resourceKey: String(attack.itemId) }, unit: "Charges", resource: String(attack.itemId), applicationSupported: false, godReviewRequired: true, status: "requires-god-ruling", amendmentReason: "",
       });
     }
   }

@@ -67,7 +67,7 @@ import {
 } from "./roll-runtime-service";
 import { parseRollMechanicalSnapshot, type RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
-import { buildOrdinaryAttackConsequenceProposalInTransaction, type OrdinaryAttackRuling } from "./ordinary-attack-consequence-service";
+import { buildOrdinaryAttackConsequenceProposalInTransaction, isSimpleAdditiveWeaponHitDamage, type OrdinaryAttackRuling } from "./ordinary-attack-consequence-service";
 import { recordCombatDamageOutcomeInTransaction } from "./combat-damage-outcome-service";
 import { resolveSpellHitLocationsInTransaction } from "./combat-spell-location-service";
 import { applyDirectCreatureHealthInTransaction } from "./direct-creature-health-service";
@@ -783,14 +783,87 @@ export async function resolveManualActionEffectInTransaction(
       throw new Error("Weapon-Hit allocation must select one or more eligible bullet indexes.");
     }
     const candidates = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, plan.id)).for("update");
+    const selectedFirstBullet = Math.min(...selectedBulletIndexes);
+    const promotedRiders = new Set<string>();
+    const promotedResources = new Set<number>();
     for (const candidate of candidates) {
+      if (candidate.id === effectRow.id) continue;
       const candidateAuthored = isRecord(candidate.authoredValueJson) ? candidate.authoredValueJson : null;
       if (candidateAuthored?.allocationBoundaryKey !== boundaryKey) continue;
       const bulletIndex = Number(candidateAuthored.bulletIndex);
-      await tx.update(campaignSessionEncounterEffect).set(selectedBulletIndexes.includes(bulletIndex)
-        ? { applicationSupported: true, godReviewRequired: false, status: "approved", updatedAt: now }
-        : { status: "declined", amendmentReason: `G.O.D. allocation assigned the Power elsewhere: ${outcome}`, amendedByUserId: actor.userId, updatedAt: now })
-        .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+      const allocationRole = candidateAuthored.allocationRole;
+      const powerId = Number(candidateAuthored.powerId);
+      if (!selectedBulletIndexes.includes(bulletIndex)) {
+        await tx.update(campaignSessionEncounterEffect).set({ status: "declined", amendmentReason: `G.O.D. allocation assigned the Power elsewhere: ${outcome}`, amendedByUserId: actor.userId, updatedAt: now })
+          .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+        continue;
+      }
+      if (allocationRole === "additive-damage") {
+        const candidateEffect = isRecord(candidateAuthored.effect) ? candidateAuthored.effect as MechanicalEffect : null;
+        if (!isSimpleAdditiveWeaponHitDamage(candidateEffect)) throw new Error("The firearm additive Weapon-Hit candidate is malformed.");
+        const [bulletEffect] = await tx.select().from(campaignSessionEncounterEffect).where(and(
+          eq(campaignSessionEncounterEffect.planId, plan.id),
+          eq(campaignSessionEncounterEffect.effectKey, `firearm-bullet:${bulletIndex}`),
+        )).limit(1).for("update");
+        if (!bulletEffect) throw new Error("The selected firearm bullet damage effect no longer exists.");
+        const bulletAuthored = isRecord(bulletEffect.authoredValueJson) ? bulletEffect.authoredValueJson : {};
+        const baseGrossDamage = typeof bulletAuthored.baseGrossDamage === "number" ? bulletAuthored.baseGrossDamage : bulletAuthored.grossDamage;
+        const armor = bulletAuthored.armor;
+        const soak = bulletAuthored.soak;
+        if (typeof baseGrossDamage !== "number" || !Number.isFinite(baseGrossDamage)
+          || typeof armor !== "number" || !Number.isFinite(armor)
+          || typeof soak !== "number" || !Number.isFinite(soak)) {
+          throw new Error("The selected firearm bullet has no numeric frozen protection calculation for additive damage.");
+        }
+        const existingAdditiveDamage = typeof bulletAuthored.weaponHitAdditiveDamage === "number" ? bulletAuthored.weaponHitAdditiveDamage : 0;
+        const totalAdditiveDamage = existingAdditiveDamage + candidateEffect.amount;
+        const grossDamage = baseGrossDamage + totalAdditiveDamage;
+        const netDamage = Math.max(0, grossDamage - armor - soak);
+        const candidateValue = isRecord(candidate.finalValueJson) ? candidate.finalValueJson : {};
+        const application = isRecord(candidateValue.application) ? candidateValue.application : {};
+        const nextAuthored = { ...bulletAuthored, grossDamage, proposedNetDamage: netDamage, weaponHitAdditiveDamage: totalAdditiveDamage };
+        const approvedStatus = plan.status === "approved" ? "approved" as const : "calculated" as const;
+        await tx.update(campaignSessionEncounterEffect).set(netDamage > 0
+          ? {
+            effectType: "health.damage", authoredValueJson: nextAuthored, calculatedValueJson: netDamage,
+            finalValueJson: { effect: { kind: "health.damage", amount: netDamage, application: "localized" }, application },
+            unit: "Health", resource: typeof application.poolKey === "string" ? application.poolKey : bulletEffect.resource,
+            applicationSupported: true, godReviewRequired: false, status: approvedStatus,
+            amendmentReason: "Additive Weapon-Hit damage was merged into the selected bullet.", updatedAt: now,
+          }
+          : {
+            effectType: "firearm.bullet-fully-absorbed", authoredValueJson: nextAuthored, calculatedValueJson: 0,
+            finalValueJson: null, applicationSupported: false, godReviewRequired: false, status: "declined",
+            amendmentReason: "The selected bullet remained fully absorbed after additive Weapon-Hit damage.", amendedByUserId: actor.userId, updatedAt: now,
+          }).where(eq(campaignSessionEncounterEffect.id, bulletEffect.id));
+        await tx.update(campaignSessionEncounterEffect).set({
+          status: "manual-resolved", applicationSupported: false, godReviewRequired: false,
+          appliedResultJson: { kind: "firearm-additive-damage-merged", bulletIndex, amount: candidateEffect.amount },
+          appliedAt: now, amendmentReason: "The selected additive Weapon-Hit damage was merged into the bullet consequence.", amendedByUserId: actor.userId, updatedAt: now,
+        }).where(eq(campaignSessionEncounterEffect.id, candidate.id));
+        continue;
+      }
+      if (allocationRole === "resource") {
+        if (promotedResources.has(powerId) || bulletIndex !== selectedFirstBullet) {
+          await tx.update(campaignSessionEncounterEffect).set({ status: "declined", amendmentReason: `G.O.D. allocation spends this Power's Charges once: ${outcome}`, amendedByUserId: actor.userId, updatedAt: now })
+            .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+        } else {
+          promotedResources.add(powerId);
+          await tx.update(campaignSessionEncounterEffect).set({ applicationSupported: true, godReviewRequired: false, status: "approved", updatedAt: now })
+            .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+        }
+        continue;
+      }
+      const effectId = String(candidateAuthored.powerEffectId ?? "");
+      const riderKey = `${powerId}:${effectId}`;
+      if (promotedRiders.has(riderKey) || bulletIndex !== selectedFirstBullet) {
+        await tx.update(campaignSessionEncounterEffect).set({ status: "declined", amendmentReason: `G.O.D. allocation applies this Weapon-Hit rider once: ${outcome}`, amendedByUserId: actor.userId, updatedAt: now })
+          .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+      } else {
+        promotedRiders.add(riderKey);
+        await tx.update(campaignSessionEncounterEffect).set({ applicationSupported: true, godReviewRequired: false, status: "approved", updatedAt: now })
+          .where(eq(campaignSessionEncounterEffect.id, candidate.id));
+      }
     }
   }
   await tx.update(campaignSessionEncounterEffect).set({
@@ -1375,13 +1448,17 @@ export async function ruleOrdinaryAttackConsequenceInTransaction(tx: ActionEffec
     isRecord(plan.defenseResolutionJson) ? plan.defenseResolutionJson : null, ruling);
   const proposal = proposals.effects.find(({ targetParticipantId }) => targetParticipantId === ruling.targetParticipantId);
   if (!proposal) throw new Error("The ruling target is not in this ordinary attack.");
-  const [effect] = await tx.select().from(campaignSessionEncounterEffect).where(and(
-    eq(campaignSessionEncounterEffect.planId, planId), eq(campaignSessionEncounterEffect.effectKey, proposal.effectKey),
-  )).limit(1).for("update");
+  const existingEffects = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, planId)).for("update");
+  const proposalByKey = new Map(proposals.effects.map((entry) => [entry.effectKey, entry]));
+  const effect = existingEffects.find(({ effectKey }) => effectKey === proposal.effectKey);
   if (!effect || effect.status === "applied") throw new Error("The original target effect is missing or already applied.");
-  await tx.update(campaignSessionEncounterEffect).set({ finalValueJson: proposal.finalValue,
-    applicationSupported: proposal.applicationSupported, godReviewRequired: proposal.godReviewRequired, status: proposal.status,
-    amendmentReason: ruling.reason, amendedByUserId: actor.userId, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffect.id, effect.id));
+  for (const existing of existingEffects) {
+    const updated = proposalByKey.get(existing.effectKey);
+    if (!updated || existing.status === "applied") continue;
+    await tx.update(campaignSessionEncounterEffect).set({ finalValueJson: updated.finalValue,
+      applicationSupported: updated.applicationSupported, godReviewRequired: updated.godReviewRequired, status: updated.status,
+      amendmentReason: ruling.reason, amendedByUserId: actor.userId, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffect.id, existing.id));
+  }
   const remaining = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, planId));
   const status = remaining.some(({ status }) => status === "requires-god-ruling") ? "requires-god-ruling" : "calculated";
   await tx.update(campaignSessionEncounterEffectPlan).set({ status, reviewedByUserId: null, reviewedAt: null, updatedAt: new Date() })
