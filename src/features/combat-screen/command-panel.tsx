@@ -49,12 +49,17 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
   const currentItemMagic = itemMagic?.key === `${entity.participantId}:${draft.source}` ? itemMagic.value : null;
   const magicGroups = command === "Cast" ? currentSpell?.groups ?? [] : currentItemMagic?.groups ?? [];
   const groups = magicGroups.map((group) => ({ ...group, selected: group.kind === "aoe" ? [] : group.selfTargeted ? [entity.participantId] : draft.groups[group.id] ?? [] }));
-  const targets = (command === "Cast" || command === "Item") && groups.length ? [...new Set(groups.flatMap((group) => group.selected))] : command === "Cast" || command === "Ability" ? [...new Set([...(target ? [Number(target)] : []), ...draft.targets])] : target ? [Number(target)] : [];
+  const itemDirectTargets = command === "Item" && (currentItemMagic?.requiresGenericTarget === true || !groups.length)
+    ? [...new Set([...(target ? [Number(target)] : []), ...draft.targets])]
+    : [];
+  const magicTargets = groups.length ? [...new Set(groups.flatMap((group) => group.selected))] : [];
+  const targets = command === "Cast" ? magicTargets : command === "Item" ? [...new Set([...itemDirectTargets, ...magicTargets])] : command === "Ability" ? [...new Set([...(target ? [Number(target)] : []), ...draft.targets])] : target ? [Number(target)] : [];
   const location = anatomy?.id === Number(target) ? anatomy.entries.find((entry) => String(entry.number) === draft.location) : null;
   const ruling = sources?.requests.find((entry) => entry.requestType === "called-shot" && entry.status === "approved" && !entry.linkedDeclarationId && entry.sourceRef === source?.ref && entry.sourceInstanceId === source?.instanceId && entry.targetParticipantId === Number(target) && entry.frozenRequest.locationNumber === location?.number);
   const choice: CombatChoice | null = source ? { participantId: entity.participantId, source, targetIds: targets,
     effectSelections: draft.applications,
     heldIntervention: entity.heldInterventionAvailable,
+    ...(command === "Item" ? { itemTargetIds: itemDirectTargets } : {}),
     ...(draft.weaponHands === "1" || draft.weaponHands === "2" ? { weaponHands: Number(draft.weaponHands) as 1 | 2 } : {}),
     ...((command === "Cast" || command === "Item") && groups.length ? { spellSelections: { targetGroups: Object.fromEntries(groups.map((group) => [group.id, group.selected])), applications: draft.applications } } : {}),
     ...(command === "Called Shot" && location ? { calledShot: { locationNumber: location.number, label: location.name, objective: draft.objective,

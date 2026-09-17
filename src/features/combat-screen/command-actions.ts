@@ -141,7 +141,7 @@ export async function readCombatItemAbilityOptions(scope: CombatScreenScope, par
     const resolved = resolveItemPowerConstruction(document, row.fixedPowerLevel);
     if (!resolved.adapter.valid) throw new Error("The Item Ability Magic source cannot be resolved into combat effects.");
     return {
-      groups: analyzeSpellTargetGroups(document, resolved.adapter.effects).groups,
+      groups: analyzeSpellTargetGroups(resolved.spell, resolved.adapter.effects).groups,
       requiresGenericTarget: directEffects.length > 0,
     };
   });

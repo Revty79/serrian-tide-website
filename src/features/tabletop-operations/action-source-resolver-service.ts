@@ -49,7 +49,7 @@ import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mec
 import { resolveProgressiveSpellForLevel } from "@/features/spell-construction/engine/progressiveSpell";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { resolveItemPowerConstruction } from "@/features/items/item-powers";
-import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
+import { analyzeSpellTargetGroups, assertAoESelectionAuthority } from "@/features/spell-construction/spell-target-groups";
 
 import type {
   FrozenActionAuthoredEffect,
@@ -243,6 +243,14 @@ function payloadTargetGroups(payload: Record<string, unknown>): Record<string, n
     });
   }
   return groups;
+}
+
+function payloadTargetIds(payload: Record<string, unknown>, label: string): number[] | null {
+  if (!Array.isArray(payload.itemTargetIds)) return null;
+  return payload.itemTargetIds.map((entry) => {
+    if (!Number.isSafeInteger(entry) || Number(entry) === 0) throw new Error(`${label} participant identity is invalid.`);
+    return Number(entry);
+  });
 }
 
 function assertSameTargets(actual: readonly number[], expected: readonly number[], label: string): void {
@@ -450,29 +458,34 @@ async function resolveItemPower(
     : {};
   const effectRows = await tx.select().from(itemPowerEffect).where(eq(itemPowerEffect.itemPowerId, row.power.id)).orderBy(asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
   const targets = allTargets(draft);
-  let magicTargetGroups: unknown[] = [];
-  const effects = effectRows.map((effect) => {
-    const effectKey = `item-power:${row.power.id}:effect:${effect.id}`;
-    const target = targets[0];
-    const selectionKey = `${effectKey}:target:${target}`;
-    return structuredEffect(effectKey, decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }), targets, false, { selectionKey, application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {} });
-  });
   const magicDocument = row.constructionJson
     ? parseSpellDocument(row.constructionJson)
     : row.sourceDataJson
       ? parseSpellDocument(row.sourceDataJson)
       : null;
-  if (magicDocument) {
-    const resolved = resolveItemPowerConstruction(magicDocument, row.power.fixedPowerLevel);
-    if (!resolved.adapter.valid) throw new Error("The Item Ability Magic source cannot be resolved into combat effects.");
-    const analysis = analyzeSpellTargetGroups(magicDocument, resolved.adapter.effects);
+  const resolvedMagic = magicDocument
+    ? resolveItemPowerConstruction(magicDocument, row.power.fixedPowerLevel)
+    : null;
+  if (resolvedMagic && !resolvedMagic.adapter.valid) throw new Error("The Item Ability Magic source cannot be resolved into combat effects.");
+  const directTargets = payloadTargetIds(itemPayload, "Direct Item Ability")
+    ?? (resolvedMagic ? [] : targets);
+  if (effectRows.length > 0 && resolvedMagic && directTargets.length === 0) {
+    throw new Error("Direct Item Ability effects require the generic Item target.");
+  }
+  let magicTargetGroups: unknown[] = [];
+  const effects = effectRows.map((effect) => {
+    const effectKey = `item-power:${row.power.id}:effect:${effect.id}`;
+    const target = directTargets[0];
+    const selectionKey = `${effectKey}:target:${target}`;
+    return structuredEffect(effectKey, decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }), directTargets, false, { selectionKey, application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {} });
+  });
+  if (resolvedMagic) {
+    const analysis = analyzeSpellTargetGroups(resolvedMagic.spell, resolvedMagic.adapter.effects);
     magicTargetGroups = analysis.groups.map((group) => ({ ...group }));
     const selectedByGroup = new Map<string, number[]>();
     for (const group of analysis.groups) {
       const supplied: unknown[] = Array.isArray(spellSelections[group.id]) ? spellSelections[group.id] as unknown[] : [];
-      if (group.kind === "aoe" && actorAuthority !== "god-owner" && supplied.length > 0) {
-        throw new Error("Only the Campaign-owning G.O.D. may choose Item Magic AoE participants.");
-      }
+      if (group.kind === "aoe") assertAoESelectionAuthority(actorAuthority, supplied.map(Number), "Item Magic");
       const selected: number[] = group.selfTargeted ? [draft.actorCharacterId] : supplied.map((value: unknown) => Number(value));
       if (new Set(selected).size !== selected.length) throw new Error(`Item Magic target group ${group.id} contains duplicate participants.`);
       if (group.kind === "target") {
@@ -482,9 +495,12 @@ async function resolveItemPower(
       }
       selectedByGroup.set(group.id, selected);
     }
-    const selectedMagicTargets = [...selectedByGroup.values()].flat();
-    if (selectedMagicTargets.length) assertSameTargets(selectedMagicTargets, draft.targetCharacterIds, "Item Magic target selection");
-    for (const adapted of resolved.adapter.effects) {
+    const ordinaryMagicTargets = analysis.groups
+      .filter(({ kind }) => kind === "target")
+      .flatMap(({ id }) => selectedByGroup.get(id) ?? []);
+    const declaredTargets = [...new Set([...directTargets, ...ordinaryMagicTargets])];
+    assertSameTargets(declaredTargets, draft.targetCharacterIds, "Item Ability target selection");
+    for (const adapted of resolvedMagic.adapter.effects) {
       const groupId = analysis.groupByEffectId.get(adapted.spellEffectId);
       if (!groupId) throw new Error(`Item Magic effect ${adapted.spellEffectId} has no authored Target or AoE container.`);
       const group = analysis.groups.find(({ id }) => id === groupId)!;
@@ -566,8 +582,6 @@ async function resolveSpell(
   const spellSelections = isRecord(payload.selections) && isRecord(payload.selections.applications)
     ? payload.selections.applications
     : {};
-  const selectedTargets = Object.values(targetGroups).flat();
-  if (selectedTargets.length) assertSameTargets(selectedTargets, draft.targetCharacterIds, "Spell target selection");
   const loaded = await loadSpellDocument(tx, draft.actorCharacterId, source);
   const spellSkill = source.kind === "catalog" ? resolveCharacterSkillLineageSelection(
     await loadCharacterSkillLineageInputInTransaction(tx, draft.actorCharacterId), { kind: "skill", allocationId: source.allocationId },
@@ -589,9 +603,7 @@ async function resolveSpell(
   for (const group of preview.plan.targetGroups) {
     if (group.kind === "aoe") {
       const selected = targetGroups[group.id] ?? [];
-      if (actorAuthority !== "god-owner" && selected.length > 0) {
-        throw new Error("Only the Campaign-owning G.O.D. may choose Spell AoE participants.");
-      }
+      assertAoESelectionAuthority(actorAuthority, selected, "Spell");
       if (new Set(selected).size !== selected.length) throw new Error(`Spell AoE group ${group.id} contains duplicate participants.`);
       targetGroups[group.id] = selected;
       continue;
@@ -601,8 +613,10 @@ async function resolveSpell(
     if (!selection.selected.length) throw new Error(`Select the exact Encounter participants for Spell target group ${group.id}.`);
     targetGroups[group.id] = selection.selected;
   }
-  const selectedSpellTargets = Object.values(targetGroups).flat();
-  if (selectedSpellTargets.length) assertSameTargets(selectedSpellTargets, draft.targetCharacterIds, "Spell target selection");
+  const ordinarySpellTargets = preview.plan.targetGroups
+    .filter(({ kind }) => kind === "target")
+    .flatMap(({ id }) => targetGroups[id] ?? []);
+  assertSameTargets(ordinarySpellTargets, draft.targetCharacterIds, "Spell target selection");
   const targets = allTargets(draft);
   const spellModifiers = [...effectSpell.modifiers];
   const collectModifiers = (containers: typeof loaded.spell.containers) => {

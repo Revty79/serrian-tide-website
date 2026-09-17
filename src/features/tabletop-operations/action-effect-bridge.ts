@@ -123,6 +123,19 @@ export type ActionEffectPlanInput = Readonly<{
   initiativeComplete: boolean;
 }>;
 
+export function frozenAoeSelections(
+  source: Pick<FrozenActionSourceSnapshot, "effects">,
+): Record<string, number[]> {
+  const selections: Record<string, number[]> = {};
+  for (const effect of source.effects) {
+    const groupId = effect.instruction.targetGroupKind === "aoe" && typeof effect.instruction.targetGroupId === "string"
+      ? effect.instruction.targetGroupId
+      : null;
+    if (groupId && !selections[groupId]) selections[groupId] = [...effect.targetParticipantIds];
+  }
+  return selections;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }

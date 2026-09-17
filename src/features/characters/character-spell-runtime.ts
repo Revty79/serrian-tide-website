@@ -12,7 +12,6 @@ import {
   type MechanicalEffectPlan,
 } from "@/features/mechanical-effects";
 import type { RawCastingCircumstanceId } from "@/features/spell-construction/data/rawCastingRules";
-import { rulesById } from "@/features/spell-construction/data/spellRules";
 import { calculateCastingCircumstance } from "@/features/spell-construction/engine/calculateCastingCircumstance";
 import { calculatePractitioner } from "@/features/spell-construction/engine/calculatePractitioner";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
@@ -23,13 +22,11 @@ import {
 import { validateSpell } from "@/features/spell-construction/engine/validateSpell";
 import {
   adaptSpellToMechanicalEffects,
-  type AdaptedSpellMechanicalEffect,
 } from "@/features/spell-construction/mechanical-effects-adapter";
 import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
 import type { PractitionerLevel } from "@/features/spell-construction/models/rules";
 import type {
   SpellCastingSystem,
-  SpellContainer,
   SpellDocument,
 } from "@/features/spell-construction/models/spell";
 
@@ -226,39 +223,6 @@ export function getSpellCastApplicationKey(
   return `${spellEffectId}:${targetCharacterId}`;
 }
 
-type ContainerLocation = {
-  container: SpellContainer;
-  path: string[];
-};
-
-function locateContainers(containers: readonly SpellContainer[]): Map<string, ContainerLocation> {
-  const locations = new Map<string, ContainerLocation>();
-  const visit = (container: SpellContainer, ancestors: readonly string[]) => {
-    const path = [...ancestors, container.id];
-    locations.set(container.id, { container, path });
-    container.children.forEach((child) => visit(child, path));
-  };
-  containers.forEach((container) => visit(container, []));
-  return locations;
-}
-
-function targetContainerFor(
-  effect: AdaptedSpellMechanicalEffect,
-  locations: ReadonlyMap<string, ContainerLocation>,
-): ContainerLocation | null {
-  for (const containerId of [...effect.containerPath].reverse()) {
-    const location = locations.get(containerId);
-    if (
-      location &&
-      (location.container.containerRuleId === "target" ||
-        location.container.containerRuleId === "aoe")
-    ) {
-      return location;
-    }
-  }
-  return null;
-}
-
 export function resolveSpellCastTargetSelection(
   group: Pick<SpellCastTargetGroup, "id" | "capacity" | "selfTargeted">,
   casterCharacterId: number,
@@ -274,47 +238,6 @@ export function resolveSpellCastTargetSelection(
     issue = `Target group ${group.id} allows at most ${group.capacity} Character target${group.capacity === 1 ? "" : "s"}.`;
   }
   return { selected, issue };
-}
-
-function targetGroupFor(
-  location: ContainerLocation,
-  automaticEffectIds: string[],
-  casterCharacterId: number,
-  selectedTargetIds: readonly number[] | undefined,
-): { group: SpellCastTargetGroup; issue: string | null } {
-  const { container, path } = location;
-  const kind = container.containerRuleId === "aoe" ? "aoe" : "target";
-  const selfTargeted = kind === "target" && container.rangeRuleId === "self";
-  const capacity = kind === "target"
-    ? 1 + Math.max(0, container.multiTarget?.additionalTargets ?? 0)
-    : null;
-  const { selected, issue } = resolveSpellCastTargetSelection({ id: container.id, capacity, selfTargeted }, casterCharacterId, selectedTargetIds);
-  const rangeRule = container.rangeRuleId
-    ? rulesById.ranges.get(container.rangeRuleId)
-    : null;
-  const shapeRule = container.shape
-    ? rulesById.shapes.get(container.shape.ruleId)
-    : null;
-  return {
-    group: {
-      id: container.id,
-      kind,
-      containerPath: path,
-      label: `${kind === "aoe" ? "AoE" : "Target"} container`,
-      rangeLabel: rangeRule?.name ?? null,
-      shapeLabel: shapeRule
-        ? `${shapeRule.name}${container.shape && container.shape.quantity > 0
-          ? ` +${container.shape.quantity}`
-          : ""}`
-        : null,
-      capacity,
-      selfTargeted,
-      automaticEffectIds,
-      selectedTargetIds: selected,
-      missingSelection: selected.length === 0,
-    },
-    issue,
-  };
 }
 
 function emptyPlan(input: {

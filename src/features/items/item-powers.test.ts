@@ -5,6 +5,7 @@ import test from "node:test";
 import { createContainer, createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
 import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import {
   copyItemPowers,
@@ -135,6 +136,24 @@ test("progressive custom Magic may use its base construction without an Item Pow
   assert.doesNotThrow(() => validateItemPowers({ powers: [power({ customConstruction: { document } })], ...validChargePool }));
   const resolved = resolveItemPowerConstruction(document, null);
   assert.equal(resolved.progressive, false);
+});
+
+test("fixed progressive Item Magic targeting follows the effective resolved Power level", () => {
+  const base = customConstruction("Progressive Targeting");
+  const document = {
+    ...base,
+    modifiers: [{ id: "progressive", ruleId: "progressive-spell", quantity: 1, description: "" }],
+    progressive: {
+      ...base.progressive,
+      enabled: true,
+    },
+  };
+  const container = document.containers[0]!;
+  document.progressive.milestones[2]!.changes = [{ kind: "set-container-rule", containerId: container.id, containerRuleId: "aoe" }];
+  const resolved = resolveItemPowerConstruction(document, "Master");
+  const groups = analyzeSpellTargetGroups(resolved.spell, resolved.adapter.effects).groups;
+  assert.equal(resolved.spell.containers[0]!.containerRuleId, "aoe");
+  assert.equal(groups[0]!.kind, "aoe");
 });
 
 test("custom Magic, canonical source metadata, and direct effects coexist on one Item", () => {

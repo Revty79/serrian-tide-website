@@ -43,6 +43,7 @@ import {
 import {
   assertFrozenActionSourceSnapshot,
   buildActionEffectPlanProposal,
+  frozenAoeSelections,
   type ActionEffectPlanStatus,
   type ActionEffectSourceKind,
   type ActionEffectStatus,
@@ -283,14 +284,26 @@ async function currentSourceDivergence(
   frozen: FrozenActionSourceSnapshot,
   weapon: ReturnType<typeof parseLockedActionDeclarationSnapshot>["weapon"],
   governing: ReturnType<typeof parseLockedActionDeclarationSnapshot>["governing"],
+  aoeSelections: Readonly<Record<string, readonly number[]>> = {},
 ): Promise<Record<string, unknown> | null> {
   try {
+    const draft = parseActionDeclarationDraft(draftJson);
+    const payload: Record<string, unknown> = isRecord(draft.sourcePayload) ? structuredClone(draft.sourcePayload) : {};
+    if (Object.keys(aoeSelections).length > 0) {
+      const selections = isRecord(payload.selections) ? structuredClone(payload.selections) : {};
+      const existingGroups = isRecord(selections.targetGroups) ? selections.targetGroups : {};
+      selections.targetGroups = {
+        ...existingGroups,
+        ...Object.fromEntries(Object.entries(aoeSelections).map(([groupId, ids]) => [groupId, [...ids]])),
+      };
+      payload.selections = selections;
+    }
     const current = await resolveLockedActionSourceInTransaction(
       tx,
       context,
       actor,
       declarationId,
-      parseActionDeclarationDraft(draftJson),
+      { ...draft, sourcePayload: payload },
       { weapon, governing },
     );
     if (sameJson(current.snapshot, frozen)) return null;
@@ -435,6 +448,7 @@ async function generateActionEffectPlanInternal(
     source,
     locked.weapon,
     locked.governing,
+    frozenAoeSelections(source),
   );
   const [created] = await tx.insert(campaignSessionEncounterEffectPlan).values({
     declarationId: declaration.id,

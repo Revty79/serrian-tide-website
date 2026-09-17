@@ -26,6 +26,16 @@ export type SpellTargetGroupAnalysis = Readonly<{
   groupByEffectId: ReadonlyMap<string, string>;
 }>;
 
+export function assertAoESelectionAuthority(
+  authority: "god-owner" | "player",
+  selectedParticipantIds: readonly number[],
+  label: string,
+): void {
+  if (authority !== "god-owner" && selectedParticipantIds.length > 0) {
+    throw new Error(`Only the Campaign-owning G.O.D. may choose ${label} AoE participants.`);
+  }
+}
+
 function locateContainers(containers: readonly SpellContainer[]): Map<string, ContainerLocation> {
   const locations = new Map<string, ContainerLocation>();
   const visit = (container: SpellContainer, ancestors: readonly string[]) => {

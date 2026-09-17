@@ -13,8 +13,7 @@ import { calculateSpell } from "@/features/spell-construction/engine/calculateSp
 import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { validateSpell } from "@/features/spell-construction/engine/validateSpell";
-import { hasProgressiveSpellModifier } from "@/features/spell-construction/engine/progressiveSpell";
-import { adaptProgressiveSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { hasProgressiveSpellModifier, resolveProgressiveSpellForLevel } from "@/features/spell-construction/engine/progressiveSpell";
 import type { PractitionerLevel } from "@/features/spell-construction/models/rules";
 import type { SpellDocument } from "@/features/spell-construction/models/spell";
 
@@ -72,9 +71,10 @@ export type ItemPowerValidationInput = {
 
 export function resolveItemPowerConstruction(document: SpellDocument, fixedPowerLevel: string | null) {
   const progressive = hasProgressiveSpellModifier(document);
-  if (!progressive || !fixedPowerLevel) return { progressive: false, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };
+  if (!progressive || !fixedPowerLevel) return { progressive: false, spell: document, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };
   const level = fixedPowerLevel as PractitionerLevel;
-  return { progressive: true, calculation: calculateSpell(document), adapter: adaptProgressiveSpellToMechanicalEffects(document, level) };
+  const resolved = resolveProgressiveSpellForLevel(document, level).resolvedSpell;
+  return { progressive: true, spell: resolved, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(resolved) };
 }
 
 function positiveWhole(value: number | null, label: string): number | null {
