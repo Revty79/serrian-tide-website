@@ -32,6 +32,7 @@ function profile(
 
 test("ownership strategy centralizes charged instances and leaves other modes stacked", () => {
   assert.equal(getItemOwnershipStrategy(profile("charges", 10)), "instance");
+  assert.equal(getItemOwnershipStrategy(profile("none"), false, { maximumCharges: 10 }), "instance");
   assert.equal(getItemOwnershipStrategy(profile("consume-item")), "stack");
   assert.equal(getItemOwnershipStrategy(profile("unlimited")), "stack");
   assert.equal(getItemOwnershipStrategy(profile("none")), "stack");
@@ -66,6 +67,25 @@ test("charged acquisition creates distinct unsaved instances at the template max
   assert.equal(getStartingItemInstanceCharges(charged), 10);
   assert.equal(getItemChargeDisplay({ currentCharges: 10, maximumCharges: 10 }).label, "10 / 10 Charges");
   assert.equal(getOwnedItemPurchaseCost({ stacks: [], instances }), 200);
+});
+
+test("Power Charge Pools create exact instances even when legacy Item Use is disabled", () => {
+  let nextDraftId = -1;
+  const instances = createDraftOwnedItemInstances({
+    itemId: 42,
+    quantity: 1,
+    unitCostCredits: 125,
+    runtimeProfile: profile("none"),
+    powerResource: { maximumCharges: 12 },
+    createDraftId: () => nextDraftId--,
+  });
+  assert.equal(getStartingItemInstanceCharges(profile("none"), false, { maximumCharges: 12 }), 12);
+  assert.equal(instances.length, 1);
+  assert.throws(() => assertNoStackInstanceOwnershipCollision({
+    definitions: [{ itemId: 42, runtimeProfile: profile("none"), powerResource: { maximumCharges: 12 } }],
+    stacks: [{ itemId: 42, quantity: 1 }],
+    instances: [],
+  }), /individual owned instances/);
 });
 
 test("current charges reject negative and fractional values but preserve valid over-maximum state", () => {

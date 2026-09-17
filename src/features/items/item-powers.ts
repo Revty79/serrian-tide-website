@@ -26,6 +26,12 @@ export type ItemPowerResourceCost = (typeof ITEM_POWER_RESOURCE_COSTS)[number];
 export const ITEM_POWER_RESOLUTION_MODES = ["automatic", "weapon-hit", "fixed-roll", "manual"] as const;
 export type ItemPowerResolutionMode = (typeof ITEM_POWER_RESOLUTION_MODES)[number];
 
+export function getItemPowerResolutionModes(trigger: ItemPowerTrigger): readonly ItemPowerResolutionMode[] {
+  if (trigger === "activated") return ["automatic", "fixed-roll", "manual"];
+  if (trigger === "weapon-hit") return ["weapon-hit"];
+  return ["automatic", "manual"];
+}
+
 export type ItemPowerSource = {
   sourceSkillId: number;
   sourceSkillName: string;
@@ -67,6 +73,7 @@ export type ItemPowerValidationInput = {
   hasWeaponProfile: boolean;
   hasChargePool: boolean;
   isMagical: boolean;
+  allowLegacyNonActivatedMagic?: boolean;
 };
 
 export function transitionItemPowerTrigger(
@@ -74,6 +81,7 @@ export function transitionItemPowerTrigger(
   trigger: ItemPowerTrigger,
   requiredEquipmentState?: PassiveRequiredEquipmentState,
 ): ItemPower {
+  const clearActivatedMagic = power.trigger === "activated" && trigger !== "activated";
   const resourceCostKind: ItemPowerResourceCost = trigger === "activated"
     ? power.resourceCostKind
     : trigger === "weapon-hit" && power.resourceCostKind === "shared-charges"
@@ -89,6 +97,9 @@ export function transitionItemPowerTrigger(
     initiativeCost: trigger === "activated" ? power.initiativeCost : null,
     resourceCostKind,
     resourceCostAmount: resourceCostKind === "none" ? null : power.resourceCostAmount,
+    fixedPowerLevel: clearActivatedMagic ? null : power.fixedPowerLevel,
+    source: clearActivatedMagic ? null : power.source,
+    customConstruction: clearActivatedMagic ? null : power.customConstruction,
   };
 }
 
@@ -124,11 +135,13 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
     if (!name) throw new Error(`Power ${index + 1} Name is required.`);
     if (!ITEM_POWER_TRIGGERS.includes(power.trigger)) throw new Error(`Power ${index + 1} has an invalid trigger.`);
     if (!ITEM_POWER_RESOLUTION_MODES.includes(power.resolutionMode)) throw new Error(`Power ${index + 1} has an invalid resolution mode.`);
-    if (power.trigger === "weapon-hit" && power.resolutionMode !== "weapon-hit") throw new Error(`Weapon-Hit Power ${name} must use Weapon-Hit resolution.`);
-    if (power.trigger === "passive" && (power.resolutionMode === "weapon-hit" || power.resolutionMode === "fixed-roll")) throw new Error(`Passive Power ${name} cannot use activation resolution.`);
+    if (!getItemPowerResolutionModes(power.trigger).includes(power.resolutionMode)) {
+      if (power.trigger === "weapon-hit") throw new Error(`Weapon-Hit Power ${name} must use Weapon-Hit resolution.`);
+      if (power.trigger === "passive") throw new Error(`Passive Power ${name} cannot use activation resolution.`);
+      throw new Error(`Activated Power ${name} cannot use Weapon-Hit resolution.`);
+    }
     if (power.trigger === "passive" && power.initiativeCost !== null) throw new Error(`Passive Power ${name} cannot define an activation Initiative.`);
     if (power.trigger === "weapon-hit" && power.initiativeCost !== null) throw new Error(`Weapon-Hit Power ${name} cannot define a separate Initiative.`);
-    if (power.trigger === "activated" && power.resolutionMode === "weapon-hit") throw new Error(`Activated Power ${name} cannot use Weapon-Hit resolution.`);
     const initiativeCost = power.trigger === "activated" ? nonNegative(power.initiativeCost, `Power ${index + 1} Initiative`) : null;
     if (initiativeCost === 0) throw new Error(`Power ${index + 1} Initiative must be greater than zero.`);
     if (power.trigger === "passive" && !power.requiredEquipmentState) throw new Error(`Passive Power ${name} requires an Equipment State.`);
@@ -159,6 +172,9 @@ export function validateItemPowers(input: ItemPowerValidationInput): ItemPower[]
     }
     if (power.source && !input.isMagical) throw new Error(`Power ${name} Canonical Source requires a Magical Item.`);
     if (power.source && power.customConstruction) throw new Error(`Power ${name} cannot use both a Canonical Source and Custom Magic.`);
+    if (power.trigger !== "activated" && (power.source || power.customConstruction) && power.id === null && !input.allowLegacyNonActivatedMagic) {
+      throw new Error(`Power ${name} Magic can only be newly authored for an Activated Power.`);
+    }
     const effects = power.effects.map((entry: ItemPowerEffect, effectIndex: number) => {
       if (entry.id !== null && (!Number.isSafeInteger(entry.id) || entry.id <= 0)) throw new Error(`Power ${name} Effect ${effectIndex + 1} has an invalid identity.`);
       const decoded = decodeMechanicalEffect(encodeMechanicalEffect(entry.effect));

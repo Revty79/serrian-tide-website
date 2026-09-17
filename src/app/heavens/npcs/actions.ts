@@ -109,6 +109,7 @@ export type CreatureNpcDraft = {
     isMagical: boolean;
     effectCount: number;
     runtimeProfile: ItemRuntimeProfile;
+    powerResource: { maximumCharges: number; rechargeNotes: string } | null;
     weaponProfileId: number | null;
     isFirearm: boolean;
     isMagazine?: boolean;
@@ -743,6 +744,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
       powerMaximumCharges: itemPowerResource.maximumCharges,
+      powerRechargeNotes: itemPowerResource.rechargeNotes,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
@@ -767,6 +769,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
       powerMaximumCharges: itemPowerResource.maximumCharges,
+      powerRechargeNotes: itemPowerResource.rechargeNotes,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
@@ -774,6 +777,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       .from(campaignCharacterItemInstance)
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
       .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .where(and(
         eq(campaignCharacterItemInstance.characterId, characterId),
@@ -798,12 +802,15 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      powerMaximumCharges: itemPowerResource.maximumCharges,
+      powerRechargeNotes: itemPowerResource.rechargeNotes,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
       .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .where(eq(campaignInventoryItem.campaignId, core.campaignId))
       .orderBy(asc(item.name)),
@@ -855,6 +862,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       isMagical: entry.isMagical,
       effectCount: entry.effectCount,
       runtimeProfile: readItemRuntimeProfile(entry),
+      powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges, rechargeNotes: entry.powerRechargeNotes ?? "" },
       weaponProfileId: entry.weaponProfileId,
       isFirearm: entry.isFirearm,
       isMagazine: entry.isMagazine,
@@ -948,6 +956,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
       requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
       allowLegacyExactStack: true,
+      powerResource: source.powerResource,
     });
     return {
       itemId: entry.itemId,
@@ -971,13 +980,14 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     if (!source) throw new Error("Creature NPC Item instances must use Campaign-authorized Items.");
     assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
       requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
+      powerResource: source.powerResource,
     });
     if (entry.instanceId === null) {
       if (entry.draftId >= 0) throw new Error("An unsaved Creature NPC Item instance needs a temporary draft identity.");
       if (source.archived) throw new Error("Archived Items cannot be added as new Creature NPC instances.");
       return {
         ...entry,
-        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm === true || source.isMagazine === true),
+        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm === true || source.isMagazine === true, source.powerResource),
         unitCostCredits: source.credits ?? entry.unitCostCredits,
         acquiredAt: null,
       };
@@ -999,7 +1009,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     return entry;
   });
   assertNoStackInstanceOwnershipCollision({
-    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
+    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, powerResource: entry.powerResource, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true })),
     stacks: items,
     instances: itemInstances,
   });

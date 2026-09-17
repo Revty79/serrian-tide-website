@@ -67,7 +67,7 @@ export function createItemChargeState(input: Omit<ItemChargeState, "isAboveCurre
   if (!EQUIPMENT_STATES.includes(input.equipmentState)) throw new Error("Charged Item Equipment State is invalid.");
   if (input.definitionStatus === "charged") {
     wholeNumber(input.maximumCharges, "Maximum Charges", false);
-    wholeNumber(input.chargesPerUse, "Charges Per Use", false);
+    if (input.chargesPerUse !== null) wholeNumber(input.chargesPerUse, "Charges Per Use", false);
   } else if (input.maximumCharges !== null || input.chargesPerUse !== null) {
     throw new Error("A non-charged Item definition cannot expose active Charge limits.");
   }

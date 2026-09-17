@@ -288,7 +288,7 @@ function positive(value: number | null, label: string) { if (value === null) ret
 function positiveInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a whole number greater than zero, or left blank.`); return value; }
 function finiteNumber(value: number, label: string) { if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number.`); return value; }
 
-function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
+function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegacyNonActivatedMagic = false) {
   if (input.magazineProfile && (input.weaponProfile || input.armorProfile || input.runtimeProfile.useMode !== "none")) throw new Error("Magazine models use their dedicated profile and no Item-use mode, weapon or armor profile.");
   if (input.weaponProfile?.reloadType != null && !["Single", "Magazine"].includes(input.weaponProfile.reloadType)) throw new Error("Reload Type must be Single, Magazine, or unconfigured.");
   const equipmentGroup = input.core.catalogScope === "equipment" ? input.core.equipmentGroup ?? "general" : null;
@@ -317,6 +317,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false) {
     hasWeaponProfile: input.weaponProfile !== null,
     hasChargePool: input.powerResource !== null,
     isMagical: input.isMagical,
+    allowLegacyNonActivatedMagic,
   });
   const powerResource = input.powerResource === null
     ? null
@@ -875,9 +876,9 @@ export async function findRelatedCreatures(search: string): Promise<RelatedCreat
   return db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName, family: creature.family, creatureType: creature.creatureType }).from(creature).where(and(...conditions)).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(20);
 }
 
-async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boolean): Promise<ItemAggregate> {
+async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boolean, allowLegacyNonActivatedMagic = false): Promise<ItemAggregate> {
   const { session, roles } = await requireGodOrAdminAccessContext();
-  const normalized = normalize(input, allowUnreviewedNewModes);
+  const normalized = normalize(input, allowUnreviewedNewModes, allowLegacyNonActivatedMagic);
   const savedId = await db.transaction(async (tx) => {
     let id = input.id;
     if (id === undefined) {
@@ -1064,7 +1065,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         if (!power.source) continue;
         const source = sourceRows.find((entry) => entry.skillId === power.source!.sourceSkillId);
         const existingSource = power.id === null ? undefined : existingSourceByPowerId.get(power.id);
-        if (!source || (source.archivedAt && existingSource !== source.skillId)) throw new Error("Archived canonical Power sources cannot be newly selected.");
+        if (!source || (source.archivedAt && existingSource !== source.skillId && !allowLegacyNonActivatedMagic)) throw new Error("Archived canonical Power sources cannot be newly selected.");
         let sourceDocument;
         try { sourceDocument = parseSpellDocument(source.dataJson); resolveItemPowerConstruction(sourceDocument, power.fixedPowerLevel); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
         if (power.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
@@ -1297,7 +1298,7 @@ export async function createItemVariant(parentItemId: number, variantName: strin
     powerResource: parent.powerResource ? { ...parent.powerResource } : null,
     variants: [],
   };
-  return saveItemDefinition(clone, true);
+  return saveItemDefinition(clone, true, true);
 }
 
 export async function findMagazineItems(kind: "ammunition" | "magazine", search: string, excludeItemId?: number) {

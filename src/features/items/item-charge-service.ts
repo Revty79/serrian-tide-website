@@ -50,6 +50,8 @@ type ChargeRow = {
   runtimeRechargeNotes: string | null;
   runtimeActivationLabel: string | null;
   runtimeUseNotes: string | null;
+  powerMaximumCharges: number | null;
+  powerRechargeNotes: string | null;
 };
 
 function positiveId(value: number, label: string): number {
@@ -58,6 +60,19 @@ function positiveId(value: number, label: string): number {
 }
 
 function stateFromRow(row: ChargeRow): ItemChargeState {
+  if (row.powerMaximumCharges !== null) {
+    return createItemChargeState({
+      instanceId: row.instanceId,
+      itemId: row.itemId,
+      itemName: row.itemName,
+      maximumCharges: row.powerMaximumCharges,
+      currentCharges: row.currentCharges,
+      chargesPerUse: null,
+      equipmentState: row.equipmentState as ItemChargeState["equipmentState"],
+      rechargeNotes: row.powerRechargeNotes ?? "",
+      definitionStatus: "charged",
+    });
+  }
   if (row.runtimeUseMode !== "charges") {
     return createItemChargeState({
       instanceId: row.instanceId,
@@ -111,6 +126,8 @@ function chargeColumns() {
     runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
     runtimeActivationLabel: itemRuntimeProfile.activationLabel,
     runtimeUseNotes: itemRuntimeProfile.useNotes,
+    powerMaximumCharges: itemPowerResource.maximumCharges,
+    powerRechargeNotes: itemPowerResource.rechargeNotes,
   };
 }
 
@@ -122,6 +139,7 @@ export async function readCharacterItemChargeStateInTransaction(
   const rows = await tx.select(chargeColumns()).from(campaignCharacterItemInstance)
     .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+    .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
     .where(and(
       eq(campaignCharacterItemInstance.characterId, characterId),
       isNull(campaignCharacterItemInstance.retiredAt),
@@ -143,6 +161,7 @@ export async function readItemChargeStateInTransaction(
   const query = tx.select(chargeColumns()).from(campaignCharacterItemInstance)
     .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+    .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
     .where(and(
       eq(campaignCharacterItemInstance.id, identity.instanceId),
       eq(campaignCharacterItemInstance.characterId, identity.characterId),
@@ -163,13 +182,13 @@ export async function readItemChargeStateInTransaction(
 async function updateCurrentChargesInTransaction(
   tx: ItemChargeTransaction,
   identity: ItemChargeInstanceIdentity,
-  resolveNext: (state: ItemChargeState & { maximumCharges: number; chargesPerUse: number }) => number,
+  resolveNext: (state: ItemChargeState & { maximumCharges: number }) => number,
 ): Promise<ItemChargeState> {
   const state = await readItemChargeStateInTransaction(tx, identity, true);
-  if (state.maximumCharges === null || state.chargesPerUse === null) {
+  if (state.maximumCharges === null) {
     throw new Error("The current Item definition does not provide a valid Charge profile.");
   }
-  const next = resolveNext({ ...state, maximumCharges: state.maximumCharges, chargesPerUse: state.chargesPerUse });
+  const next = resolveNext({ ...state, maximumCharges: state.maximumCharges });
   const updated = await tx.update(campaignCharacterItemInstance).set({
     currentCharges: next,
     updatedAt: new Date(),
@@ -189,7 +208,10 @@ export function spendItemChargesInTransaction(
   tx: ItemChargeTransaction,
   identity: ItemChargeInstanceIdentity,
 ): Promise<ItemChargeState> {
-  return updateCurrentChargesInTransaction(tx, identity, (state) => spendItemCharges(state.currentCharges, state.chargesPerUse));
+  return updateCurrentChargesInTransaction(tx, identity, (state) => {
+    if (state.chargesPerUse === null) throw new Error("Power Charge Pools require an exact Ability Charge cost.");
+    return spendItemCharges(state.currentCharges, state.chargesPerUse);
+  });
 }
 
 export async function spendExactItemPowerChargesInTransaction(

@@ -13,6 +13,7 @@ import {
 } from "@/db/campaign-schema";
 import {
   item,
+  itemPowerResource,
   itemRuntimeProfile,
   weaponProfile,
 } from "@/db/item-schema";
@@ -203,6 +204,7 @@ type ItemDefinition = Readonly<{
   rechargeNotes: string;
   activationLabel: string;
   useNotes: string;
+  powerResource: { maximumCharges: number; rechargeNotes: string } | null;
   isFirearm: boolean;
   isMagazine?: boolean;
 }>;
@@ -482,6 +484,8 @@ async function loadItemDefinitions(
     rechargeNotes: itemRuntimeProfile.rechargeNotes,
     activationLabel: itemRuntimeProfile.activationLabel,
     useNotes: itemRuntimeProfile.useNotes,
+    powerMaximumCharges: itemPowerResource.maximumCharges,
+    powerRechargeNotes: itemPowerResource.rechargeNotes,
     weaponProfileId: weaponProfile.id,
     weaponProfileRecordType: weaponProfile.profileRecordType,
     ammunitionItemId: weaponProfile.ammunitionItemId,
@@ -490,6 +494,7 @@ async function loadItemDefinitions(
   }).from(campaignInventoryItem)
     .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+    .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
     .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
     .where(and(
       eq(campaignInventoryItem.campaignId, campaignId),
@@ -510,6 +515,7 @@ async function loadItemDefinitions(
     rechargeNotes: row.rechargeNotes ?? "",
     activationLabel: row.activationLabel ?? "Use",
     useNotes: row.useNotes ?? "",
+    powerResource: row.powerMaximumCharges === null ? null : { maximumCharges: row.powerMaximumCharges, rechargeNotes: row.powerRechargeNotes ?? "" },
     isFirearm: row.isFirearm,
     isMagazine: row.isMagazine,
   }]));
@@ -528,7 +534,7 @@ function runtimeProfile(definition: ItemDefinition) {
 }
 
 function ownershipStrategy(definition: ItemDefinition): "stack" | "instance" {
-  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true);
+  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true, definition.powerResource);
 }
 
 type LockedCommerceContext = Readonly<{
@@ -869,6 +875,7 @@ async function createOwnedInstance(
     currentCharges: input.currentCharges ?? getStartingItemInstanceCharges(
       runtimeProfile(input.definition),
       input.definition.isFirearm === true || input.definition.isMagazine === true,
+      input.definition.powerResource,
     ),
     unitCostCredits: input.unitCostCredits,
     provenanceSourceInstanceId: input.provenanceSourceInstanceId ?? null,

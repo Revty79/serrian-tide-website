@@ -48,7 +48,8 @@ test("Item editor exposes Abilities and legacy behavior without adding Item exec
   assert.match(workspace, /Quantity Consumed Per Use/);
   assert.match(workspace, /Manual \/ G\.O\.D\. Resolution/);
   assert.equal(workspace.includes('scope === "inventory" && tab.id === "effects"'), false);
-  assert.match(workspace, /<option value="localized">Localized<\/option>/);
+  assert.match(workspace, /<option value="localized">Hit \/ Chosen Area<\/option>/);
+  assert.match(workspace, /<option value="area">Specific HP Area<\/option>/);
   assert.doesNotMatch(workspace, /Localized \(Existing Only\)/);
   assert.equal(workspace.includes("Use Item"), false);
 });

@@ -54,8 +54,10 @@ test("Creature NPCs share campaignCharacter instance ownership and preserve curr
   const actions = source("src/app/heavens/npcs/actions.ts");
   const workspace = source("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx");
   assert.match(actions, /campaignCharacterItemInstance/);
+  assert.match(actions, /powerMaximumCharges: itemPowerResource\.maximumCharges/);
   assert.match(actions, /existing\.currentCharges !== entry\.currentCharges/);
-  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm === true \|\| source\.isMagazine === true\)/);
+  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm === true \|\| source\.isMagazine === true, source\.powerResource\)/);
+  assert.match(actions, /powerResource: entry\.powerMaximumCharges === null/);
   assert.match(actions, /requiresExactInstance: source\.isFirearm/);
   assert.match(actions, /existingInstanceIds: current\.itemInstances\.flatMap/);
   assert.match(workspace, /Remove this copy/);

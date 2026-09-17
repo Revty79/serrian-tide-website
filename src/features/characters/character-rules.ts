@@ -1064,6 +1064,7 @@ export function evaluateCharacterReadiness(
         assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
           requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
           allowLegacyExactStack: true,
+          powerResource: source.powerResource,
         });
       } catch {
         return false;
@@ -1082,6 +1083,7 @@ export function evaluateCharacterReadiness(
       try {
         assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
           requiresExactInstance: source.isFirearm === true || source.isMagazine === true,
+          powerResource: source.powerResource,
         });
       } catch {
         return false;

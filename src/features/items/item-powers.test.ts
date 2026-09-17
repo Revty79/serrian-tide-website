@@ -9,6 +9,7 @@ import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-ta
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import {
   copyItemPowers,
+  getItemPowerResolutionModes,
   transitionItemPowerTrigger,
   formatItemPowerTrigger,
   resolveItemPowerConstruction,
@@ -81,6 +82,12 @@ test("Power initiative accepts blank and positive values but rejects zero/negati
   assert.throws(() => validateItemPowers({ powers: [power({ initiativeCost: -1 })], ...validChargePool }), /Initiative/);
 });
 
+test("resolution modes are limited to the trigger runtime can consume", () => {
+  assert.deepEqual(getItemPowerResolutionModes("activated"), ["automatic", "fixed-roll", "manual"]);
+  assert.deepEqual(getItemPowerResolutionModes("weapon-hit"), ["weapon-hit"]);
+  assert.deepEqual(getItemPowerResolutionModes("passive"), ["automatic", "manual"]);
+});
+
 test("shared Charges require an Item Charge Pool and each Power owns its cost", () => {
   const powers = validateItemPowers({
     powers: [power({ name: "Fireball", resourceCostKind: "shared-charges", resourceCostAmount: 2 }), power({ name: "Inferno", resourceCostKind: "shared-charges", resourceCostAmount: 5 })],
@@ -113,6 +120,17 @@ test("trigger transitions preserve valid shared Charges and clear invalid costs"
   assert.equal(passive.resourceCostKind, "none");
   assert.equal(passive.resourceCostAmount, null);
   assert.equal(passive.requiredEquipmentState, "wielded");
+});
+
+test("leaving Activated clears newly authored Magic while legacy non-Activated Magic remains preserved", () => {
+  const source = { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction" as const, sourceSchemaVersion: 1, archived: false };
+  const activated = power({ source, fixedPowerLevel: "Master" });
+  const passive = transitionItemPowerTrigger(activated, "passive", "worn");
+  assert.equal(passive.source, null);
+  assert.equal(passive.customConstruction, null);
+  assert.equal(passive.fixedPowerLevel, null);
+  const legacy = transitionItemPowerTrigger(power({ trigger: "passive", requiredEquipmentState: "worn", source }), "weapon-hit");
+  assert.equal(legacy.source?.sourceSkillId, 4);
 });
 
 test("consume-item costs and passive equipment requirements are validated", () => {
@@ -216,6 +234,25 @@ test("Power source modes and triggers reject contradictory authoring", () => {
   assert.throws(() => validateItemPowers({ powers: [power({ customConstruction: { document } })], hasWeaponProfile: true, hasChargePool: true, isMagical: false }), /Magical Item/);
 });
 
+test("new non-Activated Magic is rejected while saved legacy values remain loadable", () => {
+  const document = customConstruction("Legacy Magic");
+  const source = { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction" as const, sourceSchemaVersion: 1, archived: false };
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "passive", requiredEquipmentState: "worn", customConstruction: { document } })], ...validChargePool }), /only be newly authored for an Activated Power/);
+  assert.throws(() => validateItemPowers({ powers: [power({ trigger: "weapon-hit", resolutionMode: "weapon-hit", source })], ...validChargePool }), /only be newly authored for an Activated Power/);
+  const legacy = validateItemPowers({ powers: [power({ id: 42, trigger: "passive", requiredEquipmentState: "worn", source })], ...validChargePool });
+  assert.equal(legacy[0]!.source?.sourceSkillId, 4);
+});
+
+test("variant copies may preserve legacy non-Activated Magic after Power identities are reset", () => {
+  const document = customConstruction("Copied Legacy Magic");
+  const source = { sourceSkillId: 4, sourceSkillName: "Fireball", sourceExtensionType: "spell-construction" as const, sourceSchemaVersion: 1, archived: true };
+  const copied = copyItemPowers([power({ id: 42, trigger: "passive", requiredEquipmentState: "worn", source })]);
+  assert.equal(copied[0]!.id, null);
+  assert.doesNotThrow(() => validateItemPowers({ powers: copied, ...validChargePool, allowLegacyNonActivatedMagic: true }));
+  assert.throws(() => validateItemPowers({ powers: copied, ...validChargePool }), /only be newly authored for an Activated Power/);
+  assert.doesNotThrow(() => validateItemPowers({ powers: copyItemPowers([power({ id: 42, trigger: "passive", requiredEquipmentState: "worn", customConstruction: { document } })]), ...validChargePool, allowLegacyNonActivatedMagic: true }));
+});
+
 test("passive Power Effects reuse passive Item Effect safety and lifecycle rules", () => {
   const passive = (effect: ItemPower["effects"][number]["effect"]) => validateItemPowers({ powers: [power({ trigger: "passive", requiredEquipmentState: "worn", effects: [{ id: null, effect }] })], ...validChargePool })[0]!.effects[0]!.effect;
   assert.throws(() => passive({ kind: "health.damage", amount: 1, application: "localized" }), /cannot be automatic passive/);
@@ -252,5 +289,11 @@ test("Item authoring presents Abilities as the primary composition and keeps leg
   assert.match(workspace, /\["none", "shared-charges"\] as const/);
   assert.match(workspace, /const isExpanded = expanded\.has\(index\)/);
   assert.match(workspace, /setExpandedState\(\{ itemId, indices: new Set\(\[index\]\) \}\)/);
+  assert.match(workspace, /showHeading/);
+  assert.match(workspace, /onAction=\{add\}/);
+  assert.match(workspace, /power\.trigger === "activated" \? <Field label="Magic"/);
+  assert.match(workspace, /getItemPowerResolutionModes\(power\.trigger\)/);
+  assert.match(workspace, /allowedKinds=\{power\.trigger === "passive"/);
+  assert.match(workspace, /Hit \/ Chosen Area/);
   assert.match(workspace, /Collapse All/);
 });

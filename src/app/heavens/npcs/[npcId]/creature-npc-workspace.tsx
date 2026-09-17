@@ -239,20 +239,21 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
   function addSelectedItem() {
     const selected = draft.authorizedItems.find(({ id }) => id === Number(itemId));
     if (!selected) return;
-    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true) === "instance") {
+    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true, selected.powerResource) === "instance") {
       const [created] = createDraftOwnedItemInstances({
         itemId: selected.id,
         quantity: 1,
         unitCostCredits: selected.credits ?? 0,
         runtimeProfile: selected.runtimeProfile,
         requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true,
+        powerResource: selected.powerResource,
         createDraftId: () => nextInstanceDraftId.current--,
       });
       onChange({
         ...draft,
         itemInstances: [...draft.itemInstances, {
           ...created,
-          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true),
+          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true, selected.powerResource),
           acquiredAt: null,
         }],
       });
@@ -267,7 +268,7 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
     }
     setItemId("");
   }
-  return <div className="creature-npc-section"><SectionHeading eyebrow="CAMPAIGN-AUTHORIZED POSSESSIONS" title="Inventory" /><div className="creature-npc-skill-add"><input type="search" value={search} placeholder="Search Items" onChange={(e) => setSearch(e.target.value)} /><select value={itemId} onChange={(e) => setItemId(e.target.value)}><option value="">Choose Item</option>{visible.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {entry.catalogScope}{entry.equipmentGroup ? `/${entry.equipmentGroup}` : ""}</option>)}</select><button type="button" disabled={!itemId} onClick={addSelectedItem}>Add</button></div><div className="creature-npc-inventory">{draft.items.map((owned) => { const source = draft.authorizedItems.find(({ id }) => id === owned.itemId); return <article key={owned.itemId}><div><strong>{source?.name ?? `Item ${owned.itemId}`}</strong><span>{source?.category ?? ""} · Stack</span></div><input type="number" min={1} step={1} value={owned.quantity} onChange={(e) => onChange({ ...draft, items: draft.items.map((entry) => entry.itemId === owned.itemId ? { ...entry, quantity: Math.max(1, Math.trunc(Number(e.target.value))) } : entry) })} /><button type="button" onClick={() => onChange({ ...draft, items: draft.items.filter((entry) => entry.itemId !== owned.itemId) })}>Remove</button></article>; })}{draft.itemInstances.map((owned, index) => { const source = draft.authorizedItems.find(({ id }) => id === owned.itemId); const chargeDisplay = getItemChargeDisplay({ currentCharges: owned.currentCharges, maximumCharges: source?.runtimeProfile.maximumCharges ?? null }); return <article key={owned.draftId} className="is-instance"><div><strong>{source?.name ?? `Item ${owned.itemId}`}</strong><span>{source?.isMagical ? "Magical · Charged" : "Charged"} · {owned.instanceId === null ? `New copy ${index + 1}` : `Copy #${owned.instanceId}`}</span>{chargeDisplay.exceedsCurrentMaximum ? <small>Above current template maximum; saved state preserved.</small> : null}</div><strong>{chargeDisplay.label}</strong><button type="button" onClick={() => onChange({ ...draft, itemInstances: draft.itemInstances.filter((entry) => entry.draftId !== owned.draftId) })}>Remove this copy</button></article>; })}</div></div>;
+  return <div className="creature-npc-section"><SectionHeading eyebrow="CAMPAIGN-AUTHORIZED POSSESSIONS" title="Inventory" /><div className="creature-npc-skill-add"><input type="search" value={search} placeholder="Search Items" onChange={(e) => setSearch(e.target.value)} /><select value={itemId} onChange={(e) => setItemId(e.target.value)}><option value="">Choose Item</option>{visible.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {entry.catalogScope}{entry.equipmentGroup ? `/${entry.equipmentGroup}` : ""}</option>)}</select><button type="button" disabled={!itemId} onClick={addSelectedItem}>Add</button></div><div className="creature-npc-inventory">{draft.items.map((owned) => { const source = draft.authorizedItems.find(({ id }) => id === owned.itemId); return <article key={owned.itemId}><div><strong>{source?.name ?? `Item ${owned.itemId}`}</strong><span>{source?.category ?? ""} · Stack</span></div><input type="number" min={1} step={1} value={owned.quantity} onChange={(e) => onChange({ ...draft, items: draft.items.map((entry) => entry.itemId === owned.itemId ? { ...entry, quantity: Math.max(1, Math.trunc(Number(e.target.value))) } : entry) })} /><button type="button" onClick={() => onChange({ ...draft, items: draft.items.filter((entry) => entry.itemId !== owned.itemId) })}>Remove</button></article>; })}{draft.itemInstances.map((owned, index) => { const source = draft.authorizedItems.find(({ id }) => id === owned.itemId); const chargeDisplay = getItemChargeDisplay({ currentCharges: owned.currentCharges, maximumCharges: source?.powerResource?.maximumCharges ?? source?.runtimeProfile.maximumCharges ?? null }); return <article key={owned.draftId} className="is-instance"><div><strong>{source?.name ?? `Item ${owned.itemId}`}</strong><span>{source?.isMagical ? "Magical · Charged" : "Charged"} · {owned.instanceId === null ? `New copy ${index + 1}` : `Copy #${owned.instanceId}`}</span>{chargeDisplay.exceedsCurrentMaximum ? <small>Above current template maximum; saved state preserved.</small> : null}</div><strong>{chargeDisplay.label}</strong><button type="button" onClick={() => onChange({ ...draft, itemInstances: draft.itemInstances.filter((entry) => entry.draftId !== owned.draftId) })}>Remove this copy</button></article>; })}</div></div>;
 }
 
 function ActivatedCreatureItems({ draft, disabled, onComplete }: { draft: CreatureNpcDraft; disabled: boolean; onComplete: () => void | Promise<void> }) {
@@ -303,7 +304,7 @@ function ActivatedCreatureItems({ draft, disabled, onComplete }: { draft: Creatu
       {instances.map(({ owned, definition }) => {
         const chargeDisplay = getItemChargeDisplay({
           currentCharges: owned.currentCharges,
-          maximumCharges: definition.runtimeProfile.maximumCharges,
+          maximumCharges: definition.powerResource?.maximumCharges ?? definition.runtimeProfile.maximumCharges,
         });
         return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={draft.characterId} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={disabled} onComplete={onComplete} /></article>;
       })}

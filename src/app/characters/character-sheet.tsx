@@ -556,7 +556,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
               {activatedInstances.map(({ owned, definition, persisted }) => {
                 const chargeDisplay = getItemChargeDisplay({
                   currentCharges: persisted.currentCharges,
-                  maximumCharges: definition.runtimeProfile.maximumCharges,
+                  maximumCharges: definition.powerResource?.maximumCharges ?? definition.runtimeProfile.maximumCharges,
                 });
                 return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled || !canOperateRuntime} onComplete={onItemUseComplete} /></article>;
               })}
@@ -576,8 +576,8 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
                     : aggregate.itemInstances.find(({ id }) => id === owned.instanceId) ?? null;
                   const definition = itemMap.get(owned.itemId) ?? null;
                   const chargeDisplay = getItemChargeDisplay({
-                    currentCharges: persisted?.currentCharges ?? definition?.runtimeProfile.maximumCharges ?? 0,
-                    maximumCharges: definition?.runtimeProfile.maximumCharges ?? null,
+                    currentCharges: persisted?.currentCharges ?? definition?.powerResource?.maximumCharges ?? definition?.runtimeProfile.maximumCharges ?? 0,
+                    maximumCharges: definition?.powerResource?.maximumCharges ?? definition?.runtimeProfile.maximumCharges ?? null,
                   });
                   return <tr key={owned.draftId}><th>{definition?.name ?? persisted?.name ?? `Item ${owned.itemId}`}</th><td>{owned.instanceId === null ? `New copy ${index + 1}` : `#${owned.instanceId}`}</td><td>{definition?.isMagical || persisted?.isMagical ? "Magical · Charged" : "Charged"}</td><td>{definition?.isMagazine ? "See Magazines above" : chargeDisplay.label}{!definition?.isMagazine && chargeDisplay.exceedsCurrentMaximum ? <small> · Above current maximum</small> : null}</td><td>{displayNumber(owned.unitCostCredits)} cr</td></tr>;
                 })}

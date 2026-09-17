@@ -52,7 +52,7 @@ export function ItemChargePanel({ state, disabled = false, onChange }: Props) {
         <p>This stable instance is preserved, but its current Item definition no longer uses Charges. G.O.D./author resolution is required; no automatic conversion occurred.</p>
       </article>;
       return <article key={entry.instanceId}>
-        <header><div><strong>{entry.itemName} · Copy #{entry.instanceId}</strong><span>State: {stateLabel(entry.equipmentState)} · Per Use: {entry.chargesPerUse}</span></div><b>{entry.currentCharges} / {entry.maximumCharges}</b></header>
+        <header><div><strong>{entry.itemName} · Copy #{entry.instanceId}</strong><span>State: {stateLabel(entry.equipmentState)} · {entry.chargesPerUse === null ? "Power Charges · Ability cost varies" : `Per Use: ${entry.chargesPerUse}`}</span></div><b>{entry.currentCharges} / {entry.maximumCharges}</b></header>
         {entry.isAboveCurrentMaximum ? <p className="item-charge-panel__warning">Current Charges are above the current template Maximum. They were preserved; spending may reduce them, while Restore Full or exact correction can normalize them.</p> : null}
         <section><h4>Recharge Rule / Notes</h4><p>{entry.rechargeNotes || "No descriptive recharge rule is recorded."}</p></section>
         <div className="item-charge-panel__controls">

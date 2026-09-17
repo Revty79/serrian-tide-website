@@ -422,13 +422,14 @@ function generateItems(
   const itemInstances: CharacterDraft["itemInstances"] = [];
   for (const selected of chosen) {
     const unitCostCredits = selected.credits ?? 0;
-    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true) === "instance") {
+    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true, selected.powerResource) === "instance") {
       itemInstances.push(...createDraftOwnedItemInstances({
         itemId: selected.id,
         quantity: 1,
         unitCostCredits,
         runtimeProfile: selected.runtimeProfile,
         requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true,
+        powerResource: selected.powerResource,
         createDraftId: () => nextItemInstanceDraftId--,
       }));
     } else {

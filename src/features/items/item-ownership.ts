@@ -108,6 +108,7 @@ export function assertNoStackInstanceOwnershipCollision(input: {
     assertItemOwnershipStrategy(definition.runtimeProfile, "stack", `Owned Item ${stack.itemId}`, {
       requiresExactInstance: definition.requiresExactInstance,
       allowLegacyExactStack: true,
+      powerResource: definition.powerResource,
     });
     stackIds.add(stack.itemId);
   }
@@ -116,6 +117,7 @@ export function assertNoStackInstanceOwnershipCollision(input: {
     if (!definition) throw new Error(`Owned Item ${instance.itemId} is missing its runtime definition.`);
     assertItemOwnershipStrategy(definition.runtimeProfile, "instance", `Owned Item ${instance.itemId}`, {
       requiresExactInstance: definition.requiresExactInstance,
+      powerResource: definition.powerResource,
     });
     instanceIds.add(instance.itemId);
   }
@@ -153,10 +155,12 @@ export function createDraftOwnedItemInstances(input: {
   unitCostCredits: number;
   runtimeProfile: ItemOwnershipRuntimeProfile;
   requiresExactInstance?: boolean;
+  powerResource?: ItemPowerResourceDefinition;
   createDraftId: () => number;
 }): DraftOwnedItemInstance[] {
   assertItemOwnershipStrategy(input.runtimeProfile, "instance", `Item ${input.itemId}`, {
     requiresExactInstance: input.requiresExactInstance,
+    powerResource: input.powerResource,
   });
   if (!Number.isSafeInteger(input.quantity) || input.quantity < 0) {
     throw new Error("Owned Item instance quantity must be a whole number zero or greater.");
@@ -179,6 +183,7 @@ export function resizeDraftOwnedItemInstances(input: {
   unitCostCredits: number;
   runtimeProfile: ItemOwnershipRuntimeProfile;
   requiresExactInstance?: boolean;
+  powerResource?: ItemPowerResourceDefinition;
   createDraftId: () => number;
 }): DraftOwnedItemInstance[] {
   const otherItems = input.current.filter((entry) => entry.itemId !== input.itemId);

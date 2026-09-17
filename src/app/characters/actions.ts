@@ -633,9 +633,11 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       runtimeRechargeNotes: itemRuntimeProfile.rechargeNotes,
       runtimeActivationLabel: itemRuntimeProfile.activationLabel,
       runtimeUseNotes: itemRuntimeProfile.useNotes,
+      powerMaximumCharges: itemPowerResource.maximumCharges,
     }).from(campaignCharacterItemInstance)
       .innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
+      .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
       .where(and(
         eq(campaignCharacterItemInstance.characterId, characterId),
         isNull(campaignCharacterItemInstance.retiredAt),
@@ -838,6 +840,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       itemId: entry.id,
       runtimeProfile: readItemRuntimeProfile(entry),
       requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true,
+      powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges },
     })),
     stacks: ownedItems,
     instances: ownedItemInstances,
@@ -1006,6 +1009,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       weightUnit: entry.weightUnit,
       acquiredAt: entry.acquiredAt.toISOString(),
       runtimeProfile: readItemRuntimeProfile(entry),
+      powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges },
     })),
     currencyHoldings,
     campaign: {
@@ -1157,6 +1161,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name, {
       requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true,
       allowLegacyExactStack: true,
+      powerResource: authorized.powerResource,
     });
     if (!godMode && (authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
       throw new Error("Starting possessions must be Campaign-authorized and use their canonical price.");
@@ -1188,6 +1193,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name, {
       requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true,
+      powerResource: authorized.powerResource,
     });
 
     if (entry.instanceId === null) {
@@ -1218,6 +1224,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       itemId: entry.id,
       runtimeProfile: entry.runtimeProfile,
       requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true,
+      powerResource: entry.powerResource,
     })),
     stacks: items,
     instances: itemInstances,

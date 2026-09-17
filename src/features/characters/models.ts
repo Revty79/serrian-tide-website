@@ -139,6 +139,7 @@ export type CharacterOwnedItemInstance = {
   weightUnit: string;
   acquiredAt: string;
   runtimeProfile: ItemRuntimeProfile;
+  powerResource?: { maximumCharges: number } | null;
 };
 
 export type CharacterCurrencyHolding = {

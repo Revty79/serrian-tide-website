@@ -53,7 +53,10 @@ test("execution reauthorizes, locks, validates currency representation, and comm
   assert.match(service, /shopTransactionLine/);
   assert.match(service, /limitedQuantity:[\s\S]*?- quantity/);
   assert.match(service, /getItemOwnershipStrategy/);
+  assert.match(service, /powerMaximumCharges: itemPowerResource\.maximumCharges/);
+  assert.match(service, /powerResource: row\.powerMaximumCharges === null/);
   assert.match(service, /getStartingItemInstanceCharges/);
+  assert.match(service, /input\.definition\.powerResource/);
   assert.match(service, /copyFirearmRuntimeState/);
   assert.match(service, /validateEquipmentOwnershipMutationInTransaction/);
 });

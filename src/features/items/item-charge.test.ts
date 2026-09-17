@@ -229,6 +229,26 @@ test("44-45: current non-charged definitions are surfaced and rejected without m
   assert.match(authorActions, /charged Item has owned instances[\s\S]*no automatic stack conversion or data deletion/);
 });
 
+test("Power Charge Pools expose their own maximum and recharge notes without a fixed per-use cost", () => {
+  const power = chargeState({
+    maximumCharges: 12,
+    currentCharges: 4,
+    chargesPerUse: null,
+    rechargeNotes: "Recharges at dawn.",
+  });
+  assert.equal(power.definitionStatus, "charged");
+  assert.equal(power.chargesPerUse, null);
+  assert.equal(power.maximumCharges, 12);
+  assert.equal(power.rechargeNotes, "Recharges at dawn.");
+  assert.equal(restoreItemCharges(power.currentCharges, power.maximumCharges!, 3), 7);
+  assert.equal(restoreItemChargesFull(power.maximumCharges!), 12);
+  assert.equal(setItemCurrentCharges(power.maximumCharges!, 9), 9);
+  assert.match(service, /powerMaximumCharges: itemPowerResource\.maximumCharges/);
+  assert.match(service, /powerRechargeNotes: itemPowerResource\.rechargeNotes/);
+  assert.match(service, /row\.powerMaximumCharges !== null/);
+  assert.match(chargePanel, /Power Charges · Ability cost varies/);
+});
+
 test("46-48: ordinary Character and Creature saves preserve existing stable instance state", () => {
   const persisted = { draftId: 41, instanceId: 41, itemId: 9, unitCostCredits: 75 };
   assert.deepEqual(planOwnedItemInstancePersistence({ existingInstanceIds: [41], drafts: [persisted] }), {
