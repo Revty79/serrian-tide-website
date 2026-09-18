@@ -66,7 +66,7 @@ import {
   type RuntimeIntegrationTransaction,
 } from "./runtime-integration-service";
 import { assertLockedSpellOwnershipInTransaction, resolveLockedActionSourceInTransaction } from "./action-source-resolver-service";
-import { lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import { assertApprovedWeaponDistanceRequestInTransaction, lockPlayerCombatContextInTransaction, type WeaponDistanceRequestIdentity } from "./player-combat-ruling-service";
 import {
   beginDeclarationCheckpointInTransaction,
   finishDeclarationCheckpointChoiceInTransaction,
@@ -362,6 +362,7 @@ async function buildAuthoritativeSnapshot(
   draftInput: ActionDeclarationDraft,
   actor: ActionDeclarationActor,
   now: Date,
+  enforcePlayerWeaponDistanceApproval = false,
 ): Promise<LockedActionDeclarationSnapshot> {
   let draft = normalizeActionDeclarationDraft(draftInput);
   assertContextLive(context);
@@ -523,9 +524,46 @@ async function buildAuthoritativeSnapshot(
   });
   governing = resolvedSource.governing;
   const frozenRange = resolvedSource.snapshot.authoredData.range;
-  if (frozenRange && typeof frozenRange === "object" && !Array.isArray(frozenRange) && typeof (frozenRange as { adjustment?: unknown }).adjustment === "number"
+  if (enforcePlayerWeaponDistanceApproval && actor.authority === "player" && weapon && frozenRange && typeof frozenRange === "object" && !Array.isArray(frozenRange)
+    && (frozenRange as { attackMode?: unknown }).attackMode === "ranged") {
+    const payload = draft.sourcePayload && typeof draft.sourcePayload === "object" && !Array.isArray(draft.sourcePayload) ? draft.sourcePayload : {};
+    const requestId = payload.rangeDistanceRulingRequestId;
+    if (typeof requestId !== "number" || !Number.isSafeInteger(requestId) || requestId <= 0) {
+      throw new Error("Request Campaign-owning G.O.D. distance confirmation before committing this ranged attack.");
+    }
+    if (draft.targetCharacterIds.length !== 1) throw new Error("A ranged Weapon attack requires one exact target for distance approval.");
+    const range = frozenRange as { distance?: unknown; unit?: unknown };
+    if (typeof range.distance !== "number" || typeof range.unit !== "string") throw new Error("The ranged Weapon distance is incomplete.");
+    const approval = await assertApprovedWeaponDistanceRequestInTransaction(tx, context, actor, requestId, {
+      sourceRef: authoritativeSourceRef ?? "",
+      sourceInstanceId: draft.sourceInstanceId,
+      weaponItemId: weapon.itemId,
+      weaponProfileId: weapon.weaponProfileId,
+      firingModeId: weapon.firingModeId,
+      attackMode: "ranged",
+      targetParticipantId: draft.targetCharacterIds[0]!,
+      distance: range.distance,
+      unit: range.unit,
+    } satisfies WeaponDistanceRequestIdentity);
+    const approvedRange = {
+      ...range,
+      distance: approval.distance,
+      unit: approval.unit,
+      band: approval.band,
+      adjustment: approval.adjustment,
+      label: approval.label,
+      beyondLongModifier: approval.beyondLongModifier,
+      beyondLongReason: approval.beyondLongReason,
+      attackMode: approval.attackMode,
+    };
+    draft = { ...draft, sourcePayload: { ...payload, rangeDistance: approval.distance, rangeUnit: approval.unit,
+      rangeBeyondLongModifier: approval.beyondLongModifier, rangeBeyondLongReason: approval.beyondLongReason, rangeDistanceRulingRequestId: requestId } };
+    resolvedSource = { ...resolvedSource, snapshot: { ...resolvedSource.snapshot, authoredData: { ...resolvedSource.snapshot.authoredData, range: approvedRange } } };
+  }
+  const authoritativeRange = resolvedSource.snapshot.authoredData.range;
+  if (authoritativeRange && typeof authoritativeRange === "object" && !Array.isArray(authoritativeRange) && typeof (authoritativeRange as { adjustment?: unknown }).adjustment === "number"
     && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind)) {
-    const range = frozenRange as { label?: unknown; adjustment: number };
+    const range = authoritativeRange as { label?: unknown; adjustment: number };
     draft = { ...draft, explicitModifiers: [...draft.explicitModifiers, { label: `Range: ${typeof range.label === "string" ? range.label : "resolved band"}`, value: range.adjustment }] };
   }
   if (draft.sourcePayload?.combatScreen === true && ["item", "derived-ability", "creature-ability"].includes(draft.sourceKind)
@@ -682,7 +720,7 @@ export async function lockActionDeclarationInTransaction(
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   assertActionDeclarationTransition("draft", "locked");
   const now = new Date();
-  const snapshot = await buildAuthoritativeSnapshot(tx, context, row, parseActionDeclarationDraft(row.draftJson), actor, now);
+  const snapshot = await buildAuthoritativeSnapshot(tx, context, row, parseActionDeclarationDraft(row.draftJson), actor, now, true);
   await tx.update(campaignSessionEncounterActionDeclaration).set({
     status: "locked",
     lockedSnapshotJson: snapshot,

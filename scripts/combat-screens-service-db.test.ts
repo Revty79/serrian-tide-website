@@ -6,7 +6,7 @@ import { campaignCharacter, campaignCharacterAttribute } from "@/db/realm-schema
 import { weaponProfile } from "@/db/item-schema";
 import { campaignSessionEncounterInitiative as runtime, campaignSessionEncounterInitiativeParticipant as enrollment, campaignSessionEncounterActionDeclaration as declaration, campaignSessionEncounterParticipant as member, campaignSessionRoll as roll } from "@/db/tabletop-operations-schema";
 import { previewCombatChoiceInTransaction, submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
-import { physicalPercentile, type CombatSubmission } from "@/features/combat-screen/choice-types";
+import { choiceDraft, physicalPercentile, type CombatSubmission } from "@/features/combat-screen/choice-types";
 import { applyRoutineCombatConsequencesInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { declareDefenseInterventionInTransaction, previewDefenseInterventionInTransaction, resolveDeclaredDefensesInTransaction, resolveDeclaredDefensesIfReadyInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { advanceInitiativeTimeline, advanceInitiativeRound } from "@/features/tabletop-operations/initiative-runtime";
@@ -14,7 +14,8 @@ import { declareCombatMovementInTransaction, resolveCombatMovementInTransaction 
 import { holdParticipantInitiativeInTransaction, passParticipantInitiativeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { readCombatProjectionInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
-import { reconcileResponderOpportunityInTransaction, reconcileUnavailableResponderOpportunitiesInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, reconcileResponderOpportunityInTransaction, reconcileUnavailableResponderOpportunitiesInTransaction } from "@/features/tabletop-operations/action-declaration-service";
+import { createPlayerCombatRulingRequestInTransaction, ruleOnPlayerCombatRequestInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { campaignSessionEncounterResponderOpportunity as response } from "@/db/tabletop-operations-schema";
 import { ruleOrdinaryAttackConsequenceInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
@@ -140,6 +141,43 @@ async function fixture(tx: Tx) {
   const input: CombatSubmission = { choice: { participantId: f.heroId, targetIds: [f.occurrences[0]], source: { kind: "weapon", ref: `stack:${f.weaponId}`, name: "Shortsword", itemId: f.weaponId, instanceId: null, description: "" } }, requestKey: crypto.randomUUID(), roll: { method: "entered", enteredTotal: 70 } };
   return { ...f, input };
 }
+
+test("ordinary Player ranged distance approval is canonical, exact, frozen, and idempotent", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    await tx.update(weaponProfile).set({ rangeMode: "ranged", distanceUnit: "feet", shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50 })
+      .where(eq(weaponProfile.itemId, f.weaponId));
+    const bypass = choiceDraft({ ...f.input.choice, range: { attackMode: "melee", distance: 25, unit: "feet", distanceRulingRequestId: null } });
+    await assert.rejects(tx.transaction(async (savepoint) => {
+      const declarationId = await createActionDeclarationDraftInTransaction(savepoint, f.context, f.player, {
+        ...bypass,
+        sourcePayload: { ...bypass.sourcePayload, rangeAttackMode: "ranged", rangeDistance: 25, rangeUnit: "feet", rangeDistanceRulingRequestId: null },
+      });
+      await lockActionDeclarationInTransaction(savepoint, f.context, f.player, declarationId);
+    }), /distance confirmation/);
+    const request = await createPlayerCombatRulingRequestInTransaction(tx, f.context, f.player, {
+      requestType: "weapon-distance", sourceKind: "weapon", sourceRef: `stack:${f.weaponId}`, sourceInstanceId: null,
+      targetParticipantId: f.occurrences[0], intent: "Confirm the measured ranged distance.", requestedTiming: "before attack",
+      blockedReason: "The exact ranged distance needs a Campaign-owning G.O.D. confirmation.",
+      frozenRequest: { attackMode: "ranged", distance: 25, unit: "feet", firingModeId: null }, idempotencyKey: crypto.randomUUID().replaceAll("-", ""),
+    });
+    await ruleOnPlayerCombatRequestInTransaction(tx, f.context, f.godId, request.requestId, {
+      status: "approved", response: "The measured distance is confirmed.", ruling: { distance: 25, unit: "feet" },
+    });
+    const choice = { ...f.input.choice, range: { attackMode: "ranged" as const, distance: 25, unit: "feet", distanceRulingRequestId: request.requestId } };
+    const submission = { ...f.input, choice, requestKey: crypto.randomUUID() };
+    const committed = await submitCombatChoiceInTransaction(tx, f.context, f.player, submission);
+    assert.ok("declarationId" in committed);
+    const retry = await submitCombatChoiceInTransaction(tx, f.context, f.player, submission);
+    assert.deepEqual(retry, { declarationId: committed.declarationId, reused: true });
+    const [row] = await tx.select().from(declaration).where(eq(declaration.id, committed.declarationId));
+    const snapshot = row.lockedSnapshotJson as { source: { payload?: { rangeDistanceRulingRequestId?: number } }; authoredSource: { authoredData: { range: { attackMode: string; distance: number; adjustment: number } } } };
+    assert.equal(snapshot.source.payload?.rangeDistanceRulingRequestId, request.requestId);
+    assert.deepEqual(snapshot.authoredSource.authoredData.range, { attackMode: "ranged", distance: 25, adjustment: 0,
+      unit: "feet", band: "medium", label: "Medium (25 feet)", beyondLongModifier: null, beyondLongReason: "" });
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
 
 test("a free Creature moves at an attack crossing without permission and preserves overlapping progress", async () => {
   await assert.rejects(db.transaction(async (tx) => {

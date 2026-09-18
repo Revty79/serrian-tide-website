@@ -267,7 +267,6 @@ async function resolveWeapon(
   draft: ActionDeclarationDraft,
   weapon: NonNullable<LockedActionDeclarationSnapshot["weapon"]>,
   governing: LockedActionDeclarationSnapshot["governing"],
-  actorAuthority: ActionDeclarationActor["authority"],
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Weapon use");
   const [row] = await tx.select({
@@ -324,7 +323,6 @@ async function resolveWeapon(
         beyondLongReason: typeof payload.rangeBeyondLongReason === "string" ? payload.rangeBeyondLongReason : "",
       })
     : null;
-  if (range?.band === "beyond-long" && actorAuthority !== "god-owner" && payload.rangeDistanceRulingRequestId == null) throw new Error("Only the Campaign-owning G.O.D. may confirm a Beyond Long range modifier.");
   const effects = [manualEffect("weapon-damage-instruction", `${row.name} attack`, {
     damage: row.damage,
     damageSource: row.damageSource,
@@ -407,7 +405,7 @@ async function resolveWeapon(
       resolutionMode: governing?.status === "resolved" ? "opposed-roll" : "manual-god-ruling",
       governingSource: governing?.status === "resolved" ? governing.source as FrozenActionSourceSnapshot["governingSource"] : null,
       governingSnapshot: null,
-      authoredData: { ...(weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row), ...(range ? { range } : {}) },
+      authoredData: { ...(weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row), ...(range ? { range: { ...range, attackMode: rangeMode } } : {}) },
       resourceCosts: [...weaponHitCosts.values()],
       effects,
       warnings: row.firingModeReviewRequired ? ["The selected Firing Mode is still marked mechanics-review-required."] : [],
@@ -1119,7 +1117,7 @@ export async function resolveLockedActionSourceInTransaction(
   const participant = await loadParticipant(tx, context, draft.actorCharacterId);
   if (draft.sourceKind === "weapon") {
     if (!existing.weapon) throw new Error("A Weapon source requires the exact locked Weapon Profile.");
-    return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing, actor.authority);
+    return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing);
   }
   if (draft.sourceKind === "item") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveItem(tx, participant, draft, actor.authority));
   if (draft.sourceKind === "spell") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveSpell(tx, participant, draft, actor.userId, actor.authority));

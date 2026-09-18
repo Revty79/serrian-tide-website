@@ -79,7 +79,7 @@ export type CreatePlayerCombatRulingRequest = Readonly<{
   idempotencyKey: string;
 }>;
 
-type WeaponDistanceRequestIdentity = Readonly<{
+export type WeaponDistanceRequestIdentity = Readonly<{
   sourceRef: string;
   sourceInstanceId: number | null;
   weaponItemId: number;

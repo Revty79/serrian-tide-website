@@ -83,10 +83,18 @@ for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-s
     await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 22 - preview.snapshot.initiativeCost));
     const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id);
     const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find((entry) => entry.id === planId)!;
-    const value = plan.effects[0].finalValue as { application?: { hitLocationNumber: number; poolKey: string }; amount?: number; effect: { amount: number } };
     const successes = plan.governingRollSnapshot!.resolution.succeeded ? plan.governingRollSnapshot!.resolution.totalSuccesses : 0;
-    if (area) { assert.equal(plan.status, "calculated"); assert.equal(plan.effects[0].effectType, "spell.area-report"); assert.equal(value.amount, fixed ? 2 + plan.governingRollSnapshot!.resolution.additionalSuccesses : 2 * successes); }
-    else if (scenario !== "failed") { assert.equal(value.application?.hitLocationNumber, 2); assert.equal(value.application?.poolKey, "fixture-arm"); assert.equal(value.effect.amount, fixed ? 2 + plan.governingRollSnapshot!.resolution.additionalSuccesses : 2 * successes); }
+    if (area) { assert.equal(plan.status, scenario === "area-critical" ? "requires-god-ruling" : "calculated"); assert.deepEqual(plan.effects, [], "An AoE with no selected victims creates no effect proposals or caster damage."); }
+    else if (scenario !== "failed") {
+      const value = plan.effects[0].finalValue as { application?: { hitLocationNumber: number; poolKey: string }; effect: { amount: number } };
+      assert.equal(value.application?.hitLocationNumber, 2); assert.equal(value.application?.poolKey, "fixture-arm"); assert.equal(value.effect.amount, fixed ? 2 + plan.governingRollSnapshot!.resolution.additionalSuccesses : 2 * successes);
+    }
+    if (scenario === "area-critical") {
+      for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action.id, planId)).status, "requires-god-ruling");
+      assert.deepEqual(await tx.select().from(campaignCharacterActiveHealth).where(eq(campaignCharacterActiveHealth.characterId, f.heroId)), beforeHealth, "A critical zero-victim AoE never damages the caster.");
+      assert.notEqual((await tx.select().from(declaration).where(eq(declaration.id, action.id)))[0].status, "resolved");
+      throw rollback;
+    }
     for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action.id, planId)).status, "applied");
     const [target] = await tx.select().from(member).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, f.occurrences[0])));
     const health = (target.localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> } }).health;
@@ -96,6 +104,54 @@ for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-s
     assert.equal((await tx.select().from(declaration).where(eq(declaration.id, action.id)))[0].status, "resolved");
     assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, f.encounterId))).length, 1);
     assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find((entry) => entry.system === "Spellcraft")!.currentMana, manaAfter);
+    throw rollback;
+  }), expected);
+});
+
+test("learned spell AoE applies equal calculated damage to selected victims once and never to the caster", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "learned-area-selected");
+    await tx.insert(userRole).values([{ userId: f.godId, role: "god" }, { userId: f.godId, role: "player" }]);
+    const learned = await addLearnedCombatSpell(tx, f, { area: true, name: "Selected Area Bolt" });
+    await tx.update(initiativeParticipant).set({ participationStatus: "active" }).where(and(eq(initiativeParticipant.encounterId, f.encounterId), eq(initiativeParticipant.characterId, f.heroId)));
+    for (const targetId of f.occurrences) await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot,
+      hpPools: [...f.creatureSnapshot.hpPools, { canonicalId: "fixture-arm", poolName: "Right Arm", maximumHp: 20 }],
+      hitLocations: [...f.creatureSnapshot.hitLocations, { hitLocationNumber: 2, locationName: "Right Arm", hpPoolCanonicalId: "fixture-arm", naturalArmor: "0", soak: "0" }],
+    } }).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, targetId)));
+    const choice: CombatChoice = { participantId: f.heroId, source: { kind: "spell", ref: `catalog:${learned.allocation.id}`, instanceId: null, itemId: null, name: learned.spell.name, description: "" },
+      targetIds: [], spellSelections: { targetGroups: { "bolt-target": [] }, applications: {} } };
+    const beforeCasterHealth = await tx.select().from(campaignCharacterActiveHealth).where(eq(campaignCharacterActiveHealth.characterId, f.heroId));
+    const preview = await previewCombatChoiceInTransaction(tx, f.context, f.player, choice);
+    assert.equal(preview.kind, "declaration"); if (preview.kind !== "declaration") throw new Error("Expected cast preview");
+    const input = { choice, requestKey: crypto.randomUUID(), roll: { method: "entered" as const, enteredTotal: 72 } };
+    const submitted = await submitCombatChoiceInTransaction(tx, f.context, f.player, input);
+    assert.ok("declarationId" in submitted);
+    assert.deepEqual(await submitCombatChoiceInTransaction(tx, f.context, f.player, input), { declarationId: submitted.declarationId, reused: true });
+    const [action] = await tx.select().from(declaration).where(eq(declaration.id, submitted.declarationId));
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, action.id);
+    const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 22 - preview.snapshot.initiativeCost));
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id, undefined, { "bolt-target": f.occurrences });
+    assert.equal(await generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id, undefined, { "bolt-target": f.occurrences }), planId);
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find((entry) => entry.id === planId)!;
+    assert.equal(plan.status, "calculated"); assert.equal(plan.effects.length, 2);
+    assert.deepEqual(plan.effects.map(({ targetParticipantId }) => targetParticipantId).sort((a, b) => a - b), [...f.occurrences].sort((a, b) => a - b));
+    const gross = plan.effects.map((effect) => (effect.finalValue as { effect: { amount: number } }).effect.amount);
+    assert.equal(gross[0], gross[1]);
+    const successes = plan.governingRollSnapshot!.resolution.totalSuccesses;
+    assert.equal(gross[0], 2 * successes);
+    assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, f.encounterId))).length, 1);
+    const manaAfterDeclaration = (await readActiveManaInTransaction(tx, f.heroId)).pools.find((entry) => entry.system === "Spellcraft")!.currentMana;
+    const firstApply = await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action.id, planId);
+    assert.equal(firstApply.status, "applied");
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action.id, planId)).status, "applied");
+    for (const targetId of f.occurrences) {
+      const [target] = await tx.select().from(member).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, targetId)));
+      const health = (target.localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> } }).health;
+      assert.equal(health.totalDamage, gross[0]); assert.equal(health.poolDamage["fixture-arm"], gross[0]);
+    }
+    assert.deepEqual(await tx.select().from(campaignCharacterActiveHealth).where(eq(campaignCharacterActiveHealth.characterId, f.heroId)), beforeCasterHealth);
+    assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find((entry) => entry.system === "Spellcraft")!.currentMana, manaAfterDeclaration);
     throw rollback;
   }), expected);
 });

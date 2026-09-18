@@ -1,5 +1,19 @@
 # Combat resumption handoff
 
+## Authoritative ordinary ranged approval and learned-spell AoE (18 September 2026)
+
+**Implemented locally from `bb2052482`; commit remains local until final review.** Ordinary Player Weapon declarations now enforce the durable `weapon-distance` approval at the authoritative declaration-lock boundary, after canonical Weapon/Profile range resolution. The check no longer depends on the client-provided range mode or on merely supplying a request ID. It binds the approved request to the canonical source/instance, Weapon/Profile, target, ranged mode, distance and unit; approved distance, band, adjustment, label and Beyond Long ruling fields replace client values in the frozen snapshot. Read-only preview remains non-consuming, retries still resolve before approval validation, and G.O.D.-controlled actions remain outside Player approval.
+
+- Added a disposable combat-screen regression for a deliberately mismatched client draft, missing approval rejection, exact approved Medium freeze, persisted request identity and ordinary retry idempotency. The prior firearm approval/browser path was left intact.
+- Corrected the learned-spell AoE coverage to match the existing runtime contract: zero selected victims create no effect proposals and never damage the caster; a critical Roll still remains `requires-god-ruling`. Added a selected two-victim case proving equal gross damage, per-target anatomy/application, one casting Roll, one Mana spend, retry-safe planning/application and no caster damage.
+- Validation passed: **1,383/1,383 unit tests**, typecheck, changed-file lint, whitespace checks, the focused learned-spell suite (**11/11**) and focused combat-screen suite (**18/18**). The unfiltered disposable combat harness reached the pre-existing retired legacy charged-Item fixture mismatch; the focused firearm script also retains 17 existing Player-fixture failures because those tests omit the already-required durable firearm distance approval. No migration, shared DEV data, deployment or production access was performed.
+
+### Remaining blockers / resume first
+
+1. Review and locally commit this pass; do not push or deploy under the current instruction.
+2. Separately reconcile the older firearm DB fixtures with the durable `weapon-distance` approval contract before claiming the full disposable harness green. Do not weaken the approval requirement to make those fixtures pass.
+3. Keep the next gameplay pass narrow: sword, Shared Charges and one supported AoE browser walkthrough.
+
 ## Durable Player shot-distance approval (17 September 2026)
 
 **Implemented locally from `744199d`; correction commit/push pending final validation.** Player ranged Weapon attacks now use a distinct durable `weapon-distance` request in the existing Player/G.O.D. ruling workflow. The request freezes Campaign/Session/Scene/Encounter, Player owner, actor/target, exact Weapon instance or stack, Weapon/Profile revisions, firing mode, attack mode, authored unit/range limits, and proposed distance/band. The owning G.O.D. approves, rejects, or corrects the distance; Beyond Long approval requires an explicit modifier and reason, including explicit zero.
