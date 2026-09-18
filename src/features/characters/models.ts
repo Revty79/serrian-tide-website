@@ -260,6 +260,11 @@ export type CharacterAuthorizedItem = {
   ammunitionDamageType: string | null;
   rangeText: string | null;
   reachText: string | null;
+  rangeMode?: "melee" | "ranged" | "hybrid" | null;
+  reachDistance?: number | null;
+  shortRangeDistance?: number | null;
+  mediumRangeDistance?: number | null;
+  longRangeDistance?: number | null;
   weaponRulesText: string | null;
   armorType: string | null;
   coverage: string | null;

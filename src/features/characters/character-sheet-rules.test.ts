@@ -70,6 +70,11 @@ function weapon(overrides: Partial<CharacterAuthorizedItem>): CharacterAuthorize
     ammunitionDamageType: null,
     rangeText: null,
     reachText: "5 ft",
+    rangeMode: null,
+    reachDistance: null,
+    shortRangeDistance: null,
+    mediumRangeDistance: null,
+    longRangeDistance: null,
     weaponRulesText: null,
     armorType: null,
     coverage: null,
@@ -128,6 +133,13 @@ test("ranged weapon damage applies Dexterity", () => {
     ),
     { modifier: "DEX +1", totalDamage: "9" },
   );
+});
+
+test("structured ranged limits apply Dexterity without legacy range text", () => {
+  assert.deepEqual(getCharacterWeaponDamageSummary(weapon({
+    weaponType: "Energy Weapon", rangeText: "", reachText: "", rangeMode: "ranged",
+    shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50,
+  }), attributes), { modifier: "DEX +1", totalDamage: "9" });
 });
 
 test("ammunition-fed weapons resolve damage from their linked Ammunition Item", () => {

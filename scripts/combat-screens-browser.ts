@@ -5,6 +5,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, type Page, type Browser } from "playwright-core";
 import { db, pool } from "@/db";
+import { item, weaponProfile } from "@/db/item-schema";
+import { campaignInventoryItem } from "@/db/realm-schema";
 import { submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
 import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { screenFixture, addScreenSpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
@@ -793,6 +795,98 @@ try {
     await screenshot(player, "firearm-combined-recovery");
     results.push("Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. The actual item editor saves the sole mode; refresh enables firing without a mode selector, with one Roll, one round consumed and 2 damage applied once. One Prepare next shot completes cycling 0.1 plus recoil 0.2 for 0.3 Initiative without spending ammunition.");
     await player.context().close(); await director.context().close();
+  }
+  if (include("profile-cleanup")) {
+    const f = await db.transaction(async (tx) => {
+      const fixture = await screenFixture(tx, "profile-cleanup");
+      const [ammunition] = await tx.insert(item).values({
+        canonicalId: `SCREEN-PROFILE-AMMO-${crypto.randomUUID()}`.toUpperCase(), name: "Profile Cleanup Cartridge", catalogScope: "inventory", recordType: "Ammunition",
+        family: "Fixture", category: "Ammunition", priceBasis: "per round", createdByUserId: fixture.godId,
+      }).returning();
+      await tx.insert(weaponProfile).values({
+        itemId: ammunition.id, profileRecordType: "Ammunition", weaponType: "Cartridge", damageSource: "Ammunition", damage: "8", damageType: "Piercing",
+      });
+      await tx.insert(campaignInventoryItem).values({ campaignId: fixture.campaignId, itemId: ammunition.id, sortOrder: 2 });
+      return { ...fixture, ammunitionId: ammunition.id };
+    });
+    await pool.query("update weapon_profiles set profile_record_type='Equipment',weapon_type='Legacy Widget',handedness='N/A',damage_source='Ammunition',damage_type='Slashing',range_text='Legacy range',reach_text='Legacy reach',capacity='Legacy capacity',range_mode='melee',distance_unit='feet',reach_distance=5,capacity_rounds=6,ammunition_item_id=$2 where item_id=$1", [f.weaponId, f.ammunitionId]);
+    const power = (await pool.query("insert into item_powers(item_id,name,description,trigger,activation_label,initiative_cost,resource_cost_kind,resource_cost_amount,resolution_mode,sort_order) values($1,'Legacy Shared Ability','Preserve this ability.','activated','Activate',1,'shared-charges',1,'automatic',0) returning id", [f.weaponId])).rows[0];
+    await pool.query("insert into item_power_resources(item_id,maximum_charges,recharge_notes) values($1,3,'Recharges between scenes.')", [f.weaponId]);
+    const profileSnapshot = async (itemId: number) => (await pool.query("select profile_record_type,weapon_type,handedness,damage_source,damage,damage_type,ammunition_item_id,range_text,reach_text,capacity,range_mode,reach_distance,capacity_rounds from weapon_profiles where item_id=$1", [itemId])).rows[0];
+    const beforeProfile = await profileSnapshot(f.weaponId), beforeSkillCount = Number((await pool.query("select count(*)::int n from weapon_skill_path_mappings m join weapon_profiles p on p.id=m.weapon_profile_id where p.item_id=$1", [f.weaponId])).rows[0].n);
+    const beforePower = (await pool.query("select p.name,p.resource_cost_kind,p.resource_cost_amount,r.maximum_charges,r.recharge_notes from item_powers p join item_power_resources r on r.item_id=p.item_id where p.id=$1", [power.id])).rows[0];
+    const author = await login(f.godId, "god", f, true);
+    const editor = author.locator(".item-editor");
+    const field = (label: string) => editor.getByText(label, { exact: true }).locator("..").locator("select,input,textarea").first();
+    await author.goto(`${base}/heavens/equipment?item=${f.weaponId}&tab=weapon`); await author.waitForLoadState("networkidle");
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    assert.equal(await editor.getByText("Legacy Range Text", { exact: true }).count(), 0);
+    assert.equal(await editor.getByText("Legacy Reach Text", { exact: true }).count(), 0);
+    assert.equal(await editor.getByText("Legacy Capacity Text", { exact: true }).count(), 0);
+    const profileRecordType = field("Profile Record Type");
+    assert.equal(await profileRecordType.inputValue(), "Equipment");
+    assert.ok((await profileRecordType.locator("option").allTextContents()).includes("Needs review: Equipment"));
+    await field("Reach").fill("6");
+    await editor.getByRole("button", { name: "Overview", exact: true }).click();
+    await field("Description").fill("Historical profile edited without legacy text rewrite.");
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Fixture Shortsword was saved.", { exact: true }).waitFor();
+    const afterHistorical = await profileSnapshot(f.weaponId);
+    assert.deepEqual({ ...afterHistorical, reach_distance: 6 }, { ...beforeProfile, reach_distance: 6 });
+    assert.equal(Number((await pool.query("select count(*)::int n from weapon_skill_path_mappings m join weapon_profiles p on p.id=m.weapon_profile_id where p.item_id=$1", [f.weaponId])).rows[0].n), beforeSkillCount);
+    assert.deepEqual((await pool.query("select p.name,p.resource_cost_kind,p.resource_cost_amount,r.maximum_charges,r.recharge_notes from item_powers p join item_power_resources r on r.item_id=p.item_id where p.id=$1", [power.id])).rows[0], beforePower);
+    await author.goto(`${base}/heavens/equipment`); await author.waitForLoadState("networkidle");
+    await author.getByRole("button", { name: "New Equipment", exact: true }).click();
+    await editor.getByLabel("Name", { exact: true }).fill("Profile Cleanup Supported Weapon");
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    await editor.getByRole("button", { name: "Add Weapon / Ammunition Profile", exact: true }).click();
+    assert.equal(await field("Profile Record Type").inputValue(), "Weapon");
+    await field("Weapon Type").selectOption("Sword");
+    await field("Damage Source").selectOption("Weapon");
+    await field("Damage").fill("1d8");
+    await field("Damage Type").fill("Slashing");
+    await field("Initiative Cost").fill("4");
+    await field("Range Mode").selectOption("melee");
+    await field("Distance Unit").fill("feet");
+    await field("Reach").fill("5");
+    await field("Handedness").evaluate((element) => {
+      const select = element as HTMLSelectElement;
+      const option = document.createElement("option"); option.value = "twenty"; option.textContent = "twenty"; select.append(option);
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, "twenty"); select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Handedness must use a supported authored choice.", { exact: true }).waitFor();
+    assert.equal((await pool.query("select count(*)::int n from items where name='Profile Cleanup Supported Weapon'", [])).rows[0].n, 0);
+    await field("Handedness").selectOption("One-Handed");
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Profile Cleanup Supported Weapon was saved.", { exact: true }).waitFor();
+    const newWeaponId = Number((await pool.query("select id from items where name='Profile Cleanup Supported Weapon'")).rows[0].id);
+    assert.equal((await profileSnapshot(newWeaponId)).profile_record_type, "Weapon");
+    await author.getByRole("searchbox", { name: "Search", exact: true }).fill("Profile Cleanup Supported Weapon");
+    await author.locator(".skill-library__row").filter({ hasText: "Profile Cleanup Supported Weapon" }).click();
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    assert.equal(await field("Weapon Type").inputValue(), "Sword");
+    assert.equal(await field("Handedness").inputValue(), "One-Handed");
+    await author.goto(`${base}/heavens/inventory`); await author.waitForLoadState("networkidle");
+    await author.getByRole("searchbox", { name: "Search", exact: true }).fill("Profile Cleanup Cartridge");
+    await author.locator(".skill-library__row").filter({ hasText: "Profile Cleanup Cartridge" }).click();
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    assert.equal(await field("Profile Record Type").inputValue(), "Ammunition");
+    assert.equal(await field("Damage Source").inputValue(), "Ammunition");
+    await editor.getByRole("button", { name: "Overview", exact: true }).click();
+    await field("Description").fill("Inventory profile save/reopen check.");
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Profile Cleanup Cartridge was saved.", { exact: true }).waitFor();
+    assert.deepEqual(await profileSnapshot(f.ammunitionId), {
+      profile_record_type: "Ammunition", weapon_type: "Cartridge", handedness: "", damage_source: "Ammunition", damage: "8", damage_type: "Piercing", ammunition_item_id: null,
+      range_text: "", reach_text: "", capacity: "", range_mode: null, reach_distance: null, capacity_rounds: null,
+    });
+    await author.getByRole("searchbox", { name: "Search", exact: true }).fill("Profile Cleanup Cartridge");
+    await author.locator(".skill-library__row").filter({ hasText: "Profile Cleanup Cartridge" }).click();
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    assert.equal(await field("Profile Record Type").inputValue(), "Ammunition");
+    results.push("ItemWorkspace profile cleanup: Equipment preserves an unknown historical profile choice, legacy range/reach/capacity values, structured reach, Skill paths, ammunition link, and Shared Charges ability/resource; new unsupported Handedness is rejected while supported Weapon choices save/reopen; Inventory uses the same editor and preserves its Ammunition profile on save/reopen.");
+    await author.context().close();
   }
   if (include("magazine")) {
     const f = await db.transaction((tx) => screenFixture(tx, "magazine"));

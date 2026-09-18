@@ -96,6 +96,7 @@ import {
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { PRACTITIONER_LEVELS, type PractitionerLevel } from "@/features/spell-construction/models/rules";
 import { validateStructuredWeaponRange, type WeaponRangeMode } from "@/features/items/weapon-range";
+import { defaultWeaponProfileRecordType, isSupportedWeaponDamageSource, isSupportedWeaponHandedness, isSupportedWeaponProfileRecordType, isSupportedWeaponType } from "@/features/items/weapon-profile-authoring";
 
 export type ItemLibraryFilters = {
   catalogScope: ItemCatalogScope;
@@ -295,6 +296,29 @@ function positive(value: number | null, label: string) { if (value === null) ret
 function positiveInteger(value: number | null, label: string) { if (value === null) return null; if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a whole number greater than zero, or left blank.`); return value; }
 function finiteNumber(value: number, label: string) { if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number.`); return value; }
 
+type StoredWeaponChoiceValues = Pick<typeof weaponProfile.$inferSelect, "profileRecordType" | "weaponType" | "handedness" | "damageSource">;
+
+function assertWeaponChoice(
+  value: string,
+  label: string,
+  supported: (value: string) => boolean,
+  storedValue?: string,
+): void {
+  const normalized = clean(value);
+  if (!normalized || supported(normalized) || normalized === clean(storedValue)) return;
+  throw new Error(`${label} must use a supported authored choice.`);
+}
+
+function validateWeaponProfileChoices(
+  profile: Pick<NonNullable<ItemDraft["weaponProfile"]>, "profileRecordType" | "weaponType" | "handedness" | "damageSource">,
+  stored: StoredWeaponChoiceValues | null,
+): void {
+  assertWeaponChoice(profile.profileRecordType, "Profile Record Type", isSupportedWeaponProfileRecordType, stored?.profileRecordType);
+  assertWeaponChoice(profile.weaponType, "Weapon Type", isSupportedWeaponType, stored?.weaponType);
+  assertWeaponChoice(profile.handedness, "Handedness", isSupportedWeaponHandedness, stored?.handedness);
+  assertWeaponChoice(profile.damageSource, "Damage Source", isSupportedWeaponDamageSource, stored?.damageSource);
+}
+
 function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegacyNonActivatedMagic = false) {
   if (input.magazineProfile && (input.weaponProfile || input.armorProfile || input.runtimeProfile.useMode !== "none")) throw new Error("Magazine models use their dedicated profile and no Item-use mode, weapon or armor profile.");
   if (input.weaponProfile?.reloadType != null && !["Single", "Magazine"].includes(input.weaponProfile.reloadType)) throw new Error("Reload Type must be Single, Magazine, or unconfigured.");
@@ -356,7 +380,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegac
     ? [input.weaponProfile.profileRecordType, input.core.recordType].some((value) => clean(value).toLocaleLowerCase("en-US") === "ammunition")
     : false;
   const weapon = input.weaponProfile ? {
-    profileRecordType: clean(input.weaponProfile.profileRecordType) || clean(input.core.recordType),
+    profileRecordType: clean(input.weaponProfile.profileRecordType),
     weaponType: clean(input.weaponProfile.weaponType),
     handedness: clean(input.weaponProfile.handedness),
     damageSource: clean(input.weaponProfile.damageSource),
@@ -975,7 +999,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       if (!updated.length) throw new Error("That Item no longer exists.");
     }
 
-    const [storedPropertyReferences, storedWeaponReferences] = input.id === undefined
+    const [storedPropertyReferences, storedWeaponProfiles] = input.id === undefined
       ? [[], []]
       : await Promise.all([
           tx
@@ -985,14 +1009,22 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
             })
             .from(itemProperty)
             .where(eq(itemProperty.itemId, id!)),
-          tx
-            .select({ ammunitionItemId: weaponProfile.ammunitionItemId })
-            .from(weaponProfile)
-            .where(eq(weaponProfile.itemId, id!)),
+          tx.select().from(weaponProfile).where(eq(weaponProfile.itemId, id!)),
         ]);
+    const storedWeaponProfile = storedWeaponProfiles[0] ?? null;
+    if (normalized.weapon) {
+      normalized.weapon = {
+        ...normalized.weapon,
+        profileRecordType: normalized.weapon.profileRecordType || storedWeaponProfile?.profileRecordType || defaultWeaponProfileRecordType(normalized.core.recordType),
+        range: storedWeaponProfile?.rangeText ?? normalized.weapon.range,
+        reach: storedWeaponProfile?.reachText ?? normalized.weapon.reach,
+        capacity: storedWeaponProfile?.capacity ?? normalized.weapon.capacity,
+      };
+      validateWeaponProfileChoices(normalized.weapon, storedWeaponProfile);
+    }
     const storedRelatedItemIds = new Set([
       ...storedPropertyReferences.flatMap(({ relatedItemId }) => relatedItemId === null ? [] : [relatedItemId]),
-      ...storedWeaponReferences.flatMap(({ ammunitionItemId }) => ammunitionItemId === null ? [] : [ammunitionItemId]),
+      ...storedWeaponProfiles.flatMap(({ ammunitionItemId }) => ammunitionItemId === null ? [] : [ammunitionItemId]),
     ]);
     const submittedRelatedItemIds = [...new Set([
       ...normalized.properties.flatMap(({ relatedItemId }) => relatedItemId === null ? [] : [relatedItemId]),
@@ -1170,7 +1202,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       })));
     }
     if (normalized.weapon) {
-      const [storedWeapon] = await tx.select({ id: weaponProfile.id }).from(weaponProfile).where(eq(weaponProfile.itemId, id!)).limit(1);
+      const storedWeapon = storedWeaponProfile;
       const weaponValues = {
         profileRecordType: normalized.weapon.profileRecordType,
         weaponType: normalized.weapon.weaponType,

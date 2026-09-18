@@ -4,6 +4,7 @@ import { decimalAdd } from "@/lib/decimal";
 import Link from "next/link";
 import { isSupportedAmmunitionWeaponType, projectileWeaponFamily } from "@/features/items/firearm-classification";
 import { WEAPON_RANGE_MODES, type WeaponRangeMode } from "@/features/items/weapon-range";
+import { defaultWeaponProfileRecordType, isSupportedWeaponHandedness, isSupportedWeaponType, WEAPON_DAMAGE_SOURCE_CHOICES, WEAPON_HANDEDNESS_CHOICES, WEAPON_PROFILE_RECORD_TYPES, WEAPON_TYPE_CHOICES } from "@/features/items/weapon-profile-authoring";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
@@ -143,6 +144,23 @@ function newItemDraft(scope: ItemCatalogScope): ItemDraft {
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return <label className={wide ? "item-field item-field--wide" : "item-field"}><span>{label}</span>{children}</label>;
+}
+
+function MechanicalChoiceField({ label, value, options, onChange, isRecognized = (current: string, option: string) => current.trim().toLocaleLowerCase("en-US") === option.trim().toLocaleLowerCase("en-US") }: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+  isRecognized?: (current: string, option: string) => boolean;
+}) {
+  const current = value.trim();
+  const exact = options.some((option) => option === value);
+  const recognized = options.some((option) => isRecognized(value, option));
+  return <Field label={label}><select value={value} onChange={(event) => onChange(event.target.value)}>
+    <option value="">Unconfigured</option>
+    {current && !exact ? <option value={value}>{recognized ? `${value} (recognized)` : `Needs review: ${value}`}</option> : null}
+    {options.map((option) => <option key={option} value={option}>{option}</option>)}
+  </select></Field>;
 }
 
 function OptionalNumber({ value, onChange, ...props }: { value: number | null; onChange: (value: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
@@ -867,7 +885,7 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
     }, 180);
     return () => window.clearTimeout(timer);
   }, [ammoSearch, draft.id]);
-  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: { profileRecordType: draft.core.recordType, weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", rangeMode: null, distanceUnit: null, reachDistance: null, shortRangeDistance: null, mediumRangeDistance: null, longRangeDistance: null, ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", capacityRounds: null, readinessMode: null, drawInitiativeCost: null, readyInitiativeCost: null, reloadInitiativeCost: null, unloadInitiativeCost: null, firingModeChangeInitiativeCost: null, firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } }))}>Add Weapon / Ammunition Profile</button></div>;
+  if (!profile) return <div className="item-section item-empty-profile"><p>WEAPON / AMMUNITION PROFILE</p><h3>This Item has no weapon or ammunition mechanics yet.</h3><button className="skills-primary-button" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, weaponProfile: { profileRecordType: defaultWeaponProfileRecordType(draft.core.recordType), weaponType: "", handedness: "", damageSource: "", damage: "", initiativeCost: null, damageType: "", range: "", reach: "", rangeMode: null, distanceUnit: null, reachDistance: null, shortRangeDistance: null, mediumRangeDistance: null, longRangeDistance: null, ammunitionItemId: null, ammunitionItemName: null, compatibility: "", capacity: "", capacityRounds: null, readinessMode: null, drawInitiativeCost: null, readyInitiativeCost: null, reloadInitiativeCost: null, unloadInitiativeCost: null, firingModeChangeInitiativeCost: null, firingModes: [], resolvedFiringModes: [], rateOfFire: "", reloadInitiative: "", ammunitionCyclingInitiativeModifier: 0, ammunitionRecoilResetInitiativeModifier: 0, referencedAmmunition: null, rulesText: "" } }))}>Add Weapon / Ammunition Profile</button></div>;
   const patch = (update: Partial<NonNullable<ItemDraft["weaponProfile"]>>) => onChange({ ...draft, weaponProfile: { ...profile, ...update } });
   const ammunitionProfile = profile.profileRecordType.trim().toLowerCase() === "ammunition" || draft.core.recordType.trim().toLowerCase() === "ammunition";
   const projectileFamily = projectileWeaponFamily(profile.weaponType);
@@ -885,12 +903,12 @@ function Weapon({ draft, references, itemDirty, onChange }: { draft: ItemDraft; 
       <p>After saving, return to combat, choose the weapon and use Refresh weapon. Apply updated item settings if offered, then load and prepare the copy. Outside combat, use the Character&apos;s Firearm setup.</p>
     </section> : null}
     {!ammunitionProfile ? <div id="firearm-loading" className="item-field--wide"><Field label="Reload Type"><select className="st-control" aria-label="Reload Type" value={profile.reloadType ?? ""} onChange={(event) => patch({ reloadType: event.target.value === "Single" || event.target.value === "Magazine" ? event.target.value : null })}><option value="">Unconfigured</option><option>Single</option><option>Magazine</option></select></Field><p>Single: reload cost per inserted round, shell or projectile. Magazine: reload cost for a complete magazine swap. Completed Single insertions stay loaded if interrupted; a replacement magazine becomes usable when its swap completes.</p><MagazineLinks kind="magazine" excludeItemId={draft.id} selected={profile.compatibleMagazines ?? []} onChange={(compatibleMagazines) => patch({ compatibleMagazines })} /><p>Single-loading capacity belongs to the weapon. Each magazine model has its own capacity, including extended models. Combat uses the attached magazine capacity; existing internal rounds must be unloaded before attaching a magazine.</p></div> : null}
-    <Field label="Profile Record Type"><input value={profile.profileRecordType} onChange={(e) => patch({ profileRecordType: e.target.value })} /></Field>
-    <Field label="Weapon Type"><input value={profile.weaponType} onChange={(e) => patch({ weaponType: e.target.value })} /></Field><Field label="Handedness"><input value={profile.handedness} onChange={(e) => patch({ handedness: e.target.value })} /></Field>
-    <Field label="Damage Source"><input value={profile.damageSource} onChange={(e) => patch({ damageSource: e.target.value })} /></Field><Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
+    <MechanicalChoiceField label="Profile Record Type" value={profile.profileRecordType} options={WEAPON_PROFILE_RECORD_TYPES} onChange={(profileRecordType) => patch({ profileRecordType })} />
+    <MechanicalChoiceField label="Weapon Type" value={profile.weaponType} options={WEAPON_TYPE_CHOICES} isRecognized={(current) => isSupportedWeaponType(current)} onChange={(weaponType) => patch({ weaponType })} />
+    <MechanicalChoiceField label="Handedness" value={profile.handedness} options={WEAPON_HANDEDNESS_CHOICES} isRecognized={(current) => isSupportedWeaponHandedness(current)} onChange={(handedness) => patch({ handedness })} />
+    <MechanicalChoiceField label="Damage Source" value={profile.damageSource} options={WEAPON_DAMAGE_SOURCE_CHOICES} onChange={(damageSource) => patch({ damageSource })} />
+    <Field label="Damage"><input value={profile.damage} onChange={(e) => patch({ damage: e.target.value })} /></Field>
     <Field label="Damage Type"><input value={profile.damageType} onChange={(e) => patch({ damageType: e.target.value })} /></Field><Field label="Initiative Cost"><OptionalNumber value={profile.initiativeCost} min={1} step={1} onChange={(initiativeCost) => patch({ initiativeCost })} /></Field>
-    <Field label="Legacy Range Text"><input value={profile.range} onChange={(e) => patch({ range: e.target.value })} /></Field>
-    <Field label="Legacy Reach Text"><input value={profile.reach} onChange={(e) => patch({ reach: e.target.value })} /></Field><Field label="Legacy Capacity Text"><input value={profile.capacity} onChange={(e) => patch({ capacity: e.target.value })} /></Field>
     <section className="item-firearm-timing item-field--wide"><SectionHeading eyebrow="STRUCTURED RANGE" title="Distance limits used by combat" /><p className="item-firearm-help">Legacy text remains descriptive only. Enter positive limits and an explicit unit for combat range resolution; unfinished records stay inspectable but ranged attacks will be blocked.</p><div className="item-form-grid"><Field label="Range Mode"><select value={profile.rangeMode ?? ""} onChange={(event) => patch({ rangeMode: (event.target.value || null) as WeaponRangeMode | null })}><option value="">Unconfigured</option>{WEAPON_RANGE_MODES.map((mode) => <option key={mode} value={mode}>{mode[0]!.toUpperCase() + mode.slice(1)}</option>)}</select></Field><Field label="Distance Unit"><input value={profile.distanceUnit ?? ""} placeholder="feet, meters, or another explicit unit" onChange={(event) => patch({ distanceUnit: event.target.value || null })} /></Field>{profile.rangeMode !== "ranged" ? <Field label="Reach"><OptionalNumber value={profile.reachDistance} min={0.01} step="any" onChange={(reachDistance) => patch({ reachDistance })} /></Field> : null}{profile.rangeMode !== "melee" ? <><Field label="Short Range"><OptionalNumber value={profile.shortRangeDistance} min={0.01} step="any" onChange={(shortRangeDistance) => patch({ shortRangeDistance })} /></Field><Field label="Medium Range"><OptionalNumber value={profile.mediumRangeDistance} min={0.01} step="any" onChange={(mediumRangeDistance) => patch({ mediumRangeDistance })} /></Field><Field label="Long Range"><OptionalNumber value={profile.longRangeDistance} min={0.01} step="any" onChange={(longRangeDistance) => patch({ longRangeDistance })} /></Field></> : null}</div></section>
     <Field label="Rate of Fire"><input value={profile.rateOfFire} onChange={(e) => patch({ rateOfFire: e.target.value })} /></Field><Field label="Legacy Reload Initiative Text"><input value={profile.reloadInitiative} onChange={(e) => patch({ reloadInitiative: e.target.value })} /></Field>
     {!ammunitionProfile ? <section id="firearm-readying" className="item-firearm-timing item-field--wide">

@@ -1,5 +1,20 @@
 # Combat resumption handoff
 
+## Focused Weapon Profile input cleanup (18 September 2026)
+
+**Implemented locally from `82ec965`; commit remains local until final review.** The combined **Weapon / Ammunition** tab remains shared by Heavens → Equipment and Heavens → Inventory through `ItemWorkspace`. Profile Record Type, Handedness, Damage Source and the finite Weapon Type vocabulary now use supported choices. New profiles default to `Weapon` or `Ammunition` independently of the Item core record type. Unknown historical choices remain visible as **Needs review** and are accepted only when the stored value is unchanged; newly introduced unsupported values are rejected server-side. Damage Type remains author text because the existing catalog/runtime has no authoritative finite damage taxonomy.
+
+- Removed only the editable Legacy Range Text, Legacy Reach Text and Legacy Capacity Text controls. Their columns remain present and are preserved from the stored profile during unrelated saves. Structured range mode, distance unit, reach, Short/Medium/Long limits, capacity, reload/readiness, magazine compatibility, ammunition links and firing modes remain editable.
+- Narrowly corrected Character weapon-use attribution to recognize structured range/reach fields without requiring hidden legacy text. Existing legacy text remains a fallback for historical records.
+- The disposable browser case verified both entry points: supported Equipment save/reopen, invalid new Handedness rejection, historical `Equipment`/`N/A`/unknown values marked for review, unchanged legacy range/reach/capacity, changed structured Reach, Skill mapping, linked ammunition, Shared Charges ability/resource, and Inventory Ammunition save/reopen. No migration, catalog backfill, shared DEV mutation, deployment or production access occurred.
+- Validation passed: **1,384/1,384 unit tests**, typecheck, changed-file lint, `git diff --check`, structured-range character rules **9/9**, and focused profile-cleanup browser **1/1** on a fresh migrated loopback database. The existing `magazine-combat` browser case was rerun twice and still times out at its final Player Roll field after firearm refresh; this is the pre-existing durable firearm-distance fixture gap, not the profile cleanup path.
+
+### Remaining blockers / resume first
+
+1. Review and locally commit this checkpoint; do not push or deploy under the current instruction.
+2. Reconcile the older `magazine-combat`/Player firearm fixtures with the durable `weapon-distance` approval contract before claiming that existing firearm browser coverage is green. Do not weaken approval enforcement.
+3. Damage Type remains intentionally free text pending an explicit finite rules vocabulary; do not invent one in a later pass. Preserve the next stabilization work on sword, Shared Charges and supported AoE.
+
 ## Authoritative ordinary ranged approval and learned-spell AoE (18 September 2026)
 
 **Implemented locally from `bb2052482`; commit remains local until final review.** Ordinary Player Weapon declarations now enforce the durable `weapon-distance` approval at the authoritative declaration-lock boundary, after canonical Weapon/Profile range resolution. The check no longer depends on the client-provided range mode or on merely supplying a request ID. It binds the approved request to the canonical source/instance, Weapon/Profile, target, ranged mode, distance and unit; approved distance, band, adjustment, label and Beyond Long ruling fields replace client values in the frozen snapshot. Read-only preview remains non-consuming, retries still resolve before approval validation, and G.O.D.-controlled actions remain outside Player approval.

@@ -33,6 +33,11 @@ export type CharacterWeaponDamageInput = Pick<
   | "weaponType"
   | "rangeText"
   | "reachText"
+  | "rangeMode"
+  | "reachDistance"
+  | "shortRangeDistance"
+  | "mediumRangeDistance"
+  | "longRangeDistance"
 >;
 
 export type CharacterEncumbrance = {
@@ -115,8 +120,9 @@ function addModifier(damage: string | null, modifier: number): string {
 }
 
 function weaponUses(item: CharacterWeaponDamageInput): WeaponUse[] {
-  const hasRange = Boolean(item.rangeText?.trim());
-  const hasReach = Boolean(item.reachText?.trim());
+  const hasRange = Boolean(item.rangeText?.trim()) || item.rangeMode === "ranged" || item.rangeMode === "hybrid"
+    || [item.shortRangeDistance, item.mediumRangeDistance, item.longRangeDistance].some((value) => value != null);
+  const hasReach = Boolean(item.reachText?.trim()) || item.rangeMode === "melee" || item.rangeMode === "hybrid" || item.reachDistance != null;
   const explicitlyRanged =
     /bow|crossbow|firearm|pistol|rifle|cannon|ranged/i.test(
       item.weaponType ?? "",
