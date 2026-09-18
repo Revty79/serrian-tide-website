@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { CharacterHitLocationChart } from "@/app/characters/character-hit-location-chart";
 import {
   getCharacterEncumbrance,
+  getCharacterWeaponDamageAttributeKeys,
   getCharacterWeaponDamage,
   getCharacterWeaponDamageSummary,
 } from "./character-sheet-rules";
@@ -140,6 +141,40 @@ test("structured ranged limits apply Dexterity without legacy range text", () =>
     weaponType: "Energy Weapon", rangeText: "", reachText: "", rangeMode: "ranged",
     shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50,
   }), attributes), { modifier: "DEX +1", totalDamage: "9" });
+});
+
+test("explicit Melee mode overrides retained ranged fields and type hints", () => {
+  const item = weapon({
+    weaponType: "Bow", rangeMode: "melee", rangeText: "120 ft", reachText: "5 ft",
+    reachDistance: 5, shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50,
+  });
+  assert.deepEqual(getCharacterWeaponDamageSummary(item, attributes), { modifier: "STR +3", totalDamage: "11" });
+  assert.equal(item.rangeMode, "melee");
+  assert.equal(item.rangeText, "120 ft");
+  assert.equal(item.shortRangeDistance, 10);
+});
+
+test("explicit Ranged mode overrides retained Reach fields", () => {
+  const item = weapon({
+    weaponType: "Sword", rangeMode: "ranged", rangeText: "30 ft", reachText: "5 ft", reachDistance: 5,
+    shortRangeDistance: 10, mediumRangeDistance: 25, longRangeDistance: 50,
+  });
+  assert.deepEqual(getCharacterWeaponDamageSummary(item, attributes), { modifier: "DEX +1", totalDamage: "9" });
+  assert.equal(item.reachText, "5 ft");
+  assert.equal(item.reachDistance, 5);
+});
+
+test("explicit Hybrid mode preserves both summaries", () => {
+  assert.deepEqual(getCharacterWeaponDamageSummary(weapon({ rangeMode: "hybrid" }), attributes), {
+    modifier: "STR +3 / DEX +1",
+    totalDamage: "M 11 / R 9",
+  });
+});
+
+test("unconfigured historical records retain inferred classification", () => {
+  assert.deepEqual(getCharacterWeaponDamageAttributeKeys(weapon({ rangeMode: null, weaponType: "Bow", rangeText: "120 ft", reachText: null })), ["DEX"]);
+  assert.deepEqual(getCharacterWeaponDamageAttributeKeys(weapon({ rangeMode: null, rangeText: "15 ft", reachText: "5 ft" })), ["STR", "DEX"]);
+  assert.deepEqual(getCharacterWeaponDamageAttributeKeys(weapon({ rangeMode: null })), ["STR"]);
 });
 
 test("ammunition-fed weapons resolve damage from their linked Ammunition Item", () => {
