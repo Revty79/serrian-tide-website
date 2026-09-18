@@ -1,5 +1,18 @@
 # Combat resumption handoff
 
+## Final governance save and Variant guards (18 September 2026)
+
+**Starting revision:** `0a99afff91c28e0c58b9dbd5261bce00890de5bb`, already published on `origin/main`. This editor correction remains local pending explicit push authorization.
+
+- Governing Skill Path saves now keep in-flight state at `ItemWorkspace` level. Mapping controls are disabled during the request even across tab switches; stale responses are identity-bound; failed saves retain the draft/error and leave Retry available; successful saves preserve a distinct governing-path confirmation.
+- Save Item remains a separate dependency: path-only drafts can save, while dependent path saving is disabled until ordinary Item/profile/firing-mode changes are persisted. Successful Item save refreshes governance immediately without replacing dirty mappings.
+- Variants opening and creation use the same unsaved-work guard. Keep Editing preserves the selected Item and draft, cancellation creates no variant, and explicit discard proceeds with the requested variant action.
+- Validation passed: focused governance/fixture tests **17/17**, disposable Equipment/Inventory `profile-cleanup` browser **1/1** including first-save, retry, pending paths, mode-scope reorder, Variant Keep Editing/cancellation/discard, and save/reopen; typecheck, changed-file lint, `git diff --check`, and complete unit suite **1,391/1,391**.
+
+### Remaining limitation
+
+- A live server-side governance save failure was not fault-injected in the browser; failure retention is implemented and the load Retry path is exercised. No migrations, shared DEV/production mutation, deployment or combat changes occurred.
+
 ## Governing Skill Path save/navigation protections (18 September 2026)
 
 **Starting revision:** `e479d4dbff8dca22e412b0b9584692d070390a87`, published on `origin/main`. This correction is local pending explicit push authorization.
