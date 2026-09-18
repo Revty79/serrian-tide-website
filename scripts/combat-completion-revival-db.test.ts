@@ -27,13 +27,15 @@ import { readActiveHealthInTransaction, healFullBodyInTransaction } from "@/feat
 import { setCombatFrozenInTransaction as freeze } from "@/features/tabletop-operations/combat-freeze-service";
 import { readCombatProjectionInTransaction, readCombatEntityInformationInTransaction } from "@/features/tabletop-operations/combat-projection-service";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
+import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { analyzeSpellTargetGroups } from "@/features/spell-construction/spell-target-groups";
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const rollback = new Error("ROLLBACK_REVIVAL");
 const expected = (error: unknown) => { if (error !== rollback) console.error(error); return error === rollback; };
-async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", targetKind: "npc" | "creature" = "npc", mana = 200, extraConditions = false) {
+async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", targetKind: "npc" | "creature" = "npc", mana = 200, extraConditions = false, selection: "exact" | "caster" = "exact") {
   const f = await completionServiceFixture(tx, "revival");
   await tx.insert(userRole).values([{ userId: f.godId, role: "god" }, { userId: f.godId, role: "player" }]);
   const [root, channel] = await tx.insert(skill).values([
@@ -50,6 +52,7 @@ async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", ta
   await tx.insert(skillExtension).values({ skillId: source.id, extensionType: "spell-construction", schemaVersion: 6, dataJson: JSON.stringify(document) });
   const [allocation] = await tx.insert(campaignCharacterSkillAllocation).values({ characterId: f.heroId, skillId: source.id, parentAllocationId: rootAllocation.id, points: 1 }).returning();
   const id = targetKind === "npc" ? f.defenderId : f.occurrences[0];
+  const selectedTargetId = selection === "caster" ? f.heroId : id;
   await tx.update(participant).set({ participationStatus: "active", currentInitiative: 220, normalTotalInitiative: 220 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
   await tx.update(runtime).set({ timelineInitiative: 220 }).where(eq(runtime.encounterId, f.encounterId));
   await tx.update(participant).set({ currentInitiative: -3, deferredInitiativeCost: 2 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, id)));
@@ -64,11 +67,11 @@ async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", ta
   await recordCombatSourceResolutionInTransaction(tx, f.context, f.god, { participantId: f.heroId, sourceKind: "spell", sourceRef,
     mode: "automatic-no-roll", governing: null, effectScaling: {}, reason: "Explicit G.O.D. casting mode for the isolated authored catalog spell." });
   const { prepareCharacterSpellCastInTransaction } = await import("@/features/characters/character-spell-runtime-service");
-  const preview = await prepareCharacterSpellCastInTransaction(tx, { casterCharacterId: f.heroId, source: { kind: "catalog", allocationId: allocation.id }, selections: { targetGroups: {}, applications: {} } }, f.godId);
-  const groups = preview.plan.targetGroups;
+  await prepareCharacterSpellCastInTransaction(tx, { casterCharacterId: f.heroId, source: { kind: "catalog", allocationId: allocation.id }, selections: { targetGroups: {}, applications: {} } }, f.godId);
+  const groups = analyzeSpellTargetGroups(document, adaptSpellToMechanicalEffects(document).effects).groups;
   const action = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, id), sourceKind: "spell", sourceRef: `spell:${sourceRef}`,
     label: name, actionKind: "spell-cast", windowKind: "ordinary", allowsMultiRound: true,
-    sourcePayload: { selections: { targetGroups: Object.fromEntries(groups.map((entry) => [entry.id, [id]])), applications: {} } } });
+    sourcePayload: { selections: { targetGroups: Object.fromEntries(groups.map((entry) => [entry.id, entry.kind === "aoe" ? [] : [selectedTargetId]])), applications: {} } } });
   await lockActionDeclarationInTransaction(tx, f.context, f.player, action);
   const beforeMana = (await readActiveManaInTransaction(tx, f.heroId)).pools[0].currentMana;
   const pending = await commitActionDeclarationInTransaction(tx, f.context, f.player, action);
@@ -84,6 +87,10 @@ async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", ta
   const local = async () => (await tx.select().from(member).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, id))))[0].localStateJson;
   return { ...f, id, action, request, beforeMana, local, blockerConditions };
 }
+
+test("revival rejects a substituted caster target before any recovery effect is created", async () => {
+  await assert.rejects(db.transaction((tx) => fixture(tx, "Vital Wellspring", "npc", 200, false, "caster")), /Spell target selection/);
+});
 
 for (const targetKind of ["npc", "creature"] as const) test(`Grand Master Vital Wellspring revives the exact ${targetKind} at 1 HP with preserved debt, Freeze and immutable retries`, async () => {
   await assert.rejects(db.transaction(async (tx) => {

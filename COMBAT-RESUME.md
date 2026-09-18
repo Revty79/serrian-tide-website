@@ -1,5 +1,19 @@
 # Combat resumption handoff
 
+## Firearm fixture consistency and revival verification (18 September 2026)
+
+**Starting revision:** `3379e1fd5bf515cd6867b6f0ac18efc06c56901e`, published on `origin/main`. This pass keeps the completed Governing Skill Path correction intact and adds two local logical commits.
+
+- Normal screen firearm fixtures no longer inspect `COMBAT_SCREEN_CASE_FILTER`; every caller receives the same structured ranged profile: feet, Short 10, Medium 25, Long 50. A pure regression passes for no filter, individual filter and grouped filter (**3/3**). Existing Player positive flows still use the real request/ruling approval services; negative approval checks remain intact.
+- The grouped `distance-approval,magazine-combat` browser run passed **2/2** scenario results, including Beyond Long correction/retry and magazine loading, firing, ammunition, damage and recovery.
+- Revival root cause was shared resolver integration: manual authored recovery effects were filtered out of `preview.plan.targetGroups`, so the resolver compared the exact draft target against an empty group list. The resolver now analyzes authored groups from all adapted effects; the fixture derives group IDs through that shared analysis, selects the ordinary target, and leaves AoE selection empty for G.O.D.-only selection. A substituted-caster target remains rejected.
+- Revival database suite passed **13/13**; learned-spell database suite passed **11/11**; firearm database suite passed **45/45**. The final unfiltered disposable combat wrapper passed **1/1** with no child failure; the captured child TAP segment reported **151/151**. No migration, shared DEV/production mutation, deployment or production access occurred.
+- Final unit suite passed **1,391/1,391** across 165 feature files; typecheck, changed-file lint and `git diff --check` passed.
+
+### Remaining limitation
+
+- No specific mechanical blocker remains for beginning manual firearm/revival testing. The disposable runner does not emit one consolidated aggregate across every child script, so the wrapper result and captured child TAP count are reported separately.
+
 ## Governing Skill Path availability and unsaved edits (18 September 2026)
 
 **Starting revision:** `fe9708f251178c9f392558a6ee28122629adcdd2`, already published on `origin/main`. This focused authoring correction remains local until explicit push authorization.

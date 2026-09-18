@@ -677,7 +677,7 @@ async function resolveSpell(
   requireCharacterSource(participant, "Spell casting");
   const payload = sourcePayload(draft);
   const source = asSpellSource(payload.source, draft.sourceRef);
-  const targetGroups = payloadTargetGroups(payload);
+  const selectedTargetGroups = payloadTargetGroups(payload);
   const spellSelections = isRecord(payload.selections) && isRecord(payload.selections.applications)
     ? payload.selections.applications
     : {};
@@ -696,25 +696,26 @@ async function resolveSpell(
     : loaded.spell;
   const adapted = adaptSpellToMechanicalEffects(effectSpell);
   if (preview.plan.status === "invalid") throw new Error(`The exact authored Spell is invalid: ${preview.plan.issues.join(" ")}`);
-  for (const groupId of Object.keys(targetGroups)) {
-    if (!preview.plan.targetGroups.some(({ id }) => id === groupId)) throw new Error(`Unknown authored Spell target group ${groupId}.`);
+  const targetGroupAnalysis = analyzeSpellTargetGroups(effectSpell, adapted.effects);
+  for (const groupId of Object.keys(selectedTargetGroups)) {
+    if (!targetGroupAnalysis.groups.some(({ id }) => id === groupId)) throw new Error(`Unknown authored Spell target group ${groupId}.`);
   }
-  for (const group of preview.plan.targetGroups) {
+  for (const group of targetGroupAnalysis.groups) {
     if (group.kind === "aoe") {
-      const selected = targetGroups[group.id] ?? [];
+      const selected = selectedTargetGroups[group.id] ?? [];
       assertAoESelectionAuthority(actorAuthority, selected, "Spell");
       if (new Set(selected).size !== selected.length) throw new Error(`Spell AoE group ${group.id} contains duplicate participants.`);
-      targetGroups[group.id] = selected;
+      selectedTargetGroups[group.id] = selected;
       continue;
     }
-    const selection = resolveSpellCastTargetSelection(group, draft.actorCharacterId, targetGroups[group.id]);
+    const selection = resolveSpellCastTargetSelection(group, draft.actorCharacterId, selectedTargetGroups[group.id]);
     if (selection.issue) throw new Error(selection.issue);
     if (!selection.selected.length) throw new Error(`Select the exact Encounter participants for Spell target group ${group.id}.`);
-    targetGroups[group.id] = selection.selected;
+    selectedTargetGroups[group.id] = selection.selected;
   }
-  const ordinarySpellTargets = preview.plan.targetGroups
+  const ordinarySpellTargets = targetGroupAnalysis.groups
     .filter(({ kind }) => kind === "target")
-    .flatMap(({ id }) => targetGroups[id] ?? []);
+    .flatMap(({ id }) => selectedTargetGroups[id] ?? []);
   assertSameTargets(ordinarySpellTargets, draft.targetCharacterIds, "Spell target selection");
   const targets = allTargets(draft);
   const spellModifiers = [...effectSpell.modifiers];
@@ -726,11 +727,11 @@ async function resolveSpell(
     && !spellModifiers.some(({ ruleId }) => ruleId === "static-assignment");
   const effects = adapted.valid
     ? adapted.effects.flatMap((entry) => {
-        const groupId = [...entry.containerPath].reverse().find((id) => targetGroups[id] !== undefined);
-        const group = preview.plan.targetGroups.find((candidate) => candidate.id === groupId);
+        const groupId = [...entry.containerPath].reverse().find((id) => selectedTargetGroups[id] !== undefined);
+        const group = targetGroupAnalysis.groups.find((candidate) => candidate.id === groupId);
         if (group?.kind === "aoe") {
           const aoeGroupId = groupId!;
-          return (targetGroups[aoeGroupId] ?? []).map((targetId: number) => ({ ...structuredEffect(
+          return (selectedTargetGroups[aoeGroupId] ?? []).map((targetId: number) => ({ ...structuredEffect(
             `spell-effect:${entry.spellEffectId}:target:${targetId}`,
             entry.definition.effect,
             [targetId],
@@ -748,7 +749,7 @@ async function resolveSpell(
             },
           ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
         }
-        const exactTargets = groupId ? targetGroups[groupId]! : targets;
+        const exactTargets = groupId ? selectedTargetGroups[groupId]! : targets;
         return exactTargets.map((targetId) => ({ ...structuredEffect(
           `spell-effect:${entry.spellEffectId}:target:${targetId}`,
           entry.definition.effect,
@@ -766,7 +767,7 @@ async function resolveSpell(
         ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
-  const authoredData = { spell: loaded.spell, casting: preview.plan, targetGroups: preview.plan.targetGroups, catalogSourceId: loaded.catalogSourceId ?? null,
+  const authoredData = { spell: loaded.spell, casting: preview.plan, targetGroups: targetGroupAnalysis.groups, catalogSourceId: loaded.catalogSourceId ?? null,
     ...(spellSkill ? { combatSpellSkill: spellSkill.rollGoverningSourceSnapshot } : {}) };
   const recovery = combatRecoverySpellAuthority(authoredData);
   if (recovery) effects.push({ ...manualEffect("spell-combat-recovery", `${recovery.name} recovery ruling`, { combatRecovery: recovery }, targets), scaling: "fixed" });
