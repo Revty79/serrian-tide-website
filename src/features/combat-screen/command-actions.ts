@@ -130,9 +130,9 @@ export async function readCombatSpellOptions(scope: CombatScreenScope, participa
     const [row] = await tx.select({ isNpc: campaignCharacter.isNpc }).from(member).leftJoin(campaignCharacter, eq(campaignCharacter.id, member.characterId)).where(and(eq(member.encounterId, context.encounterId), eq(member.characterId, participantId)));
     if (!row) throw new Error("The caster must belong to this encounter.");
     if (await readOpenDeclarationCheckpoint(tx, context.encounterId) && actor.authority === "god-owner" && !row.isNpc) throw new Error("Inspect source rulings after simultaneous choices are revealed.");
-    const { plan } = await prepareCharacterSpellCastInTransaction(tx, { casterCharacterId: participantId, source, selections: { targetGroups: {}, applications: {} } }, actor.userId, true);
-    return { groups: plan.targetGroups, mastery: plan.caster.practitionerLevel, manaCost: plan.finalManaCost, initiativeCost: plan.finalInitiativeCost,
-      warnings: [...plan.issues, ...plan.warnings] };
+    const preparation = await prepareCharacterSpellCastInTransaction(tx, { casterCharacterId: participantId, source, selections: { targetGroups: {}, applications: {} } }, actor.userId, true);
+    return { groups: preparation.authoredTargetGroups, mastery: preparation.plan.caster.practitionerLevel, manaCost: preparation.plan.finalManaCost, initiativeCost: preparation.plan.finalInitiativeCost,
+      warnings: [...preparation.plan.issues, ...preparation.plan.warnings] };
   });
 }
 export async function readCombatItemAbilityOptions(scope: CombatScreenScope, participantId: number, powerIdInput: number) {

@@ -10,10 +10,12 @@ import { campaignSessionEncounterParticipant as member, campaignSessionEncounter
 import { completionServiceFixture } from "./combat-completion-service-fixture";
 import type { BuildTenDbTransaction as Tx } from "../tabletop-build-ten-db-fixture";
 import { item, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
+import { skill, skillExtension } from "@/db/skill-schema";
 import { campaignCharacterItemInstance } from "@/db/realm-schema";
 import { campaignCharacterFirearmState } from "@/db/tabletop-operations-schema";
 import { addLearnedCombatSpell } from "./combat-learned-spell-fixture";
 import { screenFirearmRangeProfile } from "./combat-screen-mechanics";
+import recoveryCatalog from "./combat-recovery-spell-catalog.json";
 export { screenFirearmRangeProfile } from "./combat-screen-mechanics";
 export const SCREEN_PASSWORD = "Combat-Browser-Only-2026!";
 export async function screenFixture(tx: Tx, label: string, simultaneous = false) {
@@ -58,6 +60,15 @@ export async function screenFixture(tx: Tx, label: string, simultaneous = false)
 }
 export async function addScreenSpell(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>, area = false) {
   return addLearnedCombatSpell(tx, f, { area });
+}
+export async function addScreenRecoverySpell(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
+  const learned = await addLearnedCombatSpell(tx, f, { name: "Vital Wellspring" });
+  const authored = recoveryCatalog.records.find((entry) => entry.name === "Vital Wellspring" && entry.extension_type === "spell-construction");
+  if (!authored) throw new Error("The supported Vital Wellspring browser fixture is missing its authored catalog record.");
+  const document = { ...authored.data_json, frameworkSkillId: learned.spell.frameworkSkillId };
+  await tx.update(skill).set({ sourceExternalId: authored.source_external_id }).where(eq(skill.id, learned.spellSkill.id));
+  await tx.update(skillExtension).set({ schemaVersion: 6, dataJson: JSON.stringify(document) }).where(and(eq(skillExtension.skillId, learned.spellSkill.id), eq(skillExtension.extensionType, "spell-construction")));
+  return { ...learned, spell: document, sourceExternalId: authored.source_external_id };
 }
 export async function addScreenFirearm(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
   const [ammo, gun] = await tx.insert(item).values([

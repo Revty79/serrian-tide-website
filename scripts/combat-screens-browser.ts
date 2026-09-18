@@ -9,7 +9,7 @@ import { item, weaponProfile } from "@/db/item-schema";
 import { campaignInventoryItem } from "@/db/realm-schema";
 import { submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
 import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
-import { screenFixture, addScreenSpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
+import { screenFixture, addScreenSpell, addScreenRecoverySpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
 async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
 const artifactSubdir = process.env.COMBAT_SCREEN_ARTIFACT_SUBDIR ?? "";
@@ -1118,6 +1118,61 @@ try {
     assert.deepEqual(await health(), before); assert.deepEqual(await mana(), spent);
     results.push("AoE casting Rolls once, spends Mana once, records the authored area and scaled damage for G.O.D. and caster, and completes automatically without changing combatant HP.");
     await director.context().close(); await participant.context().close();
+  }
+  if (include("revival-screen")) {
+    const f = await db.transaction(async (tx) => {
+      const fixture = await screenFixture(tx, "revival-screen");
+      await addScreenRecoverySpell(tx, fixture);
+      return fixture;
+    });
+    const { ruleCombatConditionInTransaction } = await import("@/features/tabletop-operations/combat-condition-service");
+    await db.transaction((tx) => ruleCombatConditionInTransaction(tx, f.encounterId, f.god, {
+      participantId: f.defenderId, status: "dead", expectedRevision: 0, requestKey: crypto.randomUUID(), reason: "Eligible revival target is dead before the cast.",
+    }));
+    const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
+    const view = screen(player);
+    await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Cast", exact: true }).click();
+    const source = view.getByRole("combobox", { name: /^Cast source/ });
+    await until(async () => await source.locator("option").filter({ hasText: /^Vital Wellspring/ }).count() === 1, "revival spell source loaded");
+    await source.selectOption(await source.locator("option").filter({ hasText: /^Vital Wellspring/ }).getAttribute("value") ?? "");
+    const targetChooser = view.getByRole("combobox", { name: "Spell target 1", exact: true });
+    await targetChooser.waitFor();
+    assert.ok(await targetChooser.locator(`option[value='${f.defenderId}']`).count() === 1, "The real options request exposes the eligible NPC revival target.");
+    await targetChooser.selectOption(String(f.defenderId));
+    const beforeCaster = (await pool.query("select local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.heroId])).rows[0].local_state_json;
+    const beforeOther = (await pool.query("select local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.occurrences[0]])).rows[0].local_state_json;
+    await view.getByLabel("Percentile result", { exact: true }).fill("80");
+    await view.getByRole("button", { name: "Commit Cast & Roll", exact: true }).click();
+    await until(async () => (await declarations(f)).length === 1, "revival declaration committed through the Player screen");
+    const [declaration] = await declarations(f);
+    const draft = typeof declaration.draft_json === "string" ? JSON.parse(declaration.draft_json) : declaration.draft_json;
+    assert.deepEqual(draft.targetCharacterIds, [f.defenderId]);
+    assert.deepEqual(Object.values(draft.sourcePayload.selections.targetGroups).flat(), [f.defenderId]);
+    await until(async () => {
+      const pending = await pool.query("select status from campaign_session_encounter_pending_action where id=$1", [declaration.pending_action_id]);
+      return pending.rows[0]?.status === "completed";
+    }, "revival timing completes");
+    await selectGod(director, "Rowan");
+    await screen(director).getByRole("button", { name: "Resolve authored revival", exact: true }).waitFor();
+    await screen(director).getByLabel("Specific ruling / recovery reason", { exact: true }).fill("The G.O.D. confirms this exact selected revival target.");
+    await screen(director).getByRole("button", { name: "Resolve authored revival", exact: true }).click();
+    await until(async () => (await pool.query("select local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.defenderId])).rows[0].local_state_json.combatCondition?.status === "able", "selected NPC revival applies");
+    const casterState = (await pool.query("select local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.heroId])).rows[0].local_state_json;
+    assert.deepEqual(casterState, beforeCaster, "The caster was not substituted as the revival target.");
+    assert.deepEqual((await pool.query("select local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.occurrences[0]])).rows[0].local_state_json, beforeOther, "Other participants were not changed by target substitution.");
+    const mana = (await pool.query("select mana_spent from campaign_character_active_mana where character_id=$1", [f.heroId])).rows[0].mana_spent;
+    assert.ok(Number(mana) > 0, "The cast spent Mana once.");
+    const storedDraft = typeof declaration.draft_json === "string" ? JSON.parse(declaration.draft_json) : declaration.draft_json;
+    const retry = await db.transaction(async (tx) => {
+      const context = await lockPlayerCombatContextInTransaction(tx, f.encounterId, f.heroId, f.playerId);
+      return submitCombatChoiceInTransaction(tx, context, { authority: "player", userId: f.playerId, characterId: f.heroId }, storedDraft.sourcePayload.screenRequest);
+    });
+    assert.equal((retry as { reused?: boolean }).reused, true, "An identical original screen command retry reuses the declaration.");
+    await player.reload(); await screen(player).getByText("Live", { exact: true }).waitFor();
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_effect_plan where declaration_id=$1", [declaration.id])).rows[0].n, 1);
+    results.push("Player selected Vital Wellspring's exact NPC target from the real options request, committed the matching declaration, G.O.D. resolved authored revival, the NPC recovered without caster substitution, Mana was spent once, and refresh preserved one Roll.");
+    await director.context().close(); await player.context().close();
   }
   if (include("defense")) {
     const f = await db.transaction((tx) => screenFixture(tx, "defense"));

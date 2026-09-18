@@ -37,6 +37,7 @@ import { getCastingSystemForAllocation } from "./character-spell-casting";
 import {
   canInitiateSpellCast,
   canTargetSpellCast,
+  analyzeAuthoredSpellTargetGroups,
   executeSpellCastInTransaction,
   planSpellCast,
   type LoadedSpellCastSource,
@@ -63,6 +64,7 @@ export type SpellCastTargetOption = {
 export type SpellCastPreparation = {
   plan: SpellCastPlan;
   targetOptions: SpellCastTargetOption[];
+  authoredTargetGroups: ReturnType<typeof analyzeAuthoredSpellTargetGroups>;
 };
 
 type RuntimeAccessEntity = SpellCastAccessEntity & {
@@ -77,6 +79,7 @@ type SpellTree = {
 type LoadedRuntimePlan = {
   plan: SpellCastPlan;
   targets: SpellCastTargetContext[];
+  authoredTargetGroups: ReturnType<typeof analyzeAuthoredSpellTargetGroups>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -503,14 +506,16 @@ async function loadAuthoritativePlan(
     targetIds,
     lock,
   );
+  const plan = planSpellCast({
+    source,
+    caster,
+    selections: request.selections,
+    targets,
+  });
   return {
     targets,
-    plan: planSpellCast({
-      source,
-      caster,
-      selections: request.selections,
-      targets,
-    }),
+    plan,
+    authoredTargetGroups: analyzeAuthoredSpellTargetGroups(source.spell, caster.practitionerLevel),
   };
 }
 
@@ -587,7 +592,7 @@ export async function prepareCharacterSpellCastInTransaction(
   }
   const loaded = await loadAuthoritativePlan(tx, request, subject, false, projectSealedResources);
   const targetOptions = await listTargetOptions(tx, subject, caster);
-  return { plan: loaded.plan, targetOptions };
+  return { plan: loaded.plan, targetOptions, authoredTargetGroups: loaded.authoredTargetGroups };
 }
 
 /** Executes one authoritative cast inside a transaction owned by the caller. */

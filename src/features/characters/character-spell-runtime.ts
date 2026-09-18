@@ -105,6 +105,21 @@ export type SpellCastTargetGroup = {
   missingSelection: boolean;
 };
 
+export function analyzeAuthoredSpellTargetGroups(
+  spell: SpellDocument,
+  practitionerLevel: PractitionerLevel,
+): SpellCastTargetGroup[] {
+  const effectiveSpell = hasProgressiveSpellModifier(spell)
+    ? resolveProgressiveSpellForLevel(spell, practitionerLevel).resolvedSpell
+    : spell;
+  const adapted = adaptSpellToMechanicalEffects(effectiveSpell);
+  return analyzeSpellTargetGroups(effectiveSpell, adapted.effects).groups.map((group) => ({
+    ...group,
+    selectedTargetIds: [],
+    missingSelection: true,
+  }));
+}
+
 export type PlannedSpellCastApplication = {
   applicationKey: string;
   spellEffectId: string;
