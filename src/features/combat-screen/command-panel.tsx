@@ -29,7 +29,7 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
   const attackCommand = command === "Attack" || command === "Called Shot";
   const target = attackCommand && Number(selectedTarget) === entity.participantId ? "" : selectedTarget;
   const [drafts, setDrafts] = useState<Record<string, Draft>>({}), [cache, setCache] = useState<Record<number, Sources>>({});
-  const [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(""), [busy, setBusy] = useState(false), [lastRequestKey, setLastRequestKey] = useState("");
   const [checked, setChecked] = useState<{ key: string; sourceKey: string; value: Preview } | null>(null);
   const [previewError, setPreviewError] = useState<{ key: string; message: string } | null>(null), [previewRetry, setPreviewRetry] = useState(0);
   const [spell, setSpell] = useState<{ key: string; value: Awaited<ReturnType<typeof readCombatSpellOptions>> } | null>(null);
@@ -142,8 +142,9 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
     running.current = true; setBusy(true); setMessage("");
     try {
       submitted.current[key] ??= { choice, requestKey: crypto.randomUUID(), ...(needsRoll ? { roll: rollInput(draft.roll) } : {}) };
+      setLastRequestKey(submitted.current[key].requestKey);
       await submitCombatChoice(scope, submitted.current[key]); setMessage("Choice committed. Follow the shared prompt for what happens next.");
-      await refresh(); delete submitted.current[key];
+      await refresh();
     } catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "The command was not confirmed. Retry preserves its original choice and Roll.")); await refresh(); }
     finally { running.current = false; setBusy(false); }
   }
@@ -155,7 +156,7 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
     delete submitted.current[attackKey];
     setCommand("Attack");
   }
-  return <div><h3>{command}</h3>
+  return <div data-combat-request-key={lastRequestKey}><h3>{command}</h3>
     {attackCommand && entity.canControl ? <button className="st-button" onClick={() => setCommand("Weapons")}>Draw / change weapon</button> : null}
     {command === "Item" && sources ? <MeleeDrawControls key={entity.participantId} scope={scope} entity={entity} options={sources.meleeDraws} disabled={disabled} refresh={refresh} /> : null}
     {command === "Item" && sources?.magazines ? <MagazineFillControls scope={scope} entity={entity} inventory={sources.magazines} disabled={disabled} refresh={refresh} /> : null}

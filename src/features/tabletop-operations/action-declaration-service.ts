@@ -523,7 +523,8 @@ async function buildAuthoritativeSnapshot(
   });
   governing = resolvedSource.governing;
   const frozenRange = resolvedSource.snapshot.authoredData.range;
-  if (frozenRange && typeof frozenRange === "object" && !Array.isArray(frozenRange) && typeof (frozenRange as { adjustment?: unknown }).adjustment === "number") {
+  if (frozenRange && typeof frozenRange === "object" && !Array.isArray(frozenRange) && typeof (frozenRange as { adjustment?: unknown }).adjustment === "number"
+    && !["firearm-trigger", "firearm-sustained"].includes(draft.windowKind)) {
     const range = frozenRange as { label?: unknown; adjustment: number };
     draft = { ...draft, explicitModifiers: [...draft.explicitModifiers, { label: `Range: ${typeof range.label === "string" ? range.label : "resolved band"}`, value: range.adjustment }] };
   }

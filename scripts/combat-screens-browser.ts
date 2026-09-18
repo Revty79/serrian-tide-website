@@ -5,6 +5,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, type Page, type Browser } from "playwright-core";
 import { db, pool } from "@/db";
+import { submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
+import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { screenFixture, addScreenSpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
 async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
@@ -592,20 +594,74 @@ try {
     await controls.click();
     const request = screen(god).locator("fieldset").filter({ hasText: "weapon distance" }).first();
     await screen(god).getByLabel("Ruling / participation reason", { exact: true }).fill("Distance confirmed for this exact Player shot.");
-    await request.getByLabel("Approved distance", { exact: true }).fill("25");
+    await request.getByLabel("Approved distance", { exact: true }).fill("75");
     await request.getByLabel("Distance unit", { exact: true }).fill("feet");
+    await request.getByLabel("Beyond Long modifier", { exact: true }).fill("25");
+    await request.getByLabel("Beyond Long reason", { exact: true }).fill("G.O.D. confirms the measured target is beyond Long.");
     await request.getByRole("button", { name: "Approve", exact: true }).click();
     await new Promise((resolveWait) => setTimeout(resolveWait, 500));
     await player.getByRole("button", { name: "Refresh", exact: true }).click();
-    await playerScreen.getByText(/G\.O\.D\. approved distance: 25 feet/).waitFor();
-    await playerScreen.getByLabel("Percentile result", { exact: true }).fill("70");
+    await playerScreen.getByText(/G\.O\.D\. approved distance: 75 feet/).waitFor();
+    try { await playerScreen.getByText(/final target 75/).waitFor(); } catch (error) { console.log("DISTANCE_FINAL_TARGET_DEBUG", (await playerScreen.innerText()).slice(-4500)); throw error; }
+    await playerScreen.getByLabel("Percentile result", { exact: true }).fill("80");
     await playerScreen.getByRole("button", { name: "Fire & Roll", exact: true }).click();
-    await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0].n === 1, "approved Player firearm attack committed");
+    try { await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0].n === 1, "approved Player firearm attack committed"); } catch (error) { console.log("DISTANCE_COMMIT_DEBUG", (await playerScreen.innerText()).slice(-5000)); throw error; }
+    const requestKey = (await pool.query<{ idempotency_key: string }>("select idempotency_key from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0]?.idempotency_key; assert.match(requestKey ?? "", /^[a-f0-9-]{32,36}$/);
+    const firearmModeId = (await pool.query<{ id: number }>("select selected_firing_mode_id id from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0]?.id;
+    assert.ok(firearmModeId);
+    const rulingRow = await pool.query<{ id: number; linkedFirearmAttackId: number | null }>("select id,linked_firearm_attack_id from campaign_session_player_ruling_request where encounter_id=$1 and request_type='weapon-distance'", [f.encounterId]);
+    const distanceRequestId = rulingRow.rows[0]?.id; assert.ok(distanceRequestId);
+    const duplicateChoice = {
+      participantId: f.heroId, source: { kind: "weapon" as const, ref: `instance:${gun.instance.id}`, name: "Screen Pistol", instanceId: gun.instance.id, itemId: gun.gun.id, description: "" }, targetIds: [f.occurrences[0]], range: { attackMode: "ranged" as const, distance: 75, unit: "feet", beyondLongModifier: 25, beyondLongReason: "G.O.D. confirms the measured target is beyond Long.", distanceRulingRequestId: distanceRequestId }, firearm: { firingModeId: firearmModeId!, aimInitiative: 0, firingDurationInitiative: 1 },
+    };
+    const duplicateInput = { requestKey: requestKey!, choice: duplicateChoice, roll: { method: "entered" as const, enteredTotal: 80 } };
+    const duplicate = await db.transaction(async (tx) => {
+      const context = await lockPlayerCombatContextInTransaction(tx, f.encounterId, f.heroId, f.playerId);
+      return submitCombatChoiceInTransaction(tx, context, { authority: "player", userId: f.playerId, characterId: f.heroId }, duplicateInput);
+    });
+    assert.equal((duplicate as { reused?: boolean }).reused, true, "Identical firearm retry returns the original attack.");
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    const finishFirearm = async () => {
+      const statusRow = (await pool.query<{ status: string; trigger_pending_action_id: number | null; effect_plan_id: number | null }>("select status,trigger_pending_action_id,effect_plan_id from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0];
+      const status = statusRow?.status;
+      if (["resolved", "cancelled"].includes(status ?? "")) return;
+      await god.getByRole("button", { name: "Refresh", exact: true }).click();
+      await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+      const resolve = screen(god).getByRole("button", { name: "Resolve firearm result", exact: true });
+      if (await resolve.count()) { await resolve.click(); await until(async () => (await pool.query("select status from campaign_session_encounter_effect_plan where encounter_id=$1 order by id desc limit 1", [f.encounterId])).rows[0]?.status === "applied", "firearm consequence application"); return; }
+      if (statusRow?.effect_plan_id !== null) {
+        const planStatus = (await pool.query<{ status: string }>("select status from campaign_session_encounter_effect_plan where id=$1", [statusRow.effect_plan_id])).rows[0]?.status;
+        if (planStatus === "applied") return;
+      }
+      if (["resolved", "cancelled"].includes(status ?? "")) return;
+      const pending = async () => Number((await pool.query("select trigger_pending_action_id from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0]?.trigger_pending_action_id ?? 0);
+      const remaining = async () => { const id = await pending(); return Number((await pool.query("select remaining_initiative_cost from campaign_session_encounter_pending_action where id=$1", [id])).rows[0]?.remaining_initiative_cost ?? 0); };
+      for (let step = 0; step < 5 && await remaining() > 0; step++) { await god.getByRole("button", { name: "Refresh", exact: true }).click(); if (await remaining() <= 0) break; try { await until(() => screen(god).getByRole("button", { name: "Advance combat", exact: true }).isEnabled(), "firearm timing advance"); } catch (error) { if (await remaining() <= 0) break; console.log("DISTANCE_TIMING_DEBUG", JSON.stringify({ attack: (await pool.query("select status,trigger_pending_action_id,effect_plan_id from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows, pending: (await pool.query("select id,status,remaining_initiative_cost from campaign_session_encounter_pending_action where encounter_id=$1", [f.encounterId])).rows }, null, 2)); throw error; } await screen(god).getByRole("button", { name: "Advance combat", exact: true }).click(); }
+      const prepare = screen(god).getByRole("button", { name: /^Prepare Rowan's Screen Pistol.* result$/ });
+      if (await prepare.count()) await prepare.click();
+    };
+    await finishFirearm();
+    await until(async () => (await pool.query("select loaded_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].loaded_rounds === 2, "normal firearm ammunition spend");
+    await until(async () => (await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n === 1, "one firearm roll");
     const proof = await pool.query<{ request_status: string; linked_attack: number | null; loaded_rounds: number; initiative: number }>(`select r.status request_status,r.linked_firearm_attack_id linked_attack,s.loaded_rounds,i.current_initiative initiative from campaign_session_player_ruling_request r cross join campaign_character_firearm_state s inner join campaign_session_encounter_initiative_participant i on i.character_id=s.character_id and i.encounter_id=$2 where r.encounter_id=$2 and r.request_type='weapon-distance' and s.item_instance_id=$1`, [gun.instance.id, f.encounterId]);
-    assert.equal(proof.rows[0]?.request_status, "approved"); assert.ok(proof.rows[0]?.linked_attack); assert.equal(proof.rows[0]?.loaded_rounds, 3); assert.equal(proof.rows[0]?.initiative, beforeRequest.rows[0]?.current_initiative);
+    assert.equal(proof.rows[0]?.request_status, "approved"); assert.ok(proof.rows[0]?.linked_attack); assert.equal(proof.rows[0]?.loaded_rounds, 2); assert.equal(proof.rows[0]?.initiative, beforeRequest.rows[0]!.current_initiative - 1, "The normal one-Initiative firing cost is spent only when firing occurs.");
+    const rollProof = (await pool.query<{ result_total: number; mechanical_snapshot: { resolution?: { finalTarget?: number; succeeded?: boolean } } }>("select result_total,mechanical_snapshot from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0];
+    assert.equal(rollProof?.result_total, 80); assert.equal(rollProof?.mechanical_snapshot.resolution?.finalTarget, 75, "Approved Beyond-Long penalty is applied exactly once."); assert.equal(rollProof?.mechanical_snapshot.resolution?.succeeded, true);
+    const effectCount = (await pool.query("select count(*)::int n from campaign_session_encounter_effect where encounter_id=$1", [f.encounterId])).rows[0].n;
+    assert.equal(effectCount, 1, "one applied firearm effect row");
+    const targetDamage = Number((await pool.query("select local_state_json->'health'->>'totalDamage' damage from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.occurrences[0]])).rows[0]?.damage ?? 0);
+    assert.equal(targetDamage, 2, "one successful firearm shot applies its authored damage exactly once");
+    const completedDuplicate = await db.transaction(async (tx) => {
+      const context = await lockPlayerCombatContextInTransaction(tx, f.encounterId, f.heroId, f.playerId);
+      return submitCombatChoiceInTransaction(tx, context, { authority: "player", userId: f.playerId, characterId: f.heroId }, duplicateInput);
+    });
+    assert.equal((completedDuplicate as { reused?: boolean }).reused, true, "Identical completed firearm retry returns the original attack.");
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_firearm_attack where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    assert.equal((await pool.query("select loaded_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].loaded_rounds, 2);
+    assert.equal(Number((await pool.query("select local_state_json->'health'->>'totalDamage' damage from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.occurrences[0]])).rows[0]?.damage ?? 0), 2);
     await player.reload(); await playerScreen.getByText("Live", { exact: true }).waitFor();
     assert.equal((await pool.query("select linked_firearm_attack_id from campaign_session_player_ruling_request where encounter_id=$1 and request_type='weapon-distance'", [f.encounterId])).rows[0]?.linked_firearm_attack_id, proof.rows[0]?.linked_attack, "Refresh preserves the consumed approval-to-attack identity.");
-    results.push("Player submitted a structured distance request, G.O.D. approved it in a separate browser session, the Player committed one firearm attack, refresh preserved the approval, and no ammunition was spent before normal firing timing.");
+    results.push("Player proposed Medium, G.O.D. corrected it to Beyond Long at 75 feet with a 25-point replacement penalty, the persisted Roll target was 75, one successful shot spent one round and applied 2 damage, and an identical completed retry preserved one attack, one effect, two loaded rounds, and two damage.");
     await god.context().close(); await player.context().close();
   }
   if (include("firearm-completion-crossing")) {

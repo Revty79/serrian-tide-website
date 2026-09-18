@@ -60,7 +60,7 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
     return { declarationId: prior.id, reused: true };
   }
   const choice = await authorizedChoice(tx, context, actor, input.choice);
-  if (actor.authority === "player" && choice.source.kind === "weapon" && choice.range?.attackMode === "ranged") {
+  if (actor.authority === "player" && !choice.firearm && choice.source.kind === "weapon" && choice.range?.attackMode === "ranged") {
     if (choice.range.distanceRulingRequestId === null || choice.range.distanceRulingRequestId === undefined) {
       throw new Error("Request Campaign-owning G.O.D. distance confirmation before committing this ranged attack.");
     }
@@ -68,7 +68,7 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
       sourceRef: choice.source.ref,
       sourceInstanceId: choice.source.instanceId,
       weaponItemId: choice.source.itemId ?? 0,
-      firingModeId: choice.firearm?.firingModeId ?? null,
+      firingModeId: null,
       attackMode: choice.range.attackMode,
       targetParticipantId: choice.targetIds.length === 1 ? choice.targetIds[0]! : 0,
       distance: choice.range.distance ?? -1,

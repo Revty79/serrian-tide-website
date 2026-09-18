@@ -324,7 +324,7 @@ async function resolveWeapon(
         beyondLongReason: typeof payload.rangeBeyondLongReason === "string" ? payload.rangeBeyondLongReason : "",
       })
     : null;
-  if (range?.band === "beyond-long" && actorAuthority !== "god-owner") throw new Error("Only the Campaign-owning G.O.D. may confirm a Beyond Long range modifier.");
+  if (range?.band === "beyond-long" && actorAuthority !== "god-owner" && payload.rangeDistanceRulingRequestId == null) throw new Error("Only the Campaign-owning G.O.D. may confirm a Beyond Long range modifier.");
   const effects = [manualEffect("weapon-damage-instruction", `${row.name} attack`, {
     damage: row.damage,
     damageSource: row.damageSource,

@@ -511,7 +511,11 @@ async function loadFoundation(
   if (readiness.status !== "ready") {
     throw new Error(readiness.blockers.map(({ message }) => message).join(" ") || "The exact firearm is not ready.");
   }
-  if (lock && actor.authority === "player") {
+  let rangeDistance = command.rangeDistance;
+  let rangeUnit = command.rangeUnit;
+  let rangeBeyondLongModifier = command.rangeBeyondLongModifier;
+  let rangeBeyondLongReason = command.rangeBeyondLongReason;
+  if (actor.authority === "player" && (lock || command.distanceRulingRequestId !== null && command.distanceRulingRequestId !== undefined)) {
     if (command.distanceRulingRequestId === null || command.distanceRulingRequestId === undefined) throw new Error("Request Campaign-owning G.O.D. distance confirmation before committing this ranged attack.");
     const approval = await assertApprovedWeaponDistanceRequestInTransaction(tx, context, actor, command.distanceRulingRequestId, {
       sourceRef: `instance:${state.itemInstanceId}`,
@@ -524,12 +528,14 @@ async function loadFoundation(
       distance: command.rangeDistance ?? -1,
       unit: command.rangeUnit ?? "",
     });
-    if (approval.beyondLongModifier !== command.rangeBeyondLongModifier || approval.distance !== command.rangeDistance || approval.unit !== command.rangeUnit?.trim().toLocaleLowerCase("en-US")) {
-      throw new Error("The Player firearm command does not match its approved Weapon distance ruling.");
-    }
+    rangeDistance = approval.distance;
+    rangeUnit = approval.unit;
+    rangeBeyondLongModifier = approval.beyondLongModifier;
+    rangeBeyondLongReason = approval.beyondLongReason;
   }
-  if (command.rangeBeyondLongModifier !== null && command.rangeBeyondLongModifier !== undefined && actor.authority !== "god-owner") {
-    throw new Error("Only the Campaign-owning G.O.D. may supply a Beyond Long range modifier.");
+  if (actor.authority === "player" && (command.distanceRulingRequestId === null || command.distanceRulingRequestId === undefined)
+    && command.rangeBeyondLongModifier !== null && command.rangeBeyondLongModifier !== undefined) {
+    throw new Error("A Player cannot supply a Beyond Long range modifier without an approved G.O.D. distance ruling.");
   }
   const range = resolveWeaponRange({
     profile: {
@@ -541,10 +547,10 @@ async function loadFoundation(
       long: profile.longRangeDistance,
     },
     attackMode: "ranged",
-    distance: command.rangeDistance,
-    unit: command.rangeUnit,
-    beyondLongModifier: command.rangeBeyondLongModifier,
-    beyondLongReason: command.rangeBeyondLongReason,
+    distance: rangeDistance,
+    unit: rangeUnit,
+    beyondLongModifier: rangeBeyondLongModifier,
+    beyondLongReason: rangeBeyondLongReason,
   });
   const aimInitiative = nonnegativeWhole(command.aimInitiative, "Aim Initiative");
   const injury = await readWeaponInjuryTimingInTransaction(tx, context.encounterId, actorParticipantId, profile.id, 1, command.weaponHands);
@@ -806,7 +812,7 @@ async function declareFirearmAttackInternal(
     sourcePayload: { firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier,
       ...(preview.timing.bowShotInitiativeCost !== undefined ? { bowShotInitiativeCost: preview.timing.bowShotInitiativeCost } : {}),
       weaponHands: command.weaponHands ?? null, rangeAttackMode: "ranged", rangeDistance: preview.range.distance, rangeUnit: preview.range.unit,
-      rangeBeyondLongModifier: command.rangeBeyondLongModifier ?? null, rangeBeyondLongReason: command.rangeBeyondLongReason ?? "", ...governancePayload },
+      rangeBeyondLongModifier: command.rangeBeyondLongModifier ?? null, rangeBeyondLongReason: command.rangeBeyondLongReason ?? "", rangeDistanceRulingRequestId: command.distanceRulingRequestId ?? null, ...governancePayload },
     weaponItemId: preview.firearm.itemId,
     firingModeId: preview.firearm.firingModeId,
     attackMode: preview.firearm.firingModeName,
