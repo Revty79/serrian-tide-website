@@ -3,11 +3,25 @@ import test from "node:test";
 import { attackReportTarget, isSpellResultReport } from "./attack-report";
 import type { ActionEffectPlanView } from "@/features/tabletop-operations/action-effect-plan-service";
 
-test("direct spells stop for one result review, while area-only reports complete automatically", () => {
+test("direct spells stop for one result review", () => {
+  const plan = { sourceKind: "spell", status: "calculated", effects: [{ effectType: "health.damage", effectKey: "spell-effect:damage" }] } as unknown as ActionEffectPlanView;
+  assert.equal(isSpellResultReport(plan), true);
+  assert.equal(isSpellResultReport({ ...plan, status: "requires-god-ruling" }), false);
+});
+
+test("area-only spell reports complete automatically", () => {
+  const plan = { sourceKind: "spell", status: "calculated", effects: [{ effectType: "spell.area-report", effectKey: "spell-effect:area" }] } as unknown as ActionEffectPlanView;
+  assert.equal(isSpellResultReport(plan), false);
+});
+
+test("source-linked spell recovery uses the G.O.D. recovery ruling path", () => {
+  const plan = { sourceKind: "spell", status: "requires-god-ruling", effects: [{ effectType: "manual", effectKey: "spell-combat-recovery:target:4" }] } as unknown as ActionEffectPlanView;
+  assert.equal(isSpellResultReport(plan), false);
+});
+
+test("minimal spell report effects without a key remain reportable", () => {
   const plan = { sourceKind: "spell", status: "calculated", effects: [{ effectType: "health.damage" }] } as unknown as ActionEffectPlanView;
   assert.equal(isSpellResultReport(plan), true);
-  assert.equal(isSpellResultReport({ ...plan, effects: [{ ...plan.effects[0], effectType: "spell.area-report" }] }), false);
-  assert.equal(isSpellResultReport({ ...plan, status: "requires-god-ruling" }), false);
 });
 
 test("the report displays the recorded location and overridden damage without recalculating the attack", () => {

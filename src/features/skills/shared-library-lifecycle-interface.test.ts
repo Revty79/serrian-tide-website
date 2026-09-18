@@ -72,7 +72,7 @@ test("all five authoring surfaces use guarded lifecycle controls instead of dire
   for (const library of libraries) {
     assert.match(library.workspace, /<LifecycleControls/);
     assert.match(library.workspace, new RegExp(`entityKind: "${library.kind}"`));
-    assert.match(library.workspace, library.kind === "item" ? /disabled=\{saving \|\| hasUnsavedWork\}/ : /disabled=\{saving \|\| dirty\}/);
+    assert.match(library.workspace, library.kind === "item" ? /disabled=\{workspaceBusy \|\| hasUnsavedWork\}/ : /disabled=\{saving \|\| dirty\}/);
     assert.match(library.workspace, /lifecycle-editor-fields/);
     assert.doesNotMatch(library.actions, new RegExp(`export async function delete${library.entity}`));
   }

@@ -77,6 +77,7 @@ import type {
   WeaponSkillGovernanceReadModel,
   WeaponSkillPathMappingDraft,
 } from "@/features/items/weapon-skill-governance-service";
+import { createItemWorkspaceOperationGuard, type ItemWorkspaceOperation, type ItemWorkspaceOperationKind } from "@/features/items/item-workspace-operation";
 import { shouldApplyGovernanceRead } from "@/features/items/weapon-governance-draft";
 
 type Tab = "overview" | "properties" | "abilities" | "magazine" | "weapon" | "armor" | "tags" | "variants" | "preview";
@@ -91,6 +92,8 @@ type GovernanceDraftState = Readonly<{
   saveError: string | null;
   saveMessage: string | null;
 }>;
+
+type WorkspaceOperation = ItemWorkspaceOperation;
 
 type PendingNavigation =
   | { kind: "open"; item: Pick<ItemSummary, "id"> }
@@ -242,19 +245,41 @@ export function ItemWorkspace({
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingEditor, setLoadingEditor] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [pending, setPending] = useState<PendingNavigation | null>(null);
   const [governanceDraft, setGovernanceDraft] = useState<GovernanceDraftState | null>(null);
   const [governanceRefreshToken, setGovernanceRefreshToken] = useState(0);
+  const operationGuard = useRef(createItemWorkspaceOperationGuard());
+  const [activeOperation, setActiveOperation] = useState<WorkspaceOperation | null>(null);
   const preserveScroll = useInPlaceScrollPreservation();
   const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
   const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
   const isArchived = Boolean(archivedAt);
   const governanceProfileKey = weaponGovernanceProfileKey(draft);
   const governanceDirty = governanceDraft?.profileKey === governanceProfileKey && governanceDraft.dirty;
-  const governanceSaving = governanceDraft?.profileKey === governanceProfileKey && governanceDraft.saving;
+  const itemSaving = activeOperation?.kind === "item-save";
+  const workspaceBusy = activeOperation !== null;
   const hasUnsavedWork = dirty || Boolean(governanceDirty);
+
+  function beginOperation(kind: ItemWorkspaceOperationKind): WorkspaceOperation | null {
+    const operation = operationGuard.current.begin(kind);
+    if (operation) setActiveOperation(operation);
+    return operation;
+  }
+
+  function isCurrentOperation(operation: WorkspaceOperation) {
+    return operationGuard.current.active()?.id === operation.id;
+  }
+
+  function finishOperation(operation: WorkspaceOperation) {
+    if (operationGuard.current.finish(operation)) setActiveOperation((current) => current?.id === operation.id ? null : current);
+  }
+
+  function operationBlocked(message = "Wait for the current Item operation to finish.") {
+    if (!operationGuard.current.active()) return false;
+    setFeedback({ kind: "error", message });
+    return true;
+  }
 
   const loadLibrary = useCallback(async (next: ItemLibraryFilters) => {
     setLoadingLibrary(true);
@@ -305,10 +330,7 @@ export function ItemWorkspace({
   }
 
   function chooseItem(summary: Pick<ItemSummary, "id">) {
-    if (saving || governanceSaving) {
-      setFeedback({ kind: "error", message: "Wait for the current Item or Governing Skill Path save to finish before opening another Item." });
-      return;
-    }
+    if (operationBlocked("Wait for the current Item operation to finish before opening another Item.")) return;
     if (hasUnsavedWork) void preserveScroll(() => setPending({ kind: "open", item: summary }));
     else void openItem(summary);
   }
@@ -329,55 +351,61 @@ export function ItemWorkspace({
   }
 
   function beginNew() {
-    if (saving || governanceSaving) {
-      setFeedback({ kind: "error", message: "Wait for the current Item or Governing Skill Path save to finish before creating a new Item." });
-      return;
-    }
+    if (operationBlocked("Wait for the current Item operation to finish before creating a new Item.")) return;
     if (hasUnsavedWork) void preserveScroll(() => setPending({ kind: "new" }));
     else void preserveScroll(createNew);
   }
 
-  async function createVariantNow(parentId: number, variantName: string) {
-    const saved = await createItemVariant(parentId, variantName);
-    setDraft(saved);
-    setDirty(false);
-    setGovernanceDraft(null);
-    setFeedback({ kind: "success", message: `${saved.core.name} was created as a variant.` });
-    await loadLibrary(filters);
-    await refreshReferences(saved.id);
+  async function createVariantNow(parentId: number, variantName: string): Promise<boolean> {
+    const operation = beginOperation("variant-create");
+    if (!operation) {
+      operationBlocked("Wait for the current Item operation to finish before creating a variant.");
+      return false;
+    }
+    setFeedback(null);
+    try {
+      const saved = await createItemVariant(parentId, variantName);
+      if (!isCurrentOperation(operation)) return false;
+      setDraft(saved);
+      setDirty(false);
+      setGovernanceDraft(null);
+      setFeedback({ kind: "success", message: `${saved.core.name} was created as a variant.` });
+      await loadLibrary(filters);
+      await refreshReferences(saved.id);
+      return true;
+    } catch (error) {
+      if (isCurrentOperation(operation)) setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item variant could not be created." });
+      return false;
+    } finally {
+      finishOperation(operation);
+    }
   }
 
-  async function requestVariantCreation(variantName: string): Promise<void> {
-    if (!draft?.id) return;
-    if (saving || governanceSaving) {
-      setFeedback({ kind: "error", message: "Wait for the current Item or Governing Skill Path save to finish before creating a variant." });
-      return;
-    }
+  async function requestVariantCreation(variantName: string): Promise<boolean> {
+    if (!draft?.id) return false;
+    if (operationBlocked("Wait for the current Item operation to finish before creating a variant.")) return false;
     if (hasUnsavedWork) {
       setPending({ kind: "variant", parentId: draft.id, variantName });
-      return;
+      return false;
     }
-    void createVariantNow(draft.id, variantName).catch((error) => {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item variant could not be created." });
-    });
+    return createVariantNow(draft.id, variantName);
   }
 
   function requestVariantOpen(summary: ItemDraft["variants"][number]) {
     chooseItem(summary);
   }
 
-  function discardAndContinue() {
+  async function discardAndContinue() {
     const next = pending;
     setPending(null);
     if (!next) return;
     if (next.kind === "new") void createNew();
-    else if (next.kind === "variant") void createVariantNow(next.parentId, next.variantName).catch((error) => {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item variant could not be created." });
-    });
+    else if (next.kind === "variant") await createVariantNow(next.parentId, next.variantName);
     else void openItem(next.item);
   }
 
   function change(next: ItemDraft) {
+    if (operationBlocked()) return;
     if (governanceDirty && governanceDraft && invalidatesGovernanceDraft(draft, next, governanceDraft.mappings)) {
       setFeedback({ kind: "error", message: "Save or discard the pending Governing Skill Path edits before removing their Weapon Profile or Firing Mode scope." });
       return;
@@ -393,11 +421,17 @@ export function ItemWorkspace({
 
   async function persist() {
     if (!draft) return;
+    const operation = beginOperation("item-save");
+    if (!operation) {
+      operationBlocked();
+      return;
+    }
+    const draftToSave = draft;
     await preserveScroll(async () => {
-      setSaving(true);
       setFeedback(null);
       try {
-        const saved = await saveItem(draft);
+        const saved = await saveItem(draftToSave);
+        if (!isCurrentOperation(operation)) return;
         setDraft(saved);
         setDirty(false);
         const savedProfileKey = weaponGovernanceProfileKey(saved);
@@ -408,14 +442,15 @@ export function ItemWorkspace({
         setFeedback({ kind: "success", message: `${saved.core.name} was saved.` });
         await Promise.all([loadLibrary(filters), refreshReferences(saved.id)]);
       } catch (error) {
-        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be saved." });
+        if (isCurrentOperation(operation)) setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item could not be saved." });
       } finally {
-        setSaving(false);
+        finishOperation(operation);
       }
     });
   }
 
   function changeArchiveView(archived: boolean) {
+    if (operationBlocked()) return;
     void preserveScroll(async () => {
       setFilters((current) => ({ ...current, archived, page: 1 }));
       setDraft(null);
@@ -465,7 +500,7 @@ export function ItemWorkspace({
 
     <div className="skills-workspace items-workspace">
       <aside className="skill-library">
-        <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>{label} Library</h2></div><button className="skills-primary-button" type="button" onClick={beginNew}>New {scope === "equipment" ? "Equipment" : "Item"}</button></div>
+        <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>{label} Library</h2></div><button className="skills-primary-button" type="button" disabled={workspaceBusy} onClick={beginNew}>New {scope === "equipment" ? "Equipment" : "Item"}</button></div>
         <div className="skill-library__search"><label htmlFor="item-search">Search</label><input id="item-search" type="search" value={filters.search ?? ""} placeholder="Name or canonical ID" onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })} /></div>
         <div className="skill-library__filters item-library-filters">
           {scope === "equipment" ? <label><span>Group</span><select value={filters.equipmentGroup ?? ""} onChange={(e) => setFilters({ ...filters, equipmentGroup: e.target.value as EquipmentCatalogGroup | "", page: 1 })}><option value="">All</option>{EQUIPMENT_GROUPS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
@@ -475,13 +510,13 @@ export function ItemWorkspace({
         </div>
         <div className="skill-library__toolbar">
           <div className="skill-library__view-toggle" aria-label={`${label} lifecycle view`}>
-            <button type="button" className={!filters.archived ? "is-active" : ""} aria-pressed={!filters.archived} disabled={hasUnsavedWork} onClick={() => changeArchiveView(false)}>Active</button>
-            <button type="button" className={filters.archived ? "is-active" : ""} aria-pressed={Boolean(filters.archived)} disabled={hasUnsavedWork} onClick={() => changeArchiveView(true)}>Archived</button>
+            <button type="button" className={!filters.archived ? "is-active" : ""} aria-pressed={!filters.archived} disabled={workspaceBusy || hasUnsavedWork} onClick={() => changeArchiveView(false)}>Active</button>
+            <button type="button" className={filters.archived ? "is-active" : ""} aria-pressed={Boolean(filters.archived)} disabled={workspaceBusy || hasUnsavedWork} onClick={() => changeArchiveView(true)}>Archived</button>
           </div>
           <span>{library.total.toLocaleString()} records</span>
         </div>
         <div data-preserve-scroll={`${scope}-library-results`} className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
-          {library.items.map((entry) => <button key={entry.id} type="button" className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
+          {library.items.map((entry) => <button key={entry.id} type="button" disabled={workspaceBusy} className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
             <span className="skill-library__row-name">{entry.name}</span>
             {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
             <span className="skill-library__row-meta">{entry.recordType} · {entry.category}{entry.equipmentGroup ? ` · ${entry.equipmentGroup}` : ""}</span>
@@ -493,18 +528,18 @@ export function ItemWorkspace({
       </aside>
 
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING ITEM</p></section> : draft ? <section className="skill-editor item-editor">
-        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : hasUnsavedWork ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id ? <LifecycleControls target={{ entityKind: "item", entityId: draft.id }} archived={isArchived} disabled={saving || hasUnsavedWork} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Item"}</button></div></header>
+        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : hasUnsavedWork ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id ? <LifecycleControls target={{ entityKind: "item", entityId: draft.id }} archived={isArchived} disabled={workspaceBusy || hasUnsavedWork} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={workspaceBusy || isArchived} onClick={() => void persist()}>{itemSaving ? "Saving…" : "Save Item"}</button></div></header>
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
         <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
-        <fieldset className="skill-editor__content item-editor__content lifecycle-editor-fields" disabled={isArchived}>
+        <fieldset className="skill-editor__content item-editor__content lifecycle-editor-fields" disabled={isArchived || workspaceBusy}>
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "abilities" ? <Abilities draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} governanceProfileKey={governanceProfileKey} governanceDraft={governanceDraft} governanceRefreshToken={governanceRefreshToken} onGovernanceHydrated={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey && current.dirty ? current : { itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: false, saving: false, saveError: null, saveMessage: null })} onGovernanceChanged={(profileKey, itemId, mappings) => setGovernanceDraft((current) => ({ itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: true, saving: false, saveError: null, saveMessage: null }))} onGovernanceScopeChanged={(profileKey, scope) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, scope } : current)} onGovernanceSaveStarted={(profileKey) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: true, saveError: null, saveMessage: null } : current)} onGovernanceSaveFailed={(profileKey, message) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: false, saveError: message, saveMessage: null, dirty: true } : current)} onGovernanceSaved={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, itemId, mappings, dirty: false, saving: false, saveError: null, saveMessage: "Canonical Governing Skill Paths were saved." } : current)} onChange={change} /> : null}
+          {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} workspaceBusy={workspaceBusy} governanceProfileKey={governanceProfileKey} governanceDraft={governanceDraft} governanceRefreshToken={governanceRefreshToken} beginOperation={beginOperation} isCurrentOperation={isCurrentOperation} finishOperation={finishOperation} onGovernanceHydrated={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey && current.dirty ? current : { itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: false, saving: false, saveError: null, saveMessage: null })} onGovernanceChanged={(profileKey, itemId, mappings) => { if (!operationBlocked()) setGovernanceDraft((current) => ({ itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: true, saving: false, saveError: null, saveMessage: null })); }} onGovernanceScopeChanged={(profileKey, scope) => { if (!operationBlocked()) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, scope } : current); }} onGovernanceSaveStarted={(profileKey, operation) => { if (isCurrentOperation(operation)) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: true, saveError: null, saveMessage: null } : current); }} onGovernanceSaveFailed={(profileKey, message, operation) => { if (isCurrentOperation(operation)) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: false, saveError: message, saveMessage: null, dirty: true } : current); }} onGovernanceSaved={(profileKey, itemId, mappings, operation) => { if (isCurrentOperation(operation)) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, itemId, mappings, dirty: false, saving: false, saveError: null, saveMessage: "Canonical Governing Skill Paths were saved." } : current); }} onChange={change} /> : null}
           {activeTab === "magazine" ? <Magazine draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "variants" ? <Variants draft={draft} onOpen={requestVariantOpen} onCreate={requestVariantCreation} /> : null}
+          {activeTab === "variants" ? <Variants draft={draft} creating={activeOperation?.kind === "variant-create"} onOpen={requestVariantOpen} onCreate={requestVariantCreation} /> : null}
           {activeTab === "preview" ? <Preview draft={draft} /> : null}
         </fieldset>
       </section> : <section className="skill-editor skill-editor--empty"><p>{label.toUpperCase()} EDITOR</p><h2>Select a record or begin a new one.</h2><span>The shared Item engine powers both authoring libraries.</span></section>}
@@ -801,9 +836,13 @@ function WeaponGovernanceEditor({
   itemId,
   references,
   itemDirty,
+  workspaceBusy,
   profileKey,
   governanceDraft,
   refreshToken,
+  beginOperation,
+  isCurrentOperation,
+  finishOperation,
   onHydrated,
   onChanged,
   onScopeChanged,
@@ -814,20 +853,23 @@ function WeaponGovernanceEditor({
   itemId: number | undefined;
   references: ItemAuthoringReferences;
   itemDirty: boolean;
+  workspaceBusy: boolean;
   profileKey: string | null;
   governanceDraft: GovernanceDraftState | null;
   refreshToken: number;
+  beginOperation: (kind: ItemWorkspaceOperationKind) => WorkspaceOperation | null;
+  isCurrentOperation: (operation: WorkspaceOperation) => boolean;
+  finishOperation: (operation: WorkspaceOperation) => void;
   onHydrated: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onChanged: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onScopeChanged: (profileKey: string, scope: string) => void;
-  onSaveStarted: (profileKey: string) => void;
-  onSaveFailed: (profileKey: string, message: string) => void;
-  onSaved: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
+  onSaveStarted: (profileKey: string, operation: WorkspaceOperation) => void;
+  onSaveFailed: (profileKey: string, message: string, operation: WorkspaceOperation) => void;
+  onSaved: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[], operation: WorkspaceOperation) => void;
 }) {
   const [governance, setGovernance] = useState<WeaponSkillGovernanceReadModel | null>(null);
   const [skillSearch, setSkillSearch] = useState("");
   const [selectedSkillId, setSelectedSkillId] = useState("");
-  const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
@@ -971,29 +1013,33 @@ function WeaponGovernanceEditor({
   }
 
   async function saveGovernance() {
+    const operation = beginOperation("governance-save");
+    if (!operation) return;
     await preserveScroll(async () => {
-      onSaveStarted(persistedProfileKey);
-      setSaving(true);
+      onSaveStarted(persistedProfileKey, operation);
       setFeedback(null);
       try {
         const saved = await saveCanonicalWeaponSkillGovernance(persistedItemId, mappings);
+        if (!isCurrentOperation(operation)) return;
         replaceFromReadModel(saved);
         onSaved(persistedProfileKey, persistedItemId, [
           ...saved.weaponDefault.options,
           ...saved.modes.flatMap(({ scope: modeScope }) => modeScope.options),
-        ].map(({ id, firingModeId, endpointSkillId, reviewState, notes }) => ({ id, firingModeId, endpointSkillId, reviewState, notes })));
+        ].map(({ id, firingModeId, endpointSkillId, reviewState, notes }) => ({ id, firingModeId, endpointSkillId, reviewState, notes })), operation);
         setFeedback({ kind: "success", message: "Canonical Governing Skill Paths were saved." });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Weapon governance could not be saved.";
-        onSaveFailed(persistedProfileKey, message);
-        setFeedback({ kind: "error", message });
+        if (isCurrentOperation(operation)) {
+          onSaveFailed(persistedProfileKey, message, operation);
+          setFeedback({ kind: "error", message });
+        }
       } finally {
-        setSaving(false);
+        finishOperation(operation);
       }
     });
   }
 
-  const controlsDisabled = saving || governanceSaving;
+  const controlsDisabled = workspaceBusy || governanceSaving;
   return <section className="item-weapon-governance item-field--wide">
     <SectionHeading eyebrow="CANONICAL ELIGIBILITY" title="Governing Skill Paths" />
     <p>The endpoint identifies one exact authored branch. Parent Skills and the root Attribute are read from the canonical Skill hierarchy; Character ownership and percentages are not evaluated here.</p>
@@ -1027,19 +1073,23 @@ function WeaponGovernanceEditor({
   </section>;
 }
 
-function Weapon({ draft, references, itemDirty, governanceProfileKey, governanceDraft, governanceRefreshToken, onGovernanceHydrated, onGovernanceChanged, onGovernanceScopeChanged, onGovernanceSaveStarted, onGovernanceSaveFailed, onGovernanceSaved, onChange }: {
+function Weapon({ draft, references, itemDirty, workspaceBusy, governanceProfileKey, governanceDraft, governanceRefreshToken, beginOperation, isCurrentOperation, finishOperation, onGovernanceHydrated, onGovernanceChanged, onGovernanceScopeChanged, onGovernanceSaveStarted, onGovernanceSaveFailed, onGovernanceSaved, onChange }: {
   draft: ItemDraft;
   references: ItemAuthoringReferences;
   itemDirty: boolean;
+  workspaceBusy: boolean;
   governanceProfileKey: string | null;
   governanceDraft: GovernanceDraftState | null;
   governanceRefreshToken: number;
+  beginOperation: (kind: ItemWorkspaceOperationKind) => WorkspaceOperation | null;
+  isCurrentOperation: (operation: WorkspaceOperation) => boolean;
+  finishOperation: (operation: WorkspaceOperation) => void;
   onGovernanceHydrated: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onGovernanceChanged: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onGovernanceScopeChanged: (profileKey: string, scope: string) => void;
-  onGovernanceSaveStarted: (profileKey: string) => void;
-  onGovernanceSaveFailed: (profileKey: string, message: string) => void;
-  onGovernanceSaved: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
+  onGovernanceSaveStarted: (profileKey: string, operation: WorkspaceOperation) => void;
+  onGovernanceSaveFailed: (profileKey: string, message: string, operation: WorkspaceOperation) => void;
+  onGovernanceSaved: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[], operation: WorkspaceOperation) => void;
   onChange: (draft: ItemDraft) => void;
 }) {
   const [ammoSearch, setAmmoSearch] = useState("");
@@ -1116,7 +1166,7 @@ function Weapon({ draft, references, itemDirty, governanceProfileKey, governance
         })}</div></>}
       </section>
     </>}
-    {!ammunitionProfile ? <WeaponGovernanceEditor itemId={draft.id} references={references} itemDirty={itemDirty} profileKey={governanceProfileKey} governanceDraft={governanceDraft} refreshToken={governanceRefreshToken} onHydrated={onGovernanceHydrated} onChanged={onGovernanceChanged} onScopeChanged={onGovernanceScopeChanged} onSaveStarted={onGovernanceSaveStarted} onSaveFailed={onGovernanceSaveFailed} onSaved={onGovernanceSaved} /> : null}
+    {!ammunitionProfile ? <WeaponGovernanceEditor itemId={draft.id} references={references} itemDirty={itemDirty} workspaceBusy={workspaceBusy} profileKey={governanceProfileKey} governanceDraft={governanceDraft} refreshToken={governanceRefreshToken} beginOperation={beginOperation} isCurrentOperation={isCurrentOperation} finishOperation={finishOperation} onHydrated={onGovernanceHydrated} onChanged={onGovernanceChanged} onScopeChanged={onGovernanceScopeChanged} onSaveStarted={onGovernanceSaveStarted} onSaveFailed={onGovernanceSaveFailed} onSaved={onGovernanceSaved} /> : null}
     <Field label="Compatibility" wide><textarea rows={3} value={profile.compatibility} onChange={(e) => patch({ compatibility: e.target.value })} /></Field>
     <Field label="Weapon Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field>
   </div>;
@@ -1273,15 +1323,15 @@ function Powers({ draft, references, onChange, simple = false, showHeading = !si
   </div>;
 }
 
-function Variants({ draft, onOpen, onCreate }: { draft: ItemDraft; onOpen: (summary: ItemDraft["variants"][number]) => void; onCreate: (variantName: string) => Promise<void> }) {
+function Variants({ draft, creating, onOpen, onCreate }: { draft: ItemDraft; creating: boolean; onOpen: (summary: ItemDraft["variants"][number]) => void; onCreate: (variantName: string) => Promise<boolean> }) {
   const [variantName, setVariantName] = useState("");
   const [cloning, setCloning] = useState(false);
   async function clone() {
     if (!draft.id || !variantName.trim()) return;
     setCloning(true);
-    try { await onCreate(variantName); setVariantName(""); } finally { setCloning(false); }
+    try { if (await onCreate(variantName)) setVariantName(""); } finally { setCloning(false); }
   }
-  return <div className="item-section"><SectionHeading eyebrow="INHERITANCE" title="Item Variants" />{draft.id ? <div className="item-variant-create"><input placeholder="Variant name" value={variantName} onChange={(e) => setVariantName(e.target.value)} /><button className="skills-primary-button" type="button" disabled={!variantName.trim() || cloning} onClick={() => void clone()}>{cloning ? "Cloning…" : "Clone as Variant"}</button></div> : <p className="skill-library__empty">Save this Item before creating variants.</p>}<div className="item-variant-list">{draft.variants.map((variant) => <button key={variant.id} type="button" onClick={() => onOpen(variant)}><strong>{variant.name}</strong><span>{variant.archivedAt ? "Archived · " : ""}{variant.canonicalId} · {variant.catalogScope}</span></button>)}</div></div>;
+  return <div className="item-section"><SectionHeading eyebrow="INHERITANCE" title="Item Variants" />{draft.id ? <div className="item-variant-create"><input placeholder="Variant name" value={variantName} onChange={(e) => setVariantName(e.target.value)} /><button className="skills-primary-button" type="button" disabled={!variantName.trim() || cloning || creating} onClick={() => void clone()}>{cloning || creating ? "Cloning…" : "Clone as Variant"}</button></div> : <p className="skill-library__empty">Save this Item before creating variants.</p>}<div className="item-variant-list">{draft.variants.map((variant) => <button key={variant.id} type="button" disabled={creating} onClick={() => onOpen(variant)}><strong>{variant.name}</strong><span>{variant.archivedAt ? "Archived · " : ""}{variant.canonicalId} · {variant.catalogScope}</span></button>)}</div></div>;
 }
 
 function Preview({ draft }: { draft: ItemDraft }) {

@@ -8,7 +8,7 @@ export function isOrdinaryAttackReport(plan: Pick<ActionEffectPlanView, "sourceK
 
 export function isSpellResultReport(plan: Pick<ActionEffectPlanView, "sourceKind" | "status" | "effects">) {
   if (plan.sourceKind !== "spell") return false;
-  if (plan.effects.some((effect) => effect.effectKey.startsWith("spell-combat-recovery:"))) return false;
+  if (plan.effects.some((effect) => typeof effect.effectKey === "string" && effect.effectKey.startsWith("spell-combat-recovery:"))) return false;
   return ["calculated", "approved", "application-failed"].includes(plan.status)
     && !plan.effects.every((effect) => effect.effectType === "spell.area-report");
 }
