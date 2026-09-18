@@ -58,7 +58,7 @@ export async function addScreenSpell(tx: Tx, f: Awaited<ReturnType<typeof screen
   return addLearnedCombatSpell(tx, f, { area });
 }
 export async function addScreenFirearm(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
-  const distanceApproval = (process.env.COMBAT_SCREEN_CASE_FILTER ?? "").includes("distance-approval");
+  const distanceApproval = /distance-approval|magazine-combat/.test(process.env.COMBAT_SCREEN_CASE_FILTER ?? "");
   const [ammo, gun] = await tx.insert(item).values([
     { canonicalId: `SCREEN-AMMO-${crypto.randomUUID()}`.toUpperCase(), name: "Screen Cartridge", catalogScope: "inventory", recordType: "Ammunition", family: "Fixture", category: "Ammunition", priceBasis: "per round", createdByUserId: f.godId },
     { canonicalId: `SCREEN-GUN-${crypto.randomUUID()}`.toUpperCase(), name: "Screen Pistol", catalogScope: "equipment", equipmentGroup: "weapon", recordType: "Weapon", family: "Fixture", category: "Firearm", priceBasis: "unit", createdByUserId: f.godId },

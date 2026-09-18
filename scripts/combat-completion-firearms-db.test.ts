@@ -29,6 +29,7 @@ import { completionServiceFixture } from "./fixtures/combat-completion-service-f
 import { cancelAuthoredActionBindingInTransaction, ruleOnInterruptedReactionInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { closeInitiativeRuntime } from "@/features/tabletop-operations/initiative-runtime";
 import { lockEncounterCloseoutContextInTransaction, finalizeEncounterCloseoutInTransaction } from "@/features/tabletop-operations/encounter-closeout-service";
+import { createPlayerCombatRulingRequestInTransaction, ruleOnPlayerCombatRequestInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
@@ -60,7 +61,21 @@ async function fixture(tx: Tx, kind: "player" | "npc", burst = false) {
   const body = { ...f.creatureSnapshot, hpPools: [{ canonicalId: "fixture-body", poolName: "Body", maximumHp: 30 }],
     hitLocations: [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "fixture-body", naturalArmor: "2", soak: "1" }] };
   await tx.update(occurrence).set({ creatureSnapshotJson: body }).where(eq(occurrence.characterId, f.occurrences[0]));
-  const command: DeclareFirearmAttackCommand = { actorParticipantId: actorId, targetParticipantId: f.occurrences[0], itemInstanceId: instance.id, firingModeId: mode.id, rangeDistance: 25, rangeUnit: "feet",
+  let distanceRulingRequestId: number | null = null;
+  if (kind === "player") {
+    const request = await createPlayerCombatRulingRequestInTransaction(tx, f.context, { userId: f.player.userId, characterId: actorId }, {
+      requestType: "weapon-distance", sourceKind: "weapon", sourceRef: `instance:${instance.id}`, sourceInstanceId: instance.id,
+      targetParticipantId: f.occurrences[0], intent: "Confirm the measured firearm distance.", requestedTiming: "before firing",
+      blockedReason: "The exact Player firearm distance requires a Campaign-owning G.O.D. ruling.",
+      frozenRequest: { attackMode: "ranged", distance: 25, unit: "feet", firingModeId: mode.id },
+      idempotencyKey: crypto.randomUUID().replaceAll("-", ""),
+    });
+    await ruleOnPlayerCombatRequestInTransaction(tx, f.context, f.godId, request.requestId, {
+      status: "approved", response: "The exact firearm distance is approved.", ruling: { distance: 25, unit: "feet" },
+    });
+    distanceRulingRequestId = request.requestId;
+  }
+  const command: DeclareFirearmAttackCommand = { actorParticipantId: actorId, targetParticipantId: f.occurrences[0], itemInstanceId: instance.id, firingModeId: mode.id, rangeDistance: 25, rangeUnit: "feet", distanceRulingRequestId,
     aimInitiative: 0, firingDurationInitiative: 1, calledShot: { declared: false, objective: "", locationNumber: null, penalty: null, reason: "" }, idempotencyKey: crypto.randomUUID(), roll: { method: "entered", enteredTotal: 70 } };
   return { ...f, actor, actorId, command, instance, ammunition, modes, profile,
     state: async () => (await tx.select().from(stateTable).where(eq(stateTable.itemInstanceId, instance.id)))[0],
@@ -94,6 +109,17 @@ async function noDefense(tx: Tx, f: Awaited<ReturnType<typeof fixture>>, declara
     await reconcileResponderOpportunityInTransaction(tx, f.context, f.god, window.id, { decision: "ineligible", reason: "No aware participant has a legitimate response in this isolated shot." });
   }
 }
+
+test("Player firearm distance approval rejects missing, mismatched, and stale approvals", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    await assert.rejects(tx.transaction((savepoint) => declareFirearmAttackInTransaction(savepoint, f.context, f.actor, { ...f.command, distanceRulingRequestId: null })), /distance confirmation/);
+    await assert.rejects(tx.transaction((savepoint) => declareFirearmAttackInTransaction(savepoint, f.context, f.actor, { ...f.command, rangeDistance: 75 })), /does not match this exact target, Weapon, mode, distance, or unit/);
+    await tx.update(weaponProfile).set({ longRangeDistance: 60 }).where(eq(weaponProfile.id, f.profile.id));
+    await assert.rejects(tx.transaction((savepoint) => declareFirearmAttackInTransaction(savepoint, f.context, f.actor, f.command)), /range limits changed after approval/);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
 
 for (const weaponType of ["Bow", "Crossbow"]) for (const calledShot of [false, true]) test(`${weaponType}: Aim, release cost, firearm damage and exact ammunition on retry; called=${calledShot}`, async () => {
   await assert.rejects(db.transaction(async (tx) => {

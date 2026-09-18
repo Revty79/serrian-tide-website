@@ -19,7 +19,9 @@ if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error
 after(() => pool.end());
 const rollback = new Error("ROLLBACK_ITEM_ABILITY_FIXTURE");
 
-for (const mode of ["consume-item", "charges"] as const) test(`${mode}: source resource and independent Creature condition apply atomically once after completion`, async () => {
+for (const mode of ["consume-item", "charges"] as const) test(mode === "charges"
+  ? "charges: retired legacy Item Use is blocked and preserves the exact instance"
+  : "consume-item: source resource and independent Creature condition apply atomically once after completion", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await completionServiceFixture(tx, mode);
     const [source] = await tx.insert(item).values({ canonicalId: `COMPLETION-${crypto.randomUUID()}`.toUpperCase(), name: "Condition item", catalogScope: "equipment", equipmentGroup: "general",
@@ -36,6 +38,14 @@ for (const mode of ["consume-item", "charges"] as const) test(`${mode}: source r
     const resource = async () => mode === "charges"
       ? (await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instanceId!)))[0].currentCharges
       : (await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.heroId), eq(campaignCharacterItem.itemId, source.id))))[0]?.quantity ?? 0;
+    if (mode === "charges") {
+      await tx.update(participant).set({ participationStatus: "active" }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
+      const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "item", sourceRef: `item:${source.id}`,
+        sourceInstanceId: instanceId, actionKind: "item-use", windowKind: "ordinary", godNotes: "Legacy charged Item Use must remain retired." });
+      await assert.rejects(lockActionDeclarationInTransaction(tx, f.context, f.player, id), /Needs rebuilding: legacy charged Item Use is retired/);
+      assert.equal(await resource(), 3);
+      throw rollback;
+    }
     const states = () => tx.select().from(occurrence).where(eq(occurrence.encounterId, f.encounterId));
     const other = (await states()).find(({ characterId }) => characterId === f.occurrences[1])!.localStateJson;
     const targetBefore = (await states()).find(({ characterId }) => characterId === f.occurrences[0])!.localStateJson as Record<string, unknown>;
@@ -48,16 +58,16 @@ for (const mode of ["consume-item", "charges"] as const) test(`${mode}: source r
     await lockActionDeclarationInTransaction(tx, f.context, f.player, id);
     const pendingId = await commitActionDeclarationInTransaction(tx, f.context, f.player, id);
     assert.equal(await commitActionDeclarationInTransaction(tx, f.context, f.player, id), pendingId);
-    assert.equal(await resource(), mode === "charges" ? 3 : 2);
+    assert.equal(await resource(), 2);
     await assert.rejects(applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id), /complete/);
     const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
     await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 18));
     await setCombatFrozenInTransaction(tx, f.encounterId, f.god, { frozen: true, expectedRevision: 0 });
     await assert.rejects(applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id), /Combat is paused/);
-    assert.equal(await resource(), mode === "charges" ? 3 : 2);
+    assert.equal(await resource(), 2);
     await setCombatFrozenInTransaction(tx, f.encounterId, f.god, { frozen: false, expectedRevision: 1 });
     for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id)).status, "applied");
-    assert.equal(await resource(), mode === "charges" ? 2 : 1);
+    assert.equal(await resource(), 1);
     const after = await states();
     assert.equal((after.find(({ characterId }) => characterId === f.occurrences[0])!.localStateJson as { conditions: unknown[] }).conditions.length, 1);
     const target = after.find(({ characterId }) => characterId === f.occurrences[0])!.localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> }; modifiers: unknown[] };

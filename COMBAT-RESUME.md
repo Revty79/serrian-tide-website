@@ -1,8 +1,28 @@
 # Combat resumption handoff
 
+## Narrow corrections and test reconciliation (18 September 2026)
+
+**Verified correction commit follows `277c351`; the preceding `82ec965` and `277c351` checkpoints are already published on `origin/main`. This new correction remains local pending explicit push authorization.**
+
+### Checkpoint A — Character range authority
+
+- Character-sheet weapon classification now treats an explicit structured `rangeMode` as authoritative: `melee` is STR only, `ranged` is DEX only, and `hybrid` retains both summaries. Only unconfigured historical profiles use legacy text, retained distance fields and weapon-type inference. Focused coverage proves contradictory fields do not override the mode, historical inference remains compatible, hybrid output remains dual, and the input object is not mutated.
+
+### Checkpoint B — Browser and database reconciliation
+
+- The profile-cleanup browser assertion now separately proves the saved database `reach_distance` is 6, compares the complete saved row against the original except for that edit, and reopens the Equipment Item to verify visible Reach 6. The existing Inventory save/reopen scenario remains covered.
+- Positive Player firearm database fixtures now create and approve real durable `weapon-distance` requests through the existing request/ruling services, bound to exact actor, target, copy, firing mode, distance/unit and current profile. Added negative missing/mismatched/stale approval coverage. The focused firearm suite is **45/45**.
+- The retired legacy charged Item Use fixture is now a genuine negative test (**3/3** items/abilities cases); exact-instance Shared Power Charge behavior remains covered by existing Weapon-Hit and Ability tests. No legacy activation was restored.
+- Validation: **1,388/1,388 unit tests**, typecheck, changed-file lint, `git diff --check`, character-sheet **13/13**, profile-cleanup browser **1/1**, magazine-combat browser **1/1**, existing Beyond-Long approval browser **1/1**, firearm DB **45/45**, and legacy-charge DB **3/3**. The final unfiltered disposable harness stopped at the unrelated existing `combat-completion-revival-db.test.ts`: **12/12 revival cases failed** with `Spell target selection does not match the locked declaration target identity`; it does not touch this pass's changed paths. No migration, shared DEV mutation, production access or deployment occurred.
+
+### Remaining blocker / resume first
+
+1. The revival database fixture/runtime mismatch must be reconciled separately before the complete disposable combat harness can be green. Do not expand this narrow pass into spell-target or revival mechanics work.
+2. This correction is committed locally only; do not push without explicit authorization. Manual gameplay testing can begin for the corrected profile/range paths, with the revival harness blocker noted.
+
 ## Focused Weapon Profile input cleanup (18 September 2026)
 
-**Implemented locally from `82ec965`; commit remains local until final review.** The combined **Weapon / Ammunition** tab remains shared by Heavens → Equipment and Heavens → Inventory through `ItemWorkspace`. Profile Record Type, Handedness, Damage Source and the finite Weapon Type vocabulary now use supported choices. New profiles default to `Weapon` or `Ammunition` independently of the Item core record type. Unknown historical choices remain visible as **Needs review** and are accepted only when the stored value is unchanged; newly introduced unsupported values are rejected server-side. Damage Type remains author text because the existing catalog/runtime has no authoritative finite damage taxonomy.
+**Published in `277c351` on `origin/main`.** The combined **Weapon / Ammunition** tab remains shared by Heavens → Equipment and Heavens → Inventory through `ItemWorkspace`. Profile Record Type, Handedness, Damage Source and the finite Weapon Type vocabulary now use supported choices. New profiles default to `Weapon` or `Ammunition` independently of the Item core record type. Unknown historical choices remain visible as **Needs review** and are accepted only when the stored value is unchanged; newly introduced unsupported values are rejected server-side. Damage Type remains author text because the existing catalog/runtime has no authoritative finite damage taxonomy.
 
 - Removed only the editable Legacy Range Text, Legacy Reach Text and Legacy Capacity Text controls. Their columns remain present and are preserved from the stored profile during unrelated saves. Structured range mode, distance unit, reach, Short/Medium/Long limits, capacity, reload/readiness, magazine compatibility, ammunition links and firing modes remain editable.
 - Narrowly corrected Character weapon-use attribution to recognize structured range/reach fields without requiring hidden legacy text. Existing legacy text remains a fallback for historical records.
@@ -17,7 +37,7 @@
 
 ## Authoritative ordinary ranged approval and learned-spell AoE (18 September 2026)
 
-**Implemented locally from `bb2052482`; commit remains local until final review.** Ordinary Player Weapon declarations now enforce the durable `weapon-distance` approval at the authoritative declaration-lock boundary, after canonical Weapon/Profile range resolution. The check no longer depends on the client-provided range mode or on merely supplying a request ID. It binds the approved request to the canonical source/instance, Weapon/Profile, target, ranged mode, distance and unit; approved distance, band, adjustment, label and Beyond Long ruling fields replace client values in the frozen snapshot. Read-only preview remains non-consuming, retries still resolve before approval validation, and G.O.D.-controlled actions remain outside Player approval.
+**Published in `82ec965` on `origin/main`.** Ordinary Player Weapon declarations now enforce the durable `weapon-distance` approval at the authoritative declaration-lock boundary, after canonical Weapon/Profile range resolution. The check no longer depends on the client-provided range mode or on merely supplying a request ID. It binds the approved request to the canonical source/instance, Weapon/Profile, target, ranged mode, distance and unit; approved distance, band, adjustment, label and Beyond Long ruling fields replace client values in the frozen snapshot. Read-only preview remains non-consuming, retries still resolve before approval validation, and G.O.D.-controlled actions remain outside Player approval.
 
 - Added a disposable combat-screen regression for a deliberately mismatched client draft, missing approval rejection, exact approved Medium freeze, persisted request identity and ordinary retry idempotency. The prior firearm approval/browser path was left intact.
 - Corrected the learned-spell AoE coverage to match the existing runtime contract: zero selected victims create no effect proposals and never damage the caster; a critical Roll still remains `requires-god-ruling`. Added a selected two-victim case proving equal gross damage, per-target anatomy/application, one casting Roll, one Mana spend, retry-safe planning/application and no caster damage.

@@ -775,6 +775,21 @@ try {
     await screen(player).getByRole("heading", { name: "Ready to fire", exact: true }).waitFor();
     assert.equal(await screen(player).getByRole("combobox", { name: "Firing mode", exact: true }).count(), 0, "a sole mode is selected automatically without a chooser");
     await screen(player).getByRole("combobox", { name: /^Target/ }).selectOption(String(f.occurrences[0]));
+    await screen(player).getByLabel("Target distance", { exact: true }).fill("25");
+    await screen(player).getByLabel("Distance unit", { exact: true }).fill("feet");
+    await screen(player).getByRole("button", { name: "Request G.O.D. distance confirmation", exact: true }).click();
+    await screen(player).getByText("Distance sent to the Campaign-owning G.O.D. for confirmation.", { exact: true }).waitFor();
+    await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor();
+    await selectGod(director, "Rowan");
+    await screen(director).getByText("G.O.D. controls for Rowan", { exact: true }).click();
+    const distanceRequest = screen(director).locator("fieldset").filter({ hasText: "weapon distance" }).first();
+    await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Distance confirmed for this exact Player firearm shot.");
+    await distanceRequest.getByLabel("Approved distance", { exact: true }).fill("25");
+    await distanceRequest.getByLabel("Distance unit", { exact: true }).fill("feet");
+    await distanceRequest.getByRole("button", { name: "Approve", exact: true }).click();
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+    await screen(player).getByRole("button", { name: "Refresh", exact: true }).click();
+    await screen(player).getByText(/G\.O\.D\. approved distance: 25 feet/).waitFor();
     await screen(player).getByLabel("Percentile result", { exact: true }).fill("70");
     await screenshot(player, "firearm-ready-to-fire");
     await screen(player).getByRole("button", { name: "Fire & Roll", exact: true }).click();
@@ -793,7 +808,7 @@ try {
     assert.equal((await pool.query("select current_initiative from campaign_session_encounter_initiative_participant where encounter_id=$1 and character_id=$2", [f.encounterId, f.heroId])).rows[0].current_initiative, beforeRecovery - 0.3);
     assert.equal((await pool.query("select loaded_rounds from campaign_character_item_instance where id=$1", [copies[0].id])).rows[0].loaded_rounds, 1);
     await screenshot(player, "firearm-combined-recovery");
-    results.push("Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. The actual item editor saves the sole mode; refresh enables firing without a mode selector, with one Roll, one round consumed and 2 damage applied once. One Prepare next shot completes cycling 0.1 plus recoil 0.2 for 0.3 Initiative without spending ammunition.");
+    results.push("Player adopts item settings, loads a magazine, readies and fills a spare from Attack. A missing mode never asks this prepared copy to reload. The actual item editor saves the sole mode; Player distance approval is requested and approved at 25 feet before refresh enables firing without a mode selector, with one Roll, one round consumed and 2 damage applied once. One Prepare next shot completes cycling 0.1 plus recoil 0.2 for 0.3 Initiative without spending ammunition.");
     await player.context().close(); await director.context().close();
   }
   if (include("profile-cleanup")) {
@@ -832,9 +847,13 @@ try {
     await editor.getByRole("button", { name: "Save Item", exact: true }).click();
     await editor.getByText("Fixture Shortsword was saved.", { exact: true }).waitFor();
     const afterHistorical = await profileSnapshot(f.weaponId);
-    assert.deepEqual({ ...afterHistorical, reach_distance: 6 }, { ...beforeProfile, reach_distance: 6 });
+    assert.equal(afterHistorical.reach_distance, 6);
+    assert.deepEqual(afterHistorical, { ...beforeProfile, reach_distance: 6 });
     assert.equal(Number((await pool.query("select count(*)::int n from weapon_skill_path_mappings m join weapon_profiles p on p.id=m.weapon_profile_id where p.item_id=$1", [f.weaponId])).rows[0].n), beforeSkillCount);
     assert.deepEqual((await pool.query("select p.name,p.resource_cost_kind,p.resource_cost_amount,r.maximum_charges,r.recharge_notes from item_powers p join item_power_resources r on r.item_id=p.item_id where p.id=$1", [power.id])).rows[0], beforePower);
+    await author.goto(`${base}/heavens/equipment?item=${f.weaponId}&tab=weapon`); await author.waitForLoadState("networkidle");
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    assert.equal(await field("Reach").inputValue(), "6");
     await author.goto(`${base}/heavens/equipment`); await author.waitForLoadState("networkidle");
     await author.getByRole("button", { name: "New Equipment", exact: true }).click();
     await editor.getByLabel("Name", { exact: true }).fill("Profile Cleanup Supported Weapon");
