@@ -1,5 +1,19 @@
 # Combat resumption handoff
 
+## Governing Skill Path availability and unsaved edits (18 September 2026)
+
+**Starting revision:** `fe9708f251178c9f392558a6ee28122629adcdd2`, already published on `origin/main`. This focused authoring correction remains local until explicit push authorization.
+
+- Root causes were local `WeaponGovernanceEditor` state plus its mode-identity `key`: switching tabs or changing firing-mode identity recreated the component and lost pending mappings. Governance loading also depended only on Item/mode identity, so adding a profile to an existing Item could leave the panel on the stale “save first” state. The governing-path Save button was also disabled by ordinary Item dirty state.
+- Lifted governance mappings, scope, dirty state and stable profile identity into the shared `ItemWorkspace` lifecycle. Removed the destructive remount key. Successful Item saves trigger a persisted-profile governance refresh; clean empty mappings render as loaded/unreviewed, failures show an error and Retry, and stale responses cannot replace another Item or a dirty same-scope draft.
+- Separate Item and Governing Skill Path dirty states remain separate: Save Item does not mark paths saved, Save Governing Skill Paths uses the existing service, its button remains available while ordinary Item fields are dirty, and pending paths participate in the overall unsaved/navigation warning. Destructive profile/mode-scope changes with dirty mappings are blocked with an explanation. Stable firing-mode IDs preserve mode-scoped paths through reorder.
+- Browser coverage through the existing disposable `profile-cleanup` scenario passed **1/1** for both Equipment and Inventory: existing no-profile Item immediate authoring, first-save new Item, empty-path availability, notes/review edits across tabs, ordinary save followed by separate path save, exact mapping persistence/reopen, mode-scope reorder, Keep Editing/discard navigation, no cross-Item leakage, and pre-save governance load error plus Retry.
+- Focused stale-response helper and governance rules passed **14/14**; typecheck and changed-file lint passed. The prior full unit suite remains **1,388/1,388**. No shared DEV/production data, migration, deployment or combat behavior changed.
+
+### Remaining limitation
+
+- A browser-injected server-side governance save failure was not separately fault-injected; ordinary invalid authoring save retention remains covered by the preceding profile-cleanup checks. No broader combat suites were rerun for this authoring-only correction.
+
 ## Narrow corrections and test reconciliation (18 September 2026)
 
 **Verified correction commit follows `277c351`; the preceding `82ec965` and `277c351` checkpoints are already published on `origin/main`. This new correction remains local pending explicit push authorization.**

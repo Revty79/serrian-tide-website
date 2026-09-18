@@ -814,6 +814,10 @@ try {
   if (include("profile-cleanup")) {
     const f = await db.transaction(async (tx) => {
       const fixture = await screenFixture(tx, "profile-cleanup");
+      const [noProfile] = await tx.insert(item).values({
+        canonicalId: `SCREEN-PROFILE-NO-PROFILE-${crypto.randomUUID()}`.toUpperCase(), name: "Profile Cleanup Existing No Profile", catalogScope: "equipment", equipmentGroup: "weapon", recordType: "Weapon",
+        family: "Fixture", category: "Sword", priceBasis: "per item", createdByUserId: fixture.godId,
+      }).returning();
       const [ammunition] = await tx.insert(item).values({
         canonicalId: `SCREEN-PROFILE-AMMO-${crypto.randomUUID()}`.toUpperCase(), name: "Profile Cleanup Cartridge", catalogScope: "inventory", recordType: "Ammunition",
         family: "Fixture", category: "Ammunition", priceBasis: "per round", createdByUserId: fixture.godId,
@@ -822,7 +826,7 @@ try {
         itemId: ammunition.id, profileRecordType: "Ammunition", weaponType: "Cartridge", damageSource: "Ammunition", damage: "8", damageType: "Piercing",
       });
       await tx.insert(campaignInventoryItem).values({ campaignId: fixture.campaignId, itemId: ammunition.id, sortOrder: 2 });
-      return { ...fixture, ammunitionId: ammunition.id };
+      return { ...fixture, noProfileItemId: noProfile.id, ammunitionId: ammunition.id };
     });
     await pool.query("update weapon_profiles set profile_record_type='Equipment',weapon_type='Legacy Widget',handedness='N/A',damage_source='Ammunition',damage_type='Slashing',range_text='Legacy range',reach_text='Legacy reach',capacity='Legacy capacity',range_mode='melee',distance_unit='feet',reach_distance=5,capacity_rounds=6,ammunition_item_id=$2 where item_id=$1", [f.weaponId, f.ammunitionId]);
     const power = (await pool.query("insert into item_powers(item_id,name,description,trigger,activation_label,initiative_cost,resource_cost_kind,resource_cost_amount,resolution_mode,sort_order) values($1,'Legacy Shared Ability','Preserve this ability.','activated','Activate',1,'shared-charges',1,'automatic',0) returning id", [f.weaponId])).rows[0];
@@ -833,6 +837,97 @@ try {
     const author = await login(f.godId, "god", f, true);
     const editor = author.locator(".item-editor");
     const field = (label: string) => editor.getByText(label, { exact: true }).locator("..").locator("select,input,textarea").first();
+    const endpointSkillId = f.skillId;
+    const secondSkillId = Number((await pool.query("select id from skill where id <> $1 and archived_at is null order by id limit 1", [endpointSkillId])).rows[0].id);
+    await author.goto(`${base}/heavens/equipment?item=${f.noProfileItemId}&tab=weapon`); await author.waitForLoadState("networkidle");
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    await editor.getByRole("button", { name: "Add Weapon / Ammunition Profile", exact: true }).click();
+    await field("Weapon Type").selectOption("Sword");
+    await field("Handedness").selectOption("One-Handed");
+    await field("Damage Source").selectOption("Weapon");
+    await field("Damage").fill("1d8"); await field("Damage Type").fill("Slashing"); await field("Initiative Cost").fill("4");
+    await editor.getByText("Save the Weapon Profile before authoring canonical Skill eligibility.", { exact: true }).waitFor();
+    await editor.getByRole("button", { name: "Retry Governing Skill Paths", exact: true }).click();
+    await editor.getByText("Save the Weapon Profile before authoring canonical Skill eligibility.", { exact: true }).waitFor();
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
+    const endpoint = field("Exact endpoint Skill");
+    await endpoint.selectOption(String(endpointSkillId));
+    await editor.getByRole("button", { name: "Add Path", exact: true }).click();
+    await editor.getByText("Authoring Notes", { exact: true }).locator("..").locator("textarea").first().fill("Immediate post-profile-save path.");
+    await editor.getByRole("button", { name: "Approve Valid Path", exact: true }).click();
+    await editor.getByRole("button", { name: "Overview", exact: true }).click();
+    await field("Description").fill("Ordinary Item edit with pending governance path.");
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
+    const governanceNotes = editor.getByText("Authoring Notes", { exact: true }).locator("..").locator("textarea").first();
+    assert.equal(await governanceNotes.inputValue(), "Immediate post-profile-save path.");
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Unsaved Governing Skill Path edits.", { exact: true }).waitFor();
+    const savePaths = editor.getByRole("button", { name: "Save Governing Skill Paths", exact: true });
+    assert.equal(await savePaths.isDisabled(), false);
+    await savePaths.click();
+    await editor.getByText("Canonical Governing Skill Paths were saved.", { exact: true }).waitFor();
+    const savedMapping = (await pool.query("select m.endpoint_skill_id,m.review_state,m.notes,m.sort_order,m.firing_mode_id from weapon_skill_path_mappings m join weapon_profiles p on p.id=m.weapon_profile_id where p.item_id=$1", [f.noProfileItemId])).rows[0];
+    assert.deepEqual(savedMapping, { endpoint_skill_id: endpointSkillId, review_state: "approved", notes: "Immediate post-profile-save path.", sort_order: 0, firing_mode_id: null });
+    await author.goto(`${base}/heavens/equipment?item=${f.noProfileItemId}&tab=weapon`); await author.waitForLoadState("networkidle");
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
+    assert.equal(await editor.getByText("Authoring Notes", { exact: true }).locator("..").locator("textarea").first().inputValue(), "Immediate post-profile-save path.");
+    await editor.getByRole("button", { name: "Add Mode", exact: true }).click();
+    await editor.getByRole("button", { name: "Add Mode", exact: true }).click();
+    const modeCards = editor.locator(".item-firearm-mode");
+    for (const [index, name] of [[0, "Mode One"], [1, "Mode Two"]] as const) {
+      const card = modeCards.nth(index);
+      await card.getByLabel("Mode Name", { exact: true }).fill(name);
+      await card.getByLabel("Cycling Initiative Cost", { exact: true }).fill("0");
+      await card.getByLabel("Recoil Reset Initiative Cost", { exact: true }).fill("0");
+      await card.getByLabel("Delivery Cadence", { exact: true }).selectOption("per-trigger");
+      await card.getByLabel("Rounds Per Cadence", { exact: true }).fill("1");
+    }
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Profile Cleanup Existing No Profile was saved.", { exact: true }).waitFor();
+    await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
+    const modeIds = (await pool.query<{ id: number }>("select id from weapon_firing_modes where weapon_profile_id=(select id from weapon_profiles where item_id=$1) order by sort_order", [f.noProfileItemId])).rows.map(({ id }) => id);
+    assert.equal(modeIds.length, 2);
+    await field("Authoring Scope").selectOption(`mode:${modeIds[0]}`);
+    await field("Exact endpoint Skill").selectOption(String(secondSkillId));
+    await editor.getByRole("button", { name: "Add Path", exact: true }).click();
+    await editor.locator(".item-firearm-mode").nth(1).getByRole("button", { name: "Move Up", exact: true }).click();
+    assert.equal(await editor.locator(".item-governance-path").filter({ hasText: `Skill #${secondSkillId}` }).count(), 1);
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Unsaved Governing Skill Path edits.", { exact: true }).waitFor();
+    await editor.getByRole("button", { name: "Save Governing Skill Paths", exact: true }).click();
+    await editor.getByText("Canonical Governing Skill Paths were saved.", { exact: true }).waitFor();
+    const modeMapping = (await pool.query("select firing_mode_id,endpoint_skill_id,sort_order from weapon_skill_path_mappings m join weapon_profiles p on p.id=m.weapon_profile_id where p.item_id=$1 and m.firing_mode_id is not null", [f.noProfileItemId])).rows[0];
+    assert.deepEqual(modeMapping, { firing_mode_id: modeIds[0], endpoint_skill_id: secondSkillId, sort_order: 0 });
+    await field("Authoring Scope").selectOption("weapon");
+    await field("Exact endpoint Skill").selectOption(String(secondSkillId));
+    await editor.getByRole("button", { name: "Add Path", exact: true }).click();
+    assert.equal(await editor.getByText("Unsaved Governing Skill Path edits.", { exact: true }).count(), 1);
+    await editor.getByRole("button", { name: "Overview", exact: true }).click();
+    await author.locator(".skill-library__row").filter({ hasText: "Fixture Shortsword" }).click();
+    await author.locator(".skills-page__discard-confirm").getByText("Unsaved changes", { exact: true }).waitFor();
+    await author.getByRole("button", { name: "Keep Editing", exact: true }).click();
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
+    assert.equal(await editor.locator(".item-governance-path").filter({ hasText: `Skill #${secondSkillId}` }).count(), 1);
+    await author.locator(".skill-library__row").filter({ hasText: "Fixture Shortsword" }).click();
+    await author.getByRole("button", { name: "Discard Changes", exact: true }).click();
+    await editor.getByRole("heading", { name: "Fixture Shortsword", exact: true }).waitFor();
+    assert.equal((await pool.query("select count(*)::int n from weapon_skill_path_mappings m join weapon_profiles p on p.id=m.weapon_profile_id where p.item_id=$1", [f.noProfileItemId])).rows[0].n, 2);
+    await author.goto(`${base}/heavens/equipment`); await author.waitForLoadState("networkidle");
+    await author.getByRole("button", { name: "New Equipment", exact: true }).click();
+    await field("Name").fill("Profile Cleanup First Save");
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByText("Profile Cleanup First Save was saved.", { exact: true }).waitFor();
+    await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
+    await editor.getByRole("button", { name: "Add Weapon / Ammunition Profile", exact: true }).click();
+    await field("Weapon Type").selectOption("Sword"); await field("Handedness").selectOption("One-Handed"); await field("Damage Source").selectOption("Weapon");
+    await field("Damage").fill("1d6"); await field("Damage Type").fill("Slashing"); await field("Initiative Cost").fill("3");
+    await editor.getByRole("button", { name: "Save Item", exact: true }).click();
+    await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
+    assert.equal(await editor.getByText("Unreviewed · Missing path · Requires G.O.D. review. No mapping has been inferred.", { exact: true }).count(), 1);
     await author.goto(`${base}/heavens/equipment?item=${f.weaponId}&tab=weapon`); await author.waitForLoadState("networkidle");
     await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
     assert.equal(await editor.getByText("Legacy Range Text", { exact: true }).count(), 0);
