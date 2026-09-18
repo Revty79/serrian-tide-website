@@ -40,9 +40,12 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
   const options = sources?.sources.filter((source) => command === "Cast" ? source.kind === "spell" : command === "Item" ? source.kind === "item" : command === "Ability" ? ["derived-ability", "creature-ability"].includes(source.kind) : ["weapon", "creature-attack"].includes(source.kind)) ?? [];
   const available = options.filter((entry) => !entry.unavailable);
   const stored = drafts[key];
+  const automaticSource = available.length === 1 ? sourceKey(available[0]) : "";
+  const availableSourceKeys = JSON.stringify(available.map(sourceKey));
+  const storedSourceIsAvailable = !!stored?.source && available.some((entry) => sourceKey(entry) === stored.source);
   const draft = { ...(stored ?? { ...blank, roll: scope.role === "god" ? { method: "digital" as const, value: "" } : emptyRoll }),
-    source: stored?.source || (available.length === 1 ? sourceKey(available[0]) : "") };
-  const source = options.find((entry) => sourceKey(entry) === draft.source);
+    source: stored ? storedSourceIsAvailable ? stored.source : "" : automaticSource };
+  const source = available.find((entry) => sourceKey(entry) === draft.source);
   const firearm = source?.instanceId ? sources?.firearms?.firearms.find((entry) => entry.itemInstanceId === source.instanceId) : null;
   const projectileFamily = projectileWeaponFamily(firearm?.canonical.weaponType ?? "");
   const currentSpell = spell?.key === `${entity.participantId}:${draft.source}` ? spell.value : null;
@@ -102,6 +105,17 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
     && (!["Attack", "Called Shot"].includes(command) || targets.length > 0)
     && (command !== "Called Shot" || !!location && (scope.role === "god" || !!ruling));
   const previewSourceKey = `${entity.participantId}:${draft.source}`;
+  useEffect(() => {
+    setDrafts((values) => {
+      const persisted = values[key];
+      if (persisted?.source && !availableSourceKeys.includes(JSON.stringify(persisted.source))) {
+        delete submitted.current[key];
+        return { ...values, [key]: { ...persisted, source: "", groups: {}, applications: {}, mode: "" } };
+      }
+      if (!persisted && automaticSource) return { ...values, [key]: { ...blank, roll: scope.role === "god" ? { method: "digital", value: "" } : emptyRoll, source: automaticSource } };
+      return values;
+    });
+  }, [automaticSource, availableSourceKeys, key, scope.role]);
   useEffect(() => {
     if (!previewReady) return;
     let active = true;

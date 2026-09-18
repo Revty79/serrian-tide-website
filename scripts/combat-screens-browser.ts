@@ -44,12 +44,22 @@ async function login(id: string, role: "god" | "player", f: Fixture, automatic =
   return page;
 }
 async function selectGod(page: Page, name: string) { await screen(page).getByRole("region", { name: "Combatants", exact: true }).getByRole("button", { name: new RegExp(`^${name}`) }).click(); await screen(page).getByRole("region", { name: "Selected combatant detail" }).getByRole("heading", { name, exact: true }).waitFor(); await until(() => screen(page).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "selected information refreshed"); }
-async function chooseAttack(page: Page, target: number, roll = "80", source = "Fixture Shortsword") {
+async function chooseAttack(page: Page, target: number, roll = "80", source: string | null = "Fixture Shortsword") {
   const view = screen(page);
   await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Attack", exact: true }).click();
-  await until(async () => await view.getByRole("combobox", { name: /^Attack source/ }).locator("option").count() > 1, "owned Attack source");
-  await view.getByRole("combobox", { name: /^Attack source/ }).selectOption({ label: source });
+  const sourcePicker = view.getByRole("combobox", { name: /^Attack source/ });
+  await until(async () => await sourcePicker.locator("option").count() > 1, "owned Attack source");
+  if (source !== null) await sourcePicker.selectOption({ label: source });
+  else {
+    const authoredSource = sourcePicker.locator("option:not([value=''])");
+    assert.equal(await authoredSource.count(), 1, "The Creature fixture has one authored attack.");
+    assert.equal(await sourcePicker.inputValue(), await authoredSource.getAttribute("value"), "Its sole authored attack is selected without changing the dropdown.");
+  }
   await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(target));
+  if (source === null) {
+    try { await view.getByRole("combobox", { name: "Roll method", exact: true }).waitFor(); }
+    catch (error) { throw new Error(`Automatic Creature source never became previewable: ${await view.innerText()}`, { cause: error }); }
+  }
   await view.getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
   await view.getByLabel("Percentile result", { exact: true }).fill(roll);
 }
@@ -264,6 +274,53 @@ try {
     results.push(`Simultaneous Player/NPC declarations, ${npcFirst ? "NPC" : "Player"} first, preserve hidden action history and record one Roll each.`);
     await director.context().close(); await participant.context().close();
   }
+  if (include("creature-target-sharing")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "creature-target-sharing", true));
+    await pool.query("update campaign_session_encounter_initiative set timeline_initiative=22 where encounter_id=$1", [f.encounterId]);
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active',current_initiative=22 where encounter_id=$1 and character_id=any($2::int[])", [f.encounterId, f.occurrences]);
+    await pool.query("update campaign_session_encounter_initiative_participant set current_initiative=20 where encounter_id=$1 and character_id in ($2,$3)", [f.encounterId, f.heroId, f.defenderId]);
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='holding' where encounter_id=$1 and character_id=any($2::int[])", [f.encounterId, [f.heroId, f.defenderId]]);
+    const selfChoice = { participantId: f.occurrences[0], targetIds: [f.occurrences[0]], source: { kind: "creature-attack" as const, ref: "fixture-shortsword", name: "Shortsword", itemId: null, instanceId: null, description: "" } };
+    await assert.rejects(db.transaction((tx) => submitCombatChoiceInTransaction(tx, f.context, f.god, { requestKey: crypto.randomUUID(), choice: selfChoice })), /another combatant/);
+    const director = await login(f.godId, "god", f);
+    for (const [index, occurrence] of f.occurrences.entries()) {
+      await selectGod(director, `Fixture Goblin ${index + 1}`);
+      await chooseAttack(director, f.heroId, index === 0 ? "70" : "60", null);
+      const target = screen(director).getByRole("combobox", { name: /^Target/ });
+      assert.equal(await target.inputValue(), String(f.heroId));
+      assert.equal(await target.locator(`option[value='${occurrence}']`).count(), 0, "The ordinary Creature Attack menu excludes its own actor.");
+      await commitAttack(director);
+      await until(async () => (await declarations(f)).length === index + 1, `Creature ${index + 1} declaration`);
+    }
+    const locked = await declarations(f);
+    assert.equal(locked.length, 2);
+    for (const [index, declaration] of locked.entries()) {
+      assert.equal(declaration.actor_character_id, f.occurrences[index]);
+      assert.deepEqual(declaration.draft_json.targetCharacterIds, [f.heroId]);
+      assert.deepEqual(declaration.locked_snapshot_json.targetCharacterIds, [f.heroId]);
+    }
+    const initiatives = (await pool.query("select character_id,current_initiative from campaign_session_encounter_initiative_participant where encounter_id=$1 and character_id=any($2::int[]) order by character_id", [f.encounterId, f.occurrences])).rows;
+    assert.deepEqual(initiatives.map((entry) => entry.current_initiative), [22, 22]);
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: "Advance combat", exact: true }).click();
+    const pendingIds = locked.map((declaration) => declaration.pending_action_id);
+    await until(async () => {
+      const actions = (await pool.query("select status from campaign_session_encounter_pending_action where id=any($1::int[])", [pendingIds])).rows;
+      return actions.length === pendingIds.length && actions.every((action) => action.status === "completed");
+    }, "both Creature actions complete");
+    const response = screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /Rowan's response/ });
+    await response.waitFor(); await response.click();
+    await screen(director).getByRole("heading", { name: "Rowan", exact: true }).waitFor();
+    for (const [index, occurrence] of f.occurrences.entries()) {
+      await selectGod(director, `Fixture Goblin ${index + 1}`);
+      const view = screen(director), attack = view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Attack", exact: true });
+      assert.equal(await attack.getAttribute("aria-pressed"), "true", "Returning to a Creature restores its Attack command.");
+      const target = view.getByRole("combobox", { name: /^Target/ });
+      assert.equal(await target.inputValue(), String(f.heroId), `Creature ${index + 1} retains Rowan as its target after response inspection.`);
+      assert.equal(await target.locator(`option[value='${occurrence}']`).count(), 0, "Returning to the Creature still rejects self-targeting.");
+    }
+    results.push("Two same-Initiative Creature occurrences independently lock Rowan as their shared target; response inspection preserves both per-attacker drafts and self-target protection.");
+    await director.context().close();
+  }
   if (include("overlap")) {
     const f = await db.transaction((tx) => screenFixture(tx, "overlap"));
     await pool.query("update weapon_profiles set initiative_cost=5 where item_id=$1", [f.weaponId]);
@@ -313,6 +370,7 @@ try {
     await until(async () => (await local())?.combatCondition?.status === "dead", "fatal result applies only after sword timing and exact ruling");
     const unfinished = (await declarations(f)).find((entry) => entry.actor_character_id === f.occurrences[0] && entry.id !== bite.id)!;
     assert.equal(unfinished.status, "cancelled");
+    results.push("A Creature's sole authored attack is active without a source-dropdown toggle and remains active for its later action opportunity while another declaration is in flight.");
     results.push("The main next-input control resolves a faster Creature action, offers its next action while the critical sword is unfinished, then opens the sword's exact ruling only at completion; death cancels the later unfinished action.");
     await director.context().close(); await participant.context().close();
   }
@@ -325,7 +383,7 @@ try {
     const guide = screen(director).getByRole("region", { name: "Next combat input" });
     assert.equal(await screen(director).getByRole("checkbox", { name: "Automatic flow", exact: true }).isChecked(), true);
     await guide.getByRole("button", { name: "Fixture Goblin 1 can act now", exact: true }).click();
-    await chooseAttack(director, f.heroId, canRespond ? "70" : "28", "Shortsword");
+    await chooseAttack(director, f.heroId, canRespond ? "70" : "28", null);
     assert.equal(await screen(director).getByRole("combobox", { name: /^Target/ }).locator(`option[value='${f.occurrences[0]}']`).count(), 0, "The attack menu excludes its own actor.");
     assert.equal((await declarations(f)).length, 0, "Reading options never commits an action or Roll.");
     await commitAttack(director);
@@ -370,7 +428,10 @@ try {
       assert.equal(await screen(director).getByRole("combobox", { name: /^Target/ }).inputValue(), String(f.heroId), "Inspecting another actor preserves this Creature's own target draft.");
     }
     await until(() => guide.getByRole("button", { name: "Fixture Goblin 1 can act now", exact: true }).isEnabled(), "the Creature can act again without reprompting the holding Player");
-    results.push(`Initiative automatically offers the Player a choice without G.O.D. permission: ${canRespond ? "no-reaction then Hold preserves 20 Initiative and the original attack applies 6 damage" : "movement completes while the original attack remains pending, then Hold preserves 19 Initiative and the attack misses"}. One original Roll, no approval prompt, no timing reset.`);
+    await guide.getByRole("button", { name: "Fixture Goblin 1 can act now", exact: true }).click();
+    await chooseAttack(director, f.heroId, "28", null); await commitAttack(director);
+    await until(async () => (await declarations(f)).length === 2, "Creature later action commits without source toggle");
+    results.push(`A Creature's sole authored attack is immediately active and remains active for a later action opportunity without changing the source dropdown. Initiative automatically offers the Player a choice without G.O.D. permission: ${canRespond ? "no-reaction then Hold preserves 20 Initiative and the original attack applies 6 damage" : "movement completes while the original attack remains pending, then Hold preserves 19 Initiative and the attack misses"}. One original Roll, no approval prompt, no timing reset.`);
     await director.context().close(); await participant.context().close();
   }
   if (include("hold")) for (const tied of [false, true]) {

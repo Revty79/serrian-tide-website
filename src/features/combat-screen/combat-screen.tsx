@@ -57,7 +57,9 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
   const [data, setData] = useState(initialData);
   const [selectedId, setSelectedId] = useState<number | null>(scope.role === "player" ? scope.characterId : initialData.roster[0]?.participantId ?? null);
   const selectedRef = useRef(selectedId), generation = useRef(0), mutation = useRef(false);
-  const [command, setCommand] = useState<CombatCommand>("Attack");
+  const [commands, setCommands] = useState<Record<number, CombatCommand>>({});
+  const command = selectedId === null ? "Attack" : commands[selectedId] ?? "Attack";
+  const setCommand = (value: CombatCommand) => { if (selectedId !== null) setCommands((previous) => ({ ...previous, [selectedId]: value })); };
   const [targets, setTargets] = useState<Record<number, string>>({});
   const target = selectedId === null ? "" : targets[selectedId] ?? "";
   const setTarget = (value: string) => { if (selectedId !== null) setTargets((previous) => ({ ...previous, [selectedId]: value })); };
@@ -130,7 +132,7 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
     switch (nextInput.kind) {
       case "inspect":
         choose(nextInput.participantId);
-        setCommand(nextInput.focus === "response" ? "Defend" : "Attack");
+        setCommands((previous) => ({ ...previous, [nextInput.participantId]: nextInput.focus === "response" ? "Defend" : "Attack" }));
         setFocus((previous) => ({ participantId: nextInput.participantId, kind: nextInput.focus, planId: nextInput.planId, sequence: (previous?.sequence ?? 0) + 1 }));
         break;
       case "resolve": return run(() => nextInput.firearmId ? applyCombatFirearmResult(scope, nextInput.firearmId) : prepareCombatResult(scope, nextInput.declarationId), "The result is ready for review.");
