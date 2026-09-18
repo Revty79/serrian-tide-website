@@ -87,7 +87,15 @@ type GovernanceDraftState = Readonly<{
   mappings: readonly WeaponSkillPathMappingDraft[];
   scope: string;
   dirty: boolean;
+  saving: boolean;
+  saveError: string | null;
+  saveMessage: string | null;
 }>;
+
+type PendingNavigation =
+  | { kind: "open"; item: Pick<ItemSummary, "id"> }
+  | { kind: "new" }
+  | { kind: "variant"; parentId: number; variantName: string };
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -236,7 +244,7 @@ export function ItemWorkspace({
   const [loadingEditor, setLoadingEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const [pending, setPending] = useState<{ kind: "open"; item: ItemSummary } | { kind: "new" } | null>(null);
+  const [pending, setPending] = useState<PendingNavigation | null>(null);
   const [governanceDraft, setGovernanceDraft] = useState<GovernanceDraftState | null>(null);
   const [governanceRefreshToken, setGovernanceRefreshToken] = useState(0);
   const preserveScroll = useInPlaceScrollPreservation();
@@ -245,6 +253,7 @@ export function ItemWorkspace({
   const isArchived = Boolean(archivedAt);
   const governanceProfileKey = weaponGovernanceProfileKey(draft);
   const governanceDirty = governanceDraft?.profileKey === governanceProfileKey && governanceDraft.dirty;
+  const governanceSaving = governanceDraft?.profileKey === governanceProfileKey && governanceDraft.saving;
   const hasUnsavedWork = dirty || Boolean(governanceDirty);
 
   const loadLibrary = useCallback(async (next: ItemLibraryFilters) => {
@@ -295,7 +304,11 @@ export function ItemWorkspace({
     });
   }
 
-  function chooseItem(summary: ItemSummary) {
+  function chooseItem(summary: Pick<ItemSummary, "id">) {
+    if (saving || governanceSaving) {
+      setFeedback({ kind: "error", message: "Wait for the current Item or Governing Skill Path save to finish before opening another Item." });
+      return;
+    }
     if (hasUnsavedWork) void preserveScroll(() => setPending({ kind: "open", item: summary }));
     else void openItem(summary);
   }
@@ -316,8 +329,41 @@ export function ItemWorkspace({
   }
 
   function beginNew() {
+    if (saving || governanceSaving) {
+      setFeedback({ kind: "error", message: "Wait for the current Item or Governing Skill Path save to finish before creating a new Item." });
+      return;
+    }
     if (hasUnsavedWork) void preserveScroll(() => setPending({ kind: "new" }));
     else void preserveScroll(createNew);
+  }
+
+  async function createVariantNow(parentId: number, variantName: string) {
+    const saved = await createItemVariant(parentId, variantName);
+    setDraft(saved);
+    setDirty(false);
+    setGovernanceDraft(null);
+    setFeedback({ kind: "success", message: `${saved.core.name} was created as a variant.` });
+    await loadLibrary(filters);
+    await refreshReferences(saved.id);
+  }
+
+  async function requestVariantCreation(variantName: string): Promise<void> {
+    if (!draft?.id) return;
+    if (saving || governanceSaving) {
+      setFeedback({ kind: "error", message: "Wait for the current Item or Governing Skill Path save to finish before creating a variant." });
+      return;
+    }
+    if (hasUnsavedWork) {
+      setPending({ kind: "variant", parentId: draft.id, variantName });
+      return;
+    }
+    void createVariantNow(draft.id, variantName).catch((error) => {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item variant could not be created." });
+    });
+  }
+
+  function requestVariantOpen(summary: ItemDraft["variants"][number]) {
+    chooseItem(summary);
   }
 
   function discardAndContinue() {
@@ -325,6 +371,9 @@ export function ItemWorkspace({
     setPending(null);
     if (!next) return;
     if (next.kind === "new") void createNew();
+    else if (next.kind === "variant") void createVariantNow(next.parentId, next.variantName).catch((error) => {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Item variant could not be created." });
+    });
     else void openItem(next.item);
   }
 
@@ -451,11 +500,11 @@ export function ItemWorkspace({
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "abilities" ? <Abilities draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} governanceProfileKey={governanceProfileKey} governanceDraft={governanceDraft} governanceRefreshToken={governanceRefreshToken} onGovernanceHydrated={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey && current.dirty ? current : { itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: false })} onGovernanceChanged={(profileKey, itemId, mappings) => setGovernanceDraft((current) => ({ itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: true }))} onGovernanceScopeChanged={(profileKey, scope) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, scope } : current)} onGovernanceSaved={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, itemId, mappings, dirty: false } : current)} onChange={change} /> : null}
+          {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} governanceProfileKey={governanceProfileKey} governanceDraft={governanceDraft} governanceRefreshToken={governanceRefreshToken} onGovernanceHydrated={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey && current.dirty ? current : { itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: false, saving: false, saveError: null, saveMessage: null })} onGovernanceChanged={(profileKey, itemId, mappings) => setGovernanceDraft((current) => ({ itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: true, saving: false, saveError: null, saveMessage: null }))} onGovernanceScopeChanged={(profileKey, scope) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, scope } : current)} onGovernanceSaveStarted={(profileKey) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: true, saveError: null, saveMessage: null } : current)} onGovernanceSaveFailed={(profileKey, message) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: false, saveError: message, saveMessage: null, dirty: true } : current)} onGovernanceSaved={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, itemId, mappings, dirty: false, saving: false, saveError: null, saveMessage: "Canonical Governing Skill Paths were saved." } : current)} onChange={change} /> : null}
           {activeTab === "magazine" ? <Magazine draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "variants" ? <Variants draft={draft} onOpen={(summary) => void openItem(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
+          {activeTab === "variants" ? <Variants draft={draft} onOpen={requestVariantOpen} onCreate={requestVariantCreation} /> : null}
           {activeTab === "preview" ? <Preview draft={draft} /> : null}
         </fieldset>
       </section> : <section className="skill-editor skill-editor--empty"><p>{label.toUpperCase()} EDITOR</p><h2>Select a record or begin a new one.</h2><span>The shared Item engine powers both authoring libraries.</span></section>}
@@ -758,6 +807,8 @@ function WeaponGovernanceEditor({
   onHydrated,
   onChanged,
   onScopeChanged,
+  onSaveStarted,
+  onSaveFailed,
   onSaved,
 }: {
   itemId: number | undefined;
@@ -769,6 +820,8 @@ function WeaponGovernanceEditor({
   onHydrated: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onChanged: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onScopeChanged: (profileKey: string, scope: string) => void;
+  onSaveStarted: (profileKey: string) => void;
+  onSaveFailed: (profileKey: string, message: string) => void;
   onSaved: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
 }) {
   const [governance, setGovernance] = useState<WeaponSkillGovernanceReadModel | null>(null);
@@ -792,6 +845,7 @@ function WeaponGovernanceEditor({
   const mappings = [...(activeDraft?.mappings ?? [])];
   const scope = activeDraft?.scope ?? "weapon";
   const governanceDirty = activeDraft?.dirty === true;
+  const governanceSaving = activeDraft?.saving === true;
 
   const replaceFromReadModel = useCallback((model: WeaponSkillGovernanceReadModel) => {
     setGovernance(model);
@@ -918,6 +972,7 @@ function WeaponGovernanceEditor({
 
   async function saveGovernance() {
     await preserveScroll(async () => {
+      onSaveStarted(persistedProfileKey);
       setSaving(true);
       setFeedback(null);
       try {
@@ -929,45 +984,50 @@ function WeaponGovernanceEditor({
         ].map(({ id, firingModeId, endpointSkillId, reviewState, notes }) => ({ id, firingModeId, endpointSkillId, reviewState, notes })));
         setFeedback({ kind: "success", message: "Canonical Governing Skill Paths were saved." });
       } catch (error) {
-        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Weapon governance could not be saved." });
+        const message = error instanceof Error ? error.message : "Weapon governance could not be saved.";
+        onSaveFailed(persistedProfileKey, message);
+        setFeedback({ kind: "error", message });
       } finally {
         setSaving(false);
       }
     });
   }
 
+  const controlsDisabled = saving || governanceSaving;
   return <section className="item-weapon-governance item-field--wide">
     <SectionHeading eyebrow="CANONICAL ELIGIBILITY" title="Governing Skill Paths" />
     <p>The endpoint identifies one exact authored branch. Parent Skills and the root Attribute are read from the canonical Skill hierarchy; Character ownership and percentages are not evaluated here.</p>
     <div className="item-governance-toolbar">
-      <Field label="Authoring Scope"><select value={scope} onChange={(event) => onScopeChanged(profileKey, event.target.value)}><option value="weapon">Weapon Profile Default</option>{governance.modes.map((mode) => <option key={mode.id} value={`mode:${mode.id}`}>{mode.name} · Mode #{mode.id}</option>)}</select></Field>
+      <Field label="Authoring Scope"><select disabled={controlsDisabled} value={scope} onChange={(event) => onScopeChanged(profileKey, event.target.value)}><option value="weapon">Weapon Profile Default</option>{governance.modes.map((mode) => <option key={mode.id} value={`mode:${mode.id}`}>{mode.name} · Mode #{mode.id}</option>)}</select></Field>
       <div className={`item-governance-status is-${scopeStatus}`}><span>Review state</span><strong>{scopeStatus}</strong>{firingModeId !== null ? <small>{approvedModeOptions ? "Own approved paths override the weapon default." : "No approved mode path; inherits the weapon default."}</small> : null}</div>
     </div>
     <div className="item-governance-add">
-      <Field label="Search canonical Skills"><input type="search" value={skillSearch} onChange={(event) => setSkillSearch(event.target.value)} placeholder="Skill name or exact ID" /></Field>
-      <Field label="Exact endpoint Skill"><select value={selectedSkillId} onChange={(event) => setSelectedSkillId(event.target.value)}><option value="">Select a Skill</option>{filteredSkills.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · #{candidate.id} · Tier {candidate.tier ?? "N/A"}</option>)}</select></Field>
-      <button type="button" onClick={() => void preserveScroll(addPath)}>Add Path</button>
+      <Field label="Search canonical Skills"><input disabled={controlsDisabled} type="search" value={skillSearch} onChange={(event) => setSkillSearch(event.target.value)} placeholder="Skill name or exact ID" /></Field>
+      <Field label="Exact endpoint Skill"><select disabled={controlsDisabled} value={selectedSkillId} onChange={(event) => setSelectedSkillId(event.target.value)}><option value="">Select a Skill</option>{filteredSkills.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · #{candidate.id} · Tier {candidate.tier ?? "N/A"}</option>)}</select></Field>
+      <button type="button" disabled={controlsDisabled} onClick={() => void preserveScroll(addPath)}>Add Path</button>
     </div>
     <div className="item-card-list">{scopedValidation.map(({ mapping, skill }, index) => {
       const path = skill?.canonicalPath;
       const stored = mapping.id === null ? null : [governance.weaponDefault, ...governance.modes.map(({ scope: modeScope }) => modeScope)]
         .flatMap(({ options }) => options).find(({ id }) => id === mapping.id) ?? null;
       return <article className={`item-edit-card item-governance-path${path?.valid ? "" : " is-review-required"}`} key={mapping.id ?? `new-${firingModeId ?? "weapon"}-${mapping.endpointSkillId}`}>
-        <header><div><strong>{skill ? `${skill.name} · Skill #${skill.id}` : `Missing Skill #${mapping.endpointSkillId}`}</strong><span>{mapping.reviewState}</span></div><button className="is-danger" type="button" onClick={() => void preserveScroll(() => removeMapping(mapping))}>Remove</button></header>
+        <header><div><strong>{skill ? `${skill.name} · Skill #${skill.id}` : `Missing Skill #${mapping.endpointSkillId}`}</strong><span>{mapping.reviewState}</span></div><button className="is-danger" type="button" disabled={controlsDisabled} onClick={() => void preserveScroll(() => removeMapping(mapping))}>Remove</button></header>
         <p>{path ? skillPathSummary(path) : "The endpoint Skill is missing."}</p>
         {path && !path.valid ? <ul>{path.problems.map((problem) => <li key={`${problem.code}-${problem.skillId}`}>{problem.message}</li>)}</ul> : null}
-        <Field label="Authoring Notes" wide><textarea maxLength={1000} rows={3} value={mapping.notes} onChange={(event) => patchMapping(mapping, { notes: event.target.value })} /></Field>
+        <Field label="Authoring Notes" wide><textarea disabled={controlsDisabled} maxLength={1000} rows={3} value={mapping.notes} onChange={(event) => patchMapping(mapping, { notes: event.target.value })} /></Field>
         {stored ? <small>Last authored by {stored.updatedByName} · {new Date(stored.updatedAt).toLocaleString()}</small> : <small>New unsaved path.</small>}
-        <footer><div><button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => moveMapping(mapping, -1))}>Move Up</button><button type="button" disabled={index === scopedMappings.length - 1} onClick={() => void preserveScroll(() => moveMapping(mapping, 1))}>Move Down</button></div><button type="button" disabled={!path?.valid || mapping.reviewState === "approved"} onClick={() => patchMapping(mapping, { reviewState: "approved" })}>Approve Valid Path</button><button type="button" disabled={mapping.reviewState === "review-required"} onClick={() => patchMapping(mapping, { reviewState: "review-required" })}>Return to Review</button></footer>
+        <footer><div><button type="button" disabled={controlsDisabled || index === 0} onClick={() => void preserveScroll(() => moveMapping(mapping, -1))}>Move Up</button><button type="button" disabled={controlsDisabled || index === scopedMappings.length - 1} onClick={() => void preserveScroll(() => moveMapping(mapping, 1))}>Move Down</button></div><button type="button" disabled={controlsDisabled || !path?.valid || mapping.reviewState === "approved"} onClick={() => patchMapping(mapping, { reviewState: "approved" })}>Approve Valid Path</button><button type="button" disabled={controlsDisabled || mapping.reviewState === "review-required"} onClick={() => patchMapping(mapping, { reviewState: "review-required" })}>Return to Review</button></footer>
       </article>;
     })}{!scopedMappings.length ? <p className="item-governance-empty">Unreviewed · Missing path · Requires G.O.D. review. No mapping has been inferred.</p> : null}</div>
     {governanceDirty ? <p className="skill-editor__feedback is-error">Unsaved Governing Skill Path edits.</p> : null}
+    {activeDraft?.saveMessage ? <p className="skill-editor__feedback is-success">{activeDraft.saveMessage}</p> : null}
+    {activeDraft?.saveError ? <p className="skill-editor__feedback is-error">{activeDraft.saveError} Retry the path save.</p> : null}
     {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
-    <footer className="item-governance-save"><button className="skills-primary-button" type="button" disabled={saving} onClick={() => void saveGovernance()}>{saving ? "Saving…" : "Save Governing Skill Paths"}</button>{itemDirty ? <small>Save pending Item and Firing Mode changes first; this separate path save remains available.</small> : null}</footer>
+    <footer className="item-governance-save"><button className="skills-primary-button" type="button" disabled={controlsDisabled || itemDirty} onClick={() => void saveGovernance()}>{controlsDisabled ? "Saving…" : "Save Governing Skill Paths"}</button>{itemDirty ? <small>Save Item and Firing Mode changes before saving these dependent Skill Paths.</small> : null}</footer>
   </section>;
 }
 
-function Weapon({ draft, references, itemDirty, governanceProfileKey, governanceDraft, governanceRefreshToken, onGovernanceHydrated, onGovernanceChanged, onGovernanceScopeChanged, onGovernanceSaved, onChange }: {
+function Weapon({ draft, references, itemDirty, governanceProfileKey, governanceDraft, governanceRefreshToken, onGovernanceHydrated, onGovernanceChanged, onGovernanceScopeChanged, onGovernanceSaveStarted, onGovernanceSaveFailed, onGovernanceSaved, onChange }: {
   draft: ItemDraft;
   references: ItemAuthoringReferences;
   itemDirty: boolean;
@@ -977,6 +1037,8 @@ function Weapon({ draft, references, itemDirty, governanceProfileKey, governance
   onGovernanceHydrated: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onGovernanceChanged: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onGovernanceScopeChanged: (profileKey: string, scope: string) => void;
+  onGovernanceSaveStarted: (profileKey: string) => void;
+  onGovernanceSaveFailed: (profileKey: string, message: string) => void;
   onGovernanceSaved: (profileKey: string, itemId: number, mappings: WeaponSkillPathMappingDraft[]) => void;
   onChange: (draft: ItemDraft) => void;
 }) {
@@ -1054,7 +1116,7 @@ function Weapon({ draft, references, itemDirty, governanceProfileKey, governance
         })}</div></>}
       </section>
     </>}
-    {!ammunitionProfile ? <WeaponGovernanceEditor itemId={draft.id} references={references} itemDirty={itemDirty} profileKey={governanceProfileKey} governanceDraft={governanceDraft} refreshToken={governanceRefreshToken} onHydrated={onGovernanceHydrated} onChanged={onGovernanceChanged} onScopeChanged={onGovernanceScopeChanged} onSaved={onGovernanceSaved} /> : null}
+    {!ammunitionProfile ? <WeaponGovernanceEditor itemId={draft.id} references={references} itemDirty={itemDirty} profileKey={governanceProfileKey} governanceDraft={governanceDraft} refreshToken={governanceRefreshToken} onHydrated={onGovernanceHydrated} onChanged={onGovernanceChanged} onScopeChanged={onGovernanceScopeChanged} onSaveStarted={onGovernanceSaveStarted} onSaveFailed={onGovernanceSaveFailed} onSaved={onGovernanceSaved} /> : null}
     <Field label="Compatibility" wide><textarea rows={3} value={profile.compatibility} onChange={(e) => patch({ compatibility: e.target.value })} /></Field>
     <Field label="Weapon Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field>
   </div>;
@@ -1211,13 +1273,13 @@ function Powers({ draft, references, onChange, simple = false, showHeading = !si
   </div>;
 }
 
-function Variants({ draft, onOpen, onSaved }: { draft: ItemDraft; onOpen: (summary: ItemDraft["variants"][number]) => void; onSaved: (saved: ItemDraft) => void }) {
+function Variants({ draft, onOpen, onCreate }: { draft: ItemDraft; onOpen: (summary: ItemDraft["variants"][number]) => void; onCreate: (variantName: string) => Promise<void> }) {
   const [variantName, setVariantName] = useState("");
   const [cloning, setCloning] = useState(false);
   async function clone() {
     if (!draft.id || !variantName.trim()) return;
     setCloning(true);
-    try { const saved = await createItemVariant(draft.id, variantName); onSaved(saved); setVariantName(""); } finally { setCloning(false); }
+    try { await onCreate(variantName); setVariantName(""); } finally { setCloning(false); }
   }
   return <div className="item-section"><SectionHeading eyebrow="INHERITANCE" title="Item Variants" />{draft.id ? <div className="item-variant-create"><input placeholder="Variant name" value={variantName} onChange={(e) => setVariantName(e.target.value)} /><button className="skills-primary-button" type="button" disabled={!variantName.trim() || cloning} onClick={() => void clone()}>{cloning ? "Cloning…" : "Clone as Variant"}</button></div> : <p className="skill-library__empty">Save this Item before creating variants.</p>}<div className="item-variant-list">{draft.variants.map((variant) => <button key={variant.id} type="button" onClick={() => onOpen(variant)}><strong>{variant.name}</strong><span>{variant.archivedAt ? "Archived · " : ""}{variant.canonicalId} · {variant.catalogScope}</span></button>)}</div></div>;
 }

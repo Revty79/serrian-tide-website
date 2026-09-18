@@ -1,5 +1,18 @@
 # Combat resumption handoff
 
+## Governing Skill Path save/navigation protections (18 September 2026)
+
+**Starting revision:** `e479d4dbff8dca22e412b0b9584692d070390a87`, published on `origin/main`. This correction is local pending explicit push authorization.
+
+- Governing mappings, scope, dirty state and in-flight save state remain owned by the shared `ItemWorkspace` lifecycle. While path saving is in flight, mapping controls are disabled even after tab switches, responses are guarded by exact Item/profile identity, and dirty same-scope edits are not replaced by a background read. Failed saves retain the draft and expose Retry/error state; successful saves preserve a distinct path-save confirmation. The separate governing-path save remains separate from Save Item, and path-only dirty state remains saveable.
+- Variants navigation and creation now go through the same combined unsaved-work guard as library navigation. Creating a variant is not performed behind a pending decision; Keep Editing leaves the selected Item/draft intact, cancellation creates no variant, and explicit discard proceeds without cross-Item draft leakage.
+- The existing disposable `profile-cleanup` browser case now covers both Equipment and Inventory, including existing/no-profile Item immediate availability after Item save, new Item first save, empty-path state, path notes/review edits across tabs, ordinary Item save followed by separate path save, exact mapping persistence/reopen, stable firing-mode scope through reorder/save, Retry, Keep Editing and explicit discard. Browser result: **1/1**.
+- Focused governance/draft/fixture tests: **17/17**. Complete unit suite: **1,391/1,391** across 165 feature files. Typecheck, changed-file lint and `git diff --check` passed. No migrations, shared DEV/production mutation, deployment or combat changes.
+
+### Remaining limitation
+
+- A browser-injected server-side governance save failure was not fault-injected separately; the implementation retains drafts on save errors, while browser coverage verifies the load Retry path and ordinary persistence failures remain covered by existing authoring validation.
+
 ## Firearm fixture consistency and revival verification (18 September 2026)
 
 **Starting revision:** `3379e1fd5bf515cd6867b6f0ac18efc06c56901e`, published on `origin/main`. This pass keeps the completed Governing Skill Path correction intact and adds two local logical commits.
