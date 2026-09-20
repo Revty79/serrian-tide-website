@@ -1,5 +1,7 @@
 "use server";
 
+import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
+
 import { and, asc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -1028,6 +1030,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     derivedCreatures: [],
   }, input.hpAdjustment);
   await db.transaction(async (tx) => {
+    await assertInteractionRuleReferences(tx, normalizedSnapshot.core.interactionRules);
     await requireOwnerInTransaction(tx, input.campaignId, access.session.user.id);
     const [lockedCharacter] = await tx
       .select({ archivedAt: campaignCharacter.archivedAt })

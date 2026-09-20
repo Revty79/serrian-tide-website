@@ -1,0 +1,11 @@
+.editor { display: grid; gap: 1rem; min-width: 0; margin-block: 1rem 2rem; }
+.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.header h3, .header h4 { color: var(--st-text-strong); margin: 0; overflow-wrap: anywhere; }
+.buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.rule { display: grid; gap: 1rem; min-width: 0; padding: 1rem; border: 1px solid var(--st-border); border-radius: .75rem; background: var(--st-surface); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .75rem; min-width: 0; }
+.grid > * { min-width: 0; }
+.grid input, .grid select, .rule textarea { width: 100%; min-width: 0; }
+.help { margin: 0; color: var(--st-text-secondary); font-size: .9rem; line-height: 1.5; }
+.condition { display: grid; gap: .75rem; padding: .75rem; border: 1px solid var(--st-border); border-radius: .5rem; background: var(--st-surface-soft); min-width: 0; }
+.condition > button, .rule > button { justify-self: start; }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { authorInteractionRules, checkRejectedPercentages, checkRaceInteractions } from "./interaction-rule-browser-checks";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -8,6 +9,8 @@ import { chromium } from "playwright-core";
 import { db, pool } from "@/db";
 import { buildCreatureNpcSnapshot, createCreatureNpcInTransaction, parseCreatureNpcSnapshot, readCreatureNpcTemplateInTransaction } from "@/features/creatures/creature-npc-constructor-service";
 import { spawnEncounterCreaturesInTransaction } from "@/features/tabletop-operations/creature-spawn-service";
+import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
+import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import type { CreatureDraft } from "@/app/heavens/creatures/actions";
 
 if (process.env.SERRIAN_DISPOSABLE_CREATURE_AUTHORING !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_creature_authoring_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("Use the disposable Creature authoring harness.");
@@ -31,6 +34,13 @@ async function main() {
     await pool.query(`insert into "user" (id,name,email,email_verified,username,display_username) values ($1,'Creature Author',$2,true,$1,$1)`, [userId, `${userId}@example.invalid`]);
     await pool.query("insert into account (id,issuer,account_id,provider_id,user_id,password,updated_at) values ($1,'local:credential',$2,'credential',$2,$3,now())", [`${userId}-credential`, userId, await hashPassword(password)]);
     await pool.query("insert into user_role (user_id,role) values ($1,'god')", [userId]);
+    await pool.query("insert into item_tags_catalog (canonical_id,name,tag_group,description) values ('TAG-INTERACTION-FIXTURE','Interaction Fixture','Test','Disposable test tag')");
+    const referenceFixture: InteractionRuleProfile = { schemaVersion: 1, rules: [{ key: "reference", name: "Reference check", ruleType: "requirement", scope: "damage", match: "ANY", percentage: null, notes: "", sortOrder: 0, conditions: [{ key: "tag", kind: "item-tag", tagCanonicalId: "TAG-MISSING" }] }] };
+    await assert.rejects(db.transaction((tx) => assertInteractionRuleReferences(tx, referenceFixture)), /Item Tag that no longer exists/);
+    referenceFixture.rules[0].conditions = [{ key: "property", kind: "item-property", propertyName: "Material", value: "Silver", relatedCreatureCanonicalId: "CR-MISSING" }];
+    await assert.rejects(db.transaction((tx) => assertInteractionRuleReferences(tx, referenceFixture)), /Creature that no longer exists/);
+    referenceFixture.rules[0].conditions = [{ key: "property", kind: "item-property", propertyName: "Material", value: "Silver" }];
+    await db.transaction((tx) => assertInteractionRuleReferences(tx, referenceFixture));
     const campaignId = (await pool.query("insert into campaign (name,overview,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,assigned_fate_points,created_by_user_id) values ('Authoring Test','',100,100,50,10,100,250,'Credits','Assigned',3,$1) returning id", [userId])).rows[0].id as number;
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", String(port)], { cwd: process.cwd(), env: { ...process.env, BETTER_AUTH_URL: base, NEXT_TELEMETRY_DISABLED: "1", SERRIAN_TEST_NEXT_DIST_DIR: dist }, stdio: "pipe", windowsHide: true });
     server.stdout?.on("data", (chunk) => { serverLog += String(chunk); }); server.stderr?.on("data", (chunk) => { serverLog += String(chunk); });
@@ -67,7 +77,10 @@ async function main() {
     assert.ok(legacy);
     assert.equal(legacy.attacks[0].authoring, null); assert.equal(legacy.abilities[0].authoring, null);
     const oldSnapshot = structuredClone(legacy); for (const attack of oldSnapshot.attacks) delete attack.authoring; for (const ability of oldSnapshot.abilities) delete ability.authoring;
+    delete oldSnapshot.core.interactionRules;
+    assert.equal(legacy.core.interactionRules, null);
     const parsedOld = parseCreatureNpcSnapshot(JSON.stringify(oldSnapshot), "Old snapshot");
+    assert.equal(parsedOld.core.interactionRules, undefined);
     assert.equal(parsedOld.attacks[0].specialEffect, "Legacy venom remains descriptive"); assert.equal(parsedOld.abilities[0].mechanicalEffect, "Keep the old mechanical notes");
 
     await page.getByRole("button", { name: "Attacks & Skills", exact: true }).click();
@@ -117,6 +130,13 @@ async function main() {
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();
     await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
     console.log("PASS: attack and ability authoring saved through authenticated browser");
+    const creatureBeforeRules = (await pool.query("select calculated_challenge_rating from creatures where id=$1", [creatureId])).rows[0].calculated_challenge_rating;
+    const interactionSection = await authorInteractionRules(page, "creature");
+    await checkRejectedPercentages(page, interactionSection, "Save Creature", async () => (await pool.query("select interaction_rules_json from creatures where id=$1", [creatureId])).rows[0].interaction_rules_json);
+    await page.getByRole("button", { name: "Save Creature", exact: true }).click();
+    await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
+    assert.equal((await pool.query("select calculated_challenge_rating from creatures where id=$1", [creatureId])).rows[0].calculated_challenge_rating, creatureBeforeRules, "Authored CR Impact is not double-counted");
+    console.log("PASS: Creature shared Interaction Rules authored and saved without changing calculated CR");
     const template = await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId));
     assert.ok(template);
     assert.equal(template.attacks[0].authoring?.initiativeCost, 4); assert.equal(template.attacks[0].authoring?.mode, "hybrid");
@@ -127,16 +147,22 @@ async function main() {
     assert.deepEqual(template.defenses, legacy.defenses); assert.deepEqual(template.uses, legacy.uses);
     const snapshot = buildCreatureNpcSnapshot(template);
     assert.deepEqual(parseCreatureNpcSnapshot(JSON.stringify(snapshot), "New snapshot"), snapshot);
+    assert.equal(template.core.interactionRules?.rules.length, 7);
+    assert.deepEqual(snapshot.core.interactionRules, template.core.interactionRules);
+    snapshot.core.interactionRules!.rules[0].conditions[0].key = "copy-only";
+    assert.notEqual(template.core.interactionRules!.rules[0].conditions[0].key, "copy-only");
     snapshot.attacks[0].authoring!.range.short = 999;
     assert.equal(template.attacks[0].authoring?.range.short, 10, "NPC copies must not mutate the master template");
     const npcId = await db.transaction((tx) => createCreatureNpcInTransaction(tx, { campaignId, controllerUserId: userId, creatureId, name: "Authoring Individual", roleLabel: "Authoring fixture", snapshot: buildCreatureNpcSnapshot(template) }));
     const npcBefore = (await pool.query("select baseline_snapshot_json,current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0];
     assert.deepEqual(JSON.parse(npcBefore.current_snapshot_json).attacks, template.attacks);
+    assert.deepEqual(JSON.parse(npcBefore.current_snapshot_json).core.interactionRules, template.core.interactionRules);
     const sessionId = (await pool.query("insert into campaign_session (campaign_id,title,sequence_number) values ($1,'Authoring',1) returning id", [campaignId])).rows[0].id;
     const sceneId = (await pool.query("insert into campaign_session_scene (campaign_id,session_id,title,sequence_number) values ($1,$2,'Authoring',1) returning id", [campaignId, sessionId])).rows[0].id;
     const encounterId = (await pool.query("insert into campaign_session_encounter (campaign_id,session_id,scene_id,title,sequence_number) values ($1,$2,$3,'Authoring',1) returning id", [campaignId, sessionId, sceneId])).rows[0].id;
     await db.transaction((tx) => spawnEncounterCreaturesInTransaction(tx, { campaignId, sessionId, sceneId, encounterId, ownerUserId: userId, encounterStatus: "planned", sceneStatus: "planned", sessionStatus: "planned" }, userId, { creatureId, quantity: 1, joinInitiative: false }));
     const occurrence = (await pool.query("select creature_snapshot_json from campaign_session_encounter_participant where encounter_id=$1", [encounterId])).rows[0].creature_snapshot_json as CreatureDraft;
+    assert.deepEqual(occurrence.core.interactionRules, template.core.interactionRules);
     assert.deepEqual(occurrence.attacks, template.attacks); assert.deepEqual(occurrence.abilities, template.abilities);
 
     console.log("PASS: NPC construction, snapshot parsing, and direct encounter spawning");
@@ -168,14 +194,20 @@ async function main() {
       await expectRejectedNpcSave(invalidTarget === "" ? "Fixed-roll resolution requires a target percentage" : "Fixed Roll Target");
     }
     await page.getByLabel("Fixed Roll Target %", { exact: true }).fill("70");
+    const npcInteractions = page.getByRole("region", { name: "Interaction Rules", exact: true });
+    await checkRejectedPercentages(page, npcInteractions, "Save Individual", async () => (await pool.query("select current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0].current_snapshot_json);
+    await npcInteractions.getByLabel("Rule Name", { exact: true }).first().fill("Individual Silver Requirement");
     await page.getByRole("button", { name: "Save Individual", exact: true }).click();
     await until(async () => (await pool.query("select current_snapshot_json::json->'attacks'->0->'authoring'->>'initiativeCost' cost from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0].cost === "5", "NPC authoring save");
     const npcAfter = (await pool.query("select baseline_snapshot_json,current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0];
     assert.equal(npcAfter.baseline_snapshot_json, npcBefore.baseline_snapshot_json);
+    assert.equal(JSON.parse(npcAfter.current_snapshot_json).core.interactionRules.rules[0].name, "Individual Silver Requirement");
+    assert.equal((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.core.interactionRules?.rules[0].name, "Silver or Magical");
     assert.deepEqual(JSON.parse(npcAfter.current_snapshot_json).abilities, template.abilities);
     assert.equal((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.attacks[0].authoring?.initiativeCost, 4);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(artifacts, "abilities-phone.png"), fullPage: true });
+    assert.equal(await npcInteractions.evaluate((element) => element.scrollWidth > element.clientWidth + 2), false);
     const overflow = await page.locator(".creature-authoring").evaluateAll((elements) => elements.some((element) => element.scrollWidth > element.clientWidth + 2)); assert.equal(overflow, false);
     await page.setViewportSize({ width: 1365, height: 1000 });
     await openMaster();
@@ -189,8 +221,20 @@ async function main() {
     await page.getByRole("dialog").getByRole("button", { name: "Restore", exact: true }).click();
     await until(async () => !(await pool.query("select archived_at from creatures where id=$1", [creatureId])).rows[0].archived_at, "Creature restore");
     assert.deepEqual((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.attacks, template.attacks);
+    await page.getByRole("button", { name: "Active", exact: true }).click();
+    await page.locator(".skill-library__row").filter({ hasText: "Authoring Test Creature" }).click();
+    await page.getByRole("button", { name: "Traits, Abilities & Defenses", exact: true }).click();
+    assert.equal(await page.getByLabel("Rule Name", { exact: true }).first().inputValue(), "Silver or Magical");
+    assert.deepEqual((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.core.interactionRules, template.core.interactionRules);
+    await page.getByRole("button", { name: "Variants & CR", exact: true }).click();
+    await page.getByPlaceholder("Variant name", { exact: true }).fill("Interaction Variant");
+    await page.getByRole("button", { name: "Clone as Variant", exact: true }).click();
+    await until(async () => (await pool.query("select count(*)::int count from creatures where canonical_name='Interaction Variant'")).rows[0].count === 1, "Variant created");
+    const variant = (await pool.query("select interaction_rules_json from creatures where canonical_name='Interaction Variant'")).rows[0].interaction_rules_json;
+    assert.deepEqual(variant, template.core.interactionRules);
+    await checkRaceInteractions(page, pool, base, artifacts);
     assert.deepEqual(errors, []);
-    const result = { passed: true, checks: ["old records load/save", "legacy snapshots", "conditional range UI", "ordered On-Hit Effects", "shared magic editor", "four activation types", "costs/recharge", "Origin preservation", "Harvest & Utility", "NPC construction and individual editing", "direct encounter snapshots", "archive/restore", "phone authoring layout"], errors };
+    const result = { passed: true, checks: ["shared Creature/Race Interaction Rules", "all matcher types", "ANY/ALL", "percentage validation", "stable keys and ordering", "NPC interaction editing", "variant interaction copy", "Race archive/restore", "old records load/save", "legacy snapshots", "conditional range UI", "ordered On-Hit Effects", "shared magic editor", "four activation types", "costs/recharge", "Origin preservation", "Harvest & Utility", "NPC construction and individual editing", "direct encounter snapshots", "archive/restore", "phone authoring layout"], errors };
     await writeFile(path.join(artifacts, "results.json"), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     const lastPage = browser?.contexts()[0]?.pages()[0];

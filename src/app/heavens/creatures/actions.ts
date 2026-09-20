@@ -1,5 +1,9 @@
 "use server";
 
+import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
+
+import { normalizeInteractionRuleProfile, type InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+
 import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring, type CreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 
 import {
@@ -122,6 +126,7 @@ export type CreatureLineageSummary = {
 export type CreatureDraft = {
   id?: number;
   core: {
+    interactionRules?: InteractionRuleProfile | null;
     canonicalId: string;
     canonicalName: string;
     family: string;
@@ -327,6 +332,7 @@ function normalize(input: CreatureDraft) {
 
   return {
     core: {
+      interactionRules: normalizeInteractionRuleProfile(input.core.interactionRules, "creature"),
       canonicalId,
       canonicalName,
       family: clean(input.core.family),
@@ -452,6 +458,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     typicalBehavior: creature.typicalBehavior,
     habitatEcology: creature.habitatEcology,
     notes: creature.notes,
+    interactionRules: creature.interactionRules,
     sourceSystem: creature.sourceSystem,
     createdByUserId: creature.createdByUserId,
     archivedAt: creature.archivedAt,
@@ -504,6 +511,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,
     core: {
+      interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "creature"),
       canonicalId: row.canonicalId,
       canonicalName: row.canonicalName,
       family: row.family,
@@ -588,6 +596,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
   normalized.core.killXp = calculation.killXp;
 
   const savedId = await db.transaction(async (tx) => {
+    await assertInteractionRuleReferences(tx, normalized.core.interactionRules);
     let id = input.id;
     if (id === undefined) {
       const [created] = await tx.insert(creature).values({
@@ -885,6 +894,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       .values({
         canonicalId,
         canonicalName: name,
+        interactionRules: normalizeInteractionRuleProfile(parent.interactionRules, "creature"),
         family: parent.family,
         creatureType: parent.creatureType,
         size: parent.size,

@@ -35,12 +35,17 @@ test("Creature authoring preserves pre-migration records and round-trips through
     await pool.query("insert into creature_abilities (creature_id,canonical_id,ability_name,ability_type,activation,mechanical_effect) values ($1,'ABL-MIGRATION','Legacy Trait','Unknown old type','When relevant','Manual old text')", [creatureId]);
     await pool.query("insert into creature_defenses (creature_id,defense_type,against,notes) values ($1,'Legacy defense','fire','Keep unchanged')", [creatureId]);
     await pool.query("insert into creature_uses (creature_id,use_name,notes) values ($1,'Hide','Harvest text')", [creatureId]);
-    const tables = ["creatures", "creature_attacks", "creature_abilities", "creature_defenses", "creature_uses"];
-    const before = await Promise.all(tables.map((table) => pool!.query(`select to_jsonb(t) - 'authoring_json' body from ${table} t order by id`)));
+    await pool.query("insert into races (name,legacy_description) values ('Migration Legacy Race','Keep Race lore')");
+    const tables = ["races", "creatures", "creature_attacks", "creature_abilities", "creature_defenses", "creature_uses"];
+    const before = await Promise.all(tables.map((table) => pool!.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' body from ${table} t order by id`)));
     await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
-    for (const [index, table] of tables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' body from ${table} t order by id`)).rows, before[index].rows, `${table} legacy data must survive unchanged`);
+    for (const [index, table] of tables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' body from ${table} t order by id`)).rows, before[index].rows, `${table} legacy data must survive unchanged`);
     assert.equal((await pool.query("select authoring_json from creature_attacks where creature_id=$1", [creatureId])).rows[0].authoring_json, null);
     for (const value of ['[]', '{}', '{"schemaVersion":2}']) await assert.rejects(pool.query("update creature_attacks set authoring_json=$1 where creature_id=$2", [value, creatureId]), /authoring_shape/);
+    for (const table of ["creatures", "races"]) {
+      assert.equal((await pool.query(`select count(*)::int count from ${table} where interaction_rules_json is not null`)).rows[0].count, 0);
+      for (const value of ['[]', '{}', '{"schemaVersion":2,"rules":[]}', '{"schemaVersion":1}', '{"schemaVersion":1,"rules":{}}']) await assert.rejects(pool.query(`update ${table} set interaction_rules_json=$1`, [value]), /interaction_rules_shape/);
+    }
     console.log("PASS: additive migration retains all legacy columns and rejects malformed authoring envelopes");
     assert.equal((await pool.query("select count(*)::int count from drizzle.__drizzle_migrations")).rows[0].count, JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")).entries.length);
     await pool.end(); pool = null;

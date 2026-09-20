@@ -435,6 +435,13 @@
       "when": 1789937067061,
       "tag": "0061_creature_authoring",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1789942123245,
+      "tag": "0062_interaction_rule_authoring",
+      "breakpoints": true
     }
   ]
 }

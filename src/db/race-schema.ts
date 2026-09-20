@@ -1,9 +1,12 @@
+import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+
 import { sql } from "drizzle-orm";
 import {
   check,
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -32,6 +35,7 @@ export const race = pgTable(
   {
     id: serial("id").primaryKey(),
     name: text("name").notNull(),
+    interactionRules: jsonb("interaction_rules_json").$type<InteractionRuleProfile>(),
     legacyDescription: text("legacy_description").default("").notNull(),
     physicalCharacteristics: text("physical_characteristics").default("").notNull(),
     physicalDescription: text("physical_description").default("").notNull(),
@@ -72,6 +76,7 @@ export const race = pgTable(
       table.name,
       table.id,
     ),
+    check("races_interaction_rules_shape", sql`${table.interactionRules} IS NULL OR (jsonb_typeof(${table.interactionRules}) = 'object' AND ${table.interactionRules}->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof(${table.interactionRules}->'rules') IS NOT DISTINCT FROM 'array')`),
     check("races_name_nonblank", sql`length(trim(${table.name})) > 0`),
     check("races_age_min_valid", sql`${table.ageMin} IS NULL OR ${table.ageMin} >= 0`),
     check("races_age_max_valid", sql`${table.ageMax} IS NULL OR ${table.ageMax} >= 0`),

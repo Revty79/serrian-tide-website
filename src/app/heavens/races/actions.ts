@@ -1,5 +1,10 @@
 "use server";
 
+import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
+
+import { normalizeInteractionRuleProfile, type InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+
+
 import {
   and,
   asc,
@@ -66,6 +71,7 @@ export type RaceSkillCandidate = {
 export type RaceDraft = {
   id?: number;
   core: {
+    interactionRules?: InteractionRuleProfile | null;
     name: string;
     legacyDescription: string;
     physicalCharacteristics: string;
@@ -206,6 +212,7 @@ function normalizeRace(input: RaceDraft) {
 
   return {
     core: {
+      interactionRules: normalizeInteractionRuleProfile(input.core.interactionRules, "race"),
       name,
       legacyDescription: cleanText(input.core.legacyDescription),
       physicalCharacteristics: cleanText(input.core.physicalCharacteristics),
@@ -328,6 +335,7 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,
     core: {
+      interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "race"),
       name: row.name,
       legacyDescription: row.legacyDescription,
       physicalCharacteristics: row.physicalCharacteristics,
@@ -374,6 +382,7 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
   const normalized = normalizeRace(input);
 
   const savedId = await db.transaction(async (tx) => {
+    await assertInteractionRuleReferences(tx, normalized.core.interactionRules);
     let id = input.id;
     if (id === undefined) {
       const [created] = await tx

@@ -1,4 +1,6 @@
 import type { CreatureAttackAuthoring, CreatureAbilityAuthoring } from "@/features/creatures/creature-authoring";
+import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -70,6 +72,7 @@ export const creature = pgTable(
       .notNull()
       .unique("creatures_canonical_id_uq"),
     canonicalName: text("canonical_name").notNull(),
+    interactionRules: jsonb("interaction_rules_json").$type<InteractionRuleProfile>(),
     family: text("family").default("").notNull(),
     creatureType: text("creature_type").default("").notNull(),
     size: text("size").notNull(),
@@ -116,6 +119,7 @@ export const creature = pgTable(
     ),
     check("creatures_canonical_id_nonblank", sql`length(trim(${table.canonicalId})) > 0`),
     check("creatures_canonical_id_uppercase", sql`${table.canonicalId} = upper(${table.canonicalId})`),
+    check("creatures_interaction_rules_shape", sql`${table.interactionRules} IS NULL OR (jsonb_typeof(${table.interactionRules}) = 'object' AND ${table.interactionRules}->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof(${table.interactionRules}->'rules') IS NOT DISTINCT FROM 'array')`),
     check("creatures_name_nonblank", sql`length(trim(${table.canonicalName})) > 0`),
     check("creatures_size_valid", sql`${table.size} IN ('Minuscule','Tiny','Small','Medium','Large','Huge','Gargantuan','Colossal')`),
     check("creatures_hp_multiplier_steps_valid", sql`${table.hpMultiplierSteps} >= 0`),

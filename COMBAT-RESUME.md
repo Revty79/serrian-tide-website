@@ -1,5 +1,16 @@
 # Combat resumption handoff
 
+## Creature and Race Interaction Rule authoring Step 2 (20 September 2026)
+
+**Parent revision:** `a76483985e0bbac46581d8ea1840ecb600e0e5be`. Brannan accepted Step 1 and explicitly authorized this authoring/preservation step. This supersedes the older instruction to wait before Step 2.
+
+- Creature masters, Creature NPC individuals and Races share one typed Interaction Rule editor and domain model: Requirement, Immunity, Resistance, Vulnerability, Absorption; explicit Damage/Condition/Mechanical Effect scopes; seven structured condition kinds; flat ANY/ALL; stable keys/order; positive finite uncapped percentages where applicable. Existing source/effect vocabulary, Item Properties and canonical Item Tags are reused.
+- Master saves, NPC baseline/current snapshots, direct encounter spawning and variants preserve the new profiles; older absent profiles remain valid. Legacy Defense Notes remain separate. Creature CR Impact is retained as metadata without changing calculated CR, avoiding legacy double counting. Race/Character runtime snapshot decisions remain deferred.
+- Added nullable versioned JSONB owner profiles in migration `0062_interaction_rule_authoring`. Applied only to loopback DEV after a verified backup; all **63 migration entries match**, and all **158 public table data digests are unchanged** excluding only the two new nullable columns. Existing **92 Creatures, 56 Races and 23 legacy Defenses** remain intact; no new profiles were backfilled.
+- Validation passed: **14 focused Interaction Rule tests**, **1,432 feature tests across 168 files**, disposable prior-schema migration/authenticated Creature/Race/NPC browser compatibility tests (including variants, archive/restore, rejected percentages, reference integrity and phone layout), TypeScript, changed-file lint, Drizzle checks, production build and diff checks.
+- [Step 2 report, exact changed files, validation and decisions](docs/reports/interaction-rule-authoring-step-2-2026-09-20.md); [exact shared contract and deferred runtime questions](docs/architecture/interaction-rule-authoring.md).
+- **Stop for Brannan's Step 2 review. Step 3/Natural-vs-Worn work has not started.** No resolver or combat execution integration; final damage/protection, Natural Armor/soak, Active Health, Mechanical Effect application and ActionEffectPlan calculations are unchanged. No production access, push or deployment. Authoring tests are not combat behavior or human play acceptance.
+
 ## Step 1 validation correction (20 September 2026)
 
 **Parent revision:** `078aec44dd6a9706dda22b479ea9fc3578822bc5`. Brannan requested only three authoring-validation corrections before reviewing Step 1.

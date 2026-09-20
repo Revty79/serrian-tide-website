@@ -1,0 +1,4 @@
+ALTER TABLE "races" ADD COLUMN "interaction_rules_json" jsonb;--> statement-breakpoint
+ALTER TABLE "creatures" ADD COLUMN "interaction_rules_json" jsonb;--> statement-breakpoint
+ALTER TABLE "races" ADD CONSTRAINT "races_interaction_rules_shape" CHECK ("races"."interaction_rules_json" IS NULL OR (jsonb_typeof("races"."interaction_rules_json") = 'object' AND "races"."interaction_rules_json"->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof("races"."interaction_rules_json"->'rules') IS NOT DISTINCT FROM 'array'));--> statement-breakpoint
+ALTER TABLE "creatures" ADD CONSTRAINT "creatures_interaction_rules_shape" CHECK ("creatures"."interaction_rules_json" IS NULL OR (jsonb_typeof("creatures"."interaction_rules_json") = 'object' AND "creatures"."interaction_rules_json"->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof("creatures"."interaction_rules_json"->'rules') IS NOT DISTINCT FROM 'array'));

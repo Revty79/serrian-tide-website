@@ -1,6 +1,8 @@
 import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring } from "./creature-authoring";
 import "server-only";
 
+import { normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { db } from "@/db";
@@ -59,6 +61,7 @@ export function normalizeCreatureNpcSnapshotCore(
   }
   return {
     ...core,
+    ...(core.interactionRules === undefined ? {} : { interactionRules: normalizeInteractionRuleProfile(core.interactionRules, "creature") }),
     size,
     hpMultiplierSteps: nonnegativeSteps(core.hpMultiplierSteps, "HP Multiplier Steps"),
     baseMovementSteps: nonnegativeSteps(core.baseMovementSteps, "Base Movement Steps"),
@@ -130,6 +133,7 @@ export async function readCreatureNpcTemplateInTransaction(
     typicalBehavior: creature.typicalBehavior,
     habitatEcology: creature.habitatEcology,
     notes: creature.notes,
+    interactionRules: creature.interactionRules,
     sourceSystem: creature.sourceSystem,
   }).from(creature).where(and(
     eq(creature.id, creatureId),
@@ -290,6 +294,7 @@ export async function readCreatureNpcTemplateInTransaction(
     id: creatureId,
     core: {
       ...row,
+      interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "creature"),
       parentCreatureName,
     },
     attributes,

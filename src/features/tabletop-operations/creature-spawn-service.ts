@@ -1,4 +1,6 @@
 import "server-only";
+
+import { normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -121,6 +123,7 @@ async function loadCreatureAggregateInTransaction(
     typicalBehavior: creature.typicalBehavior,
     habitatEcology: creature.habitatEcology,
     notes: creature.notes,
+    interactionRules: creature.interactionRules,
     sourceSystem: creature.sourceSystem,
     createdByUserId: creature.createdByUserId,
     archivedAt: creature.archivedAt,
@@ -171,6 +174,7 @@ async function loadCreatureAggregateInTransaction(
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,
     core: {
+      interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "creature"),
       canonicalId: row.canonicalId,
       canonicalName: row.canonicalName,
       family: row.family,
