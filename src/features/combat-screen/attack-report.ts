@@ -1,4 +1,5 @@
 import type { ActionEffectPlanView } from "@/features/tabletop-operations/action-effect-plan-service";
+import { ordinaryDamageCalculation } from "./result-summary";
 
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
@@ -26,8 +27,7 @@ export function attackReportTarget(effect: ActionEffectPlanView["effects"][numbe
     suggestedDamage: typeof calculated.netDamage === "number" ? calculated.netDamage : null,
     outcome: roll.succeeded === false ? "Miss" : effect.status === "declined" ? "No damage" : "Hit",
     explanation: effect.status === "declined" ? effect.amendmentReason : "",
-    calculation: ["baseDamage", "extraSuccesses", "armor", "soak", "netDamage"].every((key) => typeof calculated[key] === "number") && roll.succeeded !== false
-      ? `${calculated.baseDamage} base + ${calculated.extraSuccesses} extra successes − ${calculated.armor} armor − ${calculated.soak} soak = ${calculated.netDamage}` : null,
+    calculation: roll.succeeded !== false ? ordinaryDamageCalculation(calculated) : null,
     questions: Array.isArray(ordinary.issues) ? ordinary.issues.filter((entry): entry is string => typeof entry === "string") : [],
   };
 }

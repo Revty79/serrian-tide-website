@@ -3,7 +3,7 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { itemPower, itemPowerEffect, itemPowerResource, weaponProfile } from "@/db/item-schema";
-import { campaignCharacterItemInstance, campaignCharacterSkillAllocation } from "@/db/realm-schema";
+import { campaignCharacterItemInstance, campaignCharacterSkillAllocation, campaignCharacterAttribute, campaignCharacterActiveModifier } from "@/db/realm-schema";
 import { campaignSessionEncounterInitiative as runtime, campaignSessionEncounterInitiativeParticipant as participant,
   campaignSessionEncounterParticipant as occurrence, campaignSessionEncounterResponderOpportunity as opportunity,
   campaignSessionEncounterEffect as effect, campaignSessionEncounterEffectPlan as plan, campaignSessionPeriodicHealthEffect as periodic, campaignSessionRoll } from "@/db/tabletop-operations-schema";
@@ -19,6 +19,59 @@ after(() => pool.end());
 const rollback = new Error("ROLLBACK_DAMAGE_FIXTURE");
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Fixture = Awaited<ReturnType<typeof completionServiceFixture>>;
+
+test("ordinary damage freezes STR and active bonuses and counts the selected weapon passive once", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "damage-modifiers");
+    await tx.insert(campaignCharacterAttribute).values({ characterId: f.heroId, attributeKey: "STR", value: 35 });
+    const [passive] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Flaming Edge", description: "Selected weapon passive damage fixture", activationLabel: "", trigger: "passive", resolutionMode: "automatic", requiredEquipmentState: "wielded", resourceCostKind: "none", sortOrder: 0 }).returning();
+    const [passiveEffect] = await tx.insert(itemPowerEffect).values({ itemPowerId: passive.id, sortOrder: 0, schemaVersion: 2,
+      effectJson: { kind: "modifier.apply", label: "Flaming Edge", channel: "damage", targetKey: "self", amount: 2, duration: { kind: "until-removed" } } }).returning();
+    await tx.insert(campaignCharacterActiveModifier).values([
+      { characterId: f.heroId, label: "General damage bonus", modifierChannel: "damage", targetKey: "self", amount: 3, sourceKind: "god", sourceId: "fixture", sourceName: "Fixture", durationKind: "scene", durationLabel: "Scene" },
+      { characterId: f.heroId, label: "Flaming Edge", modifierChannel: "damage", targetKey: "self", amount: 2, sourceKind: "item", sourceId: String(f.weaponId), sourceName: "Fixture", sourceEffectKey: `power:${passive.id}:effect:${passiveEffect.id}`, durationKind: "until-removed", durationLabel: "While wielded" },
+    ]);
+    await setActor(tx, f, f.heroId, 22);
+    const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, declaration, { method: "entered", enteredTotal: 70 });
+    await tx.update(campaignCharacterAttribute).set({ value: 70 }).where(and(eq(campaignCharacterAttribute.characterId, f.heroId), eq(campaignCharacterAttribute.attributeKey, "STR")));
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
+    await advance(tx, f, 18);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
+    const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
+    const calculation = row.calculatedValueJson as { authoredBase: number; weaponHitDamage: number; damageModifiers: { attributeModifier: number; activeModifier: number }; netDamage: number };
+    assert.equal(calculation.authoredBase, 4);
+    assert.equal(calculation.damageModifiers.attributeModifier, 2);
+    assert.equal(calculation.damageModifiers.activeModifier, 3);
+    assert.equal(calculation.weaponHitDamage, 2);
+    assert.equal(calculation.netDamage, 13);
+    for (let retry = 0; retry < 2; retry++) await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, declaration);
+    assert.equal((await health(tx, f, f.occurrences[0])).health.totalDamage, 13);
+    throw rollback;
+  }), (error) => error === rollback);
+});
+test("negative damage modifiers apply to the complete damage sum before clamping at zero", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await completionServiceFixture(tx, "negative-damage-modifier");
+    await tx.insert(campaignCharacterActiveModifier).values({ characterId: f.heroId, label: "Damage penalty", modifierChannel: "damage", targetKey: "self", amount: -10,
+      sourceKind: "god", sourceId: "fixture", sourceName: "Fixture", durationKind: "scene", durationLabel: "Scene" });
+    await setActor(tx, f, f.heroId, 22);
+    const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, declaration, { method: "entered", enteredTotal: 70 });
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
+    await advance(tx, f, 18);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
+    const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
+    const calculation = row.calculatedValueJson as { authoredBase: number; extraSuccesses: number; grossDamage: number; netDamage: number };
+    assert.equal(calculation.authoredBase, 4); assert.equal(calculation.extraSuccesses, 2);
+    assert.equal(calculation.grossDamage, 0); assert.equal(calculation.netDamage, 0);
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, declaration)).status, "applied");
+    assert.equal((await health(tx, f, f.occurrences[0])).health.totalDamage, 0);
+    throw rollback;
+  }), (error) => error === rollback);
+});
 async function advance(tx: Tx, f: Fixture, point: number) {
   const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
   await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, point));
@@ -208,13 +261,16 @@ test("ordinary Weapon-Hit ruling refreshes every rider and exact Charge row befo
   }), (error) => error === rollback);
 });
 
-test("insufficient ordinary Weapon-Hit Charges fail consequence application atomically", async () => {
+for (const depleteAfterPlan of [false, true]) test(`insufficient ordinary Weapon-Hit Charges skip the optional rider and preserve base damage; depleted after plan=${depleteAfterPlan}`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await completionServiceFixture(tx, "weapon-hit-insufficient-charges");
-    const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, currentCharges: 1, equipmentState: "wielded", unitCostCredits: 0 }).returning();
+    const [instance] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, currentCharges: depleteAfterPlan ? 2 : 1, equipmentState: "wielded", unitCostCredits: 0 }).returning();
     await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 2 });
     const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Hungry Edge", description: "Insufficient Charge fixture", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
-    await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Should Not Apply", description: "Insufficient Charge rider", duration: { kind: "scene" } } });
+    await tx.insert(itemPowerEffect).values([
+      { itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Should Not Apply", description: "Insufficient Charge rider", duration: { kind: "scene" } } },
+      { itemPowerId: power.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 10, application: "localized" } },
+    ]);
     await setActor(tx, f, f.heroId, 22);
     const declaration = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "weapon", weaponItemId: f.weaponId, sourceInstanceId: instance.id });
     await lockActionDeclarationInTransaction(tx, f.context, f.player, declaration);
@@ -222,12 +278,13 @@ test("insufficient ordinary Weapon-Hit Charges fail consequence application atom
     await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, declaration);
     await advance(tx, f, 18);
     const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, declaration);
-    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, declaration, planId)).status, "application-failed");
-    assert.equal((await tx.select().from(plan).where(eq(plan.id, planId)))[0].status, "application-failed");
+    if (depleteAfterPlan) await tx.update(campaignCharacterItemInstance).set({ currentCharges: 1 }).where(eq(campaignCharacterItemInstance.id, instance.id));
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, declaration, planId)).status, "applied");
+    assert.equal((await tx.select().from(plan).where(eq(plan.id, planId)))[0].status, "applied");
     assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instance.id)))[0].currentCharges, 1);
     const target = await health(tx, f, f.occurrences[0]);
     const conditions = target as unknown as { conditions: Array<{ name: string }> };
-    assert.equal(target.health.totalDamage, 0);
+    assert.equal(target.health.totalDamage, 6);
     assert.equal(conditions.conditions.some(({ name }) => name === "Should Not Apply"), false);
     throw rollback;
   }), (error) => error === rollback);

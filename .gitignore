@@ -23,6 +23,9 @@
 /artifacts/player-tabletop-tabs/
 /artifacts/race-skill-cleanup/
 /artifacts/combat-screens/loaded-ready/
+/artifacts/combat-audit-2026-09-19/
+/.next-combat-audit-build/
+/artifacts/combat-screens/audit*-2026-09-19/
 /artifacts/combat-screens/**/*.log
 /artifacts/combat-screens/**/failure-*
 /out/

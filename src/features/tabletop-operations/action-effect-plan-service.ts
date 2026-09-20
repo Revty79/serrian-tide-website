@@ -71,6 +71,7 @@ import { buildOrdinaryAttackConsequenceProposalInTransaction, isSimpleAdditiveWe
 import { recordCombatDamageOutcomeInTransaction } from "./combat-damage-outcome-service";
 import { resolveSpellHitLocationsInTransaction } from "./combat-spell-location-service";
 import { applyDirectCreatureHealthInTransaction } from "./direct-creature-health-service";
+import { availableWeaponHitSource, unavailableWeaponHitPowers } from "./weapon-hit-resource-service";
 
 export type ActionEffectPlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type GodActionEffectActor = Extract<ActionDeclarationActor, { authority: "god-owner" }>;
@@ -359,6 +360,10 @@ async function generateActionEffectPlanInternal(
     throw new Error("Resolve this firearm through its exact firearm attack and bullet allocation before applying consequences.");
   }
   let source = assertFrozenActionSourceSnapshot(locked.authoredSource);
+  const areaGroups = Array.isArray(source.authoredData.targetGroups) ? source.authoredData.targetGroups.filter((entry) => isRecord(entry) && entry.kind === "aoe") : [];
+  if (areaGroups.some((entry) => !isRecord(entry) || typeof entry.id !== "string" || !Object.hasOwn(aoeSelections, entry.id))) {
+    throw new Error("Confirm the affected participants for every area before resolving this action, including an explicitly empty area.");
+  }
   if (Object.keys(aoeSelections).length > 0) {
     if (actor.authority !== "god-owner" || actor.userId !== context.ownerUserId) throw new Error("Only the Campaign-owning G.O.D. may choose AoE participants.");
     if (locked.source.kind !== "spell" && locked.source.kind !== "item") throw new Error("AoE selections require a Spell or Item Magic declaration.");
@@ -374,7 +379,10 @@ async function generateActionEffectPlanInternal(
       ...draft,
       sourcePayload: { ...payload, selections },
     }, { weapon: locked.weapon, governing: locked.governing });
-    source = refreshed.snapshot;
+    if (source.liveRevision !== refreshed.snapshot.liveRevision) {
+      throw new Error("The authored area source changed after declaration. Review or cancel this action before using the revised source; no new resolution resources were spent.");
+    }
+    source = { ...refreshed.snapshot, resourceCosts: source.resourceCosts };
   }
   const [pending] = await tx.select().from(campaignSessionEncounterPendingAction).where(and(
     eq(campaignSessionEncounterPendingAction.id, declaration.pendingActionId),
@@ -821,7 +829,8 @@ export async function resolveManualActionEffectInTransaction(
         const netDamage = Math.max(0, grossDamage - armor - soak);
         const candidateValue = isRecord(candidate.finalValueJson) ? candidate.finalValueJson : {};
         const application = isRecord(candidateValue.application) ? candidateValue.application : {};
-        const nextAuthored = { ...bulletAuthored, grossDamage, proposedNetDamage: netDamage, weaponHitAdditiveDamage: totalAdditiveDamage };
+        const nextAuthored = { ...bulletAuthored, grossDamage, proposedNetDamage: netDamage, weaponHitAdditiveDamage: totalAdditiveDamage,
+          weaponHitDamageContributions: [...(Array.isArray(bulletAuthored.weaponHitDamageContributions) ? bulletAuthored.weaponHitDamageContributions : []), { powerId, amount: candidateEffect.amount }] };
         const approvedStatus = plan.status === "approved" ? "approved" as const : "calculated" as const;
         await tx.update(campaignSessionEncounterEffect).set(netDamage > 0
           ? {
@@ -1124,10 +1133,67 @@ async function applySupportedEffects(
   context: OwnedEncounterRuntimeContext,
   plan: LoadedPlan,
 ): Promise<number[]> {
-  const effects = await tx.select().from(campaignSessionEncounterEffect)
+  let effects = await tx.select().from(campaignSessionEncounterEffect)
     .where(eq(campaignSessionEncounterEffect.planId, plan.id))
     .orderBy(asc(campaignSessionEncounterEffect.id))
     .for("update");
+  if (plan.sourceKind === "weapon" && plan.sourceIdentity.startsWith("firearm-attack:")) {
+    const source = assertFrozenActionSourceSnapshot(plan.sourceSnapshotJson);
+    const costs = effects.filter(({ effectType, status }) => effectType === "resource.item-charges" && ["approved", "application-failed"].includes(status))
+      .map((entry) => ({ powerId: Number(isRecord(entry.authoredValueJson) ? entry.authoredValueJson.powerId : NaN),
+        amount: isRecord(entry.finalValueJson) ? Number(entry.finalValueJson.amount) : null }));
+    const skipped = await unavailableWeaponHitPowers(tx, { characterId: plan.actorParticipantId, itemId: Number(source.authoredData.itemPowerItemId), instanceId: source.sourceInstanceId }, costs);
+    if (skipped.size) {
+      for (const entry of effects.filter(({ status }) => ["approved", "application-failed"].includes(status))) {
+        const authored = isRecord(entry.authoredValueJson) ? entry.authoredValueJson : {};
+        const reason = skipped.get(Number(authored.powerId));
+        if (reason) {
+          await tx.update(campaignSessionEncounterEffect).set({ status: "declined", applicationSupported: false, finalValueJson: null, amendmentReason: reason, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffect.id, entry.id));
+        } else if (entry.effectKey.startsWith("firearm-bullet:") && Array.isArray(authored.weaponHitDamageContributions)) {
+          const removed = authored.weaponHitDamageContributions.reduce((sum: number, value) => sum + (isRecord(value) && skipped.has(Number(value.powerId)) ? Number(value.amount) : 0), 0);
+          if (removed && typeof authored.grossDamage === "number" && typeof authored.armor === "number" && typeof authored.soak === "number") {
+            const gross = authored.grossDamage - removed;
+            const net = Math.max(0, gross - authored.armor - authored.soak);
+            const previous = isRecord(entry.finalValueJson) ? entry.finalValueJson : {};
+            await tx.update(campaignSessionEncounterEffect).set({ calculatedValueJson: net,
+              finalValueJson: net > 0 ? { ...previous, effect: { kind: "health.damage", application: "localized", amount: net } } : null,
+              status: net > 0 ? "approved" : "declined", applicationSupported: net > 0,
+              authoredValueJson: { ...authored, appliedGrossDamage: gross, appliedNetDamage: net, skippedWeaponHitPowerIds: [...skipped.keys()] },
+              amendmentReason: "Unavailable optional Weapon-Hit damage removed before applying the base bullet.", updatedAt: new Date() }).where(eq(campaignSessionEncounterEffect.id, entry.id));
+          }
+        }
+      }
+      effects = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, plan.id)).orderBy(asc(campaignSessionEncounterEffect.id));
+    }
+  }
+  if (plan.sourceKind === "weapon" && !plan.sourceIdentity.startsWith("firearm-attack:")) {
+    const source = assertFrozenActionSourceSnapshot(plan.sourceSnapshotJson);
+    const unpaid = effects.filter(({ effectType, status }) => effectType === "resource.item-charges" && ["approved", "application-failed"].includes(status));
+    if (unpaid.length) {
+      const { skipped } = await availableWeaponHitSource(tx, source);
+      if (unpaid.some(({ effectKey }) => skipped.has(Number(/^cost:item-power:(\d+):/.exec(effectKey)?.[1])))) {
+        const [declaration] = await tx.select().from(campaignSessionEncounterActionDeclaration).where(eq(campaignSessionEncounterActionDeclaration.id, plan.declarationId));
+        const locked = parseLockedActionDeclarationSnapshot(declaration.lockedSnapshotJson);
+        const base = effects.find(({ effectKey }) => effectKey.startsWith("ordinary-attack:target:"));
+        const application = isRecord(base?.finalValueJson) && isRecord(base.finalValueJson.application) ? base.finalValueJson.application : {};
+        const ordinary = isRecord(application.ordinaryAttack) ? application.ordinaryAttack : {};
+        const roll = parseRollMechanicalSnapshot(plan.governingRollSnapshotJson);
+        if (!roll) throw new Error("The ordinary attack lost its frozen Roll.");
+        const rebuilt = await buildOrdinaryAttackConsequenceProposalInTransaction(tx, context, locked,
+          roll, isRecord(plan.defenseResolutionJson) ? plan.defenseResolutionJson : null,
+          isRecord(ordinary.ruling) ? ordinary.ruling as OrdinaryAttackRuling : undefined);
+        for (const prior of effects.filter(({ status }) => ["approved", "application-failed"].includes(status))) {
+          const next = rebuilt.effects.find(({ effectKey }) => effectKey === prior.effectKey);
+          await tx.update(campaignSessionEncounterEffect).set({ finalValueJson: next?.finalValue ?? null,
+            calculatedValueJson: next?.calculatedValue ?? null, applicationSupported: next?.applicationSupported ?? false,
+            status: next?.status === "calculated" ? "approved" : "declined",
+            amendmentReason: "Optional Weapon-Hit availability rechecked at application; unavailable riders skipped without blocking base damage.", updatedAt: new Date() })
+            .where(eq(campaignSessionEncounterEffect.id, prior.id));
+        }
+        effects = await tx.select().from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, plan.id)).orderBy(asc(campaignSessionEncounterEffect.id));
+      }
+    }
+  }
   const applicable = effects.filter((effect) => effect.applicationSupported && (effect.status === "approved" || effect.status === "application-failed"));
   const appliedIds: number[] = [];
   for (const effectRow of applicable) {

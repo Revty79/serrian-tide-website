@@ -19,6 +19,16 @@ export function automaticCombatInputKey(input: CombatNextInput, token: string): 
   return null;
 }
 
+export function pendingCombatAreas(data: CombatScreenData, operations: CombatOperations | null) {
+  if (!operations || operations.sealed || data.projection?.checkpoint) return [];
+  return (data.projection?.declarations ?? []).filter((entry) => {
+    if (entry.timing?.status !== "completed" || ["resolved", "cancelled", "abandoned"].includes(entry.status)
+      || operations.plans.some((plan) => plan.declarationId === entry.id)) return false;
+    const groups = entry.lockedSnapshot?.authoredSource?.authoredData.targetGroups;
+    return Array.isArray(groups) && groups.some((group) => group && typeof group === "object" && "kind" in group && group.kind === "aoe");
+  });
+}
+
 /** Navigation over authorized projections only. Engine services still decide and commit every change. */
 export function combatNextInput(data: CombatScreenData, operations: CombatOperations | null): CombatNextInput {
   const projection = data.projection;
@@ -38,6 +48,7 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
   };
   // Never infer a sealed choice from result readiness or committed resources.
   if (projection.checkpoint || operations.sealed) return choice ? choose() : wait(projection.progression.reason);
+  const areas = pendingCombatAreas(data, operations);
   const completed = projection.declarations.filter((entry) => entry.timing?.status === "completed" && !["resolved", "cancelled", "abandoned"].includes(entry.status));
   if (choice && completed.some((entry) => entry.opportunities.some((opportunity) => opportunity.responderCharacterId === choice.participantId
     && opportunity.status === "pending" && opportunity.reactionId === null && opportunity.source === "initiative"))) return choose();
@@ -56,6 +67,8 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
     const plan = operations.plans.find((entry) => entry.declarationId === action.id && ["requires-god-ruling", "partially-applied"].includes(entry.status));
     if (plan) return { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling", planId: plan.id,
       label: `Rule on ${label} outcome`, explanation: plan.explanation };
+    if (areas.some((entry) => entry.id === action.id)) return { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling",
+      label: `Choose affected participants for ${label}`, explanation: "Confirm who is inside each area, including an explicit choice of no participants, before calculating the result." };
     const firearm = operations.firearms?.attacks.find((entry) => entry.triggerDeclarationId === action.id || entry.aimDeclarationId === action.id);
     if (firearm?.aimDeclarationId === action.id && !firearm.triggerPendingActionId) {
       const entity = projection.entities.find((entry) => entry.participantId === action.actorCharacterId);
@@ -64,6 +77,14 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
     }
     return { kind: "resolve", declarationId: action.id, ...(firearm ? { firearmId: firearm.id } : {}),
       label: `Prepare ${action.actorName}'s ${label} result`, explanation: "Timing is complete. Prepare the result report using the recorded Roll and defense." };
+  }
+  const request = operations.requests?.find((entry) => entry.status === "pending"
+    && projection.entities.some((entity) => entity.participantId === entry.characterId && entity.condition.status === "able" && !entity.participation.departed));
+  if (request) {
+    const actor = projection.entities.find((entity) => entity.participantId === request.characterId)!;
+    const subject = request.requestType === "weapon-distance" ? "distance" : request.requestType.replaceAll("-", " ");
+    return { kind: "inspect", participantId: actor.participantId, focus: "ruling", label: `Review ${actor.name}'s ${subject} request`,
+      explanation: `${actor.name} is waiting for a G.O.D. decision. Review the request below; approval does not commit their action or spend resources.` };
   }
   if (choice) return choose();
   // Reached responses can be due while an action is still underway (including

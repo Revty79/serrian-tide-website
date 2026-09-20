@@ -3,6 +3,8 @@ import test from "node:test";
 import { combatEffectSummary, combatRollSummary } from "./result-summary";
 import { resolvePercentileCheck } from "@/features/tabletop-operations/percentile-resolution";
 import type { RollMechanicalSnapshot } from "@/features/tabletop-operations/roll-mechanical-snapshot";
+import { attackReportTarget } from "./attack-report";
+import type { ActionEffectRowView } from "@/features/tabletop-operations/action-effect-plan-service";
 
 const damage = { effectType: "health.damage", status: "applied" as const, authoredValue: { roll: { succeeded: true } }, calculatedValue: { baseDamage: 4, extraSuccesses: 2, armor: 2, soak: 1, netDamage: 3 },
   finalValue: { effect: { amount: 3 }, application: { ordinaryAttack: { locationName: "Head" } } }, amendmentReason: "" };
@@ -27,6 +29,15 @@ test("damage history distinguishes applied damage, a failed attack, defense, and
   assert.match(combatEffectSummary({ ...damage, status: "declined", finalValue: null, amendmentReason: "approved" }, true), /^No damage applied\. Recorded decision: approved/);
   assert.match(combatEffectSummary({ ...damage, status: "calculated" }, true), /^3 damage pending to Head/);
 });
+test("live attack reports and history include the same frozen attribute, active and weapon modifiers", () => {
+  const modified = { ...damage, calculatedValue: { ...damage.calculatedValue, authoredBase: 4, weaponHitDamage: 2,
+    damageModifiers: { attribute: "STR", attributeModifier: 2, activeModifier: 3, total: 5 }, netDamage: 10 }, finalValue: { ...damage.finalValue, effect: { amount: 10 } } };
+  const calculation = "4 weapon + 2 STR + 3 active modifiers + 2 weapon powers + 2 extra successes - 2 armor - 1 soak = 10";
+  assert.equal(attackReportTarget(modified as unknown as ActionEffectRowView).calculation, calculation);
+  assert.equal(combatEffectSummary(modified, true), `10 damage applied to Head. Damage calculation: ${calculation}.`);
+  assert.equal(combatEffectSummary(modified, false), "10 damage applied.");
+});
+
 test("restricted result summaries do not disclose roll or armor mechanics", () => {
   assert.equal(combatEffectSummary(damage, false), "3 damage applied.");
   assert.equal(combatEffectSummary({ ...damage, status: "declined", finalValue: null }, false), "No damage applied.");

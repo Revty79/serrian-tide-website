@@ -106,6 +106,14 @@ test("single-shot Called Shot adds DEX and additional successes exactly once", (
   assert.deepEqual({ gross: damage.grossDamage, dex: damage.calledShotDexModifier, extra: damage.calledShotAdditionalSuccessDamage, net: damage.netDamage }, { gross: 13, dex: 2, extra: 3, net: 9 });
 });
 
+test("bullet damage combines signed active and eligible DEX modifiers before clamping", () => {
+  const input = { authoredBulletDamage: 2, calledShot: true, deliveryKind: "single" as const, dexDamageModifier: -5, additionalSuccesses: 0,
+    activeDamageModifier: 3, armor: 0, soak: 0, protectionSupported: true };
+  assert.equal(calculateFirearmBulletDamage(input).netDamage, 0);
+  assert.equal(calculateFirearmBulletDamage({ ...input, calledShot: false }).netDamage, 5);
+  assert.equal(calculateFirearmBulletDamage({ ...input, activeDamageModifier: -10 }).netDamage, 0);
+});
+
 test("one successful defense contributes every Pass 1 success and cancellation caps at available bullets", () => {
   const burst = planFirearmDelivery({ deliveryCadence: "per-trigger", roundsPerCadence: 3, loadedRounds: 3, targetCount: 1 });
   const allocation = allocateFirearmBullets({

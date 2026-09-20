@@ -324,6 +324,8 @@ export async function readCharacterEquipmentStateInTransaction(
   const weaponRuntimeFields = (profile: (typeof weaponRows)[number]) => {
     const ammunition = profile.ammunitionItemId === null ? null : ammunitionByItem.get(profile.ammunitionItemId) ?? null;
     const timingFields = {
+      rangeMode: profile.rangeMode as CharacterWeaponDamageInput["rangeMode"],
+      distanceUnit: profile.distanceUnit,
       ammunitionTiming: ammunition ? {
         itemId: ammunition.itemId,
         itemName: ammunition.itemName,
@@ -342,6 +344,11 @@ export async function readCharacterEquipmentStateInTransaction(
       }, ammunition?.cyclingInitiativeModifier ?? 0, ammunition?.recoilResetInitiativeModifier ?? 0)),
     };
     const damageInput: CharacterWeaponDamageInput = {
+      rangeMode: profile.rangeMode as CharacterWeaponDamageInput["rangeMode"],
+      reachDistance: profile.reachDistance,
+      shortRangeDistance: profile.shortRangeDistance,
+      mediumRangeDistance: profile.mediumRangeDistance,
+      longRangeDistance: profile.longRangeDistance,
       damageSource: profile.damageSource,
       damage: profile.damage,
       damageType: profile.damageType,

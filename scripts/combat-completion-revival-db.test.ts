@@ -77,7 +77,8 @@ async function fixture(tx: Tx, name: "Vital Wellspring" | "Cycle of Rebirth", ta
   const pending = await commitActionDeclarationInTransaction(tx, f.context, f.player, action);
   const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
   await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, before.pendingActions.find((entry) => entry.id === pending)!.expectedCompletionInitiative));
-  const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action);
+  const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action, undefined,
+    Object.fromEntries(groups.filter((entry) => entry.kind === "aoe").map((entry) => [entry.id, []])));
   await approveActionEffectPlanInTransaction(tx, f.context, f.god, planId, "Approve supported effects; authored prose stays explicit manual rulings.");
   assert.notEqual(await applyActionEffectPlanInTransaction(tx, f.context, f.god, planId), "application-failed");
   const [recoveryEffect] = (await tx.select().from(effect).where(eq(effect.planId, planId))).filter((entry) => entry.effectKey.startsWith("spell-combat-recovery:"));

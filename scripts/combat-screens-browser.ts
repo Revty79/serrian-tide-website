@@ -4,9 +4,10 @@ import { createServer } from "node:net";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, type Page, type Browser } from "playwright-core";
+import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
-import { item, weaponProfile } from "@/db/item-schema";
-import { campaignInventoryItem } from "@/db/realm-schema";
+import { item, weaponProfile, itemPower, itemPowerEffect, itemPowerResource, itemPowerConstruction } from "@/db/item-schema";
+import { campaignInventoryItem, campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import { submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
 import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { screenFixture, addScreenSpell, addScreenRecoverySpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
@@ -56,6 +57,7 @@ async function chooseAttack(page: Page, target: number, roll = "80", source: str
     assert.equal(await sourcePicker.inputValue(), await authoredSource.getAttribute("value"), "Its sole authored attack is selected without changing the dropdown.");
   }
   await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(target));
+  assert.equal(await view.getByLabel("Target distance", { exact: true }).count(), 0, "Melee attacks do not ask for distance.");
   if (source === null) {
     try { await view.getByRole("combobox", { name: "Roll method", exact: true }).waitFor(); }
     catch (error) { throw new Error(`Automatic Creature source never became previewable: ${await view.innerText()}`, { cause: error }); }
@@ -64,6 +66,20 @@ async function chooseAttack(page: Page, target: number, roll = "80", source: str
   await view.getByLabel("Percentile result", { exact: true }).fill(roll);
 }
 async function commitAttack(page: Page) { await screen(page).getByRole("button", { name: "Commit Attack & Roll", exact: true }).click(); }
+async function confirmPlayerDistance(director: Page, player: Page) {
+  const previous = await screen(director).getByRole("region", { name: "Selected combatant detail" }).getByRole("heading", { level: 2 }).innerText();
+  await screen(player).getByLabel("Target distance", { exact: true }).fill("25");
+  await screen(player).getByLabel("Distance unit", { exact: true }).fill("feet");
+  await screen(player).getByRole("button", { name: "Request G.O.D. distance confirmation", exact: true }).click();
+  await screen(player).getByText("Distance sent to the Campaign-owning G.O.D. for confirmation.", { exact: true }).waitFor();
+  await selectGod(director, "Rowan");
+  if (!await screen(director).getByLabel("Ruling / participation reason", { exact: true }).isVisible()) await screen(director).getByText("G.O.D. controls for Rowan", { exact: true }).click();
+  await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Confirm this measured distance for the exact selected weapon and target.");
+  const request = screen(director).locator("fieldset").filter({ hasText: "weapon distance" }).first();
+  await request.getByRole("button", { name: "Approve", exact: true }).click();
+  await screen(player).getByText(/G\.O\.D\. approved distance: 25 feet/).waitFor();
+  if (previous !== "Rowan") await selectGod(director, previous);
+}
 async function declarations(f: Fixture) { return (await pool.query("select * from campaign_session_encounter_action_declaration where encounter_id=$1 order by id", [f.encounterId])).rows; }
 async function advanceAction(page: Page, pendingActionId: number) {
   await screen(page).getByRole("button", { name: "Refresh", exact: true }).click();
@@ -321,6 +337,81 @@ try {
     results.push("Two same-Initiative Creature occurrences independently lock Rowan as their shared target; response inspection preserves both per-attacker drafts and self-target protection.");
     await director.context().close();
   }
+  if (include("called-shot-request")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "called-shot-request"));
+    const director = await login(f.godId, "god", f), player = await login(f.playerId, "player", f);
+    const view = screen(player);
+    await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Called Shot", exact: true }).click();
+    await view.getByRole("combobox", { name: "Called Shot source", exact: true }).selectOption({ label: "Fixture Shortsword" });
+    await view.getByRole("combobox", { name: "Target", exact: true }).selectOption(String(f.occurrences[0]));
+    await view.getByRole("combobox", { name: "Target location", exact: true }).selectOption("0");
+    await view.getByLabel("Called Shot objective", { exact: true }).fill("Strike the selected Head.");
+    assert.equal(await view.getByLabel("Target distance", { exact: true }).count(), 0);
+    await view.getByRole("button", { name: "Request Called Shot ruling", exact: true }).click();
+    await view.getByText(/Called Shot is waiting for the G.O.D. penalty ruling/).waitFor();
+    assert.equal((await declarations(f)).length, 0);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: "Review Rowan's called shot request", exact: true }).click();
+    await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Approve the exact Head objective with the chosen penalty.");
+    await screen(director).getByLabel("Called Shot penalty", { exact: true }).fill("3");
+    await screen(director).getByRole("button", { name: "Approve", exact: true }).click();
+    await view.getByText(/G.O.D. approved: penalty 3/).waitFor();
+    await view.getByLabel("Percentile result", { exact: true }).fill("70");
+    await view.getByRole("button", { name: "Commit Called Shot & Roll", exact: true }).click();
+    await until(async () => (await declarations(f)).length === 1, "approved melee Called Shot commits without distance");
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    results.push("Player melee Called Shot requests use a valid retry identity, wait visibly for the G.O.D. penalty, surface in the main guide, then commit one Roll without distance.");
+    await director.context().close(); await player.context().close();
+  }
+  if (include("draft-preservation")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "draft-preservation"));
+    const director = await login(f.godId, "god", f);
+    await selectGod(director, "Fixture Goblin 1");
+    await chooseAttack(director, f.heroId, "71", null);
+    await selectGod(director, "Rowan");
+    await selectGod(director, "Fixture Goblin 1");
+    assert.equal(await screen(director).getByLabel("Percentile result", { exact: true }).inputValue(), "71", "Inspecting a Player does not unmount and lose the Creature draft.");
+    await screen(director).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Move", exact: true }).click();
+    await screen(director).getByLabel("Distance in feet", { exact: true }).fill("7");
+    await screen(director).getByRole("button", { name: "Freeze Combat", exact: true }).click();
+    await screen(director).getByRole("button", { name: "Resume Combat", exact: true }).click();
+    await screen(director).getByRole("button", { name: "Freeze Combat", exact: true }).waitFor();
+    assert.equal(await screen(director).getByLabel("Distance in feet", { exact: true }).inputValue(), "7", "An Initiative revision preserves unfinished movement input.");
+    await screen(director).getByText("G.O.D. controls for Fixture Goblin 1", { exact: true }).click();
+    await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Goblin-only draft ruling.");
+    await selectGod(director, "Fixture Goblin 2");
+    assert.equal(await screen(director).getByLabel("Ruling / participation reason", { exact: true }).inputValue(), "");
+    await selectGod(director, "Fixture Goblin 1");
+    assert.equal(await screen(director).getByLabel("Ruling / participation reason", { exact: true }).inputValue(), "Goblin-only draft ruling.");
+    results.push("Inspecting a Player preserves another actor's Attack draft; Freeze/resume preserves movement input; G.O.D. ruling drafts belong to their exact combatant.");
+    await director.context().close();
+  }
+  if (include("repeat-action")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "repeat-action"));
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='holding' where encounter_id=$1", [f.encounterId]);
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active' where encounter_id=$1 and character_id=$2", [f.encounterId, f.occurrences[0]]);
+    const director = await login(f.godId, "god", f);
+    await selectGod(director, "Fixture Goblin 1");
+    await chooseAttack(director, f.defenderId, "20", null);
+    await screen(director).getByRole("combobox", { name: "Roll method", exact: true }).selectOption("digital");
+    await commitAttack(director);
+    await until(async () => (await declarations(f)).length === 1, "first digital attack recorded");
+    const first = (await declarations(f))[0];
+    await screen(director).getByText("G.O.D. controls for Fixture Goblin 1", { exact: true }).click();
+    await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Cancel this unfinished attack to exercise the next ordinary action.");
+    await screen(director).getByText("Unfinished actions & interventions", { exact: true }).click();
+    await screen(director).getByRole("button", { name: "Cancel unfinished action", exact: true }).click();
+    await until(async () => (await declarations(f))[0].status === "cancelled", "first action explicitly cancelled");
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: "Fixture Goblin 1 can act now", exact: true }).click();
+    // No source, target, or Roll edits: a new opportunity is a new action.
+    await commitAttack(director);
+    await until(async () => (await declarations(f)).length === 2, "unchanged second action creates its own declaration");
+    const second = (await declarations(f))[1];
+    assert.notEqual(second.draft_json.sourcePayload.screenRequestKey, first.draft_json.sourcePayload.screenRequestKey);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 2);
+    results.push("A confirmed digital action can be repeated at the next opportunity without reselecting source, target or Roll method; each action has its own declaration and exactly one Roll.");
+    await director.context().close();
+  }
   if (include("overlap")) {
     const f = await db.transaction((tx) => screenFixture(tx, "overlap"));
     await pool.query("update weapon_profiles set initiative_cost=5 where item_id=$1", [f.weaponId]);
@@ -542,6 +633,11 @@ try {
     }
     await until(async () => (await pool.query("select loaded_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].loaded_rounds === 1, "projectile selected or loaded");
     await view.getByRole("combobox", { name: "Target", exact: true }).selectOption(String(f.occurrences[0]));
+    if (weaponType === "Bow") await confirmPlayerDistance(director, actor);
+    else {
+      await view.getByLabel("Target distance", { exact: true }).fill("25");
+      await view.getByLabel("Distance unit", { exact: true }).fill("feet");
+    }
     if (weaponType === "Crossbow") {
       await view.getByRole("combobox", { name: "Target location", exact: true }).selectOption("0");
       await view.getByLabel("Called Shot objective", { exact: true }).fill("Head");
@@ -583,7 +679,10 @@ try {
     await until(async () => await view.getByRole("combobox", { name: mode === "spell" ? /^Cast source/ : /^Attack source/ }).locator("option").count() > 1, `${mode} source loaded`);
     const sourceControl = view.getByRole("combobox", { name: mode === "spell" ? /^Cast source/ : /^Attack source/ });
     await sourceControl.selectOption((await sourceControl.locator("option").filter({ hasText: mode === "spell" ? /^Screen Arc Bolt$/ : /^Screen Pistol/ }).getAttribute("value"))!);
-    if (mode !== "spell") await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(fixture.occurrences[0]));
+    if (mode !== "spell") {
+      await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(fixture.occurrences[0]));
+      await confirmPlayerDistance(director, participant);
+    }
     if (mode === "spell") await view.getByRole("combobox", { name: /^Spell target 1/ }).selectOption(String(fixture.occurrences[0]));
     await view.getByLabel("Percentile result", { exact: true }).fill("70");
     if (mode === "spell") { assert.equal(await view.getByRole("combobox", { name: /damage location/ }).count(), 0); await screenshot(participant, "spell-roll-ready"); }
@@ -652,9 +751,7 @@ try {
     assert.equal((await pool.query("select loaded_rounds from campaign_character_firearm_state where item_instance_id=$1", [gun.instance.id])).rows[0].loaded_rounds, 3);
     await god.reload();
     await screen(god).getByText("Live", { exact: true }).waitFor();
-    await selectGod(god, "Rowan");
-    const controls = screen(god).getByText("G.O.D. controls for Rowan", { exact: true });
-    await controls.click();
+    await screen(god).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: "Review Rowan's distance request", exact: true }).click();
     const request = screen(god).locator("fieldset").filter({ hasText: "weapon distance" }).first();
     await screen(god).getByLabel("Ruling / participation reason", { exact: true }).fill("Distance confirmed for this exact Player shot.");
     await request.getByLabel("Approved distance", { exact: true }).fill("75");
@@ -740,6 +837,7 @@ try {
     const source = screen(player).getByRole("combobox", { name: /^Attack source/ });
     await source.selectOption(await source.locator("option").filter({ hasText: /^Screen Pistol/ }).getAttribute("value") ?? "");
     await screen(player).getByRole("combobox", { name: /^Target/ }).selectOption(String(f.occurrences[0]));
+    await confirmPlayerDistance(director, player);
     await screen(player).getByLabel("Percentile result", { exact: true }).fill("70");
     await until(() => screen(player).getByRole("button", { name: "Fire & Roll", exact: true }).isEnabled(), "a free actor can fire at a completed-action crossing without choosing a defense");
     await screenshot(player, "firearm-completion-crossing");
@@ -761,7 +859,7 @@ try {
     await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active',current_initiative=1 where encounter_id=$1 and character_id=any($2::int[])", [f.encounterId, [f.heroId, f.defenderId]]);
     await pool.query("update weapon_profiles set initiative_cost=1 where item_id=$1", [f.weaponId]);
     const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
-    await chooseAttack(player, f.defenderId); await commitAttack(player);
+    await chooseAttack(player, f.defenderId, "85"); await commitAttack(player);
     await selectGod(director, "Sentry NPC");
     await screen(director).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Hold", exact: true }).click();
     await screen(director).getByRole("button", { name: "Pass this round", exact: true }).click();
@@ -973,7 +1071,8 @@ try {
     await editor.getByRole("button", { name: "Add Path", exact: true }).click();
     assert.equal(await editor.getByText("Unsaved Governing Skill Path edits.", { exact: true }).count(), 1);
     await editor.getByRole("button", { name: "Overview", exact: true }).click();
-    await author.locator(".skill-library__row").filter({ hasText: "Fixture Shortsword" }).click();
+    const selectedWeaponCanonicalId = (await pool.query("select canonical_id from items where id=$1", [f.weaponId])).rows[0].canonical_id;
+    await author.locator(".skill-library__row").filter({ hasText: selectedWeaponCanonicalId }).click();
     await author.locator(".skills-page__discard-confirm").getByText("Unsaved changes", { exact: true }).waitFor();
     await author.getByRole("button", { name: "Keep Editing", exact: true }).click();
     await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
@@ -1149,8 +1248,69 @@ try {
     results.push("Magazine UI: author capacity/ammunition, link a weapon, acquire two empty copies in the existing store, fill/top up/empty, and preserve separate contents and ammunition conservation after reload.");
     await director.context().close();
   }
-  if (include("spell-area")) {
-    const f = await db.transaction(async (tx) => { const fixture = await screenFixture(tx, "spell-area"); await addScreenSpell(tx, fixture, true); return fixture; });
+  if (include("item-powers")) for (const kind of ["depleted-weapon", "activated", "magic-area"] as const) {
+    const { f, copy, power } = await db.transaction(async (tx) => {
+      const f = await screenFixture(tx, `item-powers-${kind}`);
+      // A shared Charge pool requires individual copies, never the fixture's original quantity stack.
+      await tx.delete(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.heroId), eq(campaignCharacterItem.itemId, f.weaponId)));
+      const [copy] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, equipmentState: "wielded", currentCharges: kind === "depleted-weapon" ? 0 : 3, unitCostCredits: 1 }).returning();
+      await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 3 });
+      const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Screen Power", description: "Exact shared-pool combat fixture", trigger: kind === "depleted-weapon" ? "weapon-hit" : "activated", activationLabel: "Activate", initiativeCost: kind === "depleted-weapon" ? null : 4, resourceCostKind: "shared-charges", resourceCostAmount: 1,
+        resolutionMode: kind === "depleted-weapon" ? "weapon-hit" : kind === "magic-area" ? "fixed-roll" : "automatic", fixedRollTarget: kind === "magic-area" ? 50 : null, sortOrder: 0 }).returning();
+      if (kind === "magic-area") {
+        const learned = await addScreenSpell(tx, f, true);
+        await tx.insert(itemPowerConstruction).values({ itemPowerId: power.id, schemaVersion: 1, documentJson: JSON.stringify(learned.spell) });
+      } else await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Screen Mark", description: "A once-only item power", duration: { kind: "scene" } } });
+      return { f, copy, power };
+    });
+    const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
+    const view = screen(player), attack = kind === "depleted-weapon", command = attack ? "Attack" : "Item";
+    await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: command, exact: true }).click();
+    const source = view.getByRole("combobox", { name: `${command} source`, exact: true });
+    const value = attack ? `weapon/instance:${copy.id}/${copy.id}` : `item/item-power:${power.id}/${copy.id}`;
+    await until(async () => await source.locator(`option[value='${value}']`).count() === 1, "exact owned power source appears");
+    await source.selectOption(value);
+    if (kind !== "magic-area") await view.getByRole("combobox", { name: "Target", exact: true }).selectOption(String(f.occurrences[0]));
+    if (kind !== "activated") {
+      await view.getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
+      await view.getByLabel("Percentile result", { exact: true }).fill("70");
+    }
+    await view.getByRole("button", { name: `Commit ${command}${kind === "activated" ? "" : " & Roll"}`, exact: true }).click();
+    if (kind === "magic-area") {
+      await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /Choose affected participants for/ }).click();
+      assert.equal((await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows[0].current_charges, 3);
+      await screen(director).getByRole("combobox", { name: "Affected participants 1", exact: true }).selectOption(String(f.occurrences[0]));
+      await screen(director).getByRole("combobox", { name: "Affected participants 2", exact: true }).selectOption(String(f.occurrences[1]));
+      await screen(director).getByRole("button", { name: "Confirm affected participants", exact: true }).click();
+    } else if (attack) {
+      const report = screen(director).getByRole("region", { name: "Attack result report" });
+      await report.getByRole("button", { name: "Approve & apply attack", exact: true }).waitFor();
+      assert.equal(await report.getByText("Damage to apply", { exact: true }).count(), 1, "A skipped Power cost is not displayed as another attack.");
+      await report.getByText("Weapon powers and costs", { exact: true }).click();
+      await report.getByText(/Optional Weapon-Hit Power skipped/).waitFor();
+      await report.getByRole("button", { name: "Approve & apply attack", exact: true }).click();
+    }
+    await until(async () => (await declarations(f))[0]?.status === "resolved", `${kind} resolves through the actual controls`);
+    const state = async () => ({ copies: (await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows,
+      targets: (await pool.query("select character_id,local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=any($2::int[]) order by character_id", [f.encounterId, f.occurrences])).rows,
+      rolls: (await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n });
+    const after = await state();
+    assert.equal(after.copies[0].current_charges, attack ? 0 : 2);
+    assert.equal(after.rolls, kind === "activated" ? 0 : 1);
+    for (const target of after.targets) {
+      if (kind === "magic-area") assert.equal(target.local_state_json.health.totalDamage, 2);
+      else if (target.character_id === f.occurrences[0]) {
+        assert.equal(target.local_state_json.conditions.some((entry: { name: string }) => entry.name === "Screen Mark"), !attack);
+        if (attack) assert.equal(target.local_state_json.health.totalDamage, 11);
+      }
+    }
+    await player.reload(); await screen(player).getByText("Live", { exact: true }).waitFor();
+    assert.deepEqual(await state(), after);
+    results.push(`${kind}: exact Item instance, correct original Roll count, explicit targets/area membership, once-only Charges and effects, and refresh-safe state through Player/G.O.D. screens.`);
+    await director.context().close(); await player.context().close();
+  }
+  if (include("spell-area")) for (const selectedVictims of [false, true]) {
+    const f = await db.transaction(async (tx) => { const fixture = await screenFixture(tx, `spell-area-${selectedVictims}`); await addScreenSpell(tx, fixture, true); return fixture; });
     const health = async () => ({
       members: (await pool.query("select character_id, local_state_json from campaign_session_encounter_participant where encounter_id=$1 order by character_id", [f.encounterId])).rows,
       caster: (await pool.query("select * from campaign_character_active_health where character_id=$1", [f.heroId])).rows,
@@ -1168,16 +1328,35 @@ try {
     await view.getByLabel("Percentile result", { exact: true }).fill("70");
     assert.equal(await view.getByRole("combobox", { name: /^Spell target|^Target|damage location/ }).count(), 0);
     await view.getByRole("button", { name: "Commit Cast & Roll", exact: true }).click();
-    await until(async () => (await declarations(f))[0]?.status === "resolved", "area calculation completes automatically without a ruling or damage approval");
-    for (const page of [director, participant]) await screen(page).getByRole("region", { name: "Combat activity", exact: true }).getByText(/Area report: 8 damage in/).waitFor();
-    await screenshot(director, "spell-area-report");
-    assert.deepEqual(await health(), before, "Area reports do not mutate any combatant's HP or conditions.");
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /Choose affected participants for/ }).click();
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_effect_plan where encounter_id=$1", [f.encounterId])).rows[0].n, 0, "Automatic flow waits for the G.O.D. area decision.");
+    if (selectedVictims) {
+      await screen(director).getByRole("combobox", { name: "Affected participants 1", exact: true }).selectOption(String(f.occurrences[0]));
+      await screen(director).getByRole("combobox", { name: "Affected participants 2", exact: true }).selectOption(String(f.occurrences[1]));
+    }
+    await screen(director).getByRole("button", { name: "Confirm affected participants", exact: true }).click();
+    if (selectedVictims) await screen(director).getByRole("button", { name: "Approve & apply spell", exact: true }).click();
+    await until(async () => (await declarations(f))[0]?.status === "resolved", "confirmed area result completes");
+    const after = await health();
+    if (selectedVictims) {
+      assert.deepEqual(after.caster, before.caster); assert.deepEqual(after.pools, before.pools);
+      const victims = after.members.filter((entry) => f.occurrences.includes(entry.character_id));
+      assert.equal(victims.length, 2);
+      assert.equal(victims[0].local_state_json.health.totalDamage, 8);
+      assert.equal(victims[1].local_state_json.health.totalDamage, 8);
+    } else {
+      assert.deepEqual(after, before, "An empty area never applies effects to the caster or another combatant.");
+      assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_effect where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
+    }
+    await screenshot(director, selectedVictims ? "spell-area-victims" : "spell-area-empty");
     assert.equal((await pool.query("select count(*)::int count from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].count, 1);
     const mana = async () => (await pool.query("select mana_spent from campaign_character_active_mana where character_id=$1 order by system", [f.heroId])).rows;
     const spent = await mana(); assert.ok(spent.some((row) => Number(row.mana_spent) > 0));
     await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor();
-    assert.deepEqual(await health(), before); assert.deepEqual(await mana(), spent);
-    results.push("AoE casting Rolls once, spends Mana once, records the authored area and scaled damage for G.O.D. and caster, and completes automatically without changing combatant HP.");
+    assert.deepEqual(await health(), after); assert.deepEqual(await mana(), spent);
+    results.push(selectedVictims
+      ? "G.O.D. selects two AoE victims from the main guide, approves equal 8 damage for both, and refresh preserves one casting Roll, one Mana spend, unchanged caster health and once-only damage."
+      : "Automatic flow waits for explicit empty AoE membership; confirmation completes without any effect proposals or caster damage, with one Roll and one Mana spend.");
     await director.context().close(); await participant.context().close();
   }
   if (include("revival-screen")) {
@@ -1213,7 +1392,7 @@ try {
       const pending = await pool.query("select status from campaign_session_encounter_pending_action where id=$1", [declaration.pending_action_id]);
       return pending.rows[0]?.status === "completed";
     }, "revival timing completes");
-    await selectGod(director, "Rowan");
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: "Rule on Vital Wellspring outcome", exact: true }).click();
     await screen(director).getByRole("button", { name: "Resolve authored revival", exact: true }).waitFor();
     await screen(director).getByLabel("Specific ruling / recovery reason", { exact: true }).fill("The G.O.D. confirms this exact selected revival target.");
     await screen(director).getByRole("button", { name: "Resolve authored revival", exact: true }).click();
@@ -1261,6 +1440,31 @@ try {
     const local = (await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]])).rows[0].local_state_json;
     assert.equal(local?.health?.totalDamage ?? 0, 0);
     results.push("An unavailable defense is blocked; a rules-eligible direct Creature Block uses its authored weapon and Roll, and prevents damage.");
+    const firstResponse = (await pool.query("select id from campaign_session_encounter_responder_opportunity where declaration_id=$1 and responder_character_id=$2", [action.id, f.occurrences[0]])).rows[0].id;
+    // Establish a later ordinary opportunity while retaining the mounted defense screen.
+    for (const [id, status] of [[f.occurrences[0], "holding"], [f.heroId, "active"]]) await pool.query("update campaign_session_encounter_initiative_participant set current_initiative=18, participation_status=$3 where encounter_id=$1 and character_id=$2", [f.encounterId, id, status]);
+    await pool.query("update campaign_session_encounter_initiative set timeline_initiative=18 where encounter_id=$1", [f.encounterId]);
+    await screen(participant).getByRole("button", { name: "Refresh", exact: true }).click();
+    await chooseAttack(participant, f.occurrences[0], "20"); await commitAttack(participant);
+    const defenseView = screen(director);
+    await until(async () => {
+      const value = await defenseView.getByRole("combobox", { name: "Respond to", exact: true }).inputValue();
+      return !!value && value !== String(firstResponse);
+    }, "new response opportunity replaces the completed one");
+    assert.equal(await defenseView.getByRole("combobox", { name: "Defense", exact: true }).inputValue(), "dodge");
+    assert.equal(await defenseView.getByLabel("Percentile result", { exact: true }).inputValue(), "", "A new defense never reuses the previous physical Roll.");
+    await defenseView.getByRole("combobox", { name: "Defense", exact: true }).selectOption("block");
+    assert.equal(await defenseView.getByRole("combobox", { name: "Defending weapon", exact: true }).inputValue(), "", "The previous defending weapon is not silently reused.");
+    await defenseView.getByRole("combobox", { name: "Defending weapon", exact: true }).selectOption({ label: "Shortsword" });
+    await defenseView.getByLabel("Percentile result", { exact: true }).fill("90");
+    await defenseView.getByRole("button", { name: "Commit response & Roll", exact: true }).click();
+    const next = (await declarations(f)).find((entry) => entry.id !== action.id)!;
+    await until(async () => (await pool.query("select count(*)::int n from campaign_session_encounter_reaction where pending_action_id=$1", [next.pending_action_id])).rows[0].n === 1, "fresh defense creates its own response");
+    await advanceAction(director, next.pending_action_id);
+    await defenseView.getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare .* result$/ }).click();
+    await until(async () => ["cancelled", "resolved"].includes((await declarations(f)).find((entry) => entry.id === next.id)!.status), "second defended action resolves independently");
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 4);
+    results.push("A second defense on the mounted screen gets a fresh opportunity, defense choice, weapon selection and physical Roll; both attacks retain separate original and defense Rolls.");
     await director.context().close(); await participant.context().close();
   }
   if (include("incapacitated-xp")) {
@@ -1330,7 +1534,8 @@ try {
     const slime = { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, totalHp: 10 }, hpPools: [{ canonicalId: "body", poolName: "Body", maximumHp: 10 }],
       hitLocations: Array.from({ length: 10 }, (_, hitLocationNumber) => ({ hitLocationNumber, locationName: "Body", hpPoolCanonicalId: "body", naturalArmor: null, soak: null })) };
     await pool.query("update campaign_session_encounter_participant set creature_snapshot_json=$3 where encounter_id=$1 and character_id=$2", [f.encounterId, creatureId, JSON.stringify(slime)]);
-    await pool.query("update weapon_profiles set damage='8' where item_id=$1", [f.weaponId]);
+    // 3 authored + 5 STR + 2 additional successes reaches the exact Body threshold.
+    await pool.query("update weapon_profiles set damage='3' where item_id=$1", [f.weaponId]);
     const director = await login(f.godId, "god", f, true), participant = await login(f.playerId, "player", f);
     await chooseAttack(participant, creatureId, "72"); await commitAttack(participant);
     const report = screen(director).getByRole("region", { name: "Attack result report", exact: true });
@@ -1361,7 +1566,7 @@ try {
       const maximum = health.anatomy.pools.find((entry) => entry.key === poolKey)!.maximumHp!;
       await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active', current_initiative=case when character_id=$2 then 200 else 1 end where encounter_id=$1 and character_id in ($2,$3)", [f.encounterId, f.defenderId, f.heroId]);
       await pool.query("update campaign_session_encounter_initiative set timeline_initiative=200 where encounter_id=$1", [f.encounterId]);
-      await pool.query("update weapon_profiles set damage=$2 where item_id=$1", [f.weaponId, String(maximum - remaining - 2)]);
+      await pool.query("update weapon_profiles set damage=$2 where item_id=$1", [f.weaponId, String(maximum - remaining - 2 - 5)]);
       await db.transaction(async (tx) => {
         const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.god, { ...completionDraft(f.defenderId, f.heroId), sourceKind: "weapon", weaponItemId: f.weaponId });
         await lockActionDeclarationInTransaction(tx, f.context, f.god, id);
@@ -1425,6 +1630,7 @@ try {
     const source = screen(player).getByRole("combobox", { name: /^Attack source/ });
     await source.selectOption(await source.locator("option").filter({ hasText: /^Screen Pistol/ }).getAttribute("value") ?? "");
     await screen(player).getByRole("combobox", { name: /^Target/ }).selectOption(String(f.occurrences[0]));
+    await confirmPlayerDistance(director, player);
     await screen(player).getByLabel("Percentile result", { exact: true }).fill("100");
     await screen(player).getByRole("button", { name: "Fire & Roll", exact: true }).click();
     await screen(director).getByRole("button", { name: /^Rule on Screen Pistol/ }).click();

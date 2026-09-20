@@ -64,7 +64,8 @@ import type {
 import type { ActionDeclarationActor } from "./action-declaration-service";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
-import { resolveWeaponRange } from "@/features/items/weapon-range";
+import { resolveWeaponRange, weaponAttackMode } from "@/features/items/weapon-range";
+import { readWeaponDamageModifiers } from "./weapon-damage-modifiers-service";
 
 export type ActionSourceResolverTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -211,6 +212,11 @@ function allTargets(draft: ActionDeclarationDraft): readonly number[] {
   return draft.targetCharacterIds.length ? draft.targetCharacterIds : [draft.actorCharacterId];
 }
 
+function requiredTargets(draft: ActionDeclarationDraft): readonly number[] {
+  if (!draft.targetCharacterIds.length) throw new Error("Choose an explicit target, including yourself when appropriate, before using this ability.");
+  return draft.targetCharacterIds;
+}
+
 function asSpellSource(value: unknown, ref: string | null): SpellCastSourceRequest {
   if (isRecord(value) && value.kind === "catalog") {
     return { kind: "catalog", allocationId: positiveId(value.allocationId, "Catalog Spell allocation") };
@@ -275,6 +281,7 @@ async function resolveWeapon(
     name: item.name,
     itemUpdatedAt: item.updatedAt,
     profileId: weaponProfile.id,
+    weaponType: weaponProfile.weaponType,
     damage: weaponProfile.damage,
     damageSource: weaponProfile.damageSource,
     damageType: weaponProfile.damageType,
@@ -308,12 +315,9 @@ async function resolveWeapon(
   const requestedRangeMode = payload.rangeAttackMode === "melee" || payload.rangeAttackMode === "ranged"
     ? payload.rangeAttackMode
     : null;
-  const rangeMode = requestedRangeMode
-    ?? (row.rangeMode === "ranged" ? "ranged" : row.rangeMode === "melee" ? "melee" : row.rangeMode === "hybrid" ? null : row.ammunitionItemId !== null ? "ranged" : null);
-  if (row.rangeMode === "hybrid" && rangeMode === null) {
-    throw new Error("Choose whether this Hybrid Weapon attack uses Reach or its ranged limits.");
-  }
-  const range = rangeMode !== null
+  const rangeMode = weaponAttackMode(row.rangeMode, requestedRangeMode, row.ammunitionItemId !== null, row.weaponType);
+  // Melee requires no measured distance, unit, Reach value, or distance ruling.
+  const range = rangeMode === "ranged"
     ? resolveWeaponRange({
         profile: { mode: row.rangeMode as "melee" | "ranged" | "hybrid" | null, unit: row.distanceUnit, reach: row.reachDistance, short: row.shortRangeDistance, medium: row.mediumRangeDistance, long: row.longRangeDistance },
         attackMode: rangeMode,
@@ -346,10 +350,13 @@ async function resolveWeapon(
     .where(and(eq(itemPower.itemId, row.itemId), eq(itemPower.trigger, "weapon-hit")))
     .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
   const weaponHitCosts = new Map<number, FrozenActionResourceCost>();
+  const skippedPowers = new Map<number, string>();
   for (const hit of weaponHitRows) {
     if (hit.resourceCostKind !== "shared-charges") continue;
-    if (hit.resourceCostAmount === null) throw new Error(`Weapon-Hit Power ${hit.powerName} has no valid Charge cost.`);
-    if (draft.sourceInstanceId === null) throw new Error(`Weapon-Hit Power ${hit.powerName} requires an exact owned Item instance.`);
+    if (hit.resourceCostAmount === null || draft.sourceInstanceId === null) {
+      skippedPowers.set(hit.powerId, `${hit.powerName} skipped: an authored Charge cost and exact owned Item instance are required.`);
+      continue;
+    }
     weaponHitCosts.set(hit.powerId, {
       key: `item-power:${hit.powerId}:charges`,
       kind: "item-charges",
@@ -361,6 +368,7 @@ async function resolveWeapon(
     });
   }
   for (const hit of weaponHitRows) {
+    if (skippedPowers.has(hit.powerId)) continue;
     effects.push(structuredEffect(
       `item-power:${hit.powerId}:effect:${hit.effectId}`,
       decodeMechanicalEffect({ schemaVersion: hit.schemaVersion, effectJson: hit.effectJson }),
@@ -390,6 +398,8 @@ async function resolveWeapon(
       { passiveWeapon: true, powerName: passive.powerName },
     ));
   }
+  const damageModifiers = await readWeaponDamageModifiers(tx, draft.actorCharacterId, rangeMode === "melee" ? "STR" : "DEX",
+    effects.filter(({ instruction }) => instruction.passiveWeapon === true).map(({ key }) => Number(key.split(":").at(-1))));
   return {
     authoritativeInitiativeCost: row.initiativeCost,
     governing,
@@ -405,10 +415,10 @@ async function resolveWeapon(
       resolutionMode: governing?.status === "resolved" ? "opposed-roll" : "manual-god-ruling",
       governingSource: governing?.status === "resolved" ? governing.source as FrozenActionSourceSnapshot["governingSource"] : null,
       governingSnapshot: null,
-      authoredData: { ...(weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row), ...(range ? { range: { ...range, attackMode: rangeMode } } : {}) },
+      authoredData: { ...(weaponHitCosts.size ? { ...row, itemPowerItemId: row.itemId, itemPowerResourceSource: true } : row), damageModifiers, ...(range ? { range: { ...range, attackMode: rangeMode } } : {}) },
       resourceCosts: [...weaponHitCosts.values()],
       effects,
-      warnings: row.firingModeReviewRequired ? ["The selected Firing Mode is still marked mechanics-review-required."] : [],
+      warnings: [...skippedPowers.values(), ...(row.firingModeReviewRequired ? ["The selected Firing Mode is still marked mechanics-review-required."] : [])],
     }),
   };
 }
@@ -568,7 +578,7 @@ async function resolveItemPower(
   if (resolvedMagic && !resolvedMagic.adapter.valid) throw new Error("The Item Ability Magic source cannot be resolved into combat effects.");
   const directTargets = payloadTargetIds(itemPayload, "Direct Item Ability")
     ?? (resolvedMagic ? [] : targets);
-  if (effectRows.length > 0 && resolvedMagic && directTargets.length === 0) {
+  if (effectRows.length > 0 && (!draft.targetCharacterIds.length || directTargets.length === 0)) {
     throw new Error("Direct Item Ability effects require the generic Item target.");
   }
   let magicTargetGroups: unknown[] = [];
@@ -612,6 +622,7 @@ async function resolveItemPower(
           targetGroupId: groupId,
           targetGroupKind: group.kind,
           containerPath: group.containerPath,
+          ...(row.power.resolutionMode === "fixed-roll" && adapted.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
           application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {},
         }));
       }
@@ -827,7 +838,7 @@ async function resolveDerivedAbility(
   const adapted = adaptDerivedAbilityToMechanicalEffects(ability);
   const payload = sourcePayload(draft);
   const selections = isRecord(payload.effectSelections) ? payload.effectSelections : {};
-  const targets = allTargets(draft);
+  const targets = requiredTargets(draft);
   const effects = adapted.effects.map((entry) => {
     const selection = isRecord(selections[String(entry.sortOrder)]) ? selections[String(entry.sortOrder)] as Record<string, unknown> : null;
     const selectedTarget = selection?.targetCharacterId === undefined || selection.targetCharacterId === null
@@ -950,7 +961,7 @@ async function resolveCreatureSource(
   draft: ActionDeclarationDraft,
 ): Promise<ResolvedLockedActionSource> {
   const frozen = creatureSnapshot(participant);
-  const targets = allTargets(draft);
+  const targets = requiredTargets(draft);
   if (draft.sourceKind === "creature-attack") {
     const attacks = Array.isArray(frozen.attacks) ? frozen.attacks.filter(isRecord) : [];
     const sourceRef = requiredText(draft.sourceRef, "Creature Attack identity");
@@ -970,6 +981,7 @@ async function resolveCreatureSource(
       explanation: "Used the exact numeric attack percentage from this encounter occurrence's frozen Creature snapshot.",
     };
     const initiative = resolveCreatureAttackInitiativeCost({
+      structuredInitiativeCost: numeric(attack.initiativeCost),
       attackName: requiredText(attack.attackName, "Creature Attack name"),
       damage: typeof attack.damage === "string" || typeof attack.damage === "number" ? attack.damage : null,
     });

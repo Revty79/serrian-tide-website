@@ -67,6 +67,8 @@ export type WieldedWeaponRuntimeContext = {
   authoredDamageSourceName: string | null;
   initiativeCost: number | null;
   range: string;
+  rangeMode?: string | null;
+  distanceUnit?: string | null;
   reach: string;
   ammunitionTiming: null | {
     itemId: number;

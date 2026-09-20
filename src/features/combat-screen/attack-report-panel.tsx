@@ -5,6 +5,7 @@ import { readCombatTargetAnatomy } from "./command-actions";
 import { confirmCombatAttackReport } from "./operation-actions";
 import { attackReportSignature, attackReportTarget } from "./attack-report";
 import { combatMessage } from "./form-controls";
+import { combatEffectSummary } from "./result-summary";
 import styles from "./combat-screen.module.css";
 
 export function AttackReport({ encounterId, plan, disabled, refresh }: {
@@ -15,7 +16,9 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const [anatomy, setAnatomy] = useState<Awaited<ReturnType<typeof readCombatTargetAnatomy>>>([]);
   const running = useRef(false);
-  const effect = plan.effects[0], target = effect ? attackReportTarget(effect) : null;
+  const attacks = plan.effects.filter((entry) => entry.effectKey.startsWith("ordinary-attack:target:"));
+  const riders = plan.effects.filter((entry) => !entry.effectKey.startsWith("ordinary-attack:target:"));
+  const effect = attacks[0], target = effect ? attackReportTarget(effect) : null;
   const needsRuling = plan.status === "requires-god-ruling", revise = editing || needsRuling;
   const retry = ["approved", "application-failed"].includes(plan.status);
   const selectedLocation = location ?? String(target?.locationNumber ?? "");
@@ -45,13 +48,14 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
     <div className={styles.bar}><h2>{plan.actorName} → {plan.targetSnapshot.map((entry) => entry.name).join(", ")}</h2><span className={styles.muted}>{plan.sourceSnapshot.displayName} · {retry ? "Approved; application incomplete" : "Ready for approval"}</span></div>
     {plan.status === "application-failed" ? <p className={styles.notice}>{combatMessage(plan.events.findLast((event) => event.eventKind === "effect-plan-application-failed")?.reason ?? "Damage was not applied. Retry after resolving the application problem.")}</p> : null}
     {roll ? <p className={styles.muted}>Roll {roll.resultTotal} against {roll.finalTarget} · {roll.additionalSuccesses} extra successes</p> : null}
-    {plan.effects.map((entry) => { const result = attackReportTarget(entry); return <div key={entry.id}>
+    {attacks.map((entry) => { const result = attackReportTarget(entry); return <div key={entry.id}>
       <dl className={styles.attackFacts}><div><dt>Result</dt><dd>{result.outcome}</dd></div><div><dt>Hit location</dt><dd>{result.outcome === "Miss" ? "—" : result.location}</dd></div><div><dt>Damage to apply</dt><dd>{result.damage ?? "Needs ruling"}</dd></div></dl>
       {result.explanation ? <p>{combatMessage(result.explanation)}</p> : null}
       {result.calculation ? <p className={styles.muted}>{result.calculation}</p> : null}
       {needsRuling ? <div className={styles.notice}><strong>Decision needed</strong>{result.questions.map((question) => <p key={question}>{combatMessage(question)}</p>)}{!result.questions.length ? <p>Record the specific critical or defense ruling below.</p> : null}</div> : null}
     </div>; })}
-    {plan.effects.length === 1 ? <>
+    {riders.length ? <details><summary>Weapon powers and costs</summary>{riders.map((entry) => <p key={entry.id}>{combatEffectSummary(entry, true)}{entry.amendmentReason ? ` — ${combatMessage(entry.amendmentReason)}` : ""}</p>)}</details> : null}
+    {attacks.length === 1 ? <>
       {!needsRuling && !retry ? <label className={styles.check}><input type="checkbox" checked={editing} onChange={(event) => setEditing(event.target.checked)} disabled={busy} /> Adjust location or damage</label> : null}
       {revise ? <div className={styles.fields}>
         <label className="st-field">Hit location<select className="st-control" value={selectedLocation} onChange={(event) => setLocation(event.target.value)} disabled={busy}><option value="">Choose a location</option>{anatomy.map((entry) => <option key={entry.number} value={entry.number}>{entry.name}</option>)}</select></label>
@@ -60,7 +64,7 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
       </div> : null}
     </> : needsRuling ? <p>Resolve each target through the specific effect controls below.</p> : null}
     {missingDamage ? <p className={styles.notice}>Damage could not be calculated from the available source and protection. Enter the final damage and the reason for your ruling before applying this hit.</p> : null}
-    <div className={styles.actions}><button className="st-button is-primary" disabled={disabled || busy || missingDamage || needsRuling && plan.effects.length !== 1 || revise && (!reason.trim() || !anatomy.some((entry) => String(entry.number) === selectedLocation) || selectedDamage !== "" && (!Number.isFinite(Number(selectedDamage)) || Number(selectedDamage) < 0))} onClick={() => void approve()}>{busy ? "Applying…" : retry ? "Retry applying approved attack" : "Approve & apply attack"}</button><span className={styles.muted}>HP and automatic conditions update together. Combat then continues.</span></div>
+    <div className={styles.actions}><button className="st-button is-primary" disabled={disabled || busy || missingDamage || needsRuling && attacks.length !== 1 || revise && (!reason.trim() || !anatomy.some((entry) => String(entry.number) === selectedLocation) || selectedDamage !== "" && (!Number.isFinite(Number(selectedDamage)) || Number(selectedDamage) < 0))} onClick={() => void approve()}>{busy ? "Applying…" : retry ? "Retry applying approved attack" : "Approve & apply attack"}</button><span className={styles.muted}>HP and automatic conditions update together. Combat then continues.</span></div>
     {message ? <p role="status">{message}</p> : null}
   </section>;
 }

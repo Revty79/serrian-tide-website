@@ -1,5 +1,7 @@
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
+import { readWeaponDamageModifiers } from "./weapon-damage-modifiers-service";
+import { unavailableWeaponHitPowers } from "./weapon-hit-resource-service";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 import { creatureProtectionValue } from "./creature-protection";
 
@@ -166,6 +168,7 @@ export type FirearmAttackPreview = Readonly<{
   aim: { initiative: number; targetOffset: number };
   calledShot: FirearmAttackCommand["calledShot"] & { validAtPreview: boolean };
   authoredDamage: { value: string | null; numeric: number | null; damageType: string | null; sourceName: string | null };
+  damageModifiers?: Awaited<ReturnType<typeof readWeaponDamageModifiers>>;
   dexDamageModifier: number;
   rulingReasons: readonly string[];
 }>;
@@ -236,6 +239,7 @@ export type FirearmAttackView = Readonly<{
     hpPoolKey: string;
     authoredDamage: number | null;
     dexDamageModifier: number;
+    activeDamageModifier: number;
     additionalSuccessDamage: number;
     grossDamage: number | null;
     armor: number | null;
@@ -690,6 +694,7 @@ async function loadFoundation(
       aim: { initiative: aimInitiative, targetOffset: aimInitiative * 2 },
       calledShot: { ...calledShot, validAtPreview: validCalledLocation },
       authoredDamage: { value: damage.damage, numeric: parseAuthoredBulletDamage(damage.damage), damageType: damage.damageType, sourceName: damage.sourceName },
+      damageModifiers: await readWeaponDamageModifiers(tx, command.actorParticipantId, null),
       dexDamageModifier: dexterity ? getAttributeModifier(dexterity.value) : 0,
       rulingReasons,
     },
@@ -1290,6 +1295,14 @@ async function createFirearmEffectPlan(
     .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
   const powerGroups = new Map<number, typeof weaponHitPowers>();
   for (const row of weaponHitPowers) powerGroups.set(row.powerId, [...(powerGroups.get(row.powerId) ?? []), row]);
+  const skippedPowers = await unavailableWeaponHitPowers(tx, { characterId: attack.actorParticipantId, itemId: attack.itemId, instanceId: attack.itemInstanceId },
+    [...powerGroups.values()].filter(([power]) => power.resourceCostKind === "shared-charges").map(([power]) => ({ powerId: power.powerId, amount: power.resourceCostAmount })));
+  for (const [powerId, reason] of skippedPowers) {
+    powerGroups.delete(powerId);
+    effects.push({ planId: created.id, encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
+      targetParticipantId: attack.actorParticipantId, effectKey: `weapon-hit:${powerId}:skipped`, effectType: "resource.item-charges", sourceKind: "weapon", sourceIdentity,
+      authoredValueJson: { powerId }, finalValueJson: null, applicationSupported: false, godReviewRequired: false, status: "declined", amendmentReason: reason });
+  }
   const singleWeaponHitDamage = eligibleBullets.length === 1
     ? [...powerGroups.values()].flatMap((powerRows) => powerRows).reduce((total, row) => {
       const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson });
@@ -1325,6 +1338,9 @@ async function createFirearmEffectPlan(
       baseGrossDamage: bullet.grossDamage,
       baseProposedNetDamage: bullet.proposedNetDamage,
       weaponHitAdditiveDamage: additiveDamage,
+      weaponHitDamageContributions: eligibleBullets.length === 1 ? [...powerGroups].map(([powerId, rows]) => ({ powerId,
+        amount: rows.reduce((sum, row) => { const effect = decodeMechanicalEffect({ schemaVersion: row.schemaVersion, effectJson: row.effectJson }); return sum + (isSimpleAdditiveWeaponHitDamage(effect) ? effect.amount : 0); }, 0) })) : [],
+      damageModifiers: preview.damageModifiers ?? null,
       armorSnapshot: bullet.armorSnapshotJson,
       rulingReasons: rulings,
     };
@@ -1799,6 +1815,7 @@ async function fireFirearmAttackInternal(
       deliveryKind: preview.delivery.kind,
       dexDamageModifier: preview.dexDamageModifier,
       additionalSuccesses: roll.mechanicalSnapshot.resolution.additionalSuccesses,
+      activeDamageModifier: preview.damageModifiers?.activeModifier ?? 0,
       armor: protection.armor,
       soak: protection.soak,
       protectionSupported: protection.supported && hitLocation !== null && Boolean(hitLocation.poolKey),
@@ -2243,6 +2260,7 @@ export async function readFirearmAttackWorkspaceInTransaction(
         hpPoolKey: bullet.hpPoolKey,
         authoredDamage: bullet.authoredDamage,
         dexDamageModifier: bullet.dexDamageModifier,
+        activeDamageModifier: preview.damageModifiers?.activeModifier ?? 0,
         additionalSuccessDamage: bullet.additionalSuccessDamage,
         grossDamage: bullet.grossDamage,
         armor: bullet.armor,

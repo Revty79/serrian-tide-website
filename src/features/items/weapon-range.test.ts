@@ -1,9 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveWeaponRange, validateStructuredWeaponRange } from "./weapon-range";
+import { resolveWeaponRange, validateStructuredWeaponRange, weaponAttackMode } from "./weapon-range";
 
 const pistol = { mode: "ranged" as const, unit: "feet", reach: null, short: 10, medium: 25, long: 50 };
+
+test("canonical melee needs no distance while ranged cannot be relabeled to bypass approval", () => {
+  assert.equal(weaponAttackMode("melee", null), "melee");
+  assert.equal(weaponAttackMode(null, null), "melee");
+  assert.equal(weaponAttackMode("melee", "ranged"), "melee");
+  assert.equal(weaponAttackMode("ranged", "melee"), "ranged");
+  assert.equal(weaponAttackMode(null, "melee", true), "ranged");
+  assert.equal(weaponAttackMode("hybrid", "melee"), "melee");
+  assert.equal(weaponAttackMode("hybrid", "ranged"), "ranged");
+  assert.throws(() => weaponAttackMode("hybrid", null), /Choose whether/);
+  assert.equal(weaponAttackMode(null, null, false, "Sword"), "melee");
+  assert.throws(() => weaponAttackMode(null, "melee", false, "Sonic Weapon"), /no supported attack mode/);
+});
 
 test("structured ranged limits use inclusive Short, Medium, and Long boundaries", () => {
   assert.equal(resolveWeaponRange({ profile: pistol, attackMode: "ranged", distance: 10, unit: "feet" }).band, "short");

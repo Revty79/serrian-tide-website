@@ -33,6 +33,7 @@ import { isSupportedAmmunitionWeaponType, UNSUPPORTED_PROJECTILE_MESSAGE } from 
 import { readMagazineInventoryInTransaction } from "@/features/items/magazine-inventory-service";
 import { startCombatMagazineFill, type CombatMagazineFillCommand } from "@/features/tabletop-operations/combat-magazine-fill-service";
 import { readMeleeDrawOptions, startMeleeDraw, type MeleeDrawCommand } from "@/features/tabletop-operations/combat-melee-draw-service";
+import { weaponAttackMode } from "@/features/items/weapon-range";
 
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");
@@ -73,9 +74,16 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
       movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, rulings: records(object(row.local).combatSourceResolutionHistory) };
   });
   const sources: CombatSourceChoice[] = [];
-  for (const weapon of loaded.equipment?.wieldedWeapons ?? []) sources.push({ kind: "weapon", ref: weapon.ownershipKey, name: weapon.itemName, instanceId: weapon.instanceId, itemId: weapon.itemId, handedness: weapon.handedness,
-    unavailable: !isSupportedAmmunitionWeaponType(weapon.weaponType) && (weapon.ammunitionTiming || weapon.firingModes.length) ? UNSUPPORTED_PROJECTILE_MESSAGE : undefined,
-    description: isSupportedAmmunitionWeaponType(weapon.weaponType) ? "" : weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
+  for (const weapon of loaded.equipment?.wieldedWeapons ?? []) {
+    let mode = weapon.rangeMode;
+    let modeIssue: string | undefined;
+    try { mode = mode === "hybrid" ? mode : weaponAttackMode(mode, null, !!weapon.ammunitionTiming || isSupportedAmmunitionWeaponType(weapon.weaponType), weapon.weaponType); }
+    catch (error) { modeIssue = error instanceof Error ? error.message : "This weapon needs an authored attack mode."; }
+    sources.push({ kind: "weapon", ref: weapon.ownershipKey, name: weapon.itemName, instanceId: weapon.instanceId, itemId: weapon.itemId, handedness: weapon.handedness,
+      rangeMode: mode, distanceUnit: weapon.distanceUnit,
+      unavailable: modeIssue ?? (!isSupportedAmmunitionWeaponType(weapon.weaponType) && (weapon.ammunitionTiming || weapon.firingModes.length) ? UNSUPPORTED_PROJECTILE_MESSAGE : undefined),
+      description: isSupportedAmmunitionWeaponType(weapon.weaponType) ? "" : weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
+  }
   for (const firearm of loaded.firearms?.firearms ?? []) if (!sources.some((source) => source.instanceId === firearm.itemInstanceId)) sources.push({ kind: "weapon", ref: `instance:${firearm.itemInstanceId}`, name: firearm.itemName, instanceId: firearm.itemInstanceId, itemId: firearm.itemId, handedness: firearm.canonical.handedness, description: "Inspect ammunition and preparation before firing." });
   for (const attack of records(object(loaded.snapshot).attacks)) sources.push({ kind: "creature-attack", ref: String(attack.canonicalId), name: String(attack.attackName), instanceId: null, itemId: null, description: `${attack.attackPercentage ?? "?"}% · ${attack.damage ?? "?"} damage` });
   for (const ability of records(object(loaded.snapshot).abilities)) sources.push({ kind: "creature-ability", ref: String(ability.canonicalId), name: String(ability.abilityName), instanceId: null, itemId: null, description: String(ability.description ?? "") });

@@ -282,6 +282,7 @@ export function calculateFirearmBulletDamage(input: {
   deliveryKind: FirearmDeliveryKind;
   dexDamageModifier: number;
   additionalSuccesses: number;
+  activeDamageModifier?: number;
   armor: number | null;
   soak: number | null;
   protectionSupported: boolean;
@@ -297,12 +298,14 @@ export function calculateFirearmBulletDamage(input: {
     ? whole(input.additionalSuccesses, "Additional successes", true)
     : 0;
   if (!Number.isFinite(dex)) throw new Error("DEX damage modifier must be finite.");
+  const active = input.activeDamageModifier ?? 0;
+  if (!Number.isFinite(active)) throw new Error("Active damage modifier must be finite.");
   const armor = input.armor === null ? null : nonnegative(input.armor, "Armor");
   const soak = input.soak === null ? null : nonnegative(input.soak, "Soak");
   if (!input.protectionSupported || armor === null || soak === null) {
     reasons.push("Armor or soak cannot be resolved objectively from the frozen target state.");
   }
-  const grossDamage = base === null ? null : Math.max(0, base + dex + additional);
+  const grossDamage = base === null ? null : Math.max(0, base + dex + additional + active);
   const netDamage = grossDamage === null || !input.protectionSupported || armor === null || soak === null
     ? null
     : Math.max(0, grossDamage - armor - soak);

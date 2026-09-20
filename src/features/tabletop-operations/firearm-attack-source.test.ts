@@ -107,5 +107,6 @@ test("ordinary ranged declarations cannot bypass missing structured range author
   assert.match(service, /requestedRangeMode/);
   assert.match(service, /row\.ammunitionItemId !== null/);
   assert.match(service, /resolveWeaponRange/);
-  assert.match(service, /Choose whether this Hybrid Weapon attack uses Reach/);
+  assert.match(service, /weaponAttackMode\(row\.rangeMode, requestedRangeMode/);
+  assert.match(service, /rangeMode === "ranged"/);
 });

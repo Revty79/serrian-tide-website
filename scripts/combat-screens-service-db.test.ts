@@ -142,6 +142,23 @@ async function fixture(tx: Tx) {
   return { ...f, input };
 }
 
+for (const mode of ["melee", "hybrid", null] as const) test(`${mode ?? "historical"} melee commits without distance, unit, Reach or a range ruling`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    await tx.update(weaponProfile).set({ rangeMode: mode, distanceUnit: null, reachDistance: null }).where(eq(weaponProfile.itemId, f.weaponId));
+    const choice = { ...f.input.choice, range: { attackMode: "melee" as const, distance: null, unit: "" } };
+    const preview = await previewCombatChoiceInTransaction(tx, f.context, f.player, choice);
+    assert.equal(preview.kind, "declaration");
+    if (preview.kind === "declaration") assert.equal(preview.snapshot.authoredSource?.authoredData.range, undefined);
+    const first = await submitCombatChoiceInTransaction(tx, f.context, f.player, { ...f.input, choice });
+    const retry = await submitCombatChoiceInTransaction(tx, f.context, f.player, { ...f.input, choice });
+    assert.ok("declarationId" in first);
+    assert.deepEqual(retry, { declarationId: first.declarationId, reused: true });
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
 test("ordinary Player ranged distance approval is canonical, exact, frozen, and idempotent", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx);
@@ -151,7 +168,7 @@ test("ordinary Player ranged distance approval is canonical, exact, frozen, and 
     await assert.rejects(tx.transaction(async (savepoint) => {
       const declarationId = await createActionDeclarationDraftInTransaction(savepoint, f.context, f.player, {
         ...bypass,
-        sourcePayload: { ...bypass.sourcePayload, rangeAttackMode: "ranged", rangeDistance: 25, rangeUnit: "feet", rangeDistanceRulingRequestId: null },
+        sourcePayload: { ...bypass.sourcePayload, rangeAttackMode: "melee", rangeDistance: 25, rangeUnit: "feet", rangeDistanceRulingRequestId: null },
       });
       await lockActionDeclarationInTransaction(savepoint, f.context, f.player, declarationId);
     }), /distance confirmation/);

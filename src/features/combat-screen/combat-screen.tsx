@@ -13,7 +13,7 @@ import { readCombatScreen } from "./screen-actions";
 import { COMBAT_COMMANDS, combatActionStatus, combatScreenPrompt, type CombatCommand, type CombatScreenData, type CombatScreenScope } from "./screen-types";
 import styles from "./combat-screen.module.css";
 import { CreaturePicker } from "./creature-picker";
-import { CommandPanel } from "./command-panel";
+import { CommandPanel, useCombatCommandDrafts } from "./command-panel";
 import { CloseoutPanel } from "./closeout-panel";
 import { OperationPanel } from "./operation-panel";
 import { readCombatOperations, prepareCombatResult, applyCombatFirearmResult, commitCombatFirearmTrigger, forceEndCombat } from "./operation-actions";
@@ -54,6 +54,7 @@ export function CombatResources({ information }: { information: CombatScreenData
 }
 
 export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope; initialData: CombatScreenData }) {
+  const commandDrafts = useCombatCommandDrafts();
   const [data, setData] = useState(initialData);
   const [selectedId, setSelectedId] = useState<number | null>(scope.role === "player" ? scope.characterId : initialData.roster[0]?.participantId ?? null);
   const selectedRef = useRef(selectedId), generation = useRef(0), mutation = useRef(false);
@@ -201,8 +202,8 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
         {selected?.limbConditions.map((limb) => <p className={`${styles.notice} ${styles.error}`} key={limb.poolKey}>{limb.name} incapacitated — this limb cannot be used.</p>)}
         {selected?.currentAction ? <p className={styles.notice}>{selected.currentAction.label}: {selected.currentAction.remaining} Initiative remaining; expected finish {selected.currentAction.expectedFinish}.</p> : null}
         {selected?.canControl ? <nav className={styles.commands} aria-label="Combat commands">{COMBAT_COMMANDS.map((entry) => <button className="st-button" key={entry} aria-pressed={command === entry} onClick={() => setCommand(entry)}>{entry}</button>)}</nav> : null}
-        <div ref={commandRef} tabIndex={-1}>{selected?.canControl ? <CommandPanel scope={scope} entity={selected} data={data} command={command} setCommand={setCommand} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /> : <p>{selected ? `${selected.name}'s Player chooses actions on their combat screen. You can inspect information and make G.O.D. rulings here.` : "Initialize Initiative to choose combat actions."}</p>}</div>
-        {scope.role === "god" && selected && !selected.canControl ? <details><summary>Player source rulings</summary><nav className={styles.commands} aria-label="Player source rulings">{(["Cast", "Item", "Ability", "Called Shot"] as const).map((entry) => <button className="st-button" key={entry} onClick={() => setCommand(entry)}>{entry}</button>)}</nav><CommandPanel scope={scope} entity={selected} data={data} command={command} setCommand={setCommand} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /></details> : null}
+        <div ref={commandRef} tabIndex={-1}>{selected?.canControl ? <CommandPanel draftState={commandDrafts} scope={scope} entity={selected} data={data} command={command} setCommand={setCommand} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /> : <p>{selected ? `${selected.name}'s Player chooses actions on their combat screen. You can inspect information and make G.O.D. rulings here.` : "Initialize Initiative to choose combat actions."}</p>}</div>
+        {scope.role === "god" && selected && !selected.canControl ? <details><summary>Player source rulings</summary><nav className={styles.commands} aria-label="Player source rulings">{(["Cast", "Item", "Ability", "Called Shot"] as const).map((entry) => <button className="st-button" key={entry} onClick={() => setCommand(entry)}>{entry}</button>)}</nav><CommandPanel draftState={commandDrafts} scope={scope} entity={selected} data={data} command={command} setCommand={setCommand} target={target} setTarget={setTarget} disabled={disabled} refresh={() => reload()} /></details> : null}
         <div ref={operationRef} tabIndex={-1}>{selected ? <OperationPanel scope={scope} data={data} entity={selected} operations={operationRead?.value ?? null} focus={focus} disabled={busy || loading || stale || connection !== "live" || data.pause.frozen || !operations} refresh={() => reload()} /> : null}</div>
         {scope.role === "god" && data.status !== "completed" && !data.projection?.closed ? <details open={!data.initialized}><summary>Roster &amp; combat setup</summary>
           {!data.initialized ? <div className={styles.notice}>

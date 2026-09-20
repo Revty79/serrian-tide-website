@@ -81,7 +81,8 @@ for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-s
     await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, action.id);
     const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
     await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 22 - preview.snapshot.initiativeCost));
-    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id);
+    if (area) await assert.rejects(generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id), /Confirm the affected participants/);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id, undefined, area ? { "bolt-target": [] } : {});
     const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find((entry) => entry.id === planId)!;
     const successes = plan.governingRollSnapshot!.resolution.succeeded ? plan.governingRollSnapshot!.resolution.totalSuccesses : 0;
     if (area) { assert.equal(plan.status, scenario === "area-critical" ? "requires-god-ruling" : "calculated"); assert.deepEqual(plan.effects, [], "An AoE with no selected victims creates no effect proposals or caster damage."); }

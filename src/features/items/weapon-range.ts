@@ -22,6 +22,20 @@ export type ResolvedWeaponRange = {
 
 export type ClassifiedWeaponRange = Pick<ResolvedWeaponRange, "band" | "distance" | "unit">;
 
+/** The authored mode is authoritative; a client cannot relabel a ranged attack as melee. */
+export function weaponAttackMode(profileMode: string | null | undefined, requested: "melee" | "ranged" | null, hasAmmunition = false, weaponType?: string): "melee" | "ranged" {
+  if (profileMode === "melee" || profileMode === "ranged") return profileMode;
+  if (profileMode === "hybrid") {
+    if (!requested) throw new Error("Choose whether this Hybrid Weapon attack is melee or ranged.");
+    return requested;
+  }
+  if (hasAmmunition) return "ranged";
+  if (weaponType !== undefined && !["knife", "knife / blade", "axe", "club", "blunt / close weapon", "mace", "hammer", "sword", "staff", "polearm"].includes(weaponType.trim().toLowerCase())) {
+    throw new Error("This weapon has no supported attack mode. Author its Weapon Range Mode before using it in combat.");
+  }
+  return requested ?? "melee";
+}
+
 function positive(value: number | null, label: string): number | null {
   if (value === null) return null;
   if (!Number.isFinite(value) || value <= 0) throw new Error(`${label} must be positive.`);
@@ -57,10 +71,10 @@ export function resolveWeaponRange(input: {
   beyondLongReason?: string;
 }): ResolvedWeaponRange {
   const profile = validateStructuredWeaponRange(input.profile);
-  if (input.distance === null || input.distance === undefined) throw new Error("Enter the actual target distance before declaring this ranged attack.");
+  if (input.distance === null || input.distance === undefined) throw new Error("Enter the actual target distance before declaring this attack.");
   if (!Number.isFinite(input.distance) || input.distance < 0) throw new Error("Target distance must be zero or greater.");
   const unit = normalizedUnit(input.unit ?? null);
-  if (!unit) throw new Error("Enter the target distance unit before declaring this ranged attack.");
+  if (!unit) throw new Error("Enter the target distance unit before declaring this attack.");
   if (!profile.unit || unit !== profile.unit) throw new Error(`Target distance must use the authored unit: ${profile.unit ?? "an authored unit"}.`);
   const classified = classifyWeaponRange({ profile, attackMode: input.attackMode, distance: input.distance, unit });
   if (input.attackMode === "melee") {
@@ -85,7 +99,7 @@ export function classifyWeaponRange(input: {
   const profile = validateStructuredWeaponRange(input.profile);
   if (!Number.isFinite(input.distance) || input.distance < 0) throw new Error("Target distance must be zero or greater.");
   const unit = normalizedUnit(input.unit);
-  if (!unit) throw new Error("Enter the target distance unit before declaring this ranged attack.");
+  if (!unit) throw new Error("Enter the target distance unit before declaring this attack.");
   if (!profile.unit || unit !== profile.unit) throw new Error(`Target distance must use the authored unit: ${profile.unit ?? "an authored unit"}.`);
   if (input.attackMode === "melee") {
     if (profile.mode !== "melee" && profile.mode !== "hybrid") throw new Error("This Weapon has no authored melee Reach mode.");

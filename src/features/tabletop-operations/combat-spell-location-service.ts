@@ -14,7 +14,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * time. Costs/scaling belong to their existing services; this only resolves anatomy. */
 export async function resolveSpellHitLocationsInTransaction(tx: Tx, encounterId: number, source: FrozenActionSourceSnapshot,
   roll: RollMechanicalSnapshot | null, proposal: ActionEffectPlanProposal): Promise<ActionEffectPlanProposal> {
-  if (source.kind !== "spell") return proposal;
+  if (source.kind !== "spell" && !(source.kind === "item" && source.identity.startsWith("item-power:"))) return proposal;
   const effects = [];
   for (const effect of proposal.effects) {
     const authored = object(effect.authoredValue), instruction = object(authored.instruction);

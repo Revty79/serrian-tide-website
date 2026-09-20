@@ -14,6 +14,7 @@ import type { ActionEffectPlanProposal, ActionEffectProposal } from "./action-ef
 import type { RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { creatureProtectionValue } from "./creature-protection";
+import { availableWeaponHitSource } from "./weapon-hit-resource-service";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -35,10 +36,10 @@ export type OrdinaryAttackRuling = Readonly<{
 }>;
 
 /** Source-specific ordinary damage; firearms and per-success spells have their own calculations. */
-export function calculateOrdinaryAttackDamage(baseDamage: number, extraSuccesses: number, armor: number, soak: number) {
+export function calculateOrdinaryAttackDamage(baseDamage: number, extraSuccesses: number, armor: number, soak: number, damageModifier = 0) {
   if (![baseDamage, extraSuccesses, armor, soak].every((value) => Number.isFinite(value) && value >= 0)
-    || !Number.isInteger(extraSuccesses)) throw new Error("Ordinary damage requires nonnegative authored numbers and whole extra successes.");
-  const grossDamage = baseDamage + extraSuccesses;
+    || !Number.isInteger(extraSuccesses) || !Number.isFinite(damageModifier)) throw new Error("Ordinary damage requires nonnegative authored numbers, whole extra successes, and a finite modifier.");
+  const grossDamage = Math.max(0, baseDamage + extraSuccesses + damageModifier);
   return { baseDamage, extraSuccesses, armor, soak, grossDamage, netDamage: Math.max(0, grossDamage - armor - soak) };
 }
 
@@ -56,10 +57,11 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   tx: Transaction, context: OwnedEncounterRuntimeContext, locked: LockedActionDeclarationSnapshot,
   roll: RollMechanicalSnapshot, defense: Record<string, unknown> | null, ruling?: OrdinaryAttackRuling,
 ): Promise<ActionEffectPlanProposal> {
-  const source = locked.authoredSource;
-  if (!source || !["weapon", "creature-attack"].includes(source.kind) || locked.weapon?.firingModeId != null) {
+  const frozenSource = locked.authoredSource;
+  if (!frozenSource || !["weapon", "creature-attack"].includes(frozenSource.kind) || locked.weapon?.firingModeId != null) {
     throw new Error("Ordinary consequences require an exact ordinary Weapon or Creature Attack source.");
   }
+  const { source, skipped } = await availableWeaponHitSource(tx, frozenSource);
   if (ruling && (!locked.targetCharacterIds.includes(ruling.targetParticipantId) || !Number.isInteger(ruling.hitLocationNumber)
     || ruling.hitLocationNumber < 0 || ruling.hitLocationNumber > 9 || ruling.finalDamage !== undefined && (!Number.isFinite(ruling.finalDamage) || ruling.finalDamage < 0)
     || !ruling.reason.trim() || (ruling.defeatValueXp !== undefined && (!Number.isFinite(ruling.defeatValueXp) || ruling.defeatValueXp < 0)))) {
@@ -68,6 +70,9 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   const objective = object(defense?.objective);
   const prevented = !roll.resolution.succeeded || objective.attackStopped === true || ["stopped", "cancel"].includes(String(defense?.originalActionDisposition));
   const proposals: ActionEffectProposal[] = [];
+  for (const [powerId, reason] of skipped) proposals.push({ effectKey: `cost:item-power:${powerId}:charges`, effectType: "resource.item-charges",
+    targetParticipantId: locked.actorCharacterId, authoredValue: frozenSource.resourceCosts.find(({ key }) => key === `item-power:${powerId}:charges`),
+    calculatedValue: null, finalValue: null, unit: "Charges", resource: "", applicationSupported: false, godReviewRequired: false, status: "declined", amendmentReason: reason });
   let hitEstablishedForResource = false;
   for (const targetParticipantId of locked.targetCharacterIds) {
     const adjudicated = ruling?.targetParticipantId === targetParticipantId ? ruling : undefined;
@@ -128,8 +133,11 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
         ? total + effect.effect.amount
         : total;
     }, 0);
+    const damageModifiers = object(source.authoredData.damageModifiers);
+    const modifierTotal = typeof damageModifiers.total === "number" ? damageModifiers.total : 0;
     const calculated = base !== null && armor !== null && armor >= 0 && soak !== null && soak >= 0
-      ? calculateOrdinaryAttackDamage((base + weaponHitDamage), roll.resolution.additionalSuccesses, armor, soak) : null;
+      ? { ...calculateOrdinaryAttackDamage(base, roll.resolution.additionalSuccesses, armor, soak, weaponHitDamage + modifierTotal),
+          authoredBase: base, weaponHitDamage, damageModifiers } : null;
     const netDamage = adjudicated?.finalDamage ?? calculated?.netDamage ?? null;
     // Location selection alone cannot override unsupported damage mechanics.
     const supported = poolKey !== null && netDamage !== null && (issues.length === 0 || adjudicated?.finalDamage !== undefined);

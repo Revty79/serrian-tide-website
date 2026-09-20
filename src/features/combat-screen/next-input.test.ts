@@ -1,8 +1,36 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { combatNextInput, automaticCombatInputKey, type CombatOperations } from "./next-input";
+import { combatNextInput, automaticCombatInputKey, pendingCombatAreas, type CombatOperations } from "./next-input";
 import type { CombatScreenData } from "./screen-types";
 const operations = { sealed: false, plans: [], defenses: { reactions: [] }, firearms: { attacks: [] } } as unknown as CombatOperations;
+
+test("Automatic flow waits for explicit AoE membership instead of silently choosing nobody", () => {
+  const data = fixture(), action = data.projection!.declarations[1];
+  data.projection!.declarations = [data.projection!.declarations[0], { ...action, lockedSnapshot: { authoredSource: { authoredData: { targetGroups: [{ kind: "aoe", id: "area" }] } } } as unknown as NonNullable<typeof action.lockedSnapshot> }];
+  const next = combatNextInput(data, operations);
+  assert.equal(next.kind, "inspect");
+  assert.match(next.label, /Choose affected participants/);
+  assert.equal(automaticCombatInputKey(next, "area"), null);
+  assert.equal(pendingCombatAreas(data, operations).length, 1);
+  assert.equal(pendingCombatAreas(data, { ...operations, sealed: true }).length, 0);
+  assert.equal(pendingCombatAreas(data, { ...operations, plans: [{ declarationId: action.id }] as unknown as CombatOperations["plans"] }).length, 0);
+  data.projection!.declarations = data.projection!.declarations.map((entry) => ({ ...entry, status: "resolved" }));
+  assert.equal(pendingCombatAreas(data, operations).length, 0);
+});
+
+test("the main guide opens a pending Player distance request and preserves sealed choices", () => {
+  const data = fixture();
+  data.projection!.declarations = [];
+  data.projection!.entities[0].mustChooseNow = true;
+  const pending = { ...operations, requests: [{ characterId: -8, requestType: "weapon-distance", status: "pending" }] } as unknown as CombatOperations;
+  const next = combatNextInput(data, pending);
+  assert.equal(next.kind, "inspect");
+  assert.equal(next.kind === "inspect" && next.focus, "ruling");
+  assert.equal(next.label, "Review Cat's distance request");
+  assert.equal(automaticCombatInputKey(next, "request"), null);
+  assert.equal(combatNextInput(data, { ...pending, sealed: true }).label, "Cat can act now");
+  assert.equal(combatNextInput(data, { ...pending, requests: pending.requests.map((entry) => ({ ...entry, status: "approved" })) }).label, "Cat can act now");
+});
 function fixture() {
   return { pause: { frozen: false }, projection: { closed: false, checkpoint: null,
     progression: { canAdvanceTimeline: true, canAdvanceRound: false, reason: "Wait" },

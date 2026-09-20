@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { item, itemPower, itemPowerEffect, itemPowerResource, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
-import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute, campaignCharacterProfile } from "@/db/realm-schema";
+import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterActiveModifier } from "@/db/realm-schema";
 import { magazineProfile, magazineAmmunition, weaponMagazine, firearmMagazineAttachment } from "@/db/magazine-schema";
 import { readEffectiveFirearmState, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
 import { startCombatMagazineFill } from "@/features/tabletop-operations/combat-magazine-fill-service";
@@ -238,6 +238,37 @@ test("a firearm hit on a creature with blank armor and soak applies its full dam
     assert.deepEqual((target.localStateJson as { health: unknown }).health, { totalDamage: 8, poolDamage: { "fixture-body": 8 } });
     assert.equal((await f.state()).loadedRounds, 2);
     assert.deepEqual((await f.rolls()).map(({ resultTotal }) => resultTotal), [70]);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+for (const depleteAfterPlan of [false, true]) test(`firearm damage keeps frozen active bonuses and skips depleted optional riders; late=${depleteAfterPlan}`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player");
+    const [modifier] = await tx.insert(campaignCharacterActiveModifier).values({ characterId: f.actorId, label: "Damage bonus", modifierChannel: "damage", targetKey: "self", amount: 3,
+      sourceKind: "god", sourceId: "fixture", sourceName: "Fixture", durationKind: "scene", durationLabel: "Scene" }).returning();
+    await tx.update(campaignCharacterItemInstance).set({ currentCharges: depleteAfterPlan ? 2 : 1 }).where(eq(campaignCharacterItemInstance.id, f.instance.id));
+    await tx.insert(itemPowerResource).values({ itemId: f.profile.itemId, maximumCharges: 2 });
+    const [power] = await tx.insert(itemPower).values({ itemId: f.profile.itemId, name: "Optional shot", description: "Optional depleted rider", trigger: "weapon-hit", activationLabel: "", resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+    await tx.insert(itemPowerEffect).values([
+      { itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 10, application: "localized" } },
+      { itemPowerId: power.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Must skip", description: "Depleted rider", duration: { kind: "scene" } } },
+    ]);
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command);
+    const attack = await f.attack(declared.attackId);
+    await tx.update(campaignCharacterActiveModifier).set({ amount: 20 }).where(eq(campaignCharacterActiveModifier.id, modifier.id));
+    await noDefense(tx, f, attack.triggerDeclarationId);
+    await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    if (depleteAfterPlan) await tx.update(campaignCharacterItemInstance).set({ currentCharges: 1 }).where(eq(campaignCharacterItemInstance.id, f.instance.id));
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId, fired.effectPlanId!)).status, "applied");
+    const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+    const local = target.localStateJson as { health: { totalDamage: number }; conditions: { name: string }[] };
+    assert.equal(local.health.totalDamage, 8, "8 ammo + 3 frozen general modifier - 3 protection; no ordinary DEX or depleted rider.");
+    assert.equal(local.conditions.some(({ name }) => name === "Must skip"), false);
+    assert.equal((await f.state()).loadedRounds, 2);
+    assert.equal((await f.rolls()).length, 1);
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, f.instance.id)))[0].currentCharges, 1);
     throw rollback;
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

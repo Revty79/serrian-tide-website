@@ -8,11 +8,14 @@ import dotenv from "dotenv";
 import pg from "pg";
 import { readCatalog } from "./weapon-catalog-repair";
 import { planCombatFlowCatalog } from "./combat-flow-catalog";
+import { planCombatStabilizationCatalog } from "./combat-stabilization-catalog";
 
 async function main() {
   dotenv.config({ path: ".env.local", quiet: true });
   const [mode = "--plan", expected] = process.argv.slice(2);
-  assert.ok(["--plan", "--apply", "--apply-m4"].includes(mode));
+  assert.ok(["--plan", "--apply", "--apply-m4", "--plan-stabilization", "--apply-stabilization"].includes(mode));
+  const stabilization = mode.endsWith("-stabilization");
+  const makePlan = (catalog: Awaited<ReturnType<typeof readCatalog>>) => stabilization ? planCombatStabilizationCatalog(catalog) : { ...planCombatFlowCatalog(catalog), mappings: [] };
   const url = new URL(process.env.DATABASE_URL!);
   assert.ok(["localhost", "127.0.0.1"].includes(url.hostname) && (url.port || "5432") === "5432" && url.pathname === "/serrian_tide_dev", "Only loopback serrian_tide_dev is allowed.");
   const directory = "artifacts/player-tabletop-tabs/combat-flow";
@@ -27,16 +30,16 @@ async function main() {
     const ledger = await Promise.all(journal.entries.map(async (entry: { tag: string; when: number }) => ({ hash: createHash("sha256").update(await readFile(`drizzle/${entry.tag}.sql`)).digest("hex"), created_at: String(entry.when) })));
     const verifyLedger = async () => assert.deepEqual((await client.query("select hash,created_at from drizzle.__drizzle_migrations order by created_at")).rows, ledger);
     await verifyLedger();
-    if (mode === "--plan") {
+    if (mode.startsWith("--plan")) {
       await client.query("begin isolation level repeatable read read only"); open = true;
-      const catalog = await readCatalog(client), plan = planCombatFlowCatalog(catalog);
-      await writeFile(path.join(directory, "plan.json"), JSON.stringify({ target, at: new Date().toISOString(), ...plan }, null, 2));
+      const catalog = await readCatalog(client), plan = makePlan(catalog);
+      await writeFile(path.join(directory, stabilization ? "stabilization-plan.json" : "plan.json"), JSON.stringify({ target, at: new Date().toISOString(), ...plan }, null, 2));
       await writeFile(path.join(directory, "review-source.json"), JSON.stringify(catalog, null, 2));
       console.log(JSON.stringify({ target, digest: plan.digest, patches: plan.patches.length, fields: Object.fromEntries([...new Set(plan.patches.map((p) => p.field))].map((field) => [field, plan.patches.filter((p) => p.field === field).length])), unresolved: plan.notes.length }));
       await client.query("rollback"); open = false; return;
     }
     assert.match(expected ?? "", /^[a-f0-9]{64}$/, "Supply the exact reviewed plan digest.");
-    const initialPlan = planCombatFlowCatalog(await readCatalog(client));
+    const initialPlan = makePlan(await readCatalog(client));
     assert.equal(initialPlan.digest, expected, "Catalog changed; regenerate the review.");
     const backupRoot = await mkdtemp(path.join(os.tmpdir(), "serrian-before-combat-flow-"));
     const backupPath = path.join(backupRoot, "serrian_tide_dev.dump");
@@ -56,11 +59,12 @@ async function main() {
     const quote = (name: string) => '"' + name.replaceAll('"', '""') + '"';
     await client.query(`lock table drizzle.__drizzle_migrations, ${tables.map((name) => `public.${quote(name)}`).join(", ")} in share row exclusive mode`);
     await verifyLedger();
-    const catalog = await readCatalog(client), fullPlan = planCombatFlowCatalog(catalog);
+    const catalog = await readCatalog(client), fullPlan = makePlan(catalog);
     const plan = mode === "--apply-m4" ? { ...fullPlan, patches: fullPlan.patches.filter((patch) => patch.name === "M4 Carbine / 3rd Burst" && patch.field === "rounds_per_cadence" && patch.before === 2 && patch.after === 3) } : fullPlan;
     if (mode === "--apply-m4") assert.equal(plan.patches.length, 1, "The explicit M4 correction must be exactly one field.");
     assert.equal(plan.digest, expected, "Catalog changed during backup; review again.");
-    const changedTables = new Set(plan.patches.map((patch) => patch.table));
+    const changedTables = new Set<string>(plan.patches.map((patch) => patch.table));
+    if (plan.mappings.length) changedTables.add("weapon_skill_path_mappings");
     const protectedState = async () => {
       const result: Record<string, unknown> = {};
       for (const table of tables.filter((name) => !changedTables.has(name as "weapon_profiles"))) result[table] = (await client.query(`select count(*)::int count,md5(coalesce(string_agg(h,',' order by h),'')) hash from (select md5(to_jsonb(t)::text) h from public.${quote(table)} t) rows`)).rows[0];
@@ -74,9 +78,15 @@ async function main() {
       const result = await client.query(`update ${quote(patch.table)} set ${quote(patch.field)}=$1 where ${quote(patch.idColumn)}=$2 and ${quote(patch.field)} is not distinct from $3`, [patch.after, patch.id, patch.before]);
       assert.equal(result.rowCount, 1);
     }
+    for (const mapping of plan.mappings) {
+      const inserted = await client.query("insert into weapon_skill_path_mappings (weapon_profile_id,firing_mode_id,endpoint_skill_id,review_state,notes,sort_order,updated_by_user_id) values ($1,null,$2,'approved',$3,0,$4) returning *", [mapping.profileId, mapping.endpointSkillId, mapping.notes, mapping.updatedByUserId]);
+      assert.equal(inserted.rowCount, 1);
+      expectedCatalog.mappings.push(JSON.parse(JSON.stringify(inserted.rows[0])));
+      expectedCatalog.mappings.sort((a, b) => a.id - b.id);
+    }
     assert.deepEqual(await readCatalog(client), expectedCatalog, "Unexpected catalog changes; rollback.");
     assert.deepEqual(await protectedState(), before, "Protected state changed; rollback.");
-    const receipt = { target, at: new Date().toISOString(), digest: plan.digest, backup, patches: plan.patches, protectedTables: Object.keys(before), catalogOnly: true, remaining: planCombatFlowCatalog(expectedCatalog).notes };
+    const receipt = { target, at: new Date().toISOString(), digest: plan.digest, backup, patches: plan.patches, mappings: plan.mappings, protectedTables: Object.keys(before), catalogOnly: true, remaining: planCombatFlowCatalog(expectedCatalog).notes };
     const receiptPath = path.join(directory, `applied-${Date.now()}.json`);
     await writeFile(receiptPath + ".pending", JSON.stringify(receipt, null, 2));
     await client.query("commit"); open = false;

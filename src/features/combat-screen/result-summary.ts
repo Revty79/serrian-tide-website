@@ -3,6 +3,16 @@ import type { RollLedgerEntry } from "@/features/tabletop-operations/roll-runtim
 
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
+/** Use the same frozen evidence in the live report and the historical receipt. */
+export function ordinaryDamageCalculation(value: unknown) {
+  const calculated = object(value), modifiers = object(calculated.damageModifiers);
+  if (!["baseDamage", "extraSuccesses", "armor", "soak", "netDamage"].every((key) => typeof calculated[key] === "number")) return null;
+  const base = typeof calculated.authoredBase === "number" && typeof modifiers.total === "number"
+    ? `${calculated.authoredBase} weapon + ${modifiers.attributeModifier ?? 0} ${modifiers.attribute ?? "attribute"} + ${modifiers.activeModifier ?? 0} active modifiers + ${calculated.weaponHitDamage ?? 0} weapon powers`
+    : `${calculated.baseDamage} base`;
+  return `${base} + ${calculated.extraSuccesses} extra successes - ${calculated.armor} armor - ${calculated.soak} soak = ${calculated.netDamage}`;
+}
+
 /** Format recorded evidence only; never recalculate or infer a hit from a roll number. */
 export function combatRollSummary(roll: Pick<RollLedgerEntry, "effectiveMechanicalSnapshot" | "effectiveResultTotal" | "status">) {
   const result = roll.effectiveMechanicalSnapshot?.resolution;
@@ -38,8 +48,7 @@ export function combatEffectSummary(effect: Pick<ActionEffectRowView, "effectTyp
   if (effect.status === "declined") summary = roll.succeeded === false ? "Miss - no damage applied."
     : `No damage applied.${effect.amendmentReason ? ` Recorded decision: ${effect.amendmentReason}` : " See the recorded ruling."}`;
   // A failed attack never delivered the calculated potential hit.
-  if (roll.succeeded !== false && ["baseDamage", "extraSuccesses", "armor", "soak", "netDamage"].every((key) => typeof calculated[key] === "number")) {
-    summary += ` Damage calculation: ${calculated.baseDamage} base + ${calculated.extraSuccesses} extra successes - ${calculated.armor} armor - ${calculated.soak} soak = ${calculated.netDamage}.`;
-  }
+  const calculation = roll.succeeded !== false ? ordinaryDamageCalculation(calculated) : null;
+  if (calculation) summary += ` Damage calculation: ${calculation}.`;
   return summary;
 }

@@ -21,6 +21,7 @@ export const SCREEN_PASSWORD = "Combat-Browser-Only-2026!";
 export async function screenFixture(tx: Tx, label: string, simultaneous = false) {
   if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true") throw new Error("Only the disposable screen harness may seed these fixtures.");
   const f = await completionServiceFixture(tx, label), playerId = `screen-player-${crypto.randomUUID()}`;
+  await tx.update(weaponProfile).set({ rangeMode: "melee" }).where(eq(weaponProfile.itemId, f.weaponId));
   await tx.insert(campaignInventoryItem).values({ campaignId: f.campaignId, itemId: f.weaponId, sortOrder: 0 });
   await tx.insert(user).values({ id: playerId, name: "Screen Player", email: `${playerId}@example.invalid`, emailVerified: true, username: playerId });
   await tx.update(user).set({ emailVerified: true }).where(eq(user.id, f.godId));
@@ -63,6 +64,8 @@ export async function addScreenSpell(tx: Tx, f: Awaited<ReturnType<typeof screen
 }
 export async function addScreenRecoverySpell(tx: Tx, f: Awaited<ReturnType<typeof screenFixture>>) {
   const learned = await addLearnedCombatSpell(tx, f, { name: "Vital Wellspring" });
+  // 20 Channeling × 8 Base Magic = 160 Mana: Grand Master revival authority.
+  await tx.update(campaignCharacterProfile).set({ baseMagicSteps: 12 }).where(eq(campaignCharacterProfile.characterId, f.heroId));
   const authored = recoveryCatalog.records.find((entry) => entry.name === "Vital Wellspring" && entry.extension_type === "spell-construction");
   if (!authored) throw new Error("The supported Vital Wellspring browser fixture is missing its authored catalog record.");
   const document = { ...authored.data_json, frameworkSkillId: learned.spell.frameworkSkillId };

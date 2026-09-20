@@ -96,6 +96,9 @@ test("owned activated Ability shares its retained use-limit ledger with combat a
       mode: "automatic-no-roll", governing: null, effectScaling: {}, reason: "The authored Mark activates without a Roll." });
     await tx.update(participant).set({ participationStatus: "active" }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
     const draft = { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "derived-ability" as const, sourceRef, actionKind: "ability-use", windowKind: "ordinary" as const };
+    const untargeted = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...draft, targetCharacterIds: [] });
+    await assert.rejects(lockActionDeclarationInTransaction(tx, f.context, f.player, untargeted), /Choose an explicit target/);
+    assert.equal((await tx.select().from(characterDerivedAbilityUse).where(eq(characterDerivedAbilityUse.characterId, f.heroId))).length, 0);
     const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, draft);
     await lockActionDeclarationInTransaction(tx, f.context, f.player, id);
     const pendingId = await commitActionDeclarationInTransaction(tx, f.context, f.player, id);
