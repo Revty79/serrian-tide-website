@@ -22,6 +22,8 @@ type Props<T extends { effects: CreatureAbilityEffectDefinition[] }> = {
   title?: string;
   note?: string;
   emptyMessage?: string;
+  compact?: boolean;
+  addLabel?: string;
   skillOptions?: Array<{ id: number; name: string }>;
   onChange: (ability: T) => void;
 };
@@ -42,7 +44,7 @@ function durationFor(kind: DurationKind) {
     : { kind, value: null };
 }
 
-export function CreatureAbilityEffectsEditor<T extends { effects: CreatureAbilityEffectDefinition[] }>({ ability, skillOptions = [], onChange, title = "Structured Effects", note = "Structured Effects use the shared Active State bridge. Mechanical Notes above remain descriptive and are never parsed.", emptyMessage = "No structured effects. At runtime, existing descriptive instructions become one temporary Manual instruction." }: Props<T>) {
+export function CreatureAbilityEffectsEditor<T extends { effects: CreatureAbilityEffectDefinition[] }>({ ability, skillOptions = [], onChange, compact = false, addLabel = "Add Effect", title = "Structured Effects", note = "Structured Effects use the shared Active State bridge. Mechanical Notes above remain descriptive and are never parsed.", emptyMessage = "No structured effects. At runtime, existing descriptive instructions become one temporary Manual instruction." }: Props<T>) {
   const preserveScroll = useInPlaceScrollPreservation();
   function add() {
     const effectKey = createCreatureAbilityEffectKey(ability.effects);
@@ -75,8 +77,9 @@ export function CreatureAbilityEffectsEditor<T extends { effects: CreatureAbilit
     onChange({ ...ability, effects: reorderCreatureAbilityEffects(effects) });
   }
 
+  if (compact && !ability.effects.length) return <section className="creature-ability-effects creature-ability-effects--compact"><button type="button" className="st-button" onClick={() => void preserveScroll(add)}>{addLabel}</button></section>;
   return <section className="creature-ability-effects">
-    <header><div><p>MECHANICAL EFFECTS</p><h4>{title}</h4></div><button type="button" onClick={() => void preserveScroll(add)}>Add Effect</button></header>
+    <header><div>{!compact && <p>MECHANICAL EFFECTS</p>}<h4>{title}</h4></div><button type="button" onClick={() => void preserveScroll(add)}>{addLabel}</button></header>
     <p className="creature-ability-effects__note">{note}</p>
     {!ability.effects.length ? <p className="creature-ability-effects__empty">{emptyMessage}</p> : null}
     {ability.effects.map((entry, index) => {

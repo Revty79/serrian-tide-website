@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { authorInteractionRules, checkRejectedPercentages, checkRaceInteractions } from "./interaction-rule-browser-checks";
+import { assertAttackPrimaryFields, checkOrdinaryCreatureUi } from "./creature-authoring-ui-checks";
+import { authorInteractionRules, checkRejectedPercentages, checkRaceInteractions, setDetailsOpen } from "./interaction-rule-browser-checks";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -52,7 +53,7 @@ async function main() {
     await page.goto(`${base}/heavens/creatures`); console.log("PASS: Creature editor loaded");
     await page.getByRole("button", { name: "New Creature", exact: true }).click();
     await page.getByLabel("Canonical Name").fill("Authoring Test Creature");
-    await page.getByRole("button", { name: "Attributes & Movement", exact: true }).click();
+    await page.getByRole("button", { name: "Stats & Movement", exact: true }).click();
     for (const input of await page.locator(".creature-attribute-row input[type=number]").all()) await input.fill("30");
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();
     await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
@@ -62,16 +63,42 @@ async function main() {
     await pool.query("insert into creature_abilities (creature_id,canonical_id,ability_name,ability_type,activation,mechanical_effect) values ($1,'ABL-AUTHORING-LEGACY','Legacy Trait','Unknown old origin','While awake','Keep the old mechanical notes')", [creatureId]);
     await pool.query("insert into creature_uses (creature_id,use_name,notes) values ($1,'Hide','Harvest intact')", [creatureId]);
     await pool.query("insert into creature_defenses (creature_id,defense_type,against,value,notes) values ($1,'Resistance','fire','5','Unchanged defense')", [creatureId]);
+    await pool.query("update creature_attacks set required_anatomy='Teeth',requirements='Old bite requirement',uses_recharge='Once per scene' where creature_id=$1", [creatureId]);
+    await pool.query("update creature_abilities set requirements='Old ability requirement',uses_recharge='Old recharge' where creature_id=$1", [creatureId]);
+    const legacyValues = async () => ({
+      attacks: (await pool.query("select range_reach,required_anatomy,requirements,uses_recharge,special_effect from creature_attacks where creature_id=$1 order by canonical_id", [creatureId])).rows,
+      abilities: (await pool.query("select activation,requirements,uses_recharge,mechanical_effect from creature_abilities where creature_id=$1 order by canonical_id", [creatureId])).rows,
+      defenses: (await pool.query("select defense_type,against,value,notes,cr_impact,sort_order from creature_defenses where creature_id=$1 order by sort_order", [creatureId])).rows,
+      uses: (await pool.query("select use_name,notes,sort_order from creature_uses where creature_id=$1 order by sort_order", [creatureId])).rows,
+    });
+    const legacyBefore = await legacyValues();
     const openMaster = async () => { await page.goto(`${base}/heavens/creatures`); await page.locator(".skill-library__row").filter({ hasText: "Authoring Test Creature" }).click(); };
     await openMaster();
     assert.equal(await page.getByLabel("Use Name", { exact: true }).inputValue(), "Hide");
-    await page.getByRole("button", { name: "Traits, Abilities & Defenses", exact: true }).click();
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
     assert.equal(await page.getByLabel("Origin", { exact: true }).inputValue(), "Unknown old origin");
     assert.equal(await page.getByLabel("Activation Type", { exact: true }).inputValue(), "");
     assert.equal(await page.getByLabel("Use Name", { exact: true }).count(), 0);
-    await page.getByLabel("Notes", { exact: true }).fill("Legacy record saved without reinterpretation");
+    assert.equal(await page.getByLabel("Origin", { exact: true }).isVisible(), false);
+    assert.equal(await page.getByText("Keep the old mechanical notes", { exact: true }).isVisible(), false);
+    assert.equal(await page.getByRole("button", { name: "Add Defense", exact: true }).count(), 0);
+    assert.equal(await page.getByText("Unchanged defense", { exact: true }).isVisible(), false);
+    await page.getByLabel("Description", { exact: true }).fill("Legacy record saved without reinterpretation");
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();
     await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
+    assert.deepEqual(await legacyValues(), legacyBefore, "Collapsed legacy values and visible Harvest & Utility survive save");
+    const legacyAbility = page.getByRole("region", { name: "Ability authoring", exact: true });
+    await setDetailsOpen(legacyAbility, "Legacy Data", true);
+    assert.equal(await legacyAbility.getByText("Keep the old mechanical notes", { exact: true }).isVisible(), true);
+    assert.equal(await legacyAbility.locator("details").filter({ has: page.locator("summary").filter({ hasText: /^Legacy Data$/ }) }).locator("input,textarea,select").count(), 0);
+    await setDetailsOpen(legacyAbility, "Legacy Data", false);
+    const defenseLegacy = page.locator("details").filter({ has: page.locator("summary").filter({ hasText: /^Legacy Defense Data$/ }) });
+    await defenseLegacy.locator("summary").click();
+    assert.equal(await defenseLegacy.getByText(/Unchanged defense/).isVisible(), true);
+    assert.equal(await defenseLegacy.locator("input,textarea,select,button").count(), 0);
+    await defenseLegacy.locator("summary").click();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    assert.equal(await page.locator(".creature-preview__chips").getByText(/^Resistance/).count(), 0, "Legacy Defenses stay in the collapsed reference section");
     console.log("PASS: legacy Creature save through authenticated browser");
     const legacy = await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId));
     assert.ok(legacy);
@@ -83,7 +110,7 @@ async function main() {
     assert.equal(parsedOld.core.interactionRules, undefined);
     assert.equal(parsedOld.attacks[0].specialEffect, "Legacy venom remains descriptive"); assert.equal(parsedOld.abilities[0].mechanicalEffect, "Keep the old mechanical notes");
 
-    await page.getByRole("button", { name: "Attacks & Skills", exact: true }).click();
+    await page.getByRole("button", { name: "Combat", exact: true }).click();
     const attack = page.locator(".creature-edit-card").first();
     assert.equal(await attack.getByLabel("Attack Initiative", { exact: true }).getAttribute("min"), "0.01");
     await attack.getByLabel("Attack Initiative", { exact: true }).fill("4");
@@ -91,12 +118,13 @@ async function main() {
       await attack.getByLabel("Attack Mode", { exact: true }).selectOption(mode);
       assert.equal(await attack.getByLabel("Reach", { exact: true }).count(), mode === "melee" || mode === "hybrid" ? 1 : 0);
       assert.equal(await attack.getByLabel("Short Range", { exact: true }).count(), mode === "melee" ? 0 : 1);
+      assert.equal(await attack.getByLabel("Distance Unit", { exact: true }).count(), mode === "melee" ? 0 : 1);
     }
     await attack.getByLabel("Distance Unit", { exact: true }).fill("feet"); await attack.getByLabel("Reach", { exact: true }).fill("3");
     for (const [band, value] of [["Short", "10"], ["Medium", "20"], ["Long", "30"]]) await attack.getByLabel(`${band} Range`, { exact: true }).fill(value);
     await attack.getByLabel("Magical", { exact: true }).selectOption("true");
     for (const title of ["Venom condition", "Manual follow-up"]) {
-      await attack.getByRole("button", { name: "Add Effect", exact: true }).click();
+      await attack.getByRole("button", { name: "Add On-Hit Effect", exact: true }).click();
       const effect = attack.locator(".creature-ability-effects > article").last();
       await effect.getByLabel("Title", { exact: true }).fill(title); await effect.getByLabel("Instructions", { exact: true }).fill(`${title} instructions`);
     }
@@ -105,7 +133,7 @@ async function main() {
     await attack.getByRole("button", { name: "Build Magic Construction", exact: true }).click();
     await page.screenshot({ path: path.join(artifacts, "attack-desktop.png"), fullPage: true });
 
-    await page.getByRole("button", { name: "Traits, Abilities & Defenses", exact: true }).click();
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
     for (const [index, activation] of ["passive", "activated", "triggered", "reaction"].entries()) {
       if (index) await page.getByRole("button", { name: "Add Ability", exact: true }).click();
       const ability = page.locator(".creature-edit-card").nth(index);
@@ -116,6 +144,9 @@ async function main() {
         assert.equal(await ability.getByLabel("Ability Initiative", { exact: true }).getAttribute("min"), "0.01");
         await ability.getByLabel("Ability Initiative", { exact: true }).fill("3");
       }
+      assert.equal(await ability.getByRole("button", { name: "Add Use Condition", exact: true }).isVisible(), false);
+      await setDetailsOpen(ability, "Advanced Ability Settings", true);
+      if (activation === "passive") assert.equal(await ability.getByRole("button", { name: "Add Resource Cost", exact: true }).count(), 0);
       await ability.getByRole("button", { name: "Add Use Condition", exact: true }).click();
       await ability.getByLabel("Condition Notes", { exact: true }).fill(`${activation} authoring condition`);
       if (activation === "activated") {
@@ -139,6 +170,12 @@ async function main() {
     console.log("PASS: Creature shared Interaction Rules authored and saved without changing calculated CR");
     const template = await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId));
     assert.ok(template);
+    await openMaster();
+    await page.getByRole("button", { name: "Save Creature", exact: true }).click();
+    await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
+    const untouched = await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId));
+    for (const field of ["attacks", "abilities", "defenses", "uses"] as const) assert.deepEqual(untouched![field], template[field], `${field} must survive an unopened-card save`);
+    assert.deepEqual(untouched!.core.interactionRules, template.core.interactionRules);
     assert.equal(template.attacks[0].authoring?.initiativeCost, 4); assert.equal(template.attacks[0].authoring?.mode, "hybrid");
     assert.deepEqual(template.attacks[0].authoring?.onHitEffects.map((effect) => effect.effectKey), ["effect-2", "effect-1"]);
     assert.equal(template.attacks[0].authoring?.magical, true); assert.ok(template.attacks[0].authoring?.magic?.document);
@@ -169,7 +206,9 @@ async function main() {
     await page.goto(`${base}/heavens/npcs/${npcId}`);
     await page.getByRole("button", { name: "Overview", exact: true }).click();
     assert.equal(await page.getByLabel("Use Notes", { exact: true }).inputValue(), "Harvest intact");
-    await page.getByRole("button", { name: "Attacks & Skills", exact: true }).click();
+    await page.getByRole("button", { name: "Combat", exact: true }).click();
+    await assertAttackPrimaryFields(page.getByRole("region", { name: "Attack authoring", exact: true }));
+    assert.equal(await page.getByText("Legacy venom remains descriptive", { exact: true }).isVisible(), false);
     assert.equal(await page.getByLabel("Attack Initiative", { exact: true }).inputValue(), "4");
     const expectRejectedNpcSave = async (message: string) => {
       await page.getByRole("button", { name: "Save Individual", exact: true }).click();
@@ -182,13 +221,14 @@ async function main() {
       await expectRejectedNpcSave("Attack Initiative must be greater than zero");
     }
     await page.getByLabel("Attack Initiative", { exact: true }).fill("5");
-    await page.getByRole("button", { name: "Traits, Abilities & Defenses", exact: true }).click();
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
     assert.equal(await page.getByLabel("Origin", { exact: true }).first().inputValue(), "Unknown old origin");
     for (const invalidInitiative of ["0", "-1"]) {
       await page.getByLabel("Ability Initiative", { exact: true }).first().fill(invalidInitiative);
       await expectRejectedNpcSave("Ability Initiative must be greater than zero");
     }
     await page.getByLabel("Ability Initiative", { exact: true }).first().fill("3");
+    await setDetailsOpen(page.getByRole("region", { name: "Ability authoring", exact: true }).nth(1), "Advanced Ability Settings", true);
     for (const invalidTarget of ["0", "-1", "101", ""]) {
       await page.getByLabel("Fixed Roll Target %", { exact: true }).fill(invalidTarget);
       await expectRejectedNpcSave(invalidTarget === "" ? "Fixed-roll resolution requires a target percentage" : "Fixed Roll Target");
@@ -204,6 +244,9 @@ async function main() {
     assert.equal(JSON.parse(npcAfter.current_snapshot_json).core.interactionRules.rules[0].name, "Individual Silver Requirement");
     assert.equal((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.core.interactionRules?.rules[0].name, "Silver or Magical");
     assert.deepEqual(JSON.parse(npcAfter.current_snapshot_json).abilities, template.abilities);
+    assert.deepEqual(JSON.parse(npcAfter.current_snapshot_json).defenses, template.defenses);
+    assert.deepEqual(JSON.parse(npcAfter.current_snapshot_json).uses, template.uses);
+    for (const field of ["rangeReach", "requiredAnatomy", "requirements", "usesRecharge", "specialEffect"] as const) assert.equal(JSON.parse(npcAfter.current_snapshot_json).attacks[0][field], template.attacks[0][field]);
     assert.equal((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.attacks[0].authoring?.initiativeCost, 4);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(artifacts, "abilities-phone.png"), fullPage: true });
@@ -223,7 +266,7 @@ async function main() {
     assert.deepEqual((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.attacks, template.attacks);
     await page.getByRole("button", { name: "Active", exact: true }).click();
     await page.locator(".skill-library__row").filter({ hasText: "Authoring Test Creature" }).click();
-    await page.getByRole("button", { name: "Traits, Abilities & Defenses", exact: true }).click();
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
     assert.equal(await page.getByLabel("Rule Name", { exact: true }).first().inputValue(), "Silver or Magical");
     assert.deepEqual((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.core.interactionRules, template.core.interactionRules);
     await page.getByRole("button", { name: "Variants & CR", exact: true }).click();
@@ -233,8 +276,9 @@ async function main() {
     const variant = (await pool.query("select interaction_rules_json from creatures where canonical_name='Interaction Variant'")).rows[0].interaction_rules_json;
     assert.deepEqual(variant, template.core.interactionRules);
     await checkRaceInteractions(page, pool, base, artifacts);
+    await checkOrdinaryCreatureUi(page, base, artifacts);
     assert.deepEqual(errors, []);
-    const result = { passed: true, checks: ["shared Creature/Race Interaction Rules", "all matcher types", "ANY/ALL", "percentage validation", "stable keys and ordering", "NPC interaction editing", "variant interaction copy", "Race archive/restore", "old records load/save", "legacy snapshots", "conditional range UI", "ordered On-Hit Effects", "shared magic editor", "four activation types", "costs/recharge", "Origin preservation", "Harvest & Utility", "NPC construction and individual editing", "direct encounter snapshots", "archive/restore", "phone authoring layout"], errors };
+    const result = { passed: true, checks: ["simple Attack and Ability cards", "collapsed legacy data preservation", "unchanged Harvest & Utility", "progressive rule matching", "unopened structured profile preservation", "shared Creature/Race Interaction Rules", "all matcher types", "ANY/ALL", "percentage validation", "stable keys and ordering", "NPC interaction editing", "variant interaction copy", "Race archive/restore", "old records load/save", "legacy snapshots", "conditional range UI", "ordered On-Hit Effects", "shared magic editor", "four activation types", "costs/recharge", "Origin preservation", "Harvest & Utility", "NPC construction and individual editing", "direct encounter snapshots", "archive/restore", "phone authoring layout"], errors };
     await writeFile(path.join(artifacts, "results.json"), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     const lastPage = browser?.contexts()[0]?.pages()[0];

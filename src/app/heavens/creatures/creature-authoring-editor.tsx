@@ -1,5 +1,7 @@
 "use client";
 
+import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
+import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
 import { Children, cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from "react";
 import {
   CREATURE_ABILITY_ORIGINS, CREATURE_ATTACK_MODES, CREATURE_RESOLUTION_MODES,
@@ -64,51 +66,76 @@ function MagicConstruction({ value, name, onChange }: { value: CreatureMagicCons
   </details>;
 }
 
-export function CreatureAttackAuthoringEditor({ value, name, skillOptions, onChange }: {
-  value: CreatureAttackAuthoring | null | undefined; name: string;
+export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange }: {
+  attack: CreatureDraft["attacks"][number];
   skillOptions: Array<{ id: number; name: string }>;
-  onChange: (value: CreatureAttackAuthoring) => void;
+  onChange: (attack: CreatureDraft["attacks"][number]) => void;
 }) {
-  const data = value ?? emptyCreatureAttackAuthoring();
-  const patch = (update: Partial<CreatureAttackAuthoring>) => onChange({ ...data, ...update });
+  const data = attack.authoring ?? emptyCreatureAttackAuthoring();
+  const patch = (update: Partial<CreatureAttackAuthoring>) => onChange({ ...attack, authoring: { ...data, ...update } });
   const ranged = data.mode === "ranged" || data.mode === "hybrid" || data.mode === "aoe";
-  return <section className="creature-authoring" aria-label="Attack authoring">
-    <h4>Attack Setup</h4>
-    <p>Attack % controls the attack roll. Damage is the complete Bestiary base damage; no extra Strength or Dexterity is authored here. New setup fields are saved for later combat integration.</p>
-    <div className="creature-authoring__grid">
+  return <section className="creature-authoring creature-authoring--card" aria-label="Attack authoring">
+    <div className="creature-authoring__grid" data-attack-primary>
+      <Field name="Attack Name"><input className="st-control" value={attack.attackName} onChange={(e) => onChange({ ...attack, attackName: e.target.value })} /></Field>
+      <Field name="Attack %"><input className="st-control" type="number" step="any" value={attack.attackPercentage ?? ""} onChange={(e) => onChange({ ...attack, attackPercentage: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
       <NumberField name="Attack Initiative" min={0.01} value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} />
+      <Field name="Damage"><input className="st-control" value={attack.damage ?? ""} onChange={(e) => onChange({ ...attack, damage: e.target.value || null })} /></Field>
+      <Field name="Damage Type"><input className="st-control" value={attack.damageType} onChange={(e) => onChange({ ...attack, damageType: e.target.value })} /></Field>
       <Field name="Attack Mode"><select className="st-control" value={data.mode ?? ""} onChange={(event) => patch({ mode: event.target.value as CreatureAttackAuthoring["mode"] || null })}><option value="">Unspecified</option>{CREATURE_ATTACK_MODES.map((mode) => <option value={mode} key={mode}>{label(mode)}</option>)}</select></Field>
       <Magical value={data.magical} construction={Boolean(data.magic)} onChange={(magical) => patch({ magical })} />
-      {data.mode ? <Field name="Distance Unit"><input className="st-control" placeholder="e.g. feet" value={data.range.unit ?? ""} onChange={(event) => patch({ range: { ...data.range, unit: event.target.value || null } })} /></Field> : null}
-      {data.mode === "melee" || data.mode === "hybrid" ? <NumberField name="Reach" value={data.range.reach} onChange={(reach) => patch({ range: { ...data.range, reach } })} /> : null}
-      {ranged ? (["short", "medium", "long"] as const).map((band) => <NumberField key={band} name={`${label(band)} Range`} value={data.range[band]} onChange={(distance) => patch({ range: { ...data.range, [band]: distance } })} />) : null}
     </div>
-    {data.mode === "aoe" ? <p>Range to the effect is optional. Describe its area in the existing notes or Magic construction.</p> : null}
-    {data.mode === "melee" ? <p>Reach is optional authoring data. A melee attack does not require a target distance.</p> : null}
-    <CreatureAbilityEffectsEditor ability={{ effects: data.onHitEffects }} skillOptions={skillOptions}
-      title="On-Hit Effects" note="These ordered effects belong to a successful hit, without a separate activation. Automatic application will be connected in a later combat step. Use Manual / G.O.D. Resolution for effects that need a ruling."
-      emptyMessage="No structured On-Hit Effects. Special Effect text remains available as a legacy reference."
+    {data.mode && <div className="creature-authoring__grid">
+      {data.mode === "melee" || data.mode === "hybrid" ? <NumberField name="Reach" value={data.range.reach} onChange={(reach) => patch({ range: { ...data.range, reach } })} /> : null}
+      {data.mode === "melee" && data.range.reach !== null ? <Field name="Reach Unit"><input className="st-control" placeholder="e.g. feet" value={data.range.unit ?? ""} onChange={(event) => patch({ range: { ...data.range, unit: event.target.value || null } })} /></Field> : null}
+      {ranged ? <Field name="Distance Unit"><input className="st-control" placeholder="e.g. feet" value={data.range.unit ?? ""} onChange={(event) => patch({ range: { ...data.range, unit: event.target.value || null } })} /></Field> : null}
+      {ranged ? (["short", "medium", "long"] as const).map((band) => <NumberField key={band} name={`${label(band)} Range`} value={data.range[band]} onChange={(distance) => patch({ range: { ...data.range, [band]: distance } })} />) : null}
+    </div>}
+    {data.mode === "aoe" ? <p>Optional range to the effect. Describe the area in Notes or Magic Construction.</p> : null}
+    {data.mode === "melee" ? <p>Reach{data.range.unit ? ` (${data.range.unit})` : ""} is optional. Melee does not require a target distance.</p> : null}
+    <Field name="Notes"><textarea className="st-control" rows={2} value={attack.notes} onChange={(e) => onChange({ ...attack, notes: e.target.value })} /></Field>
+    <CreatureAbilityEffectsEditor ability={{ effects: data.onHitEffects }} skillOptions={skillOptions} compact addLabel="Add On-Hit Effect"
+      title="On-Hit Effects" note="Optional effects after a successful hit."
       onChange={({ effects }) => patch({ onHitEffects: effects })} />
-    <MagicConstruction value={data.magic} name={name} onChange={(magic) => patch({ magic, magical: magic ? true : data.magical })} />
+    <MagicConstruction value={data.magic} name={attack.attackName} onChange={(magic) => patch({ magic, magical: magic ? true : data.magical })} />
+    <LegacyAuthoringData entries={[
+      { label: "Range / Reach", value: attack.rangeReach }, { label: "Required Anatomy", value: attack.requiredAnatomy },
+      { label: "Requirements", value: attack.requirements }, { label: "Uses / Recharge", value: attack.usesRecharge },
+      { label: "Special Effect", value: attack.specialEffect },
+    ]} />
   </section>;
 }
 
-export function CreatureAbilityAuthoringEditor({ value, name, onChange }: {
-  value: CreatureAbilityAuthoring | null | undefined; name: string; onChange: (value: CreatureAbilityAuthoring) => void;
+export function LegacyCreatureDefenses({ defenses }: { defenses: CreatureDraft["defenses"] }) {
+  return <LegacyAuthoringData title="Legacy Defense Data" entries={defenses.map((defense, index) => ({
+    label: defense.defenseType || `Defense ${index + 1}`,
+    value: [defense.against, defense.value, defense.notes, `CR Impact: ${defense.crImpact}`].filter(Boolean).join("\n"),
+  }))} />;
+}
+
+export function CreatureAbilityAuthoringEditor({ ability, skillOptions, onChange }: {
+  ability: CreatureDraft["abilities"][number];
+  skillOptions: Array<{ id: number; name: string }>;
+  onChange: (ability: CreatureDraft["abilities"][number]) => void;
 }) {
-  const data = value ?? emptyCreatureAbilityAuthoring();
-  const patch = (update: Partial<CreatureAbilityAuthoring>) => onChange({ ...data, ...update });
+  const data = ability.authoring ?? emptyCreatureAbilityAuthoring();
+  const patch = (update: Partial<CreatureAbilityAuthoring>) => onChange({ ...ability, authoring: { ...data, ...update } });
   const passive = data.activationType === "passive";
   const active = data.activationType !== null && !passive;
-  return <section className="creature-authoring" aria-label="Ability authoring">
-    <h4>Trait / Ability Setup</h4>
-    <p>Choose how this trait or ability is intended to operate. This setup is saved for later combat integration.</p>
+  return <section className="creature-authoring creature-authoring--card" aria-label="Ability authoring">
+    <Field name="Ability Name"><input className="st-control" value={ability.abilityName} onChange={(e) => onChange({ ...ability, abilityName: e.target.value })} /></Field>
+    <Field name="Description"><textarea className="st-control" rows={3} value={ability.description} onChange={(e) => onChange({ ...ability, description: e.target.value })} /></Field>
     <div className="creature-authoring__grid">
       <Field name="Activation Type"><select className="st-control" value={data.activationType ?? ""} onChange={(event) => {
         const activationType = event.target.value as CreatureAbilityAuthoring["activationType"] || null;
         patch({ activationType, ...(activationType === "passive" ? { initiativeCost: null, costs: [], resolutionMode: "automatic", fixedRollTarget: null } : {}) });
       }}><option value="">Unspecified</option>{DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => <option value={type} key={type}>{label(type)}</option>)}</select></Field>
       {active ? <NumberField name="Ability Initiative" min={0.01} value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} /> : null}
+    </div>
+    <CreatureAbilityEffectsEditor ability={ability} skillOptions={skillOptions} onChange={onChange} compact title="Effects" note="Choose what this ability does." />
+    <details className="creature-authoring__advanced"><summary>Advanced Ability Settings</summary>
+    <div className="creature-authoring__grid">
+      <CreatureOriginField value={ability.abilityType} onChange={(abilityType) => onChange({ ...ability, abilityType })} />
+      <Field name="Threat / CR Impact"><select className="st-control" value={ability.crImpact} onChange={(e) => onChange({ ...ability, crImpact: e.target.value as CreatureCrImpact })}>{CREATURE_CR_IMPACTS.map((impact) => <option key={impact}>{impact}</option>)}</select></Field>
       {data.activationType ? <Field name="Resolution Mode"><select className="st-control" value={data.resolutionMode} onChange={(event) => patch({ resolutionMode: event.target.value as CreatureAbilityAuthoring["resolutionMode"], fixedRollTarget: null })}>{CREATURE_RESOLUTION_MODES.filter((mode) => !passive || mode !== "fixed-roll").map((mode) => <option key={mode} value={mode}>{label(mode)}</option>)}</select></Field> : null}
       {active && data.resolutionMode === "fixed-roll" ? <NumberField name="Fixed Roll Target %" min={1} max={100} value={data.fixedRollTarget} onChange={(fixedRollTarget) => patch({ fixedRollTarget })} /> : null}
       <Field name="Targeting Notes"><input className="st-control" value={data.targeting} onChange={(event) => patch({ targeting: event.target.value })} placeholder="Targets or manual selection instructions" /></Field>
@@ -155,6 +182,12 @@ export function CreatureAbilityAuthoringEditor({ value, name, onChange }: {
       })}
       <button type="button" className="st-button" onClick={() => patch({ useLimits: [...data.useLimits, { maximumUses: 1, refreshScope: "encounter", refreshKey: null, notes: "", sortOrder: data.useLimits.length }] })}>Add Use Limit</button>
     </fieldset> : null}
-    <MagicConstruction value={data.magic} name={name} onChange={(magic) => patch({ magic, magical: magic ? true : data.magical })} />
+    <Field name="Notes"><textarea className="st-control" rows={2} value={ability.notes} onChange={(e) => onChange({ ...ability, notes: e.target.value })} /></Field>
+    <MagicConstruction value={data.magic} name={ability.abilityName} onChange={(magic) => patch({ magic, magical: magic ? true : data.magical })} />
+    </details>
+    <LegacyAuthoringData entries={[
+      { label: "Activation", value: ability.activation }, { label: "Requirements", value: ability.requirements },
+      { label: "Uses / Recharge", value: ability.usesRecharge }, { label: "Mechanical Notes", value: ability.mechanicalEffect },
+    ]} />
   </section>;
 }

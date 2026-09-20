@@ -1,5 +1,7 @@
 "use client";
 
+import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
+
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 
 import Link from "next/link";
@@ -27,7 +29,7 @@ type Tab = "overview" | "mechanics" | "quirk" | "skills" | "culture" | "preview"
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
-  { id: "mechanics", label: "Attributes & Movement" },
+  { id: "mechanics", label: "Mechanics" },
   { id: "quirk", label: "Quirk" },
   { id: "skills", label: "Skills & Abilities" },
   { id: "culture", label: "Culture & Play" },
@@ -315,15 +317,14 @@ function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Rac
       <Field label="Maximum Age"><input type="number" min={0} value={core.ageMax ?? ""} onChange={(e) => setCore({ ageMax: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
       <Field label="Physical Characteristics" wide><textarea rows={5} value={core.physicalCharacteristics} onChange={(e) => setCore({ physicalCharacteristics: e.target.value })} /></Field>
       <Field label="Physical Description" wide><textarea rows={5} value={core.physicalDescription} onChange={(e) => setCore({ physicalDescription: e.target.value })} /></Field>
-      <Field label="Legacy Description" wide><textarea rows={5} value={core.legacyDescription} onChange={(e) => setCore({ legacyDescription: e.target.value })} /></Field>
     </div>
+    <LegacyAuthoringData entries={[{ label: "Legacy Description", value: core.legacyDescription }]} />
   </div>;
 }
 
 function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceDraft) => void }) {
   const preserveScroll = useInPlaceScrollPreservation();
   return <div className="race-section">
-    <InteractionRulesEditor owner="race" value={draft.core.interactionRules} onChange={(interactionRules) => onChange({ ...draft, core: { ...draft.core, interactionRules } })} />
     <div className="race-subheading"><div><p>RACIAL LIMITS</p><h3>Attribute Caps</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, attributeCaps: [...draft.attributeCaps, { attributeKey: "", maxValue: 50, sortOrder: draft.attributeCaps.length }] }))}>Add Attribute</button></div>
     <div className="race-row-list">{draft.attributeCaps.map((cap, index) => <div className="race-repeat-row" key={`${cap.attributeKey}-${index}`}>
       <input placeholder="Attribute" value={cap.attributeKey} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, attributeKey: e.target.value } : entry) })} />
@@ -337,6 +338,7 @@ function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Ra
       <input placeholder="Notes" value={movement.notes} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} />
       <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: draft.movementModes.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
+    <InteractionRulesEditor owner="race" value={draft.core.interactionRules} onChange={(interactionRules) => onChange({ ...draft, core: { ...draft.core, interactionRules } })} />
   </div>;
 }
 

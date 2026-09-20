@@ -9,3 +9,7 @@
 .help { margin: 0; color: var(--st-text-secondary); font-size: .9rem; line-height: 1.5; }
 .condition { display: grid; gap: .75rem; padding: .75rem; border: 1px solid var(--st-border); border-radius: .5rem; background: var(--st-surface-soft); min-width: 0; }
 .condition > button, .rule > button { justify-self: start; }
+
+.advanced { min-width: 0; border-top: 1px solid var(--st-border); padding-top: .75rem; }
+.advanced summary { cursor: pointer; color: var(--st-text-secondary); }
+.advanced > :not(summary) { margin-top: 1rem; }

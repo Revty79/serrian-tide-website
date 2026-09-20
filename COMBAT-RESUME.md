@@ -1,5 +1,15 @@
 # Combat resumption handoff
 
+## Step 2 UI supplement completed for review (20 September 2026)
+
+**Parent revision:** `709b2276cf50906ec8733f62126ea899bb0529c3`. Brannan accepted the underlying Interaction Rule architecture and requested a focused UI cleanup before accepting Step 2. His correction explicitly excludes Uses / Harvest & Utility from this work.
+
+- Master Creatures and NPC individuals share primary Attack/Ability forms. Attack Initiative sits alongside Name, Attack %, Damage, Type and Mode. Optional On-Hit Effects start with an add button; Magic stays collapsed. Ability primary fields are Name, Description, Activation, applicable Initiative and Effects; optional settings live under Advanced Ability Settings.
+- Populated legacy Attack/Ability text and Race Legacy Description are collapsed read-only references. Existing Defenses appear under one collapsed Legacy Defense Data section without creation controls. All values remain in drafts/storage. **Harvest & Utility stays visible and editable with its component and both Creature Overview implementations unchanged.**
+- Rules expose common conditions and applicable Amount/Healing percentages first, ANY/ALL only with multiple conditions, and Advanced Matching for additional types, scopes, relationships, notes and CR. Race Mechanics orders Attributes, Movement, then rules. Creature tabs use Stats & Movement, Health & Protection, Combat, and Abilities & Defenses. Scoped responsive CSS fixes clipped Creature cards/Save on phones.
+- Validation: **1,432/1,432 feature tests**, expanded disposable Creature/Race/NPC browser workflows, hidden legacy/profile preservation, old/new snapshots, variants, lifecycle, 390-pixel viewport checks and mobile Save, TypeScript, changed-file lint, production build and diff checks all pass. [Full supplement report and exact files](docs/reports/creature-authoring-ui-supplement-2026-09-20.md).
+- No accepted domain, schema, migration, save service, combat or protection changes. No DEV/catalog edits, push or deployment. **Stop for supplement review; Step 3/Natural-vs-Worn has not started.** This supersedes the Step 2 UI descriptions below, not their accepted authoring semantics.
+
 ## Creature and Race Interaction Rule authoring Step 2 (20 September 2026)
 
 **Parent revision:** `a76483985e0bbac46581d8ea1840ecb600e0e5be`. Brannan accepted Step 1 and explicitly authorized this authoring/preservation step. This supersedes the older instruction to wait before Step 2.

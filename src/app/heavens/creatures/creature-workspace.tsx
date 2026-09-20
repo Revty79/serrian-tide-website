@@ -2,13 +2,13 @@
 
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 
-import { CreatureAttackAuthoringEditor, CreatureAbilityAuthoringEditor, CreatureOriginField, CreatureHarvestUtilityEditor } from "@/app/heavens/creatures/creature-authoring-editor";
+import { CreatureAttackAuthoringEditor, CreatureAbilityAuthoringEditor, LegacyCreatureDefenses, CreatureHarvestUtilityEditor } from "@/app/heavens/creatures/creature-authoring-editor";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
-import { CREATURE_CR_IMPACTS, CREATURE_SIZE_OPTIONS, type CreatureCrImpact } from "@/db/creature-schema";
+import { CREATURE_SIZE_OPTIONS } from "@/db/creature-schema";
 import {
   calculateCreatureChallengeRating,
   getCreatureKillXpForChallengeRating,
@@ -39,16 +39,15 @@ import {
   type CreatureSkillCandidate,
   type CreatureSummary,
 } from "./actions";
-import { CreatureAbilityEffectsEditor } from "./creature-ability-effects-editor";
 
 type Tab = "overview" | "stats" | "hp" | "combat" | "special" | "cr" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
-  { id: "stats", label: "Attributes & Movement" },
-  { id: "hp", label: "HP & Hit Locations" },
-  { id: "combat", label: "Attacks & Skills" },
-  { id: "special", label: "Traits, Abilities & Defenses" },
+  { id: "stats", label: "Stats & Movement" },
+  { id: "hp", label: "Health & Protection" },
+  { id: "combat", label: "Combat" },
+  { id: "special", label: "Abilities & Defenses" },
   { id: "cr", label: "Variants & CR" },
   { id: "preview", label: "Preview" },
 ];
@@ -428,13 +427,7 @@ function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (
 function Combat({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void }) {
   return <div className="creature-section">
     <SectionHeading eyebrow="DIRECT COMBAT" title="Attacks" action="Add Attack" onAction={() => onChange({ ...draft, attacks: [...draft.attacks, { canonicalId: createCreatureDraftCanonicalId("ATK"), attackName: "", attackPercentage: null, damage: null, damageType: "", rangeReach: "", requiredAnatomy: "", requirements: "", usesRecharge: "", specialEffect: "", notes: "", sortOrder: draft.attacks.length }] })} />
-    <div className="creature-card-list">{draft.attacks.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.attackName || `Attack ${index + 1}`} onRemove={() => removeArray(draft, onChange, "attacks", index)} /><div className="creature-form-grid">
-      <Field label="Attack Name"><input value={row.attackName} onChange={(e) => patchArray(draft, onChange, "attacks", index, { attackName: e.target.value })} /></Field>
-      <Field label="Attack %"><OptionalNumber value={row.attackPercentage} onChange={(value) => patchArray(draft, onChange, "attacks", index, { attackPercentage: value })} /></Field><Field label="Damage"><input value={row.damage ?? ""} onChange={(e) => patchArray(draft, onChange, "attacks", index, { damage: e.target.value || null })} /></Field>
-      <Field label="Damage Type"><input value={row.damageType} onChange={(e) => patchArray(draft, onChange, "attacks", index, { damageType: e.target.value })} /></Field><Field label="Range / Reach (Legacy Text)"><input value={row.rangeReach} onChange={(e) => patchArray(draft, onChange, "attacks", index, { rangeReach: e.target.value })} /></Field>
-      <Field label="Required Anatomy"><input value={row.requiredAnatomy} onChange={(e) => patchArray(draft, onChange, "attacks", index, { requiredAnatomy: e.target.value })} /></Field><Field label="Uses / Recharge"><input value={row.usesRecharge} onChange={(e) => patchArray(draft, onChange, "attacks", index, { usesRecharge: e.target.value })} /></Field>
-      <Field label="Requirements" wide><input value={row.requirements} onChange={(e) => patchArray(draft, onChange, "attacks", index, { requirements: e.target.value })} /></Field><Field label="Special Effect (Legacy Text)" wide><textarea rows={2} value={row.specialEffect} onChange={(e) => patchArray(draft, onChange, "attacks", index, { specialEffect: e.target.value })} /></Field><Field label="Notes" wide><textarea rows={2} value={row.notes} onChange={(e) => patchArray(draft, onChange, "attacks", index, { notes: e.target.value })} /></Field>
-    </div><CreatureAttackAuthoringEditor value={row.authoring} name={row.attackName} skillOptions={draft.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} onChange={(authoring) => patchArray(draft, onChange, "attacks", index, { authoring })} /></article>)}</div>
+    <div className="creature-card-list">{draft.attacks.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.attackName || `Attack ${index + 1}`} onRemove={() => removeArray(draft, onChange, "attacks", index)} /><CreatureAttackAuthoringEditor attack={row} skillOptions={draft.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} onChange={(attack) => patchArray(draft, onChange, "attacks", index, attack)} /></article>)}</div>
     <CreatureSkills draft={draft} onChange={onChange} />
   </div>;
 }
@@ -466,12 +459,8 @@ function Special({ draft, onChange }: { draft: CreatureDraft; onChange: (draft: 
   return <div className="creature-section">
     <InteractionRulesEditor owner="creature" value={draft.core.interactionRules} onChange={(interactionRules) => onChange({ ...draft, core: { ...draft.core, interactionRules } })} />
     <SectionHeading eyebrow="SPECIAL MECHANICS" title="Traits & Abilities" action="Add Ability" onAction={() => onChange({ ...draft, abilities: [...draft.abilities, { canonicalId: createCreatureDraftCanonicalId("ABL"), abilityName: "", abilityType: "", activation: "", requirements: "", usesRecharge: "", description: "", mechanicalEffect: "", notes: "", sortOrder: draft.abilities.length, crImpact: "None", effects: [] }] })} />
-    <div className="creature-card-list">{draft.abilities.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.abilityName || `Ability ${index + 1}`} onRemove={() => removeArray(draft, onChange, "abilities", index)} /><div className="creature-form-grid">
-      <Field label="Ability Name"><input value={row.abilityName} onChange={(e) => patchArray(draft, onChange, "abilities", index, { abilityName: e.target.value })} /></Field><CreatureOriginField value={row.abilityType} onChange={(abilityType) => patchArray(draft, onChange, "abilities", index, { abilityType })} /><Field label="Activation Notes (Legacy Text)"><input value={row.activation} onChange={(e) => patchArray(draft, onChange, "abilities", index, { activation: e.target.value })} /></Field><Field label="CR Impact"><CrImpact value={row.crImpact} onChange={(crImpact) => patchArray(draft, onChange, "abilities", index, { crImpact })} /></Field><Field label="Uses / Recharge"><input value={row.usesRecharge} onChange={(e) => patchArray(draft, onChange, "abilities", index, { usesRecharge: e.target.value })} /></Field><Field label="Requirements" wide><input value={row.requirements} onChange={(e) => patchArray(draft, onChange, "abilities", index, { requirements: e.target.value })} /></Field><Field label="Description" wide><textarea rows={3} value={row.description} onChange={(e) => patchArray(draft, onChange, "abilities", index, { description: e.target.value })} /></Field><Field label="Mechanical Notes (Legacy Text)" wide><textarea rows={3} value={row.mechanicalEffect} onChange={(e) => patchArray(draft, onChange, "abilities", index, { mechanicalEffect: e.target.value })} /></Field><Field label="Notes" wide><textarea rows={2} value={row.notes} onChange={(e) => patchArray(draft, onChange, "abilities", index, { notes: e.target.value })} /></Field>
-    </div><CreatureAbilityAuthoringEditor value={row.authoring} name={row.abilityName} onChange={(authoring) => patchArray(draft, onChange, "abilities", index, { authoring })} /><CreatureAbilityEffectsEditor ability={row} skillOptions={draft.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} onChange={(ability) => patchArray(draft, onChange, "abilities", index, { ...ability, crImpact: row.crImpact })} /></article>)}</div>
-    <SectionHeading eyebrow="DESCRIPTIVE LEGACY DATA" title="Legacy Defense Notes" action="Add Defense" onAction={() => onChange({ ...draft, defenses: [...draft.defenses, { seedIdentity: null, defenseType: "", against: "", value: null, notes: "", sortOrder: draft.defenses.length, crImpact: "None" }] })} />
-    <div className="creature-row-list">{draft.defenses.map((row, index) => <div className="creature-repeat-row creature-defense-row" key={index}><input placeholder="Defense Type" value={row.defenseType} onChange={(e) => patchArray(draft, onChange, "defenses", index, { defenseType: e.target.value })} /><input placeholder="Against" value={row.against} onChange={(e) => patchArray(draft, onChange, "defenses", index, { against: e.target.value })} /><input placeholder="Value" value={row.value ?? ""} onChange={(e) => patchArray(draft, onChange, "defenses", index, { value: e.target.value || null })} /><CrImpact value={row.crImpact} onChange={(crImpact) => patchArray(draft, onChange, "defenses", index, { crImpact })} /><input placeholder="Notes" value={row.notes} onChange={(e) => patchArray(draft, onChange, "defenses", index, { notes: e.target.value })} /><RemoveButton onClick={() => removeArray(draft, onChange, "defenses", index)} /></div>)}</div>
-
+    <div className="creature-card-list">{draft.abilities.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.abilityName || `Ability ${index + 1}`} onRemove={() => removeArray(draft, onChange, "abilities", index)} /><CreatureAbilityAuthoringEditor ability={row} skillOptions={draft.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} onChange={(ability) => patchArray(draft, onChange, "abilities", index, ability)} /></article>)}</div>
+    <LegacyCreatureDefenses defenses={draft.defenses} />
   </div>;
 }
 
@@ -511,7 +500,7 @@ function Preview({ draft }: { draft: CreatureDraft }) {
   const effective = resolveEffectiveCreatureStatistics(draft);
   const effectiveAttributes = new Map(effective.attributes.map((row) => [row.attributeKey, row.effectiveValue]));
   const effectiveMovement = new Map(effective.movement.map((row) => [row.movementMode, row.effectiveValue]));
-  return <article className="creature-preview"><header><p>{draft.core.family || "Creature"} · {draft.core.creatureType || "Unclassified"}</p><h3>{draft.core.canonicalName || "Untitled Creature"}</h3><span>{draft.core.size} ×{formatCreatureNumber(effective.sizeMultiplier)} · CR {draft.core.challengeRating ?? "?"} · {draft.core.killXp ?? "?"} XP</span></header><div className="creature-preview__facts">{draft.attributes.map((attribute) => <div key={attribute.attributeKey}><dt>{attribute.attributeKey}</dt><dd>Base {formatCreatureNumber(attribute.value)} · Effective {formatCreatureNumber(effectiveAttributes.get(attribute.attributeKey) ?? null)}</dd></div>)}</div><section><h4>Health & Exceptional Modifiers</h4><p>Effective CON {formatCreatureNumber(effective.effectiveConstitution)} · HP Multiplier ×{formatCreatureNumber(effective.hpMultiplier)} · Total HP {formatCreatureNumber(effective.calculatedTotalMaximumHp)} · Movement bonus +{formatCreatureNumber(effective.baseMovementBonus)} · Base Magic bonus +{formatCreatureNumber(effective.baseMagicBonus)}</p></section><section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section><section><h4>Movement</h4><div className="creature-preview__chips">{draft.movement.map((row, index) => <span key={`${row.movementMode}-${index}`}>{row.movementMode}: Base {formatCreatureNumber(row.movementValue)} / Effective {formatCreatureNumber(effectiveMovement.get(row.movementMode) ?? null)} / Init {row.initiative ?? "—"}</span>)}</div></section><section><h4>Attacks</h4>{draft.attacks.length ? <ul>{draft.attacks.map((attack) => <li key={attack.canonicalId}><strong>{attack.attackName}</strong> · {attack.attackPercentage ?? "?"}% · {attack.damage ?? "—"} {attack.damageType}</li>)}</ul> : <p>No attacks.</p>}</section><section><h4>Protection</h4><p>Highest authored protection: {protection.length ? Math.max(...protection) : 0}. {draft.hitLocations.length} hit locations.</p></section><section><h4>Special</h4><div className="creature-preview__chips">{draft.abilities.map((row) => <span key={row.canonicalId}>{row.abilityName} · {row.crImpact}</span>)}{draft.defenses.map((row, index) => <span key={`${row.defenseType}-${index}`}>{row.defenseType} · {row.crImpact}</span>)}</div></section><div className="creature-preview__columns"><section><h4>Behavior</h4><p>{draft.core.typicalBehavior || "Not specified."}</p></section><section><h4>Habitat & Ecology</h4><p>{draft.core.habitatEcology || "Not specified."}</p></section></div></article>;
+  return <article className="creature-preview"><header><p>{draft.core.family || "Creature"} · {draft.core.creatureType || "Unclassified"}</p><h3>{draft.core.canonicalName || "Untitled Creature"}</h3><span>{draft.core.size} ×{formatCreatureNumber(effective.sizeMultiplier)} · CR {draft.core.challengeRating ?? "?"} · {draft.core.killXp ?? "?"} XP</span></header><div className="creature-preview__facts">{draft.attributes.map((attribute) => <div key={attribute.attributeKey}><dt>{attribute.attributeKey}</dt><dd>Base {formatCreatureNumber(attribute.value)} · Effective {formatCreatureNumber(effectiveAttributes.get(attribute.attributeKey) ?? null)}</dd></div>)}</div><section><h4>Health & Exceptional Modifiers</h4><p>Effective CON {formatCreatureNumber(effective.effectiveConstitution)} · HP Multiplier ×{formatCreatureNumber(effective.hpMultiplier)} · Total HP {formatCreatureNumber(effective.calculatedTotalMaximumHp)} · Movement bonus +{formatCreatureNumber(effective.baseMovementBonus)} · Base Magic bonus +{formatCreatureNumber(effective.baseMagicBonus)}</p></section><section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section><section><h4>Movement</h4><div className="creature-preview__chips">{draft.movement.map((row, index) => <span key={`${row.movementMode}-${index}`}>{row.movementMode}: Base {formatCreatureNumber(row.movementValue)} / Effective {formatCreatureNumber(effectiveMovement.get(row.movementMode) ?? null)} / Init {row.initiative ?? "—"}</span>)}</div></section><section><h4>Attacks</h4>{draft.attacks.length ? <ul>{draft.attacks.map((attack) => <li key={attack.canonicalId}><strong>{attack.attackName}</strong> · {attack.attackPercentage ?? "?"}% · {attack.damage ?? "—"} {attack.damageType}</li>)}</ul> : <p>No attacks.</p>}</section><section><h4>Protection</h4><p>Highest authored protection: {protection.length ? Math.max(...protection) : 0}. {draft.hitLocations.length} hit locations.</p></section><section><h4>Special</h4><div className="creature-preview__chips">{draft.abilities.map((row) => <span key={row.canonicalId}>{row.abilityName} · {row.crImpact}</span>)}</div></section><div className="creature-preview__columns"><section><h4>Behavior</h4><p>{draft.core.typicalBehavior || "Not specified."}</p></section><section><h4>Habitat & Ecology</h4><p>{draft.core.habitatEcology || "Not specified."}</p></section></div></article>;
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
@@ -523,7 +512,6 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
   const preserveScroll = useInPlaceScrollPreservation();
   return <button className="is-danger" type="button" onClick={() => void preserveScroll(onClick)}>Remove</button>;
 }
-function CrImpact({ value, onChange }: { value: CreatureCrImpact; onChange: (value: CreatureCrImpact) => void }) { return <select value={value} onChange={(e) => onChange(e.target.value as CreatureCrImpact)}>{CREATURE_CR_IMPACTS.map((impact) => <option key={impact}>{impact}</option>)}</select>; }
 
 function patchArray<K extends "movement" | "hpPools" | "hitLocations" | "attacks" | "skillLinks" | "abilities" | "defenses" | "uses">(
   draft: CreatureDraft,

@@ -11,3 +11,9 @@
 .creature-authoring__magic summary { cursor: pointer; color: var(--st-primary); }
 .creature-authoring__magic > :not(summary) { margin-top: .85rem; }
 .creature-authoring__harvest { grid-column: 1 / -1; }
+
+.creature-authoring--card { border-top: 0; padding-top: 0; min-width: 0; }
+.creature-authoring--card .st-control { width: 100%; min-width: 0; }
+.creature-authoring__advanced { min-width: 0; border-top: 1px solid var(--st-border); padding-top: .75rem; }
+.creature-authoring__advanced summary { cursor: pointer; color: var(--st-text-secondary); }
+.creature-authoring__advanced > :not(summary) { margin-top: 1rem; }

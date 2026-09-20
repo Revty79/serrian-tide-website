@@ -34,6 +34,12 @@ Activation types reuse Derived Ability values: `passive`, `activated`, `triggere
 
 ## Editor organization
 
-Both Creature and Creature NPC editors share the authoring controls and semantic theme. The special tab is **Traits, Abilities & Defenses**. Defenses retain their current editor and data. `creature_uses` is shown under **Overview → Harvest & Utility** without changing its rows. Ranges depend on Attack Mode; switching mode preserves hidden values for later editing, and future consumers must respect the explicit mode. Magic Construction is optional and collapsed by default.
+Both Creature and Creature NPC editors share the authoring controls and semantic theme. The focused tabs are **Stats & Movement**, **Health & Protection**, **Combat**, and **Abilities & Defenses**. `creature_uses` remains under **Overview → Harvest & Utility** with its existing component, controls and placement unchanged.
+
+Attack Name, Attack %, Attack Initiative, Damage, Damage Type, Attack Mode, Magical, applicable Range/Reach and Notes form one primary card. Melee Reach remains optional; its unit is requested only when a numeric Reach is authored, as required by the existing validator. Ranged/Hybrid/AoE retain their supported range bands. Switching modes preserves hidden values. Empty On-Hit Effects show only an add button; Magic Construction stays collapsed.
+
+Abilities show Name, Description, Activation Type, applicable Initiative and Effects. **Advanced Ability Settings** contains Origin, roll/targeting settings, Magical, applicable costs/limits, conditions, Magic Construction, CR Impact and Notes. Passive abilities have no Initiative or activation-cost controls. Activation semantics and validation remain unchanged.
+
+Populated legacy Attack/Ability text appears in collapsed, read-only **Legacy Data** sections. Existing Defenses appear in one collapsed, read-only **Legacy Defense Data** section; there is no add control. These values remain in the drafts and snapshots during saves. Structured Interaction Rules are the new defense authoring path. See the [Step 2 UI supplement report](../reports/creature-authoring-ui-supplement-2026-09-20.md).
 
 This step intentionally leaves final damage/protection, incoming-effect interactions, Initiative, Rolls, hit locations, firearms, armor, inventory, Derived Ability execution, and `ActionEffectPlan` unchanged. Brannan must review Step 1 before Step 2 begins.

@@ -1,0 +1,5 @@
+.legacy { min-width: 0; margin-top: 1rem; border-top: 1px solid var(--st-border); padding-top: .75rem; color: var(--st-muted); }
+.legacy summary { cursor: pointer; font-size: .9rem; }
+.legacy dl { display: grid; gap: .75rem; margin: 1rem 0 0; }
+.legacy dt { font-weight: 600; color: var(--st-text-secondary); }
+.legacy dd { margin: .2rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
