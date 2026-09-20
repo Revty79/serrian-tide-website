@@ -1,5 +1,7 @@
 "use server";
 
+import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring, type CreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
+
 import {
   and,
   asc,
@@ -146,7 +148,7 @@ export type CreatureDraft = {
   movement: Array<{ movementMode: string; movementValue: number | null; initiative: number | null; requirements: string; notes: string; sortOrder: number }>;
   hpPools: Array<{ canonicalId: string; poolName: string; hpPercentage: number | null; maximumHp: number | null; notes: string; sortOrder: number }>;
   hitLocations: Array<{ hitLocationNumber: number; locationName: string; bodyPartsIncluded: string; hpPoolCanonicalId: string | null; naturalArmor: number | null; soak: number | null; locationEffect: string; notes: string; sortOrder: number }>;
-  attacks: Array<{ canonicalId: string; attackName: string; attackPercentage: number | null; damage: string | null; damageType: string; rangeReach: string; requiredAnatomy: string; requirements: string; usesRecharge: string; specialEffect: string; notes: string; sortOrder: number }>;
+  attacks: Array<{ authoring?: CreatureAttackAuthoring | null; canonicalId: string; attackName: string; attackPercentage: number | null; damage: string | null; damageType: string; rangeReach: string; requiredAnatomy: string; requirements: string; usesRecharge: string; specialEffect: string; notes: string; sortOrder: number }>;
   skillLinks: Array<{ skillId: number; skillName: string; skillClassification: string; rank: string | null; notes: string; sortOrder: number }>;
   abilities: Array<Omit<CreatureAbilityDefinition, "crImpact"> & { crImpact: CreatureCrImpact }>;
   defenses: Array<{ seedIdentity: string | null; defenseType: string; against: string; value: string | null; notes: string; sortOrder: number; crImpact: CreatureCrImpact }>;
@@ -265,6 +267,7 @@ function normalize(input: CreatureDraft) {
     requirements: clean(row.requirements),
     usesRecharge: clean(row.usesRecharge),
     specialEffect: clean(row.specialEffect),
+    authoring: normalizeCreatureAttackAuthoring(row.authoring),
     notes: clean(row.notes),
     sortOrder,
   }));
@@ -296,6 +299,7 @@ function normalize(input: CreatureDraft) {
     sortOrder,
     crImpact: CREATURE_CR_IMPACTS.includes(row.crImpact) ? row.crImpact : "None" as CreatureCrImpact,
     effects: normalizeCreatureAbilityEffects(row.effects),
+    authoring: normalizeCreatureAbilityAuthoring(row.authoring),
   }));
   ensureUnique(abilities.map(({ canonicalId }) => canonicalId), "Ability ID");
 
@@ -468,9 +472,9 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     db.select({ movementMode: creatureMovement.movementMode, movementValue: creatureMovement.movementValue, initiative: creatureMovement.initiative, requirements: creatureMovement.requirements, notes: creatureMovement.notes, sortOrder: creatureMovement.sortOrder }).from(creatureMovement).where(and(eq(creatureMovement.creatureId, id), isNull(creatureMovement.variantId))).orderBy(asc(creatureMovement.sortOrder), asc(creatureMovement.id)),
     db.select({ id: creatureHpPool.id, canonicalId: creatureHpPool.canonicalId, poolName: creatureHpPool.poolName, hpPercentage: creatureHpPool.hpPercentage, maximumHp: creatureHpPool.maximumHp, notes: creatureHpPool.notes, sortOrder: creatureHpPool.sortOrder }).from(creatureHpPool).where(and(eq(creatureHpPool.creatureId, id), isNull(creatureHpPool.variantId))).orderBy(asc(creatureHpPool.sortOrder), asc(creatureHpPool.id)),
     db.select({ hitLocationNumber: creatureHitLocation.hitLocationNumber, locationName: creatureHitLocation.locationName, bodyPartsIncluded: creatureHitLocation.bodyPartsIncluded, hpPoolId: creatureHitLocation.hpPoolId, naturalArmor: creatureHitLocation.naturalArmor, soak: creatureHitLocation.soak, locationEffect: creatureHitLocation.locationEffect, notes: creatureHitLocation.notes, sortOrder: creatureHitLocation.sortOrder }).from(creatureHitLocation).where(and(eq(creatureHitLocation.creatureId, id), isNull(creatureHitLocation.variantId))).orderBy(asc(creatureHitLocation.sortOrder), asc(creatureHitLocation.id)),
-    db.select({ canonicalId: creatureAttack.canonicalId, attackName: creatureAttack.attackName, attackPercentage: creatureAttack.attackPercentage, damage: creatureAttack.damage, damageType: creatureAttack.damageType, rangeReach: creatureAttack.rangeReach, requiredAnatomy: creatureAttack.requiredAnatomy, requirements: creatureAttack.requirements, usesRecharge: creatureAttack.usesRecharge, specialEffect: creatureAttack.specialEffect, notes: creatureAttack.notes, sortOrder: creatureAttack.sortOrder }).from(creatureAttack).where(and(eq(creatureAttack.creatureId, id), isNull(creatureAttack.variantId))).orderBy(asc(creatureAttack.sortOrder), asc(creatureAttack.id)),
+    db.select({ canonicalId: creatureAttack.canonicalId, attackName: creatureAttack.attackName, attackPercentage: creatureAttack.attackPercentage, damage: creatureAttack.damage, damageType: creatureAttack.damageType, rangeReach: creatureAttack.rangeReach, requiredAnatomy: creatureAttack.requiredAnatomy, requirements: creatureAttack.requirements, usesRecharge: creatureAttack.usesRecharge, specialEffect: creatureAttack.specialEffect, authoring: creatureAttack.authoring, notes: creatureAttack.notes, sortOrder: creatureAttack.sortOrder }).from(creatureAttack).where(and(eq(creatureAttack.creatureId, id), isNull(creatureAttack.variantId))).orderBy(asc(creatureAttack.sortOrder), asc(creatureAttack.id)),
     db.select({ skillId: creatureSkillLink.skillId, skillName: skill.name, skillClassification: skill.classification, rank: creatureSkillLink.rank, notes: creatureSkillLink.notes, sortOrder: creatureSkillLink.sortOrder }).from(creatureSkillLink).innerJoin(skill, eq(skill.id, creatureSkillLink.skillId)).where(and(eq(creatureSkillLink.creatureId, id), isNull(creatureSkillLink.variantId))).orderBy(asc(creatureSkillLink.sortOrder), asc(creatureSkillLink.id)),
-    db.select({ id: creatureAbility.id, canonicalId: creatureAbility.canonicalId, abilityName: creatureAbility.abilityName, abilityType: creatureAbility.abilityType, activation: creatureAbility.activation, requirements: creatureAbility.requirements, usesRecharge: creatureAbility.usesRecharge, description: creatureAbility.description, mechanicalEffect: creatureAbility.mechanicalEffect, notes: creatureAbility.notes, sortOrder: creatureAbility.sortOrder, crImpact: creatureAbility.crImpact }).from(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId))).orderBy(asc(creatureAbility.sortOrder), asc(creatureAbility.id)),
+    db.select({ id: creatureAbility.id, canonicalId: creatureAbility.canonicalId, abilityName: creatureAbility.abilityName, abilityType: creatureAbility.abilityType, activation: creatureAbility.activation, requirements: creatureAbility.requirements, usesRecharge: creatureAbility.usesRecharge, description: creatureAbility.description, mechanicalEffect: creatureAbility.mechanicalEffect, authoring: creatureAbility.authoring, notes: creatureAbility.notes, sortOrder: creatureAbility.sortOrder, crImpact: creatureAbility.crImpact }).from(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId))).orderBy(asc(creatureAbility.sortOrder), asc(creatureAbility.id)),
     db.select({ seedIdentity: creatureDefense.seedIdentity, defenseType: creatureDefense.defenseType, against: creatureDefense.against, value: creatureDefense.value, notes: creatureDefense.notes, sortOrder: creatureDefense.sortOrder, crImpact: creatureDefense.crImpact }).from(creatureDefense).where(and(eq(creatureDefense.creatureId, id), isNull(creatureDefense.variantId))).orderBy(asc(creatureDefense.sortOrder), asc(creatureDefense.id)),
     db.select({ seedIdentity: creatureUse.seedIdentity, useName: creatureUse.useName, notes: creatureUse.notes, sortOrder: creatureUse.sortOrder }).from(creatureUse).where(and(eq(creatureUse.creatureId, id), isNull(creatureUse.variantId))).orderBy(asc(creatureUse.sortOrder), asc(creatureUse.id)),
     db.select({ id: creature.id, canonicalId: creature.canonicalId, canonicalName: creature.canonicalName, size: creature.size, challengeRating: creature.challengeRating, killXp: creature.killXp, archivedAt: creature.archivedAt }).from(creature).where(eq(creature.parentCreatureId, id)).orderBy(asc(creature.canonicalName), asc(creature.id)),

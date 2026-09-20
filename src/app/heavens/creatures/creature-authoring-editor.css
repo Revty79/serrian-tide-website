@@ -1,0 +1,13 @@
+.creature-authoring { display: grid; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--st-border); color: var(--st-text); }
+.creature-authoring h4, .creature-authoring p { margin: 0; }
+.creature-authoring p, .creature-authoring small { color: var(--st-muted); font-size: .85rem; }
+.creature-authoring__grid, .creature-authoring__row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); align-items: end; gap: .8rem; }
+.creature-authoring__row { padding-bottom: .8rem; margin-bottom: .8rem; border-bottom: 1px solid var(--st-border); }
+.creature-authoring fieldset { min-width: 0; display: grid; gap: .75rem; border: 1px solid var(--st-border); border-radius: .5rem; padding: 1rem; }
+.creature-authoring legend { color: var(--st-text-strong); padding: 0 .35rem; }
+.creature-authoring .st-field { min-width: 0; }
+.creature-authoring .st-button { justify-self: start; }
+.creature-authoring__magic { min-width: 0; border-top: 1px solid var(--st-border); padding-top: .8rem; }
+.creature-authoring__magic summary { cursor: pointer; color: var(--st-primary); }
+.creature-authoring__magic > :not(summary) { margin-top: .85rem; }
+.creature-authoring__harvest { grid-column: 1 / -1; }

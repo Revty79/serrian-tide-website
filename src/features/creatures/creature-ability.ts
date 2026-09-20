@@ -1,3 +1,5 @@
+import { normalizeCreatureEffects as normalizeCreatureAbilityEffects, type CreatureEffectDefinition as CreatureAbilityEffectDefinition } from "./creature-effects";
+import { normalizeCreatureAbilityAuthoring, type CreatureAbilityAuthoring } from "./creature-authoring";
 import {
   decodeMechanicalEffect,
   encodeMechanicalEffect,
@@ -7,13 +9,8 @@ import {
   type MechanicalEffectSource,
 } from "@/features/mechanical-effects";
 
-export type CreatureAbilityEffectDefinition = {
-  effectKey: string;
-  schemaVersion: number;
-  effect: MechanicalEffect;
-  sortOrder: number;
-};
-
+export { normalizeCreatureEffects as normalizeCreatureAbilityEffects } from "./creature-effects";
+export type { CreatureEffectDefinition as CreatureAbilityEffectDefinition } from "./creature-effects";
 export type CreatureAbilityDefinition = {
   canonicalId: string;
   abilityName: string;
@@ -27,6 +24,7 @@ export type CreatureAbilityDefinition = {
   sortOrder: number;
   crImpact: string;
   effects: CreatureAbilityEffectDefinition[];
+  authoring?: CreatureAbilityAuthoring | null;
 };
 
 export type AdaptedCreatureAbilityEffect = {
@@ -65,27 +63,6 @@ function optionalText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export function normalizeCreatureAbilityEffects(input: unknown): CreatureAbilityEffectDefinition[] {
-  if (input === undefined) return [];
-  if (!Array.isArray(input)) throw new Error("Creature Ability structured effects must be an ordered list.");
-  const seenKeys = new Set<string>();
-  return input.map((raw, sortOrder) => {
-    if (!isRecord(raw)) throw new Error(`Creature Ability effect ${sortOrder + 1} is invalid.`);
-    const effectKey = requiredText(raw.effectKey, `Creature Ability effect ${sortOrder + 1} key`);
-    const identity = effectKey.toLocaleLowerCase("en-US");
-    if (seenKeys.has(identity)) throw new Error(`Creature Ability effect key ${JSON.stringify(effectKey)} is duplicated.`);
-    seenKeys.add(identity);
-    if (!Number.isSafeInteger(raw.schemaVersion) || (raw.schemaVersion as number) <= 0) {
-      throw new Error(`Creature Ability effect ${JSON.stringify(effectKey)} schema version is invalid.`);
-    }
-    const effect = decodeMechanicalEffect({
-      schemaVersion: raw.schemaVersion as number,
-      effectJson: raw.effect,
-    });
-    return { effectKey, schemaVersion: raw.schemaVersion as number, effect, sortOrder };
-  });
-}
-
 export function normalizeCreatureAbilityDefinition(input: unknown): CreatureAbilityDefinition {
   if (!isRecord(input)) throw new Error("Creature Ability definition is invalid.");
   return {
@@ -101,6 +78,7 @@ export function normalizeCreatureAbilityDefinition(input: unknown): CreatureAbil
     sortOrder: Number.isSafeInteger(input.sortOrder) ? input.sortOrder as number : 0,
     crImpact: optionalText(input.crImpact) || "None",
     effects: normalizeCreatureAbilityEffects(input.effects),
+    ...(input.authoring === undefined ? {} : { authoring: normalizeCreatureAbilityAuthoring(input.authoring) }),
   };
 }
 
@@ -119,6 +97,7 @@ export function normalizeCreatureSnapshotAbilities<T extends { abilities: unknow
 export function copyCreatureAbility(ability: CreatureAbilityDefinition): CreatureAbilityDefinition {
   return {
     ...ability,
+    ...(ability.authoring === undefined ? {} : { authoring: structuredClone(ability.authoring) }),
     effects: ability.effects.map((entry) => ({
       ...entry,
       effect: structuredClone(entry.effect),

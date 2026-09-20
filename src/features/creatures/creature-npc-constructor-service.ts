@@ -1,3 +1,4 @@
+import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring } from "./creature-authoring";
 import "server-only";
 
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
@@ -73,6 +74,8 @@ export function normalizeCreatureNpcSnapshot(
   return normalizeCreatureHpSnapshot({
     ...snapshot,
     core,
+    attacks: snapshot.attacks.map((attack) => ({ ...attack, ...(attack.authoring === undefined ? {} : { authoring: normalizeCreatureAttackAuthoring(attack.authoring) }) })),
+    abilities: snapshot.abilities.map((ability) => ({ ...ability, ...(ability.authoring === undefined ? {} : { authoring: normalizeCreatureAbilityAuthoring(ability.authoring) }) })),
     hpPools: snapshot.hpPools.map((pool) => ({ ...pool, maximumHp: null })),
   }, hpAdjustment);
 }
@@ -85,7 +88,7 @@ export function buildCreatureNpcSnapshot(template: CreatureDraft): CreatureDraft
     movement: template.movement.map((row) => ({ ...row })),
     hpPools: template.hpPools.map((row) => ({ ...row })),
     hitLocations: template.hitLocations.map((row) => ({ ...row })),
-    attacks: template.attacks.map((row) => ({ ...row })),
+    attacks: template.attacks.map((row) => structuredClone(row)),
     skillLinks: template.skillLinks.map((row) => ({ ...row })),
     abilities: template.abilities.map((row) => ({
       ...copyCreatureAbility(row),
@@ -202,6 +205,7 @@ export async function readCreatureNpcTemplateInTransaction(
     requirements: creatureAttack.requirements,
     usesRecharge: creatureAttack.usesRecharge,
     specialEffect: creatureAttack.specialEffect,
+    authoring: creatureAttack.authoring,
     notes: creatureAttack.notes,
     sortOrder: creatureAttack.sortOrder,
   }).from(creatureAttack).where(and(
@@ -232,6 +236,7 @@ export async function readCreatureNpcTemplateInTransaction(
     usesRecharge: creatureAbility.usesRecharge,
     description: creatureAbility.description,
     mechanicalEffect: creatureAbility.mechanicalEffect,
+    authoring: creatureAbility.authoring,
     notes: creatureAbility.notes,
     sortOrder: creatureAbility.sortOrder,
     crImpact: creatureAbility.crImpact,

@@ -11,16 +11,19 @@ import {
 import {
   createCreatureAbilityEffectKey,
   reorderCreatureAbilityEffects,
-  type CreatureAbilityDefinition,
+  type CreatureAbilityEffectDefinition,
 } from "@/features/creatures/creature-ability";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import "./creature-ability-effects-editor.css";
 
-type Props = {
-  ability: CreatureAbilityDefinition;
+type Props<T extends { effects: CreatureAbilityEffectDefinition[] }> = {
+  ability: T;
+  title?: string;
+  note?: string;
+  emptyMessage?: string;
   skillOptions?: Array<{ id: number; name: string }>;
-  onChange: (ability: CreatureAbilityDefinition) => void;
+  onChange: (ability: T) => void;
 };
 
 type DurationKind = "until-removed" | "scene" | "combat-steps" | "combat-rounds";
@@ -39,7 +42,7 @@ function durationFor(kind: DurationKind) {
     : { kind, value: null };
 }
 
-export function CreatureAbilityEffectsEditor({ ability, skillOptions = [], onChange }: Props) {
+export function CreatureAbilityEffectsEditor<T extends { effects: CreatureAbilityEffectDefinition[] }>({ ability, skillOptions = [], onChange, title = "Structured Effects", note = "Structured Effects use the shared Active State bridge. Mechanical Notes above remain descriptive and are never parsed.", emptyMessage = "No structured effects. At runtime, existing descriptive instructions become one temporary Manual instruction." }: Props<T>) {
   const preserveScroll = useInPlaceScrollPreservation();
   function add() {
     const effectKey = createCreatureAbilityEffectKey(ability.effects);
@@ -73,9 +76,9 @@ export function CreatureAbilityEffectsEditor({ ability, skillOptions = [], onCha
   }
 
   return <section className="creature-ability-effects">
-    <header><div><p>COMMON RUNTIME CONTRACT</p><h4>Structured Effects</h4></div><button type="button" onClick={() => void preserveScroll(add)}>Add Effect</button></header>
-    <p className="creature-ability-effects__note">Structured Effects use the shared Active State bridge. Mechanical Notes above remain descriptive and are never parsed.</p>
-    {!ability.effects.length ? <p className="creature-ability-effects__empty">No structured effects. At runtime, existing descriptive instructions become one temporary Manual instruction.</p> : null}
+    <header><div><p>MECHANICAL EFFECTS</p><h4>{title}</h4></div><button type="button" onClick={() => void preserveScroll(add)}>Add Effect</button></header>
+    <p className="creature-ability-effects__note">{note}</p>
+    {!ability.effects.length ? <p className="creature-ability-effects__empty">{emptyMessage}</p> : null}
     {ability.effects.map((entry, index) => {
       const effect = entry.effect;
       const validation = validateMechanicalEffect(effect);

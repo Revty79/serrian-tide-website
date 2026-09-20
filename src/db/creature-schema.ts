@@ -1,3 +1,4 @@
+import type { CreatureAttackAuthoring, CreatureAbilityAuthoring } from "@/features/creatures/creature-authoring";
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -326,12 +327,14 @@ export const creatureAttack = pgTable(
     requirements: text("requirements").default("").notNull(),
     usesRecharge: text("uses_recharge").default("").notNull(),
     specialEffect: text("special_effect").default("").notNull(),
+    authoring: jsonb("authoring_json").$type<CreatureAttackAuthoring>(),
     notes: text("notes").default("").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    check("creature_attacks_authoring_shape", sql`${table.authoring} IS NULL OR (jsonb_typeof(${table.authoring}) = 'object' AND (${table.authoring}->>'schemaVersion') IS NOT NULL AND (${table.authoring}->>'schemaVersion') = '1')`),
     unique("creature_attacks_canonical_id_uq").on(table.canonicalId),
     foreignKey({
       columns: [table.variantId, table.creatureId],
@@ -389,6 +392,7 @@ export const creatureAbility = pgTable(
     usesRecharge: text("uses_recharge").default("").notNull(),
     description: text("description").default("").notNull(),
     mechanicalEffect: text("mechanical_effect").default("").notNull(),
+    authoring: jsonb("authoring_json").$type<CreatureAbilityAuthoring>(),
     notes: text("notes").default("").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -396,6 +400,7 @@ export const creatureAbility = pgTable(
     crImpact: text("cr_impact").default("None").notNull(),
   },
   (table) => [
+    check("creature_abilities_authoring_shape", sql`${table.authoring} IS NULL OR (jsonb_typeof(${table.authoring}) = 'object' AND (${table.authoring}->>'schemaVersion') IS NOT NULL AND (${table.authoring}->>'schemaVersion') = '1')`),
     unique("creature_abilities_canonical_id_uq").on(table.canonicalId),
     foreignKey({
       columns: [table.variantId, table.creatureId],

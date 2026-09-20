@@ -1,5 +1,18 @@
 # Combat resumption handoff
 
+## Creature authoring Step 1 completed (20 September 2026)
+
+**Starting revision:** `dc420a559776346ebd55ab2cdb84e3104022760a`, clean `main`, verified current on `origin/main`. Brannan explicitly requested an authoring-only commit and review before Step 2. This section supersedes the earlier statement that Creature authoring lacks timing/mode/range fields.
+
+- Creature Attacks now author Initiative, explicit Melee/Ranged/Hybrid/AoE mode, Weapon-compatible ranges, Magical qualification, ordered Mechanical On-Hit Effects, and optional shared Spell Construction. Melee Reach remains optional; no target distance requirement was introduced.
+- Traits and Abilities now author Passive/Activated/Triggered/Reaction types, applicable Initiative/resource costs, Derived Ability use conditions and recharge limits, resolution and targeting notes, and shared Magic. Passive authoring rejects activation costs/rolls. Existing structured Ability Effects and legacy text remain intact.
+- Both master and individual editors use **Traits, Abilities & Defenses**, controlled **Origin** choices that preserve unknown values, and **Overview → Harvest & Utility**. The NPC route includes the shared Spell editor styles. New controls have explicit accessible labels and shared theme variables.
+- Creature saves, NPC baseline/current snapshots, NPC individual editing, and direct encounter spawning retain the new profiles. Old snapshots without authoring metadata remain readable. No legacy text was parsed into mechanics, and no duplicate ability was deleted.
+- Added `0061_creature_authoring.sql`: two nullable versioned JSONB owner profiles and constraints, with existing Ability Effect storage retained. Applied only to loopback DEV after a verified backup. All **62 migration entries match** and **all 158 public table row digests are unchanged** after excluding the newly added nullable columns from their two tables. Existing attack and ability authoring profiles remain null for deliberate reauthoring.
+- Validation: **1,417/1,417 feature tests**, focused subset **225/225**, disposable prior-schema migration and authenticated Creature/NPC browser suite, archive/restore, negative-cost rejection, direct encounter preservation, 390-pixel authoring layout, TypeScript, changed-file lint, production build, Drizzle/ledger and diff checks. Automated validation is not human play acceptance.
+- **Next action: Brannan reviews Step 1. Do not start Step 2.** Final damage/protection, incoming-effect interactions, Initiative execution, Rolls, hit locations, firearms, armor, inventory, spell rules, Derived Ability execution, and ActionEffectPlan are unchanged. Existing timing fallbacks and manual ability behavior remain until a later approved integration.
+- [Review report, decisions, catalog candidates, and changed files](docs/reports/creature-authoring-step-1-2026-09-20.md); [authoring/storage contract](docs/architecture/creature-authoring.md). Evidence is under ignored `artifacts/creature-authoring/` and `artifacts/creature-authoring-*.log`. No push, deployment, or production access.
+
 ## Full combat stabilization audit completed locally (19 September 2026)
 
 **Starting revision:** `bd202404ffa5e98948e0d179a57bcf9cc03d9c0c`, clean worktree. Brannan requested a full combat audit and fixes with smooth human operation, including familiarization with intervening changes. This section supersedes the historical work queues below.

@@ -1,0 +1,4 @@
+ALTER TABLE "creature_abilities" ADD COLUMN "authoring_json" jsonb;--> statement-breakpoint
+ALTER TABLE "creature_attacks" ADD COLUMN "authoring_json" jsonb;--> statement-breakpoint
+ALTER TABLE "creature_abilities" ADD CONSTRAINT "creature_abilities_authoring_shape" CHECK ("creature_abilities"."authoring_json" IS NULL OR (jsonb_typeof("creature_abilities"."authoring_json") = 'object' AND ("creature_abilities"."authoring_json"->>'schemaVersion') IS NOT NULL AND ("creature_abilities"."authoring_json"->>'schemaVersion') = '1'));--> statement-breakpoint
+ALTER TABLE "creature_attacks" ADD CONSTRAINT "creature_attacks_authoring_shape" CHECK ("creature_attacks"."authoring_json" IS NULL OR (jsonb_typeof("creature_attacks"."authoring_json") = 'object' AND ("creature_attacks"."authoring_json"->>'schemaVersion') IS NOT NULL AND ("creature_attacks"."authoring_json"->>'schemaVersion') = '1'));

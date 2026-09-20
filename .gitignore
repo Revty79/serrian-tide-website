@@ -53,3 +53,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/.next-creature-authoring-browser/
+/.next-creature-authoring-build/
+/artifacts/creature-authoring/
+/artifacts/creature-authoring-*.log
