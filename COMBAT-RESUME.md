@@ -1,5 +1,14 @@
 # Combat resumption handoff
 
+## Step 1 validation correction (20 September 2026)
+
+**Parent revision:** `078aec44dd6a9706dda22b479ea9fc3578822bc5`. Brannan requested only three authoring-validation corrections before reviewing Step 1.
+
+- Attack Initiative and authored Activated/Triggered/Reaction Ability Initiative now accept null or a positive value only. Zero and negative values are rejected; no default is inferred. Passive traits continue to reject every authored Initiative value.
+- Fixed Roll Target must be 1 through 100 inclusive, and Fixed Roll mode requires a target. The authoring inputs use positive Initiative minima and a Fixed Roll Target minimum of 1. The authoring contract documentation is corrected accordingly.
+- Validation passed: **14/14 focused Creature authoring tests**, **1,418/1,418 feature tests**, TypeScript, changed-file lint, and the disposable Creature/NPC migration/browser compatibility suite. Browser checks cover the updated minima and rejected zero/negative Initiative and invalid fixed-roll saves with unchanged saved NPC state, followed by a valid save and the existing snapshot/lifecycle checks. Diff checks pass.
+- No schema/migration changes, backfill, or existing project record changes. Database/browser tests used a disposable cluster only. Combat execution and protection/damage mechanics are unchanged. **Step 2 has not started; wait for Brannan's explicit Step 1 approval.**
+
 ## Creature authoring Step 1 completed (20 September 2026)
 
 **Starting revision:** `dc420a559776346ebd55ab2cdb84e3104022760a`, clean `main`, verified current on `origin/main`. Brannan explicitly requested an authoring-only commit and review before Step 2. This section supersedes the earlier statement that Creature authoring lacks timing/mode/range fields.

@@ -12,7 +12,7 @@ The Creature editor, NPC template loader, and direct encounter loader select the
 
 ## Attack profiles
 
-- `initiativeCost`: nullable, nonnegative authored cost. Blank means not authored. Combat continues to use its pre-existing timing contract and fallback.
+- `initiativeCost`: nullable, positive authored cost (greater than zero). Blank means not authored; zero and negative values are invalid. Combat continues to use its pre-existing timing contract and fallback.
 - `mode`: nullable `melee`, `ranged`, `hybrid`, or `aoe`. Names, legacy ranges, and Creature type never choose a mode.
 - `range`: Weapon-compatible `unit`, `reach`, `short`, `medium`, and `long`. The Weapon range validator handles positive distances, normalized units, and ascending bands; Creature validation also checks Short against Long when Medium is blank. Incomplete profiles may be saved for later authoring. Reach is optional and is never a required target-distance input.
 - `magical`: `true`, `false`, or `null` (unspecified). An attached Spell Construction authoritatively makes the source magical. Explicit `false` with a construction is rejected. Neither names nor Ability Origin grant magic.
@@ -26,9 +26,9 @@ Attack %, damage, damage type, anatomy, requirements, uses/recharge, Special Eff
 Activation types reuse Derived Ability values: `passive`, `activated`, `triggered`, and `reaction`, plus unspecified for old records. Initiative, resource costs, use limits, and use conditions are authoring metadata; they do not create new charge, cooldown, event-listener, or passive-synchronization state.
 
 - Passive authoring rejects activation Initiative, resource costs, and activation rolls. Choosing Passive in the editor clears these activation-only values. Conditions remain available.
-- Activated, Triggered, and Reaction authoring supports optional Initiative, Derived Ability resource cost rows, use limits/refresh scopes, and use conditions.
+- Activated, Triggered, and Reaction authoring supports optional positive Initiative (greater than zero), Derived Ability resource cost rows, use limits/refresh scopes, and use conditions. Blank Initiative remains unauthored; no default is inferred, and zero and negative values are invalid.
 - Conditions reuse `equipment`, `event`, `state`, and `manual`, including the existing key/operator/value/notes contract. No new trigger expression language or inferred events are added.
-- Resolution reuses the existing automatic, fixed-roll, and manual concepts. Fixed-roll targets require a percentage from 0 through 100. Targeting notes remain descriptive; complex targeting uses the attached shared Spell Construction.
+- Resolution reuses the existing automatic, fixed-roll, and manual concepts. Fixed-roll targets require a percentage from 1 through 100 inclusive; blank targets in Fixed Roll mode, zero, negative values, and values above 100 are invalid. Targeting notes remain descriptive; complex targeting uses the attached shared Spell Construction.
 - The existing `ability_type` column is displayed as **Origin**, with Natural, Supernatural, Elemental, and Construct choices. An existing unknown value remains a selectable legacy option.
 - Existing Mechanical Notes and Activation Notes remain descriptive text. Existing structured Ability Effects retain their current behavior. New activation metadata does not change the existing Ability use service.
 

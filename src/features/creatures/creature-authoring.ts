@@ -61,6 +61,11 @@ function number(input: unknown, label: string): number | null {
   if (typeof input !== "number" || !Number.isFinite(input) || input < 0) throw new Error(`${label} must be a nonnegative number.`);
   return input;
 }
+function initiative(input: unknown, label: string): number | null {
+  if (input == null) return null;
+  if (typeof input !== "number" || !Number.isFinite(input) || input <= 0) throw new Error(`${label} must be greater than zero.`);
+  return input;
+}
 function magical(input: unknown): boolean | null {
   if (input == null) return null;
   if (typeof input !== "boolean") throw new Error("Magical qualifier must be Yes, No, or Unspecified.");
@@ -98,7 +103,7 @@ export function normalizeCreatureAttackAuthoring(input: unknown): CreatureAttack
   const qualifier = magical(row.magical);
   if (construction && qualifier === false) throw new Error("A Spell Construction cannot be explicitly nonmagical.");
   return {
-    schemaVersion: 1, initiativeCost: number(row.initiativeCost, "Attack Initiative"), mode,
+    schemaVersion: 1, initiativeCost: initiative(row.initiativeCost, "Attack Initiative"), mode,
     range: { unit: normalizedRange.unit, reach: normalizedRange.reach, short: normalizedRange.short, medium: normalizedRange.medium, long: normalizedRange.long },
     magical: qualifier, onHitEffects: normalizeCreatureEffects(row.onHitEffects), magic: construction,
   };
@@ -110,9 +115,10 @@ export function normalizeCreatureAbilityAuthoring(input: unknown): CreatureAbili
   version(row);
   if (row.activationType != null && !DERIVED_ABILITY_ACTIVATION_TYPES.includes(row.activationType as DerivedAbilityActivationType)) throw new Error("Choose a supported Creature Ability Activation Type.");
   if (!CREATURE_RESOLUTION_MODES.includes(row.resolutionMode as CreatureAbilityAuthoring["resolutionMode"])) throw new Error("Choose a supported Creature Ability Resolution Mode.");
-  const initiativeCost = number(row.initiativeCost, "Ability Initiative");
+  if (row.activationType === "passive" && row.initiativeCost != null) throw new Error("Passive traits have no activation costs or activation roll.");
+  const initiativeCost = initiative(row.initiativeCost, "Ability Initiative");
   const fixedRollTarget = number(row.fixedRollTarget, "Fixed Roll Target");
-  if (fixedRollTarget !== null && fixedRollTarget > 100) throw new Error("Fixed Roll Target cannot exceed 100%.");
+  if (fixedRollTarget !== null && (fixedRollTarget < 1 || fixedRollTarget > 100)) throw new Error("Fixed Roll Target must be between 1 and 100%.");
   const costs = normalizeDerivedAbilityCosts(list(row.costs, "Resource costs").map((cost, sortOrder) => ({
     costType: cost.costType as DerivedAbilityCostDefinition["costType"], amount: cost.amount as number,
     resourceKey: optionalText(cost.resourceKey), notes: text(cost.notes), sortOrder,

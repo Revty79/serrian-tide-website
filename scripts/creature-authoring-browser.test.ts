@@ -72,6 +72,7 @@ async function main() {
 
     await page.getByRole("button", { name: "Attacks & Skills", exact: true }).click();
     const attack = page.locator(".creature-edit-card").first();
+    assert.equal(await attack.getByLabel("Attack Initiative", { exact: true }).getAttribute("min"), "0.01");
     await attack.getByLabel("Attack Initiative", { exact: true }).fill("4");
     for (const mode of ["melee", "ranged", "hybrid", "aoe", "hybrid"]) {
       await attack.getByLabel("Attack Mode", { exact: true }).selectOption(mode);
@@ -98,7 +99,10 @@ async function main() {
       if (index) await ability.getByLabel("Ability Name", { exact: true }).fill(`${activation} ability`);
       await ability.getByLabel("Activation Type", { exact: true }).selectOption(activation);
       assert.equal(await ability.getByLabel("Ability Initiative", { exact: true }).count(), activation === "passive" ? 0 : 1);
-      if (activation !== "passive") await ability.getByLabel("Ability Initiative", { exact: true }).fill("3");
+      if (activation !== "passive") {
+        assert.equal(await ability.getByLabel("Ability Initiative", { exact: true }).getAttribute("min"), "0.01");
+        await ability.getByLabel("Ability Initiative", { exact: true }).fill("3");
+      }
       await ability.getByRole("button", { name: "Add Use Condition", exact: true }).click();
       await ability.getByLabel("Condition Notes", { exact: true }).fill(`${activation} authoring condition`);
       if (activation === "activated") {
@@ -107,6 +111,7 @@ async function main() {
         await ability.getByRole("button", { name: "Add Use Limit", exact: true }).click();
         await ability.getByLabel("Maximum Uses", { exact: true }).fill("2");
         await ability.getByLabel("Resolution Mode", { exact: true }).selectOption("fixed-roll"); await ability.getByLabel("Fixed Roll Target %", { exact: true }).fill("70");
+        assert.equal(await ability.getByLabel("Fixed Roll Target %", { exact: true }).getAttribute("min"), "1");
       }
     }
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();
@@ -140,13 +145,29 @@ async function main() {
     assert.equal(await page.getByLabel("Use Notes", { exact: true }).inputValue(), "Harvest intact");
     await page.getByRole("button", { name: "Attacks & Skills", exact: true }).click();
     assert.equal(await page.getByLabel("Attack Initiative", { exact: true }).inputValue(), "4");
-    await page.getByLabel("Attack Initiative", { exact: true }).fill("-1");
-    await page.getByRole("button", { name: "Save Individual", exact: true }).click();
-    await page.getByRole("alert").filter({ hasText: "Attack Initiative must be a nonnegative number" }).waitFor();
-    assert.equal((await pool.query("select current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0].current_snapshot_json, npcBefore.current_snapshot_json);
+    const expectRejectedNpcSave = async (message: string) => {
+      await page.getByRole("button", { name: "Save Individual", exact: true }).click();
+      await page.getByRole("alert").filter({ hasText: message }).waitFor();
+      await until(() => page.getByRole("button", { name: "Save Individual", exact: true }).isEnabled(), "rejected NPC save completed");
+      assert.equal((await pool.query("select current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0].current_snapshot_json, npcBefore.current_snapshot_json);
+    };
+    for (const invalidInitiative of ["0", "-1"]) {
+      await page.getByLabel("Attack Initiative", { exact: true }).fill(invalidInitiative);
+      await expectRejectedNpcSave("Attack Initiative must be greater than zero");
+    }
     await page.getByLabel("Attack Initiative", { exact: true }).fill("5");
     await page.getByRole("button", { name: "Traits, Abilities & Defenses", exact: true }).click();
     assert.equal(await page.getByLabel("Origin", { exact: true }).first().inputValue(), "Unknown old origin");
+    for (const invalidInitiative of ["0", "-1"]) {
+      await page.getByLabel("Ability Initiative", { exact: true }).first().fill(invalidInitiative);
+      await expectRejectedNpcSave("Ability Initiative must be greater than zero");
+    }
+    await page.getByLabel("Ability Initiative", { exact: true }).first().fill("3");
+    for (const invalidTarget of ["0", "-1", "101", ""]) {
+      await page.getByLabel("Fixed Roll Target %", { exact: true }).fill(invalidTarget);
+      await expectRejectedNpcSave(invalidTarget === "" ? "Fixed-roll resolution requires a target percentage" : "Fixed Roll Target");
+    }
+    await page.getByLabel("Fixed Roll Target %", { exact: true }).fill("70");
     await page.getByRole("button", { name: "Save Individual", exact: true }).click();
     await until(async () => (await pool.query("select current_snapshot_json::json->'attacks'->0->'authoring'->>'initiativeCost' cost from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0].cost === "5", "NPC authoring save");
     const npcAfter = (await pool.query("select baseline_snapshot_json,current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0];

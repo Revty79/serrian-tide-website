@@ -76,7 +76,7 @@ export function CreatureAttackAuthoringEditor({ value, name, skillOptions, onCha
     <h4>Attack Setup</h4>
     <p>Attack % controls the attack roll. Damage is the complete Bestiary base damage; no extra Strength or Dexterity is authored here. New setup fields are saved for later combat integration.</p>
     <div className="creature-authoring__grid">
-      <NumberField name="Attack Initiative" value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} />
+      <NumberField name="Attack Initiative" min={0.01} value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} />
       <Field name="Attack Mode"><select className="st-control" value={data.mode ?? ""} onChange={(event) => patch({ mode: event.target.value as CreatureAttackAuthoring["mode"] || null })}><option value="">Unspecified</option>{CREATURE_ATTACK_MODES.map((mode) => <option value={mode} key={mode}>{label(mode)}</option>)}</select></Field>
       <Magical value={data.magical} construction={Boolean(data.magic)} onChange={(magical) => patch({ magical })} />
       {data.mode ? <Field name="Distance Unit"><input className="st-control" placeholder="e.g. feet" value={data.range.unit ?? ""} onChange={(event) => patch({ range: { ...data.range, unit: event.target.value || null } })} /></Field> : null}
@@ -108,9 +108,9 @@ export function CreatureAbilityAuthoringEditor({ value, name, onChange }: {
         const activationType = event.target.value as CreatureAbilityAuthoring["activationType"] || null;
         patch({ activationType, ...(activationType === "passive" ? { initiativeCost: null, costs: [], resolutionMode: "automatic", fixedRollTarget: null } : {}) });
       }}><option value="">Unspecified</option>{DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => <option value={type} key={type}>{label(type)}</option>)}</select></Field>
-      {active ? <NumberField name="Ability Initiative" value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} /> : null}
+      {active ? <NumberField name="Ability Initiative" min={0.01} value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} /> : null}
       {data.activationType ? <Field name="Resolution Mode"><select className="st-control" value={data.resolutionMode} onChange={(event) => patch({ resolutionMode: event.target.value as CreatureAbilityAuthoring["resolutionMode"], fixedRollTarget: null })}>{CREATURE_RESOLUTION_MODES.filter((mode) => !passive || mode !== "fixed-roll").map((mode) => <option key={mode} value={mode}>{label(mode)}</option>)}</select></Field> : null}
-      {active && data.resolutionMode === "fixed-roll" ? <NumberField name="Fixed Roll Target %" max={100} value={data.fixedRollTarget} onChange={(fixedRollTarget) => patch({ fixedRollTarget })} /> : null}
+      {active && data.resolutionMode === "fixed-roll" ? <NumberField name="Fixed Roll Target %" min={1} max={100} value={data.fixedRollTarget} onChange={(fixedRollTarget) => patch({ fixedRollTarget })} /> : null}
       <Field name="Targeting Notes"><input className="st-control" value={data.targeting} onChange={(event) => patch({ targeting: event.target.value })} placeholder="Targets or manual selection instructions" /></Field>
       <Magical value={data.magical} construction={Boolean(data.magic)} onChange={(magical) => patch({ magical })} />
     </div>

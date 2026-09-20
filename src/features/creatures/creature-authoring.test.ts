@@ -19,8 +19,8 @@ test("missing authoring stays absent in old snapshots and legacy text is preserv
 for (const mode of ["melee", "ranged", "hybrid", "aoe"] as const) test(`${mode} is explicit and survives authoring without a required target distance`, () => {
   const profile = { ...emptyCreatureAttackAuthoring(), mode, initiativeCost: 4 };
   assert.deepEqual(normalizeCreatureAttackAuthoring(profile), profile);
-  assert.equal(normalizeCreatureAttackAuthoring({ ...profile, initiativeCost: 0 })?.initiativeCost, 0);
-  assert.throws(() => normalizeCreatureAttackAuthoring({ ...profile, initiativeCost: -1 }), /Initiative/);
+  for (const initiativeCost of [null, 1, 0.25]) assert.equal(normalizeCreatureAttackAuthoring({ ...profile, initiativeCost })?.initiativeCost, initiativeCost);
+  for (const initiativeCost of [0, -1]) assert.throws(() => normalizeCreatureAttackAuthoring({ ...profile, initiativeCost }), /Attack Initiative must be greater than zero/);
 });
 
 test("structured range reuses weapon units, positivity, and ordered bands", () => {
@@ -65,7 +65,8 @@ for (const activationType of ["activated", "triggered", "reaction"] as const) te
     useLimits: [{ maximumUses: 2, refreshScope: "scene", refreshKey: null, notes: "", sortOrder: 0 }],
   };
   assert.deepEqual(normalizeCreatureAbilityAuthoring(profile), profile);
-  assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, initiativeCost: -2 }), /Initiative/);
+  for (const initiativeCost of [null, 1, 0.25]) assert.equal(normalizeCreatureAbilityAuthoring({ ...profile, initiativeCost })?.initiativeCost, initiativeCost);
+  for (const initiativeCost of [0, -1]) assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, initiativeCost }), /Ability Initiative must be greater than zero/);
   assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, fixedRollTarget: null }), /requires/);
   assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, fixedRollTarget: 101 }), /100/);
   assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, costs: [{ ...profile.costs[0], amount: 0 }] }), /greater than zero/);
@@ -73,9 +74,18 @@ for (const activationType of ["activated", "triggered", "reaction"] as const) te
   assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, useLimits: [{ ...profile.useLimits[0], maximumUses: 0 }] }), /positive whole number/);
 });
 
+test("fixed-roll targets accept 1 through 100 and require an authored target", () => {
+  const profile = { ...emptyCreatureAbilityAuthoring(), activationType: "activated", resolutionMode: "fixed-roll" };
+  for (const fixedRollTarget of [1, 100]) assert.equal(normalizeCreatureAbilityAuthoring({ ...profile, fixedRollTarget })?.fixedRollTarget, fixedRollTarget);
+  for (const fixedRollTarget of [0, -1, 0.5, 101]) assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, fixedRollTarget }), /Fixed Roll Target/);
+  assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, fixedRollTarget: null }), /requires a target percentage/);
+});
+
 test("Passive traits cannot carry activation costs or rolls", () => {
   const profile = { ...emptyCreatureAbilityAuthoring(), activationType: "passive" };
   assert.equal(normalizeCreatureAbilityAuthoring(profile)?.activationType, "passive");
+  assert.equal(normalizeCreatureAbilityAuthoring(profile)?.initiativeCost, null);
+  for (const initiativeCost of [-1, 0, 0.25, 1, 100]) assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, initiativeCost }), /Passive/);
   for (const update of [{ initiativeCost: 1 }, { initiativeCost: 0 }, { resolutionMode: "fixed-roll", fixedRollTarget: 50 }, { costs: [{ costType: "mana", amount: 1, resourceKey: null, notes: "", sortOrder: 0 }] }]) assert.throws(() => normalizeCreatureAbilityAuthoring({ ...profile, ...update }), /Passive/);
 });
 
