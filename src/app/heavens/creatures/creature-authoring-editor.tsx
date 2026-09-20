@@ -10,7 +10,6 @@ import {
 } from "@/features/creatures/creature-authoring";
 import {
   DERIVED_ABILITY_ACTIVATION_TYPES, DERIVED_ABILITY_COST_TYPES, DERIVED_ABILITY_REFRESH_SCOPES,
-  DERIVED_ABILITY_REQUIREMENT_OPERATORS, DERIVED_ABILITY_USE_CONDITION_TYPES,
 } from "@/features/derived-abilities/models";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
 import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
@@ -18,6 +17,7 @@ import { createEmptySpell } from "@/features/spell-construction/utilities/spellF
 import { SpellConstructionEditor } from "@/app/heavens/skills/spell-construction-editor";
 import { listSpellFrameworkSkills } from "@/app/heavens/skills/actions";
 import { CreatureAbilityEffectsEditor } from "./creature-ability-effects-editor";
+import { CreatureAuthoringHelpField, CreatureUseConditionsEditor, creatureActivationHelp } from "./creature-use-conditions-editor";
 import "./creature-authoring-editor.css";
 import "../skills/skills.css";
 import type { CreatureDraft } from "./actions";
@@ -125,10 +125,10 @@ export function CreatureAbilityAuthoringEditor({ ability, skillOptions, onChange
     <Field name="Ability Name"><input className="st-control" value={ability.abilityName} onChange={(e) => onChange({ ...ability, abilityName: e.target.value })} /></Field>
     <Field name="Description"><textarea className="st-control" rows={3} value={ability.description} onChange={(e) => onChange({ ...ability, description: e.target.value })} /></Field>
     <div className="creature-authoring__grid">
-      <Field name="Activation Type"><select className="st-control" value={data.activationType ?? ""} onChange={(event) => {
+      <CreatureAuthoringHelpField name="Activation Type" help={creatureActivationHelp}><select className="st-control" value={data.activationType ?? ""} onChange={(event) => {
         const activationType = event.target.value as CreatureAbilityAuthoring["activationType"] || null;
         patch({ activationType, ...(activationType === "passive" ? { initiativeCost: null, costs: [], resolutionMode: "automatic", fixedRollTarget: null } : {}) });
-      }}><option value="">Unspecified</option>{DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => <option value={type} key={type}>{label(type)}</option>)}</select></Field>
+      }}><option value="">Unspecified</option>{DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => <option value={type} key={type}>{label(type)}</option>)}</select></CreatureAuthoringHelpField>
       {active ? <NumberField name="Ability Initiative" min={0.01} value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} /> : null}
     </div>
     <CreatureAbilityEffectsEditor ability={ability} skillOptions={skillOptions} onChange={onChange} compact title="Effects" note="Choose what this ability does." />
@@ -153,22 +153,7 @@ export function CreatureAbilityAuthoringEditor({ ability, skillOptions, onChange
       </div>)}
       <button type="button" className="st-button" onClick={() => patch({ costs: [...data.costs, { costType: "mana", amount: 1, resourceKey: null, notes: "", sortOrder: data.costs.length }] })}>Add Resource Cost</button>
     </fieldset> : null}
-    <fieldset><legend>Use Conditions</legend>
-      <p>Use the existing event, equipment, state, or manual conditions for triggers, reactions, and passive traits.</p>
-      {data.useConditions.map((condition, index) => {
-        const update = (change: Partial<typeof condition>) => patch({ useConditions: data.useConditions.map((entry, i) => i === index ? { ...entry, ...change } : entry) });
-        return <div className="creature-authoring__row" key={index}>
-          <Field name="Condition Type"><select className="st-control" value={condition.conditionType} onChange={(event) => update({ conditionType: event.target.value as typeof condition.conditionType })}>{DERIVED_ABILITY_USE_CONDITION_TYPES.map((type) => <option key={type} value={type}>{label(type)}</option>)}</select></Field>
-          {condition.conditionType !== "manual" ? <><Field name="Condition Key"><input className="st-control" value={condition.conditionKey ?? ""} onChange={(event) => update({ conditionKey: event.target.value || null })} /></Field>
-            <Field name="Operator"><select className="st-control" value={condition.operator ?? ""} onChange={(event) => update({ operator: event.target.value as typeof condition.operator || null })}><option value="">Unspecified</option>{DERIVED_ABILITY_REQUIREMENT_OPERATORS.map((operator) => <option key={operator}>{operator}</option>)}</select></Field>
-            <Field name="Numeric Value"><input className="st-control" type="number" step="any" value={condition.numericValue ?? ""} onChange={(event) => update({ numericValue: event.target.value === "" ? null : Number(event.target.value) })} /></Field>
-            <Field name="Text Value"><input className="st-control" value={condition.textValue ?? ""} onChange={(event) => update({ textValue: event.target.value || null })} /></Field></> : null}
-          <Field name="Condition Notes"><input className="st-control" value={condition.notes} onChange={(event) => update({ notes: event.target.value })} /></Field>
-          <button type="button" className="st-button" onClick={() => patch({ useConditions: data.useConditions.filter((_, i) => i !== index) })}>Remove Condition</button>
-        </div>;
-      })}
-      <button type="button" className="st-button" onClick={() => patch({ useConditions: [...data.useConditions, { conditionType: "manual", conditionKey: null, operator: null, numericValue: null, textValue: null, notes: "", sortOrder: data.useConditions.length }] })}>Add Use Condition</button>
-    </fieldset>
+    <CreatureUseConditionsEditor conditions={data.useConditions} onChange={(useConditions) => patch({ useConditions })} />
     {active ? <fieldset><legend>Uses & Recharge</legend>
       {data.useLimits.map((limit, index) => {
         const update = (change: Partial<typeof limit>) => patch({ useLimits: data.useLimits.map((entry, i) => i === index ? { ...entry, ...change } : entry) });

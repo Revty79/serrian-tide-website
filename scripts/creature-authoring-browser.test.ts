@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { authorCreatureUseConditions, checkSavedCreatureUseConditions } from "./creature-use-conditions-browser-checks";
 import { assertAttackPrimaryFields, checkOrdinaryCreatureUi } from "./creature-authoring-ui-checks";
 import { authorInteractionRules, checkRejectedPercentages, checkRaceInteractions, setDetailsOpen } from "./interaction-rule-browser-checks";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -47,7 +48,7 @@ async function main() {
     server.stdout?.on("data", (chunk) => { serverLog += String(chunk); }); server.stderr?.on("data", (chunk) => { serverLog += String(chunk); });
     await until(async () => { if (server?.exitCode !== null) throw new Error("Next exited before starting."); try { return (await fetch(`${base}/login`)).ok; } catch { return false; } }, "Next start");
     browser = await chromium.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
-    const context = await browser.newContext({ viewport: { width: 1365, height: 1000 } });
+    const context = await browser.newContext({ viewport: { width: 1365, height: 1000 }, hasTouch: true });
     const page = await context.newPage(); page.setDefaultTimeout(35_000); page.setDefaultNavigationTimeout(180_000); page.on("pageerror", (error) => errors.push(error.message));
     const auth = await context.request.post(`${base}/api/auth/sign-in/email`, { headers: { Origin: base }, data: { email: `${userId}@example.invalid`, password } }); assert.equal(auth.status(), 200);
     await page.goto(`${base}/heavens/creatures`); console.log("PASS: Creature editor loaded");
@@ -148,7 +149,7 @@ async function main() {
       await setDetailsOpen(ability, "Advanced Ability Settings", true);
       if (activation === "passive") assert.equal(await ability.getByRole("button", { name: "Add Resource Cost", exact: true }).count(), 0);
       await ability.getByRole("button", { name: "Add Use Condition", exact: true }).click();
-      await ability.getByLabel("Condition Notes", { exact: true }).fill(`${activation} authoring condition`);
+      await ability.getByLabel("Description / Notes", { exact: true }).fill(`${activation} authoring condition`);
       if (activation === "activated") {
         await ability.getByRole("button", { name: "Add Resource Cost", exact: true }).click();
         await ability.getByLabel("Cost Amount", { exact: true }).fill("2");
@@ -161,6 +162,9 @@ async function main() {
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();
     await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
     console.log("PASS: attack and ability authoring saved through authenticated browser");
+    const expectedUseConditions = await authorCreatureUseConditions(page, page.getByRole("region", { name: "Ability authoring", exact: true }).first(), artifacts);
+    await page.getByRole("button", { name: "Save Creature", exact: true }).click();
+    await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
     const creatureBeforeRules = (await pool.query("select calculated_challenge_rating from creatures where id=$1", [creatureId])).rows[0].calculated_challenge_rating;
     const interactionSection = await authorInteractionRules(page, "creature");
     await checkRejectedPercentages(page, interactionSection, "Save Creature", async () => (await pool.query("select interaction_rules_json from creatures where id=$1", [creatureId])).rows[0].interaction_rules_json);
@@ -182,6 +186,9 @@ async function main() {
     assert.deepEqual(template.abilities.map((ability) => ability.authoring?.activationType), ["passive", "activated", "triggered", "reaction"]);
     assert.equal(template.abilities[0].abilityType, "Unknown old origin"); assert.equal(template.abilities[0].mechanicalEffect, legacy.abilities[0].mechanicalEffect);
     assert.deepEqual(template.defenses, legacy.defenses); assert.deepEqual(template.uses, legacy.uses);
+    assert.deepEqual(template.abilities[0].authoring?.useConditions, expectedUseConditions);
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
+    await checkSavedCreatureUseConditions(page, page.getByRole("region", { name: "Ability authoring", exact: true }).first());
     const snapshot = buildCreatureNpcSnapshot(template);
     assert.deepEqual(parseCreatureNpcSnapshot(JSON.stringify(snapshot), "New snapshot"), snapshot);
     assert.equal(template.core.interactionRules?.rules.length, 7);
@@ -223,6 +230,7 @@ async function main() {
     await page.getByLabel("Attack Initiative", { exact: true }).fill("5");
     await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
     assert.equal(await page.getByLabel("Origin", { exact: true }).first().inputValue(), "Unknown old origin");
+    await checkSavedCreatureUseConditions(page, page.getByRole("region", { name: "Ability authoring", exact: true }).first(), true);
     for (const invalidInitiative of ["0", "-1"]) {
       await page.getByLabel("Ability Initiative", { exact: true }).first().fill(invalidInitiative);
       await expectRejectedNpcSave("Ability Initiative must be greater than zero");
@@ -248,6 +256,10 @@ async function main() {
     assert.deepEqual(JSON.parse(npcAfter.current_snapshot_json).uses, template.uses);
     for (const field of ["rangeReach", "requiredAnatomy", "requirements", "usesRecharge", "specialEffect"] as const) assert.equal(JSON.parse(npcAfter.current_snapshot_json).attacks[0][field], template.attacks[0][field]);
     assert.equal((await db.transaction((tx) => readCreatureNpcTemplateInTransaction(tx, creatureId)))!.attacks[0].authoring?.initiativeCost, 4);
+    await page.reload();
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
+    await checkSavedCreatureUseConditions(page, page.getByRole("region", { name: "Ability authoring", exact: true }).first(), true);
+    console.log("PASS: Use Condition help, plain labels, all stored operators, contextual fields and complex data preserved on master/NPC save/reload");
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(artifacts, "abilities-phone.png"), fullPage: true });
     assert.equal(await npcInteractions.evaluate((element) => element.scrollWidth > element.clientWidth + 2), false);

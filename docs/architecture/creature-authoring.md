@@ -42,4 +42,35 @@ Abilities show Name, Description, Activation Type, applicable Initiative and Eff
 
 Populated legacy Attack/Ability text appears in collapsed, read-only **Legacy Data** sections. Existing Defenses appear in one collapsed, read-only **Legacy Defense Data** section; there is no add control. These values remain in the drafts and snapshots during saves. Structured Interaction Rules are the new defense authoring path. See the [Step 2 UI supplement report](../reports/creature-authoring-ui-supplement-2026-09-20.md).
 
-This step intentionally leaves final damage/protection, incoming-effect interactions, Initiative, Rolls, hit locations, firearms, armor, inventory, Derived Ability execution, and `ActionEffectPlan` unchanged. Brannan must review Step 1 before Step 2 begins.
+### Use Condition clarity (final Step 2 correction)
+
+Creature masters and NPC individuals use the same Use Conditions component. Click/tap and keyboard-accessible **?** controls explain Activation Type, Use Conditions, each condition type, keys, operators, comparison values and notes. Help states the current support limits and distinguishes examples from a future supported key catalog.
+
+- **Manual Ruling:** one **Description / Notes** field uses the existing `notes` property. The model has no separate description field, so the editor does not invent one or reuse `textValue`. The existing required manual explanation validation remains unchanged. Key/operator/number/text values on older manual conditions remain available in collapsed **Saved Condition Details**.
+- **Event:** **Event Key** and **Match: Exact Event** are the simple view. All existing operator/value capabilities remain in **Advanced Comparison**. Event comparison settings are preserved, and help explicitly says current Event matching ignores them.
+- **Equipment / State:** **Equipment Key / State Key**, with **Present / possessed** and **Not present / not possessed** as the basic choices. The existing operator is never defaulted or cleared. Full comparisons are available under **Advanced Comparison**.
+- All eight stored operator codes are unchanged. Display labels spell out Greater than or equal to, Greater than, Less than or equal to, Less than, Equal to, Not equal to, Present / possessed, and Not present / not possessed.
+- Ordered comparisons show **Number to Compare**. Equal / Not Equal offer **Compare As: Number / Text** and show just the selected value editor. This is a local presentation choice, not a new persisted field. Text-only saved comparisons reopen as Text; otherwise the initial view is Number. Both previously saved values can coexist and neither is cleared by switching views, operators or types. Values outside the selected view remain visible in collapsed **Saved Condition Details**.
+- **Notes** is human explanation only and does not change evaluation. No new fields, defaults, validation, migration or runtime semantics are introduced.
+
+Current support was checked against `derived-ability-use.ts` and `character-derived-ability-service.ts`: Event matching compares a supplied event key exactly; Equipment/State evaluation accepts boolean maps (missing facts require manual review). The normal Character Derived Ability service does not provide a complete Equipment/State fact catalog. Existing boolean evaluation is not a numeric/text comparison engine. Creature authoring profiles remain metadata and are not newly connected to runtime by this correction.
+
+### Explicit later Combat / Runtime Integration requirement
+
+The later approved integration step **must**:
+
+A. Create authoritative Event facts.
+
+B. Create authoritative Equipment facts from actual equipment state.
+
+C. Create authoritative Character/Creature State facts.
+
+D. Supply known supported keys to authoring UIs as dropdown/search options wherever possible.
+
+E. Properly evaluate Greater than or equal to, Greater than, Less than or equal to, Less than, Equal to, Not equal to, Present, and Not present.
+
+F. Use `numericValue` or `textValue` according to the authored comparison. Resolve ambiguous older combinations explicitly rather than silently discarding data or treating the presentation choice as a persisted discriminator.
+
+G. Fall back to G.O.D. ruling when the system cannot authoritatively determine a condition.
+
+These are planned requirements, **not implemented in Step 2**. Final damage/protection, incoming-effect interactions, Initiative, Rolls, hit locations, firearms, armor, inventory, Derived Ability execution, and `ActionEffectPlan` remain unchanged. Stop for Brannan's Step 2 review; Step 3 has not started.

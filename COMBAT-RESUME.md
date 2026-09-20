@@ -1,5 +1,15 @@
 # Combat resumption handoff
 
+## Step 2 final Use Conditions correction (20 September 2026)
+
+**Parent revision:** `4b23143c9f2b44bfb06d6c027dc5b1f198434d60`. This is the final requested authoring/usability correction, pending Brannan's review.
+
+- Creature masters and NPC individuals share accessible click/tap/keyboard **?** help, plain-English operator labels, Event/Equipment/State Key labels, contextual number/text fields and simple Manual Ruling authoring. Existing stored codes and all hidden condition values are preserved. Activation Type now has explanatory help.
+- Manual **Description / Notes** shares the existing `notes` property. Compare As is a presentation choice; it never erases either stored value. Older combinations remain accessible through Advanced Comparison / Saved Condition Details. [Review decisions and exact files](docs/reports/creature-use-conditions-correction-2026-09-20.md).
+- Help states current runtime limits: exact supplied Event Key matching; domain boolean Equipment/State maps without a complete normal Character runtime fact catalog; full numeric/text evaluation deferred. Creature Use Conditions remain authoring metadata.
+- **Explicit later Combat / Runtime Integration requirement:** create authoritative Event facts, Equipment facts from actual equipment state, and Character/Creature State facts; provide known supported keys as dropdown/search options; evaluate Greater than or equal to, Greater than, Less than or equal to, Less than, Equal to, Not equal to, Present and Not present; use the authored numeric/text values; fall back to G.O.D. ruling whenever the system cannot authoritatively determine the condition. [Full A–G requirement](docs/architecture/creature-authoring.md#explicit-later-combat--runtime-integration-requirement). These requirements are documented only, not implemented here.
+- Validation: **1,432 feature tests**, expanded disposable master/NPC browser save/reload and mobile touch checks, TypeScript, changed-file lint, production build and diff checks pass. No domain/schema/save-service/runtime changes. Creature Attacks, Harvest & Utility, Interaction Rules, damage/protection and Incoming Effect Resolver are unchanged. **Step 3 has not started. Stop after this correction for review.**
+
 ## Step 2 UI supplement completed for review (20 September 2026)
 
 **Parent revision:** `709b2276cf50906ec8733f62126ea899bb0529c3`. Brannan accepted the underlying Interaction Rule architecture and requested a focused UI cleanup before accepting Step 2. His correction explicitly excludes Uses / Harvest & Utility from this work.

@@ -1,0 +1,14 @@
+.editor, .condition { min-width: 0; }
+.condition { display: grid; gap: .8rem; border-top: 1px solid var(--st-border); padding-top: 1rem; }
+.helpLabel { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .35rem; }
+.helpButton { min-width: 2.75rem; min-height: 2.75rem; border: 1px solid var(--st-border); border-radius: 50%; background: var(--st-surface-soft); color: var(--st-text); cursor: pointer; font-weight: 700; }
+.helpButton:hover { background: var(--st-surface-raised); }
+.helpButton:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+.helpText { grid-column: 1 / -1; padding: .75rem; background: var(--st-surface-soft); border: 1px solid var(--st-border); border-radius: .5rem; overflow-wrap: anywhere; }
+.helpText p + p { margin-top: .6rem; }
+.details { min-width: 0; }
+.details summary { cursor: pointer; color: var(--st-text-secondary); }
+.details > :not(summary) { margin-top: .75rem; }
+.details dl { display: grid; gap: .6rem; }
+.details dt { font-weight: 600; color: var(--st-text); }
+.details dd { margin: .2rem 0 0; color: var(--st-muted); overflow-wrap: anywhere; }
