@@ -158,7 +158,7 @@ for (const remainingHp of [1, 0, -1]) test(`Slime whole-body HP ${remainingHp} d
     assert.equal(card.participationStatus, remainingHp === 1 ? "active" : "suspended");
     assert.equal(projection.alerts.length, remainingHp === 1 ? 0 : 1);
     assert.equal(card.limbConditions.length, 0);
-    assert.equal(Boolean((await local(tx, f, id)).defeat), remainingHp < 0);
+    assert.equal(Boolean((await local(tx, f, id)).defeat), remainingHp <= 0, "Whole-body incapacity and death both retain Creature reward credit.");
     if (remainingHp <= 0) { assert.equal(card.canActNow, false); assert.equal(card.canRespondNow, false); }
     throw rollback;
   }), expected);

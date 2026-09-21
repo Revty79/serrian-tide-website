@@ -9,7 +9,7 @@ import { applyEncounterExperienceAwardsInTransaction, lockEncounterCloseoutConte
   type EncounterCloseoutTransaction } from "./encounter-closeout-service";
 import { allocateCreatureExperience, allocateEncounterExperience, creatureExperienceEvidence, npcRewardEvidence, experienceRecipients, wholeExperience, type CreatureExperienceMode } from "./combat-xp";
 import type { ActionDeclarationActor } from "./action-declaration-service";
-import { applyCombatFameAwardsInTransaction, recordCreatureKillFameInTransaction, fameAmount, type FameAward } from "./combat-fame-service";
+import { applyCombatFameAwardsInTransaction, recordCreatureDefeatFameInTransaction, fameAmount, type FameAward } from "./combat-fame-service";
 import type { ExperienceAwardInput } from "./encounter-closeout";
 
 export type CombatExperienceDecisionInput = {
@@ -63,13 +63,13 @@ export async function awardCombatExperienceInTransaction(
     const requestKey = text(input.requestKey, "XP request identity");
     if (input.kind === "creature-kill-fame") {
       if (context.encounterStatus === "active" && (context.sceneStatus !== "active" || context.sessionStatus !== "active")
-        || !["active", "completed"].includes(context.sceneStatus) || !["active", "completed"].includes(context.sessionStatus)) throw new Error("Kill Fame requires started parents; active combat requires active parents.");
-      if (!["active", "completed"].includes(context.encounterStatus)) throw new Error("Start this Encounter before awarding kill Fame.");
-      if (!Number.isSafeInteger(input.defeatedParticipantId) || input.defeatedParticipantId === 0 || !Number.isSafeInteger(input.killerCharacterId) || input.killerCharacterId <= 0) throw new Error("Choose the exact killed Creature and Player Character.");
-      if (input.recipientCharacterIds.length !== 1 || input.recipientCharacterIds[0] !== input.killerCharacterId) throw new Error("Kill Fame belongs only to the credited Player Character.");
-      const result = await recordCreatureKillFameInTransaction(awardTx, context, { participantId: input.defeatedParticipantId,
-        killerId: input.killerCharacterId, requestKey, reason: text(input.reason, "Kill attribution reason") });
-      if (result?.decisionId === undefined) throw new Error("Kill Fame is awaiting exact credit or an authored CR.");
+        || !["active", "completed"].includes(context.sceneStatus) || !["active", "completed"].includes(context.sessionStatus)) throw new Error("Defeat Fame requires started parents; active combat requires active parents.");
+      if (!["active", "completed"].includes(context.encounterStatus)) throw new Error("Start this Encounter before awarding defeat Fame.");
+      if (!Number.isSafeInteger(input.defeatedParticipantId) || input.defeatedParticipantId === 0 || !Number.isSafeInteger(input.killerCharacterId) || input.killerCharacterId <= 0) throw new Error("Choose the exact incapacitated or killed Creature and Player Character.");
+      if (input.recipientCharacterIds.length !== 1 || input.recipientCharacterIds[0] !== input.killerCharacterId) throw new Error("Defeat Fame belongs only to the credited Player Character.");
+      const result = await recordCreatureDefeatFameInTransaction(awardTx, context, { participantId: input.defeatedParticipantId,
+        killerId: input.killerCharacterId, requestKey, reason: text(input.reason, "Defeat attribution reason") });
+      if (result?.decisionId === undefined) throw new Error("Defeat Fame is awaiting exact credit or an authored CR.");
       const [saved] = await awardTx.select().from(decision).where(eq(decision.id, result.decisionId));
       return receipt(saved, result.reused === true);
     }
@@ -140,8 +140,8 @@ export async function awardCombatExperienceInTransaction(
       if (input.valueRuling) text(input.valueRuling.reason, "G.O.D. XP value ruling");
       let credited = object(defeat.credit).characterId;
       if (input.killerRuling) {
-        if (!eligible.has(input.killerRuling.characterId)) throw new Error("The credited killer must be an eligible Character in this Encounter.");
-        defeat.credit = { characterId: input.killerRuling.characterId, reason: text(input.killerRuling.reason, "G.O.D. killer ruling"), ruledByUserId: actor.userId };
+        if (!eligible.has(input.killerRuling.characterId)) throw new Error("The credited Character must be an eligible Character in this Encounter.");
+        defeat.credit = { characterId: input.killerRuling.characterId, reason: text(input.killerRuling.reason, "G.O.D. defeat credit"), ruledByUserId: actor.userId };
         credited = input.killerRuling.characterId;
       }
       const killerCharacterId = typeof credited === "number" && eligible.has(credited) ? credited : null;

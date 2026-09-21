@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { allocateCreatureExperience, allocateEncounterExperience, creatureExperienceEvidence } from "./combat-xp";
+import { allocateCreatureExperience, allocateEncounterExperience, creatureExperienceEvidence, creatureDefeatFameEvidence } from "./combat-xp";
+
+test("Fame recognizes whole-actor incapacitation and death, preserving prior defeat and legacy kill evidence", () => {
+  for (const status of ["incapacitated", "dead"]) assert.deepEqual(creatureDefeatFameEvidence({ combatCondition: { status, reason: "Recorded outcome" } }), { condition: status, reason: "Recorded outcome" });
+  for (const local of [{}, { combatCondition: { status: "able" } }, { limbConditions: [{ poolKey: "arm" }] },
+    { combatParticipation: { departed: true, departureKind: "surrender" } }, { defeat: { reason: "Legacy unspecified defeat" } }]) assert.equal(creatureDefeatFameEvidence(local), null);
+  const evidence = { killerId: 4, challengeRating: 2, condition: "incapacitated" };
+  assert.deepEqual(creatureDefeatFameEvidence({ combatCondition: { status: "able" }, defeatFame: evidence }), evidence);
+  assert.deepEqual(creatureDefeatFameEvidence({ kill: { killerId: 4, challengeRating: 2 } }), { killerId: 4, challengeRating: 2 });
+});
 
 test("incapacitation supports XP without recording death or inventing an XP value", () => {
   const local = { combatCondition: { status: "incapacitated", revision: 1, reason: "Whole-body HP reached zero." } };
@@ -21,7 +30,7 @@ test("Creature XP explicitly distinguishes killer-only, full-to-each and shared 
 
 test("shared split gives the whole remainder to the credited killer without changing total XP", () => {
   assert.deepEqual(allocateCreatureExperience({ value: 3, mode: "shared-split", recipientCharacterIds: [1, 2], killerCharacterId: 2 }), [{ characterId: 1, amount: 1 }, { characterId: 2, amount: 2 }]);
-  assert.throws(() => allocateCreatureExperience({ value: 3, mode: "shared-split", recipientCharacterIds: [1, 2], killerCharacterId: null }), /credited killer/);
+  assert.throws(() => allocateCreatureExperience({ value: 3, mode: "shared-split", recipientCharacterIds: [1, 2], killerCharacterId: null }), /credited Character/);
   assert.throws(() => allocateCreatureExperience({ value: 3, mode: "shared-split", recipientCharacterIds: [1, 2], killerCharacterId: 3 }), /selected eligible/);
 });
 

@@ -11,6 +11,19 @@ export function creatureExperienceEvidence(localState: unknown): Record<string, 
   return { reason: condition.reason, conditionEvidence: structuredClone(local.combatCondition) };
 }
 
+/** Fame follows a recorded whole-actor incapacitation or death, never a limb
+ * injury alone. Retained evidence keeps credit available after recovery. */
+export function creatureDefeatFameEvidence(localState: unknown): Record<string, unknown> | null {
+  const local = combatObject(localState);
+  for (const recorded of [local.defeatFame, local.kill]) {
+    const evidence = combatObject(recorded);
+    if (Object.keys(evidence).length) return evidence;
+  }
+  const condition = combatConditionState(local);
+  return condition.status === "incapacitated" || condition.status === "dead"
+    ? { condition: condition.status, reason: condition.reason } : null;
+}
+
 export type CreatureExperienceMode = "killer-only" | "full-to-each" | "shared-split";
 
 export function wholeExperience(value: number): number {
@@ -32,15 +45,15 @@ export function allocateCreatureExperience(input: {
   const ids = experienceRecipients(input.recipientCharacterIds);
   if (!["killer-only", "full-to-each", "shared-split"].includes(input.mode)) throw new Error("Choose an explicit Creature XP distribution mode.");
   if (input.mode === "killer-only") {
-    if (input.killerCharacterId === null) throw new Error("Credit the killer with an explicit G.O.D. ruling before awarding killer-only XP.");
-    if (ids.length !== 1 || ids[0] !== input.killerCharacterId) throw new Error("Killer-only XP has exactly the credited killer as its recipient.");
+    if (input.killerCharacterId === null) throw new Error("Credit the Character who incapacitated or killed the Creature before awarding XP only to that Character.");
+    if (ids.length !== 1 || ids[0] !== input.killerCharacterId) throw new Error("This XP mode has exactly the credited Character as its recipient.");
     return [{ characterId: ids[0], amount: value }];
   }
   if (input.mode === "full-to-each") return ids.map((characterId) => ({ characterId, amount: value }));
   const share = Math.floor(value / ids.length);
   const remainder = value % ids.length;
   if (remainder && (input.killerCharacterId === null || !ids.includes(input.killerCharacterId))) {
-    throw new Error("An uneven shared split requires the credited killer among the selected eligible Characters to receive the remainder.");
+    throw new Error("An uneven shared split requires the credited Character among the selected eligible Characters to receive the remainder.");
   }
   return ids.map((characterId) => ({ characterId, amount: share + (characterId === input.killerCharacterId ? remainder : 0) }));
 }

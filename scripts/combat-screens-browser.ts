@@ -1819,6 +1819,47 @@ try {
     results.push("Limb incapacity and head death alert both roles live; acknowledgement survives reload and leaves the current condition visible.");
     await director.context().close(); await participant.context().close();
   }
+  if (include("defeat-fame")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "defeat-fame"));
+    const snapshot = { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, totalHp: 11, challengeRating: 2, killXp: 3 },
+      hpPools: [...f.creatureSnapshot.hpPools, { canonicalId: "fixture-torso", poolName: "Torso", maximumHp: 6 }],
+      hitLocations: [...f.creatureSnapshot.hitLocations, { hitLocationNumber: 6, locationName: "Torso", hpPoolCanonicalId: "fixture-torso", soak: "0", naturalArmor: "0" }] };
+    for (const id of f.occurrences) await pool.query("update campaign_session_encounter_participant set creature_snapshot_json=$1 where encounter_id=$2 and character_id=$3", [snapshot, f.encounterId, id]);
+    const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
+    for (const [index, id] of f.occurrences.entries()) {
+      await chooseAttack(player, id, index ? "76" : "70");
+      await commitAttack(player);
+      await screen(director).getByRole("region", { name: "Attack result report" }).getByRole("button", { name: "Approve & apply attack", exact: true }).click();
+      await until(async () => (await pool.query("select fame from campaign_character_profile where character_id=$1", [f.heroId])).rows[0].fame === 2 * (index + 1), "each CR 2 defeat automatically awards 2 Fame");
+    }
+    const local = async (id: number) => (await pool.query("select local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [f.encounterId, id])).rows[0].local_state_json;
+    assert.equal((await local(f.occurrences[0])).combatCondition.status, "dead");
+    assert.equal((await local(f.occurrences[1])).combatCondition.status, "incapacitated");
+    assert.equal((await local(f.occurrences[1])).kill, undefined);
+    const profile = async () => (await pool.query("select fame,experience from campaign_character_profile where character_id=$1", [f.heroId])).rows[0];
+    await screen(director).getByRole("link", { name: "End Combat & XP", exact: true }).click();
+    const closeout = screen(director).locator("#combat-closeout");
+    await closeout.getByText("Creature defeat Fame", { exact: true }).waitFor();
+    assert.equal(await closeout.getByText(/2 Fame \/ already awarded/).count(), 2);
+    for (const name of ["Fixture Goblin 1", "Fixture Goblin 2"]) {
+      const award = closeout.locator("fieldset").filter({ has: director.locator("legend", { hasText: name }) });
+      await award.getByLabel("Include this Creature award").check();
+      await award.getByLabel("Rowan", { exact: true }).check();
+    }
+    await closeout.getByRole("button", { name: "Preview closeout", exact: true }).click();
+    await closeout.getByText("Rowan: +6 XP", { exact: true }).waitFor();
+    await screenshot(director, "defeat-fame-closeout-desktop");
+    await screenshot(director, "defeat-fame-closeout-phone", 390);
+    await closeout.getByRole("button", { name: "End Combat & award XP", exact: true }).click();
+    await until(async () => (await profile()).experience === 18, "full XP from both incapacitation and death");
+    assert.deepEqual(await profile(), { fame: 4, experience: 18 });
+    await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor();
+    assert.deepEqual(await profile(), { fame: 4, experience: 18 });
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_reward_decision where encounter_id=$1", [f.encounterId])).rows[0].n, 4);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 2);
+    results.push("One CR 2 head kill and one CR 2 torso incapacitation award 4 Fame automatically and 6 authored XP at closeout; incapacity remains nonfatal, both rewards survive reload without duplication, and the G.O.D. screen explains the same reward rule.");
+    await director.context().close(); await player.context().close();
+  }
   if (include("npc-surrender")) {
     const f = await db.transaction((tx) => screenFixture(tx, "npc-surrender"));
     const director = await login(f.godId, "god", f), player = await login(f.playerId, "player", f);

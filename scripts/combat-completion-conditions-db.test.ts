@@ -246,7 +246,11 @@ for (const kind of ["pc", "npc", "creature"] as const) for (const remainingHp of
     const outcomes = saved.damageOutcomes as Record<string, unknown>[];
     assert.equal(outcomes.length, 1); assert.equal(outcomes[0].locationRemainingHp, remainingHp);
     assert.equal(outcomes[0].unconscious, remainingHp === 0);
-    assert.equal(Boolean(saved.defeat), remainingHp < 0);
+    assert.equal(Boolean(saved.defeat), remainingHp < 0 || kind === "creature", "Creature incapacity now preserves defeat credit for rewards without recording death.");
+    if (kind === "creature") {
+      assert.equal((saved.defeatFame as { condition: string }).condition, expectedStatus);
+      assert.equal(saved.kill, undefined);
+    }
     const card = (await readCombatProjectionInTransaction(tx, f.context, f.god)).entities.find((entry) => entry.participantId === id)!;
     assert.equal(card.canActNow, false); assert.equal(card.canRespondNow, false); assert.equal(card.mustChooseNow, false);
     assert.equal(card.canInspect, true);

@@ -99,8 +99,8 @@ test("XP requires owner authority, exact eligibility, explicit missing killer ru
     await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.player, f.request), /Campaign-owning/);
     await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, { authority: "god-owner", userId: "unrelated-admin" }, f.request), /creator|owner|Campaign/i);
     await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, { ...f.request, recipientCharacterIds: [f.rosterOnlyId] }), /exact Encounter/);
-    await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, { ...f.request, kind: "creature", defeatedParticipantId: f.occurrences[0], mode: "killer-only", recipientCharacterIds: [f.heroId] }), /explicit G.O.D. ruling/);
-    await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, { ...f.request, kind: "creature", defeatedParticipantId: f.occurrences[0], mode: "shared-split" }), /credited killer/);
+    await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, { ...f.request, kind: "creature", defeatedParticipantId: f.occurrences[0], mode: "killer-only", recipientCharacterIds: [f.heroId] }), /Credit the Character who incapacitated or killed/);
+    await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, { ...f.request, kind: "creature", defeatedParticipantId: f.occurrences[0], mode: "shared-split" }), /credited Character/);
     await setCombatFrozenInTransaction(tx, f.encounterId, f.god, { frozen: true, expectedRevision: 0 });
     await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, f.request), /Combat is paused/);
     assert.deepEqual(await f.xp(), initial);
@@ -207,7 +207,7 @@ test("NPC surrender stops choices and supports once-only G.O.D. XP and Fame with
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });
 
-test("Creature kill Fame requires death and Player credit, preserves CR, and is independent of prior incapacitation XP", async () => {
+test("Creature incapacitation grants CR Fame once, preserving XP, condition and credit across later death", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "creature-kill-fame"), id = f.occurrences[0];
     await tx.update(participant).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, challengeRating: 4 } } }).where(eq(participant.characterId, id));
@@ -215,17 +215,45 @@ test("Creature kill Fame requires death and Player credit, preserves CR, and is 
     await ruleCombatConditionInTransaction(tx, f.encounterId, f.god, { participantId: id, status: "incapacitated", initiativeTreatment: "preserve", expectedRevision: 0, requestKey: crypto.randomUUID(), reason: "Unable to fight." });
     await awardCombatExperienceInTransaction(tx, f.encounterId, f.god, f.request);
     const kill: CombatExperienceDecisionInput = { kind: "creature-kill-fame", defeatedParticipantId: id, killerCharacterId: f.heroId,
-      recipientCharacterIds: [f.heroId], requestKey: crypto.randomUUID(), reason: "G.O.D. credits the Player's killing blow." };
-    await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, kill), /requires recorded death/);
-    await ruleCombatConditionInTransaction(tx, f.encounterId, f.god, { participantId: id, status: "dead", expectedRevision: 1, requestKey: crypto.randomUUID(), reason: "A later killing blow." });
+      recipientCharacterIds: [f.heroId], requestKey: crypto.randomUUID(), reason: "G.O.D. credits the Player who incapacitated the Creature." };
+    await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.player, kill), /Campaign-owning/);
     await assert.rejects(awardCombatExperienceInTransaction(tx, f.encounterId, f.god, { ...kill, killerCharacterId: f.defenderId, recipientCharacterIds: [f.defenderId] }), /Player Character/);
     const award = await awardCombatExperienceInTransaction(tx, f.encounterId, f.god, kill);
     assert.equal(award.fameAwards[0].amount, 4);
+    const local = (await tx.select().from(participant).where(eq(participant.characterId, id)))[0].localStateJson as Record<string, unknown>;
+    assert.equal(combatConditionState(local).status, "incapacitated");
+    assert.equal(local.kill, undefined, "An incapacity award must not fabricate a kill.");
+    assert.equal((local.defeatFame as { condition: string }).condition, "incapacitated");
+    await ruleCombatConditionInTransaction(tx, f.encounterId, f.god, { participantId: id, status: "dead", expectedRevision: 1, requestKey: crypto.randomUUID(), reason: "A later killing blow." });
     await tx.update(participant).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, challengeRating: 9 } } }).where(eq(participant.characterId, id));
     assert.equal((await awardCombatExperienceInTransaction(tx, f.encounterId, f.god, kill)).reused, true);
     const after = (await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, f.heroId)))[0];
     assert.equal(after.fame, initial.fame + 4); assert.equal(after.experience, initial.experience + 3);
     assert.equal((await tx.select().from(decision).where(eq(decision.encounterId, f.encounterId))).length, 2);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("one incapacitated CR 2 Creature and one killed CR 2 Creature award 4 Fame and their full authored XP once", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "two-cr2-defeats");
+    const profile = async () => (await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, f.heroId)))[0];
+    const initial = await profile();
+    for (const [index, id] of f.occurrences.entries()) {
+      await tx.update(participant).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, challengeRating: 2 } } }).where(eq(participant.characterId, id));
+      await ruleCombatConditionInTransaction(tx, f.encounterId, f.god, { participantId: id, status: index ? "dead" : "incapacitated", initiativeTreatment: "preserve", expectedRevision: 0, requestKey: crypto.randomUUID(), reason: "Recorded outcome from the same fight." });
+      const fame: CombatExperienceDecisionInput = { kind: "creature-kill-fame", defeatedParticipantId: id, killerCharacterId: f.heroId,
+        recipientCharacterIds: [f.heroId], requestKey: crypto.randomUUID(), reason: "The Player defeated this exact Creature." };
+      const xp: CombatExperienceDecisionInput = { ...f.request, kind: "creature", defeatedParticipantId: id, recipientCharacterIds: [f.heroId], requestKey: crypto.randomUUID() };
+      for (let retry = 0; retry < 2; retry++) {
+        await awardCombatExperienceInTransaction(tx, f.encounterId, f.god, xp);
+        await awardCombatExperienceInTransaction(tx, f.encounterId, f.god, fame);
+      }
+    }
+    const final = await profile();
+    assert.equal(final.fame, initial.fame + 4);
+    assert.equal(final.experience, initial.experience + 6);
+    assert.equal((await tx.select().from(decision).where(eq(decision.encounterId, f.encounterId))).length, 4);
     throw rollback;
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

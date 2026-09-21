@@ -6,6 +6,7 @@ import { campaignSessionEncounterParticipant as participant, campaignSessionEnco
 import type { RuntimeIntegrationTransaction as Tx } from "./runtime-integration-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import { combatConditionState, combatObject as object } from "./combat-condition-state";
+import { creatureDefeatFameEvidence } from "./combat-xp";
 
 type Context = { encounterId: number; sceneId: number; sessionId: number; campaignId: number; ownerUserId: string };
 export type FameAward = { characterId: number; amount: number; before: number; after: number };
@@ -33,9 +34,9 @@ export async function applyCombatFameAwardsInTransaction(tx: Tx, context: Contex
   return receipts;
 }
 
-/** Automatic kills use the exact applied effect's actor. A later explicit G.O.D.
- * attribution may complete missing credit, but cannot duplicate or replace a paid kill. */
-export async function recordCreatureKillFameInTransaction(tx: Tx, context: Context, input: {
+/** Automatic defeats use the exact applied effect's actor. A later explicit
+ * attribution can complete missing credit; later death never pays twice. */
+export async function recordCreatureDefeatFameInTransaction(tx: Tx, context: Context, input: {
   participantId: number; requestKey: string; effectId?: number; killerId?: number; reason: string; automatic?: boolean;
 }) {
   await assertCombatWritableInTransaction(tx, context.encounterId);
@@ -47,21 +48,23 @@ export async function recordCreatureKillFameInTransaction(tx: Tx, context: Conte
     .for("update", { of: participant });
   if (!target || target.kind !== "creature" && target.npcKind !== "creature") {
     if (input.automatic) return null;
-    throw new Error("Kill Fame requires the exact Creature occurrence.");
+    throw new Error("Defeat Fame requires the exact Creature occurrence.");
   }
-  const local = structuredClone(object(target.local)), previousKill = object(local.kill);
-  if (combatConditionState(local).status !== "dead" && !Object.keys(previousKill).length) {
+  const local = structuredClone(object(target.local)), previousDefeat = creatureDefeatFameEvidence(local);
+  if (!previousDefeat) {
     if (input.automatic) return null;
-    throw new Error("Creature kill Fame requires recorded death; incapacitation or surrender does not award kill Fame.");
+    throw new Error("Creature Fame requires recorded incapacitation or death. A limb injury or surrender alone does not qualify.");
   }
+  // Keep the historical key so old death awards and new incapacity awards
+  // share the same immutable once-per-occurrence identity.
   const sourceKey = "creature-kill-fame:" + input.participantId;
   const [existing] = await tx.select().from(decision).where(and(eq(decision.encounterId, context.encounterId), eq(decision.sourceKey, sourceKey)));
   if (existing) {
     const frozen = object(existing.frozenDecisionJson);
-    if (input.killerId !== undefined && frozen.killerId !== input.killerId) throw new Error("This Creature kill already awarded Fame to its recorded killer.");
+    if (input.killerId !== undefined && frozen.killerId !== input.killerId) throw new Error("This Creature already awarded Fame to its credited Character.");
     return { decisionId: existing.id, fameAwards: frozen.fameAwards as FameAward[], reused: true };
   }
-  let killerId = input.killerId ?? (typeof previousKill.killerId === "number" ? previousKill.killerId : undefined);
+  let killerId = input.killerId ?? (typeof previousDefeat.killerId === "number" ? previousDefeat.killerId : undefined);
   if (killerId === undefined && input.effectId !== undefined) {
     const [source] = await tx.select({ actorId: plan.actorParticipantId }).from(effect).innerJoin(plan, eq(plan.id, effect.planId))
       .where(and(eq(effect.id, input.effectId), eq(effect.encounterId, context.encounterId), eq(effect.targetParticipantId, input.participantId)));
@@ -72,9 +75,10 @@ export async function recordCreatureKillFameInTransaction(tx: Tx, context: Conte
   let snapshot: unknown = target.snapshot;
   if (!snapshot && target.persistent) { try { snapshot = JSON.parse(target.persistent); } catch { snapshot = null; } }
   const authoredCr = object(object(snapshot).core).challengeRating;
-  const challengeRating = typeof previousKill.challengeRating === "number" ? previousKill.challengeRating : authoredCr;
-  local.kill = { ...previousKill, effectId: previousKill.effectId ?? input.effectId ?? null, killerId: killerId ?? null, challengeRating: challengeRating ?? null,
-    reason: input.reason, recordedAt: previousKill.recordedAt ?? new Date().toISOString(), recordedByUserId: context.ownerUserId };
+  const challengeRating = typeof previousDefeat.challengeRating === "number" ? previousDefeat.challengeRating : authoredCr;
+  local.defeatFame = { ...previousDefeat, condition: previousDefeat.condition ?? combatConditionState(local).status,
+    effectId: previousDefeat.effectId ?? input.effectId ?? null, killerId: killerId ?? null, challengeRating: challengeRating ?? null,
+    reason: input.reason, recordedAt: previousDefeat.recordedAt ?? new Date().toISOString(), recordedByUserId: context.ownerUserId };
   if (killerId !== undefined) local.defeat = { ...object(local.defeat), credit: { characterId: killerId, reason: input.reason, effectId: input.effectId ?? null,
     ruledByUserId: input.automatic ? null : context.ownerUserId } };
   await tx.update(participant).set({ localStateJson: local, updatedAt: new Date() })
@@ -83,17 +87,17 @@ export async function recordCreatureKillFameInTransaction(tx: Tx, context: Conte
     .innerJoin(participant, and(eq(participant.characterId, campaignCharacter.id), eq(participant.encounterId, context.encounterId)))
     .where(and(eq(campaignCharacter.id, killerId), eq(campaignCharacter.campaignId, context.campaignId))) : [];
   if (!killer || killer.isNpc) {
-    if (input.automatic) return { pending: true, reason: "No Player Character is credited for this Creature kill." };
-    throw new Error("Credit an exact Player Character for Creature kill Fame.");
+    if (input.automatic) return { pending: true, reason: "No Player Character is credited for this Creature's defeat." };
+    throw new Error("Credit an exact Player Character for Creature defeat Fame.");
   }
   if (typeof challengeRating !== "number" || !Number.isFinite(challengeRating) || challengeRating < 0) {
-    if (input.automatic) return { pending: true, reason: "The killed Creature has no authored numeric CR; review its source before awarding kill Fame." };
-    throw new Error("The killed Creature has no authored numeric CR; review its source before awarding kill Fame.");
+    if (input.automatic) return { pending: true, reason: "The defeated Creature has no authored numeric CR; review its source before awarding Fame." };
+    throw new Error("The defeated Creature has no authored numeric CR; review its source before awarding Fame.");
   }
   const fameAwards = await applyCombatFameAwardsInTransaction(tx, context, [{ characterId: killer.id, amount: challengeRating }]);
   const [saved] = await tx.insert(decision).values({ encounterId: context.encounterId, sceneId: context.sceneId, sessionId: context.sessionId, campaignId: context.campaignId,
     sourceKey, requestKey: input.requestKey, defeatedParticipantId: input.participantId, awardedByUserId: context.ownerUserId,
     frozenDecisionJson: { kind: "creature-kill-fame", killerId: killer.id, challengeRating, awards: [], fameAwards, sourceSnapshot: snapshot,
-      killEvidence: local.kill, automatic: input.automatic === true, reason: input.reason } }).returning({ id: decision.id });
+      defeatEvidence: local.defeatFame, automatic: input.automatic === true, reason: input.reason } }).returning({ id: decision.id });
   return { decisionId: saved.id, fameAwards, reused: false };
 }

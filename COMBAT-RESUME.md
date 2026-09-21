@@ -1,5 +1,13 @@
 # Combat resumption handoff
 
+## Creature incapacitation grants the same rewards as death (21 September 2026)
+
+- **New confirmed ruling supersedes older death-only Creature Fame notes:** whole-Creature incapacitation and death grant the same authored XP and CR Fame. Each reward is paid once per Creature occurrence in the encounter; a later kill cannot pay again. [Exact ruling](docs/rules/creature-defeat-rewards-2026-09-21.md).
+- XP already accepted incapacitation. The automatic damage outcome and explicit closeout Fame paths now accept it too. The historical Fame receipt key remains shared with death awards, while new `defeatFame` evidence preserves the actual condition instead of claiming an incapacitated Creature was killed. Missing values/credit retain their existing G.O.D. decisions. Health/death rules, XP distribution and NPC surrender awards are unchanged.
+- Closeout now lists incapacitated Creatures for Fame and uses defeat-credit wording. Its help explains that incapacitation earns the full reward and later death adds no second award.
+- **Authorized local DEV correction completed:** Adrian Vale (Character 14), encounter 2, Cat 1 (-5) had already received its 3 XP but lacked its CR 2 Fame. Applied the existing reward service after a guarded rollback preview: Fame **6 to 8**, XP unchanged at **18**, Cat 1 still incapacitated. Immutable decision **11** adds the missing 2 Fame; retry reused it, prior receipts and health/condition records were verified unchanged. No other Character, catalog, home-server or production data was changed.
+- Actual Player/G.O.D. browser checks passed for a CR 2 kill plus CR 2 incapacitation (4 Fame, 6 closeout XP, unchanged living condition, no duplicate on reload), plus the existing critical firearm kill. All 391 combat service tests across 28 scripts, 53 focused unit tests, TypeScript, changed-file lint and production build passed. [Report and validation evidence](docs/reports/creature-defeat-fame-2026-09-21.md). Continue with Brannan's current gameplay review.
+
 ## Item damage completion and simpler targeting (21 September 2026)
 
 - Brannan reported an unfinishable Ember Blast and confusing Item use. Read-only local DEV evidence identified the retained stuck action as **Inferno**, declaration 41 / plan 48: Cat 1 still lacked a damage location, two other targets were already explicitly manual-resolved, and five Charges had already been applied (14 to 9). No live state was changed.

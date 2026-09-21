@@ -24,7 +24,7 @@ import { readCombatEntityInformationInTransaction } from "@/features/tabletop-op
 import { combatEffectSummary } from "./result-summary";
 import { attackReportSignature, isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
 import { forceEndCombatInTransaction } from "@/features/tabletop-operations/combat-force-end-service";
-import { creatureExperienceEvidence, npcRewardEvidence } from "@/features/tabletop-operations/combat-xp";
+import { creatureExperienceEvidence, creatureDefeatFameEvidence, npcRewardEvidence } from "@/features/tabletop-operations/combat-xp";
 import { combatConditionState } from "@/features/tabletop-operations/combat-condition-state";
 import { isItemResultReport } from "./item-report";
 import { reviewCombatItemReportInTransaction } from "./item-report-service";
@@ -158,8 +158,8 @@ export async function readCombatCloseout(encounterId: number) {
         ? "surrendered / yielded" : combatConditionState(row.local).status,
       awarded: receipts.some((receipt) => receipt.sourceKey === "npc:" + row.id || receipt.sourceKey === "creature:" + row.id),
     }));
-    const kills = rows.filter((row) => (row.id < 0 || row.npcKind === "creature") && (combatConditionState(row.local).status === "dead" || Object.keys(object(object(row.local).kill)).length > 0)).map((row) => {
-      const kill = object(object(row.local).kill), defeat = object(object(row.local).defeat);
+    const kills = rows.filter((row) => (row.id < 0 || row.npcKind === "creature") && creatureDefeatFameEvidence(row.local)).map((row) => {
+      const kill = creatureDefeatFameEvidence(row.local)!, defeat = object(object(row.local).defeat);
       const snapshot = row.snapshot ?? (row.persistent ? JSON.parse(row.persistent) : {});
       const cr = kill.challengeRating ?? object(object(snapshot).core).challengeRating;
       const killer = kill.killerId ?? object(defeat.credit).characterId;
@@ -170,7 +170,7 @@ export async function readCombatCloseout(encounterId: number) {
       const frozen = object(receipt.frozenDecisionJson), awards = frozen.fameAwards;
       return Array.isArray(awards) ? awards.map(object).filter((award) => typeof award.amount === "number" && award.amount > 0).map((award) => ({
         decisionId: receipt.id, characterId: Number(award.characterId), amount: Number(award.amount),
-        source: receipt.sourceKey.startsWith("creature-kill-fame:") ? "Creature kill CR" : "G.O.D. NPC award" })) : [];
+        source: receipt.sourceKey.startsWith("creature-kill-fame:") ? "Creature defeat CR" : "G.O.D. NPC award" })) : [];
     });
     return { closeout, creatures, npcs, kills, fameHistory, playerIds: rows.filter((row) => row.id > 0 && row.isNpc === false).map((row) => row.id),
       encounterAwarded: receipts.some((receipt) => receipt.sourceKey === "encounter") };
