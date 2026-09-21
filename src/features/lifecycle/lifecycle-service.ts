@@ -340,6 +340,8 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
 
 function raceDependencySpecs(id: number): DependencySpec[] {
   return [
+    { label: "Child Race variants", blocking: true, query: sql<CountRow>`select count(*)::int as value from races where parent_race_id = ${id}` },
+    { label: "Natural Protection definitions", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_natural_protections where race_id = ${id}` },
     { label: "Attribute caps", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_attribute_caps where race_id = ${id}` },
     { label: "Movement modes", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_movement_modes where race_id = ${id}` },
     { label: "Race Skill grants", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_skill_links where race_id = ${id}` },

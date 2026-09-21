@@ -1,0 +1,63 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import pg from "pg";
+
+test("Race Soak migration, independent variants, protection integration and authoring browser", { timeout: 900_000 }, async () => {
+  const parent = path.resolve(tmpdir());
+  const root = path.resolve(await mkdtemp(path.join(parent, "serrian-race-authoring-")));
+  assert.equal(path.dirname(root), parent); assert.ok(path.basename(root).startsWith("serrian-race-authoring-"));
+  const data = path.join(root, "data"), bin = process.env.SERRIAN_TEST_POSTGRES_BIN ?? "C:/Program Files/PostgreSQL/18/bin";
+  const exe = (name: string) => path.join(bin, `${name}${process.platform === "win32" ? ".exe" : ""}`);
+  const listener = createServer(); await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const address = listener.address(); assert.ok(address && typeof address === "object"); const port = address.port;
+  await new Promise<void>((resolve) => listener.close(() => resolve()));
+  const databaseUrl = `postgresql://postgres@127.0.0.1:${port}/serrian_race_authoring_dev`;
+  let started = false, pool: pg.Pool | null = null;
+  try {
+    execFileSync(exe("initdb"), ["--auth=trust", "--encoding=UTF8", "--no-locale", "--username=postgres", "-D", data], { stdio: "pipe", windowsHide: true });
+    execFileSync(exe("pg_ctl"), ["-D", data, "-l", path.join(root, "postgres.log"), "-o", `-p ${port} -h 127.0.0.1`, "-w", "start"], { stdio: "ignore", windowsHide: true }); started = true;
+    pool = new pg.Pool({ connectionString: `postgresql://postgres@127.0.0.1:${port}/postgres` });
+    await pool.query("create database serrian_race_authoring_dev"); await pool.end();
+    pool = new pg.Pool({ connectionString: databaseUrl });
+    const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8"));
+    const legacy = path.join(root, "legacy"); await mkdir(path.join(legacy, "meta"), { recursive: true });
+    const entries = journal.entries.filter((entry: { idx: number }) => entry.idx < 64);
+    await writeFile(path.join(legacy, "meta/_journal.json"), JSON.stringify({ ...journal, entries }));
+    for (const entry of entries) await copyFile(path.resolve("drizzle", `${entry.tag}.sql`), path.join(legacy, `${entry.tag}.sql`));
+    await migrate(drizzle(pool), { migrationsFolder: legacy });
+    const [race] = (await pool.query("insert into races(name,size,base_magic,legacy_description) values ('Migration Race','Colossal',3,'Preserve lore') returning *")).rows;
+    await pool.query("insert into races(name) values ('Unrelated Independent Race')");
+    const protections = (await pool.query("insert into race_natural_protections(race_id,key,name,natural_armor,natural_soak,coverage_kind,sort_order) values ($1,'hide','Hide',9,2,'all',0),($1,'shell','Shell',7,0.5,'locations',1) returning *", [race.id])).rows;
+    await pool.query("insert into race_natural_protection_locations(protection_id,location_key) values ($1,'9')", [protections[1].id]);
+    const locations = (await pool.query("select * from race_natural_protection_locations")).rows;
+    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    assert.deepEqual((await pool.query("select * from races where id=$1", [race.id])).rows[0], { ...race, parent_race_id: null });
+    assert.equal((await pool.query("select count(*)::int n from races where parent_race_id is not null")).rows[0].n, 0);
+    const expected = protections.map((row) => { const result = { ...row }; delete result.natural_armor; return result; });
+    assert.deepEqual((await pool.query("select * from race_natural_protections order by id")).rows, expected);
+    assert.deepEqual((await pool.query("select * from race_natural_protection_locations")).rows, locations);
+    assert.equal((await pool.query("select count(*)::int n from information_schema.columns where table_name='race_natural_protections' and column_name='natural_armor'")).rows[0].n, 0);
+    for (const value of [-1, "NaN", "Infinity", "-Infinity"]) await assert.rejects(pool.query("update race_natural_protections set natural_soak=$1", [value]), /amounts_valid/);
+    await assert.rejects(pool.query("update races set parent_race_id=id where id=$1", [race.id]), /parent_not_self/);
+    await assert.rejects(pool.query("update races set parent_race_id=2147483647 where id=$1", [race.id]), /foreign key/);
+    console.log("PASS: migration preserves exact Soak, coverage, lore and independent Races; discards Armor without conversion");
+    await pool.end(); pool = null;
+    const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: databaseUrl, SERRIAN_DISPOSABLE_RACE_AUTHORING: "true", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true", NODE_ENV: "test" };
+    delete environment.NODE_TEST_CONTEXT;
+    execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "scripts/race-authoring-checks.ts"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 600_000 });
+    execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-concurrency=1", "scripts/incoming-effect-target-db.test.ts", "scripts/pass5-runtime-db.test.ts", "scripts/pass6-gameplay-db.test.ts"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
+  } finally {
+    if (pool) await pool.end();
+    if (started && existsSync(path.join(data, "postmaster.pid"))) execFileSync(exe("pg_ctl"), ["-D", data, "-m", "fast", "-w", "stop"], { stdio: "ignore", windowsHide: true });
+    assert.equal(existsSync(path.join(data, "postmaster.pid")), false);
+    await rm(root, { recursive: true, force: true });
+  }
+});

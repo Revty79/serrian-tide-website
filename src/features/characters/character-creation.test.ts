@@ -13,6 +13,7 @@ import {
   getCharacterBaseMagic,
   getCharacterMovementBaseValue,
   getCharacterSkillPointsById,
+  getCharacterSkillRanks,
   getMovementInitiative,
   getCharacterSkillGroupKey,
   getCreationPurchasedSkillMaximum,
@@ -37,6 +38,7 @@ import type {
   CharacterSkillReference,
 } from "./models";
 import { resolveRandomCharacterRaceId } from "./random-character";
+import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
 
 function readSource(relativePath: string) {
   return readFileSync(path.join(process.cwd(), relativePath), "utf8");
@@ -82,6 +84,27 @@ function race(skillLinks: CharacterRaceAggregate["skillLinks"] = []): CharacterR
     skillLinks,
   };
 }
+
+test("Race Size does not scale caps or Mana, and Base Magic 3 multiplies Skill Mana 5 to 15", () => {
+  const catalog = [skill(1, "Spellcraft", { classification: "magic" }), skill(2, "Channeling", { classification: "magic" })];
+  const draft = { skillAllocations: [
+    { draftId: 1, skillId: 1, parentDraftId: null, points: 1 },
+    { draftId: 2, skillId: 2, parentDraftId: null, points: 5 },
+  ] };
+  const character = { ...draft, attributes: { STR: 30, DEX: 31, CON: 32, INT: 33, WIS: 34, CHR: 35 } } as CharacterDraft;
+  const originalAttributes = { ...character.attributes };
+  const normalRanks = getCharacterSkillRanks(character, catalog, race());
+  for (const size of RACE_SIZE_OPTIONS) {
+    const ancestry = race(); ancestry.race.size = size; ancestry.race.baseMagic = 3;
+    assert.equal(getRaceAttributeCap(ancestry, "STR"), 42);
+    const [profile] = getCharacterManaProfiles(draft, catalog, ancestry);
+    assert.equal(profile.sourceSkillPoints, 5); assert.equal(profile.baseMagic, 3); assert.equal(profile.manaPool, 15);
+    assert.equal(getCharacterManaProfiles(draft, catalog, ancestry, 1)[0].manaPool, 16.25);
+    assert.equal(getCharacterMovementBaseValue(ancestry.movementModes[0].baseValue), 3);
+    assert.deepEqual(getCharacterSkillRanks(character, catalog, ancestry), normalRanks, `${size} does not scale Attribute-derived ranks`);
+    assert.deepEqual(character.attributes, originalAttributes);
+  }
+});
 
 test("Character Creation exposes the exact final tab sequence", () => {
   assert.deepEqual(CHARACTER_CREATION_TABS, [

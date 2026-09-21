@@ -449,6 +449,13 @@
       "when": 1789947576181,
       "tag": "0063_race_natural_protection",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790011669754,
+      "tag": "0064_race_soak_and_variants",
+      "breakpoints": true
     }
   ]
 }

@@ -34,6 +34,7 @@ import { assertRaceSkillsEligible } from "@/features/races/race-skills";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { normalizeRaceNaturalProtection, type RaceNaturalProtection } from "@/features/races/race-natural-protection";
 import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
+import { createRaceVariantForActor } from "@/features/races/race-variant-service";
 
 export type RaceLibraryFilters = {
   search?: string;
@@ -74,6 +75,8 @@ export type RaceDraft = {
   id?: number;
   naturalProtections?: RaceNaturalProtection[];
   core: {
+    parentRaceId?: number | null;
+    parentRaceName?: string | null;
     interactionRules?: InteractionRuleProfile | null;
     name: string;
     legacyDescription: string;
@@ -118,6 +121,7 @@ export type RaceDraft = {
 
 export type RaceAggregate = RaceDraft & {
   id: number;
+  variants: Array<{ id: number; name: string; archivedAt: string | null }>;
   createdByUserId: string | null;
   archivedAt: string | null;
   archiveReason: string;
@@ -175,7 +179,7 @@ function normalizeRace(input: RaceDraft) {
   const movementModes = input.movementModes.map((movement, index) => {
     const movementMode = cleanText(movement.movementMode);
     if (!movementMode) throw new Error("Every movement row needs a Movement Mode.");
-    if (!Number.isFinite(movement.baseValue)) throw new Error(`${movementMode} Base Value must be a number.`);
+    if (!Number.isFinite(movement.baseValue)) throw new Error(`${movementMode} Base Movement must be a number.`);
     return {
       movementMode,
       baseValue: movement.baseValue,
@@ -315,6 +319,10 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
   const [row] = await db.select().from(race).where(eq(race.id, id)).limit(1);
   if (!row) return null;
 
+  const [parent] = row.parentRaceId === null ? [] : await db.select({ name: race.name }).from(race).where(eq(race.id, row.parentRaceId));
+  const variants = await db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(race)
+    .where(eq(race.parentRaceId, id)).orderBy(asc(race.name), asc(race.id));
+
   const [caps, movements, links] = await Promise.all([
     db.select().from(raceAttributeCap).where(eq(raceAttributeCap.raceId, id)).orderBy(asc(raceAttributeCap.sortOrder), asc(raceAttributeCap.id)),
     db.select().from(raceMovementMode).where(eq(raceMovementMode.raceId, id)).orderBy(asc(raceMovementMode.sortOrder), asc(raceMovementMode.id)),
@@ -338,7 +346,10 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,
+    variants: variants.map((variant) => ({ ...variant, archivedAt: variant.archivedAt?.toISOString() ?? null })),
     core: {
+      parentRaceId: row.parentRaceId,
+      parentRaceName: parent?.name ?? null,
       interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "race"),
       name: row.name,
       legacyDescription: row.legacyDescription,
@@ -390,6 +401,7 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     await assertInteractionRuleReferences(tx, normalized.core.interactionRules);
     let id = input.id;
     if (id === undefined) {
+      if (input.core.parentRaceId != null) throw new Error("Use Clone as Variant to create a Race variant.");
       const [created] = await tx
         .insert(race)
         .values({
@@ -407,11 +419,15 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
           sourceSystem: race.sourceSystem,
           sourceExternalId: race.sourceExternalId,
           archivedAt: race.archivedAt,
+          parentRaceId: race.parentRaceId,
         })
         .from(race)
         .where(eq(race.id, id))
-        .limit(1);
+        .limit(1).for("update");
       if (!stored) throw new Error("That Race no longer exists.");
+      if (input.core.parentRaceId !== undefined && stored.parentRaceId !== input.core.parentRaceId) {
+        throw new Error("A Race's variant parent cannot be changed.");
+      }
       assertCanEditSharedLibraryRoot(
         { userId: session.user.id, roles },
         stored,
@@ -494,5 +510,14 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
   revalidatePath("/heavens/races");
   const saved = await getRace(savedId);
   if (!saved) throw new Error("The saved Race could not be reloaded.");
+  return saved;
+}
+
+export async function createRaceVariant(parentRaceId: number, variantName: string): Promise<RaceAggregate> {
+  const { session } = await requireGodOrAdminAccessContext();
+  const id = await createRaceVariantForActor(parentRaceId, variantName, session.user.id);
+  revalidatePath("/heavens/races");
+  const saved = await getRace(id);
+  if (!saved) throw new Error("The Race variant could not be reloaded.");
   return saved;
 }

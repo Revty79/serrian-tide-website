@@ -12,7 +12,7 @@ export async function readRaceNaturalProtectionInTransaction(tx: Transaction, ra
   if (!definitions.length) return [];
   const locations = await tx.select().from(raceNaturalProtectionLocation).where(inArray(raceNaturalProtectionLocation.protectionId, definitions.map(({ id }) => id)));
   return normalizeRaceNaturalProtection(definitions.map((definition) => ({
-    key: definition.key, name: definition.name, naturalArmor: definition.naturalArmor, naturalSoak: definition.naturalSoak, sortOrder: definition.sortOrder,
+    key: definition.key, name: definition.name, naturalSoak: definition.naturalSoak, sortOrder: definition.sortOrder,
     coverage: definition.coverageKind === "all" ? { kind: "all" } : { kind: "locations", locationKeys: locations.filter(({ protectionId }) => protectionId === definition.id).map(({ locationKey }) => locationKey) },
   })));
 }
@@ -24,7 +24,7 @@ export async function saveRaceNaturalProtectionInTransaction(tx: Transaction, ra
   const removed = existing.filter(({ key }) => !definitions.some((definition) => definition.key === key));
   if (removed.length) await tx.delete(raceNaturalProtection).where(inArray(raceNaturalProtection.id, removed.map(({ id }) => id)));
   for (const definition of definitions) {
-    const values = { raceId, key: definition.key, name: definition.name, naturalArmor: definition.naturalArmor, naturalSoak: definition.naturalSoak, coverageKind: definition.coverage.kind, sortOrder: definition.sortOrder };
+    const values = { raceId, key: definition.key, name: definition.name, naturalSoak: definition.naturalSoak, coverageKind: definition.coverage.kind, sortOrder: definition.sortOrder };
     const [saved] = await tx.insert(raceNaturalProtection).values(values).onConflictDoUpdate({ target: [raceNaturalProtection.raceId, raceNaturalProtection.key], set: values }).returning({ id: raceNaturalProtection.id });
     await tx.delete(raceNaturalProtectionLocation).where(eq(raceNaturalProtectionLocation.protectionId, saved.id));
     if (definition.coverage.kind === "locations") await tx.insert(raceNaturalProtectionLocation).values(definition.coverage.locationKeys.map((locationKey) => ({ protectionId: saved.id, locationKey })));

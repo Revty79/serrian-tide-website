@@ -10,14 +10,20 @@ export type WornProtection = WornArmorRuntimeContext & {
   damageModifiers: Array<{ id: number; damageType: string; modifier: string; modifierText: string; notes: string }>;
 };
 export type NaturalProtection = {
-  source: ProtectionSource;
   name: string;
   coverage: NaturalProtectionCoverage;
+} & ({
+  source: ProtectionSource & { kind: "race" };
+  soak: number;
+  armor?: never;
+  authored?: never;
+} | {
+  source: ProtectionSource & { kind: "creature-snapshot" };
   armor: number | null;
   soak: number | null;
   /** Exact snapshot fields, including old blanks, remain available for explanation. */
   authored?: { naturalArmor: unknown; soak: unknown };
-};
+});
 export type TemporaryProtection = {
   id: string;
   name: string;
@@ -63,7 +69,7 @@ export function projectCreatureNaturalProtection(snapshot: unknown, identity: st
 export function projectRaceNaturalProtection(race: { id: number; name: string; protections: readonly RaceNaturalProtection[] }): NaturalProtection[] {
   return race.protections.map((definition) => ({
     source: { kind: "race", id: `race:${race.id}:protection:${definition.key}`, name: race.name },
-    name: definition.name, coverage: structuredClone(definition.coverage), armor: definition.naturalArmor, soak: definition.naturalSoak,
+    name: definition.name, coverage: structuredClone(definition.coverage), soak: definition.naturalSoak,
   }));
 }
 

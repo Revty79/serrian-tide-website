@@ -1,5 +1,14 @@
 # Combat resumption handoff
 
+## Race cleanup: single Soak and copy-on-create variants (21 September 2026)
+
+- Brannan retained the existing project/Race system and authorized this focused Race cleanup. [Report and validation](docs/reports/race-soak-and-variants-2026-09-21.md).
+- **This supersedes older two-value Race protection notes only:** Race Natural Protection has one authoritative `natural_soak` value. The Race Armor column is removed and the shared resolver subtracts Race Soak once. Creature natural Armor/Soak and Worn Armor keep their current behavior. Overlapping natural definitions still require a G.O.D. ruling; do not infer stacking.
+- Migration `0064_race_soak_and_variants` was applied only to local DEV. All 56 Races retain independent null parents; no variants were seeded. Black Naga Orang's one protection entry retained Soak 2 and discarded old Armor 2, without adding or converting. All other Race-owned values were verified unchanged against a local snapshot.
+- Race variants copy the saved definition and owned child rows into independent records, retain source parentage, clear import identity and enforce normal permissions/lifecycle/dirty-state handling. Runtime and Character Creation do not resolve inheritance.
+- Base Magic moved to Mechanics and movement now says Base Movement. Existing Mana multiplication and Quintessence advancement already match the requested rules. No Skill, Quirk, Creature Size, Worn Armor or general combat redesign was performed.
+- Continue with Brannan's audit decisions; do not resume an older broad combat priority merely because it appears below.
+
 ## Race Natural Protection: home HTTP Add-button fix (21 September 2026)
 
 - After Pass 6, Brannan reported that Race Natural Protection could be added on dev but not on the home server. A browser check reproduced the relevant environment difference: localhost exposes `crypto.randomUUID()`, while a plain-HTTP LAN-style origin does not; both expose `crypto.getRandomValues()`.

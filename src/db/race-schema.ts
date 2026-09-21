@@ -2,6 +2,7 @@ import type { InteractionRuleProfile } from "@/features/interaction-rules/intera
 
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   check,
   doublePrecision,
   index,
@@ -36,6 +37,7 @@ export const race = pgTable(
   {
     id: serial("id").primaryKey(),
     name: text("name").notNull(),
+    parentRaceId: integer("parent_race_id").references((): AnyPgColumn => race.id, { onDelete: "restrict" }),
     interactionRules: jsonb("interaction_rules_json").$type<InteractionRuleProfile>(),
     legacyDescription: text("legacy_description").default("").notNull(),
     physicalCharacteristics: text("physical_characteristics").default("").notNull(),
@@ -71,6 +73,8 @@ export const race = pgTable(
       .on(table.sourceSystem, table.sourceExternalId)
       .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),
     index("races_name_idx").on(table.name),
+    index("races_parent_race_idx").on(table.parentRaceId),
+    check("races_parent_not_self", sql`${table.parentRaceId} IS NULL OR ${table.parentRaceId} <> ${table.id}`),
     index("races_size_idx").on(table.size),
     index("races_archive_idx").on(
       table.archivedAt,
@@ -97,14 +101,13 @@ export const raceNaturalProtection = pgTable("race_natural_protections", {
   raceId: integer("race_id").notNull().references(() => race.id, { onDelete: "cascade" }),
   key: text("key").notNull(),
   name: text("name").notNull(),
-  naturalArmor: doublePrecision("natural_armor").notNull(),
   naturalSoak: doublePrecision("natural_soak").notNull(),
   coverageKind: text("coverage_kind").notNull(),
   sortOrder: integer("sort_order").notNull(),
 }, (table) => [
   uniqueIndex("race_natural_protection_key_uq").on(table.raceId, table.key),
   check("race_natural_protection_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0`),
-  check("race_natural_protection_amounts_valid", sql`${table.naturalArmor} >= 0 AND ${table.naturalArmor} < 'Infinity'::float8 AND ${table.naturalSoak} >= 0 AND ${table.naturalSoak} < 'Infinity'::float8`),
+  check("race_natural_protection_amounts_valid", sql`${table.naturalSoak} >= 0 AND ${table.naturalSoak} < 'Infinity'::float8`),
   check("race_natural_protection_coverage_valid", sql`${table.coverageKind} IN ('all', 'locations')`),
   check("race_natural_protection_order_valid", sql`${table.sortOrder} >= 0`),
 ]);

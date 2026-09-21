@@ -14,8 +14,7 @@ function ProtectionRow({ value, onChange, onRemove }: { value: RaceNaturalProtec
   return <article className={styles.row} aria-label="Natural Protection entry">
     <div className={styles.fields}>
       <label className="st-field" htmlFor={`${id}-name`}>Protection Name<input id={`${id}-name`} className="st-control" value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} /></label>
-      <label className="st-field" htmlFor={`${id}-armor`}>Natural Armor<input id={`${id}-armor`} className="st-control" type="number" min={0} step="any" value={value.naturalArmor} onChange={(e) => onChange({ ...value, naturalArmor: Number(e.target.value) })} /></label>
-      <label className="st-field" htmlFor={`${id}-soak`}>Natural Soak<input id={`${id}-soak`} className="st-control" type="number" min={0} step="any" value={value.naturalSoak} onChange={(e) => onChange({ ...value, naturalSoak: Number(e.target.value) })} /></label>
+      <label className="st-field" htmlFor={`${id}-soak`}>Soak<input id={`${id}-soak`} className="st-control" type="number" min={0} step="any" value={value.naturalSoak} onChange={(e) => onChange({ ...value, naturalSoak: Number(e.target.value) })} /></label>
       <label className="st-field" htmlFor={`${id}-coverage`}><span id={`${id}-coverage-label`}>Coverage</span><select id={`${id}-coverage`} aria-labelledby={`${id}-coverage-label`} className="st-control" value={value.coverage.kind} onChange={(e) => onChange({ ...value, coverage: e.target.value === "all" ? { kind: "all" } : { kind: "locations", locationKeys: [] } })}>
         <option value="all">All locations</option><option value="locations">Selected locations</option>
       </select></label>
@@ -35,6 +34,6 @@ export function RaceNaturalProtectionEditor({ value, onChange }: { value: RaceNa
     <h3>Natural Protection</h3>
     <p>Protection from the body, such as scales or a shell. Worn armor stays separate. Characters use their assigned Race&apos;s current protection.</p>
     {value.map((entry, index) => <ProtectionRow key={entry.key} value={entry} onChange={(changed) => onChange(value.map((row, i) => i === index ? changed : row))} onRemove={() => onChange(value.filter((_, i) => i !== index))} />)}
-    <button className="st-button" type="button" onClick={() => onChange([...value, { key: createProtectionKey(), name: "", naturalArmor: 0, naturalSoak: 0, coverage: { kind: "all" }, sortOrder: value.length }])}>Add Natural Protection</button>
+    <button className="st-button" type="button" onClick={() => onChange([...value, { key: createProtectionKey(), name: "", naturalSoak: 0, coverage: { kind: "all" }, sortOrder: value.length }])}>Add Natural Protection</button>
   </section>;
 }

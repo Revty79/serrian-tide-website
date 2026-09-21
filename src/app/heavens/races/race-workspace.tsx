@@ -6,7 +6,7 @@ import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 import { RaceNaturalProtectionEditor } from "./race-natural-protection-editor";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
@@ -14,6 +14,7 @@ import { isRaceSkillEligible } from "@/features/races/race-skills";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
+  createRaceVariant,
   getRace,
   listRaceSkillCandidates,
   listRaces,
@@ -26,7 +27,7 @@ import {
   type RaceSummary,
 } from "./actions";
 
-type Tab = "overview" | "mechanics" | "quirk" | "skills" | "culture" | "preview";
+type Tab = "overview" | "mechanics" | "quirk" | "skills" | "culture" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -34,6 +35,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "quirk", label: "Quirk" },
   { id: "skills", label: "Skills & Abilities" },
   { id: "culture", label: "Culture & Play" },
+  { id: "variants", label: "Variants" },
   { id: "preview", label: "Preview" },
 ];
 
@@ -106,7 +108,10 @@ export function RaceWorkspace({
   const [loadingEditor, setLoadingEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const [pending, setPending] = useState<{ kind: "open"; race: RaceSummary } | { kind: "new" } | null>(null);
+  const [pending, setPending] = useState<{ kind: "open"; race: Pick<RaceSummary, "id"> } | { kind: "new" } | { kind: "variant"; parentId: number; name: string } | null>(null);
+  const [creatingVariant, setCreatingVariant] = useState(false);
+  const operationBusy = useRef(false);
+  const busy = saving || loadingEditor || creatingVariant;
   const preserveScroll = useInPlaceScrollPreservation();
   const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
   const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
@@ -128,7 +133,9 @@ export function RaceWorkspace({
     return () => window.clearTimeout(timer);
   }, [filters, loadLibrary, preserveScroll]);
 
-  async function openRace(summary: RaceSummary) {
+  async function openRace(summary: Pick<RaceSummary, "id">) {
+    if (operationBusy.current) return;
+    operationBusy.current = true;
     await preserveScroll(async () => {
       setLoadingEditor(true);
       setFeedback(null);
@@ -141,12 +148,14 @@ export function RaceWorkspace({
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Race could not be loaded." });
       } finally {
+        operationBusy.current = false;
         setLoadingEditor(false);
       }
     });
   }
 
-  function chooseRace(summary: RaceSummary) {
+  function chooseRace(summary: Pick<RaceSummary, "id">) {
+    if (operationBusy.current) return;
     if (dirty) void preserveScroll(() => setPending({ kind: "open", race: summary }));
     else void openRace(summary);
   }
@@ -160,6 +169,7 @@ export function RaceWorkspace({
   }
 
   function beginNew() {
+    if (operationBusy.current) return;
     if (dirty) void preserveScroll(() => setPending({ kind: "new" }));
     else void preserveScroll(createNew);
   }
@@ -169,17 +179,50 @@ export function RaceWorkspace({
     setPending(null);
     if (!next) return;
     if (next.kind === "new") createNew();
+    else if (next.kind === "variant") void createVariantNow(next.parentId, next.name);
     else void openRace(next.race);
   }
 
+  async function createVariantNow(parentId: number, name: string): Promise<boolean> {
+    if (operationBusy.current) return false;
+    operationBusy.current = true;
+    setCreatingVariant(true);
+    setFeedback(null);
+    try {
+      const saved = await createRaceVariant(parentId, name);
+      setDraft(saved);
+      setDirty(false);
+      setFeedback({ kind: "success", message: `${saved.core.name} was created as a variant.` });
+      await loadLibrary(filters);
+      return true;
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race variant could not be created." });
+      return false;
+    } finally {
+      operationBusy.current = false;
+      setCreatingVariant(false);
+    }
+  }
+
+  async function requestVariant(name: string): Promise<boolean> {
+    if (!draft?.id || operationBusy.current) return false;
+    if (dirty) {
+      setPending({ kind: "variant", parentId: draft.id, name });
+      return false;
+    }
+    return createVariantNow(draft.id, name);
+  }
+
   function change(next: RaceDraft) {
+    if (operationBusy.current) return;
     setDraft(next);
     setDirty(true);
     setFeedback(null);
   }
 
   async function persist() {
-    if (!draft) return;
+    if (!draft || operationBusy.current) return;
+    operationBusy.current = true;
     await preserveScroll(async () => {
       setSaving(true);
       setFeedback(null);
@@ -192,12 +235,14 @@ export function RaceWorkspace({
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The Race could not be saved." });
       } finally {
+        operationBusy.current = false;
         setSaving(false);
       }
     });
   }
 
   function changeArchiveView(archived: boolean) {
+    if (operationBusy.current) return;
     void preserveScroll(() => {
       setFilters((current) => ({ ...current, archived, page: 1 }));
       setDraft(null);
@@ -239,7 +284,7 @@ export function RaceWorkspace({
         <aside className="skill-library">
           <div className="skill-library__heading">
             <div><p>MASTER CONTENT</p><h2>Race Library</h2></div>
-            <button className="skills-primary-button" type="button" onClick={beginNew}>New Race</button>
+            <button className="skills-primary-button" type="button" disabled={busy} onClick={beginNew}>New Race</button>
           </div>
           <div className="skill-library__search">
             <label htmlFor="race-search">Search</label>
@@ -280,13 +325,14 @@ export function RaceWorkspace({
             <header className="skill-editor__header">
               <div><p>{draft.id ? `RACE ${draft.id}` : "NEW RACE DRAFT"}</p><h2>{draft.core.name || "Untitled Race"}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div>
               <div className="skill-editor__actions">
-                {draft.id ? <LifecycleControls target={{ entityKind: "race", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}
-                <button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Race"}</button>
+                {draft.id ? <LifecycleControls target={{ entityKind: "race", entityId: draft.id }} archived={isArchived} disabled={busy || dirty} onCompleted={lifecycleCompleted} /> : null}
+                <button className="skills-primary-button" type="button" disabled={busy || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Race"}</button>
               </div>
             </header>
             {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
             <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
-            <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived}>
+            {activeTab === "variants" ? <div className="skill-editor__content race-editor__content"><Variants key={draft.id ?? "new"} draft={draft} busy={busy} archived={isArchived} onOpen={chooseRace} onCreate={requestVariant} /></div> : null}
+            <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived || busy} hidden={activeTab === "variants"}>
               {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}
               {activeTab === "quirk" ? <Quirk draft={draft} onChange={change} /> : null}
@@ -300,9 +346,31 @@ export function RaceWorkspace({
         )}
       </div>
 
-      {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>Leave this Race draft and discard the unsaved changes?</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => void preserveScroll(() => setPending(null))}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(discardAndContinue)}>Discard Changes</button></div></div> : null}
+      {pending ? <div className="skills-page__discard-confirm"><div><p>Unsaved changes</p><span>{pending.kind === "variant" ? "Discard the unsaved changes and clone the last saved Race definition? Keep Editing to save your changes first." : "Leave this Race draft and discard the unsaved changes?"}</span></div><div className="skills-page__discard-actions"><button type="button" onClick={() => void preserveScroll(() => setPending(null))}>Keep Editing</button><button className="skills-danger-button" type="button" onClick={() => void preserveScroll(discardAndContinue)}>Discard Changes</button></div></div> : null}
     </main>
   );
+}
+
+function Variants({ draft, busy, archived, onOpen, onCreate }: {
+  draft: RaceDraft | RaceAggregate;
+  busy: boolean;
+  archived: boolean;
+  onOpen: (race: Pick<RaceSummary, "id">) => void;
+  onCreate: (name: string) => Promise<boolean>;
+}) {
+  const [name, setName] = useState("");
+  const variants = "variants" in draft ? draft.variants : [];
+  return <section className="race-section" aria-label="Race Variants">
+    <div className="race-subheading"><div><p>COPY ON CREATE</p><h3>Race Variants</h3></div></div>
+    <p className="race-help">A Variant starts as an independent copy of this Race&apos;s saved definition. Later edits to either Race do not change the other.</p>
+    {draft.core.parentRaceId ? <p>Variant of <button className="st-button" type="button" disabled={busy} onClick={() => onOpen({ id: draft.core.parentRaceId! })}>{draft.core.parentRaceName ?? `Race ${draft.core.parentRaceId}`}</button></p> : null}
+    {!draft.id ? <p>Save this Race before creating variants.</p> : archived ? <p>Restore this Race before creating a Variant.</p> : <div className="race-variant-create">
+      <Field label="Variant Name"><input placeholder="Variant name" value={name} disabled={busy} onChange={(event) => setName(event.target.value)} /></Field>
+      <button className="skills-primary-button" type="button" disabled={busy || !name.trim()} onClick={async () => { if (await onCreate(name)) setName(""); }}>{busy ? "Cloning…" : "Clone as Variant"}</button>
+    </div>}
+    <div className="race-variant-list">{variants.map((variant) => <button className="st-button" key={variant.id} type="button" disabled={busy} onClick={() => onOpen(variant)}><strong>{variant.name}</strong><span>{variant.archivedAt ? "Archived · " : ""}Race {variant.id}</span></button>)}</div>
+    {draft.id && !variants.length ? <p className="race-help">No direct Variants yet.</p> : null}
+  </section>;
 }
 
 function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceDraft) => void }) {
@@ -313,7 +381,6 @@ function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Rac
     <div className="race-form-grid">
       <Field label="Name" wide><input value={core.name} onChange={(e) => setCore({ name: e.target.value })} /></Field>
       <Field label="Size"><select value={core.size} onChange={(e) => setCore({ size: e.target.value })}>{RACE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field>
-      <Field label="Base Magic"><input type="number" value={core.baseMagic ?? ""} onChange={(e) => setCore({ baseMagic: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
       <Field label="Age Range Text"><input value={core.ageRangeText} onChange={(e) => setCore({ ageRangeText: e.target.value })} /></Field>
       <Field label="Minimum Age"><input type="number" min={0} value={core.ageMin ?? ""} onChange={(e) => setCore({ ageMin: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
       <Field label="Maximum Age"><input type="number" min={0} value={core.ageMax ?? ""} onChange={(e) => setCore({ ageMax: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
@@ -327,6 +394,8 @@ function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Rac
 function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceDraft) => void }) {
   const preserveScroll = useInPlaceScrollPreservation();
   return <div className="race-section">
+    <div className="race-form-grid"><Field label="Base Magic"><input type="number" step="any" value={draft.core.baseMagic ?? ""} onChange={(e) => onChange({ ...draft, core: { ...draft.core, baseMagic: e.target.value === "" ? null : Number(e.target.value) } })} /></Field></div>
+    <p className="race-help">Racial Mana multiplier: a supernatural Skill Mana value of 5 with Base Magic 3 produces 15 Mana. Characters advance Base Magic through Quintessence.</p>
     <div className="race-subheading"><div><p>RACIAL LIMITS</p><h3>Attribute Caps</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, attributeCaps: [...draft.attributeCaps, { attributeKey: "", maxValue: 50, sortOrder: draft.attributeCaps.length }] }))}>Add Attribute</button></div>
     <div className="race-row-list">{draft.attributeCaps.map((cap, index) => <div className="race-repeat-row" key={`${cap.attributeKey}-${index}`}>
       <input placeholder="Attribute" value={cap.attributeKey} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, attributeKey: e.target.value } : entry) })} />
@@ -335,9 +404,9 @@ function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Ra
     </div>)}</div>
     <div className="race-subheading race-subheading--spaced"><div><p>MOVEMENT</p><h3>Movement Modes</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: [...draft.movementModes, { movementMode: "Land", baseValue: 0, notes: "", sortOrder: draft.movementModes.length }] }))}>Add Movement</button></div>
     <div className="race-row-list">{draft.movementModes.map((movement, index) => <div className="race-repeat-row race-repeat-row--movement" key={`${movement.movementMode}-${index}`}>
-      <input placeholder="Mode" value={movement.movementMode} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, movementMode: e.target.value } : entry) })} />
-      <input type="number" placeholder="Base" value={movement.baseValue} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, baseValue: Number(e.target.value) } : entry) })} />
-      <input placeholder="Notes" value={movement.notes} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} />
+      <Field label="Movement Mode"><input placeholder="Movement Mode" value={movement.movementMode} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, movementMode: e.target.value } : entry) })} /></Field>
+      <Field label="Base Movement"><input type="number" placeholder="Base Movement" value={movement.baseValue} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, baseValue: Number(e.target.value) } : entry) })} /></Field>
+      <Field label="Notes"><input placeholder="Notes" value={movement.notes} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} /></Field>
       <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: draft.movementModes.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
     <RaceNaturalProtectionEditor value={draft.naturalProtections ?? []} onChange={(naturalProtections) => onChange({ ...draft, naturalProtections })} />

@@ -211,12 +211,15 @@ export function resolveIncomingEffect(supplied: IncomingEffectInput): IncomingEf
     if (skipProtection(current)) return;
     if (natural.length > 1) issue("natural", "multiple-natural", "Multiple natural definitions cover this location; no stacking or selection rule is approved.", natural.map(({ source }) => source.id));
     for (const protection of natural) {
-      entry(current, `${protection.name}: Natural Armor ${protection.armor ?? "unknown"}, Natural Soak ${protection.soak ?? "unknown"}.`, { operation: "natural-source", sourceId: protection.source.id });
-      if (!nonnegative(protection.armor) || !nonnegative(protection.soak)) issue("natural", "natural-value", `${protection.name} lacks executable non-negative Natural Armor/Soak.`, [protection.source.id]);
+      const isRace = protection.source.kind === "race";
+      entry(current, isRace ? `${protection.name}: Soak ${protection.soak ?? "unknown"}.` : `${protection.name}: Natural Armor ${protection.armor ?? "unknown"}, Natural Soak ${protection.soak ?? "unknown"}.`, { operation: "natural-source", sourceId: protection.source.id });
+      if ((!isRace && !nonnegative(protection.armor)) || !nonnegative(protection.soak)) issue("natural", "natural-value", `${protection.name} lacks executable non-negative ${isRace ? "Soak" : "Natural Armor/Soak"}.`, [protection.source.id]);
     }
     if (result.issues.length) return block(current);
     if (!natural.length) entry(current, "No applicable natural protection.");
-    else for (const [label, amount] of [["Natural Armor", natural[0].armor!], ["Natural Soak", natural[0].soak!]] as const) {
+    else for (const [label, amount] of natural[0].source.kind === "race"
+      ? [["Soak", natural[0].soak!] as const]
+      : [["Natural Armor", natural[0].armor!], ["Natural Soak", natural[0].soak!]] as const) {
       const before = damage!; exactDamage = exactDamage!.subtract(ExactAmount.from(amount)).floorZero(); damage = exactDamage.toNumber();
       entry(current, `${natural[0].name}, ${label}: ${before} - ${amount} = ${damage}.`, { operation: "subtract-natural", sourceId: natural[0].source.id, before, after: damage, value: amount });
     }

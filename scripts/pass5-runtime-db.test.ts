@@ -110,7 +110,7 @@ for (const [material, magical, required, expected] of [["Silver", false, "silver
 isolated("worn, Race natural and temporary protection resolve once and plans survive all live edits", async (tx, f) => {
   const [ancestry] = await tx.insert(race).values({ name: "Protected Race", interactionRules: rules("resistance", 20) }).returning();
   await tx.update(campaignCharacterProfile).set({ raceId: ancestry.id }).where(eq(campaignCharacterProfile.characterId, f.defenderId));
-  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalArmor: 1, naturalSoak: 0, sortOrder: 0 }]);
+  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalSoak: 1, sortOrder: 0 }]);
   const helmet = await armor(tx, f, f.defenderId);
   const [modifier] = await tx.insert(campaignCharacterActiveModifier).values({ characterId: f.defenderId, label: "Ward", modifierChannel: "soak", targetKey: "self", amount: 1, sourceKind: "god", sourceId: "p5", sourceName: "Ward", durationKind: "scene", durationLabel: "This scene" }).returning();
   const [material] = await tx.insert(itemProperty).values({ itemId: f.weaponId, propertyName: "Material", value: "Silver" }).returning();
@@ -118,7 +118,7 @@ isolated("worn, Race natural and temporary protection resolve once and plans sur
   const [before] = await tx.select().from(effect).where(eq(effect.planId, planId));
   assert.equal(storedIncomingResolution(before.authoredValueJson)?.finalEffect?.damage, 2, "(6 - 1 worn) * .8 - 1 natural - 1 temporary");
   await tx.update(race).set({ interactionRules: rules("immunity") }).where(eq(race.id, ancestry.id));
-  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalArmor: 9, naturalSoak: 0, sortOrder: 0 }]);
+  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalSoak: 9, sortOrder: 0 }]);
   await tx.update(armorProfile).set({ baseSoak: 9 }).where(eq(armorProfile.itemId, helmet.id));
   await tx.update(campaignCharacterActiveModifier).set({ amount: 9 }).where(eq(campaignCharacterActiveModifier.id, modifier.id));
   await tx.update(itemProperty).set({ value: "Steel" }).where(eq(itemProperty.id, material.id));

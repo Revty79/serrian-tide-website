@@ -32,14 +32,12 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   const first = section.getByRole("article").nth(0);
   await first.waitFor({ timeout: 5_000 });
   await first.getByLabel("Protection Name", { exact: true }).fill("Scaled Hide");
-  await first.getByLabel("Natural Armor", { exact: true }).fill("2");
-  await first.getByLabel("Natural Soak", { exact: true }).fill("1");
+  await first.getByLabel("Soak", { exact: true }).fill("1");
   assert.equal(await first.getByLabel("Coverage", { exact: true }).inputValue(), "all");
   await section.getByRole("button", { name: "Add Natural Protection", exact: true }).click();
   const second = section.getByRole("article").nth(1);
   await second.getByLabel("Protection Name", { exact: true }).fill("Shell");
-  await second.getByLabel("Natural Armor", { exact: true }).fill("5");
-  await second.getByLabel("Natural Soak", { exact: true }).fill("2");
+  await second.getByLabel("Soak", { exact: true }).fill("2");
   await second.getByLabel("Coverage", { exact: true }).selectOption("locations");
   await page.getByRole("button", { name: "Save Race", exact: true }).click();
   await page.getByText("Coverage needs All locations or at least one selected location.", { exact: true }).waitFor();
@@ -54,21 +52,20 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   await page.getByText("Protection Test Race was saved.", { exact: true }).waitFor();
   const saved = await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, raceId));
   assert.equal(new Set(saved.map(({ key }) => key)).size, 2, "Multiple additions retain distinct protection identities without randomUUID.");
-  assert.deepEqual(saved.map(({ name, naturalArmor, naturalSoak, coverage }) => ({ name, naturalArmor, naturalSoak, coverage })), [
-    { name: "Scaled Hide", naturalArmor: 2, naturalSoak: 1, coverage: { kind: "all" } },
-    { name: "Shell", naturalArmor: 5, naturalSoak: 2, coverage: { kind: "locations", locationKeys: ["7", "8", "9"] } },
+  assert.deepEqual(saved.map(({ name, naturalSoak, coverage }) => ({ name, naturalSoak, coverage })), [
+    { name: "Scaled Hide", naturalSoak: 1, coverage: { kind: "all" } },
+    { name: "Shell", naturalSoak: 2, coverage: { kind: "locations", locationKeys: ["7", "8", "9"] } },
   ]);
   await page.reload();
   await page.locator(".skill-library__row").filter({ hasText: "Protection Test Race" }).click();
   await page.getByRole("button", { name: "Mechanics", exact: true }).click();
   assert.deepEqual((await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, raceId))).map(({ key }) => key), saved.map(({ key }) => key));
-  assert.equal(await first.getByLabel("Natural Armor", { exact: true }).inputValue(), "2");
   assert.equal(await second.getByLabel("Chest", { exact: true }).isChecked(), true);
   await page.setViewportSize({ width: 1365, height: 1000 });
   const characterId = (await pool.query("insert into campaign_character (campaign_id,player_user_id,name) values ($1,$2,'Protection Character') returning id", [campaignId, userId])).rows[0].id as number;
   await pool.query("insert into campaign_character_profile (character_id,race_id) values ($1,$2)", [characterId, raceId]);
   const target: ProtectionTarget = { kind: "character", characterId };
-  const naked = await read(target); assert.equal(naked.worn.length, 0); assert.deepEqual(naked.natural.map(({ armor }) => armor), [2, 5]);
+  const naked = await read(target); assert.equal(naked.worn.length, 0); assert.deepEqual(naked.natural.map(({ soak }) => soak), [1, 2]);
   const itemId = (await pool.query("insert into items (canonical_id,name,catalog_scope,equipment_group,record_type,family,category,price_basis) values ('ARMOR-PROTECTION-TEST','Worn Breastplate','equipment','armor','Armor','Armor','Armor','Each') returning id")).rows[0].id;
   await pool.query("insert into campaign_inventory_item(campaign_id,item_id) values ($1,$2)", [campaignId, itemId]);
   await pool.query("insert into armor_profiles (item_id,base_soak,coverage,damage_modifiers_source_text) values ($1,5,'Chest','Fire +2')", [itemId]);
@@ -82,7 +79,7 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
     await pool.query("insert into campaign_character_active_modifier (character_id,label,modifier_channel,target_key,amount,source_kind,source_id,source_name,duration_kind,duration_label) values ($1,'Temporary Ward','soak','self',1,'spell','ward-1','Ward Spell','until-removed','Until Removed')", [owner]);
   }
   const character = await read(target), chest = protectionAtLocation(character, "9"), head = protectionAtLocation(character, "0");
-  assert.deepEqual(chest.natural.map(({ armor }) => armor), [2, 5]); assert.equal(chest.worn[0].baseSoak, 5); assert.equal(chest.temporary[0].amount, 1);
+  assert.deepEqual(chest.natural.map(({ soak }) => soak), [1, 2]); assert.equal(chest.worn[0].baseSoak, 5); assert.equal(chest.temporary[0].amount, 1);
   assert.equal(chest.worn[0].damageModifiers[0].damageType, "Fire"); assert.equal(chest.worn[0].damageModifiersSourceText, "Fire +2");
   assert.equal(head.natural.length, 1); assert.equal(head.worn.length, 0); assert.equal(head.temporary.length, 1);
   const npcBefore = (await pool.query("select baseline_snapshot_json,current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0];
@@ -98,17 +95,17 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   assert.deepEqual([direct.natural[0].armor, direct.natural[0].soak], [3, 2]); assert.equal(direct.worn.length, 0);
   assert.deepEqual(direct.temporary.map(({ amount }) => amount), [4]);
   await assert.rejects(read({ ...directTarget, campaignId: campaignId + 999 }), /does not belong/);
-  await first.getByLabel("Natural Armor", { exact: true }).fill("4");
+  await first.getByLabel("Soak", { exact: true }).fill("4");
   await page.getByRole("button", { name: "Save Race", exact: true }).click();
   await page.getByText("Protection Test Race was saved.", { exact: true }).waitFor();
-  assert.equal((await read(target)).natural[0].armor, 4, "Race edits are resolved live without copying into Characters");
+  assert.equal((await read(target)).natural[0].soak, 4, "Race edits are resolved live without copying into Characters");
   const emptyRaceId = (await pool.query("select id from races where name='Migration Legacy Race'")).rows[0].id;
   await pool.query("update campaign_character_profile set race_id=$1 where character_id=$2", [emptyRaceId, characterId]);
   assert.deepEqual((await read(target)).natural, []);
   await pool.query("update campaign_character_profile set race_id=null where character_id=$1", [characterId]);
   assert.deepEqual((await read(target)).natural, []);
   await pool.query("update campaign_character_profile set race_id=$1 where character_id=$2", [raceId, characterId]);
-  assert.equal((await read(target)).natural[0].armor, 4);
+  assert.equal((await read(target)).natural[0].soak, 4);
   assert.deepEqual((await pool.query("select baseline_snapshot_json,current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0], npcBefore);
   assert.deepEqual((await pool.query("select creature_snapshot_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [encounterId, occurrence.character_id])).rows[0].creature_snapshot_json, occurrence.creature_snapshot_json);
   await page.goto(`${base}/heavens/creatures`);
@@ -137,9 +134,9 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   const current = await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, raceId));
   await db.transaction((tx) => saveRaceNaturalProtectionInTransaction(tx, raceId, current));
   assert.deepEqual((await pool.query("select id,key from race_natural_protections where race_id=$1 order by key", [raceId])).rows, rowIds);
-  await assert.rejects(db.transaction((tx) => saveRaceNaturalProtectionInTransaction(tx, raceId, [{ ...current[0], naturalArmor: -1 }])), /zero or greater/);
+  await assert.rejects(db.transaction((tx) => saveRaceNaturalProtectionInTransaction(tx, raceId, [{ ...current[0], naturalSoak: -1 }])), /zero or greater/);
   assert.deepEqual(await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, raceId)), current);
-  for (const amount of ["-1", "Infinity", "NaN"]) await assert.rejects(pool.query("update race_natural_protections set natural_armor=$1 where race_id=$2", [amount, raceId]), /amounts_valid/);
+  for (const amount of ["-1", "Infinity", "NaN"]) await assert.rejects(pool.query("update race_natural_protections set natural_soak=$1 where race_id=$2", [amount, raceId]), /amounts_valid/);
   await assert.rejects(pool.query("insert into race_natural_protection_locations(protection_id,location_key) values ($1,'10')", [rowIds[0].id]), /location_valid/);
   assert.deepEqual(calculateOrdinaryAttackDamage(10, 2, 5, 1), damageBefore);
   assert.equal(damageBefore.netDamage, 6);

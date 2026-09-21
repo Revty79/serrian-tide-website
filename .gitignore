@@ -58,3 +58,6 @@ next-env.d.ts
 /.next-creature-authoring-build/
 /artifacts/creature-authoring/
 /artifacts/creature-authoring-*.log
+/.next-race-authoring-browser/
+/.next-race-authoring-build/
+/artifacts/race-authoring/

@@ -37,10 +37,10 @@ test("Creature authoring preserves pre-migration records and round-trips through
     await pool.query("insert into creature_uses (creature_id,use_name,notes) values ($1,'Hide','Harvest text')", [creatureId]);
     await pool.query("insert into races (name,legacy_description) values ('Migration Legacy Race','Keep Race lore')");
     const tables = ["races", "creatures", "creature_attacks", "creature_abilities", "creature_defenses", "creature_uses"];
-    const before = await Promise.all(tables.map((table) => pool!.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' body from ${table} t order by id`)));
+    const before = await Promise.all(tables.map((table) => pool!.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' - 'parent_race_id' body from ${table} t order by id`)));
     await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
     for (const table of ["race_natural_protections", "race_natural_protection_locations"]) assert.equal((await pool.query(`select count(*)::int count from ${table}`)).rows[0].count, 0, "Natural Protection migration never backfills Race data");
-    for (const [index, table] of tables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' body from ${table} t order by id`)).rows, before[index].rows, `${table} legacy data must survive unchanged`);
+    for (const [index, table] of tables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' - 'parent_race_id' body from ${table} t order by id`)).rows, before[index].rows, `${table} legacy data must survive unchanged`);
     assert.equal((await pool.query("select authoring_json from creature_attacks where creature_id=$1", [creatureId])).rows[0].authoring_json, null);
     for (const value of ['[]', '{}', '{"schemaVersion":2}']) await assert.rejects(pool.query("update creature_attacks set authoring_json=$1 where creature_id=$2", [value, creatureId]), /authoring_shape/);
     for (const table of ["creatures", "races"]) {

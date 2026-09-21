@@ -145,7 +145,7 @@ for (const identity of ["player", "race-npc", "creature-npc", "direct"] as const
       } else {
         const [ancestry] = await tx.insert(race).values({ name: "Pass 6 target Race" }).returning();
         await tx.update(campaignCharacterProfile).set({ raceId: ancestry.id }).where(eq(campaignCharacterProfile.characterId, target));
-        if (natural) await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Natural hide", coverage: { kind: "all" }, naturalArmor: natural, naturalSoak: 0, sortOrder: 0 }]);
+        if (natural) await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Natural hide", coverage: { kind: "all" }, naturalSoak: natural, sortOrder: 0 }]);
       }
       if (worn) await armor(tx, f, target, worn);
       if (temporary && identity !== "direct") await tx.insert(campaignCharacterActiveModifier).values({ characterId: target, label: "Ward", modifierChannel: "soak", targetKey: "self", amount: temporary, sourceKind: "god", sourceId: "p6", sourceName: "Ward", durationKind: "scene", durationLabel: "This scene" });
@@ -227,7 +227,7 @@ for (const boundary of ["worn-overlap", "natural-overlap", "armor-metadata"] as 
   if (boundary === "natural-overlap") {
     const [ancestry] = await tx.insert(race).values({ name: "Overlapping natural protection" }).returning();
     await tx.update(campaignCharacterProfile).set({ raceId: ancestry.id }).where(eq(campaignCharacterProfile.characterId, f.defenderId));
-    await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [1, 2].map((amount) => ({ key: `hide-${amount}`, name: `Hide ${amount}`, coverage: { kind: "all" }, naturalArmor: amount, naturalSoak: 0, sortOrder: amount })));
+    await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [1, 2].map((amount) => ({ key: `hide-${amount}`, name: `Hide ${amount}`, coverage: { kind: "all" }, naturalSoak: amount, sortOrder: amount })));
   } else {
     const first = await armor(tx, f, f.defenderId, 1);
     if (boundary === "worn-overlap") await armor(tx, f, f.defenderId, 2);
@@ -237,7 +237,7 @@ for (const boundary of ["worn-overlap", "natural-overlap", "armor-metadata"] as 
   assert.equal(outcome.resolution.status, "requires-god-ruling"); assert.equal(outcome.resolution.finalEffect, null);
   const layers = outcome.resolution.input.target.protection;
   if (boundary === "worn-overlap") assert.deepEqual(layers.worn.map(({ baseSoak }) => baseSoak), [1, 2]);
-  if (boundary === "natural-overlap") assert.deepEqual(layers.natural.map(({ armor }) => armor), [1, 2]);
+  if (boundary === "natural-overlap") assert.deepEqual(layers.natural.map(({ soak }) => soak), [1, 2]);
   if (boundary === "armor-metadata") assert.equal(layers.worn[0].damageModifiersSourceText, "Fire +2");
 });
 
@@ -257,7 +257,7 @@ for (const targetKind of ["creature-npc", "direct"] as const) isolated(`Pass 6 d
 isolated("Pass 6 Absorption uses post-Worn damage, skipping Race natural and temporary protection", async (tx, f) => {
   const [ancestry] = await tx.insert(race).values({ name: "Absorbing armor wearer", interactionRules: rules("absorption", 50) }).returning();
   await tx.update(campaignCharacterProfile).set({ raceId: ancestry.id }).where(eq(campaignCharacterProfile.characterId, f.defenderId));
-  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalArmor: 8, naturalSoak: 9, sortOrder: 0 }]);
+  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalSoak: 9, sortOrder: 0 }]);
   await armor(tx, f, f.defenderId, 2);
   await tx.insert(campaignCharacterActiveModifier).values({ characterId: f.defenderId, label: "Ward", modifierChannel: "soak", targetKey: "self", amount: 9, sourceKind: "god", sourceId: "p6", sourceName: "Ward", durationKind: "scene", durationLabel: "This scene" });
   const outcome = await result(tx, f, f.defenderId);

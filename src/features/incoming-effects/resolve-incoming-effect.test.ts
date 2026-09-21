@@ -15,8 +15,24 @@ function input(rules: InteractionRule[] = [], amount = 12): IncomingEffectInput 
     target: { ruleSource: { kind: "race", id: "race:1", name: "Test Race" }, interactionRules: { schemaVersion: 1, rules }, protection: buildProtectionLayers({ target: { kind: "character", characterId: 1 } }) }, hitLocationKey: "9" };
 }
 function natural(value: IncomingEffectInput, armor = 2, soak = 1) {
-  value.target.protection.natural.push({ source: { kind: "race", id: "race:1:hide", name: "Test Race" }, name: "Scales", coverage: { kind: "all" }, armor, soak });
+  value.target.protection.natural.push({ source: { kind: "creature-snapshot", id: "creature:1:hide", name: "Test Creature" }, name: "Scales", coverage: { kind: "all" }, armor, soak });
 }
+
+test("Race Soak is the sole natural reduction, respects coverage, and ignores obsolete Armor", () => {
+  const value = input([], 12);
+  value.target.protection = buildProtectionLayers({ target: { kind: "character", characterId: 1 }, worn: [worn(3)],
+    race: { id: 1, name: "Test Race", protections: [{ key: "shell", name: "Shell", naturalSoak: 2, coverage: { kind: "locations", locationKeys: ["9"] }, sortOrder: 0 }] } });
+  const result = resolveIncomingEffect(value);
+  assert.equal(result.finalEffect?.damage, 7, "12 minus unchanged worn Soak 3 minus Race Soak 2");
+  assert.equal(result.stages.find(({ key }) => key === "natural")?.entries.filter(({ operation }) => operation === "subtract-natural").length, 1);
+  assert.doesNotMatch(result.explanation.join("\n"), /Natural Armor/);
+  Object.assign(value.target.protection.natural[0], { armor: 99 });
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 7, "obsolete Race Armor is never executed");
+  value.hitLocationKey = "0";
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 12);
+  value.target.protection.natural[0].coverage = { kind: "all" };
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 10);
+});
 function temporary(value: IncomingEffectInput, amount = 1, targetKey = "self") {
   value.target.protection.temporary.push({ id: `ward:${value.target.protection.temporary.length}`, name: "Ward", channel: "soak", targetKey, amount, coverage: targetKey === "self" ? { kind: "all" } : { kind: "unresolved" }, modifier: { source: { name: "Ward Spell" }, duration: { kind: "scene" } } });
 }
@@ -136,7 +152,7 @@ test("multiple worn sources, unknown coverage, values and metadata remain explic
   value.target.protection.worn = [{ ...worn(), damageModifiers: [{ id: 1, damageType: "Fire", modifier: "+2", modifierText: "", notes: "" }] }];
   result = resolveIncomingEffect(value); assert.equal(result.issues[0].code, "armor-damage-metadata");
 });
-test("Race and exact Creature natural sources subtract both Armor and Soak", () => {
+test("Creature natural sources retain both Armor and Soak", () => {
   const value = input([], 8); natural(value); assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 5);
   value.target.protection = buildProtectionLayers({ target: { kind: "encounter-participant", campaignId: 1, encounterId: 2, participantId: -8 }, creature: { identity: "occurrence:-8", snapshot: { core: { canonicalName: "Scales" }, hitLocations: [{ hitLocationNumber: 9, locationName: "Chest", naturalArmor: 2, soak: 1 }] } } });
   assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 5);

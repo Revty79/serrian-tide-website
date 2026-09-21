@@ -40,18 +40,18 @@ function isolated(name: string, run: (tx: Tx, f: Awaited<ReturnType<typeof fixtu
 }
 isolated("normal Character and Race NPC resolve currently assigned live Race mechanics", async (tx, f) => {
   const [ancestry] = await tx.insert(race).values({ name: "Incoming Race", interactionRules: rules(25) }).returning();
-  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", naturalArmor: 2, naturalSoak: 1, coverage: { kind: "all" }, sortOrder: 0 }]);
+  await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", naturalSoak: 1, coverage: { kind: "all" }, sortOrder: 0 }]);
   for (const id of [f.heroId, f.defenderId]) {
     await tx.update(campaignCharacterProfile).set({ raceId: ancestry.id }).where(eq(campaignCharacterProfile.characterId, id));
     const context = await readIncomingEffectTargetInTransaction(tx, f.godId, { kind: "character", characterId: id });
-    assert.equal(context.ruleSource.kind, "race"); assert.equal(resolve(context).finalEffect?.damage, 6);
+    assert.equal(context.ruleSource.kind, "race"); assert.equal(resolve(context).finalEffect?.damage, 8);
     const occurrence = await readIncomingEffectTargetInTransaction(tx, f.godId, { kind: "encounter-participant", campaignId: f.campaignId, encounterId: f.encounterId, participantId: id });
     assert.deepEqual(occurrence.interactionRules, context.interactionRules);
   }
   const frozen = await readIncomingEffectTargetInTransaction(tx, f.godId, { kind: "character", characterId: f.heroId });
   await tx.update(race).set({ interactionRules: rules(50) }).where(eq(race.id, ancestry.id));
-  assert.equal(resolve(await readIncomingEffectTargetInTransaction(tx, f.godId, { kind: "character", characterId: f.heroId })).finalEffect?.damage, 3);
-  assert.equal(resolve(frozen).finalEffect?.damage, 6, "supplied prior facts stay frozen");
+  assert.equal(resolve(await readIncomingEffectTargetInTransaction(tx, f.godId, { kind: "character", characterId: f.heroId })).finalEffect?.damage, 5);
+  assert.equal(resolve(frozen).finalEffect?.damage, 8, "supplied prior facts stay frozen");
   assert.equal((await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, f.heroId)))[0].raceId, ancestry.id);
 });
 isolated("no assigned Race, Race without rules or natural protection, and Race reassignment remain valid", async (tx, f) => {

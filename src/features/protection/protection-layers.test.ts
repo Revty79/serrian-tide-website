@@ -6,8 +6,8 @@ const snapshot = { core: { canonicalName: "Dragonkin" }, hitLocations: [
   { hitLocationNumber: 9, locationName: "Scales", naturalArmor: 3, soak: 2 },
   { hitLocationNumber: 0, locationName: "Head", naturalArmor: null, soak: null },
 ] };
-const race = { id: 12, name: "Scaled folk", protections: [{ key: "hide", name: "Scaled Hide", naturalArmor: 2, naturalSoak: 1, coverage: { kind: "all" as const }, sortOrder: 0 },
-  { key: "shell", name: "Shell", naturalArmor: 5, naturalSoak: 2, coverage: { kind: "locations" as const, locationKeys: ["8", "9"] }, sortOrder: 1 }] };
+const race = { id: 12, name: "Scaled folk", protections: [{ key: "hide", name: "Scaled Hide", naturalSoak: 1, coverage: { kind: "all" as const }, sortOrder: 0 },
+  { key: "shell", name: "Shell", naturalSoak: 2, coverage: { kind: "locations" as const, locationKeys: ["8", "9"] }, sortOrder: 1 }] };
 const worn: WornProtection = { ownershipKey: "stack:5", instanceId: null, itemId: 5, itemName: "Breastplate", activeQuantity: 1, baseSoak: 5,
   coverage: "Chest", coveredLocationKeys: ["9"], armorType: "Plate", rulesText: "Authored armor", damageModifiersSourceText: "Fire +2", damageModifiers: [{ id: 7, damageType: "Fire", modifier: "+2", modifierText: "Fire +2", notes: "Keep descriptive" }] };
 const ward = { label: "Temporary Ward", channel: "soak", targetKey: "self", amount: 1, effectPlanEffectId: 44, sourceIdentity: { name: "Ward spell" }, duration: { kind: "scene" } };
@@ -25,7 +25,8 @@ test("Character Race natural protection remains separate from worn armor and res
   assert.equal(unarmored.worn.length, 0); assert.equal(unarmored.natural.length, 2);
   const profile = buildProtectionLayers({ target: { kind: "character", characterId: 1 }, race, worn: [worn] });
   assert.equal(protectionAtLocation(profile, "9").worn[0].baseSoak, 5);
-  assert.deepEqual(protectionAtLocation(profile, "9").natural.map(({ armor }) => armor), [2, 5]);
+  assert.deepEqual(protectionAtLocation(profile, "9").natural.map(({ soak }) => soak), [1, 2]);
+  assert.ok(profile.natural.every((entry) => !("armor" in entry)));
   assert.equal(protectionAtLocation(profile, "0").worn.length, 0); assert.equal(protectionAtLocation(profile, "0").natural.length, 1);
   assert.equal("armor" in profile, false); assert.equal("total" in profile, false);
   assert.deepEqual(profile.worn[0].damageModifiers, worn.damageModifiers);
