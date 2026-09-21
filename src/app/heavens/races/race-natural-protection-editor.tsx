@@ -4,6 +4,11 @@ import { useId } from "react";
 import { NATURAL_PROTECTION_LOCATIONS, type RaceNaturalProtection } from "@/features/races/race-natural-protection";
 import styles from "./race-natural-protection-editor.module.css";
 
+function createProtectionKey() {
+  // Unlike randomUUID, getRandomValues is also available on plain HTTP LAN hosts.
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function ProtectionRow({ value, onChange, onRemove }: { value: RaceNaturalProtection; onChange: (value: RaceNaturalProtection) => void; onRemove: () => void }) {
   const id = useId();
   return <article className={styles.row} aria-label="Natural Protection entry">
@@ -30,6 +35,6 @@ export function RaceNaturalProtectionEditor({ value, onChange }: { value: RaceNa
     <h3>Natural Protection</h3>
     <p>Protection from the body, such as scales or a shell. Worn armor stays separate. Characters use their assigned Race&apos;s current protection.</p>
     {value.map((entry, index) => <ProtectionRow key={entry.key} value={entry} onChange={(changed) => onChange(value.map((row, i) => i === index ? changed : row))} onRemove={() => onChange(value.filter((_, i) => i !== index))} />)}
-    <button className="st-button" type="button" onClick={() => onChange([...value, { key: crypto.randomUUID(), name: "", naturalArmor: 0, naturalSoak: 0, coverage: { kind: "all" }, sortOrder: value.length }])}>Add Natural Protection</button>
+    <button className="st-button" type="button" onClick={() => onChange([...value, { key: createProtectionKey(), name: "", naturalArmor: 0, naturalSoak: 0, coverage: { kind: "all" }, sortOrder: value.length }])}>Add Natural Protection</button>
   </section>;
 }

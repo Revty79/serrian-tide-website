@@ -23,8 +23,14 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   const interactions = page.getByRole("region", { name: "Racial Interaction Rules", exact: true });
   assert.ok((await movement.boundingBox())!.y < (await section.boundingBox())!.y);
   assert.ok((await section.boundingBox())!.y < (await interactions.boundingBox())!.y);
+  // Plain HTTP on a home/LAN host exposes getRandomValues, but not randomUUID.
+  // Keep that browser capability difference for both additions and the save.
+  await page.evaluate(() => Object.defineProperty(crypto, "randomUUID", { configurable: true, value: undefined }));
+  assert.equal(await page.evaluate(() => typeof crypto.randomUUID), "undefined");
+  assert.equal(await page.evaluate(() => typeof crypto.getRandomValues), "function");
   await section.getByRole("button", { name: "Add Natural Protection", exact: true }).click();
   const first = section.getByRole("article").nth(0);
+  await first.waitFor({ timeout: 5_000 });
   await first.getByLabel("Protection Name", { exact: true }).fill("Scaled Hide");
   await first.getByLabel("Natural Armor", { exact: true }).fill("2");
   await first.getByLabel("Natural Soak", { exact: true }).fill("1");
@@ -47,6 +53,7 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   await page.getByRole("button", { name: "Save Race", exact: true }).click();
   await page.getByText("Protection Test Race was saved.", { exact: true }).waitFor();
   const saved = await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, raceId));
+  assert.equal(new Set(saved.map(({ key }) => key)).size, 2, "Multiple additions retain distinct protection identities without randomUUID.");
   assert.deepEqual(saved.map(({ name, naturalArmor, naturalSoak, coverage }) => ({ name, naturalArmor, naturalSoak, coverage })), [
     { name: "Scaled Hide", naturalArmor: 2, naturalSoak: 1, coverage: { kind: "all" } },
     { name: "Shell", naturalArmor: 5, naturalSoak: 2, coverage: { kind: "locations", locationKeys: ["7", "8", "9"] } },
@@ -54,6 +61,7 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   await page.reload();
   await page.locator(".skill-library__row").filter({ hasText: "Protection Test Race" }).click();
   await page.getByRole("button", { name: "Mechanics", exact: true }).click();
+  assert.deepEqual((await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, raceId))).map(({ key }) => key), saved.map(({ key }) => key));
   assert.equal(await first.getByLabel("Natural Armor", { exact: true }).inputValue(), "2");
   assert.equal(await second.getByLabel("Chest", { exact: true }).isChecked(), true);
   await page.setViewportSize({ width: 1365, height: 1000 });

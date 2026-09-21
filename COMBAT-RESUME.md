@@ -1,5 +1,12 @@
 # Combat resumption handoff
 
+## Race Natural Protection: home HTTP Add-button fix (21 September 2026)
+
+- After Pass 6, Brannan reported that Race Natural Protection could be added on dev but not on the home server. A browser check reproduced the relevant environment difference: localhost exposes `crypto.randomUUID()`, while a plain-HTTP LAN-style origin does not; both expose `crypto.getRandomValues()`.
+- The existing Natural Protection Add handler depended directly on `randomUUID()`. The authenticated authoring regression failed to create a row with that API unavailable. The handler now creates a random 128-bit entry key with `getRandomValues()`. Existing protection identities, records, save validation, schema and combat calculations are unchanged.
+- Validation passed: three Natural Protection unit tests; the full disposable Creature/Race/NPC authoring browser and migration-compatibility check, now adding and saving two distinct protections without `randomUUID()` and preserving their keys on reload; TypeScript; changed-file lint; production build; diff checks. No live/home database was contacted or changed.
+- The home instance itself was not inspected. This correction addresses an inert Add button on HTTP. A save-only failure or failure on HTTPS still needs the exact error and deployed revision/schema checked. Pulling source must be followed by the home server's normal production rebuild/restart and a browser refresh.
+
 ## Pass 6: final gameplay validation (20 September 2026)
 
 **Parent revision:** `21e20ae33f9795e9961c130a3ab96f8b800b2b88`. Brannan accepted Passes 1–5 and authorized final validation, genuine defect fixes, then push/sync. This supersedes the earlier stop-before-Pass-6 notes below. **No subsequent architecture phase or Pass 7 is authorized.**
