@@ -6,6 +6,8 @@ import { attackReportSignature } from "./attack-report";
 import { combatEffectSummary } from "./result-summary";
 import { combatMessage } from "./form-controls";
 import { EffectRuling } from "./effect-ruling";
+import { IncomingEffectEvidence } from "./incoming-effect-evidence";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
 import styles from "./combat-screen.module.css";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
@@ -23,7 +25,8 @@ export function SpellReport({ encounterId, plan, disabled, refresh }: {
       const base = object(authored.effect).amount, amount = object(final.effect).amount;
       return <div key={effect.id}><strong>{effect.effectType === "spell.area-report" ? "Area result" : effect.targetName}</strong>
         <p>{combatEffectSummary(effect, true)}</p>
-        {typeof base === "number" && typeof amount === "number" && original ? <p className={styles.muted}>{original.scaling === "per-success"
+        <IncomingEffectEvidence value={effect.authoredValue} status={effect.status} />
+        {!storedIncomingResolution(effect.authoredValue) && typeof base === "number" && typeof amount === "number" && original ? <p className={styles.muted}>{original.scaling === "per-success"
           ? `${base} per success × ${roll?.totalSuccesses ?? 0} = ${amount}`
           : original.effect?.kind === "health.damage" ? `${base} spell damage + ${amount - base} additional-success damage = ${amount}`
           : `${amount} fixed by the spell.`}</p> : null}

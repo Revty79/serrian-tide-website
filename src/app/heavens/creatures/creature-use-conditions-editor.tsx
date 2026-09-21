@@ -7,6 +7,7 @@ import {
   type DerivedAbilityUseConditionDefinition,
   type DerivedAbilityUseConditionType,
 } from "@/features/derived-abilities/models";
+import { AbilityFactSelector } from "@/features/ability-use-conditions/fact-selector";
 import styles from "./creature-use-conditions-editor.module.css";
 
 const operatorLabels: Record<DerivedAbilityRequirementOperator, string> = {
@@ -21,7 +22,7 @@ const typeLabels: Record<DerivedAbilityUseConditionType, string> = {
 const operatorHelp = <>
   <p>The Operator tells Serrian Tide how to compare the current value of the condition with the value you enter.</p>
   <p>Examples: Health Percentage → Greater than → 50; State → Equal to → Enraged; Equipment → Present / possessed.</p>
-  <p>Numeric and text comparisons are authored for later runtime integration; they are not fully evaluated today.</p>
+  <p>Numeric and text comparisons use authoritative typed facts. Unknown values require a G.O.D. ruling.</p>
 </>;
 const numberHelp = <>
   <p>Use this when the selected Operator compares numbers.</p>
@@ -64,7 +65,7 @@ export const creatureActivationHelp = <>
   <p><strong>Activated:</strong> The creature deliberately chooses to use this Ability.</p>
   <p><strong>Triggered:</strong> The Ability becomes relevant when its authored trigger/event conditions occur.</p>
   <p><strong>Reaction:</strong> The Ability may be used in response to an appropriate event or opportunity.</p>
-  <p>These describe the authored intent. Creature activation and Use Condition integration is planned for a later combat/runtime step.</p>
+  <p>Use Conditions are checked at use. Passive Creature traits have no automatic lifecycle yet and cannot be chosen as activated actions.</p>
 </>;
 
 function conditionTypeHelp(type: DerivedAbilityUseConditionType) {
@@ -76,18 +77,18 @@ function conditionTypeHelp(type: DerivedAbilityUseConditionType) {
     </>;
     case "event": return <>
       <p>Checks whether a specific event has occurred or is currently being evaluated.</p>
-      <p>Example Event Key: successful-parry. This condition matches when Serrian Tide reports the event named successful-parry.</p>
-      <p>Typing a new Event Key does NOT automatically create that event. Later runtime work will provide supported Event Keys/selectors where possible.</p>
+      <p>For example, choose an attack targeting this combatant. The event comes from its current response window.</p>
+      <p>Typing a new Event Key does NOT create an event. Choose an existing supported event or request a G.O.D. manual event ruling.</p>
     </>;
     case "equipment": return <>
       <p>Checks an equipment-related fact. The Condition Key identifies the equipment fact.</p>
       <p>Examples: shield-equipped, ancestral-weapon, wearing-heavy-armor.</p>
-      <p>Later runtime integration will provide these facts from Character/Creature equipment. These examples are not a supported equipment catalog.</p>
+      <p>Use the selector for supported equipment facts. Custom examples require a G.O.D. ruling unless an exact provider exists.</p>
     </>;
     case "state": return <>
       <p>Checks a current Character or Creature state. The Condition Key identifies the state being checked.</p>
       <p>Examples: enraged, flying, prone, invisible.</p>
-      <p>Later runtime integration will connect this to authoritative Character/Creature state information. Typing a new key by itself does not create a new tracked state.</p>
+      <p>Use the selector for supported State facts. Typing a new key does not create a tracked state.</p>
     </>;
   }
 }
@@ -123,11 +124,10 @@ function ConditionEditor({ condition, onChange, onRemove }: {
     {!manual ? <>
       <CreatureAuthoringHelpField name={`${typeLabels[condition.conditionType]} Key`} help={<>
         <p>Condition Key is the system-readable name of the event, equipment fact, or state being checked.</p>
-        <p>Examples: successful-parry, shield-equipped, enraged.</p>
-        <p>The key must eventually match a fact supplied by Serrian Tide&apos;s runtime. Typing a key does not create a tracked fact or event.</p>
-        <p>Future runtime integration should replace known raw keys with selectable system options wherever possible.</p>
+        <p>Choose a supported fact by its label. Search Items by name, or enter an exact active Condition name.</p>
+        <p>Advanced custom keys are preserved. Typing a key does not create a tracked fact or event; unknown facts require a G.O.D. ruling.</p>
       </>}>
-        <input className="st-control" value={condition.conditionKey ?? ""} onChange={(e) => update({ conditionKey: e.target.value || null })} />
+        <AbilityFactSelector category={condition.conditionType as "event" | "equipment" | "state"} value={condition.conditionKey} onChange={(conditionKey) => update({ conditionKey })} />
       </CreatureAuthoringHelpField>
       {event ? <p><strong>Match: Exact Event.</strong> Currently matches only when the supplied event key matches this Event Key.</p> : <>
         <CreatureAuthoringHelpField name="Operator" help={operatorHelp}>
@@ -138,11 +138,11 @@ function ConditionEditor({ condition, onChange, onRemove }: {
             {advancedOperator && <option value={condition.operator!}>{operatorLabels[condition.operator!]}</option>}
           </select>
         </CreatureAuthoringHelpField>
-        <p>Equipment and State facts are not yet fully supplied by the normal Character runtime. Richer comparisons are under Advanced Comparison.</p>
+        <p>Choose a supported fact. Numeric and text comparisons are under Advanced Comparison.</p>
       </>}
       <details className={styles.details}>
         <summary>Advanced Comparison</summary>
-        <p>For later runtime integration. {event ? "Current Event matching ignores these comparison settings." : "Current Equipment/State evaluation uses supplied yes/no facts, not numeric or text comparisons."} Saved values are kept when you change views or operators.</p>
+        <p>Comparisons use the selected fact type. Missing facts or ambiguous saved number/text values require a G.O.D. ruling. Saved values are kept when you change views.</p>
         <CreatureAuthoringHelpField name="Comparison Operator" help={operatorHelp}>
           <select className="st-control" value={condition.operator ?? ""} onChange={(e) => update({ operator: e.target.value as DerivedAbilityRequirementOperator || null })}>
             <option value="">Unspecified</option>
@@ -185,12 +185,10 @@ export function CreatureUseConditionsEditor({ conditions, onChange }: {
   return <fieldset className={styles.editor} aria-labelledby={headingId}>
     <HelpLabel name="Use Conditions" label={<h4 id={headingId}>Use Conditions</h4>} help={<>
       <p>Use Conditions describe when an Ability can be used, becomes active, or becomes relevant.</p>
-      <p>Some conditions can already be evaluated from runtime information. Others are being authored now for later runtime integration.</p>
-      <p>A Condition Key is the system-readable name of the fact or event being checked.</p>
-      <p>Eventually known Condition Keys should be supplied by Serrian Tide as selectable options. Until that runtime catalog exists, some keys must be entered manually.</p>
-      <p><strong>Current runtime support:</strong> Event conditions support exact Event Key matching when an event key is supplied. Equipment / State support boolean condition maps in the domain, but the normal Character Derived Ability runtime does not yet provide a complete system-backed Equipment/State catalog and facts.</p>
-      <p>Numeric / text comparisons are preserved by the authoring model; full comparison support belongs to later runtime integration. Creature Use Conditions remain authoring metadata at this step.</p>
-      <p>Some advanced Use Conditions are being authored now for later runtime integration. Serrian Tide will not silently pretend to know a state or value it does not currently track.</p>
+      <p>A Condition Key is the system-readable name behind the selected fact.</p>
+      <p>Supported events come from an existing response window. Equipment and State use current authoritative records.</p>
+      <p>Use the same supported keys for Creature and Derived Abilities. Unknown keys and Manual conditions require a G.O.D. ruling.</p>
+      <p>Number and text comparisons are evaluated by type. A missing fact is unknown, never automatically false.</p>
     </>} />
     <p>Describe when this Ability applies. Automatic support varies; open ? for current limits.</p>
     {conditions.map((condition, index) => <ConditionEditor key={index} condition={condition}

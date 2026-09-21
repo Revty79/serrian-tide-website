@@ -165,6 +165,8 @@ export type MechanicalEffectHealthResult = {
 };
 
 export type MechanicalEffectPlan = {
+  /** Present only on new runtime plans that passed the shared incoming resolver. */
+  incomingEffect?: import("@/features/incoming-effects/models").IncomingEffectResolution;
   status: MechanicalEffectPlanStatus;
   effect: MechanicalEffect | null;
   source: MechanicalEffectSource | null;

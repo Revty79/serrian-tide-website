@@ -6,6 +6,9 @@ import { confirmCombatAttackReport } from "./operation-actions";
 import { attackReportSignature, attackReportTarget } from "./attack-report";
 import { combatMessage } from "./form-controls";
 import { combatEffectSummary } from "./result-summary";
+import { IncomingEffectEvidence } from "./incoming-effect-evidence";
+import { IncomingEffectRuling } from "./incoming-effect-ruling";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
 import styles from "./combat-screen.module.css";
 
 export function AttackReport({ encounterId, plan, disabled, refresh }: {
@@ -14,11 +17,13 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
   const [editing, setEditing] = useState(false), [location, setLocation] = useState<string | null>(null);
   const [damage, setDamage] = useState<string | null>(null), [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
-  const [anatomy, setAnatomy] = useState<Awaited<ReturnType<typeof readCombatTargetAnatomy>>>([]);
+  const [liveAnatomy, setAnatomy] = useState<Awaited<ReturnType<typeof readCombatTargetAnatomy>>>([]);
   const running = useRef(false);
   const attacks = plan.effects.filter((entry) => entry.effectKey.startsWith("ordinary-attack:target:"));
   const riders = plan.effects.filter((entry) => !entry.effectKey.startsWith("ordinary-attack:target:"));
   const effect = attacks[0], target = effect ? attackReportTarget(effect) : null;
+  const frozenAnatomy = effect ? storedIncomingResolution(effect.authoredValue)?.input.target.applicationLocations : null;
+  const anatomy = frozenAnatomy ?? liveAnatomy;
   const needsRuling = plan.status === "requires-god-ruling", revise = editing || needsRuling;
   const retry = ["approved", "application-failed"].includes(plan.status);
   const selectedLocation = location ?? String(target?.locationNumber ?? "");
@@ -27,10 +32,10 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
   const roll = plan.governingRollSnapshot?.resolution;
   useEffect(() => {
     let active = true;
-    if (revise && effect) void readCombatTargetAnatomy({ role: "god", encounterId }, effect.targetParticipantId)
+    if (revise && effect && !frozenAnatomy) void readCombatTargetAnatomy({ role: "god", encounterId }, effect.targetParticipantId)
       .then((value) => { if (active) setAnatomy(value); }).catch(() => { if (active) setAnatomy([]); });
     return () => { active = false; };
-  }, [encounterId, effect, revise]);
+  }, [encounterId, effect, revise, frozenAnatomy]);
   async function approve() {
     if (running.current) return;
     running.current = true; setBusy(true); setMessage("");
@@ -52,6 +57,13 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
       <dl className={styles.attackFacts}><div><dt>Result</dt><dd>{result.outcome}</dd></div><div><dt>Hit location</dt><dd>{result.outcome === "Miss" ? "—" : result.location}</dd></div><div><dt>Damage to apply</dt><dd>{result.damage ?? "Needs ruling"}</dd></div></dl>
       {result.explanation ? <p>{combatMessage(result.explanation)}</p> : null}
       {result.calculation ? <p className={styles.muted}>{result.calculation}</p> : null}
+      {result.healing !== null && <p>Healing to apply: {result.healing}</p>}
+      <IncomingEffectEvidence value={entry.authoredValue} status={entry.status} />
+      {needsRuling && <IncomingEffectRuling encounterId={encounterId} planId={plan.id} effect={entry} reason={reason} disabled={disabled || busy} run={async (operation) => {
+        if (running.current) return; running.current = true; setBusy(true); setMessage("");
+        try { await operation(); await refresh(); } catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "The ruling was not saved.")); }
+        finally { running.current = false; setBusy(false); }
+      }} />}
       {needsRuling ? <div className={styles.notice}><strong>Decision needed</strong>{result.questions.map((question) => <p key={question}>{combatMessage(question)}</p>)}{!result.questions.length ? <p>Record the specific critical or defense ruling below.</p> : null}</div> : null}
     </div>; })}
     {riders.length ? <details><summary>Weapon powers and costs</summary>{riders.map((entry) => <p key={entry.id}>{combatEffectSummary(entry, true)}{entry.amendmentReason ? ` — ${combatMessage(entry.amendmentReason)}` : ""}</p>)}</details> : null}

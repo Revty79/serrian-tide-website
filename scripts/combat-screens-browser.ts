@@ -36,7 +36,7 @@ async function login(id: string, role: "god" | "player", f: Fixture, automatic =
   const page = await context.newPage(); page.setDefaultTimeout(25_000);
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error" && /unique.*key|same key/i.test(message.text())) errors.push(message.text()); });
-  const signedIn = await context.request.post(`${base}/api/auth/sign-in/email`, { headers: { Origin: base }, data: { email: `${id}@example.invalid`, password: SCREEN_PASSWORD } });
+  const signedIn = await context.request.post(`${base}/api/auth/sign-in/email`, { maxRetries: 2, headers: { Origin: base }, data: { email: `${id}@example.invalid`, password: SCREEN_PASSWORD } });
   assert.equal(signedIn.status(), 200, "The disposable account authenticates through the real auth endpoint.");
   await page.goto(`${base}/${role === "god" ? "heavens" : "realms"}/tabletop?combat=${f.encounterId}${role === "player" ? `&character=${f.heroId}` : ""}`);
   await screen(page).waitFor(); await until(() => screen(page).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "combat first read");
@@ -177,6 +177,37 @@ try {
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
     results.push("Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.");
     await participant.context().close();
+  }
+  if (include("pass5-response")) {
+    const f = await db.transaction((tx) => screenFixture(tx, "pass5-response")), target = f.occurrences[0];
+    const { rows: [record] } = await pool.query("select creature_snapshot_json from campaign_session_encounter_participant where character_id=$1", [target]);
+    record.creature_snapshot_json.abilities = [{ canonicalId: "p5-guard", abilityName: "Reactive Guard", description: "An authored response", effects: [], authoring: {
+      schemaVersion: 1, activationType: "reaction", initiativeCost: 2, resolutionMode: "automatic", fixedRollTarget: null, targeting: "self", costs: [], useLimits: [], magical: false, magic: null,
+      useConditions: [{ conditionType: "event", conditionKey: "combat.attack-targeted", operator: null, numericValue: null, textValue: null, notes: "", sortOrder: 0 }],
+    } }];
+    await pool.query("update campaign_session_encounter_participant set creature_snapshot_json=$1 where character_id=$2", [record.creature_snapshot_json, target]);
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='holding',current_initiative=21 where character_id=$1", [target]);
+    const god = await login(f.godId, "god", f), player = await login(f.playerId, "player", f);
+    await chooseAttack(player, target, "70"); await commitAttack(player);
+    await until(async () => (await declarations(f)).length === 1, "Reaction stimulus committed");
+    await screen(god).getByRole("button", { name: "Refresh", exact: true }).click();
+    await until(() => screen(god).getByRole("button", { name: "Advance combat", exact: true }).isEnabled(), "response timing ready");
+    await screen(god).getByRole("button", { name: "Advance combat", exact: true }).click();
+    await selectGod(god, "Fixture Goblin 1");
+    await screen(god).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Defend", exact: true }).click();
+    const { rows: [window] } = await pool.query("select id from campaign_session_encounter_responder_opportunity where encounter_id=$1 and responder_character_id=$2 and status='pending'", [f.encounterId, target]);
+    await screen(god).getByRole("combobox", { name: /^Respond to/ }).selectOption(String(window.id));
+    await screen(god).getByRole("combobox", { name: /^Defense/ }).selectOption("intervention");
+    await screen(god).getByRole("combobox", { name: /^Intervention source/ }).selectOption("creature-ability|p5-guard");
+    await screen(god).getByText("No Roll required.", { exact: true }).waitFor();
+    const current = async () => (await pool.query("select current_initiative from campaign_session_encounter_initiative_participant where character_id=$1", [target])).rows[0].current_initiative;
+    assert.equal(await current(), 21);
+    await screenshot(god, "pass5-response-narrow", 390);
+    await screen(god).getByRole("button", { name: "Commit response", exact: true }).click();
+    await until(async () => await current() === 19, "authored Reaction spends its cost at commit");
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_encounter_reaction where encounter_id=$1 and reaction_type='intervention'", [f.encounterId])).rows[0].n, 1);
+    results.push("Pass 5 Reaction: a real targeted-attack window surfaces the authored choice, preview spends nothing, explicit commitment spends its authored Initiative once, narrow layout stays usable.");
+    await god.context().close(); await player.context().close();
   }
   if (include("playable")) {
   const f = await db.transaction((tx) => screenFixture(tx, "playable"));
@@ -362,6 +393,55 @@ try {
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
     results.push("Player melee Called Shot requests use a valid retry identity, wait visibly for the G.O.D. penalty, surface in the main guide, then commit one Roll without distance.");
     await director.context().close(); await player.context().close();
+  }
+  if (include("pass5-incoming")) for (const kind of ["requirement", "resistance", "absorption", "conflict"] as const) {
+    const f = await db.transaction((tx) => screenFixture(tx, `pass5-${kind}`));
+    const { rows: [target] } = await pool.query("select creature_snapshot_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]]);
+    const snapshot = target.creature_snapshot_json;
+    const rule = { key: "p5", name: "Pass 5 protection", ruleType: kind === "conflict" ? "absorption" : kind, percentage: kind === "requirement" ? null : 50, scope: "damage", match: "ALL", crImpact: "None", notes: "PRIVATE TARGET NOTES", sortOrder: 0,
+      conditions: [{ key: "source", kind: "magical", magical: kind === "requirement" }] };
+    snapshot.core.interactionRules = { schemaVersion: 1, rules: kind === "conflict" ? [rule, { ...rule, key: "resist", ruleType: "resistance", sortOrder: 1 }] : [rule] };
+    snapshot.hpPools = [{ canonicalId: "p5-body", poolName: "Body", maximumHp: 30, hpPercentage: 100 }];
+    snapshot.hitLocations = [{ hitLocationNumber: 0, locationName: "Body", hpPoolCanonicalId: "p5-body", naturalArmor: "0", soak: "0" }];
+    await pool.query("update campaign_session_encounter_participant set creature_snapshot_json=$1, local_state_json=$2 where character_id=$3", [snapshot, { health: { totalDamage: 10, poolDamage: { "p5-body": 10 } } }, f.occurrences[0]]);
+    const god = await login(f.godId, "god", f), player = await login(f.playerId, "player", f);
+    const controller = player;
+    await chooseAttack(controller, f.occurrences[0], "70"); await commitAttack(controller);
+    await until(async () => (await declarations(f)).length === 1, "Pass 5 attack committed");
+    const action = (await declarations(f))[0];
+    await advanceAction(god, action.pending_action_id);
+    await screen(god).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare .* result$/ }).click();
+    if (kind === "requirement") {
+      await screen(god).getByText("Rolls & results", { exact: true }).click();
+      await screen(god).locator("summary").filter({ hasText: /Fixture Shortsword.*applied/ }).click();
+      await screen(god).getByText("Protection and interaction calculation", { exact: true }).click();
+      await screen(god).getByText("Pass 5 protection", { exact: false }).first().waitFor();
+      assert.equal((await screen(player).innerText()).includes("PRIVATE TARGET NOTES"), false);
+      assert.equal((await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]])).rows[0].local_state_json.health.totalDamage, 10);
+      await screenshot(god, "pass5-requirement-narrow", 390);
+      results.push("Pass 5 failed Requirement: no damage; historical frozen explanation, Player privacy and narrow layout.");
+      await god.context().close(); await player.context().close(); continue;
+    }
+    const report = screen(god).getByRole("region", { name: "Attack result report" });
+    await report.getByText("Protection and interaction calculation", { exact: true }).click();
+    await report.getByText("Pass 5 protection", { exact: false }).first().waitFor();
+    assert.equal((await screen(player).innerText()).includes("PRIVATE TARGET NOTES"), false);
+    if (kind === "conflict") {
+      await report.getByLabel("Reason for this ruling", { exact: true }).fill("Explicit G.O.D. decision for the unresolved Absorption conflict.");
+      await report.getByLabel("Final amount", { exact: true }).fill("2");
+      await report.getByRole("button", { name: "Rule damage", exact: true }).click();
+      await until(async () => !(await report.innerText()).includes("Final amount"), "explicit incoming ruling saved");
+      assert.match(await report.innerText(), /A decision has been recorded/);
+      assert.doesNotMatch(await report.innerText(), /armor - .*soak =/);
+    }
+    if (kind === "absorption") await report.getByText("Healing to apply: 6", { exact: true }).waitFor();
+    await screenshot(god, `pass5-${kind}-narrow`, 390);
+    await god.setViewportSize({ width: 1365, height: 1000 });
+    await report.getByRole("button", { name: "Approve & apply attack", exact: true }).click();
+    const expected = kind === "absorption" ? 4 : kind === "resistance" ? 16 : 12;
+    await until(async () => (await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]])).rows[0].local_state_json.health.totalDamage === expected, `Pass 5 ${kind} applies`);
+    results.push(`Pass 5 ${kind}: real attack, frozen explanation, Player privacy, G.O.D. approval and narrow layout.`);
+    await god.context().close(); await player.context().close();
   }
   if (include("draft-preservation")) {
     const f = await db.transaction((tx) => screenFixture(tx, "draft-preservation"));
@@ -614,7 +694,9 @@ try {
       for (let step = 0; step < 10 && await remaining() > 0; step++) {
         const before = await remaining();
         await screen(director).getByRole("button", { name: "Refresh", exact: true }).click();
-        await until(() => screen(director).getByRole("button", { name: "Advance combat", exact: true }).isEnabled(), "next projectile timing step");
+        await until(async () => await remaining() === 0 || await screen(director).getByRole("button", { name: "Advance combat", exact: true }).isVisible()
+          && await screen(director).getByRole("button", { name: "Advance combat", exact: true }).isEnabled(), "next projectile timing step");
+        if (await remaining() === 0) break;
         await screen(director).getByRole("button", { name: "Advance combat", exact: true }).click();
         await until(async () => await remaining() < before, "projectile timing progresses");
       }

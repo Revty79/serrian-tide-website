@@ -1,4 +1,5 @@
 import type { MechanicalEffect } from "@/features/mechanical-effects";
+import type { FrozenIncomingSourceFacts } from "@/features/incoming-effects/source-facts";
 import { calculatePerSuccessQuantity } from "./percentile-resolution";
 
 import type {
@@ -88,6 +89,8 @@ export type FrozenActionSourceSnapshot = Readonly<{
   governingSource: RollGoverningSourceRequest | null;
   governingSnapshot: RollGoverningSourceSnapshot | null;
   authoredData: Readonly<Record<string, unknown>>;
+  /** Additive Pass 5 source facts; absent on historical snapshots. */
+  incomingSourceFacts?: FrozenIncomingSourceFacts;
   resourceCosts: readonly FrozenActionResourceCost[];
   effects: readonly FrozenActionAuthoredEffect[];
   warnings: readonly string[];

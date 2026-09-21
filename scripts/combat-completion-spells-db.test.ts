@@ -6,7 +6,7 @@ import { userRole } from "@/db/authorization-schema";
 import { skill } from "@/db/skill-schema";
 import { campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterSkillAllocation, campaignCharacterSpellDocument } from "@/db/realm-schema";
 import { campaignSessionEncounterInitiativeParticipant as participant, campaignSessionEncounterActionDeclaration as declaration, campaignSessionRoll,
-  campaignSessionEncounterParticipant as occurrence } from "@/db/tabletop-operations-schema";
+  campaignSessionEncounterParticipant as occurrence, campaignSessionEncounterEffect as effectTable } from "@/db/tabletop-operations-schema";
 import { createEmptySpell, createContainer } from "@/features/spell-construction/utilities/spellFactory";
 import { readActiveManaInTransaction } from "@/features/active-state/active-mana-service";
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction,
@@ -217,4 +217,29 @@ test("an affordable concentration cast retains its Mana and Roll when a later In
     assert.equal(rolls[0].resultTotal, 12);
     throw rollback;
   }), (error) => error === rollback);
+});
+
+ test("Pass 5 structured Spell is Magical and each target resolves its own Interaction Rules once", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "p5-spell-rules", false, "automatic-no-roll", true);
+    for (const [index, targetId] of f.occurrences.entries()) {
+      const [row] = await tx.select().from(occurrence).where(eq(occurrence.characterId, targetId));
+      const snapshot = row.creatureSnapshotJson as typeof f.creatureSnapshot;
+      await tx.update(occurrence).set({ creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: { schemaVersion: 1, rules: [{ key: "p5", name: "Magical interaction", ruleType: index === 0 ? "resistance" : "immunity", percentage: index === 0 ? 50 : null, scope: "damage", match: "ALL", crImpact: "None", sortOrder: 0, notes: "", conditions: [{ key: "magic", kind: "magical", magical: true }] }] } } } }).where(eq(occurrence.participantId, row.participantId));
+    }
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, f.declarationId, { method: "entered", enteredTotal: 70 });
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 22 - f.initiativeCost));
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, f.declarationId)).status, "applied");
+    const { storedIncomingResolution } = await import("@/features/incoming-effects/effect-proposal");
+    const effects = await tx.select().from(effectTable).where(eq(effectTable.encounterId, f.encounterId));
+    for (const [index, targetId] of f.occurrences.entries()) {
+      const resolution = storedIncomingResolution(effects.find((row) => row.targetParticipantId === targetId)!.authoredValueJson)!;
+      assert.equal(resolution.input.source.magical, true); assert.equal(resolution.status, index === 0 ? "resolved" : "prevented");
+      assert.equal(resolution.input.effect.amount, 2);
+      assert.equal(resolution.finalEffect?.damage, index === 0 ? 1 : 0);
+    }
+    assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find(({ system }) => system === "Spellcraft")!.currentMana, 20 - f.manaCost);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

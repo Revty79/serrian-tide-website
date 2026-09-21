@@ -35,6 +35,7 @@ export const DEFENSE_SOURCE_KINDS = [
   "item",
   "spell",
   "derived-ability",
+  "creature-ability",
   "creature-defense",
   "manual",
 ] as const;
@@ -362,7 +363,9 @@ export function buildDefenseInterventionSnapshot(input: Omit<DefenseIntervention
     throw new Error("A rolling response requires an exact governing source.");
   }
   if (input.reactionType === "no-reaction" && input.rollRequired) throw new Error("No Defense never creates a Roll.");
-  if (input.reactionType === "intervention" && !input.godApprovalReason.trim()) throw new Error("General Intervention requires a G.O.D. approval reason.");
+  const authoredAbilityResponse = ["derived-ability", "creature-ability"].includes(input.source.kind)
+    && Boolean((input.source.authoredContext as Record<string, unknown> | null)?.abilityResponse);
+  if (input.reactionType === "intervention" && !authoredAbilityResponse && !input.godApprovalReason.trim()) throw new Error("General Intervention requires a G.O.D. approval reason.");
   return {
     ...input,
     schemaVersion: 1,

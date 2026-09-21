@@ -66,6 +66,8 @@ import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service
 import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
 import { resolveWeaponRange, weaponAttackMode } from "@/features/items/weapon-range";
 import { readWeaponDamageModifiers } from "./weapon-damage-modifiers-service";
+import { freezeIncomingSourceFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
+import { normalizeCreatureEffects } from "@/features/creatures/creature-effects";
 
 export type ActionSourceResolverTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -566,6 +568,7 @@ async function resolveItemPower(
     ? itemPayload.selections.targetGroups
     : {};
   const effectRows = await tx.select().from(itemPowerEffect).where(eq(itemPowerEffect.itemPowerId, row.power.id)).orderBy(asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  const areaEffectTemplates: FrozenActionAuthoredEffect[] = [];
   const targets = allTargets(draft);
   const magicDocument = row.constructionJson
     ? parseSpellDocument(row.constructionJson)
@@ -614,6 +617,14 @@ async function resolveItemPower(
       if (!groupId) throw new Error(`Item Magic effect ${adapted.spellEffectId} has no authored Target or AoE container.`);
       const group = analysis.groups.find(({ id }) => id === groupId)!;
       const groupTargets = selectedByGroup.get(groupId) ?? [];
+      if (group.kind === "aoe") {
+        const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
+        areaEffectTemplates.push(structuredEffect(key, adapted.definition.effect, [], false, {
+          targetGroupId: groupId, targetGroupKind: "aoe", containerPath: group.containerPath,
+          ...(row.power.resolutionMode === "fixed-roll" && adapted.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
+          applicationByTarget: Object.fromEntries(groupTargets.map((id) => [id, itemSelections[`${key}:target:${id}`] ?? {}])),
+        }));
+      }
       for (const targetId of groupTargets) {
         const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
         const selectionKey = `${key}:target:${targetId}`;
@@ -634,7 +645,7 @@ async function resolveItemPower(
       ? [{ key: `item-power:${row.power.id}:charges`, kind: "item-charges", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Spend the authored Ability Charges on the exact Item instance.", applicationSupported: true }]
       : [];
   const liveRevision = [row.itemUpdatedAt, row.powerUpdatedAt, row.sourceUpdatedAt, row.constructionUpdatedAt].filter(Boolean).map((date) => date!.toISOString()).sort().at(-1) ?? null;
-  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: { ...row.power, targetGroups: magicTargetGroups }, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
+  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: { ...row.power, targetGroups: magicTargetGroups, areaEffectTemplates }, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
 }
 
 async function loadSpellDocument(
@@ -736,12 +747,19 @@ async function resolveSpell(
   collectModifiers(effectSpell.containers);
   const perSuccess = spellModifiers.some(({ ruleId }) => ruleId === "per-success-assignment")
     && !spellModifiers.some(({ ruleId }) => ruleId === "static-assignment");
+  const areaEffectTemplates: FrozenActionAuthoredEffect[] = [];
   const effects = adapted.valid
     ? adapted.effects.flatMap((entry) => {
         const groupId = [...entry.containerPath].reverse().find((id) => selectedTargetGroups[id] !== undefined);
         const group = targetGroupAnalysis.groups.find((candidate) => candidate.id === groupId);
         if (group?.kind === "aoe") {
           const aoeGroupId = groupId!;
+          areaEffectTemplates.push({ ...structuredEffect(`spell-effect:${entry.spellEffectId}`, entry.definition.effect, [], false, {
+            spellEffectId: entry.spellEffectId, ruleId: entry.ruleId, containerPath: entry.containerPath,
+            targetGroupId: aoeGroupId, targetGroupKind: "aoe",
+            ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
+            applicationByTarget: Object.fromEntries((selectedTargetGroups[aoeGroupId] ?? []).map((id) => [id, spellSelections[`${entry.spellEffectId}:${id}`] ?? {}])),
+          }), scaling: perSuccess ? "per-success" : "fixed" });
           return (selectedTargetGroups[aoeGroupId] ?? []).map((targetId: number) => ({ ...structuredEffect(
             `spell-effect:${entry.spellEffectId}:target:${targetId}`,
             entry.definition.effect,
@@ -778,7 +796,7 @@ async function resolveSpell(
         ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
-  const authoredData = { spell: loaded.spell, casting: preview.plan, targetGroups: targetGroupAnalysis.groups, catalogSourceId: loaded.catalogSourceId ?? null,
+  const authoredData = { spell: loaded.spell, casting: preview.plan, targetGroups: targetGroupAnalysis.groups, areaEffectTemplates, catalogSourceId: loaded.catalogSourceId ?? null,
     ...(spellSkill ? { combatSpellSkill: spellSkill.rollGoverningSourceSnapshot } : {}) };
   const recovery = combatRecoverySpellAuthority(authoredData);
   if (recovery) effects.push({ ...manualEffect("spell-combat-recovery", `${recovery.name} recovery ruling`, { combatRecovery: recovery }, targets), scaling: "fixed" });
@@ -981,7 +999,7 @@ async function resolveCreatureSource(
       explanation: "Used the exact numeric attack percentage from this encounter occurrence's frozen Creature snapshot.",
     };
     const initiative = resolveCreatureAttackInitiativeCost({
-      structuredInitiativeCost: numeric(attack.initiativeCost),
+      structuredInitiativeCost: numeric(isRecord(attack.authoring) ? attack.authoring.initiativeCost : attack.initiativeCost),
       attackName: requiredText(attack.attackName, "Creature Attack name"),
       damage: typeof attack.damage === "string" || typeof attack.damage === "number" ? attack.damage : null,
     });
@@ -1008,7 +1026,8 @@ async function resolveCreatureSource(
           specialEffect: attack.specialEffect ?? "",
           requirements: attack.requirements ?? "",
           nonautomation: "Attack damage, armor, soak, hit location, and narrative consequences remain deferred.",
-        }, targets)],
+        }, targets), ...normalizeCreatureEffects(isRecord(attack.authoring) ? attack.authoring.onHitEffects : []).map((entry) =>
+          structuredEffect(`creature-hit:${entry.effectKey}`, entry.effect, targets, false, { creatureHit: true }))],
         warnings: [
           ...(governingSource ? [] : ["Creature Attack Roll requires a G.O.D. ruling."]),
           ...(initiative.cost === null ? ["Creature Attack Initiative Cost requires a G.O.D. ruling."] : []),
@@ -1021,6 +1040,7 @@ async function resolveCreatureSource(
   const candidate = abilities.find((ability) => isRecord(ability) && ability.canonicalId === sourceRef);
   if (!candidate) throw new Error("The exact authored Creature Ability is no longer present in this encounter snapshot.");
   const ability = normalizeCreatureAbilityDefinition(candidate);
+  if (ability.authoring?.activationType === "passive") throw new Error("Passive Creature Abilities cannot be selected as activated actions. Their automatic lifecycle is not supported yet.");
   const adapted = adaptCreatureAbilityToMechanicalEffects(ability);
   const payload = sourcePayload(draft);
   const selections = isRecord(payload.effectSelections) ? payload.effectSelections : {};
@@ -1029,7 +1049,7 @@ async function resolveCreatureSource(
         `creature-ability-effect:${entry.effectKey}:target:${targetId}`,
         entry.definition.effect,
         [targetId],
-        true,
+        !ability.authoring || ability.authoring.resolutionMode === "manual",
         {
           effectKey: entry.effectKey,
           compatibilityFallback: entry.compatibilityFallback,
@@ -1040,9 +1060,12 @@ async function resolveCreatureSource(
       )))
     : [manualEffect("creature-ability-invalid", ability.abilityName, { issues: adapted.issues }, targets)];
   const directOccurrence = participant.participantKind === "creature";
+  const authoredMode = ability.authoring?.resolutionMode;
+  const fixed = authoredMode === "fixed-roll" && ability.authoring?.fixedRollTarget != null
+    ? { kind: "manual" as const, label: ability.abilityName, originalTarget: ability.authoring.fixedRollTarget } : null;
   return {
-    authoritativeInitiativeCost: null,
-    governing: {
+    authoritativeInitiativeCost: ability.authoring?.initiativeCost ?? null,
+    governing: fixed ? { status: "resolved", source: fixed, rollOverTarget: fixed.originalTarget, explanation: "Exact authored Creature Ability fixed Roll target." } : authoredMode === "automatic" ? null : {
       status: "needs-god-ruling",
       source: null,
       rollOverTarget: null,
@@ -1057,11 +1080,14 @@ async function resolveCreatureSource(
       displayName: ability.abilityName,
       authoringHref: null,
       liveRevision: null,
-      resolutionMode: "manual-god-ruling",
-      governingSource: null,
-      governingSnapshot: null,
+      resolutionMode: fixed ? "fixed-roll" : authoredMode === "automatic" ? "automatic-no-roll" : "manual-god-ruling",
+      governingSource: fixed,
+      governingSnapshot: fixed,
       authoredData: ability as unknown as Record<string, unknown>,
-      resourceCosts: [],
+      resourceCosts: (ability.authoring?.costs ?? []).filter(({ costType }) => costType === "mana" && !directOccurrence).map((cost, index) => ({
+        key: `creature-ability:${ability.canonicalId}:mana:${index}`, kind: "mana", amount: cost.amount, resourceKey: cost.resourceKey,
+        instruction: cost.notes, applicationSupported: true, commitAt: "declaration",
+      })),
       effects,
       warnings: [directOccurrence
         ? "Direct Creature ability effects require G.O.D. approval; supported mutations remain occurrence-local."
@@ -1116,7 +1142,7 @@ function resolveNoRollOrManual(
   };
 }
 
-export async function resolveLockedActionSourceInTransaction(
+async function resolveLockedActionSourceBaseInTransaction(
   tx: ActionSourceResolverTransaction,
   context: OwnedEncounterRuntimeContext,
   actor: ActionDeclarationActor,
@@ -1150,4 +1176,9 @@ export async function resolveLockedActionSourceInTransaction(
       snapshot: { ...descriptive.snapshot, authoredData: { ...descriptive.snapshot.authoredData, movement } } };
   }
   return descriptive;
+}
+
+export async function resolveLockedActionSourceInTransaction(...args: Parameters<typeof resolveLockedActionSourceBaseInTransaction>): Promise<ResolvedLockedActionSource> {
+  const resolved = await resolveLockedActionSourceBaseInTransaction(...args);
+  return { ...resolved, snapshot: await freezeIncomingSourceFactsInTransaction(args[0], resolved.snapshot) };
 }

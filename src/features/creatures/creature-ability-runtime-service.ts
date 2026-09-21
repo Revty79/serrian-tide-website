@@ -1,4 +1,10 @@
 import "server-only";
+import { readAbilityFactsInTransaction } from "@/features/ability-use-conditions/fact-service";
+import { evaluateAbilityUseCondition } from "@/features/ability-use-conditions/facts";
+import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-effects/runtime-plan-service";
+import { resolveActiveHealthView } from "@/features/active-state/health-rules";
+import { readActiveManaInTransaction, spendActiveManaInTransaction } from "@/features/active-state/active-mana-service";
+import { isCharacterMagicSystem } from "@/features/active-state/active-mana";
 
 import { createHash } from "node:crypto";
 
@@ -236,17 +242,49 @@ async function loadAuthoritativePlan(
     throw new Error("This Creature Ability changed after preview. Prepare a new authoritative preview before confirming.");
   }
   const targets = await loadTargets(tx, source, request.targetCharacterIds, lock);
+  const plan = planCreatureAbilityUse({ sourceCreature: { characterId: source.characterId, name: source.name }, ability: source.ability,
+    fingerprint: source.fingerprint, targets, targetCharacterIds: request.targetCharacterIds, effectSelections: request.effectSelections });
+  const authored = source.ability.authoring;
+  const facts = await readAbilityFactsInTransaction(tx, { campaignId: source.campaignId, participantId: source.characterId,
+    requestedKeys: authored?.useConditions.flatMap(({ conditionKey }) => conditionKey ?? []) });
+  if (authored?.activationType === "passive") plan.issues.push("Passive Creature traits cannot be activated; their automatic lifecycle is not supported yet.");
+  if (authored?.activationType === "reaction" || authored?.activationType === "triggered") plan.issues.push("Use this Ability through an authoritative combat response window or an explicit G.O.D. event ruling.");
+  for (const condition of authored?.useConditions ?? []) {
+    const result = evaluateAbilityUseCondition(condition, facts);
+    if (result !== "satisfied") plan.issues.push(`${condition.conditionKey ?? condition.notes}: ${result === "manual" ? "G.O.D. Use Condition ruling required" : "Use Condition not satisfied"}.`);
+  }
+  if (authored?.costs.some(({ costType }) => costType !== "mana") || authored?.useLimits.length || authored?.resolutionMode === "fixed-roll" || authored?.resolutionMode === "manual") {
+    plan.issues.push("Use the combat declaration workflow to resolve this Ability's costs, Roll and explicit resource/use-limit rulings.");
+  }
+  const manaCosts = new Map<string, number>();
+  for (const cost of authored?.costs ?? []) if (cost.costType === "mana") {
+    if (!isCharacterMagicSystem(cost.resourceKey ?? "")) plan.issues.push("Mana costs require an exact canonical Mana pool.");
+    else manaCosts.set(cost.resourceKey!, (manaCosts.get(cost.resourceKey!) ?? 0) + cost.amount);
+  }
+  if (manaCosts.size) {
+    const mana = await readActiveManaInTransaction(tx, source.characterId);
+    for (const [system, amount] of manaCosts) if ((mana.pools.find((pool) => pool.system === system)?.currentMana ?? 0) < amount) plan.issues.push(`Insufficient ${system} Mana.`);
+  }
+  const incomingPlans = await resolveRuntimeMechanicalPlansInTransaction(tx, { campaignId: source.campaignId,
+    source: { kind: "creature-ability", displayName: source.ability.abilityName, authoredData: source.ability as unknown as Record<string, unknown> },
+    health: new Map(targets.map((target) => [target.characterId, { anatomy: target.anatomy, state: target.state }])),
+    entries: plan.automaticApplications.map((entry) => ({ plan: entry.plan, targetId: entry.targetCharacterId,
+      application: { targetCharacterId: entry.targetCharacterId, ...request.effectSelections[entry.applicationKey] } })) });
+  plan.automaticApplications.forEach((entry, index) => { entry.plan = incomingPlans[index]; });
+  for (const target of plan.targets) {
+    const state = [...plan.automaticApplications].reverse().find((entry) => entry.targetCharacterId === target.characterId && entry.plan.healthResult)?.plan.healthResult?.nextState
+      ?? targets.find((entry) => entry.characterId === target.characterId)!.state;
+    target.finalHealth = resolveActiveHealthView(target.anatomy, state);
+  }
+  plan.issues.push(...incomingPlans.filter(({ incomingEffect, status }) => incomingEffect && status === "manual").map(({ summary }) => summary));
+  if (plan.issues.length) { plan.status = "invalid"; plan.ready = false; }
+  if (lock && plan.ready) for (const [system, amount] of manaCosts) await spendActiveManaInTransaction(tx, {
+    characterId: source.characterId, system: system as Parameters<typeof spendActiveManaInTransaction>[1]["system"], amount,
+  });
   return {
     campaignId: source.campaignId,
     targets,
-    plan: planCreatureAbilityUse({
-      sourceCreature: { characterId: source.characterId, name: source.name },
-      ability: source.ability,
-      fingerprint: source.fingerprint,
-      targets,
-      targetCharacterIds: request.targetCharacterIds,
-      effectSelections: request.effectSelections,
-    }),
+    plan,
   };
 }
 

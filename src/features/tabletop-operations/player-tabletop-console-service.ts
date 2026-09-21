@@ -1,4 +1,5 @@
 import "server-only";
+import { playerIncomingAuthoredValue } from "@/features/incoming-effects/public-evidence";
 import { readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import { projectSealedCombatManaInTransaction } from "./combat-resource-projection-service";
 import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
@@ -809,6 +810,7 @@ async function readPlayerCombatConsole(
       ...plan,
       sourceSnapshot: ownsPlan ? plan.sourceSnapshot : {
         ...plan.sourceSnapshot,
+        incomingSourceFacts: undefined,
         governingSource: null,
         governingSnapshot: null,
         authoredData: { redacted: true },
@@ -816,11 +818,13 @@ async function readPlayerCombatConsole(
       governingRollSnapshot: ownsPlan ? plan.governingRollSnapshot : null,
       defenseResolution: ownsPlan ? plan.defenseResolution : null,
       sourceDivergence: ownsPlan ? plan.sourceDivergence : null,
-      effects: ownsPlan ? plan.effects : plan.effects.filter(({ targetParticipantId }) => targetParticipantId === character.characterId),
+      effects: (ownsPlan ? plan.effects : plan.effects.filter(({ targetParticipantId }) => targetParticipantId === character.characterId))
+        .map((effect) => ({ ...effect, authoredValue: playerIncomingAuthoredValue(effect.authoredValue),
+          amendmentReason: effect.godReviewRequired ? "This effect requires a G.O.D. decision." : effect.status === "declined" ? "This effect was not applied." : effect.amendmentReason })),
       createdByUserId: "",
       reviewedByUserId: null,
       appliedByUserId: null,
-      events: plan.events.map((event) => ({ ...event, actorUserId: "" })),
+      events: plan.events.map((event) => ({ ...event, actorUserId: "", ...(event.eventKind === "incoming-effect-ruling" ? { metadata: {}, reason: "G.O.D. incoming-effect ruling recorded." } : {}) })),
     };
   });
   const effects: ActionEffectWorkspaceView = {

@@ -1,4 +1,5 @@
 "use client";
+import { AbilityFactSelector } from "@/features/ability-use-conditions/fact-selector";
 
 import { useMemo, useState } from "react";
 
@@ -613,7 +614,7 @@ function UseConditionsEditor({
                   {DERIVED_ABILITY_USE_CONDITION_TYPES.map((type) => <option key={type} value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>)}
                 </select>
               </Field>
-              {condition.conditionType !== "manual" ? <Field label={condition.conditionType === "event" ? "Event Key" : "Condition Key"}><input value={condition.conditionKey ?? ""} placeholder={condition.conditionType === "event" ? "successful-parry" : "firearm-equipped"} onChange={(event) => patch(index, { conditionKey: event.target.value })} /></Field> : null}
+              {condition.conditionType !== "manual" ? <Field label={condition.conditionType === "event" ? "Event" : "Condition"}><AbilityFactSelector category={condition.conditionType} value={condition.conditionKey} onChange={(conditionKey) => patch(index, { conditionKey })} /></Field> : null}
               {condition.conditionType === "state" ? <><Field label="Comparison"><select value={condition.operator ?? ""} onChange={(event) => patch(index, { operator: (event.target.value || null) as DerivedAbilityRequirementOperator | null })}><option value="">Descriptive only</option>{NUMERIC_OPERATORS.map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}</select></Field><Field label="Numeric Value"><input type="number" step="any" value={condition.numericValue ?? ""} onChange={(event) => patch(index, { numericValue: numericValue(event.target.value) })} /></Field></> : null}
               {condition.conditionType !== "manual" ? <Field label="Text Value" wide><input value={condition.textValue ?? ""} placeholder="Optional structured context" onChange={(event) => patch(index, { textValue: event.target.value || null })} /></Field> : null}
               <Field label={condition.conditionType === "manual" ? "Manual Condition" : "Notes"} wide><textarea rows={3} value={condition.notes} placeholder={condition.conditionType === "manual" ? "G.O.D. determines whether the situation applies." : "Optional human-readable context"} onChange={(event) => patch(index, { notes: event.target.value })} /></Field>

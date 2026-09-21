@@ -18,6 +18,8 @@ export type IncomingSourceFacts = {
 };
 
 export type IncomingEffectTarget = {
+  /** Optional Pass 5 application context, frozen with a new consequence plan. */
+  applicationLocations?: Array<{ number: number; name: string; poolKey: string | null }>;
   protection: ProtectionLayers;
   ruleSource: { kind: "race" | "creature-snapshot" | "none"; id: string; name: string };
   /** Absent legacy profiles mean no authored rules, never a master lookup. */

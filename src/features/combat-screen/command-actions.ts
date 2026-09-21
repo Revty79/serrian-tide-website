@@ -1,4 +1,5 @@
 "use server";
+import { readAbilityResponseChoicesInTransaction } from "@/features/tabletop-operations/ability-response-service";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { requireGod, requirePlayer } from "@/lib/server-access";
@@ -86,7 +87,7 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
   }
   for (const firearm of loaded.firearms?.firearms ?? []) if (!sources.some((source) => source.instanceId === firearm.itemInstanceId)) sources.push({ kind: "weapon", ref: `instance:${firearm.itemInstanceId}`, name: firearm.itemName, instanceId: firearm.itemInstanceId, itemId: firearm.itemId, handedness: firearm.canonical.handedness, description: "Inspect ammunition and preparation before firing." });
   for (const attack of records(object(loaded.snapshot).attacks)) sources.push({ kind: "creature-attack", ref: String(attack.canonicalId), name: String(attack.attackName), instanceId: null, itemId: null, description: `${attack.attackPercentage ?? "?"}% · ${attack.damage ?? "?"} damage` });
-  for (const ability of records(object(loaded.snapshot).abilities)) sources.push({ kind: "creature-ability", ref: String(ability.canonicalId), name: String(ability.abilityName), instanceId: null, itemId: null, description: String(ability.description ?? "") });
+  for (const ability of records(object(loaded.snapshot).abilities)) sources.push({ kind: "creature-ability", ref: String(ability.canonicalId), name: String(ability.abilityName), instanceId: null, itemId: null, description: String(ability.description ?? ""), unavailable: object(ability.authoring).activationType === "passive" ? "Passive trait: automatic lifecycle is not supported yet; this is not an activated action." : undefined });
   let aggregateIssue = "";
   if (participantId > 0) {
     try {
@@ -171,6 +172,11 @@ export async function previewCombatChoice(scope: CombatScreenScope, choice: Comb
 export async function submitCombatChoice(scope: CombatScreenScope, input: CombatSubmission) { return authorized(scope, (tx, context, actor) => submitCombatChoiceInTransaction(tx, context, actor, input), true); }
 export async function submitCombatDefense(scope: CombatScreenScope, input: DefenseDeclarationInput, roll?: DeclarationRollInput) { return authorized(scope, (tx, context, actor) => declareDefenseInterventionInTransaction(tx, context, actor, input, roll), true); }
 export async function previewCombatDefense(scope: CombatScreenScope, input: DefenseDeclarationInput) { return authorized(scope, (tx, context, actor) => previewDefenseInterventionInTransaction(tx, context, actor, input)); }
+export async function readCombatAbilityResponseChoices(scope: CombatScreenScope, participantId: number, opportunityId: number) {
+  return authorized(scope, async (tx, context, actor) => (await readAbilityResponseChoicesInTransaction(tx, context, actor, participantId, opportunityId))
+    .map(({ kind, ref, name, activationType, status, explanation, initiativeCost, definition, ruling }) => ({ kind, ref, name, activationType, status, explanation, initiativeCost,
+      requiresResolutionRuling: "abilityName" in definition ? !definition.authoring || definition.authoring.resolutionMode === "manual" : !ruling?.mode || ruling.mode === "manual-god-ruling" })));
+}
 export async function previewCombatMovement(scope: CombatScreenScope, participantId: number, mode: string, distance: number) {
   return authorized(scope, (tx, context, actor) => {
     if (actor.authority === "player" && actor.characterId !== participantId) throw new Error("Choose your own Character.");

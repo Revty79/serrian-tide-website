@@ -1,4 +1,9 @@
 import "server-only";
+import { readAbilityFactsInTransaction } from "@/features/ability-use-conditions/fact-service";
+import { evaluateAbilityUseCondition } from "@/features/ability-use-conditions/facts";
+import { resolveIncomingEffectProposal } from "@/features/incoming-effects/effect-proposal";
+import { readIncomingEffectRuntimeTargetInTransaction } from "@/features/incoming-effects/incoming-effect-target-service";
+import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-effects/runtime-plan-service";
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
 import { and, asc, eq, inArray, isNull, like } from "drizzle-orm";
@@ -663,6 +668,10 @@ async function loadUsePlanInTransaction(
   }
   const eventContext: DerivedAbilityEventContext = {
     eventKey: cleanEventKey(request.eventKey),
+    facts: await readAbilityFactsInTransaction(tx, { participantId: state.entity.characterId, campaignId: state.entity.campaignId,
+      encounterId: runtime?.encounterId, requestedKeys: ability.useConditions.flatMap(({ conditionKey }) => conditionKey ?? []),
+      manualEvent: cleanEventKey(request.eventKey) && canChooseTarget && request.manualConfirmed
+        ? { key: cleanEventKey(request.eventKey)!, reason: request.useNotes?.trim() || "G.O.D. confirmed manual event", authorizedGod: true } : null }),
     sessionId: runtime?.sessionId ?? null,
     sceneId: runtime?.sceneId ?? null,
     encounterId: runtime?.encounterId ?? null,
@@ -670,6 +679,8 @@ async function loadUsePlanInTransaction(
     currentInitiative: runtime?.currentInitiative ?? null,
     manaPools: new Map(mana.pools.map((pool) => [pool.system, { current: pool.currentMana }])),
   };
+  if ((request.eventKey || request.manualConfirmed) && !canChooseTarget) throw new Error("Only the Campaign-owning G.O.D. can confirm a manual event or unknown Use Conditions.");
+  if (request.eventKey && !request.manualConfirmed) throw new Error("Manual events require explicit G.O.D. confirmation.");
   const uses: DerivedAbilityUseLedgerEntry[] = useRows.map((row) => ({
     ...row,
     usedAt: row.usedAt.toISOString(),
@@ -700,6 +711,18 @@ async function loadUsePlanInTransaction(
     }])),
     manualConfirmed: request.manualConfirmed ?? false,
   });
+  const selectedEffects = plan.effects.filter((entry) => applications.get(entry.sortOrder)?.targetCharacterId);
+  const incomingPlans = await resolveRuntimeMechanicalPlansInTransaction(tx, { campaignId: state.entity.campaignId,
+    source: { kind: "derived-ability", displayName: ability.name, authoredData: { ability } }, health: healthByCharacterId,
+    entries: selectedEffects.map((entry) => ({ plan: entry.plan, targetId: applications.get(entry.sortOrder)!.targetCharacterId!, application: applications.get(entry.sortOrder)! })) });
+  selectedEffects.forEach((entry, index) => { entry.plan = incomingPlans[index]; });
+  const incomingRulings = incomingPlans.filter(({ incomingEffect, status }) => incomingEffect && status === "manual");
+  if (incomingRulings.length) {
+    plan.status = "manual";
+    plan.manualSteps.push(...incomingRulings.map(({ summary }) => summary));
+    // Use-condition confirmation cannot authorize an unresolved target interaction.
+    if (lock) throw new Error("Incoming effects need a G.O.D. consequence ruling in the combat workflow before this Ability can apply.");
+  }
   const targetOptions = canChooseTarget
     ? await tx.select({
         characterId: campaignCharacter.id,
@@ -895,11 +918,36 @@ export async function reconcileCharacterDerivedAbilityPassivesInTransaction(
   const activeIds = new Set(state.resolution.statuses
     .filter(({ available }) => available)
     .map(({ abilityId }) => abilityId));
-  const desired = state.catalog.flatMap((ability) =>
+  const passiveFacts = await readAbilityFactsInTransaction(tx, { campaignId: state.entity.campaignId, participantId: characterId,
+    requestedKeys: state.catalog.filter(({ activationType }) => activationType === "passive").flatMap(({ useConditions }) => useConditions.flatMap(({ conditionKey }) => conditionKey ?? [])) });
+  const manualConditions: string[] = [];
+  const deferredAbilities = new Set<number>(), deferredEffects = new Set<string>();
+  const desiredCandidates = state.catalog.flatMap((ability) =>
     ability.activationType === "passive" && activeIds.has(ability.id)
-      ? ability.effects.map((effect, sortOrder) => ({ ability, effect, sortOrder }))
+      ? (() => {
+        const conditions = ability.useConditions.map((condition) => evaluateAbilityUseCondition(condition, passiveFacts));
+        if (conditions.includes("manual") && !conditions.includes("unsatisfied")) {
+          manualConditions.push(`${ability.name}: unknown passive Use Conditions require a G.O.D. ruling; existing passive state is retained pending that decision.`);
+          deferredAbilities.add(ability.id);
+        }
+        return conditions.every((result) => result === "satisfied") ? ability.effects.map((effect, sortOrder) => ({ ability, effect, sortOrder })) : [];
+      })()
       : [],
   );
+  const desired: typeof desiredCandidates = [];
+  const incomingTarget = desiredCandidates.some(({ effect }) => persistentPassive(effect))
+    ? await readIncomingEffectRuntimeTargetInTransaction(tx, state.entity.campaignId, characterId, false) : null;
+  for (const entry of desiredCandidates) {
+    if (incomingTarget && persistentPassive(entry.effect)) {
+      const result = resolveIncomingEffectProposal({ effectKey: passiveKey(entry.sortOrder), effectType: entry.effect.kind, targetParticipantId: characterId,
+        authoredValue: {}, calculatedValue: entry.effect, finalValue: { effect: entry.effect, application: { targetCharacterId: characterId } },
+        unit: "Effect", resource: "", applicationSupported: true, godReviewRequired: false, status: "calculated", amendmentReason: "" },
+      { kind: "derived-ability", displayName: entry.ability.name, authoredData: {} }, incomingTarget);
+      if (result.status === "requires-god-ruling") { manualConditions.push(`${entry.ability.name}: ${result.amendmentReason}`); deferredEffects.add(`${entry.ability.id}:${passiveKey(entry.sortOrder)}`); continue; }
+      if (result.status === "declined") continue;
+    }
+    desired.push(entry);
+  }
   const conditions = await tx.select().from(campaignCharacterActiveCondition).where(and(
     eq(campaignCharacterActiveCondition.characterId, characterId),
     eq(campaignCharacterActiveCondition.sourceKind, "derived-ability"),
@@ -921,12 +969,13 @@ export async function reconcileCharacterDerivedAbilityPassivesInTransaction(
     created: [],
     ended: [],
     resolved: [],
-    manualSteps: desired.filter(({ effect }) => !persistentPassive(effect)).map(({ ability, effect }) =>
+    manualSteps: [...manualConditions, ...desired.filter(({ effect }) => !persistentPassive(effect)).map(({ ability, effect }) =>
       `${ability.name}: ${effect.kind === "manual" ? effect.description : "Passive health/duration effect requires table interpretation."}`,
-    ),
+    )],
   };
   for (const condition of conditions) {
     const key = `${condition.sourceId}:${condition.sourceEffectKey}`;
+    if (deferredAbilities.has(Number(condition.sourceId)) || deferredEffects.has(key)) continue;
     const target = desiredByKey.get(key);
     const duration = target?.effect.kind === "condition.apply"
       ? formatRuntimeDuration(target.effect.duration)
@@ -949,6 +998,7 @@ export async function reconcileCharacterDerivedAbilityPassivesInTransaction(
   }
   for (const modifier of modifiers) {
     const key = `${modifier.sourceId}:${modifier.sourceEffectKey}`;
+    if (deferredAbilities.has(Number(modifier.sourceId)) || deferredEffects.has(key)) continue;
     const target = desiredByKey.get(key);
     const duration = target?.effect.kind === "modifier.apply"
       ? formatRuntimeDuration(target.effect.duration)

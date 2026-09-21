@@ -32,6 +32,9 @@ export async function persistPlannedMechanicalEffectInTransaction(
   if (plan.status !== "ready" || !plan.effect || !plan.source) {
     throw new Error("Mechanical Effect is not ready for persistence.");
   }
+  if (plan.incomingEffect?.status === "prevented" || plan.incomingEffect?.finalEffect
+    && plan.effect.kind === "health.damage" && plan.incomingEffect.finalEffect.damage === 0 && plan.incomingEffect.finalEffect.healing === 0) return null;
+  if (plan.incomingEffect && ["invalid", "requires-god-ruling"].includes(plan.incomingEffect.status)) throw new Error("Unresolved incoming effects cannot be applied automatically.");
   if (plan.effect.kind === "health.heal" || plan.effect.kind === "health.damage") {
     if (!input.targetAnatomy || !plan.healthResult) {
       throw new Error("Health Mechanical Effect lost its authoritative anatomy or result.");

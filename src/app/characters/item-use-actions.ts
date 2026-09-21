@@ -1,4 +1,7 @@
 "use server";
+import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-effects/runtime-plan-service";
+import { readItemIncomingFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
+import { resolveActiveHealthView } from "@/features/active-state/health-rules";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -299,8 +302,7 @@ async function loadUse(
     target.characterId,
     target.npcKind,
   );
-  return {
-    plan: planItemUse({
+  const plan = planItemUse({
       definition,
       resource,
       requestedItemInstanceId: request.itemInstanceId,
@@ -311,9 +313,19 @@ async function loadUse(
         state: health.state,
       },
       effectSelections: request.effectSelections,
-    }),
-    targetAnatomy: health.anatomy,
-  };
+    });
+  const incomingPlans = await resolveRuntimeMechanicalPlansInTransaction(tx, { campaignId: source.campaignId,
+    source: { kind: "item", displayName: plan.item.name, authoredData: {}, incomingSourceFacts: await readItemIncomingFactsInTransaction(tx, request.itemId, "item", null) },
+    health: new Map([[target.characterId, health]]), entries: plan.effects.map((entry) => ({ plan: entry.plan, targetId: target.characterId,
+      application: { targetCharacterId: target.characterId, ...request.effectSelections[String(entry.effectId)] } })) });
+  plan.effects.forEach((entry, index) => { entry.plan = incomingPlans[index]; });
+  const finalState = [...incomingPlans].reverse().find(({ healthResult }) => healthResult)?.healthResult?.nextState ?? health.state;
+  plan.finalHealth = resolveActiveHealthView(health.anatomy, finalState);
+  if (incomingPlans.some(({ incomingEffect, status }) => incomingEffect && status === "manual")) {
+    plan.status = "not-executable"; plan.ready = false;
+    plan.issues.push(...incomingPlans.filter(({ status }) => status === "manual").map(({ summary }) => summary));
+  }
+  return { plan, targetAnatomy: health.anatomy };
 }
 
 async function listTargetOptions(

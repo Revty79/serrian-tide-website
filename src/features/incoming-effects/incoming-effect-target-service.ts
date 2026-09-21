@@ -12,6 +12,8 @@ import type { ProtectionTarget } from "@/features/protection/protection-layers";
 import { readProtectionLayersInTransaction } from "@/features/protection/protection-service";
 import { requireSession } from "@/lib/server-access";
 import type { IncomingEffectTarget } from "./models";
+import type { OwnedEncounterRuntimeContext } from "@/features/tabletop-operations/runtime-integration-service";
+import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 function snapshotRules(snapshot: unknown): InteractionRuleProfile | null {
@@ -49,10 +51,17 @@ export async function readIncomingEffectTargetInTransaction(tx: Transaction, aut
     .where(eq(campaignCharacter.id, characterId)).limit(1);
   if (!entity || !canReadActiveState(subject, { playerUserId: entity.character.playerUserId, campaignOwnerUserId: entity.owner, isNpc: entity.character.isNpc, isCampaignMember: entity.member === authenticatedUserId })) throw new Error("You do not have permission to view this Character's incoming-effect context.");
   if (target.kind === "encounter-participant" && entity.character.campaignId !== target.campaignId) throw new Error("Character does not belong to this Campaign.");
-  if (entity.character.npcKind === "creature") {
+  return readCharacterContext(tx, target, entity.character);
+}
+
+async function readCharacterContext(tx: Transaction, target: ProtectionTarget, character: { id: number; npcKind: string; name: string }): Promise<IncomingEffectTarget> {
+  const characterId = character.id;
+  let ruleSource: IncomingEffectTarget["ruleSource"] = { kind: "none", id: "none", name: "No assigned Race" };
+  let interactionRules: InteractionRuleProfile | null = null;
+  if (character.npcKind === "creature") {
     const [profile] = await tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, characterId)).limit(1);
     if (!profile) throw new Error("Creature NPC individual snapshot is missing.");
-    ruleSource = { kind: "creature-snapshot", id: `creature-npc:${characterId}`, name: entity.character.name };
+    ruleSource = { kind: "creature-snapshot", id: `creature-npc:${characterId}`, name: character.name };
     interactionRules = snapshotRules(profile.snapshot);
   } else {
     const [assigned] = await tx.select({ id: race.id, name: race.name, rules: race.interactionRules }).from(campaignCharacterProfile)
@@ -63,6 +72,43 @@ export async function readIncomingEffectTargetInTransaction(tx: Transaction, aut
     }
   }
   return { protection: await readProtectionLayersInTransaction(tx, target), ruleSource, interactionRules };
+}
+
+/** Trusted consequence-planning read INSIDE an already authorized combat transaction.
+ * The acting Player need not have independent read access to their victim's private state. */
+export async function readIncomingEffectEncounterTargetInTransaction(tx: Transaction, context: OwnedEncounterRuntimeContext, participantId: number, includeApplicationContext = true): Promise<IncomingEffectTarget> {
+  const [occurrence] = await tx.select().from(campaignSessionEncounterParticipant).where(and(
+    eq(campaignSessionEncounterParticipant.campaignId, context.campaignId), eq(campaignSessionEncounterParticipant.sessionId, context.sessionId),
+    eq(campaignSessionEncounterParticipant.sceneId, context.sceneId), eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
+    eq(campaignSessionEncounterParticipant.characterId, participantId),
+  )).limit(1);
+  if (!occurrence) throw new Error("Incoming effect target is outside the authorized Campaign/Session/Scene/Encounter.");
+  const target: ProtectionTarget = { kind: "encounter-participant", campaignId: context.campaignId, encounterId: context.encounterId, participantId };
+  if (occurrence.participantKind === "creature") return {
+    applicationLocations: (() => {
+      const snapshot = occurrence.creatureSnapshotJson as { hitLocations?: Array<{ hitLocationNumber: number; locationName: string; hpPoolCanonicalId: string | null }> };
+      return snapshot?.hitLocations?.map((location) => ({ number: location.hitLocationNumber, name: location.locationName, poolKey: location.hpPoolCanonicalId })) ?? [];
+    })(),
+    protection: await readProtectionLayersInTransaction(tx, target),
+    ruleSource: { kind: "creature-snapshot", id: `encounter:${context.encounterId}:participant:${occurrence.participantId}`, name: occurrence.displayLabel || "Encounter Creature" },
+    interactionRules: snapshotRules(occurrence.creatureSnapshotJson),
+  };
+  const [character] = await tx.select().from(campaignCharacter).where(and(eq(campaignCharacter.id, participantId), eq(campaignCharacter.campaignId, context.campaignId))).limit(1);
+  if (!character) throw new Error("Incoming effect Character is outside the authorized Campaign.");
+  if (!includeApplicationContext) return readCharacterContext(tx, target, character);
+  const health = await readActiveHealthInTransaction(tx, participantId, character.npcKind);
+  return { ...await readCharacterContext(tx, target, character),
+    applicationLocations: health.anatomy.hitLocations.map((location) => ({ number: location.result, name: location.name, poolKey: location.poolKey })) };
+}
+
+/** Caller has already authorized the source, target and campaign in its runtime transaction. */
+export async function readIncomingEffectRuntimeTargetInTransaction(tx: Transaction, campaignId: number, characterId: number, includeApplicationContext = true): Promise<IncomingEffectTarget> {
+  const [character] = await tx.select().from(campaignCharacter).where(and(eq(campaignCharacter.id, characterId), eq(campaignCharacter.campaignId, campaignId))).limit(1);
+  if (!character) throw new Error("Incoming effect target is outside the authorized Campaign.");
+  if (!includeApplicationContext) return readCharacterContext(tx, { kind: "character", characterId }, character);
+  const health = await readActiveHealthInTransaction(tx, characterId, character.npcKind);
+  return { ...await readCharacterContext(tx, { kind: "character", characterId }, character),
+    applicationLocations: health.anatomy.hitLocations.map((location) => ({ number: location.result, name: location.name, poolKey: location.poolKey })) };
 }
 
 /** Live read only. Historical calculations should reuse the frozen input, not call this. */

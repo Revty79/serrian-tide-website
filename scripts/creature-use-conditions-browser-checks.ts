@@ -26,13 +26,18 @@ function condition(overrides: Partial<DerivedAbilityUseConditionDefinition>): De
   return { conditionType: "manual", conditionKey: null, operator: null, numericValue: null, textValue: null, notes: "", sortOrder: 0, ...overrides };
 }
 
+async function customKey(row: Locator, value: string, event = false) {
+  await setDetailsOpen(row, "Advanced / custom key", true);
+  await row.getByRole("textbox", { name: event ? "Event Key" : "Condition Key", exact: true }).fill(value);
+}
+
 export async function authorCreatureUseConditions(page: Page, ability: Locator, artifacts: string) {
   const expected: DerivedAbilityUseConditionDefinition[] = [];
   await checkHelp(ability, "Activation Type", "Always applies while its Use Conditions are satisfied", true);
   await setDetailsOpen(ability, "Advanced Ability Settings", true);
   const group = ability.getByRole("group", { name: "Use Conditions", exact: true });
   await checkHelp(group, "Use Conditions", "A Condition Key is the system-readable name");
-  await checkHelp(group, "Use Conditions", "does not yet provide a complete system-backed Equipment/State catalog and facts");
+  await checkHelp(group, "Use Conditions", "authoritative");
   const manual = group.locator("[data-use-condition]").first();
   assert.deepEqual(await manual.getByLabel("Condition Type", { exact: true }).locator("option").allTextContents(), ["Manual Ruling", "Event", "Equipment", "State"]);
   await checkHelp(manual, "Condition Type", "The G.O.D. decides whether this condition is satisfied");
@@ -44,7 +49,7 @@ export async function authorCreatureUseConditions(page: Page, ability: Locator, 
   await manual.getByLabel("Description / Notes", { exact: true }).fill("Only while standing in moonlight.");
   // Make a previously authored complex condition manual. Every now-hidden field must survive.
   await manual.getByLabel("Condition Type", { exact: true }).selectOption("state");
-  await manual.getByLabel("State Key", { exact: true }).fill("legacy-state");
+  await customKey(manual, "legacy-state");
   await setDetailsOpen(manual, "Advanced Comparison", true);
   await manual.getByLabel("Comparison Operator", { exact: true }).selectOption("neq");
   await manual.getByLabel("Number to Compare", { exact: true }).fill("17");
@@ -60,9 +65,10 @@ export async function authorCreatureUseConditions(page: Page, ability: Locator, 
   await group.getByRole("button", { name: "Add Use Condition", exact: true }).click();
   const event = group.locator("[data-use-condition]").nth(1);
   await event.getByLabel("Condition Type", { exact: true }).selectOption("event");
-  await checkHelp(event, "Condition Type", "Typing a new Event Key does NOT automatically create that event");
-  await checkHelp(event, "Event Key", "The key must eventually match a fact supplied by Serrian Tide");
-  await event.getByLabel("Event Key", { exact: true }).fill("successful-parry");
+  await checkHelp(event, "Condition Type", "Typing a new Event Key does NOT create an event");
+  await event.getByRole("combobox", { name: "Supported condition fact", exact: true }).selectOption("combat.attack-targeted");
+  assert.equal(await event.getByRole("combobox", { name: "Supported condition fact", exact: true }).inputValue(), "combat.attack-targeted");
+  await customKey(event, "successful-parry", true);
   assert.equal(await event.getByText("Match: Exact Event.", { exact: true }).isVisible(), true);
   assert.equal(await event.getByLabel("Operator", { exact: true }).count(), 0);
   assert.equal(await event.getByLabel("Comparison Operator", { exact: true }).isVisible(), false);
@@ -85,9 +91,9 @@ export async function authorCreatureUseConditions(page: Page, ability: Locator, 
     const row = group.locator("[data-use-condition]").last();
     const state = operator === "eq" || operator === "neq";
     await row.getByLabel("Condition Type", { exact: true }).selectOption(state ? "state" : "equipment");
-    await checkHelp(row, "Condition Type", state ? "Typing a new key by itself does not create a new tracked state" : "Checks an equipment-related fact");
+    await checkHelp(row, "Condition Type", state ? "Typing a new key does not create a tracked state" : "Checks an equipment-related fact");
     await checkHelp(row, state ? "State Key" : "Equipment Key", "Condition Key is the system-readable name");
-    await row.getByLabel(state ? "State Key" : "Equipment Key", { exact: true }).fill(state ? "enraged" : "shield-equipped");
+    await customKey(row, state ? "enraged" : "shield-equipped");
     assert.deepEqual(await row.getByLabel("Operator", { exact: true }).locator("option").allTextContents(), ["Unspecified", labels.possessed, labels["not-possessed"]]);
     await checkHelp(row, "Operator", "how to compare the current value");
     await setDetailsOpen(row, "Advanced Comparison", true);
@@ -113,8 +119,8 @@ export async function authorCreatureUseConditions(page: Page, ability: Locator, 
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await checkHelp(ability, "Activation Type", "The creature deliberately chooses");
-  await checkHelp(group, "Use Conditions", "Some advanced Use Conditions are being authored now", false, true);
-  await checkHelp(event, "Event Key", "selectable system options");
+  await checkHelp(group, "Use Conditions", "authoritative", false, true);
+  await checkHelp(event, "Event Key", "supported");
   await checkHelp(event, "Comparison Operator", "how to compare the current value");
   await event.getByRole("button", { name: "Help for Number to Compare", exact: true }).click();
   await event.screenshot({ path: `${artifacts}/use-conditions-phone.png` });
@@ -130,13 +136,13 @@ export async function checkSavedCreatureUseConditions(page: Page, ability: Locat
   await setDetailsOpen(ability, "Advanced Ability Settings", true);
   const group = ability.getByRole("group", { name: "Use Conditions", exact: true });
   if (phone) await page.setViewportSize({ width: 390, height: 844 });
-  await checkHelp(group, "Use Conditions", "Creature Use Conditions remain authoring metadata");
+  await checkHelp(group, "Use Conditions", "authoritative");
   const manual = group.locator("[data-use-condition]").first();
   assert.equal(await manual.getByLabel("Description / Notes", { exact: true }).inputValue(), "Only while standing in moonlight.");
   await setDetailsOpen(manual, "Saved Condition Details", true);
   for (const value of ["legacy-state", "Not equal to", "17", "legacy-text"]) assert.equal(await manual.getByText(value, { exact: true }).isVisible(), true);
   const event = group.locator("[data-use-condition]").nth(1);
-  assert.equal(await event.getByLabel("Event Key", { exact: true }).inputValue(), "successful-parry");
+  assert.equal(await event.getByRole("textbox", { name: "Event Key", exact: true }).inputValue(), "successful-parry");
   await setDetailsOpen(event, "Advanced Comparison", true);
   assert.equal(await event.getByLabel("Comparison Operator", { exact: true }).inputValue(), "gte");
   assert.equal(await event.getByLabel("Number to Compare", { exact: true }).inputValue(), "50");

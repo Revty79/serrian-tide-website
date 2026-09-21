@@ -44,6 +44,14 @@ test("restricted result summaries do not disclose roll or armor mechanics", () =
   assert.equal(combatRollSummary({ effectiveMechanicalSnapshot: null, effectiveResultTotal: 28, status: "recorded" }), "Roll 28");
 });
 
+test("a saved incoming ruling shows its final damage without the superseded gross formula", () => {
+  const ruled = { ...damage, authoredValue: { ...damage.authoredValue,
+    incomingEffectResolution: { schemaVersion: 1, status: "requires-god-ruling" } } };
+  assert.equal(combatEffectSummary(ruled, true), "3 damage applied to Head.");
+  assert.equal(attackReportTarget(ruled as unknown as ActionEffectRowView).damage, 3);
+  assert.equal(attackReportTarget(ruled as unknown as ActionEffectRowView).calculation, null);
+});
+
 test("damage history exposes recorded condition outcomes without presenting them as current condition", () => {
   assert.match(combatEffectSummary({ ...damage, appliedResult: { combatOutcome: { dead: true } } }, true), /This hit caused death\./);
   assert.match(combatEffectSummary({ ...damage, appliedResult: { combatOutcome: { unconscious: true, incapacitated: true } } }, true), /This hit caused unconsciousness\./);

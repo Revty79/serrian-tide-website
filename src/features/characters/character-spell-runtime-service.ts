@@ -1,4 +1,6 @@
 import "server-only";
+import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-effects/runtime-plan-service";
+import { resolveActiveHealthView } from "@/features/active-state/health-rules";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
 
@@ -512,6 +514,21 @@ async function loadAuthoritativePlan(
     selections: request.selections,
     targets,
   });
+  const incomingPlans = await resolveRuntimeMechanicalPlansInTransaction(tx, { campaignId: casterEntity.campaignId,
+    source: { kind: "spell", displayName: source.spell.name, authoredData: { spell: source.spell } },
+    health: new Map(targets.map((target) => [target.characterId, { anatomy: target.anatomy, state: target.state }])),
+    entries: plan.automaticApplications.map((entry) => ({ plan: entry.plan, targetId: entry.targetCharacterId,
+      application: { targetCharacterId: entry.targetCharacterId, ...request.selections.applications[entry.applicationKey] } })) });
+  plan.automaticApplications.forEach((entry, index) => { entry.plan = incomingPlans[index]; });
+  for (const target of plan.targetResults) {
+    const state = [...plan.automaticApplications].reverse().find((entry) => entry.targetCharacterId === target.characterId && entry.plan.healthResult)?.plan.healthResult?.nextState
+      ?? targets.find((entry) => entry.characterId === target.characterId)!.state;
+    target.finalHealth = resolveActiveHealthView(target.anatomy, state);
+  }
+  if (incomingPlans.some(({ incomingEffect, status }) => incomingEffect && status === "manual")) {
+    plan.status = "invalid"; plan.ready = false;
+    plan.issues.push(...incomingPlans.filter(({ status }) => status === "manual").map(({ summary }) => summary));
+  }
   return {
     targets,
     plan,

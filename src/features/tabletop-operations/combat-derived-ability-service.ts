@@ -10,6 +10,7 @@ import type { LockedActionDeclarationSnapshot } from "./action-declaration";
 import type { ActionDeclarationActor } from "./action-declaration-service";
 import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext, type RuntimeIntegrationTransaction } from "./runtime-integration-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
+import { readAbilityFactsInTransaction } from "@/features/ability-use-conditions/fact-service";
 
 /** Called inside the declaration savepoint after choice authorization. The
  * existing use planner owns limits and conditions; Initiative and consequences
@@ -36,6 +37,12 @@ export async function commitCombatDerivedAbilityUseInTransaction(
   const mana = manaCosts ? await readActiveManaInTransaction(tx, snapshot.actorCharacterId) : null;
   const ruling = frozen.authoredData.combatResolutionRuling as { useRequirementsReason?: string } | undefined;
   const eventKey = typeof snapshot.source.payload?.eventKey === "string" ? snapshot.source.payload.eventKey.trim() || null : null;
+  if (eventKey && !(actor.authority === "god-owner" && actor.userId === context.ownerUserId && ruling?.useRequirementsReason?.trim())) {
+    throw new Error("A client event key cannot establish an Ability event. Use an authoritative response window or an explicit G.O.D. manual event ruling.");
+  }
+  const facts = await readAbilityFactsInTransaction(tx, { ...context, participantId: snapshot.actorCharacterId,
+    requestedKeys: ability.useConditions.flatMap(({ conditionKey }) => conditionKey ?? []),
+    manualEvent: eventKey && ruling?.useRequirementsReason ? { key: eventKey, reason: ruling.useRequirementsReason, authorizedGod: true } : null });
   const plan = planDerivedAbilityUse({ characterId: snapshot.actorCharacterId, resolvedStatus: status,
     // Pending Initiative already validates timing, including multi-round work.
     // Effects are planned at completion for their exact signed target identities.
@@ -43,7 +50,7 @@ export async function commitCombatDerivedAbilityUseInTransaction(
     uses: uses.map((row) => ({ ...row, usedAt: row.usedAt.toISOString() })),
     recharges: recharges.map((row) => ({ ...row, refreshScope: row.refreshScope as "manual" | "event", rechargedAt: row.rechargedAt.toISOString() })),
     ownershipAcquiredAt: state.ownerships.find(({ id }) => id === status.ownershipId)?.acquiredAt ?? null,
-    eventContext: { ...context, roundNumber: engine.runtime.roundNumber, eventKey,
+    eventContext: { ...context, roundNumber: engine.runtime.roundNumber, eventKey, facts,
       manaPools: new Map(mana?.pools.map((pool) => [pool.system, { current: pool.currentMana }]) ?? []) },
     manualConfirmed: Boolean(ruling?.useRequirementsReason?.trim()),
   });

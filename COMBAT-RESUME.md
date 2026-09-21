@@ -1,5 +1,16 @@
 # Combat resumption handoff
 
+## Pass 5: runtime and combat integration (20 September 2026)
+
+**Parent revision:** `64bff7e31103c3b29724278f2c4cce79c184cff1`. Brannan authorized the integration of both incoming effects and shared Ability Use Conditions. **Stop after this Pass 5 commit for Brannan and Ember review. Pass 6 has not started.** This section supersedes the earlier statements that the resolver and Use Conditions are authoring-only.
+
+- New Weapon, Creature Attack, firearm, Spell, Item and Ability consequences use the shared incoming-effect pipeline inside existing planning/application services. Source facts freeze at lock; exact target facts and full resolver evidence freeze when the consequence is built. Existing plans keep historical values. Source, protection, resources, Rolls, Initiative and G.O.D. decisions retain their existing authorities.
+- Same-pool Absorption healing uses Active Health limits. Unknown relevant facts/conflicts require an explicit G.O.D. decision; invalid authored/runtime data fails closed. Player views receive privacy-limited explanations; G.O.D. reports expose the frozen stages and decisions.
+- Creature and Derived Abilities share typed Event/Equipment/State facts and operator semantics. Only actual response windows produce the three registered combat events. Item/fact selectors replace raw-key entry in the normal authoring path. Custom keys remain preserved/manual. Derived passive reconciliation evaluates conditions; unknown facts retain established state pending a ruling. Creature passive lifecycle and persistent Creature use-limit storage remain explicit unresolved decisions.
+- Eligible Triggered/Reaction choices use the existing response window, authored timing and shared resources. No auto-choice/spending; the Intervention outcome retains its existing G.O.D. treatment. Direct Creature attacks omit Character attribute modifiers while retaining the existing Roll extra-success rule.
+- Full implementation, exact files, validation, intentional expectation changes and review questions: [Pass 5 report](docs/reports/runtime-combat-integration-pass-5-2026-09-20.md). No schema migrations, backfills, live Character/catalog edits, push or deployment. Harvest & Utility is unchanged.
+
+
 ## Pass 4 final correction — Decisive Interaction gates (20 September 2026)
 
 **Parent revision:** `de25906efe693c8491c66567c40ee8ac59200118`. Brannan accepted Pass 4 structurally and requested only this correctness correction. **Stop after the correction commit for review; Pass 5 has not started.**

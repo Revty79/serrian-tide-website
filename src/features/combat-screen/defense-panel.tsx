@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFENSE_INTERVENTION_TYPES, type DefenseInterventionType } from "@/features/tabletop-operations/defense-intervention";
 import type { DefenseDeclarationInput } from "@/features/tabletop-operations/defense-intervention-service";
-import { previewCombatDefense, submitCombatDefense, type readCombatCommandSources } from "./command-actions";
+import { previewCombatDefense, submitCombatDefense, readCombatAbilityResponseChoices, type readCombatCommandSources } from "./command-actions";
 import type { CombatEntity, CombatScreenData, CombatScreenScope } from "./screen-types";
 import { RollFields, emptyRoll, rollInput, combatMessage } from "./form-controls";
 import styles from "./combat-screen.module.css";
@@ -19,6 +19,13 @@ export function DefensePanel(props: DefenseProps) {
 function DefenseForm({ scope, entity, data, sources, disabled, refresh, opportunities, selected, setOpportunity }: DefenseProps & {
   opportunities: ReturnType<typeof responseOptions>; selected: ReturnType<typeof responseOptions>[number] | null; setOpportunity: (value: string) => void;
 }) {
+  const [abilityChoices, setAbilityChoices] = useState<Awaited<ReturnType<typeof readCombatAbilityResponseChoices>>>([]);
+  const selectedOpportunityId = selected?.id;
+  useEffect(() => {
+    let active = true;
+    if (selectedOpportunityId) void readCombatAbilityResponseChoices(scope, entity.participantId, selectedOpportunityId).then((choices) => { if (active) setAbilityChoices(choices); }).catch(() => { if (active) setAbilityChoices([]); });
+    return () => { active = false; };
+  }, [scope, entity.participantId, selectedOpportunityId, data.projection?.stateToken]);
   const [kind, setKind] = useState<DefenseInterventionType>("dodge"), [weapon, setWeapon] = useState("");
   const [protect, setProtect] = useState(""), [governing, setGoverning] = useState(""), [cost, setCost] = useState(""), [reason, setReason] = useState("");
   const [manualTarget, setManualTarget] = useState(""), [rollRequired, setRollRequired] = useState(true);
@@ -31,14 +38,19 @@ function DefenseForm({ scope, entity, data, sources, disabled, refresh, opportun
   const creatureSources = sources?.sources.filter((entry) => entry.kind === "creature-attack") ?? [];
   const creatureSource = creatureSources.find((entry) => entry.ref === weapon);
   const intervention = kind === "intervention" || kind === "tackle";
+  const selectedAbility = kind === "intervention" ? abilityChoices.find((entry) => `${entry.kind}|${entry.ref}` === ability) : undefined;
+  const manualResponse = !selectedAbility || selectedAbility.requiresResolutionRuling;
   const targets = selected?.declaration.lockedSnapshot?.targetCharacterIds ?? [];
   const input: DefenseDeclarationInput = { opportunityId: selected?.id ?? 0, reactionType: kind,
     protectedTargetCharacterId: Number(protect) || (targets.includes(entity.participantId) ? entity.participantId : targets.length === 1 ? targets[0] : 0),
     ...(source ? { itemId: source.itemId, instanceId: source.instanceId, sourceRef: source.ownershipKey } : {}),
     ...(creatureSource ? { sourceRef: creatureSource.ref } : {}),
+    ...(selectedAbility && intervention ? { sourceKind: selectedAbility.kind, sourceRef: selectedAbility.ref,
+      derivedAbilityId: selectedAbility.kind === "derived-ability" ? Number(selectedAbility.ref.replace("derived-ability:", "")) : undefined,
+      intendedMechanicalPurpose: `${selectedAbility.activationType}: ${selectedAbility.name}` } : {}),
     ...(scope.role === "god" ? { governingSelection: sources?.defense?.governingChoices.find((entry) => entry.key === governing)?.selection,
       initiativeCost: cost === "" ? undefined : Number(cost), godApprovalReason: reason, godOverrideReason: reason,
-      ...(intervention ? { sourceKind: ability ? "derived-ability" as const : "manual" as const, derivedAbilityId: ability ? Number(ability.replace("derived-ability:", "")) : undefined,
+      ...(intervention ? { sourceKind: selectedAbility?.kind ?? "manual" as const, derivedAbilityId: selectedAbility?.kind === "derived-ability" ? Number(selectedAbility.ref.replace("derived-ability:", "")) : undefined,
         manualLabel: reason, manualTarget: manualTarget === "" ? sources?.defense?.governingChoices.find((entry) => entry.key === governing)?.originalTarget : Number(manualTarget), rollRequired } : {}) } : {}) };
   const fingerprint = JSON.stringify(input), preview = checked?.key === fingerprint && checked.stateToken === data.projection?.stateToken ? checked.result : null;
   const canPreview = !!selected && entity.canControl && entity.canRespondNow;
@@ -55,11 +67,12 @@ function DefenseForm({ scope, entity, data, sources, disabled, refresh, opportun
   return <div><p className={styles.muted}>{combatMessage(entity.responseReason ?? "Choose a response to this confirmed opportunity.")}</p>
     {entity.mustChooseNow ? <p className={styles.notice}>You can choose an ordinary action against your own legal target, Hold or Pass. A response requires G.O.D. confirmation. No reaction costs zero and keeps your ordinary choice.</p> : null}
     <div className={styles.fields}><label className="st-field">Respond to<select className="st-control" value={selected?.id ?? ""} onChange={(event) => setOpportunity(event.target.value)}><option value="">Choose a confirmed opportunity</option>{opportunities.map((entry) => <option key={entry.id} value={entry.id}>{entry.declaration.actorName} · {entry.declaration.lockedSnapshot?.label ?? entry.declaration.draft.label}</option>)}</select></label>
-    <label className="st-field">Defense<select className="st-control" value={kind} onChange={(event) => setKind(event.target.value as DefenseInterventionType)}>{DEFENSE_INTERVENTION_TYPES.filter((entry) => scope.role === "god" || !["tackle", "intervention"].includes(entry)).map((entry) => <option key={entry}>{entry}</option>)}</select></label>
+    <label className="st-field">Defense<select className="st-control" value={kind} onChange={(event) => setKind(event.target.value as DefenseInterventionType)}>{DEFENSE_INTERVENTION_TYPES.filter((entry) => scope.role === "god" || !["tackle", "intervention"].includes(entry) || entry === "intervention" && abilityChoices.some((choice) => choice.status !== "unavailable")).map((entry) => <option key={entry}>{entry}</option>)}</select></label>
     <label className="st-field">Protect<select className="st-control" value={input.protectedTargetCharacterId || ""} onChange={(event) => setProtect(event.target.value)}><option value="">Choose the target being protected</option>{targets.map((id) => <option key={id} value={id}>{data.roster.find((entry) => entry.participantId === id)?.name}</option>)}</select></label>
     {kind === "block" || kind === "parry" ? <label className="st-field">Defending weapon<select className="st-control" value={weapon} onChange={(event) => setWeapon(event.target.value)}><option value="">Choose a defending weapon</option>{sources?.defense?.weapons.map((entry) => <option key={entry.ownershipKey} value={entry.ownershipKey}>{entry.name}</option>)}{creatureSources.map((entry) => <option key={entry.ref} value={entry.ref}>{entry.name}</option>)}</select></label> : null}</div>
-    {scope.role === "god" && intervention ? <div className={styles.fields}><label className="st-field">Intervention source<select className="st-control" value={ability} onChange={(event) => setAbility(event.target.value)}><option value="">Specific G.O.D. ruling</option>{sources?.sources.filter((entry) => entry.kind === "derived-ability" && !entry.unavailable).map((entry) => <option key={entry.ref} value={entry.ref}>{entry.name}</option>)}</select></label><label className={styles.check}><input type="checkbox" checked={rollRequired} onChange={(event) => setRollRequired(event.target.checked)} /> This ruling requires a Roll</label>{rollRequired ? <label className="st-field">G.O.D. Roll target<input className="st-control" type="number" value={manualTarget} onChange={(event) => setManualTarget(event.target.value)} /></label> : null}</div> : null}
+    {intervention ? <div className={styles.fields}><label className="st-field">Intervention source<select className="st-control" value={ability} onChange={(event) => setAbility(event.target.value)}><option value="">Specific G.O.D. ruling</option>{abilityChoices.map((entry) => <option key={`${entry.kind}|${entry.ref}`} value={`${entry.kind}|${entry.ref}`} disabled={entry.status === "unavailable"}>{entry.name} - {entry.activationType}{entry.status === "manual" ? " (G.O.D. ruling)" : ""}</option>)}</select></label>{scope.role === "god" && manualResponse && <label className={styles.check}><input type="checkbox" checked={rollRequired} onChange={(event) => setRollRequired(event.target.checked)} /> This ruling requires a Roll</label>}{scope.role === "god" && manualResponse && rollRequired ? <label className="st-field">G.O.D. Roll target<input className="st-control" type="number" value={manualTarget} onChange={(event) => setManualTarget(event.target.value)} /></label> : null}</div> : null}
     {scope.role === "god" ? <details><summary>Specific defense ruling</summary><div className={styles.fields}><label className="st-field">Governing source<select className="st-control" value={governing} onChange={(event) => setGoverning(event.target.value)}><option value="">Use established governance</option>{sources?.defense?.governingChoices.map((entry) => <option key={entry.key} value={entry.key}>{entry.label} · {entry.originalTarget}</option>)}</select></label><label className="st-field">Missing authored cost<input className="st-control" type="number" min="0" step="any" value={cost} onChange={(event) => setCost(event.target.value)} /></label><label className="st-field">Ruling reason<input className="st-control" value={reason} onChange={(event) => setReason(event.target.value)} /></label></div></details> : null}
+    {selectedAbility && <p>{selectedAbility.explanation || "Use Conditions match this response window."} Initiative and resources are spent only when you commit. The Intervention outcome remains subject to the existing G.O.D. ruling.</p>}
     {canPreview && !preview ? <p className={styles.notice}>{previewError?.key === fingerprint ? previewError.message : "Reading defense cost and Roll requirements…"}</p> : null}
     {preview ? <><p>{preview.source.label} · {preview.initiativeCost} Initiative</p>{preview.rollRequired ? <RollFields value={roll} onChange={setRoll} disabled={busy} /> : <p>No Roll required.</p>}
       <button className="st-button is-primary" disabled={disabled || busy || !entity.canControl || !entity.canRespondNow} onClick={async () => {

@@ -1,11 +1,13 @@
 import type { ActionEffectRowView } from "@/features/tabletop-operations/action-effect-plan-service";
 import type { RollLedgerEntry } from "@/features/tabletop-operations/roll-runtime-service";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
 
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 /** Use the same frozen evidence in the live report and the historical receipt. */
 export function ordinaryDamageCalculation(value: unknown) {
   const calculated = object(value), modifiers = object(calculated.damageModifiers);
+  if (calculated.incomingResolution === true) return null;
   if (!["baseDamage", "extraSuccesses", "armor", "soak", "netDamage"].every((key) => typeof calculated[key] === "number")) return null;
   const base = typeof calculated.authoredBase === "number" && typeof modifiers.total === "number"
     ? `${calculated.authoredBase} weapon + ${modifiers.attributeModifier ?? 0} ${modifiers.attribute ?? "attribute"} + ${modifiers.activeModifier ?? 0} active modifiers + ${calculated.weaponHitDamage ?? 0} weapon powers`
@@ -21,6 +23,9 @@ export function combatRollSummary(roll: Pick<RollLedgerEntry, "effectiveMechanic
 }
 
 export function combatEffectSummary(effect: Pick<ActionEffectRowView, "effectType" | "status" | "authoredValue" | "calculatedValue" | "finalValue" | "amendmentReason"> & Partial<Pick<ActionEffectRowView, "appliedResult">>, mayReadMechanics: boolean) {
+  const incoming = storedIncomingResolution(effect.authoredValue), publicIncoming = object(object(effect.authoredValue).incomingEffectSummary);
+  if (effect.status === "requires-god-ruling" && (incoming || publicIncoming.status)) return "Incoming effect requires a G.O.D. ruling; no consequence has been applied.";
+  if (effect.status === "declined" && (incoming?.status === "prevented" || publicIncoming.status === "prevented")) return "The target's interactions prevented the effect. No damage or harmful effect was applied.";
   const final = object(effect.finalValue);
   const amount = typeof effect.finalValue === "number" ? effect.finalValue : typeof final.netDamage === "number" ? final.netDamage : object(final.effect).amount;
   const applied = effect.status === "applied";
@@ -48,7 +53,7 @@ export function combatEffectSummary(effect: Pick<ActionEffectRowView, "effectTyp
   if (effect.status === "declined") summary = roll.succeeded === false ? "Miss - no damage applied."
     : `No damage applied.${effect.amendmentReason ? ` Recorded decision: ${effect.amendmentReason}` : " See the recorded ruling."}`;
   // A failed attack never delivered the calculated potential hit.
-  const calculation = roll.succeeded !== false ? ordinaryDamageCalculation(calculated) : null;
+  const calculation = !incoming && !publicIncoming.status && roll.succeeded !== false ? ordinaryDamageCalculation(calculated) : null;
   if (calculation) summary += ` Damage calculation: ${calculation}.`;
   return summary;
 }

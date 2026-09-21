@@ -1,5 +1,6 @@
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
+import { playerIncomingAuthoredValue } from "@/features/incoming-effects/public-evidence";
 import { readWeaponDamageModifiers } from "./weapon-damage-modifiers-service";
 import { unavailableWeaponHitPowers } from "./weapon-hit-resource-service";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
@@ -88,7 +89,11 @@ import { readEffectiveRollSnapshotInTransaction, type AuthorizedRollActor } from
 import type { RollGoverningSourceRequest, RollGoverningSourceSnapshot, RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import { loadInitiativeEngineInTransaction, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { initiativeAffordabilityIssue } from "./initiative-affordability";
-import { isSupportedAmmunitionWeaponType, projectileWeaponFamily } from "@/features/items/firearm-classification";
+import { isSupportedAmmunitionWeaponType, isFirearmWeaponType, projectileWeaponFamily } from "@/features/items/firearm-classification";
+import { projectileIncomingFacts, type FrozenIncomingSourceFacts } from "@/features/incoming-effects/source-facts";
+import { resolveIncomingEffectPlanInTransaction } from "@/features/incoming-effects/effect-proposal-service";
+import { proposalFromEffectRow, incomingProposalFields, storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
+import { resolveIncomingEffect } from "@/features/incoming-effects/resolve-incoming-effect";
 import { rangedShotInitiativeCost, resolveAmmunitionWeaponMode } from "@/features/items/projectile-combat";
 import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/features/items/firearm-magazine-service";
 import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
@@ -168,6 +173,8 @@ export type FirearmAttackPreview = Readonly<{
   aim: { initiative: number; targetOffset: number };
   calledShot: FirearmAttackCommand["calledShot"] & { validAtPreview: boolean };
   authoredDamage: { value: string | null; numeric: number | null; damageType: string | null; sourceName: string | null };
+  incomingSourceFacts?: FrozenIncomingSourceFacts;
+  weaponHitPowers?: Awaited<ReturnType<typeof readFirearmWeaponHitPowers>>;
   damageModifiers?: Awaited<ReturnType<typeof readWeaponDamageModifiers>>;
   dexDamageModifier: number;
   rulingReasons: readonly string[];
@@ -694,6 +701,8 @@ async function loadFoundation(
       aim: { initiative: aimInitiative, targetOffset: aimInitiative * 2 },
       calledShot: { ...calledShot, validAtPreview: validCalledLocation },
       authoredDamage: { value: damage.damage, numeric: parseAuthoredBulletDamage(damage.damage), damageType: damage.damageType, sourceName: damage.sourceName },
+      incomingSourceFacts: projectileIncomingFacts(damage.damageType, isFirearmWeaponType(profile.weaponType)),
+      weaponHitPowers: await readFirearmWeaponHitPowers(tx, state.itemId),
       damageModifiers: await readWeaponDamageModifiers(tx, command.actorParticipantId, null),
       dexDamageModifier: dexterity ? getAttributeModifier(dexterity.value) : 0,
       rulingReasons,
@@ -1172,6 +1181,14 @@ async function ensureFirearmStillFireable(
   return state;
 }
 
+async function readFirearmWeaponHitPowers(tx: FirearmAttackTransaction, itemId: number) {
+  return tx.select({ powerId: itemPower.id, powerName: itemPower.name, resourceCostKind: itemPower.resourceCostKind,
+    resourceCostAmount: itemPower.resourceCostAmount, effectId: itemPowerEffect.id, schemaVersion: itemPowerEffect.schemaVersion,
+    effectJson: itemPowerEffect.effectJson }).from(itemPower).innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
+    .where(and(eq(itemPower.itemId, itemId), eq(itemPower.trigger, "weapon-hit")))
+    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+}
+
 async function createFirearmEffectPlan(
   tx: FirearmAttackTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -1221,6 +1238,7 @@ async function createFirearmEffectPlan(
     resolutionMode: "opposed-roll" as const,
     governingSource: preview.governing.request,
     governingSnapshot: preview.governing.snapshot,
+    incomingSourceFacts: preview.incomingSourceFacts ?? { ...projectileIncomingFacts(preview.authoredDamage.damageType, false), weaponFamily: null },
     authoredData: {
       firearmAttackId: attack.id,
       itemPowerItemId: attack.itemId,
@@ -1281,18 +1299,7 @@ async function createFirearmEffectPlan(
   const eligibleBullets = bulletRows.filter(({ status, hitLocationNumber, hpPoolKey, rulingReasonsJson }) => (
     status === "surviving" && hitLocationNumber !== null && Boolean(hpPoolKey) && jsonArray(rulingReasonsJson).length === 0
   ));
-  const weaponHitPowers = await tx.select({
-    powerId: itemPower.id,
-    powerName: itemPower.name,
-    resourceCostKind: itemPower.resourceCostKind,
-    resourceCostAmount: itemPower.resourceCostAmount,
-    effectId: itemPowerEffect.id,
-    schemaVersion: itemPowerEffect.schemaVersion,
-    effectJson: itemPowerEffect.effectJson,
-  }).from(itemPower)
-    .innerJoin(itemPowerEffect, eq(itemPowerEffect.itemPowerId, itemPower.id))
-    .where(and(eq(itemPower.itemId, attack.itemId), eq(itemPower.trigger, "weapon-hit")))
-    .orderBy(asc(itemPower.sortOrder), asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id));
+  const weaponHitPowers = preview.weaponHitPowers ?? await readFirearmWeaponHitPowers(tx, attack.itemId);
   const powerGroups = new Map<number, typeof weaponHitPowers>();
   for (const row of weaponHitPowers) powerGroups.set(row.powerId, [...(powerGroups.get(row.powerId) ?? []), row]);
   const skippedPowers = await unavailableWeaponHitPowers(tx, { characterId: attack.actorParticipantId, itemId: attack.itemId, instanceId: attack.itemInstanceId },
@@ -1315,9 +1322,7 @@ async function createFirearmEffectPlan(
       ? singleWeaponHitDamage
       : 0;
     const effectiveGrossDamage = additiveDamage > 0 && bullet.grossDamage !== null ? bullet.grossDamage + additiveDamage : bullet.grossDamage;
-    const effectiveNetDamage = additiveDamage > 0 && effectiveGrossDamage !== null && bullet.armor !== null && bullet.soak !== null
-      ? Math.max(0, effectiveGrossDamage - bullet.armor - bullet.soak)
-      : bullet.proposedNetDamage;
+    const effectiveNetDamage = effectiveGrossDamage;
     const application = bullet.hitLocationNumber === null ? {} : {
       hitLocationNumber: bullet.hitLocationNumber,
       ...(bullet.hpPoolKey ? { poolKey: bullet.hpPoolKey } : {}),
@@ -1554,6 +1559,37 @@ async function createFirearmEffectPlan(
       });
     }
   }
+  {
+    const integrated = await resolveIncomingEffectPlanInTransaction(tx, context, sourceSnapshot, {
+      status: planStatus, effects: effects.map(proposalFromEffectRow), explanation: "Each bullet resolves independently against protection at consequence planning.",
+    });
+    for (const [index, proposal] of integrated.effects.entries()) {
+      Object.assign(effects[index], incomingProposalFields(proposal));
+      const resolution = storedIncomingResolution(proposal.authoredValue);
+      if (!resolution || !proposal.effectKey.startsWith("firearm-bullet:")) continue;
+      const bullet = bulletRows.find(({ bulletIndex }) => proposal.effectKey === `firearm-bullet:${bulletIndex}`);
+      if (!bullet || bullet.grossDamage === null) continue;
+      const locationKey = resolution.input.hitLocationKey, layers = resolution.input.target.protection;
+      const natural = layers.natural.filter(({ coverage }) => coverage.kind === "all" || coverage.locationKeys.includes(locationKey ?? ""));
+      const worn = layers.worn.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(locationKey ?? ""));
+      const temporary = layers.temporary.filter(({ coverage, modifier }) => !modifier.endedAt && !modifier.expiredAt && (coverage.kind === "all" || coverage.kind === "locations" && coverage.locationKeys.includes(locationKey ?? "")));
+      const armor = natural.length <= 1 && worn.length <= 1 && natural.every(({ armor }) => armor !== null) && worn.every(({ baseSoak }) => baseSoak !== null)
+        ? (natural[0]?.armor ?? 0) + (worn[0]?.baseSoak ?? 0) : null;
+      const soak = natural.length <= 1 && natural.every(({ soak }) => soak !== null) && temporary.every(({ amount }) => amount !== null)
+        ? (natural[0]?.soak ?? 0) + temporary.reduce((sum, { amount }) => sum + amount!, 0) : null;
+      // The bullet record describes its base shot; the Effect row includes any
+      // allocated Power. Both calculations reuse the very same frozen target.
+      const base = resolveIncomingEffect({ ...resolution.input, effect: { ...resolution.input.effect, amount: bullet.grossDamage } });
+      const authored = effects[index].authoredValueJson as Record<string, unknown>;
+      effects[index].authoredValueJson = { ...authored, armor, soak, proposedNetDamage: resolution.finalEffect?.damage ?? null,
+        baseProposedNetDamage: base.finalEffect?.damage ?? null };
+      if (preview.incomingSourceFacts) await tx.update(campaignSessionEncounterFirearmBullet).set({ armor, soak,
+        proposedNetDamage: base.finalEffect?.damage ?? null, armorSnapshotJson: { incomingEffectResolution: base },
+        status: base.status === "requires-god-ruling" ? "requires-god-ruling" : "surviving",
+        rulingReasonsJson: base.issues.map(({ message }) => message),
+      }).where(eq(campaignSessionEncounterFirearmBullet.id, bullet.id));
+    }
+  }
   const finalPlanStatus = effects.some(({ status }) => status === "requires-god-ruling")
     ? "requires-god-ruling" as const
     : planStatus;
@@ -1763,7 +1799,9 @@ async function fireFirearmAttackInternal(
   const hitLocation = hitLocationNumber === null
     ? null
     : preview.target.anatomy?.hitLocations.find(({ result }) => result === hitLocationNumber) ?? null;
-  const protection = await resolveProtection(tx, preview, hitLocationNumber);
+  const protection = preview.incomingSourceFacts
+    ? { armor: 0, soak: 0, supported: true, rulingReasons: [] as string[], snapshot: { deferredToIncomingEffectPlan: true } }
+    : await resolveProtection(tx, preview, hitLocationNumber);
   const postShot = postShotReadinessFromAuthoredTiming({
     effectiveCyclingInitiativeCost: preview.firearm.effectiveCyclingInitiativeCost,
     effectiveRecoilResetInitiativeCost: preview.firearm.effectiveRecoilResetInitiativeCost,
@@ -2266,8 +2304,8 @@ export async function readFirearmAttackWorkspaceInTransaction(
         armor: bullet.armor,
         soak: bullet.soak,
         proposedNetDamage: bullet.proposedNetDamage,
-        armorSnapshot: bullet.armorSnapshotJson,
-        rulingReasons: jsonArray(bullet.rulingReasonsJson),
+        armorSnapshot: actor.authority === "god-owner" ? bullet.armorSnapshotJson : playerIncomingAuthoredValue(bullet.armorSnapshotJson),
+        rulingReasons: actor.authority === "god-owner" ? jsonArray(bullet.rulingReasonsJson) : bullet.status === "requires-god-ruling" ? ["This bullet requires a G.O.D. ruling."] : [],
       })),
       events: events.filter(({ attackId: eventAttackId }) => eventAttackId === attack.id).map((event) => ({
         id: event.id,

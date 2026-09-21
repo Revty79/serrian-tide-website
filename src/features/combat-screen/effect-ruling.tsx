@@ -10,6 +10,8 @@ import { readCombatTargetAnatomy } from "./command-actions";
 import { combatMessage } from "./form-controls";
 import { combatEffectSummary } from "./result-summary";
 import styles from "./combat-screen.module.css";
+import { IncomingEffectEvidence } from "./incoming-effect-evidence";
+import { IncomingEffectRuling } from "./incoming-effect-ruling";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 export function EffectEvidence({ value, depth = 0 }: { value: unknown; depth?: number }) {
   if (typeof value === "number" || typeof value === "string") return <p>{String(value)}</p>;
@@ -39,7 +41,8 @@ export function EffectRuling({ encounterId, plan, focusSequence, disabled, close
   }
   return <details ref={detail}><summary>{plan.sourceSnapshot.displayName} · {plan.actorName} · {plan.status.replaceAll("-", " ")}</summary><p>{combatMessage(plan.explanation)}</p>
     <label className="st-field">Result target<select className="st-control" value={selectedTarget || ""} onChange={(event) => setTarget(event.target.value)}><option value="">Choose a target</option>{plan.targetSnapshot.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
-    {plan.effects.map((effect) => <fieldset key={effect.id}><legend>{effect.targetName}</legend><p>{combatEffectSummary(effect, true)}</p><EffectEvidence value={effect.finalValue} />
+    {plan.effects.map((effect) => <fieldset key={effect.id}><legend>{effect.targetName}</legend><p>{combatEffectSummary(effect, true)}</p><IncomingEffectEvidence value={effect.authoredValue} status={effect.status} /><EffectEvidence value={effect.finalValue} />
+      <IncomingEffectRuling encounterId={encounterId} planId={plan.id} effect={effect} reason={reason} disabled={disabled || closed || busy} run={run} />
       {!["applied", "manual-resolved", "declined"].includes(effect.status) && !(hasAttackRuling && effect.effectKey === "firearm-ruling-boundary") ? <><details open={!effect.applicationSupported}><summary>Specific effect decision</summary><div className={styles.fields}><label className="st-field">Amended amount<input className="st-control" type="number" step="any" value={amounts[effect.id] ?? ""} onChange={(event) => setAmounts({ ...amounts, [effect.id]: event.target.value })} /></label><label className="st-field">Narrated manual outcome<input className="st-control" value={outcomes[effect.id] ?? ""} onChange={(event) => setOutcomes({ ...outcomes, [effect.id]: event.target.value })} /></label></div>
       <div className={styles.actions}><button className="st-button" disabled={disabled || closed || busy || !reason.trim() || !amounts[effect.id]} onClick={() => void run(() => amendActionEffectAmount(encounterId, plan.id, effect.id, Number(amounts[effect.id]), reason))}>Rule on amount</button><button className="st-button" disabled={disabled || closed || busy || !reason.trim()} onClick={() => void run(() => declineActionEffect(encounterId, plan.id, effect.id, reason))}>Decline this effect</button>
       {!effect.applicationSupported && !authority ? <button className="st-button" disabled={disabled || closed || busy || !reason.trim() || !outcomes[effect.id]?.trim()} onClick={() => void run(() => resolveManualActionEffect(encounterId, plan.id, effect.id, outcomes[effect.id], reason))}>Record manual outcome</button> : null}</div></details></> : null}

@@ -869,11 +869,13 @@ async function commitActionDeclarationInternal(
   });
   const commitmentReceipts: Record<string, unknown>[] = [];
   const { commitCombatDerivedAbilityUseInTransaction } = await import("./combat-derived-ability-service");
+  const { assertCombatCreatureAbilityUseInTransaction } = await import("./combat-creature-ability-service");
+  await assertCombatCreatureAbilityUseInTransaction(tx, context, actor, snapshot);
   const abilityUseId = await commitCombatDerivedAbilityUseInTransaction(tx, context, actor, snapshot, declarationId);
   if (abilityUseId !== null) commitmentReceipts.push({ kind: "derived-ability-use", id: abilityUseId });
   for (const cost of snapshot.authoredSource?.resourceCosts ?? []) {
     if (cost.commitAt !== "declaration") continue;
-    if (cost.kind !== "mana" || !["spell", "derived-ability"].includes(snapshot.source.kind) || snapshot.actorCharacterId <= 0
+    if (cost.kind !== "mana" || !["spell", "derived-ability", "creature-ability"].includes(snapshot.source.kind) || snapshot.actorCharacterId <= 0
       || !cost.applicationSupported || cost.amount === null || !Number.isFinite(cost.amount) || cost.amount < 0
       || !["Spellcraft", "Talismanism", "Faith", "Psyonics", "Bardic Resonance"].includes(cost.resourceKey ?? "")) {
       throw new Error("This cast-start resource cost is not supported; resolve the exact source before casting begins.");

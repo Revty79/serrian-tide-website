@@ -6,6 +6,7 @@ import {
 } from "@/features/mechanical-effects";
 
 import { adaptDerivedAbilityToMechanicalEffects } from "./derived-ability-effects";
+import { evaluateAbilityUseCondition, type AbilityFacts, type AbilityFact } from "@/features/ability-use-conditions/facts";
 import type {
   CharacterDerivedAbilityStatus,
   DerivedAbilityCostDefinition,
@@ -16,6 +17,7 @@ import type {
 } from "./models";
 
 export type DerivedAbilityEventContext = {
+  facts?: AbilityFacts;
   eventKey?: string | null;
   sessionId?: number | null;
   sceneId?: number | null;
@@ -130,21 +132,18 @@ export function evaluateDerivedAbilityUseCondition(
   condition: DerivedAbilityUseConditionDefinition,
   context: DerivedAbilityEventContext | null | undefined,
 ): DerivedAbilityRequirementResult {
-  if (condition.conditionType === "manual") return "manual";
-  const key = condition.conditionKey?.trim();
-  if (!key) return "manual";
-  if (condition.conditionType === "event") {
-    return context?.eventKey === key ? "satisfied" : "unsatisfied";
+  if (context?.facts) return evaluateAbilityUseCondition(condition, context.facts);
+  // Compatibility for trusted callers of this pure planner. Server paths
+  // supply typed facts and never copy a Player's event key into this context.
+  const facts = new Map<string, AbilityFact>();
+  for (const [category, entries] of [["equipment", context?.equipmentConditions], ["state", context?.stateConditions]] as const) {
+    for (const [key, value] of entries ?? []) facts.set(key, { key, label: key, category, type: "boolean", value, source: "Trusted caller", explanation: "Legacy boolean fact" });
   }
-  const facts = condition.conditionType === "equipment"
-    ? context?.equipmentConditions
-    : context?.stateConditions;
-  if (!facts?.has(key)) return "manual";
-  const actual = facts.get(key) === true;
-  if (condition.operator === "neq" || condition.operator === "not-possessed") {
-    return actual ? "unsatisfied" : "satisfied";
-  }
-  return actual ? "satisfied" : "unsatisfied";
+  if (context?.eventKey && condition.conditionType === "event" && condition.conditionKey) facts.set(condition.conditionKey, {
+    key: condition.conditionKey, label: condition.conditionKey, category: "event", type: "boolean", value: condition.conditionKey === context.eventKey,
+    source: "Trusted caller", explanation: "Exact legacy event context" });
+  return evaluateAbilityUseCondition(condition.operator == null && ["equipment", "state"].includes(condition.conditionType)
+    ? { ...condition, operator: "possessed" } : condition, facts);
 }
 
 function planCost(

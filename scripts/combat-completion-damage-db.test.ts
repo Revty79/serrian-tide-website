@@ -200,7 +200,9 @@ for (const absorbed of [false, true]) test(`ordinary Weapon-Hit Powers preserve 
     assert.equal(conditions.conditions.some(({ name }) => name === "Marked"), true);
     assert.equal(conditions.modifiers.some(({ label }) => label === "Staggered"), true);
     assert.equal(conditions.modifiers.some(({ label }) => label === "Heavy Edge"), false);
-    assert.equal((await tx.select().from(periodic).where(and(eq(periodic.encounterId, f.encounterId), eq(periodic.characterId, f.occurrences[0])))).length, 1);
+    // Pass 5: the separate periodic health.damage rider also passes protection.
+    // A zero consequence creates no periodic damage application; other riders remain.
+    assert.equal((await tx.select().from(periodic).where(and(eq(periodic.encounterId, f.encounterId), eq(periodic.characterId, f.occurrences[0])))).length, absorbed ? 0 : 1);
     assert.equal(conditions.health.totalDamage > 1, !absorbed, "A fully absorbed base hit still keeps its separate Weapon-Hit rider active.");
     throw rollback;
   }), (error) => error === rollback);

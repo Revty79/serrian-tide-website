@@ -1,5 +1,7 @@
 # Shared incoming-effect planning (Pass 4)
 
+**Current status:** the pure contract below is now integrated by [Pass 5](../reports/runtime-combat-integration-pass-5-2026-09-20.md). References to deferred runtime work describe the original Pass 4 boundary.
+
 `resolveIncomingEffect` is one pure planning function for every supported source kind. It accepts finished source facts, an exact target context, an incoming amount/harmfulness, and a hit location when protection requires one. It returns what would happen, or explicit reasons the G.O.D. must rule. It performs no reads or writes and is **not connected to any combat execution path**.
 
 Pass 3's `ProtectionLayers` remains the read model. Its storage, authoring and existing runtime consumers are unchanged. Pass 5 source adapters, ActionEffectPlan integration and consequence application are outside this pass.
@@ -119,6 +121,8 @@ Malformed effect amounts, rule profiles, percentages/scopes, duplicate ordering,
 Protection defects at unrelated locations do not block a known applicable location. Unknown coverage does block because applicability cannot be determined. Missing hit location is allowed for no protection or all-locations-only protection, and for non-damage effects. An explicitly supplied location must belong to the damage target's anatomy.
 
 ## Review items and Pass 5 boundary
+
+Pass 5 now integrates this unchanged pure resolver with the existing combat and Ability runtimes. See the [Pass 5 integration report](../reports/runtime-combat-integration-pass-5-2026-09-20.md) for source/target freezing, authorization, application, Use Conditions and validation. The scope statement below records what belonged to Pass 4; it is not the current implementation status.
 
 Brannan and Ember still need to settle:
 

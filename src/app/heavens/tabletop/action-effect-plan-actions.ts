@@ -1,4 +1,5 @@
 "use server";
+import { ruleIncomingActionEffectInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 
 import { revalidatePath } from "next/cache";
 
@@ -99,6 +100,12 @@ export async function amendActionEffectAmount(encounterId: number, planId: numbe
     amount,
     reason,
   ));
+}
+
+export async function ruleIncomingActionEffect(encounterId: number, planId: number, effectId: number,
+  input: { disposition: "damage" | "healing" | "allow" | "prevent" | "location"; amount?: number; hitLocationNumber?: number; reason: string }): Promise<void> {
+  await mutate(encounterId, (tx, context, actor) => ruleIncomingActionEffectInTransaction(tx, context, actor,
+    positiveId(planId, "Action Effect Plan"), positiveId(effectId, "Action Effect"), input));
 }
 
 export async function declineActionEffect(encounterId: number, planId: number, effectId: number, reason: string): Promise<void> {

@@ -1,5 +1,6 @@
 import type { ActionEffectPlanView } from "@/features/tabletop-operations/action-effect-plan-service";
 import { ordinaryDamageCalculation } from "./result-summary";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
 
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
@@ -19,15 +20,18 @@ export function attackReportTarget(effect: ActionEffectPlanView["effects"][numbe
   const authored = object(effect.authoredValue), final = object(effect.finalValue);
   const application = object(final.application ?? authored.application), ordinary = object(application.ordinaryAttack);
   const calculated = object(effect.calculatedValue), roll = object(authored.roll);
+  const incoming = storedIncomingResolution(effect.authoredValue), applied = object(final.effect);
+  const unresolved = incoming?.status === "requires-god-ruling" && effect.status === "requires-god-ruling";
   return {
     name: effect.targetName,
     location: typeof ordinary.locationName === "string" ? ordinary.locationName : "Location needs a ruling",
     locationNumber: typeof application.hitLocationNumber === "number" ? application.hitLocationNumber : null,
-    damage: effect.status === "declined" ? 0 : typeof object(final.effect).amount === "number" ? Number(object(final.effect).amount) : null,
-    suggestedDamage: typeof calculated.netDamage === "number" ? calculated.netDamage : null,
-    outcome: roll.succeeded === false ? "Miss" : effect.status === "declined" ? "No damage" : "Hit",
+    damage: unresolved ? null : effect.status === "declined" || applied.kind === "health.heal" ? 0 : typeof applied.amount === "number" ? applied.amount : null,
+    healing: !unresolved && applied.kind === "health.heal" && typeof applied.amount === "number" ? applied.amount : null,
+    suggestedDamage: incoming ? null : typeof calculated.netDamage === "number" ? calculated.netDamage : null,
+    outcome: roll.succeeded === false ? "Miss" : unresolved ? "G.O.D. ruling required" : effect.status === "declined" ? "No damage" : applied.kind === "health.heal" ? "Absorbed as healing" : "Hit",
     explanation: effect.status === "declined" ? effect.amendmentReason : "",
-    calculation: roll.succeeded !== false ? ordinaryDamageCalculation(calculated) : null,
+    calculation: !incoming && roll.succeeded !== false ? ordinaryDamageCalculation(calculated) : null,
     questions: Array.isArray(ordinary.issues) ? ordinary.issues.filter((entry): entry is string => typeof entry === "string") : [],
   };
 }

@@ -55,7 +55,7 @@ export function isSimpleAdditiveWeaponHitDamage(effect: MechanicalEffect | null)
 
 export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   tx: Transaction, context: OwnedEncounterRuntimeContext, locked: LockedActionDeclarationSnapshot,
-  roll: RollMechanicalSnapshot, defense: Record<string, unknown> | null, ruling?: OrdinaryAttackRuling,
+  roll: RollMechanicalSnapshot, defense: Record<string, unknown> | null, ruling?: OrdinaryAttackRuling, sharedIncoming = true,
 ): Promise<ActionEffectPlanProposal> {
   const frozenSource = locked.authoredSource;
   if (!frozenSource || !["weapon", "creature-attack"].includes(frozenSource.kind) || locked.weapon?.firingModeId != null) {
@@ -97,8 +97,8 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       const pool = records(snapshot.hpPools).find((entry) => entry.canonicalId === poolKey);
       poolMaximumHp = numeric(pool?.maximumHp);
       totalMaximumHp = numeric(object(snapshot.core).totalHp);
-      armor = location ? creatureProtectionValue(location.naturalArmor) : null;
-      soak = location ? creatureProtectionValue(location.soak) : null;
+      armor = sharedIncoming ? 0 : location ? creatureProtectionValue(location.naturalArmor) : null;
+      soak = sharedIncoming ? 0 : location ? creatureProtectionValue(location.soak) : null;
       if (location?.locationEffect) issues.push("Authored location special effect needs a specific ruling.");
     } else {
       const health = await readActiveHealthInTransaction(tx, targetParticipantId, target.npcKind ?? "race");
@@ -107,6 +107,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       locationName = location?.name ?? "";
       poolMaximumHp = health.anatomy.pools.find(({ key }) => key === poolKey)?.maximumHp ?? null;
       totalMaximumHp = health.anatomy.totalMaximumHp;
+      if (sharedIncoming) { armor = 0; soak = 0; } else {
       const equipment = await readCharacterEquipmentStateInTransaction(tx, targetParticipantId);
       const protection = equipment.wornArmor.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(String(hitLocationNumber)));
       armor = protection.length === 0 ? 0 : protection.length === 1 ? protection[0].baseSoak : null;
@@ -115,6 +116,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       if (modifiers.length) issues.push("Armor damage-type rules require a specific ruling; free text was not converted to numbers.");
       if (protection.length > 1) issues.push("Multiple covering armor items require a stacking ruling.");
       soak = getActiveModifierTotal((await readActiveEffectsInTransaction(tx, targetParticipantId)).modifiers, "soak", "self");
+      }
     }
     if (!poolKey) issues.push(`The authored anatomy has no exact HP pool for location ${hitLocationNumber}.`);
     const base = numeric(source.authoredData.damage);
@@ -126,7 +128,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     if (locked.targetCharacterIds.length !== 1 && !adjudicated) issues.push("This ordinary attack needs a ruling for its multiple targets.");
     const weaponHitEffects = source.kind === "weapon" ? source.effects.filter((effect) => (
       (effect.instruction.weaponHit === true || effect.instruction.passiveWeapon === true) && effect.effect
-    )) : [];
+    )) : source.effects.filter((effect) => effect.instruction.creatureHit === true && effect.effect);
     const weaponHitDamage = weaponHitEffects.reduce((total, effect) => {
       if (effect.instruction.passiveWeapon === true && effect.effect?.kind === "modifier.apply" && effect.effect.channel === "damage") return total + effect.effect.amount;
       return effect.instruction.weaponHit === true && isSimpleAdditiveWeaponHitDamage(effect.effect)
@@ -134,7 +136,8 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
         : total;
     }, 0);
     const damageModifiers = object(source.authoredData.damageModifiers);
-    const modifierTotal = typeof damageModifiers.total === "number" ? damageModifiers.total : 0;
+    const completeCreatureDamage = sharedIncoming && source.kind === "creature-attack" && locked.actorCharacterId < 0;
+    const modifierTotal = !completeCreatureDamage && typeof damageModifiers.total === "number" ? damageModifiers.total : 0;
     const calculated = base !== null && armor !== null && armor >= 0 && soak !== null && soak >= 0
       ? { ...calculateOrdinaryAttackDamage(base, roll.resolution.additionalSuccesses, armor, soak, weaponHitDamage + modifierTotal),
           authoredBase: base, weaponHitDamage, damageModifiers } : null;
@@ -206,5 +209,5 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   }
   const unresolvedCritical = !ruling && (roll.resolution.requiresGodRuling || defense?.originalActionDisposition === "awaiting-god-ruling");
   return { status: unresolvedCritical || proposals.some(({ status }) => status === "requires-god-ruling") ? "requires-god-ruling" : "calculated", effects: proposals,
-    explanation: "Ordinary attack: numeric base damage plus extra successes, resolved location, then supported protection. Damage remains pending until effect application." };
+    explanation: "Ordinary attack: gross source damage and resolved location. The shared incoming-effect resolver owns target protection. Damage remains pending until effect application." };
 }

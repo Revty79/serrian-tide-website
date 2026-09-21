@@ -26,6 +26,8 @@ import { advanceInitiativeTimeline, getNextInitiativeTimelineEvent } from "@/fea
 import { setCombatFrozenInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { getAttributeModifier } from "@/features/characters/character-rules";
 import { completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
+import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import { cancelAuthoredActionBindingInTransaction, ruleOnInterruptedReactionInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { closeInitiativeRuntime } from "@/features/tabletop-operations/initiative-runtime";
 import { lockEncounterCloseoutContextInTransaction, finalizeEncounterCloseoutInTransaction } from "@/features/tabletop-operations/encounter-closeout-service";
@@ -316,8 +318,10 @@ test("firearm single-bullet Weapon-Hit damage merges once while periodic and non
     assert.equal(targetState.conditions.some(({ name }) => name === "Charged Mark"), true);
     assert.equal(targetState.modifiers.some(({ label }) => label === "Marked Shot"), true);
     const periodic = await tx.select().from(periodicTable).where(and(eq(periodicTable.encounterId, f.encounterId), eq(periodicTable.characterId, f.occurrences[0])));
-    assert.equal(periodic.length, 1);
-    assert.equal(periodic[0].remainingApplications, 2);
+    // Pass 5 routes this separate 3-damage rider through the target's 2 Armor
+    // and 1 Soak. Zero remaining damage creates no periodic application.
+    assert.equal(periodic.length, 0);
+    assert.equal(beforeApply.filter(({ status, effectType }) => status === "declined" && effectType === "health.damage").length, 1);
     throw rollback;
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });
@@ -1110,6 +1114,39 @@ test("decimal cycling and recoil costs persist, freeze and finish without roundi
     assert.equal((await f.rolls()).length, 0);
     assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).preparationId, preparation.preparationId);
     assert.deepEqual(await f.state(), done);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+for (const scenario of ["resistance", "absorption", "unknown-magical"] as const) test(`Pass 5 firearm ${scenario}: per-bullet interaction and ammunition retry`, async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "player", true);
+    const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+    const profile: InteractionRuleProfile = { schemaVersion: 1, rules: [{ key: "p5", name: "Private firearm rule", ruleType: scenario === "unknown-magical" ? "requirement" : scenario,
+      scope: "damage", match: "ALL", percentage: scenario === "unknown-magical" ? null : 50, crImpact: "None", sortOrder: 0, notes: "PRIVATE",
+      conditions: [scenario === "unknown-magical" ? { key: "magic", kind: "magical", magical: true } : { key: "family", kind: "source-kind", sourceKind: "weapon", weaponFamily: "firearm" }] }] };
+    const snapshot = target.creatureSnapshotJson as typeof f.creatureSnapshot;
+    await tx.update(occurrence).set({ creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: profile } }, localStateJson: { health: { totalDamage: 20, poolDamage: { "fixture-body": 20 } } } }).where(eq(occurrence.participantId, target.participantId));
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command), attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    const effects = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
+    const resolutions = effects.map((row) => storedIncomingResolution(row.authoredValueJson)).filter((row) => row !== null);
+    assert.equal(resolutions.length, 3);
+    for (const result of resolutions) {
+      assert.equal(result.input.source.weaponFamily, "firearm"); assert.equal(result.input.source.magical, null);
+      assert.equal(result.input.source.itemProperties, null); assert.equal(result.input.source.itemTags, null);
+      assert.equal(result.status, scenario === "unknown-magical" ? "requires-god-ruling" : scenario === "absorption" ? "absorbed" : "resolved");
+      if (scenario === "resistance") assert.equal(result.finalEffect?.damage, 1, "8 * .5 - 2 Natural Armor - 1 Natural Soak per bullet");
+      if (scenario === "absorption") assert.equal(result.finalEffect?.healing, 4);
+    }
+    if (scenario !== "unknown-magical") {
+      for (let i = 0; i < 2; i++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId)).status, "applied");
+      const [after] = await tx.select().from(occurrence).where(eq(occurrence.participantId, target.participantId));
+      assert.equal((after.localStateJson as { health: { totalDamage: number } }).health.totalDamage, scenario === "absorption" ? 8 : 23);
+    }
+    await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    assert.equal((await f.state()).loadedRounds, 0); assert.equal((await f.rolls()).length, 1);
     throw rollback;
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });

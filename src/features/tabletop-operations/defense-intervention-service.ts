@@ -1,5 +1,6 @@
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
+import { readAbilityResponseChoicesInTransaction, commitAbilityResponseResourcesInTransaction } from "./ability-response-service";
 import { isDeepStrictEqual } from "node:util";
 import {
   assertDeclarationCheckpointRevealed,
@@ -656,6 +657,42 @@ async function buildSourceAndCost(
     };
   }
 
+  if (input.reactionType === "intervention" && (input.sourceKind === "derived-ability" || input.sourceKind === "creature-ability")) {
+    const choices = await readAbilityResponseChoicesInTransaction(tx, context, actor, loaded.opportunity.responderCharacterId, loaded.opportunity.id);
+    const ref = input.sourceKind === "derived-ability" ? `derived-ability:${positiveId(input.derivedAbilityId ?? 0, "Derived Ability")}` : input.sourceRef;
+    const choice = choices.find((entry) => entry.kind === input.sourceKind && entry.ref === ref);
+    if (!choice || choice.status === "unavailable") throw new Error("This Triggered/Reaction Ability is not eligible for the current authoritative response window.");
+    const recordedReason = typeof choice.ruling?.reason === "string" ? choice.ruling.reason : "";
+    const useReason = isGod ? godReason || String(choice.ruling?.useRequirementsReason ?? "") : String(choice.ruling?.useRequirementsReason ?? "");
+    if (choice.status === "manual" && !useReason) throw new Error("This Ability has unknown Use Conditions or resources; an explicit G.O.D. use-requirements ruling is required.");
+    const creature = "abilityName" in choice.definition ? choice.definition.authoring : null;
+    const initiativeCost = choice.initiativeCost ?? (typeof choice.ruling?.initiativeCost === "number" ? choice.ruling.initiativeCost : isGod && godReason ? input.initiativeCost ?? null : null);
+    if (initiativeCost === null || initiativeCost <= 0) throw new Error("This Ability needs an authored Initiative cost or an explicit G.O.D. timing ruling.");
+    if (input.initiativeCost != null && input.initiativeCost !== initiativeCost) throw new Error("A response cannot replace the authoritative Ability Initiative cost.");
+    const mode = creature?.resolutionMode === "automatic" ? "automatic-no-roll" : creature?.resolutionMode === "fixed-roll" ? "fixed-roll" : choice.ruling?.mode;
+    let governingSource: RollGoverningSourceRequest | null = creature?.resolutionMode === "fixed-roll"
+      ? { kind: "manual", label: choice.name, originalTarget: creature.fixedRollTarget! } : null;
+    let governingSnapshot: DefenseSourceSnapshot["governingSnapshot"] = governingSource;
+    const recordedGoverning = choice.ruling?.governing as CharacterWeaponGoverningSelection | { kind: "manual"; label: string; originalTarget: number } | null | undefined;
+    if (!governingSource && recordedGoverning) {
+      const selected = recordedGoverning.kind === "manual" ? null : await exactSelectedSource(tx, loaded.opportunity.responderCharacterId, recordedGoverning);
+      governingSource = selected?.governingSource ?? recordedGoverning as RollGoverningSourceRequest;
+      governingSnapshot = selected?.governingSnapshot ?? recordedGoverning as DefenseSourceSnapshot["governingSnapshot"];
+    }
+    let rollRequired = mode !== "automatic-no-roll";
+    if (!mode || mode === "manual-god-ruling") {
+      if (!isGod || !godReason) throw new Error("This Ability requires a G.O.D. source resolution ruling before its controller can choose the response.");
+      rollRequired = input.rollRequired !== false;
+      if (rollRequired) {
+        if (typeof input.manualTarget !== "number" || !Number.isFinite(input.manualTarget)) throw new Error("A rolling Ability response requires its exact G.O.D. target.");
+        governingSource = { kind: "manual", label: choice.name, originalTarget: input.manualTarget }; governingSnapshot = governingSource;
+      }
+    }
+    if (rollRequired && !governingSource) throw new Error("The Ability response has no authoritative Roll source.");
+    return { source: { kind: input.sourceKind, label: choice.name, itemId: null, instanceId: null, skillAllocationId: null, attributeKey: null,
+      derivedAbilityId: input.sourceKind === "derived-ability" ? input.derivedAbilityId! : null, sourceRef: choice.ref, governingSource, governingSnapshot,
+      authoredContext: { abilityResponse: choice } }, initiativeCost, rollRequired, godReason: isGod ? godReason || recordedReason : recordedReason };
+  }
   if (!isGod) throw new Error("Tackle and general Intervention require Campaign-owning G.O.D. approval.");
   if (!godReason) throw new Error("Tackle or general Intervention requires a G.O.D. approval reason.");
   const sourceKind = input.sourceKind ?? "manual";
@@ -882,6 +919,11 @@ export async function declareDefenseInterventionInTransaction(
     )).limit(1);
     if (!tackle) throw new Error("The response does not oppose an exact declared Tackle against this Character.");
   }
+  if (input.sourceKind === "derived-ability" && loaded.opportunity.responderCharacterId > 0) {
+    // Serialize the same retained use ledger as ordinary/sheet Ability use.
+    await tx.select({ id: campaignCharacter.id }).from(campaignCharacter)
+      .where(eq(campaignCharacter.id, loaded.opportunity.responderCharacterId)).limit(1).for("update");
+  }
   const prepared = await buildSourceAndCost(tx, context, actor, loaded, input);
   const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, engine, loaded.opportunity.responderCharacterId, true);
@@ -943,6 +985,8 @@ export async function declareDefenseInterventionInTransaction(
     resolvedAt: noDefense ? now : null,
   }).returning({ id: campaignSessionEncounterReaction.id });
   if (!created) throw new Error("The defense/intervention declaration was not persisted.");
+  const abilityResponse = (prepared.source.authoredContext as { abilityResponse?: Awaited<ReturnType<typeof readAbilityResponseChoicesInTransaction>>[number] } | undefined)?.abilityResponse;
+  if (abilityResponse) await commitAbilityResponseResourcesInTransaction(tx, context, actor, loaded.opportunity.responderCharacterId, created.id, abilityResponse);
   await tx.update(campaignSessionEncounterResponderOpportunity).set({
     reactionId: created.id,
     status: "response-declared",
