@@ -3,7 +3,11 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { campaignCharacter, campaignCharacterAttribute } from "@/db/realm-schema";
-import { weaponProfile } from "@/db/item-schema";
+import { weaponProfile, itemPower, itemPowerResource, itemPowerEffect } from "@/db/item-schema";
+import { campaignCharacterItemInstance } from "@/db/realm-schema";
+import { reviewCombatItemReportInTransaction } from "@/features/combat-screen/item-report-service";
+import { attackReportSignature } from "@/features/combat-screen/attack-report";
+import { generateActionEffectPlanInTransaction, readActionEffectWorkspaceInTransaction, confirmActionEffectRulingInTransaction, resolveManualActionEffectInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
 import { campaignSessionEncounterInitiative as runtime, campaignSessionEncounterInitiativeParticipant as enrollment, campaignSessionEncounterActionDeclaration as declaration, campaignSessionEncounterParticipant as member, campaignSessionRoll as roll } from "@/db/tabletop-operations-schema";
 import { previewCombatChoiceInTransaction, submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
 import { choiceDraft, physicalPercentile, type CombatSubmission } from "@/features/combat-screen/choice-types";
@@ -25,6 +29,82 @@ import type { CombatScreenData } from "@/features/combat-screen/screen-types";
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the disposable combat completion harness.");
 after(() => pool.end());
 const rollback = new Error("ROLLBACK_SCREEN_FIXTURE");
+
+test("fixed-roll direct Item damage uses the original Roll for each target without a manual location or extra Roll", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    const [copy] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, equipmentState: "wielded", currentCharges: 3, unitCostCredits: 0 }).returning();
+    await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 3 });
+    const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Rolled blast", trigger: "activated", initiativeCost: 4, resourceCostKind: "shared-charges", resourceCostAmount: 1, resolutionMode: "fixed-roll", fixedRollTarget: 50, sortOrder: 0 }).returning();
+    await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } });
+    const choice = { participantId: f.heroId, targetIds: f.occurrences, itemTargetIds: f.occurrences,
+      source: { kind: "item" as const, ref: `item-power:${power.id}`, name: "Rolled blast", itemId: f.weaponId, instanceId: copy.id, description: "" } };
+    const submitted = await submitCombatChoiceInTransaction(tx, f.context, f.player, { choice, requestKey: crypto.randomUUID(), roll: { method: "entered", enteredTotal: 70 } });
+    assert.ok("declarationId" in submitted);
+    const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 18));
+    await resolveDeclaredDefensesIfReadyInTransaction(tx, f.context, f.god, submitted.declarationId);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, submitted.declarationId);
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find((entry) => entry.id === planId)!;
+    const damage = plan.effects.filter((entry) => entry.effectType === "health.damage");
+    assert.equal(damage.length, 2);
+    for (const effect of damage) {
+      assert.equal(effect.applicationSupported, true);
+      assert.equal((effect.finalValue as { application: { hitLocationNumber: number } }).application.hitLocationNumber, 0);
+    }
+    assert.equal((await reviewCombatItemReportInTransaction(tx, f.context, f.god, planId, attackReportSignature(plan), { kind: "apply" })).status, "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, copy.id)))[0].currentCharges, 2);
+    for (const id of f.occurrences) assert.equal(((await tx.select().from(member).where(eq(member.characterId, id)))[0].localStateJson as { health: { totalDamage: number } }).health.totalDamage, 2);
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 1);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
+test("Item review repairs a partially applied no-roll blast without replaying manual outcomes or spent Charges", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx);
+    const [copy] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, equipmentState: "wielded", currentCharges: 10, unitCostCredits: 0 }).returning();
+    await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 10 });
+    const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "No-roll blast", trigger: "activated", initiativeCost: 4, resourceCostKind: "shared-charges", resourceCostAmount: 2, resolutionMode: "automatic", sortOrder: 0 }).returning();
+    await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } });
+    const choice = { participantId: f.heroId, targetIds: f.occurrences, itemTargetIds: f.occurrences,
+      source: { kind: "item" as const, ref: `item-power:${power.id}`, name: "No-roll blast", itemId: f.weaponId, instanceId: copy.id, description: "" } };
+    const submitted = await submitCombatChoiceInTransaction(tx, f.context, f.player, { choice, requestKey: crypto.randomUUID() });
+    assert.ok("declarationId" in submitted);
+    const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 18));
+    await resolveDeclaredDefensesIfReadyInTransaction(tx, f.context, f.god, submitted.declarationId);
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, submitted.declarationId);
+    const read = async () => (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find((entry) => entry.id === planId)!;
+    let plan = await read();
+    await assert.rejects(tx.transaction((savepoint) => reviewCombatItemReportInTransaction(savepoint, f.context, f.player, planId, attackReportSignature(plan), { kind: "apply" })), /Only the campaign/);
+    await assert.rejects(tx.transaction((savepoint) => reviewCombatItemReportInTransaction(savepoint, f.context, f.god, planId, attackReportSignature(plan), { kind: "apply" })), /highlighted target/);
+    // Recreate the older screen's partial state using its existing public services.
+    await confirmActionEffectRulingInTransaction(tx, f.context, f.god, planId, "Old screen approved a plan before its locations were selected.");
+    plan = await read();
+    const manual = plan.effects.find((entry) => entry.targetParticipantId === f.occurrences[1])!;
+    await resolveManualActionEffectInTransaction(tx, f.context, f.god, planId, manual.id, "Already handled at the table", "Preserve this explicit decision.");
+    plan = await read();
+    assert.equal(plan.status, "partially-applied");
+    const remaining = plan.effects.find((entry) => entry.targetParticipantId === f.occurrences[0])!;
+    const signature = attackReportSignature(plan);
+    await assert.rejects(tx.transaction((savepoint) => reviewCombatItemReportInTransaction(savepoint, f.context, f.god, planId, "stale", { kind: "locations", locations: { [remaining.id]: 0 } })), /changed/);
+    await assert.rejects(tx.transaction((savepoint) => reviewCombatItemReportInTransaction(savepoint, f.context, f.god, planId, signature, { kind: "locations", locations: { [remaining.id]: 9 } })), /listed location/);
+    await reviewCombatItemReportInTransaction(tx, f.context, f.god, planId, signature, { kind: "locations", locations: { [remaining.id]: 0 } });
+    plan = await read();
+    assert.equal(plan.effects.find((entry) => entry.id === remaining.id)!.applicationSupported, true);
+    const readySignature = attackReportSignature(plan);
+    assert.equal((await reviewCombatItemReportInTransaction(tx, f.context, f.god, planId, readySignature, { kind: "apply" })).status, "applied");
+    assert.equal((await reviewCombatItemReportInTransaction(tx, f.context, f.god, planId, readySignature, { kind: "apply" })).status, "applied");
+    assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, copy.id)))[0].currentCharges, 8);
+    const targets = await tx.select().from(member).where(eq(member.encounterId, f.encounterId));
+    assert.equal((targets.find((entry) => entry.characterId === f.occurrences[0])!.localStateJson as { health: { totalDamage: number } }).health.totalDamage, 2);
+    assert.equal((targets.find((entry) => entry.characterId === f.occurrences[1])!.localStateJson as { health?: { totalDamage?: number } }).health?.totalDamage ?? 0, 0);
+    assert.equal((await read()).effects.find((entry) => entry.id === manual.id)!.status, "manual-resolved");
+    assert.equal((await tx.select().from(roll).where(eq(roll.encounterId, f.encounterId))).length, 0);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
 
 test("a critical lethal Roll cannot damage a Creature while the slower attack is unfinished; earlier concurrent work resolves first", async () => {
   await assert.rejects(db.transaction(async (tx) => {

@@ -547,21 +547,22 @@ export async function approveActionEffectPlanInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertGod(context, actor);
   const plan = await lockPlan(tx, context, planId);
-  if (plan.status === "approved" || plan.status === "applied" || plan.status === "partially-applied") return;
-  if (!['calculated', 'requires-god-ruling'].includes(plan.status)) throw new Error("Only a calculated Action Effect Plan may be approved.");
-  const reason = boundedReason(reasonInput, "Approval reason", plan.status === "requires-god-ruling");
+  if (plan.status === "approved" || plan.status === "applied") return;
+  if (!['calculated', 'requires-god-ruling', 'partially-applied'].includes(plan.status)) throw new Error("Only a calculated Action Effect Plan may be approved.");
+  const reason = boundedReason(reasonInput, "Approval reason", plan.status === "requires-god-ruling" || plan.status === "partially-applied");
+  const status = plan.status === "partially-applied" ? "partially-applied" : "approved";
   const now = new Date();
   await tx.update(campaignSessionEncounterEffect).set({ status: "approved", updatedAt: now }).where(and(
     eq(campaignSessionEncounterEffect.planId, plan.id),
     inArray(campaignSessionEncounterEffect.status, ["calculated", "requires-god-ruling"]),
   ));
   await tx.update(campaignSessionEncounterEffectPlan).set({
-    status: "approved",
+    status,
     reviewedByUserId: actor.userId,
     reviewedAt: now,
     updatedAt: now,
   }).where(eq(campaignSessionEncounterEffectPlan.id, plan.id));
-  await recordEvent(tx, context, plan.id, plan.status, "approved", "effect-plan-approved", actor.userId, reason);
+  await recordEvent(tx, context, plan.id, plan.status, status, "effect-plan-approved", actor.userId, reason);
 }
 
 /** Confirming the attack ruling also settles its narrative boundary, not just its damage. */
@@ -691,7 +692,10 @@ export async function ruleIncomingActionEffectInTransaction(tx: ActionEffectPlan
   await tx.update(campaignSessionEncounterEffect).set({ ...incomingProposalFields(proposed), authoredValueJson: row.authoredValueJson,
     finalValueJson: proposed.finalValue, amendmentReason: reason, amendedByUserId: actor.userId, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffect.id, row.id));
   const remaining = await tx.select({ status: campaignSessionEncounterEffect.status }).from(campaignSessionEncounterEffect).where(eq(campaignSessionEncounterEffect.planId, plan.id));
-  const status = remaining.some((effect) => effect.status === "requires-god-ruling") ? "requires-god-ruling" : "calculated";
+  // Retain the application ledger when a ruling repairs an unfinished target.
+  // Previously applied effects and costs must never become a fresh plan.
+  const status = plan.status === "partially-applied" ? "partially-applied"
+    : remaining.some((effect) => effect.status === "requires-god-ruling") ? "requires-god-ruling" : "calculated";
   await tx.update(campaignSessionEncounterEffectPlan).set({ status,
     reviewedAt: null, reviewedByUserId: null, updatedAt: new Date() }).where(eq(campaignSessionEncounterEffectPlan.id, plan.id));
   await recordEvent(tx, context, plan.id, plan.status, status, "incoming-effect-ruling", actor.userId, reason,

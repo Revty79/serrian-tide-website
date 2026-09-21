@@ -1,6 +1,7 @@
 import type { readCombatOperations } from "./operation-actions";
 import type { CombatScreenData } from "./screen-types";
 import { isOrdinaryAttackReport, isSpellResultReport } from "./attack-report";
+import { isItemResultReport } from "./item-report";
 
 export type CombatOperations = Awaited<ReturnType<typeof readCombatOperations>>;
 export type CombatFocus = { participantId: number; kind: "action" | "response" | "ruling"; planId?: number; sequence: number };
@@ -62,8 +63,8 @@ export function combatNextInput(data: CombatScreenData, operations: CombatOperat
     if (response) return respond(action, response);
     const defense = operations.defenses?.reactions.find((entry) => entry.declarationId === action.id && entry.status === "needs-ruling");
     if (defense) return { kind: "inspect", participantId: defense.responderCharacterId, focus: "response", label: `Rule on the defense against ${label}`, explanation: "Resolve the specific defense question before applying the attack." };
-    const report = operations.plans.find((entry) => entry.declarationId === action.id && (isOrdinaryAttackReport(entry) || isSpellResultReport(entry)) && ["calculated", "requires-god-ruling", "approved", "application-failed"].includes(entry.status));
-    if (report) return { kind: "review", planId: report.id, label: `Review ${action.actorName}'s ${label}`, explanation: report.sourceKind === "spell" ? "Review the spell report below, then approve its calculated effects in one step." : "Review the attack report below, then approve its location and damage in one step." };
+    const report = operations.plans.find((entry) => entry.declarationId === action.id && (isItemResultReport(entry) || (isOrdinaryAttackReport(entry) || isSpellResultReport(entry)) && ["calculated", "requires-god-ruling", "approved", "application-failed"].includes(entry.status)));
+    if (report) return { kind: "review", planId: report.id, label: `Review ${action.actorName}'s ${label}`, explanation: report.sourceKind === "item" ? "Review the Item's targets and effects below. Complete any missing choice, then apply the remaining effects once." : report.sourceKind === "spell" ? "Review the spell report below, then approve its calculated effects in one step." : "Review the attack report below, then approve its location and damage in one step." };
     const plan = operations.plans.find((entry) => entry.declarationId === action.id && ["requires-god-ruling", "partially-applied"].includes(entry.status));
     if (plan) return { kind: "inspect", participantId: action.actorCharacterId, focus: "ruling", planId: plan.id,
       label: `Rule on ${label} outcome`, explanation: plan.explanation };

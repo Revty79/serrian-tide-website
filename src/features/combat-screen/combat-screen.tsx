@@ -23,6 +23,7 @@ import { combatConditionMessage } from "@/features/tabletop-operations/combat-co
 import { ConditionAlerts } from "./condition-alerts";
 import { AttackReport } from "./attack-report-panel";
 import { SpellReport } from "./spell-report-panel";
+import { ItemReport } from "./item-report-panel";
 import { attackReportSignature } from "./attack-report";
 import { ForceEndDialog } from "./force-end-dialog";
 
@@ -176,6 +177,7 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
     </section> : null}
     {scope.role === "god" && nextInput.kind === "review" ? (operations ?? operationRead?.value)?.plans.filter((plan) => plan.id === nextInput.planId).map((plan) => plan.sourceKind === "spell"
       ? <SpellReport key={attackReportSignature(plan)} encounterId={scope.encounterId} plan={plan} disabled={disabled || !operations} refresh={() => reload()} />
+      : plan.sourceKind === "item" ? <ItemReport key={attackReportSignature(plan)} encounterId={scope.encounterId} plan={plan} disabled={disabled || !operations} refresh={() => reload()} />
       : <AttackReport key={attackReportSignature(plan)} encounterId={scope.encounterId} plan={plan} disabled={disabled || !operations} refresh={() => reload()} />) : null}
     {scope.role === "god" && data.projection ? <CloseoutPanel encounterId={scope.encounterId} token={data.projection.stateToken} encounterEnded={data.status === "completed"}
       resultRevision={JSON.stringify(data.projection.declarations.map((entry) => [entry.id, entry.status]))}

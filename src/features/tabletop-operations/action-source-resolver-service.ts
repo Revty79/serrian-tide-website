@@ -589,12 +589,14 @@ async function resolveItemPower(
     throw new Error("Direct Item Ability effects require the generic Item target.");
   }
   let magicTargetGroups: unknown[] = [];
-  const effects = effectRows.map((effect) => {
+  const effects = effectRows.flatMap((effect) => directTargets.map((target) => {
     const effectKey = `item-power:${row.power.id}:effect:${effect.id}`;
-    const target = directTargets[0];
     const selectionKey = `${effectKey}:target:${target}`;
-    return structuredEffect(effectKey, decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }), directTargets, false, { selectionKey, application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {} });
-  });
+    const definition = decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson });
+    return structuredEffect(effectKey, definition, [target], false, { selectionKey,
+      ...(row.power.resolutionMode === "fixed-roll" && definition.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
+      application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {} });
+  }));
   if (resolvedMagic) {
     const analysis = analyzeSpellTargetGroups(resolvedMagic.spell, resolvedMagic.adapter.effects);
     magicTargetGroups = analysis.groups.map((group) => ({ ...group }));
@@ -649,7 +651,7 @@ async function resolveItemPower(
       ? [{ key: `item-power:${row.power.id}:charges`, kind: "item-charges", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Spend the authored Ability Charges on the exact Item instance.", applicationSupported: true }]
       : [];
   const liveRevision = [row.itemUpdatedAt, row.powerUpdatedAt, row.sourceUpdatedAt, row.constructionUpdatedAt].filter(Boolean).map((date) => date!.toISOString()).sort().at(-1) ?? null;
-  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: { ...row.power, targetGroups: magicTargetGroups, areaEffectTemplates }, resourceCosts: costs, effects, warnings: effects.length ? [] : ["This Item Ability has no structured effects."] }) };
+  return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: { ...row.power, targetGroups: magicTargetGroups, areaEffectTemplates }, resourceCosts: costs, effects, warnings: effects.length || areaEffectTemplates.length ? [] : ["This Item Ability has no effects configured."] }) };
 }
 
 async function loadSpellDocument(

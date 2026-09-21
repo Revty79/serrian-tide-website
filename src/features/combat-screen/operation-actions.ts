@@ -26,6 +26,8 @@ import { attackReportSignature, isOrdinaryAttackReport, isSpellResultReport } fr
 import { forceEndCombatInTransaction } from "@/features/tabletop-operations/combat-force-end-service";
 import { creatureExperienceEvidence, npcRewardEvidence } from "@/features/tabletop-operations/combat-xp";
 import { combatConditionState } from "@/features/tabletop-operations/combat-condition-state";
+import { isItemResultReport } from "./item-report";
+import { reviewCombatItemReportInTransaction } from "./item-report-service";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");
@@ -68,7 +70,7 @@ export async function prepareCombatResult(scope: CombatScreenScope, declarationI
     await resolveDeclaredDefensesIfReadyInTransaction(tx, context, actor, declarationId);
     const planId = await generateActionEffectPlanInTransaction(tx, context, actor, declarationId, undefined, aoeSelections);
     const plan = (await readActionEffectWorkspaceInTransaction(tx, context)).plans.find((entry) => entry.id === planId)!;
-    if (isOrdinaryAttackReport(plan) || isSpellResultReport(plan)) return { planId, status: plan.status === "applied" ? "applied" : "awaiting-approval" };
+    if (isOrdinaryAttackReport(plan) || isSpellResultReport(plan) || isItemResultReport(plan)) return { planId, status: plan.status === "applied" ? "applied" : "awaiting-approval" };
     return applyRoutineCombatConsequencesInTransaction(tx, context, actor, declarationId, planId);
   }, true);
 }
@@ -130,6 +132,10 @@ export async function confirmCombatEffectRuling(encounterId: number, planId: num
     if (!reason.trim()) throw new Error("Record the specific effect ruling before applying its supported consequences.");
     return confirmActionEffectRulingInTransaction(tx, context, actor, planId, reason);
   }, true);
+}
+export async function reviewCombatItemReport(encounterId: number, planId: number, signature: string,
+  action: { kind: "locations"; locations: Record<string, number> } | { kind: "apply" }) {
+  return authorized({ role: "god", encounterId }, (tx, context, actor) => reviewCombatItemReportInTransaction(tx, context, actor, planId, signature, action), true);
 }
 export async function readCombatCloseout(encounterId: number) {
   return authorized({ role: "god", encounterId }, async (tx, context, actor) => {

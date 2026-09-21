@@ -96,6 +96,15 @@ test("automatic flow stops at one ordinary attack report, including when its cri
   }
 });
 
+test("Item results, including already-paid partial results, stay in the main review instead of repeating preparation", () => {
+  for (const status of ["calculated", "requires-god-ruling", "approved", "partially-applied", "application-failed"]) {
+    const next = combatNextInput(fixture(), { ...operations, plans: [{ id: 7, declarationId: 2, status, sourceKind: "item", sourceSnapshot: { identity: "item-power:7" } }] as unknown as CombatOperations["plans"] });
+    assert.equal(next.kind, "review");
+    assert.match(next.explanation, /remaining effects once/);
+    assert.equal(automaticCombatInputKey(next, "state-a"), null);
+  }
+});
+
 test("a crossover offers an independent ordinary choice before an optional response", () => {
   const data = fixture();
   data.projection!.declarations = [{ ...data.projection!.declarations[0], opportunities: [{ id: 4, responderCharacterId: -8, status: "pending", reactionId: null, requiresGodConfirmation: false }] as unknown as NonNullable<CombatScreenData["projection"]>["declarations"][number]["opportunities"] }];

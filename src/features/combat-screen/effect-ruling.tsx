@@ -18,7 +18,7 @@ export function EffectEvidence({ value, depth = 0 }: { value: unknown; depth?: n
   const data = object(value), fields = ["amount", "authoredBase", "baseDamage", "attribute", "attributeModifier", "activeModifier", "weaponHitDamage", "extraSuccesses", "grossDamage", "armor", "soak", "netDamage", "hitLocationName", "locationName", "reason", "explanation", "message", "instruction", "title", "description", "manualOutcome"];
   return <>{fields.filter((key) => ["string", "number"].includes(typeof data[key])).map((key) => <p key={key}>{key.replace(/([A-Z])/g, " $1")}: {combatMessage(String(data[key]))}</p>)}{Array.isArray(data.rulingReasons) ? data.rulingReasons.map((reason, index) => <p key={index}>{combatMessage(String(reason))}</p>) : null}{depth < 5 ? ["effect", "application", "ordinaryAttack", "calculated", "damageModifiers"].filter((key) => data[key]).map((key) => <EffectEvidence key={key} value={data[key]} depth={depth + 1} />) : null}</>;
 }
-export function EffectRuling({ encounterId, plan, focusSequence, disabled, closed, refresh }: { encounterId: number; plan: ActionEffectPlanView; focusSequence?: number; disabled: boolean; closed: boolean; refresh: () => Promise<void> }) {
+export function EffectRuling({ encounterId, plan, focusSequence, disabled, closed, refresh, expanded = false }: { encounterId: number; plan: ActionEffectPlanView; focusSequence?: number; disabled: boolean; closed: boolean; refresh: () => Promise<void>; expanded?: boolean }) {
   const [reason, setReason] = useState(""), [location, setLocation] = useState(""), [target, setTarget] = useState(""), [damage, setDamage] = useState("");
   const [amounts, setAmounts] = useState<Record<number, string>>({}), [outcomes, setOutcomes] = useState<Record<number, string>>({});
   const [pools, setPools] = useState<string[]>([]), [duration, setDuration] = useState("");
@@ -39,7 +39,7 @@ export function EffectRuling({ encounterId, plan, focusSequence, disabled, close
     catch (error) { setMessage(combatMessage(error instanceof Error ? error.message : "The ruling was not confirmed.")); await refresh(); }
     finally { running.current = false; setBusy(false); }
   }
-  return <details ref={detail}><summary>{plan.sourceSnapshot.displayName} · {plan.actorName} · {plan.status.replaceAll("-", " ")}</summary><p>{combatMessage(plan.explanation)}</p>
+  return <details ref={detail} open={expanded || undefined}><summary>{plan.sourceSnapshot.displayName} · {plan.actorName} · {plan.status.replaceAll("-", " ")}</summary><p>{combatMessage(plan.explanation)}</p>
     <label className="st-field">Result target<select className="st-control" value={selectedTarget || ""} onChange={(event) => setTarget(event.target.value)}><option value="">Choose a target</option>{plan.targetSnapshot.map((entry) => <option key={entry.participantId} value={entry.participantId}>{entry.name}</option>)}</select></label>
     {plan.effects.map((effect) => <fieldset key={effect.id}><legend>{effect.targetName}</legend><p>{combatEffectSummary(effect, true)}</p><IncomingEffectEvidence value={effect.authoredValue} status={effect.status} /><EffectEvidence value={effect.finalValue} />
       <IncomingEffectRuling encounterId={encounterId} planId={plan.id} effect={effect} reason={reason} disabled={disabled || closed || busy} run={run} />

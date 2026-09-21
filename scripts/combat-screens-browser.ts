@@ -1427,7 +1427,9 @@ try {
     results.push("Magazine UI: author capacity/ammunition, link a weapon, acquire two empty copies in the existing store, fill/top up/empty, and preserve separate contents and ammunition conservation after reload.");
     await director.context().close();
   }
-  if (include("item-powers")) for (const kind of ["depleted-weapon", "activated", "magic-area"] as const) {
+  if (include("item-powers")) for (const kind of ["depleted-weapon", "activated", "magic-area", "automatic-area", "heal-self", "heal-multiple", "damage-multiple"] as const) {
+    const area = kind === "magic-area" || kind === "automatic-area", healing = kind === "heal-self" || kind === "heal-multiple";
+    const rolled = kind === "depleted-weapon" || kind === "magic-area";
     const { f, copy, power } = await db.transaction(async (tx) => {
       const f = await screenFixture(tx, `item-powers-${kind}`);
       // A shared Charge pool requires individual copies, never the fixture's original quantity stack.
@@ -1436,13 +1438,27 @@ try {
       await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 3 });
       const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Screen Power", description: "Exact shared-pool combat fixture", trigger: kind === "depleted-weapon" ? "weapon-hit" : "activated", activationLabel: "Activate", initiativeCost: kind === "depleted-weapon" ? null : 4, resourceCostKind: "shared-charges", resourceCostAmount: 1,
         resolutionMode: kind === "depleted-weapon" ? "weapon-hit" : kind === "magic-area" ? "fixed-roll" : "automatic", fixedRollTarget: kind === "magic-area" ? 50 : null, sortOrder: 0 }).returning();
-      if (kind === "magic-area") {
+      if (area) {
         await tx.update(item).set({ isMagical: true }).where(eq(item.id, f.weaponId));
         const learned = await addScreenSpell(tx, f, true);
         await tx.insert(itemPowerConstruction).values({ itemPowerId: power.id, schemaVersion: 1, documentJson: JSON.stringify(learned.spell) });
-      } else await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Screen Mark", description: "A once-only item power", duration: { kind: "scene" } } });
+      } else await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: healing ? { kind: "health.heal", amount: 1, scope: "full-body" }
+        : kind === "damage-multiple" ? { kind: "health.damage", amount: 2, application: "localized" }
+        : { kind: "condition.apply", name: "Screen Mark", description: "A once-only item power", duration: { kind: "scene" } } });
       return { f, copy, power };
     });
+    if (healing) {
+      await pool.query("update campaign_character_active_health set total_damage=2 where character_id=$1", [f.heroId]);
+      await pool.query("insert into campaign_character_active_health_pool(character_id,pool_key,pool_name_snapshot,damage) values($1,'head','Head',2) on conflict(character_id,pool_key) do update set damage=2", [f.heroId]);
+      for (const id of f.occurrences) await pool.query("update campaign_session_encounter_participant set local_state_json=$1 where character_id=$2", [{ health: { totalDamage: 2, poolDamage: { "fixture-head": 2 } } }, id]);
+    }
+    if (kind === "damage-multiple") {
+      const anatomy = { ...f.creatureSnapshot,
+        hpPools: [...f.creatureSnapshot.hpPools, { canonicalId: "fixture-foreleg", poolName: "Right Foreleg", maximumHp: 30 }],
+        hitLocations: [...f.creatureSnapshot.hitLocations, { hitLocationNumber: 3, locationName: "Right Foreleg", hpPoolCanonicalId: "fixture-foreleg", soak: "0", naturalArmor: "0" }],
+      };
+      for (const id of f.occurrences) await pool.query("update campaign_session_encounter_participant set creature_snapshot_json=$1 where character_id=$2", [anatomy, id]);
+    }
     const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
     const view = screen(player), attack = kind === "depleted-weapon", command = attack ? "Attack" : "Item";
     await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: command, exact: true }).click();
@@ -1450,13 +1466,20 @@ try {
     const value = attack ? `weapon/instance:${copy.id}/${copy.id}` : `item/item-power:${power.id}/${copy.id}`;
     await until(async () => await source.locator(`option[value='${value}']`).count() === 1, "exact owned power source appears");
     await source.selectOption(value);
-    if (kind !== "magic-area") await view.getByRole("combobox", { name: "Target", exact: true }).selectOption(String(f.occurrences[0]));
-    if (kind !== "activated") {
+    if (kind === "heal-self") await view.getByRole("button", { name: "Use on myself", exact: true }).click();
+    else if (!area) await view.getByRole("combobox", { name: "Target", exact: true }).selectOption(String(f.occurrences[0]));
+    if (kind === "heal-multiple" || kind === "damage-multiple") await view.getByRole("combobox", { name: "Additional item target 1", exact: true }).selectOption(String(f.occurrences[1]));
+    if (kind === "damage-multiple") {
+      await view.getByRole("combobox", { name: /^Fixture Goblin 1: damage location/ }).selectOption("0");
+      await view.getByRole("combobox", { name: /^Fixture Goblin 2: damage location/ }).selectOption("3");
+    }
+    if (healing) assert.equal(await view.getByRole("combobox", { name: /damage location|area to heal/ }).count(), 0, "Full-body healing asks only for recipients.");
+    if (rolled) {
       await view.getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
       await view.getByLabel("Percentile result", { exact: true }).fill("70");
     }
-    await view.getByRole("button", { name: `Commit ${command}${kind === "activated" ? "" : " & Roll"}`, exact: true }).click();
-    if (kind === "magic-area") {
+    await view.getByRole("button", { name: `Commit ${command}${rolled ? " & Roll" : ""}`, exact: true }).click();
+    if (area) {
       await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /Choose affected participants for/ }).click();
       assert.equal((await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows[0].current_charges, 3);
       await screen(director).getByRole("combobox", { name: "Affected participants 1", exact: true }).selectOption(String(f.occurrences[0]));
@@ -1470,15 +1493,38 @@ try {
       await report.getByText(/Optional Weapon-Hit Power skipped/).waitFor();
       await report.getByRole("button", { name: "Approve & apply attack", exact: true }).click();
     }
+    if (!attack) {
+      const report = screen(director).getByRole("region", { name: "Item result report", exact: true });
+      await report.waitFor();
+      if (kind === "automatic-area") {
+        const calculate = report.getByRole("button", { name: "Calculate damage", exact: true });
+        assert.equal(await calculate.isDisabled(), true);
+        await report.getByRole("combobox", { name: "Fixture Goblin 1: damage location", exact: true }).selectOption("0");
+        await report.getByRole("combobox", { name: "Fixture Goblin 2: damage location", exact: true }).selectOption("0");
+        await screenshot(director, "item-blast-locations-phone", 390);
+        await calculate.click();
+      }
+      const apply = report.getByRole("button", { name: "Apply item effects", exact: true });
+      await until(() => apply.isEnabled(), `${kind} has one ready finish button`);
+      assert.equal((await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows[0].current_charges, 3, "Review and calculation do not spend Charges.");
+      if (kind === "automatic-area") await screenshot(director, "item-blast-ready-phone", 390);
+      await apply.click();
+    }
     await until(async () => (await declarations(f))[0]?.status === "resolved", `${kind} resolves through the actual controls`);
     const state = async () => ({ copies: (await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows,
       targets: (await pool.query("select character_id,local_state_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=any($2::int[]) order by character_id", [f.encounterId, f.occurrences])).rows,
+      heroDamage: (await pool.query("select total_damage from campaign_character_active_health where character_id=$1", [f.heroId])).rows[0].total_damage,
       rolls: (await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n });
     const after = await state();
     assert.equal(after.copies[0].current_charges, attack ? 0 : 2);
-    assert.equal(after.rolls, kind === "activated" ? 0 : 1);
+    assert.equal(after.rolls, rolled ? 1 : 0);
+    if (healing) assert.equal(after.heroDamage, kind === "heal-self" ? 1 : 2);
     for (const target of after.targets) {
-      if (kind === "magic-area") assert.equal(target.local_state_json.health.totalDamage, 2);
+      if (area || kind === "damage-multiple") {
+        assert.equal(target.local_state_json.health.totalDamage, 2);
+        if (kind === "damage-multiple") assert.equal(target.local_state_json.health.poolDamage[target.character_id === f.occurrences[0] ? "fixture-head" : "fixture-foreleg"], 2, "Each recipient keeps its own location choice.");
+      }
+      else if (healing) assert.equal(target.local_state_json.health.totalDamage, kind === "heal-self" ? 2 : 1);
       else if (target.character_id === f.occurrences[0]) {
         assert.equal(target.local_state_json.conditions.some((entry: { name: string }) => entry.name === "Screen Mark"), !attack);
         if (attack) assert.equal(target.local_state_json.health.totalDamage, 11);
