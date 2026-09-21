@@ -542,6 +542,10 @@ async function resolveItemPower(
     .where(and(eq(itemPower.id, powerId), eq(itemPower.trigger, "activated"))).limit(1);
   if (!row) throw new Error("The selected Item Ability no longer exists or is not activated.");
   await lockActiveItemRootInTransaction(tx, row.itemId);
+  if (row.constructionJson || row.sourceSkillId !== null) {
+    const [sourceItem] = await tx.select({ isMagical: item.isMagical }).from(item).where(eq(item.id, row.itemId)).limit(1);
+    if (!sourceItem?.isMagical) throw new Error("A construction-backed Item Ability requires a Magical Item.");
+  }
   if (draft.sourceInstanceId === null) {
     if (row.power.resourceCostKind === "shared-charges") throw new Error("This Ability requires an exact owned Item instance.");
     const [owned] = await tx.select({ quantity: campaignCharacterItem.quantity }).from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, draft.actorCharacterId), eq(campaignCharacterItem.itemId, row.itemId))).limit(1);

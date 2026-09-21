@@ -1,4 +1,5 @@
 "use client";
+import { AbilityConditionComparison } from "@/features/ability-use-conditions/comparison-editor";
 import { AbilityFactSelector } from "@/features/ability-use-conditions/fact-selector";
 
 import { useMemo, useState } from "react";
@@ -48,10 +49,10 @@ const ACQUISITION_EXPLANATIONS = {
 } as const;
 
 const ACTIVATION_EXPLANATIONS = {
-  passive: "Operates while applicable.",
+  passive: "Supported persistent effects are reconciled while Live requirements and Use Conditions are satisfied. Unknown conditions require review; Passive is not a chosen action.",
   activated: "Chosen deliberately by the player or G.O.D.",
-  reaction: "May be used in response to a future game event or window.",
-  triggered: "Becomes applicable because a defined event occurs.",
+  reaction: "May be chosen in an existing response window when its Event and Use Conditions are satisfied. Initiative and resources are spent only on commitment.",
+  triggered: "Becomes eligible when a supported authoritative Event and its Use Conditions are satisfied. Its controller chooses whether to use it; it does not fire automatically.",
 } as const;
 
 function Field({
@@ -563,21 +564,7 @@ function UseConditionsEditor({
       position === index ? { ...entry, ...update } : entry));
   }
   function changeType(index: number, conditionType: DerivedAbilityUseConditionType) {
-    patch(index, conditionType === "manual" ? {
-      conditionType,
-      conditionKey: null,
-      operator: null,
-      numericValue: null,
-      textValue: null,
-      notes: "",
-    } : {
-      conditionType,
-      conditionKey: "",
-      operator: null,
-      numericValue: null,
-      textValue: null,
-      notes: "",
-    });
+    patch(index, { conditionType });
   }
   function move(index: number, direction: -1 | 1) {
     const rows = [...draft.useConditions];
@@ -589,7 +576,7 @@ function UseConditionsEditor({
   return (
     <section className="derived-ability-card">
       <header className="derived-ability-card-heading">
-        <div><p>WHEN IT CAN BE USED</p><h3>Use Conditions</h3><span>Definition metadata only; Pass 4 does not enforce these conditions.</span></div>
+        <div><p>WHEN IT CAN BE USED</p><h3>Use Conditions</h3><span>Use Conditions are checked against authoritative runtime facts when the Ability is used. Unknown or Manual conditions require a G.O.D. ruling.</span></div>
         <button type="button" onClick={() => void preserveScroll(() => setRows([...draft.useConditions, {
           conditionType: "event",
           conditionKey: "",
@@ -603,20 +590,19 @@ function UseConditionsEditor({
       {!draft.useConditions.length ? <p className="derived-ability-empty">No use conditions.</p> : null}
       <div className="derived-ability-row-list">
         {draft.useConditions.map((condition, index) => (
-          <article className="derived-ability-edit-row" key={condition.id ?? `condition-${index}`}>
+          <article className="derived-ability-edit-row" data-use-condition key={condition.id ?? `condition-${index}`}>
             <header>
               <strong>{condition.conditionType} condition</strong>
               <RowActions onUp={() => move(index, -1)} onDown={() => move(index, 1)} onRemove={() => setRows(draft.useConditions.filter((_, position) => position !== index))} upDisabled={index === 0} downDisabled={index === draft.useConditions.length - 1} />
             </header>
             <div className="derived-ability-form-grid">
               <Field label="Condition Type">
-                <select value={condition.conditionType} onChange={(event) => changeType(index, event.target.value as DerivedAbilityUseConditionType)}>
+                <select aria-label="Condition Type" value={condition.conditionType} onChange={(event) => changeType(index, event.target.value as DerivedAbilityUseConditionType)}>
                   {DERIVED_ABILITY_USE_CONDITION_TYPES.map((type) => <option key={type} value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>)}
                 </select>
               </Field>
-              {condition.conditionType !== "manual" ? <Field label={condition.conditionType === "event" ? "Event" : "Condition"}><AbilityFactSelector category={condition.conditionType} value={condition.conditionKey} onChange={(conditionKey) => patch(index, { conditionKey })} /></Field> : null}
-              {condition.conditionType === "state" ? <><Field label="Comparison"><select value={condition.operator ?? ""} onChange={(event) => patch(index, { operator: (event.target.value || null) as DerivedAbilityRequirementOperator | null })}><option value="">Descriptive only</option>{NUMERIC_OPERATORS.map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}</select></Field><Field label="Numeric Value"><input type="number" step="any" value={condition.numericValue ?? ""} onChange={(event) => patch(index, { numericValue: numericValue(event.target.value) })} /></Field></> : null}
-              {condition.conditionType !== "manual" ? <Field label="Text Value" wide><input value={condition.textValue ?? ""} placeholder="Optional structured context" onChange={(event) => patch(index, { textValue: event.target.value || null })} /></Field> : null}
+              {condition.conditionType !== "manual" ? <div className="derived-ability-field is-wide"><span>{condition.conditionType === "event" ? "Event" : "Condition"}</span><AbilityFactSelector category={condition.conditionType} value={condition.conditionKey} onChange={(conditionKey) => patch(index, { conditionKey })} /></div> : null}
+              <AbilityConditionComparison condition={condition} onChange={(update) => patch(index, update)} />
               <Field label={condition.conditionType === "manual" ? "Manual Condition" : "Notes"} wide><textarea rows={3} value={condition.notes} placeholder={condition.conditionType === "manual" ? "G.O.D. determines whether the situation applies." : "Optional human-readable context"} onChange={(event) => patch(index, { notes: event.target.value })} /></Field>
             </div>
           </article>
@@ -633,7 +619,7 @@ function CostsEditor({ draft, onChange }: { draft: DerivedAbilityDraft; onChange
   function move(index: number, direction: -1 | 1) { const rows = [...draft.costs]; const target = index + direction; if (!rows[target]) return; [rows[index], rows[target]] = [rows[target]!, rows[index]!]; setRows(rows.map((entry, sortOrder) => ({ ...entry, sortOrder }))); }
   return (
     <section className="derived-ability-card">
-      <header className="derived-ability-card-heading"><div><p>COSTS</p><h3>Resource Costs</h3><span>Zero rows means no cost. Resources are not deducted in this pass.</span></div><button type="button" onClick={() => void preserveScroll(() => setRows([...draft.costs, { costType: "initiative", amount: 1, resourceKey: null, notes: "", sortOrder: draft.costs.length }]))}>Add Cost</button></header>
+      <header className="derived-ability-card-heading"><div><p>COSTS</p><h3>Resource Costs</h3><span>Zero rows means no cost. Supported Initiative and Mana costs are enforced by the existing runtime when their combat or pool context is available. Unsupported or custom costs require a G.O.D. ruling.</span></div><button type="button" onClick={() => void preserveScroll(() => setRows([...draft.costs, { costType: "initiative", amount: 1, resourceKey: null, notes: "", sortOrder: draft.costs.length }]))}>Add Cost</button></header>
       {!draft.costs.length ? <p className="derived-ability-empty">No costs.</p> : null}
       <div className="derived-ability-row-list">
         {draft.costs.map((cost, index) => {
@@ -652,7 +638,7 @@ function UseLimitsEditor({ draft, onChange }: { draft: DerivedAbilityDraft; onCh
   function move(index: number, direction: -1 | 1) { const rows = [...draft.useLimits]; const target = index + direction; if (!rows[target]) return; [rows[index], rows[target]] = [rows[target]!, rows[index]!]; setRows(rows.map((entry, sortOrder) => ({ ...entry, sortOrder }))); }
   return (
     <section className="derived-ability-card">
-      <header className="derived-ability-card-heading"><div><p>USES AND REFRESH</p><h3>Use Limits / Recharge</h3><span>Definition metadata only; no counters or automatic recharge run yet.</span></div><button type="button" onClick={() => void preserveScroll(() => setRows([...draft.useLimits, { maximumUses: 1, refreshScope: "round", refreshKey: null, notes: "", sortOrder: draft.useLimits.length }]))}>Add Limit</button></header>
+      <header className="derived-ability-card-heading"><div><p>USES AND REFRESH</p><h3>Use Limits / Recharge</h3><span>Committed uses are recorded in the Derived Ability ledger. Round, Encounter and Scene limits count uses in the matching context; Never counts uses since acquisition. Manual and Event recharge use explicit recorded resets, not an automatic event listener. Missing context requires a G.O.D. ruling.</span></div><button type="button" onClick={() => void preserveScroll(() => setRows([...draft.useLimits, { maximumUses: 1, refreshScope: "round", refreshKey: null, notes: "", sortOrder: draft.useLimits.length }]))}>Add Limit</button></header>
       {!draft.useLimits.length ? <p className="derived-ability-empty">No use limits.</p> : null}
       <div className="derived-ability-row-list">
         {draft.useLimits.map((limit, index) => <article className="derived-ability-edit-row" key={limit.id ?? `limit-${index}`}><header><strong>{limit.maximumUses} use{limit.maximumUses === 1 ? "" : "s"} · {limit.refreshScope}</strong><RowActions onUp={() => move(index, -1)} onDown={() => move(index, 1)} onRemove={() => setRows(draft.useLimits.filter((_, position) => position !== index))} upDisabled={index === 0} downDisabled={index === draft.useLimits.length - 1} /></header><div className="derived-ability-form-grid"><Field label="Maximum Uses"><input type="number" min={1} step={1} value={limit.maximumUses} onChange={(event) => patch(index, { maximumUses: Number(event.target.value) })} /></Field><Field label="Refresh Scope"><select value={limit.refreshScope} onChange={(event) => patch(index, { refreshScope: event.target.value as DerivedAbilityRefreshScope, refreshKey: null })}>{DERIVED_ABILITY_REFRESH_SCOPES.map((scope) => <option key={scope} value={scope}>{scope[0]!.toUpperCase() + scope.slice(1)}</option>)}</select></Field>{limit.refreshScope === "event" ? <Field label="Refresh Event Key" wide><input value={limit.refreshKey ?? ""} placeholder="appropriate-event" onChange={(event) => patch(index, { refreshKey: event.target.value || null })} /></Field> : null}<Field label="Notes" wide><textarea rows={2} value={limit.notes} onChange={(event) => patch(index, { notes: event.target.value })} /></Field></div></article>)}
@@ -713,7 +699,7 @@ export function DerivedAbilityConstructor({
               {DERIVED_ABILITY_ACTIVATION_TYPES.map((type) => <option key={type} value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>)}
             </select>
           </Field>
-          <p className="derived-ability-explanation">{ACTIVATION_EXPLANATIONS[draft.activationType]} This classification does not execute combat behavior in Pass 5.</p>
+          <p className="derived-ability-explanation">{ACTIVATION_EXPLANATIONS[draft.activationType]}</p>
         </div>
       </section>
 

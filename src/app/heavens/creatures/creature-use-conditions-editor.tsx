@@ -8,12 +8,11 @@ import {
   type DerivedAbilityUseConditionType,
 } from "@/features/derived-abilities/models";
 import { AbilityFactSelector } from "@/features/ability-use-conditions/fact-selector";
+import { ABILITY_CONDITION_OPERATOR_LABELS } from "@/features/ability-use-conditions/authoring";
 import styles from "./creature-use-conditions-editor.module.css";
 
 const operatorLabels: Record<DerivedAbilityRequirementOperator, string> = {
-  gte: "Greater than or equal to", gt: "Greater than",
-  lte: "Less than or equal to", lt: "Less than",
-  eq: "Equal to", neq: "Not equal to",
+  ...ABILITY_CONDITION_OPERATOR_LABELS,
   possessed: "Present / possessed", "not-possessed": "Not present / not possessed",
 };
 const typeLabels: Record<DerivedAbilityUseConditionType, string> = {

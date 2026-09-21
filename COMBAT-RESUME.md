@@ -1,5 +1,14 @@
 # Combat resumption handoff
 
+## Pass 5 final correction: Derived Use Condition authoring (20 September 2026)
+
+**Parent revision:** `a786f4d859fa7486fd49533cac7deec922e66339`. Brannan accepted the runtime structure and requested focused authoring/runtime parity. **Stop after this correction commit for Brannan and Ember review. Pass 6 has not started.**
+
+- Derived Ability comparisons now follow the shared fact type: boolean presence, numeric comparisons, text equality and implicit Event matching. All operators use plain English. Custom keys and hidden/ambiguous legacy fields stay editable; changing a condition's type no longer erases data. Help describes the current cost, ledger and activation behavior.
+- Real browser save/reload checks evaluate the saved conditions through database-backed facts, including an actual response-window Event. Existing Creature authoring tests and combat expectations remain unchanged.
+- The required Item Magical regressions exposed invalid stored construction-backed powers bypassing the existing authoring invariant at combat lock. A narrow check under the existing Item root lock now requires a Magical Item for both custom and canonical constructions. Valid actions still freeze and retain their accepted Magical facts; no unrelated combat mechanics changed.
+- [Correction report, exact files, validation and review boundaries](docs/reports/derived-use-condition-authoring-correction-2026-09-20.md). No migrations, backfills, live data edits, push or deployment. Harvest & Utility is unchanged.
+
 ## Pass 5: runtime and combat integration (20 September 2026)
 
 **Parent revision:** `64bff7e31103c3b29724278f2c4cce79c184cff1`. Brannan authorized the integration of both incoming effects and shared Ability Use Conditions. **Stop after this Pass 5 commit for Brannan and Ember review. Pass 6 has not started.** This section supersedes the earlier statements that the resolver and Use Conditions are authoring-only.

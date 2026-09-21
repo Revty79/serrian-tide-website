@@ -5,7 +5,10 @@ import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { race } from "@/db/race-schema";
 import { creature } from "@/db/creature-schema";
-import { item, itemProperty, itemPower, itemPowerEffect, armorProfile, armorLocation, armorLocationReference } from "@/db/item-schema";
+import { item, itemProperty, itemPower, itemPowerEffect, itemPowerConstruction, itemPowerSource, armorProfile, armorLocation, armorLocationReference } from "@/db/item-schema";
+import { skillExtension } from "@/db/skill-schema";
+import { createContainer, createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
+import { validateItemPowers, type ItemPower } from "@/features/items/item-powers";
 import { derivedAbility, derivedAbilityCost, derivedAbilityEffect, derivedAbilityUseCondition, characterDerivedAbility, characterDerivedAbilityUse, campaignAllowedDerivedAbility } from "@/db/derived-ability-schema";
 import { recordCombatSourceResolutionInTransaction } from "@/features/tabletop-operations/combat-source-resolution-service";
 import { campaignCharacter, campaignCharacterProfile, campaignCharacterAttribute, campaignCharacterActiveModifier,
@@ -367,4 +370,42 @@ isolated("Player Derived Reaction uses its real event, Initiative and retained u
   assert.equal(await declareDefenseInterventionInTransaction(tx, f.context, f.player, command), reaction);
   assert.equal((await tx.select().from(characterDerivedAbilityUse).where(eq(characterDerivedAbilityUse.characterId, f.heroId))).length, 1);
   assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find((participant) => participant.characterId === f.heroId)!.currentInitiative, 17);
+});
+
+for (const kind of ["custom", "canonical"] as const) isolated(`${kind} construction-backed Item Ability rejects a mundane Item and freezes Magical true`, async (tx, f) => {
+  const document = { ...createEmptySpell(), name: "No name-based magic inference", castingSystem: "Spellcraft" as const, sphere: "Force", frameworkSkillId: f.skillId,
+    containers: [{ ...createContainer("target"), id: "magic-target", effects: [{ id: "magic-damage", ruleId: "damage", quantity: 2, description: "" }] }] };
+  const authored: ItemPower = { id: null, name: "Construction", description: "", trigger: "activated", activationLabel: "", initiativeCost: 4,
+    resourceCostKind: "none", resourceCostAmount: null, requiredEquipmentState: null, resolutionMode: "automatic", fixedRollTarget: null,
+    fixedPowerLevel: null, effects: [], sortOrder: 0,
+    customConstruction: kind === "custom" ? { document } : null,
+    source: kind === "canonical" ? { sourceSkillId: f.skillId, sourceSkillName: "Canonical", sourceExtensionType: "spell-construction", sourceSchemaVersion: 1, archived: false } : null };
+  assert.throws(() => validateItemPowers({ powers: [authored], isMagical: false, hasWeaponProfile: true, hasChargePool: false }), /Magical Item/);
+  assert.equal(validateItemPowers({ powers: [authored], isMagical: true, hasWeaponProfile: true, hasChargePool: false }).length, 1);
+  const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: authored.name, trigger: "activated", initiativeCost: 4, resolutionMode: "automatic", resourceCostKind: "none", sortOrder: 0 }).returning();
+  if (kind === "custom") await tx.insert(itemPowerConstruction).values({ itemPowerId: power.id, schemaVersion: 1, documentJson: JSON.stringify(document) });
+  else {
+    await tx.insert(skillExtension).values({ skillId: f.skillId, extensionType: "spell-construction", schemaVersion: 1, dataJson: JSON.stringify(document) });
+    await tx.insert(itemPowerSource).values({ itemPowerId: power.id, sourceKind: "spell-construction", sourceSkillId: f.skillId, sourceExtensionType: "spell-construction", sourceSchemaVersion: 1 });
+  }
+  const target = f.occurrences[0], sourceRef = `item-power:${power.id}`;
+  const required = rules("requirement", null, { key: "magic", kind: "magical", magical: true });
+  await tx.update(member).set({ creatureSnapshotJson: { ...f.snapshot, core: { ...f.snapshot.core, interactionRules: { ...required, rules: required.rules.map((rule) => ({ ...rule, crImpact: "None" })) } } } }).where(eq(member.characterId, target));
+  await tx.update(initiative).set({ participationStatus: "active" }).where(eq(initiative.characterId, f.heroId));
+  const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, target), sourceKind: "item", sourceRef,
+    actionKind: "ability-use", windowKind: "ordinary", sourcePayload: { selections: { targetGroups: { "magic-target": [target] } },
+      effectSelections: { [`${sourceRef}:magic:magic-damage:target:${target}`]: { hitLocationNumber: 0, poolKey: "body" } } } });
+  await assert.rejects(lockActionDeclarationInTransaction(tx, f.context, f.player, id), /Magical Item/);
+  await tx.update(item).set({ isMagical: true }).where(eq(item.id, f.weaponId));
+  await lockActionDeclarationInTransaction(tx, f.context, f.player, id);
+  const [locked] = await tx.select().from(declaration).where(eq(declaration.id, id));
+  assert.equal((locked.lockedSnapshotJson as { authoredSource: { incomingSourceFacts: { magical: boolean } } }).authoredSource.incomingSourceFacts.magical, true);
+  await commitActionDeclarationInTransaction(tx, f.context, f.player, id);
+  await tx.update(item).set({ isMagical: false }).where(eq(item.id, f.weaponId));
+  const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+  await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 18));
+  const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, id);
+  const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
+  const result = storedIncomingResolution(row.authoredValueJson)!;
+  assert.equal(result.input.source.magical, true); assert.equal(result.status, "resolved"); assert.ok(result.finalEffect!.damage > 0);
 });
