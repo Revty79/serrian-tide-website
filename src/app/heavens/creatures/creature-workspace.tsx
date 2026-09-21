@@ -416,7 +416,7 @@ function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onChange: (
         <Field label="Body Parts" wide><input value={row.bodyPartsIncluded} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { bodyPartsIncluded: e.target.value })} /></Field>
         <Field label="HP Pool"><select value={row.hpPoolCanonicalId ?? ""} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { hpPoolCanonicalId: e.target.value || null })}><option value="">None</option>{draft.hpPools.map((pool) => <option key={pool.canonicalId} value={pool.canonicalId}>{pool.poolName}</option>)}</select><small>Maximum HP: {formatCreatureNumber(resolveCreatureHitLocationMaximumHp(row.hpPoolCanonicalId, hpModel.pools))}</small></Field>
         <Field label="Natural Armor"><OptionalNumber value={row.naturalArmor} onChange={(value) => patchArray(draft, onChange, "hitLocations", index, { naturalArmor: value })} /></Field>
-        <Field label="Soak"><OptionalNumber value={row.soak} onChange={(value) => patchArray(draft, onChange, "hitLocations", index, { soak: value })} /></Field>
+        <Field label="Natural Soak"><OptionalNumber value={row.soak} onChange={(value) => patchArray(draft, onChange, "hitLocations", index, { soak: value })} /></Field>
         <Field label="Location Effect" wide><input value={row.locationEffect} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { locationEffect: e.target.value })} /></Field>
         <Field label="Notes" wide><textarea rows={2} value={row.notes} onChange={(e) => patchArray(draft, onChange, "hitLocations", index, { notes: e.target.value })} /></Field>
       </div>

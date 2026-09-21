@@ -1,5 +1,17 @@
 # Combat resumption handoff
 
+## Pass 3 — Natural vs Worn Protection (20 September 2026)
+
+**Parent revision:** `9a446111ff497cee219d9cf4465a2764deebb7f6`. Brannan accepted Passes 1 and 2 enough to proceed and authorized this shared protection-model pass. This supersedes the earlier wait-before-Pass-3 instructions.
+
+- One server-only protection projection preserves separate worn, natural and temporary source arrays and exact location coverage. Direct Creatures use encounter snapshot anatomy; Creature NPCs use current individual snapshots alongside existing worn equipment; normal Characters/Race NPCs resolve their assigned Race's current Natural Protection. No numbers are copied into Character records or combined into a generic armor total.
+- Race Mechanics adds compact Natural Protection definitions with readable All / selected location coverage between Movement and Racial Interaction Rules. Additive migration `0063_race_natural_protection.sql` owns definitions and coverage child rows. Creature master/NPC fields now say Natural Armor / Natural Soak, retaining the existing storage.
+- Worn armor keeps ownership/copy identity, quantity, coverage and damage-type metadata. Active Soak modifiers keep sources and durations as temporary/other, excluding ended/expired entries. No stacking or richer modifier execution is inferred. [Architecture and decisions](docs/architecture/protection-layers.md); [validation, exact files and migration report](docs/reports/protection-layers-pass-3-2026-09-20.md).
+- NPC saves retain existing ownership rows so an anatomy edit cannot cascade away Worn state. Existing inventory authorization, active-quantity checks and reconciliation remain in force. DEV migration is additive: all 64 hashes match, all 158 previous table data digests are unchanged, and both new tables are empty after a verified backup.
+- Validation passed: **1,441 feature tests**, **19 unchanged combat damage service cases**, expanded disposable migration/Race/Character/Creature/NPC/browser checks including Worn-state retention and mobile save/reload, TypeScript, changed-file lint, Drizzle checks, production build and diff checks. Automated checks are not human acceptance.
+- **Future approved order:** source qualification → worn/external → interaction rules → natural → temporary/other → final HP effect. Absorbed healing must bypass natural and temporary reduction. Both remain documentation only.
+- **No final damage math or existing combat read path changed. Interaction Rules still do not execute. No Event/State/Equipment runtime work. Pass 4 has not started. Stop after this Pass 3 commit for review.**
+
 ## Step 2 final Use Conditions correction (20 September 2026)
 
 **Parent revision:** `4b23143c9f2b44bfb06d6c027dc5b1f198434d60`. This is the final requested authoring/usability correction, pending Brannan's review.

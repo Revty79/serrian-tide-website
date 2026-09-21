@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { checkProtectionLayers } from "./protection-layer-checks";
 import { authorCreatureUseConditions, checkSavedCreatureUseConditions } from "./creature-use-conditions-browser-checks";
 import { assertAttackPrimaryFields, checkOrdinaryCreatureUi } from "./creature-authoring-ui-checks";
 import { authorInteractionRules, checkRejectedPercentages, checkRaceInteractions, setDetailsOpen } from "./interaction-rule-browser-checks";
@@ -59,6 +60,7 @@ async function main() {
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();
     await page.getByText("Authoring Test Creature was saved.", { exact: true }).waitFor();
     const creatureId = (await pool.query("select id from creatures where created_by_user_id=$1", [userId])).rows[0].id as number;
+    await pool.query("insert into creature_hit_locations(creature_id,hit_location_number,location_name,natural_armor,soak,sort_order) values ($1,9,'Scales',3,2,0)", [creatureId]);
     // Legacy rows have no authoring profile and must remain editable without backfilling mechanics.
     await pool.query("insert into creature_attacks (creature_id,canonical_id,attack_name,attack_percentage,damage,range_reach,special_effect) values ($1,'ATK-AUTHORING-LEGACY','Legacy Bite',62,'1d6','Within reach','Legacy venom remains descriptive')", [creatureId]);
     await pool.query("insert into creature_abilities (creature_id,canonical_id,ability_name,ability_type,activation,mechanical_effect) values ($1,'ABL-AUTHORING-LEGACY','Legacy Trait','Unknown old origin','While awake','Keep the old mechanical notes')", [creatureId]);
@@ -289,6 +291,7 @@ async function main() {
     assert.deepEqual(variant, template.core.interactionRules);
     await checkRaceInteractions(page, pool, base, artifacts);
     await checkOrdinaryCreatureUi(page, base, artifacts);
+    await checkProtectionLayers(page, { base, artifacts, campaignId, userId, creatureId, npcId, encounterId });
     assert.deepEqual(errors, []);
     const result = { passed: true, checks: ["simple Attack and Ability cards", "collapsed legacy data preservation", "unchanged Harvest & Utility", "progressive rule matching", "unopened structured profile preservation", "shared Creature/Race Interaction Rules", "all matcher types", "ANY/ALL", "percentage validation", "stable keys and ordering", "NPC interaction editing", "variant interaction copy", "Race archive/restore", "old records load/save", "legacy snapshots", "conditional range UI", "ordered On-Hit Effects", "shared magic editor", "four activation types", "costs/recharge", "Origin preservation", "Harvest & Utility", "NPC construction and individual editing", "direct encounter snapshots", "archive/restore", "phone authoring layout"], errors };
     await writeFile(path.join(artifacts, "results.json"), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result, null, 2));

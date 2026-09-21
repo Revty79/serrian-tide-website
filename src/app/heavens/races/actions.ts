@@ -32,6 +32,8 @@ import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-
 import { raceSkillCandidateFilter } from "@/features/races/race-skill-query";
 import { assertRaceSkillsEligible } from "@/features/races/race-skills";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { normalizeRaceNaturalProtection, type RaceNaturalProtection } from "@/features/races/race-natural-protection";
+import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
 
 export type RaceLibraryFilters = {
   search?: string;
@@ -70,6 +72,7 @@ export type RaceSkillCandidate = {
 
 export type RaceDraft = {
   id?: number;
+  naturalProtections?: RaceNaturalProtection[];
   core: {
     interactionRules?: InteractionRuleProfile | null;
     name: string;
@@ -236,6 +239,7 @@ function normalizeRace(input: RaceDraft) {
     attributeCaps,
     movementModes,
     skillLinks,
+    naturalProtections: input.naturalProtections === undefined ? undefined : normalizeRaceNaturalProtection(input.naturalProtections),
   };
 }
 
@@ -359,6 +363,7 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
     attributeCaps: caps.map(({ attributeKey, maxValue, sortOrder }) => ({ attributeKey, maxValue, sortOrder })),
     movementModes: movements.map(({ movementMode, baseValue, notes, sortOrder }) => ({ movementMode, baseValue, notes, sortOrder })),
     skillLinks: links,
+    naturalProtections: await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, id)),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -482,6 +487,7 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
       })));
     }
 
+    if (normalized.naturalProtections !== undefined) await saveRaceNaturalProtectionInTransaction(tx, id, normalized.naturalProtections);
     return id;
   });
 

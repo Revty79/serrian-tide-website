@@ -3,6 +3,7 @@
 import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
 
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
+import { RaceNaturalProtectionEditor } from "./race-natural-protection-editor";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -67,6 +68,7 @@ function newRaceDraft(): RaceDraft {
       sortOrder,
     })),
     movementModes: [],
+    naturalProtections: [],
     skillLinks: [],
   };
 }
@@ -338,6 +340,7 @@ function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Ra
       <input placeholder="Notes" value={movement.notes} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} />
       <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: draft.movementModes.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
+    <RaceNaturalProtectionEditor value={draft.naturalProtections ?? []} onChange={(naturalProtections) => onChange({ ...draft, naturalProtections })} />
     <InteractionRulesEditor owner="race" value={draft.core.interactionRules} onChange={(interactionRules) => onChange({ ...draft, core: { ...draft.core, interactionRules } })} />
   </div>;
 }

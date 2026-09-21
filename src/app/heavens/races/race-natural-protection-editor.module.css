@@ -1,0 +1,11 @@
+.editor { display: grid; gap: .9rem; min-width: 0; padding-top: 1rem; border-top: 1px solid var(--st-border); color: var(--st-text); }
+.editor h3, .editor p { margin: 0; }
+.editor p { color: var(--st-muted); font-size: .9rem; }
+.row { display: grid; gap: .85rem; min-width: 0; padding: .9rem; border: 1px solid var(--st-border); border-radius: .65rem; background: var(--st-surface-soft); }
+.fields { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+.fields > label { min-width: 0; }
+.fields input, .fields select { min-width: 0; width: 100%; }
+.locations { min-width: 0; border: 1px solid var(--st-border); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: .4rem; padding: .6rem; }
+.locations label { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }
+.locations input { width: 1.15rem; height: 1.15rem; accent-color: var(--st-primary); }
+.editor button { justify-self: start; }

@@ -442,6 +442,13 @@
       "when": 1789942123245,
       "tag": "0062_interaction_rule_authoring",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1789947576181,
+      "tag": "0063_race_natural_protection",
+      "breakpoints": true
     }
   ]
 }

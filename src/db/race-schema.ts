@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -90,6 +91,31 @@ export const race = pgTable(
     ),
   ],
 );
+
+export const raceNaturalProtection = pgTable("race_natural_protections", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").notNull().references(() => race.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  name: text("name").notNull(),
+  naturalArmor: doublePrecision("natural_armor").notNull(),
+  naturalSoak: doublePrecision("natural_soak").notNull(),
+  coverageKind: text("coverage_kind").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+}, (table) => [
+  uniqueIndex("race_natural_protection_key_uq").on(table.raceId, table.key),
+  check("race_natural_protection_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0`),
+  check("race_natural_protection_amounts_valid", sql`${table.naturalArmor} >= 0 AND ${table.naturalArmor} < 'Infinity'::float8 AND ${table.naturalSoak} >= 0 AND ${table.naturalSoak} < 'Infinity'::float8`),
+  check("race_natural_protection_coverage_valid", sql`${table.coverageKind} IN ('all', 'locations')`),
+  check("race_natural_protection_order_valid", sql`${table.sortOrder} >= 0`),
+]);
+
+export const raceNaturalProtectionLocation = pgTable("race_natural_protection_locations", {
+  protectionId: integer("protection_id").notNull().references(() => raceNaturalProtection.id, { onDelete: "cascade" }),
+  locationKey: text("location_key").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.protectionId, table.locationKey] }),
+  check("race_natural_protection_location_valid", sql`${table.locationKey} IN ('0','1','2','3','4','5','6','7','8','9')`),
+]);
 
 export const raceAttributeCap = pgTable(
   "race_attribute_caps",

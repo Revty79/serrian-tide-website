@@ -1113,14 +1113,23 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       nextStackQuantities: items,
       removedInstanceIds,
     });
-    await tx.delete(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, input.characterId));
+    // Retain ownership rows so an anatomy edit cannot cascade-delete Worn state.
+    const ownedStacks = await tx.select({ itemId: campaignCharacterItem.itemId }).from(campaignCharacterItem)
+      .where(eq(campaignCharacterItem.characterId, input.characterId));
+    const removedStackIds = ownedStacks.filter(({ itemId }) => !items.some((entry) => entry.itemId === itemId)).map(({ itemId }) => itemId);
+    if (removedStackIds.length) await tx.delete(campaignCharacterItem).where(and(
+      eq(campaignCharacterItem.characterId, input.characterId), inArray(campaignCharacterItem.itemId, removedStackIds),
+    ));
     if (items.length) {
       await tx.insert(campaignCharacterItem).values(items.map((entry) => ({
         characterId: input.characterId,
         itemId: entry.itemId,
         quantity: entry.quantity,
         unitCostCredits: entry.unitCostCredits,
-      })));
+      }))).onConflictDoUpdate({
+        target: [campaignCharacterItem.characterId, campaignCharacterItem.itemId],
+        set: { quantity: sql`excluded.quantity`, unitCostCredits: sql`excluded.unit_cost_credits` },
+      });
     }
     if (removedInstanceIds.length) {
       await tx.delete(campaignCharacterItemInstance).where(and(
