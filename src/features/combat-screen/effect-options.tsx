@@ -7,10 +7,13 @@ import styles from "./combat-screen.module.css";
 export function EffectOptions({ scope, source, roster, values, onChange }: { scope: CombatScreenScope; source: FrozenActionSourceSnapshot;
   roster: CombatScreenData["roster"]; values: Record<string, { poolKey?: string; hitLocationNumber?: number }>; onChange: (value: typeof values) => void }) {
   const [locations, setLocations] = useState<Record<number, Awaited<ReturnType<typeof readCombatTargetAnatomy>>>>({});
-  const targets = JSON.stringify([...new Set(source.effects.flatMap((effect) => effect.targetParticipantIds))]);
+  // Attack damage and on-hit powers inherit the attack's resolved location.
+  // Called Shots choose their single location in the dedicated command controls.
+  const effects = source.kind === "weapon" || source.kind === "creature-attack" ? [] : source.effects.filter((entry) => !entry.instruction.areaReport && entry.instruction.hitLocationMode !== "standard-roll"
+    && (entry.effect?.kind === "health.damage" || entry.effect?.kind === "health.heal" && entry.effect.scope === "area"));
+  const targets = JSON.stringify([...new Set(effects.flatMap((effect) => effect.targetParticipantIds))]);
   useEffect(() => { let active = true; void Promise.all((JSON.parse(targets) as number[]).map(async (id) => [id, await readCombatTargetAnatomy(scope, id)] as const)).then((rows) => { if (active) setLocations(Object.fromEntries(rows)); }).catch(() => {}); return () => { active = false; }; }, [scope, targets]);
-  return <>{source.effects.filter((entry) => !entry.instruction.areaReport && entry.instruction.hitLocationMode !== "standard-roll"
-    && (entry.effect?.kind === "health.damage" || entry.effect?.kind === "health.heal" && entry.effect.scope === "area")).flatMap((entry) => entry.targetParticipantIds.map((target) => {
+  return <>{effects.flatMap((entry) => entry.targetParticipantIds.map((target) => {
     const key = typeof entry.instruction.selectionKey === "string" ? entry.instruction.selectionKey : source.kind === "spell" ? `${entry.instruction.spellEffectId}:${target}` : source.kind === "creature-ability" ? `${entry.instruction.effectKey}:${target}` : source.kind === "derived-ability" ? String(entry.instruction.sortOrder) : entry.key.replace("item-effect:", "");
     const selection = values[key];
     return <label key={`${entry.key}:${target}`} className="st-field">{roster.find((member) => member.participantId === target)?.name}: {entry.effect?.kind === "health.heal" ? "area to heal" : "damage location"}

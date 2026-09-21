@@ -1,5 +1,13 @@
 # Combat resumption handoff
 
+## Normal attack location controls corrected (21 September 2026)
+
+- Brannan reported that a Player had to choose two damage locations for an ordinary attack, which then hit a different rolled location. A read-only local DEV inspection confirmed declaration 36: Ember's Sword of Bad Decisions had two Burning Strike damage effects, the generic effect picker captured two Torso selections, and the authoritative ordinary attack correctly used roll 73's location 3, Right Foreleg on Cat 1.
+- Weapon and Creature Attack on-hit powers now omit the generic effect-location pickers; those effects already inherit the attack's resolved location. New Attack/Called Shot submissions omit irrelevant effect selections. Normal attacks explain that the last roll digit determines location. The dedicated Called Shot target-location and approval controls remain unchanged; spell, Item and Ability application choices retain their existing behavior.
+- Existing recorded results were correct and untouched: 9 immediate damage, foreleg incapacitation, one Charge spent (15 to 14), and an active 1-damage-per-round effect bound to that same foreleg for three applications starting round 3. The inspected encounter was still in round 2; the future ticks were not missing immediate damage. No DEV data or historical results were changed.
+- Validation: actual owning-Player/G.O.D. disposable browser regression matched the two-power attack, committed without location selections, resolved roll 73 to Right Foreleg for both damage effects, spent one Charge and retained one Roll across refresh. Desktop/390px checks and existing Called Shot request/approval/commit passed with no browser errors. TypeScript, changed-file lint and diff checks passed. Evidence: `artifacts/combat-screens/attack-location-2026-09-21/`.
+- This is a focused UI correction; damage, anatomy, timing, Charge spending, ongoing-effect execution and G.O.D. ruling services were not changed. Continue with Brannan's current review, not the older broad queues below.
+
 ## Race cleanup: single Soak and copy-on-create variants (21 September 2026)
 
 - Brannan retained the existing project/Race system and authorized this focused Race cleanup. [Report and validation](docs/reports/race-soak-and-variants-2026-09-21.md).

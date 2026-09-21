@@ -444,6 +444,53 @@ try {
     results.push("Player melee Called Shot requests use a valid retry identity, wait visibly for the G.O.D. penalty, surface in the main guide, then commit one Roll without distance.");
     await director.context().close(); await player.context().close();
   }
+  if (include("attack-location")) {
+    const { f, copy } = await db.transaction(async (tx) => {
+      const f = await screenFixture(tx, "attack-location");
+      await tx.delete(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, f.heroId), eq(campaignCharacterItem.itemId, f.weaponId)));
+      const [copy] = await tx.insert(campaignCharacterItemInstance).values({ characterId: f.heroId, itemId: f.weaponId, equipmentState: "wielded", currentCharges: 3, unitCostCredits: 1 }).returning();
+      await tx.insert(itemPowerResource).values({ itemId: f.weaponId, maximumCharges: 3 });
+      const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Burning Strike", trigger: "weapon-hit", resourceCostKind: "shared-charges", resourceCostAmount: 1, resolutionMode: "weapon-hit", sortOrder: 0 }).returning();
+      await tx.insert(itemPowerEffect).values([
+        { itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 2, application: "localized" } },
+        { itemPowerId: power.id, sortOrder: 1, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 1, application: "localized", timing: { mode: "over-time", frequency: "combat-rounds", applications: 3, firstApplication: "next-interval" } } },
+      ]);
+      // Match the reported two-power attack on a Creature with a foreleg at 3.
+      const anatomy = { ...f.creatureSnapshot,
+        hpPools: [...f.creatureSnapshot.hpPools, { canonicalId: "fixture-foreleg", poolName: "Right Foreleg", maximumHp: 30 }],
+        hitLocations: [...f.creatureSnapshot.hitLocations, { hitLocationNumber: 3, locationName: "Right Foreleg", hpPoolCanonicalId: "fixture-foreleg", soak: "0", naturalArmor: "0" }],
+      };
+      await tx.execute((await import("drizzle-orm")).sql`update campaign_session_encounter_participant set creature_snapshot_json=${JSON.stringify(anatomy)}::jsonb where encounter_id=${f.encounterId} and character_id=${f.occurrences[0]}`);
+      return { f, copy };
+    });
+    const director = await login(f.godId, "god", f, true), player = await login(f.playerId, "player", f);
+    const view = screen(player);
+    await chooseAttack(player, f.occurrences[0], "73", `Fixture Shortsword · Copy #${copy.id}`);
+    assert.equal(await view.getByRole("combobox", { name: /damage location|Target location/ }).count(), 0, "Normal attacks must not ask for either on-hit effect's location");
+    await view.getByText(/The last digit of your attack roll determines where you hit/).waitFor();
+    await screenshot(player, "normal-attack-no-location-phone", 390);
+    assert.equal(await view.getByRole("button", { name: "Commit Attack & Roll", exact: true }).isEnabled(), true);
+    await commitAttack(player);
+    const report = screen(director).getByRole("region", { name: "Attack result report" });
+    await report.getByText("Right Foreleg", { exact: true }).waitFor();
+    await report.getByRole("button", { name: "Approve & apply attack", exact: true }).click();
+    await until(async () => (await declarations(f))[0]?.status === "resolved", "two-power normal attack resolves");
+    const saved = (await declarations(f))[0];
+    assert.deepEqual(saved.draft_json.sourcePayload.effectSelections, {});
+    const effects = (await pool.query("select e.effect_key,e.status,e.final_value_json from campaign_session_encounter_effect e join campaign_session_encounter_effect_plan p on p.id=e.plan_id where p.declaration_id=$1 and e.effect_type='health.damage' order by e.id", [saved.id])).rows;
+    assert.equal(effects.length, 2, "Immediate power joins base damage; ongoing power retains its own effect");
+    for (const effect of effects) {
+      assert.equal(effect.status, "applied");
+      assert.equal(effect.final_value_json.application.hitLocationNumber, 3);
+      assert.equal(effect.final_value_json.application.poolKey, "fixture-foreleg");
+    }
+    assert.equal((await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows[0].current_charges, 2);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 1);
+    await player.reload(); await view.getByText("Live", { exact: true }).waitFor();
+    assert.equal((await pool.query("select current_charges from campaign_character_item_instance where id=$1", [copy.id])).rows[0].current_charges, 2);
+    results.push("Player normal attack with immediate and ongoing on-hit damage offers no location dropdowns, commits without selections, and applies both at roll 73's Right Foreleg with one Roll and one Charge spend.");
+    await director.context().close(); await player.context().close();
+  }
   if (include("pass5-incoming")) for (const kind of ["requirement", "resistance", "absorption", "conflict"] as const) {
     const f = await db.transaction((tx) => screenFixture(tx, `pass5-${kind}`));
     const { rows: [target] } = await pool.query("select creature_snapshot_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]]);
