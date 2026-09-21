@@ -47,7 +47,7 @@ Null facts mean unknown, and null collections mean the authoritative collection 
 
 `matchInteractionCondition` and `matchInteractionRule` form the one shared matcher. Human categorical strings use trimmed, case-insensitive comparison; the saved authoring and supplied facts remain unchanged. Tag and related Creature canonical IDs compare exactly, including case and whitespace. A null authored property value accepts any property with that name; a specific value and/or related Creature restriction must also match the same property record.
 
-Each condition reports `match`, `no-match` or `unknown`, with readable descriptions/reasons. Flat ANY passes with one match; ALL fails with one mismatch. An unknown affects the group only when the other conditions cannot determine it. No nested expression language was added.
+Each condition reports `match`, `no-match` or `unknown`, with readable descriptions/reasons. Flat ANY passes with one match; ALL fails with one mismatch. An unknown affects the group only when the other conditions cannot determine it. Retained unknown matches are informational when a decisive gate/Immunity makes them irrelevant to the final outcome. No nested expression language was added.
 
 Damage scope covers health.damage; Condition covers condition.apply; Mechanical Effect covers the supported mechanical effect kinds. Conditions further narrow those scopes. Rule matching is recorded even for out-of-scope or non-harmful effects, while execution is explicitly skipped when it does not apply.
 
@@ -57,7 +57,7 @@ health.damage is known harmful; health.heal is healing. condition.apply, modifie
 
 1. **Source:** retain and validate supplied facts and classification. This stage does not execute Requirements.
 2. **Worn:** one applicable source subtracts its existing Base Soak. Multiple covering sources require a ruling. No quantity multiplier, highest-selection or stacking is inferred. All preserved damage-type modifier rows/text remain unresolved metadata: there is currently **no universally executable structured case** in the accepted Item schema. An applicable armor source carrying any such metadata requires a ruling; no `Fire +2` parsing or relevance inference is attempted.
-3. **Interaction:** evaluate rules in stable authored `sortOrder`. Every applicable Requirement is an independent gate: all must pass, with ANY/ALL evaluated inside each rule. A failed Requirement prevents the entire harmful effect. Matching Immunity also prevents it; all duplicate Immunities remain in the trace. Resistance multiplies by `(1 - percentage/100)` and floors at zero. Vulnerability multiplies by `(1 + percentage/100)` without a cap. Multiple Resistance/Vulnerability rules multiply sequentially in authored order; percentages are never added.
+3. **Interaction:** retain rule matches in stable authored `sortOrder`, then resolve Requirement gates before downstream rules. Every applicable Requirement is an independent gate: all must pass, with ANY/ALL evaluated inside each rule. Any definite failure prevents the entire harmful effect, even if other Requirements are unknown or downstream rules would otherwise conflict. Matching Immunity prevents the effect when no Absorption matches or could match; all duplicate Immunities remain in the trace. Unknown/matching Resistance or Vulnerability cannot block that certain prevention. For effects that continue, Resistance multiplies by `(1 - percentage/100)` and floors at zero. Vulnerability multiplies by `(1 + percentage/100)` without a cap. Multiple Resistance/Vulnerability rules multiply sequentially in authored order; percentages are never added.
 4. **Natural:** one applicable definition subtracts Natural Armor and Natural Soak, separately traced. Multiple overlapping definitions require a ruling. Creature anatomy normally supplies one definition at the hit location. Existing blank-as-none Creature projection semantics remain unchanged.
 5. **Temporary/other:** applicable active Soak amounts are summed with their signs, then subtracted and floored at zero. Individual source/value/lifecycle records remain in the input and trace. Ended/expired records are excluded again defensively. Unsupported coverage requires a ruling. A negative total can increase remaining damage, following existing signed modifier semantics; values are not relabeled as worn/natural.
 6. **Final:** round up once and report the proposed damage/healing/prevention. No final effect is returned while a ruling is unresolved.
@@ -66,7 +66,9 @@ Every protection subtraction has a zero floor. Only Absorption converts incoming
 
 Simple Absorption sets damage to zero and calculates healing from the **post-worn interaction-entry amount** times the uncapped percentage. Unconverted damage disappears. Natural and temporary stages are explicitly skipped, including otherwise unresolved protection that cannot affect this healing. Healing is rounded up once, then optionally capped to supplied maximum-HP room. No cap is inferred when health context is absent.
 
-Absorption with Immunity, Resistance, Vulnerability or another Absorption is unresolved. The result preserves the incoming amount, all rule matches, per-rule candidate outcomes and the sequential Resistance/Vulnerability candidate. Candidates do not choose precedence or become a final effect. Independent Requirement gates never become partial resistance. If other unresolved facts/conflicts are present alongside a failed gate, the plan conservatively retains the ruling status rather than hiding uncertainty.
+When downstream rules are reached, Absorption with Immunity, Resistance, Vulnerability or another Absorption remains unresolved. A potential/unknown Absorption match also blocks definite Immunity, because the unresolved match could create that conflict. These results preserve the incoming amount, all rule matches, per-rule candidate outcomes and the sequential Resistance/Vulnerability candidate. Candidates do not choose precedence or become a final effect.
+
+A definitely failed Requirement is decisive before any of those downstream combinations. It produces zero damage and zero healing, with no percentage or Absorption candidate calculation. An unknown Requirement remains blocking unless another outcome makes both possibilities identical: for example, definite Immunity with no matching/potential Absorption prevents the effect whether that Requirement would pass or fail. Earlier source/Worn blockers are checked before these Interaction decisions and are never cleared by them.
 
 ## Exact arithmetic and trace
 
@@ -74,7 +76,7 @@ The calculation keeps decimal coefficients/scales as BigInts internally from eac
 
 The returned object contains no BigInts. Numeric fields are convenient display projections; `exact*` decimal strings preserve the full calculation, including precision below a JavaScript number. An unrepresentable actual numerical result requires a ruling instead of emitting infinite HP. A hypothetical standalone candidate's overflow does not invalidate a finite actual sequence or Immunity; it retains an exact string and null numerical projection.
 
-`IncomingEffectResolution` has `schemaVersion: 1`, status (`resolved`, `prevented`, `absorbed`, `requires-god-ruling`, `invalid`), the cloned `input`, `stages`, `ruleMatches`, `matchedRules`, `candidates`, structured `issues`, `finalEffect`, and an `explanation` string array. `finalEffect` is **null** on unresolved/invalid plans, rather than a misleading zero damage result.
+`IncomingEffectResolution` has `schemaVersion: 1`, status (`resolved`, `prevented`, `absorbed`, `requires-god-ruling`, `invalid`), the cloned `input`, `stages`, `ruleMatches`, `matchedRules`, `candidates`, structured `issues`, `finalEffect`, and an `explanation` string array. `finalEffect` is **null** on unresolved/invalid plans, rather than a misleading zero damage result. The model/version is unchanged by the decisive-gate correction: `issues` contains only blocking issues. Informational uncertainty remains in `ruleMatches` and `skip-rule` stage entries, so it cannot accidentally force a ruling.
 
 Each stage has completed/skipped/blocked status, before/after damage/healing in numeric and exact form, and operation entries with source IDs, amounts and readable messages. Rule matches include every authored condition and its result. All original protection records, percentages, names, coverage, metadata and source identities are retained in `input`.
 
@@ -90,14 +92,14 @@ Temporary Ward: 3.75 - 1 = 2.75
 Final ceiling: 3 damage
 ```
 
-Requirements explicitly say satisfied/not satisfied/undetermined, list their conditions, and explain their independent gate. Absorption records its input, percentage, zero damage, calculated healing, skipped protection and optional cap. Structured traces are returned directly; callers need not reconstruct anything from logs.
+Requirements explicitly say satisfied/not satisfied/undetermined, list their conditions, and explain their independent gate. Decisive prevention preserves other matches and adds `skip-rule` entries identifying which rules did not affect the outcome and need no ruling. Absorption records its input, percentage, zero damage, calculated healing, skipped protection and optional cap. Structured traces are returned directly; callers need not reconstruct anything from logs.
 
 ## Intentional ruling cases
 
 | Issue code | Required context or unresolved rule |
 | --- | --- |
 | `unknown-harmfulness` | Explicit classification for an ambiguous non-damage effect |
-| `unknown-source-fact` | A missing authoritative fact leaves an in-scope rule undecidable |
+| `unknown-source-fact` | A missing authoritative fact leaves an in-scope rule undecidable and that uncertainty can still change the outcome; includes potential Absorption alongside definite Immunity |
 | `hit-location-required` | Missing location for location-dependent damage protection, or a supplied key outside target anatomy |
 | `worn-coverage` | A worn source has no authoritative coverage |
 | `multiple-worn` | More than one worn source covers the location |
@@ -129,6 +131,6 @@ Brannan and Ember still need to settle:
 - Which Weapon and Ammunition properties/tags/magic contribute to the finished source facts.
 - Authoritative harmfulness for ambiguous conditions/modifiers/manual effects.
 
-Implementation choices for review: null versus empty source collections; Mechanical Effect scope includes all supported effect kinds; no hit location needed when every applicable protection is all-locations; unknown facts/conflicts remain visible even alongside a failed Requirement; armor metadata is conservatively unresolved whenever its armor source applies.
+Implementation choices for review: null versus empty source collections; Mechanical Effect scope includes all supported effect kinds; no hit location needed when every applicable protection is all-locations; armor metadata is conservatively unresolved whenever its armor source applies. Brannan's final Pass 4 correction settles decisive prevention: failed Requirements stop downstream rules, definite Immunity makes Resistance/Vulnerability irrelevant, and matching/potential Absorption remains an exception to Immunity's short circuit.
 
 No source adapter, HP mutation, condition/injury creation, resource/ammunition/mana/Initiative spend, new combat effect, ActionEffectPlan change, UI flow, authoring backfill or migration is part of Pass 4. Existing combat paths and their tests remain unchanged. **Stop after this commit for review. Pass 5 has not started.**

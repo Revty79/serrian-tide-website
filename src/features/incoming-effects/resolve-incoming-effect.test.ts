@@ -221,3 +221,122 @@ test("hypothetical candidate overflow cannot defeat Immunity or a finite actual 
   assert.equal(resistant.candidates[1].damage, null, "unrepresentable numeric candidate keeps its exact decimal string");
   assert.ok(resistant.candidates[1].exactDamage);
 });
+
+function assertDecisivePrevention(result: ReturnType<typeof resolveIncomingEffect>) {
+  assert.equal(result.status, "prevented");
+  assert.equal(result.finalEffect?.disposition, "prevented");
+  assert.equal(result.finalEffect.damage, 0);
+  assert.equal(result.finalEffect.healing, 0);
+  assert.deepEqual(result.issues, [], "irrelevant uncertainty must never enter the blocking issues collection");
+  assert.deepEqual(result.candidates, [], "unreached percentage/Absorption rules perform no candidate math");
+  assert.equal(result.stages[2].status, "completed");
+  assert.equal(result.stages[2].entries.some(({ operation }) => operation === "percentage-candidate" || operation === "absorb"), false);
+  assert.deepEqual(result.stages.slice(3, 5).map(({ status }) => status), ["skipped", "skipped"]);
+  assert.doesNotMatch(result.explanation.join("\n"), /G\.O\.D\. review:/);
+}
+
+test("failed Silver Requirement prevents despite unknown Fire Resistance, retaining informational uncertainty", () => {
+  const value = input([rule("requirement", null, { key: "gate", conditions: [silver] }), rule("resistance", 25, { key: "resistance", sortOrder: 1 })]);
+  value.source.damageType = null;
+  const result = resolveIncomingEffect(value);
+  assertDecisivePrevention(result);
+  assert.equal(result.ruleMatches.find(({ rule }) => rule.key === "resistance")?.outcome, "unknown");
+  assert.ok(result.stages[2].entries.some(({ operation, sourceId }) => operation === "skip-rule" && sourceId === "resistance"));
+  assert.match(result.explanation.join("\n"), /Requirement not satisfied:.*Material = Silver/);
+  assert.match(result.explanation.join("\n"), /not applied because a Requirement gate already prevented/);
+});
+
+const downstreamCases: Array<[string, InteractionRule[]]> = [
+  ["matching Resistance", [rule("resistance", 25)]],
+  ["matching Vulnerability", [rule("vulnerability", 50)]],
+  ["matching Absorption", [rule("absorption", 50)]],
+  ["Absorption + Resistance conflict", [rule("absorption", 50), rule("resistance", 25, { key: "resistance", sortOrder: 1 })]],
+  ["Absorption + Vulnerability conflict", [rule("absorption", 50), rule("vulnerability", 50, { key: "vulnerability", sortOrder: 1 })]],
+  ["Immunity + multiple Absorptions", [rule("absorption", 50), rule("absorption", 100, { key: "absorption2", sortOrder: 1 }), rule("immunity", null, { key: "immunity", sortOrder: 2 })]],
+];
+for (const [label, downstream] of downstreamCases) test(`failed Magical Requirement prevents before ${label}`, () => {
+  const value = input([...downstream, rule("requirement", null, { key: "gate", sortOrder: 9, conditions: [magic] })]);
+  const result = resolveIncomingEffect(value);
+  assertDecisivePrevention(result);
+  assert.equal(result.matchedRules.length, downstream.length, "retain every downstream match without executing it");
+  assert.ok(result.stages[2].entries.some(({ operation }) => operation === "skip-rule"));
+});
+
+test("one failed Requirement prevents despite another unknown Requirement", () => {
+  const value = input([rule("requirement", null, { key: "silver", conditions: [silver] }), rule("requirement", null, { key: "magic", sortOrder: 1, conditions: [magic] })]);
+  value.source.magical = null;
+  const result = resolveIncomingEffect(value);
+  assertDecisivePrevention(result);
+  assert.deepEqual(result.ruleMatches.map(({ outcome }) => outcome), ["no-match", "unknown"]);
+});
+
+test("failed Requirement prevents before potential Absorption and Immunity matches", () => {
+  const value = input([rule("requirement", null, { key: "gate", conditions: [silver] }), rule("absorption", 50, { key: "absorption", sortOrder: 1, conditions: [magic] }), rule("immunity", null, { key: "immunity", sortOrder: 2, conditions: [magic] })]);
+  value.source.magical = null;
+  const result = resolveIncomingEffect(value);
+  assertDecisivePrevention(result);
+  assert.deepEqual(result.ruleMatches.map(({ outcome }) => outcome), ["no-match", "unknown", "unknown"]);
+});
+
+for (const type of ["resistance", "vulnerability"] as const) {
+  for (const outcome of ["match", "unknown"] as const) test(`matching Immunity prevents despite ${outcome} ${type}`, () => {
+    const value = input([rule("immunity", null, { key: "immunity" }), rule(type, 50, { key: type, sortOrder: 1, conditions: [magic] })]);
+    value.source.magical = outcome === "match" ? true : null;
+    const result = resolveIncomingEffect(value);
+    assertDecisivePrevention(result);
+    assert.equal(result.ruleMatches.find(({ rule }) => rule.key === type)?.outcome, outcome);
+    assert.ok(result.stages[2].entries.some(({ operation, sourceId }) => operation === "skip-rule" && sourceId === type));
+  });
+}
+
+test("Immunity makes both outcomes of an unknown Requirement identical when Absorption cannot match", () => {
+  const value = input([rule("requirement", null, { key: "gate", conditions: [magic] }), rule("immunity", null, { key: "immunity", sortOrder: 1 }), rule("absorption", 50, { key: "absorption", sortOrder: 2, conditions: [silver] })]);
+  value.source.magical = null;
+  const result = resolveIncomingEffect(value);
+  assertDecisivePrevention(result);
+  assert.deepEqual(result.ruleMatches.map(({ outcome }) => outcome), ["unknown", "match", "no-match"]);
+});
+
+test("unknown Requirement stays blocking when passing could permit Absorption healing", () => {
+  const value = input([rule("requirement", null, { key: "gate", conditions: [magic] }), rule("absorption", 50, { key: "absorption", sortOrder: 1 })]);
+  value.source.magical = null;
+  const result = resolveIncomingEffect(value);
+  assert.equal(result.status, "requires-god-ruling"); assert.equal(result.finalEffect, null);
+  assert.ok(result.issues.some(({ code, sourceIds }) => code === "unknown-source-fact" && sourceIds.includes("gate")));
+});
+
+test("matching Immunity cannot override unknown Absorption that could create a conflict", () => {
+  const value = input([rule("immunity", null, { key: "immunity" }), rule("absorption", 50, { key: "absorption", sortOrder: 1, conditions: [magic] })]);
+  value.source.magical = null;
+  const result = resolveIncomingEffect(value);
+  assert.equal(result.status, "requires-god-ruling"); assert.equal(result.finalEffect, null);
+  assert.ok(result.issues.some(({ code, sourceIds }) => code === "unknown-source-fact" && sourceIds.includes("absorption")));
+  assert.match(result.explanation.join("\n"), /possible Absorption match could conflict with Immunity/);
+  assert.equal(result.ruleMatches.find(({ rule }) => rule.key === "absorption")?.outcome, "unknown");
+});
+
+const earlierBlockers: Array<[string, (value: IncomingEffectInput) => void]> = [
+  ["multiple-worn", (value) => { value.target.protection.worn = [worn(), { ...worn(5), ownershipKey: "stack:2" }]; }],
+  ["worn-coverage", (value) => { value.target.protection.worn = [{ ...worn(), coveredLocationKeys: [] }]; }],
+  ["worn-value", (value) => { value.target.protection.worn = [{ ...worn(), baseSoak: null }]; }],
+  ["armor-damage-metadata", (value) => { value.target.protection.worn = [{ ...worn(), damageModifiersSourceText: "Fire +2" }]; }],
+  ["hit-location-required", (value) => { value.target.protection.worn = [worn()]; value.hitLocationKey = null; }],
+];
+for (const [code, setup] of earlierBlockers) test(`failed Requirement preserves earlier ${code} blocker`, () => {
+  const value = input([rule("requirement", null, { conditions: [silver] })]); setup(value);
+  const result = resolveIncomingEffect(value);
+  assert.equal(result.status, "requires-god-ruling"); assert.equal(result.finalEffect, null);
+  assert.ok(result.issues.some((issue) => issue.stage === "worn" && issue.code === code));
+  assert.equal(result.stages[2].status, "blocked");
+  assert.equal(result.stages[2].entries.some(({ operation }) => operation === "prevent"), false);
+});
+
+test("failed Requirement cannot hide invalid source data or unknown harmfulness", () => {
+  const value = input([rule("requirement", null, { conditions: [silver], scope: "mechanical-effect" })]);
+  value.effect.amount = -1;
+  assert.equal(resolveIncomingEffect(value).status, "invalid");
+  value.source.mechanicalEffectKind = "condition.apply"; value.effect.amount = null;
+  const result = resolveIncomingEffect(value);
+  assert.equal(result.status, "requires-god-ruling"); assert.equal(result.finalEffect, null);
+  assert.equal(result.issues[0].code, "unknown-harmfulness");
+});

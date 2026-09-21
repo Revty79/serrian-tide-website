@@ -1,5 +1,15 @@
 # Combat resumption handoff
 
+## Pass 4 final correction — Decisive Interaction gates (20 September 2026)
+
+**Parent revision:** `de25906efe693c8491c66567c40ee8ac59200118`. Brannan accepted Pass 4 structurally and requested only this correctness correction. **Stop after the correction commit for review; Pass 5 has not started.**
+
+- Any definitely failed applicable Requirement prevents the harmful effect before downstream percentage/Absorption math, even when other rules are unknown or would conflict. Definite Immunity likewise makes matching/unknown Resistance and Vulnerability irrelevant, provided no Absorption matches or could match. An unknown Requirement remains blocking unless both outcomes are identical, such as definite Immunity without potential Absorption.
+- Matching/potential Absorption + Immunity, Absorption + Resistance/Vulnerability and multiple Absorptions remain unresolved when downstream rules are reached. Earlier source/Worn blockers are never cleared by Interaction decisions.
+- No result-model change: `issues` remains blocking-only. Informational uncertainty stays in rule matches and explicit `skip-rule` trace entries; a prevented effect has zero damage/healing and no downstream numerical candidates. [Correction report, validation and exact files](docs/reports/incoming-effect-decisive-gates-correction-2026-09-20.md).
+- Added 22 decisive-prevention and earlier-blocker tests; all 93 Pass 4 matcher/resolver tests and 1,534 feature tests pass. All 24 disposable service suites / 249 cases run unchanged, including the seven target-context checks and all 242 existing combat cases. TypeScript, changed-file lint, production build and diff checks pass.
+- **Existing combat paths, HP application, ActionEffectPlan, Protection Layers, authoring and source adapters remain untouched. No migration or Pass 5 work.**
+
 ## Pass 4 — Shared Incoming-Effect Resolver (20 September 2026)
 
 **Parent revision:** `530bc6c06af5cc9e80caf5528cbe343dfe288bac`. Brannan accepted Pass 3 and authorized this planning-only resolver. This supersedes the earlier wait-before-Pass-4 instruction. **Stop after this commit for Brannan and Ember's review; Pass 5 has not started.**

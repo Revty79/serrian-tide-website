@@ -126,12 +126,34 @@ export function resolveIncomingEffect(supplied: IncomingEffectInput): IncomingEf
     }
     if (harmful === false) return skip(current, "Requirement/Immunity and damage percentages do not apply to a non-harmful effect.");
     const scoped = result.ruleMatches.filter(({ inScope }) => inScope);
-    for (const match of scoped.filter(({ outcome }) => outcome === "unknown")) issue("interaction", "unknown-source-fact", `${match.rule.name}: ${match.conditions.filter(({ outcome }) => outcome === "unknown").map(({ reason }) => reason).join(" ")}`, [match.rule.key]);
     const matching = scoped.filter(({ outcome }) => outcome === "match").map(({ rule }) => rule);
     const absorptions = matching.filter(({ ruleType }) => ruleType === "absorption");
     const immunities = matching.filter(({ ruleType }) => ruleType === "immunity");
     const percentages = matching.filter(({ ruleType }) => ruleType === "resistance" || ruleType === "vulnerability");
     const failedRequirements = scoped.filter(({ rule, outcome }) => rule.ruleType === "requirement" && outcome === "no-match");
+    for (const { rule, outcome, conditions } of scoped.filter(({ rule }) => rule.ruleType === "requirement")) {
+      entry(current, `Requirement ${outcome === "match" ? "satisfied" : outcome === "no-match" ? "not satisfied" : "undetermined"}: ${rule.name} (${rule.match}: ${conditions.map(({ description }) => description).join("; ")}). Each separate Requirement is an independent gate.`, { operation: "requirement-gate", sourceId: rule.key });
+    }
+    // Interaction decisions cannot clear blockers from source qualification or worn protection.
+    if (result.issues.length) {
+      entry(current, "Interaction resolution remains blocked by an earlier stage; retained matches do not override that ruling.");
+      return block(current);
+    }
+    const prevent = (reason: string, decisiveKeys: string[]) => {
+      const before = damage;
+      prevented = true; damage = 0; healing = 0; exactDamage = ExactAmount.from(0); exactHealing = ExactAmount.from(0);
+      entry(current, reason, { operation: "prevent", before, after: 0 });
+      for (const { rule } of scoped.filter(({ rule }) => !decisiveKeys.includes(rule.key))) {
+        entry(current, `${rule.name}: not applied because ${failedRequirements.length ? "a Requirement gate" : "definite Immunity"} already prevented the effect. Retained matching details do not require a ruling or affect the outcome.`, { operation: "skip-rule", sourceId: rule.key });
+      }
+    };
+    // A failed gate makes every other Interaction outcome irrelevant, including Absorption.
+    // Keep informational matches in the trace; only outcome-changing uncertainty belongs in issues.
+    if (failedRequirements.length) return prevent("A Requirement failed: harmful effect prevented entirely. Downstream Interaction rules were not reached.", failedRequirements.map(({ rule }) => rule.key));
+    const possibleAbsorption = scoped.some(({ rule, outcome }) => rule.ruleType === "absorption" && outcome !== "no-match");
+    if (immunities.length && !possibleAbsorption) return prevent(`Immunity prevents the harmful effect. Matching Immunities: ${immunities.map(({ name }) => name).join(", ")}.`, immunities.map(({ key }) => key));
+
+    for (const match of scoped.filter(({ outcome }) => outcome === "unknown")) issue("interaction", "unknown-source-fact", `${match.rule.name}: ${match.conditions.filter(({ outcome }) => outcome === "unknown").map(({ reason }) => reason).join(" ")}${match.rule.ruleType === "absorption" && immunities.length ? " A possible Absorption match could conflict with Immunity; a ruling is still required." : ""}`, [match.rule.key]);
     if (absorptions.length > 1) issue("interaction", "multiple-absorption", "Multiple Absorption rules match; conversion precedence is undecided.", absorptions.map(({ key }) => key));
     if (absorptions.length && immunities.length) issue("interaction", "absorption-immunity", "Absorption and Immunity match; their precedence is undecided.", [...absorptions, ...immunities].map(({ key }) => key));
     if (absorptions.length && percentages.length) issue("interaction", "absorption-percentage", "Absorption and Resistance/Vulnerability match; their interaction is undecided.", [...absorptions, ...percentages].map(({ key }) => key));
@@ -159,25 +181,19 @@ export function resolveIncomingEffect(supplied: IncomingEffectInput): IncomingEf
       const multiplier = factor(rule.percentage!, rule.ruleType === "resistance");
       exactSequence = exactSequence?.multiply(multiplier).floorZero() ?? null;
       sequence = candidateNumber(exactSequence);
-      entry(current, `${rule.name} ${rule.percentage}%: ${exactBefore ?? "unknown"} × ${multiplier} = ${exactSequence?.toString() ?? "unknown"}${rule.ruleType === "resistance" && rule.percentage! > 100 ? " (floored at zero)" : ""}${absorptions.length || immunities.length || failedRequirements.length || result.issues.length ? " (candidate only)" : ""}.`,
+      entry(current, `${rule.name} ${rule.percentage}%: ${exactBefore ?? "unknown"} × ${multiplier} = ${exactSequence?.toString() ?? "unknown"}${rule.ruleType === "resistance" && rule.percentage! > 100 ? " (floored at zero)" : ""}${absorptions.length || immunities.length || result.issues.length ? " (candidate only)" : ""}.`,
         { operation: "percentage-candidate", sourceId: rule.key, before, after: sequence, value: rule.percentage, exactBefore, exactAfter: exactSequence?.toString() ?? null });
     }
     if (percentages.length) result.candidates.push({ ruleKeys: percentages.map(({ key }) => key), basisDamage: basis, damage: sequence, healing: 0,
       exactDamage: exactSequence?.toString() ?? null, exactHealing: "0", description: "Sequential Resistance/Vulnerability candidate in authored sort order, with no intermediate rounding." });
-    for (const { rule, outcome, conditions } of scoped.filter(({ rule }) => rule.ruleType === "requirement")) {
-      entry(current, `Requirement ${outcome === "match" ? "satisfied" : outcome === "no-match" ? "not satisfied" : "undetermined"}: ${rule.name} (${rule.match}: ${conditions.map(({ description }) => description).join("; ")}). Each separate Requirement is an independent gate.`, { operation: "requirement-gate", sourceId: rule.key });
-    }
     result.candidates.forEach((candidate) => entry(current, candidate.description, { operation: "candidate" }));
-    // A hypothetical standalone candidate cannot invalidate a finite actual sequence or prevention.
-    if (!failedRequirements.length && !immunities.length) {
+    // A hypothetical standalone candidate cannot invalidate a finite actual sequence.
+    if (!immunities.length) {
       if (!absorptions.length && exactSequence) finite(exactSequence.toNumber(), "interaction");
       if (absorptions.length === 1 && exactBasis) finite(exactBasis.multiply(ExactAmount.from(absorptions[0].percentage!).percent()).toNumber(), "interaction");
     }
     if (result.issues.length) return block(current);
-    if (failedRequirements.length || immunities.length) {
-      prevented = true; damage = 0; healing = 0; exactDamage = ExactAmount.from(0); exactHealing = ExactAmount.from(0);
-      entry(current, failedRequirements.length ? "A Requirement failed: harmful effect prevented entirely." : `Immunity prevents the harmful effect. Matching Immunities: ${immunities.map(({ name }) => name).join(", ")}.`, { operation: "prevent", before: basis, after: 0 });
-    } else if (absorptions.length) {
+    if (absorptions.length) {
       absorbed = true; damage = 0; exactDamage = ExactAmount.from(0);
       exactHealing = exactBasis!.multiply(ExactAmount.from(absorptions[0].percentage!).percent()); healing = exactHealing.toNumber();
       entry(current, `${absorptions[0].name}: ${basis} × ${absorptions[0].percentage}% = ${healing} healing; 0 damage. Unconverted damage disappears.`, { operation: "absorb", sourceId: absorptions[0].key, before: basis, after: healing, value: absorptions[0].percentage });

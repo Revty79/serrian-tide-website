@@ -2,6 +2,8 @@
 
 Base: `530bc6c06af5cc9e80caf5528cbe343dfe288bac`. Separate commit subject: **PASS 4 — SHARED INCOMING-EFFECT RESOLVER**.
 
+**Subsequent correction:** the [decisive-gate correction report](incoming-effect-decisive-gates-correction-2026-09-20.md) supersedes this original report's handling of uncertainty alongside failed Requirements/definite Immunity. The original validation results below describe the initial Pass 4 commit.
+
 Pass 4 builds one shared, pure planning resolver and authorized target reads. It returns a transparent plan or explicit G.O.D. ruling reasons. **It does not apply an effect or change existing combat execution. Pass 5 has not started.** Stop for Brannan and Ember's review after this commit.
 
 ## Delivered model and authority
