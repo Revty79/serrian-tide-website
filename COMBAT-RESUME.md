@@ -1,5 +1,16 @@
 # Combat resumption handoff
 
+## Pass 4 — Shared Incoming-Effect Resolver (20 September 2026)
+
+**Parent revision:** `530bc6c06af5cc9e80caf5528cbe343dfe288bac`. Brannan accepted Pass 3 and authorized this planning-only resolver. This supersedes the earlier wait-before-Pass-4 instruction. **Stop after this commit for Brannan and Ember's review; Pass 5 has not started.**
+
+- One pure `resolveIncomingEffect` consumes explicit finished source facts and an exact target context, then returns a cloned input, six ordered stages, rule/condition matches, alternatives, structured ruling issues and readable explanations. Unresolved plans have no final effect. No name/text inference or Weapon/Ammunition adapters.
+- Authorized live reads use current assigned Race rules for Characters/Race NPCs, current individual snapshots for Creature NPCs, and exact encounter snapshots for direct Creatures. Runtime `participantId` means `character_id`, including negative occurrences, never serial `participant_id`. Reads use existing access policies and a repeatable-read, read-only transaction; historical calculation can reuse serialized supplied inputs.
+- Approved order is implemented inside the planner: source qualification → worn Base Soak → Interaction Rules → Natural Armor/Soak → active signed temporary Soak → final upward rounding. Requirements are independent gates; Immunity prevents; Resistance/Vulnerability multiply sequentially in authored order; simple uncapped Absorption converts the post-worn amount to healing and skips natural/temporary protection. Exact decimal arithmetic avoids false extra HP from floating-point boundaries.
+- Absorption conflicts, overlapping worn/natural sources, unsupported armor damage-type metadata, missing necessary facts/harmfulness/coverage and other unresolved values remain explicit G.O.D. rulings. [Contract and ruling inventory](docs/architecture/incoming-effect-resolver.md); [report, exact files and questions for review](docs/reports/incoming-effect-resolver-pass-4-2026-09-20.md).
+- Validation: **1,512 feature tests**, including **71 new focused cases**, and **24 disposable service suites / 249 cases** pass. All **23 previous suites / 242 cases** run unchanged. Seven new target/authorization/read-only checks verify live Race and exact snapshot authority, runtime identity, worn/temporary compatibility and unchanged complete stored-row digests. TypeScript, changed-file lint, production build and diff checks pass. Automated validation is not human acceptance.
+- **No HP/effect/resource/Initiative application, source adapter, ActionEffectPlan redesign, migration, catalog backfill, UI change or existing combat-path integration. Existing combat behavior remains unchanged. No Pass 5 work.**
+
 ## Pass 3 — Natural vs Worn Protection (20 September 2026)
 
 **Parent revision:** `9a446111ff497cee219d9cf4465a2764deebb7f6`. Brannan accepted Passes 1 and 2 enough to proceed and authorized this shared protection-model pass. This supersedes the earlier wait-before-Pass-3 instructions.
