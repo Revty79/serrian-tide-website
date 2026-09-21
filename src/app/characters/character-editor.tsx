@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import Link from "next/link";
 import {
   useEffect,
@@ -135,10 +138,9 @@ function Field({
   wide?: boolean;
 }) {
   return (
-    <label className={wide ? "character-field character-field--wide" : "character-field"}>
-      <span>{label}</span>
+    <GuidedField label={label} help={fieldHelp("character", label)} className={wide ? "character-field character-field--wide" : "character-field"}>
       {children}
-    </label>
+    </GuidedField>
   );
 }
 

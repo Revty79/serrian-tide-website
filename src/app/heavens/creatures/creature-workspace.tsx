@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 
 import { CreatureAttackAuthoringEditor, CreatureAbilityAuthoringEditor, LegacyCreatureDefenses, CreatureHarvestUtilityEditor } from "@/app/heavens/creatures/creature-authoring-editor";
@@ -94,7 +97,7 @@ function newCreatureDraft(references: ChallengeRatingReference[]): CreatureDraft
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   if (label.includes("Canonical ID")) return null;
-  return <label className={wide ? "creature-field creature-field--wide" : "creature-field"}><span>{label}</span>{children}</label>;
+  return <GuidedField label={label} help={fieldHelp("creature", label)} className={wide ? "creature-field creature-field--wide" : "creature-field"}>{children}</GuidedField>;
 }
 
 function OptionalNumber({ value, onChange, ...props }: { value: number | null; onChange: (value: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {

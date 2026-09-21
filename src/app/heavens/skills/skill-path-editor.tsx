@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import { useMemo, useState } from "react";
 
 import {
@@ -99,12 +102,10 @@ export function SkillPathEditor({
       </div>
 
       <div className="skill-path-editor__add">
-        <label>
-          <span>Find an exact parent at any depth</span>
+        <GuidedField label="Find an exact parent at any depth" help={fieldHelp("skill", "Find an exact parent at any depth")}>
           <input type="search" value={search} placeholder="Search name, #ID, Attribute, or classification" onChange={(event) => setSearch(event.target.value)} />
-        </label>
-        <label>
-          <span>Matching Skill identity</span>
+        </GuidedField>
+        <GuidedField label="Matching Skill identity" help={fieldHelp("skill", "Matching Skill identity")}>
           <select value={selectedCandidateId} onChange={(event) => setSelectedCandidateId(event.target.value)}>
             <option value="">{candidates.length ? "Select an exact Skill" : "No matching Skill"}</option>
             {candidates.map((candidate) => (
@@ -113,7 +114,7 @@ export function SkillPathEditor({
               </option>
             ))}
           </select>
-        </label>
+        </GuidedField>
         <button className="skills-secondary-button" type="button" disabled={!selectedCandidateId} onClick={() => void preserveScroll(addRelationship)}>
           Add as Parent
         </button>
@@ -127,10 +128,9 @@ export function SkillPathEditor({
             <div>
               <strong>{relationship.relatedSkillName ?? `Skill #${relationship.relatedSkillId}`} <code>#{relationship.relatedSkillId}</code></strong>
               <small>{exactLineageLabel(hierarchy, relationship.relatedSkillId)}</small>
-              <label>
-                <span>Relationship</span>
+              <GuidedField label="Relationship" help={fieldHelp("skill", "Relationship")}>
                 <input list="relationship-types" value={relationship.relationshipType} onChange={(event) => updateRelationship(index, { relationshipType: event.target.value })} />
-              </label>
+              </GuidedField>
             </div>
             <div className="skill-path-editor__order">
               <button type="button" disabled={index === 0} onClick={() => void preserveScroll(() => move(index, -1))}>Move Up</button>

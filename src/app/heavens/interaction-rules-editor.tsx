@@ -1,6 +1,8 @@
 "use client";
 
-import { Children, cloneElement, isValidElement, useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
 import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
 import {
   INTERACTION_CONDITION_KINDS, INTERACTION_EFFECT_LABELS, INTERACTION_RULE_TYPES, INTERACTION_SOURCE_KINDS,
@@ -26,9 +28,7 @@ const labels: Record<string, string> = {
 };
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  const id = useId();
-  return <label className="st-field"><span id={id}>{label}</span>{Children.map(children, (child) => isValidElement<{ className?: string; "aria-labelledby"?: string }>(child)
-    ? cloneElement(child, { className: "st-control", "aria-labelledby": id }) : child)}</label>;
+  return <GuidedField label={label} help={fieldHelp("interaction", label)} className="st-field" controlClassName="st-control">{children}</GuidedField>;
 }
 function newCondition(kind: InteractionCondition["kind"], key = crypto.randomUUID()): InteractionCondition {
   switch (kind) {
@@ -65,7 +65,7 @@ export function InteractionRulesEditor({ value, owner, onChange }: {
     <header className={styles.header}><h3>{owner === "race" ? "Racial Interaction Rules" : "Interaction Rules"}</h3>
       <button className="st-button" type="button" onClick={() => update([...rules, { key: crypto.randomUUID(), name: "", ruleType: "requirement", scope: "damage", match: "ANY", conditions: [newCondition("damage-type")], percentage: null, notes: "", sortOrder: rules.length, ...(owner === "creature" ? { crImpact: "None" as const } : {}) }])}>Add Interaction Rule</button>
     </header>
-    <p className={styles.help}>Author incoming damage and effect interactions here. These rules are saved for review and are not applied in combat yet.</p>
+    <p className={styles.help}>These rules govern incoming damage and harmful effects in combat. Match the incoming source using the fields below; unknown facts or unresolved rule combinations need a G.O.D. ruling.</p>
     {catalogError && <p role="alert">{catalogError} Reopen this tab to retry catalog loading.</p>}
     {!rules.length && <p className={styles.help}>No Interaction Rules authored.</p>}
     <datalist id={`${listId}-properties`}>{[...new Set(catalog?.properties.map((row) => row.name) ?? [])].map((name) => <option key={name} value={name} />)}</datalist>

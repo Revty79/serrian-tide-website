@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 
 import { CreatureAttackAuthoringEditor, CreatureAbilityAuthoringEditor, LegacyCreatureDefenses, CreatureHarvestUtilityEditor } from "@/app/heavens/creatures/creature-authoring-editor";
@@ -66,10 +69,10 @@ const TABS: Array<{ id: Tab; label: string }> = [
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   if (label.includes("Canonical ID")) return null;
-  return <label className={wide ? "creature-npc-field creature-npc-field--wide" : "creature-npc-field"}><span>{label}</span>{children}</label>;
+  return <GuidedField label={label} help={fieldHelp("creature", label)} className={wide ? "creature-npc-field creature-npc-field--wide" : "creature-npc-field"}>{children}</GuidedField>;
 }
-function OptionalNumber({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
-  return <input type="number" value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} />;
+function OptionalNumber({ value, onChange, ...props }: { value: number | null; onChange: (value: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
+  return <input {...props} type="number" value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} />;
 }
 
 function formatCreatureNumber(value: number | null) {

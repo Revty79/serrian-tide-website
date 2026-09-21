@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import { useMemo, useState } from "react";
 
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
@@ -779,11 +782,7 @@ function Field({
   type: "text" | "number";
 }) {
   return (
-    <label className="block">
-      <span className="text-sm text-slate-300">
-        {label}
-      </span>
-
+    <GuidedField label={label} help={fieldHelp("campaign", label)} className="block">
       <input
         name={name}
         type={type}
@@ -800,7 +799,7 @@ function Field({
         }
         className={inputClass}
       />
-    </label>
+    </GuidedField>
   );
 }
 

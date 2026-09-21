@@ -1,6 +1,8 @@
 "use client";
 
 import { useId } from "react";
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
 import { NATURAL_PROTECTION_LOCATIONS, type RaceNaturalProtection } from "@/features/races/race-natural-protection";
 import styles from "./race-natural-protection-editor.module.css";
 
@@ -13,11 +15,11 @@ function ProtectionRow({ value, onChange, onRemove }: { value: RaceNaturalProtec
   const id = useId();
   return <article className={styles.row} aria-label="Natural Protection entry">
     <div className={styles.fields}>
-      <label className="st-field" htmlFor={`${id}-name`}>Protection Name<input id={`${id}-name`} className="st-control" value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} /></label>
-      <label className="st-field" htmlFor={`${id}-soak`}>Soak<input id={`${id}-soak`} className="st-control" type="number" min={0} step="any" value={value.naturalSoak} onChange={(e) => onChange({ ...value, naturalSoak: Number(e.target.value) })} /></label>
-      <label className="st-field" htmlFor={`${id}-coverage`}><span id={`${id}-coverage-label`}>Coverage</span><select id={`${id}-coverage`} aria-labelledby={`${id}-coverage-label`} className="st-control" value={value.coverage.kind} onChange={(e) => onChange({ ...value, coverage: e.target.value === "all" ? { kind: "all" } : { kind: "locations", locationKeys: [] } })}>
+      <GuidedField className="st-field" label="Protection Name" help={fieldHelp("race", "Protection Name")}><input id={`${id}-name`} className="st-control" value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} /></GuidedField>
+      <GuidedField className="st-field" label="Soak" help={fieldHelp("race", "Soak")}><input id={`${id}-soak`} className="st-control" type="number" min={0} step="any" value={value.naturalSoak} onChange={(e) => onChange({ ...value, naturalSoak: Number(e.target.value) })} /></GuidedField>
+      <GuidedField className="st-field" label="Coverage" help={fieldHelp("race", "Coverage")}><select id={`${id}-coverage`} className="st-control" value={value.coverage.kind} onChange={(e) => onChange({ ...value, coverage: e.target.value === "all" ? { kind: "all" } : { kind: "locations", locationKeys: [] } })}>
         <option value="all">All locations</option><option value="locations">Selected locations</option>
-      </select></label>
+      </select></GuidedField>
     </div>
     {value.coverage.kind === "locations" && <fieldset className={styles.locations}><legend>Covered locations</legend>
       {NATURAL_PROTECTION_LOCATIONS.map(({ key, name }) => <label key={key}><input type="checkbox" checked={value.coverage.kind === "locations" && value.coverage.locationKeys.includes(key)} onChange={(e) => {

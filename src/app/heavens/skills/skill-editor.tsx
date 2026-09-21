@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import { useState, type ReactNode } from "react";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
@@ -195,16 +198,14 @@ export function SkillEditor({
             </div>
 
             <div className="skill-core-editor__grid">
-              <label className="skill-core-editor__name">
-                <span>Name *</span>
+              <GuidedField className="skill-core-editor__name" label="Name *" help={fieldHelp("skill", "Name *")}>
                 <input
                   value={draft.core.name}
                   onChange={(event) => updateCore({ name: event.target.value })}
                 />
-              </label>
+              </GuidedField>
 
-              <label>
-                <span>Classification</span>
+              <GuidedField label="Classification" help={fieldHelp("skill", "Classification")}>
                 <select
                   value={draft.core.classification}
                   disabled={!hasAttribute}
@@ -221,10 +222,9 @@ export function SkillEditor({
                     </option>
                   ))}
                 </select>
-              </label>
+              </GuidedField>
 
-              <label>
-                <span>Tier</span>
+              <GuidedField label="Tier" help={fieldHelp("skill", "Tier")}>
                 <input
                   type="number"
                   min={1}
@@ -237,10 +237,9 @@ export function SkillEditor({
                     })
                   }
                 />
-              </label>
+              </GuidedField>
 
-              <label>
-                <span>Primary Attribute</span>
+              <GuidedField label="Primary Attribute" help={fieldHelp("skill", "Primary Attribute")}>
                 <select
                   value={draft.core.primaryAttribute ?? ""}
                   onChange={(event) =>
@@ -252,10 +251,9 @@ export function SkillEditor({
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
-              </label>
+              </GuidedField>
 
-              <label>
-                <span>Secondary Attribute</span>
+              <GuidedField label="Secondary Attribute" help={fieldHelp("skill", "Secondary Attribute")}>
                 <select
                   value={draft.core.secondaryAttribute ?? ""}
                   onChange={(event) =>
@@ -267,7 +265,7 @@ export function SkillEditor({
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
-              </label>
+              </GuidedField>
             </div>
 
             {!hasAttribute && (
@@ -276,14 +274,13 @@ export function SkillEditor({
               </p>
             )}
 
-            <label>
-              <span>Definition</span>
+            <GuidedField label="Definition" help={fieldHelp("skill", "Definition")}>
               <textarea
                 rows={10}
                 value={draft.core.definition}
                 onChange={(event) => updateCore({ definition: event.target.value })}
               />
-            </label>
+            </GuidedField>
           </div>
         )}
 

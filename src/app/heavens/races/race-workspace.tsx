@@ -1,6 +1,7 @@
 "use client";
 
-import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
 
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 import { RaceNaturalProtectionEditor } from "./race-natural-protection-editor";
@@ -85,10 +86,9 @@ function Field({
   wide?: boolean;
 }) {
   return (
-    <label className={wide ? "race-field race-field--wide" : "race-field"}>
-      <span>{label}</span>
+    <GuidedField label={label} help={fieldHelp("race", label)} className={wide ? "race-field race-field--wide" : "race-field"}>
       {children}
-    </label>
+    </GuidedField>
   );
 }
 
@@ -380,6 +380,7 @@ function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Rac
     <div className="skill-editor__intro"><p>Identity, physical description, age, and broad Race information.</p></div>
     <div className="race-form-grid">
       <Field label="Name" wide><input value={core.name} onChange={(e) => setCore({ name: e.target.value })} /></Field>
+      <Field label="Description" wide><textarea rows={6} value={core.legacyDescription} onChange={(e) => setCore({ legacyDescription: e.target.value })} /></Field>
       <Field label="Size"><select value={core.size} onChange={(e) => setCore({ size: e.target.value })}>{RACE_SIZE_OPTIONS.map((size) => <option key={size}>{size}</option>)}</select></Field>
       <Field label="Age Range Text"><input value={core.ageRangeText} onChange={(e) => setCore({ ageRangeText: e.target.value })} /></Field>
       <Field label="Minimum Age"><input type="number" min={0} value={core.ageMin ?? ""} onChange={(e) => setCore({ ageMin: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
@@ -387,7 +388,6 @@ function Overview({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Rac
       <Field label="Physical Characteristics" wide><textarea rows={5} value={core.physicalCharacteristics} onChange={(e) => setCore({ physicalCharacteristics: e.target.value })} /></Field>
       <Field label="Physical Description" wide><textarea rows={5} value={core.physicalDescription} onChange={(e) => setCore({ physicalDescription: e.target.value })} /></Field>
     </div>
-    <LegacyAuthoringData entries={[{ label: "Legacy Description", value: core.legacyDescription }]} />
   </div>;
 }
 
@@ -398,8 +398,8 @@ function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Ra
     <p className="race-help">Racial Mana multiplier: a supernatural Skill Mana value of 5 with Base Magic 3 produces 15 Mana. Characters advance Base Magic through Quintessence.</p>
     <div className="race-subheading"><div><p>RACIAL LIMITS</p><h3>Attribute Caps</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, attributeCaps: [...draft.attributeCaps, { attributeKey: "", maxValue: 50, sortOrder: draft.attributeCaps.length }] }))}>Add Attribute</button></div>
     <div className="race-row-list">{draft.attributeCaps.map((cap, index) => <div className="race-repeat-row" key={`${cap.attributeKey}-${index}`}>
-      <input placeholder="Attribute" value={cap.attributeKey} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, attributeKey: e.target.value } : entry) })} />
-      <input type="number" value={cap.maxValue} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, maxValue: Number(e.target.value) } : entry) })} />
+      <Field label="Attribute"><input placeholder="Attribute" value={cap.attributeKey} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, attributeKey: e.target.value } : entry) })} /></Field>
+      <Field label="Attribute Cap"><input type="number" value={cap.maxValue} onChange={(e) => onChange({ ...draft, attributeCaps: draft.attributeCaps.map((entry, i) => i === index ? { ...entry, maxValue: Number(e.target.value) } : entry) })} /></Field>
       <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, attributeCaps: draft.attributeCaps.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
     <div className="race-subheading race-subheading--spaced"><div><p>MOVEMENT</p><h3>Movement Modes</h3></div><button type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: [...draft.movementModes, { movementMode: "Land", baseValue: 0, notes: "", sortOrder: draft.movementModes.length }] }))}>Add Movement</button></div>
@@ -476,7 +476,7 @@ function Skills({ draft, onChange }: { draft: RaceDraft; onChange: (draft: RaceD
     <div className="race-row-list race-skill-links">{draft.skillLinks.map((link, index) => <article className="race-skill-link" key={`${link.skillId}-${link.linkType}-${index}`}>
       <div><strong>{link.skillName}</strong><span>{link.skillClassification}</span></div>
       <select value={link.linkType} onChange={(e) => onChange({ ...draft, skillLinks: draft.skillLinks.map((entry, i) => i === index ? { ...entry, linkType: e.target.value } : entry) })}><option>Skill</option><option>Granted</option></select>
-      <input type="number" placeholder="Value" value={link.value ?? ""} onChange={(e) => onChange({ ...draft, skillLinks: draft.skillLinks.map((entry, i) => i === index ? { ...entry, value: e.target.value === "" ? null : Number(e.target.value) } : entry) })} />
+      <Field label="Link Value"><input type="number" placeholder="Value" value={link.value ?? ""} onChange={(e) => onChange({ ...draft, skillLinks: draft.skillLinks.map((entry, i) => i === index ? { ...entry, value: e.target.value === "" ? null : Number(e.target.value) } : entry) })} /></Field>
       <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, skillLinks: draft.skillLinks.filter((_, i) => i !== index) }))}>Remove</button>
     </article>)}</div>
   </div>;
@@ -497,6 +497,7 @@ function Culture({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Race
 function Preview({ draft }: { draft: RaceDraft }) {
   return <article className="race-preview">
     <header><p>{draft.core.size || "Race"}</p><h3>{draft.core.name || "Untitled Race"}</h3><span>{draft.core.ageRangeText || "Age range not specified"}</span></header>
+    <section><h4>Description</h4><p>{draft.core.legacyDescription || "No description yet."}</p></section>
     <div className="race-preview__grid"><section><h4>Physical</h4><p>{draft.core.physicalDescription || draft.core.physicalCharacteristics || "No physical description."}</p></section><section><h4>Quirk</h4><strong>{draft.core.racialQuirkName || "None"}</strong><p>{draft.core.quirkSuccessEffect || "No success effect."}</p><p>{draft.core.quirkFailureEffect || "No failure effect."}</p></section></div>
     <section><h4>Attribute Caps</h4><div className="race-preview__chips">{draft.attributeCaps.map((cap) => <span key={cap.attributeKey}>{cap.attributeKey} {cap.maxValue}</span>)}</div></section>
     <section><h4>Movement</h4><div className="race-preview__chips">{draft.movementModes.map((mode, index) => <span key={`${mode.movementMode}-${index}`}>{mode.movementMode} {mode.baseValue}</span>)}</div></section>

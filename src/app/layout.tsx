@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { getAppearanceCssVariables } from "@/features/appearance/appearance";
 import { getPublicSiteAppearance } from "@/features/appearance/appearance-service";
+import { PageGuidance } from "@/components/page-guidance";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,7 +34,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       data-appearance-preset={appearance.presetId}
       style={themeStyle}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><PageGuidance />{children}</body>
     </html>
   );
 }

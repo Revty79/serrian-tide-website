@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import "./campaign-lifecycle.css";
 
 import Link from "next/link";
@@ -27,7 +30,7 @@ import { CampaignInventorySelector } from "./campaign-inventory-selector";
 const SYSTEMS = ["Tier 1", "Tier 2", "Tier 3", "Spellcraft", "Talismanism", "Faith", "Psyonics", "Special Abilities", "Bardic Resonance", "Derived Abilities"] as const;
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return <label className={wide ? "campaign-field campaign-field--wide" : "campaign-field"}><span>{label}</span>{children}</label>;
+  return <GuidedField label={label} help={fieldHelp("campaign", label)} className={wide ? "campaign-field campaign-field--wide" : "campaign-field"}>{children}</GuidedField>;
 }
 
 export function CampaignWorkspace({

@@ -553,7 +553,8 @@
   font-size: 0.76rem;
 }
 
-.skill-core-editor > label:last-child {
+.skill-core-editor > label:last-child,
+.skill-core-editor > [data-field-guidance]:last-child {
   display: block;
   margin-top: 16px;
 }

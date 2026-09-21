@@ -18,7 +18,7 @@ export async function assertAttackPrimaryFields(attack: Locator) {
 export async function checkOrdinaryCreatureUi(page: Page, base: string, artifacts: string) {
   await page.goto(`${base}/heavens/creatures`);
   await page.getByRole("button", { name: "New Creature", exact: true }).click();
-  await page.getByLabel("Canonical Name").fill("Simple Creature Builder");
+  await page.getByLabel("Canonical Name", { exact: true }).fill("Simple Creature Builder");
   assert.equal(await page.getByRole("heading", { name: "Harvest & Utility", exact: true }).isVisible(), true);
   assert.equal(await page.getByRole("button", { name: "Add Use", exact: true }).isVisible(), true);
   await page.getByRole("button", { name: "Stats & Movement", exact: true }).click();

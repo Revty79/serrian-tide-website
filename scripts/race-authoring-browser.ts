@@ -6,6 +6,7 @@ import { hashPassword } from "better-auth/crypto";
 import { chromium, type Page } from "playwright-core";
 import { pool } from "@/db";
 import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
+import { checkGuidanceWorkspaces, checkRaceFieldGuidance } from "./guidance-browser-checks";
 
 async function until(check: () => Promise<boolean>, label: string) {
   const deadline = Date.now() + 90_000;
@@ -47,6 +48,17 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
     await page.getByText("Save this Race before creating variants.", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Clone as Variant", exact: true }).count(), 0);
     await open(parentId, "Variant Authoring Parent");
+    const originalDescription = (await pool.query("select legacy_description from races where id=$1", [parentId])).rows[0].legacy_description;
+    assert.equal(await page.getByLabel("Description", { exact: true }).inputValue(), originalDescription);
+    assert.equal(await page.getByText("Legacy Description", { exact: true }).count(), 0);
+    await page.getByLabel("Description", { exact: true }).fill("A coastal people known for their memory and long sea journeys.");
+    await save("Variant Authoring Parent");
+    await page.reload(); await open(parentId, "Variant Authoring Parent");
+    assert.equal(await page.getByLabel("Description", { exact: true }).inputValue(), "A coastal people known for their memory and long sea journeys.");
+    await tab("Preview");
+    await page.locator(".race-preview").getByText("A coastal people known for their memory and long sea journeys.", { exact: true }).waitFor();
+    await tab("Overview");
+    console.log("PASS: existing Race description is editable in Overview, saves/reloads and appears in Preview");
     assert.equal(await page.getByLabel("Base Magic", { exact: true }).count(), 0);
     for (const size of RACE_SIZE_OPTIONS) {
       await page.locator(".race-form-grid").getByLabel(/^Size/).selectOption(size);
@@ -61,6 +73,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
     const natural = page.getByRole("region", { name: "Natural Protection", exact: true });
     assert.equal(await natural.getByLabel("Natural Armor", { exact: true }).count(), 0);
     assert.deepEqual(await natural.getByLabel("Soak", { exact: true }).evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value)), ["2", "0.5"]);
+    await checkRaceFieldGuidance(page);
     await page.getByLabel("Base Magic", { exact: true }).fill("3.5");
     await page.getByLabel("Base Movement", { exact: true }).nth(1).fill("4.5");
     await page.getByLabel("Notes", { exact: true }).nth(1).fill("Updated Swim notes");
@@ -107,6 +120,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole("region", { name: "Race Variants" }).screenshot({ path: `${artifacts}/variants-phone.png` });
     console.log("PASS: saved-only cloning, Keep Editing/discard decisions, direct variant navigation and independent saves");
+    await checkGuidanceWorkspaces(page, base);
 
     const player = await browser.newContext();
     const playerLogin = await player.request.post(`${base}/api/auth/sign-in/email`, { headers: { origin: base }, data: { email: "race-player@example.invalid", password } }); assert.ok(playerLogin.ok());

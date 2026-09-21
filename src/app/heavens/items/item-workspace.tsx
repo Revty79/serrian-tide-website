@@ -1,5 +1,8 @@
 "use client";
 
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
+
 import { decimalAdd } from "@/lib/decimal";
 import Link from "next/link";
 import { isSupportedAmmunitionWeaponType, projectileWeaponFamily } from "@/features/items/firearm-classification";
@@ -186,7 +189,7 @@ function invalidatesGovernanceDraft(
 }
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return <label className={wide ? "item-field item-field--wide" : "item-field"}><span>{label}</span>{children}</label>;
+  return <GuidedField label={label} help={fieldHelp("item", label)} className={wide ? "item-field item-field--wide" : "item-field"}>{children}</GuidedField>;
 }
 
 function MechanicalChoiceField({ label, value, options, onChange, isRecognized = (current: string, option: string) => current.trim().toLocaleLowerCase("en-US") === option.trim().toLocaleLowerCase("en-US") }: {

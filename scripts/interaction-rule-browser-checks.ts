@@ -95,7 +95,7 @@ export async function checkRaceInteractions(page: Page, pool: Pool, base: string
   await page.goto(`${base}/heavens/races`);
   // A pre-migration Race is loaded and saved with a null profile before authoring.
   await page.locator(".skill-library__row").filter({ hasText: "Migration Legacy Race" }).click();
-  assert.equal(await page.getByText("Keep Race lore", { exact: true }).isVisible(), false);
+  assert.equal(await page.getByLabel("Description", { exact: true }).inputValue(), "Keep Race lore");
   assert.equal(await page.getByLabel("Legacy Description", { exact: true }).count(), 0);
   await page.getByRole("button", { name: "Save Race", exact: true }).click();
   await page.getByText("Migration Legacy Race was saved.", { exact: true }).waitFor();

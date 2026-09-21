@@ -2,7 +2,9 @@
 
 import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
 import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
-import { Children, cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
 import {
   CREATURE_ABILITY_ORIGINS, CREATURE_ATTACK_MODES, CREATURE_RESOLUTION_MODES,
   emptyCreatureAbilityAuthoring, emptyCreatureAttackAuthoring,
@@ -24,12 +26,7 @@ import type { CreatureDraft } from "./actions";
 
 const label = (value: string) => value === "aoe" ? "AoE" : value.replace(/(^|-)(\w)/g, (_, separator: string, letter: string) => `${separator ? " " : ""}${letter.toUpperCase()}`);
 function Field({ name, children }: { name: string; children: ReactNode }) {
-  const labelId = useId();
-  return <label className="st-field"><span id={labelId}>{name}</span>{Children.map(children, (child) =>
-    isValidElement(child) && typeof child.type === "string" && ["input", "select", "textarea"].includes(child.type)
-      ? cloneElement(child as ReactElement<{ "aria-labelledby"?: string }>, { "aria-labelledby": labelId })
-      : child,
-  )}</label>;
+  return <GuidedField label={name} help={fieldHelp("creature", name)} className="st-field">{children}</GuidedField>;
 }
 function NumberField({ name, value, onChange, min = 0, max }: { name: string; value: number | null; onChange: (value: number | null) => void; min?: number; max?: number }) {
   return <Field name={name}><input className="st-control" type="number" min={min} max={max} step="any" value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))} /></Field>;
@@ -58,7 +55,7 @@ function MagicConstruction({ value, name, onChange }: { value: CreatureMagicCons
   const calculation = value ? calculateSpell(value.document) : null;
   const adapter = value ? adaptSpellToMechanicalEffects(value.document) : null;
   return <details className="creature-authoring__magic"><summary>Magic Construction{value ? ` — ${value.document.name || "Untitled"}` : " (optional)"}</summary>
-    <p>Use the shared Spell Construction tools for complex magic. The construction is saved here for later combat integration.</p>
+    <p>Use the shared Spell Construction tools for complex magic. Supported constructed effects are used during Creature action resolution; unsupported effects need a G.O.D. ruling.</p>
     {value ? <><button type="button" className="st-button" onClick={() => onChange(null)}>Remove Magic Construction</button>
       <SpellConstructionEditor document={value.document} onChange={(document) => onChange({ document })} findFrameworkSkills={listSpellFrameworkSkills} />
       <p>Calculator: {calculation?.baseSpellManaCost} Mana; {calculation?.baseCombatCastingTime} Initiative. {adapter?.valid ? `${adapter.effects.length} supported effects.` : "Some effects require manual review."} The authored action cost above remains separate.</p>

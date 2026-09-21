@@ -54,7 +54,7 @@ async function main() {
     const auth = await context.request.post(`${base}/api/auth/sign-in/email`, { headers: { Origin: base }, data: { email: `${userId}@example.invalid`, password } }); assert.equal(auth.status(), 200);
     await page.goto(`${base}/heavens/creatures`); console.log("PASS: Creature editor loaded");
     await page.getByRole("button", { name: "New Creature", exact: true }).click();
-    await page.getByLabel("Canonical Name").fill("Authoring Test Creature");
+    await page.getByLabel("Canonical Name", { exact: true }).fill("Authoring Test Creature");
     await page.getByRole("button", { name: "Stats & Movement", exact: true }).click();
     for (const input of await page.locator(".creature-attribute-row input[type=number]").all()) await input.fill("30");
     await page.getByRole("button", { name: "Save Creature", exact: true }).click();

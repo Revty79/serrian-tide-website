@@ -5,8 +5,17 @@
   text-align: center;
 }
 
+.derived-ability-editor > .lifecycle-editor-fields {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding: 0;
+}
+
 .derived-ability-editor__content {
   display: grid;
+  align-content: start;
   gap: 1rem;
 }
 
@@ -104,7 +113,7 @@
   font-size: 0.78rem;
 }
 
-.derived-ability-field > small {
+.derived-ability-field > label > small {
   color: var(--st-muted);
   font-size: 0.67rem;
   line-height: 1.4;

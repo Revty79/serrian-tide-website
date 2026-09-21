@@ -1,4 +1,7 @@
 "use client";
+
+import { GuidedField } from "@/components/field-guidance";
+import { fieldHelp } from "@/features/guidance/field-help";
 import { AbilityConditionComparison } from "@/features/ability-use-conditions/comparison-editor";
 import { AbilityFactSelector } from "@/features/ability-use-conditions/fact-selector";
 
@@ -67,11 +70,10 @@ function Field({
   help?: string;
 }) {
   return (
-    <label className={wide ? "derived-ability-field is-wide" : "derived-ability-field"}>
-      <span>{label}</span>
+    <GuidedField label={label} help={fieldHelp("derived", label)} className={wide ? "derived-ability-field is-wide" : "derived-ability-field"}>
       {children}
       {help ? <small>{help}</small> : null}
-    </label>
+    </GuidedField>
   );
 }
 
