@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checks": [
+    "Twelve conditions save/reload with readable fact/comparison labels, stable codes, exact Item state, custom keys, ambiguous values and Manual history; phone layout has no horizontal overflow.",
+    "Saved UI conditions evaluate real Worn/Wielded equipment, dead true/false, HP 60/40 percent, exact movement text, active conditions and a server-produced attack-targeted response window. Unknown/custom and ambiguous records remain manual.",
+    "The author deliberately clears the hidden text value, saves/reloads, and the equality condition becomes automatic. The unrelated Derived Ability row is byte-for-value unchanged."
+  ],
+  "errors": []
+}

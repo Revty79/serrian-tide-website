@@ -226,9 +226,9 @@ isolated("Creature activated damage uses its own Initiative, actual State condit
   assert.equal(storedIncomingResolution(row.authoredValueJson)?.finalEffect?.damage, 4);
   for (let i = 0; i < 2; i++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, id, planId)).status, "applied");
 });
-isolated("server response window offers a Creature Reaction without spending, then commits only once", async (tx, f) => {
+for (const activationType of ["reaction", "triggered"] as const) isolated(`server response window offers a Creature ${activationType} without spending, then commits only once`, async (tx, f) => {
   const target = f.occurrences[0];
-  const ability = { canonicalId: "p5-reaction", abilityName: "Reactive Guard", effects: [], description: "Guard response", authoring: { ...emptyCreatureAbilityAuthoring(), activationType: "reaction", initiativeCost: 2,
+  const ability = { canonicalId: "p5-reaction", abilityName: "Reactive Guard", effects: [], description: "Guard response", authoring: { ...emptyCreatureAbilityAuthoring(), activationType, initiativeCost: 2,
     useConditions: [{ conditionType: "event", conditionKey: "combat.attack-targeted", operator: null, numericValue: null, textValue: null, notes: "", sortOrder: 0 }] } };
   await tx.update(member).set({ creatureSnapshotJson: { ...f.snapshot, abilities: [ability] } }).where(eq(member.characterId, target));
   await tx.update(initiative).set({ participationStatus: "holding", currentInitiative: 21 }).where(eq(initiative.characterId, target));
@@ -260,7 +260,7 @@ async function derivedSource(tx: Tx, f: Fixture, event = false) {
   await recordCombatSourceResolutionInTransaction(tx, f.context, f.god, { participantId: f.heroId, sourceKind: "derived-ability", sourceRef, mode: "automatic-no-roll", governing: null, effectScaling: {}, reason: "The authored damage activates without a Roll.", ...(event ? { useRequirementsReason: "The G.O.D. explicitly observes this custom omen." } : {}) });
   return { ability, sourceRef };
 }
-for (const kind of ["item", "derived-ability"] as const) isolated(`${kind} structured damage passes through the same target resolver`, async (tx, f) => {
+for (const incoming of ["resistance", "requirement", "immunity"] as const) for (const kind of ["item", "derived-ability"] as const) isolated(`${kind} structured damage passes through the same target resolver: ${incoming}`, async (tx, f) => {
   let sourceRef: string, selection: string;
   if (kind === "item") {
     await tx.update(item).set({ isMagical: true }).where(eq(item.id, f.weaponId));
@@ -268,7 +268,7 @@ for (const kind of ["item", "derived-ability"] as const) isolated(`${kind} struc
     const [row] = await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "health.damage", amount: 8, application: "localized" } }).returning();
     sourceRef = `item-power:${power.id}`; selection = `${sourceRef}:effect:${row.id}:target:${f.occurrences[0]}`;
   } else { sourceRef = (await derivedSource(tx, f)).sourceRef; selection = "0"; }
-  const profile = rules("resistance", 50, { key: "effect", kind: "mechanical-effect-kind", effectKind: "health.damage" });
+  const profile = rules(incoming, incoming === "resistance" ? 50 : null, { key: "effect", kind: "mechanical-effect-kind", effectKind: "health.damage" });
   await tx.update(member).set({ creatureSnapshotJson: { ...f.snapshot, core: { ...f.snapshot.core, interactionRules: { ...profile, rules: profile.rules.map((rule) => ({ ...rule, crImpact: "None" })) } } } }).where(eq(member.characterId, f.occurrences[0]));
   await tx.update(initiative).set({ participationStatus: "active" }).where(eq(initiative.characterId, f.heroId));
   const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: kind, sourceRef, actionKind: "ability-use", windowKind: "ordinary", sourcePayload: { effectSelections: { [selection]: { hitLocationNumber: 0, poolKey: "body" } } } });
@@ -279,7 +279,7 @@ for (const kind of ["item", "derived-ability"] as const) isolated(`${kind} struc
   const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
   const result = storedIncomingResolution(row.authoredValueJson)!;
   assert.equal(result.input.source.sourceKind, kind); assert.equal(result.input.source.magical, kind === "item" ? true : null);
-  assert.equal(result.finalEffect?.damage, 4);
+  assert.equal(result.finalEffect?.damage, incoming === "immunity" ? 0 : incoming === "requirement" ? 8 : 4);
   for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id, planId)).status, "applied");
   if (kind === "derived-ability") assert.equal((await tx.select().from(characterDerivedAbilityUse).where(eq(characterDerivedAbilityUse.characterId, f.heroId))).length, 1);
 });
@@ -350,9 +350,9 @@ isolated("Derived passive conditions use real facts and retain established state
   assert.equal((await reconcileCharacterDerivedAbilityPassivesInTransaction(tx, f.heroId, f.godId)).resolved.length, 1);
 });
 
-isolated("Player Derived Reaction uses its real event, Initiative and retained use ledger once", async (tx, f) => {
+for (const activationType of ["reaction", "triggered"] as const) isolated(`Player Derived ${activationType} uses its real event, Initiative and retained use ledger once`, async (tx, f) => {
   const { ability, sourceRef } = await derivedSource(tx, f);
-  await tx.update(derivedAbility).set({ activationType: "reaction" }).where(eq(derivedAbility.id, ability.id));
+  await tx.update(derivedAbility).set({ activationType }).where(eq(derivedAbility.id, ability.id));
   await tx.insert(derivedAbilityUseCondition).values({ derivedAbilityId: ability.id, conditionType: "event", conditionKey: "combat.attack-targeted" });
   const source = f.occurrences[0];
   await tx.update(initiative).set({ participationStatus: "holding", currentInitiative: 21 }).where(eq(initiative.characterId, f.heroId));

@@ -25,6 +25,32 @@ import { completionDraft, completionServiceFixture } from "./fixtures/combat-com
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
+
+test("Pass 6 a locked Spell retains its definition and costs after a live edit; the next action sees the edit", async () => {
+  await assert.rejects(db.transaction(async (tx) => {
+    const f = await fixture(tx, "spell-source-freeze", false, "automatic-no-roll");
+    const [saved] = await tx.select().from(campaignCharacterSpellDocument).where(eq(campaignCharacterSpellDocument.id, f.savedSpellId));
+    const edited = JSON.parse(saved.documentJson);
+    edited.name = "Edited Arc Bolt"; edited.containers[0].effects[0].quantity = 3;
+    await tx.update(campaignCharacterSpellDocument).set({ name: edited.name, documentJson: JSON.stringify(edited) }).where(eq(campaignCharacterSpellDocument.id, saved.id));
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, f.declarationId);
+    assert.deepEqual(parseLockedActionDeclarationSnapshot((await tx.select().from(declaration).where(eq(declaration.id, f.declarationId)))[0].lockedSnapshotJson).authoredSource, f.locked.authoredSource);
+    const state = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, state, advanceInitiativeTimeline(state, 22 - f.initiativeCost));
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, f.declarationId)).status, "applied");
+    const [original] = await tx.select().from(effectTable).where(eq(effectTable.encounterId, f.encounterId));
+    const { storedIncomingResolution } = await import("@/features/incoming-effects/effect-proposal");
+    assert.equal(storedIncomingResolution(original.authoredValueJson)?.input.effect.amount, 2);
+    assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find(({ system }) => system === "Spellcraft")!.currentMana, 20 - f.manaCost);
+    const next = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]), sourceKind: "spell", sourceRef: `spell:personal:${saved.id}`, actionKind: "spell-cast", windowKind: "ordinary", sourcePayload: { selections: { targetGroups: { "bolt-target": [f.occurrences[0]] }, applications: { [`bolt-damage:${f.occurrences[0]}`]: { hitLocationNumber: 0 } } } } });
+    await lockActionDeclarationInTransaction(tx, f.context, f.player, next);
+    const current = parseLockedActionDeclarationSnapshot((await tx.select().from(declaration).where(eq(declaration.id, next)))[0].lockedSnapshotJson);
+    assert.equal(current.authoredSource?.displayName, "Edited Arc Bolt");
+    assert.notDeepEqual(current.authoredSource?.effects, f.locked.authoredSource?.effects);
+    assert.deepEqual((await tx.select().from(effectTable).where(eq(effectTable.id, original.id)))[0].authoredValueJson, original.authoredValueJson);
+    throw rollback;
+  }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+});
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const rollback = new Error("ROLLBACK_SPELL_FIXTURE");
 
@@ -219,13 +245,13 @@ test("an affordable concentration cast retains its Mana and Roll when a later In
   }), (error) => error === rollback);
 });
 
- test("Pass 5 structured Spell is Magical and each target resolves its own Interaction Rules once", async () => {
+for (const secondRule of ["immunity", "vulnerability", "absorption", "requirement"] as const) test(`Structured Spell is Magical and each target resolves its own Interaction Rules once: Resistance / ${secondRule}`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "p5-spell-rules", false, "automatic-no-roll", true);
     for (const [index, targetId] of f.occurrences.entries()) {
       const [row] = await tx.select().from(occurrence).where(eq(occurrence.characterId, targetId));
       const snapshot = row.creatureSnapshotJson as typeof f.creatureSnapshot;
-      await tx.update(occurrence).set({ creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: { schemaVersion: 1, rules: [{ key: "p5", name: "Magical interaction", ruleType: index === 0 ? "resistance" : "immunity", percentage: index === 0 ? 50 : null, scope: "damage", match: "ALL", crImpact: "None", sortOrder: 0, notes: "", conditions: [{ key: "magic", kind: "magical", magical: true }] }] } } } }).where(eq(occurrence.participantId, row.participantId));
+      await tx.update(occurrence).set({ creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: { schemaVersion: 1, rules: [{ key: "p5", name: "Magical interaction", ruleType: index === 0 ? "resistance" : secondRule, percentage: index === 0 || secondRule === "vulnerability" || secondRule === "absorption" ? 50 : null, scope: "damage", match: "ALL", crImpact: "None", sortOrder: 0, notes: "", conditions: [{ key: "magic", kind: "magical", magical: true }] }] } } } }).where(eq(occurrence.participantId, row.participantId));
     }
     await commitActionDeclarationInTransaction(tx, f.context, f.player, f.declarationId, { method: "entered", enteredTotal: 70 });
     const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
@@ -235,9 +261,10 @@ test("an affordable concentration cast retains its Mana and Roll when a later In
     const effects = await tx.select().from(effectTable).where(eq(effectTable.encounterId, f.encounterId));
     for (const [index, targetId] of f.occurrences.entries()) {
       const resolution = storedIncomingResolution(effects.find((row) => row.targetParticipantId === targetId)!.authoredValueJson)!;
-      assert.equal(resolution.input.source.magical, true); assert.equal(resolution.status, index === 0 ? "resolved" : "prevented");
+      assert.equal(resolution.input.source.magical, true); assert.equal(resolution.status, index === 0 ? "resolved" : secondRule === "immunity" ? "prevented" : secondRule === "absorption" ? "absorbed" : "resolved");
       assert.equal(resolution.input.effect.amount, 2);
-      assert.equal(resolution.finalEffect?.damage, index === 0 ? 1 : 0);
+      assert.equal(resolution.finalEffect?.damage, index === 0 ? 1 : secondRule === "requirement" ? 2 : secondRule === "vulnerability" ? 3 : 0);
+      assert.equal(resolution.finalEffect?.healing, index === 1 && secondRule === "absorption" ? 1 : 0);
     }
     assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find(({ system }) => system === "Spellcraft")!.currentMana, 20 - f.manaCost);
     throw rollback;

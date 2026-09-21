@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "checks": [
+    "simple Attack and Ability cards",
+    "collapsed legacy data preservation",
+    "unchanged Harvest & Utility",
+    "progressive rule matching",
+    "unopened structured profile preservation",
+    "shared Creature/Race Interaction Rules",
+    "all matcher types",
+    "ANY/ALL",
+    "percentage validation",
+    "stable keys and ordering",
+    "NPC interaction editing",
+    "variant interaction copy",
+    "Race archive/restore",
+    "old records load/save",
+    "legacy snapshots",
+    "conditional range UI",
+    "ordered On-Hit Effects",
+    "shared magic editor",
+    "four activation types",
+    "costs/recharge",
+    "Origin preservation",
+    "Harvest & Utility",
+    "NPC construction and individual editing",
+    "direct encounter snapshots",
+    "archive/restore",
+    "phone authoring layout"
+  ],
+  "errors": []
+}

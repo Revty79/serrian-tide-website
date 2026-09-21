@@ -1,0 +1,70 @@
+{
+  "baseCommit": "21e20ae33f9795e9961c130a3ab96f8b800b2b88",
+  "featureTests": {
+    "files": 175,
+    "tests": 1568,
+    "failed": 0,
+    "skipped": 0
+  },
+  "combatServiceTests": {
+    "scripts": 28,
+    "tests": 388,
+    "failed": 0,
+    "skipped": 0,
+    "byScript": {
+      "scripts/magazine-catalog-repair-db.test.ts": 5,
+      "scripts/weapon-catalog-repair-db.test.ts": 4,
+      "scripts/weapon-skill-governance-db.test.ts": 7,
+      "scripts/magazine-inventory-db.test.ts": 8,
+      "scripts/combat-completion-checkpoints-db.test.ts": 3,
+      "scripts/combat-completion-participants-db.test.ts": 4,
+      "scripts/combat-completion-damage-db.test.ts": 19,
+      "scripts/combat-completion-freeze-db.test.ts": 5,
+      "scripts/combat-completion-spells-db.test.ts": 17,
+      "scripts/combat-completion-learned-spells-db.test.ts": 11,
+      "scripts/combat-completion-effects-db.test.ts": 5,
+      "scripts/combat-completion-items-abilities-db.test.ts": 3,
+      "scripts/combat-completion-firearms-db.test.ts": 69,
+      "scripts/combat-completion-melee-draw-db.test.ts": 9,
+      "scripts/combat-completion-xp-db.test.ts": 10,
+      "scripts/combat-completion-recovery-db.test.ts": 7,
+      "scripts/combat-completion-force-end-db.test.ts": 4,
+      "scripts/combat-completion-trace-db.test.ts": 2,
+      "scripts/combat-completion-participation-db.test.ts": 9,
+      "scripts/combat-completion-conditions-db.test.ts": 22,
+      "scripts/combat-completion-limbs-db.test.ts": 12,
+      "scripts/combat-completion-revival-db.test.ts": 13,
+      "scripts/combat-screens-service-db.test.ts": 21,
+      "scripts/pass5-runtime-db.test.ts": 34,
+      "scripts/pass6-gameplay-db.test.ts": 75,
+      "scripts/derived-ability-effects-db.test.ts": 1,
+      "scripts/derived-ability-runtime-db.test.ts": 2,
+      "scripts/incoming-effect-target-db.test.ts": 7
+    }
+  },
+  "scope": "Disposable test databases only. Automated rehearsal; human acceptance remains for Brannan and Ember.",
+  "combatBrowser": {
+    "workflowChecks": 60,
+    "errors": [],
+    "result": "passed"
+  },
+  "creatureAuthoringBrowser": {
+    "namedChecks": 26,
+    "errors": [],
+    "result": "passed",
+    "legacyMigrationCompatibility": "passed"
+  },
+  "derivedAuthoringBrowser": {
+    "namedChecks": 3,
+    "errors": [],
+    "result": "passed",
+    "savedConditions": 12
+  },
+  "otherValidation": {
+    "TypeScript": "passed",
+    "changed-file ESLint": "passed",
+    "production build": "passed",
+    "Drizzle metadata check": "passed",
+    "git diff --check": "passed"
+  }
+}

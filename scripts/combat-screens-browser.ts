@@ -11,6 +11,7 @@ import { campaignInventoryItem, campaignCharacterItem, campaignCharacterItemInst
 import { submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
 import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { screenFixture, addScreenSpell, addScreenRecoverySpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
+import { createPass6Walkthrough, runPass6Walkthrough } from "./pass6-gameplay-walkthrough";
 async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
 const artifactSubdir = process.env.COMBAT_SCREEN_ARTIFACT_SUBDIR ?? "";
@@ -177,6 +178,55 @@ try {
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
     results.push("Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.");
     await participant.context().close();
+  }
+  if (include("pass6-walkthrough")) {
+    const f = await createPass6Walkthrough();
+    const god = await login(f.godId, "god", f), player = await login(f.playerId, "player", f);
+    const steps: string[] = [];
+    const completed = await runPass6Walkthrough(f, async (step) => {
+      for (const page of [god, player]) {
+        await screen(page).getByRole("button", { name: "Refresh", exact: true }).click(); await screen(page).getByText("Live", { exact: true }).waitFor();
+        await until(() => screen(page).getByRole("button", { name: "Refresh", exact: true }).isEnabled(), "walkthrough inspection");
+      }
+      assert.doesNotMatch(await screen(player).innerText(), /PRIVATE_WALKTHROUGH/);
+      const historySummary = screen(god).getByText("Rolls & results", { exact: true });
+      if (await historySummary.locator("..").getAttribute("open") === null) await historySummary.click();
+      const history = screen(god).locator("details").filter({ has: god.locator(":scope > summary").filter({ hasText: /Fixture Shortsword|Shortsword|Screen Arc Bolt|Screen Pistol|Watcher's Mark/ }) });
+      for (const entry of await history.all()) if (await entry.locator(":scope > summary").count() && await entry.getAttribute("open") === null) await entry.locator(":scope > summary").click();
+      for (const summary of await screen(god).getByText("Protection and interaction calculation", { exact: true }).all()) if (await summary.locator("..").getAttribute("open") === null) await summary.click();
+      await screenshot(god, `pass6-walkthrough-${steps.length + 1}`, 390);
+      await screenshot(player, `pass6-player-${steps.length + 1}`, 390);
+      await god.setViewportSize({ width: 1365, height: 1000 });
+      steps.push(step);
+    }, async () => {
+      const before = (await pool.query("select id,authored_value_json,final_value_json,status from campaign_session_encounter_effect where encounter_id=$1 order by id", [f.encounterId])).rows;
+      await screen(god).getByRole("button", { name: "Freeze Combat", exact: true }).click();
+      await god.reload(); await screen(god).getByRole("button", { name: "Resume Combat", exact: true }).waitFor();
+      await screen(god).getByRole("checkbox", { name: "Automatic flow", exact: true }).uncheck();
+      await screenshot(god, "pass6-walkthrough-frozen", 390);
+      await screen(god).getByRole("button", { name: "Resume Combat", exact: true }).click();
+      await screen(god).getByRole("button", { name: "Freeze Combat", exact: true }).waitFor();
+      assert.deepEqual((await pool.query("select id,authored_value_json,final_value_json,status from campaign_session_encounter_effect where encounter_id=$1 order by id", [f.encounterId])).rows, before);
+      steps.push("Freeze, reload inspection and Resume preserve all results");
+    });
+    assert.equal(completed.length, 5);
+    const saved = (await pool.query("select id,authored_value_json,final_value_json,status from campaign_session_encounter_effect where encounter_id=$1 order by id", [f.encounterId])).rows;
+    await god.setViewportSize({ width: 1365, height: 1000 });
+    await screen(god).getByRole("link", { name: "End Combat & XP", exact: true }).click();
+    const closeout = screen(god).locator("#combat-closeout");
+    const encounterReward = closeout.locator("fieldset").filter({ has: god.locator("legend", { hasText: "Additional encounter XP" }) });
+    await encounterReward.getByLabel("XP per selected Character").fill("2");
+    await encounterReward.getByLabel("Rowan", { exact: true }).check();
+    await closeout.getByRole("button", { name: "Preview closeout", exact: true }).click();
+    await closeout.getByRole("button", { name: "End Combat & award XP", exact: true }).click();
+    await until(async () => (await pool.query("select status from campaign_session_encounter where id=$1", [f.encounterId])).rows[0].status === "completed", "combined mock combat closes");
+    await player.waitForURL((url) => !url.searchParams.has("combat"));
+    assert.deepEqual((await pool.query("select id,authored_value_json,final_value_json,status from campaign_session_encounter_effect where encounter_id=$1 order by id", [f.encounterId])).rows, saved);
+    assert.equal((await pool.query("select experience from campaign_character_profile where character_id=$1", [f.heroId])).rows[0].experience, 14);
+    steps.push("Normal combat closeout preserves the five completed action plans and returns the Player to Tabletop");
+    await writeFile(path.join(artifacts, "pass6-walkthrough.json"), JSON.stringify({ steps, plans: completed }, null, 2));
+    results.push(...steps.map((step) => `Pass 6 combined encounter: ${step}.`));
+    await god.context().close(); await player.context().close();
   }
   if (include("pass5-response")) {
     const f = await db.transaction((tx) => screenFixture(tx, "pass5-response")), target = f.occurrences[0];
@@ -1340,6 +1390,7 @@ try {
       const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Screen Power", description: "Exact shared-pool combat fixture", trigger: kind === "depleted-weapon" ? "weapon-hit" : "activated", activationLabel: "Activate", initiativeCost: kind === "depleted-weapon" ? null : 4, resourceCostKind: "shared-charges", resourceCostAmount: 1,
         resolutionMode: kind === "depleted-weapon" ? "weapon-hit" : kind === "magic-area" ? "fixed-roll" : "automatic", fixedRollTarget: kind === "magic-area" ? 50 : null, sortOrder: 0 }).returning();
       if (kind === "magic-area") {
+        await tx.update(item).set({ isMagical: true }).where(eq(item.id, f.weaponId));
         const learned = await addScreenSpell(tx, f, true);
         await tx.insert(itemPowerConstruction).values({ itemPowerId: power.id, schemaVersion: 1, documentJson: JSON.stringify(learned.spell) });
       } else await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: { kind: "condition.apply", name: "Screen Mark", description: "A once-only item power", duration: { kind: "scene" } } });

@@ -3,7 +3,7 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
-import { item, itemPower, itemPowerEffect, itemPowerResource, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
+import { item, itemProperty, itemTagCatalog, itemTagLink, itemPower, itemPowerEffect, itemPowerResource, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterActiveModifier } from "@/db/realm-schema";
 import { magazineProfile, magazineAmmunition, weaponMagazine, firearmMagazineAttachment } from "@/db/magazine-schema";
 import { readEffectiveFirearmState, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
@@ -35,6 +35,43 @@ import { createPlayerCombatRulingRequestInTransaction, ruleOnPlayerCombatRequest
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
+
+for (const weaponType of ["Handgun", "Bow", "Crossbow"] as const) for (const owner of ["weapon", "ammunition"] as const) for (const fact of ["silver", "magical", "tag"] as const) {
+  test(`Pass 6 ${weaponType}: ${owner} ${fact} cannot establish projectile inheritance`, async () => {
+    await assert.rejects(db.transaction(async (tx) => {
+      const f = await fixture(tx, "npc");
+      await tx.update(weaponProfile).set({ weaponType, ...(weaponType === "Handgun" ? {} : { capacityRounds: 1 }) }).where(eq(weaponProfile.id, f.profile.id));
+      if (weaponType !== "Handgun") {
+        await tx.update(weaponFiringMode).set({ baseCyclingInitiativeCost: null, baseRecoilResetInitiativeCost: null, deliveryCadence: null, roundsPerCadence: null, mechanicsReviewRequired: true }).where(eq(weaponFiringMode.id, f.command.firingModeId));
+        await tx.update(stateTable).set({ loadedRounds: 1, capacityRounds: 1, readied: false, readinessMode: null, readinessModeSource: null }).where(eq(stateTable.itemInstanceId, f.instance.id));
+      }
+      const sourceId = owner === "weapon" ? f.profile.itemId : f.ammunition.id;
+      if (fact === "silver") await tx.insert(itemProperty).values({ itemId: sourceId, propertyName: "Material", value: "Silver" });
+      if (fact === "magical") await tx.update(item).set({ isMagical: true }).where(eq(item.id, sourceId));
+      const tagId = `P6-TAG-${crypto.randomUUID()}`.toUpperCase();
+      if (fact === "tag") {
+        const [tag] = await tx.insert(itemTagCatalog).values({ canonicalId: tagId, name: "Blessed projectile test", tagGroup: "Test", description: "Explicit disposable projectile tag" }).returning();
+        await tx.insert(itemTagLink).values({ itemId: sourceId, tagId: tag.id });
+      }
+      const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
+      const snapshot = target.creatureSnapshotJson as typeof f.creatureSnapshot;
+      const conditions: InteractionRuleProfile["rules"][number]["conditions"] = fact === "silver" ? [{ key: "silver", kind: "item-property", propertyName: "Material", value: "Silver" }]
+        : fact === "magical" ? [{ key: "magic", kind: "magical", magical: true }] : [{ key: "tag", kind: "item-tag", tagCanonicalId: tagId }];
+      await tx.update(occurrence).set({ creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: { schemaVersion: 1, rules: [{ key: "required", name: "Projectile qualification", ruleType: "requirement", scope: "damage", match: "ALL", percentage: null, crImpact: "None", sortOrder: 0, notes: "Private projectile rule", conditions }] } } } }).where(eq(occurrence.participantId, target.participantId));
+      const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, f.command), attack = await f.attack(declared.attackId);
+      await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
+      const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+      const rows = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
+      const resolution = rows.map((row) => storedIncomingResolution(row.authoredValueJson)).find(Boolean)!;
+      assert.equal(resolution.status, "requires-god-ruling");
+      assert.equal(resolution.input.source.magical, null); assert.equal(resolution.input.source.itemProperties, null); assert.equal(resolution.input.source.itemTags, null);
+      assert.equal(resolution.input.source.weaponFamily, weaponType === "Handgun" ? "firearm" : "none");
+      assert.equal((await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" })).rollId, fired.rollId);
+      assert.equal((await f.rolls()).length, 1); assert.equal((await f.state()).loadedRounds, weaponType === "Handgun" ? 2 : 0);
+      throw rollback;
+    }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
+  });
+}
 const rollback = new Error("ROLLBACK_FIREARM_COMPLETION");
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1118,12 +1155,12 @@ test("decimal cycling and recoil costs persist, freeze and finish without roundi
   }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
 });
 
-for (const scenario of ["resistance", "absorption", "unknown-magical"] as const) test(`Pass 5 firearm ${scenario}: per-bullet interaction and ammunition retry`, async () => {
+for (const scenario of ["resistance", "absorption", "immunity", "unknown-magical"] as const) test(`Pass 5 firearm ${scenario}: per-bullet interaction and ammunition retry`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const f = await fixture(tx, "player", true);
     const [target] = await tx.select().from(occurrence).where(eq(occurrence.characterId, f.occurrences[0]));
     const profile: InteractionRuleProfile = { schemaVersion: 1, rules: [{ key: "p5", name: "Private firearm rule", ruleType: scenario === "unknown-magical" ? "requirement" : scenario,
-      scope: "damage", match: "ALL", percentage: scenario === "unknown-magical" ? null : 50, crImpact: "None", sortOrder: 0, notes: "PRIVATE",
+      scope: "damage", match: "ALL", percentage: scenario === "unknown-magical" || scenario === "immunity" ? null : 50, crImpact: "None", sortOrder: 0, notes: "PRIVATE",
       conditions: [scenario === "unknown-magical" ? { key: "magic", kind: "magical", magical: true } : { key: "family", kind: "source-kind", sourceKind: "weapon", weaponFamily: "firearm" }] }] };
     const snapshot = target.creatureSnapshotJson as typeof f.creatureSnapshot;
     await tx.update(occurrence).set({ creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: profile } }, localStateJson: { health: { totalDamage: 20, poolDamage: { "fixture-body": 20 } } } }).where(eq(occurrence.participantId, target.participantId));
@@ -1136,14 +1173,14 @@ for (const scenario of ["resistance", "absorption", "unknown-magical"] as const)
     for (const result of resolutions) {
       assert.equal(result.input.source.weaponFamily, "firearm"); assert.equal(result.input.source.magical, null);
       assert.equal(result.input.source.itemProperties, null); assert.equal(result.input.source.itemTags, null);
-      assert.equal(result.status, scenario === "unknown-magical" ? "requires-god-ruling" : scenario === "absorption" ? "absorbed" : "resolved");
+      assert.equal(result.status, scenario === "unknown-magical" ? "requires-god-ruling" : scenario === "absorption" ? "absorbed" : scenario === "immunity" ? "prevented" : "resolved");
       if (scenario === "resistance") assert.equal(result.finalEffect?.damage, 1, "8 * .5 - 2 Natural Armor - 1 Natural Soak per bullet");
       if (scenario === "absorption") assert.equal(result.finalEffect?.healing, 4);
     }
     if (scenario !== "unknown-magical") {
       for (let i = 0; i < 2; i++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId)).status, "applied");
       const [after] = await tx.select().from(occurrence).where(eq(occurrence.participantId, target.participantId));
-      assert.equal((after.localStateJson as { health: { totalDamage: number } }).health.totalDamage, scenario === "absorption" ? 8 : 23);
+      assert.equal((after.localStateJson as { health: { totalDamage: number } }).health.totalDamage, scenario === "absorption" ? 8 : scenario === "immunity" ? 20 : 23);
     }
     await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
     assert.equal((await f.state()).loadedRounds, 0); assert.equal((await f.rolls()).length, 1);

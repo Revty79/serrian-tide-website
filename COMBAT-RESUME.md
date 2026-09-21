@@ -1,5 +1,14 @@
 # Combat resumption handoff
 
+## Pass 6: final gameplay validation (20 September 2026)
+
+**Parent revision:** `21e20ae33f9795e9961c130a3ab96f8b800b2b88`. Brannan accepted Passes 1–5 and authorized final validation, genuine defect fixes, then push/sync. This supersedes the earlier stop-before-Pass-6 notes below. **No subsequent architecture phase or Pass 7 is authorized.**
+
+- Real Player-read regressions reproduced and corrected two privacy leaks: resolved incoming-effect ruling reasons, and nested private Creature source requirements/special-effect text. Redaction affects public projections only; authoritative history remains unchanged. Public amount/location remain visible, with private embedded ruling notes omitted.
+- The G.O.D. result explanation uses readable stage names, original incoming damage and an explicit ruling-required label. Shared mechanics and protection/resource authorities remain unchanged.
+- The new gameplay matrix covers all four identities, protection combinations, Requirements/percentages/Absorption conflicts, source freezing, passive health conditions, actual concurrent Derived retries and projectile inheritance boundaries. One combined encounter uses five action plans, four Rolls, a Reaction opportunity, Freeze/reload/Resume and normal closeout with an explicit XP award. It is automated rehearsal, not human acceptance.
+- [Final report, exact files, validation, walkthrough and open tabletop decisions](docs/reports/final-gameplay-validation-pass-6-2026-09-20.md). Final validation passed: 1,568 feature tests, 388 service tests across 28 scripts, 60 combat browser workflow checks, both authoring browsers, TypeScript, changed-file lint, production build, Drizzle metadata and diff checks. Stop here for Brannan/Ember review; no Pass 7. No migrations, backfills, live Character/catalog edits or deployment; Harvest & Utility is unchanged.
+
 ## Pass 5 final correction: Derived Use Condition authoring (20 September 2026)
 
 **Parent revision:** `a786f4d859fa7486fd49533cac7deec922e66339`. Brannan accepted the runtime structure and requested focused authoring/runtime parity. **Stop after this correction commit for Brannan and Ember review. Pass 6 has not started.**

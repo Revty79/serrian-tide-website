@@ -1,5 +1,5 @@
 import "server-only";
-import { playerIncomingAuthoredValue } from "@/features/incoming-effects/public-evidence";
+import { playerIncomingAuthoredValue, playerIncomingFinalValue } from "@/features/incoming-effects/public-evidence";
 import { readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import { projectSealedCombatManaInTransaction } from "./combat-resource-projection-service";
 import { readOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
@@ -814,13 +814,19 @@ async function readPlayerCombatConsole(
         governingSource: null,
         governingSnapshot: null,
         authoredData: { redacted: true },
+        effects: [],
+        resourceCosts: [],
+        warnings: [],
       },
       governingRollSnapshot: ownsPlan ? plan.governingRollSnapshot : null,
       defenseResolution: ownsPlan ? plan.defenseResolution : null,
       sourceDivergence: ownsPlan ? plan.sourceDivergence : null,
+      resourceCosts: ownsPlan ? plan.resourceCosts : [],
       effects: (ownsPlan ? plan.effects : plan.effects.filter(({ targetParticipantId }) => targetParticipantId === character.characterId))
-        .map((effect) => ({ ...effect, authoredValue: playerIncomingAuthoredValue(effect.authoredValue),
-          amendmentReason: effect.godReviewRequired ? "This effect requires a G.O.D. decision." : effect.status === "declined" ? "This effect was not applied." : effect.amendmentReason })),
+        .map((effect) => ({ ...effect, authoredValue: playerIncomingAuthoredValue(effect.authoredValue, ownsPlan), finalValue: playerIncomingFinalValue(effect.finalValue),
+          amendmentReason: effect.godReviewRequired ? "This effect requires a G.O.D. decision." : effect.status === "declined" ? "This effect was not applied."
+            : plan.events.some((event) => event.eventKind === "incoming-effect-ruling" && (event.metadata as { effectId?: number } | null)?.effectId === effect.id)
+              ? "G.O.D. incoming-effect ruling recorded." : effect.amendmentReason })),
       createdByUserId: "",
       reviewedByUserId: null,
       appliedByUserId: null,

@@ -6,7 +6,7 @@ import { buildProtectionLayers } from "@/features/protection/protection-layers";
 import type { IncomingEffectTarget } from "./models";
 import { resolveIncomingEffectProposal, storedIncomingResolution, recalculateFrozenIncoming } from "./effect-proposal";
 import { incomingFactsFromFrozenSource, projectileIncomingFacts } from "./source-facts";
-import { playerIncomingAuthoredValue } from "./public-evidence";
+import { playerIncomingAuthoredValue, playerIncomingFinalValue } from "./public-evidence";
 
 const rule = (ruleType: InteractionRule["ruleType"], percentage: number | null = null): InteractionRule => ({ key: "rule", name: "Secret rule", ruleType, percentage,
   conditions: [{ key: "magic", kind: "magical", magical: true }], scope: "damage", match: "ALL", notes: "Private G.O.D. notes", sortOrder: 0 });
@@ -70,4 +70,16 @@ test("Player evidence does not expose private rule text or frozen target records
   const json = JSON.stringify(playerIncomingAuthoredValue(result.authoredValue));
   assert.doesNotMatch(json, /Secret rule|Private G.O.D.|ruleSource|interactionRules|incomingEffectResolution/);
   assert.match(json, /prevented/);
+});
+
+test("a target's Player cannot inspect private source authoring in new or historical evidence", () => {
+  const original = { source: { requirements: "Private Creature requirements", specialEffect: "Private special effect" }, roll: { succeeded: true } };
+  assert.deepEqual(playerIncomingAuthoredValue(original, false), { roll: { succeeded: true } });
+  assert.deepEqual(playerIncomingAuthoredValue(original), original, "the source owner retains authorized source details");
+});
+
+test("Player final outcomes retain amount and location without embedded private ruling notes", () => {
+  const original = { effect: { kind: "health.damage", amount: 3 }, application: { poolKey: "head", hitLocationNumber: 0, ordinaryAttack: { declarationId: 12, ruling: { reason: "Private G.O.D. reason", finalDamage: 3 } } } };
+  assert.deepEqual(playerIncomingFinalValue(original), { effect: original.effect, application: { poolKey: "head", hitLocationNumber: 0, ordinaryAttack: { declarationId: 12 } } });
+  assert.equal(original.application.ordinaryAttack.ruling.reason, "Private G.O.D. reason", "immutable historical evidence stays unchanged");
 });
