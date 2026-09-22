@@ -85,11 +85,13 @@ export type SessionCloseoutView = {
     total: number;
   };
   activeContext: {
-    sceneId: number | null;
-    sceneTitle: string | null;
-    encounterId: number | null;
-    encounterTitle: string | null;
-    initiative: { roundNumber: number; stepNumber: number } | null;
+    scenes: Array<{ id: number; title: string }>;
+    encounters: Array<{
+      id: number;
+      title: string;
+      sceneId: number;
+      initiative: { roundNumber: number; stepNumber: number } | null;
+    }>;
   };
   blockers: SessionCloseoutBlocker[];
   warnings: SessionCloseoutWarning[];
@@ -369,11 +371,6 @@ export async function readSessionCloseoutInTransaction(
     plannedEncounterCount: encounterSummary.planned,
     unboundDurations,
   });
-  const activeScene = scenes.find(({ status }) => status === "active") ?? null;
-  const activeEncounter = encounters.find(({ status }) => status === "active") ?? null;
-  const activeInitiative = activeEncounter === null ? null : initiatives.find(({ encounterId, status }) => (
-    encounterId === activeEncounter.id && status === "active"
-  )) ?? null;
   const rewards = [...rewardByCharacter.entries()].map(([characterId, reward]) => ({ characterId, ...reward }));
   return {
     closeoutAwards: await readCloseoutAwardViewInTransaction(tx, { sessionId: context.sessionId, sceneId: null }, { userId: context.ownerUserId, roles: ["god"] }),
@@ -388,14 +385,11 @@ export async function readSessionCloseoutInTransaction(
     scenes: sceneSummary,
     encounters: encounterSummary,
     activeContext: {
-      sceneId: activeScene?.id ?? null,
-      sceneTitle: activeScene?.title ?? null,
-      encounterId: activeEncounter?.id ?? null,
-      encounterTitle: activeEncounter?.title ?? null,
-      initiative: activeInitiative ? {
-        roundNumber: activeInitiative.roundNumber,
-        stepNumber: activeInitiative.stepNumber,
-      } : null,
+      scenes: scenes.filter(({ status }) => status === "active").map(({ id, title }) => ({ id, title })),
+      encounters: encounters.filter(({ status }) => status === "active").map(({ id, title, sceneId }) => {
+        const initiative = initiatives.find((entry) => entry.encounterId === id && entry.status === "active");
+        return { id, title, sceneId, initiative: initiative ? { roundNumber: initiative.roundNumber, stepNumber: initiative.stepNumber } : null };
+      }),
     },
     blockers,
     warnings,

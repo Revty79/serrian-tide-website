@@ -387,12 +387,12 @@ test("Scene metadata, lifecycle, and ordered membership persist without duplicat
   }), (error) => error === ROLLBACK);
 });
 
-test("the database prevents two active Scenes in one Session", async () => {
+test("the database permits two active Scenes in one Session without changing their sequence", async () => {
   await assert.rejects(db.transaction(async (tx) => {
     const { campaignId } = await insertTemporaryCampaign(tx);
     const [session] = await tx.insert(campaignSession).values({
       campaignId,
-      title: "One Active Scene",
+      title: "Multiple Active Scenes",
       sequenceNumber: 1,
       status: "active",
       startedAt: new Date(),
@@ -405,7 +405,11 @@ test("the database prevents two active Scenes in one Session", async () => {
     assert.ok(first && second);
     await tx.update(campaignSessionScene).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionScene.id, first.id));
     await tx.update(campaignSessionScene).set({ status: "active", startedAt: new Date() }).where(eq(campaignSessionScene.id, second.id));
-  }), (error: unknown) => /campaign_session_scene_one_active_per_session_uq|duplicate key/i.test(String(error instanceof Error ? `${error.message} ${error.cause ?? ""}` : error)));
+    assert.deepEqual(await tx.select({ sequenceNumber: campaignSessionScene.sequenceNumber, status: campaignSessionScene.status })
+      .from(campaignSessionScene).where(eq(campaignSessionScene.sessionId, session.id)).orderBy(asc(campaignSessionScene.sequenceNumber)),
+    [{ sequenceNumber: 1, status: "active" }, { sequenceNumber: 2, status: "active" }]);
+    throw ROLLBACK;
+  }), (error) => error === ROLLBACK);
 });
 
 test("the database rejects Scene members who are not in that Session Roster", async () => {

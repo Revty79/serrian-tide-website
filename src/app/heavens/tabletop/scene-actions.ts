@@ -18,7 +18,6 @@ import {
   campaignSessionSceneMember,
 } from "@/db/tabletop-operations-schema";
 import {
-  assertNoOtherActiveScene,
   assertParentSessionAllowsScenePreparation,
   assertSceneIsEditable,
   assertSceneMayBeDeleted,
@@ -33,6 +32,7 @@ import {
   type SceneStatus,
   type SceneTransition,
 } from "@/features/tabletop-operations/scene-foundation";
+import { assertNoActiveSceneMemberOverlapInTransaction } from "@/features/tabletop-operations/scene-membership-service";
 import {
   assertCampaignSessionOwner,
   type SessionStatus,
@@ -444,89 +444,75 @@ async function applySceneLifecycleTransition(
     roles: access.roles,
   };
   assertPositiveId(sceneId, "Scene");
-  try {
-    const updated = await db.transaction(async (tx) => {
-      const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
-        tx,
-        { entityKind: "scene", entityId: sceneId },
-        actor,
-      );
-      const locked = await lockOwnedScene(tx, sceneId, actor);
-      assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Scene");
-      if (transition === "complete" && locked.status === "completed") {
-        if (awards.awards.length || awards.note) await applyCloseoutAwardsInTransaction(tx, { sessionId: locked.sessionId, sceneId }, actor, awards);
-        return locked;
-      }
-      if (transition === "start") assertSceneMayStart(locked.sessionStatus);
-      if (transition === "complete") {
-        assertSceneMayComplete(locked.sessionStatus);
-        const [activeEncounter] = await tx
-          .select({ id: campaignSessionEncounter.id })
-          .from(campaignSessionEncounter)
-          .where(and(
-            eq(campaignSessionEncounter.sceneId, sceneId),
-            eq(campaignSessionEncounter.status, "active"),
-          ))
-          .limit(1);
-        if (activeEncounter) {
-          throw new Error("Complete the active Encounter before completing this Scene.");
-        }
-      }
-      if (transition === "reopen") assertSceneMayReopen(locked.sessionStatus);
-      const next = transitionScene(locked, transition);
-      if (next.status === "active") {
-        const activeRows = await tx
-          .select({ id: campaignSessionScene.id })
-          .from(campaignSessionScene)
-          .where(and(
-            eq(campaignSessionScene.sessionId, locked.sessionId),
-            eq(campaignSessionScene.status, "active"),
-          ));
-        assertNoOtherActiveScene(activeRows.map(({ id }) => id), sceneId);
-      }
-      if (transition === "complete") {
-        await endActiveShopVisitsForSceneInTransaction(tx, sceneId, actor.userId);
-        await applyCloseoutAwardsInTransaction(tx, { sessionId: locked.sessionId, sceneId }, actor, awards);
-      }
-      const [row] = await tx
-        .update(campaignSessionScene)
-        .set({ ...next, updatedAt: new Date() })
-        .where(and(
-          eq(campaignSessionScene.id, sceneId),
-          eq(campaignSessionScene.status, locked.status),
-        ))
-        .returning(sceneFields);
-      if (!row) throw new Error("The Scene changed before this action completed. Refresh and try again.");
-      if (next.status === "completed") {
-        await expireSceneDurationsInTransaction(tx, sceneId, locked.sequenceNumber);
-      }
-      await publishTabletopInvalidationInTransaction(tx, {
-        campaignId: locked.campaignId,
-        sessionId: locked.sessionId,
-        sceneId,
-        encounterId: null,
-        characterIds: [],
-        category: "hierarchy",
-      });
-      if (transition === "complete" || transition === "reopen") {
-        await recordTabletopLifecycleAuditInTransaction(
-          tx,
-          actor,
-          transition === "complete" ? "archive" : "restore",
-          lifecycle.root,
-          lifecycle.preview,
-        );
-      }
-      return row;
-    });
-    refreshScenes();
-    return toSceneSummary(updated);
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new Error("This Session already has an active Scene. Complete it before starting another.");
+  const updated = await db.transaction(async (tx) => {
+    const lifecycle = await prepareTabletopLifecycleMutationInTransaction(
+      tx,
+      { entityKind: "scene", entityId: sceneId },
+      actor,
+    );
+    const locked = await lockOwnedScene(tx, sceneId, actor);
+    assertCampaignRuntimeOperator(actor, locked.ownerUserId, "Scene");
+    if (transition === "complete" && locked.status === "completed") {
+      if (awards.awards.length || awards.note) await applyCloseoutAwardsInTransaction(tx, { sessionId: locked.sessionId, sceneId }, actor, awards);
+      return locked;
     }
-    throw error;
-  }
+    if (transition === "start") assertSceneMayStart(locked.sessionStatus);
+    if (transition === "complete") {
+      assertSceneMayComplete(locked.sessionStatus);
+      const [activeEncounter] = await tx
+        .select({ id: campaignSessionEncounter.id })
+        .from(campaignSessionEncounter)
+        .where(and(
+          eq(campaignSessionEncounter.sceneId, sceneId),
+          eq(campaignSessionEncounter.status, "active"),
+        ))
+        .limit(1);
+      if (activeEncounter) {
+        throw new Error("Complete the active Encounter before completing this Scene.");
+      }
+    }
+    if (transition === "reopen") assertSceneMayReopen(locked.sessionStatus);
+    const next = transitionScene(locked, transition);
+    if (next.status === "active") {
+      await assertNoActiveSceneMemberOverlapInTransaction(tx, { ...locked, sceneId });
+    }
+    if (transition === "complete") {
+      await endActiveShopVisitsForSceneInTransaction(tx, sceneId, actor.userId);
+      await applyCloseoutAwardsInTransaction(tx, { sessionId: locked.sessionId, sceneId }, actor, awards);
+    }
+    const [row] = await tx
+      .update(campaignSessionScene)
+      .set({ ...next, updatedAt: new Date() })
+      .where(and(
+        eq(campaignSessionScene.id, sceneId),
+        eq(campaignSessionScene.status, locked.status),
+      ))
+      .returning(sceneFields);
+    if (!row) throw new Error("The Scene changed before this action completed. Refresh and try again.");
+    if (next.status === "completed") {
+      await expireSceneDurationsInTransaction(tx, sceneId, locked.sequenceNumber);
+    }
+    await publishTabletopInvalidationInTransaction(tx, {
+      campaignId: locked.campaignId,
+      sessionId: locked.sessionId,
+      sceneId,
+      encounterId: null,
+      characterIds: [],
+      category: "hierarchy",
+    });
+    if (transition === "complete" || transition === "reopen") {
+      await recordTabletopLifecycleAuditInTransaction(
+        tx,
+        actor,
+        transition === "complete" ? "archive" : "restore",
+        lifecycle.root,
+        lifecycle.preview,
+      );
+    }
+    return row;
+  });
+  refreshScenes();
+  return toSceneSummary(updated);
 }
 
 export async function startCampaignSessionScene(sceneId: number): Promise<CampaignSceneSummary> {
@@ -625,6 +611,9 @@ export async function addCampaignSessionSceneMember(
       ))
       .limit(1);
     if (existing) throw new Error("That Character or NPC is already in this Scene.");
+    if (locked.status === "active") {
+      await assertNoActiveSceneMemberOverlapInTransaction(tx, { ...locked, sceneId }, [characterId]);
+    }
     const [last] = await tx
       .select({ sortOrder: campaignSessionSceneMember.sortOrder })
       .from(campaignSessionSceneMember)

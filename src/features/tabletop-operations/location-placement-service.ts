@@ -1,4 +1,5 @@
 import "server-only";
+import { assertNoActiveSceneMemberOverlapInTransaction } from "./scene-membership-service";
 
 import { and, asc, eq, inArray, isNull, max } from "drizzle-orm";
 
@@ -380,6 +381,9 @@ async function ensureNpcMemberships(
   npcCharacterIds: readonly number[],
 ): Promise<void> {
   if (!npcCharacterIds.length) return;
+  if (context.sceneStatus === "active") {
+    await assertNoActiveSceneMemberOverlapInTransaction(tx, { ...context, sessionId: context.id }, npcCharacterIds);
+  }
   const [rosterLast] = await tx.select({ value: max(campaignSessionRoster.sortOrder) })
     .from(campaignSessionRoster).where(eq(campaignSessionRoster.sessionId, context.id));
   let rosterOrder = (rosterLast?.value ?? -1) + 1;

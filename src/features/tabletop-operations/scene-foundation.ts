@@ -99,15 +99,6 @@ export function assertSceneMayBeDeleted(status: SceneStatus): void {
   if (status !== "planned") throw new Error("Only a planned Scene may be deleted.");
 }
 
-export function assertNoOtherActiveScene(
-  activeSceneIds: readonly number[],
-  targetSceneId: number,
-): void {
-  if (activeSceneIds.some((sceneId) => sceneId !== targetSceneId)) {
-    throw new Error("This Session already has an active Scene. Complete it before starting another.");
-  }
-}
-
 export function assertSceneMemberBelongsToRoster(
   sceneSessionId: number,
   rosterSessionId: number,

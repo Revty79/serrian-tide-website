@@ -475,7 +475,7 @@ export function TabletopWorkspace({
 
       {!creating && selectedSession && initialSessionCloseout ? <section className="tabletop-active-table">
         <div><span>ACTIVE TABLE</span><strong>Session {selectedSession.sequenceNumber} · {selectedSession.title}</strong><small>{selectedSession.status}</small></div>
-        <div><span>Scene</span><strong>{initialSessionCloseout.activeContext.sceneTitle ?? "No active Scene"}</strong></div>
+        <div><span>Active Scenes</span><strong>{initialSessionCloseout.scenes.active}</strong><small>{initialSessionCloseout.activeContext.scenes.map(({ title }) => title).join(" · ") || "No active Scenes"}</small></div>
         <footer>{initialData.canAuthor ? <><button type="button" onClick={openCalledChecks}>Called Checks</button><button type="button" onClick={openRollWorkspace}>Roll</button></> : null}<button type="button" onClick={() => setActiveTab("closeout")}>Session Closeout</button></footer>
       </section> : null}
 

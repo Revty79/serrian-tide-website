@@ -49,6 +49,24 @@ test("Session closeout reports every objective unresolved runtime blocker", () =
   ]);
 });
 
+test("Session closeout identifies every active Scene and independent Encounter", () => {
+  const input = closeoutInput();
+  input.scenes.push(
+    { id: 1, title: "Junction", status: "active" },
+    { id: 2, title: "Cedar & Steel", status: "active" },
+    { id: 3, title: "South Gate", status: "active" },
+    { id: 4, title: "Unused", status: "planned" },
+  );
+  input.encounters.push(
+    { id: 10, sceneId: 1, title: "Encounter A", status: "active" },
+    { id: 11, sceneId: 3, title: "Encounter B", status: "active" },
+  );
+  const blockers = buildSessionCloseoutBlockers(input);
+  assert.deepEqual(blockers.filter(({ code }) => code === "scene-active").map(({ sceneId }) => sceneId), [1, 2, 3]);
+  assert.deepEqual(blockers.filter(({ code }) => code === "encounter-active").map(({ encounterId }) => encounterId), [10, 11]);
+  for (const title of ["Junction", "Cedar & Steel", "South Gate"]) assert.ok(blockers.some(({ message }) => message.includes(title)));
+});
+
 test("historical and closed runtime rows do not block Session closeout", () => {
   const input = closeoutInput();
   input.scenes.push({ id: 1, title: "Road", status: "completed" }, { id: 3, title: "Unused", status: "planned" });

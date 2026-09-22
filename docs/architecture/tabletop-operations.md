@@ -21,7 +21,7 @@ Campaign
 
 Build 2 establishes the Session Roster as references to existing Campaign Characters. Build 3 establishes Scenes and Scene membership beneath Sessions. Build 4 establishes Encounters and Encounter Participants. Build 5 establishes the persistent Initiative Runtime attached to that Participant identity. Authored attack, reaction, spell, Item, Creature Ability, and Active State integration remain later additions.
 
-Saved Town and Shop placement is an additional descriptive layer beneath Session preparation and Scenes. Its normalized reference, reveal, refresh, visit, and lifecycle contract is defined in `docs/architecture/tabletop-location-placement.md`. Participant Shop visits add a focused roleplay/browsing context inside the active Scene; they do not change the one-active-Scene rule and do not implement transactions.
+Saved Town and Shop placement is an additional descriptive layer beneath Session preparation and Scenes. Its normalized reference, reveal, refresh, visit, and lifecycle contract is defined in `docs/architecture/tabletop-location-placement.md`. Participant Shop visits add a focused roleplay/browsing context inside each participant's active Scene; they do not change the Session, Scene or Encounter hierarchy.
 
 ## Session Roster boundary
 
@@ -42,6 +42,10 @@ Scenes and Encounters select from, or otherwise reference, the Session-level ros
 ## Scene boundary
 
 A Scene is an organizational span of tabletop play: a coherent situation, location, conversation, or exploration segment inside exactly one Session. A Scene may exist without an Encounter and may eventually contain one or more Encounters.
+
+**Current rule — 22 September 2026:** one active Session may contain multiple simultaneously active Scenes. A Character or NPC may belong to only one of those active Scenes in that Session. Starting/reopening a Scene and adding members to an active Scene check for overlaps under the parent Session transaction lock, including NPC membership created through Town placement. Planned memberships may overlap. No automatic transfers occur. Existing history and member-removal restrictions remain intact.
+
+Only one Session per Campaign and one Encounter per Scene may be active. Different active Scenes may each run an Encounter. Scene numbers remain unique within the Session and retain their history order. Player Tabletop resolves the selected Character's own active Scene and retains its ambiguity error for corrupt memberships. Session closeout lists every active Scene/Encounter and remains blocked until all active Scenes complete; unused planned content remains a warning. Migration `0065_multiple_active_scenes` drops only the former single-active-Scene index.
 
 ```text
 Scene

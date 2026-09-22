@@ -4,7 +4,6 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  assertNoOtherActiveScene,
   assertParentSessionAllowsScenePreparation,
   assertSceneIsEditable,
   assertSceneMayBeDeleted,
@@ -56,15 +55,12 @@ test("Scene lifecycle permits planned to active to completed and completed to ac
   });
 });
 
-test("invalid Scene transitions, deletion, and concurrent active Scenes are rejected", () => {
+test("invalid Scene transitions and deletion are rejected", () => {
   assert.throws(() => transitionScene({ status: "planned", startedAt: null, completedAt: null }, "complete"), /planned Scene cannot be completed/);
   assert.throws(() => transitionScene({ status: "active", startedAt: new Date(), completedAt: null }, "reopen"), /active Scene cannot be reopened/);
   assert.doesNotThrow(() => assertSceneMayBeDeleted("planned"));
   assert.throws(() => assertSceneMayBeDeleted("active"), /Only a planned Scene/);
   assert.throws(() => assertSceneMayBeDeleted("completed"), /Only a planned Scene/);
-  assert.doesNotThrow(() => assertNoOtherActiveScene([], 9));
-  assert.doesNotThrow(() => assertNoOtherActiveScene([9], 9));
-  assert.throws(() => assertNoOtherActiveScene([8], 9), /already has an active Scene/);
 });
 
 test("parent Session status governs Scene preparation, start, completion, and reopen", () => {
@@ -119,8 +115,8 @@ test("Scene and member schema carry only organizational references and metadata"
     'startedAt: timestamp("started_at")',
     'completedAt: timestamp("completed_at")',
   ]) assert.ok(sceneSchema.includes(field), `Scene schema is missing ${field}`);
-  assert.match(sceneSchema, /campaign_session_scene_one_active_per_session_uq/);
-  assert.match(sceneSchema, /\.where\(sql`\$\{table\.status\} = 'active'`\)/);
+  assert.doesNotMatch(sceneSchema, /campaign_session_scene_one_active_per_session_uq/);
+  assert.match(sceneSchema, /campaign_session_scene_session_sequence_uq/);
   assert.match(sceneSchema, /campaign_session_scene_member_roster_fk/);
   assert.match(sceneSchema, /foreignColumns: \[campaignSessionRoster\.sessionId, campaignSessionRoster\.characterId\]/);
   assert.match(sceneSchema, /\.onDelete\("restrict"\)/);
@@ -142,6 +138,9 @@ test("Scene actions resolve authoritative parents and permit only DB-authorized 
   assert.match(actions, /eq\(campaignSessionRoster\.campaignId, locked\.campaignId\)/);
   assert.match(actions, /eq\(campaignSessionRoster\.characterId, characterId\)/);
   assert.doesNotMatch(actions, /input\.campaignId/);
+  assert.doesNotMatch(actions, /assertNoOtherActiveScene|This Session already has an active Scene/);
+  assert.match(actions, /if \(next.status === "active"\) \{\s*await assertNoActiveSceneMemberOverlapInTransaction/);
+  assert.match(actions, /if \(locked.status === "active"\) \{\s*await assertNoActiveSceneMemberOverlapInTransaction/);
 });
 
 test("roster removal and Session completion protect Scene history", () => {

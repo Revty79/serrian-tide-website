@@ -88,7 +88,7 @@ export function resolvePlayerTabletopPresence(input: {
   if (!input.sceneMember) return {
     kind: "active-session-rostered",
     label: "Session active · rostered",
-    detail: "This Character is in the Session roster and is waiting to enter the active Scene.",
+    detail: "This Character is in the Session roster and is waiting to join an active Scene.",
     liveActionsAllowed: true,
     noncombatSourceUseAllowed: true,
   };

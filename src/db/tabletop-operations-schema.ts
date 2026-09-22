@@ -351,9 +351,6 @@ export const campaignSessionScene = pgTable(
       table.sessionId,
       table.sequenceNumber,
     ),
-    uniqueIndex("campaign_session_scene_one_active_per_session_uq")
-      .on(table.sessionId)
-      .where(sql`${table.status} = 'active'`),
     index("campaign_session_scene_session_status_idx").on(table.sessionId, table.status),
     index("campaign_session_scene_session_order_idx").on(table.sessionId, table.sequenceNumber),
     check("campaign_session_scene_title_nonblank", sql`length(trim(${table.title})) > 0`),

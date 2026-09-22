@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -80,7 +80,8 @@ test("Town and Shop placement is atomic, scoped, repeat-safe, refreshable, and l
     const migrationLedger = await seedPool.query<{ count: number }>(
       "select count(*)::int count from drizzle.__drizzle_migrations",
     );
-    assert.equal(Number(migrationLedger.rows[0]?.count), 41, "the disposable database did not reach migration 0040");
+    const journal = JSON.parse(readFileSync(path.resolve("drizzle/meta/_journal.json"), "utf8"));
+    assert.equal(Number(migrationLedger.rows[0]?.count), journal.entries.length, "the disposable database must apply every current migration");
 
     const ownerA = "location-owner-a";
     const ownerB = "location-owner-b";

@@ -1,0 +1,1 @@
+DROP INDEX "campaign_session_scene_one_active_per_session_uq";
