@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -652,13 +652,20 @@ export async function removeCampaignSessionSceneMember(
     const [encounterUse] = await tx
       .select({ encounterId: campaignSessionEncounterParticipant.encounterId })
       .from(campaignSessionEncounterParticipant)
+      .innerJoin(campaignSessionEncounter, and(
+        eq(campaignSessionEncounter.id, campaignSessionEncounterParticipant.encounterId),
+        eq(campaignSessionEncounter.sceneId, sceneId),
+        eq(campaignSessionEncounter.sessionId, locked.sessionId),
+        eq(campaignSessionEncounter.campaignId, locked.campaignId),
+      ))
       .where(and(
         eq(campaignSessionEncounterParticipant.sceneId, sceneId),
         eq(campaignSessionEncounterParticipant.characterId, characterId),
+        inArray(campaignSessionEncounter.status, ["planned", "active"]),
       ))
       .limit(1);
     if (encounterUse) {
-      throw new Error("This Scene member is used by an Encounter. Remove them from editable Encounters first; completed Encounter history cannot be erased.");
+      throw new Error("This Scene member is still used by a planned or active Encounter. Remove or resolve that Encounter participation first.");
     }
     const [locationUse] = await tx.select({ townId: campaignSessionSceneTownNpc.townId })
       .from(campaignSessionSceneTownNpc)

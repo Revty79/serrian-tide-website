@@ -77,7 +77,7 @@ Encounter
 
 Encounter Participants identify who is actively involved in that focused Encounter. Their order is G.O.D. display and preparation order only; it is not Initiative order. Encounter type is descriptive and never starts combat or changes mechanics automatically.
 
-Completed Encounters preserve metadata and Participant references as history. Removing a Scene Member must be rejected while an Encounter still references it, rather than cascading away Encounter history.
+Completed Encounters preserve metadata and Participant references as independent history. Removing a Scene Member is blocked by planned or active Encounter participation, but completed participation does not prevent departure from an editable Scene. Removing membership never deletes Encounter Participant history; Town placement, active Shop visits and completed Scene protections still apply.
 
 Build 4 creates the stable Encounter Participant identity layer. Build 5 attaches Initiative, Hold/Pass, Combat Step/Round state, pending actions, and late Initiative enrollment to that identity rather than creating another participant identity system.
 

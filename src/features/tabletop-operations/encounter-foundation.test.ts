@@ -159,7 +159,8 @@ test("Scene completion and Scene-member removal protect Encounter history", () =
   assert.doesNotMatch(lifecycle, /\.delete\(campaignSessionEncounter/);
   const removal = actions.slice(actions.indexOf("export async function removeCampaignSessionSceneMember"), actions.indexOf("export async function moveCampaignSessionSceneMember"));
   assert.match(removal, /\.from\(campaignSessionEncounterParticipant\)/);
-  assert.match(removal, /completed Encounter history cannot be erased/);
+  assert.match(removal, /still used by a planned or active Encounter/);
+  assert.match(removal, /inArray\(campaignSessionEncounter.status, \["planned", "active"\]\)/);
 });
 
 test("Encounter mutations cannot write persistent Character, NPC, or Active State tables", () => {

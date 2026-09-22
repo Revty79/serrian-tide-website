@@ -35,7 +35,8 @@ const { campaign, campaignPlayer } = await import("../src/db/campaign-schema.ts"
 const { campaignCharacter, campaignCharacterProfile, campaignCharacterAttribute } = await import("../src/db/realm-schema.ts");
 const { town, townNpcAssociation } = await import("../src/db/town-schema.ts");
 const { campaignSession: sessions, campaignSessionScene: scenes, campaignSessionSceneMember: members,
-  campaignSessionRoster: roster, campaignSessionEncounter: encounters } = await import("../src/db/tabletop-operations-schema.ts");
+  campaignSessionRoster: roster, campaignSessionEncounter: encounters,
+  campaignSessionEncounterParticipant: participants } = await import("../src/db/tabletop-operations-schema.ts");
 const actions = await import("../src/app/heavens/tabletop/scene-actions.ts");
 const encounterActions = await import("../src/app/heavens/tabletop/encounter-actions.ts");
 const sessionActions = await import("../src/app/heavens/tabletop/actions.ts");
@@ -75,6 +76,38 @@ const complete = (f, scene) => act(f, () => actions.completeCampaignSessionScene
 const reopen = (f, scene) => act(f, () => actions.reopenCampaignSessionScene(f.scenes[scene].id));
 const sceneRow = async (f, index) => (await db.select().from(scenes).where(eq(scenes.id, f.scenes[index].id)))[0];
 const closeout = (f) => db.transaction(async (tx) => readSessionCloseoutInTransaction(tx, await lockSessionCloseoutContextInTransaction(tx, f.sessionId, f.ownerId)));
+
+test("completed Encounter history permits leaving a live Scene and joining another without changing history", async () => {
+  const f = await fixture();
+  await add(f, 0, 0); await add(f, 0, 1); await start(f, 0); await start(f, 1);
+  const [encounter] = await db.insert(encounters).values({ campaignId: f.campaignId, sessionId: f.sessionId,
+    sceneId: f.scenes[0].id, sequenceNumber: 1, title: "Finished Encounter", encounterType: "combat",
+    status: "completed", startedAt: new Date(), completedAt: new Date() }).returning();
+  const [history] = await db.insert(participants).values({ campaignId: f.campaignId, sessionId: f.sessionId,
+    sceneId: f.scenes[0].id, encounterId: encounter.id, characterId: f.cast[0].id, prepNotes: "Retain original participation" }).returning();
+  await act(f, () => actions.removeCampaignSessionSceneMember(f.scenes[0].id, f.cast[0].id));
+  assert.deepEqual((await db.select().from(members).where(eq(members.sceneId, f.scenes[0].id))).map(({ characterId }) => characterId), [f.cast[1].id]);
+  assert.equal((await sceneRow(f, 0)).status, "active");
+  await add(f, 1, 0);
+  for (const [character, scene] of [[0, 1], [1, 0]]) {
+    const state = await db.transaction((tx) => readPlayerTabletopRuntimeInTransaction(tx, f.cast[character].id, f.playerId));
+    assert.equal(state.hierarchy.scene.id, f.scenes[scene].id);
+  }
+  assert.deepEqual((await db.select().from(participants).where(eq(participants.encounterId, encounter.id))), [history]);
+  assert.deepEqual((await db.select().from(encounters).where(eq(encounters.id, encounter.id))), [encounter]);
+});
+
+for (const status of ["planned", "active"]) test(`${status} Encounter participation still blocks Scene-member removal`, async () => {
+  const f = await fixture(); await add(f, 0, 0); await start(f, 0);
+  const [encounter] = await db.insert(encounters).values({ campaignId: f.campaignId, sessionId: f.sessionId,
+    sceneId: f.scenes[0].id, sequenceNumber: 1, title: "Unfinished Encounter", encounterType: "combat",
+    status, startedAt: status === "active" ? new Date() : null }).returning();
+  const [history] = await db.insert(participants).values({ campaignId: f.campaignId, sessionId: f.sessionId,
+    sceneId: f.scenes[0].id, encounterId: encounter.id, characterId: f.cast[0].id }).returning();
+  await assert.rejects(act(f, () => actions.removeCampaignSessionSceneMember(f.scenes[0].id, f.cast[0].id)), /still used by a planned or active Encounter/);
+  assert.equal((await db.select().from(members).where(eq(members.sceneId, f.scenes[0].id))).length, 1);
+  assert.deepEqual((await db.select().from(participants).where(eq(participants.encounterId, encounter.id))), [history]);
+});
 
 test("actual Scene actions start three disjoint Scenes and Player Tabletop resolves each Character", async () => {
   const f = await fixture();

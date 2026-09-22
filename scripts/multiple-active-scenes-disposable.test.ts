@@ -56,6 +56,7 @@ test("multiple active Scenes: migration preservation and focused action/database
     const env: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: databaseUrl, NODE_ENV: "test", SERRIAN_DISPOSABLE_SCENES: "true" };
     delete env.NODE_TEST_CONTEXT;
     for (const script of ["scripts/multiple-active-scenes-db.test.mjs", "scripts/tabletop-operations-db.test.ts", "scripts/tabletop-session-closeout-db.test.ts", "scripts/player-tabletop-console-db.test.ts", "scripts/tabletop-location-placement-db.test.ts"]) {
+      if (process.env.SERRIAN_SCENES_FOCUSED_ONLY === "true" && script !== "scripts/multiple-active-scenes-db.test.mjs") continue;
       let output: string;
       try {
         output = execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], { env, windowsHide: true, encoding: "utf8", timeout: 100_000 });
