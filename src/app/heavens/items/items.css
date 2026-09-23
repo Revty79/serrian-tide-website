@@ -9,3 +9,41 @@
   .item-editor { min-width: 0; }
   .item-editor .skill-editor__header { flex-wrap: wrap; }
 }
+
+
+.item-tag-editor {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.item-tag-editor__heading {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.item-tag-editor__create {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1.3fr) minmax(7rem, 0.7fr) minmax(12rem, 1.5fr) auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.item-tag-editor.is-compact .item-tag-editor__create {
+  grid-template-columns: minmax(10rem, 1fr) minmax(7rem, 0.7fr) auto;
+}
+
+.item-tag-editor__search {
+  width: 100%;
+}
+
+.item-tag-editor__selected {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .item-tag-editor__create,
+  .item-tag-editor.is-compact .item-tag-editor__create {
+    grid-template-columns: 1fr;
+  }
+}

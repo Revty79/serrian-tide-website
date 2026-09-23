@@ -616,6 +616,66 @@ export async function listItemAuthoringReferences(
   };
 }
 
+export async function createItemTag(input: {
+  name: string;
+  tagGroup?: string;
+  description?: string;
+}): Promise<ItemAuthoringReferences["tags"][number]> {
+  await requireGodOrAdminAccessContext();
+
+  const name = required(input.name, "Tag Name");
+  const tagGroup = clean(input.tagGroup) || "Genre";
+  const description = clean(input.description) || `${name} ${tagGroup.toLocaleLowerCase("en-US")} tag.`;
+
+  const created = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('serrian-tide:item-tag-id'))`);
+
+    const [existing] = await tx
+      .select({
+        name: itemTagCatalog.name,
+        tagGroup: itemTagCatalog.tagGroup,
+        description: itemTagCatalog.description,
+      })
+      .from(itemTagCatalog)
+      .where(sql`lower(${itemTagCatalog.name}) = lower(${name})`)
+      .limit(1);
+
+    if (existing) return existing;
+
+    const tagRows = await tx
+      .select({ canonicalId: itemTagCatalog.canonicalId })
+      .from(itemTagCatalog)
+      .where(sql`${itemTagCatalog.canonicalId} ~ ${'^TAG-[0-9]+$'}`);
+
+    let largestSequence = 0;
+    for (const row of tagRows) {
+      const sequence = Number(row.canonicalId.slice(4));
+      if (Number.isSafeInteger(sequence)) largestSequence = Math.max(largestSequence, sequence);
+    }
+    if (largestSequence >= Number.MAX_SAFE_INTEGER) {
+      throw new Error("No available Item Tag ID remains.");
+    }
+
+    const canonicalId = `TAG-${String(largestSequence + 1).padStart(4, "0")}`;
+    const [inserted] = await tx
+      .insert(itemTagCatalog)
+      .values({ canonicalId, name, tagGroup, description })
+      .returning({
+        name: itemTagCatalog.name,
+        tagGroup: itemTagCatalog.tagGroup,
+        description: itemTagCatalog.description,
+      });
+
+    if (!inserted) throw new Error("The Item Tag could not be created.");
+    return inserted;
+  });
+
+  revalidatePath("/heavens/equipment");
+  revalidatePath("/heavens/inventory");
+  revalidatePath("/heavens/campaigns");
+  return created;
+}
+
 export async function getWeaponSkillGovernance(itemId: number): Promise<WeaponSkillGovernanceReadModel | null> {
   await requireGodOrAdminAccessContext();
   return readWeaponSkillGovernance(itemId);
