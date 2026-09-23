@@ -616,6 +616,820 @@ export async function listItemAuthoringReferences(
   };
 }
 
+
+export async function createItemTag(input: {
+  name: string;
+  tagGroup?: string;
+  description?: string;
+}): Promise<ItemAuthoringReferences["tags"][number]> {
+  await requireGodOrAdminAccessContext();
+
+  const name = required(input.name, "Tag Name");
+  const tagGroup = clean(input.tagGroup) || "Genre";
+  const description = clean(input.description) || `${name} ${tagGroup.toLocaleLowerCase("en-US")} tag.`;
+
+  const created = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('serrian-tide:item-tag-id'))`);
+
+    const [existing] = await tx
+      .select({
+        name: itemTagCatalog.name,
+        tagGroup: itemTagCatalog.tagGroup,
+        description: itemTagCatalog.description,
+      })
+      .from(itemTagCatalog)
+      .where(sql`lower(${itemTagCatalog.name}) = lower(${name})`)
+      .limit(1);
+
+    if (existing) return existing;
+
+    const tagRows = await tx
+      .select({ canonicalId: itemTagCatalog.canonicalId })
+      .from(itemTagCatalog)
+      .where(sql`${itemTagCatalog.canonicalId} ~ '^TAG-[0-9]+
+  await requireGodOrAdminAccessContext();
+  return readWeaponSkillGovernance(itemId);
+}
+
+export async function saveCanonicalWeaponSkillGovernance(
+  itemId: number,
+  mappings: readonly WeaponSkillPathMappingDraft[],
+): Promise<WeaponSkillGovernanceReadModel> {
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const [stored] = await db
+    .select({
+      createdByUserId: item.createdByUserId,
+      sourceSystem: item.sourceSystem,
+      archivedAt: item.archivedAt,
+    })
+    .from(item)
+    .where(eq(item.id, itemId))
+    .limit(1);
+  if (!stored) throw new Error("That Item no longer exists.");
+  assertCanEditSharedLibraryRoot(
+    { userId: session.user.id, roles },
+    stored,
+    "Item",
+  );
+  if (stored.archivedAt) throw new Error("Restore this Item before editing its Governing Skill Paths.");
+  const storedMappings = await db
+    .select({ endpointSkillId: weaponSkillPathMapping.endpointSkillId })
+    .from(weaponSkillPathMapping)
+    .innerJoin(weaponProfile, eq(weaponProfile.id, weaponSkillPathMapping.weaponProfileId))
+    .where(eq(weaponProfile.itemId, itemId));
+  const storedSkillIds = new Set(storedMappings.map(({ endpointSkillId }) => endpointSkillId));
+  const submittedSkillIds = [...new Set(mappings.map(({ endpointSkillId }) => endpointSkillId))];
+  if (submittedSkillIds.length) {
+    const referencedSkills = await db
+      .select({ id: skill.id, archivedAt: skill.archivedAt })
+      .from(skill)
+      .where(inArray(skill.id, submittedSkillIds));
+    if (referencedSkills.length !== submittedSkillIds.length) {
+      throw new Error("One or more Governing Skill endpoints no longer exist.");
+    }
+    if (referencedSkills.some((entry) => entry.archivedAt && !storedSkillIds.has(entry.id))) {
+      throw new Error("Archived Skills cannot be added as Governing Skill endpoints. Restore the Skill first.");
+    }
+  }
+  const saved = await saveWeaponSkillGovernanceService({
+    userId: session.user.id,
+    canAuthorMasterContent: true,
+  }, itemId, mappings);
+  revalidatePath("/heavens/equipment");
+  revalidatePath("/heavens/inventory");
+  return saved;
+}
+
+export async function getItem(id: number): Promise<ItemAggregate | null> {
+  await requireGodOrAdminAccessContext();
+  const [row] = await db.select().from(item).where(eq(item.id, id)).limit(1);
+  if (!row) return null;
+  let parentItemName: string | null = null;
+  if (row.parentItemId) {
+    const [parent] = await db.select({ name: item.name }).from(item).where(eq(item.id, row.parentItemId)).limit(1);
+    parentItemName = parent?.name ?? null;
+  }
+  const [properties, weaponRows, firingModeRows, armorRows, modifiers, locations, tags, variants, runtimeRows, effectRows, passiveEffectRows, powerRows, powerResourceRow] = await Promise.all([
+    db.select().from(itemProperty).where(eq(itemProperty.itemId, id)).orderBy(asc(itemProperty.sortOrder), asc(itemProperty.id)),
+    db.select().from(weaponProfile).where(eq(weaponProfile.itemId, id)).limit(1),
+    db.select({
+      id: weaponFiringMode.id,
+      name: weaponFiringMode.name,
+      sortOrder: weaponFiringMode.sortOrder,
+      baseCyclingInitiativeCost: weaponFiringMode.baseCyclingInitiativeCost,
+      baseRecoilResetInitiativeCost: weaponFiringMode.baseRecoilResetInitiativeCost,
+      deliveryCadence: weaponFiringMode.deliveryCadence,
+      roundsPerCadence: weaponFiringMode.roundsPerCadence,
+      mechanicsReviewRequired: weaponFiringMode.mechanicsReviewRequired,
+    }).from(weaponFiringMode)
+      .innerJoin(weaponProfile, eq(weaponProfile.id, weaponFiringMode.weaponProfileId))
+      .where(eq(weaponProfile.itemId, id))
+      .orderBy(asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id)),
+    db.select().from(armorProfile).where(eq(armorProfile.itemId, id)).limit(1),
+    db.select().from(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id)).orderBy(asc(itemArmorDamageModifier.sortOrder), asc(itemArmorDamageModifier.id)),
+    db.select({ key: armorLocation.locationCode }).from(armorLocation).where(eq(armorLocation.itemId, id)).orderBy(asc(armorLocation.sortOrder)),
+    db.select({ name: itemTagCatalog.name }).from(itemTagLink).innerJoin(itemTagCatalog, eq(itemTagCatalog.id, itemTagLink.tagId)).where(eq(itemTagLink.itemId, id)).orderBy(asc(itemTagCatalog.name)),
+    db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope, archivedAt: item.archivedAt }).from(item).where(eq(item.parentItemId, id)).orderBy(asc(item.name), asc(item.id)),
+    db.select().from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
+    db.select({
+      schemaVersion: itemEffect.schemaVersion,
+      effectJson: itemEffect.effectJson,
+      sortOrder: itemEffect.sortOrder,
+    }).from(itemEffect).where(eq(itemEffect.itemId, id)).orderBy(asc(itemEffect.sortOrder), asc(itemEffect.id)),
+    db.select({
+      id: itemPassiveEffect.id,
+      requiredEquipmentState: itemPassiveEffect.requiredEquipmentState,
+      schemaVersion: itemPassiveEffect.schemaVersion,
+      effectJson: itemPassiveEffect.effectJson,
+      sortOrder: itemPassiveEffect.sortOrder,
+    }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id)).orderBy(asc(itemPassiveEffect.sortOrder), asc(itemPassiveEffect.id)),
+    db.select({
+      power: itemPower,
+      sourceSkillName: skill.name,
+      sourceArchivedAt: skill.archivedAt,
+      sourceSchemaVersion: itemPowerSource.sourceSchemaVersion,
+      sourceKind: itemPowerSource.sourceKind,
+      sourceSkillId: itemPowerSource.sourceSkillId,
+      sourceExtensionType: itemPowerSource.sourceExtensionType,
+    }).from(itemPower)
+      .leftJoin(itemPowerSource, eq(itemPowerSource.itemPowerId, itemPower.id))
+      .leftJoin(skill, eq(skill.id, itemPowerSource.sourceSkillId))
+      .where(eq(itemPower.itemId, id))
+      .orderBy(asc(itemPower.sortOrder), asc(itemPower.id)),
+    db.select().from(itemPowerResource).where(eq(itemPowerResource.itemId, id)).limit(1),
+  ]);
+  const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
+  const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
+  const compatibleMagazines = weaponRows[0] ? await db.select({ id: item.id, name: item.name }).from(weaponMagazine).innerJoin(item, eq(item.id, weaponMagazine.magazineItemId)).where(eq(weaponMagazine.weaponProfileId, weaponRows[0].id)) : [];
+  const relatedItemIds = properties.map(({ relatedItemId }) => relatedItemId).filter((value): value is number => value !== null);
+  const relatedCreatureIds = properties.map(({ relatedCreatureCanonicalId }) => relatedCreatureCanonicalId).filter((value): value is string => value !== null);
+  const [relatedItems, relatedCreatures] = await Promise.all([
+    relatedItemIds.length ? db.select({ id: item.id, name: item.name }).from(item).where(inArray(item.id, relatedItemIds)) : [],
+    relatedCreatureIds.length ? db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName }).from(creature).where(inArray(creature.canonicalId, relatedCreatureIds)) : [],
+  ]);
+  const itemNames = new Map(relatedItems.map((candidate) => [candidate.id, candidate.name]));
+  const creatureNames = new Map(relatedCreatures.map((candidate) => [candidate.canonicalId, candidate.name]));
+  const weapon = weaponRows[0];
+  const armor = armorRows[0];
+  let ammunitionItemName: string | null = null;
+  let referencedAmmunition: NonNullable<ItemDraft["weaponProfile"]>["referencedAmmunition"] = null;
+  if (weapon?.ammunitionItemId) {
+    const [ammo] = await db.select({
+      name: item.name,
+      cyclingInitiativeModifier: weaponProfile.ammunitionCyclingInitiativeModifier,
+      recoilResetInitiativeModifier: weaponProfile.ammunitionRecoilResetInitiativeModifier,
+    }).from(item)
+      .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+      .where(eq(item.id, weapon.ammunitionItemId))
+      .limit(1);
+    ammunitionItemName = ammo?.name ?? null;
+    referencedAmmunition = ammo ? {
+      itemId: weapon.ammunitionItemId,
+      name: ammo.name,
+      cyclingInitiativeModifier: ammo.cyclingInitiativeModifier ?? 0,
+      recoilResetInitiativeModifier: ammo.recoilResetInitiativeModifier ?? 0,
+    } : null;
+  }
+  const runtimeValidation = validateItemRuntimeProfile(
+    runtimeRows[0] ?? DEFAULT_ITEM_RUNTIME_PROFILE,
+  );
+  if (!runtimeValidation.valid) {
+    throw new Error(`Item ${row.canonicalId} has an invalid runtime profile: ${runtimeValidation.issues.map(({ message }) => message).join(" ")}`);
+  }
+  const effects = decodeItemEffects(effectRows);
+  const passiveEffects = passiveEffectRows.map((entry) => validatePassiveItemEffect({
+    id: entry.id,
+    requiredEquipmentState: entry.requiredEquipmentState as ItemPassiveEffectDefinition["requiredEquipmentState"],
+    effect: decodeMechanicalEffect({ schemaVersion: entry.schemaVersion, effectJson: entry.effectJson }),
+  }));
+  const powerIds = powerRows.map(({ power }) => power.id);
+  const powerEffectRows = powerIds.length
+    ? await db.select().from(itemPowerEffect).where(inArray(itemPowerEffect.itemPowerId, powerIds)).orderBy(asc(itemPowerEffect.sortOrder), asc(itemPowerEffect.id))
+    : [];
+  const effectsByPower = new Map<number, typeof powerEffectRows>();
+  for (const effect of powerEffectRows) effectsByPower.set(effect.itemPowerId, [...(effectsByPower.get(effect.itemPowerId) ?? []), effect]);
+  const constructionRows = powerIds.length
+    ? await db.select().from(itemPowerConstruction).where(inArray(itemPowerConstruction.itemPowerId, powerIds))
+    : [];
+  const constructionsByPower = new Map(constructionRows.map((entry) => [entry.itemPowerId, entry]));
+  const powers = powerRows.map(({ power, sourceSkillName, sourceArchivedAt, sourceSchemaVersion, sourceKind, sourceSkillId, sourceExtensionType }) => ({
+    id: power.id,
+    name: power.name,
+    description: power.description,
+    trigger: power.trigger as ItemPower["trigger"],
+    activationLabel: power.activationLabel,
+    initiativeCost: power.initiativeCost,
+    resourceCostKind: power.resourceCostKind as ItemPower["resourceCostKind"],
+    resourceCostAmount: power.resourceCostAmount,
+    requiredEquipmentState: power.requiredEquipmentState as ItemPower["requiredEquipmentState"],
+    resolutionMode: power.resolutionMode as ItemPower["resolutionMode"],
+    fixedRollTarget: power.fixedRollTarget,
+    fixedPowerLevel: power.fixedPowerLevel,
+    source: sourceSkillId && sourceSkillName && sourceKind && sourceExtensionType && sourceSchemaVersion
+      ? { sourceSkillId, sourceSkillName, sourceKind: "spell-construction" as const, sourceExtensionType: "spell-construction" as const, sourceSchemaVersion, fixedPowerLevel: power.fixedPowerLevel, archived: sourceArchivedAt !== null }
+      : null,
+    customConstruction: constructionsByPower.has(power.id)
+      ? { document: parseSpellDocument(constructionsByPower.get(power.id)!.documentJson) }
+      : null,
+    effects: (effectsByPower.get(power.id) ?? []).map((effect) => ({ id: effect.id, effect: decodeMechanicalEffect({ schemaVersion: effect.schemaVersion, effectJson: effect.effectJson }) })),
+    sortOrder: power.sortOrder,
+  }));
+  return {
+    id: row.id,
+    createdByUserId: row.createdByUserId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    archiveReason: row.archiveReason,
+    isMagical: row.isMagical,
+    runtimeProfile: runtimeValidation.profile,
+    effects,
+    passiveEffects,
+    powers,
+    powerResource: powerResourceRow[0] ? { maximumCharges: powerResourceRow[0].maximumCharges, rechargeNotes: powerResourceRow[0].rechargeNotes } : null,
+    core: {
+      canonicalId: row.canonicalId, name: row.name, catalogScope: row.catalogScope as ItemCatalogScope,
+      equipmentGroup: row.equipmentGroup as EquipmentCatalogGroup | null, recordType: row.recordType, family: row.family,
+      category: row.category, subtype: row.subtype, description: row.description, weight: row.weight, weightUnit: row.weightUnit,
+      size: row.size, durability: row.durability, credits: row.credits, priceBasis: row.priceBasis,
+      parentItemId: row.parentItemId, parentItemName, sourceSystem: row.sourceSystem, sourceExternalId: row.sourceExternalId,
+    },
+    properties: properties.map((property) => ({
+      propertyName: property.propertyName, value: property.value, unit: property.unit, quantity: property.quantity,
+      relationKind: property.relatedItemId ? "item" : property.relatedCreatureCanonicalId ? "creature" : "none",
+      relatedItemId: property.relatedItemId, relatedItemName: property.relatedItemId ? itemNames.get(property.relatedItemId) ?? null : null,
+      relatedCreatureCanonicalId: property.relatedCreatureCanonicalId,
+      relatedCreatureName: property.relatedCreatureCanonicalId ? creatureNames.get(property.relatedCreatureCanonicalId) ?? null : null,
+      notes: property.notes, sortOrder: property.sortOrder,
+    })),
+    magazineProfile: magazine ? { capacityRounds: magazine.capacityRounds, fillInitiativeCostPerRound: magazine.fillInitiativeCostPerRound, ammunition: magazineAmmo } : null,
+    weaponProfile: weapon ? {
+      reloadType: weapon.reloadType as "Single" | "Magazine" | null, compatibleMagazines,
+      profileRecordType: weapon.profileRecordType, weaponType: weapon.weaponType, handedness: weapon.handedness,
+      damageSource: weapon.damageSource, damage: weapon.damage, initiativeCost: weapon.initiativeCost,
+      damageType: weapon.damageType, range: weapon.rangeText,
+      reach: weapon.reachText, rangeMode: weapon.rangeMode as NonNullable<ItemDraft["weaponProfile"]>["rangeMode"], distanceUnit: weapon.distanceUnit,
+      reachDistance: weapon.reachDistance, shortRangeDistance: weapon.shortRangeDistance, mediumRangeDistance: weapon.mediumRangeDistance, longRangeDistance: weapon.longRangeDistance,
+      ammunitionItemId: weapon.ammunitionItemId, ammunitionItemName,
+      compatibility: weapon.compatibility, capacity: weapon.capacity,
+      capacityRounds: weapon.capacityRounds,
+      readinessMode: weapon.readinessMode as NonNullable<ItemDraft["weaponProfile"]>["readinessMode"],
+      drawInitiativeCost: weapon.drawInitiativeCost,
+      readyInitiativeCost: weapon.readyInitiativeCost,
+      reloadInitiativeCost: weapon.reloadInitiativeCost,
+      unloadInitiativeCost: weapon.unloadInitiativeCost,
+      firingModeChangeInitiativeCost: weapon.firingModeChangeInitiativeCost,
+      firingModes: firingModeRows.map((mode) => ({
+        ...mode,
+        deliveryCadence: mode.deliveryCadence as FirearmFiringModeDraft["deliveryCadence"],
+      })),
+      resolvedFiringModes: firingModeRows.map((mode) => resolveFirearmFiringMode(
+        { ...mode, deliveryCadence: mode.deliveryCadence as FirearmFiringModeDraft["deliveryCadence"] },
+        referencedAmmunition?.cyclingInitiativeModifier ?? 0,
+        referencedAmmunition?.recoilResetInitiativeModifier ?? 0,
+      )),
+      rateOfFire: weapon.rateOfFire, reloadInitiative: weapon.reloadInitiative,
+      ammunitionCyclingInitiativeModifier: weapon.ammunitionCyclingInitiativeModifier,
+      ammunitionRecoilResetInitiativeModifier: weapon.ammunitionRecoilResetInitiativeModifier,
+      referencedAmmunition,
+      rulesText: weapon.rulesText,
+    } : null,
+    armorProfile: armor ? {
+      armorType: armor.armorType, coverage: armor.coverage, baseSoak: armor.baseSoak,
+      damageModifiersSourceText: armor.damageModifiersSourceText,
+      damageModifiers: modifiers.map(({ modifierText, damageType, modifier, notes, sortOrder }) => ({ modifierText, damageType, modifier, notes, sortOrder })),
+      coveredBodyLocationKeys: locations.map(({ key }) => key), rulesText: armor.rulesText,
+    } : null,
+    tags: tags.map(({ name }) => name),
+    variants: variants.map((entry) => ({
+      ...entry,
+      archivedAt: entry.archivedAt?.toISOString() ?? null,
+    })),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export async function findRelatedItems(search: string, excludeItemId?: number): Promise<RelatedItemCandidate[]> {
+  await requireGodOrAdminAccessContext();
+  const conditions: SQL[] = [isNull(item.archivedAt)];
+  if (excludeItemId) conditions.push(ne(item.id, excludeItemId));
+  const needle = clean(search);
+  if (needle) conditions.push(or(ilike(item.name, `%${needle}%`), ilike(item.canonicalId, `%${needle}%`))!);
+  const rows = await db.select({
+    id: item.id,
+    canonicalId: item.canonicalId,
+    name: item.name,
+    recordType: item.recordType,
+    ammunitionCyclingInitiativeModifier: weaponProfile.ammunitionCyclingInitiativeModifier,
+    ammunitionRecoilResetInitiativeModifier: weaponProfile.ammunitionRecoilResetInitiativeModifier,
+  }).from(item)
+    .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(asc(item.name), asc(item.id))
+    .limit(20);
+  return rows.map((candidate) => ({
+    ...candidate,
+    ammunitionCyclingInitiativeModifier: candidate.ammunitionCyclingInitiativeModifier ?? 0,
+    ammunitionRecoilResetInitiativeModifier: candidate.ammunitionRecoilResetInitiativeModifier ?? 0,
+  }));
+}
+
+export async function findRelatedCreatures(search: string): Promise<RelatedCreatureCandidate[]> {
+  await requireGodOrAdminAccessContext();
+  const needle = clean(search);
+  const conditions: SQL[] = [isNull(creature.archivedAt)];
+  if (needle) {
+    conditions.push(or(
+      ilike(creature.canonicalName, `%${needle}%`),
+      ilike(creature.canonicalId, `%${needle}%`),
+    )!);
+  }
+  return db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName, family: creature.family, creatureType: creature.creatureType }).from(creature).where(and(...conditions)).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(20);
+}
+
+async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boolean, allowLegacyNonActivatedMagic = false): Promise<ItemAggregate> {
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const normalized = normalize(input, allowUnreviewedNewModes, allowLegacyNonActivatedMagic);
+  const savedId = await db.transaction(async (tx) => {
+    let id = input.id;
+    if (id === undefined) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('serrian-tide:item-canonical-id'))`);
+      const canonicalRows = await tx
+        .select({ canonicalId: item.canonicalId })
+        .from(item)
+        .where(sql`${item.canonicalId} ~ '^ITEM-[0-9]+$'`);
+      let largestSequence = 0;
+      for (const row of canonicalRows) {
+        const sequence = Number(row.canonicalId.slice(5));
+        if (Number.isSafeInteger(sequence)) largestSequence = Math.max(largestSequence, sequence);
+      }
+      if (largestSequence >= Number.MAX_SAFE_INTEGER) {
+        throw new Error("No available canonical Item ID remains.");
+      }
+      const canonicalId = `ITEM-${String(largestSequence + 1).padStart(4, "0")}`;
+      const [created] = await tx.insert(item).values({
+        ...normalized.core,
+        isMagical: normalized.isMagical,
+        canonicalId,
+        createdByUserId: session.user.id,
+        sourceSystem: null,
+        sourceExternalId: null,
+      }).returning({ id: item.id });
+      id = created.id;
+    } else {
+      const [stored] = await tx
+        .select({
+          canonicalId: item.canonicalId,
+          parentItemId: item.parentItemId,
+          createdByUserId: item.createdByUserId,
+          sourceSystem: item.sourceSystem,
+          sourceExternalId: item.sourceExternalId,
+          archivedAt: item.archivedAt,
+        })
+        .from(item)
+        .where(eq(item.id, id))
+        .limit(1);
+      if (!stored) throw new Error("That Item no longer exists.");
+      assertCanEditSharedLibraryRoot(
+        { userId: session.user.id, roles },
+        stored,
+        "Item",
+      );
+      if (stored.archivedAt) throw new Error("Restore this Item before editing it.");
+      if (stored.canonicalId !== normalized.core.canonicalId) {
+        throw new Error("Canonical Item IDs are generated by the system and cannot be changed.");
+      }
+      if (stored.parentItemId !== normalized.core.parentItemId) {
+        throw new Error("Item lineage cannot be changed after creation.");
+      }
+      if (
+        stored.sourceSystem !== normalized.core.sourceSystem ||
+        stored.sourceExternalId !== normalized.core.sourceExternalId
+      ) {
+        throw new Error("Canonical Item source identity cannot be changed.");
+      }
+      if (normalized.runtimeProfile.useMode !== "charges") {
+        const reauthoringToPowerPool = normalized.runtimeProfile.useMode === "none" && normalized.powerResource !== null;
+        const [storedRuntime, ownedInstances] = await Promise.all([
+          tx.select({ useMode: itemRuntimeProfile.useMode }).from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
+          tx.select({ value: count() }).from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.itemId, id)),
+        ]);
+        if (storedRuntime[0]?.useMode === "charges" && Number(ownedInstances[0]?.value ?? 0) > 0 && !reauthoringToPowerPool) {
+          throw new Error("This charged Item has owned instances. Resolve those stable copies before changing its runtime mode; no automatic stack conversion or data deletion is allowed.");
+        }
+        if (storedRuntime[0]?.useMode === "charges" && reauthoringToPowerPool) {
+          const [ownedStack] = await tx.select({ value: count() }).from(campaignCharacterItem).where(eq(campaignCharacterItem.itemId, id));
+          if (Number(ownedStack?.value ?? 0) > 0) throw new Error("This Item has a legacy quantity stack and cannot be reauthored into an exact-instance Power Charge Pool without resolving that ownership first.");
+        }
+      }
+      const updated = await tx.update(item).set({
+        ...normalized.core,
+        isMagical: normalized.isMagical,
+        updatedAt: new Date(),
+      }).where(eq(item.id, id)).returning({ id: item.id });
+      if (!updated.length) throw new Error("That Item no longer exists.");
+    }
+
+    const [storedPropertyReferences, storedWeaponProfiles] = input.id === undefined
+      ? [[], []]
+      : await Promise.all([
+          tx
+            .select({
+              relatedItemId: itemProperty.relatedItemId,
+              relatedCreatureCanonicalId: itemProperty.relatedCreatureCanonicalId,
+            })
+            .from(itemProperty)
+            .where(eq(itemProperty.itemId, id!)),
+          tx.select().from(weaponProfile).where(eq(weaponProfile.itemId, id!)),
+        ]);
+    const storedWeaponProfile = storedWeaponProfiles[0] ?? null;
+    if (normalized.weapon) {
+      normalized.weapon = {
+        ...normalized.weapon,
+        profileRecordType: normalized.weapon.profileRecordType || storedWeaponProfile?.profileRecordType || defaultWeaponProfileRecordType(normalized.core.recordType),
+        range: storedWeaponProfile?.rangeText ?? normalized.weapon.range,
+        reach: storedWeaponProfile?.reachText ?? normalized.weapon.reach,
+        capacity: storedWeaponProfile?.capacity ?? normalized.weapon.capacity,
+      };
+      validateWeaponProfileChoices(normalized.weapon, storedWeaponProfile);
+    }
+    const storedRelatedItemIds = new Set([
+      ...storedPropertyReferences.flatMap(({ relatedItemId }) => relatedItemId === null ? [] : [relatedItemId]),
+      ...storedWeaponProfiles.flatMap(({ ammunitionItemId }) => ammunitionItemId === null ? [] : [ammunitionItemId]),
+    ]);
+    const submittedRelatedItemIds = [...new Set([
+      ...normalized.properties.flatMap(({ relatedItemId }) => relatedItemId === null ? [] : [relatedItemId]),
+      ...(normalized.weapon?.ammunitionItemId === null || normalized.weapon?.ammunitionItemId === undefined
+        ? []
+        : [normalized.weapon.ammunitionItemId]),
+    ])];
+    if (submittedRelatedItemIds.length) {
+      const referencedItems = await tx
+        .select({ id: item.id, archivedAt: item.archivedAt })
+        .from(item)
+        .where(inArray(item.id, submittedRelatedItemIds));
+      if (referencedItems.length !== submittedRelatedItemIds.length) {
+        throw new Error("One or more related Items no longer exist.");
+      }
+      if (referencedItems.some((entry) => entry.archivedAt && !storedRelatedItemIds.has(entry.id))) {
+        throw new Error("Archived Items cannot be added as Item or ammunition references. Restore the Item first.");
+      }
+    }
+    const storedRelatedCreatureIds = new Set(storedPropertyReferences.flatMap(
+      ({ relatedCreatureCanonicalId }) => relatedCreatureCanonicalId === null ? [] : [relatedCreatureCanonicalId],
+    ));
+    const submittedRelatedCreatureIds = [...new Set(normalized.properties.flatMap(
+      ({ relatedCreatureCanonicalId }) => relatedCreatureCanonicalId === null ? [] : [relatedCreatureCanonicalId],
+    ))];
+    if (submittedRelatedCreatureIds.length) {
+      const referencedCreatures = await tx
+        .select({ canonicalId: creature.canonicalId, archivedAt: creature.archivedAt })
+        .from(creature)
+        .where(inArray(creature.canonicalId, submittedRelatedCreatureIds));
+      if (referencedCreatures.length !== submittedRelatedCreatureIds.length) {
+        throw new Error("One or more related Creatures no longer exist.");
+      }
+      if (referencedCreatures.some(
+        (entry) => entry.archivedAt && !storedRelatedCreatureIds.has(entry.canonicalId),
+      )) {
+        throw new Error("Archived Creatures cannot be added as Item references. Restore the Creature first.");
+      }
+    }
+
+    await tx.delete(itemTagLink).where(eq(itemTagLink.itemId, id));
+    await tx.delete(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id));
+    await tx.delete(armorLocation).where(eq(armorLocation.itemId, id));
+    await tx.delete(itemProperty).where(eq(itemProperty.itemId, id));
+    if (!normalized.weapon) {
+      const governedPaths = await tx.select({ id: weaponSkillPathMapping.id })
+        .from(weaponSkillPathMapping)
+        .innerJoin(weaponProfile, eq(weaponProfile.id, weaponSkillPathMapping.weaponProfileId))
+        .where(eq(weaponProfile.itemId, id!))
+        .limit(1);
+      if (governedPaths.length) {
+        throw new Error("Remove this Weapon Profile's Governing Skill Paths before removing the profile.");
+      }
+      await tx.delete(weaponProfile).where(eq(weaponProfile.itemId, id));
+    }
+    await tx.delete(armorProfile).where(eq(armorProfile.itemId, id));
+    await tx.delete(itemEffect).where(eq(itemEffect.itemId, id));
+    await tx.delete(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id));
+    const existingPowers = await tx.select().from(itemPower).where(eq(itemPower.itemId, id!));
+    const existingPowerById = new Map(existingPowers.map((power) => [power.id, power]));
+    const submittedPowerIds = new Set(normalized.powers.flatMap((power) => power.id === null ? [] : [power.id]));
+    if ([...submittedPowerIds].some((powerId) => !existingPowerById.has(powerId))) throw new Error("One or more Power identities do not belong to this Item.");
+    const removedPowerIds = existingPowers.map(({ id: powerId }) => powerId).filter((powerId) => !submittedPowerIds.has(powerId));
+    if (removedPowerIds.length) await tx.delete(itemPower).where(and(eq(itemPower.itemId, id!), inArray(itemPower.id, removedPowerIds)));
+    const existingPowerEffects = existingPowers.length ? await tx.select().from(itemPowerEffect).where(inArray(itemPowerEffect.itemPowerId, existingPowers.map(({ id: powerId }) => powerId))) : [];
+    const effectsByPowerId = new Map<number, typeof existingPowerEffects>();
+    for (const effect of existingPowerEffects) effectsByPowerId.set(effect.itemPowerId, [...(effectsByPowerId.get(effect.itemPowerId) ?? []), effect]);
+    const existingPowerSources = await tx.select({
+      itemPowerId: itemPowerSource.itemPowerId,
+      sourceSkillId: itemPowerSource.sourceSkillId,
+    }).from(itemPowerSource)
+      .innerJoin(itemPower, eq(itemPower.id, itemPowerSource.itemPowerId))
+      .where(eq(itemPower.itemId, id!));
+    const existingSourceByPowerId = new Map(existingPowerSources.map((entry) => [entry.itemPowerId, entry.sourceSkillId]));
+    const sourceSkillIds = normalized.powers.flatMap((power) => power.source ? [power.source.sourceSkillId] : []);
+    let sourceRows: Array<{ skillId: number; schemaVersion: number; dataJson: string; archivedAt: Date | null }> = [];
+    if (sourceSkillIds.length) {
+      sourceRows = await tx.select({
+        skillId: skillExtension.skillId,
+        schemaVersion: skillExtension.schemaVersion,
+        dataJson: skillExtension.dataJson,
+        archivedAt: skill.archivedAt,
+      }).from(skillExtension)
+        .innerJoin(skill, eq(skill.id, skillExtension.skillId))
+        .where(and(
+          eq(skillExtension.extensionType, "spell-construction"),
+          inArray(skillExtension.skillId, [...new Set(sourceSkillIds)]),
+        ));
+      if (sourceRows.length !== new Set(sourceSkillIds).size) throw new Error("One or more canonical Power sources no longer exist.");
+      for (const power of normalized.powers) {
+        if (!power.source) continue;
+        const source = sourceRows.find((entry) => entry.skillId === power.source!.sourceSkillId);
+        const existingSource = power.id === null ? undefined : existingSourceByPowerId.get(power.id);
+        if (!source || (source.archivedAt && existingSource !== source.skillId && !allowLegacyNonActivatedMagic)) throw new Error("Archived canonical Power sources cannot be newly selected.");
+        let sourceDocument;
+        try { sourceDocument = parseSpellDocument(source.dataJson); resolveItemPowerConstruction(sourceDocument, power.fixedPowerLevel); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
+        if (power.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
+      }
+    }
+    await tx.insert(itemRuntimeProfile).values({
+      itemId: id!,
+      ...normalized.runtimeProfile,
+    });
+    const encodedEffects = encodeItemEffects(normalized.effects);
+    if (encodedEffects.length) {
+      await tx.insert(itemEffect).values(encodedEffects.map((effect) => ({
+        itemId: id!,
+        ...effect,
+      })));
+    }
+    for (const power of normalized.powers) {
+      const savedPower = power.id === null
+        ? (await tx.insert(itemPower).values({ itemId: id!, name: power.name, description: power.description, trigger: power.trigger, activationLabel: power.activationLabel, initiativeCost: power.initiativeCost, resourceCostKind: power.resourceCostKind, resourceCostAmount: power.resourceCostAmount, requiredEquipmentState: power.requiredEquipmentState, resolutionMode: power.resolutionMode, fixedRollTarget: power.fixedRollTarget, fixedPowerLevel: power.fixedPowerLevel, sortOrder: power.sortOrder }).returning())[0]!
+        : (await tx.update(itemPower).set({ name: power.name, description: power.description, trigger: power.trigger, activationLabel: power.activationLabel, initiativeCost: power.initiativeCost, resourceCostKind: power.resourceCostKind, resourceCostAmount: power.resourceCostAmount, requiredEquipmentState: power.requiredEquipmentState, resolutionMode: power.resolutionMode, fixedRollTarget: power.fixedRollTarget, fixedPowerLevel: power.fixedPowerLevel, sortOrder: power.sortOrder, updatedAt: new Date() }).where(and(eq(itemPower.id, power.id), eq(itemPower.itemId, id!))).returning())[0]!;
+      const existingEffects = effectsByPowerId.get(savedPower.id) ?? [];
+      const submittedEffectIds = new Set(power.effects.flatMap((entry) => entry.id === null ? [] : [entry.id]));
+      if ([...submittedEffectIds].some((effectId) => !existingEffects.some((entry) => entry.id === effectId))) throw new Error(`One or more Effects do not belong to Power ${power.name}.`);
+      const removedEffectIds = existingEffects.map(({ id: effectId }) => effectId).filter((effectId) => !submittedEffectIds.has(effectId));
+      if (removedEffectIds.length) await tx.delete(itemPowerEffect).where(and(eq(itemPowerEffect.itemPowerId, savedPower.id), inArray(itemPowerEffect.id, removedEffectIds)));
+      for (const [sortOrder, entry] of power.effects.entries()) {
+        const encoded = encodeMechanicalEffect(entry.effect);
+        if (entry.id === null) await tx.insert(itemPowerEffect).values({ itemPowerId: savedPower.id, ...encoded, sortOrder });
+        else await tx.update(itemPowerEffect).set({ ...encoded, sortOrder }).where(and(eq(itemPowerEffect.id, entry.id), eq(itemPowerEffect.itemPowerId, savedPower.id)));
+      }
+      if (power.source) {
+        const source = sourceRows.find((entry) => entry.skillId === power.source!.sourceSkillId)!;
+        await tx.insert(itemPowerSource).values({ itemPowerId: savedPower.id, sourceKind: "spell-construction", sourceSkillId: source.skillId, sourceExtensionType: "spell-construction", sourceSchemaVersion: source.schemaVersion }).onConflictDoUpdate({ target: itemPowerSource.itemPowerId, set: { sourceKind: "spell-construction", sourceSkillId: source.skillId, sourceExtensionType: "spell-construction", sourceSchemaVersion: source.schemaVersion, updatedAt: new Date() } });
+      } else await tx.delete(itemPowerSource).where(eq(itemPowerSource.itemPowerId, savedPower.id));
+      if (power.customConstruction) await tx.insert(itemPowerConstruction).values({ itemPowerId: savedPower.id, schemaVersion: power.customConstruction.document.schemaVersion, documentJson: JSON.stringify(power.customConstruction.document) }).onConflictDoUpdate({ target: itemPowerConstruction.itemPowerId, set: { schemaVersion: power.customConstruction.document.schemaVersion, documentJson: JSON.stringify(power.customConstruction.document), updatedAt: new Date() } });
+      else await tx.delete(itemPowerConstruction).where(eq(itemPowerConstruction.itemPowerId, savedPower.id));
+    }
+    if (normalized.powerResource) await tx.insert(itemPowerResource).values({ itemId: id!, ...normalized.powerResource }).onConflictDoUpdate({ target: itemPowerResource.itemId, set: { ...normalized.powerResource, updatedAt: new Date() } });
+    else await tx.delete(itemPowerResource).where(eq(itemPowerResource.itemId, id!));
+    const storedPassiveRows = await tx.select({ id: itemPassiveEffect.id }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));
+    const storedPassiveIds = new Set(storedPassiveRows.map(({ id: passiveId }) => passiveId));
+    const submittedPassiveIds = new Set(normalized.passiveEffects.flatMap(({ id: passiveId }) => passiveId === null ? [] : [passiveId]));
+    if ([...submittedPassiveIds].some((passiveId) => !storedPassiveIds.has(passiveId))) {
+      throw new Error("One or more Passive Effect identities do not belong to this Item.");
+    }
+    const removedPassiveIds = [...storedPassiveIds].filter((passiveId) => !submittedPassiveIds.has(passiveId));
+    if (removedPassiveIds.length) {
+      await tx.delete(itemPassiveEffect).where(and(eq(itemPassiveEffect.itemId, id!), inArray(itemPassiveEffect.id, removedPassiveIds)));
+    }
+    for (const [sortOrder, passive] of normalized.passiveEffects.entries()) {
+      const encoded = encodeMechanicalEffect(passive.effect);
+      if (passive.id === null) {
+        await tx.insert(itemPassiveEffect).values({
+          itemId: id!,
+          requiredEquipmentState: passive.requiredEquipmentState,
+          ...encoded,
+          sortOrder,
+        });
+      } else {
+        const updated = await tx.update(itemPassiveEffect).set({
+          requiredEquipmentState: passive.requiredEquipmentState,
+          ...encoded,
+          sortOrder,
+          updatedAt: new Date(),
+        }).where(and(eq(itemPassiveEffect.id, passive.id), eq(itemPassiveEffect.itemId, id!))).returning({ id: itemPassiveEffect.id });
+        if (!updated.length) throw new Error("Passive Effect changed before the Item could be saved.");
+      }
+    }
+
+    if (normalized.properties.length) {
+      await tx.insert(itemProperty).values(normalized.properties.map((property) => ({
+        itemId: id!,
+        propertyName: property.propertyName,
+        value: property.value,
+        unit: property.unit,
+        quantity: property.quantity,
+        relatedItemId: property.relatedItemId,
+        relatedCreatureCanonicalId: property.relatedCreatureCanonicalId,
+        notes: property.notes,
+        sortOrder: property.sortOrder,
+      })));
+    }
+    if (normalized.weapon) {
+      const storedWeapon = storedWeaponProfile;
+      const weaponValues = {
+        profileRecordType: normalized.weapon.profileRecordType,
+        weaponType: normalized.weapon.weaponType,
+        handedness: normalized.weapon.handedness,
+        damageSource: normalized.weapon.damageSource,
+        damage: normalized.weapon.damage,
+        initiativeCost: normalized.weapon.initiativeCost,
+        damageType: normalized.weapon.damageType,
+        rangeText: normalized.weapon.range,
+        reachText: normalized.weapon.reach,
+        rangeMode: normalized.weapon.rangeMode,
+        distanceUnit: normalized.weapon.distanceUnit,
+        reachDistance: normalized.weapon.reachDistance,
+        shortRangeDistance: normalized.weapon.shortRangeDistance,
+        mediumRangeDistance: normalized.weapon.mediumRangeDistance,
+        longRangeDistance: normalized.weapon.longRangeDistance,
+        ammunitionItemId: normalized.weapon.ammunitionItemId,
+        compatibility: normalized.weapon.compatibility,
+        capacity: normalized.weapon.capacity,
+        capacityRounds: normalized.weapon.capacityRounds,
+        reloadType: normalized.weapon.reloadType,
+        readinessMode: normalized.weapon.readinessMode,
+        drawInitiativeCost: normalized.weapon.drawInitiativeCost,
+        readyInitiativeCost: normalized.weapon.readyInitiativeCost,
+        reloadInitiativeCost: normalized.weapon.reloadInitiativeCost,
+        unloadInitiativeCost: normalized.weapon.unloadInitiativeCost,
+        firingModeChangeInitiativeCost: normalized.weapon.firingModeChangeInitiativeCost,
+        fireModes: JSON.stringify(normalized.weapon.firingModes.map(({ name }) => name)),
+        rateOfFire: normalized.weapon.rateOfFire,
+        reloadInitiative: normalized.weapon.reloadInitiative,
+        ammunitionCyclingInitiativeModifier: normalized.weapon.ammunitionCyclingInitiativeModifier,
+        ammunitionRecoilResetInitiativeModifier: normalized.weapon.ammunitionRecoilResetInitiativeModifier,
+        rulesText: normalized.weapon.rulesText,
+      };
+      const weaponProfileId = storedWeapon
+        ? (await tx.update(weaponProfile).set({ ...weaponValues, updatedAt: new Date() }).where(eq(weaponProfile.id, storedWeapon.id)).returning({ id: weaponProfile.id }))[0]!.id
+        : (await tx.insert(weaponProfile).values({ itemId: id!, ...weaponValues }).returning({ id: weaponProfile.id }))[0]!.id;
+      const storedModes = storedWeapon
+        ? await tx.select().from(weaponFiringMode).where(eq(weaponFiringMode.weaponProfileId, weaponProfileId))
+        : [];
+      const storedModesById = new Map(storedModes.map((mode) => [mode.id, mode]));
+      const submittedModeIds = new Set(normalized.weapon.firingModes.flatMap(({ id: modeId }) => modeId === null ? [] : [modeId]));
+      if ([...submittedModeIds].some((modeId) => !storedModesById.has(modeId))) {
+        throw new Error("One or more Firing Mode identities do not belong to this Weapon Profile.");
+      }
+      for (const mode of normalized.weapon.firingModes) {
+        if (!mode.mechanicsReviewRequired) continue;
+        if (mode.id === null && allowUnreviewedNewModes) continue;
+        const storedMode = mode.id === null ? null : storedModesById.get(mode.id);
+        if (
+          !storedMode
+          || !storedMode.mechanicsReviewRequired
+          || storedMode.name !== mode.name
+          || storedMode.sortOrder !== mode.sortOrder
+          || storedMode.baseCyclingInitiativeCost !== null
+          || storedMode.baseRecoilResetInitiativeCost !== null
+          || storedMode.deliveryCadence !== null
+          || storedMode.roundsPerCadence !== null
+        ) {
+          throw new Error(`Firing Mode ${mode.name} was changed and now requires valid nonnegative cycling and recoil-reset costs.`);
+        }
+      }
+      const removedModeIds = storedModes.map(({ id: modeId }) => modeId).filter((modeId) => !submittedModeIds.has(modeId));
+      if (removedModeIds.length) {
+        const governedModes = await tx.select({ id: weaponSkillPathMapping.id })
+          .from(weaponSkillPathMapping)
+          .where(inArray(weaponSkillPathMapping.firingModeId, removedModeIds))
+          .limit(1);
+        if (governedModes.length) {
+          throw new Error("Remove a Firing Mode's Governing Skill Paths before removing that mode.");
+        }
+        await tx.delete(weaponFiringMode).where(inArray(weaponFiringMode.id, removedModeIds));
+      }
+      for (const mode of normalized.weapon.firingModes) {
+        const values = {
+          weaponProfileId,
+          name: mode.name,
+          normalizedName: normalizeFiringModeName(mode.name),
+          sortOrder: mode.sortOrder,
+          baseCyclingInitiativeCost: mode.baseCyclingInitiativeCost,
+          baseRecoilResetInitiativeCost: mode.baseRecoilResetInitiativeCost,
+          deliveryCadence: mode.deliveryCadence,
+          roundsPerCadence: mode.roundsPerCadence,
+          mechanicsReviewRequired: mode.mechanicsReviewRequired,
+        };
+        if (mode.id === null) {
+          await tx.insert(weaponFiringMode).values(values);
+        } else {
+          const updated = await tx.update(weaponFiringMode).set({ ...values, updatedAt: new Date() })
+            .where(and(eq(weaponFiringMode.id, mode.id), eq(weaponFiringMode.weaponProfileId, weaponProfileId)))
+            .returning({ id: weaponFiringMode.id });
+          if (!updated.length) throw new Error("A Firing Mode changed before the Item could be saved.");
+        }
+      }
+    }
+    if (normalized.armor) {
+      await tx.insert(armorProfile).values({ itemId: id!, armorType: normalized.armor.armorType, coverage: normalized.armor.coverage, baseSoak: normalized.armor.baseSoak, damageModifiersSourceText: normalized.armor.damageModifiersSourceText, rulesText: normalized.armor.rulesText });
+      if (normalized.armor.damageModifiers.length) await tx.insert(itemArmorDamageModifier).values(normalized.armor.damageModifiers.map((modifier) => ({ itemId: id!, ...modifier })));
+      if (normalized.armor.coveredBodyLocationKeys.length) await tx.insert(armorLocation).values(normalized.armor.coveredBodyLocationKeys.map((locationCode, sortOrder) => ({ itemId: id!, locationCode, sortOrder })));
+    }
+    if (normalized.tags.length) {
+      const tagRows = await tx.select({ id: itemTagCatalog.id, name: itemTagCatalog.name }).from(itemTagCatalog).where(inArray(itemTagCatalog.name, normalized.tags));
+      if (tagRows.length !== normalized.tags.length) throw new Error("One or more selected Item tags no longer exist.");
+      await tx.insert(itemTagLink).values(tagRows.map(({ id: tagId }) => ({ itemId: id!, tagId })));
+    }
+    await saveMagazineCatalogInTransaction(tx, id!, input.magazineProfile ?? null, input.weaponProfile?.compatibleMagazines ?? []);
+    return id;
+  });
+
+  revalidatePath("/heavens/equipment");
+  revalidatePath("/heavens/inventory");
+  const saved = await getItem(savedId);
+  if (!saved) throw new Error("The saved Item could not be reloaded.");
+  return saved;
+}
+
+export async function saveItem(input: ItemDraft): Promise<ItemAggregate> {
+  return saveItemDefinition(input, false);
+}
+
+export async function createItemVariant(parentItemId: number, variantName: string): Promise<ItemAggregate> {
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const parent = await getItem(parentItemId);
+  if (!parent) throw new Error("Parent Item not found.");
+  assertCanEditSharedLibraryRoot(
+    { userId: session.user.id, roles },
+    {
+      createdByUserId: parent.createdByUserId,
+      sourceSystem: parent.core.sourceSystem,
+    },
+    "Item",
+  );
+  if (parent.archivedAt) throw new Error("Restore the parent Item before creating a Variant.");
+  const name = required(variantName, "Variant Name");
+  const runtimeDefinition = copyItemRuntimeDefinition(parent);
+  const clone: ItemDraft = {
+    ...parent,
+    id: undefined,
+    ...runtimeDefinition,
+    passiveEffects: copyPassiveItemEffects(parent.passiveEffects),
+    core: { ...parent.core, canonicalId: "", name, parentItemId, parentItemName: parent.core.name, sourceSystem: null, sourceExternalId: null },
+    properties: parent.properties.map((row) => ({ ...row })),
+    weaponProfile: parent.weaponProfile ? {
+      ...parent.weaponProfile,
+      firingModes: copyFirearmFiringModes(parent.weaponProfile.firingModes),
+      resolvedFiringModes: [],
+      referencedAmmunition: parent.weaponProfile.referencedAmmunition ? { ...parent.weaponProfile.referencedAmmunition } : null,
+    } : null,
+    armorProfile: parent.armorProfile ? { ...parent.armorProfile, damageModifiers: parent.armorProfile.damageModifiers.map((row) => ({ ...row })), coveredBodyLocationKeys: [...parent.armorProfile.coveredBodyLocationKeys] } : null,
+    tags: [...parent.tags],
+    powers: copyItemPowers(parent.powers),
+    powerResource: parent.powerResource ? { ...parent.powerResource } : null,
+    variants: [],
+  };
+  return saveItemDefinition(clone, true, true);
+}
+
+export async function findMagazineItems(kind: "ammunition" | "magazine", search: string, excludeItemId?: number) {
+  await requireGodOrAdminAccessContext();
+  const conditions: SQL[] = [isNull(item.archivedAt)];
+  if (excludeItemId) conditions.push(ne(item.id, excludeItemId));
+  if (search.trim()) conditions.push(or(ilike(item.name, `%${search.trim()}%`), ilike(item.canonicalId, `%${search.trim()}%`))!);
+  conditions.push(kind === "magazine" ? sql`exists(select 1 from ${magazineProfile} where ${magazineProfile.itemId} = ${item.id})`
+    : sql`(lower(trim(${item.recordType})) = 'ammunition' or exists(select 1 from ${weaponProfile} where ${weaponProfile.itemId} = ${item.id} and lower(trim(${weaponProfile.profileRecordType})) = 'ammunition'))`);
+  return db.select({ id: item.id, name: item.name }).from(item).where(and(...conditions)).orderBy(asc(item.name), asc(item.id)).limit(40);
+}
+`);
+
+    let largestSequence = 0;
+    for (const row of tagRows) {
+      const sequence = Number(row.canonicalId.slice(4));
+      if (Number.isSafeInteger(sequence)) largestSequence = Math.max(largestSequence, sequence);
+    }
+    if (largestSequence >= Number.MAX_SAFE_INTEGER) {
+      throw new Error("No available Item Tag ID remains.");
+    }
+
+    const canonicalId = `TAG-${String(largestSequence + 1).padStart(4, "0")}`;
+    const [inserted] = await tx
+      .insert(itemTagCatalog)
+      .values({ canonicalId, name, tagGroup, description })
+      .returning({
+        name: itemTagCatalog.name,
+        tagGroup: itemTagCatalog.tagGroup,
+        description: itemTagCatalog.description,
+      });
+
+    if (!inserted) throw new Error("The Item Tag could not be created.");
+    return inserted;
+  });
+
+  revalidatePath("/heavens/equipment");
+  revalidatePath("/heavens/inventory");
+  revalidatePath("/heavens/campaigns");
+  return created;
+}
+
 export async function getWeaponSkillGovernance(itemId: number): Promise<WeaponSkillGovernanceReadModel | null> {
   await requireGodOrAdminAccessContext();
   return readWeaponSkillGovernance(itemId);
