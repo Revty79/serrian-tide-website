@@ -55,6 +55,7 @@ import {
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
+  createItemTag,
   createItemVariant,
   findRelatedCreatures,
   findRelatedItems,
@@ -309,6 +310,24 @@ export function ItemWorkspace({
     setReferences(nextReferences);
   }
 
+  async function createSharedTag(input: { name: string; tagGroup: string; description: string }): Promise<ItemAuthoringReferences["tags"][number] | null> {
+    try {
+      const created = await createItemTag(input);
+      setReferences((current) => ({
+        ...current,
+        tags: [
+          ...current.tags.filter((tag) => tag.name.toLocaleLowerCase("en-US") !== created.name.toLocaleLowerCase("en-US")),
+          created,
+        ].sort((left, right) => left.tagGroup.localeCompare(right.tagGroup) || left.name.localeCompare(right.name)),
+      }));
+      setFeedback({ kind: "success", message: `Tag "${created.name}" is available throughout Item, Campaign, and rule authoring.` });
+      return created;
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The shared Item Tag could not be created." });
+      return null;
+    }
+  }
+
   async function openItem(summary: Pick<ItemSummary, "id">) {
     await preserveScroll(async () => {
       setLoadingEditor(true);
@@ -535,13 +554,13 @@ export function ItemWorkspace({
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
         <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
         <fieldset className="skill-editor__content item-editor__content lifecycle-editor-fields" disabled={isArchived || workspaceBusy}>
-          {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
+          {activeTab === "overview" ? <Overview draft={draft} references={references} onCreateTag={createSharedTag} onChange={change} /> : null}
           {activeTab === "properties" ? <Properties draft={draft} onChange={change} /> : null}
           {activeTab === "abilities" ? <Abilities draft={draft} references={references} onChange={change} /> : null}
           {activeTab === "weapon" ? <Weapon draft={draft} references={references} itemDirty={dirty} workspaceBusy={workspaceBusy} governanceProfileKey={governanceProfileKey} governanceDraft={governanceDraft} governanceRefreshToken={governanceRefreshToken} beginOperation={beginOperation} isCurrentOperation={isCurrentOperation} finishOperation={finishOperation} onGovernanceHydrated={(profileKey, itemId, mappings) => setGovernanceDraft((current) => current?.profileKey === profileKey && current.dirty ? current : { itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: false, saving: false, saveError: null, saveMessage: null })} onGovernanceChanged={(profileKey, itemId, mappings) => { if (!operationBlocked()) setGovernanceDraft((current) => ({ itemId, profileKey, mappings, scope: current?.profileKey === profileKey ? current.scope : "weapon", dirty: true, saving: false, saveError: null, saveMessage: null })); }} onGovernanceScopeChanged={(profileKey, scope) => { if (!operationBlocked()) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, scope } : current); }} onGovernanceSaveStarted={(profileKey, operation) => { if (isCurrentOperation(operation)) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: true, saveError: null, saveMessage: null } : current); }} onGovernanceSaveFailed={(profileKey, message, operation) => { if (isCurrentOperation(operation)) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, saving: false, saveError: message, saveMessage: null, dirty: true } : current); }} onGovernanceSaved={(profileKey, itemId, mappings, operation) => { if (isCurrentOperation(operation)) setGovernanceDraft((current) => current?.profileKey === profileKey ? { ...current, itemId, mappings, dirty: false, saving: false, saveError: null, saveMessage: "Canonical Governing Skill Paths were saved." } : current); }} onChange={change} /> : null}
           {activeTab === "magazine" ? <Magazine draft={draft} onChange={change} /> : null}
           {activeTab === "armor" && scope === "equipment" ? <Armor draft={draft} references={references} onChange={change} /> : null}
-          {activeTab === "tags" ? <Tags draft={draft} references={references} onChange={change} /> : null}
+          {activeTab === "tags" ? <Tags draft={draft} references={references} onCreateTag={createSharedTag} onChange={change} /> : null}
           {activeTab === "variants" ? <Variants draft={draft} creating={activeOperation?.kind === "variant-create"} onOpen={requestVariantOpen} onCreate={requestVariantCreation} /> : null}
           {activeTab === "preview" ? <Preview draft={draft} /> : null}
         </fieldset>
@@ -552,13 +571,106 @@ export function ItemWorkspace({
   </main>;
 }
 
-function Overview({ draft, onChange }: { draft: ItemDraft; onChange: (draft: ItemDraft) => void }) {
+type ItemTagReference = ItemAuthoringReferences["tags"][number];
+
+function TagAssignmentEditor({
+  draft,
+  references,
+  onCreateTag,
+  onChange,
+  compact = false,
+}: {
+  draft: ItemDraft;
+  references: ItemAuthoringReferences;
+  onCreateTag: (input: { name: string; tagGroup: string; description: string }) => Promise<ItemTagReference | null>;
+  onChange: (draft: ItemDraft) => void;
+  compact?: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newGroup, setNewGroup] = useState("Genre");
+  const [newDescription, setNewDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const normalizedSearch = search.trim().toLocaleLowerCase("en-US");
+  const visibleTags = useMemo(
+    () => references.tags.filter((tag) => !normalizedSearch || [tag.name, tag.tagGroup, tag.description]
+      .some((value) => value.toLocaleLowerCase("en-US").includes(normalizedSearch))),
+    [normalizedSearch, references.tags],
+  );
+  const groups = useMemo(() => {
+    const map = new Map<string, ItemTagReference[]>();
+    for (const tag of visibleTags) map.set(tag.tagGroup, [...(map.get(tag.tagGroup) ?? []), tag]);
+    return [...map.entries()];
+  }, [visibleTags]);
+
+  const toggle = (name: string, checked: boolean) => {
+    onChange({
+      ...draft,
+      tags: checked
+        ? [...new Set([...draft.tags, name])]
+        : draft.tags.filter((tag) => tag !== name),
+    });
+  };
+
+  async function createAndAssign() {
+    if (!newName.trim() || creating) return;
+    setCreating(true);
+    try {
+      const created = await onCreateTag({
+        name: newName,
+        tagGroup: newGroup,
+        description: newDescription,
+      });
+      if (!created) return;
+      if (!draft.tags.includes(created.name)) {
+        onChange({ ...draft, tags: [...draft.tags, created.name] });
+      }
+      setNewName("");
+      setNewDescription("");
+      setSearch("");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return <div className={compact ? "item-tag-editor is-compact" : "item-tag-editor"}>
+    <div className="item-tag-editor__create">
+      <input aria-label="New tag name" placeholder="Create tag, e.g. Modern" value={newName} onChange={(event) => setNewName(event.target.value)} />
+      <input aria-label="Tag group" placeholder="Group" value={newGroup} onChange={(event) => setNewGroup(event.target.value)} />
+      {!compact ? <input aria-label="Tag description" placeholder="Description (optional)" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} /> : null}
+      <button type="button" disabled={!newName.trim() || creating} onClick={() => void createAndAssign()}>{creating ? "Creating…" : "Create & Add"}</button>
+    </div>
+    <input className="item-tag-editor__search" aria-label="Search tags" placeholder="Search existing tags" value={search} onChange={(event) => setSearch(event.target.value)} />
+    {draft.tags.length ? <p className="item-tag-editor__selected"><strong>Included:</strong> {draft.tags.join(", ")}</p> : <p className="item-tag-editor__selected">No tags selected yet.</p>}
+    {groups.length ? groups.map(([group, tags]) => <section className="item-tag-group" key={group}>
+      <h3>{group || "General"}</h3>
+      <div>{tags.map((tag) => <label key={tag.name} className={draft.tags.includes(tag.name) ? "is-selected" : ""} title={tag.description}>
+        <input type="checkbox" checked={draft.tags.includes(tag.name)} onChange={(event) => toggle(tag.name, event.target.checked)} />
+        <strong>{tag.name}</strong>
+        <span>{tag.description}</span>
+      </label>)}</div>
+    </section>) : <p className="skill-library__empty">{normalizedSearch ? "No tags match this search." : "No tags exist yet. Create the first one above."}</p>}
+  </div>;
+}
+
+function Overview({
+  draft,
+  references,
+  onCreateTag,
+  onChange,
+}: {
+  draft: ItemDraft;
+  references: ItemAuthoringReferences;
+  onCreateTag: (input: { name: string; tagGroup: string; description: string }) => Promise<ItemTagReference | null>;
+  onChange: (draft: ItemDraft) => void;
+}) {
   const core = draft.core;
   const setCore = (update: Partial<ItemDraft["core"]>) => onChange({ ...draft, core: { ...core, ...update } });
   return <div className="item-section item-form-grid">
     <Field label="Name" wide><input value={core.name} onChange={(e) => setCore({ name: e.target.value })} /></Field>
     <label className="item-magical-toggle item-field--wide"><input type="checkbox" checked={draft.isMagical} onChange={(event) => onChange({ ...draft, isMagical: event.target.checked })} /><span><strong>Magical Item</strong><small>Explicit classification only; this does not add effects or charges.</small></span></label>
-    <Field label="Canonical ID"><input value={core.canonicalId} disabled placeholder={draft.id ? "" : "Assigned on first save"} /></Field>
+    <Field label="Record ID"><input value={core.canonicalId} disabled placeholder={draft.id ? "" : "Assigned on first save"} /></Field>
     {core.catalogScope === "equipment" ? <Field label="Equipment Group"><select value={core.equipmentGroup ?? "general"} onChange={(e) => setCore({ equipmentGroup: e.target.value as EquipmentCatalogGroup })}>{EQUIPMENT_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}</select></Field> : null}
     <Field label="Record Type"><input value={core.recordType} onChange={(e) => setCore({ recordType: e.target.value })} /></Field>
     <Field label="Family"><input value={core.family} onChange={(e) => setCore({ family: e.target.value })} /></Field>
@@ -571,6 +683,7 @@ function Overview({ draft, onChange }: { draft: ItemDraft; onChange: (draft: Ite
     <Field label="Size"><input value={core.size} onChange={(e) => setCore({ size: e.target.value })} /></Field>
     <Field label="Durability"><OptionalNumber value={core.durability} min={0} onChange={(durability) => setCore({ durability })} /></Field>
     {core.parentItemId ? <Field label="Variant Of" wide><input disabled value={core.parentItemName ?? `Item ${core.parentItemId}`} /></Field> : null}
+    <div className="item-field item-field--wide"><span className="item-tag-editor__heading">Genre / Library Tags</span><small>Create a new tag here or reuse any tag already created in Serrian Tide.</small><TagAssignmentEditor draft={draft} references={references} onCreateTag={onCreateTag} onChange={onChange} compact /></div>
     <Field label="Description" wide><textarea rows={8} value={core.description} onChange={(e) => setCore({ description: e.target.value })} /></Field>
   </div>;
 }
@@ -1191,13 +1304,21 @@ function Armor({ draft, references, onChange }: { draft: ItemDraft; references: 
   </div>;
 }
 
-function Tags({ draft, references, onChange }: { draft: ItemDraft; references: ItemAuthoringReferences; onChange: (draft: ItemDraft) => void }) {
-  const groups = useMemo(() => {
-    const map = new Map<string, ItemAuthoringReferences["tags"]>();
-    for (const tag of references.tags) map.set(tag.tagGroup, [...(map.get(tag.tagGroup) ?? []), tag]);
-    return [...map.entries()];
-  }, [references]);
-  return <div className="item-section"><div className="skill-editor__intro"><p>Tags are shared canonical metadata used for searching and campaign authorization.</p></div>{groups.length ? groups.map(([group, tags]) => <section className="item-tag-group" key={group}><h3>{group || "General"}</h3><div>{tags.map((tag) => <label key={tag.name} className={draft.tags.includes(tag.name) ? "is-selected" : ""} title={tag.description}><input type="checkbox" checked={draft.tags.includes(tag.name)} onChange={(e) => onChange({ ...draft, tags: e.target.checked ? [...draft.tags, tag.name] : draft.tags.filter((name) => name !== tag.name) })} /><strong>{tag.name}</strong><span>{tag.description}</span></label>)}</div></section>) : <p className="skill-library__empty">Tag references will appear after the canon import.</p>}</div>;
+function Tags({
+  draft,
+  references,
+  onCreateTag,
+  onChange,
+}: {
+  draft: ItemDraft;
+  references: ItemAuthoringReferences;
+  onCreateTag: (input: { name: string; tagGroup: string; description: string }) => Promise<ItemTagReference | null>;
+  onChange: (draft: ItemDraft) => void;
+}) {
+  return <div className="item-section">
+    <div className="skill-editor__intro"><p>Tags are shared libraries created inside Serrian Tide. Assign an existing tag or create a new one; the same tag is available to Equipment, Inventory, Campaign authorization, and rule authoring.</p></div>
+    <TagAssignmentEditor draft={draft} references={references} onCreateTag={onCreateTag} onChange={onChange} />
+  </div>;
 }
 
 function newPower(sortOrder: number): ItemPower {
@@ -1339,7 +1460,7 @@ function Variants({ draft, creating, onOpen, onCreate }: { draft: ItemDraft; cre
 
 function Preview({ draft }: { draft: ItemDraft }) {
   return <article className="item-preview">
-    <header><p>{draft.core.catalogScope}{draft.core.equipmentGroup ? ` / ${draft.core.equipmentGroup}` : ""}</p><h3>{draft.core.name || "Untitled Item"}</h3><span>{draft.core.canonicalId || "Canonical ID assigned on save"} · {draft.core.recordType} · {draft.core.category}</span><div className="item-preview__classification"><span>{draft.isMagical ? "Magical Item" : "Mundane Item"}</span>{draft.runtimeProfile.useMode !== "none" ? <span>{draft.runtimeProfile.useMode === "consume-item" ? "Consumable" : draft.runtimeProfile.useMode === "charges" ? "Charged" : "Unlimited"}</span> : null}</div></header>
+    <header><p>{draft.core.catalogScope}{draft.core.equipmentGroup ? ` / ${draft.core.equipmentGroup}` : ""}</p><h3>{draft.core.name || "Untitled Item"}</h3><span>{draft.core.canonicalId || "Record ID assigned on save"} · {draft.core.recordType} · {draft.core.category}</span><div className="item-preview__classification"><span>{draft.isMagical ? "Magical Item" : "Mundane Item"}</span>{draft.runtimeProfile.useMode !== "none" ? <span>{draft.runtimeProfile.useMode === "consume-item" ? "Consumable" : draft.runtimeProfile.useMode === "charges" ? "Charged" : "Unlimited"}</span> : null}</div></header>
     <div className="item-preview__facts"><div><dt>Credits</dt><dd>{draft.core.credits ?? "—"}</dd></div><div><dt>Price Basis</dt><dd>{draft.core.priceBasis || "—"}</dd></div><div><dt>Weight</dt><dd>{draft.core.weight === null ? "—" : `${draft.core.weight} ${draft.core.weightUnit}`}</dd></div><div><dt>Size</dt><dd>{draft.core.size || "—"}</dd></div><div><dt>Durability</dt><dd>{draft.core.durability ?? "—"}</dd></div></div>
     <section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section>
     <section><h4>Runtime Use</h4><p><strong>Activated Use:</strong> {formatItemActivatedUse(draft.runtimeProfile)}</p><p><strong>Activation:</strong> {draft.runtimeProfile.activationLabel || "Use"}</p>{draft.runtimeProfile.useNotes ? <p>{draft.runtimeProfile.useNotes}</p> : null}</section>
