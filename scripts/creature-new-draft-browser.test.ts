@@ -6,6 +6,7 @@ import { basename, dirname, resolve } from "node:path";
 import { hashPassword } from "better-auth/crypto";
 import pg from "pg";
 import { chromium } from "playwright-core";
+import type { InteractionRuleProfile } from "../src/features/interaction-rules/interaction-rules";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required.");
@@ -24,6 +25,7 @@ const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 
 async function cleanup(pool: pg.Pool, userId: string): Promise<void> {
   await pool.query("delete from creatures where created_by_user_id=$1", [userId]);
+  await pool.query("delete from races where created_by_user_id=$1", [userId]);
   await pool.query(`delete from "user" where id=$1`, [userId]);
 }
 
@@ -85,6 +87,8 @@ async function main(): Promise<void> {
       Object.defineProperty(Crypto.prototype, "randomUUID", { configurable: true, value: undefined });
     });
     const page = await context.newPage();
+    const browserErrors: string[] = [];
+    page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto(`${BASE_URL}/login`);
     await page.locator('input[name="username"]').fill(email);
     await page.locator('input[name="password"]').fill(PASSWORD);
@@ -100,7 +104,7 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: "New Creature" }).click();
     await page.getByText("NEW CREATURE DRAFT", { exact: true }).waitFor();
     assert.match(await page.getByRole("button", { name: "Overview" }).getAttribute("class") ?? "", /is-active/);
-    const name = page.getByLabel("Canonical Name");
+    const name = page.getByLabel("Canonical Name", { exact: true });
     assert.equal(await name.inputValue(), "");
     assert.equal((await pool.query<{ count: number }>("select count(*)::int count from creatures where created_by_user_id=$1", [userId])).rows[0]?.count, 0);
 
@@ -111,17 +115,50 @@ async function main(): Promise<void> {
     assert.equal(saved.rows.length, 1);
     assert.match(saved.rows[0]!.canonical_id, /^CREATURE-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/);
 
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
+    const interactions = page.getByRole("region", { name: "Interaction Rules", exact: true });
+    for (const ruleName of ["Fire resistance", "Ice resistance"]) {
+      await interactions.getByRole("button", { name: "Add Interaction Rule", exact: true }).click();
+      const rule = interactions.locator("[data-interaction-rule]").last();
+      await rule.getByLabel("Rule Name", { exact: true }).fill(ruleName);
+      await rule.getByLabel("Rule Type", { exact: true }).selectOption("resistance");
+      await rule.getByLabel("Amount (%)", { exact: true }).fill("25");
+      await rule.getByLabel("Damage Type", { exact: true }).fill(ruleName.split(" ")[0]);
+      await rule.getByRole("button", { name: "Add Condition", exact: true }).click();
+      const addedCondition = rule.locator("[data-interaction-condition]").last();
+      const key = await addedCondition.getAttribute("data-interaction-condition");
+      await addedCondition.getByLabel("Against", { exact: true }).selectOption("magical");
+      assert.equal(await addedCondition.getAttribute("data-interaction-condition"), key, "Editing a condition preserves its key");
+      await rule.getByLabel("Match", { exact: true }).selectOption("ALL");
+    }
+    const keys = await interactions.locator("[data-interaction-rule], [data-interaction-condition]").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-interaction-rule") ?? node.getAttribute("data-interaction-condition")));
+    assert.equal(keys.length, 6);
+    assert.ok(keys.every((key) => typeof key === "string" && key.length > 0));
+    assert.equal(new Set(keys).size, keys.length, "New rules and conditions have independent keys without randomUUID");
+    await page.getByRole("button", { name: "Save Creature" }).click();
+    await page.getByText("Hotfix Browser Creature was saved.", { exact: true }).waitFor();
+    const stored = await pool.query<{ interaction_rules_json: InteractionRuleProfile }>("select interaction_rules_json from creatures where created_by_user_id=$1", [userId]);
+    assert.deepEqual(stored.rows[0]!.interaction_rules_json.rules.map((rule) => rule.name), ["Fire resistance", "Ice resistance"]);
+    assert.deepEqual(stored.rows[0]!.interaction_rules_json.rules.flatMap((rule) => [rule.key, ...rule.conditions.map((condition) => condition.key)]), keys);
+    await page.reload();
+    await page.locator(".skill-library__row").filter({ hasText: "Hotfix Browser Creature" }).click();
+    await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
+    assert.equal(await interactions.locator("[data-interaction-rule]").count(), 2);
+    assert.equal(await interactions.locator("[data-interaction-condition]").count(), 4);
+    assert.equal(await interactions.getByLabel("Rule Name", { exact: true }).first().inputValue(), "Fire resistance");
+    assert.deepEqual(browserErrors, [], "Adding, saving and reopening Interaction Rules has no browser errors");
+
     await page.getByRole("button", { name: "New Creature" }).click();
     await page.getByText("NEW CREATURE DRAFT", { exact: true }).waitFor();
-    assert.equal(await page.getByLabel("Canonical Name").inputValue(), "");
-    await page.getByLabel("Canonical Name").fill("Unsaved Creature Name");
+    assert.equal(await page.getByLabel("Canonical Name", { exact: true }).inputValue(), "");
+    await page.getByLabel("Canonical Name", { exact: true }).fill("Unsaved Creature Name");
     await page.getByRole("button", { name: "New Creature" }).click();
     await page.getByRole("button", { name: "Keep Editing" }).waitFor();
     await page.getByRole("button", { name: "Keep Editing" }).click();
-    assert.equal(await page.getByLabel("Canonical Name").inputValue(), "Unsaved Creature Name");
+    assert.equal(await page.getByLabel("Canonical Name", { exact: true }).inputValue(), "Unsaved Creature Name");
     await page.getByRole("button", { name: "New Creature" }).click();
     await page.getByRole("button", { name: "Discard Changes" }).click();
-    assert.equal(await page.getByLabel("Canonical Name").inputValue(), "");
+    assert.equal(await page.getByLabel("Canonical Name", { exact: true }).inputValue(), "");
     assert.match(await page.getByRole("button", { name: "Overview" }).getAttribute("class") ?? "", /is-active/);
     assert.equal((await pool.query<{ count: number }>("select count(*)::int count from creatures where created_by_user_id=$1", [userId])).rows[0]?.count, 1);
 
@@ -139,9 +176,34 @@ async function main(): Promise<void> {
       (select count(*)::int from campaign_creature_npc_profile) npc_count,
       (select count(*)::int from campaign_session_encounter_participant where participant_kind='creature' and creature_snapshot_json is not null) occurrence_count`, [userId]);
     assert.deepEqual(after.rows, baseline.rows);
+
+    await page.goto(`${BASE_URL}/heavens/races`);
+    await page.getByRole("button", { name: "New Race", exact: true }).click();
+    await page.getByLabel("Name", { exact: true }).fill("Hotfix Browser Race");
+    await page.getByRole("button", { name: "Mechanics", exact: true }).click();
+    const racialInteractions = page.getByRole("region", { name: "Racial Interaction Rules", exact: true });
+    await racialInteractions.getByRole("button", { name: "Add Interaction Rule", exact: true }).click();
+    await racialInteractions.getByLabel("Rule Name", { exact: true }).fill("Silver or magical");
+    await racialInteractions.getByLabel("Requires", { exact: true }).selectOption("item-property");
+    await racialInteractions.getByLabel("Property Name", { exact: true }).fill("Material");
+    await racialInteractions.getByLabel("Property Value (optional)", { exact: true }).fill("Silver");
+    await racialInteractions.getByRole("button", { name: "Add Condition", exact: true }).click();
+    await racialInteractions.getByLabel("Requires", { exact: true }).last().selectOption("magical");
+    const raceKeys = await racialInteractions.locator("[data-interaction-rule], [data-interaction-condition]").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-interaction-rule") ?? node.getAttribute("data-interaction-condition")));
+    assert.equal(new Set(raceKeys).size, 3);
+    await page.getByRole("button", { name: "Save Race", exact: true }).click();
+    await page.getByText("Hotfix Browser Race was saved.", { exact: true }).waitFor();
+    const storedRace = await pool.query<{ interaction_rules_json: InteractionRuleProfile }>("select interaction_rules_json from races where created_by_user_id=$1", [userId]);
+    assert.deepEqual(storedRace.rows[0]!.interaction_rules_json.rules.flatMap((rule) => [rule.key, ...rule.conditions.map((condition) => condition.key)]), raceKeys);
+    await page.reload();
+    await page.locator(".skill-library__row").filter({ hasText: "Hotfix Browser Race" }).click();
+    await page.getByRole("button", { name: "Mechanics", exact: true }).click();
+    assert.equal(await racialInteractions.getByLabel("Rule Name", { exact: true }).inputValue(), "Silver or magical");
+    assert.equal(await racialInteractions.locator("[data-interaction-condition]").count(), 2);
+    assert.deepEqual(browserErrors, [], "Creature and Race authoring works without randomUUID");
     console.log(JSON.stringify({
       rootCause: "crypto.randomUUID unavailable with getRandomValues fallback",
-      workflows: ["empty editor", "clean saved Creature", "dirty Keep Editing", "dirty Discard Changes", "no pre-save row", "server-assigned ID", "visible initialization failure", "existing Creature and NPC snapshot stability"],
+      workflows: ["empty editor", "clean saved Creature", "dirty Keep Editing", "dirty Discard Changes", "no pre-save row", "server-assigned ID", "HTTP-compatible Creature and Race Interaction Rules and Conditions", "saved Interaction Rule keys survive reload", "visible initialization failure", "existing Creature and NPC snapshot stability"],
     }, null, 2));
   } finally {
     if (browser) await browser.close().catch(() => undefined);

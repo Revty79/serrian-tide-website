@@ -30,7 +30,11 @@ const labels: Record<string, string> = {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <GuidedField label={label} help={fieldHelp("interaction", label)} className="st-field" controlClassName="st-control">{children}</GuidedField>;
 }
-function newCondition(kind: InteractionCondition["kind"], key = crypto.randomUUID()): InteractionCondition {
+function createInteractionKey() {
+  // getRandomValues also works on plain HTTP LAN hosts, where randomUUID is unavailable.
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+function newCondition(kind: InteractionCondition["kind"], key = createInteractionKey()): InteractionCondition {
   switch (kind) {
     case "damage-type": return { key, kind, damageType: "" };
     case "magical": return { key, kind, magical: true };
@@ -63,7 +67,7 @@ export function InteractionRulesEditor({ value, owner, onChange }: {
   }
   return <section className={styles.editor} aria-label={owner === "race" ? "Racial Interaction Rules" : "Interaction Rules"}>
     <header className={styles.header}><h3>{owner === "race" ? "Racial Interaction Rules" : "Interaction Rules"}</h3>
-      <button className="st-button" type="button" onClick={() => update([...rules, { key: crypto.randomUUID(), name: "", ruleType: "requirement", scope: "damage", match: "ANY", conditions: [newCondition("damage-type")], percentage: null, notes: "", sortOrder: rules.length, ...(owner === "creature" ? { crImpact: "None" as const } : {}) }])}>Add Interaction Rule</button>
+      <button className="st-button" type="button" onClick={() => update([...rules, { key: createInteractionKey(), name: "", ruleType: "requirement", scope: "damage", match: "ANY", conditions: [newCondition("damage-type")], percentage: null, notes: "", sortOrder: rules.length, ...(owner === "creature" ? { crImpact: "None" as const } : {}) }])}>Add Interaction Rule</button>
     </header>
     <p className={styles.help}>These rules govern incoming damage and harmful effects in combat. Match the incoming source using the fields below; unknown facts or unresolved rule combinations need a G.O.D. ruling.</p>
     {catalogError && <p role="alert">{catalogError} Reopen this tab to retry catalog loading.</p>}
