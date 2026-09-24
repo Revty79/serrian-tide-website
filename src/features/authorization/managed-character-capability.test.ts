@@ -35,37 +35,37 @@ test("record oversight never grants foreign live-runtime authority", () => {
     actorUserId: "admin",
     roles: ["admin"],
     campaignOwnerUserId: "owner",
-  }), { canManageRecord: true, canOperateRuntime: false });
+  }), { canManageRecord: true, canOperateRuntime: false, canAccessPrivateGod: false });
 
   assert.deepEqual(resolveManagedCharacterAccess({
     actorUserId: "admin-owner",
     roles: ["admin"],
     campaignOwnerUserId: "admin-owner",
-  }), { canManageRecord: true, canOperateRuntime: false });
+  }), { canManageRecord: true, canOperateRuntime: false, canAccessPrivateGod: true });
 
   assert.deepEqual(resolveManagedCharacterAccess({
     actorUserId: "owner",
     roles: ["god"],
     campaignOwnerUserId: "owner",
-  }), { canManageRecord: true, canOperateRuntime: true });
+  }), { canManageRecord: true, canOperateRuntime: true, canAccessPrivateGod: true });
 
   assert.deepEqual(resolveManagedCharacterAccess({
     actorUserId: "foreign",
     roles: ["god"],
     campaignOwnerUserId: "owner",
-  }), { canManageRecord: false, canOperateRuntime: false });
+  }), { canManageRecord: false, canOperateRuntime: false, canAccessPrivateGod: false });
 
   assert.deepEqual(resolveManagedCharacterAccess({
     actorUserId: "dual-role-foreign",
     roles: ["admin", "god"],
     campaignOwnerUserId: "owner",
-  }), { canManageRecord: true, canOperateRuntime: false });
+  }), { canManageRecord: true, canOperateRuntime: false, canAccessPrivateGod: false });
 
   assert.deepEqual(resolveManagedCharacterAccess({
     actorUserId: "player-owner",
     roles: ["player"],
     campaignOwnerUserId: "player-owner",
-  }), { canManageRecord: false, canOperateRuntime: false });
+  }), { canManageRecord: false, canOperateRuntime: false, canAccessPrivateGod: true });
 });
 
 test("foreign Admin record editors receive read-only live-state controls", () => {
@@ -78,9 +78,9 @@ test("foreign Admin record editors receive read-only live-state controls", () =>
 
   assert.match(editor, /canOperateRuntime/);
   assert.match(editor, /Live Campaign state is read-only/);
-  assert.match(sheet, /<ActiveHealthPanel[\s\S]*?disabled=\{!canOperateRuntime\}/);
-  assert.match(sheet, /<ActiveManaPanel[\s\S]*?disabled=\{activeManaDisabled \|\| !canOperateRuntime\}/);
-  assert.match(sheet, /<ActiveEffectsPanel[\s\S]*?disabled=\{!canOperateRuntime\}/);
+  assert.match(sheet, /<ActiveHealthPanel[\s\S]*?management=\{false\}/);
+  assert.match(sheet, /<ActiveManaPanel[\s\S]*?management=\{false\}/);
+  assert.match(sheet, /<ActiveEffectsPanel[\s\S]*?godMode=\{false\}/);
   assert.match(sheet, /runtimeDisabled=\{!canOperateRuntime\}/);
   assert.match(health, /disabled\?: boolean/);
   assert.match(effects, /disabled\?: boolean/);

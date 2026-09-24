@@ -187,7 +187,7 @@ test("Character Creation keeps every Attribute result in its card and removes th
 
 test("dedicated print markup replaces browser-print styling of the dark web sheet", () => {
   const sheet = readFileSync(
-    path.resolve(process.cwd(), "src/app/characters/character-sheet.tsx"),
+    path.resolve(process.cwd(), "src/app/characters/character-editor.tsx"),
     "utf8",
   );
   const printable = readFileSync(

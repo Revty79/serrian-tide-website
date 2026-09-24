@@ -72,6 +72,6 @@ test("ownership UI remains read-only for charges and exposes no Item execution a
   assert.doesNotMatch(combined, /Use Item/);
   assert.doesNotMatch(combined, /Spend Charge/);
   assert.doesNotMatch(combined, /Restore Charge/);
-  assert.match(characterSheet, /Each copy keeps its own identity/);
-  assert.match(characterSheet, /Magazine contents are shown in Magazines above/);
+  assert.match(source("src/app/characters/owned-equipment-list.tsx"), /Copy #\$\{row.instanceId\}/);
+  assert.match(characterSheet, /Magazine & Firearm Setup/);
 });

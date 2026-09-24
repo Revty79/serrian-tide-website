@@ -2,6 +2,7 @@ import type { CampaignSystem } from "@/db/campaign-schema";
 import {
   assertItemOwnershipStrategy,
   getOwnedItemPurchaseCost,
+  getStartingStackUnitCost,
 } from "@/features/items/item-ownership";
 
 import { getCampaignMoneyBreakdown } from "./currency-rules";
@@ -347,6 +348,11 @@ export function getStartingFundsRemaining(
   startingCredits: number,
 ) {
   return Math.max(0, startingCredits - getStartingFundsSpent(draft));
+}
+
+/** Saved purse plus retained purchase cost keeps grants/removals from resetting funds. */
+export function getCreationPurchaseBudget(aggregate: CharacterAggregate): number {
+  return aggregate.profile.creditsRemaining + getOwnedItemPurchaseCost({ stacks: aggregate.items, instances: aggregate.itemInstances });
 }
 
 export function getRaceAttributeCap(
@@ -1041,7 +1047,7 @@ export function evaluateCharacterReadiness(
   const spent = getStartingFundsSpent(draft);
   const fundsRemaining = Math.max(
     0,
-    aggregate.campaign.startingCreditAmount - spent,
+    getCreationPurchaseBudget(aggregate) - spent,
   );
   const authorized = new Map(
     aggregate.authorizedItems.map((entry) => [entry.id, entry]),
@@ -1050,13 +1056,16 @@ export function evaluateCharacterReadiness(
   const itemRulesValid =
     draft.items.every((entry) => {
       const source = authorized.get(entry.itemId);
+      const existing = aggregate.items.find(item => item.itemId === entry.itemId);
+      const expectedCost = getStartingStackUnitCost(existing, entry.quantity, source?.credits ?? null);
       if (
         !source ||
-        source.credits === null ||
+        expectedCost === null ||
+        (source.campaignAvailable === false && entry.quantity > (existing?.quantity ?? 0)) ||
         seen.has(entry.itemId) ||
         !Number.isInteger(entry.quantity) ||
         entry.quantity <= 0 ||
-        Math.abs(source.credits - entry.unitCostCredits) > EPSILON
+        Math.abs(expectedCost - entry.unitCostCredits) > EPSILON
       ) {
         return false;
       }
@@ -1073,10 +1082,13 @@ export function evaluateCharacterReadiness(
       return true;
     }) && draft.itemInstances.every((entry) => {
       const source = authorized.get(entry.itemId);
+      const existing = aggregate.itemInstances.find(item => item.id === entry.instanceId && item.itemId === entry.itemId);
+      const expectedCost = existing?.unitCostCredits ?? source?.credits ?? null;
       if (
         !source
-        || source.credits === null
-        || Math.abs(source.credits - entry.unitCostCredits) > EPSILON
+        || expectedCost === null
+        || (source.campaignAvailable === false && !existing)
+        || Math.abs(expectedCost - entry.unitCostCredits) > EPSILON
       ) {
         return false;
       }
@@ -1089,7 +1101,7 @@ export function evaluateCharacterReadiness(
         return false;
       }
       return true;
-    }) && spent <= aggregate.campaign.startingCreditAmount + EPSILON;
+    }) && spent <= getCreationPurchaseBudget(aggregate) + EPSILON;
 
   if (!itemRulesValid) {
     issues.push(

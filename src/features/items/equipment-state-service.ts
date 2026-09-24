@@ -818,6 +818,44 @@ export function setStackEquipmentState(command: SetStackEquipmentStateCommand): 
   return withEquipmentMutationAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command));
 }
 
+/** The sheet's state selector composes the existing quantity operations atomically. */
+export function setStackEquipmentRole(command: {
+  characterId: number;
+  itemId: number;
+  state: EquipmentState;
+  quantity: number;
+  expectedQuantities: { inactive: number; equipped: number; worn: number; wielded: number };
+  includeEffectHistory?: boolean;
+}): Promise<EquipmentStateMutationResult> {
+  return withEquipmentMutationAccess(command.characterId, async ({ tx }) => {
+    const target = requireEquipmentState(command.state);
+    await assertCharacterCombatWritableInTransaction(tx, command.characterId);
+    await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+    const current = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
+    const owned = current.stacks.find(({ itemId }) => itemId === command.itemId);
+    if (!owned) throw new Error("Choose an owned Equipment item.");
+    if (!Number.isSafeInteger(command.quantity) || command.quantity < 0 || command.quantity > owned.ownedQuantity) {
+      throw new Error("Choose a whole equipment quantity between zero and the number owned.");
+    }
+    const quantities = { inactive: owned.inactiveQuantity, equipped: owned.equippedQuantity, worn: owned.wornQuantity, wielded: owned.wieldedQuantity };
+    if (EQUIPMENT_STATES.some((state) => quantities[state] !== command.expectedQuantities?.[state])) {
+      throw new Error("Equipment changed after the sheet loaded. Reload before changing its state.");
+    }
+    if (owned.equipmentGroup === "weapon" && target === "wielded") {
+      const { assertOutsideCombatEquipmentHandling } = await import("./magazine-inventory-service");
+      await assertOutsideCombatEquipmentHandling(tx, command.characterId);
+    }
+    for (const state of ACTIVE_EQUIPMENT_STATES) {
+      if (state !== target && quantities[state] > 0) await setStackEquipmentStateInTransaction(tx, { ...command, state, quantity: 0 });
+    }
+    if (target !== "inactive") return setStackEquipmentStateInTransaction(tx, { ...command, state: target, quantity: command.quantity });
+    return {
+      equipmentState: await readCharacterEquipmentStateInTransaction(tx, command.characterId),
+      activeEffects: await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false),
+    };
+  });
+}
+
 export async function setInstanceEquipmentStateInTransaction(
   tx: EquipmentStateTransaction,
   command: SetInstanceEquipmentStateCommand,

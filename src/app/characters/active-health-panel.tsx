@@ -29,6 +29,7 @@ type Props = {
   onHealthChange: (health: ActiveHealthView) => void;
   context?: "character" | "creature";
   disabled?: boolean;
+  management?: boolean;
 };
 
 type Feedback = { kind: "success" | "error"; message: string } | null;
@@ -70,7 +71,7 @@ function formatTimestamp(value: string) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
-export function ActiveHealthPanel({ health, onHealthChange, context = "character", disabled = false }: Props) {
+export function ActiveHealthPanel({ health, onHealthChange, context = "character", disabled = false, management = true }: Props) {
   const [managing, setManaging] = useState(context === "creature" && !disabled);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -203,9 +204,9 @@ export function ActiveHealthPanel({ health, onHealthChange, context = "character
           <h3 id={`active-health-${health.characterId}`}>Current State</h3>
           <span>Persistent Campaign health · Damage is stored independently from permanent maximums.</span>
         </div>
-        <button type="button" disabled={disabled} onClick={() => setManaging((value) => !value)}>
+        {management ? <button type="button" disabled={disabled} onClick={() => setManaging((value) => !value)}>
           {managing ? "Close Health Manager" : "Manage Health"}
-        </button>
+        </button> : null}
       </header>
 
       <div className="active-health__summary">
@@ -229,7 +230,13 @@ export function ActiveHealthPanel({ health, onHealthChange, context = "character
       </div>
       {health.anatomy.maximumHpNote ? <p className="active-health__canon-note">{health.anatomy.maximumHpNote}</p> : null}
 
-      {managing && !disabled ? (
+      {!management && health.injuries.length ? <section className="active-health__injury-list">
+        <h4>Injuries</h4>
+        {unresolved.map((injury) => <InjuryCard key={injury.id} injury={injury} />)}
+        {history.length ? <details><summary>Resolved history · {history.length}</summary>{history.map((injury) => <InjuryCard key={injury.id} injury={injury} />)}</details> : null}
+      </section> : null}
+
+      {management && managing && !disabled ? (
         <div className="active-health__manager">
           {feedback ? <p className={`active-health__feedback is-${feedback.kind}`} aria-live="polite">{feedback.message}</p> : null}
 

@@ -1,4 +1,5 @@
 import type { SerrianRole } from "@/db/authorization-schema";
+import { canManageCharacterSheet } from "@/features/characters/character-sheet-access";
 import {
   canManageCampaignRecords,
   canOperateCampaignState,
@@ -7,6 +8,7 @@ import {
 export type ManagedCharacterAccess = {
   canManageRecord: boolean;
   canOperateRuntime: boolean;
+  canAccessPrivateGod: boolean;
 };
 
 export function resolveManagedCharacterAccess(input: {
@@ -17,6 +19,7 @@ export function resolveManagedCharacterAccess(input: {
   const subject = { userId: input.actorUserId, roles: input.roles };
 
   return {
+    canAccessPrivateGod: canManageCharacterSheet(input.actorUserId, input.campaignOwnerUserId),
     canManageRecord: canManageCampaignRecords(subject, input.campaignOwnerUserId),
     canOperateRuntime: canOperateCampaignState(subject, input.campaignOwnerUserId),
   };

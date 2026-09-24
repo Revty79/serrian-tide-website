@@ -61,6 +61,7 @@ next-env.d.ts
 /.next-race-authoring-browser/
 /.next-race-authoring-build/
 /artifacts/race-authoring/
+/artifacts/character-sheet-pass-one/
 /artifacts/guidance/
 /artifacts/combat-screens/attack-location-2026-09-21/
 /artifacts/combat-screens/item-flow-2026-09-21/

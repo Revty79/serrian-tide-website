@@ -386,6 +386,7 @@ function generateItems(
   const budget = Math.max(0, aggregate.campaign.startingCreditAmount);
   const equipment = aggregate.authorizedItems.filter((item) =>
     !item.archived
+    && item.campaignAvailable !== false
     && item.catalogScope.toLowerCase() === "equipment"
     && item.credits !== null
     && item.credits >= 0
@@ -406,7 +407,7 @@ function generateItems(
   let spent = first.credits ?? 0;
   const additional = shuffled(
     aggregate.authorizedItems.filter((item) =>
-      item.id !== first.id && item.credits !== null && item.credits >= 0),
+      item.campaignAvailable !== false && item.id !== first.id && item.credits !== null && item.credits >= 0),
     random,
   );
   for (const item of additional) {

@@ -22,7 +22,8 @@ import {
   resolveHumanoidHealthAnatomy,
   type CreatureHealthSnapshot,
 } from "./anatomy";
-import { canMutateActiveHealth, canReadActiveState } from "./authorization";
+import { canReadActiveState } from "./authorization";
+import { canManageCharacterSheet } from "@/features/characters/character-sheet-access";
 import {
   createEmptyActiveHealthState,
   resolveActiveHealthView,
@@ -428,7 +429,7 @@ async function withAuthorizedHealthTransaction<T>(
     };
     const authorized = access === "read"
       ? canReadActiveState(subject, accessEntity)
-      : canMutateActiveHealth(subject, accessEntity);
+      : canManageCharacterSheet(session.user.id, entity.campaignOwnerUserId);
     if (!authorized) {
       throw new Error(`You do not have permission to ${access === "read" ? "view" : "manage"} this Character's Active Health.`);
     }

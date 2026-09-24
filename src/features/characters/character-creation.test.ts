@@ -113,12 +113,11 @@ test("Character Creation exposes the exact final tab sequence", () => {
     { id: "skills", label: "Skills & Abilities" },
     { id: "story", label: "Story & Personality" },
     { id: "equipment", label: "Equipment" },
-    { id: "god", label: "G.O.D. Controls" },
-    { id: "sheet", label: "Character Sheet" },
+    { id: "god", label: "G.O.D." },
   ]);
   assert.deepEqual(
     getCharacterCreationTabs(false).map(({ label }) => label),
-    ["Identity", "Attributes", "Skills & Abilities", "Story & Personality", "Equipment", "Character Sheet"],
+    ["Identity", "Attributes", "Skills & Abilities", "Story & Personality", "Equipment"],
   );
   const labels: readonly string[] = getCharacterCreationTabs(false).map(({ label }) => label);
   assert.equal(labels.includes("Race") || labels.includes("Review"), false);
@@ -353,6 +352,9 @@ test("an exact-instance firearm purchased in the Starting Equipment Store permit
     currencyHoldings: [],
   } satisfies CharacterDraft;
   const aggregate = {
+    profile: { creditsRemaining: 100 },
+    items: [],
+    itemInstances: [],
     campaign: {
       attributePoints: 0,
       skillPoints: 0,
@@ -485,7 +487,7 @@ test("Character editor uses the recursive final workflow, authorized store, and 
   assert.equal(editor.includes("Parent Path"), false);
   assert.equal(editor.includes("Add Skill"), false);
   assert.match(actions, /requireCharacterAccess/);
-  assert.match(actions, /if \(!godMode && aggregate\.profile\.creationCompletedAt\)/);
+  assert.match(actions, /if \(!canEditRecord && aggregate\.profile\.creationCompletedAt\)/);
   assert.match(actions, /if \(completeCreation && !readiness\.ready\)/);
   assert.match(actions, /tx\.delete\(campaignCharacterSkillAllocation\)/);
   assert.match(actions, /tx\.insert\(campaignCharacterSkillAllocation\)/);

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 
 import { getCharacter } from "@/app/characters/actions";
 import { CharacterEditor } from "@/app/characters/character-editor";
@@ -42,11 +41,6 @@ export default async function PlayerCharacterPage({
   if (!weaponGovernance) redirect("/realms");
 
   return <>
-    <aside className="mx-auto mb-4 flex w-[min(88rem,calc(100%-2rem))] flex-wrap items-center justify-between gap-4 rounded-2xl border border-purple-300/25 bg-black/40 p-4 text-slate-100">
-      <div><p className="m-0 text-xs font-bold tracking-[.14em] text-purple-200">LIVE TABLETOP</p><strong className="mt-1 block">Requests and Session state now live in one dedicated console.</strong></div>
-      <Link className="inline-flex min-h-11 items-center rounded-xl border border-purple-300/60 bg-purple-950/60 px-4 font-bold text-purple-50" href={`/realms/tabletop?character=${id}`}>Open Player Tabletop</Link>
-    </aside>
-    <PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus />
-    <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} godMode={false} canOperateRuntime itemUseTimingBlocked={itemUseTimingBlocked} />
+    <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} equipmentContent={<PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus />} godMode={false} canOperateRuntime itemUseTimingBlocked={itemUseTimingBlocked} />
   </>;
 }

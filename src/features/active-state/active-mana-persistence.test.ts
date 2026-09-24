@@ -56,12 +56,12 @@ test("transaction-aware mutations are exported below the authorized public trans
   assert.match(service, /return db\.transaction\(async \(tx\) =>/);
 });
 
-test("the public Active Mana getter uses read authorization while every public mutation uses live authorization", () => {
+test("the public Active Mana getter uses read authorization while manual restoration requires the Campaign creator", () => {
   assert.match(service, /getActiveMana[\s\S]*withAuthorizedManaReadTransaction/);
   assert.match(service, /spendCharacterMana[\s\S]*withAuthorizedManaMutationTransaction/);
-  assert.match(service, /restoreCharacterMana[\s\S]*withAuthorizedManaMutationTransaction/);
-  assert.match(service, /restoreCharacterManaPool[\s\S]*withAuthorizedManaMutationTransaction/);
-  assert.match(service, /restoreAllCharacterMana[\s\S]*withAuthorizedManaMutationTransaction/);
+  assert.match(service, /restoreCharacterMana[\s\S]*withAuthorizedManaTransaction\(command.characterId, "restore"/);
+  assert.match(service, /restoreCharacterManaPool[\s\S]*withAuthorizedManaTransaction\(command.characterId, "restore"/);
+  assert.match(service, /restoreAllCharacterMana[\s\S]*withAuthorizedManaTransaction\(characterId, "restore"/);
 });
 
 test("normal Character persistence never resets Active Mana", () => {
@@ -70,9 +70,7 @@ test("normal Character persistence never resets Active Mana", () => {
 
 test("Player and GOD Character Sheets expose runtime Mana without adding it to Creature NPCs", () => {
   assert.match(characterSheet, /<ActiveManaPanel/);
-  assert.match(characterSheet, /currentMana/);
-  assert.match(characterSheet, /maximumMana/);
-  assert.match(characterSheet, /manaSpent/);
+  assert.match(characterSheet, /<ActiveManaPanel mana=\{activeMana\} management=\{false\}/);
   assert.match(characterEditor, /getActiveMana/);
   assert.match(characterEditor, /setActiveMana/);
   assert.match(playerCharacterPage, /getActiveMana/);

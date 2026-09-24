@@ -274,7 +274,7 @@ test("Step 9 persistence, authoring, shared UI, source snapshots, and scope guar
   assert.equal(passiveLifecycleLabel("worn"), "While Worn");
   assert.equal(passiveLifecycleLabel("wielded"), "While Wielded");
   assert.match(authoringUi, /Equipment State Passives/);
-  assert.match(characterSheet, /<EquipmentStatePanel/);
+  assert.match(characterSheet, /<OwnedEquipmentList/);
   assert.match(creatureWorkspace, /<EquipmentStatePanel/);
   assert.match(equipmentPanel, /Worn Armor Context/);
   assert.match(equipmentPanel, /Wielded Weapon Context/);

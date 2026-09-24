@@ -6,6 +6,7 @@ import {
   getCharacterEquipmentState,
   setInstanceEquipmentState,
   setStackEquipmentState,
+  setStackEquipmentRole,
   readyOwnedWeapon,
   type ReadyOwnedWeaponCommand,
   type SetInstanceEquipmentStateCommand,
@@ -21,6 +22,12 @@ function refresh(characterId: number) {
 }
 
 export { getCharacterEquipmentState };
+
+export async function setStackEquipmentRoleAction(command: Parameters<typeof setStackEquipmentRole>[0]) {
+  const result = await setStackEquipmentRole(command);
+  refresh(command.characterId);
+  return result;
+}
 
 export async function readyOwnedWeaponAction(command: ReadyOwnedWeaponCommand) {
   const state = await readyOwnedWeapon(command);

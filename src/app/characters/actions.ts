@@ -1,5 +1,8 @@
 "use server";
 
+import { canManageCharacterSheet, characterTrackingPatch } from "@/features/characters/character-sheet-access";
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
+
 import {
   and,
   asc,
@@ -70,6 +73,7 @@ import {
 import {
   canAccessSupernaturalSkillAtLevel,
   evaluateCharacterReadiness,
+  getCreationPurchaseBudget,
   getAttributePointsUsed,
   getCharacterMagicSystem,
   getCharacterManaProfiles,
@@ -118,6 +122,7 @@ import {
   assertNoStackInstanceOwnershipCollision,
   getOwnedItemPurchaseCost,
   getStartingItemInstanceCharges,
+  getStartingStackUnitCost,
   planOwnedItemInstancePersistence,
   validateCurrentItemCharges,
 } from "@/features/items/item-ownership";
@@ -245,8 +250,10 @@ async function requireCharacterAccess(characterId: number, godMode: boolean) {
       playerUserId: campaignCharacter.playerUserId,
       isNpc: campaignCharacter.isNpc,
       archivedAt: campaignCharacter.archivedAt,
+      campaignOwnerUserId: campaign.createdByUserId,
     })
     .from(campaignCharacter)
+    .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
     .where(eq(campaignCharacter.id, characterId))
     .limit(1);
 
@@ -529,7 +536,7 @@ export async function deleteCharacterAsGod(characterId: number): Promise<{
 }
 
 export async function getCharacter(characterId: number, godMode = false): Promise<CharacterAggregate> {
-  const { row } = await requireCharacterAccess(characterId, godMode);
+  const { row, session } = await requireCharacterAccess(characterId, godMode);
 
   const [profileRow] = await db.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, characterId)).limit(1);
   if (!profileRow) throw new Error("The Character aggregate is missing its profile row.");
@@ -684,6 +691,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       size: item.size,
       durability: item.durability,
       isMagical: item.isMagical,
+      campaignAvailable: sql<boolean>`exists(select 1 from ${campaignInventoryItem} where ${campaignInventoryItem.campaignId} = ${row.campaignId} and ${campaignInventoryItem.itemId} = ${item.id})`,
       effectCount: sql<number>`(select count(*)::int from ${itemEffect} where ${itemEffect.itemId} = ${item.id})`,
       runtimeUseMode: itemRuntimeProfile.useMode,
       runtimeQuantityPerUse: itemRuntimeProfile.quantityPerUse,
@@ -718,15 +726,15 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       baseSoak: armorProfile.baseSoak,
       armorDamageModifiers: armorProfile.damageModifiersSourceText,
       armorRulesText: armorProfile.rulesText,
-    }).from(campaignInventoryItem)
-      .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
+    }).from(item)
+      .leftJoin(campaignInventoryItem, and(eq(item.id, campaignInventoryItem.itemId), eq(campaignInventoryItem.campaignId, row.campaignId)))
       .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
       .leftJoin(ammunitionItem, eq(ammunitionItem.id, weaponProfile.ammunitionItemId))
       .leftJoin(ammunitionWeaponProfile, eq(ammunitionWeaponProfile.itemId, ammunitionItem.id))
       .leftJoin(armorProfile, eq(armorProfile.itemId, item.id))
       .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
       .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
-      .where(eq(campaignInventoryItem.campaignId, row.campaignId))
+      .where(sql`(${campaignInventoryItem.itemId} is not null or exists(select 1 from ${campaignCharacterItem} where ${campaignCharacterItem.characterId} = ${characterId} and ${campaignCharacterItem.itemId} = ${item.id}) or exists(select 1 from ${campaignCharacterItemInstance} where ${campaignCharacterItemInstance.characterId} = ${characterId} and ${campaignCharacterItemInstance.itemId} = ${item.id} and ${campaignCharacterItemInstance.retiredAt} is null))`)
       .orderBy(asc(campaignInventoryItem.sortOrder), asc(item.name)),
     db.select({
       id: derivedAbility.id,
@@ -919,6 +927,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
   });
 
   const aggregate: CharacterAggregate = {
+    sheetAccess: { canAccessPrivateGod: canManageCharacterSheet(session.user.id, row.campaignOwnerUserId) },
     character: {
       id: core.id,
       campaignId: core.campaignId,
@@ -1053,6 +1062,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     skillRelationships: relationshipRows,
     personalSpellbook: personalSpellRows,
     authorizedItems: authorizedRows.map((entry) => ({
+      campaignAvailable: entry.campaignAvailable,
       id: entry.id,
       canonicalId: entry.canonicalId,
       name: entry.name,
@@ -1165,7 +1175,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
     if (!authorized) throw new Error("Character possessions must be Campaign-authorized Items.");
     const existingItem = aggregate.items.find(({ itemId }) => itemId === entry.itemId);
-    if (authorized.archived && (!existingItem || entry.quantity > existingItem.quantity)) {
+    if ((authorized.archived || authorized.campaignAvailable === false) && (!existingItem || entry.quantity > existingItem.quantity)) {
       throw new Error("Archived Items cannot be added to or increased in Character possessions.");
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name, {
@@ -1173,7 +1183,8 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       allowLegacyExactStack: true,
       powerResource: authorized.powerResource,
     });
-    if (!godMode && (authorized.credits === null || Math.abs(authorized.credits - entry.unitCostCredits) > 0.000001)) {
+    const expectedUnitCost = getStartingStackUnitCost(existingItem, entry.quantity, authorized.credits);
+    if (!godMode && (expectedUnitCost === null || Math.abs(expectedUnitCost - entry.unitCostCredits) > 0.000001)) {
       throw new Error("Starting possessions must be Campaign-authorized and use their canonical price.");
     }
     return entry;
@@ -1198,7 +1209,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     }
     const authorized = aggregate.authorizedItems.find(({ id }) => id === entry.itemId);
     if (!authorized) throw new Error("Owned Item instances must use Campaign-authorized Items.");
-    if (authorized.archived && entry.instanceId === null) {
+    if ((authorized.archived || authorized.campaignAvailable === false) && entry.instanceId === null) {
       throw new Error("Archived Items cannot be added as new owned instances.");
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name, {
@@ -1272,11 +1283,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     secrets: clean(draft.profile.secrets),
     backstory: clean(draft.profile.backstory),
     motivations: clean(draft.profile.motivations),
-    fame: nonNegative(draft.profile.fame, "Fame"),
-    experience: nonNegative(draft.profile.experience, "Experience"),
-    totalExperience: nonNegative(draft.profile.totalExperience, "Total Experience"),
-    quintessence: nonNegative(draft.profile.quintessence, "Quintessence"),
-    totalQuintessence: nonNegative(draft.profile.totalQuintessence, "Total Quintessence"),
+    ...characterTrackingPatch(draft.profile, aggregate.sheetAccess?.canAccessPrivateGod === true, aggregate.profile),
     hpMultiplierSteps: godMode
       ? optionalWholeNonNegative(draft.profile.hpMultiplierSteps, "HP multiplier steps") ?? 0
       : aggregate.profile.hpMultiplierSteps,
@@ -1301,8 +1308,13 @@ export async function saveCharacter(
   completeCreation = false,
   godMode = false,
 ): Promise<CharacterAggregate> {
-  await requireCharacterAccess(characterId, godMode);
+  const accessAsManager = godMode;
+  const access = await requireCharacterAccess(characterId, godMode);
   const aggregate = await getCharacter(characterId, godMode);
+  const canAccessPrivateGod = canManageCharacterSheet(access.session.user.id, access.row.campaignOwnerUserId);
+  characterTrackingPatch(draft.profile, canAccessPrivateGod, aggregate.profile);
+  const canEditRecord = godMode || canAccessPrivateGod;
+  godMode = canEditRecord;
   if (aggregate.character.isNpc && aggregate.character.npcBuildMode === "simple") {
     throw new Error("Use the Simple NPC editor until this NPC is upgraded.");
   }
@@ -1311,14 +1323,27 @@ export async function saveCharacter(
       ? "Archived NPCs are read-only. Restore this NPC before you save it."
       : "Archived Characters are read-only. Restore this Character before you save it.");
   }
-  if (!godMode && aggregate.profile.creationCompletedAt) {
+  if (!canEditRecord && aggregate.profile.creationCompletedAt) {
     throw new Error("Character creation is complete and its creation record is permanently locked.");
   }
 
-  const normalized = normalizeDraft(aggregate, draft, godMode);
+  if (draft.expectedCommerceVersion !== aggregate.profile.commerceVersion) {
+    throw new Error("Character inventory or balances changed. Reload before saving this draft.");
+  }
+  const normalized = normalizeDraft(aggregate, draft, canEditRecord);
+  const inventoryChanged = normalized.items.length !== aggregate.items.length
+    || normalized.items.some(entry => !aggregate.items.some(stored => stored.itemId === entry.itemId && stored.quantity === entry.quantity && stored.unitCostCredits === entry.unitCostCredits))
+    || normalized.itemInstances.length !== aggregate.itemInstances.length
+    || normalized.itemInstances.some(entry => !aggregate.itemInstances.some(stored => stored.id === entry.instanceId && stored.itemId === entry.itemId && stored.unitCostCredits === entry.unitCostCredits));
+  if (aggregate.profile.creationCompletedAt && inventoryChanged) {
+    throw new Error("Use the Equipment tab's owner Add Item and Remove controls to adjust completed inventory.");
+  }
   const selectedRace = draft.profile.raceId === null ? null : await readRaceAggregate(draft.profile.raceId);
   const readiness = evaluateCharacterReadiness(draft, aggregate, selectedRace);
   if (!godMode) {
+    if (getOwnedItemPurchaseCost({ stacks: normalized.items, instances: normalized.itemInstances }) > getCreationPurchaseBudget(aggregate) + 0.000001) {
+      throw new Error("There are not enough starting funds for these purchases.");
+    }
     if (getAttributePointsUsed(draft) > aggregate.campaign.attributePoints + 0.000001) {
       throw new Error("Character Attributes exceed the Campaign Attribute Point budget.");
     }
@@ -1343,7 +1368,7 @@ export async function saveCharacter(
     ? normalized.profile.creditsRemaining
     : Math.max(
         0,
-        aggregate.campaign.startingCreditAmount - getOwnedItemPurchaseCost({
+        getCreationPurchaseBudget(aggregate) - getOwnedItemPurchaseCost({
           stacks: normalized.items,
           instances: normalized.itemInstances,
         }),
@@ -1382,6 +1407,7 @@ export async function saveCharacter(
   }
 
   await db.transaction(async (tx) => {
+    await assertCharacterCombatWritableInTransaction(tx, characterId);
     const [lockedCharacter] = await tx.select({
       isNpc: campaignCharacter.isNpc,
       npcBuildMode: campaignCharacter.npcBuildMode,
@@ -1401,11 +1427,20 @@ export async function saveCharacter(
     }
     const [lockedProfile] = await tx.select({
       commerceVersion: campaignCharacterProfile.commerceVersion,
+      fame: campaignCharacterProfile.fame,
+      experience: campaignCharacterProfile.experience,
+      totalExperience: campaignCharacterProfile.totalExperience,
+      quintessence: campaignCharacterProfile.quintessence,
+      totalQuintessence: campaignCharacterProfile.totalQuintessence,
     }).from(campaignCharacterProfile)
       .where(eq(campaignCharacterProfile.characterId, characterId))
       .limit(1)
       .for("update");
     if (!lockedProfile) throw new Error("Character profile not found.");
+    const [lockedCampaign] = await tx.select({ ownerId: campaign.createdByUserId }).from(campaign)
+      .where(eq(campaign.id, access.row.campaignId)).for("update");
+    if (!lockedCampaign) throw new Error("Campaign not found.");
+    characterTrackingPatch(draft.profile, canManageCharacterSheet(access.session.user.id, lockedCampaign.ownerId), lockedProfile);
     if (!Number.isInteger(draft.expectedCommerceVersion) || draft.expectedCommerceVersion! < 0) {
       throw new Error("Reload this Character before saving so live transaction state can be verified.");
     }
@@ -1519,43 +1554,45 @@ export async function saveCharacter(
     }
     for (const allocation of draft.skillAllocations) await saveAllocation(allocation.draftId);
 
-    const { removedInstanceIds, newInstances: newItemInstances } = planOwnedItemInstancePersistence({
-      existingInstanceIds: aggregate.itemInstances.map(({ id }) => id),
-      drafts: normalized.itemInstances,
-    });
-    await validateEquipmentOwnershipMutationInTransaction(tx, {
-      characterId,
-      nextStackQuantities: normalized.items,
-      removedInstanceIds,
-    });
+    if (inventoryChanged) {
+      const { removedInstanceIds, newInstances: newItemInstances } = planOwnedItemInstancePersistence({
+        existingInstanceIds: aggregate.itemInstances.map(({ id }) => id),
+        drafts: normalized.itemInstances,
+      });
+      await validateEquipmentOwnershipMutationInTransaction(tx, {
+        characterId,
+        nextStackQuantities: normalized.items,
+        removedInstanceIds,
+      });
 
-    await tx.delete(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId));
-    if (normalized.items.length) await tx.insert(campaignCharacterItem).values(normalized.items.map((entry) => ({ characterId, ...entry })));
+      await tx.delete(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId));
+      if (normalized.items.length) await tx.insert(campaignCharacterItem).values(normalized.items.map((entry) => ({ characterId, ...entry })));
 
-    if (removedInstanceIds.length) {
-      await tx.delete(campaignCharacterItemInstance).where(and(
-        eq(campaignCharacterItemInstance.characterId, characterId),
-        inArray(campaignCharacterItemInstance.id, removedInstanceIds),
-      ));
+      if (removedInstanceIds.length) {
+        await tx.delete(campaignCharacterItemInstance).where(and(
+          eq(campaignCharacterItemInstance.characterId, characterId),
+          inArray(campaignCharacterItemInstance.id, removedInstanceIds),
+        ));
+      }
+      if (newItemInstances.length) {
+        const authorizedItems = new Map(aggregate.authorizedItems.map((entry) => [entry.id, entry]));
+        await tx.insert(campaignCharacterItemInstance).values(newItemInstances.map((entry) => {
+          const authorized = authorizedItems.get(entry.itemId);
+          if (!authorized) throw new Error("Owned Item instance must use a Campaign-authorized Item.");
+          return {
+            characterId,
+            itemId: entry.itemId,
+            currentCharges: getStartingItemInstanceCharges(
+              authorized.runtimeProfile,
+              authorized.isFirearm === true || authorized.isMagazine === true,
+              authorized.powerResource,
+            ),
+            unitCostCredits: entry.unitCostCredits,
+          };
+        }));
+      }
+      await reconcileEquipmentAfterOwnershipMutationInTransaction(tx, characterId);
     }
-    if (newItemInstances.length) {
-      const authorizedItems = new Map(aggregate.authorizedItems.map((entry) => [entry.id, entry]));
-      await tx.insert(campaignCharacterItemInstance).values(newItemInstances.map((entry) => {
-        const authorized = authorizedItems.get(entry.itemId);
-        if (!authorized) throw new Error("Owned Item instance must use a Campaign-authorized Item.");
-        return {
-          characterId,
-          itemId: entry.itemId,
-          currentCharges: getStartingItemInstanceCharges(
-            authorized.runtimeProfile,
-            authorized.isFirearm === true || authorized.isMagazine === true,
-            authorized.powerResource,
-          ),
-          unitCostCredits: entry.unitCostCredits,
-        };
-      }));
-    }
-    await reconcileEquipmentAfterOwnershipMutationInTransaction(tx, characterId);
 
     await tx.delete(campaignCharacterCurrencyHolding).where(eq(campaignCharacterCurrencyHolding.characterId, characterId));
     if (currencyHoldings.length) await tx.insert(campaignCharacterCurrencyHolding).values(currencyHoldings.map((entry) => ({ characterId, ...entry })));
@@ -1565,7 +1602,7 @@ export async function saveCharacter(
   revalidatePath("/realms");
   revalidatePath(`/realms/characters/${characterId}`);
   revalidatePath(`/heavens/characters/${characterId}`);
-  return getCharacter(characterId, godMode);
+  return getCharacter(characterId, accessAsManager);
 }
 
 export async function advanceCharacterSkills(

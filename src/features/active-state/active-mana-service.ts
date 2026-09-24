@@ -1,6 +1,7 @@
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { projectSealedCombatManaInTransaction } from "@/features/tabletop-operations/combat-resource-projection-service";
 import "server-only";
+import { canManageCharacterSheet } from "@/features/characters/character-sheet-access";
 
 import { and, asc, eq, inArray } from "drizzle-orm";
 
@@ -335,7 +336,7 @@ export async function restoreAllActiveManaInTransaction(
 
 async function withAuthorizedManaTransaction<T>(
   characterId: number,
-  access: "read" | "mutate",
+  access: "read" | "mutate" | "restore",
   operation: (tx: ActiveManaTransaction) => Promise<T>,
 ): Promise<T> {
   assertCharacterId(characterId);
@@ -374,7 +375,9 @@ async function withAuthorizedManaTransaction<T>(
     };
     const authorized = access === "read"
       ? canReadActiveState(subject, accessEntity)
-      : canMutateActiveHealth(subject, accessEntity);
+      : access === "restore"
+        ? canManageCharacterSheet(session.user.id, entity.campaignOwnerUserId)
+        : canMutateActiveHealth(subject, accessEntity);
     if (!authorized) {
       throw new Error(`You do not have permission to ${access === "read" ? "view" : "manage"} this Character's Active Mana.`);
     }
@@ -413,7 +416,7 @@ export async function spendCharacterMana(
 export async function restoreCharacterMana(
   command: ActiveManaMutationCommand,
 ): Promise<ActiveManaView> {
-  return withAuthorizedManaMutationTransaction(command.characterId, async (tx) => {
+  return withAuthorizedManaTransaction(command.characterId, "restore", async (tx) => {
     await restoreActiveManaInTransaction(tx, command);
     return readActiveManaInTransaction(tx, command.characterId);
   });
@@ -422,14 +425,14 @@ export async function restoreCharacterMana(
 export async function restoreCharacterManaPool(
   command: ActiveManaPoolCommand,
 ): Promise<ActiveManaView> {
-  return withAuthorizedManaMutationTransaction(command.characterId, async (tx) => {
+  return withAuthorizedManaTransaction(command.characterId, "restore", async (tx) => {
     await restoreActiveManaPoolInTransaction(tx, command);
     return readActiveManaInTransaction(tx, command.characterId);
   });
 }
 
 export async function restoreAllCharacterMana(characterId: number): Promise<ActiveManaView> {
-  return withAuthorizedManaMutationTransaction(characterId, (tx) => (
+  return withAuthorizedManaTransaction(characterId, "restore", (tx) => (
     restoreAllActiveManaInTransaction(tx, characterId)
   ));
 }

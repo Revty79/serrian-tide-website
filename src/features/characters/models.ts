@@ -54,6 +54,7 @@ export type CharacterProfile = {
   secrets: string;
   backstory: string;
   motivations: string;
+  // Readable by the Player; only the Campaign creator may edit these balances.
   fame: number;
   experience: number;
   totalExperience: number;
@@ -228,6 +229,8 @@ export type CharacterPersonalSpell = {
 };
 
 export type CharacterAuthorizedItem = {
+  /** False for retained ownership no longer available for new grants or purchases. */
+  campaignAvailable?: boolean;
   id: number;
   canonicalId: string;
   name: string;
@@ -275,6 +278,7 @@ export type CharacterAuthorizedItem = {
 };
 
 export type CharacterAggregate = {
+  sheetAccess?: { canAccessPrivateGod: boolean };
   character: CharacterCore;
   profile: CharacterProfile;
   attributes: CharacterAttributeAllocation[];

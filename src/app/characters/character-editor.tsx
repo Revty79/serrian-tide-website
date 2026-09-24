@@ -23,6 +23,10 @@ import { getActiveEffects } from "./active-effects-actions";
 import { getCharacterEquipmentState } from "./equipment-state-actions";
 import { getCharacterItemChargeState } from "./item-charge-actions";
 import { CharacterSheet } from "./character-sheet";
+import { CharacterPrintCenter } from "./character-print-center";
+import { ActiveHealthPanel } from "./active-health-panel";
+import { ActiveManaPanel } from "./active-mana-panel";
+import { ActiveEffectsPanel } from "./active-effects-panel";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { ActiveManaView } from "@/features/active-state/active-mana";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
@@ -49,6 +53,7 @@ import {
   canAccessSupernaturalSkillAtLevel,
   characterAggregateToDraft,
   evaluateCharacterReadiness,
+  getCreationPurchaseBudget,
   getAttributeModifier,
   getAttributePointsUsed,
   getAttributeRollTarget,
@@ -94,6 +99,7 @@ import {
   getItemChargeDisplay,
   getItemOwnershipStrategy,
   getOwnedItemPurchaseCost,
+  getStartingStackUnitCost,
   getOwnedItemQuantity,
   removeDraftOwnedItemInstance,
   resizeDraftOwnedItemInstances,
@@ -398,7 +404,8 @@ export function CharacterEditor({
   initialActiveEffects,
   initialEquipmentState,
   initialChargeState,
-  godMode,
+  godMode: accessAsManager,
+  equipmentContent,
   canOperateRuntime,
   itemUseTimingBlocked = false,
   backHref,
@@ -411,6 +418,7 @@ export function CharacterEditor({
   initialEquipmentState: CharacterEquipmentStateView;
   initialChargeState: CharacterItemChargeStateView;
   godMode: boolean;
+  equipmentContent?: ReactNode;
   canOperateRuntime: boolean;
   itemUseTimingBlocked?: boolean;
   backHref?: string;
@@ -419,6 +427,8 @@ export function CharacterEditor({
   const nextDraftId = useRef(-1_000_000);
   const nextItemInstanceDraftId = useRef(-2_000_000);
   const [aggregate, setAggregate] = useState(initialAggregate);
+  const canAccessPrivateGod = aggregate.sheetAccess?.canAccessPrivateGod === true;
+  const godMode = accessAsManager || canAccessPrivateGod;
   const [activeHealth, setActiveHealth] = useState(initialActiveHealth);
   const [activeMana, setActiveMana] = useState(initialActiveMana);
   const [activeEffects, setActiveEffects] = useState(initialActiveEffects);
@@ -458,7 +468,7 @@ export function CharacterEditor({
     };
   });
   const [activeTab, setActiveTab] = useState<CharacterCreationTab>(() =>
-    godMode ? "god" : initialAggregate.profile.creationCompletedAt ? "sheet" : "identity",
+    "identity",
   );
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -476,8 +486,8 @@ export function CharacterEditor({
   const enforceCampaignTierLimits = !godMode && !aggregate.profile.creationCompletedAt;
   const isNpc = aggregate.character.isNpc;
   const archivedNpc = isNpc && aggregate.character.archivedAt !== null;
-  const returnHref = backHref ?? (godMode ? "/heavens" : "/realms");
-  const visibleTabs = getCharacterCreationTabs(godMode);
+  const returnHref = backHref ?? (accessAsManager ? "/heavens" : "/realms");
+  const visibleTabs = getCharacterCreationTabs(canAccessPrivateGod);
   const readiness = useMemo(
     () => evaluateCharacterReadiness(draft, aggregate, selectedRace),
     [aggregate, draft, selectedRace],
@@ -580,7 +590,7 @@ export function CharacterEditor({
       setRaceLoading(true);
       setFeedback(null);
       try {
-        const race = await getAllowedRaceForCharacter(aggregate.character.id, Number(value), godMode);
+        const race = await getAllowedRaceForCharacter(aggregate.character.id, Number(value), accessAsManager);
         setSelectedRace(race);
         change((current) => {
           const attributes = { ...current.attributes };
@@ -666,7 +676,7 @@ export function CharacterEditor({
   function currentFunds() {
     return godMode || Boolean(aggregate.profile.creationCompletedAt)
       ? draft.profile.creditsRemaining
-      : getStartingFundsRemaining(draft, aggregate.campaign.startingCreditAmount);
+      : getStartingFundsRemaining(draft, getCreationPurchaseBudget(aggregate));
   }
 
   function characterPurse(canonicalCredits = currentFunds()) {
@@ -691,7 +701,10 @@ export function CharacterEditor({
       stacks: draft.items.filter((item) => item.itemId !== itemId),
       instances: draft.itemInstances.filter((instance) => instance.itemId !== itemId),
     });
-    const maximumQuantity = godMode ? Number.MAX_SAFE_INTEGER : catalogItem.credits === 0 ? 999 : Math.floor((aggregate.campaign.startingCreditAmount - spentWithoutItem) / unitCostCredits);
+    const savedStack = aggregate.items.find(item => item.itemId === itemId);
+    const savedQuantity = getOwnedItemQuantity(itemId, aggregate.items, aggregate.itemInstances);
+    const savedCost = getOwnedItemPurchaseCost({ stacks: aggregate.items.filter(item => item.itemId === itemId), instances: aggregate.itemInstances.filter(item => item.itemId === itemId) });
+    const maximumQuantity = godMode ? Number.MAX_SAFE_INTEGER : unitCostCredits === 0 ? 999 : Math.max(0, savedQuantity + Math.floor((getCreationPurchaseBudget(aggregate) - spentWithoutItem - savedCost) / unitCostCredits));
     const quantity = Math.min(Math.max(0, Math.trunc(requestedQuantity)), maximumQuantity);
     if (getItemOwnershipStrategy(catalogItem.runtimeProfile, catalogItem.isFirearm === true || catalogItem.isMagazine === true, catalogItem.powerResource) === "instance") {
       change((current) => ({
@@ -710,13 +723,14 @@ export function CharacterEditor({
       }));
       return;
     }
+    const stackCost = getStartingStackUnitCost(savedStack, quantity, catalogItem.credits) ?? unitCostCredits;
     change((current) => ({
       ...current,
       items: quantity === 0
         ? current.items.filter((item) => item.itemId !== itemId)
         : existing
-          ? current.items.map((item) => item.itemId === itemId ? { ...item, quantity, unitCostCredits } : item)
-          : [...current.items, { itemId, quantity, unitCostCredits }],
+          ? current.items.map((item) => item.itemId === itemId ? { ...item, quantity, unitCostCredits: stackCost } : item)
+          : [...current.items, { itemId, quantity, unitCostCredits: stackCost }],
     }));
   }
 
@@ -729,7 +743,7 @@ export function CharacterEditor({
   }
 
   function changeAdministrativeNumber(field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "hpMultiplierSteps" | "baseMovementSteps" | "baseMagicSteps" | "creditsRemaining", value: number) {
-    if (!godMode) return;
+    if (!canAccessPrivateGod) return;
     change((current) => ({
       ...current,
       profile: {
@@ -742,7 +756,7 @@ export function CharacterEditor({
   }
 
   function changeCurrency(currencyId: number, requested: number) {
-    if (!godMode) return;
+    if (!canAccessPrivateGod) return;
     const purse = characterPurse(draft.profile.creditsRemaining);
     const currencyHoldings = purse.entries.map((entry) => ({ currencyId: entry.id, quantity: entry.id === currencyId ? Math.max(0, Math.trunc(requested)) : entry.quantity }));
     const creditsRemaining = getCanonicalCreditsFromHoldings(aggregate.campaign.derivedCurrencies, currencyHoldings);
@@ -755,7 +769,7 @@ export function CharacterEditor({
       setSaving(true);
       setFeedback(null);
       try {
-        const saved = await saveCharacter(aggregate.character.id, draft, completeCreation, godMode);
+        const saved = await saveCharacter(aggregate.character.id, draft, completeCreation, accessAsManager);
         const [refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
           getActiveHealth(aggregate.character.id),
           getActiveMana(aggregate.character.id),
@@ -777,7 +791,7 @@ export function CharacterEditor({
         });
         setDirty(false);
         setConfirmCompletion(false);
-        if (completeCreation) setActiveTab("sheet");
+        if (completeCreation) setActiveTab("identity");
         setFeedback({
           kind: "success",
           message: completeCreation
@@ -795,7 +809,7 @@ export function CharacterEditor({
   async function refreshAfterRuntimeMutation() {
     await preserveScroll(async () => {
       const [refreshed, refreshedHealth, refreshedMana, refreshedEffects, refreshedEquipmentState, refreshedChargeState] = await Promise.all([
-        getCharacter(aggregate.character.id, godMode),
+        getCharacter(aggregate.character.id, accessAsManager),
         getActiveHealth(aggregate.character.id),
         getActiveMana(aggregate.character.id),
         getActiveEffects(aggregate.character.id, godMode),
@@ -826,25 +840,28 @@ export function CharacterEditor({
   const statusPurse = characterPurse();
 
   return (
-    <main className="character-page">
+    <main className="character-page character-page--sheet">
       <header className="character-header">
         <Link href={returnHref} className="font-evanescent character-logo" onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>SERRIAN<br />TIDE</Link>
         <div className="character-header__identity">
-          <p>{isNpc ? "THE HEAVENS / NPC ADMINISTRATION" : godMode ? "THE HEAVENS / CHARACTER ADMINISTRATION" : "THE REALMS / CHARACTER CREATION"}</p>
-          <h1 className="font-sans">{isNpc ? "Edit NPC" : godMode ? "Edit Character" : "Character Creation"}</h1>
-          <span>Campaign: {aggregate.campaign.name} · {isNpc ? `Role: ${draft.npcRoleLabel || "Not set"} · ${archivedNpc ? "Archived NPC" : "Active NPC"}` : `Player: ${aggregate.character.playerUsername}`} · Character: {draft.name || "New Character"}</span>
+          <p>{isNpc ? "NPC CHARACTER SHEET" : "CHARACTER SHEET"}</p>
+          <h1 className="font-sans">{draft.name || (isNpc ? "New NPC" : "New Character")}</h1>
+          <span>Campaign: {aggregate.campaign.name} · {isNpc ? `Role: ${draft.npcRoleLabel || "Not set"} · ${archivedNpc ? "Archived NPC" : "Active NPC"}` : `Player: ${aggregate.character.playerUsername}`}</span>
         </div>
-        <div className="character-header__actions"><Link href={returnHref} onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>← {backLabel}</Link></div>
+        <div className="character-header__actions">{!accessAsManager ? <Link href={`/realms/characters/${aggregate.character.id}/tabletop`}>Player Tabletop</Link> : null}<Link href={returnHref} onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>← {backLabel}</Link></div>
       </header>
 
+      <CharacterPrintCenter aggregate={aggregate} draft={draft} selectedRace={selectedRace} />
+
       <section className="character-status-strip" aria-live="polite">
-        <div><span>Attributes</span><strong>{displayNumber(readiness.attributesUsed)}{isNpc ? " total" : ` / ${displayNumber(aggregate.campaign.attributePoints)}`}</strong></div>
+        {!aggregate.profile.creationCompletedAt ? <><div><span>Attributes</span><strong>{displayNumber(readiness.attributesUsed)}{isNpc ? " total" : ` / ${displayNumber(aggregate.campaign.attributePoints)}`}</strong></div>
         <div><span>Skills</span><strong>{displayNumber(readiness.skillPointsUsed)}{isNpc ? " invested" : ` / ${displayNumber(aggregate.campaign.skillPoints)}`}</strong></div>
         <div><span>Race</span><strong>{readiness.raceComplete ? "✓" : "—"}</strong></div>
         <div><span>Story</span><strong>{readiness.storyComplete ? "✓" : "—"}</strong></div>
         <div><span>Equipment</span><strong>{readiness.equipmentComplete ? "✓" : "—"}</strong></div>
-        <div><span>{godMode ? "Current Funds" : "Starting Funds"}</span><strong>{statusPurse.formatted}</strong></div>
-        <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? canOperateRuntime ? "G.O.D. Full Access" : "Admin Record Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? "Unsaved changes" : "Saved record"}</small></div>
+        </> : null}
+        <div><span>{aggregate.profile.creationCompletedAt || godMode ? "Current Funds" : "Starting Funds"}</span><strong>{statusPurse.formatted}</strong></div>
+        <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? canAccessPrivateGod ? "Campaign Owner" : "Admin Record Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? "Unsaved changes" : "Saved record"}</small></div>
         {!playerLocked ? <div className="character-status-strip__actions"><button type="button" disabled={saving || !dirty || archivedNpc} onClick={() => void persist(false)}>{saving ? "Saving…" : isNpc ? "Save NPC" : "Save Character"}</button>{!isNpc && readiness.ready && !aggregate.profile.creationCompletedAt ? <button type="button" className="is-primary" disabled={saving} onClick={() => void preserveScroll(() => setConfirmCompletion(true))}>Complete Character</button> : null}</div> : null}
       </section>
 
@@ -852,18 +869,32 @@ export function CharacterEditor({
       {archivedNpc ? <p className="character-feedback is-error">This NPC is archived and read-only. Restore it from the NPC Master Sheet before saving changes.</p> : null}
 
       <div className="character-workspace">
-        <nav className="character-tabs" aria-label="Character creation sections">
-          {visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}><span>{tab.label}</span>{tabStatus(tab.id, readiness) ? <i>✓</i> : null}</button>)}
+        <nav className="character-tabs" role="tablist" aria-label="Character sheet sections" onKeyDown={(event) => {
+          const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"];
+          if (!keys.includes(event.key)) return;
+          event.preventDefault();
+          const index = visibleTabs.findIndex((tab) => tab.id === activeTab);
+          const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? visibleTabs.length - 1
+            : (index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
+          const next = visibleTabs[nextIndex].id;
+          void preserveScroll(() => { setActiveTab(next); document.getElementById(`character-tab-${next}`)?.focus({ preventScroll: true }); });
+        }}>
+          {visibleTabs.map((tab) => <button key={tab.id} id={`character-tab-${tab.id}`} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`character-panel-${tab.id}`} tabIndex={activeTab === tab.id ? 0 : -1} className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}><span>{tab.label}</span>{!aggregate.profile.creationCompletedAt && tabStatus(tab.id, readiness) ? <i aria-hidden="true">✓</i> : null}</button>)}
         </nav>
-        <section className="character-editor">
+        <section className="character-editor" role="tabpanel" id={`character-panel-${activeTab}`} aria-labelledby={`character-tab-${activeTab}`} tabIndex={0}>
           {godMode ? canOperateRuntime ? <aside className="character-admin-notice"><strong>G.O.D. administrative access is active.</strong><span>You may edit the full record even after Player creation is complete.</span></aside> : <aside className="character-admin-notice is-locked"><strong>Administrator record access is active.</strong><span>Live Campaign state is read-only. Only a G.O.D. who owns this Campaign can operate Health, Mana, effects, Equipment State, Item Charges, Items, or Abilities.</span></aside> : playerLocked ? <aside className="character-admin-notice is-locked"><strong>Character creation is complete.</strong><span>Identity, Attributes, starting Skills, Story, and starting Equipment are read-only.</span></aside> : null}
           {activeTab === "identity" ? <IdentityTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} raceLoading={raceLoading} onChange={change} onChooseRace={chooseRace} /> : null}
-          {activeTab === "attributes" ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} onSetAttribute={setAttribute} /> : null}
-          {activeTab === "skills" ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
+          {activeTab === "attributes" && !playerLocked ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} onSetAttribute={setAttribute} /> : null}
+          {activeTab === "skills" && !playerLocked ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked || archivedNpc} onChange={change} /> : null}
-          {activeTab === "equipment" ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked || archivedNpc} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
-          {activeTab === "god" && godMode ? <GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} /> : null}
-          {activeTab === "sheet" ? <CharacterSheet aggregate={aggregate} draft={draft} selectedRace={selectedRace} ready={readiness.ready} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked || !canOperateRuntime} itemUseDisabledReason={!canOperateRuntime ? "Live Campaign state is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} canOperateRuntime={canOperateRuntime} /> : null}
+          {activeTab === "equipment" && !aggregate.profile.creationCompletedAt ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked || archivedNpc} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
+          {activeTab === "god" && canAccessPrivateGod ? <><GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} />
+            <ActiveHealthPanel health={activeHealth} disabled={dirty || saving || archivedNpc} onHealthChange={setActiveHealth} />
+            <ActiveManaPanel mana={activeMana} disabled={dirty || saving || archivedNpc} onManaChange={setActiveMana} />
+            <ActiveEffectsPanel state={activeEffects} godMode={canOperateRuntime} disabled={dirty || saving || archivedNpc} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={setActiveEffects} />
+          </> : null}
+          {activeTab === "attributes" || activeTab === "skills" || activeTab === "equipment" ? <CharacterSheet section={activeTab} showAttributeTable={playerLocked} showSkillTable={playerLocked} aggregate={aggregate} draft={draft} selectedRace={selectedRace} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked || !canOperateRuntime} itemUseDisabledReason={!canOperateRuntime ? "Live Campaign state is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} canOperateRuntime={canOperateRuntime} /> : null}
+          {activeTab === "equipment" && equipmentContent ? <details className="character-equipment-disclosure"><summary>Weapon Checks</summary>{equipmentContent}</details> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>
@@ -891,6 +922,10 @@ function IdentityTab({ draft, aggregate, selectedRace, disabled, godMode, raceLo
   const race = selectedRace?.race;
   return <div className="character-section character-form-grid">
     <SectionHeading eyebrow="PERSONAL RECORD" title="Identity" detail="Fields marked Required determine readiness." wide />
+    <section className="character-tracking character-field--wide" aria-label="Character tracking totals">
+      <p>Progression totals. Read-only here; your Campaign creator manages adjustments.</p>
+      <dl>{([["Fame", profile.fame], ["Experience", profile.experience], ["Total Experience", profile.totalExperience], ["Quintessence", profile.quintessence], ["Total Quintessence", profile.totalQuintessence]] as const).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{displayNumber(value)}</dd></div>)}</dl>
+    </section>
     <Field label={`${aggregate.character.isNpc ? "NPC Name" : "Character Name"} · Required`}><input disabled={disabled} value={draft.name} onChange={(event) => onChange((current) => ({ ...current, name: event.target.value }))} /></Field>
     {aggregate.character.isNpc ? <Field label="Role / Label · Required"><input disabled={disabled} value={draft.npcRoleLabel ?? ""} onChange={(event) => onChange((current) => ({ ...current, npcRoleLabel: event.target.value }))} /></Field> : null}
     <Field label={aggregate.character.isNpc ? "Record Type" : "Player"}><input readOnly value={aggregate.character.isNpc ? "Non-Player Character" : aggregate.character.playerUsername} /></Field>
@@ -1049,8 +1084,8 @@ function EquipmentTab({ draft, aggregate, disabled, godMode, filter, search, pur
   const normalizedSearch = search.trim().toLowerCase();
   const options: Array<[EquipmentFilter, string]> = [["all", "All Items"], ["weapon", "Weapons"], ["armor", "Armor"], ["general", "General Equipment"], ["inventory", "Inventory"]];
   const matchesFilter = (item: CharacterAggregate["authorizedItems"][number], target: EquipmentFilter) => target === "all" || (target === "inventory" && item.catalogScope.toLowerCase() === "inventory") || item.equipmentGroup?.toLowerCase() === target;
-  const available = aggregate.authorizedItems.filter((item) => (!item.archived || getOwnedItemQuantity(item.id, draft.items, draft.itemInstances) > 0) && matchesFilter(item, filter) && (!normalizedSearch || [item.name, item.canonicalId, item.category, item.recordType, item.description, item.weaponType, item.damageType, item.ammunitionItemName, item.ammunitionDamageType, item.armorType, item.coverage].some((value) => value?.toLowerCase().includes(normalizedSearch))));
-  const remaining = godMode ? draft.profile.creditsRemaining : getStartingFundsRemaining(draft, aggregate.campaign.startingCreditAmount);
+  const available = aggregate.authorizedItems.filter((item) => item.campaignAvailable !== false && (!item.archived || getOwnedItemQuantity(item.id, draft.items, draft.itemInstances) > 0) && matchesFilter(item, filter) && (!normalizedSearch || [item.name, item.canonicalId, item.category, item.recordType, item.description, item.weaponType, item.damageType, item.ammunitionItemName, item.ammunitionDamageType, item.armorType, item.coverage].some((value) => value?.toLowerCase().includes(normalizedSearch))));
+  const remaining = godMode ? draft.profile.creditsRemaining : getStartingFundsRemaining(draft, getCreationPurchaseBudget(aggregate));
   return <div className="character-section"><SectionHeading eyebrow="CAMPAIGN-AUTHORIZED CATALOG" title="Starting Equipment Store" detail={`${purse.formatted} ${godMode ? "currently held" : "remaining"}`} />{aggregate.campaign.currencySystem === "Derived Currency" ? <><div className="character-currency-ledger">{purse.entries.map((currency) => <div key={currency.id}><strong>{displayNumber(currency.quantity)} {currency.name}</strong><span>{currency.description || "Campaign currency"}</span></div>)}</div>{!purse.fullyRepresented ? <p className="character-notice">The configured denominations cannot exactly represent this balance.</p> : null}</> : null}<div className="character-equipment-toolbar"><Field label="Search permitted Items"><input type="search" value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Name, ID, category, damage, armor, or type" /></Field><nav>{options.map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => onFilter(value)}><span>{label}</span><strong>{aggregate.authorizedItems.filter((item) => matchesFilter(item, value)).length}</strong></button>)}</nav></div>{!godMode && ![...draft.items, ...draft.itemInstances].some((owned) => aggregate.authorizedItems.find((item) => item.id === owned.itemId)?.catalogScope.toLowerCase() === "equipment") ? <p className="character-notice">Purchase at least one Equipment item before completing Character creation. Inventory supplies alone do not satisfy starting equipment.</p> : null}<div className="character-equipment-list">{available.map((item) => {
     const quantity = getOwnedItemQuantity(item.id, draft.items, draft.itemInstances); const itemInstances = draft.itemInstances.filter((entry) => entry.itemId === item.id); const details: Array<[string, string]> = []; const damageProfile = getCharacterWeaponDamage(item);
     if (item.weaponType) details.push(["Weapon", item.weaponType]); if (item.handedness) details.push(["Hands", item.handedness]); if (damageProfile.damage) details.push(["Damage", `${damageProfile.damage}${damageProfile.damageType ? ` ${damageProfile.damageType}` : ""}`]); if (damageProfile.sourceName) details.push(["Ammunition", damageProfile.sourceName]); if (item.rangeText) details.push(["Range", item.rangeText]); if (item.reachText) details.push(["Reach", item.reachText]); if (item.armorType) details.push(["Armor", item.armorType]); if (item.coverage) details.push(["Coverage", item.coverage]); if (item.baseSoak !== null) details.push(["Base Soak", displayNumber(item.baseSoak)]); if (item.armorDamageModifiers) details.push(["Damage Modifiers", item.armorDamageModifiers]); if (item.weight !== null) details.push(["Weight", `${displayNumber(item.weight)} ${item.weightUnit}`.trim()]); if (item.durability !== null) details.push(["Durability", displayNumber(item.durability)]);
@@ -1066,5 +1101,5 @@ function GodControlsTab({ draft, aggregate, selectedRace, purse, onNumberChange,
   const movementSummary = (selectedRace?.movementModes ?? [])
     .map((mode) => `${mode.movementMode} ${displayNumber(getCharacterMovementBaseValue(mode.baseValue, draft.profile.baseMovementSteps))}`)
     .join(" · ");
-  return <div className="character-section"><SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" detail="Changes apply to the permanent Character record." /><p className="character-notice">Identity, Attributes, Skills, Story, and Equipment remain editable from their normal tabs, even after Character creation is complete.</p><div className="character-god-grid">{fields.map(([field, label]) => <Field key={field} label={label}><input type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => onNumberChange(field, numericValue(event.target.value))} /></Field>)}</div><p className="character-notice">Effective HP Multiplier: ×{hpMultiplier.toFixed(2)} · Total HP: {displayNumber(hp)} · Effective Base Magic: {displayNumber(baseMagic)}</p><p className="character-notice">Effective Base Movement: {movementSummary || "No racial movement modes recorded."}</p><section className="character-god-currency"><header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>{aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => onNumberChange("creditsRemaining", numericValue(event.target.value))} /></Field> : purse.entries.length ? <div className="character-god-grid">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input type="number" min={0} step={1} value={currency.quantity} onChange={(event) => onCurrencyChange(currency.id, numericValue(event.target.value))} /><small>{currency.description || "Campaign currency"}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}{!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}</section></div>;
+  return <div className="character-section"><SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" detail="Changes apply to the permanent Character record." /><p className="character-notice">Identity, Attributes, Skills, and Story remain editable from their tabs after creation. Equipment shows the Character&apos;s owned items; the starting store is available during creation.</p><div className="character-god-grid">{fields.map(([field, label]) => <Field key={field} label={label}><input type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => onNumberChange(field, numericValue(event.target.value))} /></Field>)}</div><p className="character-notice">Effective HP Multiplier: ×{hpMultiplier.toFixed(2)} · Total HP: {displayNumber(hp)} · Effective Base Magic: {displayNumber(baseMagic)}</p><p className="character-notice">Effective Base Movement: {movementSummary || "No racial movement modes recorded."}</p><section className="character-god-currency"><header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>{aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => onNumberChange("creditsRemaining", numericValue(event.target.value))} /></Field> : purse.entries.length ? <div className="character-god-grid">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input type="number" min={0} step={1} value={currency.quantity} onChange={(event) => onCurrencyChange(currency.id, numericValue(event.target.value))} /><small>{currency.description || "Campaign currency"}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}{!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}</section></div>;
 }

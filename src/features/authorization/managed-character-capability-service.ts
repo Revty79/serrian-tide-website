@@ -13,6 +13,7 @@ export type ManagedCharacterCapabilities = {
   campaignId: number;
   canManageRecord: boolean;
   canOperateRuntime: boolean;
+  canAccessPrivateGod: boolean;
 };
 
 export async function getManagedCharacterCapabilities(

@@ -266,7 +266,7 @@ test("46-48: ordinary Character and Creature saves preserve existing stable inst
 
 test("49-52: shared Character and Creature UI exposes current state, recharge notes, and Item Use state", () => {
   assert.match(characterSheet, /<ItemChargePanel/);
-  assert.match(characterSheet, /Above current template maximum/);
+  assert.match(readFileSync("src/app/characters/owned-equipment-list.tsx", "utf8"), /Above current template maximum/);
   assert.match(chargePanel, /entry\.currentCharges\} \/ \{entry\.maximumCharges/);
   assert.match(chargePanel, /Recharge Rule \/ Notes/);
   assert.match(chargePanel, /Restore Charges/);

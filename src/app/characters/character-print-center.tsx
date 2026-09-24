@@ -128,7 +128,7 @@ export function CharacterPrintCenter({
         <header>
           <div>
             <p>PRINT / EXPORT</p>
-            <h2 id="print-center-title">Choose a paper Character format</h2>
+            <h2 id="print-center-title">Print Character Sheet</h2>
             <span>
               Your browser print dialog can print physically or save the selected
               packet as PDF.
@@ -144,6 +144,7 @@ export function CharacterPrintCenter({
           </button>
         </header>
 
+        <details className="character-print-center__options"><summary>Print options</summary>
         <div className="character-print-center__presets">
           {PRESETS.map((option) => (
             <button
@@ -182,6 +183,7 @@ export function CharacterPrintCenter({
           <span>Selected:</span>
           <strong>{selectedLabels.join(" · ") || "No printable sections"}</strong>
         </footer>
+        </details>
       </section>
 
       <PrintableCharacterSheet

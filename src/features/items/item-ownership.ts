@@ -149,6 +149,13 @@ export function getOwnedItemPurchaseCost(input: {
   );
 }
 
+/** Preserve existing acquisition cost; only newly purchased copies use today's price. */
+export function getStartingStackUnitCost(existing: { quantity: number; unitCostCredits: number } | undefined, quantity: number, price: number | null): number | null {
+  if (existing && quantity <= existing.quantity) return existing.unitCostCredits;
+  if (price === null) return null;
+  return existing ? (existing.quantity * existing.unitCostCredits + (quantity - existing.quantity) * price) / quantity : price;
+}
+
 export function createDraftOwnedItemInstances(input: {
   itemId: number;
   quantity: number;

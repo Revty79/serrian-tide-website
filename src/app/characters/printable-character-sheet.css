@@ -6,9 +6,9 @@
   display: grid;
   gap: 10px;
   padding: 13px;
-  border: 1px solid rgb(245 202 115 / 18%);
+  border: 1px solid var(--st-border);
   border-radius: 10px;
-  background: rgb(4 10 15 / 42%);
+  background: var(--st-surface-soft);
 }
 
 .character-print-center > header {
@@ -20,7 +20,7 @@
 
 .character-print-center > header p {
   margin: 0;
-  color: #bda978;
+  color: var(--st-secondary);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -28,24 +28,24 @@
 
 .character-print-center > header h2 {
   margin: 4px 0 2px;
-  color: #eee6d8;
+  color: var(--st-text-strong);
   font: 400 1.1rem Arial, Helvetica, sans-serif;
 }
 
 .character-print-center > header span,
-.character-print-center > footer {
-  color: #929da8;
+.character-print-center footer {
+  color: var(--st-muted);
   font-size: 0.75rem;
 }
 
 .character-print-center > header button {
   flex: 0 0 auto;
-  min-height: 38px;
+  min-height: 44px;
   padding: 8px 15px;
-  border: 1px solid rgb(245 202 115 / 42%);
+  border: 1px solid var(--st-border-strong);
   border-radius: 999px;
-  color: #f1d99f;
-  background: rgb(245 202 115 / 10%);
+  color: var(--st-secondary);
+  background: var(--st-secondary-soft);
   cursor: pointer;
 }
 
@@ -64,10 +64,10 @@
   display: grid;
   min-height: 92px;
   padding: 10px;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--st-border);
   border-radius: 8px;
-  color: #9da9b7;
-  background: rgb(255 255 255 / 2%);
+  color: var(--st-text-secondary);
+  background: var(--st-surface);
   text-align: left;
   cursor: pointer;
   align-content: start;
@@ -76,17 +76,17 @@
 
 .character-print-center__presets button:hover,
 .character-print-center__presets button.is-active {
-  border-color: rgb(245 202 115 / 42%);
-  background: rgb(245 202 115 / 7%);
+  border-color: var(--st-border-strong);
+  background: var(--st-surface-raised);
 }
 
 .character-print-center__presets strong {
-  color: #dcd3bf;
+  color: var(--st-text-strong);
   font-size: 0.8rem;
 }
 
 .character-print-center__presets button.is-active strong {
-  color: #f0d99f;
+  color: var(--st-secondary);
 }
 
 .character-print-center__presets span {
@@ -98,7 +98,7 @@
   display: flex;
   margin: 0;
   padding: 10px;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--st-border);
   border-radius: 8px;
   flex-wrap: wrap;
   gap: 8px 16px;
@@ -106,7 +106,7 @@
 
 .character-print-center__custom legend {
   padding: 0 5px;
-  color: #bda978;
+  color: var(--st-secondary);
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -115,7 +115,7 @@
 .character-print-center__custom label {
   display: flex;
   align-items: center;
-  color: #b4bdc5;
+  color: var(--st-text-secondary);
   font-size: 0.75rem;
   gap: 6px;
   cursor: pointer;
@@ -124,18 +124,18 @@
 .character-print-center__custom input {
   width: 15px;
   height: 15px;
-  accent-color: #bda978;
+  accent-color: var(--st-secondary);
 }
 
-.character-print-center > footer {
+.character-print-center footer {
   display: flex;
   gap: 6px;
   padding-top: 8px;
-  border-top: 1px solid rgb(255 255 255 / 7%);
+  border-top: 1px solid var(--st-border);
 }
 
-.character-print-center > footer strong {
-  color: #d8c99e;
+.character-print-center footer strong {
+  color: var(--st-secondary);
 }
 
 @media (max-width: 900px) {
@@ -169,6 +169,7 @@
     background: #fff !important;
   }
 
+  .character-page--sheet .character-workspace,
   .character-header,
   .authenticated-navigation,
   .character-status-strip,

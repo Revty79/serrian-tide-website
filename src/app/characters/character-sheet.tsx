@@ -15,7 +15,6 @@ import {
   getBaseInitiative,
   getCharacterBaseMagic,
   getCharacterHp,
-  getCharacterHpBreakdown,
   getCharacterHpMultiplier,
   getCharacterMagicSystem,
   getCharacterMovementBaseValue,
@@ -29,11 +28,7 @@ import {
 } from "@/features/characters/character-rules";
 import {
   getCharacterEncumbrance,
-  getCharacterWeaponDamage,
-  getCharacterWeaponDamageSummary,
 } from "@/features/characters/character-sheet-rules";
-import { getItemChargeDisplay } from "@/features/items/item-ownership";
-import { getItemUseActivatability } from "@/features/items/item-use";
 import {
   getCanonicalCreditsFromHoldings,
   getStoredCampaignMoneyBreakdown,
@@ -49,9 +44,8 @@ import { ActiveHealthPanel } from "./active-health-panel";
 import { ActiveManaPanel } from "./active-mana-panel";
 import { ActiveEffectsPanel } from "./active-effects-panel";
 import { CharacterHitLocationChart } from "./character-hit-location-chart";
-import { CharacterPrintCenter } from "./character-print-center";
-import { ItemUseDialog } from "./item-use-dialog";
-import { EquipmentStatePanel } from "./equipment-state-panel";
+import { OwnedEquipmentList } from "./owned-equipment-list";
+import { FirearmSetupPanel } from "./firearm-setup-panel";
 import { MagazinePanel } from "./magazine-panel";
 import { ItemChargePanel } from "./item-charge-panel";
 import { DerivedAbilityPanel } from "./derived-ability-panel";
@@ -60,7 +54,9 @@ type Props = {
   aggregate: CharacterAggregate;
   draft: CharacterDraft;
   selectedRace: CharacterAggregate["selectedRace"];
-  ready: boolean;
+  section: "attributes" | "skills" | "equipment";
+  showAttributeTable?: boolean;
+  showSkillTable?: boolean;
   activeHealth: ActiveHealthView;
   onActiveHealthChange: (health: ActiveHealthView) => void;
   activeMana: ActiveManaView;
@@ -107,7 +103,7 @@ function displayEncumbrance(
     : measured;
 }
 
-export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode, canOperateRuntime }: Props) {
+export function CharacterSheet({ aggregate, draft, selectedRace, section, showAttributeTable = true, showSkillTable = true, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode, canOperateRuntime }: Props) {
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -148,60 +144,11 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
     ),
     fields: getAttributeReferenceFields(key),
   }));
-  const hpBreakdown = getCharacterHpBreakdown(hp);
-  const hitResultsByPool = new Map(
-    hpBreakdown.pools.map((pool) => [
-      pool.key,
-      hpBreakdown.locations
-        .filter((location) => location.poolKey === pool.key)
-        .map((location) => location.result)
-        .join("/"),
-    ]),
-  );
   const ranks = getCharacterSkillRanks(draft, aggregate.skillCatalog, selectedRace);
   const allocations = new Map(
     draft.skillAllocations.map((allocation) => [allocation.draftId, allocation]),
   );
   const skillMap = new Map(aggregate.skillCatalog.map((entry) => [entry.id, entry]));
-  const itemMap = new Map(aggregate.authorizedItems.map((entry) => [entry.id, entry]));
-  const ownedItems = draft.items.map((owned) => ({
-    owned,
-    item: itemMap.get(owned.itemId) ?? null,
-  }));
-  const weaponRows = ownedItems.filter(
-    ({ item }) => item?.equipmentGroup === "weapon" || Boolean(item?.weaponType),
-  );
-  const armorRows = ownedItems.filter(
-    ({ item }) => item?.equipmentGroup === "armor" || Boolean(item?.armorType),
-  );
-  const combatItemIds = new Set(
-    [...weaponRows, ...armorRows].map(({ owned }) => owned.itemId),
-  );
-  const generalRows = ownedItems.filter(({ owned }) => !combatItemIds.has(owned.itemId));
-  const activatedStacks = draft.items.flatMap((owned) => {
-    const definition = itemMap.get(owned.itemId);
-    return definition && getItemUseActivatability(definition.runtimeProfile, definition.effectCount).executable
-      ? [{ owned, definition }]
-      : [];
-  });
-  const activatedInstances = draft.itemInstances.flatMap((owned) => {
-    if (owned.instanceId === null) return [];
-    const definition = itemMap.get(owned.itemId);
-    const persisted = aggregate.itemInstances.find(({ id }) => id === owned.instanceId);
-    return definition && persisted && getItemUseActivatability(definition.runtimeProfile, definition.effectCount).executable
-      ? [{ owned, definition, persisted }]
-      : [];
-  });
-  const unavailableActivatedItems = [
-    ...draft.items.map(({ itemId }) => itemId),
-    ...draft.itemInstances.map(({ itemId }) => itemId),
-  ].filter((itemId, index, values) => values.indexOf(itemId) === index).flatMap((itemId) => {
-    const definition = itemMap.get(itemId);
-    const activatability = definition ? getItemUseActivatability(definition.runtimeProfile, definition.effectCount) : null;
-    return definition && definition.runtimeProfile.useMode !== "none" && activatability && !activatability.executable
-      ? [{ definition, reason: activatability.reason }]
-      : [];
-  });
   const effectiveMovementModes = (selectedRace?.movementModes ?? []).map((mode) => ({
     ...mode,
     baseValue: getCharacterMovementBaseValue(
@@ -284,13 +231,6 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
     aggregate.campaign.derivedCurrencies,
     draft.currencyHoldings,
   );
-  const story = [
-    ["Personality", draft.profile.personality],
-    ["Goals", draft.profile.goals],
-    ["Secrets", draft.profile.secrets],
-    ["Backstory", draft.profile.backstory],
-    ["Motivations", draft.profile.motivations],
-  ].filter(([, value]) => value.trim());
   const derivedAbilityResolution = resolveCharacterDerivedAbilities({
     catalog: aggregate.derivedAbilities,
     ownerships: aggregate.derivedAbilityOwnerships,
@@ -300,60 +240,13 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
   });
 
   return (
-    <div className="character-sheet-wrap">
-      <CharacterPrintCenter
-        aggregate={aggregate}
-        draft={draft}
-        selectedRace={selectedRace}
-      />
-
-      <section className="character-sheet" aria-labelledby="character-sheet-title">
-        <header>
-          <div>
-            <p>SERRIAN TIDE CHARACTER RECORD</p>
-            <h2 id="character-sheet-title">{draft.name || "Unnamed Character"}</h2>
-            <span>
-              {[selectedRace?.race.name, aggregate.campaign.name, aggregate.character.playerUsername]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </div>
-          <strong>{ready ? "CHARACTER READY" : "CHARACTER RECORD"}</strong>
-        </header>
-
-        {!canOperateRuntime ? <aside className="character-sheet__runtime-notice character-sheet__web-only-reference" role="note"><strong>Live state is read-only.</strong><span>You may edit and save this permanent Character record, but only the Campaign-owning G.O.D. can operate its active state.</span></aside> : null}
-
-        <section className="character-sheet__identity" aria-label="Character identity">
-          {[
-            ["Age", draft.profile.age ?? "—"],
-            ["Sex", draft.profile.sex || "—"],
-            [
-              "Height",
-              draft.profile.heightFeet === null && draft.profile.heightInches === null
-                ? "—"
-                : `${draft.profile.heightFeet ?? 0} ft ${draft.profile.heightInches ?? 0} in`,
-            ],
-            ["Weight", draft.profile.weight ?? "—"],
-            ["Deity", draft.profile.deity || "—"],
-            ["Fate Points", draft.profile.fatePoints ?? "—"],
-            ["Defining Marks & Quirks", draft.profile.definingMarks || "—"],
-          ].map(([label, value]) => (
-            <div key={label} className={label === "Defining Marks & Quirks" ? "is-wide" : undefined}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </div>
-          ))}
-        </section>
-
-        <ActiveHealthPanel health={activeHealth} disabled={!canOperateRuntime} onHealthChange={onActiveHealthChange} />
-        <ActiveManaPanel mana={activeMana} disabled={activeManaDisabled || !canOperateRuntime} disabledReason={!canOperateRuntime ? "Live Mana is read-only; only the Campaign-owning G.O.D. can change it." : undefined} onManaChange={onActiveManaChange} />
-        <ActiveEffectsPanel state={activeEffects} godMode={godMode} disabled={!canOperateRuntime} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
-        <EquipmentStatePanel state={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} includeEffectHistory={godMode} onChange={onEquipmentStateChange} onActiveEffectsChange={onActiveEffectsChange} />
-        <MagazinePanel characterId={aggregate.character.id} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
-        <ItemChargePanel state={chargeState} disabled={chargeStateDisabled || !canOperateRuntime} onChange={onChargeStateChange} />
-
+    <section className="character-sheet character-sheet--tab" aria-label={`${section} character record`}>
+      {section === "attributes" ? <>
+        <ActiveHealthPanel health={activeHealth} management={false} onHealthChange={onActiveHealthChange} />
+        <ActiveManaPanel mana={activeMana} management={false} onManaChange={onActiveManaChange} />
+        <ActiveEffectsPanel state={activeEffects} godMode={false} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={onActiveEffectsChange} />
         <section className="character-sheet__summary-grid" aria-label="Core character record">
-          <article>
+          {showAttributeTable ? <article>
             <h3>Attributes</h3>
             <table>
               <thead><tr><th>Attribute</th><th>#</th><th>Mod</th><th>%</th></tr></thead>
@@ -368,26 +261,10 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
                 ))}
               </tbody>
             </table>
-          </article>
-          <article>
-            <h3>Hit Points</h3>
-            <p className="character-sheet__total"><span>Total HP</span><strong>{displayNumber(hp)}</strong></p>
-            <p className="character-sheet__total"><span>HP Multiplier</span><strong>×{hpMultiplier.toFixed(2)}</strong></p>
-            <table>
-              <thead><tr><th>Location</th><th>HP</th><th>Damage</th></tr></thead>
-              <tbody>
-                {hpBreakdown.pools.map((pool) => (
-                  <tr key={pool.key}>
-                    <th>{hitResultsByPool.get(pool.key)} · {pool.name}</th>
-                    <td>{pool.hp}</td>
-                    <td className="character-sheet__write-in"><span /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </article>
+          </article> : null}
           <article>
             <h3>Movement & Initiative</h3>
+            <p>HP Multiplier &times;{hpMultiplier.toFixed(2)} / Base Magic {displayNumber(effectiveBaseMagic)}</p>
             <p className="character-sheet__total"><span>Base Initiative</span><strong>{getBaseInitiative(draft.attributes.DEX)}</strong></p>
             <table><tbody>
               {effectiveMovementModes.map((mode) => (
@@ -399,41 +276,9 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
               ))}
             </tbody></table>
           </article>
-          <article>
-            <h3>Mana</h3>
-            <p className="character-sheet__total"><span>Base Magic</span><strong>{displayNumber(effectiveBaseMagic)}</strong></p>
-            <table><tbody>
-              {activeMana.pools.map((pool) => (
-                <tr key={pool.system}>
-                  <th>{pool.system}</th>
-                  <td>{displayNumber(pool.currentMana)} / {displayNumber(pool.maximumMana)}</td>
-                  <td>{displayNumber(pool.manaSpent)} Spent · {pool.spellAccessLevel ?? "Below Apprentice"}</td>
-                </tr>
-              ))}
-            </tbody></table>
-          </article>
-          <article>
-            <h3>Currencies</h3>
-            <p className="character-sheet__total">
-              <span>{aggregate.campaign.currencySystem}</span>
-              <strong>{aggregate.campaign.currencySystem === "Credits" ? purse.formatted : `${displayNumber(creditEquivalent || draft.profile.creditsRemaining)} cr eq.`}</strong>
-            </p>
-            <table><tbody>
-              {currencies.map((entry) => (
-                <tr key={entry.id}><th>{entry.name}</th><td>{entry.quantity}</td><td>{displayNumber(entry.creditsPerUnit)} cr each</td></tr>
-              ))}
-            </tbody></table>
-          </article>
-          <article>
-            <h3>Advancement Resources</h3>
-            <table><tbody>
-              <tr><th>Experience</th><td>{displayNumber(draft.profile.experience)}</td><td>Total {displayNumber(draft.profile.totalExperience)}</td></tr>
-              <tr><th>Quintessence</th><td>{displayNumber(draft.profile.quintessence)}</td><td>Total {displayNumber(draft.profile.totalQuintessence)}</td></tr>
-              <tr><th>Fame</th><td>{displayNumber(draft.profile.fame)}</td><td /></tr>
-            </tbody></table>
-          </article>
         </section>
 
+        {showAttributeTable ? <>
         <section
           className="character-sheet__section character-sheet__web-only-reference"
           aria-labelledby="character-sheet-attribute-reference-title"
@@ -477,39 +322,15 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           </div>
         </section>
 
-        <div className="character-sheet__play-reference">
+        </> : null}
           <section className="character-sheet__section character-sheet__health">
             <div className="character-sheet__section-heading"><p>BODY TARGET</p><h3>Health & Hit Locations</h3></div>
             <CharacterHitLocationChart totalHp={hp} />
           </section>
 
-          <section className="character-sheet__section character-sheet__combat">
-            <div className="character-sheet__section-heading"><p>COMBAT RECORD</p><h3>Weapons & Armor</h3></div>
-            <h4>Weapons</h4>
-            <div className="character-sheet__table-scroll">
-              <table><thead><tr><th>Weapon</th><th>Qty</th><th>%</th><th>Damage</th><th>Mod</th><th>Total</th><th>Type</th><th>Range / Reach</th><th>Dur.</th></tr></thead><tbody>
-                {weaponRows.map(({ owned, item }) => {
-                  const profile = item ? getCharacterWeaponDamage(item) : null;
-                  const damage = item
-                    ? getCharacterWeaponDamageSummary(item, draft.attributes)
-                    : null;
-                  return (
-                    <tr key={owned.itemId}><th>{item?.name ?? `Item ${owned.itemId}`}{profile?.sourceName ? <small> · {profile.sourceName}</small> : null}</th><td>{owned.quantity}</td><td className="character-sheet__write-in"><span /></td><td>{profile?.damage || "—"}</td><td>{damage?.modifier ?? "—"}</td><td>{damage?.totalDamage ?? "—"}</td><td>{profile?.damageType || "—"}</td><td>{[item?.rangeText, item?.reachText].filter(Boolean).join(" / ") || "—"}</td><td>{item?.durability ?? "—"}</td></tr>
-                  );
-                })}
-              </tbody></table>
-            </div>
-            <h4>Armor</h4>
-            <div className="character-sheet__table-scroll">
-              <table><thead><tr><th>Armor</th><th>Qty</th><th>Type</th><th>Coverage</th><th>Durability</th><th>Soak</th><th>Rules</th></tr></thead><tbody>
-                {armorRows.map(({ owned, item }) => (
-                  <tr key={owned.itemId}><th>{item?.name ?? `Item ${owned.itemId}`}</th><td>{owned.quantity}</td><td>{item?.armorType || item?.recordType || "—"}</td><td>{item?.coverage || "—"}</td><td>{item?.durability ?? "—"}</td><td>{item?.baseSoak ?? "—"}</td><td>{item?.armorRulesText || item?.armorDamageModifiers || "—"}</td></tr>
-                ))}
-              </tbody></table>
-            </div>
-          </section>
-        </div>
-
+      </> : null}
+      {section === "skills" ? <>
+        {showSkillTable ? <>
         <section className="character-sheet__section character-sheet__training">
           <div className="character-sheet__section-heading"><p>TRAINING RECORD</p><h3>Skills & Abilities</h3></div>
           <div className="character-sheet__skill-ledgers">
@@ -526,6 +347,12 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           </div>
         </section>
 
+        </> : null}
+        <section className="character-sheet__section">
+          <div className="character-sheet__section-heading"><h3>Personal Spellbook</h3></div>
+          {aggregate.personalSpellbook.length ? <ul>{aggregate.personalSpellbook.map((spell) => <li key={spell.id}><strong>{spell.name}</strong> / {spell.tradition}</li>)}</ul> : <p>No personal spells recorded.</p>}
+          {!godMode ? <a href={`/realms/characters/${aggregate.character.id}/spellbook`}>Open Spellbook</a> : null}
+        </section>
         <DerivedAbilityPanel
           characterId={aggregate.character.id}
           abilities={aggregate.derivedAbilities}
@@ -537,65 +364,33 @@ export function CharacterSheet({ aggregate, draft, selectedRace, ready, activeHe
           onComplete={onDerivedAbilityChange}
         />
 
-        <section className="character-sheet__section character-sheet__inventory">
-          <div className="character-sheet__section-heading"><p>POSSESSIONS</p><h3>Inventory & General Equipment</h3></div>
-          <div className="character-sheet__table-scroll">
-            <table><thead><tr><th>Item</th><th>Catalog</th><th>Type</th><th>Qty</th><th>Weight</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>
-              {generalRows.map(({ owned, item }) => (
-                <tr key={owned.itemId}><th>{item?.name ?? `Item ${owned.itemId}`}</th><td>{item?.equipmentGroup || item?.catalogScope || "Inventory"}</td><td>{item?.recordType || item?.category || "Item"}</td><td>{owned.quantity}</td><td>{item?.weight === null || item?.weight === undefined ? "—" : `${displayNumber(item.weight * owned.quantity)} ${item.weightUnit}`}</td><td>{displayNumber(owned.unitCostCredits)} cr</td><td>{displayNumber(owned.quantity * owned.unitCostCredits)} cr</td></tr>
+      </> : null}
+      {section === "equipment" ? <>
+        <OwnedEquipmentList ownerDisabled={equipmentStateDisabled || aggregate.character.archivedAt !== null} aggregate={aggregate} draft={draft} equipment={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} useDisabled={itemUseDisabled || !canOperateRuntime} useDisabledReason={itemUseDisabledReason} includeEffectHistory={godMode} onEquipmentChange={onEquipmentStateChange} onEffectsChange={onActiveEffectsChange} onUseComplete={onItemUseComplete} />
+        {draft.itemInstances.some(owned => aggregate.authorizedItems.some(item => item.id === owned.itemId && (item.isFirearm || item.isMagazine))) ? <details className="character-equipment-disclosure"><summary>Magazine & Firearm Setup</summary>
+          <MagazinePanel characterId={aggregate.character.id} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
+          <FirearmSetupPanel characterId={aggregate.character.id} equipmentRevision={JSON.stringify(equipmentState.instances)} disabled={equipmentStateDisabled || !canOperateRuntime} compact onChange={onItemUseComplete} />
+        </details> : null}
+        {chargeState.instances.length ? <details className="character-equipment-disclosure"><summary>Charge Controls</summary>
+          <ItemChargePanel state={chargeState} disabled={chargeStateDisabled || !canOperateRuntime} onChange={onChargeStateChange} />
+        </details> : null}
+        {equipmentState.activeManualPassives.length ? <details className="character-equipment-disclosure"><summary>Effects Requiring a G.O.D. Ruling</summary>{equipmentState.activeManualPassives.map(effect => <article key={effect.passiveEffectId}><h4>{effect.itemName}: {effect.title}</h4><p>{effect.lifecycleLabel}</p><p>{effect.description}</p></article>)}</details> : null}
+        <details className="character-equipment-disclosure"><summary>Currency</summary>
+        <section className="character-sheet__summary-grid" aria-label="Current currencies">
+          <article>
+            <h3>Currencies</h3>
+            <p className="character-sheet__total">
+              <span>{aggregate.campaign.currencySystem}</span>
+              <strong>{aggregate.campaign.currencySystem === "Credits" ? purse.formatted : `${displayNumber(creditEquivalent || draft.profile.creditsRemaining)} cr eq.`}</strong>
+            </p>
+            <table><tbody>
+              {currencies.map((entry) => (
+                <tr key={entry.id}><th>{entry.name}</th><td>{entry.quantity}</td><td>{displayNumber(entry.creditsPerUnit)} cr each</td></tr>
               ))}
             </tbody></table>
-          </div>
-        </section>
-
-        {activatedStacks.length || activatedInstances.length || unavailableActivatedItems.length ? (
-          <section className="character-sheet__section character-sheet__activated-items">
-            <div className="character-sheet__section-heading"><p>ACTIVE POSSESSIONS</p><h3>Activated Items</h3><span>Preview the exact resource and health changes before confirming.</span></div>
-            {itemUseDisabled || !canOperateRuntime ? <p className="character-sheet__item-use-note">{!canOperateRuntime ? "Live Item use is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseDisabledReason ?? "Save or discard pending Character edits before using an Item."}</p> : null}
-            <div className="character-sheet__activated-item-grid">
-              {activatedStacks.map(({ owned, definition }) => <article key={`stack-${owned.itemId}`}><div><strong>{definition.name}</strong><span>{owned.quantity} owned · {definition.runtimeProfile.useMode === "unlimited" ? "Unlimited" : `${definition.runtimeProfile.quantityPerUse} per use`}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={null} itemName={definition.name} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled || !canOperateRuntime} onComplete={onItemUseComplete} /></article>)}
-              {activatedInstances.map(({ owned, definition, persisted }) => {
-                const chargeDisplay = getItemChargeDisplay({
-                  currentCharges: persisted.currentCharges,
-                  maximumCharges: definition.powerResource?.maximumCharges ?? definition.runtimeProfile.maximumCharges,
-                });
-                return <article key={`instance-${owned.instanceId}`}><div><strong>{definition.name} · Copy #{owned.instanceId}</strong><span>{chargeDisplay.label}{chargeDisplay.exceedsCurrentMaximum ? " · Above current template maximum" : ""}</span></div><ItemUseDialog sourceCharacterId={aggregate.character.id} itemId={owned.itemId} itemInstanceId={owned.instanceId} itemName={`${definition.name} · Copy #${owned.instanceId}`} activationLabel={definition.runtimeProfile.activationLabel} disabled={itemUseDisabled || !canOperateRuntime} onComplete={onItemUseComplete} /></article>;
-              })}
-              {unavailableActivatedItems.map(({ definition, reason }) => <article key={`unavailable-${definition.id}`} className="is-unavailable"><div><strong>{definition.name}</strong><span>{reason}</span></div></article>)}
-            </div>
-          </section>
-        ) : null}
-
-        {draft.itemInstances.length ? (
-          <section className="character-sheet__section character-sheet__inventory">
-            <div className="character-sheet__section-heading"><p>INDIVIDUAL POSSESSIONS</p><h3>Individual Item Copies</h3><span>Each copy keeps its own identity. Magazine contents are shown in Magazines above.</span></div>
-            <div className="character-sheet__table-scroll">
-              <table><thead><tr><th>Item</th><th>Copy</th><th>Classification</th><th>State</th><th>Unit Cost</th></tr></thead><tbody>
-                {draft.itemInstances.map((owned, index) => {
-                  const persisted = owned.instanceId === null
-                    ? null
-                    : aggregate.itemInstances.find(({ id }) => id === owned.instanceId) ?? null;
-                  const definition = itemMap.get(owned.itemId) ?? null;
-                  const chargeDisplay = getItemChargeDisplay({
-                    currentCharges: persisted?.currentCharges ?? definition?.powerResource?.maximumCharges ?? definition?.runtimeProfile.maximumCharges ?? 0,
-                    maximumCharges: definition?.powerResource?.maximumCharges ?? definition?.runtimeProfile.maximumCharges ?? null,
-                  });
-                  return <tr key={owned.draftId}><th>{definition?.name ?? persisted?.name ?? `Item ${owned.itemId}`}</th><td>{owned.instanceId === null ? `New copy ${index + 1}` : `#${owned.instanceId}`}</td><td>{definition?.isMagical || persisted?.isMagical ? "Magical · Charged" : "Charged"}</td><td>{definition?.isMagazine ? "See Magazines above" : chargeDisplay.label}{!definition?.isMagazine && chargeDisplay.exceedsCurrentMaximum ? <small> · Above current maximum</small> : null}</td><td>{displayNumber(owned.unitCostCredits)} cr</td></tr>;
-                })}
-              </tbody></table>
-            </div>
-          </section>
-        ) : null}
-
-        {story.length ? (
-          <section className="character-sheet__section character-sheet__story-section">
-            <div className="character-sheet__section-heading"><p>CHARACTER NOTES</p><h3>Story & Personality</h3></div>
-            <div className="character-sheet__story">
-              {story.map(([label, value]) => <article key={label}><h4>{label}</h4><p>{value}</p></article>)}
-            </div>
-          </section>
-        ) : null}
-      </section>
-    </div>
+          </article>        </section>
+        </details>
+      </> : null}
+    </section>
   );
 }

@@ -109,8 +109,9 @@ test("Active Health exposes typed caller-owned transaction operations", () => {
 });
 
 test("the same Item Use dialog is mounted for Character and Creature NPC inventory", () => {
-  assert.match(characterSheet, /<ItemUseDialog/);
+  assert.match(characterSheet, /<OwnedEquipmentList/);
+  assert.match(readFileSync("src/app/characters/owned-equipment-list.tsx", "utf8"), /<ItemUseDialog/);
   assert.match(creatureWorkspace, /<ItemUseDialog/);
-  assert.match(characterSheet, /getItemUseActivatability/);
+  assert.match(readFileSync("src/app/characters/owned-equipment-list.tsx", "utf8"), /getItemUseActivatability/);
   assert.match(creatureWorkspace, /getItemUseActivatability/);
 });
