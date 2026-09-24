@@ -80,7 +80,7 @@ test("Shared character sheet: real actions, owner controls, player totals, print
     await pool.query("insert into item_runtime_profiles(item_id,use_mode,maximum_charges,charges_per_use,activation_label) values($1,'charges',5,1,'Use')",[wandId]);
     for (const id of [potionId,wandId]) await pool.query("insert into item_effects(item_id,schema_version,effect_json,sort_order) values($1,2,$2,0)",[id,JSON.stringify({kind:"health.heal",amount:3,scope:"full-body"})]);
     const characters: number[] = [];
-    for (const [name, player, completed] of [["Aerin Tidewalker","sheet-player",true],["Rowan Draft","sheet-player",false],["Owner Adventurer","sheet-owner",true]] as const) {
+    for (const [name, player, completed] of [["Aerin Tidewalker","sheet-player",true],["Rowan Draft","sheet-player",false],["Owner Adventurer","sheet-owner",true],["Zora Navigator","sheet-player",true]] as const) {
       const id = (await pool.query("insert into campaign_character(campaign_id,player_user_id,name) values($1,$2,$3) returning id", [campaignId,player,name])).rows[0].id;
       characters.push(id);
       for (const extraId of [batonId,armorId,potionId,supplyId]) await pool.query("insert into campaign_character_item(character_id,item_id,quantity,unit_cost_credits) values($1,$2,$3,0)",[id,extraId,extraId===armorId ? 3 : extraId===potionId ? 2 : 1]);
@@ -135,6 +135,74 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       assert.equal(await page.getByRole("button",{name:"Print / Save as PDF",exact:true}).isVisible(),true);
     }
     const player = await login("sheet-player");
+    // Rehearse the actual header links, including a non-first completed Character.
+    const characterTables = (await pool.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema='public' and (table_name='campaign_character' or starts_with(table_name,'campaign_character_')) order by table_name")).rows;
+    async function characterSnapshot() {
+      const rows = [];
+      for (const { table_name: table } of characterTables) {
+        assert.match(table, /^campaign_character(?:_[a-z_]+)?$/);
+        const result = await pool!.query(`select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text), '[]'::jsonb) as snapshot from "${table}" r`);
+        rows.push({ table, rows: result.rows[0].snapshot });
+      }
+      return rows;
+    }
+    const beforeNavigation = await characterSnapshot();
+    const headerLink = (destination: "tabletop" | "back" | "logo") => destination === "logo"
+      ? player.locator(".character-header .character-logo")
+      : player.locator(".character-header__actions").getByRole("link", { name: destination === "tabletop" ? "Player Tabletop" : "← Back", exact: true });
+    async function assertTabletop(characterId: number, name: string) {
+      await player.waitForURL(url => url.pathname === "/realms/tabletop" && url.searchParams.get("character") === String(characterId));
+      await player.getByText("PLAYER TABLETOP CONSOLE", { exact: true }).waitFor();
+      await player.getByRole("heading", { name, exact: true, level: 1 }).waitFor();
+      assert.equal(await player.getByLabel("Campaign Character", { exact: true }).inputValue(), String(characterId));
+      assert.deepEqual(await player.locator("#tabletop-character option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value)), [characters[0], characters[1], characters[3]].map(String));
+      assert.equal(await player.getByRole("heading", { name: /not found|404/i }).count(), 0);
+    }
+    async function assertRealms() {
+      await player.waitForURL(url => url.pathname === "/realms" && !url.search);
+      await player.getByRole("heading", { name: "The Realms", exact: true, level: 1 }).waitFor();
+    }
+    await player.goto(`${baseUrl}/realms/tabletop?character=${characters[0]}`);
+    await assertTabletop(characters[0], "Aerin Tidewalker");
+    await player.goto(`${baseUrl}/realms/characters/${characters[3]}`);
+    assert.equal(await player.getByLabel(/Character Name/).isDisabled(), true);
+    await headerLink("tabletop").click();
+    await assertTabletop(characters[3], "Zora Navigator");
+    assert.equal(await player.getByRole("alertdialog", { name: "Unsaved changes" }).count(), 0);
+    for (const destination of ["back", "logo"] as const) {
+      await player.goto(`${baseUrl}/realms/characters/${characters[3]}`);
+      await headerLink(destination).click();
+      await assertRealms();
+    }
+    const editableUrl = `${baseUrl}/realms/characters/${characters[1]}`;
+    for (const destination of ["tabletop", "back", "logo"] as const) {
+      await player.goto(editableUrl);
+      const draftName = `Unsaved ${destination}`;
+      await player.getByLabel(/Character Name/).fill(draftName);
+      // Cancel both this exit and a different one: discard must use the latest click.
+      for (const cancelledDestination of [destination, destination === "tabletop" ? "back" : "tabletop"] as const) {
+        await headerLink(cancelledDestination).scrollIntoViewIfNeeded();
+        const scrollBefore = await player.evaluate(() => window.scrollY);
+        await headerLink(cancelledDestination).click();
+        const dialog = player.getByRole("alertdialog", { name: "Unsaved changes", exact: true });
+        await dialog.waitFor();
+        assert.equal(player.url(), editableUrl);
+        await dialog.getByRole("button", { name: "Keep Editing", exact: true }).click();
+        await dialog.waitFor({ state: "hidden" });
+        assert.equal(player.url(), editableUrl);
+        assert.equal(await player.getByLabel(/Character Name/).inputValue(), draftName);
+        await player.waitForFunction(scroll => Math.abs(window.scrollY - scroll) < 2, scrollBefore);
+      }
+      await headerLink(destination).click();
+      await player.getByRole("alertdialog", { name: "Unsaved changes", exact: true }).getByRole("link", { name: "Discard Changes", exact: true }).click();
+      if (destination === "tabletop") await assertTabletop(characters[1], "Rowan Draft");
+      else await assertRealms();
+      assert.deepEqual(await characterSnapshot(), beforeNavigation, "Navigation must not save, complete creation, or mutate Character/runtime data");
+    }
+    await player.goto(editableUrl);
+    assert.equal(await player.getByLabel(/Character Name/).inputValue(), "Rowan Draft");
+    assert.equal(await player.getByLabel(/Character Name/).isDisabled(), false);
+    console.log("PASS: actual Player Tabletop header reaches the exact non-first Character; clean/dirty Back and logo; cancel/discard destinations; draft/scroll and persisted runtime state preserved");
     await player.goto(`${baseUrl}/realms/characters/${characters[0]}`);
     await checkTabs(player,false);
     const tracking = player.getByRole("region",{name:"Character tracking totals"});

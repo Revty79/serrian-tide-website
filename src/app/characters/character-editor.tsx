@@ -11,6 +11,7 @@ import {
   useState,
   type CSSProperties,
   type InputHTMLAttributes,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 
@@ -475,7 +476,7 @@ export function CharacterEditor({
   const [raceLoading, setRaceLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [confirmCompletion, setConfirmCompletion] = useState(false);
-  const [confirmExit, setConfirmExit] = useState(false);
+  const [exitHref, setExitHref] = useState<string | null>(null);
   const [describedSkill, setDescribedSkill] = useState<CharacterSkillReference | null>(null);
   const [equipmentSearch, setEquipmentSearch] = useState("");
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>("all");
@@ -487,6 +488,12 @@ export function CharacterEditor({
   const isNpc = aggregate.character.isNpc;
   const archivedNpc = isNpc && aggregate.character.archivedAt !== null;
   const returnHref = backHref ?? (accessAsManager ? "/heavens" : "/realms");
+  const tabletopHref = `/realms/tabletop?character=${aggregate.character.id}`;
+  function confirmNavigation(event: MouseEvent<HTMLAnchorElement>, destination: string) {
+    if (!dirty) return;
+    event.preventDefault();
+    void preserveScroll(() => setExitHref(destination));
+  }
   const visibleTabs = getCharacterCreationTabs(canAccessPrivateGod);
   const readiness = useMemo(
     () => evaluateCharacterReadiness(draft, aggregate, selectedRace),
@@ -842,13 +849,13 @@ export function CharacterEditor({
   return (
     <main className="character-page character-page--sheet">
       <header className="character-header">
-        <Link href={returnHref} className="font-evanescent character-logo" onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>SERRIAN<br />TIDE</Link>
+        <Link href={returnHref} className="font-evanescent character-logo" onClick={(event) => confirmNavigation(event, returnHref)}>SERRIAN<br />TIDE</Link>
         <div className="character-header__identity">
           <p>{isNpc ? "NPC CHARACTER SHEET" : "CHARACTER SHEET"}</p>
           <h1 className="font-sans">{draft.name || (isNpc ? "New NPC" : "New Character")}</h1>
           <span>Campaign: {aggregate.campaign.name} · {isNpc ? `Role: ${draft.npcRoleLabel || "Not set"} · ${archivedNpc ? "Archived NPC" : "Active NPC"}` : `Player: ${aggregate.character.playerUsername}`}</span>
         </div>
-        <div className="character-header__actions">{!accessAsManager ? <Link href={`/realms/characters/${aggregate.character.id}/tabletop`}>Player Tabletop</Link> : null}<Link href={returnHref} onClick={(event) => { if (dirty) { event.preventDefault(); void preserveScroll(() => setConfirmExit(true)); } }}>← {backLabel}</Link></div>
+        <div className="character-header__actions">{!accessAsManager ? <Link href={tabletopHref} onClick={(event) => confirmNavigation(event, tabletopHref)}>Player Tabletop</Link> : null}<Link href={returnHref} onClick={(event) => confirmNavigation(event, returnHref)}>← {backLabel}</Link></div>
       </header>
 
       <CharacterPrintCenter aggregate={aggregate} draft={draft} selectedRace={selectedRace} />
@@ -900,7 +907,7 @@ export function CharacterEditor({
       </div>
 
       {confirmCompletion ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="complete-character-title"><h2 id="complete-character-title">Complete this Character?</h2><p>This permanently locks Player Character creation. Later changes use their controlled workflows.</p><div><button type="button" onClick={() => void preserveScroll(() => setConfirmCompletion(false))}>Keep Editing</button><button type="button" className="is-primary" disabled={saving} onClick={() => void persist(true)}>Complete Character</button></div></section></div> : null}
-      {confirmExit ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="exit-character-title"><h2 id="exit-character-title">Unsaved changes</h2><p>Leave this Character and discard the changes you have not saved?</p><div><button type="button" onClick={() => void preserveScroll(() => setConfirmExit(false))}>Keep Editing</button><Link href={returnHref}>Discard Changes</Link></div></section></div> : null}
+      {exitHref ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="exit-character-title"><h2 id="exit-character-title">Unsaved changes</h2><p>Leave this Character and discard the changes you have not saved?</p><div><button type="button" onClick={() => void preserveScroll(() => setExitHref(null))}>Keep Editing</button><Link href={exitHref}>Discard Changes</Link></div></section></div> : null}
       {describedSkill ? <div className="character-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) void preserveScroll(() => setDescribedSkill(null)); }}><section className="character-skill-description" role="dialog" aria-modal="true" aria-labelledby="skill-description-title"><header><div><p>SKILL DESCRIPTION</p><h2 id="skill-description-title">{describedSkill.name}</h2></div><button type="button" aria-label="Close Skill description" onClick={() => void preserveScroll(() => setDescribedSkill(null))}>×</button></header><div className="character-skill-description__facts"><span>{getSkillTierLabel(describedSkill)}</span>{describedSkill.primaryAttribute ? <span>Primary: {normalizeSkillAttributeKey(describedSkill.primaryAttribute) ?? describedSkill.primaryAttribute}</span> : null}{describedSkill.secondaryAttribute ? <span>Secondary: {normalizeSkillAttributeKey(describedSkill.secondaryAttribute) ?? describedSkill.secondaryAttribute}</span> : null}{describedSkill.spellLevel ? <span>Spell Level: {describedSkill.spellLevel}</span> : null}{describedSkill.manaCost !== null ? <span>Mana Cost: {displayNumber(describedSkill.manaCost)}</span> : null}</div><p>{describedSkill.definition.trim() || "No description is currently recorded for this Skill."}</p><footer><button type="button" onClick={() => void preserveScroll(() => setDescribedSkill(null))}>Close</button></footer></section></div> : null}
     </main>
   );

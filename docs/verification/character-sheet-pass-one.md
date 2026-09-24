@@ -13,7 +13,7 @@ Verified locally on 2026-09-24. Base: `main` at `b9d3c02d46857251a612c9bad010a5a
 - Mutations authorize the authenticated user against the target character's actual campaign owner. The locked commerce version rejects concurrent duplicate or stale requests. A repeated request fails with reload guidance rather than applying twice. A new intentional adjustment requires the refreshed version.
 - Ordinary profile saves preserve unchanged ownership/acquisition rows and cannot adjust completed inventory. Creation-time profile saves and later purchases retain granted acquisition cost and the current purse; they do not charge for a grant or refund an administrative removal. Additional purchases remain server-priced and affordability-checked.
 
-## Verification
+## Original Pass 1 verification
 
 | Check | Result |
 | --- | --- |
@@ -27,7 +27,31 @@ Verified locally on 2026-09-24. Base: `main` at `b9d3c02d46857251a612c9bad010a5a
 | Production build | Passed. |
 | Git whitespace check | Passed. |
 
-The browser run preceded the final explicit profile-save combat-freeze guard; the final database run includes that guard and the typecheck/build passed afterward. Printed presets were checked through browser print-media rendering; a physical printer was not used. This is automated verification, not human acceptance.
+That original browser run preceded the final explicit profile-save combat-freeze guard; the original final database run includes that guard and the typecheck/build passed afterward. The follow-up below reruns the browser and gameplay checks with all Pass 1 additions present. Printed presets were checked through browser print-media rendering; a physical printer was not used. This is automated verification, not human acceptance.
+
+## Tabletop navigation follow-up — 2026-09-24
+
+Reviewed base: `817873f228120aee58ba80a524d04e5041de10fd`. The correction changes only `src/app/characters/character-editor.tsx`, `scripts/character-sheet-pass-one-disposable.test.ts`, and this handoff. Changes were initially left uncommitted for review; the user subsequently authorized committing and synchronizing them to GitHub.
+
+The Player Tabletop header link now opens the existing `/realms/tabletop?character=<id>` console. Tabletop, Back, and the logo share the existing dirty-exit dialog, which remembers the destination clicked. Keep Editing clears that pending destination and retains the draft and scroll position; Discard Changes follows it. Navigation does not save, complete creation, or change runtime state. Access checks, inventory, and print layouts are unchanged.
+
+| Final corrected-tree check | Actual result |
+| --- | --- |
+| `node --import tsx --test --test-reporter=tap scripts/character-sheet-pass-one-disposable.test.ts` | Passed: 1 complete browser rehearsal and its 10 real server-action/database scenarios; zero failures or skipped cases. |
+| Actual header navigation | Passed: a player with three Characters first opens Aerin's console, then clicks Player Tabletop on completed Zora's sheet. The existing console renders Zora's heading and selected option, including all three authorized options; no not-found page. Zora is not the first option. |
+| Unsaved edits, Back, and logo | Passed: clean Back/logo reach the rendered Realms page. On editable Rowan's sheet, all three exits preserve the draft, sheet URL, and scroll on cancellation; cancelling a different exit before confirming proves the latest destination wins. Confirmed Tabletop opens Rowan's console; Back/logo open Realms. Reload retains the original saved name and editable creation status. Snapshots of every `campaign_character` / `campaign_character_*` table remain identical across navigation. |
+| Existing Pass 1 browser coverage | Passed again with the final profile-save guard and owner inventory additions present: owner/player/admin/foreign access, totals, inline equipment and use, owner grants/removals, reload persistence, creation locks, mobile, and existing print presets. Zero browser `pageerror` events. |
+| `npm.cmd run validate:combat-completion-db` | Passed unfiltered: 391 gameplay cases across all 28 child scripts, plus the disposable harness; zero failures, cancellations, or skipped cases. Includes automated rewards, healing, recovery, item use, and authorization. `COMBAT_COMPLETION_CASE_FILTER` was unset. No gameplay assertion or migration check was changed or bypassed. This supersedes the earlier pre-owner-inventory gameplay run. |
+| `npm.cmd run typecheck` | Passed. |
+| `npx.cmd eslint src/app/characters/character-editor.tsx scripts/character-sheet-pass-one-disposable.test.ts` | Passed with no warnings. |
+| `npm.cmd run build` | Passed, including production TypeScript checking and route generation for `/realms/tabletop`. |
+| `git diff --check` | Passed. |
+
+The Next development server logged two `The destination stream closed early` messages while leaving the live console. Navigation assertions still passed and no browser page errors occurred; the underlying stream-message cause was not investigated in this focused correction. Browser checks used the development server; a production-server browser rehearsal and human walkthrough were not performed.
+
+The earlier 420-case feature run and separate legacy shop scenario were not rerun in this follow-up. Their known stale migration assertions remain unchanged: `src/features/characters/firearm-baseline-migration.test.ts` expects the journal only through `0063` (64 entries, versus 66 now), and `scripts/shop-corrections-disposable-db.test.ts` / `scripts/tabletop-shop-commerce-db.test.ts` hardcode 41 entries. These are not claimed as passing unchanged. The gameplay completion harness checks the actual journal count and passed as written.
+
+All action/database/browser fixtures were isolated in disposable PostgreSQL clusters. No schema change, persistent database migration, production data mutation, deployment, or printable redesign was performed for this follow-up.
 
 ## Screenshots
 
