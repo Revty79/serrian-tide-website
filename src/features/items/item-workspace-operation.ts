@@ -1,4 +1,4 @@
-export type ItemWorkspaceOperationKind = "item-save" | "governance-save" | "variant-create";
+export type ItemWorkspaceOperationKind = "item-save" | "governance-save" | "variant-create" | "tag-create";
 
 export type ItemWorkspaceOperation = Readonly<{
   id: number;

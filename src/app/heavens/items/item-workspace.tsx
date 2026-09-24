@@ -311,8 +311,16 @@ export function ItemWorkspace({
   }
 
   async function createSharedTag(input: { name: string; tagGroup: string; description: string }): Promise<ItemAuthoringReferences["tags"][number] | null> {
+    if (!draft || isArchived || loadingEditor) return null;
+    const operation = beginOperation("tag-create");
+    if (!operation) {
+      operationBlocked();
+      return null;
+    }
+    setFeedback(null);
     try {
       const created = await createItemTag(input);
+      if (!isCurrentOperation(operation)) return null;
       setReferences((current) => ({
         ...current,
         tags: [
@@ -320,11 +328,19 @@ export function ItemWorkspace({
           created,
         ].sort((left, right) => left.tagGroup.localeCompare(right.tagGroup) || left.name.localeCompare(right.name)),
       }));
+      if (!draft.tags.includes(created.name)) {
+        setDraft((current) => current ? { ...current, tags: [...new Set([...current.tags, created.name])] } : current);
+        setDirty(true);
+      }
       setFeedback({ kind: "success", message: `Tag "${created.name}" is available throughout Item, Campaign, and rule authoring.` });
       return created;
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The shared Item Tag could not be created." });
+      if (isCurrentOperation(operation)) {
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "The shared Item Tag could not be created." });
+      }
       return null;
+    } finally {
+      finishOperation(operation);
     }
   }
 
@@ -552,6 +568,7 @@ export function ItemWorkspace({
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING ITEM</p></section> : draft ? <section className="skill-editor item-editor">
         <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : hasUnsavedWork ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id ? <LifecycleControls target={{ entityKind: "item", entityId: draft.id }} archived={isArchived} disabled={workspaceBusy || hasUnsavedWork} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={workspaceBusy || isArchived} onClick={() => void persist()}>{itemSaving ? "Saving…" : "Save Item"}</button></div></header>
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
+        {activeOperation?.kind === "tag-create" ? <p className="skill-editor__feedback" role="status">Creating tag… Item editing and saving will be available when it finishes.</p> : null}
         <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
         <fieldset className="skill-editor__content item-editor__content lifecycle-editor-fields" disabled={isArchived || workspaceBusy}>
           {activeTab === "overview" ? <Overview draft={draft} references={references} onCreateTag={createSharedTag} onChange={change} /> : null}
@@ -623,9 +640,6 @@ function TagAssignmentEditor({
         description: newDescription,
       });
       if (!created) return;
-      if (!draft.tags.includes(created.name)) {
-        onChange({ ...draft, tags: [...draft.tags, created.name] });
-      }
       setNewName("");
       setNewDescription("");
       setSearch("");
