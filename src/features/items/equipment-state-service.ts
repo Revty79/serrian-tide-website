@@ -52,6 +52,7 @@ import { decodeMechanicalEffect, planMechanicalEffect } from "@/features/mechani
 import { requireSession } from "@/lib/server-access";
 import { lockActiveItemRootInTransaction } from "./active-item-root-service";
 import { validateContainmentOwnershipMutationInTransaction } from "./containment-ownership-service";
+import { assertInstanceCanBeWornInTransaction, assertStackCanBeWornInTransaction } from "./inventory-physical-service";
 import { resolveFirearmFiringMode } from "./firearm-timing";
 
 import {
@@ -792,6 +793,7 @@ export async function setStackEquipmentStateInTransaction(
     .where(and(eq(campaignCharacterItemEquipmentState.characterId, command.characterId), eq(campaignCharacterItemEquipmentState.itemId, command.itemId)));
   const nextActive = states.reduce((total, row) => total + (row.state === command.state ? 0 : row.quantity), 0) + command.quantity;
   getInactiveStackQuantity(ownership.quantity, nextActive);
+  await assertStackCanBeWornInTransaction(tx, command.characterId, command.itemId, command.state, command.quantity, ownership.quantity);
   if (command.quantity === 0) {
     await tx.delete(campaignCharacterItemEquipmentState).where(and(
       eq(campaignCharacterItemEquipmentState.characterId, command.characterId),
@@ -877,6 +879,7 @@ export async function setInstanceEquipmentStateInTransaction(
   const owned = rows[0];
   if (!owned) throw new Error("Owned Item copy was not found.");
   if (owned.scope !== "equipment") throw new Error("Inventory-only Items cannot enter Equipment State.");
+  await assertInstanceCanBeWornInTransaction(tx, command.instanceId, state);
   await tx.update(campaignCharacterItemInstance).set({ equipmentState: state, updatedAt: new Date() }).where(and(
     eq(campaignCharacterItemInstance.characterId, command.characterId),
     eq(campaignCharacterItemInstance.id, command.instanceId),

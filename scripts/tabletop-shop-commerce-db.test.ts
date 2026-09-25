@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -53,7 +53,7 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     process.env.DATABASE_URL = connectionString;
     seedPool = new pg.Pool({ connectionString });
     await migrate(drizzle(seedPool), { migrationsFolder: path.resolve(process.cwd(), "drizzle") });
-    assert.equal(Number((await one<{ value: number }>(seedPool, "select count(*)::int value from drizzle.__drizzle_migrations")).value), 41);
+    assert.equal(Number((await one<{ value: number }>(seedPool, "select count(*)::int value from drizzle.__drizzle_migrations")).value), JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")).entries.length);
 
     const godId = "commerce-god";
     const otherGodId = "commerce-other-god";

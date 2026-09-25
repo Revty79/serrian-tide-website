@@ -43,7 +43,9 @@ import {
   loadInitiativeEngineInTransaction,
   lockOwnedEncounterRuntimeInTransaction,
   persistInitiativeEngineInTransaction,
+  passParticipantInitiativeInTransaction,
 } from "@/features/tabletop-operations/runtime-integration-service";
+import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
 
 import { insertBuildTenFixture } from "./tabletop-build-ten-db-fixture";
 
@@ -112,6 +114,7 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
       damageSource: "Ammunition",
       ammunitionItemId: ammunitionItem.id,
       rangeText: "Ranged",
+      rangeMode: "ranged", distanceUnit: "m", shortRangeDistance: 10, mediumRangeDistance: 20, longRangeDistance: 30,
       capacityRounds: 6,
       readinessMode: "draw-is-ready",
       drawInitiativeCost: 0,
@@ -213,6 +216,7 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
       itemInstanceId: instance.id,
       firingModeId: mode.id,
       aimInitiative: 0,
+      rangeDistance: 15, rangeUnit: "m",
       firingDurationInitiative: 1,
       calledShot: { declared: true, objective: "Torso", locationNumber: 1, penalty: 4, reason: "Exact test Called Shot difficulty." },
       manualGovernance: { label: "Pass 10 exact manual firearm target", originalTarget: 50, reason: "Focused test uses the existing one-action G.O.D. ruling boundary." },
@@ -243,14 +247,14 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
     assert.equal((await previewFirearmAttackInTransaction(tx, context, base.godId, command)).firearm.roundsLoaded, 3, "Loaded ammunition needs no separate ready flag.");
 
     const preview = await previewFirearmAttackInTransaction(tx, context, base.godId, command);
-    assert.equal(preview.finalTarget, 54);
+    assert.equal(preview.finalTarget, 54, "The fixture uses neutral Medium range.");
     assert.equal(preview.authoredDamage.numeric, 8);
     assert.equal(preview.calledShot.locationNumber, 1);
     assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, base.encounterId))).length, 0);
     assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, instance.id)))[0]?.loadedRounds, 3);
 
-    const declared = await declareFirearmAttackInTransaction(tx, context, base.godId, { ...command, idempotencyKey: `attack-${suffix}` });
-    const duplicateDeclaration = await declareFirearmAttackInTransaction(tx, context, base.godId, { ...command, idempotencyKey: `attack-${suffix}` });
+    const declared = await declareFirearmAttackInTransaction(tx, context, base.godId, { ...command, roll: { method: "entered", enteredTotal: 75 }, idempotencyKey: `attack-${suffix}` });
+    const duplicateDeclaration = await declareFirearmAttackInTransaction(tx, context, base.godId, { ...command, roll: { method: "entered", enteredTotal: 75 }, idempotencyKey: `attack-${suffix}` });
     assert.deepEqual(duplicateDeclaration, { ...declared, reused: true });
     const [attackBefore] = await tx.select().from(campaignSessionEncounterFirearmAttack).where(eq(campaignSessionEncounterFirearmAttack.id, declared.attackId));
     assert.ok(attackBefore?.triggerPendingActionId);
@@ -258,6 +262,11 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
       .where(eq(campaignSessionEncounterResponderOpportunity.declarationId, attackBefore.triggerDeclarationId));
     assert.ok(opportunities.length >= 1);
     for (const opportunity of opportunities) {
+      const beforeResponse = await loadInitiativeEngineInTransaction(tx, base.encounterId);
+      const responder = beforeResponse.participants.find(participant => participant.characterId === opportunity.responderCharacterId)!;
+      if (responder.currentInitiative < beforeResponse.runtime.timelineInitiative) {
+        await persistInitiativeEngineInTransaction(tx, context, beforeResponse, advanceInitiativeTimeline(beforeResponse, responder.currentInitiative));
+      }
       await reconcileResponderOpportunityInTransaction(tx, context, god, opportunity.id, { decision: "allow" });
       await declareDefenseInterventionInTransaction(tx, context, god, {
         opportunityId: opportunity.id,
@@ -350,9 +359,14 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
     const aimed = await declareFirearmAttackInTransaction(tx, context, base.godId, {
       ...command,
       aimInitiative: 1,
+      roll: { method: "entered", enteredTotal: 75 },
       calledShot: { declared: false, objective: "", locationNumber: null, penalty: null, reason: "" },
       idempotencyKey: `aim-${suffix}`,
     });
+    const checkpoint = await readOpenDeclarationCheckpoint(tx, base.encounterId);
+    for (const participantId of checkpoint?.participantIdsJson ?? []) {
+      if (!checkpoint!.choicesJson.some(choice => choice.participantId === participantId)) await passParticipantInitiativeInTransaction(tx, context, participantId);
+    }
     await cancelFirearmAttackInTransaction(tx, context, base.godId, aimed.attackId, "The attacker changes plans before firing.");
     assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, instance.id)))[0]?.loadedRounds, beforeAimCancellation);
     assert.equal((await tx.select().from(campaignSessionEncounterFirearmAttack).where(eq(campaignSessionEncounterFirearmAttack.id, aimed.attackId)))[0]?.status, "cancelled");
@@ -368,5 +382,5 @@ test("guarded firearm firing is exact, atomic, idempotent, review-first, and Cre
       assert.match(error instanceof Error ? error.message : String(error), /can no longer be declined/);
     });
     throw ROLLBACK;
-  }), (error: unknown) => error === ROLLBACK);
+  }), (error: unknown) => { if (error !== ROLLBACK) throw error; return true; });
 });

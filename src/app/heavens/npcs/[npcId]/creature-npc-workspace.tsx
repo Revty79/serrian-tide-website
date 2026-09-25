@@ -48,6 +48,7 @@ import { ItemUseDialog } from "@/app/characters/item-use-dialog";
 import { EquipmentStatePanel } from "@/app/characters/equipment-state-panel";
 import { getCharacterEquipmentState } from "@/app/characters/equipment-state-actions";
 import type { CharacterEquipmentStateView } from "@/features/items/equipment-state";
+import { SavedInventoryLocations } from "@/app/characters/inventory-location-controls";
 import { MagazinePanel } from "@/app/characters/magazine-panel";
 import { ItemChargePanel } from "@/app/characters/item-charge-panel";
 import { getCharacterItemChargeState } from "@/app/characters/item-charge-actions";
@@ -201,7 +202,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
       {tab === "hp" ? <Hp snapshot={draft.currentSnapshot} hpAdjustment={draft.hpAdjustment} onChange={changeSnapshot} /> : null}
       {tab === "combat" ? <Combat snapshot={draft.currentSnapshot} onChange={changeSnapshot} /> : null}
       {tab === "special" ? <Special characterId={draft.characterId} snapshot={draft.currentSnapshot} disabled={dirty || saving || !canOperateRuntime} onChange={changeSnapshot} onComplete={refreshRuntimeState} /> : null}
-      {tab === "inventory" ? <><Inventory draft={draft} onChange={change} /><ActivatedCreatureItems draft={draft} disabled={dirty || saving || !canOperateRuntime} onComplete={refreshRuntimeState} /></> : null}
+      {tab === "inventory" ? <><Inventory draft={draft} onChange={change} /><SavedInventoryLocations characterId={draft.characterId} disabled={dirty || saving || !canOperateRuntime} revision={JSON.stringify([draft.items, draft.itemInstances, equipmentState])} /><ActivatedCreatureItems draft={draft} disabled={dirty || saving || !canOperateRuntime} onComplete={refreshRuntimeState} /></> : null}
       {tab === "preview" ? <Preview draft={draft} /> : null}
     </section></div>
   </main>;

@@ -7,7 +7,7 @@ import { db, pool } from "@/db";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { item, itemRuntimeProfile, weaponFiringMode, weaponProfile } from "@/db/item-schema";
-import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
   campaignCharacterFirearmEvent,
   campaignCharacterFirearmPreparation,
@@ -32,7 +32,9 @@ import {
   loadInitiativeEngineInTransaction,
   lockOwnedEncounterRuntimeInTransaction,
   persistInitiativeEngineInTransaction,
+  passParticipantInitiativeInTransaction,
 } from "@/features/tabletop-operations/runtime-integration-service";
+import { readOpenDeclarationCheckpoint } from "@/features/tabletop-operations/declaration-checkpoint-service";
 
 import { insertBuildTenFixture } from "./tabletop-build-ten-db-fixture";
 
@@ -57,6 +59,8 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     const base = await insertBuildTenFixture(tx, "firearm-readiness");
     await tx.insert(userRole).values({ userId: base.godId, role: "god" });
     const context = await lockOwnedEncounterRuntimeInTransaction(tx, base.encounterId, base.godId);
+    // This legacy harness exercises G.O.D.-directed actions; use an NPC actor under current choice authority.
+    await tx.update(campaignCharacter).set({ isNpc: true, npcKind: "race", npcBuildMode: "detailed" }).where(eq(campaignCharacter.id, base.heroId));
     const actor = { authority: "god-owner" as const, userId: base.godId };
     const suffix = crypto.randomUUID().toUpperCase();
     const [firearmItem, ammunitionItem, wrongAmmunitionItem, foreignFirearmItem] = await tx.insert(item).values([
@@ -72,8 +76,8 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     ]).returning({ id: weaponProfile.id });
     assert.ok(ammunitionProfile && wrongAmmunitionProfile);
     const [firearmProfile, foreignProfile] = await tx.insert(weaponProfile).values([
-      { itemId: firearmItem.id, profileRecordType: "Weapon", weaponType: "Handgun", ammunitionItemId: ammunitionItem.id, capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 0, readyInitiativeCost: 0, reloadInitiativeCost: 0, unloadInitiativeCost: 0, firingModeChangeInitiativeCost: 0 },
-      { itemId: foreignFirearmItem.id, profileRecordType: "Weapon", weaponType: "Handgun", ammunitionItemId: ammunitionItem.id, capacityRounds: 6, readinessMode: "draw-is-ready", drawInitiativeCost: 0, readyInitiativeCost: 0, reloadInitiativeCost: 0, unloadInitiativeCost: 0, firingModeChangeInitiativeCost: 0 },
+      { itemId: firearmItem.id, profileRecordType: "Weapon", weaponType: "Handgun", ammunitionItemId: ammunitionItem.id, capacityRounds: 6, reloadType: "Single", readinessMode: "draw-is-ready", drawInitiativeCost: 0, readyInitiativeCost: 0, reloadInitiativeCost: 0, unloadInitiativeCost: 0, firingModeChangeInitiativeCost: 0 },
+      { itemId: foreignFirearmItem.id, profileRecordType: "Weapon", weaponType: "Handgun", ammunitionItemId: ammunitionItem.id, capacityRounds: 6, reloadType: "Single", readinessMode: "draw-is-ready", drawInitiativeCost: 0, readyInitiativeCost: 0, reloadInitiativeCost: 0, unloadInitiativeCost: 0, firingModeChangeInitiativeCost: 0 },
     ]).returning({ id: weaponProfile.id });
     assert.ok(firearmProfile && foreignProfile);
     const [singleMode, burstMode, foreignMode] = await tx.insert(weaponFiringMode).values([
@@ -186,8 +190,11 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     const beforeEngine = await loadInitiativeEngineInTransaction(tx, base.encounterId);
     const afterEngine = advanceInitiativeTimeline(beforeEngine, 15);
     await persistInitiativeEngineInTransaction(tx, context, beforeEngine, afterEngine);
-    assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, second.itemInstanceId)))[0]?.loadedRounds, 0);
+    assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, second.itemInstanceId)))[0]?.loadedRounds, 1, "Single reloads insert each round after its authored cost.");
     await reconcileResponderOpportunityInTransaction(tx, context, actor, opportunities[0]!.id, { decision: "ineligible", reason: "No response is available in this fixture." });
+    const beforeSecondInsertion = await loadInitiativeEngineInTransaction(tx, base.encounterId);
+    const secondInsertion = beforeSecondInsertion.pendingActions.find(action => action.id === longLoad.pendingActionId)!;
+    await persistInitiativeEngineInTransaction(tx, context, beforeSecondInsertion, advanceInitiativeTimeline(beforeSecondInsertion, secondInsertion.expectedCompletionInitiative));
     assert.equal((await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.itemInstanceId, second.itemInstanceId)))[0]?.loadedRounds, 2);
     assert.equal((await tx.select().from(campaignCharacterFirearmPreparation).where(eq(campaignCharacterFirearmPreparation.id, longLoad.preparationId)))[0]?.status, "completed");
 
@@ -195,6 +202,10 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     const interruptedUnload = await startFirearmPreparationInTransaction(tx, context, base.godId, {
       characterId: base.heroId, itemInstanceId: second.itemInstanceId, operation: "unload", partialLoadDisposition: "retain", idempotencyKey: `interrupt-${suffix}`,
     });
+    const checkpoint = await readOpenDeclarationCheckpoint(tx, base.encounterId);
+    for (const participantId of checkpoint?.participantIdsJson ?? []) {
+      if (!checkpoint!.choicesJson.some(choice => choice.participantId === participantId)) await passParticipantInitiativeInTransaction(tx, context, participantId);
+    }
     const interruptedDeclaration = (await tx.select().from(campaignCharacterFirearmPreparation).where(eq(campaignCharacterFirearmPreparation.id, interruptedUnload.preparationId)))[0]!.actionDeclarationId!;
     await interruptActionDeclarationInTransaction(tx, context, actor, interruptedDeclaration, "Interrupted by test hazard");
     assert.equal((await tx.select().from(campaignCharacterFirearmPreparation).where(eq(campaignCharacterFirearmPreparation.id, interruptedUnload.preparationId)))[0]?.status, "interrupted");
@@ -231,5 +242,5 @@ test("guarded exact firearm, ammunition, Initiative, audit, NPC, Creature, retry
     assert.equal((await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.characterId, base.heroId))).filter(({ itemId }) => itemId === firearmItem.id).length, 2);
 
     throw ROLLBACK;
-  }), (error: unknown) => error === ROLLBACK);
+  }), (error: unknown) => { if (error !== ROLLBACK) throw error; return true; });
 });

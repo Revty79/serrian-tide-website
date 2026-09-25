@@ -1,3 +1,7 @@
+"use client";
+
+import { useInventoryLocations } from "./inventory-location-controls";
+import { displayMeasurement } from "@/features/items/container-physics";
 import {
   CHARACTER_ATTRIBUTE_KEYS,
   CHARACTER_ATTRIBUTE_LABELS,
@@ -52,6 +56,7 @@ import { ItemChargePanel } from "./item-charge-panel";
 import { DerivedAbilityPanel } from "./derived-ability-panel";
 
 type Props = {
+  onInventoryVersionChange: (version: number) => void;
   aggregate: CharacterAggregate;
   draft: CharacterDraft;
   selectedRace: CharacterAggregate["selectedRace"];
@@ -104,7 +109,8 @@ function displayEncumbrance(
     : measured;
 }
 
-export function CharacterSheet({ aggregate, draft, selectedRace, section, showAttributeTable = true, showSkillTable = true, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode, canOperateRuntime }: Props) {
+export function CharacterSheet({ onInventoryVersionChange, aggregate, draft, selectedRace, section, showAttributeTable = true, showSkillTable = true, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode, canOperateRuntime }: Props) {
+  const locations = useInventoryLocations(aggregate.character.id, aggregate.profile.commerceVersion ?? 0, JSON.stringify(equipmentState), onInventoryVersionChange);
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -314,7 +320,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, section, showAt
                   {key === "STR" ? (
                     <div>
                       <dt>Encumbrance</dt>
-                      <dd>{displayEncumbrance(encumbrance)}</dd>
+                      <dd>{locations.view ? displayMeasurement(locations.view.carriedWeight, "lb") : displayEncumbrance(encumbrance)}</dd>
                     </div>
                   ) : null}
                 </dl>
@@ -367,7 +373,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, section, showAt
 
       </> : null}
       {section === "equipment" ? <>
-        <OwnedEquipmentList ownerDisabled={equipmentStateDisabled || aggregate.character.archivedAt !== null} aggregate={aggregate} draft={draft} equipment={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} useDisabled={itemUseDisabled || !canOperateRuntime} useDisabledReason={itemUseDisabledReason} includeEffectHistory={godMode} onEquipmentChange={onEquipmentStateChange} onEffectsChange={onActiveEffectsChange} onUseComplete={onItemUseComplete} />
+        <OwnedEquipmentList locations={locations} ownerDisabled={equipmentStateDisabled || aggregate.character.archivedAt !== null} aggregate={aggregate} draft={draft} equipment={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} useDisabled={itemUseDisabled || !canOperateRuntime} useDisabledReason={itemUseDisabledReason} includeEffectHistory={godMode} onEquipmentChange={onEquipmentStateChange} onEffectsChange={onActiveEffectsChange} onUseComplete={onItemUseComplete} />
         {draft.itemInstances.some(owned => aggregate.authorizedItems.some(item => item.id === owned.itemId && (item.isFirearm || item.isMagazine))) ? <details className="character-equipment-disclosure"><summary>Magazine & Firearm Setup</summary>
           <MagazinePanel characterId={aggregate.character.id} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
           <FirearmSetupPanel characterId={aggregate.character.id} equipmentRevision={JSON.stringify(equipmentState.instances)} disabled={equipmentStateDisabled || !canOperateRuntime} compact onChange={onItemUseComplete} />

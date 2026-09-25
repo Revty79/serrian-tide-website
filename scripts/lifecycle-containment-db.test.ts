@@ -28,7 +28,8 @@ async function fixture() {
   const modelId = await id("insert into items(canonical_id,name,catalog_scope,record_type,family,category,price_basis) values($1,'Container','inventory','Item','Fixture','Fixture','unit') returning id", [`CONTAINER-${randomUUID()}`.toUpperCase()]);
   const itemId = await id("insert into items(canonical_id,name,catalog_scope,record_type,family,category,price_basis) values($1,'Supplies','inventory','Item','Fixture','Fixture','unit') returning id", [`CONTENT-${randomUUID()}`.toUpperCase()]);
   const exactItemId = await id("insert into items(canonical_id,name,catalog_scope,record_type,family,category,price_basis) values($1,'Charged copy','inventory','Item','Fixture','Fixture','unit') returning id", [`EXACT-${randomUUID()}`.toUpperCase()]);
-  await pool.query("insert into container_profiles(item_id) values($1)", [modelId]);
+  await pool.query("insert into container_profiles(item_id,max_weight_lb,volume_capacity_l,max_item_dimension_cm) values($1,100,100,100)", [modelId]);
+  await pool.query("update items set weight=1,weight_unit='lb',volume_l=1,longest_dimension_cm=10 where id=any($1::int[])", [[modelId, itemId, exactItemId]]);
   await pool.query("insert into item_runtime_profiles(item_id,use_mode,maximum_charges,charges_per_use) values($1,'charges',5,1)", [exactItemId]);
   const actor: LifecycleActor = { userId: ownerId, roles: ["god"] };
   async function character(kind: CharacterKind, contents: Contents = "nested") {

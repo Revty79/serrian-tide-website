@@ -63,6 +63,8 @@ next-env.d.ts
 /artifacts/race-authoring/
 /artifacts/character-sheet-pass-one/
 /artifacts/guidance/
+/.next-container-physical-browser/
+/artifacts/container-pass-two/
 /artifacts/combat-screens/attack-location-2026-09-21/
 /artifacts/combat-screens/item-flow-2026-09-21/
 /artifacts/combat-screens/defeat-fame-2026-09-21/

@@ -1,12 +1,27 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, index, integer, pgTable, primaryKey } from "drizzle-orm/pg-core";
+import { boolean, check, doublePrecision, foreignKey, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 import { item } from "./item-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance } from "./realm-schema";
 
-/** Presence identifies a container model. Later passes can extend this profile. */
+/** Ordinary physical limits; null means this particular limit is not authored. */
 export const containerProfile = pgTable("container_profiles", {
   itemId: integer("item_id").primaryKey().references(() => item.id, { onDelete: "cascade" }),
-});
+  classification: text("classification").notNull().default("generic"),
+  maxWeightLb: doublePrecision("max_weight_lb"),
+  volumeCapacityL: doublePrecision("volume_capacity_l"),
+  maxItemDimensionCm: doublePrecision("max_item_dimension_cm"),
+  allowsNestedContainers: boolean("allows_nested_containers").notNull().default(true),
+  liquidOnly: boolean("liquid_only").notNull().default(false),
+  allowedCategories: text("allowed_categories").array().notNull().default(sql`'{}'::text[]`),
+  allowedRecordTypes: text("allowed_record_types").array().notNull().default(sql`'{}'::text[]`),
+  containedWeightBehavior: text("contained_weight_behavior").notNull().default("normal"),
+}, (t) => [
+  check("container_weight_behavior_valid", sql`${t.containedWeightBehavior} = 'normal'`),
+  check("container_classification_valid", sql`${t.classification} in ('pocket','pouch','backpack','quiver','sheath','holster','case','chest','crate','bottle','flask','generic')`),
+  check("container_weight_finite", sql`${t.maxWeightLb} is null or (${t.maxWeightLb} >= 0 and ${t.maxWeightLb} < 'Infinity'::float8)`),
+  check("container_volume_finite", sql`${t.volumeCapacityL} is null or (${t.volumeCapacityL} >= 0 and ${t.volumeCapacityL} < 'Infinity'::float8)`),
+  check("container_dimension_finite", sql`${t.maxItemDimensionCm} is null or (${t.maxItemDimensionCm} >= 0 and ${t.maxItemDimensionCm} < 'Infinity'::float8)`),
+]);
 
 /** Only contained copies have rows; ownership and acquisition costs stay in the instance table. */
 export const inventoryInstanceLocation = pgTable("inventory_instance_location", {

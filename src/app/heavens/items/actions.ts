@@ -87,6 +87,9 @@ import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import { magazineProfile, magazineAmmunition, weaponMagazine } from "@/db/magazine-schema";
 import { saveMagazineCatalogInTransaction, type MagazineProfileDraft } from "@/features/items/magazine-catalog-service";
+import { containerProfile } from "@/db/container-schema";
+import { saveContainerProfileInTransaction } from "@/features/items/container-catalog-service";
+import { physicalAmount, normalizePhysicalForm, normalizeContainerPhysicalProfile, type ContainerPhysicalProfile } from "@/features/items/container-physics";
 import {
   copyItemPowers,
   resolveItemPowerConstruction,
@@ -201,6 +204,9 @@ export type ItemDraft = {
     weight: number | null;
     weightUnit: string;
     size: string;
+    volumeL?: number | null;
+    physicalForm?: "solid" | "liquid" | null;
+    longestDimensionCm?: number | null;
     durability: number | null;
     credits: number | null;
     priceBasis: string;
@@ -223,6 +229,7 @@ export type ItemDraft = {
     sortOrder: number;
   }>;
   magazineProfile?: MagazineProfileDraft | null;
+  containerProfile?: ContainerPhysicalProfile | null;
   weaponProfile: null | {
     profileRecordType: string;
     weaponType: string;
@@ -454,6 +461,9 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegac
       weight: nonNegative(input.core.weight, "Weight"),
       weightUnit: clean(input.core.weightUnit),
       size: clean(input.core.size),
+      volumeL: input.core.volumeL === undefined ? undefined : physicalAmount(input.core.volumeL, "External volume"),
+      physicalForm: input.core.physicalForm === undefined ? undefined : normalizePhysicalForm(input.core.physicalForm),
+      longestDimensionCm: input.core.longestDimensionCm === undefined ? undefined : physicalAmount(input.core.longestDimensionCm, "Longest dimension"),
       durability: nonNegative(input.core.durability, "Durability"),
       credits: nonNegative(input.core.credits, "Credits"),
       priceBasis: required(input.core.priceBasis, "Price Basis"),
@@ -789,6 +799,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
     db.select().from(itemPowerResource).where(eq(itemPowerResource.itemId, id)).limit(1),
   ]);
   const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
+  const [container] = await db.select().from(containerProfile).where(eq(containerProfile.itemId, id));
   const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
   const compatibleMagazines = weaponRows[0] ? await db.select({ id: item.id, name: item.name }).from(weaponMagazine).innerJoin(item, eq(item.id, weaponMagazine.magazineItemId)).where(eq(weaponMagazine.weaponProfileId, weaponRows[0].id)) : [];
   const relatedItemIds = properties.map(({ relatedItemId }) => relatedItemId).filter((value): value is number => value !== null);
@@ -879,7 +890,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       canonicalId: row.canonicalId, name: row.name, catalogScope: row.catalogScope as ItemCatalogScope,
       equipmentGroup: row.equipmentGroup as EquipmentCatalogGroup | null, recordType: row.recordType, family: row.family,
       category: row.category, subtype: row.subtype, description: row.description, weight: row.weight, weightUnit: row.weightUnit,
-      size: row.size, durability: row.durability, credits: row.credits, priceBasis: row.priceBasis,
+      size: row.size, volumeL: row.volumeL, physicalForm: normalizePhysicalForm(row.physicalForm), longestDimensionCm: row.longestDimensionCm, durability: row.durability, credits: row.credits, priceBasis: row.priceBasis,
       parentItemId: row.parentItemId, parentItemName, sourceSystem: row.sourceSystem, sourceExternalId: row.sourceExternalId,
     },
     properties: properties.map((property) => ({
@@ -891,6 +902,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       notes: property.notes, sortOrder: property.sortOrder,
     })),
     magazineProfile: magazine ? { capacityRounds: magazine.capacityRounds, fillInitiativeCostPerRound: magazine.fillInitiativeCostPerRound, ammunition: magazineAmmo } : null,
+    containerProfile: container ? normalizeContainerPhysicalProfile(container as ContainerPhysicalProfile) : null,
     weaponProfile: weapon ? {
       reloadType: weapon.reloadType as "Single" | "Magazine" | null, compatibleMagazines,
       profileRecordType: weapon.profileRecordType, weaponType: weapon.weaponType, handedness: weapon.handedness,
@@ -1369,6 +1381,8 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       await tx.insert(itemTagLink).values(tagRows.map(({ id: tagId }) => ({ itemId: id!, tagId })));
     }
     await saveMagazineCatalogInTransaction(tx, id!, input.magazineProfile ?? null, input.weaponProfile?.compatibleMagazines ?? []);
+    // Older callers may omit the profile; preserve it rather than disabling a container.
+    if (input.containerProfile !== undefined) await saveContainerProfileInTransaction(tx, id!, input.containerProfile);
     return id;
   });
 

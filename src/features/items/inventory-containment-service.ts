@@ -5,12 +5,14 @@ import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { containerProfile, inventoryInstanceLocation, inventoryStackLocation } from "@/db/container-schema";
 import { campaignCharacter, campaignCharacterProfile, campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { campaignSessionEncounter, campaignSessionEncounterParticipant } from "@/db/tabletop-operations-schema";
 import { canMutateActiveHealth, canReadActiveState } from "@/features/active-state/authorization";
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import { requireSession } from "@/lib/server-access";
 import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
 import { assertOutsideCombatEquipmentHandling } from "./magazine-inventory-service";
+import { assertContainmentEquipmentInTransaction, assertPhysicalDestination, assertPhysicalSourceRelieved, readInventoryPhysicsInTransaction } from "./inventory-physical-service";
 
 export type ContainmentTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type ContainmentCommand = {
@@ -38,6 +40,7 @@ async function access(tx: ContainmentTransaction, characterId: number, userId: s
     throw new Error("You do not have permission to manage this Character's inventory locations.");
   }
   if (mutate && (entity.archived || entity.campaignArchived)) throw new Error("Restore the Campaign and Character before moving inventory.");
+  return canMutateActiveHealth(subject, { ...entity, isCampaignMember: entity.member === userId }) && !entity.archived && !entity.campaignArchived;
 }
 
 async function snapshot(tx: ContainmentTransaction, characterId: number) {
@@ -129,6 +132,7 @@ export async function moveInventoryContentInTransaction(tx: ContainmentTransacti
     .where(eq(campaignCharacterProfile.characterId, command.characterId)).for("update");
   if (!profile || profile.version !== command.expectedCommerceVersion) throw new Error("Inventory changed or this move already completed. Reload before moving contents.");
   const view = await snapshot(tx, command.characterId);
+  const physicsBefore = await readInventoryPhysicsInTransaction(tx, command.characterId);
   const target = command.toContainerInstanceId === null ? null : container(view, command.toContainerInstanceId);
   if (target) resolveContainmentAncestry(view, target.instanceId);
   if (command.fromContainerInstanceId !== null) container(view, command.fromContainerInstanceId);
@@ -137,6 +141,7 @@ export async function moveInventoryContentInTransaction(tx: ContainmentTransacti
     positive(command.instanceId, "Exact copy identity");
     const owned = view.instances.find(row => row.instanceId === command.instanceId);
     if (!owned) throw new Error("Choose an active exact copy owned by this Character.");
+    if (physicsBefore.attachments.some(link => link.magazineInstanceId === owned.instanceId)) throw new Error("Detach this magazine from its firearm before moving it separately.");
     resolveContainmentAncestry(view, owned.instanceId);
     if (owned.containerInstanceId !== command.fromContainerInstanceId) throw new Error("This copy's location changed. Reload before moving it.");
     if (target && (target.instanceId === owned.instanceId || resolveContainmentAncestry(view, target.instanceId).includes(owned.instanceId))) {
@@ -168,6 +173,13 @@ export async function moveInventoryContentInTransaction(tx: ContainmentTransacti
         containerInstanceId: target.instanceId, containerItemId: target.itemId, quantity: command.quantity });
     }
   }
+  const physicsAfter = await readInventoryPhysicsInTransaction(tx, command.characterId);
+  assertPhysicalSourceRelieved(physicsBefore, physicsAfter, command.fromContainerInstanceId);
+  if (target) {
+    await assertContainmentEquipmentInTransaction(tx, command.characterId);
+    assertPhysicalDestination(physicsAfter, target.instanceId);
+    if (command.kind === "instance" && view.instances.find(copy => copy.instanceId === command.instanceId)?.isContainer) assertPhysicalDestination(physicsAfter, command.instanceId);
+  }
   await tx.update(campaignCharacterProfile).set({ commerceVersion: profile.version + 1, updatedAt: new Date() })
     .where(eq(campaignCharacterProfile.characterId, command.characterId));
   await publishCharacterStateInvalidationInTransaction(tx, command.characterId);
@@ -182,4 +194,21 @@ export async function readInventoryContainment(characterId: number) {
 export async function moveInventoryContent(command: ContainmentCommand) {
   const session = await requireSession();
   return db.transaction(tx => moveInventoryContentInTransaction(tx, session.user.id, command));
+}
+
+export async function readPhysicalInventoryInTransaction(tx: ContainmentTransaction, userId: string, characterId: number) {
+  const canManage = await access(tx, characterId, userId, false);
+  const location = await readInventoryContainmentInTransaction(tx, userId, characterId);
+  const physics = await readInventoryPhysicsInTransaction(tx, characterId);
+  let movementBlockedReason: string | null = canManage ? null : "You have read-only access to this Character's inventory.";
+  const [combat] = await tx.select({ id: campaignSessionEncounter.id }).from(campaignSessionEncounter)
+    .innerJoin(campaignSessionEncounterParticipant, eq(campaignSessionEncounterParticipant.encounterId, campaignSessionEncounter.id))
+    .where(and(eq(campaignSessionEncounterParticipant.characterId, characterId), eq(campaignSessionEncounter.status, "active"))).limit(1);
+  if (combat) movementBlockedReason = "Inventory rearrangement is unavailable during active combat or Freeze. Container handling and Initiative rules are not implemented yet.";
+  return { ...location, ...physics, canManage, movementBlockedReason };
+}
+export type PhysicalInventoryView = Awaited<ReturnType<typeof readPhysicalInventoryInTransaction>>;
+export async function readPhysicalInventory(characterId: number) {
+  const session = await requireSession();
+  return db.transaction(tx => readPhysicalInventoryInTransaction(tx, session.user.id, characterId));
 }

@@ -4,10 +4,11 @@ import type { db } from "@/db";
 import { containerProfile } from "@/db/container-schema";
 import { item } from "@/db/item-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { normalizeContainerPhysicalProfile, type ContainerPhysicalProfile } from "./container-physics";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-/** Internal catalog operation; call only after authorizing Item editing. No Player endpoint in Pass 1. */
+/** Internal catalog operation; call only after authorizing Item editing. */
 export async function setContainerProfileInTransaction(tx: Transaction, itemId: number, enabled: boolean) {
   if (!Number.isSafeInteger(itemId) || itemId <= 0 || typeof enabled !== "boolean") throw new Error("Choose a saved Item and whether it is a container.");
   const [model] = await tx.select({ id: item.id }).from(item).where(and(eq(item.id, itemId), isNull(item.archivedAt))).for("update");
@@ -23,4 +24,14 @@ export async function setContainerProfileInTransaction(tx: Transaction, itemId: 
     if (copy) throw new Error("Keep the container profile while owned copy records exist.");
     await tx.delete(containerProfile).where(eq(containerProfile.itemId, itemId));
   }
+}
+
+export async function saveContainerProfileInTransaction(tx: Transaction, itemId: number, profile: ContainerPhysicalProfile | null) {
+  const normalized = profile === null ? null : normalizeContainerPhysicalProfile(profile);
+  if (normalized && normalized.maxWeightLb === null && normalized.volumeCapacityL === null) {
+    const [existing] = await tx.select().from(containerProfile).where(eq(containerProfile.itemId, itemId));
+    if (!existing || existing.maxWeightLb !== null || existing.volumeCapacityL !== null) throw new Error("Author a finite contents weight or internal volume capacity for this container.");
+  }
+  await setContainerProfileInTransaction(tx, itemId, normalized !== null);
+  if (normalized) await tx.update(containerProfile).set(normalized).where(eq(containerProfile.itemId, itemId));
 }

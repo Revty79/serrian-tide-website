@@ -52,9 +52,10 @@ test("container foundation and inventory regressions use disposable migrated Pos
     const childEnvironment = { ...process.env };
     delete childEnvironment.NODE_TEST_CONTEXT;
     let executedScripts = 0;
-    for (const script of ["scripts/lifecycle-containment-db.test.ts", "scripts/lifecycle-service-db.test.ts", "scripts/skill-framework-reference-db.test.ts", "scripts/tabletop-lifecycle-db.test.ts", "scripts/inventory-containment-db.test.mjs", "scripts/magazine-inventory-db.test.ts", "scripts/combat-completion-firearms-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-freeze-db.test.ts"]) {
+    const failedScripts: string[] = [];
+    for (const script of ["scripts/container-physical-db.test.mjs", "scripts/lifecycle-containment-db.test.ts", "scripts/lifecycle-service-db.test.ts", "scripts/skill-framework-reference-db.test.ts", "scripts/tabletop-lifecycle-db.test.ts", "scripts/inventory-containment-db.test.mjs", "scripts/magazine-inventory-db.test.ts", "scripts/combat-completion-firearms-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-freeze-db.test.ts", "scripts/firearm-readiness-db.test.ts", "scripts/firearm-attack-db.test.ts"]) {
       let output: string;
-      if (process.env.CONTAINMENT_CASE_FILTER && !script.includes(process.env.CONTAINMENT_CASE_FILTER)) continue;
+      if (process.env.CONTAINMENT_CASE_FILTER && !process.env.CONTAINMENT_CASE_FILTER.split(",").some(filter => script.includes(filter.trim()))) continue;
       executedScripts++;
       try { output = execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
         cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: 180_000,
@@ -63,13 +64,15 @@ test("container foundation and inventory regressions use disposable migrated Pos
         const failed = error as { stdout?: string; stderr?: string };
         process.stdout.write(failed.stdout ?? "");
         process.stderr.write(failed.stderr ?? "");
-        throw new Error(`${script} failed; see its executed TAP cases above.`);
+        failedScripts.push(script);
+        continue;
       }
       process.stdout.write(output);
       const executed = /# tests (\d+)/.exec(output);
       assert.ok(executed && Number(executed[1]) > 0, `${script} must execute tests, not silently skip its child runner.`);
       assert.match(output, /# fail 0\b/);
     }
+    assert.deepEqual(failedScripts, [], "Every selected database suite must pass; see failed TAP cases above.");
     assert.ok(executedScripts > 0, "The containment case filter must match at least one service test script.");
   } finally {
     if (pool) await pool.end();
