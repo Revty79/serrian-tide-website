@@ -22,6 +22,7 @@ export default defineConfig({
     "./src/db/item-schema.ts",
     "./src/db/magazine-schema.ts",
     "./src/db/container-schema.ts",
+    "./src/db/inventory-access-schema.ts",
     "./src/db/realm-schema.ts",
     "./src/db/shop-schema.ts",
     "./src/db/town-schema.ts",

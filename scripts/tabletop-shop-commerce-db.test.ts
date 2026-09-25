@@ -315,6 +315,16 @@ test("Shop commerce is atomic, repeat-safe, policy-bound, state-preserving, and 
     assert.equal(Number((await one<{ value: number }>(seedPool, "select count(*)::int value from shop_transaction where request_id=$1", [concurrentApprovalRequest.requestId])).value), 1);
 
     await seedPool.query("update shop set character_purchase_mode='immediate',sold_item_handling='remove-from-active-play',changed_sale_confirmation_mode='character-owner-accepts' where id=$1", [shop.id]);
+    await seedPool.query("insert into inventory_instance_custody(instance_id,character_id,item_id,status,actor_user_id) values($1,$2,$3,'lost',$4)", [soldInstance.id, characterIds[0], chargedItem.id, godId]);
+    await assert.rejects(dbModule.db.transaction(tx => commerce.submitPlayerSaleInTransaction(tx, {
+      visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ itemId: chargedItem.id, itemInstanceId: soldInstance.id, quantity: 1 }], submissionKey: "unavailable-exact-sale",
+    }, playerIds[0]!)), /Unavailable/);
+    await seedPool.query("delete from inventory_instance_custody where instance_id=$1", [soldInstance.id]);
+    await seedPool.query("insert into inventory_stack_custody(character_id,item_id,quantity,status,actor_user_id) select character_id,item_id,quantity,'stolen',$3 from campaign_character_item where character_id=$1 and item_id=$2", [characterIds[0], stackItem.id, godId]);
+    await assert.rejects(dbModule.db.transaction(tx => commerce.submitPlayerSaleInTransaction(tx, {
+      visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ itemId: stackItem.id, quantity: 1 }], submissionKey: "unavailable-stack-sale",
+    }, playerIds[0]!)), /Not enough carried/);
+    await seedPool.query("delete from inventory_stack_custody where character_id=$1 and item_id=$2", [characterIds[0], stackItem.id]);
     const stackSale = await dbModule.db.transaction((tx) => commerce.submitPlayerSaleInTransaction(tx, {
       visitId: visit.visitId, characterId: characterIds[0]!, lines: [{ itemId: stackItem.id, quantity: 1 }], narrativeNote: "Selling one ration.", submissionKey: "sale-stack-a",
     }, playerIds[0]!));

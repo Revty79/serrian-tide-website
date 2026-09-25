@@ -1,5 +1,6 @@
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
+import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import { assertNoOpenDeclarationCheckpoint } from "./declaration-checkpoint-service";
 
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -1196,6 +1197,12 @@ async function applySupportedEffects(
     .where(eq(campaignSessionEncounterEffect.planId, plan.id))
     .orderBy(asc(campaignSessionEncounterEffect.id))
     .for("update");
+  // A receipt for a paid/applied effect permits retry after consuming the source.
+  if (plan.sourceKind === "item" && !effects.some(row => row.status === "applied")) {
+    const source = assertFrozenActionSourceSnapshot(plan.sourceSnapshotJson);
+    if (source.sourceInstanceId !== null) await assertExactInventoryAvailable(tx, plan.actorParticipantId, source.sourceInstanceId);
+    else await assertLooseStackAvailable(tx, plan.actorParticipantId, Number(source.sourceId), 1);
+  }
   if (plan.sourceKind === "weapon" && plan.sourceIdentity.startsWith("firearm-attack:")) {
     const source = assertFrozenActionSourceSnapshot(plan.sourceSnapshotJson);
     const costs = effects.filter(({ effectType, status }) => effectType === "resource.item-charges" && ["approved", "application-failed"].includes(status))

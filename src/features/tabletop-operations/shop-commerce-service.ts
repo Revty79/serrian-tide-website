@@ -1,3 +1,4 @@
+import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
 
 import { createHash } from "node:crypto";
@@ -1008,6 +1009,8 @@ async function removeSoldOwnership(
       instanceIds.push(line.itemInstanceId);
     }
   }
+  for (const [id, quantity] of soldStackQuantities) await assertLooseStackAvailable(tx, input.context.characterId, id, quantity);
+  for (const id of instanceIds) await assertExactInventoryAvailable(tx, input.context.characterId, id);
   const nextStacks = currentStacks.map((entry) => ({
     itemId: entry.itemId,
     quantity: entry.quantity - (soldStackQuantities.get(entry.itemId) ?? 0),
@@ -1730,6 +1733,10 @@ async function buildSaleRequestLines(
   requested: ReturnType<typeof normalizeSaleLines>,
 ) {
   const itemIds = [...new Set(requested.map(({ itemId }) => itemId))];
+  for (const selected of requested) {
+    if (selected.itemInstanceId !== null) await assertExactInventoryAvailable(tx, context.characterId, selected.itemInstanceId);
+    else await assertLooseStackAvailable(tx, context.characterId, selected.itemId, selected.quantity);
+  }
   const definitions = await loadItemDefinitions(tx, context.campaignId, itemIds);
   if (definitions.size !== itemIds.length || [...definitions.values()].some(({ archivedAt }) => archivedAt)) {
     throw new Error("Sale requests require active Items authorized by this Campaign.");

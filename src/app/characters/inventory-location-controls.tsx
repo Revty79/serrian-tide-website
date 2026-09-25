@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { calculateContainerPhysics, displayMeasurement, formatPhysical } from "@/features/items/container-physics";
 import type { ContainmentCommand, PhysicalInventoryView, SubstanceCommand } from "@/features/items/inventory-containment-service";
-import { getPhysicalInventoryAction, moveInventoryLocationAction, changeContainerSubstanceAction } from "./inventory-location-actions";
+import { getPhysicalInventoryAction, moveInventoryLocationAction, changeContainerSubstanceAction, handleInventoryAction } from "./inventory-location-actions";
+import type { InventoryHandlingCommand } from "@/features/items/inventory-custody-service";
+import { InventoryCustodyControls } from "./inventory-custody-controls";
+import { resolveInventoryAvailability } from "@/features/items/inventory-access";
 import "./inventory-location-controls.css";
 
 export function useInventoryLocations(characterId: number, version: number, revision: string, onVersionChange: (version: number) => void) {
@@ -40,13 +43,20 @@ export function useInventoryLocations(characterId: number, version: number, revi
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Substance could not be changed."); }
     finally { setBusy(false); }
   }
-  return { view, busy, error, notice, move, changeSubstance, reload: () => setRefresh(value => value + 1) };
+  async function handle(command: InventoryHandlingCommand) {
+    if (busy) return;
+    sequence.current++; setBusy(true); setError(null); setNotice(null);
+    try { const result = await handleInventoryAction(command); setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory custody/access saved."); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Inventory handling failed."); }
+    finally { setBusy(false); }
+  }
+  return { view, busy, error, notice, move, changeSubstance, handle, reload: () => setRefresh(value => value + 1) };
 }
 export type InventoryLocations = ReturnType<typeof useInventoryLocations>;
 
 export function PhysicalInventorySummary({ locations }: { locations: InventoryLocations }) {
   return <div className="inventory-physical-summary">
-    {locations.view ? <p><strong>Carried weight: {displayMeasurement(locations.view.carriedWeight, "lb")}</strong><small>Includes each owned Item once, nested contents, and authored loaded ammunition weight.</small></p> : <p>Loading inventory locations…</p>}
+    {locations.view ? <p><strong>Carried weight: {displayMeasurement(locations.view.carriedWeight, "lb")}</strong><small>Includes carried Items, nested contents and loaded ammunition once. Dropped, stolen and lost roots and their contents are excluded.</small></p> : <p>Loading inventory locations…</p>}
     {locations.view?.movementBlockedReason ? <p role="note">{locations.view.movementBlockedReason}</p> : null}
     {locations.error ? <p role="alert" className="inventory-location-error">{locations.error} <button className="st-button" type="button" disabled={locations.busy} onClick={locations.reload}>Reload locations</button></p> : null}
     {locations.notice ? <p role="status">{locations.notice}</p> : null}
@@ -82,7 +92,8 @@ export function InventoryLocationControl({ locations, itemId, instanceId, saved,
   ];
   const attachment = view.attachments.find(link => link.magazineInstanceId === instanceId);
   const currentSource = portions.find(portion => String(portion.containerInstanceId ?? "loose") === source) ?? portions[0];
-  const blocked = disabled || locations.busy || !!view.movementBlockedReason || !!attachment;
+  const unavailableRoot = copy && resolveInventoryAvailability(view.accessGraph, { instanceId: copy.instanceId }).custody !== "carried";
+  const blocked = disabled || locations.busy || !!view.movementBlockedReason || !!attachment || !currentSource || !!unavailableRoot;
   function descendsFrom(destinationId: number) {
     const seen = new Set<number>();
     let next: number | null = destinationId;
@@ -118,6 +129,8 @@ export function InventoryLocationControl({ locations, itemId, instanceId, saved,
     }
   }
   return <div className="inventory-location">
+    <InventoryCustodyControls locations={locations} itemId={itemId} instanceId={instanceId} disabled={disabled} />
+    {!copy ? stack!.allocations.map(portion => { const access = resolveInventoryAvailability(view.accessGraph, { itemId, containerInstanceId: portion.containerInstanceId }); return access.blocker ? <p key={portion.containerInstanceId}>{portion.quantity} × {locationPath(view, portion.containerInstanceId)} — {access.blocker}</p> : null; }) : null}
     <p>Location: {attachment ? `Attached to ${copyName(view, attachment.weaponInstanceId)}` : portions.map(portion => `${copy ? "" : `${portion.quantity} × `}${locationPath(view, portion.containerInstanceId)}`).join("; ")}</p>
     <button className="st-button" type="button" disabled={blocked} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Close move controls" : "Move"}</button>
     {copy?.isContainer ? <SubstanceControls locations={locations} instanceId={copy.instanceId} disabled={blocked} /> : null}

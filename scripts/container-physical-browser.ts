@@ -107,7 +107,7 @@ export async function runContainerPhysicalBrowser(f: Fixture) {
     await player.reload(); await player.locator("#character-tab-equipment").click(); await player.getByText(/Carried weight:/).waitFor();
     assert.match(await supplies.innerText(), /12 × Loose/);
     await pool.query("update campaign_session_encounter set status='active',completed_at=null where id=$1", [f.encounterId]);
-    await player.reload(); await player.locator("#character-tab-equipment").click(); await player.getByText(/Container handling and Initiative rules are not implemented yet/).waitFor();
+    await player.reload(); await player.locator("#character-tab-equipment").click(); await player.getByText(/Use Inventory handling in the combat Item controls/).waitFor();
     assert.equal(await supplies.getByRole("button", { name: "Move", exact: true }).isDisabled(), true);
     console.log("PASS: Player organization without Add/Remove privileges, phone layout, persistence and active-combat explanation");
     await page.goto(`${base}/heavens/equipment`);
@@ -133,6 +133,8 @@ export async function runContainerPhysicalBrowser(f: Fixture) {
     await page.screenshot({ path: `${artifacts}/authoring-mobile.png`, fullPage: true });
     const { runContainerMagicBrowser } = await import("./container-magic-browser");
     await runContainerMagicBrowser({ page, player, base, f, backpackName, until });
+    const { runContainerAccessBrowser } = await import("./container-access-browser");
+    await runContainerAccessBrowser({ page, player, base, f, backpackName, until });
     assert.deepEqual(errors, []);
     console.log("PASS: physical Item authoring save/reload, narrow layout and zero browser page errors");
   } catch (error) {

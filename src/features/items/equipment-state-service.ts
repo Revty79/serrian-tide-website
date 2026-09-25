@@ -53,6 +53,8 @@ import { requireSession } from "@/lib/server-access";
 import { lockActiveItemRootInTransaction } from "./active-item-root-service";
 import { validateContainmentOwnershipMutationInTransaction } from "./containment-ownership-service";
 import { assertInstanceCanBeWornInTransaction, assertStackCanBeWornInTransaction } from "./inventory-physical-service";
+import { assertExactInventoryAvailable, assertLooseStackAvailable, readInventoryAccessInTransaction } from "./inventory-access-service";
+import { resolveInventoryAvailability } from "./inventory-access";
 import { resolveFirearmFiringMode } from "./firearm-timing";
 
 import {
@@ -275,6 +277,10 @@ export async function readCharacterEquipmentStateInTransaction(
 ): Promise<CharacterEquipmentStateView> {
   positiveId(characterId, "Equipment State Character");
   const snapshot = await loadOwnedEquipmentInTransaction(tx, characterId);
+  const inventoryAccess = await readInventoryAccessInTransaction(tx, characterId);
+  const operational = (entry: { instanceId: number | null; itemId: number }) => entry.instanceId !== null
+    ? resolveInventoryAvailability(inventoryAccess, { instanceId: entry.instanceId }).usable
+    : (inventoryAccess.stacks.find(row => row.itemId === entry.itemId)?.looseQuantity ?? 0) > 0;
   const itemIds = [...new Set([
     ...snapshot.stacks.map(({ itemId }) => itemId),
     ...snapshot.instances.map(({ itemId }) => itemId),
@@ -485,8 +491,8 @@ export async function readCharacterEquipmentStateInTransaction(
       };
     }),
     instances: snapshot.instances,
-    wornArmor,
-    wieldedWeapons,
+    wornArmor: wornArmor.filter(operational),
+    wieldedWeapons: wieldedWeapons.filter(operational),
     activeManualPassives,
   };
 }
@@ -528,10 +534,14 @@ export async function reconcileItemPassiveEffectsInTransaction(
   });
   const reconciliationIds = [...new Set(requestedIds ? [...requestedIds] : [...ownedIds, ...existingIds])];
   const passives = await loadPassiveEffectsInTransaction(tx, reconciliationIds);
+  const accessGraph = await readInventoryAccessInTransaction(tx, characterId);
   const desired = passives.flatMap((entry) => {
     const instances = snapshot.instances.filter((instance) => instance.itemId === entry.itemId
+      && resolveInventoryAvailability(accessGraph, { instanceId: instance.instanceId }).custody === "carried"
       && stateSatisfiesEquipmentRequirement(instance.state, entry.requiredEquipmentState));
-    const stackActive = getActiveStackQuantity(snapshot.activeStackQuantities.get(entry.itemId) ?? {}) > 0
+    const carriedStackQuantity = accessGraph.stacks.find(row => row.itemId === entry.itemId)?.looseQuantity ?? 0;
+    const carriedContained = accessGraph.stacks.find(row => row.itemId === entry.itemId)?.allocations.filter(row => resolveInventoryAvailability(accessGraph, { itemId: entry.itemId, containerInstanceId: row.containerInstanceId }).custody === "carried").reduce((total, row) => total + row.quantity, 0) ?? 0;
+    const stackActive = carriedStackQuantity + carriedContained > 0 && getActiveStackQuantity(snapshot.activeStackQuantities.get(entry.itemId) ?? {}) > 0
       && itemIsActiveFor({ ...snapshot, instances: [] }, entry.itemId, entry.requiredEquipmentState);
     const owners = [
       ...(stackActive ? [{ ownerKey: "stack" }] : []),
@@ -679,6 +689,7 @@ export async function assertConsumableHasInactiveQuantityInTransaction(
       eq(campaignCharacterItemEquipmentState.characterId, input.characterId),
       eq(campaignCharacterItemEquipmentState.itemId, input.itemId),
     ));
+  await assertLooseStackAvailable(tx, input.characterId, input.itemId, input.consumeQuantity);
   const activeQuantity = rows.reduce((total, row) => total + row.quantity, 0);
   if (input.ownedQuantity - input.consumeQuantity < activeQuantity) {
     throw new Error("This Item use would consume an active equipped copy. Set enough copies to Inactive first.");
@@ -793,6 +804,10 @@ export async function setStackEquipmentStateInTransaction(
     .where(and(eq(campaignCharacterItemEquipmentState.characterId, command.characterId), eq(campaignCharacterItemEquipmentState.itemId, command.itemId)));
   const nextActive = states.reduce((total, row) => total + (row.state === command.state ? 0 : row.quantity), 0) + command.quantity;
   getInactiveStackQuantity(ownership.quantity, nextActive);
+  const access = await readInventoryAccessInTransaction(tx, command.characterId);
+  const stock = access.stacks.find(row => row.itemId === command.itemId);
+  const carried = (stock?.looseQuantity ?? 0) + (stock?.allocations ?? []).filter(row => resolveInventoryAvailability(access, { itemId: command.itemId, containerInstanceId: row.containerInstanceId }).custody === "carried").reduce((sum, row) => sum + row.quantity, 0);
+  if (nextActive > carried) throw new Error("Unavailable inventory cannot enter an active equipment state.");
   await assertStackCanBeWornInTransaction(tx, command.characterId, command.itemId, command.state, command.quantity, ownership.quantity);
   if (command.quantity === 0) {
     await tx.delete(campaignCharacterItemEquipmentState).where(and(
@@ -879,6 +894,7 @@ export async function setInstanceEquipmentStateInTransaction(
   const owned = rows[0];
   if (!owned) throw new Error("Owned Item copy was not found.");
   if (owned.scope !== "equipment") throw new Error("Inventory-only Items cannot enter Equipment State.");
+  if (state !== "inactive") await assertExactInventoryAvailable(tx, command.characterId, command.instanceId, state !== "equipped");
   await assertInstanceCanBeWornInTransaction(tx, command.instanceId, state);
   await tx.update(campaignCharacterItemInstance).set({ equipmentState: state, updatedAt: new Date() }).where(and(
     eq(campaignCharacterItemInstance.characterId, command.characterId),

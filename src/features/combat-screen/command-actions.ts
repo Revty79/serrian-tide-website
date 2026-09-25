@@ -35,6 +35,39 @@ import { readMagazineInventoryInTransaction } from "@/features/items/magazine-in
 import { startCombatMagazineFill, type CombatMagazineFillCommand } from "@/features/tabletop-operations/combat-magazine-fill-service";
 import { readMeleeDrawOptions, startMeleeDraw, type MeleeDrawCommand } from "@/features/tabletop-operations/combat-melee-draw-service";
 import { weaponAttackMode } from "@/features/items/weapon-range";
+import { readPhysicalInventoryInTransaction } from "@/features/items/inventory-containment-service";
+import { startCombatInventory, requestInventoryCost, type CombatInventoryCommand } from "@/features/tabletop-operations/combat-inventory-service";
+import { readGodCombatRulingRequestsInTransaction, ruleOnPlayerCombatRequestInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
+import { campaignSessionEncounterActionDeclaration as inventoryDeclaration, campaignSessionEncounterPendingAction as inventoryTiming } from "@/db/tabletop-operations-schema";
+import { parseActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
+
+export async function readCombatInventory(scope: CombatScreenScope, characterId: number) {
+  return authorized(scope, async (tx, context, actor) => {
+    if (actor.authority === "player" && actor.characterId !== characterId) throw new Error("Choose your own Character.");
+    if (actor.authority === "god-owner" && await readOpenDeclarationCheckpoint(tx, context.encounterId)) {
+      const [owner] = await tx.select({ isNpc: campaignCharacter.isNpc }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId));
+      if (!owner?.isNpc) throw new Error("Inspect Player inventory handling after simultaneous choices are revealed.");
+    }
+    const view = await readPhysicalInventoryInTransaction(tx, actor.userId, characterId);
+    const rows = await tx.select().from(inventoryDeclaration).where(and(eq(inventoryDeclaration.encounterId, context.encounterId), eq(inventoryDeclaration.actorCharacterId, characterId)));
+    const timing = await tx.select().from(inventoryTiming).where(and(eq(inventoryTiming.encounterId, context.encounterId), eq(inventoryTiming.actorCharacterId, characterId)));
+    const requests = actor.authority === "player" ? await readPlayerCombatRulingRequestsInTransaction(tx, context.encounterId, characterId, actor.userId) : await readGodCombatRulingRequestsInTransaction(tx, context.encounterId);
+    return { view, requests: requests.filter(row => row.characterId === characterId && row.frozenRequest.inventoryHandling),
+      actions: rows.filter(row => parseActionDeclarationDraft(row.draftJson).actionKind === "combat-inventory").map(row => {
+        const action = timing.find(entry => entry.id === row.pendingActionId);
+        return { id: row.id, label: parseActionDeclarationDraft(row.draftJson).label, status: action?.status === "active" ? "pending" : row.status, remaining: action?.remainingInitiativeCost ?? null };
+      }) };
+  });
+}
+export async function handleCombatInventory(scope: CombatScreenScope, command: CombatInventoryCommand, requestCost = false) {
+  return authorized(scope, async (tx, context, actor) => { if (requestCost) return await requestInventoryCost(tx, context, actor, command); return await startCombatInventory(tx, context, actor, command); }, true);
+}
+export async function ruleCombatInventoryCost(scope: CombatScreenScope, requestId: number, cost: number, reason: string) {
+  return authorized(scope, async (tx, context, actor) => {
+    if (actor.authority !== "god-owner" || !Number.isFinite(cost) || cost < 0 || !reason.trim()) throw new Error("G.O.D. must supply a finite nonnegative cost and reason.");
+    await ruleOnPlayerCombatRequestInTransaction(tx, context, actor.userId, requestId, { status: "approved", response: reason, ruling: { initiativeCost: cost } });
+  }, true);
+}
 
 async function authorized<T>(scope: CombatScreenScope, operation: (tx: Tx, context: Awaited<ReturnType<typeof lockOwnedEncounterRuntimeInTransaction>>, actor: ActionDeclarationActor) => Promise<T>, publish = false) {
   if (scope.role !== "god" && scope.role !== "player") throw new Error("Invalid combat role.");

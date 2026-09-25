@@ -18,6 +18,7 @@ import styles from "./combat-screen.module.css";
 import { initiativeAffordabilityIssue } from "@/features/tabletop-operations/initiative-affordability";
 import { projectileWeaponFamily } from "@/features/items/firearm-classification";
 import { weaponAttackMode } from "@/features/items/weapon-range";
+import { InventoryHandlingControls } from "./inventory-handling-controls";
 type Sources = Awaited<ReturnType<typeof readCombatCommandSources>>;
 type Preview = Awaited<ReturnType<typeof previewCombatChoice>>;
 type Draft = { source: string; targets: number[]; groups: Record<string, number[]>; applications: Record<string, { poolKey?: string; hitLocationNumber?: number }>;
@@ -184,6 +185,7 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
     setCommand("Attack");
   }
   return <div data-combat-request-key={lastRequestKey}><h3>{command}</h3>
+    {command === "Item" || command === "Weapons" ? <InventoryHandlingControls scope={scope} characterId={entity.participantId} disabled={disabled} canControl={entity.canControl} refresh={refresh} revision={data.projection?.stateToken} /> : null}
     {attackCommand && entity.canControl ? <button className="st-button" onClick={() => setCommand("Weapons")}>Draw / change weapon</button> : null}
     {command === "Item" && sources ? <details><summary>Prepare weapons or ammunition</summary><MeleeDrawControls key={entity.participantId} scope={scope} entity={entity} options={sources.meleeDraws} disabled={disabled} refresh={refresh} />{sources.magazines ? <MagazineFillControls scope={scope} entity={entity} inventory={sources.magazines} disabled={disabled} refresh={refresh} /> : null}</details> : null}
     {sources?.aggregateIssue ? <p className={styles.notice} role="status">Some owned sources could not be loaded: {combatMessage(sources.aggregateIssue)}</p> : null}

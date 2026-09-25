@@ -11,6 +11,8 @@ import { campaignSessionEncounter as encounter, campaignSessionEncounterParticip
 import { canMutateActiveHealth, canReadActiveState } from "@/features/active-state/authorization";
 import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
 import { inventoryInstanceLocation } from "@/db/container-schema";
+import { assertLooseStackAvailable, readInventoryAccessInTransaction } from "./inventory-access-service";
+import { availableLooseQuantity, resolveInventoryAvailability } from "./inventory-access";
 import { assertInstanceLooseInTransaction } from "./containment-ownership-service";
 export type MagazineTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type MagazineCommand = { characterId: number; instanceId: number; requestKey: string; operation: "fill" | "add" | "empty"; ammunitionItemId: number | null; rounds: number | null; expectedRounds: number; expectedAmmunitionItemId: number | null };
@@ -40,6 +42,7 @@ export async function assertOutsideCombatEquipmentHandling(tx: MagazineTransacti
 
 export async function readMagazineInventoryInTransaction(tx: MagazineTransaction, characterId: number, userId: string) {
   const canManage = await access(tx, characterId, userId, false);
+  const accessGraph = await readInventoryAccessInTransaction(tx, characterId);
   const instances = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, capacity: magazineProfile.capacityRounds,
     fillInitiativeCostPerRound: magazineProfile.fillInitiativeCostPerRound,
     loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, archived: item.archivedAt, attachedWeaponInstanceId: firearmMagazineAttachment.weaponInstanceId,
@@ -54,7 +57,8 @@ export async function readMagazineInventoryInTransaction(tx: MagazineTransaction
       .innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId))
       .leftJoin(loose, and(eq(loose.itemId, item.id), eq(loose.characterId, characterId)))
       .where(eq(magazineAmmunition.magazineItemId, entry.itemId)).orderBy(asc(item.name));
-    magazines.push({ ...entry, archived: !!entry.archived, ammunition: ammunition.map((ammo) => ({ ...ammo, archived: !!ammo.archived, quantity: ammo.quantity ?? 0 })) });
+    const availability = resolveInventoryAvailability(accessGraph, { instanceId: entry.instanceId });
+    magazines.push({ ...entry, availability, archived: !!entry.archived, ammunition: ammunition.map((ammo) => ({ ...ammo, archived: !!ammo.archived, quantity: availableLooseQuantity(accessGraph, ammo.id) })) });
   }
   return { characterId, canManage, combatActive: await combatActive(tx, characterId), magazines };
 }
@@ -104,6 +108,7 @@ export async function handleMagazineInTransaction(tx: MagazineTransaction, userI
     if (!Number.isSafeInteger(transferred) || transferred <= 0) throw new Error("Enter a positive whole number of rounds; a full magazine cannot take more.");
     if (loadedRounds + transferred > model.capacity) throw new Error("These rounds would exceed the magazine's capacity.");
     if (!stack || stack.quantity < transferred) throw new Error("There is not enough compatible loose ammunition. Add fewer rounds or acquire more.");
+    await assertLooseStackAvailable(tx, command.characterId, ammoId!, transferred);
     unitCost = (loadedRounds * unitCost + transferred * stack.unitCostCredits) / (loadedRounds + transferred);
     if (stack.quantity === transferred) await tx.delete(loose).where(and(eq(loose.characterId, command.characterId), eq(loose.itemId, ammoId!)));
     else await tx.update(loose).set({ quantity: stack.quantity - transferred }).where(and(eq(loose.characterId, command.characterId), eq(loose.itemId, ammoId!)));

@@ -1,3 +1,4 @@
+import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { decimalMultiply, completedDecimalUnits } from "@/lib/decimal";
@@ -432,6 +433,7 @@ export async function initializeFirearmStateInTransaction(
       eq(campaignCharacterItem.itemId, command.itemId),
     )).limit(1).for("update");
     if (!stack) throw new Error("No legacy owned firearm copy is available to assign an exact instance identity.");
+    await assertLooseStackAvailable(tx, command.characterId, command.itemId, 1);
     if (stack.quantity === 1) {
       const deleted = await tx.delete(campaignCharacterItem).where(and(
         eq(campaignCharacterItem.characterId, command.characterId),
@@ -481,6 +483,7 @@ export async function initializeFirearmStateInTransaction(
     if (existing) throw new Error("This exact firearm copy already has runtime state.");
   }
 
+  await assertExactInventoryAvailable(tx, command.characterId, itemInstanceId!);
   const [createdState] = await tx.insert(campaignCharacterFirearmState).values({
     itemInstanceId: itemInstanceId!,
     campaignId: context.campaignId,
@@ -540,6 +543,7 @@ async function updateAmmunitionInventory(
   nextQuantity: number,
   fallbackUnitCostCredits: number,
 ): Promise<void> {
+  if (current && nextQuantity < current.quantity) await assertLooseStackAvailable(tx, characterId, ammunitionItemId, current.quantity - nextQuantity);
   if (nextQuantity < 0) throw new Error("Ammunition inventory cannot become negative.");
   if (current && nextQuantity === 0) {
     const deleted = await tx.delete(campaignCharacterItem).where(and(
@@ -1212,6 +1216,8 @@ export async function reconcileFirearmPreparationAfterResponderInTransaction(
   await finalizeMagazineFillDeclaration(tx, declarationId, actorUserId);
   const { completeMeleeDraw } = await import("./combat-melee-draw-service");
   await completeMeleeDraw(tx, declarationId, actorUserId);
+  const { completeCombatInventory } = await import("./combat-inventory-service");
+  await completeCombatInventory(tx, declarationId, actorUserId);
 }
 
 export async function readFirearmWorkspaceInTransaction(

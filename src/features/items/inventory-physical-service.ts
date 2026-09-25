@@ -8,10 +8,14 @@ import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacter
 import { campaignCharacterFirearmState } from "@/db/tabletop-operations-schema";
 import { calculateContainerPhysics, weightInLb, type ContainerPhysicalProfile, type PhysicalGraph } from "./container-physics";
 
+import { assertExactInventoryAvailable, assertLooseStackAvailable, readInventoryAccessInTransaction } from "./inventory-access-service";
+import { resolveInventoryAvailability } from "./inventory-access";
+
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Caller locks the Character. Shared catalog locks keep measurements stable through a move. */
 export async function readInventoryPhysicsInTransaction(tx: Transaction, characterId: number) {
+  const availability = await readInventoryAccessInTransaction(tx, characterId);
   const copies = await tx.select().from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.characterId, characterId), isNull(campaignCharacterItemInstance.retiredAt)));
   const locations = await tx.select().from(inventoryInstanceLocation).where(eq(inventoryInstanceLocation.characterId, characterId));
   const allocations = await tx.select().from(inventoryStackLocation).where(eq(inventoryStackLocation.characterId, characterId));
@@ -28,10 +32,10 @@ export async function readInventoryPhysicsInTransaction(tx: Transaction, charact
     isMagical: model.isMagical, physicalForm: model.physicalForm as "solid" | "liquid" | null, category: model.category, recordType: model.recordType,
     volumeL: model.volumeL, longestDimensionCm: model.longestDimensionCm, container: container as ContainerPhysicalProfile | null }));
   const graph: PhysicalGraph = {
-    instances: copies.map(copy => ({ instanceId: copy.id, itemId: copy.itemId, containerInstanceId: locations.find(location => location.instanceId === copy.id)?.containerInstanceId ?? null })),
+    instances: copies.map(copy => ({ instanceId: copy.id, itemId: copy.itemId, carried: resolveInventoryAvailability(availability, { instanceId: copy.id }).custody === "carried", containerInstanceId: locations.find(location => location.instanceId === copy.id)?.containerInstanceId ?? null })),
     stacks: stacks.map(stack => {
       const assigned = allocations.filter(location => location.itemId === stack.itemId).map(({ containerInstanceId, quantity }) => ({ containerInstanceId, quantity }));
-      return { itemId: stack.itemId, ownedQuantity: stack.quantity, looseQuantity: stack.quantity - assigned.reduce((total, allocation) => total + allocation.quantity, 0), allocations: assigned };
+      return { itemId: stack.itemId, ownedQuantity: stack.quantity, looseQuantity: availability.stacks.find(row => row.itemId === stack.itemId)!.looseQuantity, allocations: assigned };
     }),
   };
   const loads = [...copies.map(copy => ({ instanceId: copy.id, ammunitionItemId: copy.loadedAmmunitionItemId, rounds: copy.loadedRounds })),
@@ -83,11 +87,14 @@ export async function assertInstanceCanBeWornInTransaction(tx: Transaction, inst
   if (state !== "worn" && state !== "wielded") return;
   const [location] = await tx.select().from(inventoryInstanceLocation).where(eq(inventoryInstanceLocation.instanceId, instanceId));
   if (location) throw new Error("Move this Item to loose before marking it Worn or Wielded.");
+  const [copy] = await tx.select().from(campaignCharacterItemInstance).where(eq(campaignCharacterItemInstance.id, instanceId));
+  if (copy) await assertExactInventoryAvailable(tx, copy.characterId, instanceId);
 }
 export async function assertStackCanBeWornInTransaction(tx: Transaction, characterId: number, itemId: number, state: string, quantity: number, ownedQuantity: number) {
   if (state !== "worn" && state !== "wielded") return;
   const allocations = await tx.select().from(inventoryStackLocation).where(and(eq(inventoryStackLocation.characterId, characterId), eq(inventoryStackLocation.itemId, itemId)));
   const equipment = await tx.select().from(campaignCharacterItemEquipmentState).where(and(eq(campaignCharacterItemEquipmentState.characterId, characterId), eq(campaignCharacterItemEquipmentState.itemId, itemId)));
   const requiredLoose = quantity + equipment.filter(row => row.state !== state && (row.state === "worn" || row.state === "wielded")).reduce((total, row) => total + row.quantity, 0);
+  await assertLooseStackAvailable(tx, characterId, itemId, requiredLoose);
   if (requiredLoose > ownedQuantity - allocations.reduce((total, row) => total + row.quantity, 0)) throw new Error("Move enough copies to loose before marking them Worn or Wielded.");
 }

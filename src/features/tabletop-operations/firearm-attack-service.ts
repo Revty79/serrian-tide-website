@@ -1,3 +1,4 @@
+import { assertExactInventoryAvailable } from "@/features/items/inventory-access-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { playerIncomingAuthoredValue } from "@/features/incoming-effects/public-evidence";
@@ -425,6 +426,7 @@ async function loadFoundation(
   )).limit(1);
   const states = lock ? await stateQuery.for("update") : await stateQuery;
   if (!states[0]) throw new Error("This exact owned firearm instance has no initialized runtime state.");
+  await assertExactInventoryAvailable(tx, actorParticipantId, states[0].itemInstanceId);
   const state = await readEffectiveFirearmState(tx, states[0], lock);
   if (state.selectedFiringModeId !== positiveId(command.firingModeId, "Firing Mode")) {
     throw new Error("The selected Firing Mode does not match this exact firearm's authoritative runtime state.");
@@ -1156,6 +1158,7 @@ async function ensureFirearmStillFireable(
     eq(campaignCharacterFirearmState.weaponProfileId, attack.weaponProfileId),
   )).limit(1).for("update");
   if (!stored) throw new Error("The exact owned firearm state no longer exists.");
+  await assertExactInventoryAvailable(tx, attack.actorParticipantId, attack.itemInstanceId);
   const state = await readEffectiveFirearmState(tx, stored, true);
   if (state.version !== attack.stateVersionBefore) throw new Error("The firearm runtime state changed after declaration; firing was rejected before Roll or ammunition consumption.");
   if (state.selectedFiringModeId !== attack.firingModeId) throw new Error("The exact Firing Mode changed after declaration; accumulated Aim is no longer valid.");
@@ -2041,6 +2044,7 @@ async function continueSustainedFireInTransaction(
     || state.characterId !== attack.actorParticipantId || state.selectedFiringModeId !== attack.firingModeId || state.loadedRounds <= 0) {
     throw new Error("The exact firearm changed during sustained fire. Interrupt the remaining firing before changing its readiness or ammunition.");
   }
+  await assertExactInventoryAvailable(tx, attack.actorParticipantId, attack.itemInstanceId);
   const rounds = Math.min(attack.roundsPerCadence, attack.roundsDeclared - attack.roundsConsumed);
   if (state.loadedRounds < rounds) throw new Error("The next firing portion no longer has its exact ammunition.");
   const loadedRounds = state.loadedRounds - rounds;

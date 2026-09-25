@@ -23,7 +23,7 @@ async function loopbackPort() {
   return address.port;
 }
 
-test("container foundation and inventory regressions use disposable migrated PostgreSQL", { timeout: 360_000 }, async () => {
+test("container foundation and inventory regressions use disposable migrated PostgreSQL", { timeout: process.env.CONTAINMENT_BROWSER === "1" ? 900_000 : 600_000 }, async () => {
   const temporaryParent = path.resolve(tmpdir());
   const temporaryCluster = await mkdtemp(path.join(temporaryParent, "serrian-containment-postgres-"));
   const resolvedCluster = path.resolve(temporaryCluster);
@@ -58,7 +58,7 @@ test("container foundation and inventory regressions use disposable migrated Pos
       if (process.env.CONTAINMENT_CASE_FILTER && !process.env.CONTAINMENT_CASE_FILTER.split(",").some(filter => script.includes(filter.trim()))) continue;
       executedScripts++;
       try { output = execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", script], {
-        cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: 180_000,
+        cwd: process.cwd(), windowsHide: true, encoding: "utf8", timeout: process.env.CONTAINMENT_BROWSER === "1" ? 780_000 : 180_000,
         env: { ...childEnvironment, DATABASE_URL: databaseUrl, NODE_ENV: "test", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true" },
       }); } catch (error) {
         const failed = error as { stdout?: string; stderr?: string };

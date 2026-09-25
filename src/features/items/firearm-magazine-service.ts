@@ -7,6 +7,8 @@ import { item, weaponProfile } from "@/db/item-schema";
 import { campaignCharacterFirearmState as firearm } from "@/db/tabletop-operations-schema";
 import { inventoryInstanceLocation as location } from "@/db/container-schema";
 import { assertInstanceLooseInTransaction } from "./containment-ownership-service";
+import { readInventoryAccessInTransaction } from "./inventory-access-service";
+import { resolveInventoryAvailability } from "./inventory-access";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type State = typeof firearm.$inferSelect;
@@ -43,13 +45,15 @@ export async function writeFirearmAmmunitionState(tx: Tx, before: State, after: 
 }
 
 export async function readCompatibleMagazineCopies(tx: Tx, characterId: number, weaponProfileId: number) {
-  return tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, capacity: magazineProfile.capacityRounds,
+  const graph = await readInventoryAccessInTransaction(tx, characterId);
+  const rows = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, capacity: magazineProfile.capacityRounds,
     loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, attachedWeaponInstanceId: attachment.weaponInstanceId, containerInstanceId: location.containerInstanceId })
     .from(copy).innerJoin(item, eq(item.id, copy.itemId)).innerJoin(magazineProfile, eq(magazineProfile.itemId, copy.itemId))
     .innerJoin(weaponMagazine, and(eq(weaponMagazine.magazineItemId, copy.itemId), eq(weaponMagazine.weaponProfileId, weaponProfileId)))
     .leftJoin(attachment, eq(attachment.magazineInstanceId, copy.id))
     .leftJoin(location, eq(location.instanceId, copy.id))
     .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt), isNull(item.archivedAt)));
+  return rows.map(row => ({ ...row, availability: resolveInventoryAvailability(graph, { instanceId: row.instanceId }) }));
 }
 
 export async function validateMagazineSwap(tx: Tx, state: State, replacementId: number | null) {

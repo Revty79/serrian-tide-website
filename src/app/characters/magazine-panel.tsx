@@ -31,7 +31,8 @@ export function MagazinePanel({ characterId, disabled = false, revision = "", co
     {message ? <p role="status">{message}</p> : null}
     {view?.combatActive ? <p role="status">Magazine filling and emptying are unavailable during active combat.</p> : null}
     {view && !view.magazines.length ? <p>No magazine copies owned. Acquire a campaign-authorized magazine from the store or a Shop.</p> : null}
-    {view?.magazines.map((entry) => { const blocked = disabled || busy || !view.canManage || view.combatActive || !!entry.attachedWeaponInstanceId || entry.containerInstanceId !== null; return <fieldset key={entry.instanceId}>
+    {view?.magazines.map((entry) => { const blocked = disabled || busy || !view.canManage || view.combatActive || !!entry.attachedWeaponInstanceId || entry.containerInstanceId !== null || !!entry.availability?.blocker; return <fieldset key={entry.instanceId}>
+      {entry.availability?.blocker ? <p>{entry.availability.blocker}</p> : null}
       <legend>{entry.name} · Copy #{entry.instanceId}</legend><p><strong>{entry.loadedRounds} / {entry.capacity} rounds</strong> · {entry.ammunition.find((ammo) => ammo.id === entry.ammunitionItemId)?.name ?? "Empty"}</p>
       {entry.attachedWeaponInstanceId ? <p>Attached to firearm copy #{entry.attachedWeaponInstanceId}. Remove it before filling or emptying this copy.</p> : null}
       {!entry.attachedWeaponInstanceId && entry.containerInstanceId !== null ? <p>Move this magazine to Loose in Inventory before filling or emptying it.</p> : null}

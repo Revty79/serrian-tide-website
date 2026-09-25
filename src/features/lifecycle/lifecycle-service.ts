@@ -264,6 +264,7 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
     { label: "Creature NPCs", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character where campaign_id = ${campaignId} and is_npc = true and npc_kind = 'creature'` },
     { label: "Inventory stacks", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Exact Item instances", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_instance i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
+    { label: "Inventory custody, access and audit", blocking: false, query: sql<CountRow>`select ((select count(*) from inventory_custody_event i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}) + (select count(*) from inventory_container_access i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}) + (select count(*) from inventory_instance_custody i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}) + (select count(*) from inventory_stack_custody i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}))::int as value` },
     { label: "Stored container substances", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_container_substance i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Contained exact Item locations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_instance_location i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Contained stack allocations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_stack_location i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
@@ -315,6 +316,7 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
     { label: "Currency holdings", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_currency_holding where character_id = ${characterId}` },
     { label: "Inventory stacks", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item where character_id = ${characterId}` },
     { label: "Exact Item instances", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_instance where character_id = ${characterId}` },
+    { label: "Inventory custody, access and audit", blocking: false, query: sql<CountRow>`select ((select count(*) from inventory_custody_event where character_id = ${characterId}) + (select count(*) from inventory_container_access where character_id = ${characterId}) + (select count(*) from inventory_instance_custody where character_id = ${characterId}) + (select count(*) from inventory_stack_custody where character_id = ${characterId}))::int as value` },
     { label: "Stored container substances", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_container_substance where character_id = ${characterId}` },
     { label: "Contained exact Item locations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_instance_location where character_id = ${characterId}` },
     { label: "Contained stack allocations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_stack_location where character_id = ${characterId}` },
@@ -758,6 +760,10 @@ async function deleteNonCampaignRoot(
       if (root.campaign_id === null) throw new Error("Character Campaign context is missing.");
       // Explicit root destruction removes location metadata before ownership
       // cascades. Individual Item removal keeps its restrictive guards.
+      await tx.execute(sql`delete from inventory_custody_event where character_id = ${target.entityId}`);
+      await tx.execute(sql`delete from inventory_container_access where character_id = ${target.entityId}`);
+      await tx.execute(sql`delete from inventory_instance_custody where character_id = ${target.entityId}`);
+      await tx.execute(sql`delete from inventory_stack_custody where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_container_substance where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_instance_location where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_stack_location where character_id = ${target.entityId}`);

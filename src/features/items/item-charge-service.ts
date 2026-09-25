@@ -1,3 +1,4 @@
+import { assertExactInventoryAvailable } from "./inventory-access-service";
 import "server-only";
 
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
@@ -189,6 +190,7 @@ async function updateCurrentChargesInTransaction(
     throw new Error("The current Item definition does not provide a valid Charge profile.");
   }
   const next = resolveNext({ ...state, maximumCharges: state.maximumCharges });
+  if (next < state.currentCharges) await assertExactInventoryAvailable(tx, identity.characterId, identity.instanceId);
   const updated = await tx.update(campaignCharacterItemInstance).set({
     currentCharges: next,
     updatedAt: new Date(),
@@ -220,6 +222,7 @@ export async function spendExactItemPowerChargesInTransaction(
   amount: number,
 ): Promise<{ before: number; after: number; amount: number; maximumCharges: number }> {
   positiveId(amount, "Power Charge Cost");
+  await assertExactInventoryAvailable(tx, identity.characterId, identity.instanceId);
   const [row] = await tx.select({ currentCharges: campaignCharacterItemInstance.currentCharges, maximumCharges: itemPowerResource.maximumCharges })
     .from(campaignCharacterItemInstance)
     .innerJoin(itemPowerResource, eq(itemPowerResource.itemId, campaignCharacterItemInstance.itemId))

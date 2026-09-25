@@ -1,0 +1,6 @@
+.inventory-combat-handling { min-width: 0; max-width: 100%; overflow-wrap: anywhere; border: 1px solid var(--st-border); border-radius: 8px; padding: 12px; margin-block: 12px; background: var(--st-surface-soft); }
+.inventory-combat-handling summary { min-height: 44px; cursor: pointer; color: var(--st-text); }
+.inventory-combat-handling .st-field { display: flex; flex-direction: column; min-width: 0; margin-block: 10px; }
+.inventory-combat-handling .st-control { width: 100%; min-width: 0; max-width: 100%; }
+.inventory-combat-handling button { max-width: 100%; white-space: normal; margin-block: 4px; }
+.inventory-combat-handling [role="alert"] { color: var(--st-danger); }

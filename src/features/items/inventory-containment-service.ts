@@ -14,6 +14,9 @@ import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-serv
 import { assertOutsideCombatEquipmentHandling } from "./magazine-inventory-service";
 import { assertContainmentEquipmentInTransaction, assertPhysicalDestination, assertPhysicalSourceRelieved, readInventoryPhysicsInTransaction } from "./inventory-physical-service";
 import { resolveContainedElapsedTime } from "./container-physics";
+import { inventoryStackCustody } from "@/db/inventory-access-schema";
+import { readInventoryAccessInTransaction } from "./inventory-access-service";
+import { containerAccessState, requireInventoryAvailability, resolveInventoryAvailability } from "./inventory-access";
 import { adjustSubstanceQuantity, type TimeSubject } from "./container-rules";
 
 export type ContainmentTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -28,7 +31,7 @@ function positive(value: number, label: string) {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a positive whole number.`);
 }
 
-async function access(tx: ContainmentTransaction, characterId: number, userId: string, mutate: boolean) {
+export async function authorizeInventoryInTransaction(tx: ContainmentTransaction, characterId: number, userId: string, mutate: boolean) {
   positive(characterId, "Character identity");
   const [entity] = await tx.select({ playerUserId: campaignCharacter.playerUserId, isNpc: campaignCharacter.isNpc,
     campaignOwnerUserId: campaign.createdByUserId, member: campaignPlayer.userId,
@@ -49,6 +52,7 @@ async function snapshot(tx: ContainmentTransaction, characterId: number) {
   const [profile] = await tx.select({ commerceVersion: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)
     .where(eq(campaignCharacterProfile.characterId, characterId));
   if (!profile) throw new Error("Character profile not found.");
+  const custody = await tx.select().from(inventoryStackCustody).where(eq(inventoryStackCustody.characterId, characterId));
   const stackRows = await tx.select().from(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId)).orderBy(asc(campaignCharacterItem.itemId));
   const stackLocations = await tx.select().from(inventoryStackLocation).where(eq(inventoryStackLocation.characterId, characterId)).orderBy(asc(inventoryStackLocation.containerInstanceId));
   const copies = await tx.select({ instanceId: campaignCharacterItemInstance.id, itemId: campaignCharacterItemInstance.itemId,
@@ -61,7 +65,7 @@ async function snapshot(tx: ContainmentTransaction, characterId: number) {
   const stacks = stackRows.map(row => {
     const allocations = stackLocations.filter(location => location.itemId === row.itemId)
       .map(({ containerInstanceId, quantity }) => ({ containerInstanceId, quantity }));
-    const looseQuantity = row.quantity - allocations.reduce((total, location) => total + location.quantity, 0);
+    const looseQuantity = row.quantity - allocations.reduce((total, location) => total + location.quantity, 0) - custody.filter(c => c.itemId === row.itemId).reduce((total, c) => total + c.quantity, 0);
     if (looseQuantity < 0) throw new Error("Invalid contained stack quantity; inventory locations need repair.");
     return { itemId: row.itemId, ownedQuantity: row.quantity, looseQuantity, allocations };
   });
@@ -72,7 +76,7 @@ export type InventoryContainmentView = Awaited<ReturnType<typeof snapshot>>;
 
 /** Character row locks give multi-query reads one consistent graph with ownership. */
 export async function readInventoryContainmentInTransaction(tx: ContainmentTransaction, userId: string, characterId: number) {
-  await access(tx, characterId, userId, false);
+  await authorizeInventoryInTransaction(tx, characterId, userId, false);
   await tx.select({ id: campaignCharacter.id }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId)).for("share");
   return snapshot(tx, characterId);
 }
@@ -120,13 +124,13 @@ export async function readContainerContentsInTransaction(tx: ContainmentTransact
 }
 
 /** Shared authorization, combat, lock and optimistic-version boundary for inventory mutations. */
-async function beginContainerMutation(tx: ContainmentTransaction, userId: string, command: { characterId: number; expectedCommerceVersion: number }) {
-  await access(tx, command.characterId, userId, true);
+export async function beginContainerMutation(tx: ContainmentTransaction, userId: string, command: { characterId: number; expectedCommerceVersion: number }, combatCompletion = false) {
+  await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
   if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before changing contents.");
   await assertCharacterCombatWritableInTransaction(tx, command.characterId);
-  await assertOutsideCombatEquipmentHandling(tx, command.characterId);
+  if (!combatCompletion) await assertOutsideCombatEquipmentHandling(tx, command.characterId);
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
-  await access(tx, command.characterId, userId, true);
+  await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
   const [profile] = await tx.select({ version: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)
     .where(eq(campaignCharacterProfile.characterId, command.characterId)).for("update");
   if (!profile || profile.version !== command.expectedCommerceVersion) throw new Error("Inventory changed or this move already completed. Reload before moving contents.");
@@ -134,14 +138,22 @@ async function beginContainerMutation(tx: ContainmentTransaction, userId: string
 }
 
 /** null means loose. Explicit source plus the inventory version makes stale/repeated moves fail closed. */
-export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand) {
-  await access(tx, command.characterId, userId, true);
+export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand, combatCompletion = false) {
+  await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
   if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before moving its contents.");
   for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) positive(id, "Container identity");
   if (command.fromContainerInstanceId === command.toContainerInstanceId) throw new Error("Choose a different inventory location.");
   if (command.kind !== "instance" && command.kind !== "stack") throw new Error("Choose an owned stack or exact copy.");
-  const profile = await beginContainerMutation(tx, userId, command);
+  const profile = await beginContainerMutation(tx, userId, command, combatCompletion);
   const view = await snapshot(tx, command.characterId);
+  for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) container(view, id);
+  const accessGraph = await readInventoryAccessInTransaction(tx, command.characterId);
+  const sourceAccess = resolveInventoryAvailability(accessGraph, command.kind === "instance" ? { instanceId: command.instanceId } : { itemId: command.itemId, containerInstanceId: command.fromContainerInstanceId });
+  requireInventoryAvailability(sourceAccess, false);
+  for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) {
+    requireInventoryAvailability(resolveInventoryAvailability(accessGraph, { instanceId: id }), false);
+    if (containerAccessState(accessGraph, id) !== "open") throw new Error(`Open container #${id} first (${containerAccessState(accessGraph, id)}).`);
+  }
   const physicsBefore = await readInventoryPhysicsInTransaction(tx, command.characterId);
   const target = command.toContainerInstanceId === null ? null : container(view, command.toContainerInstanceId);
   if (target) resolveContainmentAncestry(view, target.instanceId);
@@ -207,15 +219,19 @@ export async function moveInventoryContent(command: ContainmentCommand) {
 }
 
 export async function readPhysicalInventoryInTransaction(tx: ContainmentTransaction, userId: string, characterId: number) {
-  const canManage = await access(tx, characterId, userId, false);
+  const canManage = await authorizeInventoryInTransaction(tx, characterId, userId, false);
   const location = await readInventoryContainmentInTransaction(tx, userId, characterId);
   const physics = await readInventoryPhysicsInTransaction(tx, characterId);
   let movementBlockedReason: string | null = canManage ? null : "You have read-only access to this Character's inventory.";
   const [combat] = await tx.select({ id: campaignSessionEncounter.id }).from(campaignSessionEncounter)
     .innerJoin(campaignSessionEncounterParticipant, eq(campaignSessionEncounterParticipant.encounterId, campaignSessionEncounter.id))
     .where(and(eq(campaignSessionEncounterParticipant.characterId, characterId), eq(campaignSessionEncounter.status, "active"))).limit(1);
-  if (combat) movementBlockedReason = "Inventory rearrangement is unavailable during active combat or Freeze. Container handling and Initiative rules are not implemented yet.";
-  return { ...location, ...physics, canManage, movementBlockedReason };
+  if (combat) movementBlockedReason = "Use Inventory handling in the combat Item controls to retrieve, stow, open, close or drop with Initiative. Direct rearrangement is unavailable during active combat or Freeze.";
+  const accessGraph = await readInventoryAccessInTransaction(tx, characterId);
+  const [owner] = await tx.select({ userId: campaign.createdByUserId }).from(campaignCharacter).innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId)).where(eq(campaignCharacter.id, characterId));
+  const canRule = !!canManage && owner?.userId === userId && (await tx.select().from(userRole).where(and(eq(userRole.userId, userId), eq(userRole.role, "god")))).length > 0;
+  const { inventoryScenes } = await import("./inventory-custody-service");
+  return { ...location, ...physics, accessGraph, canManage, canRule, scenes: await inventoryScenes(tx, characterId), activeEncounterId: combat?.id ?? null, movementBlockedReason };
 }
 export type PhysicalInventoryView = Awaited<ReturnType<typeof readPhysicalInventoryInTransaction>>;
 export async function readPhysicalInventory(characterId: number) {
@@ -253,6 +269,9 @@ export async function changeContainerSubstanceInTransaction(tx: ContainmentTrans
   positive(command.instanceId, "Container copy");
   if (command.operation !== "add" && command.operation !== "draw") throw new Error("Choose add or draw substance.");
   if (!Number.isFinite(command.quantity) || command.quantity <= 0) throw new Error("Substance quantity must be finite and greater than zero.");
+  const accessGraph = await readInventoryAccessInTransaction(tx, command.characterId);
+  requireInventoryAvailability(resolveInventoryAvailability(accessGraph, { instanceId: command.instanceId }), false);
+  if (containerAccessState(accessGraph, command.instanceId) !== "open") throw new Error("Open the container before drawing or adding substance.");
   const before = await readInventoryPhysicsInTransaction(tx, command.characterId);
   const copy = before.graph.instances.find(row => row.instanceId === command.instanceId);
   const load = before.containers.find(row => row.instanceId === command.instanceId);

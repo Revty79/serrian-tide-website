@@ -55,6 +55,10 @@ async function fixture() {
       await pool.query("insert into campaign_character_item(character_id,item_id,quantity,unit_cost_credits) values($1,$2,10,3)", [characterId, itemId]);
       await pool.query("insert into inventory_stack_location(character_id,item_id,container_instance_id,container_item_id,quantity) values($1,$2,$3,$4,8)", [characterId, itemId, innerId, modelId]);
     }
+    await pool.query("insert into inventory_instance_custody(instance_id,character_id,item_id,status,context_label,actor_user_id) values($1,$2,$3,'dropped','Former Scene',$4)", [outerId, characterId, modelId, ownerId]);
+    await pool.query("insert into inventory_container_access(instance_id,character_id,item_id,state,actor_user_id) values($1,$2,$3,'closed',$4)", [outerId, characterId, modelId, ownerId]);
+    if (contents !== "exact") await pool.query("insert into inventory_stack_custody(character_id,item_id,quantity,status,actor_user_id) values($1,$2,1,'lost',$3)", [characterId, itemId, ownerId]);
+    await pool.query("insert into inventory_custody_event(character_id,item_id,instance_id,quantity,operation,previous_status,new_status,request_key,evidence,actor_user_id) values($1,$2,$3,1,'drop','carried','dropped',$4,'{}',$5)", [characterId, modelId, outerId, randomUUID(), ownerId]);
     return { characterId, outerId, innerId, exactId, kind };
   }
   return { actor, ownerId, campaignName, campaignId, modelId, itemId, exactItemId, character };
@@ -62,7 +66,7 @@ async function fixture() {
 
 async function inventorySnapshot(characterId: number) {
   const result: Record<string, unknown[]> = {};
-  for (const table of ["inventory_container_substance", "inventory_instance_location", "inventory_stack_location", "campaign_character_item", "campaign_character_item_instance", "campaign_character_profile"] as const) {
+  for (const table of ["inventory_instance_custody", "inventory_stack_custody", "inventory_container_access", "inventory_custody_event", "inventory_container_substance", "inventory_instance_location", "inventory_stack_location", "campaign_character_item", "campaign_character_item_instance", "campaign_character_profile"] as const) {
     result[table] = (await pool.query(`select to_jsonb(t) row from ${table} t where character_id=$1 order by to_jsonb(t)::text`, [characterId])).rows;
   }
   result.character = (await pool.query("select * from campaign_character where id=$1", [characterId])).rows;
@@ -123,6 +127,7 @@ test("unauthorized root deletion leaves containment intact", async () => {
 
 test("ordinary occupied container removal is still blocked", async () => {
   const f = await fixture(), target = await f.character("player-character");
+  await pool.query("delete from inventory_instance_custody where instance_id=$1", [target.outerId]);
   const before = await inventorySnapshot(target.characterId);
   await assert.rejects(pool.query("delete from campaign_character_item_instance where id=$1", [target.outerId]), /Empty the container/);
   await assert.rejects(pool.query("update campaign_character_item_instance set retired_at=now(),retirement_reason='fixture removal' where id=$1", [target.innerId]), /Empty the container/);
@@ -144,6 +149,6 @@ test("ordinary stack reduction cannot consume its allocated quantity", async () 
   const before = await inventorySnapshot(target.characterId);
   await assert.rejects(pool.query("update campaign_character_item set quantity=7 where character_id=$1 and item_id=$2", [target.characterId, f.itemId]), /Move the allocated stack quantity to loose/);
   assert.deepEqual(await inventorySnapshot(target.characterId), before);
-  await pool.query("update campaign_character_item set quantity=8 where character_id=$1 and item_id=$2", [target.characterId, f.itemId]);
+  await pool.query("update campaign_character_item set quantity=9 where character_id=$1 and item_id=$2", [target.characterId, f.itemId]);
   assert.equal((await pool.query("select quantity from inventory_stack_location where character_id=$1", [target.characterId])).rows[0].quantity, 8);
 });

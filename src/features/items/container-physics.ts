@@ -55,7 +55,7 @@ export type PhysicalItem = { itemId: number; name: string; weightLb: number | nu
   physicalForm?: "solid" | "liquid" | null; category?: string; recordType?: string; isMagical?: boolean; container: ContainerPhysicalProfile | null };
 export type PhysicalGraph = {
   stacks: Array<{ itemId: number; ownedQuantity: number; looseQuantity: number; allocations: Array<{ containerInstanceId: number; quantity: number }> }>;
-  instances: Array<{ instanceId: number; itemId: number; containerInstanceId: number | null }>;
+  instances: Array<{ instanceId: number; itemId: number; containerInstanceId: number | null; carried?: boolean }>;
 };
 export type SpecializedLoad = { instanceId: number; ammunitionItemId: number | null; rounds: number };
 export type PhysicalAttachment = { weaponInstanceId: number; magazineInstanceId: number };
@@ -153,7 +153,7 @@ export function calculateContainerPhysics(graph: PhysicalGraph, definitions: Phy
   }
   for (const copy of graph.instances) copyWeight(copy.instanceId);
   // Ownership remains authoritative. Each root contributes once, with its entire load.
-  const carriedWeight = sum(...graph.instances.filter(copy => copy.containerInstanceId === null && !attachedIds.has(copy.instanceId)).map(copy => copyWeight(copy.instanceId)),
+  const carriedWeight = sum(...graph.instances.filter(copy => copy.containerInstanceId === null && copy.carried !== false && !attachedIds.has(copy.instanceId)).map(copy => copyWeight(copy.instanceId)),
     ...graph.stacks.map(stack => measure(items.get(stack.itemId)?.weightLb, stack.looseQuantity, name(stack.itemId))));
   return { containers: [...containers.values()], carriedWeight };
 }

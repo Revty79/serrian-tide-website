@@ -535,6 +535,12 @@ async function persistInitiativeEngineInternal(
   const { reconcileMagazineFillProgress } = await import("./combat-magazine-fill-service");
   await reconcileMagazineFillProgress(tx, before, after, context.ownerUserId);
   const { completeMeleeDraw } = await import("./combat-melee-draw-service");
+  const { completeCombatInventory } = await import("./combat-inventory-service");
+  for (const action of after.pendingActions.filter(entry => entry.actionKind === "combat-inventory" && entry.status === "completed")) {
+    const [handling] = await tx.select({ id: campaignSessionEncounterActionDeclaration.id }).from(campaignSessionEncounterActionDeclaration)
+      .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, action.id));
+    if (handling) await completeCombatInventory(tx, handling.id, context.ownerUserId);
+  }
   for (const action of after.pendingActions.filter((entry) => entry.actionKind === "combat-melee-draw" && entry.status === "completed")) {
     const [draw] = await tx.select({ id: campaignSessionEncounterActionDeclaration.id }).from(campaignSessionEncounterActionDeclaration)
       .where(eq(campaignSessionEncounterActionDeclaration.pendingActionId, action.id));

@@ -9,6 +9,11 @@ export type ContainerSource = {
   locked: boolean; allowsItems: boolean;
 };
 export type ContainerRules = {
+  closureMode: "always-accessible" | "open-close";
+  retrieveInitiativeCost: number | null;
+  stowInitiativeCost: number | null;
+  openInitiativeCost: number | null;
+  closeInitiativeCost: number | null;
   weightCapacityMode: "normal" | "unlimited";
   volumeCapacityMode: "normal" | "unlimited";
   fixedLoadedWeightLb: number | null;
@@ -21,6 +26,7 @@ export type ContainerRules = {
   source: ContainerSource | null;
 };
 export const emptyContainerRules = (): ContainerRules => ({
+  closureMode: "always-accessible", retrieveInitiativeCost: null, stowInitiativeCost: null, openInitiativeCost: null, closeInitiativeCost: null,
   weightCapacityMode: "normal", volumeCapacityMode: "normal", fixedLoadedWeightLb: null,
   magicalContentRestriction: "any", timeBehavior: "normal", timeMultiplier: null,
   timeAppliesTo: "all", timeCategories: [], timeRecordTypes: [], livingContentsAllowed: false, source: null,
@@ -50,6 +56,8 @@ export function normalizeSubstance(input: Substance): Substance {
 export function normalizeContainerRules(input: ContainerRules, weightBehavior: string): ContainerRules {
   const defaults = emptyContainerRules();
   const rules = Object.fromEntries(Object.keys(defaults).map(key => [key, input[key as keyof ContainerRules] === undefined ? defaults[key as keyof ContainerRules] : input[key as keyof ContainerRules]])) as ContainerRules;
+  choice(rules.closureMode, ["always-accessible", "open-close"], "closure mode");
+  for (const key of ["retrieveInitiativeCost", "stowInitiativeCost", "openInitiativeCost", "closeInitiativeCost"] as const) rules[key] = amount(rules[key], "Container Initiative cost");
   choice(rules.weightCapacityMode, ["normal", "unlimited"], "weight capacity mode");
   choice(rules.volumeCapacityMode, ["normal", "unlimited"], "volume capacity mode");
   choice(rules.magicalContentRestriction, ["any", "mundane-only", "magical-only"], "magical content restriction");

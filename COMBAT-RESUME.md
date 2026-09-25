@@ -1,5 +1,12 @@
 # Combat resumption handoff
 
+## Container Pass 4 — tabletop access and custody (25 September 2026)
+
+- Added explicit retrieve/stow/open/close/drop through the existing declaration and Initiative runtime. Costs come from authored container profiles or exact G.O.D. rulings; completion rechecks inventory/access and moves once. Retrieval does not draw or ready weapons.
+- Root dropped/stolen/lost custody propagates to all contents, excludes their carried weight, and blocks Item, equipment, ammunition, firearm and commerce use. Recovery preserves the same inventory; deliberate G.O.D. spill retires only the container. Existing ownership and magical/specialized state remain authoritative.
+- Shared Character/NPC inventory, actual combat Item/Weapons controls and Player tabletop equipment expose these actions. See [Pass 4 handoff](docs/architecture/inventory-containment-pass-four.md) for schema, implementation, validation and limits.
+- Stop after the separate Pass 4 commit. Continue only under Brannan's review direction; do not start post-container expansion or resume an older combat queue.
+
 ## Creature incapacitation grants the same rewards as death (21 September 2026)
 
 - **New confirmed ruling supersedes older death-only Creature Fame notes:** whole-Creature incapacitation and death grant the same authored XP and CR Fame. Each reward is paid once per Creature occurrence in the encounter; a later kill cannot pay again. [Exact ruling](docs/rules/creature-defeat-rewards-2026-09-21.md).

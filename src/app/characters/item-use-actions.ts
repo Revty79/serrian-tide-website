@@ -1,4 +1,5 @@
 "use server";
+import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-effects/runtime-plan-service";
 import { readItemIncomingFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
 import { resolveActiveHealthView } from "@/features/active-state/health-rules";
@@ -248,6 +249,7 @@ async function loadResource(
     if (request.itemInstanceId === null) {
       throw new Error("Choose the specific owned Item copy to use.");
     }
+    await assertExactInventoryAvailable(tx, request.sourceCharacterId, request.itemInstanceId);
     const owned = await readItemChargeStateInTransaction(tx, {
       characterId: request.sourceCharacterId,
       itemId: request.itemId,
@@ -297,6 +299,7 @@ async function loadUse(
 
   const definition = await loadDefinition(tx, source.campaignId, request.itemId);
   const resource = await loadResource(tx, request, definition.runtimeProfile, lock);
+  if (resource.kind === "stack" && resource.quantity > 0) await assertLooseStackAvailable(tx, request.sourceCharacterId, request.itemId, Math.max(1, definition.runtimeProfile.quantityPerUse ?? 1));
   const health = await readActiveHealthInTransaction(
     tx,
     target.characterId,

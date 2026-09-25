@@ -815,6 +815,10 @@ async function commitActionDeclarationInternal(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  if (snapshot.actionKind === "combat-inventory") {
+    const { validateInventoryCommit } = await import("./combat-inventory-service");
+    await validateInventoryCommit(tx, context, actor, snapshot);
+  }
   if (snapshot.actionKind === "combat-melee-draw") {
     const { validateMeleeDrawCommit } = await import("./combat-melee-draw-service");
     await validateMeleeDrawCommit(tx, snapshot);

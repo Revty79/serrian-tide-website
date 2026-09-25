@@ -236,7 +236,7 @@ test("container acquisition uses existing commerce and magazine ammunition stays
       characterId: f.heroId, instanceId: magazine, operation, rounds, expectedRounds,
       expectedAmmunitionItemId: expectedRounds ? f.stackItemId : null, ammunitionItemId: f.stackItemId, requestKey: crypto.randomUUID(),
     }));
-    await assert.rejects(handle("add", 3, 0), error => /Move the allocated/.test(error.cause?.message ?? error.message));
+    await assert.rejects(handle("add", 3, 0), error => /Move the allocated|Not enough carried, Loose/.test(error.cause?.message ?? error.message));
     await handle("add", 2, 0);
     await exactMove(f, magazine, null, f.b);
     const contents = await db.transaction(tx => containment.readContainerContentsInTransaction(tx, f.godId, f.heroId, f.b));

@@ -5,6 +5,7 @@ import { readCombatScreen } from "@/features/combat-screen/screen-actions";
 import { readCombatCommandSources } from "@/features/combat-screen/command-actions";
 import { MeleeDrawControls } from "@/features/combat-screen/melee-draw-controls";
 import { FirearmControls } from "@/features/combat-screen/firearm-controls";
+import { InventoryHandlingControls } from "@/features/combat-screen/inventory-handling-controls";
 import { combatScreenPrompt, type CombatScreenScope } from "@/features/combat-screen/screen-types";
 import { TabletopLiveRefresh } from "@/features/tabletop-operations/tabletop-live-refresh";
 import styles from "./player-tabletop.module.css";
@@ -47,6 +48,7 @@ export function PlayerTabletopCombatEquipment({ characterId, encounterId, onChan
     {view ? <p role="status">{combatScreenPrompt(view.screen, entity)}</p> : <p role="status">Loading weapon preparation…</p>}
     {entity && view?.sources ? <>
       <p>Available Initiative: {entity.currentInitiative}. Drawing and loading finish through the encounter timeline.</p>
+      <InventoryHandlingControls scope={scope} characterId={characterId} disabled={disabled} canControl={entity.canControl} refresh={refresh} revision={view.screen.projection?.stateToken} />
       <MeleeDrawControls scope={scope} entity={entity} options={view.sources.meleeDraws} disabled={disabled} refresh={refresh} expanded />
       {entity.currentAction ? <p role="status">Action underway: {entity.currentAction.remaining} Initiative remaining.</p> : null}
       {view.sources.firearms?.firearms.map((firearm) => <details key={firearm.itemInstanceId}>

@@ -1,3 +1,4 @@
+import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
 import { applyRecordedSourceResolutionInTransaction } from "./combat-source-resolution-service";
 
@@ -277,6 +278,8 @@ async function resolveWeapon(
   governing: LockedActionDeclarationSnapshot["governing"],
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Weapon use");
+  if (draft.sourceInstanceId !== null) await assertExactInventoryAvailable(tx, draft.actorCharacterId, draft.sourceInstanceId);
+  else await assertLooseStackAvailable(tx, draft.actorCharacterId, weapon.itemId, 1);
   const [row] = await tx.select({
     itemId: item.id,
     canonicalId: item.canonicalId,
@@ -449,6 +452,8 @@ async function resolveItem(
     rechargeNotes: itemRuntimeProfile.rechargeNotes,
   }).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(eq(item.id, itemId)).limit(1);
   if (!row) throw new Error("The selected canonical Item no longer exists.");
+  if (draft.sourceInstanceId === null) await assertLooseStackAvailable(tx, draft.actorCharacterId, itemId, Math.max(1, row.useMode === "consume-item" ? row.quantityPerUse ?? 1 : 1));
+  else await assertExactInventoryAvailable(tx, draft.actorCharacterId, draft.sourceInstanceId);
   if (row.useMode === "charges") {
     throw new Error("Needs rebuilding: legacy charged Item Use is retired. Rebuild this Item with Abilities and a Shared Power Charge Pool.");
   }
@@ -547,6 +552,7 @@ async function resolveItemPower(
     if (!sourceItem?.isMagical) throw new Error("A construction-backed Item Ability requires a Magical Item.");
   }
   if (draft.sourceInstanceId === null) {
+    await assertLooseStackAvailable(tx, draft.actorCharacterId, row.itemId, Math.max(1, row.power.resourceCostKind === "consume-item" ? row.power.resourceCostAmount ?? 1 : 1));
     if (row.power.resourceCostKind === "shared-charges") throw new Error("This Ability requires an exact owned Item instance.");
     const [owned] = await tx.select({ quantity: campaignCharacterItem.quantity }).from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, draft.actorCharacterId), eq(campaignCharacterItem.itemId, row.itemId))).limit(1);
     if (!owned || owned.quantity <= 0) throw new Error("The acting Character no longer owns this Item Ability's Item.");
@@ -556,6 +562,7 @@ async function resolveItemPower(
       await assertConsumableHasInactiveQuantityInTransaction(tx, { characterId: draft.actorCharacterId, itemId: row.itemId, ownedQuantity: owned.quantity, consumeQuantity: amount });
     }
   } else {
+    await assertExactInventoryAvailable(tx, draft.actorCharacterId, draft.sourceInstanceId);
     if (row.power.resourceCostKind === "consume-item") throw new Error("Consume-item Abilities use stack ownership and cannot be locked with an Item-instance identity.");
     const [owned] = await tx.select({ id: campaignCharacterItemInstance.id }).from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.id, draft.sourceInstanceId), eq(campaignCharacterItemInstance.characterId, draft.actorCharacterId), eq(campaignCharacterItemInstance.itemId, row.itemId), isNull(campaignCharacterItemInstance.retiredAt))).limit(1);
     if (!owned) throw new Error("The exact owned Item Ability instance is unavailable.");

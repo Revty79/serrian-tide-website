@@ -67,6 +67,8 @@ next-env.d.ts
 /artifacts/container-pass-two/
 /artifacts/container-pass-three/
 /artifacts/container-pass-three-*.log
+/artifacts/container-pass-four/
+/artifacts/container-pass-four-*.log
 /artifacts/combat-screens/attack-location-2026-09-21/
 /artifacts/combat-screens/item-flow-2026-09-21/
 /artifacts/combat-screens/defeat-fame-2026-09-21/

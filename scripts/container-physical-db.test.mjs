@@ -124,17 +124,17 @@ test("mundane container mutations, physical authoring and permissions", async t 
       await assert.rejects(exactMove(f, f.exact, null, f.a), rejected(/Worn|Wielded/));
       await db.transaction(tx => equipment.setInstanceEquipmentStateInTransaction(tx, { characterId: f.heroId, instanceId: f.exact, state: "inactive" }));
       await exactMove(f, f.exact, null, f.a);
-      await assert.rejects(db.transaction(tx => equipment.setInstanceEquipmentStateInTransaction(tx, { characterId: f.heroId, instanceId: f.exact, state })), /loose/);
-      await assert.rejects(pool.query("update campaign_character_item_instance set equipment_state=$1 where id=$2", [state, f.exact]), /loose/);
+      await assert.rejects(db.transaction(tx => equipment.setInstanceEquipmentStateInTransaction(tx, { characterId: f.heroId, instanceId: f.exact, state })), /loose/i);
+      await assert.rejects(pool.query("update campaign_character_item_instance set equipment_state=$1 where id=$2", [state, f.exact]), /loose/i);
       await exactMove(f, f.exact, f.a, null);
     }
     await db.transaction(tx => equipment.setInstanceEquipmentStateInTransaction(tx, { characterId: f.heroId, instanceId: f.pouch, state: "worn" }));
     await assert.rejects(exactMove(f, f.pouch, null, f.a), rejected(/Worn/));
     await stackMove(f, null, f.a, 19);
     await db.transaction(tx => equipment.setStackEquipmentStateInTransaction(tx, { characterId: f.heroId, itemId: f.suppliesId, state: "worn", quantity: 1 }));
-    await assert.rejects(stackMove(f, null, f.a, 1), rejected(/loose/));
-    await assert.rejects(db.transaction(tx => equipment.setStackEquipmentStateInTransaction(tx, { characterId: f.heroId, itemId: f.suppliesId, state: "worn", quantity: 2 })), /loose/);
-    await assert.rejects(pool.query("update campaign_character_item set quantity=19 where character_id=$1 and item_id=$2", [f.heroId, f.suppliesId]), /loose/);
+    await assert.rejects(stackMove(f, null, f.a, 1), rejected(/loose/i));
+    await assert.rejects(db.transaction(tx => equipment.setStackEquipmentStateInTransaction(tx, { characterId: f.heroId, itemId: f.suppliesId, state: "worn", quantity: 2 })), /loose/i);
+    await assert.rejects(pool.query("update campaign_character_item set quantity=19 where character_id=$1 and item_id=$2", [f.heroId, f.suppliesId]), /loose/i);
   });
   await t.test("Player may organize own inventory; unauthorized actors cannot", async () => {
     const f = await fixture(), playerId = `physical-player-${crypto.randomUUID()}`;
@@ -147,7 +147,7 @@ test("mundane container mutations, physical authoring and permissions", async t 
   });
   await t.test("active combat and Freeze remain blocked and visible in the read model", async () => {
     const f = await fixture(); await pool.query("update campaign_session_encounter set status='active',completed_at=null where id=$1", [f.encounterId]);
-    await assert.rejects(stackMove(f, null, f.a, 1), /active combat/); assert.match((await view(f)).movementBlockedReason, /Initiative rules are not implemented/);
+    await assert.rejects(stackMove(f, null, f.a, 1), /active combat/); assert.match((await view(f)).movementBlockedReason, /Use Inventory handling/);
     await pool.query("update campaign_session_encounter set frozen_at=now() where id=$1", [f.encounterId]);
     await assert.rejects(stackMove(f, null, f.a, 1), /paused|frozen/i);
   });
@@ -416,7 +416,7 @@ test("specialized manipulation requires Loose copies and safely normalizes contr
   });
 });
 
-if (process.env.CONTAINMENT_BROWSER === "1") test("real Character and Item authoring browser workflows", { timeout: 300_000 }, async () => {
+if (process.env.CONTAINMENT_BROWSER === "1") test("real Character and Item authoring browser workflows", { timeout: 720_000 }, async () => {
   const f = await specializedFixture();
   const { runContainerPhysicalBrowser } = await import("./container-physical-browser.ts");
   await runContainerPhysicalBrowser(f);
@@ -425,4 +425,9 @@ if (process.env.CONTAINMENT_BROWSER === "1") test("real Character and Item autho
 if (process.env.CONTAINMENT_MAGIC !== "0") test("authored magical container rules and durable source state", async t => {
   const { containerMagicCases } = await import("./container-magic-db-cases.mjs");
   await containerMagicCases(t, { fixture, specializedFixture, pool, db, actors, catalog, containment, view, exactMove, stackMove, snapshot });
+});
+
+test("Pass 4 custody, access and combat handling", async t => {
+  const { containerAccessCases } = await import("./container-access-db-cases.mjs");
+  await containerAccessCases(t, { fixture, accessFixture, pool, db, actors, catalog, containment, view, exactMove, stackMove, snapshot, equipment });
 });

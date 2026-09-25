@@ -1,3 +1,4 @@
+import { assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
 import { decimalMultiply, completedDecimalUnits } from "@/lib/decimal";
 import { and, eq, sql } from "drizzle-orm";
@@ -40,6 +41,7 @@ export async function startCombatMagazineFill(tx: Tx, context: OwnedEncounterRun
   if (selected.attachedWeaponInstanceId) throw new Error("Remove the magazine from its firearm before filling it.");
   await assertInstanceLooseInTransaction(tx, command.characterId, selected.instanceId, "Move this magazine to Loose before filling it.");
   const ammo = selected.ammunition.find((entry) => entry.id === command.ammunitionItemId && !entry.archived);
+  await assertLooseStackAvailable(tx, command.characterId, command.ammunitionItemId, command.rounds);
   if (!ammo || ammo.quantity < command.rounds) throw new Error("Choose compatible loose ammunition and an available number of rounds.");
   if (selected.loadedRounds > 0 && selected.ammunitionItemId !== command.ammunitionItemId) throw new Error("Choose the ammunition already in this magazine; mixed loads are not supported.");
   if (selected.loadedRounds + command.rounds > selected.capacity) throw new Error("These rounds exceed the magazine's capacity. Add fewer rounds.");
@@ -81,6 +83,7 @@ async function progressFill(tx: Tx, receiptId: number, spent: number, actionStat
       || selected.loadedRounds + inserted > selected.capacity || selected.loadedRounds > 0 && selected.ammunitionItemId !== request.ammunitionItemId) throw new Error("This magazine changed during filling. Interrupt the action and review its exact contents.");
     const [owned] = await tx.select().from(copy).where(eq(copy.id, request.instanceId)).for("update");
     const [stock] = await tx.select().from(loose).where(and(eq(loose.characterId, request.characterId), eq(loose.itemId, request.ammunitionItemId))).for("update");
+    await assertLooseStackAvailable(tx, request.characterId, request.ammunitionItemId, inserted);
     if (!stock || stock.quantity < inserted) throw new Error("The next magazine insertion needs more compatible loose ammunition. Restore those rounds or interrupt filling.");
     const loadedRounds = owned.loadedRounds + inserted, unitCost = (owned.loadedRounds * owned.loadedAmmunitionUnitCostCredits + inserted * stock.unitCostCredits) / loadedRounds;
     if (stock.quantity === inserted) await tx.delete(loose).where(and(eq(loose.characterId, request.characterId), eq(loose.itemId, request.ammunitionItemId)));
