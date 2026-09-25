@@ -1,0 +1,237 @@
+[
+  {
+    "sample": "adrian-core",
+    "pages": 2,
+    "paragraphs_checked": 10,
+    "table_rows_checked": 30,
+    "page_details": [
+      {
+        "page": 1,
+        "characters": 1632,
+        "font_sizes": [
+          3.49,
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          18.0,
+          19.99,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 2,
+        "characters": 2800,
+        "font_sizes": [
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          10.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      }
+    ]
+  },
+  {
+    "sample": "adrian-with-references",
+    "pages": 4,
+    "paragraphs_checked": 48,
+    "table_rows_checked": 30,
+    "page_details": [
+      {
+        "page": 1,
+        "characters": 1632,
+        "font_sizes": [
+          3.49,
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          18.0,
+          19.99,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 2,
+        "characters": 2800,
+        "font_sizes": [
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          10.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 3,
+        "characters": 2189,
+        "font_sizes": [
+          7.99,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 4,
+        "characters": 2267,
+        "font_sizes": [
+          7.99,
+          8.5,
+          10.0,
+          12.0
+        ],
+        "punctuation_mapping_warnings": 0
+      }
+    ]
+  },
+  {
+    "sample": "example-a",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "table_rows_checked": 9,
+    "page_details": [
+      {
+        "page": 1,
+        "characters": 1475,
+        "font_sizes": [
+          3.49,
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          18.0,
+          19.99,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 2,
+        "characters": 443,
+        "font_sizes": [
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          10.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      }
+    ]
+  },
+  {
+    "sample": "example-b",
+    "pages": 7,
+    "paragraphs_checked": 62,
+    "table_rows_checked": 44,
+    "page_details": [
+      {
+        "page": 1,
+        "characters": 1609,
+        "font_sizes": [
+          3.49,
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          18.0,
+          19.99,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 2,
+        "characters": 1901,
+        "font_sizes": [
+          6.0,
+          7.5,
+          7.99,
+          8.5,
+          10.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 3,
+        "characters": 4170,
+        "font_sizes": [
+          6.0,
+          7.99,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 4,
+        "characters": 2471,
+        "font_sizes": [
+          7.99,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 5,
+        "characters": 3354,
+        "font_sizes": [
+          7.99,
+          10.0,
+          12.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 6,
+        "characters": 1657,
+        "font_sizes": [
+          7.99,
+          10.0,
+          12.0,
+          24.0
+        ],
+        "punctuation_mapping_warnings": 0
+      },
+      {
+        "page": 7,
+        "characters": 1157,
+        "font_sizes": [
+          7.99,
+          10.0,
+          12.0
+        ],
+        "punctuation_mapping_warnings": 0
+      }
+    ]
+  }
+]

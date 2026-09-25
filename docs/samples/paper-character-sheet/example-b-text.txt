@@ -1,0 +1,574 @@
+I · Play
+Serrian Tide
+CHARACTER SHEET
+Ilyra Voss — DEMO B
+Coastborn (demo)
+Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None
+Player: sheet-player · Campaign: The Lantern Coast — DEMO
+Fame
+17
+XP
+245
+Total XP
+1290
+Quintessence
+23
+Total Quintessence
+88
+Fate
+4
+◆Attributes
+STR
+35
+DEX
+40
+CON
+35
+INT
+45
+WIS
+40
+CHR
+30
+Mod +2
+65%+
+Mod +3
+60%+
+Mod +2
+65%+
+Mod +4
+55%+
+Mod +3
+60%+
+Mod +1
+70%+
+%+ is a roll target. Permanent values are shown; apply current conditions and situational rules.
+Quick rolls
+Navigation 35%+
+Channeling 39%+
+Maritime history and coastal settlements 27%+
+Old beacon archives and the northern trade routes 15%+
+◆Health & hit locations
+◆Mana
+HP pool / hit
+Current
+Max
+Damage
+Now
+System
+Current / max
+Now
+Total HP
+65
+72
+7
+Spellcraft
+37 / 54
+Master
+17 spent
+Head 0
+8
+8
+0
+0
+9
+Right Arm 1
+8
+11
+3
+◆Movement & Initiative
+1
+2
+8
+7
+Left Arm 2
+11
+11
+0
+4
+6
+Base Initiative 9
+Now
+Right Leg 3, 4
+11
+11
+0
+3
+5
+Mode
+Base
+Initiative
+Left Leg 5, 6
+11
+11
+0
+Land
+3
+27
+Torso 7, 8, 9
+18
+22
+4
+Swim
+1
+9
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+◆Weapons
+Weapon / state
+Roll
+Damage / conditional modifier
+Ini.
+Reach / range
+Coastwatch Baton
+43%+
+4 Bludgeoning; STR +2 conditional modifier
+4
+Reach 3 ft
+Wielded 1/2; Unequipped 1/2
+Damage depends on successes and attack rules. The modifier is conditional, not a fixed total.
+◆Protection
+◆Conditions & play notes
+Protection / state
+Coverage
+Soak
+No active conditions recorded.
+Leather Arm Guards
+Right Arm, Left Arm
+2
+Worn ×1
+II · Record
+Serrian Tide
+SKILLS, ABILITIES & EQUIPMENT
+◆Core Skills
+◆Owned inventory
+Skill
+Pts
+Rank
+Target
+Item
+Qty
+Equipment state
+Charges /
+ammunition
+Athletics
+10
+12
+53%+
+Blanket
+3
+Carried
+—
+Awareness
+12
+15
+45%+
+Brass Compass
+1
+Carried
+—
+Coastwatch Baton
+14
+17
+43%+
+Canvas travel
+bag
+1
+Carried
+—
+Navigation
+16
+20
+35%+
+Channeling
+18
+21
+39%+
+Chalk sticks
+1
+Carried
+—
+Scholarship
+12
+16
+39%+
+Coastwatch
+Baton
+2
+Wielded 1/2;
+Unequipped 1/2
+—
+Maritime history and coastal
+settlements
+12
+28
+27%+
+Coiled rope
+3
+Carried
+—
+Old beacon archives and the
+northern trade routes
+12
+40
+15%+
+Flint and steel
+2
+Carried
+—
+Folding cup
+2
+Carried
+—
+Field specialty 1: charts, dialects
+and weather journals
+12
+16
+39%+
+Healing Potion
+3
+Carried
+—
+Ink bottle
+3
+Carried
+—
+Field specialty 2: charts, dialects
+and weather journals
+12
+16
+39%+
+Leather Arm
+Guards
+1
+Worn 1/1
+—
+Field specialty 3: charts, dialects
+and weather journals
+12
+16
+39%+
+Oil flask
+1
+Carried
+—
+Field specialty 4: charts, dialects
+and weather journals
+12
+16
+39%+
+Sailmaker's
+needle
+1
+Carried
+—
+Field specialty 5: charts, dialects
+and weather journals
+12
+16
+39%+
+Sealed dispatch
+for the keeper of
+the
+northernmost
+lighthouse
+1
+Carried
+—
+Field specialty 6: charts, dialects
+and weather journals
+12
+16
+39%+
+Field specialty 7: charts, dialects
+and weather journals
+12
+16
+39%+
+Signal whistle
+1
+Carried
+—
+Spare gloves
+2
+Carried
+—
+Field specialty 8: charts, dialects
+and weather journals
+12
+16
+39%+
+Spare lamp
+wicks
+3
+Carried
+—
+Field specialty 9: charts, dialects
+and weather journals
+12
+16
+39%+
+Trail Rations
+5
+Carried
+—
+Waxed map
+case
+2
+Carried
+—
+◆Spellcraft
+Skill
+Pts
+Rank
+Target
+Weather journal
+2
+Carried
+—
+Spellcraft
+1
+5
+50%+
+Wooden tokens
+3
+Carried
+—
+Restorative
+Wand · Copy
+#13
+1
+Unequipped
+2/5 charges
+Restorative
+Wand · Copy
+#14
+1
+Equipped
+4/5 charges
+Currency Credits: 137.5
+Change
+State quantities are included in Qty. Exact copies keep separate
+charges.
+◆Spellbook / Powers
+Spell
+Roll
+Mana
+Ini.
+Sec.
+Range
+Duration
+A Line of Light Through
+the Storm
+—
+6
+3
+6
+See authored effect
+See authored effect
+Rules: Deal 4 Damage · Localized · Sample limitation 3: use the authored target, range, duration and effects below.
+Decorative narrative does not expand the construction. End of spell notes 3.
+Lantern at the Breakwater
+—
+3
+2
+3
+See authored effect
+See authored effect
+Rules: Deal 2 Damage · Localized · Sample limitation 1: use the authored target, range, duration and effects below.
+Decorative narrative does not expand the construction. End of spell notes 1.
+Mending the Watchkeeper —
+4
+2
+4
+See authored effect
+See authored effect
+Rules: Heal 3 · Full Body · Sample limitation 2: use the authored target, range, duration and effects below. Decorative
+narrative does not expand the construction. End of spell notes 2.
+Known Spell · Spellcraft / Master. Ini. = combat; Sec. = out of combat. * Includes G.O.D. effects.
+Serrian Tide
+SPELLS & ABILITIES
+OPTIONAL PLAY REFERENCE
+Casting values include the current practitioner level and authored timing modifiers. Structured effects and saved prose are shown separately; a
+disagreement in the saved definition needs a G.O.D. ruling.
+SP01 / A Line of Light Through the Storm
+Spellcraft · Master · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+—
+6
+3 Initiative
+6 seconds
+See authored effect
+Deal 4 Damage · Localized
+Damage: Damage points: 4. A demo damage effect on the selected target.. Deals a fixed number of damage points.
+Saved description: DEMO construction 3. A thin line of light follows the caster's hand as the target is identified. The
+descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook
+describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the
+sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf
+against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the
+breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater
+and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the
+reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light
+on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone.
+The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's
+notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook
+describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the
+sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf
+against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the
+breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater
+and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the
+reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light
+on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone.
+The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's
+notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 3.
+Requirements / notes: Sample limitation 3: use the authored target, range, duration and effects below. Decorative narrative
+does not expand the construction. End of spell notes 3.
+SP02 / Lantern at the Breakwater
+Spellcraft · Master · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+—
+3
+2 Initiative
+3 seconds
+See authored effect
+Deal 2 Damage · Localized
+Damage: Damage points: 2. A demo damage effect on the selected target.. Deals a fixed number of damage points.
+Saved description: DEMO construction 1. A thin line of light follows the caster's hand as the target is identified. The
+descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook
+describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the
+sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf
+against the breakwater and the reflected light on wet stone. End of description 1.
+Requirements / notes: Sample limitation 1: use the authored target, range, duration and effects below. Decorative narrative
+does not expand the construction. End of spell notes 1.
+SP03 / Mending the Watchkeeper
+Spellcraft · Master · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+—
+4
+2 Initiative
+4 seconds
+See authored effect
+Heal 3 · Full Body
+Healing: Healing points: 3. A restorative effect on the selected target.. Restores a fixed number of points.
+Saved description: DEMO construction 2. A thin line of light follows the caster's hand as the target is identified. The
+descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook
+describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the
+sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf
+against the breakwater and the reflected light on wet stone. End of description 2.
+Requirements / notes: Sample limitation 2: use the authored target, range, duration and effects below. Decorative narrative
+does not expand the construction. End of spell notes 2.
+Serrian Tide
+FULL SKILL DESCRIPTIONS
+SK01 / Athletics
+Physical training for the coast patrol.
+SK02 / Awareness
+Observe people, terrain and changing weather.
+SK03 / Coastwatch Baton
+The recorded governing skill for the demo baton.
+SK04 / Navigation
+Read charts and maintain the route log.
+SK05 / Spellcraft
+No definition recorded.
+SK06 / Channeling
+No definition recorded.
+SK07 / Scholarship
+Recorded field specialty 1. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK08 / Scholarship → Maritime history and coastal settlements
+Recorded field specialty 2. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK09 / Scholarship → Maritime history and coastal settlements → Old beacon archives
+and the northern trade routes
+Recorded field specialty 3. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK10 / Field specialty 1: charts, dialects and weather journals
+Recorded field specialty 4. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK11 / Field specialty 2: charts, dialects and weather journals
+Recorded field specialty 5. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK12 / Field specialty 3: charts, dialects and weather journals
+Recorded field specialty 6. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK13 / Field specialty 4: charts, dialects and weather journals
+Recorded field specialty 7. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK14 / Field specialty 5: charts, dialects and weather journals
+Recorded field specialty 8. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK15 / Field specialty 6: charts, dialects and weather journals
+Recorded field specialty 9. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK16 / Field specialty 7: charts, dialects and weather journals
+Recorded field specialty 10. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK17 / Field specialty 8: charts, dialects and weather journals
+Recorded field specialty 11. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+SK18 / Field specialty 9: charts, dialects and weather journals
+Recorded field specialty 12. The notebook preserves observations of beacon signals, coastal tracks and the people who
+maintain them. This is a disposable sample skill definition, not an addition to the game catalog.
+Serrian Tide
+FULL ITEM DESCRIPTIONS
+G01 / Blanket
+Personal travel supply 12, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G02 / Brass Compass
+A pocket compass marked with the patrol insignia.
+G03 / Canvas travel bag
+Personal travel supply 1, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G04 / Chalk sticks
+Personal travel supply 4, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G05 / Coastwatch Baton
+An ash baton with a leather wrist loop.
+Attack: 43%+ (Coastwatch Baton); damage 4 Bludgeoning; STR +2 conditional modifier; attack Initiative 4; Reach 3 ft.
+G06 / Coiled rope
+Personal travel supply 6, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G07 / Flint and steel
+Personal travel supply 5, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G08 / Folding cup
+Personal travel supply 11, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G09 / Healing Potion
+A stoppered restorative; apply its recorded healing effect.
+Drink: consumes 1 per use.
+Heal 3 · Full Body
+G10 / Ink bottle
+Personal travel supply 9, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G11 / Leather Arm Guards
+A fitted pair protecting the recorded arm locations.
+G12 / Oil flask
+Personal travel supply 16, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G13 / Sailmaker's needle
+Personal travel supply 7, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G14 / Sealed dispatch for the keeper of the northernmost lighthouse
+Personal travel supply 13, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G15 / Signal whistle
+Personal travel supply 10, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G16 / Spare gloves
+Personal travel supply 14, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G17 / Spare lamp wicks
+Personal travel supply 3, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G18 / Trail Rations
+Wrapped portions of dried food.
+G19 / Waxed map case
+Personal travel supply 2, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G20 / Weather journal
+Personal travel supply 8, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G21 / Wooden tokens
+Personal travel supply 15, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.
+G22 / Restorative Wand
+Individually tracked copies; each retains its own remaining charges.
+Use: 1 charge(s) per use.
+Heal 3 · Full Body

@@ -24,6 +24,7 @@ const health = await import("../src/app/characters/active-health-actions.ts");
 const mana = await import("../src/app/characters/active-mana-actions.ts");
 const inventory = await import("../src/app/characters/owner-inventory-actions.ts");
 const equipment = await import("../src/app/characters/equipment-state-actions.ts");
+const paper = await import("../src/app/characters/paper-character-actions.ts");
 const internalHealth = await import("../src/features/active-state/active-health-service.ts");
 const internalMana = await import("../src/features/active-state/active-mana-service.ts");
 const { characterAggregateToDraft } = await import("../src/features/characters/character-rules.ts");
@@ -33,6 +34,90 @@ const tracking = profile => Object.fromEntries(trackingKeys.map(key => [key, pro
 const totals = { fame: 7, experience: 123, totalExperience: 456, quintessence: 12, totalQuintessence: 34 };
 const state = async id => (await pool.query("select h.total_damage,m.mana_spent from campaign_character_active_health h join campaign_character_active_mana m using(character_id) where character_id=$1", [id])).rows;
 after(() => pool.end());
+
+test("Paper playable spell costs and timing match the authoritative casting preview, preserving import metadata", async () => {
+  const {createEmptySpell}=await import('../src/features/spell-construction/utilities/spellFactory.ts');
+  const {prepareCharacterSpellCastInTransaction}=await import('../src/features/characters/character-spell-runtime-service.ts');
+  const characterId=ids[0];
+  const record=await act('player',()=>actions.getCharacter(characterId,false));
+  const parent=record.skillAllocations.find(row=>row.skillName==='Spellcraft');
+  const document=createEmptySpell(); document.name='Print calculation regression'; document.castingSystem='Spellcraft';
+  document.containers[0].effects=[{id:'print-heal',ruleId:'healing',quantity:3,healingScope:'full-body'}];
+  const documentJson=JSON.stringify(document);
+  const skillId=(await pool.query("insert into skill(name,classification,tier,primary_attribute,definition) values($1,'spell',2,'INT','Print fixture') returning id",[document.name])).rows[0].id;
+  let allocationId;
+  try {
+    await pool.query("insert into skill_extension(skill_id,extension_type,schema_version,data_json) values($1,'spell-construction',7,$2),($1,'spell-import-source',1,$3)",[skillId,documentJson,JSON.stringify({spreadsheetReference:{statedSpellCost:999,masteryLabel:'Apprentice'}})]);
+    allocationId=(await pool.query('insert into campaign_character_skill_allocation(character_id,skill_id,parent_allocation_id,points) values($1,$2,$3,1) returning id',[characterId,skillId,parent.id])).rows[0].id;
+    const request={casterCharacterId:characterId,source:{kind:'catalog',allocationId},selections:{targetGroups:{},applications:{}}};
+    const preview=await db.transaction(tx=>prepareCharacterSpellCastInTransaction(tx,request,'sheet-player'),{accessMode:'read only'});
+    const before=await state(characterId);
+    const printed=await act('player',()=>paper.getPaperCharacterSheet(characterId));
+    const spell=printed.spells.find(row=>row.key===`catalog:${allocationId}`);
+    assert.equal(spell.catalogManaCost,999);
+    assert.notEqual(spell.manaCost,999);
+    assert.deepEqual([spell.manaCost,spell.combatCastingTime,spell.outOfCombatCastingTimeSeconds],[preview.plan.finalManaCost,preview.plan.finalInitiativeCost,preview.plan.finalOutOfCombatCastingTimeSeconds]);
+    assert.equal((await pool.query("select data_json from skill_extension where skill_id=$1 and extension_type='spell-construction'",[skillId])).rows[0].data_json,documentJson);
+    assert.deepEqual(await state(characterId),before);
+  } finally {
+    if(allocationId) await pool.query('delete from campaign_character_skill_allocation where id=$1',[allocationId]);
+    await pool.query('delete from skill where id=$1',[skillId]);
+  }
+});
+
+test("Paper uses current Psyonics and Bardic Resonance skills and resource names", async () => {
+  const characterId=ids[0];
+  const skillIds=[];
+  try {
+    for(const [name,classification] of [['Psionic Focus','magic access'],['Psionic Channeling','standard'],['Resonant Performance','magic access'],['Resonance Attunement','standard']]) {
+      const skillId=(await pool.query("insert into skill(name,classification,tier,primary_attribute,definition) values($1,$2,1,'INT','Disposable current-system print fixture') returning id",[name,classification])).rows[0].id;
+      skillIds.push(skillId);
+      await pool.query('insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,10)',[characterId,skillId]);
+    }
+    const printed=await act('player',()=>paper.getPaperCharacterSheet(characterId));
+    for(const [name,system] of [['Psionic Focus','Psyonics'],['Resonant Performance','Bardic Resonance']]) {
+      assert.equal(printed.skills.find(row=>row.name===name)?.system,system);
+      assert.ok(printed.mana.some(pool=>pool.system===system && pool.maximumMana>0));
+    }
+    for(const name of ['Psionic Channeling','Resonance Attunement']) assert.ok(printed.skills.some(row=>row.name===name));
+    assert.ok(!printed.skills.some(row=>['Mental','Physical','Kinetic'].includes(row.name)), 'Do not insert disciplines from the design image');
+  } finally {
+    await pool.query('delete from campaign_character_skill_allocation where character_id=$1 and skill_id=any($2::int[])',[characterId,skillIds]);
+    await pool.query('delete from skill where id=any($1::int[])',[skillIds]);
+  }
+});
+
+test("Paper Character Sheet reads saved runtime and public totals without changing any Character records", async () => {
+  const tables = (await pool.query("select table_name from information_schema.tables where table_schema='public' and (table_name='campaign_character' or starts_with(table_name,'campaign_character_')) order by table_name")).rows;
+  const snapshot = async () => {
+    const rows = [];
+    for (const {table_name: table} of tables) {
+      assert.match(table,/^campaign_character(?:_[a-z_]+)?$/);
+      rows.push((await pool.query(`select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) value from "${table}" r`)).rows[0].value);
+    }
+    return rows;
+  };
+  const before = await snapshot();
+  for (const [user, manager] of [["player",false],["owner",true],["admin",true]]) {
+    const printed = await act(user, () => paper.getPaperCharacterSheet(ids[0],manager));
+    const healthView = await act(user, () => health.getActiveHealth(ids[0]));
+    const manaView = await act(user, () => mana.getActiveMana(ids[0]));
+    assert.equal(printed.characterId,ids[0]);
+    assert.equal(printed.health.total.remainingHp,healthView.total.remainingHp);
+    assert.deepEqual(printed.mana,manaView.pools);
+    assert.deepEqual(printed.totals.slice(0,5).map(row=>row.value),Object.values(totals));
+    assert.ok(printed.inventory.some(row=>row.status.includes('2/5 charges')));
+    assert.ok(printed.inventory.some(row=>row.status.includes('4/5 charges')));
+    assert.doesNotMatch(JSON.stringify(printed),/updatedByUserId|operationHistory|overrideReason|resolutionNote|endNote/);
+  }
+  assert.deepEqual(await snapshot(),before);
+});
+
+test("Paper print action rejects another Character, unrelated G.O.D. and forged manager access", async () => {
+  for (const [user, manager, id] of [["player",false,ids[2]],["foreign",false,ids[0]],["foreign",true,ids[0]],["player",true,ids[0]],["player",false,999999]]) {
+    await assert.rejects(act(user,()=>paper.getPaperCharacterSheet(id,manager)));
+  }
+});
 
 test("server-derived capability, readable totals, and forged routes/flags", async () => {
   for (const [user, manager, allowed] of [["owner",true,true],["player",false,false],["admin",true,false]]) {

@@ -1,0 +1,221 @@
+{
+  "name": "Adrian Vale",
+  "campaign": "The Breaking",
+  "paragraphs": [
+    "Adrian Vale",
+    "Educated HumanAge 28 · male · 6 ft 2 in · Weight 190 · Deity: none",
+    "Slashing +2; Piercing +1; Bludgeoning -2",
+    "You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or learned. No roll is required merely to remember that information.\n\nAn INT-based roll may still be required when the information was only partially perceived, deliberately concealed, experienced while severely distracted, or when extremely precise details are important.\n\nEidetic Memory does not provide knowledge you never acquired, reveal information you failed to perceive, or grant understanding of something simply because you remember it.",
+    "Rules: Teleportation; Component Requirement; Concentration: 1 concentration point · +2 Initiative · Must have line-of-sight to destination; misfire possible in obstructed zones.",
+    "Rules: Deal 1 Damage · Localized; Component Requirement · Requires conductive medium; may arc to nearby surfaces; melee risk.",
+    "Rules: Reveal/Detect · Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or lead beyond line-of-effect obstructions. Best used repeatedly between movements.",
+    "Rules: Reveal/Detect; Buff: Buff increments: 5; Radius (10 ft): Base shape · Novice notes: Reveals magical/sensory concealment but not deep wards. Allies must be within zone to benefit. Only applies during duration.",
+    "Rules: Reveal/Detect · Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact. Reveals only currently present concealments, not past events.",
+    "Rules: Decelerate/Slow: Initiative increments: 1; Immobilize · If target passes Willpower check, effect reduces to –1 Initiative only."
+  ],
+  "rows": [
+    [
+      "Channeling",
+      "10",
+      "16",
+      "29%+"
+    ],
+    [
+      "Meditation",
+      "10",
+      "16",
+      "29%+"
+    ],
+    [
+      "Melee Weapons",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Stealth",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Ranged Weapons",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Spellcraft",
+      "10",
+      "16",
+      "29%+"
+    ],
+    [
+      "Water",
+      "3",
+      "19",
+      "26%+"
+    ],
+    [
+      "Charged Grasp",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Time & Space",
+      "3",
+      "19",
+      "26%+"
+    ],
+    [
+      "Blink Step",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Stasis Snare",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Divination",
+      "3",
+      "19",
+      "26%+"
+    ],
+    [
+      "Echo of the Hunt",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Eye of Secrets",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Glimpse of Truth",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Arm Guards",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Baton",
+      "1",
+      "Wielded 1/1"
+    ],
+    [
+      "Bedroll",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Belt",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Belt Pouch",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Boots",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Canteen",
+      "6",
+      "Worn 1/6; Unequipped 5/6"
+    ],
+    [
+      "Cargo Pants",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Common Clothes",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Blink Step *",
+      "23%+",
+      "15",
+      "10",
+      "15",
+      "Medium (60 ft)",
+      "Instantaneous"
+    ],
+    [
+      "Charged Grasp",
+      "23%+",
+      "4",
+      "2",
+      "4",
+      "Touch",
+      "Instantaneous"
+    ],
+    [
+      "Echo of the Hunt *",
+      "23%+",
+      "8",
+      "4",
+      "8",
+      "Short (30 ft)",
+      "Instantaneous"
+    ],
+    [
+      "Eye of Secrets *",
+      "23%+",
+      "28",
+      "14",
+      "28",
+      "Short (30 ft)",
+      "Combat Round"
+    ],
+    [
+      "Glimpse of Truth *",
+      "23%+",
+      "6",
+      "3",
+      "6",
+      "Touch",
+      "Instantaneous"
+    ],
+    [
+      "Stasis Snare *",
+      "23%+",
+      "26",
+      "13",
+      "26",
+      "Short (30 ft)",
+      "Combat Round"
+    ]
+  ],
+  "checks": [
+    "Adrian Vale",
+    "Educated HumanAge 28 · male · 6 ft 2 in · Weight 190 · Deity: none",
+    "Slashing +2; Piercing +1; Bludgeoning -2",
+    "You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or learned. No roll is required merely to remember that information.\n\nAn INT-based roll may still be required when the information was only partially perceived, deliberately concealed, experienced while severely distracted, or when extremely precise details are important.\n\nEidetic Memory does not provide knowledge you never acquired, reveal information you failed to perceive, or grant understanding of something simply because you remember it.",
+    "Rules: Teleportation; Component Requirement; Concentration: 1 concentration point · +2 Initiative · Must have line-of-sight to destination; misfire possible in obstructed zones.",
+    "Rules: Deal 1 Damage · Localized; Component Requirement · Requires conductive medium; may arc to nearby surfaces; melee risk.",
+    "Rules: Reveal/Detect · Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or lead beyond line-of-effect obstructions. Best used repeatedly between movements.",
+    "Rules: Reveal/Detect; Buff: Buff increments: 5; Radius (10 ft): Base shape · Novice notes: Reveals magical/sensory concealment but not deep wards. Allies must be within zone to benefit. Only applies during duration.",
+    "Rules: Reveal/Detect · Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact. Reveals only currently present concealments, not past events.",
+    "Rules: Decelerate/Slow: Initiative increments: 1; Immobilize · If target passes Willpower check, effect reduces to –1 Initiative only."
+  ],
+  "rowIds": [],
+  "rowCount": 30
+}

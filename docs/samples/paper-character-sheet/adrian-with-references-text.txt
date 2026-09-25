@@ -1,0 +1,441 @@
+I · Play
+Serrian Tide
+CHARACTER SHEET
+Adrian Vale
+Educated Human
+Age 28 · male · 6 ft 2 in · Weight 190 · Deity: none
+Player: revty79 · Campaign: The Breaking
+Fame
+0
+XP
+0
+Total XP
+0
+Quintessence
+0
+Total Quintessence
+0
+Fate
+4
+◆Attributes
+STR
+10
+DEX
+35
+CON
+35
+INT
+55
+WIS
+25
+CHR
+15
+Mod -3
+90%+
+Mod +2
+65%+
+Mod +2
+65%+
+Mod +6
+45%+
+Mod 0
+75%+
+Mod -2
+85%+
+%+ is a roll target. Permanent values are shown; apply current conditions and situational rules.
+◆Core Skills · quick rolls
+Skill
+Pts
+Rank
+Target
+Skill
+Pts
+Rank
+Target
+Channeling
+10
+16
+29%+
+Stealth
+10
+12
+53%+
+Meditation
+10
+16
+29%+
+Ranged Weapons
+10
+12
+53%+
+Melee Weapons
+10
+12
+53%+
+◆Health & hit locations
+◆Mana
+HP pool / hit
+Current
+Max
+Damage
+Now
+System
+Current / max
+Now
+Total HP
+72
+72
+0
+Spellcraft
+30 / 30
+Novice
+0 spent
+Head 0
+8
+8
+0
+0
+9
+Right Arm 1
+11
+11
+0
+1
+2
+◆Movement & Initiative
+8
+7
+Left Arm 2
+11
+11
+0
+4
+6
+Base Initiative 8
+Now
+Right Leg 3, 4
+11
+11
+0
+3
+5
+Mode
+Base
+Initiative
+Left Leg 5, 6
+11
+11
+0
+Land
+2
+16
+Torso 7, 8, 9
+22
+22
+0
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+◆Weapons
+Weapon / state
+Roll
+Damage / conditional modifier
+Ini.
+Reach / range
+Baton
+53%+
+6.0 Bludgeoning; STR -3 / DEX +2
+conditional modifier
+6
+Reach 5 ft; Range melee
+Wielded 1/1
+Damage depends on successes and attack rules. The modifier is conditional, not a fixed total.
+◆Protection
+◆Conditions & play notes
+Protection / state
+Coverage
+Soak
+No active conditions recorded.
+Arm Guards
+Right Arm, Left Arm
+2
+Worn ×1
+Slashing +2; Piercing +1; Bludgeoning -2
+II · Record
+Serrian Tide
+SKILLS, ABILITIES & EQUIPMENT
+◆Spellcraft
+◆Owned inventory
+Skill
+Pts
+Rank
+Target
+Item
+Qty
+Equipment state
+Spellcraft
+10
+16
+29%+
+Arm Guards
+1
+Worn 1/1
+Water
+3
+19
+26%+
+Baton
+1
+Wielded 1/1
+Charged Grasp
+3
+22
+23%+
+Bedroll
+1
+Unequipped 1/1
+Time & Space
+3
+19
+26%+
+Belt
+1
+Unequipped 1/1
+Blink Step
+3
+22
+23%+
+Belt Pouch
+1
+Unequipped 1/1
+Stasis Snare
+3
+22
+23%+
+Boots
+1
+Unequipped 1/1
+Divination
+3
+19
+26%+
+Canteen
+6
+Worn 1/6; Unequipped 5/6
+Echo of the Hunt
+3
+22
+23%+
+Cargo Pants
+1
+Worn 1/1
+Eye of Secrets
+3
+22
+23%+
+Common Clothes
+1
+Worn 1/1
+Glimpse of Truth
+3
+22
+23%+
+Currency Credits: 65
+Change
+State quantities are included in Qty.
+◆Derived Abilities
+Eidetic Memory · passive · Available / INT 40+
+You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or
+learned. No roll is required merely to remember that information. An INT-based roll may still be required when the
+information was only partially perceived, deliberately concealed, experienced while severely distracted, or when extremely
+precise details are important. Eidetic Memory does not provide knowledge you never acquired, reveal information you
+failed to perceive, or grant understanding of something simply because you remember it.
+◆Spellbook / Powers
+Spell
+Roll
+Mana
+Ini.
+Sec.
+Range
+Duration
+Blink Step *
+23%+
+15
+10
+15
+Medium (60 ft)
+Instantaneous
+Rules: Teleportation; Component Requirement; Concentration: 1 concentration point · +2 Initiative · Must have line-of-
+sight to destination; misfire possible in obstructed zones.
+Charged Grasp
+23%+
+4
+2
+4
+Touch
+Instantaneous
+Rules: Deal 1 Damage · Localized; Component Requirement · Requires conductive medium; may arc to nearby surfaces;
+melee risk.
+Echo of the Hunt *
+23%+
+8
+4
+8
+Short (30 ft)
+Instantaneous
+Rules: Reveal/Detect · Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or
+lead beyond line-of-effect obstructions. Best used repeatedly between movements.
+Eye of Secrets *
+23%+
+28
+14
+28
+Short (30 ft)
+Combat Round
+Rules: Reveal/Detect; Buff: Buff increments: 5; Radius (10 ft): Base shape · Novice notes: Reveals magical/sensory
+concealment but not deep wards. Allies must be within zone to benefit. Only applies during duration.
+Glimpse of Truth *
+23%+
+6
+3
+6
+Touch
+Instantaneous
+Rules: Reveal/Detect · Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact.
+Reveals only currently present concealments, not past events.
+Stasis Snare *
+23%+
+26
+13
+26
+Short (30 ft)
+Combat Round
+Rules: Decelerate/Slow: Initiative increments: 1; Immobilize · If target passes Willpower check, effect reduces to –1
+Initiative only.
+Known Spell · Spellcraft / Novice. Ini. = combat; Sec. = out of combat. * Includes G.O.D. effects.
+Serrian Tide
+SPELLS & ABILITIES
+OPTIONAL PLAY REFERENCE
+Casting values include the current practitioner level and authored timing modifiers. Structured effects and saved prose are shown separately; a
+disagreement in the saved definition needs a G.O.D. ruling.
+SP01 / Blink Step
+Spellcraft · Novice · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+23%+
+15
+10 Initiative
+15 seconds
+Medium (60 ft)
+Teleportation: G.O.D. resolution required.
+Teleportation: Relocates a subject instantly. [Temporal/Spatial]
+Medium (60 ft) [Temporal/Spatial] · Instantaneous [Temporal/Spatial] · Component Requirement [Spell] · Concentration:
+1 concentration point · +2 Initiative [Spell]
+Saved description: Instant relocation of self within 60 ft.
+Requirements / notes: Must have line-of-sight to destination; misfire possible in obstructed zones.
+SP02 / Charged Grasp
+Spellcraft · Novice · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+23%+
+4
+2 Initiative
+4 seconds
+Touch
+Deal 1 Damage · Localized
+Damage: Damage points: 1. Deals a fixed number of damage points. [Target]
+Touch [Target] · Instantaneous [Target] · Component Requirement [Spell]
+Saved description: Deals 2 lightning damage.
+Requirements / notes: Requires conductive medium; may arc to nearby surfaces; melee risk.
+SP03 / Echo of the Hunt
+Spellcraft · Novice · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+23%+
+8
+4 Initiative
+8 seconds
+Short (30 ft)
+Reveal/Detect: G.O.D. resolution required.
+Reveal/Detect: Exposes hidden things or energies.
+Short (30 ft) · Instantaneous
+Saved description: Instant directional ping toward target within 30 ft; vague, momentary guidance.
+Requirements / notes: Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or
+lead beyond line-of-effect obstructions. Best used repeatedly between movements.
+SP04 / Eye of Secrets
+Spellcraft · Novice · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+23%+
+28
+14 Initiative
+28 seconds
+Short (30 ft)
+Reveal/Detect: G.O.D. resolution required.
+Buff: G.O.D. resolution required.
+Reveal/Detect: Exposes hidden things or energies.
+Buff: Buff increments: 5. Grants +5% or +1 stat per increment.
+Short (30 ft) · Radius (10 ft): Base shape · Combat Round
+Saved description: Reveals concealed doors, glyphs, or invisibility within a 10 ft radius; allies gain +5% perception.
+Requirements / notes: Novice notes: Reveals magical/sensory concealment but not deep wards. Allies must be within zone
+to benefit. Only applies during duration.
+SP05 / Glimpse of Truth
+Spellcraft · Novice · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+23%+
+6
+3 Initiative
+6 seconds
+Touch
+Reveal/Detect: G.O.D. resolution required.
+Reveal/Detect: Exposes hidden things or energies.
+Touch · Instantaneous
+Saved description: Reveals concealed or magical traces within touched object or creature.
+Requirements / notes: Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact.
+Reveals only currently present concealments, not past events.
+SP06 / Stasis Snare
+Spellcraft · Novice · Known Spell
+Roll
+Mana
+Combat casting
+Out of combat
+Range
+23%+
+26
+13 Initiative
+26 seconds
+Short (30 ft)
+Decelerate/Slow: G.O.D. resolution required.
+Immobilize: G.O.D. resolution required.
+Decelerate/Slow: Initiative increments: 1. Removes Initiative or slows a process. [Target]
+Immobilize: Fully prevents movement. [Control]
+Short (30 ft) [Target] · Combat Round [Target]
+Saved description: Target suffers –2 Initiative and reduced mobility.
+Requirements / notes: If target passes Willpower check, effect reduces to –1 Initiative only.
+Eidetic Memory
+passive · Available
+Your memory retains information with exceptional clarity. Things you deliberately observe, read, hear, or study can be recalled
+with unusual accuracy long after most people would have forgotten the details.
+You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or
+learned. No roll is required merely to remember that information.
+An INT-based roll may still be required when the information was only partially perceived, deliberately concealed,
+experienced while severely distracted, or when extremely precise details are important.
+Eidetic Memory does not provide knowledge you never acquired, reveal information you failed to perceive, or grant
+understanding of something simply because you remember it.
+Requirements: INT 40+

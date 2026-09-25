@@ -1,0 +1,409 @@
+{
+  "name": "Ilyra Voss — DEMO B",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Ilyra Voss — DEMO B",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None",
+    "Rules: Deal 4 Damage · Localized · Sample limitation 3: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 3.",
+    "Rules: Deal 2 Damage · Localized · Sample limitation 1: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 1.",
+    "Rules: Heal 3 · Full Body · Sample limitation 2: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 2.",
+    "Deal 4 Damage · Localized",
+    "Damage: Damage points: 4. A demo damage effect on the selected target.. Deals a fixed number of damage points.",
+    "Saved description: DEMO construction 3. A thin line of light follows the caster's hand as the target is identified. The descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 3.",
+    "Requirements / notes: Sample limitation 3: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 3.",
+    "Deal 2 Damage · Localized",
+    "Damage: Damage points: 2. A demo damage effect on the selected target.. Deals a fixed number of damage points.",
+    "Saved description: DEMO construction 1. A thin line of light follows the caster's hand as the target is identified. The descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 1.",
+    "Requirements / notes: Sample limitation 1: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 1.",
+    "Heal 3 · Full Body",
+    "Healing: Healing points: 3. A restorative effect on the selected target.. Restores a fixed number of points.",
+    "Saved description: DEMO construction 2. A thin line of light follows the caster's hand as the target is identified. The descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 2.",
+    "Requirements / notes: Sample limitation 2: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 2.",
+    "Physical training for the coast patrol.",
+    "Observe people, terrain and changing weather.",
+    "The recorded governing skill for the demo baton.",
+    "Read charts and maintain the route log.",
+    "No definition recorded.",
+    "No definition recorded.",
+    "Recorded field specialty 1. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 2. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 3. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 4. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 5. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 6. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 7. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 8. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 9. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 10. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 11. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 12. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Personal travel supply 12, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "A pocket compass marked with the patrol insignia.",
+    "Personal travel supply 1, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 4, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "An ash baton with a leather wrist loop.",
+    "Attack: 43%+ (Coastwatch Baton); damage 4 Bludgeoning; STR +2 conditional modifier; attack Initiative 4; Reach 3 ft.",
+    "Personal travel supply 6, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 5, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 11, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "A stoppered restorative; apply its recorded healing effect.",
+    "Drink: consumes 1 per use.",
+    "Heal 3 · Full Body",
+    "Personal travel supply 9, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "A fitted pair protecting the recorded arm locations.",
+    "Personal travel supply 16, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 7, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 13, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 10, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 14, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 3, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Wrapped portions of dried food.",
+    "Personal travel supply 2, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 8, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 15, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Individually tracked copies; each retains its own remaining charges.",
+    "Use: 1 charge(s) per use.",
+    "Heal 3 · Full Body"
+  ],
+  "rows": [
+    [
+      "Athletics",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Awareness",
+      "12",
+      "15",
+      "45%+"
+    ],
+    [
+      "Coastwatch Baton",
+      "14",
+      "17",
+      "43%+"
+    ],
+    [
+      "Navigation",
+      "16",
+      "20",
+      "35%+"
+    ],
+    [
+      "Channeling",
+      "18",
+      "21",
+      "39%+"
+    ],
+    [
+      "Scholarship",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Maritime history and coastal settlements",
+      "12",
+      "28",
+      "27%+"
+    ],
+    [
+      "Old beacon archives and the northern trade routes",
+      "12",
+      "40",
+      "15%+"
+    ],
+    [
+      "Field specialty 1: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 2: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 3: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 4: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 5: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 6: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 7: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 8: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Field specialty 9: charts, dialects and weather journals",
+      "12",
+      "16",
+      "39%+"
+    ],
+    [
+      "Spellcraft",
+      "1",
+      "5",
+      "50%+"
+    ],
+    [
+      "Blanket",
+      "3",
+      "Carried",
+      "—"
+    ],
+    [
+      "Brass Compass",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Canvas travel bag",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Chalk sticks",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Coastwatch Baton",
+      "2",
+      "Wielded 1/2; Unequipped 1/2",
+      "—"
+    ],
+    [
+      "Coiled rope",
+      "3",
+      "Carried",
+      "—"
+    ],
+    [
+      "Flint and steel",
+      "2",
+      "Carried",
+      "—"
+    ],
+    [
+      "Folding cup",
+      "2",
+      "Carried",
+      "—"
+    ],
+    [
+      "Healing Potion",
+      "3",
+      "Carried",
+      "—"
+    ],
+    [
+      "Ink bottle",
+      "3",
+      "Carried",
+      "—"
+    ],
+    [
+      "Leather Arm Guards",
+      "1",
+      "Worn 1/1",
+      "—"
+    ],
+    [
+      "Oil flask",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Sailmaker's needle",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Sealed dispatch for the keeper of the northernmost lighthouse",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Signal whistle",
+      "1",
+      "Carried",
+      "—"
+    ],
+    [
+      "Spare gloves",
+      "2",
+      "Carried",
+      "—"
+    ],
+    [
+      "Spare lamp wicks",
+      "3",
+      "Carried",
+      "—"
+    ],
+    [
+      "Trail Rations",
+      "5",
+      "Carried",
+      "—"
+    ],
+    [
+      "Waxed map case",
+      "2",
+      "Carried",
+      "—"
+    ],
+    [
+      "Weather journal",
+      "2",
+      "Carried",
+      "—"
+    ],
+    [
+      "Wooden tokens",
+      "3",
+      "Carried",
+      "—"
+    ],
+    [
+      "Restorative Wand · Copy #13",
+      "1",
+      "Unequipped",
+      "2/5 charges"
+    ],
+    [
+      "Restorative Wand · Copy #14",
+      "1",
+      "Equipped",
+      "4/5 charges"
+    ],
+    [
+      "A Line of Light Through the Storm",
+      "—",
+      "6",
+      "3",
+      "6",
+      "See authored effect",
+      "See authored effect"
+    ],
+    [
+      "Lantern at the Breakwater",
+      "—",
+      "3",
+      "2",
+      "3",
+      "See authored effect",
+      "See authored effect"
+    ],
+    [
+      "Mending the Watchkeeper",
+      "—",
+      "4",
+      "2",
+      "4",
+      "See authored effect",
+      "See authored effect"
+    ]
+  ],
+  "checks": [
+    "Ilyra Voss — DEMO B",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None",
+    "Rules: Deal 4 Damage · Localized · Sample limitation 3: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 3.",
+    "Rules: Deal 2 Damage · Localized · Sample limitation 1: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 1.",
+    "Rules: Heal 3 · Full Body · Sample limitation 2: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 2.",
+    "Deal 4 Damage · Localized",
+    "Damage: Damage points: 4. A demo damage effect on the selected target.. Deals a fixed number of damage points.",
+    "Saved description: DEMO construction 3. A thin line of light follows the caster's hand as the target is identified. The descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 3.",
+    "Requirements / notes: Sample limitation 3: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 3.",
+    "Deal 2 Damage · Localized",
+    "Damage: Damage points: 2. A demo damage effect on the selected target.. Deals a fixed number of damage points.",
+    "Saved description: DEMO construction 1. A thin line of light follows the caster's hand as the target is identified. The descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 1.",
+    "Requirements / notes: Sample limitation 1: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 1.",
+    "Heal 3 · Full Body",
+    "Healing: Healing points: 3. A restorative effect on the selected target.. Restores a fixed number of points.",
+    "Saved description: DEMO construction 2. A thin line of light follows the caster's hand as the target is identified. The descriptive record accompanies the structured construction below; it does not grant additional effects. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. The caster's notebook describes the sound of surf against the breakwater and the reflected light on wet stone. End of description 2.",
+    "Requirements / notes: Sample limitation 2: use the authored target, range, duration and effects below. Decorative narrative does not expand the construction. End of spell notes 2.",
+    "Physical training for the coast patrol.",
+    "Observe people, terrain and changing weather.",
+    "The recorded governing skill for the demo baton.",
+    "Read charts and maintain the route log.",
+    "No definition recorded.",
+    "No definition recorded.",
+    "Recorded field specialty 1. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 2. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 3. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 4. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 5. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 6. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 7. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 8. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 9. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 10. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 11. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Recorded field specialty 12. The notebook preserves observations of beacon signals, coastal tracks and the people who maintain them. This is a disposable sample skill definition, not an addition to the game catalog.",
+    "Personal travel supply 12, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "A pocket compass marked with the patrol insignia.",
+    "Personal travel supply 1, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 4, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "An ash baton with a leather wrist loop.",
+    "Attack: 43%+ (Coastwatch Baton); damage 4 Bludgeoning; STR +2 conditional modifier; attack Initiative 4; Reach 3 ft.",
+    "Personal travel supply 6, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 5, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 11, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "A stoppered restorative; apply its recorded healing effect.",
+    "Drink: consumes 1 per use.",
+    "Heal 3 · Full Body",
+    "Personal travel supply 9, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "A fitted pair protecting the recorded arm locations.",
+    "Personal travel supply 16, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 7, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 13, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 10, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 14, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 3, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Wrapped portions of dried food.",
+    "Personal travel supply 2, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 8, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Personal travel supply 15, marked with Ilyra's initials. Kept as an ordinary owned item in this demonstration.",
+    "Individually tracked copies; each retains its own remaining charges.",
+    "Use: 1 charge(s) per use.",
+    "Heal 3 · Full Body"
+  ],
+  "rowIds": [],
+  "rowCount": 44
+}

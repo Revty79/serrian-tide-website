@@ -1,0 +1,65 @@
+{
+  "name": "Mara Reed — DEMO A",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Mara Reed — DEMO A",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None"
+  ],
+  "rows": [
+    [
+      "Athletics",
+      "10",
+      "11",
+      "57%+"
+    ],
+    [
+      "Awareness",
+      "12",
+      "13",
+      "57%+"
+    ],
+    [
+      "Coastwatch Baton",
+      "14",
+      "16",
+      "49%+"
+    ],
+    [
+      "Navigation",
+      "16",
+      "16",
+      "59%+"
+    ],
+    [
+      "Brass Compass",
+      "1",
+      "Carried"
+    ],
+    [
+      "Coastwatch Baton",
+      "2",
+      "Wielded 1/2; Unequipped 1/2"
+    ],
+    [
+      "Healing Potion",
+      "3",
+      "Carried"
+    ],
+    [
+      "Leather Arm Guards",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Trail Rations",
+      "5",
+      "Carried"
+    ]
+  ],
+  "checks": [
+    "Mara Reed — DEMO A",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None"
+  ],
+  "rowIds": [],
+  "rowCount": 9
+}

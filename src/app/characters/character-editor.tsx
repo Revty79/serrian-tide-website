@@ -858,7 +858,7 @@ export function CharacterEditor({
         <div className="character-header__actions">{!accessAsManager ? <Link href={tabletopHref} onClick={(event) => confirmNavigation(event, tabletopHref)}>Player Tabletop</Link> : null}<Link href={returnHref} onClick={(event) => confirmNavigation(event, returnHref)}>← {backLabel}</Link></div>
       </header>
 
-      <CharacterPrintCenter aggregate={aggregate} draft={draft} selectedRace={selectedRace} />
+      <CharacterPrintCenter aggregate={aggregate} draft={draft} selectedRace={selectedRace} dirty={dirty} godMode={accessAsManager} />
 
       <section className="character-status-strip" aria-live="polite">
         {!aggregate.profile.creationCompletedAt ? <><div><span>Attributes</span><strong>{displayNumber(readiness.attributesUsed)}{isNpc ? " total" : ` / ${displayNumber(aggregate.campaign.attributePoints)}`}</strong></div>

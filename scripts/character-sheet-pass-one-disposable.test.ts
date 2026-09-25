@@ -99,11 +99,15 @@ test("Shared character sheet: real actions, owner controls, player totals, print
     process.stdout.write(actionOutput);
     assert.match(actionOutput, /# fail 0\b/);
     if (process.env.SERRIAN_SHEET_ACTIONS_ONLY === "true") return;
+    const localPaperReview = process.env.SERRIAN_PAPER_LOCAL_SNAPSHOT
+      ? await (await import("./character-paper-review")).seedPaperReview(pool,process.env.SERRIAN_PAPER_LOCAL_SNAPSHOT,password) : null;
+    if (!localPaperReview) {
     await pool.query("update campaign_character_profile set fame=7,experience=123,total_experience=456,quintessence=12,total_quintessence=34");
     // Reset only disposable fixtures after action tests for reproducible screenshots.
     await pool.query("update campaign_character_active_health set total_damage=5");
     await pool.query("update campaign_character_active_mana set mana_spent=4");
     await pool.query("update campaign_character_profile set creation_completed_at=null where character_id=$1", [characters[1]]);
+    }
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", String(appPort)], { env: environment, stdio: "inherit", windowsHide: true });
     const deadline = Date.now() + 90_000;
     let ready = false;
@@ -122,11 +126,23 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       const page = await context.newPage();
       page.on("pageerror", error => errors.push(error.message));
       await page.goto(`${baseUrl}/login`);
-      await page.getByLabel("Username or Email").fill(`${id}@example.invalid`);
+      await page.getByLabel("Username or Email").fill(id.includes('@') ? id : `${id}@example.invalid`);
       await page.locator('input[name="password"]').fill(password);
       await page.getByRole("button",{name:/^Enter$/}).click();
       await page.waitForURL(url => !url.pathname.startsWith("/login"));
       return page;
+    }
+    if (localPaperReview) {
+      const {reviewSavedPaperCharacter}=await import("./character-paper-review");
+      await reviewSavedPaperCharacter(pool,login,baseUrl,localPaperReview);
+      assert.deepEqual(errors,[]);
+      return;
+    }
+    if (process.env.SERRIAN_PAPER_ONLY === "true") {
+      const { rehearsePaperCharacterSheets } = await import("./character-paper-browser");
+      await rehearsePaperCharacterSheets(pool, login, baseUrl);
+      assert.deepEqual(errors, []);
+      return;
     }
     const tabs = ["Identity","Attributes","Skills & Abilities","Story & Personality","Equipment"];
     async function checkTabs(page: Page, owner: boolean) {
@@ -395,6 +411,10 @@ test("Shared character sheet: real actions, owner controls, player totals, print
     const foreign = await login("sheet-foreign");
     await foreign.goto(`${baseUrl}/heavens/characters/${characters[0]}`);
     assert.equal(await foreign.getByRole("tablist").count(),0);
+    if (process.env.SERRIAN_PAPER_SAMPLES === "true") {
+      const { rehearsePaperCharacterSheets } = await import("./character-paper-browser");
+      await rehearsePaperCharacterSheets(pool, login, baseUrl);
+    }
     assert.deepEqual(errors,[]);
     console.log("PASS: owner/player/admin/foreign routes; totals; saved creation and locks; restores and reload; keyboard/mobile; all print presets; screenshots");
   } finally {

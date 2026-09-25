@@ -1,0 +1,179 @@
+I · Play
+Serrian Tide
+CHARACTER SHEET
+Mara Reed — DEMO A
+Coastborn (demo)
+Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None
+Player: sheet-player · Campaign: The Lantern Coast — DEMO
+Fame
+17
+XP
+245
+Total XP
+1290
+Quintessence
+23
+Total Quintessence
+88
+Fate
+4
+◆Attributes
+STR
+32
+DEX
+35
+CON
+30
+INT
+25
+WIS
+30
+CHR
+28
+Mod +1
+68%+
+Mod +2
+65%+
+Mod +1
+70%+
+Mod 0
+75%+
+Mod +1
+70%+
+Mod 0
+72%+
+%+ is a roll target. Permanent values are shown; apply current conditions and situational rules.
+Quick rolls
+Athletics 57%+
+Awareness 57%+
+Coastwatch Baton 49%+
+Navigation 59%+
+◆Health & hit locations
+◆Movement & Initiative
+HP pool / hit
+Current
+Max
+Damage
+Now
+Base Initiative 8
+Now
+Total HP
+54
+61
+7
+Mode
+Base
+Initiative
+Head 0
+7
+7
+0
+Land
+3
+24
+0
+9
+Right Arm 1
+7
+10
+3
+Swim
+1
+8
+1
+2
+8
+7
+Left Arm 2
+10
+10
+0
+4
+6
+Right Leg 3, 4
+10
+10
+0
+3
+5
+Left Leg 5, 6
+10
+10
+0
+Torso 7, 8, 9
+15
+19
+4
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+◆Weapons
+Weapon / state
+Roll
+Damage / conditional modifier
+Ini.
+Reach / range
+Coastwatch Baton
+49%+
+4 Bludgeoning; STR +1 conditional modifier
+4
+Reach 3 ft
+Wielded 1/2; Unequipped 1/2
+Damage depends on successes and attack rules. The modifier is conditional, not a fixed total.
+◆Protection
+◆Conditions & play notes
+Protection / state
+Coverage
+Soak
+No active conditions recorded.
+Leather Arm Guards
+Right Arm, Left Arm
+2
+Worn ×1
+II · Record
+Serrian Tide
+SKILLS, ABILITIES & EQUIPMENT
+◆Core Skills
+◆Owned inventory
+Skill
+Pts
+Rank
+Target
+Item
+Qty
+Equipment state
+Athletics
+10
+11
+57%+
+Brass Compass
+1
+Carried
+Awareness
+12
+13
+57%+
+Coastwatch Baton
+2
+Wielded 1/2; Unequipped
+1/2
+Coastwatch Baton
+14
+16
+49%+
+Healing Potion
+3
+Carried
+Navigation
+16
+16
+59%+
+Leather Arm Guards
+1
+Worn 1/1
+Trail Rations
+5
+Carried
+Currency Credits: 137.5
+Change
+State quantities are included in Qty.
