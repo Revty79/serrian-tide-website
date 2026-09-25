@@ -6,6 +6,10 @@
 .paper-print-dialog { max-width: 32rem; padding: 1.5rem; color: var(--st-text); background: var(--st-surface); border: 1px solid var(--st-border); border-radius: .75rem; }
 .paper-print-dialog::backdrop { background: color-mix(in srgb, var(--st-page) 80%, transparent); }
 .paper-print-dialog > div { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.paper-appearance-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; }
+.paper-selection-controls { display: grid; gap: .7rem; }
+.paper-selection-controls p { color: var(--st-muted); margin: 0; font-size: .85rem; }
+@media (max-width: 620px) { .paper-appearance-controls { grid-template-columns: 1fr; } }
 @media print {
   html:has(.paper-character-sheet), body:has(.paper-character-sheet) { color-scheme: light !important; background: #fff !important; }
   body:has(.paper-character-sheet)::before, body:has(.paper-character-sheet)::after { display: none !important; }
@@ -16,13 +20,26 @@
   }
   .paper-print-status, .paper-print-dialog { display: none !important; }
   .paper-character-sheet { --paper-ink: #23495d; --paper-rule: #8096a0; --paper-faint: #eaf0f3; display: block; page: paper-character; color: #111; background: #fff; font: 10pt/1.2 Arial, Helvetica, sans-serif; }
+  .paper-character-sheet[data-print-theme="Modern"] { --paper-ink: #293e50; --paper-rule: #899298; --paper-faint: #edf0f1; }
+  .paper-character-sheet[data-print-theme="Apocalyptic"] { --paper-ink: #383d3e; --paper-rule: #868c8b; --paper-faint: #f0f0eb; }
+  .paper-character-sheet[data-print-theme="Western"] { --paper-ink: #344a57; --paper-rule: #9a907e; --paper-faint: #f3f0e8; }
+  .paper-character-sheet[data-print-theme="Science Fiction"] { --paper-ink: #184b6a; --paper-rule: #7495a7; --paper-faint: #ecf3f7; }
+  .paper-character-sheet[data-print-theme="Horror"] { --paper-ink: #303b48; --paper-rule: #8b8991; --paper-faint: #f0eff2; }
+  .paper-character-sheet[data-print-theme="Plain"] { --paper-ink: #222; --paper-rule: #888; --paper-faint: #fff; }
+  .paper-character-sheet[data-print-theme="Plain"] .paper-box > h2 { background: white; color: black; border-bottom-color: #555; }
+  .paper-character-sheet[data-print-theme="Plain"] .paper-box > h2::before { display: none; }
+  .paper-page-section { break-before: page; }
+  .paper-page-section:first-of-type { break-before: auto; }
   .paper-character-sheet * { box-sizing: border-box; color: inherit; text-shadow: none; }
   .paper-character-sheet h1 { font: 700 20pt/1.05 Georgia, 'Times New Roman', serif; margin: 0 0 3pt; overflow-wrap: anywhere; }
   .paper-character-sheet h2 { font: 700 10pt/1.15 Georgia, 'Times New Roman', serif; margin: 0; break-after: avoid; }
   .paper-character-sheet h3 { font: 700 12pt/1.2 Georgia, 'Times New Roman', serif; color: var(--paper-ink); margin: 10pt 0 4pt; padding: 3pt 5pt; border-top: 1pt solid var(--paper-ink); border-bottom: .5pt solid var(--paper-rule); background: var(--paper-faint); break-after: avoid; print-color-adjust: exact; }
   .paper-character-sheet p { margin: 3pt 0; line-height: 1.2; orphans: 3; widows: 3; overflow-wrap: anywhere; white-space: pre-line; }
-  .paper-sheet-masthead { position: relative; min-height: 44pt; margin-bottom: 7pt; display: grid; place-items: start center; break-inside: avoid; break-after: avoid; }
+  .paper-sheet-masthead { position: relative; min-height: 64pt; margin-bottom: 7pt; display: grid; place-items: start center; break-inside: avoid; break-after: avoid; }
+  .paper-masthead-art { position: absolute; inset: 0; width: 100%; height: 59pt; print-color-adjust: exact; }
+  .paper-masthead-rule { position: absolute; bottom: 0; height: 8pt; width: 100%; color: var(--paper-ink); }
   .paper-landscape { position: absolute; inset: 0; width: 100%; height: 44pt; print-color-adjust: exact; }
+  .paper-landscape { color: var(--paper-ink); }
   .paper-mountains-far { fill: #d9e4ea; }
   .paper-mountains-near { fill: #9fb6c3; }
   .paper-snow { stroke: #fff; }
@@ -31,7 +48,7 @@
   .paper-windows { stroke: #edf2f4; }
   .paper-banner-rule { stroke: var(--paper-rule); stroke-width: .7; }
   .paper-banner-diamond { fill: var(--paper-rule); }
-  .paper-sheet-title { position: relative; z-index: 1; text-align: center; padding-top: 1pt; max-width: 65%; color: var(--paper-ink); }
+  .paper-sheet-title { position: relative; z-index: 1; text-align: center; padding-top: 10pt; max-width: 55%; color: var(--paper-ink); }
   .paper-sheet-title strong { display: block; font: 700 small-caps 24pt/1.1 Georgia, 'Times New Roman', serif; letter-spacing: -.035em; }
   .paper-sheet-title span { display: block; font: 700 10pt/1.25 Georgia, 'Times New Roman', serif; letter-spacing: .075em; text-transform: uppercase; margin-top: 2pt; }
   .paper-folio { position: absolute; right: 3pt; bottom: 4pt; padding: 1pt 3pt; background: #fff; color: var(--paper-ink); font: 700 7.5pt Georgia, serif; }
@@ -59,7 +76,8 @@
   .paper-attributes b { align-self: center; }
   .paper-attributes strong { font: 700 18pt/1.2 Georgia, serif; color: var(--paper-ink); }
   .paper-attributes span { font-size: 10pt; white-space: nowrap; }
-  .paper-quick-rolls { display: flex; flex-wrap: wrap; gap: 4pt 10pt; border-block: .5pt solid var(--paper-rule); padding: 4pt 0; margin-bottom: 6pt; font-size: 9pt; }
+  .paper-attribute-reference { display: flex; flex-wrap: wrap; gap: 2pt 9pt; margin-top: 5pt; font-size: 9pt; border-top: .5pt solid var(--paper-rule); padding-top: 3pt; }
+  .paper-quick-rolls { display: grid; grid-template-columns: 1fr 1fr; gap: 3pt 10pt; padding: 2pt 0; font-size: 9pt; break-inside: avoid; }
   .paper-quick-skill-tables { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 8pt; }
   .paper-quick-skill-tables th, .paper-quick-skill-tables td { padding-block: 2pt; }
   .paper-vitals { display: grid; grid-template-columns: 1.7fr 1fr; gap: 8pt; }
@@ -69,10 +87,15 @@
   .paper-health-grid { display: flex; gap: 5pt; align-items: center; }
   .paper-health-grid table { flex: 1; }
   .paper-hit-key p { font-size: 9pt; line-height: 1.4; }
-  .paper-bob { width: .68in; height: 1.25in; flex-shrink: 0; }
+  .paper-front-primary { display: grid; grid-template-columns: 1fr 1.8fr; gap: 8pt; align-items: start; }
+  [data-print-section="front"] th, [data-print-section="front"] td { padding-block: 1.5pt; }
+  .paper-front-primary .paper-hit-key p { line-height: 1.2; }
+  .paper-front-resources { display: grid; grid-template-columns: repeat(auto-fit, minmax(150pt, 1fr)); gap: 8pt; align-items: start; }
+  .paper-front-resources .paper-quick-rolls { grid-template-columns: 1fr; }
+  .paper-bob { width: .95in; height: 1.4in; flex-shrink: 0; }
   .paper-bob .character-hit-chart__silhouette > * { fill: #ddd; stroke: #444; stroke-width: 2; }
   .paper-bob .character-hit-chart__target circle { fill: #fff; stroke: #111; stroke-width: 2; }
-  .paper-bob .character-hit-chart__target-number { fill: #111; font: 700 30px Arial, sans-serif; }
+  .paper-bob .character-hit-chart__target-number { fill: #111; font: 700 50px Arial, sans-serif; }
   .paper-total, .paper-total th { font-weight: 700 !important; }
   .paper-write { min-width: .35in; border-left: .5pt solid #bbb; }
   .paper-inline-write { display: inline-block; min-width: .7in; margin-left: 8pt; border-bottom: .5pt solid #888; color: #555; font-size: 8.5pt; }
@@ -124,7 +147,36 @@
   .paper-currency { display: flex; flex-wrap: wrap; gap: 8pt; margin-top: 4pt; }
   .paper-entry { break-inside: auto; margin: 0 0 6pt; }
   .paper-entry > h3 + p:not(:last-child), .paper-entry > table { break-after: avoid; }
-  .paper-ability-brief { break-inside: avoid; }
+  .paper-ability-brief { break-inside: auto; }
   .paper-ability-brief + .paper-ability-brief { border-top: .5pt solid #bbb; padding-top: 4pt; }
   .paper-ability-brief p { white-space: normal; }
+  .paper-ability-brief h3 { font-size: 10pt; margin: 3pt 0; padding: 2pt 0; background: none; border-top: 0; }
+  .paper-spell-compact h3 { margin-top: 5pt; font-size: 10pt; }
+  .paper-spell-compact table { font-size: 9pt; table-layout: fixed; }
+  .paper-spell-compact table th:nth-child(1), .paper-spell-compact table th:nth-child(2) { width: 9%; }
+  .paper-spell-compact table th:nth-child(3), .paper-spell-compact table th:nth-child(4) { width: 16%; }
+  .paper-spell-compact p { font-size: 9pt; margin-block: 2pt; }
+  .paper-power-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3pt 9pt; align-items: start; }
+  .paper-power-grid .paper-entry { min-width: 0; }
+  .paper-power-grid .paper-entry p { font-size: 9pt; }
+  [data-print-section^="back-"] th, [data-print-section^="back-"] td { padding-block: 1pt; }
+  [data-print-section^="back-"] .paper-ability-brief p { margin-block: 2pt; }
+  [data-print-section^="back-"] .paper-ability-brief h3 { margin-block: 2pt; padding-block: 1pt; }
+  .paper-power-grid .paper-entry { margin-bottom: 2pt; }
+  .paper-power-grid .paper-entry h3 { margin: 2pt 0; padding: 1pt 2pt; }
+  .paper-power-list .paper-entry { margin-bottom: 4pt; }
+  .paper-power-list .paper-entry h3 { margin: 2pt 0; padding: 1pt 2pt; }
+  .paper-power-list .paper-entry p { font-size: 9pt; }
+  .paper-book-skills { columns: 2; column-gap: 12pt; }
+  .paper-book-skills .paper-entry { break-inside: avoid; }
+  .paper-abilities { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; align-items: start; }
+  .paper-page-section { border: .5pt solid var(--paper-rule); padding: 5pt; box-decoration-break: clone; }
+  .paper-character-sheet[data-print-theme="Fantasy"] .paper-page-section,
+  .paper-character-sheet[data-print-theme="Universal"] .paper-page-section { border: 2pt double var(--paper-rule); }
+  .paper-character-sheet[data-print-theme="Western"] .paper-page-section { border: 2pt double var(--paper-rule); border-radius: 7pt; }
+  .paper-character-sheet[data-print-theme="Horror"] .paper-page-section { border: 2pt double var(--paper-rule); border-radius: 14pt 2pt; }
+  .paper-character-sheet[data-print-theme="Science Fiction"] .paper-page-section { border-inline-width: 1.5pt; border-radius: 9pt 0; }
+  .paper-character-sheet[data-print-theme="Apocalyptic"] .paper-page-section { border-style: dashed; }
+  .paper-character-sheet[data-print-theme="Plain"] .paper-page-section { border: 0; padding: 5pt; }
+  .paper-character-sheet[data-print-theme="Plain"] .paper-masthead-rule { display: none; }
 }

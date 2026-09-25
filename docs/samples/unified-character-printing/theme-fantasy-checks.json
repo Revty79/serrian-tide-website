@@ -1,0 +1,77 @@
+{
+  "name": "Mara Reed — DEMO A",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Mara Reed — DEMO A",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None"
+  ],
+  "rows": [
+    [
+      "Athletics",
+      "10",
+      "11",
+      "57%+"
+    ],
+    [
+      "Awareness",
+      "12",
+      "13",
+      "57%+"
+    ],
+    [
+      "Coastwatch Baton",
+      "14",
+      "16",
+      "49%+"
+    ],
+    [
+      "Navigation",
+      "16",
+      "16",
+      "59%+"
+    ],
+    [
+      "Brass Compass",
+      "1",
+      "Carried"
+    ],
+    [
+      "Coastwatch Baton",
+      "2",
+      "Wielded 1/2; Unequipped 1/2"
+    ],
+    [
+      "Healing Potion",
+      "3",
+      "Carried"
+    ],
+    [
+      "Leather Arm Guards",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Trail Rations",
+      "5",
+      "Carried"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "front",
+      "title": "Adventurer’s record",
+      "text": "Serrian TideAdventurer’s recordMara Reed — DEMO APlayer: sheet-player · Campaign: The Lantern Coast — DEMOCoastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: NoneFame17XP245Total XP1290Quintessence23Total Quintessence88Fate4AttributesAttributeScoreModTargetSTR32+168%+DEX35+265%+CON30+170%+INT25075%+WIS30+170%+CHR28072%+Max Carry: 456Max Lift: 488Max Spheres: 8Spell Weaving: 0Teaching Base: 7Loyalty Base: 4%+ is a roll target. Permanent values; apply current conditions and situational rules.Health & hit locationsHP pool / hitCurrentMaxDamageNowTotal HP54617Head0770Right Arm17103Left Arm210100Right Leg3, 410100Left Leg5, 610100Torso7, 8, 915194Body Shot Bob — hit locationsResults zero through nine identify the Head, arms, upper and lower legs, Groin, Stomach, and Chest.Result 0: Head.0Result 1: Right Arm.1Result 2: Left Arm.2Result 3: Right Lower Leg.3Result 4: Right Upper Leg.4Result 5: Left Lower Leg.5Result 6: Left Upper Leg.6Result 7: Groin.7Result 8: Stomach.8Result 9: Chest.90 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 ChestRepeated hit results share one HP pool.Movement & InitiativeBase Initiative 8NowModeBaseInitiativeLand324Swim18CurrencyCredits: 137.5Quick rollsAthletics 57%+Awareness 57%+Coastwatch Baton 49%+Navigation 59%+WeaponsWeapon / stateRollDamage / conditional modifierIni.Reach / rangeCoastwatch BatonWielded 1/2; Unequipped 1/249%+4 Bludgeoning; STR +1 conditional modifier4Reach 3 ftDamage depends on successes and attack rules. The modifier is conditional, not a fixed total.ProtectionProtection / stateCoverageSoakLeather Arm GuardsWorn ×1Right Arm, Left Arm2Conditions & play notesNo active conditions recorded."
+    },
+    {
+      "key": "back-General",
+      "title": "General back",
+      "text": "Serrian TideGeneral backOrdinary skillsSkillPtsRankTargetAthletics101157%+Awareness121357%+Ordinary skills (continued)SkillPtsRankTargetCoastwatch Baton141649%+Navigation161659%+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.Owned inventoryItemQtyEquipment stateBrass Compass1CarriedCoastwatch Baton2Wielded 1/2; Unequipped 1/2Healing Potion3CarriedLeather Arm Guards1Worn 1/1Trail Rations5CarriedEquipment state quantities are included in Qty. Individually tracked copies remain separate.Special AbilitiesNone recorded.Derived AbilitiesNone recorded.Session notes"
+    }
+  ],
+  "checks": [
+    "Mara Reed — DEMO A",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None"
+  ],
+  "rowIds": [],
+  "rowCount": 9
+}

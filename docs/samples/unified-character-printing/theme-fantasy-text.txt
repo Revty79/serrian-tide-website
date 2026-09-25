@@ -1,0 +1,201 @@
+Serrian Tide
+ADVENTURER’S RECORD
+Mara Reed — DEMO A
+Coastborn (demo)
+Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None
+Player: sheet-player · Campaign: The Lantern Coast — DEMO
+Fame
+17
+XP
+245
+Total XP
+1290
+Quintessence
+23
+Total Quintessence
+88
+Fate
+4
+◆Attributes
+◆Health & hit locations
+Attribute
+Score
+Mod
+Target
+HP pool / hit
+Current
+Max
+Damage
+Now
+STR
+32
++1
+68%+
+Total HP
+54
+61
+7
+0
+DEX
+35
++2
+65%+
+Head 0
+7
+7
+0
+9
+1
+2
+7
+8
+CON
+30
++1
+70%+
+Right Arm 1
+7
+10
+3
+INT
+25
+0
+75%+
+Left Arm 2
+10
+10
+0
+4
+6
+WIS
+30
++1
+70%+
+Right Leg 3, 4
+10
+10
+0
+3
+5
+CHR
+28
+0
+72%+
+Left Leg 5, 6
+10
+10
+0
+Torso 7, 8, 9
+15
+19
+4
+Max Carry: 456
+Max Lift: 488
+Max Spheres: 8
+Spell Weaving: 0
+Teaching Base: 7
+Loyalty Base: 4
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+%+ is a roll target. Permanent values; apply
+current conditions and situational rules.
+◆Movement & Initiative
+◆Currency
+Base Initiative 8
+Now
+Credits: 137.5
+Mode
+Base
+Initiative
+◆Quick rolls
+Land
+3
+24
+Athletics 57%+
+Awareness 57%+
+Swim
+1
+8
+Coastwatch Baton 49%+
+Navigation 59%+
+◆Weapons
+Weapon / state
+Roll
+Damage / conditional modifier
+Ini.
+Reach / range
+Coastwatch Baton
+49%+
+4 Bludgeoning; STR +1 conditional
+modifier
+4
+Reach 3 ft
+Wielded 1/2; Unequipped 1/2
+Damage depends on successes and attack rules. The modifier is conditional, not a fixed total.
+◆Protection
+◆Conditions & play notes
+Protection / state
+Coverage
+Soak
+No active conditions recorded.
+Leather Arm Guards
+Right Arm, Left Arm
+2
+Worn ×1
+Serrian Tide
+GENERAL BACK
+◆Ordinary skills
+◆Ordinary skills (continued)
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+11
+57%+
+Skill
+Pts
+Rank
+Target
+Coastwatch Baton
+14
+16
+49%+
+Awareness
+12
+13
+57%+
+Navigation
+16
+16
+59%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Brass Compass
+1
+Carried
+None recorded.
+Coastwatch Baton
+2
+Wielded 1/2; Unequipped
+1/2
+Healing Potion
+3
+Carried
+Leather Arm Guards
+1
+Worn 1/1
+Trail Rations
+5
+Carried
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+◆Special Abilities
+None recorded.
+◆Session notes

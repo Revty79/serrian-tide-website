@@ -1,0 +1,39 @@
+Serrian Tide
+PSYONIC SKILL BOOK — PSYONICS
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Psyonics constructed power
+Psyonics · No casting context · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+Not recorded
+Not recorded Initiative
+Not recorded seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Psyonics demonstration. The scene description does not expand its structured effect. END-
+3-CONSTRUCTED.
+Review: No current casting context: playable cost and timing are unavailable.
+◆Recorded skills & powers
+Psionic Focus → Demo Psyonics practice
+Psionic Focus
+Points 8 · Rank 20 · Target 55%+
+Points 12 · Rank 12 · Target 63%+
+Recorded Psyonics technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-3-RECORDED.
+Saved Psionic Focus support/access skill. Disposable print
+fixture.
+Psionic Channeling
+Points 15 · Rank 15 · Target 60%+
+Saved Psionic Channeling support/access skill.
+Disposable print fixture.

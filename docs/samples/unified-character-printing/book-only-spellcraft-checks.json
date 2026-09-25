@@ -1,0 +1,43 @@
+{
+  "name": "Spellcraft practitioner — DEMO",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Spellcraft demonstration. The scene description does not expand its structured effect. END-0-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "No definition recorded.",
+    "No definition recorded.",
+    "Recorded Spellcraft technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-0-RECORDED."
+  ],
+  "rows": [
+    [
+      "Not recorded",
+      "3",
+      "2 Initiative",
+      "3 seconds",
+      "See authored effect",
+      "See authored effect"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "book-Spellcraft",
+      "title": "Spell Book — Spellcraft",
+      "text": "Serrian TideSpell Book — SpellcraftCurrent Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources; disagreements require review.Demo Spellcraft constructed powerSpellcraft · Master · Known SpellRollManaCombatOut of combatRangeDurationNot recorded32 Initiative3 secondsSee authored effectSee authored effectConstructed effects / requirements: Heal 2 · Full BodyRequirements / notes: Requires the engraved focus; concentration must be maintained.Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]Saved description: Recorded Spellcraft demonstration. The scene description does not expand its structured effect. END-0-CONSTRUCTED.Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.Recorded skills & powersSpellcraftPoints 12 · Rank 12 · Target 63%+No definition recorded.ChannelingPoints 15 · Rank 16 · Target 54%+No definition recorded.Spellcraft → Demo Spellcraft practicePoints 8 · Rank 20 · Target 55%+Recorded Spellcraft technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-0-RECORDED."
+    }
+  ],
+  "checks": [
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Spellcraft demonstration. The scene description does not expand its structured effect. END-0-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "No definition recorded.",
+    "No definition recorded.",
+    "Recorded Spellcraft technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-0-RECORDED."
+  ],
+  "rowIds": [],
+  "rowCount": 1
+}

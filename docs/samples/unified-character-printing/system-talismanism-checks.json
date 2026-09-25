@@ -1,0 +1,146 @@
+{
+  "name": "Talismanism practitioner — DEMO",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Talismanism practitioner — DEMO",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None",
+    "Recognize the marked beacon while it is in sight. Does not work through walls. No roll is recorded for this passive demonstration.",
+    "activated · Available · Requires: No requirements",
+    "Effect: Use only after the stated event; this demonstration grants no unrecorded bonus.",
+    "Costs: 1 Fate: Recorded demo cost",
+    "Limits: 2 use(s) / session. Recorded demo limit",
+    "Mana 3 · Casting 2 Initiative / 3 seconds",
+    "See authored effect · See authored effect",
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED.",
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect. END-1-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Saved Talismanism support/access skill. Disposable print fixture.",
+    "No definition recorded.",
+    "Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED."
+  ],
+  "rows": [
+    [
+      "Athletics",
+      "10",
+      "11",
+      "57%+"
+    ],
+    [
+      "Awareness",
+      "12",
+      "13",
+      "57%+"
+    ],
+    [
+      "Coastwatch Baton",
+      "14",
+      "16",
+      "49%+"
+    ],
+    [
+      "Navigation",
+      "16",
+      "16",
+      "59%+"
+    ],
+    [
+      "Talismanism",
+      "12",
+      "12",
+      "63%+"
+    ],
+    [
+      "Demo Talismanism practice",
+      "8",
+      "20",
+      "55%+"
+    ],
+    [
+      "Channeling",
+      "15",
+      "16",
+      "54%+"
+    ],
+    [
+      "Brass Compass",
+      "1",
+      "Carried"
+    ],
+    [
+      "Coastwatch Baton",
+      "2",
+      "Unequipped 2/2"
+    ],
+    [
+      "Healing Potion",
+      "3",
+      "Carried"
+    ],
+    [
+      "Leather Arm Guards",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Trail Rations",
+      "5",
+      "Carried"
+    ],
+    [
+      "Not recorded",
+      "3",
+      "2 Initiative",
+      "3 seconds",
+      "See authored effect",
+      "See authored effect"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "front",
+      "title": "Character sheet",
+      "text": "Serrian TideCharacter sheetTalismanism practitioner — DEMOPlayer: sheet-player · Campaign: The Lantern Coast — DEMOCoastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: NoneFame17XP245Total XP1290Quintessence23Total Quintessence88Fate4AttributesAttributeScoreModTargetSTR32+168%+DEX35+265%+CON30+170%+INT25075%+WIS30+170%+CHR28072%+Max Carry: 456Max Lift: 488Max Spheres: 8Spell Weaving: 0Teaching Base: 7Loyalty Base: 4%+ is a roll target. Permanent values; apply current conditions and situational rules.Health & hit locationsHP pool / hitCurrentMaxDamageNowTotal HP61610Head0770Right Arm110100Left Arm210100Right Leg3, 410100Left Leg5, 610100Torso7, 8, 919190Body Shot Bob — hit locationsResults zero through nine identify the Head, arms, upper and lower legs, Groin, Stomach, and Chest.Result 0: Head.0Result 1: Right Arm.1Result 2: Left Arm.2Result 3: Right Lower Leg.3Result 4: Right Upper Leg.4Result 5: Left Lower Leg.5Result 6: Left Upper Leg.6Result 7: Groin.7Result 8: Stomach.8Result 9: Chest.90 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 ChestRepeated hit results share one HP pool.ManaSystem / levelCurrent / maxTalismanismMaster · 0 spent45 / 45NowMovement & InitiativeBase Initiative 8NowModeBaseInitiativeLand324Swim18CurrencyCredits: 137.5Quick rollsCoastwatch Baton 49%+Navigation 59%+Channeling 54%+Demo Talismanism practice 55%+WeaponsNo active weapons recorded.ProtectionNone recorded.Conditions & play notesNo active conditions recorded."
+    },
+    {
+      "key": "back-Talismanism",
+      "title": "Talismanism back",
+      "text": "Serrian TideTalismanism backOrdinary skillsSkillPtsRankTargetAthletics101157%+Awareness121357%+Coastwatch Baton141649%+Navigation161659%+TalismanismSkillPtsRankTargetTalismanism121263%+Demo Talismanism practice82055%+Channeling151654%+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.Owned inventoryItemQtyEquipment stateBrass Compass1CarriedCoastwatch Baton2Unequipped 2/2Healing Potion3CarriedLeather Arm Guards1Unequipped 1/1Trail Rations5CarriedEquipment state quantities are included in Qty. Individually tracked copies remain separate.Special AbilitiesDemo special senseRecognize the marked beacon while it is in sight. Does not work through walls. No roll is recorded for this passive demonstration.Derived AbilitiesDemo steady resolveactivated · Available · Requires: No requirementsEffect: Use only after the stated event; this demonstration grants no unrecorded bonus.Costs: 1 Fate: Recorded demo costLimits: 2 use(s) / session. Recorded demo limitTalismanism — known powers & skill effectsDemo Talismanism constructed powerMana 3 · Casting 2 Initiative / 3 secondsSee authored effect · See authored effectConstructed effects / requirements: Heal 2 · Full BodyRequirements / notes: Requires the engraved focus; concentration must be maintained.Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.Talismanism → Demo Talismanism practicePoints 8 · Rank 20 · Target 55%+Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED.Casting: Known Spell · Talismanism / Master."
+    },
+    {
+      "key": "book-Talismanism",
+      "title": "Talisman Book — Talismanism",
+      "text": "Serrian TideTalisman Book — TalismanismCurrent Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources; disagreements require review.Demo Talismanism constructed powerTalismanism · Master · Known SpellRollManaCombatOut of combatRangeDurationNot recorded32 Initiative3 secondsSee authored effectSee authored effectConstructed effects / requirements: Heal 2 · Full BodyRequirements / notes: Requires the engraved focus; concentration must be maintained.Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect. END-1-CONSTRUCTED.Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.Recorded skills & powersTalismanismPoints 12 · Rank 12 · Target 63%+Saved Talismanism support/access skill. Disposable print fixture.ChannelingPoints 15 · Rank 16 · Target 54%+No definition recorded.Talismanism → Demo Talismanism practicePoints 8 · Rank 20 · Target 55%+Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED."
+    }
+  ],
+  "checks": [
+    "Talismanism practitioner — DEMO",
+    "Coastborn (demo)Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None",
+    "Recognize the marked beacon while it is in sight. Does not work through walls. No roll is recorded for this passive demonstration.",
+    "activated · Available · Requires: No requirements",
+    "Effect: Use only after the stated event; this demonstration grants no unrecorded bonus.",
+    "Costs: 1 Fate: Recorded demo cost",
+    "Limits: 2 use(s) / session. Recorded demo limit",
+    "Mana 3 · Casting 2 Initiative / 3 seconds",
+    "See authored effect · See authored effect",
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED.",
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect. END-1-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Saved Talismanism support/access skill. Disposable print fixture.",
+    "No definition recorded.",
+    "Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED."
+  ],
+  "rowIds": [],
+  "rowCount": 13
+}

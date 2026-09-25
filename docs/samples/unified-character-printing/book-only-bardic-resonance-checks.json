@@ -1,0 +1,43 @@
+{
+  "name": "Bardic Resonance practitioner — DEMO",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Constructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Bardic Resonance demonstration. The scene description does not expand its structured effect. END-4-CONSTRUCTED.",
+    "Review: No current casting context: playable cost and timing are unavailable.",
+    "Saved Resonant Performance support/access skill. Disposable print fixture.",
+    "Saved Resonance Attunement support/access skill. Disposable print fixture.",
+    "Recorded Bardic Resonance technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-4-RECORDED."
+  ],
+  "rows": [
+    [
+      "Not recorded",
+      "Not recorded",
+      "Not recorded Initiative",
+      "Not recorded seconds",
+      "See authored effect",
+      "See authored effect"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "book-Bardic Resonance",
+      "title": "Song Book — Bardic Resonance",
+      "text": "Serrian TideSong Book — Bardic ResonanceCurrent Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources; disagreements require review.Demo Bardic Resonance constructed powerBardic Resonance · No casting context · Known SpellRollManaCombatOut of combatRangeDurationNot recordedNot recordedNot recorded InitiativeNot recorded secondsSee authored effectSee authored effectConstructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.Requirements / notes: Requires the engraved focus; concentration must be maintained.Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]Saved description: Recorded Bardic Resonance demonstration. The scene description does not expand its structured effect. END-4-CONSTRUCTED.Review: No current casting context: playable cost and timing are unavailable.Recorded skills & powersResonant PerformancePoints 12 · Rank 12 · Target 63%+Saved Resonant Performance support/access skill. Disposable print fixture.Resonance AttunementPoints 15 · Rank 15 · Target 60%+Saved Resonance Attunement support/access skill. Disposable print fixture.Resonant Performance → Demo Bardic Resonance practicePoints 8 · Rank 20 · Target 55%+Recorded Bardic Resonance technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-4-RECORDED."
+    }
+  ],
+  "checks": [
+    "Constructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Bardic Resonance demonstration. The scene description does not expand its structured effect. END-4-CONSTRUCTED.",
+    "Review: No current casting context: playable cost and timing are unavailable.",
+    "Saved Resonant Performance support/access skill. Disposable print fixture.",
+    "Saved Resonance Attunement support/access skill. Disposable print fixture.",
+    "Recorded Bardic Resonance technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-4-RECORDED."
+  ],
+  "rowIds": [],
+  "rowCount": 1
+}

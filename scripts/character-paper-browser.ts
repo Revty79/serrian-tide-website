@@ -12,7 +12,7 @@ import { capturePaperPdf } from "./character-paper-review";
 export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: string) => Promise<Page>, baseUrl: string) {
   const database = (await pool.query("select current_database() name")).rows[0].name;
   assert.equal(database, "serrian_character_sheet_dev");
-  const output = path.resolve("docs/samples/paper-character-sheet");
+  const output = path.resolve("docs/samples/unified-character-printing");
   await mkdir(output, { recursive: true });
   const insertId = async (sql: string, values: unknown[] = []): Promise<number> => (await pool.query(sql, values)).rows[0].id;
   const campaignId = await insertId("insert into campaign(name,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,assigned_fate_points,created_by_user_id) values('The Lantern Coast — DEMO',220,200,100,10,100,200,'Credits','Assigned',4,'sheet-owner') returning id");
@@ -108,15 +108,15 @@ export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: st
     await page.goto(`${baseUrl}/${manager?'heavens':'realms'}/characters/${id}`);
     await page.getByText('Print options',{exact:true}).click();
     assert.equal(await page.getByRole('button',{name:/^Tabletop Quick Reference/}).getAttribute('aria-pressed'),'true');
-    await page.getByRole('button',{name:/^Paper Character Sheet/}).click();
     await page.getByText(/^Ready:/).waitFor();
+    await page.getByRole('button',{name:/^Paper Character Sheet/}).click();
     assert.equal(await page.locator('.printable-character-sheet').count(),0);
     assert.equal(await page.locator('.paper-character-sheet').getAttribute('data-character-id'),String(id));
   }
   for (const [i,id] of characters.slice(0,2).entries()) {
     await selectPaper(player,id);
     assert.equal(await player.locator('.paper-reference-start').count(),0,'References are optional and off by default');
-    if(i===1) for(const label of ['Spell / ability play references','Full skill descriptions','Full item descriptions']) await player.getByLabel(label,{exact:true}).check();
+    if(i===1) for(const label of ['Spell Book — Spellcraft','Full skill reference','Inventory reference']) await player.getByLabel(label,{exact:true}).check();
     await player.getByRole('button',{name:'Print / Save as PDF',exact:true}).click();
     await player.waitForFunction(()=>document.documentElement.dataset.paperPrintCalls==='1', undefined, {timeout:15000}).catch(async (error) => {
       console.log(await player.evaluate(()=>({calls:document.documentElement.dataset.paperPrintCalls,print:String(window.print),fonts:document.fonts.status,visibility:document.visibilityState,status:document.querySelector('.paper-print-status')?.textContent})));
@@ -131,7 +131,7 @@ export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: st
     assert.ok(text.includes('Wielded 1/2; Unequipped 1/2'));
     assert.ok(text.includes('245') && text.includes('1290') && text.includes('23') && text.includes('88'));
     if(i===0) { assert.equal(await root.locator('.paper-power-start').count(),0); assert.equal(await root.getByRole('heading',{name:'Mana',exact:true}).count(),0); }
-    else { assert.ok(text.includes('2/5 charges') && text.includes('4/5 charges')); assert.equal(await root.locator('.paper-spell').count(),3); assert.ok(text.includes('37 / 54') && text.includes('17 spent'),'Recorded mana spending and existing maximum calculation'); }
+    else { assert.ok(text.includes('2/5 charges') && text.includes('4/5 charges')); assert.equal(await root.locator('.paper-spell').count(),6); assert.ok(text.includes('37 / 54') && text.includes('17 spent'),'Recorded mana spending and existing maximum calculation'); }
     const label=i===0?'example-a':'example-b';
     await capturePaperPdf(player,label,{name:names[i],campaign:'The Lantern Coast — DEMO'});
   }
@@ -140,14 +140,14 @@ export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: st
   await selectPaper(owner,characters[1],true);
   assert.ok((await owner.locator('.paper-character-sheet').textContent())?.includes(names[1]));
   await owner.getByLabel('Story / profile',{exact:true}).check();
-  assert.ok((await owner.locator('.paper-story-start').textContent())?.includes('A sealed letter remains unread'));
+  assert.ok((await owner.locator('[data-print-section="reference-story"]').textContent())?.includes('A sealed letter remains unread'));
   // Existing selections remain exclusive; their default is unchanged after reload.
   for(const preset of ['Tabletop Quick Reference','Full Tabletop Character','Complete Character Record','Custom Print']) {
     await owner.getByRole('button',{name:new RegExp(`^${preset}`)}).click();
-    assert.equal(await owner.locator('.paper-character-sheet').count(),0);
-    assert.equal(await owner.locator('.printable-character-sheet').count(),1);
+    assert.equal(await owner.locator('.paper-character-sheet').count(),1);
+    assert.equal(await owner.locator('.printable-character-sheet').count(),0);
     await owner.emulateMedia({media:'print'});
-    assert.equal(await owner.locator('.printable-character-sheet').isVisible(),true);
+    assert.equal(await owner.locator('.paper-character-sheet').isVisible(),true);
     await owner.pdf({path:path.resolve('artifacts/character-sheet-pass-one',`legacy-${preset.replaceAll(' ','-')}.pdf`),preferCSSPageSize:true,printBackground:false});
     await owner.emulateMedia({media:'screen'});
   }
@@ -162,12 +162,17 @@ export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: st
   await dialog.getByRole('button',{name:'Return to editing',exact:true}).click();
   assert.equal(await player.getByLabel(/Character Name/).inputValue(),'UNSAVED NAME MUST STAY');
   assert.equal(await player.evaluate(()=>document.documentElement.dataset.paperPrintCalls),undefined);
-  await player.getByRole('button',{name:'Print / Save as PDF',exact:true}).click();
-  await dialog.getByRole('button',{name:'Print saved record',exact:true}).click();
-  await player.waitForFunction(()=>document.documentElement.dataset.paperPrintCalls==='1');
+  for (const [i,preset] of ['Tabletop Quick Reference','Full Tabletop Character','Complete Character Record','Custom Print','Paper Character Sheet'].entries()) {
+    await player.getByRole('button',{name:new RegExp(`^${preset}`)}).click();
+    await player.getByRole('button',{name:'Print / Save as PDF',exact:true}).click();
+    await dialog.getByRole('button',{name:'Print saved record',exact:true}).click();
+    await player.waitForFunction(count=>document.documentElement.dataset.paperPrintCalls===String(count),i+1);
+    assert.equal(await player.getByLabel(/Character Name/).inputValue(),'UNSAVED NAME MUST STAY');
+  }
   assert.equal(await player.getByLabel(/Character Name/).inputValue(),'UNSAVED NAME MUST STAY');
   assert.ok((await player.locator('.paper-character-sheet').textContent())?.includes(names[2]));
   assert.ok(!(await player.locator('.paper-character-sheet').textContent())?.includes('UNSAVED NAME MUST STAY'));
   assert.deepEqual(await snapshot(),before,'All print selections and unsaved-edit choices must preserve Character/runtime/ownership rows');
+  await (await import('./unified-print-browser')).rehearseUnifiedPrinting(pool, login, baseUrl, characters);
   console.log('PASS: integrated Paper option, selected saved Character, player/owner routes, old presets, dirty cancel/print, no Character writes; two actual PDFs generated');
 }

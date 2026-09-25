@@ -1,0 +1,43 @@
+{
+  "name": "Faith practitioner — DEMO",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Faith demonstration. The scene description does not expand its structured effect. END-2-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Saved Faith support/access skill. Disposable print fixture.",
+    "Saved Devotion support/access skill. Disposable print fixture.",
+    "Recorded Faith technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-2-RECORDED."
+  ],
+  "rows": [
+    [
+      "Not recorded",
+      "3",
+      "2 Initiative",
+      "3 seconds",
+      "See authored effect",
+      "See authored effect"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "book-Faith",
+      "title": "Prayer Book — Faith",
+      "text": "Serrian TidePrayer Book — FaithCurrent Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources; disagreements require review.Demo Faith constructed powerFaith · Master · Known SpellRollManaCombatOut of combatRangeDurationNot recorded32 Initiative3 secondsSee authored effectSee authored effectConstructed effects / requirements: Heal 2 · Full BodyRequirements / notes: Requires the engraved focus; concentration must be maintained.Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]Saved description: Recorded Faith demonstration. The scene description does not expand its structured effect. END-2-CONSTRUCTED.Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.Recorded skills & powersFaithPoints 12 · Rank 12 · Target 63%+Saved Faith support/access skill. Disposable print fixture.DevotionPoints 15 · Rank 15 · Target 60%+Saved Devotion support/access skill. Disposable print fixture.Faith → Demo Faith practicePoints 8 · Rank 20 · Target 55%+Recorded Faith technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-2-RECORDED."
+    }
+  ],
+  "checks": [
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Faith demonstration. The scene description does not expand its structured effect. END-2-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Saved Faith support/access skill. Disposable print fixture.",
+    "Saved Devotion support/access skill. Disposable print fixture.",
+    "Recorded Faith technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-2-RECORDED."
+  ],
+  "rowIds": [],
+  "rowCount": 1
+}

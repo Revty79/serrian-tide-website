@@ -1,0 +1,43 @@
+{
+  "name": "Talismanism practitioner — DEMO",
+  "campaign": "The Lantern Coast — DEMO",
+  "paragraphs": [
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect. END-1-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Saved Talismanism support/access skill. Disposable print fixture.",
+    "No definition recorded.",
+    "Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED."
+  ],
+  "rows": [
+    [
+      "Not recorded",
+      "3",
+      "2 Initiative",
+      "3 seconds",
+      "See authored effect",
+      "See authored effect"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "book-Talismanism",
+      "title": "Talisman Book — Talismanism",
+      "text": "Serrian TideTalisman Book — TalismanismCurrent Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources; disagreements require review.Demo Talismanism constructed powerTalismanism · Master · Known SpellRollManaCombatOut of combatRangeDurationNot recorded32 Initiative3 secondsSee authored effectSee authored effectConstructed effects / requirements: Heal 2 · Full BodyRequirements / notes: Requires the engraved focus; concentration must be maintained.Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect. END-1-CONSTRUCTED.Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.Recorded skills & powersTalismanismPoints 12 · Rank 12 · Target 63%+Saved Talismanism support/access skill. Disposable print fixture.ChannelingPoints 15 · Rank 16 · Target 54%+No definition recorded.Talismanism → Demo Talismanism practicePoints 8 · Rank 20 · Target 55%+Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED."
+    }
+  ],
+  "checks": [
+    "Constructed effects / requirements: Heal 2 · Full Body",
+    "Requirements / notes: Requires the engraved focus; concentration must be maintained.",
+    "Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]",
+    "Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect. END-1-CONSTRUCTED.",
+    "Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.",
+    "Saved Talismanism support/access skill. Disposable print fixture.",
+    "No definition recorded.",
+    "Recorded Talismanism technique without a construction document. Requires the marked focus; ends when concentration is broken. No additional range or timing is recorded. END-1-RECORDED."
+  ],
+  "rowIds": [],
+  "rowCount": 1
+}

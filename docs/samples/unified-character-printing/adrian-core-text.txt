@@ -1,0 +1,330 @@
+Serrian Tide
+CHARACTER SHEET
+Adrian Vale
+Educated Human
+Age 28 · male · 6 ft 2 in · Weight 190 · Deity: none
+Player: revty79 · Campaign: The Breaking
+Fame
+0
+XP
+0
+Total XP
+0
+Quintessence
+0
+Total Quintessence
+0
+Fate
+4
+◆Attributes
+◆Health & hit locations
+Attribute
+Score
+Mod
+Target
+HP pool / hit
+Current
+Max
+Damage
+Now
+STR
+10
+-3
+90%+
+Total HP
+72
+72
+0
+0
+DEX
+35
++2
+65%+
+Head 0
+8
+8
+0
+9
+1
+2
+7
+8
+CON
+35
++2
+65%+
+Right Arm 1
+11
+11
+0
+INT
+55
++6
+45%+
+Left Arm 2
+11
+11
+0
+4
+6
+WIS
+25
+0
+75%+
+Right Leg 3, 4
+11
+11
+0
+3
+5
+CHR
+15
+-2
+85%+
+Left Leg 5, 6
+11
+11
+0
+Torso 7, 8, 9
+22
+22
+0
+Max Carry: 16
+Max Lift: 26
+Max Spheres: 16
+Spell Weaving: 8
+Teaching Base: 5
+Loyalty Base: 2
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+%+ is a roll target. Permanent values; apply
+current conditions and situational rules.
+◆Mana
+◆Movement & Initiative
+◆Currency
+System / level
+Current / max
+Base Initiative 8
+Now
+Credits: 65
+Spellcraft
+30 / 30
+Mode
+Base
+Initiative
+◆Quick rolls
+Novice · 0 spent
+Now
+Land
+2
+16
+Blink Step 23%+
+Echo of the Hunt 23%+
+Eye of Secrets 23%+
+Glimpse of Truth 23%+
+◆Weapons
+Weapon / state
+Roll
+Damage / conditional modifier
+Ini.
+Reach / range
+Baton
+53%+
+6.0 Bludgeoning; STR -3 / DEX +2
+conditional modifier
+6
+Reach 5 ft; Range melee
+Wielded 1/1
+Damage depends on successes and attack rules. The modifier is conditional, not a fixed total.
+◆Protection
+◆Conditions & play notes
+Protection / state
+Coverage
+Soak
+No active conditions recorded.
+Arm Guards
+Right Arm, Left Arm
+2
+Worn ×1
+Slashing +2; Piercing +1; Bludgeoning -2
+Serrian Tide
+GENERAL BACK
+◆Ordinary skills
+◆Supernatural skills (continued)
+Skill
+Pts
+Rank
+Target
+Melee Weapons
+10
+12
+53%+
+Skill
+Pts
+Rank
+Target
+Spellcraft → Time & Space
+3
+19
+26%+
+Stealth
+10
+12
+53%+
+Ranged Weapons
+10
+12
+53%+
+Blink Step
+3
+22
+23%+
+Stasis Snare
+3
+22
+23%+
+Spellcraft → Divination
+3
+19
+26%+
+Echo of the Hunt
+3
+22
+23%+
+◆Supernatural skills
+Skill
+Pts
+Rank
+Target
+Channeling
+10
+16
+29%+
+Eye of Secrets
+3
+22
+23%+
+Glimpse of Truth
+3
+22
+23%+
+Meditation
+10
+16
+29%+
+Spellcraft
+10
+16
+29%+
+Water
+3
+19
+26%+
+Charged Grasp
+3
+22
+23%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Eidetic Memory
+Arm Guards
+1
+Worn 1/1
+Baton
+1
+Wielded 1/1
+passive · Available · Requires: INT 40+
+Effect: You may automatically recall ordinary information
+that your character personally and clearly observed, read,
+heard, or learned. No roll is required merely to remember
+that information. An INT-based roll may still be required
+when the information was only partially perceived,
+deliberately concealed, experienced while severely
+distracted, or when extremely precise details are
+important. Eidetic Memory does not provide knowledge
+you never acquired, reveal information you failed to
+perceive, or grant understanding of something simply
+because you remember it.
+Bedroll
+1
+Unequipped 1/1
+Belt
+1
+Unequipped 1/1
+Belt Pouch
+1
+Unequipped 1/1
+Boots
+1
+Unequipped 1/1
+Canteen
+6
+Worn 1/6; Unequipped
+5/6
+Cargo Pants
+1
+Worn 1/1
+Common Clothes
+1
+Worn 1/1
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+◆Special Abilities
+None recorded.
+◆Known powers & skill effects
+Blink Step
+Charged Grasp
+Roll 23%+ · Mana 15 · Casting 10 Initiative / 15 seconds
+Medium (60 ft) · Instantaneous · G.O.D. resolution
+Constructed effects / requirements: Teleportation; Component
+Requirement; Concentration: 1 concentration point · +2 Initiative
+Requirements / notes: Must have line-of-sight to destination;
+misfire possible in obstructed zones.
+Roll 23%+ · Mana 4 · Casting 2 Initiative / 4 seconds
+Touch · Instantaneous
+Constructed effects / requirements: Deal 1 Damage ·
+Localized; Component Requirement
+Requirements / notes: Requires conductive medium; may arc to
+nearby surfaces; melee risk.
+Catalog mana 16; current casting cost 15.
+Catalog mana 15; current casting cost 4.
+Echo of the Hunt
+Eye of Secrets
+Roll 23%+ · Mana 8 · Casting 4 Initiative / 8 seconds
+Short (30 ft) · Instantaneous · G.O.D. resolution
+Constructed effects / requirements: Reveal/Detect
+Requirements / notes: Apprentice notes: Provides direction, not
+precise location. Cannot pass through dense shielding or lead
+beyond line-of-effect obstructions. Best used repeatedly between
+movements.
+Roll 23%+ · Mana 28 · Casting 14 Initiative / 28 seconds
+Short (30 ft) · Combat Round · G.O.D. resolution
+Constructed effects / requirements: Reveal/Detect; Buff: Buff
+increments: 5; Radius (10 ft): Base shape
+Requirements / notes: Novice notes: Reveals magical/sensory
+concealment but not deep wards. Allies must be within zone to
+benefit. Only applies during duration.
+Catalog mana 10; current casting cost 8.
+Catalog mana 20; current casting cost 28.
+Glimpse of Truth
+Stasis Snare
+Roll 23%+ · Mana 6 · Casting 3 Initiative / 6 seconds
+Touch · Instantaneous · G.O.D. resolution
+Constructed effects / requirements: Reveal/Detect
+Requirements / notes: Apprentice notes: Limited to surface
+details and faint magical traces. Requires direct contact. Reveals
+only currently present concealments, not past events.
+Roll 23%+ · Mana 26 · Casting 13 Initiative / 26 seconds
+Short (30 ft) · Combat Round · G.O.D. resolution
+Constructed effects / requirements: Decelerate/Slow: Initiative
+increments: 1; Immobilize
+Requirements / notes: If target passes Willpower check, effect
+reduces to –1 Initiative only.
+Catalog mana 8; current casting cost 6.
+Catalog mana 18; current casting cost 26.
+Casting: Known Spell · Spellcraft / Novice.

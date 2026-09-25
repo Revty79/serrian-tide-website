@@ -411,10 +411,15 @@ export function getCharacterMagicSystem(
 }
 
 function rootSystems(skill: CharacterSkillReference): CampaignSystem[] | null {
-  const name = skill.name.trim().toLowerCase();
   const classification = skill.classification.trim().toLowerCase();
   if (classification === "standard") return [];
   if (isSpecialAbilitySkill(skill)) return ["Special Abilities"];
+  return getNamedSupernaturalSkillSystems(skill.name);
+}
+
+/** Shared canonical access/support names, independent of catalog classification. */
+export function getNamedSupernaturalSkillSystems(skillName: string): CharacterMagicSystem[] | null {
+  const name = skillName.trim().toLowerCase();
   if (name === "spellcraft") return ["Spellcraft"];
   if (name === "talismanism") return ["Talismanism"];
   if (["faith", "prayer", "devotion"].includes(name)) return ["Faith"];

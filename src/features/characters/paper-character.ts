@@ -1,6 +1,8 @@
 import { buildCharacterPrintData, selectCharacterQuickRolls } from "./character-print";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAggregate } from "./models";
-import { characterAggregateToDraft, getAttributeModifier, getAttributeRollTarget, getBaseInitiative, getCharacterMovementBaseValue, getMovementInitiative } from "./character-rules";
+import { characterAggregateToDraft, getAttributeModifier, getAttributeRollTarget, getBaseInitiative, getCharacterMovementBaseValue, getMovementInitiative, getNamedSupernaturalSkillSystems, normalizeSkillAttributeKey } from "./character-rules";
+import { getCharacterAttributeCardDetails } from "./character-attribute-card";
+import { PRINT_SYSTEMS } from "./character-print-options";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { ActiveManaView } from "@/features/active-state/active-mana";
 import type { ActiveEffectsView } from "@/features/active-state/active-effects";
@@ -58,8 +60,14 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
       weapon: row.isWeapon, armor: row.isArmor, status: [charges, ...(copy?.instanceId ? runtime.ammunition[copy.instanceId] ?? [] : [])].filter(Boolean).join("; "),
       reference: references.get(row.owned.itemId)! };
   });
-  const skills = data.skills.map((row, index) => ({ ...row, parentId: aggregate.skillAllocations.find((allocation) => allocation.id === row.id)?.parentAllocationId ?? null, reference: `SK${String(index + 1).padStart(2, "0")}` }));
-  const quickIds = new Set(selectCharacterQuickRolls(data.skills, 4).map(({ id }) => id));
+  const skills = data.skills.map((row, index) => {
+    const skill = aggregate.skillCatalog.find(entry => entry.id === row.skillId)!;
+    const rootName = row.name.split(" → ")[0];
+    const systems = row.special ? [] : row.system ? [row.system] : PRINT_SYSTEMS.filter(system => getNamedSupernaturalSkillSystems(rootName)?.includes(system));
+    // A Special Ability with no governing attribute does not acquire a made-up roll.
+    return { ...row, systems, hasRoll: !row.special || !!normalizeSkillAttributeKey(skill.primaryAttribute), parentId: aggregate.skillAllocations.find((allocation) => allocation.id === row.id)?.parentAllocationId ?? null, reference: `SK${String(index + 1).padStart(2, "0")}` };
+  });
+  const quickIds = new Set(selectCharacterQuickRolls(skills.filter(skill => skill.hasRoll), 4).map(({ id }) => id));
   const activeWeapons = inventory.filter(({ active, weapon }) => active && weapon).flatMap((row) => (
     (runtime.weapons[row.itemId] ?? [{ mode: "", target: null, governing: "Weapon profile unavailable", damage: "Not recorded", initiative: "Not recorded", range: "Not recorded", timing: [] }]).map((weapon) => ({ ...row, ...weapon }))
   ));
@@ -69,7 +77,7 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
     const use = profile?.useMode === "consume-item" ? `${profile.activationLabel}: consumes ${profile.quantityPerUse} per use.`
       : profile?.useMode === "charges" ? `${profile.activationLabel}: ${profile.chargesPerUse} charge(s) per use.`
         : profile?.useMode === "unlimited" ? `${profile.activationLabel}: no charge or quantity cost.` : "";
-    return { id: references.get(id)!, name: item?.name ?? aggregate.items.find((row) => row.itemId === id)?.name ?? `Item ${id}`,
+    return { id: references.get(id)!, equipment: data.ownedItems.some(row => row.owned.itemId === id && (row.isWeapon || row.isArmor || row.item?.catalogScope === "equipment")), name: item?.name ?? aggregate.items.find((row) => row.itemId === id)?.name ?? `Item ${id}`,
       details: [item?.description, use, profile?.useNotes, profile?.rechargeNotes ? `Recharge: ${profile.rechargeNotes}` : "",
         item?.durability != null ? `Authored durability: ${item.durability}. Current durability: not recorded.` : "",
         item?.weaponRulesText, item?.armorRulesText, item?.armorDamageModifiers,
@@ -80,14 +88,14 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
   const purse = getStoredCampaignMoneyBreakdown(aggregate.profile.creditsRemaining, aggregate.campaign.currencySystem, aggregate.campaign.derivedCurrencies, aggregate.currencyHoldings);
   const currency = purse.entries.map(({name, quantity}) => ({name, quantity}));
   const protection = [
-    ...runtime.protection.worn.map((entry) => ({ name: entry.itemName, state: `Worn ×${entry.activeQuantity}`, soak: paperNumber(entry.baseSoak),
+    ...runtime.protection.worn.map((entry) => ({ name: entry.itemName, state: `Worn ×${entry.activeQuantity}`, soak: paperNumber(entry.baseSoak), rules: entry.rulesText,
       coverage: entry.coveredLocationKeys.map((key) => runtime.protection.locations.find((location) => location.key === key)?.name ?? key).join(", ") || entry.coverage || "Not recorded",
       summary: entry.damageModifiers.length ? entry.damageModifiers.map((modifier) => `${modifier.modifierText || `${modifier.damageType} ${modifier.modifier}`}${modifier.notes ? ` (${modifier.notes})` : ""}`).join("; ") : entry.damageModifiersSourceText,
       details: [entry.rulesText, entry.damageModifiersSourceText, ...entry.damageModifiers.map((modifier) => `${modifier.damageType}: ${modifier.modifierText || modifier.modifier} ${modifier.notes}`)].filter(Boolean) })),
-    ...runtime.protection.natural.map((entry) => ({ name: entry.name, state: "Natural", soak: paperNumber(entry.soak),
+    ...runtime.protection.natural.map((entry) => ({ name: entry.name, state: "Natural", soak: paperNumber(entry.soak), rules: "",
       coverage: entry.coverage.kind === "all" ? "All locations" : entry.coverage.locationKeys.map((key) => runtime.protection.locations.find((location) => location.key === key)?.name ?? key).join(", "),
       summary: entry.armor == null ? "" : `Natural Armor ${entry.armor}`, details: entry.armor == null ? [] : [`Natural Armor ${entry.armor}`] })),
-    ...runtime.protection.temporary.map((entry) => ({ name: entry.name, state: "Temporary", soak: paperNumber(entry.amount), coverage: entry.coverage.kind === "all" ? "All locations" : "See effect / ruling", summary: "", details: [] as string[] })),
+    ...runtime.protection.temporary.map((entry) => ({ name: entry.name, state: "Temporary", soak: paperNumber(entry.amount), rules: "", coverage: entry.coverage.kind === "all" ? "All locations" : "See effect / ruling", summary: "", details: [] as string[] })),
   ];
   const profile = aggregate.profile;
   const effects = [
@@ -103,6 +111,7 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
     recordedAt, race: aggregate.selectedRace?.race.name ?? "Not recorded", identity: [profile.age != null ? `Age ${profile.age}` : "", profile.sex,
       profile.heightFeet != null ? `${profile.heightFeet} ft ${profile.heightInches ?? 0} in` : "", profile.weight != null ? `Weight ${profile.weight}` : "", profile.deity ? `Deity: ${profile.deity}` : ""].filter(Boolean).join(" · "),
     attributes: CHARACTER_ATTRIBUTE_KEYS.map((key) => ({ key, score: draft.attributes[key], modifier: getAttributeModifier(draft.attributes[key]), target: getAttributeRollTarget(draft.attributes[key]) })),
+    attributeReferences: CHARACTER_ATTRIBUTE_KEYS.flatMap(key => getCharacterAttributeCardDetails(aggregate.attributeReferenceCatalog, key, draft.attributes[key]).stats.filter(stat => stat.source === "canon" && stat.value !== null).map(stat => ({attribute: key, label: stat.label, value: stat.value}))),
     initiative: getBaseInitiative(draft.attributes.DEX),
     movement: (aggregate.selectedRace?.movementModes ?? []).map((mode) => ({ name: mode.movementMode, base: getCharacterMovementBaseValue(mode.baseValue, profile.baseMovementSteps),
       value: getMovementInitiative(draft.attributes.DEX, getCharacterMovementBaseValue(mode.baseValue, profile.baseMovementSteps)), notes: mode.notes })),

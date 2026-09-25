@@ -1,0 +1,40 @@
+Serrian Tide
+SONG BOOK — BARDIC RESONANCE
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Bardic Resonance constructed power
+Bardic Resonance · No casting context · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+Not recorded
+Not recorded Initiative
+Not recorded seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Bardic Resonance demonstration. The scene description does not expand its structured
+effect. END-4-CONSTRUCTED.
+Review: No current casting context: playable cost and timing are unavailable.
+◆Recorded skills & powers
+Resonant Performance → Demo Bardic
+Resonance practice
+Resonant Performance
+Points 12 · Rank 12 · Target 63%+
+Points 8 · Rank 20 · Target 55%+
+Saved Resonant Performance support/access skill.
+Disposable print fixture.
+Recorded Bardic Resonance technique without a
+construction document. Requires the marked focus; ends
+when concentration is broken. No additional range or
+timing is recorded. END-4-RECORDED.
+Resonance Attunement
+Points 15 · Rank 15 · Target 60%+
+Saved Resonance Attunement support/access skill.
+Disposable print fixture.

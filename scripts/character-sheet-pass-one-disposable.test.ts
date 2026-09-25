@@ -378,13 +378,14 @@ test("Shared character sheet: real actions, owner controls, player totals, print
     const beforePrint=(await pool.query("select * from campaign_character_profile order by character_id")).rows;
     // Printing is independent of the selected tab and sends no mutation request.
     for (const page of [owner,player]) {
-      await page.locator(".character-print-center summary").click();
+      await page.locator(".character-print-center__options > summary").click();
+      await page.getByText(/^Ready:/).waitFor();
       for (const preset of ["Tabletop Quick Reference","Full Tabletop Character","Complete Character Record","Custom Print"]) {
         await page.locator(".character-print-center__presets button").filter({has:page.locator("strong",{hasText:preset})}).click();
         await page.emulateMedia({media:"print"});
-        assert.equal(await page.locator(".printable-character-sheet").isVisible(),true);
+        assert.equal(await page.locator(".paper-character-sheet").isVisible(),true);
         assert.equal(await page.locator(".character-workspace").isVisible(),false);
-        assert.match(await page.locator(".printable-character-sheet").innerText(),/Experience/i);
+        assert.match(await page.locator(".paper-character-sheet").innerText(),/Total XP/i);
         await page.emulateMedia({media:"screen"});
       }
     }

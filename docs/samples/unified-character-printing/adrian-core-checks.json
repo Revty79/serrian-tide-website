@@ -1,0 +1,229 @@
+{
+  "name": "Adrian Vale",
+  "campaign": "The Breaking",
+  "paragraphs": [
+    "Adrian Vale",
+    "Educated HumanAge 28 · male · 6 ft 2 in · Weight 190 · Deity: none",
+    "Slashing +2; Piercing +1; Bludgeoning -2",
+    "passive · Available · Requires: INT 40+",
+    "Effect: You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or learned. No roll is required merely to remember that information.\n\nAn INT-based roll may still be required when the information was only partially perceived, deliberately concealed, experienced while severely distracted, or when extremely precise details are important.\n\nEidetic Memory does not provide knowledge you never acquired, reveal information you failed to perceive, or grant understanding of something simply because you remember it.",
+    "Roll 23%+ · Mana 15 · Casting 10 Initiative / 15 seconds",
+    "Medium (60 ft) · Instantaneous · G.O.D. resolution",
+    "Constructed effects / requirements: Teleportation; Component Requirement; Concentration: 1 concentration point · +2 Initiative",
+    "Requirements / notes: Must have line-of-sight to destination; misfire possible in obstructed zones.",
+    "Catalog mana 16; current casting cost 15.",
+    "Roll 23%+ · Mana 4 · Casting 2 Initiative / 4 seconds",
+    "Touch · Instantaneous",
+    "Constructed effects / requirements: Deal 1 Damage · Localized; Component Requirement",
+    "Requirements / notes: Requires conductive medium; may arc to nearby surfaces; melee risk.",
+    "Catalog mana 15; current casting cost 4.",
+    "Roll 23%+ · Mana 8 · Casting 4 Initiative / 8 seconds",
+    "Short (30 ft) · Instantaneous · G.O.D. resolution",
+    "Constructed effects / requirements: Reveal/Detect",
+    "Requirements / notes: Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or lead beyond line-of-effect obstructions. Best used repeatedly between movements.",
+    "Catalog mana 10; current casting cost 8.",
+    "Roll 23%+ · Mana 28 · Casting 14 Initiative / 28 seconds",
+    "Short (30 ft) · Combat Round · G.O.D. resolution",
+    "Constructed effects / requirements: Reveal/Detect; Buff: Buff increments: 5; Radius (10 ft): Base shape",
+    "Requirements / notes: Novice notes: Reveals magical/sensory concealment but not deep wards. Allies must be within zone to benefit. Only applies during duration.",
+    "Catalog mana 20; current casting cost 28.",
+    "Roll 23%+ · Mana 6 · Casting 3 Initiative / 6 seconds",
+    "Touch · Instantaneous · G.O.D. resolution",
+    "Constructed effects / requirements: Reveal/Detect",
+    "Requirements / notes: Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact. Reveals only currently present concealments, not past events.",
+    "Catalog mana 8; current casting cost 6.",
+    "Roll 23%+ · Mana 26 · Casting 13 Initiative / 26 seconds",
+    "Short (30 ft) · Combat Round · G.O.D. resolution",
+    "Constructed effects / requirements: Decelerate/Slow: Initiative increments: 1; Immobilize",
+    "Requirements / notes: If target passes Willpower check, effect reduces to –1 Initiative only.",
+    "Catalog mana 18; current casting cost 26."
+  ],
+  "rows": [
+    [
+      "Melee Weapons",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Stealth",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Ranged Weapons",
+      "10",
+      "12",
+      "53%+"
+    ],
+    [
+      "Channeling",
+      "10",
+      "16",
+      "29%+"
+    ],
+    [
+      "Meditation",
+      "10",
+      "16",
+      "29%+"
+    ],
+    [
+      "Spellcraft",
+      "10",
+      "16",
+      "29%+"
+    ],
+    [
+      "Water",
+      "3",
+      "19",
+      "26%+"
+    ],
+    [
+      "Charged Grasp",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Spellcraft → Time & Space",
+      "3",
+      "19",
+      "26%+"
+    ],
+    [
+      "Blink Step",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Stasis Snare",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Spellcraft → Divination",
+      "3",
+      "19",
+      "26%+"
+    ],
+    [
+      "Echo of the Hunt",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Eye of Secrets",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Glimpse of Truth",
+      "3",
+      "22",
+      "23%+"
+    ],
+    [
+      "Arm Guards",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Baton",
+      "1",
+      "Wielded 1/1"
+    ],
+    [
+      "Bedroll",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Belt",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Belt Pouch",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Boots",
+      "1",
+      "Unequipped 1/1"
+    ],
+    [
+      "Canteen",
+      "6",
+      "Worn 1/6; Unequipped 5/6"
+    ],
+    [
+      "Cargo Pants",
+      "1",
+      "Worn 1/1"
+    ],
+    [
+      "Common Clothes",
+      "1",
+      "Worn 1/1"
+    ]
+  ],
+  "sections": [
+    {
+      "key": "front",
+      "title": "Character sheet",
+      "text": "Serrian TideCharacter sheetAdrian ValePlayer: revty79 · Campaign: The BreakingEducated HumanAge 28 · male · 6 ft 2 in · Weight 190 · Deity: noneFame0XP0Total XP0Quintessence0Total Quintessence0Fate4AttributesAttributeScoreModTargetSTR10-390%+DEX35+265%+CON35+265%+INT55+645%+WIS25075%+CHR15-285%+Max Carry: 16Max Lift: 26Max Spheres: 16Spell Weaving: 8Teaching Base: 5Loyalty Base: 2%+ is a roll target. Permanent values; apply current conditions and situational rules.Health & hit locationsHP pool / hitCurrentMaxDamageNowTotal HP72720Head0880Right Arm111110Left Arm211110Right Leg3, 411110Left Leg5, 611110Torso7, 8, 922220Body Shot Bob — hit locationsResults zero through nine identify the Head, arms, upper and lower legs, Groin, Stomach, and Chest.Result 0: Head.0Result 1: Right Arm.1Result 2: Left Arm.2Result 3: Right Lower Leg.3Result 4: Right Upper Leg.4Result 5: Left Lower Leg.5Result 6: Left Upper Leg.6Result 7: Groin.7Result 8: Stomach.8Result 9: Chest.90 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 ChestRepeated hit results share one HP pool.ManaSystem / levelCurrent / maxSpellcraftNovice · 0 spent30 / 30NowMovement & InitiativeBase Initiative 8NowModeBaseInitiativeLand216CurrencyCredits: 65Quick rollsBlink Step 23%+Echo of the Hunt 23%+Eye of Secrets 23%+Glimpse of Truth 23%+WeaponsWeapon / stateRollDamage / conditional modifierIni.Reach / rangeBatonWielded 1/153%+6.0 Bludgeoning; STR -3 / DEX +2 conditional modifier6Reach 5 ft; Range meleeDamage depends on successes and attack rules. The modifier is conditional, not a fixed total.ProtectionProtection / stateCoverageSoakArm GuardsWorn ×1Right Arm, Left Arm2Slashing +2; Piercing +1; Bludgeoning -2Conditions & play notesNo active conditions recorded."
+    },
+    {
+      "key": "back-General",
+      "title": "General back",
+      "text": "Serrian TideGeneral backOrdinary skillsSkillPtsRankTargetMelee Weapons101253%+Stealth101253%+Ranged Weapons101253%+Supernatural skillsSkillPtsRankTargetChanneling101629%+Meditation101629%+Spellcraft101629%+Water31926%+Charged Grasp32223%+Supernatural skills (continued)SkillPtsRankTargetSpellcraft → Time & Space31926%+Blink Step32223%+Stasis Snare32223%+Spellcraft → Divination31926%+Echo of the Hunt32223%+Eye of Secrets32223%+Glimpse of Truth32223%+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.Owned inventoryItemQtyEquipment stateArm Guards1Worn 1/1Baton1Wielded 1/1Bedroll1Unequipped 1/1Belt1Unequipped 1/1Belt Pouch1Unequipped 1/1Boots1Unequipped 1/1Canteen6Worn 1/6; Unequipped 5/6Cargo Pants1Worn 1/1Common Clothes1Worn 1/1Equipment state quantities are included in Qty. Individually tracked copies remain separate.Special AbilitiesNone recorded.Derived AbilitiesEidetic Memorypassive · Available · Requires: INT 40+Effect: You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or learned. No roll is required merely to remember that information.\n\nAn INT-based roll may still be required when the information was only partially perceived, deliberately concealed, experienced while severely distracted, or when extremely precise details are important.\n\nEidetic Memory does not provide knowledge you never acquired, reveal information you failed to perceive, or grant understanding of something simply because you remember it.Known powers & skill effectsBlink StepRoll 23%+ · Mana 15 · Casting 10 Initiative / 15 secondsMedium (60 ft) · Instantaneous · G.O.D. resolutionConstructed effects / requirements: Teleportation; Component Requirement; Concentration: 1 concentration point · +2 InitiativeRequirements / notes: Must have line-of-sight to destination; misfire possible in obstructed zones.Catalog mana 16; current casting cost 15.Charged GraspRoll 23%+ · Mana 4 · Casting 2 Initiative / 4 secondsTouch · InstantaneousConstructed effects / requirements: Deal 1 Damage · Localized; Component RequirementRequirements / notes: Requires conductive medium; may arc to nearby surfaces; melee risk.Catalog mana 15; current casting cost 4.Echo of the HuntRoll 23%+ · Mana 8 · Casting 4 Initiative / 8 secondsShort (30 ft) · Instantaneous · G.O.D. resolutionConstructed effects / requirements: Reveal/DetectRequirements / notes: Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or lead beyond line-of-effect obstructions. Best used repeatedly between movements.Catalog mana 10; current casting cost 8.Eye of SecretsRoll 23%+ · Mana 28 · Casting 14 Initiative / 28 secondsShort (30 ft) · Combat Round · G.O.D. resolutionConstructed effects / requirements: Reveal/Detect; Buff: Buff increments: 5; Radius (10 ft): Base shapeRequirements / notes: Novice notes: Reveals magical/sensory concealment but not deep wards. Allies must be within zone to benefit. Only applies during duration.Catalog mana 20; current casting cost 28.Glimpse of TruthRoll 23%+ · Mana 6 · Casting 3 Initiative / 6 secondsTouch · Instantaneous · G.O.D. resolutionConstructed effects / requirements: Reveal/DetectRequirements / notes: Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact. Reveals only currently present concealments, not past events.Catalog mana 8; current casting cost 6.Stasis SnareRoll 23%+ · Mana 26 · Casting 13 Initiative / 26 secondsShort (30 ft) · Combat Round · G.O.D. resolutionConstructed effects / requirements: Decelerate/Slow: Initiative increments: 1; ImmobilizeRequirements / notes: If target passes Willpower check, effect reduces to –1 Initiative only.Catalog mana 18; current casting cost 26.Casting: Known Spell · Spellcraft / Novice."
+    }
+  ],
+  "checks": [
+    "Adrian Vale",
+    "Educated HumanAge 28 · male · 6 ft 2 in · Weight 190 · Deity: none",
+    "Slashing +2; Piercing +1; Bludgeoning -2",
+    "passive · Available · Requires: INT 40+",
+    "Effect: You may automatically recall ordinary information that your character personally and clearly observed, read, heard, or learned. No roll is required merely to remember that information.\n\nAn INT-based roll may still be required when the information was only partially perceived, deliberately concealed, experienced while severely distracted, or when extremely precise details are important.\n\nEidetic Memory does not provide knowledge you never acquired, reveal information you failed to perceive, or grant understanding of something simply because you remember it.",
+    "Roll 23%+ · Mana 15 · Casting 10 Initiative / 15 seconds",
+    "Medium (60 ft) · Instantaneous · G.O.D. resolution",
+    "Constructed effects / requirements: Teleportation; Component Requirement; Concentration: 1 concentration point · +2 Initiative",
+    "Requirements / notes: Must have line-of-sight to destination; misfire possible in obstructed zones.",
+    "Catalog mana 16; current casting cost 15.",
+    "Roll 23%+ · Mana 4 · Casting 2 Initiative / 4 seconds",
+    "Touch · Instantaneous",
+    "Constructed effects / requirements: Deal 1 Damage · Localized; Component Requirement",
+    "Requirements / notes: Requires conductive medium; may arc to nearby surfaces; melee risk.",
+    "Catalog mana 15; current casting cost 4.",
+    "Roll 23%+ · Mana 8 · Casting 4 Initiative / 8 seconds",
+    "Short (30 ft) · Instantaneous · G.O.D. resolution",
+    "Constructed effects / requirements: Reveal/Detect",
+    "Requirements / notes: Apprentice notes: Provides direction, not precise location. Cannot pass through dense shielding or lead beyond line-of-effect obstructions. Best used repeatedly between movements.",
+    "Catalog mana 10; current casting cost 8.",
+    "Roll 23%+ · Mana 28 · Casting 14 Initiative / 28 seconds",
+    "Short (30 ft) · Combat Round · G.O.D. resolution",
+    "Constructed effects / requirements: Reveal/Detect; Buff: Buff increments: 5; Radius (10 ft): Base shape",
+    "Requirements / notes: Novice notes: Reveals magical/sensory concealment but not deep wards. Allies must be within zone to benefit. Only applies during duration.",
+    "Catalog mana 20; current casting cost 28.",
+    "Roll 23%+ · Mana 6 · Casting 3 Initiative / 6 seconds",
+    "Touch · Instantaneous · G.O.D. resolution",
+    "Constructed effects / requirements: Reveal/Detect",
+    "Requirements / notes: Apprentice notes: Limited to surface details and faint magical traces. Requires direct contact. Reveals only currently present concealments, not past events.",
+    "Catalog mana 8; current casting cost 6.",
+    "Roll 23%+ · Mana 26 · Casting 13 Initiative / 26 seconds",
+    "Short (30 ft) · Combat Round · G.O.D. resolution",
+    "Constructed effects / requirements: Decelerate/Slow: Initiative increments: 1; Immobilize",
+    "Requirements / notes: If target passes Willpower check, effect reduces to –1 Initiative only.",
+    "Catalog mana 18; current casting cost 26."
+  ],
+  "rowIds": [],
+  "rowCount": 24
+}

@@ -1,0 +1,1194 @@
+Serrian Tide
+CHARACTER SHEET
+Mixed practitioner —
+DEMO
+Coastborn (demo)
+Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None
+Player: sheet-player · Campaign: The Lantern Coast — DEMO
+Fame
+17
+XP
+245
+Total XP
+1290
+Quintessence
+23
+Total Quintessence
+88
+Fate
+4
+◆Attributes
+◆Health & hit locations
+Attribute
+Score
+Mod
+Target
+HP pool / hit
+Current
+Max
+Damage
+Now
+STR
+35
++2
+65%+
+Total HP
+72
+72
+0
+0
+DEX
+40
++3
+60%+
+Head 0
+8
+8
+0
+9
+1
+2
+7
+8
+CON
+35
++2
+65%+
+Right Arm 1
+11
+11
+0
+INT
+45
++4
+55%+
+Left Arm 2
+11
+11
+0
+4
+6
+WIS
+40
++3
+60%+
+Right Leg 3, 4
+11
+11
+0
+3
+5
+CHR
+30
++1
+70%+
+Left Leg 5, 6
+11
+11
+0
+Torso 7, 8, 9
+22
+22
+0
+Max Carry: 561
+Max Lift: 596
+Max Spheres: 16
+Spell Weaving: 6
+Teaching Base: 11
+Loyalty Base: 6
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+%+ is a roll target. Permanent values; apply
+current conditions and situational rules.
+◆Mana
+◆Movement & Initiative
+◆Currency
+System / level
+Current / max
+Base Initiative 9
+Now
+Credits: 137.5
+Spellcraft
+45 / 45
+Mode
+Base
+Initiative
+◆Quick rolls
+Master · 0 spent
+Now
+Land
+3
+27
+Talismanism
+45 / 45
+Demo Spellcraft practice 31%+
+Demo Faith practice 31%+
+Swim
+1
+9
+Master · 0 spent
+Now
+Faith
+45 / 45
+Demo Psyonics practice 31%+
+Demo Bardic Resonance practice 31%+
+Master · 0 spent
+Now
+Psyonics
+45 / 45
+Master · 0 spent
+Now
+Bardic Resonance
+45 / 45
+Master · 0 spent
+Now
+◆Weapons
+No active weapons recorded.
+◆Protection
+◆Conditions & play notes
+None recorded.
+No active conditions recorded.
+Serrian Tide
+SPELLCRAFT BACK
+◆Ordinary skills
+◆Spellcraft
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+12
+53%+
+Skill
+Pts
+Rank
+Target
+Spellcraft
+12
+16
+39%+
+Awareness
+12
+15
+45%+
+Coastwatch Baton
+14
+17
+43%+
+Demo Spellcraft practice
+8
+24
+31%+
+Channeling
+15
+18
+42%+
+Navigation
+16
+20
+35%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Ambidexterity
+Blanket
+3
+Carried
+Brass Compass
+1
+Carried
+passive · Available · Requires: DEX 40+
+Demo steady resolve
+Canvas travel bag
+1
+Carried
+activated · Available · Requires: No requirements
+Effect: Use only after the stated event; this demonstration
+grants no unrecorded bonus.
+Costs: 1 Fate: Recorded demo cost
+Limits: 2 use(s) / session. Recorded demo limit
+Chalk sticks
+1
+Carried
+Coastwatch Baton
+2
+Unequipped 2/2
+Coiled rope
+3
+Carried
+Flint and steel
+2
+Carried
+Folding cup
+2
+Carried
+Eidetic Memory
+Healing Potion
+3
+Carried
+Ink bottle
+3
+Carried
+passive · Available · Requires: INT 40+
+Leather Arm Guards
+1
+Unequipped 1/1
+Indomitable Will
+Oil flask
+1
+Carried
+Sailmaker's needle
+1
+Carried
+passive · Available · Requires: WIS 40+
+Sealed dispatch for the
+keeper of the
+northernmost
+lighthouse
+1
+Carried
+◆Spellcraft — known powers & skill effects
+Demo Spellcraft constructed power
+Mana 3 · Casting 2 Initiative / 3 seconds
+See authored effect · See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus;
+concentration must be maintained.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires
+one sphere for the spell's root identity.
+Signal whistle
+1
+Carried
+Spare gloves
+2
+Carried
+Spare lamp wicks
+3
+Carried
+Trail Rations
+5
+Carried
+Waxed map case
+2
+Carried
+Weather journal
+2
+Carried
+Wooden tokens
+3
+Carried
+Spellcraft → Demo Spellcraft practice
+Points 8 · Rank 24 · Target 31%+
+Recorded Spellcraft technique without a construction document.
+Requires the marked focus; ends when concentration is broken.
+No additional range or timing is recorded. END-0-RECORDED.
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+◆Special Abilities
+Casting: Known Spell · Spellcraft / Master.
+Demo special sense
+Recognize the marked beacon while it is in sight. Does
+not work through walls. No roll is recorded for this passive
+demonstration.
+Serrian Tide
+TALISMANISM BACK
+◆Ordinary skills
+◆Talismanism
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+12
+53%+
+Skill
+Pts
+Rank
+Target
+Channeling
+15
+18
+42%+
+Awareness
+12
+15
+45%+
+Coastwatch Baton
+14
+17
+43%+
+Talismanism
+12
+16
+39%+
+Demo Talismanism practice
+8
+24
+31%+
+Navigation
+16
+20
+35%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Ambidexterity
+Blanket
+3
+Carried
+Brass Compass
+1
+Carried
+passive · Available · Requires: DEX 40+
+Demo steady resolve
+Canvas travel bag
+1
+Carried
+activated · Available · Requires: No requirements
+Effect: Use only after the stated event; this demonstration
+grants no unrecorded bonus.
+Costs: 1 Fate: Recorded demo cost
+Limits: 2 use(s) / session. Recorded demo limit
+Chalk sticks
+1
+Carried
+Coastwatch Baton
+2
+Unequipped 2/2
+Coiled rope
+3
+Carried
+Flint and steel
+2
+Carried
+Folding cup
+2
+Carried
+Eidetic Memory
+Healing Potion
+3
+Carried
+Ink bottle
+3
+Carried
+passive · Available · Requires: INT 40+
+Leather Arm Guards
+1
+Unequipped 1/1
+Indomitable Will
+Oil flask
+1
+Carried
+Sailmaker's needle
+1
+Carried
+passive · Available · Requires: WIS 40+
+Sealed dispatch for the
+keeper of the
+northernmost
+lighthouse
+1
+Carried
+◆Talismanism — known powers & skill effects
+Demo Talismanism constructed power
+Mana 3 · Casting 2 Initiative / 3 seconds
+See authored effect · See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus;
+concentration must be maintained.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires
+one sphere for the spell's root identity.
+Signal whistle
+1
+Carried
+Spare gloves
+2
+Carried
+Spare lamp wicks
+3
+Carried
+Trail Rations
+5
+Carried
+Waxed map case
+2
+Carried
+Weather journal
+2
+Carried
+Wooden tokens
+3
+Carried
+Talismanism → Demo Talismanism
+practice
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+Points 8 · Rank 24 · Target 31%+
+Recorded Talismanism technique without a construction
+document. Requires the marked focus; ends when concentration
+is broken. No additional range or timing is recorded. END-1-
+RECORDED.
+◆Special Abilities
+Demo special sense
+Casting: Known Spell · Talismanism / Master.
+Recognize the marked beacon while it is in sight. Does
+not work through walls. No roll is recorded for this passive
+demonstration.
+Serrian Tide
+FAITH BACK
+◆Ordinary skills
+◆Faith
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+12
+53%+
+Skill
+Pts
+Rank
+Target
+Faith
+12
+16
+39%+
+Awareness
+12
+15
+45%+
+Coastwatch Baton
+14
+17
+43%+
+Demo Faith practice
+8
+24
+31%+
+Devotion
+15
+19
+36%+
+Navigation
+16
+20
+35%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Ambidexterity
+Blanket
+3
+Carried
+Brass Compass
+1
+Carried
+passive · Available · Requires: DEX 40+
+Demo steady resolve
+Canvas travel bag
+1
+Carried
+activated · Available · Requires: No requirements
+Effect: Use only after the stated event; this demonstration
+grants no unrecorded bonus.
+Costs: 1 Fate: Recorded demo cost
+Limits: 2 use(s) / session. Recorded demo limit
+Chalk sticks
+1
+Carried
+Coastwatch Baton
+2
+Unequipped 2/2
+Coiled rope
+3
+Carried
+Flint and steel
+2
+Carried
+Folding cup
+2
+Carried
+Eidetic Memory
+Healing Potion
+3
+Carried
+Ink bottle
+3
+Carried
+passive · Available · Requires: INT 40+
+Leather Arm Guards
+1
+Unequipped 1/1
+Indomitable Will
+Oil flask
+1
+Carried
+Sailmaker's needle
+1
+Carried
+passive · Available · Requires: WIS 40+
+Sealed dispatch for the
+keeper of the
+northernmost
+lighthouse
+1
+Carried
+◆Faith — known powers & skill effects
+Demo Faith constructed power
+Mana 3 · Casting 2 Initiative / 3 seconds
+See authored effect · See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus;
+concentration must be maintained.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires
+one sphere for the spell's root identity.
+Signal whistle
+1
+Carried
+Spare gloves
+2
+Carried
+Spare lamp wicks
+3
+Carried
+Trail Rations
+5
+Carried
+Waxed map case
+2
+Carried
+Weather journal
+2
+Carried
+Wooden tokens
+3
+Carried
+Faith → Demo Faith practice
+Points 8 · Rank 24 · Target 31%+
+Recorded Faith technique without a construction document.
+Requires the marked focus; ends when concentration is broken.
+No additional range or timing is recorded. END-2-RECORDED.
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+◆Special Abilities
+Casting: Known Spell · Faith / Master.
+Demo special sense
+Recognize the marked beacon while it is in sight. Does
+not work through walls. No roll is recorded for this passive
+demonstration.
+Serrian Tide
+PSYONICS BACK
+◆Ordinary skills
+◆Psyonics
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+12
+53%+
+Skill
+Pts
+Rank
+Target
+Psionic Focus
+12
+16
+39%+
+Awareness
+12
+15
+45%+
+Coastwatch Baton
+14
+17
+43%+
+Demo Psyonics practice
+8
+24
+31%+
+Psionic Channeling
+15
+19
+36%+
+Navigation
+16
+20
+35%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Ambidexterity
+Blanket
+3
+Carried
+Brass Compass
+1
+Carried
+passive · Available · Requires: DEX 40+
+Demo steady resolve
+Canvas travel bag
+1
+Carried
+activated · Available · Requires: No requirements
+Effect: Use only after the stated event; this demonstration
+grants no unrecorded bonus.
+Costs: 1 Fate: Recorded demo cost
+Limits: 2 use(s) / session. Recorded demo limit
+Chalk sticks
+1
+Carried
+Coastwatch Baton
+2
+Unequipped 2/2
+Coiled rope
+3
+Carried
+Flint and steel
+2
+Carried
+Folding cup
+2
+Carried
+Eidetic Memory
+Healing Potion
+3
+Carried
+Ink bottle
+3
+Carried
+passive · Available · Requires: INT 40+
+Leather Arm Guards
+1
+Unequipped 1/1
+Indomitable Will
+Oil flask
+1
+Carried
+Sailmaker's needle
+1
+Carried
+passive · Available · Requires: WIS 40+
+Sealed dispatch for the
+keeper of the
+northernmost
+lighthouse
+1
+Carried
+◆Psyonics — known powers & skill effects
+Demo Psyonics constructed power
+Mana Not recorded · Casting Not recorded Initiative / Not
+recorded seconds
+See authored effect · See authored effect
+Constructed effects / requirements: Healing: Healing points:
+2. A recorded restorative effect.
+Requirements / notes: Requires the engraved focus;
+concentration must be maintained.
+Review: No current casting context: playable cost and timing are
+unavailable.
+Signal whistle
+1
+Carried
+Spare gloves
+2
+Carried
+Spare lamp wicks
+3
+Carried
+Trail Rations
+5
+Carried
+Waxed map case
+2
+Carried
+Weather journal
+2
+Carried
+Wooden tokens
+3
+Carried
+Psionic Focus → Demo Psyonics practice
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+Points 8 · Rank 24 · Target 31%+
+Recorded Psyonics technique without a construction document.
+Requires the marked focus; ends when concentration is broken.
+No additional range or timing is recorded. END-3-RECORDED.
+◆Special Abilities
+Demo special sense
+Casting: Known Spell · Psyonics / unavailable.
+Recognize the marked beacon while it is in sight. Does
+not work through walls. No roll is recorded for this passive
+demonstration.
+Serrian Tide
+BARDIC RESONANCE BACK
+◆Ordinary skills
+◆Bardic Resonance
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+12
+53%+
+Skill
+Pts
+Rank
+Target
+Resonant Performance
+12
+16
+39%+
+Awareness
+12
+15
+45%+
+Coastwatch Baton
+14
+17
+43%+
+Demo Bardic Resonance
+practice
+8
+24
+31%+
+Resonance Attunement
+15
+19
+36%+
+Navigation
+16
+20
+35%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Ambidexterity
+Blanket
+3
+Carried
+Brass Compass
+1
+Carried
+passive · Available · Requires: DEX 40+
+Demo steady resolve
+Canvas travel bag
+1
+Carried
+activated · Available · Requires: No requirements
+Effect: Use only after the stated event; this demonstration
+grants no unrecorded bonus.
+Costs: 1 Fate: Recorded demo cost
+Limits: 2 use(s) / session. Recorded demo limit
+Chalk sticks
+1
+Carried
+Coastwatch Baton
+2
+Unequipped 2/2
+Coiled rope
+3
+Carried
+Flint and steel
+2
+Carried
+Folding cup
+2
+Carried
+Eidetic Memory
+Healing Potion
+3
+Carried
+Ink bottle
+3
+Carried
+passive · Available · Requires: INT 40+
+Leather Arm Guards
+1
+Unequipped 1/1
+Indomitable Will
+Oil flask
+1
+Carried
+Sailmaker's needle
+1
+Carried
+passive · Available · Requires: WIS 40+
+Sealed dispatch for the
+keeper of the
+northernmost
+lighthouse
+1
+Carried
+◆Bardic Resonance — known powers & skill
+effects
+Demo Bardic Resonance constructed power
+Signal whistle
+1
+Carried
+Spare gloves
+2
+Carried
+Mana Not recorded · Casting Not recorded Initiative / Not
+recorded seconds
+See authored effect · See authored effect
+Constructed effects / requirements: Healing: Healing points:
+2. A recorded restorative effect.
+Requirements / notes: Requires the engraved focus;
+concentration must be maintained.
+Review: No current casting context: playable cost and timing are
+unavailable.
+Spare lamp wicks
+3
+Carried
+Trail Rations
+5
+Carried
+Waxed map case
+2
+Carried
+Weather journal
+2
+Carried
+Wooden tokens
+3
+Carried
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+Resonant Performance → Demo Bardic
+Resonance practice
+◆Special Abilities
+Points 8 · Rank 24 · Target 31%+
+Demo special sense
+Recorded Bardic Resonance technique without a construction
+document. Requires the marked focus; ends when concentration
+is broken. No additional range or timing is recorded. END-4-
+RECORDED.
+Recognize the marked beacon while it is in sight. Does
+not work through walls. No roll is recorded for this passive
+demonstration.
+Casting: Known Spell · Bardic Resonance / unavailable.
+Serrian Tide
+SPELL BOOK — SPELLCRAFT
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Spellcraft constructed power
+Spellcraft · Master · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+3
+2 Initiative
+3 seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Spellcraft demonstration. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. END-
+0-CONSTRUCTED.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.
+◆Recorded skills & powers
+Spellcraft → Demo Spellcraft practice
+Spellcraft
+Points 8 · Rank 24 · Target 31%+
+Points 12 · Rank 16 · Target 39%+
+Recorded Spellcraft technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-0-RECORDED.
+No definition recorded.
+Channeling
+Points 15 · Rank 18 · Target 42%+
+No definition recorded.
+Serrian Tide
+TALISMAN BOOK — TALISMANISM
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Talismanism constructed power
+Talismanism · Master · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+3
+2 Initiative
+3 seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+The scene description does not expand its structured effect. The scene description does not expand its structured effect.
+END-1-CONSTRUCTED.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.
+◆Recorded skills & powers
+Talismanism → Demo Talismanism
+practice
+Channeling
+Points 15 · Rank 18 · Target 42%+
+Points 8 · Rank 24 · Target 31%+
+No definition recorded.
+Recorded Talismanism technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-1-RECORDED.
+Talismanism
+Points 12 · Rank 16 · Target 39%+
+Saved Talismanism support/access skill. Disposable print
+fixture.
+Serrian Tide
+PRAYER BOOK — FAITH
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Faith constructed power
+Faith · Master · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+3
+2 Initiative
+3 seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Faith demonstration. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. END-
+2-CONSTRUCTED.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.
+◆Recorded skills & powers
+Faith → Demo Faith practice
+Faith
+Points 8 · Rank 24 · Target 31%+
+Points 12 · Rank 16 · Target 39%+
+Recorded Faith technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-2-RECORDED.
+Saved Faith support/access skill. Disposable print fixture.
+Devotion
+Points 15 · Rank 19 · Target 36%+
+Saved Devotion support/access skill. Disposable print
+fixture.
+Serrian Tide
+PSYONIC SKILL BOOK — PSYONICS
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Psyonics constructed power
+Psyonics · No casting context · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+Not recorded
+Not recorded Initiative
+Not recorded seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Psyonics demonstration. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. The
+scene description does not expand its structured effect. The scene description does not expand its structured effect. END-
+3-CONSTRUCTED.
+Review: No current casting context: playable cost and timing are unavailable.
+◆Recorded skills & powers
+Psionic Focus → Demo Psyonics practice
+Psionic Focus
+Points 8 · Rank 24 · Target 31%+
+Points 12 · Rank 16 · Target 39%+
+Recorded Psyonics technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-3-RECORDED.
+Saved Psionic Focus support/access skill. Disposable print
+fixture.
+Psionic Channeling
+Points 15 · Rank 19 · Target 36%+
+Saved Psionic Channeling support/access skill.
+Disposable print fixture.
+Serrian Tide
+SONG BOOK — BARDIC RESONANCE
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Bardic Resonance constructed power
+Bardic Resonance · No casting context · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+Not recorded
+Not recorded Initiative
+Not recorded seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Healing: Healing points: 2. A recorded restorative effect.
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Bardic Resonance demonstration. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. The scene description does not expand its structured effect. The scene description does not expand its structured
+effect. END-4-CONSTRUCTED.
+Review: No current casting context: playable cost and timing are unavailable.
+◆Recorded skills & powers
+Resonant Performance → Demo Bardic
+Resonance practice
+Resonant Performance
+Points 12 · Rank 16 · Target 39%+
+Points 8 · Rank 24 · Target 31%+
+Saved Resonant Performance support/access skill.
+Disposable print fixture.
+Recorded Bardic Resonance technique without a
+construction document. Requires the marked focus; ends
+when concentration is broken. No additional range or
+timing is recorded. END-4-RECORDED.
+Resonance Attunement
+Points 15 · Rank 19 · Target 36%+
+Saved Resonance Attunement support/access skill.
+Disposable print fixture.

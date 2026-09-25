@@ -1,0 +1,262 @@
+Serrian Tide
+CHARACTER SHEET
+Faith practitioner —
+DEMO
+Coastborn (demo)
+Age 29 · Female · 5 ft 8 in · Weight 140 · Deity: None
+Player: sheet-player · Campaign: The Lantern Coast — DEMO
+Fame
+17
+XP
+245
+Total XP
+1290
+Quintessence
+23
+Total Quintessence
+88
+Fate
+4
+◆Attributes
+◆Health & hit locations
+Attribute
+Score
+Mod
+Target
+HP pool / hit
+Current
+Max
+Damage
+Now
+STR
+32
++1
+68%+
+Total HP
+61
+61
+0
+0
+DEX
+35
++2
+65%+
+Head 0
+7
+7
+0
+9
+1
+2
+7
+8
+CON
+30
++1
+70%+
+Right Arm 1
+10
+10
+0
+INT
+25
+0
+75%+
+Left Arm 2
+10
+10
+0
+4
+6
+WIS
+30
++1
+70%+
+Right Leg 3, 4
+10
+10
+0
+3
+5
+CHR
+28
+0
+72%+
+Left Leg 5, 6
+10
+10
+0
+Torso 7, 8, 9
+19
+19
+0
+Max Carry: 456
+Max Lift: 488
+Max Spheres: 8
+Spell Weaving: 0
+Teaching Base: 7
+Loyalty Base: 4
+0 Head · 1 Right Arm · 2 Left Arm · 3 Right Lower Leg · 4 Right Upper Leg · 5 Left
+Lower Leg · 6 Left Upper Leg · 7 Groin · 8 Stomach · 9 Chest
+Repeated hit results share one HP pool.
+%+ is a roll target. Permanent values; apply
+current conditions and situational rules.
+◆Mana
+◆Movement & Initiative
+◆Currency
+System / level
+Current / max
+Base Initiative 8
+Now
+Credits: 137.5
+Faith
+45 / 45
+Mode
+Base
+Initiative
+◆Quick rolls
+Master · 0 spent
+Now
+Land
+3
+24
+Coastwatch Baton 49%+
+Navigation 59%+
+Swim
+1
+8
+Devotion 60%+
+Demo Faith practice 55%+
+◆Weapons
+No active weapons recorded.
+◆Protection
+◆Conditions & play notes
+None recorded.
+No active conditions recorded.
+Serrian Tide
+FAITH BACK
+◆Ordinary skills
+◆Faith
+Skill
+Pts
+Rank
+Target
+Athletics
+10
+11
+57%+
+Skill
+Pts
+Rank
+Target
+Faith
+12
+12
+63%+
+Awareness
+12
+13
+57%+
+Coastwatch Baton
+14
+16
+49%+
+Demo Faith practice
+8
+20
+55%+
+Devotion
+15
+15
+60%+
+Navigation
+16
+16
+59%+
+Pts = allocated points including racial grants (R). %+ = roll target. Continued paths retain their parent names.
+◆Owned inventory
+◆Derived Abilities
+Item
+Qty
+Equipment state
+Demo steady resolve
+Brass Compass
+1
+Carried
+Coastwatch Baton
+2
+Unequipped 2/2
+activated · Available · Requires: No requirements
+Effect: Use only after the stated event; this demonstration
+grants no unrecorded bonus.
+Costs: 1 Fate: Recorded demo cost
+Limits: 2 use(s) / session. Recorded demo limit
+Healing Potion
+3
+Carried
+Leather Arm Guards
+1
+Unequipped 1/1
+Trail Rations
+5
+Carried
+Equipment state quantities are included in Qty. Individually tracked
+copies remain separate.
+◆Faith — known powers & skill effects
+Demo Faith constructed power
+◆Special Abilities
+Mana 3 · Casting 2 Initiative / 3 seconds
+See authored effect · See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus;
+concentration must be maintained.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires
+one sphere for the spell's root identity.
+Demo special sense
+Recognize the marked beacon while it is in sight. Does
+not work through walls. No roll is recorded for this passive
+demonstration.
+Faith → Demo Faith practice
+Points 8 · Rank 20 · Target 55%+
+Recorded Faith technique without a construction document.
+Requires the marked focus; ends when concentration is broken.
+No additional range or timing is recorded. END-2-RECORDED.
+Casting: Known Spell · Faith / Master.
+Serrian Tide
+PRAYER BOOK — FAITH
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Faith constructed power
+Faith · Master · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+3
+2 Initiative
+3 seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Faith demonstration. The scene description does not expand its structured effect. END-2-
+CONSTRUCTED.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.
+◆Recorded skills & powers
+Faith → Demo Faith practice
+Faith
+Points 8 · Rank 20 · Target 55%+
+Points 12 · Rank 12 · Target 63%+
+Recorded Faith technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-2-RECORDED.
+Saved Faith support/access skill. Disposable print fixture.
+Devotion
+Points 15 · Rank 15 · Target 60%+
+Saved Devotion support/access skill. Disposable print
+fixture.

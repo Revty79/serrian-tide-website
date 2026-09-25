@@ -1,0 +1,1285 @@
+[
+  {
+    "sample": "adrian-core",
+    "pages": 3,
+    "paragraphs_checked": 35,
+    "rows_checked": 24,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1649,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 2405,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "General back",
+        "body_characters": 1614,
+        "font_sizes": [
+          8.0,
+          8.5,
+          9.0,
+          10.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "adrian-with-references",
+    "pages": 6,
+    "paragraphs_checked": 89,
+    "rows_checked": 30,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2,
+      "Spell Book \u2014 Spellcraft": 4
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1649,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 2405,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "General back",
+        "body_characters": 1614,
+        "font_sizes": [
+          8.0,
+          8.5,
+          9.0,
+          10.0
+        ]
+      },
+      {
+        "page": 4,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 2167,
+        "font_sizes": [
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 5,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 2136,
+        "font_sizes": [
+          8.0,
+          8.5,
+          10.0,
+          12.0
+        ]
+      },
+      {
+        "page": 6,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 1756,
+        "font_sizes": [
+          6.0,
+          8.0,
+          10.0,
+          12.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "book-only-bardic-resonance",
+    "pages": 1,
+    "paragraphs_checked": 8,
+    "rows_checked": 1,
+    "sections": {
+      "Song Book \u2014 Bardic Resonance": 1
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Song Book \u2014 Bardic Resonance",
+        "body_characters": 1524,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "book-only-faith",
+    "pages": 1,
+    "paragraphs_checked": 8,
+    "rows_checked": 1,
+    "sections": {
+      "Prayer Book \u2014 Faith": 1
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Prayer Book \u2014 Faith",
+        "body_characters": 1336,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "book-only-psyonics",
+    "pages": 1,
+    "paragraphs_checked": 8,
+    "rows_checked": 1,
+    "sections": {
+      "Psyonic Skill Book \u2014 Psyonics": 1
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Psyonic Skill Book \u2014 Psyonics",
+        "body_characters": 1461,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "book-only-spellcraft",
+    "pages": 1,
+    "paragraphs_checked": 8,
+    "rows_checked": 1,
+    "sections": {
+      "Spell Book \u2014 Spellcraft": 1
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 1301,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "book-only-talismanism",
+    "pages": 1,
+    "paragraphs_checked": 8,
+    "rows_checked": 1,
+    "sections": {
+      "Talisman Book \u2014 Talismanism": 1
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Talisman Book \u2014 Talismanism",
+        "body_characters": 1354,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "example-a",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1579,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "example-b",
+    "pages": 10,
+    "paragraphs_checked": 73,
+    "rows_checked": 67,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2,
+      "Spell Book \u2014 Spellcraft": 4,
+      "Full skill reference": 6,
+      "Inventory reference": 8
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1725,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 2462,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "General back",
+        "body_characters": 818,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0
+        ]
+      },
+      {
+        "page": 4,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 4350,
+        "font_sizes": [
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 5,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 1276,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0
+        ]
+      },
+      {
+        "page": 6,
+        "section": "Full skill reference",
+        "body_characters": 1690,
+        "font_sizes": [
+          8.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 7,
+        "section": "Full skill reference",
+        "body_characters": 1907,
+        "font_sizes": [
+          8.0,
+          10.0,
+          12.0
+        ]
+      },
+      {
+        "page": 8,
+        "section": "Inventory reference",
+        "body_characters": 1350,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 9,
+        "section": "Inventory reference",
+        "body_characters": 1705,
+        "font_sizes": [
+          8.0,
+          10.0,
+          12.0
+        ]
+      },
+      {
+        "page": 10,
+        "section": "Inventory reference",
+        "body_characters": 507,
+        "font_sizes": [
+          8.0,
+          10.0,
+          12.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "mixed-books-only",
+    "pages": 5,
+    "paragraphs_checked": 40,
+    "rows_checked": 5,
+    "sections": {
+      "Spell Book \u2014 Spellcraft": 1,
+      "Talisman Book \u2014 Talismanism": 2,
+      "Prayer Book \u2014 Faith": 3,
+      "Psyonic Skill Book \u2014 Psyonics": 4,
+      "Song Book \u2014 Bardic Resonance": 5
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 3986,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Talisman Book \u2014 Talismanism",
+        "body_characters": 4038,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Prayer Book \u2014 Faith",
+        "body_characters": 4020,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 4,
+        "section": "Psyonic Skill Book \u2014 Psyonics",
+        "body_characters": 4145,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 5,
+        "section": "Song Book \u2014 Bardic Resonance",
+        "body_characters": 4208,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "mixed-build",
+    "pages": 11,
+    "paragraphs_checked": 112,
+    "rows_checked": 145,
+    "sections": {
+      "Standard front": 1,
+      "Spellcraft back": 2,
+      "Talismanism back": 3,
+      "Faith back": 4,
+      "Psyonics back": 5,
+      "Bardic Resonance back": 6,
+      "Spell Book \u2014 Spellcraft": 7,
+      "Talisman Book \u2014 Talismanism": 8,
+      "Prayer Book \u2014 Faith": 9,
+      "Psyonic Skill Book \u2014 Psyonics": 10,
+      "Song Book \u2014 Bardic Resonance": 11
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1569,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Spellcraft back",
+        "body_characters": 2396,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Talismanism back",
+        "body_characters": 2407,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 4,
+        "section": "Faith back",
+        "body_characters": 2344,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 5,
+        "section": "Psyonics back",
+        "body_characters": 2443,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 6,
+        "section": "Bardic Resonance back",
+        "body_characters": 2524,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 7,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 3986,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 8,
+        "section": "Talisman Book \u2014 Talismanism",
+        "body_characters": 4038,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 9,
+        "section": "Prayer Book \u2014 Faith",
+        "body_characters": 4020,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 10,
+        "section": "Psyonic Skill Book \u2014 Psyonics",
+        "body_characters": 4145,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 11,
+        "section": "Song Book \u2014 Bardic Resonance",
+        "body_characters": 4208,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "system-bardic-resonance",
+    "pages": 3,
+    "paragraphs_checked": 21,
+    "rows_checked": 13,
+    "sections": {
+      "Standard front": 1,
+      "Bardic Resonance back": 2,
+      "Song Book \u2014 Bardic Resonance": 3
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1403,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Bardic Resonance back",
+        "body_characters": 1927,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Song Book \u2014 Bardic Resonance",
+        "body_characters": 1524,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "system-faith",
+    "pages": 3,
+    "paragraphs_checked": 21,
+    "rows_checked": 13,
+    "sections": {
+      "Standard front": 1,
+      "Faith back": 2,
+      "Prayer Book \u2014 Faith": 3
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1358,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Faith back",
+        "body_characters": 1747,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Prayer Book \u2014 Faith",
+        "body_characters": 1336,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "system-psyonics",
+    "pages": 3,
+    "paragraphs_checked": 21,
+    "rows_checked": 13,
+    "sections": {
+      "Standard front": 1,
+      "Psyonics back": 2,
+      "Psyonic Skill Book \u2014 Psyonics": 3
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1377,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Psyonics back",
+        "body_characters": 1846,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Psyonic Skill Book \u2014 Psyonics",
+        "body_characters": 1461,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "system-spellcraft",
+    "pages": 3,
+    "paragraphs_checked": 21,
+    "rows_checked": 13,
+    "sections": {
+      "Standard front": 1,
+      "Spellcraft back": 2,
+      "Spell Book \u2014 Spellcraft": 3
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1375,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Spellcraft back",
+        "body_characters": 1799,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Spell Book \u2014 Spellcraft",
+        "body_characters": 1301,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "system-talismanism",
+    "pages": 3,
+    "paragraphs_checked": 21,
+    "rows_checked": 13,
+    "sections": {
+      "Standard front": 1,
+      "Talismanism back": 2,
+      "Talisman Book \u2014 Talismanism": 3
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1378,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "Talismanism back",
+        "body_characters": 1810,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "page": 3,
+        "section": "Talisman Book \u2014 Talismanism",
+        "body_characters": 1354,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          12.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-apocalyptic",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1581,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-fantasy",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1583,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-horror",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1585,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-modern",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1581,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-plain",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1571,
+        "font_sizes": [
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 683,
+        "font_sizes": [
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-science-fiction",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1582,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-universal",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1580,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  },
+  {
+    "sample": "theme-western",
+    "pages": 2,
+    "paragraphs_checked": 2,
+    "rows_checked": 9,
+    "sections": {
+      "Standard front": 1,
+      "General back": 2
+    },
+    "page_details": [
+      {
+        "page": 1,
+        "section": "Standard front",
+        "body_characters": 1579,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.1,
+          8.5,
+          9.0,
+          10.0,
+          12.0,
+          20.0,
+          24.0
+        ]
+      },
+      {
+        "page": 2,
+        "section": "General back",
+        "body_characters": 689,
+        "font_sizes": [
+          6.0,
+          8.0,
+          8.5,
+          10.0,
+          24.0
+        ]
+      }
+    ]
+  }
+]

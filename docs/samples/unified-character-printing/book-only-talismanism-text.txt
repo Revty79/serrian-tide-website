@@ -1,0 +1,39 @@
+Serrian Tide
+TALISMAN BOOK — TALISMANISM
+Current Known Spell casting values use the saved practitioner level. Saved descriptions and constructed effects retain their own sources;
+disagreements require review.
+Demo Talismanism constructed power
+Talismanism · Master · Known Spell
+Roll
+Mana
+Combat
+Out of combat
+Range
+Duration
+Not recorded
+3
+2 Initiative
+3 seconds
+See authored effect
+See authored effect
+Constructed effects / requirements: Heal 2 · Full Body
+Requirements / notes: Requires the engraved focus; concentration must be maintained.
+Healing: Healing points: 2. A recorded restorative effect.. Restores a fixed number of points. [Target]
+Saved description: Recorded Talismanism demonstration. The scene description does not expand its structured effect.
+END-1-CONSTRUCTED.
+Review: Sphere is not set: Spellcraft/Talismanism/Faith requires one sphere for the spell's root identity.
+◆Recorded skills & powers
+Talismanism → Demo Talismanism
+practice
+Talismanism
+Points 12 · Rank 12 · Target 63%+
+Points 8 · Rank 20 · Target 55%+
+Saved Talismanism support/access skill. Disposable print
+fixture.
+Recorded Talismanism technique without a construction
+document. Requires the marked focus; ends when
+concentration is broken. No additional range or timing is
+recorded. END-1-RECORDED.
+Channeling
+Points 15 · Rank 16 · Target 54%+
+No definition recorded.
