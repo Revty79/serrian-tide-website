@@ -36,6 +36,8 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_character_injury", scope: "character" },
   { tableName: "campaign_character_active_health", scope: "character" },
   { tableName: "campaign_character_item_equipment_state", scope: "character" },
+  { tableName: "inventory_instance_location", scope: "character" },
+  { tableName: "inventory_stack_location", scope: "character" },
   { tableName: "campaign_character_item", scope: "character" },
   { tableName: "campaign_character_spell_document", scope: "character" },
   { tableName: "campaign_character_weapon_override", scope: "campaign" },

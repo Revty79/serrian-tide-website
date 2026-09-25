@@ -52,7 +52,7 @@ test("container foundation and inventory regressions use disposable migrated Pos
     const childEnvironment = { ...process.env };
     delete childEnvironment.NODE_TEST_CONTEXT;
     let executedScripts = 0;
-    for (const script of ["scripts/inventory-containment-db.test.mjs", "scripts/magazine-inventory-db.test.ts", "scripts/combat-completion-firearms-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-freeze-db.test.ts"]) {
+    for (const script of ["scripts/lifecycle-containment-db.test.ts", "scripts/lifecycle-service-db.test.ts", "scripts/skill-framework-reference-db.test.ts", "scripts/tabletop-lifecycle-db.test.ts", "scripts/inventory-containment-db.test.mjs", "scripts/magazine-inventory-db.test.ts", "scripts/combat-completion-firearms-db.test.ts", "scripts/combat-completion-items-abilities-db.test.ts", "scripts/combat-completion-freeze-db.test.ts"]) {
       let output: string;
       if (process.env.CONTAINMENT_CASE_FILTER && !script.includes(process.env.CONTAINMENT_CASE_FILTER)) continue;
       executedScripts++;

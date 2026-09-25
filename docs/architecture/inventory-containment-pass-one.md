@@ -36,11 +36,11 @@ Exact locations have a primary key on the owned-instance ID, so a copy has at mo
 
 Both the domain service and database guard walk containment ancestry. Every location mutation serializes on the Character root; the database performs an unchanged-value row update so stale repeatable-read writers abort as well. The walk rejects self-reference, a proposed ancestor cycle, or an already invalid ancestry. Opposite concurrent moves cannot both commit. Source removal and destination insertion share one transaction.
 
-Ownership triggers protect all existing writers, including item use, sales, magazine loading and administrative removal. An occupied container cannot be deleted or retired. A contained exact copy must first be moved to loose. A stack reduction may use its unallocated remainder; it fails if it would erase allocated units. There is no spilling, content deletion, transfer, or destruction behavior.
+Ownership triggers protect all existing writers, including item use, sales, magazine loading and administrative removal. An occupied container cannot be deleted or retired. A contained exact copy must first be moved to loose. A stack reduction may use its unallocated remainder; it fails if it would erase allocated units. Individual Item removal has no spilling, content deletion, transfer, or destruction behavior. Explicit Character/NPC and Campaign permanent lifecycle deletion removes containment metadata with the destroyed root, as documented in the correction below.
 
 Catalog root locking serializes profile changes with new ownership. Owner Add takes the Item write lock directly to avoid concurrent shared-lock upgrades. Character saving now deletes only removed stacks and upserts retained ones, preserving location foreign keys, acquisition dates and equipment-state rows.
 
-**Validation**
+**Original Pass 1 validation**
 
 All database validation used temporary local PostgreSQL clusters migrated through all 68 journal entries. Development and production databases were not migrated or manually edited.
 
@@ -105,3 +105,32 @@ Migration 0067 must be applied before running this changed application against a
 Pass 1 has no container-management UI, capacity, weight, volume, access cost, magical rules, world storage or transfer mechanic. Until location-aware consumption and sale choices are designed, allocated units must be moved to loose before an operation would reduce ownership below the allocated total. Equipment and passive behavior remain independent of location. A loaded magazine's ammunition stays in its specialized storage even if the magazine itself is placed inside a backpack.
 
 The database guards are part of this foundation, not optional application validation. Future inventory writers must retain the Character/catalog lock boundaries and commerce-version rules. Expected concurrency conflicts fail closed and require a fresh read. No blocking foundation issue remains from the exercised scenarios; the two legacy test-fixture failures above remain outside this pass. Automation is not human acceptance. Stop here for Pass 1 review before any later container pass.
+
+**Pass 1 lifecycle correction — 2026-09-25**
+
+Review of committed Pass 1 (`4fbbb71fb4098a9452c43d65d496ddf98af771c4`) found that restrictive containment ownership foreign keys also blocked permanent Character/NPC and Campaign deletion. Before the correction, disposable database tests reproduced failures for Player Characters with stack contents, exact contents, and nested containers, both NPC kinds with nested contents, and whole-Campaign deletion. Individual removal guards remained effective.
+
+The existing lifecycle transaction now deletes a Character's `inventory_instance_location` rows, then its `inventory_stack_location` rows, before the verified Character cascade. This shared path covers Player Characters, Race NPCs, and Creature NPCs. The Campaign deletion plan includes both tables with its existing `character` scope, before stack ownership, exact-copy ownership, and Character roots. Both lifecycle previews count these locations as nonblocking dependencies. Existing authorization, blockers, and audit behavior remain in place.
+
+No schema, migration, ownership foreign key, or ordinary removal guard changed. Occupied containers still cannot be removed or retired; contained exact copies must move loose before removal; stack reductions cannot consume allocated units. The correction adds no Pass 2 behavior.
+
+The new database suite invokes the real permanent lifecycle service and verifies all five Character/NPC cases, whole-Campaign deletion, complete location cleanup, preservation of unrelated roots and catalog Items, audit creation, unauthorized deletion rejection, transactional rollback, and the three ordinary removal guards. The existing lifecycle database snapshot helper now handles every current Campaign deletion scope so its existing graph and rollback assertions can run against the current plan.
+
+| Correction validation | Result |
+| --- | --- |
+| New lifecycle containment database suite | 11 passed, 0 failed |
+| Existing lifecycle service database suite | 1 passed, 0 failed; covers all lifecycle roots and Campaign scope/atomicity |
+| Existing Skill framework reference database suite | 1 passed, 0 failed |
+| Existing Tabletop lifecycle database suite | 1 passed, 0 failed |
+| Focused Pass 1 containment database suite | 32 passed, 0 failed |
+| Existing magazine / combat firearm / item-ability / Freeze database suites | 8 / 69 / 3 / 5 passed, 0 failed |
+| Expanded disposable database harness | Passed; 131 child test results, no skips |
+| Lifecycle and Character deletion unit/source tests | 65 passed, 0 failed |
+| `npm.cmd run typecheck` | Passed |
+| ESLint over all five changed/new TypeScript files | Passed |
+| `npm.cmd run build` | Passed |
+| `git diff --check` | Passed |
+
+All correction database checks used the disposable PostgreSQL harness migrated through all 68 journal entries. No development or production database was changed. Run the full checks with `node --import tsx --test scripts/inventory-containment-disposable.test.ts`; set `CONTAINMENT_CASE_FILTER=lifecycle-containment` to select only the new regression suite. The harness removes its temporary cluster afterward.
+
+Correction files: `src/features/lifecycle/lifecycle-service.ts`, `src/features/lifecycle/campaign-delete-plan.ts`, `scripts/lifecycle-containment-db.test.ts`, `scripts/lifecycle-service-db.test.ts`, `scripts/inventory-containment-disposable.test.ts`, and this handoff. This is a separate correction to Pass 1. Stop after committing it; do not begin Pass 2.

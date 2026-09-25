@@ -46,7 +46,7 @@ import {
   previewLifecycleEntityForActor,
   restoreLifecycleEntityForActor,
 } from "@/features/lifecycle/lifecycle-service";
-import { CAMPAIGN_GRAPH_DELETE_STEPS } from "@/features/lifecycle/campaign-delete-plan";
+import { CAMPAIGN_GRAPH_DELETE_STEPS, type CampaignDeleteScope } from "@/features/lifecycle/campaign-delete-plan";
 import { createEmptySpell, withCalculationSnapshot } from "@/features/spell-construction/utilities/spellFactory";
 import type {
   LifecycleActor,
@@ -92,12 +92,17 @@ async function snapshotCampaignGraph(campaignId: number): Promise<CampaignGraphS
   );
   snapshot.campaign = root.rows[0]?.rows ?? [];
 
+  const predicates: Record<CampaignDeleteScope, string> = {
+    campaign: "campaign_id = $1",
+    character: "character_id in (select id from campaign_character where campaign_id = $1)",
+    encounter: "encounter_id in (select id from campaign_session_encounter where campaign_id = $1)",
+    "chat-room": "room_id in (select id from chat_room where campaign_id = $1)",
+    "source-use-request": "request_id in (select id from tabletop_source_use_request where campaign_id = $1)",
+    "shop-request": "request_id in (select id from shop_transaction_request where campaign_id = $1)",
+    "shop-transaction": "transaction_id in (select id from shop_transaction where campaign_id = $1)",
+  };
   for (const step of CAMPAIGN_GRAPH_DELETE_STEPS) {
-    const predicate = step.scope === "campaign"
-      ? "campaign_id = $1"
-      : step.scope === "character"
-        ? "character_id in (select id from campaign_character where campaign_id = $1)"
-        : "room_id in (select id from chat_room where campaign_id = $1)";
+    const predicate = predicates[step.scope];
     const rows = await pool.query<{ rows: unknown[] }>(
       `select coalesce(jsonb_agg(row_value order by row_value::text), '[]'::jsonb) as rows
        from (select to_jsonb(t) as row_value from ${quoteTrustedTableName(step.tableName)} t where ${predicate}) campaign_graph_snapshot`,
