@@ -431,3 +431,8 @@ test("Pass 4 custody, access and combat handling", async t => {
   const { containerAccessCases } = await import("./container-access-db-cases.mjs");
   await containerAccessCases(t, { fixture, accessFixture, pool, db, actors, catalog, containment, view, exactMove, stackMove, snapshot, equipment });
 });
+
+test("Pass 4 manual and automatic passive custody eligibility", async t => {
+  const { containerPassiveCases } = await import("./container-passive-db-cases.mjs");
+  await containerPassiveCases(t, { fixture, pool, db, view, exactMove, stackMove, equipment });
+});

@@ -29,7 +29,7 @@ Always-accessible containers ignore stored closure state. Open-close copies with
 
 Outside combat, existing inventory moves support retrieve, stow and container-to-container movement, subject to custody, closure, capacity, restrictions and equipment rules. Drop requires one eligible active Scene, or an explicitly selected eligible Scene, containing the Character. Players recover their own dropped roots only in that same active Scene. G.O.D. can adjudicate theft, loss, recovery and access. Unrelated G.O.D.s and admin readers gain no new authority. All mutations respect Freeze.
 
-Voluntary Drop rejects Worn/Wielded roots or allocated active stack quantities. Theft/loss can force the root's equipment Inactive, reconcile passive effects, and record the previous equipment state. Recovery preserves that history and does not silently re-equip it. Catalog conflicts do not destroy recovered contents: recovery succeeds and existing physical warnings remain visible.
+Voluntary Drop rejects Worn/Wielded exact roots or stack quantities reserved as Worn/Wielded. Equipped state is preserved by voluntary Drop. Theft/loss can force the root's equipment Inactive, reconcile passive effects, and record the previous equipment state. Recovery preserves that history and does not silently re-equip it. Catalog conflicts do not destroy recovered contents: recovery succeeds and existing physical warnings remain visible.
 
 ## Combat timing and concurrency
 
@@ -89,6 +89,27 @@ The 12 database suites contain 220 passing tests in total. Their harness migrate
 Actual authenticated Chrome flows cover Player outside-combat retrieve/stow, nested location, open/close and closed-container errors, drop/recovery with carried-weight changes, G.O.D. theft/recovery, unavailable descendants, loaded firearm assembly preservation, magical containers/sources, actual combat retrieve and pending/completed Initiative, G.O.D. approval of an unresolved stow cost, completed stow, and 390 px layout without horizontal overflow. Desktop/mobile screenshots were inspected. Screenshots and logs remain local under `artifacts/container-pass-four/` and `artifacts/container-pass-four-*.log`; prior physical/magical screenshots are in their existing Pass 2/3 artifact folders.
 
 Commands: `node --import tsx --test scripts/inventory-containment-disposable.test.ts`; repeat with `CONTAINMENT_CASE_FILTER=container-physical-db` and `CONTAINMENT_BROWSER=1` for browsers; `COMBAT_COMPLETION_CASE_FILTER=magazine-catalog` with `scripts/combat-completion-disposable-db.test.ts`; `node --conditions=react-server --import tsx --test scripts/tabletop-shop-commerce-db.test.ts`; `node --import tsx --test scripts/item-tag-authoring-disposable.test.ts`; all `*.test.ts` files under the seven feature directories named in the unit-suite row; `npm.cmd run typecheck`; changed-file ESLint; `npm.cmd run build`; `node node_modules/drizzle-kit/bin.cjs check`; `git diff --check`.
+
+## Review correction: manual passive custody eligibility
+
+The follow-up to reviewed Pass 4 commit `c4e85146bbd359d56e012db2f51a237a26873ecc` corrects the Equipment State read model's manual passive reporting. It previously checked saved Equipment State without the custody filtering already used by automatic passive reconciliation. A voluntarily dropped Equipped copy, an Equipped descendant of an unavailable container, or an unavailable stack could therefore still advertise a manual benefit to the Character and paper sheets.
+
+`eligiblePassiveOwnerKeys()` in `equipment-state-service.ts` now supplies both `readCharacterEquipmentStateInTransaction()` and `reconcileItemPassiveEffectsInTransaction()`. An exact owner must have effective carried custody and satisfy its passive's Equipment State requirement. A stack must have a carried Loose or carried contained quantity and an active quantity satisfying that same requirement, preserving the existing stack semantics. Exact owner identities, automatic effect lifecycle/history, and the read model's single manual row per authored effect are preserved.
+
+This eligibility deliberately depends on custody, not closure/access or Loose placement. Equipped contents of a closed carried backpack still qualify. Voluntary Drop preserves Equipment State but suppresses passive reporting until recovery. Theft of a root that forces Inactive still requires explicit re-equipping after recovery. Worn Armor/Wielded Weapon operational filtering retains its separate existing rules. No UI filtering, schema change, migration, or new firearm/magazine behavior is introduced.
+
+Eleven focused disposable database cases in `scripts/container-passive-db-cases.mjs`, invoked by the existing physical containment suite, cover both legacy and power-authored passives; exact drop/recovery; nested stolen/lost ancestry and closed-container recovery; root theft requiring re-equipping; fully/partially unavailable stacks; carried contained stacks without Loose copies; independent exact copies and manual-row aggregation; and Worn Armor/Wielded Weapon behavior. Each scenario checks manual read eligibility against real automatic Conditions and Modifiers, including idempotent reconciliation; drop/recovery also verifies retained effect history. The new custody assertions reproduced the defect before the fix.
+
+Follow-up validation (separate from the original Pass 4 validation above):
+
+- Unit regressions: **1,007 passed**, covering Items/equipment/access/Passes 2–3, active state/effects, Characters/sheets/paper/print, lifecycle, combat-screen, tabletop operations, and Shops.
+- Full disposable containment harness: **232 passed** across all 12 child suites, including 99 physical/magical/access/passive tests (11 new focused passive cases), 32 Pass 1 containment tests, lifecycle cleanup, firearm/magazine, Item/Ability completion, and Freeze regressions. All migrations ran only in the harness's temporary database, which was removed afterward.
+- Typecheck and changed-file ESLint with zero warnings: passed.
+- Production build and `git diff --check`: passed.
+
+Commands: `node --import tsx --test scripts/inventory-containment-disposable.test.ts`; `node --import tsx --test --test-reporter=tap` with all `*.test.ts` files under `src/features/{items,characters,active-state,lifecycle,combat-screen,tabletop-operations,shops}`; `npm.cmd run typecheck`; `npx.cmd eslint src/features/items/equipment-state-service.ts scripts/container-physical-db.test.mjs scripts/container-passive-db-cases.mjs --max-warnings 0`; `npm.cmd run build`; `git diff --check`. Follow-up logs are local ignored files at `artifacts/container-pass-four-passive-*.log`. No browser workflow was rerun for this shared-service correction.
+
+Correction files: `src/features/items/equipment-state-service.ts`, `scripts/container-passive-db-cases.mjs`, `scripts/container-physical-db.test.mjs`, and this handoff. Commit this correction separately and stop; no post-container work is included.
 
 ## Limits and review boundary
 

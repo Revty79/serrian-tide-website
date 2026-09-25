@@ -54,7 +54,7 @@ import { lockActiveItemRootInTransaction } from "./active-item-root-service";
 import { validateContainmentOwnershipMutationInTransaction } from "./containment-ownership-service";
 import { assertInstanceCanBeWornInTransaction, assertStackCanBeWornInTransaction } from "./inventory-physical-service";
 import { assertExactInventoryAvailable, assertLooseStackAvailable, readInventoryAccessInTransaction } from "./inventory-access-service";
-import { resolveInventoryAvailability } from "./inventory-access";
+import { resolveInventoryAvailability, type InventoryAccessGraph } from "./inventory-access";
 import { resolveFirearmFiringMode } from "./firearm-timing";
 
 import {
@@ -259,16 +259,34 @@ async function loadPassiveEffectsInTransaction(
   return loaded;
 }
 
-function itemIsActiveFor(
+function eligiblePassiveOwnerKeys(
   snapshot: OwnedEquipmentSnapshot,
+  inventoryAccess: InventoryAccessGraph,
   itemId: number,
   requiredEquipmentState: PassiveRequiredEquipmentState,
-): boolean {
-  return shouldPassiveEffectBeActive({
-    requiredEquipmentState,
-    activeStackQuantities: snapshot.activeStackQuantities.get(itemId) ?? {},
-    instanceStates: snapshot.instances.filter((entry) => entry.itemId === itemId).map(({ state }) => state),
-  });
+): string[] {
+  // Passives require carried custody and Equipment State, independently of
+  // closure/access and the Loose requirement for operational Armor/Weapons.
+  const instances = snapshot.instances.filter((instance) => instance.itemId === itemId
+    && resolveInventoryAvailability(inventoryAccess, { instanceId: instance.instanceId }).custody === "carried"
+    && stateSatisfiesEquipmentRequirement(instance.state, requiredEquipmentState));
+  const stack = inventoryAccess.stacks.find(row => row.itemId === itemId);
+  const carriedContained = stack?.allocations.reduce((total, row) => total + (
+    resolveInventoryAvailability(inventoryAccess, { itemId, containerInstanceId: row.containerInstanceId }).custody === "carried"
+      ? row.quantity : 0
+  ), 0) ?? 0;
+  const activeStackQuantities = snapshot.activeStackQuantities.get(itemId) ?? {};
+  const stackActive = (stack?.looseQuantity ?? 0) + carriedContained > 0
+    && getActiveStackQuantity(activeStackQuantities) > 0
+    && shouldPassiveEffectBeActive({
+      requiredEquipmentState,
+      activeStackQuantities,
+      instanceStates: [],
+    });
+  return [
+    ...(stackActive ? ["stack"] : []),
+    ...instances.map(instance => `instance:${instance.instanceId}`),
+  ];
 }
 
 export async function readCharacterEquipmentStateInTransaction(
@@ -394,7 +412,8 @@ export async function readCharacterEquipmentStateInTransaction(
   for (const row of locationRows) locationsByItem.set(row.itemId, [...(locationsByItem.get(row.itemId) ?? []), row.locationCode]);
 
   const activeManualPassives: ActiveManualPassiveEffect[] = passives.flatMap((entry) => (
-    entry.effect.kind === "manual" && itemIsActiveFor(snapshot, entry.itemId, entry.requiredEquipmentState)
+    entry.effect.kind === "manual"
+      && eligiblePassiveOwnerKeys(snapshot, inventoryAccess, entry.itemId, entry.requiredEquipmentState).length > 0
       ? [{
           passiveEffectId: entry.id,
           itemId: entry.itemId,
@@ -535,20 +554,10 @@ export async function reconcileItemPassiveEffectsInTransaction(
   const reconciliationIds = [...new Set(requestedIds ? [...requestedIds] : [...ownedIds, ...existingIds])];
   const passives = await loadPassiveEffectsInTransaction(tx, reconciliationIds);
   const accessGraph = await readInventoryAccessInTransaction(tx, characterId);
-  const desired = passives.flatMap((entry) => {
-    const instances = snapshot.instances.filter((instance) => instance.itemId === entry.itemId
-      && resolveInventoryAvailability(accessGraph, { instanceId: instance.instanceId }).custody === "carried"
-      && stateSatisfiesEquipmentRequirement(instance.state, entry.requiredEquipmentState));
-    const carriedStackQuantity = accessGraph.stacks.find(row => row.itemId === entry.itemId)?.looseQuantity ?? 0;
-    const carriedContained = accessGraph.stacks.find(row => row.itemId === entry.itemId)?.allocations.filter(row => resolveInventoryAvailability(accessGraph, { itemId: entry.itemId, containerInstanceId: row.containerInstanceId }).custody === "carried").reduce((total, row) => total + row.quantity, 0) ?? 0;
-    const stackActive = carriedStackQuantity + carriedContained > 0 && getActiveStackQuantity(snapshot.activeStackQuantities.get(entry.itemId) ?? {}) > 0
-      && itemIsActiveFor({ ...snapshot, instances: [] }, entry.itemId, entry.requiredEquipmentState);
-    const owners = [
-      ...(stackActive ? [{ ownerKey: "stack" }] : []),
-      ...instances.map((instance) => ({ ownerKey: `instance:${instance.instanceId}` })),
-    ];
-    return owners.map(({ ownerKey }) => ({ ...entry, ownerKey }));
-  });
+  const desired = passives.flatMap(entry => (
+    eligiblePassiveOwnerKeys(snapshot, accessGraph, entry.itemId, entry.requiredEquipmentState)
+      .map(ownerKey => ({ ...entry, ownerKey }))
+  ));
   const sourceEffectKey = (entry: LoadedPassiveEffect): string => {
     const base = entry.sourceKind === "legacy" ? passiveSourceEffectKey(entry.id) : `power:${entry.powerId}:effect:${entry.id}`;
     return passiveSourceEffectKeyForOwner(base, entry.ownerKey ?? "stack");
