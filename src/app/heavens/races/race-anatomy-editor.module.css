@@ -1,0 +1,8 @@
+.editor { display: grid; gap: 1rem; min-width: 0; }
+.editor p { color: var(--st-text-secondary); }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.list { display: grid; gap: .75rem; }
+.pool, .location { border: 1px solid var(--st-border); background: var(--st-surface-soft); border-radius: .65rem; padding: 1rem; min-width: 0; }
+.pool { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, .45fr) minmax(0, 1fr) auto; gap: .75rem; align-items: end; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem; }
+@media (max-width: 700px) { .pool, .fields { grid-template-columns: minmax(0, 1fr); } }

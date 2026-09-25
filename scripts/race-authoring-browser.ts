@@ -7,13 +7,14 @@ import { chromium, type Page } from "playwright-core";
 import { pool } from "@/db";
 import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
 import { checkGuidanceWorkspaces, checkRaceFieldGuidance } from "./guidance-browser-checks";
+import { checkRaceAnatomyBrowser } from "./race-anatomy-browser";
 
 async function until(check: () => Promise<boolean>, label: string) {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) { if (await check()) return; await new Promise((resolve) => setTimeout(resolve, 150)); }
   throw new Error(`Timed out: ${label}`);
 }
-export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { parentId: number; actorUserId: string }) {
+export async function runRaceAuthoringBrowser({ parentId, actorUserId, characterId }: { parentId: number; actorUserId: string; characterId: number }) {
   assert.equal(process.env.SERRIAN_DISPOSABLE_RACE_AUTHORING, "true");
   const listener = createServer(); await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
   const address = listener.address(); assert.ok(address && typeof address === "object"); const port = address.port;
@@ -89,6 +90,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
       await natural.screenshot({ path: `${artifacts}/natural-protection-${width}.png` });
     }
     console.log("PASS: real save/reload preserves every Size, caps, Base Magic, movement notes and single-Soak authoring on desktop/phone");
+    const anatomySave = await checkRaceAnatomyBrowser(page, parentId, save, open);
 
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.getByLabel("Base Magic", { exact: true }).fill("99"); await tab("Variants");
@@ -100,6 +102,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
     await page.getByText("Browser Variant was created as a variant.", { exact: true }).waitFor();
     const copy = (await pool.query("select * from races where name='Browser Variant'")).rows[0]; assert.ok(copy); assert.equal(copy.parent_race_id, parentId); assert.equal(copy.base_magic, 3.5);
     assert.ok(cloneRequest); const successfulClone = { ...cloneRequest };
+    assert.deepEqual(copy.anatomy_json, (await pool.query("select anatomy_json from races where id=$1", [parentId])).rows[0].anatomy_json);
     await tab("Mechanics"); await page.getByLabel("Base Magic", { exact: true }).fill("4"); await tab("Variants");
     await page.getByRole("region", { name: "Race Variants" }).getByRole("button", { name: "Variant Authoring Parent", exact: true }).click();
     await page.getByText("Leave this Race draft and discard the unsaved changes?", { exact: true }).waitFor();
@@ -120,6 +123,13 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole("region", { name: "Race Variants" }).screenshot({ path: `${artifacts}/variants-phone.png` });
     console.log("PASS: saved-only cloning, Keep Editing/discard decisions, direct variant navigation and independent saves");
+    await page.goto(`${base}/realms/characters/${characterId}`);
+    await page.locator("#character-tab-attributes").click();
+    await page.getByRole("heading", { name: "Race Hit Locations", exact: true }).waitFor();
+    await page.locator(".character-hit-chart__locations").getByText("Tail", { exact: true }).waitFor();
+    assert.equal(await page.locator(".character-hit-chart svg").count(), 0);
+    await page.reload(); await page.locator("#character-tab-attributes").click(); await page.locator(".character-hit-chart__locations").getByText("Tail", { exact: true }).waitFor();
+    console.log("PASS: actual Character sheet uses persisted Race tail anatomy after reload without humanoid artwork");
     await checkGuidanceWorkspaces(page, base);
 
     const player = await browser.newContext();
@@ -127,6 +137,9 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId }: { paren
     const count = (await pool.query("select count(*)::int n from races")).rows[0].n;
     const replay = async (request: typeof context.request) => request.post(`${base}/heavens/races`, { headers: { origin: base, "next-action": successfulClone.action, "content-type": "text/plain;charset=UTF-8" }, data: successfulClone.body });
     await replay(player.request); assert.equal((await pool.query("select count(*)::int n from races")).rows[0].n, count);
+    const anatomyBefore = (await pool.query("select anatomy_json,updated_at from races where id=$1", [parentId])).rows[0];
+    await player.request.post(`${base}/heavens/races`, { headers: { origin: base, "next-action": anatomySave.action, "content-type": "text/plain;charset=UTF-8" }, data: anatomySave.body });
+    assert.deepEqual((await pool.query("select anatomy_json,updated_at from races where id=$1", [parentId])).rows[0], anatomyBefore);
     await pool.query("delete from user_role where user_id=$1", [actorUserId]);
     await replay(context.request); assert.equal((await pool.query("select count(*)::int n from races")).rows[0].n, count);
     await pool.query("insert into user_role(user_id,role) values($1,'god')", [actorUserId]);

@@ -1,0 +1,2 @@
+ALTER TABLE "races" ADD COLUMN "anatomy_json" jsonb;--> statement-breakpoint
+ALTER TABLE "races" ADD CONSTRAINT "races_anatomy_shape" CHECK ("races"."anatomy_json" IS NULL OR (jsonb_typeof("races"."anatomy_json") = 'object' AND "races"."anatomy_json"->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof("races"."anatomy_json"->'hpPools') IS NOT DISTINCT FROM 'array' AND jsonb_typeof("races"."anatomy_json"->'hitLocations') IS NOT DISTINCT FROM 'array'));

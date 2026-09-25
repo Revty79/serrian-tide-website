@@ -8,6 +8,7 @@ import {
 } from "@/features/creatures/creature-size-rules";
 
 import type { ActiveHealthAnatomy } from "./models";
+import { normalizeRaceAnatomy, type RaceAnatomy } from "@/features/races/race-anatomy";
 
 export type CreatureHealthSnapshot = {
   core: {
@@ -95,4 +96,13 @@ export function resolveCreatureHealthAnatomy(
           : null,
       })),
   };
+}
+
+export function resolveRaceHealthAnatomy(constitution: number, hpMultiplierSteps: number, input?: RaceAnatomy | null): ActiveHealthAnatomy {
+  if (input == null) return resolveHumanoidHealthAnatomy(constitution, hpMultiplierSteps);
+  const anatomy = normalizeRaceAnatomy(input)!;
+  // Race size does not multiply character attributes. Only reuse the pool allocation rule.
+  const totalMaximumHp = getCharacterHp(constitution, hpMultiplierSteps);
+  const pools = anatomy.hpPools.map((pool) => ({ key: pool.canonicalId, name: pool.poolName, maximumHp: resolveCreatureHpPoolMaximum(totalMaximumHp, pool.hpPercentage), percentage: pool.hpPercentage, sortOrder: pool.sortOrder }));
+  return { kind: "race", totalMaximumHp, maximumHpNote: null, pools, hitLocations: anatomy.hitLocations.map((location) => ({ result: location.hitLocationNumber, name: location.locationName, bodyParts: location.bodyPartsIncluded, poolKey: location.hpPoolCanonicalId, poolName: pools.find((pool) => pool.key === location.hpPoolCanonicalId)?.name ?? null, locationEffect: location.locationEffect })) };
 }

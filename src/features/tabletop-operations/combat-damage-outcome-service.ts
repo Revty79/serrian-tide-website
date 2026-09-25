@@ -61,7 +61,7 @@ export async function recordCombatDamageOutcomeInTransaction(tx: Transaction, co
     poolMaximumHp = pool?.maximumHp ?? null;
     poolDamage = health.state.pools.find((entry) => entry.poolKey === poolKey)?.damage ?? 0;
     poolName = pool?.name ?? "";
-    locations = health.anatomy.hitLocations.map((entry) => ({ number: entry.result, name: entry.name, poolKey: entry.poolKey }));
+    locations = health.anatomy.hitLocations.map((entry) => ({ number: entry.result, name: entry.name, poolKey: entry.poolKey, specialEffect: entry.locationEffect }));
     if (participant.npcKind === "creature" && participant.persistentSnapshot) {
       const snapshot = object(JSON.parse(participant.persistentSnapshot));
       const authored = Array.isArray(snapshot.hitLocations) ? snapshot.hitLocations.map(object) : [];

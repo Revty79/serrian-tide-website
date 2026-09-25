@@ -39,7 +39,7 @@ test("Race Soak migration, independent variants, protection integration and auth
     await pool.query("insert into race_natural_protection_locations(protection_id,location_key) values ($1,'9')", [protections[1].id]);
     const locations = (await pool.query("select * from race_natural_protection_locations")).rows;
     await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
-    assert.deepEqual((await pool.query("select * from races where id=$1", [race.id])).rows[0], { ...race, parent_race_id: null });
+    assert.deepEqual((await pool.query("select * from races where id=$1", [race.id])).rows[0], { ...race, parent_race_id: null, anatomy_json: null });
     assert.equal((await pool.query("select count(*)::int n from races where parent_race_id is not null")).rows[0].n, 0);
     const expected = protections.map((row) => { const result = { ...row }; delete result.natural_armor; return result; });
     assert.deepEqual((await pool.query("select * from race_natural_protections order by id")).rows, expected);

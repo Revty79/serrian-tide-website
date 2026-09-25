@@ -12,10 +12,11 @@ export type ActiveHealthHitLocation = {
   bodyParts: string;
   poolKey: string | null;
   poolName: string | null;
+  locationEffect?: string;
 };
 
 export type ActiveHealthAnatomy = {
-  kind: "humanoid" | "creature";
+  kind: "humanoid" | "race" | "creature";
   totalMaximumHp: number | null;
   maximumHpNote: string | null;
   pools: ActiveHealthPoolAnatomy[];

@@ -5,6 +5,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
+import { race } from "@/db/race-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import {
   campaignCharacter,
@@ -19,7 +20,7 @@ import { requireSession } from "@/lib/server-access";
 
 import {
   resolveCreatureHealthAnatomy,
-  resolveHumanoidHealthAnatomy,
+  resolveRaceHealthAnatomy,
   type CreatureHealthSnapshot,
 } from "./anatomy";
 import { canReadActiveState } from "./authorization";
@@ -215,8 +216,9 @@ async function loadAnatomy(
   }
 
   const [profile] = await tx
-    .select({ hpMultiplierSteps: campaignCharacterProfile.hpMultiplierSteps })
+    .select({ hpMultiplierSteps: campaignCharacterProfile.hpMultiplierSteps, anatomy: race.anatomy })
     .from(campaignCharacterProfile)
+    .leftJoin(race, eq(race.id, campaignCharacterProfile.raceId))
     .where(eq(campaignCharacterProfile.characterId, characterId))
     .limit(1);
   const [constitution] = await tx
@@ -228,7 +230,7 @@ async function loadAnatomy(
     ))
     .limit(1);
   if (!profile || !constitution) throw new Error("Character health anatomy is incomplete.");
-  return resolveHumanoidHealthAnatomy(constitution.value, profile.hpMultiplierSteps);
+  return resolveRaceHealthAnatomy(constitution.value, profile.hpMultiplierSteps, profile.anatomy);
 }
 
 async function readState(

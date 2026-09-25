@@ -8,6 +8,7 @@ import { archiveLifecycleEntityForActor, restoreLifecycleEntityForActor, preview
 import { readProtectionLayersInTransaction } from "@/features/protection/protection-service";
 import { resolveIncomingEffect } from "@/features/incoming-effects/resolve-incoming-effect";
 import { runRaceAuthoringBrowser } from "./race-authoring-browser";
+import { applyLocalizedDamageInTransaction, healAreaInTransaction, readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 
 if (process.env.SERRIAN_DISPOSABLE_RACE_AUTHORING !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_race_authoring_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("Use the disposable Race authoring harness.");
 const actor = { userId: "race-author-god", roles: ["god"] as const };
@@ -98,14 +99,41 @@ async function main() {
 
   const campaign = (await pool.query("insert into campaign(name,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,created_by_user_id) values('Race Reader Campaign',100,100,50,10,100,250,'Credits','Assigned',$1) returning id", [actor.userId])).rows[0].id;
   await pool.query("insert into campaign_player(campaign_id,user_id) values($1,$2)", [campaign, actor.userId]);
+  await pool.query("insert into campaign_race(campaign_id,race_id,sort_order) values($1,$2,0)", [campaign, parentId]);
+  await pool.query("insert into campaign_allowed_race(campaign_id,race_id,sort_order) values($1,$2,0)", [campaign, parentId]);
   const character = (await pool.query("insert into campaign_character(campaign_id,player_user_id,name) values($1,$2,'Race Reader Character') returning id", [campaign, actor.userId])).rows[0].id;
   await pool.query("insert into campaign_character_profile(character_id,race_id) values($1,$2)", [character, parentId]);
+  for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) await pool.query("insert into campaign_character_attribute(character_id,attribute_key,value) values($1,$2,35)", [character, key]);
   const profile = await db.transaction((tx) => readProtectionLayersInTransaction(tx, { kind: "character", characterId: character }));
   assert.deepEqual(profile.natural.map(({ soak }) => soak), [2, 0.5]); assert.ok(profile.natural.every((row) => !("armor" in row)));
   const incoming = { effect: { label: "Incoming", amount: 10, harmful: null }, source: { damageType: "Fire", magical: false, sourceKind: "weapon" as const, weaponFamily: "none" as const, itemProperties: [], itemTags: [], mechanicalEffectKind: "health.damage" as const, conditionName: null }, target: { ruleSource: { kind: "race" as const, id: `race:${parentId}`, name: parent.name }, interactionRules: null, protection: profile }, hitLocationKey: "0" };
   assert.equal(resolveIncomingEffect(incoming).finalEffect?.damage, 8);
   assert.equal(resolveIncomingEffect({ ...incoming, hitLocationKey: "9" }).issues[0].code, "multiple-natural");
   console.log("PASS: actual Character reader exposes single Race Soak and retains overlap ruling boundary");
-  await runRaceAuthoringBrowser({ parentId, actorUserId: actor.userId });
+  await pool.query("insert into user_role(user_id,role) values($1,'player')", [actor.userId]);
+  await runRaceAuthoringBrowser({ parentId, actorUserId: actor.userId, characterId: character });
+  const readHealth = () => db.transaction((tx) => readActiveHealthInTransaction(tx, character, "race"));
+  const health = await readHealth();
+  const tail = health.anatomy.hitLocations.find((location) => location.result === 7)!;
+  assert.equal(tail.name, "Tail"); assert.ok(tail.poolKey);
+  assert.equal(health.anatomy.totalMaximumHp, 72, "Race Size must not change character HP rules");
+  const protection = await db.transaction((tx) => readProtectionLayersInTransaction(tx, { kind: "character", characterId: character }));
+  assert.equal(protection.locations.find((location) => location.key === "7")?.name, "Tail");
+  await db.transaction((tx) => applyLocalizedDamageInTransaction(tx, { characterId: character, hitLocationNumber: 7, amount: 4, injuryName: "Bruised tail", injuryNotes: "Anatomy test" }, "race"));
+  assert.equal((await readHealth()).view.tracks.find((track) => track.key === tail.poolKey)?.damage, 4);
+  await db.transaction((tx) => healAreaInTransaction(tx, character, "race", tail.poolKey!, 1));
+  const damaged = await readHealth();
+  assert.equal(damaged.view.tracks.find((track) => track.key === tail.poolKey)?.damage, 3);
+  assert.equal(damaged.view.injuries[0].poolKey, tail.poolKey);
+  const source = (await pool.query("select anatomy_json from races where id=$1", [parentId])).rows[0].anatomy_json;
+  source.hpPools.find((entry: { canonicalId: string }) => entry.canonicalId === tail.poolKey).poolName = "Renamed Tail";
+  await pool.query("update races set anatomy_json=$1 where id=$2", [source, parentId]);
+  assert.equal((await readHealth()).view.tracks.find((track) => track.key === tail.poolKey)?.damage, 3);
+  await pool.query("update races set anatomy_json=null where id=$1", [parentId]);
+  const reverted = await readHealth();
+  assert.equal(reverted.view.tracks.find((track) => track.key === tail.poolKey)?.orphaned, true);
+  assert.equal(reverted.view.totalDamage, damaged.view.totalDamage);
+  assert.deepEqual(reverted.view.injuries, damaged.view.injuries);
+  console.log("PASS: saved Race anatomy reaches runtime health/protection; tail damage and healing persist; renames/default restoration preserve damage and injuries");
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => pool.end());

@@ -8,6 +8,7 @@ import { campaignSessionEncounterParticipant } from "@/db/tabletop-operations-sc
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
 import { readCharacterEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
 import { readRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
+import { raceHitLocations } from "@/features/races/race-anatomy";
 import { buildProtectionLayers, type ProtectionLayers, type ProtectionTarget } from "./protection-layers";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -45,8 +46,8 @@ export async function readProtectionLayersInTransaction(tx: Transaction, target:
     if (!profile) throw new Error("Creature NPC protection snapshot is missing.");
     return buildProtectionLayers({ target, creature: { snapshot: profile.snapshot, identity: `creature-npc:${characterId}` }, worn, modifiers: effects.modifiers });
   }
-  const [assignedRace] = await tx.select({ id: race.id, name: race.name }).from(campaignCharacterProfile)
+  const [assignedRace] = await tx.select({ id: race.id, name: race.name, anatomy: race.anatomy }).from(campaignCharacterProfile)
     .innerJoin(race, eq(race.id, campaignCharacterProfile.raceId)).where(eq(campaignCharacterProfile.characterId, characterId)).limit(1);
-  return buildProtectionLayers({ target, worn, modifiers: effects.modifiers,
+  return buildProtectionLayers({ target, worn, modifiers: effects.modifiers, locations: raceHitLocations(assignedRace?.anatomy),
     race: assignedRace ? { ...assignedRace, protections: await readRaceNaturalProtectionInTransaction(tx, assignedRace.id) } : undefined });
 }

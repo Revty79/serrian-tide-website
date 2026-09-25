@@ -1,4 +1,5 @@
 import type { CampaignSystem } from "@/db/campaign-schema";
+import type { RaceAnatomy } from "@/features/races/race-anatomy";
 import type {
   CharacterDerivedAbilityOwnership,
   CharacterDerivedAbilityStatus,
@@ -176,6 +177,7 @@ export type CharacterRaceSummary = { id: number; name: string; archived?: boolea
 
 export type CharacterRaceAggregate = {
   race: {
+    anatomy?: RaceAnatomy | null;
     id: number;
     name: string;
     size: string;

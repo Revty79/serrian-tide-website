@@ -5,6 +5,8 @@ import { fieldHelp } from "@/features/guidance/field-help";
 
 import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 import { RaceNaturalProtectionEditor } from "./race-natural-protection-editor";
+import { RaceAnatomyEditor } from "./race-anatomy-editor";
+import { raceHitLocations } from "@/features/races/race-anatomy";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,11 +30,12 @@ import {
   type RaceSummary,
 } from "./actions";
 
-type Tab = "overview" | "mechanics" | "quirk" | "skills" | "culture" | "variants" | "preview";
+type Tab = "overview" | "mechanics" | "anatomy" | "quirk" | "skills" | "culture" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "mechanics", label: "Mechanics" },
+  { id: "anatomy", label: "HP & Hit Locations" },
   { id: "quirk", label: "Quirk" },
   { id: "skills", label: "Skills & Abilities" },
   { id: "culture", label: "Culture & Play" },
@@ -335,6 +338,7 @@ export function RaceWorkspace({
             <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived || busy} hidden={activeTab === "variants"}>
               {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}
+              {activeTab === "anatomy" ? <RaceAnatomyEditor value={draft.core.anatomy ?? null} onChange={(anatomy) => change({ ...draft, core: { ...draft.core, anatomy } })} /> : null}
               {activeTab === "quirk" ? <Quirk draft={draft} onChange={change} /> : null}
               {activeTab === "skills" ? <Skills draft={draft} onChange={change} /> : null}
               {activeTab === "culture" ? <Culture draft={draft} onChange={change} /> : null}
@@ -409,7 +413,7 @@ function Mechanics({ draft, onChange }: { draft: RaceDraft; onChange: (draft: Ra
       <Field label="Notes"><input placeholder="Notes" value={movement.notes} onChange={(e) => onChange({ ...draft, movementModes: draft.movementModes.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} /></Field>
       <button className="is-danger" type="button" onClick={() => void preserveScroll(() => onChange({ ...draft, movementModes: draft.movementModes.filter((_, i) => i !== index) }))}>Remove</button>
     </div>)}</div>
-    <RaceNaturalProtectionEditor value={draft.naturalProtections ?? []} onChange={(naturalProtections) => onChange({ ...draft, naturalProtections })} />
+    <RaceNaturalProtectionEditor value={draft.naturalProtections ?? []} locations={raceHitLocations(draft.core.anatomy)} onChange={(naturalProtections) => onChange({ ...draft, naturalProtections })} />
     <InteractionRulesEditor owner="race" value={draft.core.interactionRules} onChange={(interactionRules) => onChange({ ...draft, core: { ...draft.core, interactionRules } })} />
   </div>;
 }
@@ -500,6 +504,7 @@ function Preview({ draft }: { draft: RaceDraft }) {
     <section><h4>Description</h4><p>{draft.core.legacyDescription || "No description yet."}</p></section>
     <div className="race-preview__grid"><section><h4>Physical</h4><p>{draft.core.physicalDescription || draft.core.physicalCharacteristics || "No physical description."}</p></section><section><h4>Quirk</h4><strong>{draft.core.racialQuirkName || "None"}</strong><p>{draft.core.quirkSuccessEffect || "No success effect."}</p><p>{draft.core.quirkFailureEffect || "No failure effect."}</p></section></div>
     <section><h4>Attribute Caps</h4><div className="race-preview__chips">{draft.attributeCaps.map((cap) => <span key={cap.attributeKey}>{cap.attributeKey} {cap.maxValue}</span>)}</div></section>
+    <section><h4>HP &amp; Hit Locations</h4>{draft.core.anatomy ? <><div className="race-preview__chips">{draft.core.anatomy.hpPools.map((pool) => <span key={pool.canonicalId}>{pool.poolName}: {pool.hpPercentage ?? "Unassigned"}%</span>)}</div><ul>{draft.core.anatomy.hitLocations.map((location) => <li key={location.hitLocationNumber}>{location.hitLocationNumber}: {location.locationName} — {draft.core.anatomy!.hpPools.find((pool) => pool.canonicalId === location.hpPoolCanonicalId)?.poolName ?? "No HP Pool"}{location.locationEffect ? ` · ${location.locationEffect}` : ""}</li>)}</ul></> : <p>Standard humanoid HP pools and hit locations.</p>}</section>
     <section><h4>Movement</h4><div className="race-preview__chips">{draft.movementModes.map((mode, index) => <span key={`${mode.movementMode}-${index}`}>{mode.movementMode} {mode.baseValue}</span>)}</div></section>
     <section><h4>Skills & Abilities</h4>{draft.skillLinks.length ? <ul>{draft.skillLinks.map((link, index) => <li key={`${link.skillId}-${index}`}><strong>{link.skillName}</strong> <span>{link.linkType}{link.value !== null ? ` · ${link.value}` : ""}</span></li>)}</ul> : <p>No linked Skills.</p>}</section>
     <div className="race-preview__grid"><section><h4>Culture</h4><p>{draft.core.culturalMindset || "Not specified."}</p></section><section><h4>Magic</h4><p>{draft.core.outlookOnMagic || "Not specified."}</p></section></div>

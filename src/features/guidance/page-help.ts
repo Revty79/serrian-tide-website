@@ -10,6 +10,7 @@ const lifecycle = {
 
 const guides: Record<string, PageHelp> = {
   race: { title: "Race authoring", introduction: "Define the racial information a Character uses without replacing the Character's own choices.", steps: authoring, fields: ["race", "interaction"], topics: { ...lifecycle,
+    "HP & Hit Locations": "Keep Standard humanoid or choose Custom Race anatomy. Name shared HP pools, allocate percentages of character Total HP, and map results 0 through 9 to those pools. Repeated results share damage. Race changes apply to assigned Characters; removed pools keep their recorded damage and injuries. Review numbered protection and armor coverage when changing the table. Variant anatomy is an independent copy.",
     "Mechanics": "Attribute Caps are creation limits. Base Magic multiplies Mana. Movement supplies the base for each authored mode. Natural Protection uses one Soak value and its coverage.",
     "Skills & Abilities": "Search for an eligible existing Skill, choose the exact record and add its Race link. This does not create another Skill. Save the Race after changing links.",
     "Variants": "Save the Race, open Variants, enter a new name and choose Clone as Variant. This makes a separate copy. Changing either Race afterward does not change the other. Save or discard any unfinished edits before cloning.",

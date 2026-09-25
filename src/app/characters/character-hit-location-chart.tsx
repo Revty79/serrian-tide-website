@@ -2,9 +2,11 @@ import {
   CHARACTER_HUMANOID_HIT_LOCATIONS,
   getCharacterHpBreakdown,
 } from "@/features/characters/character-rules";
+import type { ActiveHealthAnatomy } from "@/features/active-state/models";
 
 type Props = {
   totalHp: number;
+  anatomy?: ActiveHealthAnatomy;
 };
 
 type CharacterHpPoolKey = ReturnType<
@@ -94,7 +96,14 @@ function poolClass(poolKey: CharacterHpPoolKey): string {
   )}`;
 }
 
-export function CharacterHitLocationChart({ totalHp }: Props) {
+export function CharacterHitLocationChart({ totalHp, anatomy }: Props) {
+  if (anatomy && anatomy.kind !== "humanoid") return <div className="character-hit-chart">
+    <header><div><p>0–9 BODY TARGET</p><h4>Race Hit Locations</h4></div><strong>{totalHp} Total HP</strong></header>
+    <div className="character-hit-chart__records">
+      <section aria-label="Hit point pools"><h5>HP Pools</h5><div className="character-hit-chart__pools">{anatomy.pools.map((pool) => <article key={pool.key}><span>{pool.name}</span><strong>{pool.maximumHp ?? "Unknown"} HP</strong><small>{pool.percentage ?? "Unassigned"}% of Total HP</small></article>)}</div></section>
+      <section aria-label="Hit location results"><h5>Hit Result Key</h5><ol className="character-hit-chart__locations">{anatomy.hitLocations.map((location) => <li key={location.result}><strong>{location.result}</strong><span>{location.name}{location.locationEffect ? ` · ${location.locationEffect} (G.O.D. ruling)` : ""}</span><small>{location.poolName ? `Uses the one ${location.poolName} pool` : "No HP pool assigned"}</small></li>)}</ol></section>
+    </div>
+  </div>;
   const breakdown = getCharacterHpBreakdown(totalHp);
   const resultLabelsByPool = new Map<CharacterHpPoolKey, string>();
   for (const pool of breakdown.pools) {

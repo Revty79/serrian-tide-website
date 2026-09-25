@@ -1,4 +1,5 @@
 import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+import type { RaceAnatomy } from "@/features/races/race-anatomy";
 
 import { sql } from "drizzle-orm";
 import {
@@ -39,6 +40,7 @@ export const race = pgTable(
     name: text("name").notNull(),
     parentRaceId: integer("parent_race_id").references((): AnyPgColumn => race.id, { onDelete: "restrict" }),
     interactionRules: jsonb("interaction_rules_json").$type<InteractionRuleProfile>(),
+    anatomy: jsonb("anatomy_json").$type<RaceAnatomy>(),
     legacyDescription: text("legacy_description").default("").notNull(),
     physicalCharacteristics: text("physical_characteristics").default("").notNull(),
     physicalDescription: text("physical_description").default("").notNull(),
@@ -83,6 +85,7 @@ export const race = pgTable(
     ),
     check("races_interaction_rules_shape", sql`${table.interactionRules} IS NULL OR (jsonb_typeof(${table.interactionRules}) = 'object' AND ${table.interactionRules}->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof(${table.interactionRules}->'rules') IS NOT DISTINCT FROM 'array')`),
     check("races_name_nonblank", sql`length(trim(${table.name})) > 0`),
+    check("races_anatomy_shape", sql`${table.anatomy} IS NULL OR (jsonb_typeof(${table.anatomy}) = 'object' AND ${table.anatomy}->>'schemaVersion' IS NOT DISTINCT FROM '1' AND jsonb_typeof(${table.anatomy}->'hpPools') IS NOT DISTINCT FROM 'array' AND jsonb_typeof(${table.anatomy}->'hitLocations') IS NOT DISTINCT FROM 'array')`),
     check("races_age_min_valid", sql`${table.ageMin} IS NULL OR ${table.ageMin} >= 0`),
     check("races_age_max_valid", sql`${table.ageMax} IS NULL OR ${table.ageMax} >= 0`),
     check("races_age_order_valid", sql`${table.ageMin} IS NULL OR ${table.ageMax} IS NULL OR ${table.ageMin} <= ${table.ageMax}`),

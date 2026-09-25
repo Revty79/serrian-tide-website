@@ -44,6 +44,7 @@ import { ActiveHealthPanel } from "./active-health-panel";
 import { ActiveManaPanel } from "./active-mana-panel";
 import { ActiveEffectsPanel } from "./active-effects-panel";
 import { CharacterHitLocationChart } from "./character-hit-location-chart";
+import { resolveRaceHealthAnatomy } from "@/features/active-state/anatomy";
 import { OwnedEquipmentList } from "./owned-equipment-list";
 import { FirearmSetupPanel } from "./firearm-setup-panel";
 import { MagazinePanel } from "./magazine-panel";
@@ -325,7 +326,7 @@ export function CharacterSheet({ aggregate, draft, selectedRace, section, showAt
         </> : null}
           <section className="character-sheet__section character-sheet__health">
             <div className="character-sheet__section-heading"><p>BODY TARGET</p><h3>Health & Hit Locations</h3></div>
-            <CharacterHitLocationChart totalHp={hp} />
+            <CharacterHitLocationChart totalHp={hp} anatomy={resolveRaceHealthAnatomy(draft.attributes.CON, draft.profile.hpMultiplierSteps, selectedRace?.race.anatomy)} />
           </section>
 
       </> : null}

@@ -6,6 +6,7 @@ import {
   type CharacterRaceAggregate,
 } from "@/features/characters/models";
 import { getCharacterAttributeCardDetails } from "@/features/characters/character-attribute-card";
+import { resolveRaceHealthAnatomy } from "@/features/active-state/anatomy";
 import {
   type CharacterPrintData,
   type CharacterPrintPreset,
@@ -20,7 +21,6 @@ import {
   getBaseInitiative,
   getCharacterBaseMagic,
   getCharacterHp,
-  getCharacterHpBreakdown,
   getCharacterHpMultiplier,
   getCharacterManaProfiles,
   getCharacterMovementBaseValue,
@@ -228,7 +228,7 @@ function AttributeReference({
   );
 }
 
-function HealthReference({ draft }: Pick<Props, "draft">) {
+function HealthReference({ draft, selectedRace }: Pick<Props, "draft" | "selectedRace">) {
   const hp = getCharacterHp(
     draft.attributes.CON,
     draft.profile.hpMultiplierSteps,
@@ -236,11 +236,11 @@ function HealthReference({ draft }: Pick<Props, "draft">) {
   const hpMultiplier = getCharacterHpMultiplier(
     draft.profile.hpMultiplierSteps,
   );
-  const breakdown = getCharacterHpBreakdown(hp);
+  const anatomy = resolveRaceHealthAnatomy(draft.attributes.CON, draft.profile.hpMultiplierSteps, selectedRace?.race.anatomy);
   const poolOrder = ["head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg"];
-  const pools = breakdown.pools
+  const pools = anatomy.pools
     .slice()
-    .sort((left, right) => poolOrder.indexOf(left.key) - poolOrder.indexOf(right.key));
+    .sort((left, right) => anatomy.kind === "humanoid" ? poolOrder.indexOf(left.key) - poolOrder.indexOf(right.key) : left.sortOrder - right.sortOrder);
 
   return (
     <PrintSection title="Health & Hit Locations" eyebrow="DAMAGE TRACKING" className="print-health">
@@ -251,8 +251,8 @@ function HealthReference({ draft }: Pick<Props, "draft">) {
         <tbody>
           {pools.map((pool) => (
             <tr key={pool.key}>
-              <th>{pool.key === "torso" ? "Chest / Torso" : pool.name}</th>
-              <td>{displayNumber(pool.hp)}</td>
+              <th>{anatomy.kind === "humanoid" && pool.key === "torso" ? "Chest / Torso" : pool.name}</th>
+              <td>{pool.maximumHp === null ? "Unknown" : displayNumber(pool.maximumHp)}</td>
               <td><span className="print-write-line" /></td>
             </tr>
           ))}
@@ -590,8 +590,8 @@ function QuickReferencePageOne(props: Props) {
       <AttributeReference aggregate={aggregate} draft={draft} selectedRace={selectedRace} />
       <div className="print-page-one-grid">
         <div>
-          <HealthReference draft={draft} />
-          <BodyShotBob />
+          <HealthReference draft={draft} selectedRace={selectedRace} />
+          {selectedRace?.race.anatomy ? <PrintSection title="Race Hit Locations" eyebrow="D10 HIT LOCATION"><table><thead><tr><th>Result</th><th>Location</th><th>HP Pool</th><th>Location Effect</th></tr></thead><tbody>{selectedRace.race.anatomy.hitLocations.map((location) => <tr key={location.hitLocationNumber}><td>{location.hitLocationNumber}</td><td>{location.locationName}</td><td>{selectedRace.race.anatomy!.hpPools.find((pool) => pool.canonicalId === location.hpPoolCanonicalId)?.poolName ?? "Unassigned"}</td><td>{location.locationEffect || "—"}</td></tr>)}</tbody></table></PrintSection> : <BodyShotBob />}
           <MovementReference draft={draft} selectedRace={selectedRace} />
           <ManaReference aggregate={aggregate} draft={draft} selectedRace={selectedRace} />
           <CurrencyReference aggregate={aggregate} draft={draft} />

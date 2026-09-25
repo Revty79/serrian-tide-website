@@ -286,6 +286,7 @@ async function requireCharacterAccess(characterId: number, godMode: boolean) {
 async function readRaceAggregate(raceId: number): Promise<CharacterRaceAggregate | null> {
   const [raceRow] = await db
     .select({
+      anatomy: race.anatomy,
       id: race.id,
       name: race.name,
       size: race.size,

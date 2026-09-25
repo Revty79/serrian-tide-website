@@ -35,6 +35,7 @@ import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { normalizeRaceNaturalProtection, type RaceNaturalProtection } from "@/features/races/race-natural-protection";
 import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
 import { createRaceVariantForActor } from "@/features/races/race-variant-service";
+import { normalizeRaceAnatomy, type RaceAnatomy } from "@/features/races/race-anatomy";
 
 export type RaceLibraryFilters = {
   search?: string;
@@ -78,6 +79,7 @@ export type RaceDraft = {
     parentRaceId?: number | null;
     parentRaceName?: string | null;
     interactionRules?: InteractionRuleProfile | null;
+    anatomy?: RaceAnatomy | null;
     name: string;
     legacyDescription: string;
     physicalCharacteristics: string;
@@ -220,6 +222,7 @@ function normalizeRace(input: RaceDraft) {
   return {
     core: {
       interactionRules: normalizeInteractionRuleProfile(input.core.interactionRules, "race"),
+      ...(input.core.anatomy === undefined ? {} : { anatomy: normalizeRaceAnatomy(input.core.anatomy) }),
       name,
       legacyDescription: cleanText(input.core.legacyDescription),
       physicalCharacteristics: cleanText(input.core.physicalCharacteristics),
@@ -351,6 +354,7 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
       parentRaceId: row.parentRaceId,
       parentRaceName: parent?.name ?? null,
       interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "race"),
+      anatomy: normalizeRaceAnatomy(row.anatomy),
       name: row.name,
       legacyDescription: row.legacyDescription,
       physicalCharacteristics: row.physicalCharacteristics,

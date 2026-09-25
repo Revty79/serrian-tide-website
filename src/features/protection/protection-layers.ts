@@ -88,6 +88,7 @@ export function projectTemporaryProtection(modifiers: readonly (ActiveModifier |
 export function buildProtectionLayers(input: {
   target: ProtectionTarget;
   creature?: { snapshot: unknown; identity: string };
+  locations?: Array<{ key: string; name: string }>;
   race?: { id: number; name: string; protections: readonly RaceNaturalProtection[] };
   worn?: readonly WornProtection[];
   modifiers?: readonly (ActiveModifier | Record<string, unknown>)[];
@@ -96,7 +97,7 @@ export function buildProtectionLayers(input: {
   const creature = input.creature ? projectCreatureNaturalProtection(input.creature.snapshot, input.creature.identity) : null;
   const temporary = projectTemporaryProtection(input.modifiers ?? []);
   const worn = structuredClone([...(input.worn ?? [])]);
-  return { target: { ...input.target }, locations: creature?.locations ?? NATURAL_PROTECTION_LOCATIONS.map((location) => ({ ...location })),
+  return { target: { ...input.target }, locations: creature?.locations ?? (input.locations ?? NATURAL_PROTECTION_LOCATIONS).map((location) => ({ ...location })),
     worn, natural: creature?.natural ?? (input.race ? projectRaceNaturalProtection(input.race) : []), temporary,
     issues: [...(creature?.issues ?? []),
       ...worn.filter((entry) => entry.baseSoak === null || !entry.coveredLocationKeys.length).map((entry) => `${entry.itemName} has incomplete authored protection or coverage.`),

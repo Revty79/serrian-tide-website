@@ -11,7 +11,7 @@ function createProtectionKey() {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function ProtectionRow({ value, onChange, onRemove }: { value: RaceNaturalProtection; onChange: (value: RaceNaturalProtection) => void; onRemove: () => void }) {
+function ProtectionRow({ value, locations, onChange, onRemove }: { value: RaceNaturalProtection; locations: Array<{ key: string; name: string }>; onChange: (value: RaceNaturalProtection) => void; onRemove: () => void }) {
   const id = useId();
   return <article className={styles.row} aria-label="Natural Protection entry">
     <div className={styles.fields}>
@@ -22,7 +22,7 @@ function ProtectionRow({ value, onChange, onRemove }: { value: RaceNaturalProtec
       </select></GuidedField>
     </div>
     {value.coverage.kind === "locations" && <fieldset className={styles.locations}><legend>Covered locations</legend>
-      {NATURAL_PROTECTION_LOCATIONS.map(({ key, name }) => <label key={key}><input type="checkbox" checked={value.coverage.kind === "locations" && value.coverage.locationKeys.includes(key)} onChange={(e) => {
+      {locations.map(({ key, name }) => <label key={key}><input type="checkbox" checked={value.coverage.kind === "locations" && value.coverage.locationKeys.includes(key)} onChange={(e) => {
         const current = value.coverage.kind === "locations" ? value.coverage.locationKeys : [];
         onChange({ ...value, coverage: { kind: "locations", locationKeys: e.target.checked ? [...current, key] : current.filter((entry) => entry !== key) } });
       }} />{name}</label>)}
@@ -31,11 +31,11 @@ function ProtectionRow({ value, onChange, onRemove }: { value: RaceNaturalProtec
   </article>;
 }
 
-export function RaceNaturalProtectionEditor({ value, onChange }: { value: RaceNaturalProtection[]; onChange: (value: RaceNaturalProtection[]) => void }) {
+export function RaceNaturalProtectionEditor({ value, locations = NATURAL_PROTECTION_LOCATIONS, onChange }: { value: RaceNaturalProtection[]; locations?: Array<{ key: string; name: string }>; onChange: (value: RaceNaturalProtection[]) => void }) {
   return <section className={styles.editor} aria-label="Natural Protection">
     <h3>Natural Protection</h3>
     <p>Protection from the body, such as scales or a shell. Worn armor stays separate. Characters use their assigned Race&apos;s current protection.</p>
-    {value.map((entry, index) => <ProtectionRow key={entry.key} value={entry} onChange={(changed) => onChange(value.map((row, i) => i === index ? changed : row))} onRemove={() => onChange(value.filter((_, i) => i !== index))} />)}
+    {value.map((entry, index) => <ProtectionRow key={entry.key} value={entry} locations={locations} onChange={(changed) => onChange(value.map((row, i) => i === index ? changed : row))} onRemove={() => onChange(value.filter((_, i) => i !== index))} />)}
     <button className="st-button" type="button" onClick={() => onChange([...value, { key: createProtectionKey(), name: "", naturalSoak: 0, coverage: { kind: "all" }, sortOrder: value.length }])}>Add Natural Protection</button>
   </section>;
 }
