@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
-import { containerProfile, inventoryInstanceLocation, inventoryStackLocation } from "@/db/container-schema";
+import { containerProfile, inventoryInstanceLocation, inventoryStackLocation, inventoryContainerSubstance } from "@/db/container-schema";
 import { item } from "@/db/item-schema";
 import { firearmMagazineAttachment } from "@/db/magazine-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterItemEquipmentState } from "@/db/realm-schema";
@@ -16,6 +16,7 @@ export async function readInventoryPhysicsInTransaction(tx: Transaction, charact
   const locations = await tx.select().from(inventoryInstanceLocation).where(eq(inventoryInstanceLocation.characterId, characterId));
   const allocations = await tx.select().from(inventoryStackLocation).where(eq(inventoryStackLocation.characterId, characterId));
   const stacks = await tx.select().from(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId));
+  const bulkContents = await tx.select().from(inventoryContainerSubstance).where(eq(inventoryContainerSubstance.characterId, characterId));
   const firearms = await tx.select().from(campaignCharacterFirearmState).where(eq(campaignCharacterFirearmState.characterId, characterId));
   const attachments = await tx.select().from(firearmMagazineAttachment).where(eq(firearmMagazineAttachment.characterId, characterId));
   const ids = [...new Set([...copies.map(copy => copy.itemId), ...stacks.map(stack => stack.itemId),
@@ -24,7 +25,7 @@ export async function readInventoryPhysicsInTransaction(tx: Transaction, charact
   const models = ids.length ? await tx.select({ item, container: containerProfile }).from(item)
     .leftJoin(containerProfile, eq(containerProfile.itemId, item.id)).where(inArray(item.id, ids)).orderBy(asc(item.id)).for("share", { of: item }) : [];
   const definitions = models.map(({ item: model, container }) => ({ itemId: model.id, name: model.name, weightLb: weightInLb(model.weight, model.weightUnit),
-    physicalForm: model.physicalForm as "solid" | "liquid" | null, category: model.category, recordType: model.recordType,
+    isMagical: model.isMagical, physicalForm: model.physicalForm as "solid" | "liquid" | null, category: model.category, recordType: model.recordType,
     volumeL: model.volumeL, longestDimensionCm: model.longestDimensionCm, container: container as ContainerPhysicalProfile | null }));
   const graph: PhysicalGraph = {
     instances: copies.map(copy => ({ instanceId: copy.id, itemId: copy.itemId, containerInstanceId: locations.find(location => location.instanceId === copy.id)?.containerInstanceId ?? null })),
@@ -35,8 +36,8 @@ export async function readInventoryPhysicsInTransaction(tx: Transaction, charact
   };
   const loads = [...copies.map(copy => ({ instanceId: copy.id, ammunitionItemId: copy.loadedAmmunitionItemId, rounds: copy.loadedRounds })),
     ...firearms.map(firearm => ({ instanceId: firearm.itemInstanceId, ammunitionItemId: firearm.loadedAmmunitionItemId, rounds: firearm.loadedRounds }))];
-  return { graph, definitions, loads, attachments: attachments.map(({ weaponInstanceId, magazineInstanceId }) => ({ weaponInstanceId, magazineInstanceId })),
-    ...calculateContainerPhysics(graph, definitions, loads, attachments) };
+  return { graph, definitions, loads, bulkContents, attachments: attachments.map(({ weaponInstanceId, magazineInstanceId }) => ({ weaponInstanceId, magazineInstanceId })),
+    ...calculateContainerPhysics(graph, definitions, loads, attachments, bulkContents) };
 }
 
 /** Check immediate destination and every ancestor in its resulting graph. */

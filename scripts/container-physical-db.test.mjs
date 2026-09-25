@@ -57,7 +57,7 @@ const exactMove = async (f, id, from, to) => move(f, { kind: "instance", instanc
   fromContainerInstanceId: from, toContainerInstanceId: to, expectedCommerceVersion: (await view(f)).commerceVersion });
 const snapshot = async f => {
   const result = {};
-  for (const table of ["inventory_instance_location", "inventory_stack_location", "campaign_character_item", "campaign_character_item_instance", "campaign_character_profile", "campaign_character_item_equipment_state", "campaign_character_firearm_state", "firearm_magazine_attachment"]) {
+  for (const table of ["inventory_container_substance", "inventory_instance_location", "inventory_stack_location", "campaign_character_item", "campaign_character_item_instance", "campaign_character_profile", "campaign_character_item_equipment_state", "campaign_character_firearm_state", "firearm_magazine_attachment"]) {
     result[table] = await rows(`select to_jsonb(t) row from ${table} t where character_id=$1 order by to_jsonb(t)::text`, [f.heroId]);
   }
   return result;
@@ -163,7 +163,7 @@ test("mundane container mutations, physical authoring and permissions", async t 
       assert.equal(saved.core.physicalForm, "solid");
       const ordinary = await catalog.saveItem(await catalog.getItem(f.suppliesId)); assert.equal(ordinary.containerProfile, null);
       await assert.rejects(catalog.saveItem({ ...ordinary, core: { ...ordinary.core, volumeL: Infinity } }), /finite/);
-      await assert.rejects(catalog.saveItem({ ...saved, containerProfile: { ...profile, containedWeightBehavior: "weightless" } }), /normal/);
+      await assert.rejects(catalog.saveItem({ ...saved, containerProfile: { ...profile, containedWeightBehavior: "weightless" } }), /contained weight behavior/);
       await assert.rejects(catalog.saveItem({ ...saved, containerProfile: { ...profile, maxWeightLb: null, volumeCapacityL: null } }), /finite/);
       await assert.rejects(exactMove(f, f.pouch, null, f.a), /nested containers/);
       await stackMove(f, null, f.a, 2);
@@ -420,4 +420,9 @@ if (process.env.CONTAINMENT_BROWSER === "1") test("real Character and Item autho
   const f = await specializedFixture();
   const { runContainerPhysicalBrowser } = await import("./container-physical-browser.ts");
   await runContainerPhysicalBrowser(f);
+});
+
+if (process.env.CONTAINMENT_MAGIC !== "0") test("authored magical container rules and durable source state", async t => {
+  const { containerMagicCases } = await import("./container-magic-db-cases.mjs");
+  await containerMagicCases(t, { fixture, specializedFixture, pool, db, actors, catalog, containment, view, exactMove, stackMove, snapshot });
 });

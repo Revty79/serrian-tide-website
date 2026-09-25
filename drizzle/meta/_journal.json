@@ -484,6 +484,13 @@
       "when": 1790348828131,
       "tag": "0068_mundane_container_physics",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1790354619772,
+      "tag": "0069_magical_container_rules",
+      "breakpoints": true
     }
   ]
 }

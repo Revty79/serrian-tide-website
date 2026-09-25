@@ -131,6 +131,8 @@ export async function runContainerPhysicalBrowser(f: Fixture) {
     await page.getByRole("button", { name: "Help for Contents weight capacity (lb)", exact: true }).count();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: `${artifacts}/authoring-mobile.png`, fullPage: true });
+    const { runContainerMagicBrowser } = await import("./container-magic-browser");
+    await runContainerMagicBrowser({ page, player, base, f, backpackName, until });
     assert.deepEqual(errors, []);
     console.log("PASS: physical Item authoring save/reload, narrow layout and zero browser page errors");
   } catch (error) {

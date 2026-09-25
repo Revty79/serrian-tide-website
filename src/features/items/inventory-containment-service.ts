@@ -3,7 +3,7 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
-import { containerProfile, inventoryInstanceLocation, inventoryStackLocation } from "@/db/container-schema";
+import { containerProfile, inventoryInstanceLocation, inventoryStackLocation, inventoryContainerSubstance } from "@/db/container-schema";
 import { campaignCharacter, campaignCharacterProfile, campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import { campaignSessionEncounter, campaignSessionEncounterParticipant } from "@/db/tabletop-operations-schema";
 import { canMutateActiveHealth, canReadActiveState } from "@/features/active-state/authorization";
@@ -13,6 +13,8 @@ import { requireSession } from "@/lib/server-access";
 import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
 import { assertOutsideCombatEquipmentHandling } from "./magazine-inventory-service";
 import { assertContainmentEquipmentInTransaction, assertPhysicalDestination, assertPhysicalSourceRelieved, readInventoryPhysicsInTransaction } from "./inventory-physical-service";
+import { resolveContainedElapsedTime } from "./container-physics";
+import { adjustSubstanceQuantity, type TimeSubject } from "./container-rules";
 
 export type ContainmentTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type ContainmentCommand = {
@@ -117,13 +119,10 @@ export async function readContainerContentsInTransaction(tx: ContainmentTransact
   };
 }
 
-/** null means loose. Explicit source plus the inventory version makes stale/repeated moves fail closed. */
-export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand) {
+/** Shared authorization, combat, lock and optimistic-version boundary for inventory mutations. */
+async function beginContainerMutation(tx: ContainmentTransaction, userId: string, command: { characterId: number; expectedCommerceVersion: number }) {
   await access(tx, command.characterId, userId, true);
-  if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before moving its contents.");
-  for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) positive(id, "Container identity");
-  if (command.fromContainerInstanceId === command.toContainerInstanceId) throw new Error("Choose a different inventory location.");
-  if (command.kind !== "instance" && command.kind !== "stack") throw new Error("Choose an owned stack or exact copy.");
+  if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before changing contents.");
   await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   await assertOutsideCombatEquipmentHandling(tx, command.characterId);
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
@@ -131,6 +130,17 @@ export async function moveInventoryContentInTransaction(tx: ContainmentTransacti
   const [profile] = await tx.select({ version: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)
     .where(eq(campaignCharacterProfile.characterId, command.characterId)).for("update");
   if (!profile || profile.version !== command.expectedCommerceVersion) throw new Error("Inventory changed or this move already completed. Reload before moving contents.");
+  return profile;
+}
+
+/** null means loose. Explicit source plus the inventory version makes stale/repeated moves fail closed. */
+export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand) {
+  await access(tx, command.characterId, userId, true);
+  if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before moving its contents.");
+  for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) positive(id, "Container identity");
+  if (command.fromContainerInstanceId === command.toContainerInstanceId) throw new Error("Choose a different inventory location.");
+  if (command.kind !== "instance" && command.kind !== "stack") throw new Error("Choose an owned stack or exact copy.");
+  const profile = await beginContainerMutation(tx, userId, command);
   const view = await snapshot(tx, command.characterId);
   const physicsBefore = await readInventoryPhysicsInTransaction(tx, command.characterId);
   const target = command.toContainerInstanceId === null ? null : container(view, command.toContainerInstanceId);
@@ -211,4 +221,66 @@ export type PhysicalInventoryView = Awaited<ReturnType<typeof readPhysicalInvent
 export async function readPhysicalInventory(characterId: number) {
   const session = await requireSession();
   return db.transaction(tx => readPhysicalInventoryInTransaction(tx, session.user.id, characterId));
+}
+
+/** Read-only hook for a future timer, using current containment. Callers split any
+ * elapsed interval at movement/catalog changes; this is not a historical clock. */
+export async function readContainedElapsedTimeInTransaction(tx: ContainmentTransaction, userId: string, characterId: number,
+  target: { instanceId: number } | { itemId: number; containerInstanceId: number | null }, elapsed: number, traits: Pick<TimeSubject, "living" | "perishable"> = {}) {
+  const view = await readPhysicalInventoryInTransaction(tx, userId, characterId);
+  let parent: number | null, itemId: number;
+  if ("instanceId" in target) {
+    const copy = view.instances.find(row => row.instanceId === target.instanceId);
+    if (!copy) throw new Error("Choose an active owned copy for contained time.");
+    const assembly = view.attachments.find(row => row.magazineInstanceId === copy.instanceId);
+    parent = assembly ? view.instances.find(row => row.instanceId === assembly.weaponInstanceId)!.containerInstanceId : copy.containerInstanceId;
+    itemId = copy.itemId;
+  } else {
+    const stack = view.stacks.find(row => row.itemId === target.itemId);
+    if (!stack || !(target.containerInstanceId === null ? stack.looseQuantity > 0 : stack.allocations.some(row => row.containerInstanceId === target.containerInstanceId))) throw new Error("Choose an owned stack portion for contained time.");
+    parent = target.containerInstanceId; itemId = target.itemId;
+  }
+  const model = view.definitions.find(row => row.itemId === itemId)!;
+  return resolveContainedElapsedTime(view.graph, view.definitions, parent, elapsed, { category: model.category, recordType: model.recordType, ...traits });
+}
+
+export type SubstanceCommand = { characterId: number; expectedCommerceVersion: number; instanceId: number;
+  operation: "add" | "draw"; quantity: number; sourceItemId?: number };
+
+/** Draw/add records a quantity adjustment, not consumption effects or a transfer to another owner. */
+export async function changeContainerSubstanceInTransaction(tx: ContainmentTransaction, userId: string, command: SubstanceCommand) {
+  const profile = await beginContainerMutation(tx, userId, command);
+  positive(command.instanceId, "Container copy");
+  if (command.operation !== "add" && command.operation !== "draw") throw new Error("Choose add or draw substance.");
+  if (!Number.isFinite(command.quantity) || command.quantity <= 0) throw new Error("Substance quantity must be finite and greater than zero.");
+  const before = await readInventoryPhysicsInTransaction(tx, command.characterId);
+  const copy = before.graph.instances.find(row => row.instanceId === command.instanceId);
+  const load = before.containers.find(row => row.instanceId === command.instanceId);
+  if (!copy || !load) throw new Error("Choose an active container owned by this Character.");
+  const source = load.profile.source;
+  const stored = before.bulkContents.find(row => row.instanceId === command.instanceId);
+  if (before.attachments.some(row => row.magazineInstanceId === command.instanceId)) throw new Error("Detach this copy before handling its substance.");
+  let substance = stored?.substance ?? source?.substance;
+  if (command.operation === "add") {
+    if (!source || source.mode !== "finite") throw new Error("Only finite sources can receive substance.");
+    // Players select an existing authored source, never submit physical metadata.
+    const selected = command.sourceItemId === undefined ? source.substance : before.definitions.find(row => row.itemId === command.sourceItemId)?.container?.source?.substance;
+    if (!selected) throw new Error("Choose a substance from an owned, authored source container.");
+    if (selected.unit !== source.substance.unit) throw new Error("The source and container must use the same quantity unit.");
+    if (source.locked && selected.id !== source.substance.id) throw new Error("This container is locked to its authored substance.");
+    if (stored && (selected.id !== stored.substance.id || selected.unit !== stored.substance.unit)) throw new Error("Draw out the existing substance before changing it; mixing is not supported.");
+    substance = selected;
+    const quantity = adjustSubstanceQuantity(stored?.quantity ?? 0, command.quantity, "add", source.maxQuantity);
+    await tx.insert(inventoryContainerSubstance).values({ instanceId: copy.instanceId, characterId: command.characterId, itemId: copy.itemId, substance, quantity })
+      .onConflictDoUpdate({ target: inventoryContainerSubstance.instanceId, set: { quantity, substance } });
+    assertPhysicalDestination(await readInventoryPhysicsInTransaction(tx, command.characterId), copy.instanceId);
+  } else if (stored) {
+    const quantity = adjustSubstanceQuantity(stored.quantity, command.quantity, "draw", null);
+    if (quantity === 0) await tx.delete(inventoryContainerSubstance).where(eq(inventoryContainerSubstance.instanceId, copy.instanceId));
+    else await tx.update(inventoryContainerSubstance).set({ quantity }).where(eq(inventoryContainerSubstance.instanceId, copy.instanceId));
+    assertPhysicalSourceRelieved(before, await readInventoryPhysicsInTransaction(tx, command.characterId), copy.instanceId);
+  } else if (!source || source.mode !== "infinite") throw new Error("This container has no substance to draw.");
+  await tx.update(campaignCharacterProfile).set({ commerceVersion: profile.version + 1, updatedAt: new Date() }).where(eq(campaignCharacterProfile.characterId, command.characterId));
+  await publishCharacterStateInvalidationInTransaction(tx, command.characterId);
+  return { substance: substance!, quantity: command.quantity, operation: command.operation };
 }

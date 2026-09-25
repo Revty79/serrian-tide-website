@@ -31,6 +31,8 @@ async function fixture() {
   await pool.query("insert into container_profiles(item_id,max_weight_lb,volume_capacity_l,max_item_dimension_cm) values($1,100,100,100)", [modelId]);
   await pool.query("update items set weight=1,weight_unit='lb',volume_l=1,longest_dimension_cm=10 where id=any($1::int[])", [[modelId, itemId, exactItemId]]);
   await pool.query("insert into item_runtime_profiles(item_id,use_mode,maximum_charges,charges_per_use) values($1,'charges',5,1)", [exactItemId]);
+  await pool.query("update container_profiles set weight_capacity_mode='unlimited',volume_capacity_mode='unlimited',contained_weight_behavior='fixed',fixed_loaded_weight_lb=2,time_behavior='suspended' where item_id=$1", [modelId]);
+  await pool.query("update container_profiles set source=$2 where item_id=$1", [modelId, JSON.stringify({ mode: "finite", maxQuantity: 2, locked: true, allowsItems: true, substance: { id: "water", name: "Water", unit: "L", weightLbPerUnit: 2, volumeLPerUnit: 1, physicalForm: "liquid", isMagical: false } })]);
   const actor: LifecycleActor = { userId: ownerId, roles: ["god"] };
   async function character(kind: CharacterKind, contents: Contents = "nested") {
     const characterId = await id("insert into campaign_character(campaign_id,player_user_id,name,is_npc,npc_kind,npc_build_mode) values($1,$2,$3,$4,$5,$6) returning id",
@@ -38,6 +40,7 @@ async function fixture() {
     await pool.query("insert into campaign_character_profile(character_id) values($1)", [characterId]);
     const copy = (copyItemId: number) => id("insert into campaign_character_item_instance(character_id,item_id,current_charges,unit_cost_credits) values($1,$2,$3,4) returning id", [characterId, copyItemId, copyItemId === exactItemId ? 5 : 0]);
     const outerId = await copy(modelId);
+    await pool.query("insert into inventory_container_substance(instance_id,character_id,item_id,substance,quantity) values($1,$2,$3,$4,1.3)", [outerId, characterId, modelId, JSON.stringify({ id: "water", name: "Water", unit: "L", weightLbPerUnit: 2, volumeLPerUnit: 1, physicalForm: "liquid", isMagical: false })]);
     let innerId = outerId;
     if (contents === "nested") {
       innerId = await copy(modelId);
@@ -59,7 +62,7 @@ async function fixture() {
 
 async function inventorySnapshot(characterId: number) {
   const result: Record<string, unknown[]> = {};
-  for (const table of ["inventory_instance_location", "inventory_stack_location", "campaign_character_item", "campaign_character_item_instance", "campaign_character_profile"] as const) {
+  for (const table of ["inventory_container_substance", "inventory_instance_location", "inventory_stack_location", "campaign_character_item", "campaign_character_item_instance", "campaign_character_profile"] as const) {
     result[table] = (await pool.query(`select to_jsonb(t) row from ${table} t where character_id=$1 order by to_jsonb(t)::text`, [characterId])).rows;
   }
   result.character = (await pool.query("select * from campaign_character where id=$1", [characterId])).rows;

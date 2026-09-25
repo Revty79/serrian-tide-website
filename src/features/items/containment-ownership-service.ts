@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import type { db } from "@/db";
-import { inventoryInstanceLocation, inventoryStackLocation } from "@/db/container-schema";
+import { inventoryInstanceLocation, inventoryStackLocation, inventoryContainerSubstance } from "@/db/container-schema";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -20,8 +20,9 @@ export async function validateContainmentOwnershipMutationInTransaction(tx: Tran
 }) {
   const stacks = await tx.select().from(inventoryStackLocation).where(eq(inventoryStackLocation.characterId, input.characterId));
   const instances = await tx.select().from(inventoryInstanceLocation).where(eq(inventoryInstanceLocation.characterId, input.characterId));
+  const substances = await tx.select().from(inventoryContainerSubstance).where(eq(inventoryContainerSubstance.characterId, input.characterId));
   const removed = new Set(input.removedInstanceIds);
-  if (stacks.some(row => removed.has(row.containerInstanceId)) || instances.some(row => removed.has(row.containerInstanceId))) {
+  if (substances.some(row => removed.has(row.instanceId)) || stacks.some(row => removed.has(row.containerInstanceId)) || instances.some(row => removed.has(row.containerInstanceId))) {
     throw new Error("Empty the container before removing or retiring its owned copy.");
   }
   if (instances.some(row => removed.has(row.instanceId))) {

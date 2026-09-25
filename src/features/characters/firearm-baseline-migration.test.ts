@@ -114,12 +114,13 @@ test("Drizzle preserves the consolidated baseline and ordered forward migrations
     "0066_race_anatomy.sql",
     "0067_container_foundation.sql",
     "0068_mundane_container_physics.sql",
+    "0069_magical_container_rules.sql",
   ]);
 
   const journal = JSON.parse(
     readFileSync(path.resolve(root, "drizzle", "meta", "_journal.json"), "utf8"),
   ) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 69);
+  assert.equal(journal.entries.length, 70);
   assert.equal(journal.entries[0]?.idx, 0);
   assert.equal(journal.entries[0]?.tag, "0000_serrian_tide_baseline");
   assert.equal(journal.entries[1]?.idx, 1);

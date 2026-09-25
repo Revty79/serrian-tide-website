@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { calculateContainerPhysics, displayMeasurement, formatPhysical } from "@/features/items/container-physics";
-import type { ContainmentCommand, PhysicalInventoryView } from "@/features/items/inventory-containment-service";
-import { getPhysicalInventoryAction, moveInventoryLocationAction } from "./inventory-location-actions";
+import type { ContainmentCommand, PhysicalInventoryView, SubstanceCommand } from "@/features/items/inventory-containment-service";
+import { getPhysicalInventoryAction, moveInventoryLocationAction, changeContainerSubstanceAction } from "./inventory-location-actions";
 import "./inventory-location-controls.css";
 
 export function useInventoryLocations(characterId: number, version: number, revision: string, onVersionChange: (version: number) => void) {
@@ -30,7 +30,17 @@ export function useInventoryLocations(characterId: number, version: number, revi
     } catch (caught) { setError(caught instanceof Error ? caught.message : "The Item could not be moved."); }
     finally { setBusy(false); }
   }
-  return { view, busy, error, notice, move, reload: () => setRefresh(value => value + 1) };
+  async function changeSubstance(command: SubstanceCommand) {
+    if (busy) return;
+    sequence.current++; setBusy(true); setError(null); setNotice(null);
+    try {
+      const result = await changeContainerSubstanceAction(command);
+      setView(result.view); onVersionChange(result.view.commerceVersion);
+      setNotice(`${command.operation === "draw" ? "Drew" : "Added"} ${formatPhysical(result.adjustment.quantity)} ${result.adjustment.substance.unit} ${result.adjustment.substance.name}.`);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Substance could not be changed."); }
+    finally { setBusy(false); }
+  }
+  return { view, busy, error, notice, move, changeSubstance, reload: () => setRefresh(value => value + 1) };
 }
 export type InventoryLocations = ReturnType<typeof useInventoryLocations>;
 
@@ -99,7 +109,7 @@ export function InventoryLocationControl({ locations, itemId, instanceId, saved,
       else { const allocation = owned.allocations.find(row => row.containerInstanceId === targetId); if (allocation) allocation.quantity += quantity; else owned.allocations.push({ containerInstanceId: targetId, quantity }); }
       owned.allocations = owned.allocations.filter(row => row.quantity > 0);
     }
-    const result = calculateContainerPhysics(graph, view.definitions, view.loads, view.attachments);
+    const result = calculateContainerPhysics(graph, view.definitions, view.loads, view.attachments, view.bulkContents);
     let ancestor = targetId;
     while (ancestor !== null) {
       const load = result.containers.find(container => container.instanceId === ancestor);
@@ -110,6 +120,7 @@ export function InventoryLocationControl({ locations, itemId, instanceId, saved,
   return <div className="inventory-location">
     <p>Location: {attachment ? `Attached to ${copyName(view, attachment.weaponInstanceId)}` : portions.map(portion => `${copy ? "" : `${portion.quantity} × `}${locationPath(view, portion.containerInstanceId)}`).join("; ")}</p>
     <button className="st-button" type="button" disabled={blocked} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Close move controls" : "Move"}</button>
+    {copy?.isContainer ? <SubstanceControls locations={locations} instanceId={copy.instanceId} disabled={blocked} /> : null}
     {attachment ? <small>Detach the magazine before moving it separately.</small> : null}
     {open ? <form className="inventory-move-form" onSubmit={event => {
       event.preventDefault(); if (!currentSource || !selected || blocked) return;
@@ -127,18 +138,44 @@ export function InventoryLocationControl({ locations, itemId, instanceId, saved,
   </div>;
 }
 
+function SubstanceControls({ locations, instanceId, disabled }: { locations: InventoryLocations; instanceId: number; disabled: boolean }) {
+  const [quantity, setQuantity] = useState(1), [operation, setOperation] = useState<"add" | "draw">("draw");
+  const [sourceItemId, setSourceItemId] = useState("");
+  const view = locations.view!, load = view.containers.find(row => row.instanceId === instanceId);
+  const source = load?.profile.source, stored = view.bulkContents.find(row => row.instanceId === instanceId);
+  if (!source && !stored) return null;
+  const substance = stored?.substance ?? source!.substance;
+  const canAdd = source?.mode === "finite";
+  return <details><summary>Substance: {substance.name} — {stored ? `${formatPhysical(stored.quantity)} ${substance.unit}` : source?.mode === "infinite" ? "Infinite source" : "Empty"}</summary>
+    <p>Record an amount added or drawn. This does not apply consumption effects or create inventory Items.</p>
+    <form className="inventory-move-form" onSubmit={event => { event.preventDefault(); if (!disabled) void locations.changeSubstance({ characterId: view.characterId, expectedCommerceVersion: view.commerceVersion,
+      instanceId, operation: canAdd ? operation : "draw", quantity, ...(sourceItemId ? { sourceItemId: Number(sourceItemId) } : {}) }); }}>
+      <GuidedField label="Substance action" help="Draw reduces a finite quantity. Drawing an infinite source keeps its identity and supply unchanged. Add records filling from an external supply; it does not transfer another container's contents."><select className="st-control" disabled={disabled} value={canAdd ? operation : "draw"} onChange={event => setOperation(event.target.value as "add" | "draw")}><option value="draw">Draw</option>{canAdd ? <option value="add">Add</option> : null}</select></GuidedField>
+      {canAdd && !source.locked && operation === "add" ? <GuidedField label="Substance definition" help="Choose an authored substance from an owned source container. Existing substances must be drawn out before switching; only matching units are accepted."><select className="st-control" disabled={disabled} value={sourceItemId} onChange={event => setSourceItemId(event.target.value)}><option value="">{source.substance.name} (authored default)</option>{view.definitions.filter(row => row.container?.source?.substance.unit === source.substance.unit).map(row => <option key={row.itemId} value={row.itemId}>{row.container!.source!.substance.name} — {row.name}</option>)}</select></GuidedField> : null}
+      <GuidedField label={`Substance quantity (${substance.unit})`} help="Enter a finite positive amount in the displayed unit. The server checks available quantity and all applicable container limits."><input className="st-control" type="number" min={0} step="any" required value={quantity} disabled={disabled} onChange={event => setQuantity(Number(event.target.value))} /></GuidedField>
+      <button className="st-button" type="submit" disabled={disabled}>Apply substance change</button>
+    </form>
+  </details>;
+}
+
 export function ContainerContents({ view, instanceId, ancestors = [] }: { view: PhysicalInventoryView; instanceId: number; ancestors?: number[] }) {
   const load = view.containers.find(row => row.instanceId === instanceId);
   if (!load || ancestors.includes(instanceId)) return null;
   const copies = view.instances.filter(row => row.containerInstanceId === instanceId && !view.attachments.some(link => link.magazineInstanceId === row.instanceId));
   const stacks = view.stacks.flatMap(row => row.allocations.filter(allocation => allocation.containerInstanceId === instanceId).map(allocation => ({ ...allocation, itemId: row.itemId })));
   return <details className="inventory-container-contents"><summary>Contents of {copyName(view, instanceId)} ({copies.length + stacks.length})</summary>
-    <p>Contents weight: {displayMeasurement(load.contentsWeight, "lb")} / {load.profile.maxWeightLb === null ? "limit not authored" : `${formatPhysical(load.profile.maxWeightLb)} lb`}<br />
-      Volume: {displayMeasurement(load.usedVolume, "L")} / {load.profile.volumeCapacityL === null ? "limit not authored" : `${formatPhysical(load.profile.volumeCapacityL)} L`}<br />
+    <p>Contents weight: {displayMeasurement(load.contentsWeight, "lb")} / {load.profile.weightCapacityMode === "unlimited" ? "Unlimited" : load.profile.maxWeightLb === null ? "limit not authored" : `${formatPhysical(load.profile.maxWeightLb)} lb`}<br />
+      Volume: {displayMeasurement(load.usedVolume, "L")} / {load.profile.volumeCapacityMode === "unlimited" ? "Unlimited" : load.profile.volumeCapacityL === null ? "limit not authored" : `${formatPhysical(load.profile.volumeCapacityL)} L`}<br />
       Loaded container weight: {displayMeasurement(load.loadedWeight, "lb")}</p>
+    {load.profile.containedWeightBehavior !== "normal" ? <p>External weight behavior: {load.profile.containedWeightBehavior}</p> : null}
+    {load.profile.magicalContentRestriction !== "any" ? <p>Allowed: {load.profile.magicalContentRestriction}</p> : <p>Allowed: magical and mundane Items (subject to physical restrictions).</p>}
+    {load.profile.timeBehavior !== "normal" ? <p>Time inside: {load.profile.timeBehavior}{load.profile.timeMultiplier !== null ? ` × ${load.profile.timeMultiplier}` : ""}; applies to {load.profile.timeAppliesTo}{load.profile.timeAppliesTo === "categories-types" ? `: ${[...load.profile.timeCategories, ...load.profile.timeRecordTypes].join(", ")}` : ""}.</p> : null}
+    {load.profile.livingContentsAllowed ? <p>Living contents: allowed by profile; living containment is not available yet.</p> : null}
+    {load.profile.source ? <p>{load.profile.source.mode === "infinite" ? "Infinite source" : "Finite source"}: {load.profile.source.substance.name}{load.profile.source.mode === "finite" ? `; maximum ${load.profile.source.maxQuantity} ${load.profile.source.substance.unit}` : ""}. Ordinary Items {load.profile.source.allowsItems ? "allowed" : "not allowed"}.</p> : null}
+    {view.bulkContents.filter(row => row.instanceId === instanceId).map(row => <p key={row.instanceId}>Stored substance: {row.substance.name}, {formatPhysical(row.quantity)} {row.substance.unit}</p>)}
     {load.problems.map(problem => <p key={problem} className="inventory-location-error">{problem}</p>)}
     {copies.length || stacks.length ? <ul>{stacks.map(stack => <li key={`stack-${stack.itemId}`}>{stack.quantity} × {view.definitions.find(model => model.itemId === stack.itemId)?.name ?? `Item ${stack.itemId}`}</li>)}
-      {copies.map(copy => <li key={copy.instanceId}>{copyName(view, copy.instanceId)}{copy.isContainer ? <ContainerContents view={view} instanceId={copy.instanceId} ancestors={[...ancestors, instanceId]} /> : null}</li>)}</ul> : <p>Empty. Move contents to Loose from their Item rows to empty this container.</p>}
+      {copies.map(copy => <li key={copy.instanceId}>{copyName(view, copy.instanceId)}{copy.isContainer ? <ContainerContents view={view} instanceId={copy.instanceId} ancestors={[...ancestors, instanceId]} /> : null}</li>)}</ul> : <p>No discrete Items. Move Item contents to Loose from their rows; use substance controls to draw stored bulk contents.</p>}
   </details>;
 }
 

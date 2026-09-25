@@ -264,6 +264,7 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
     { label: "Creature NPCs", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character where campaign_id = ${campaignId} and is_npc = true and npc_kind = 'creature'` },
     { label: "Inventory stacks", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Exact Item instances", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_instance i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
+    { label: "Stored container substances", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_container_substance i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Contained exact Item locations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_instance_location i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Contained stack allocations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_stack_location i inner join campaign_character c on c.id = i.character_id where c.campaign_id = ${campaignId}` },
     { label: "Equipment states", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_equipment_state e inner join campaign_character c on c.id = e.character_id where c.campaign_id = ${campaignId}` },
@@ -314,6 +315,7 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
     { label: "Currency holdings", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_currency_holding where character_id = ${characterId}` },
     { label: "Inventory stacks", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item where character_id = ${characterId}` },
     { label: "Exact Item instances", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_instance where character_id = ${characterId}` },
+    { label: "Stored container substances", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_container_substance where character_id = ${characterId}` },
     { label: "Contained exact Item locations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_instance_location where character_id = ${characterId}` },
     { label: "Contained stack allocations", blocking: false, query: sql<CountRow>`select count(*)::int as value from inventory_stack_location where character_id = ${characterId}` },
     { label: "Equipment states", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_item_equipment_state where character_id = ${characterId}` },
@@ -756,6 +758,7 @@ async function deleteNonCampaignRoot(
       if (root.campaign_id === null) throw new Error("Character Campaign context is missing.");
       // Explicit root destruction removes location metadata before ownership
       // cascades. Individual Item removal keeps its restrictive guards.
+      await tx.execute(sql`delete from inventory_container_substance where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_instance_location where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_stack_location where character_id = ${target.entityId}`);
       // Firearm state is mutable Character-owned state, but its history is a

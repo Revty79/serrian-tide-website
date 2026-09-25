@@ -28,9 +28,10 @@ export async function setContainerProfileInTransaction(tx: Transaction, itemId: 
 
 export async function saveContainerProfileInTransaction(tx: Transaction, itemId: number, profile: ContainerPhysicalProfile | null) {
   const normalized = profile === null ? null : normalizeContainerPhysicalProfile(profile);
-  if (normalized && normalized.maxWeightLb === null && normalized.volumeCapacityL === null) {
+  if (normalized && normalized.weightCapacityMode === "normal" && normalized.volumeCapacityMode === "normal" && normalized.maxWeightLb === null && normalized.volumeCapacityL === null
+    && !(normalized.source?.mode === "finite" && !normalized.source.allowsItems)) {
     const [existing] = await tx.select().from(containerProfile).where(eq(containerProfile.itemId, itemId));
-    if (!existing || existing.maxWeightLb !== null || existing.volumeCapacityL !== null) throw new Error("Author a finite contents weight or internal volume capacity for this container.");
+    if (!existing || existing.maxWeightLb !== null || existing.volumeCapacityL !== null || existing.weightCapacityMode !== "normal" || existing.volumeCapacityMode !== "normal" || existing.source !== null) throw new Error("Author a finite contents weight or internal volume capacity, or an explicit unlimited capacity mode for this container.");
   }
   await setContainerProfileInTransaction(tx, itemId, normalized !== null);
   if (normalized) await tx.update(containerProfile).set(normalized).where(eq(containerProfile.itemId, itemId));

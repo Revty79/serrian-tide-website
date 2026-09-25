@@ -2,7 +2,8 @@
 
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
-import { CONTAINER_CLASSIFICATIONS, emptyContainerPhysicalProfile } from "@/features/items/container-physics";
+import { ContainerRuleFields } from "./container-rule-fields";
+import { CONTAINER_CLASSIFICATIONS, emptyContainerPhysicalProfile, normalizeContainerPhysicalProfile } from "@/features/items/container-physics";
 
 import { decimalAdd } from "@/lib/decimal";
 import Link from "next/link";
@@ -473,6 +474,7 @@ export function ItemWorkspace({
     await preserveScroll(async () => {
       setFeedback(null);
       try {
+        if (draftToSave.containerProfile) normalizeContainerPhysicalProfile(draftToSave.containerProfile);
         const saved = await saveItem(draftToSave);
         if (!isCurrentOperation(operation)) return;
         setDraft(saved);
@@ -706,15 +708,15 @@ function Overview({
     <label className="item-magical-toggle item-field--wide"><input type="checkbox" checked={!!draft.containerProfile} onChange={event => onChange({ ...draft, containerProfile: event.target.checked ? emptyContainerPhysicalProfile() : null })} /><span><strong>Is Container</strong><small>Each owned copy has separate contents. Existing stacks must be resolved before enabling this.</small></span></label>
     {draft.containerProfile ? <>
       <Field label="Container classification"><select value={draft.containerProfile.classification} onChange={event => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, classification: event.target.value as NonNullable<ItemDraft["containerProfile"]>["classification"] } })}>{CONTAINER_CLASSIFICATIONS.map(value => <option key={value} value={value}>{value}</option>)}</select></Field>
-      <Field label="Contents weight capacity (lb)"><OptionalNumber value={draft.containerProfile.maxWeightLb} min={0} onChange={maxWeightLb => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, maxWeightLb } })} /></Field>
-      <Field label="Internal volume capacity (L)"><OptionalNumber value={draft.containerProfile.volumeCapacityL} min={0} onChange={volumeCapacityL => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, volumeCapacityL } })} /></Field>
+      {draft.containerProfile.weightCapacityMode !== "unlimited" ? <Field label="Contents weight capacity (lb)"><OptionalNumber value={draft.containerProfile.maxWeightLb} min={0} onChange={maxWeightLb => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, maxWeightLb } })} /></Field> : null}
+      {draft.containerProfile.volumeCapacityMode !== "unlimited" ? <Field label="Internal volume capacity (L)"><OptionalNumber value={draft.containerProfile.volumeCapacityL} min={0} onChange={volumeCapacityL => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, volumeCapacityL } })} /></Field> : null}
       <Field label="Maximum item dimension (cm)"><OptionalNumber value={draft.containerProfile.maxItemDimensionCm} min={0} onChange={maxItemDimensionCm => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, maxItemDimensionCm } })} /></Field>
       <Field label="Allow nested containers"><input type="checkbox" checked={draft.containerProfile.allowsNestedContainers} onChange={event => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, allowsNestedContainers: event.target.checked } })} /></Field>
       <Field label="Liquid only"><input type="checkbox" checked={draft.containerProfile.liquidOnly} onChange={event => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, liquidOnly: event.target.checked } })} /></Field>
       <Field label="Allowed content categories"><input value={draft.containerProfile.allowedCategories.join(",")} onChange={event => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, allowedCategories: event.target.value.split(",") } })} /></Field>
       <Field label="Allowed content record types"><input value={draft.containerProfile.allowedRecordTypes.join(",")} onChange={event => onChange({ ...draft, containerProfile: { ...draft.containerProfile!, allowedRecordTypes: event.target.value.split(",") } })} /></Field>
-      <Field label="Contained weight behavior"><select value={draft.containerProfile.containedWeightBehavior} disabled><option value="normal">Normal — full contents weight</option></select></Field>
-      <p className="item-field--wide">Author a finite weight or volume capacity. Other blank limits are not checked; legacy unconfigured containers retain their existing behavior. Zero permits no load of that measurement. Missing physical data blocks storage when an authored limit needs it. Blank content restrictions allow any Item; all selected restrictions apply to directly stored Items. These are ordinary physical rules, including for Items marked magical.</p>
+      <ContainerRuleFields profile={draft.containerProfile} onChange={containerProfile => onChange({ ...draft, containerProfile })} />
+      <p className="item-field--wide">Choose finite limits or explicitly select Unlimited for each capacity you want to override. Blank normal limits are unauthored; zero allows no load of that measurement. A finite substance-only source may use its maximum quantity as capacity. External weight and time rules are independent. Required missing physical data blocks storage. All selected content restrictions apply together to directly stored Items.</p>
     </> : null}
     <Field label="Durability"><OptionalNumber value={core.durability} min={0} onChange={(durability) => setCore({ durability })} /></Field>
     {core.parentItemId ? <Field label="Variant Of" wide><input disabled value={core.parentItemName ?? `Item ${core.parentItemId}`} /></Field> : null}

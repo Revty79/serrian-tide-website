@@ -93,7 +93,7 @@ test("ordinary content restrictions and nesting use saved physical metadata", ()
   assert.equal(calculateContainerPhysics(graph, models).containers.find(row => row.instanceId === 12)!.problems.length, 0);
 });
 
-test("liquid-only storage requires explicit physical form and normal weight remains mandatory", () => {
+test("liquid-only storage requires explicit physical form and unsupported weight behaviors are rejected", () => {
   const models = structuredClone(definitions), input = structuredClone(graph);
   input.instances[1].containerInstanceId = null;
   models[0].container!.liquidOnly = true;
@@ -101,5 +101,5 @@ test("liquid-only storage requires explicit physical form and normal weight rema
   models[2].physicalForm = "liquid";
   assert.equal(calculateContainerPhysics(input, models).containers.find(row => row.instanceId === 12)!.problems.length, 0);
   assert.equal(calculateContainerPhysics(input, models).carriedWeight.known, 15);
-  assert.throws(() => normalizeContainerPhysicalProfile({ ...emptyContainerPhysicalProfile(), containedWeightBehavior: "weightless" as "normal" }), /normal/);
+  assert.throws(() => normalizeContainerPhysicalProfile({ ...emptyContainerPhysicalProfile(), containedWeightBehavior: "weightless" as "normal" }), /contained weight behavior/);
 });

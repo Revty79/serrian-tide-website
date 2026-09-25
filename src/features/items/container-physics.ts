@@ -1,6 +1,7 @@
 /** Pure physical calculations shared by mutations, inventory reads, and previews. */
+import { emptyContainerRules, normalizeContainerRules, timeRuleApplies, type BulkContent, type ContainerRules, type TimeSubject } from "./container-rules";
 export const CONTAINER_CLASSIFICATIONS = ["pocket", "pouch", "backpack", "quiver", "sheath", "holster", "case", "chest", "crate", "bottle", "flask", "generic"] as const;
-export type ContainerPhysicalProfile = {
+export type ContainerPhysicalProfile = ContainerRules & {
   classification: typeof CONTAINER_CLASSIFICATIONS[number];
   maxWeightLb: number | null;
   volumeCapacityL: number | null;
@@ -9,9 +10,9 @@ export type ContainerPhysicalProfile = {
   liquidOnly: boolean;
   allowedCategories: string[];
   allowedRecordTypes: string[];
-  containedWeightBehavior: "normal";
+  containedWeightBehavior: "normal" | "contents-weightless" | "fixed";
 };
-export const emptyContainerPhysicalProfile = (): ContainerPhysicalProfile => ({ classification: "generic", maxWeightLb: null, volumeCapacityL: null, maxItemDimensionCm: null,
+export const emptyContainerPhysicalProfile = (): ContainerPhysicalProfile => ({ ...emptyContainerRules(), classification: "generic", maxWeightLb: null, volumeCapacityL: null, maxItemDimensionCm: null,
   allowsNestedContainers: true, liquidOnly: false, allowedCategories: [], allowedRecordTypes: [], containedWeightBehavior: "normal" });
 
 export function normalizePhysicalForm(value: unknown): "solid" | "liquid" | null {
@@ -29,14 +30,13 @@ export function normalizeContainerPhysicalProfile(input: ContainerPhysicalProfil
   if (!CONTAINER_CLASSIFICATIONS.includes(input.classification)) throw new Error("Choose a supported container classification.");
   const profile = { ...emptyContainerPhysicalProfile(), ...input };
   if (typeof profile.allowsNestedContainers !== "boolean" || typeof profile.liquidOnly !== "boolean") throw new Error("Choose whether nesting and liquid-only storage are enabled.");
-  if (profile.containedWeightBehavior !== "normal") throw new Error("Only normal contained weight is supported.");
   const restrictions = (values: string[]) => {
     if (!Array.isArray(values) || values.some(value => typeof value !== "string")) throw new Error("Content restrictions must be a list of category or record type names.");
     return [...new Set(values.map(value => value.trim()).filter(Boolean))];
   };
-  return { classification: input.classification, maxWeightLb: physicalAmount(input.maxWeightLb, "Contents weight capacity"),
+  return { ...normalizeContainerRules(profile, profile.containedWeightBehavior), classification: input.classification, maxWeightLb: physicalAmount(input.maxWeightLb, "Contents weight capacity"),
     volumeCapacityL: physicalAmount(input.volumeCapacityL, "Internal volume capacity"), maxItemDimensionCm: physicalAmount(input.maxItemDimensionCm, "Maximum item dimension"),
-    allowsNestedContainers: profile.allowsNestedContainers, liquidOnly: profile.liquidOnly, containedWeightBehavior: "normal",
+    allowsNestedContainers: profile.allowsNestedContainers, liquidOnly: profile.liquidOnly, containedWeightBehavior: profile.containedWeightBehavior,
     allowedCategories: restrictions(profile.allowedCategories), allowedRecordTypes: restrictions(profile.allowedRecordTypes) };
 }
 
@@ -52,7 +52,7 @@ export function weightInLb(weight: number | null, unit: string): number | null {
 }
 
 export type PhysicalItem = { itemId: number; name: string; weightLb: number | null; volumeL: number | null; longestDimensionCm: number | null;
-  physicalForm?: "solid" | "liquid" | null; category?: string; recordType?: string; container: ContainerPhysicalProfile | null };
+  physicalForm?: "solid" | "liquid" | null; category?: string; recordType?: string; isMagical?: boolean; container: ContainerPhysicalProfile | null };
 export type PhysicalGraph = {
   stacks: Array<{ itemId: number; ownedQuantity: number; looseQuantity: number; allocations: Array<{ containerInstanceId: number; quantity: number }> }>;
   instances: Array<{ instanceId: number; itemId: number; containerInstanceId: number | null }>;
@@ -70,7 +70,7 @@ export type ContainerLoad = {
 };
 const exceeds = (value: number, max: number) => value - max > Math.max(1, Math.abs(max)) * 1e-10;
 
-export function calculateContainerPhysics(graph: PhysicalGraph, definitions: PhysicalItem[], loads: SpecializedLoad[] = [], attachments: PhysicalAttachment[] = []) {
+export function calculateContainerPhysics(graph: PhysicalGraph, definitions: PhysicalItem[], loads: SpecializedLoad[] = [], attachments: PhysicalAttachment[] = [], bulkContents: BulkContent[] = []) {
   const items = new Map(definitions.map(item => [item.itemId, item]));
   const copies = new Map(graph.instances.map(copy => [copy.instanceId, copy]));
   const containers = new Map<number, ContainerLoad>();
@@ -89,29 +89,54 @@ export function calculateContainerPhysics(graph: PhysicalGraph, definitions: Phy
     // physical load follows the firearm assembly, never a second inventory root.
     const children = graph.instances.filter(child => child.containerInstanceId === id && !attachedIds.has(child.instanceId));
     const stacks = graph.stacks.flatMap(stack => stack.allocations.filter(allocation => allocation.containerInstanceId === id).map(allocation => ({ itemId: stack.itemId, quantity: allocation.quantity })));
-    const contentsWeight = sum(...children.map(child => copyWeight(child.instanceId)), ...stacks.map(stack => measure(items.get(stack.itemId)?.weightLb, stack.quantity, name(stack.itemId))));
-    const usedVolume = sum(...children.map(child => measure(items.get(child.itemId)?.volumeL, 1, name(child.itemId))), ...stacks.map(stack => measure(items.get(stack.itemId)?.volumeL, stack.quantity, name(stack.itemId))));
+    const bulk = bulkContents.find(row => row.instanceId === id);
+    const source = model?.container?.source;
+    // A stored finite substance retains its identity across catalog edits. Matching
+    // catalog definitions supply current physical data; replaced definitions do not erase it.
+    const substance = bulk && source?.substance.id === bulk.substance.id && source.substance.unit === bulk.substance.unit ? source.substance : bulk?.substance;
+    const contentsWeight = sum(...children.map(child => copyWeight(child.instanceId)), ...stacks.map(stack => measure(items.get(stack.itemId)?.weightLb, stack.quantity, name(stack.itemId))),
+      ...(bulk ? [measure(substance?.weightLbPerUnit, bulk.quantity, `${bulk.substance.name} substance`)] : []));
+    const usedVolume = sum(...children.map(child => measure(items.get(child.itemId)?.volumeL, 1, name(child.itemId))), ...stacks.map(stack => measure(items.get(stack.itemId)?.volumeL, stack.quantity, name(stack.itemId))),
+      ...(bulk ? [measure(substance?.volumeLPerUnit, bulk.quantity, `${bulk.substance.name} substance`)] : []));
     const specialized = loads.filter(load => load.instanceId === id).map(load => measure(load.ammunitionItemId === null ? null : items.get(load.ammunitionItemId)?.weightLb, load.rounds,
       load.ammunitionItemId === null ? `${label} ammunition` : `${name(load.ammunitionItemId)} ammunition`));
     const attached = attachments.filter(link => link.weaponInstanceId === id).map(link => copyWeight(link.magazineInstanceId));
-    const loadedWeight = sum(measure(model?.weightLb, 1, label), contentsWeight, ...specialized, ...attached);
+    const baseAssemblyWeight = sum(measure(model?.weightLb, 1, label), ...specialized, ...attached);
+    const loadedWeight = model?.container?.containedWeightBehavior === "fixed" ? measure(model.container.fixedLoadedWeightLb, 1, `${label} fixed external weight`)
+      : model?.container?.containedWeightBehavior === "contents-weightless" ? baseAssemblyWeight : sum(baseAssemblyWeight, contentsWeight);
     if (model?.container) {
       const profile = model.container, problems: string[] = [];
+      if (bulk) {
+        if (!source || source.mode !== "finite") problems.push(`${label}: stored finite substance no longer matches the source rules; draw it out to empty the container.`);
+        else {
+          if (source.locked && (source.substance.id !== bulk.substance.id || source.substance.unit !== bulk.substance.unit)) problems.push(`${label}: stored substance does not match the locked source.`);
+          if (source.maxQuantity !== null && exceeds(bulk.quantity, source.maxQuantity)) problems.push(`${label}: substance quantity exceeds its maximum.`);
+        }
+      }
+      const activeSubstance = bulk ? substance : source?.mode === "infinite" ? source.substance : null;
+      if (activeSubstance) {
+        if (profile.liquidOnly && activeSubstance.physicalForm !== "liquid") problems.push(`${label}: the stored substance is not liquid.`);
+        if (profile.magicalContentRestriction === "mundane-only" && activeSubstance.isMagical) problems.push(`${label}: mundane Items and substances only.`);
+        if (profile.magicalContentRestriction === "magical-only" && !activeSubstance.isMagical) problems.push(`${label}: magical Items and substances only.`);
+      }
       // Restrictions apply to directly stored Items. A closed child container's
       // contents remain governed by that child's own authored storage rules.
       for (const itemId of new Set([...children.map(child => child.itemId), ...stacks.map(stack => stack.itemId)])) {
         const content = items.get(itemId);
+        if (source && !source.allowsItems) problems.push(`${label}: this source does not allow ordinary Items.`);
+        if (profile.magicalContentRestriction === "mundane-only" && content?.isMagical) problems.push(`${label}: mundane Items only; ${name(itemId)} is magical.`);
+        if (profile.magicalContentRestriction === "magical-only" && !content?.isMagical) problems.push(`${label}: magical Items only; ${name(itemId)} is mundane.`);
         if (!profile.allowsNestedContainers && content?.container) problems.push(`${label}: nested containers are not allowed.`);
         if (profile.liquidOnly && content?.physicalForm !== "liquid") problems.push(`${label}: liquid-only storage requires ${name(itemId)} to have an authored Liquid physical form.`);
         const matches = (allowed: string[], value: string | undefined) => !allowed.length || allowed.some(entry => entry.toLowerCase() === value?.trim().toLowerCase());
         if (!matches(profile.allowedCategories, content?.category)) problems.push(`${label}: ${name(itemId)} does not match its allowed categories (${profile.allowedCategories.join(", ")}).`);
         if (!matches(profile.allowedRecordTypes, content?.recordType)) problems.push(`${label}: ${name(itemId)} does not match its allowed record types (${profile.allowedRecordTypes.join(", ")}).`);
       }
-      if (profile.maxWeightLb !== null) {
+      if (profile.weightCapacityMode !== "unlimited" && profile.maxWeightLb !== null) {
         if (contentsWeight.unknown.length) problems.push(`${label}: physical weight data not authored or unit unrecognized for ${contentsWeight.unknown.join(", ")}.`);
         else if (exceeds(contentsWeight.known, profile.maxWeightLb)) problems.push(`${label}: contents weigh ${formatPhysical(contentsWeight.known)} lb; weight capacity is ${formatPhysical(profile.maxWeightLb)} lb.`);
       }
-      if (profile.volumeCapacityL !== null) {
+      if (profile.volumeCapacityMode !== "unlimited" && profile.volumeCapacityL !== null) {
         if (usedVolume.unknown.length) problems.push(`${label}: physical volume data not authored for ${usedVolume.unknown.join(", ")}.`);
         else if (exceeds(usedVolume.known, profile.volumeCapacityL)) problems.push(`${label}: contents use ${formatPhysical(usedVolume.known)} L; volume capacity is ${formatPhysical(profile.volumeCapacityL)} L.`);
       }
@@ -121,8 +146,8 @@ export function calculateContainerPhysics(graph: PhysicalGraph, definitions: Phy
         else if (exceeds(dimension, profile.maxItemDimensionCm)) problems.push(`${name(itemId)} is too long to fit in ${label}: ${formatPhysical(dimension)} cm exceeds its ${formatPhysical(profile.maxItemDimensionCm)} cm maximum item dimension.`);
       }
       containers.set(id, { instanceId: id, label, profile, contentsWeight, loadedWeight, usedVolume, problems,
-        remainingWeightLb: profile.maxWeightLb === null || contentsWeight.unknown.length ? null : profile.maxWeightLb - contentsWeight.known,
-        remainingVolumeL: profile.volumeCapacityL === null || usedVolume.unknown.length ? null : profile.volumeCapacityL - usedVolume.known });
+        remainingWeightLb: profile.weightCapacityMode === "unlimited" || profile.maxWeightLb === null || contentsWeight.unknown.length ? null : profile.maxWeightLb - contentsWeight.known,
+        remainingVolumeL: profile.volumeCapacityMode === "unlimited" || profile.volumeCapacityL === null || usedVolume.unknown.length ? null : profile.volumeCapacityL - usedVolume.known });
     }
     visiting.delete(id); weights.set(id, loadedWeight); return loadedWeight;
   }
@@ -131,6 +156,27 @@ export function calculateContainerPhysics(graph: PhysicalGraph, definitions: Phy
   const carriedWeight = sum(...graph.instances.filter(copy => copy.containerInstanceId === null && !attachedIds.has(copy.instanceId)).map(copy => copyWeight(copy.instanceId)),
     ...graph.stacks.map(stack => measure(items.get(stack.itemId)?.weightLb, stack.looseQuantity, name(stack.itemId))));
   return { containers: [...containers.values()], carriedWeight };
+}
+
+/** Elapsed units are preserved. Pass the immediate container for a stack, substance,
+ * or future living subject; exact copies use their parent (not their own rule).
+ * Applicable suspension wins, otherwise ancestor multipliers multiply. */
+export function resolveContainedElapsedTime(graph: PhysicalGraph, definitions: PhysicalItem[], containerInstanceId: number | null, elapsed: number, subject: TimeSubject) {
+  if (!Number.isFinite(elapsed) || elapsed < 0) throw new Error("Elapsed time must be finite and zero or greater.");
+  const seen = new Set<number>(), applied: Array<{ instanceId: number; multiplier: number }> = [];
+  let next = containerInstanceId;
+  while (next !== null) {
+    if (seen.has(next)) throw new Error("Circular containment is not allowed.");
+    seen.add(next);
+    const copy = graph.instances.find(row => row.instanceId === next);
+    const rule = definitions.find(row => row.itemId === copy?.itemId)?.container;
+    if (!copy || !rule) throw new Error("Contained time requires an existing container ancestor.");
+    if (timeRuleApplies(rule, subject)) applied.push({ instanceId: next, multiplier: rule.timeBehavior === "suspended" ? 0 : rule.timeBehavior === "normal" ? 1 : rule.timeMultiplier! });
+    next = copy.containerInstanceId;
+  }
+  const multiplier = applied.some(row => row.multiplier === 0) ? 0 : applied.reduce((total, row) => total * row.multiplier, 1);
+  if (!Number.isFinite(multiplier) || !Number.isFinite(elapsed * multiplier)) throw new Error("Combined contained time exceeds the supported finite range.");
+  return { elapsed: elapsed * multiplier, multiplier, applied };
 }
 
 export function formatPhysical(value: number): string { return Number(value.toFixed(3)).toLocaleString("en-US"); }
