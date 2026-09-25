@@ -51,6 +51,7 @@ import {
 import { decodeMechanicalEffect, planMechanicalEffect } from "@/features/mechanical-effects";
 import { requireSession } from "@/lib/server-access";
 import { lockActiveItemRootInTransaction } from "./active-item-root-service";
+import { validateContainmentOwnershipMutationInTransaction } from "./containment-ownership-service";
 import { resolveFirearmFiringMode } from "./firearm-timing";
 
 import {
@@ -620,6 +621,7 @@ export async function validateEquipmentOwnershipMutationInTransaction(
   await assertCharacterCombatWritableInTransaction(tx, input.characterId);
   await lockEquipmentStateCharacterInTransaction(tx, input.characterId);
   const nextQuantities = new Map(input.nextStackQuantities.map(({ itemId, quantity }) => [itemId, quantity]));
+  await validateContainmentOwnershipMutationInTransaction(tx, input);
   const stateRows = await tx.select({ itemId: campaignCharacterItemEquipmentState.itemId, quantity: campaignCharacterItemEquipmentState.quantity })
     .from(campaignCharacterItemEquipmentState)
     .where(eq(campaignCharacterItemEquipmentState.characterId, input.characterId));

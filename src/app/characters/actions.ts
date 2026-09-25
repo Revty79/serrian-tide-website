@@ -704,6 +704,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       powerMaximumCharges: itemPowerResource.maximumCharges,
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
+      isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
       weaponType: weaponProfile.weaponType,
       handedness: weaponProfile.handedness,
@@ -853,7 +854,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     definitions: authorizedRows.map((entry) => ({
       itemId: entry.id,
       runtimeProfile: readItemRuntimeProfile(entry),
-      requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true,
+      requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true,
       powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges },
     })),
     stacks: ownedItems,
@@ -1084,6 +1085,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       weaponProfileId: entry.weaponProfileId,
       isFirearm: entry.isFirearm,
       isMagazine: entry.isMagazine,
+      isContainer: entry.isContainer,
       weaponType: entry.weaponType,
       handedness: entry.handedness,
       damageSource: entry.damageSource,
@@ -1180,7 +1182,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       throw new Error("Archived Items cannot be added to or increased in Character possessions.");
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "stack", authorized.name, {
-      requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true,
+      requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true || authorized.isContainer === true,
       allowLegacyExactStack: true,
       powerResource: authorized.powerResource,
     });
@@ -1214,7 +1216,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
       throw new Error("Archived Items cannot be added as new owned instances.");
     }
     assertItemOwnershipStrategy(authorized.runtimeProfile, "instance", authorized.name, {
-      requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true,
+      requiresExactInstance: authorized.isFirearm === true || authorized.isMagazine === true || authorized.isContainer === true,
       powerResource: authorized.powerResource,
     });
 
@@ -1245,7 +1247,7 @@ function normalizeDraft(aggregate: CharacterAggregate, draft: CharacterDraft, go
     definitions: aggregate.authorizedItems.map((entry) => ({
       itemId: entry.id,
       runtimeProfile: entry.runtimeProfile,
-      requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true,
+      requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true,
       powerResource: entry.powerResource,
     })),
     stacks: items,
@@ -1566,8 +1568,15 @@ export async function saveCharacter(
         removedInstanceIds,
       });
 
-      await tx.delete(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId));
-      if (normalized.items.length) await tx.insert(campaignCharacterItem).values(normalized.items.map((entry) => ({ characterId, ...entry })));
+      // Retain stack identity, acquisition date, equipment state and location allocations.
+      const retainedItemIds = new Set(normalized.items.map(entry => entry.itemId));
+      const removedItemIds = aggregate.items.filter(entry => !retainedItemIds.has(entry.itemId)).map(entry => entry.itemId);
+      if (removedItemIds.length) await tx.delete(campaignCharacterItem).where(and(
+        eq(campaignCharacterItem.characterId, characterId), inArray(campaignCharacterItem.itemId, removedItemIds),
+      ));
+      if (normalized.items.length) await tx.insert(campaignCharacterItem).values(normalized.items.map((entry) => ({ characterId, ...entry })))
+        .onConflictDoUpdate({ target: [campaignCharacterItem.characterId, campaignCharacterItem.itemId],
+          set: { quantity: sql`excluded.quantity`, unitCostCredits: sql`excluded.unit_cost_credits` } });
 
       if (removedInstanceIds.length) {
         await tx.delete(campaignCharacterItemInstance).where(and(
@@ -1585,7 +1594,7 @@ export async function saveCharacter(
             itemId: entry.itemId,
             currentCharges: getStartingItemInstanceCharges(
               authorized.runtimeProfile,
-              authorized.isFirearm === true || authorized.isMagazine === true,
+              authorized.isFirearm === true || authorized.isMagazine === true || authorized.isContainer === true,
               authorized.powerResource,
             ),
             unitCostCredits: entry.unitCostCredits,

@@ -254,6 +254,7 @@ export type CharacterAuthorizedItem = {
   weaponProfileId?: number | null;
   isFirearm?: boolean;
   isMagazine?: boolean;
+  isContainer?: boolean;
   weaponType: string | null;
   handedness: string | null;
   damageSource: string | null;

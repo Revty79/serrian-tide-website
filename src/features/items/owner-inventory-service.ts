@@ -71,15 +71,18 @@ export async function adjustOwnerInventory(command: OwnerInventoryCommand) {
       const [definition] = await tx.select({
         id: item.id, runtime: itemRuntimeProfile, maximumCharges: itemPowerResource.maximumCharges,
         isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
+        isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
         isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
       }).from(campaignInventoryItem).innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
         .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
         .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
         .where(and(eq(campaignInventoryItem.campaignId, target.campaignId), eq(item.id, command.itemId), isNull(item.archivedAt)))
-        .for("share", { of: [item, campaignInventoryItem] });
+        // Ownership triggers serialize catalog tracking changes on the Item root.
+        // Take the write lock now so simultaneous grants cannot deadlock upgrading shared locks.
+        .for("update", { of: [item, campaignInventoryItem] });
       if (!definition) throw new Error("That item is not currently available to this Campaign.");
       const runtime = (definition.runtime ?? DEFAULT_ITEM_RUNTIME_PROFILE) as ItemRuntimeProfile;
-      const exact = definition.isFirearm || definition.isMagazine;
+      const exact = definition.isFirearm || definition.isMagazine || definition.isContainer;
       const powerResource = definition.maximumCharges === null ? null : { maximumCharges: definition.maximumCharges };
       const strategy = getItemOwnershipStrategy(runtime, exact, powerResource);
       const [stack] = await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, command.characterId), eq(campaignCharacterItem.itemId, command.itemId))).for("update");

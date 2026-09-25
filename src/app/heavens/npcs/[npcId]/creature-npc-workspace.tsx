@@ -245,13 +245,13 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
   function addSelectedItem() {
     const selected = draft.authorizedItems.find(({ id }) => id === Number(itemId));
     if (!selected) return;
-    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true, selected.powerResource) === "instance") {
+    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true, selected.powerResource) === "instance") {
       const [created] = createDraftOwnedItemInstances({
         itemId: selected.id,
         quantity: 1,
         unitCostCredits: selected.credits ?? 0,
         runtimeProfile: selected.runtimeProfile,
-        requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true,
+        requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true,
         powerResource: selected.powerResource,
         createDraftId: () => nextInstanceDraftId.current--,
       });
@@ -259,7 +259,7 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
         ...draft,
         itemInstances: [...draft.itemInstances, {
           ...created,
-          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true, selected.powerResource),
+          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true, selected.powerResource),
           acquiredAt: null,
         }],
       });

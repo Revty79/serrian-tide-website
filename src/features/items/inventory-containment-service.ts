@@ -1,0 +1,185 @@
+import "server-only";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { userRole } from "@/db/authorization-schema";
+import { campaign, campaignPlayer } from "@/db/campaign-schema";
+import { containerProfile, inventoryInstanceLocation, inventoryStackLocation } from "@/db/container-schema";
+import { campaignCharacter, campaignCharacterProfile, campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
+import { canMutateActiveHealth, canReadActiveState } from "@/features/active-state/authorization";
+import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
+import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
+import { requireSession } from "@/lib/server-access";
+import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
+import { assertOutsideCombatEquipmentHandling } from "./magazine-inventory-service";
+
+export type ContainmentTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type ContainmentCommand = {
+  characterId: number;
+  expectedCommerceVersion: number;
+  fromContainerInstanceId: number | null;
+  toContainerInstanceId: number | null;
+} & ({ kind: "stack"; itemId: number; quantity: number } | { kind: "instance"; instanceId: number });
+
+function positive(value: number, label: string) {
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be a positive whole number.`);
+}
+
+async function access(tx: ContainmentTransaction, characterId: number, userId: string, mutate: boolean) {
+  positive(characterId, "Character identity");
+  const [entity] = await tx.select({ playerUserId: campaignCharacter.playerUserId, isNpc: campaignCharacter.isNpc,
+    campaignOwnerUserId: campaign.createdByUserId, member: campaignPlayer.userId,
+    archived: campaignCharacter.archivedAt, campaignArchived: campaign.archivedAt }).from(campaignCharacter)
+    .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId))
+    .leftJoin(campaignPlayer, and(eq(campaignPlayer.campaignId, campaign.id), eq(campaignPlayer.userId, userId)))
+    .where(eq(campaignCharacter.id, characterId));
+  const roles = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, userId));
+  const subject = { userId, roles: roles.map(row => row.role) };
+  if (!entity || !(mutate ? canMutateActiveHealth : canReadActiveState)(subject, { ...entity, isCampaignMember: entity.member === userId })) {
+    throw new Error("You do not have permission to manage this Character's inventory locations.");
+  }
+  if (mutate && (entity.archived || entity.campaignArchived)) throw new Error("Restore the Campaign and Character before moving inventory.");
+}
+
+async function snapshot(tx: ContainmentTransaction, characterId: number) {
+  const [profile] = await tx.select({ commerceVersion: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)
+    .where(eq(campaignCharacterProfile.characterId, characterId));
+  if (!profile) throw new Error("Character profile not found.");
+  const stackRows = await tx.select().from(campaignCharacterItem).where(eq(campaignCharacterItem.characterId, characterId)).orderBy(asc(campaignCharacterItem.itemId));
+  const stackLocations = await tx.select().from(inventoryStackLocation).where(eq(inventoryStackLocation.characterId, characterId)).orderBy(asc(inventoryStackLocation.containerInstanceId));
+  const copies = await tx.select({ instanceId: campaignCharacterItemInstance.id, itemId: campaignCharacterItemInstance.itemId,
+    isContainer: sql<boolean>`${containerProfile.itemId} is not null`, containerInstanceId: inventoryInstanceLocation.containerInstanceId,
+  }).from(campaignCharacterItemInstance)
+    .leftJoin(containerProfile, eq(containerProfile.itemId, campaignCharacterItemInstance.itemId))
+    .leftJoin(inventoryInstanceLocation, eq(inventoryInstanceLocation.instanceId, campaignCharacterItemInstance.id))
+    .where(and(eq(campaignCharacterItemInstance.characterId, characterId), isNull(campaignCharacterItemInstance.retiredAt)))
+    .orderBy(asc(campaignCharacterItemInstance.id));
+  const stacks = stackRows.map(row => {
+    const allocations = stackLocations.filter(location => location.itemId === row.itemId)
+      .map(({ containerInstanceId, quantity }) => ({ containerInstanceId, quantity }));
+    const looseQuantity = row.quantity - allocations.reduce((total, location) => total + location.quantity, 0);
+    if (looseQuantity < 0) throw new Error("Invalid contained stack quantity; inventory locations need repair.");
+    return { itemId: row.itemId, ownedQuantity: row.quantity, looseQuantity, allocations };
+  });
+  return { characterId, commerceVersion: profile.commerceVersion, stacks, instances: copies };
+}
+
+export type InventoryContainmentView = Awaited<ReturnType<typeof snapshot>>;
+
+/** Character row locks give multi-query reads one consistent graph with ownership. */
+export async function readInventoryContainmentInTransaction(tx: ContainmentTransaction, userId: string, characterId: number) {
+  await access(tx, characterId, userId, false);
+  await tx.select({ id: campaignCharacter.id }).from(campaignCharacter).where(eq(campaignCharacter.id, characterId)).for("share");
+  return snapshot(tx, characterId);
+}
+
+function container(view: InventoryContainmentView, instanceId: number) {
+  const copy = view.instances.find(row => row.instanceId === instanceId);
+  if (!copy?.isContainer) throw new Error("Choose an active, owned container copy belonging to this Character.");
+  return copy;
+}
+
+/** Immediate parent first, followed by each ancestor up to the Character. */
+export function resolveContainmentAncestry(view: InventoryContainmentView, instanceId: number): number[] {
+  const copy = view.instances.find(row => row.instanceId === instanceId);
+  if (!copy) throw new Error("Choose an active exact copy owned by this Character.");
+  const seen = new Set([instanceId]);
+  const ancestors: number[] = [];
+  let parentId = copy.containerInstanceId;
+  while (parentId !== null) {
+    if (seen.has(parentId)) throw new Error("Circular containment and self-containment are not allowed.");
+    seen.add(parentId);
+    ancestors.push(parentId);
+    parentId = container(view, parentId).containerInstanceId;
+  }
+  return ancestors;
+}
+
+export async function readItemLocationInTransaction(tx: ContainmentTransaction, userId: string, characterId: number,
+  owned: { kind: "instance"; instanceId: number } | { kind: "stack"; itemId: number }) {
+  const view = await readInventoryContainmentInTransaction(tx, userId, characterId);
+  const location = owned.kind === "instance" ? view.instances.find(row => row.instanceId === owned.instanceId)
+    : view.stacks.find(row => row.itemId === owned.itemId);
+  if (!location) throw new Error("That Item is not currently owned by this Character.");
+  return location;
+}
+
+export async function readContainerContentsInTransaction(tx: ContainmentTransaction, userId: string, characterId: number, containerInstanceId: number) {
+  const view = await readInventoryContainmentInTransaction(tx, userId, characterId);
+  container(view, containerInstanceId);
+  resolveContainmentAncestry(view, containerInstanceId);
+  return {
+    instances: view.instances.filter(row => row.containerInstanceId === containerInstanceId),
+    stacks: view.stacks.flatMap(row => row.allocations.filter(allocation => allocation.containerInstanceId === containerInstanceId)
+      .map(allocation => ({ itemId: row.itemId, quantity: allocation.quantity }))),
+  };
+}
+
+/** null means loose. Explicit source plus the inventory version makes stale/repeated moves fail closed. */
+export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand) {
+  await access(tx, command.characterId, userId, true);
+  if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before moving its contents.");
+  for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) positive(id, "Container identity");
+  if (command.fromContainerInstanceId === command.toContainerInstanceId) throw new Error("Choose a different inventory location.");
+  if (command.kind !== "instance" && command.kind !== "stack") throw new Error("Choose an owned stack or exact copy.");
+  await assertCharacterCombatWritableInTransaction(tx, command.characterId);
+  await assertOutsideCombatEquipmentHandling(tx, command.characterId);
+  await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  await access(tx, command.characterId, userId, true);
+  const [profile] = await tx.select({ version: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)
+    .where(eq(campaignCharacterProfile.characterId, command.characterId)).for("update");
+  if (!profile || profile.version !== command.expectedCommerceVersion) throw new Error("Inventory changed or this move already completed. Reload before moving contents.");
+  const view = await snapshot(tx, command.characterId);
+  const target = command.toContainerInstanceId === null ? null : container(view, command.toContainerInstanceId);
+  if (target) resolveContainmentAncestry(view, target.instanceId);
+  if (command.fromContainerInstanceId !== null) container(view, command.fromContainerInstanceId);
+
+  if (command.kind === "instance") {
+    positive(command.instanceId, "Exact copy identity");
+    const owned = view.instances.find(row => row.instanceId === command.instanceId);
+    if (!owned) throw new Error("Choose an active exact copy owned by this Character.");
+    resolveContainmentAncestry(view, owned.instanceId);
+    if (owned.containerInstanceId !== command.fromContainerInstanceId) throw new Error("This copy's location changed. Reload before moving it.");
+    if (target && (target.instanceId === owned.instanceId || resolveContainmentAncestry(view, target.instanceId).includes(owned.instanceId))) {
+      throw new Error("Circular containment and self-containment are not allowed.");
+    }
+    if (!target) await tx.delete(inventoryInstanceLocation).where(eq(inventoryInstanceLocation.instanceId, owned.instanceId));
+    else await tx.insert(inventoryInstanceLocation).values({ characterId: command.characterId, instanceId: owned.instanceId, itemId: owned.itemId,
+      containerInstanceId: target.instanceId, containerItemId: target.itemId }).onConflictDoUpdate({ target: inventoryInstanceLocation.instanceId,
+      set: { containerInstanceId: target.instanceId, containerItemId: target.itemId } });
+  } else {
+    positive(command.itemId, "Item identity");
+    positive(command.quantity, "Stack quantity");
+    const owned = view.stacks.find(row => row.itemId === command.itemId);
+    if (!owned) throw new Error("This Character does not own that stack.");
+    const sourceQuantity = command.fromContainerInstanceId === null ? owned.looseQuantity
+      : owned.allocations.find(row => row.containerInstanceId === command.fromContainerInstanceId)?.quantity ?? 0;
+    if (command.quantity > sourceQuantity) throw new Error("Not enough owned stack quantity remains at the selected location.");
+    const locationWhere = (containerInstanceId: number) => and(eq(inventoryStackLocation.characterId, command.characterId),
+      eq(inventoryStackLocation.itemId, command.itemId), eq(inventoryStackLocation.containerInstanceId, containerInstanceId));
+    // Remove from the source first, inside this transaction; any target failure rolls everything back.
+    if (command.fromContainerInstanceId !== null) {
+      if (sourceQuantity === command.quantity) await tx.delete(inventoryStackLocation).where(locationWhere(command.fromContainerInstanceId));
+      else await tx.update(inventoryStackLocation).set({ quantity: sourceQuantity - command.quantity }).where(locationWhere(command.fromContainerInstanceId));
+    }
+    if (target) {
+      const current = owned.allocations.find(row => row.containerInstanceId === target.instanceId);
+      if (current) await tx.update(inventoryStackLocation).set({ quantity: current.quantity + command.quantity }).where(locationWhere(target.instanceId));
+      else await tx.insert(inventoryStackLocation).values({ characterId: command.characterId, itemId: command.itemId,
+        containerInstanceId: target.instanceId, containerItemId: target.itemId, quantity: command.quantity });
+    }
+  }
+  await tx.update(campaignCharacterProfile).set({ commerceVersion: profile.version + 1, updatedAt: new Date() })
+    .where(eq(campaignCharacterProfile.characterId, command.characterId));
+  await publishCharacterStateInvalidationInTransaction(tx, command.characterId);
+  return snapshot(tx, command.characterId);
+}
+
+export async function readInventoryContainment(characterId: number) {
+  const session = await requireSession();
+  return db.transaction(tx => readInventoryContainmentInTransaction(tx, session.user.id, characterId));
+}
+
+export async function moveInventoryContent(command: ContainmentCommand) {
+  const session = await requireSession();
+  return db.transaction(tx => moveInventoryContentInTransaction(tx, session.user.id, command));
+}

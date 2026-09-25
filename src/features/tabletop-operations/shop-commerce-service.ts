@@ -207,6 +207,7 @@ type ItemDefinition = Readonly<{
   powerResource: { maximumCharges: number; rechargeNotes: string } | null;
   isFirearm: boolean;
   isMagazine?: boolean;
+  isContainer?: boolean;
 }>;
 
 const MONEY_EPSILON = 0.000001;
@@ -490,6 +491,7 @@ async function loadItemDefinitions(
     weaponProfileRecordType: weaponProfile.profileRecordType,
     ammunitionItemId: weaponProfile.ammunitionItemId,
     isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
+    isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
     isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from weapon_firing_modes where weapon_firing_modes.weapon_profile_id = ${weaponProfile.id})), false)`,
   }).from(campaignInventoryItem)
     .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
@@ -518,6 +520,7 @@ async function loadItemDefinitions(
     powerResource: row.powerMaximumCharges === null ? null : { maximumCharges: row.powerMaximumCharges, rechargeNotes: row.powerRechargeNotes ?? "" },
     isFirearm: row.isFirearm,
     isMagazine: row.isMagazine,
+    isContainer: row.isContainer,
   }]));
 }
 
@@ -534,7 +537,7 @@ function runtimeProfile(definition: ItemDefinition) {
 }
 
 function ownershipStrategy(definition: ItemDefinition): "stack" | "instance" {
-  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true, definition.powerResource);
+  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true || definition.isContainer === true, definition.powerResource);
 }
 
 type LockedCommerceContext = Readonly<{
@@ -874,7 +877,7 @@ async function createOwnedInstance(
     itemId: input.definition.id,
     currentCharges: input.currentCharges ?? getStartingItemInstanceCharges(
       runtimeProfile(input.definition),
-      input.definition.isFirearm === true || input.definition.isMagazine === true,
+      input.definition.isFirearm === true || input.definition.isMagazine === true || input.definition.isContainer === true,
       input.definition.powerResource,
     ),
     unitCostCredits: input.unitCostCredits,

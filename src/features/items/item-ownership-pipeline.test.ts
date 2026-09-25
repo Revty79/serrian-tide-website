@@ -56,7 +56,7 @@ test("Creature NPCs share campaignCharacter instance ownership and preserve curr
   assert.match(actions, /campaignCharacterItemInstance/);
   assert.match(actions, /powerMaximumCharges: itemPowerResource\.maximumCharges/);
   assert.match(actions, /existing\.currentCharges !== entry\.currentCharges/);
-  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm === true \|\| source\.isMagazine === true, source\.powerResource\)/);
+  assert.match(actions, /getStartingItemInstanceCharges\(source\.runtimeProfile, source\.isFirearm === true \|\| source\.isMagazine === true \|\| source\.isContainer === true, source\.powerResource\)/);
   assert.match(actions, /powerResource: entry\.powerMaximumCharges === null/);
   assert.match(actions, /requiresExactInstance: source\.isFirearm/);
   assert.match(actions, /existingInstanceIds: current\.itemInstances\.flatMap/);
