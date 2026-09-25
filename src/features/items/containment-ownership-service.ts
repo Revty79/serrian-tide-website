@@ -1,9 +1,16 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { db } from "@/db";
 import { inventoryInstanceLocation, inventoryStackLocation } from "@/db/container-schema";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Caller verifies ownership and holds the Character lock before specialized handling. */
+export async function assertInstanceLooseInTransaction(tx: Transaction, characterId: number, instanceId: number, message: string) {
+  const [location] = await tx.select({ id: inventoryInstanceLocation.instanceId }).from(inventoryInstanceLocation)
+    .where(and(eq(inventoryInstanceLocation.characterId, characterId), eq(inventoryInstanceLocation.instanceId, instanceId)));
+  if (location) throw new Error(message);
+}
 
 /** Caller holds the shared Character lock. SQL triggers backstop every other writer. */
 export async function validateContainmentOwnershipMutationInTransaction(tx: Transaction, input: {

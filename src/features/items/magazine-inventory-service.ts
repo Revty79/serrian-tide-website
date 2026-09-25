@@ -10,6 +10,8 @@ import { campaignCharacter, campaignCharacterProfile, campaignCharacterItem as l
 import { campaignSessionEncounter as encounter, campaignSessionEncounterParticipant as participant } from "@/db/tabletop-operations-schema";
 import { canMutateActiveHealth, canReadActiveState } from "@/features/active-state/authorization";
 import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
+import { inventoryInstanceLocation } from "@/db/container-schema";
+import { assertInstanceLooseInTransaction } from "./containment-ownership-service";
 export type MagazineTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type MagazineCommand = { characterId: number; instanceId: number; requestKey: string; operation: "fill" | "add" | "empty"; ammunitionItemId: number | null; rounds: number | null; expectedRounds: number; expectedAmmunitionItemId: number | null };
 
@@ -40,9 +42,11 @@ export async function readMagazineInventoryInTransaction(tx: MagazineTransaction
   const canManage = await access(tx, characterId, userId, false);
   const instances = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, capacity: magazineProfile.capacityRounds,
     fillInitiativeCostPerRound: magazineProfile.fillInitiativeCostPerRound,
-    loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, archived: item.archivedAt, attachedWeaponInstanceId: firearmMagazineAttachment.weaponInstanceId }).from(copy)
+    loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, archived: item.archivedAt, attachedWeaponInstanceId: firearmMagazineAttachment.weaponInstanceId,
+    containerInstanceId: inventoryInstanceLocation.containerInstanceId }).from(copy)
     .innerJoin(item, eq(item.id, copy.itemId)).innerJoin(magazineProfile, eq(magazineProfile.itemId, copy.itemId))
     .leftJoin(firearmMagazineAttachment, eq(firearmMagazineAttachment.magazineInstanceId, copy.id))
+    .leftJoin(inventoryInstanceLocation, eq(inventoryInstanceLocation.instanceId, copy.id))
     .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt))).orderBy(asc(copy.id));
   const magazines = [];
   for (const entry of instances) {
@@ -71,6 +75,7 @@ export async function handleMagazineInTransaction(tx: MagazineTransaction, userI
   if (!owned) throw new Error("That magazine copy is not owned by this character.");
   const [attached] = await tx.select().from(firearmMagazineAttachment).where(eq(firearmMagazineAttachment.magazineInstanceId, owned.id));
   if (attached) throw new Error(`Remove this magazine from firearm copy #${attached.weaponInstanceId} before filling or emptying it.`);
+  await assertInstanceLooseInTransaction(tx, command.characterId, owned.id, "Move this magazine to Loose before filling or emptying it.");
   const [model] = await tx.select({ capacity: magazineProfile.capacityRounds, archived: item.archivedAt }).from(item)
     .innerJoin(magazineProfile, eq(magazineProfile.itemId, item.id)).where(eq(item.id, owned.itemId)).for("share", { of: item });
   if (!model) throw new Error("That copy is not a magazine.");

@@ -244,6 +244,8 @@ test("container acquisition uses existing commerce and magazine ammunition stays
     assert.deepEqual(contents.stacks, []);
     assert.equal((await view(f)).stacks.find(row => row.itemId === f.stackItemId).ownedQuantity, 8);
     assert.equal((await one("select loaded_rounds from campaign_character_item_instance where id=$1", [magazine])).loaded_rounds, 2);
+    await assert.rejects(handle("empty", null, 2), /Move this magazine to Loose/);
+    await exactMove(f, magazine, f.b, null);
     await handle("empty", null, 2);
     const stack = (await view(f)).stacks.find(row => row.itemId === f.stackItemId);
     assert.equal(stack.ownedQuantity, 10);

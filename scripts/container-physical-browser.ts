@@ -11,7 +11,7 @@ async function until(check: () => Promise<boolean>, label: string) {
   while (Date.now() < deadline) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 150)); }
   throw new Error(`Timed out: ${label}`);
 }
-type Fixture = { godId: string; heroId: number; campaignId: number; encounterId: number; backpackId: number; pouchId: number; suppliesId: number; exactItemId: number; a: number; b: number; pouch: number; exact: number };
+type Fixture = { godId: string; heroId: number; campaignId: number; encounterId: number; backpackId: number; pouchId: number; suppliesId: number; exactItemId: number; a: number; b: number; pouch: number; exact: number; mag: number; gun: number };
 export async function runContainerPhysicalBrowser(f: Fixture) {
   assert.match(process.env.DATABASE_URL ?? "", /^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_containment_dev$/);
   const listener = createServer(); await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve));
@@ -62,6 +62,23 @@ export async function runContainerPhysicalBrowser(f: Fixture) {
       await until(async () => { const location = (await pool.query("select container_instance_id from inventory_instance_location where instance_id=$1", [id])).rows[0]; return (location?.container_instance_id ?? null) === to; }, "exact mutation persisted");
       await until(async () => !(await entry.getByRole("button", { name: "Moving…", exact: true }).count()), "exact controls available");
     };
+    await page.getByText("Magazine & Firearm Setup", { exact: true }).click();
+    await moveCopy(f.mag, f.a);
+    const magazineSetup = page.locator(".magazine-panel fieldset").filter({ hasText: `Copy #${f.mag}` });
+    const firearmSetup = page.getByRole("region", { name: "Firearm equipment setup" });
+    const magazineOption = firearmSetup.getByLabel("Prepared magazine").locator(`option[value="${f.mag}"]`);
+    await until(async () => (await magazineOption.getAttribute("disabled")) !== null, "contained magazine is unavailable for setup");
+    assert.match(await magazineOption.innerText(), /contained: move to Loose/);
+    await magazineSetup.getByText("Move this magazine to Loose in Inventory before filling or emptying it.", { exact: true }).waitFor();
+    assert.equal(await magazineSetup.getByRole("button", { name: "Add rounds", exact: true }).isDisabled(), true);
+    await moveCopy(f.mag, null);
+    await until(async () => (await magazineOption.getAttribute("disabled")) === null, "retrieved magazine is available without reload");
+    await until(async () => !(await magazineSetup.getByRole("button", { name: "Add rounds", exact: true }).isDisabled()), "retrieved magazine may be filled");
+    await moveCopy(f.gun, f.a);
+    await firearmSetup.getByText("Move this firearm to Loose in Inventory before loading, unloading, or changing its magazine.", { exact: true }).waitFor();
+    await firearmSetup.screenshot({ path: `${artifacts}/specialized-setup.png` });
+    await moveCopy(f.gun, null);
+    console.log("PASS: contained specialized copies show unavailable controls; retrieval refreshes them without reload");
     await moveStack(null, f.a, 4);
     await until(async () => (await pool.query("select quantity from inventory_stack_location where character_id=$1 and item_id=$2 and container_instance_id=$3", [f.heroId, f.suppliesId, f.a])).rows[0]?.quantity === 4, "partial stack persisted");
     await moveStack(null, f.b, 3);

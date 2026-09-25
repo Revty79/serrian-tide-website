@@ -28,7 +28,8 @@ import { AMMUNITION_WEAPON_TYPES, isSupportedAmmunitionWeaponType } from "@/feat
 import { ammunitionSelectionInitiativeCost, resolveAmmunitionWeaponMode } from "@/features/items/projectile-combat";
 import { readEffectiveFirearmState, readCompatibleMagazineCopies, swapFirearmMagazine, validateMagazineSwap } from "@/features/items/firearm-magazine-service";
 import { firearmMagazineAttachment } from "@/db/magazine-schema";
-import { setInstanceEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
+import { lockEquipmentStateCharacterInTransaction, setInstanceEquipmentStateInTransaction } from "@/features/items/equipment-state-service";
+import { assertInstanceLooseInTransaction } from "@/features/items/containment-ownership-service";
 import { getStartingItemInstanceCharges } from "@/features/items/item-ownership";
 import { itemPowerResource } from "@/db/item-schema";
 
@@ -573,6 +574,8 @@ async function progressSingleLoading(tx: FirearmReadinessTransaction, preparatio
   const reached = Math.min(loading.requestedRounds, loading.costPerRound === 0 ? loading.requestedRounds : completedDecimalUnits(initiativeSpent, loading.costPerRound));
   const inserted = reached - preparation.roundsCompleted;
   if (inserted <= 0) return;
+  await lockEquipmentStateCharacterInTransaction(tx, preparation.characterId);
+  await assertInstanceLooseInTransaction(tx, preparation.characterId, preparation.itemInstanceId, "Move this firearm to Loose before loading it.");
   const state = await lockState(tx, { campaignId: preparation.campaignId, sessionId: preparation.sessionId, sceneId: preparation.sceneId,
     encounterId: preparation.encounterId, ownerUserId: actorUserId, encounterStatus: "active", sceneStatus: "active", sessionStatus: "active" }, preparation.characterId, preparation.itemInstanceId);
   if (state.version !== preparation.stateVersion) throw new Error("The firearm changed during Single loading. Resolve the preparation before continuing.");
@@ -615,6 +618,8 @@ async function completeFirearmPreparationById(
       )).limit(1);
     if (openOpportunity) return false;
   }
+  await lockEquipmentStateCharacterInTransaction(tx, preparation.characterId);
+  await assertInstanceLooseInTransaction(tx, preparation.characterId, preparation.itemInstanceId, "Move this firearm to Loose before preparing it.");
   const state = await lockState(tx, {
     campaignId: preparation.campaignId,
     sessionId: preparation.sessionId,
@@ -786,7 +791,9 @@ async function startFirearmPreparationInternal(
     return { preparationId: reused.id, status: reused.status, pendingActionId: reused.pendingActionId, reused: true };
   }
 
+  await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
   const state = await lockState(tx, context, command.characterId, command.itemInstanceId);
+  await assertInstanceLooseInTransaction(tx, command.characterId, state.itemInstanceId, "Move this firearm to Loose before preparing it.");
   const { campaignSessionEncounterFirearmAttack, campaignSessionEncounterPendingAction } = await import("@/db/tabletop-operations-schema");
   const [firing] = await tx.select({ id: campaignSessionEncounterFirearmAttack.id }).from(campaignSessionEncounterFirearmAttack)
     .innerJoin(campaignSessionEncounterPendingAction, eq(campaignSessionEncounterPendingAction.id, campaignSessionEncounterFirearmAttack.triggerPendingActionId))

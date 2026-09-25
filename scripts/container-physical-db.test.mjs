@@ -20,6 +20,11 @@ const catalog = await import("../src/app/heavens/items/actions.ts");
 const { emptyContainerPhysicalProfile } = await import("../src/features/items/container-physics.ts");
 const equipment = await import("../src/features/items/equipment-state-service.ts");
 const { handleMagazineInTransaction } = await import("../src/features/items/magazine-inventory-service.ts");
+const { prepareCharacterFirearm, readCharacterFirearmSetup } = await import("../src/features/items/firearm-setup-service.ts");
+const { startCombatMagazineFill } = await import("../src/features/tabletop-operations/combat-magazine-fill-service.ts");
+const { startFirearmPreparationInTransaction } = await import("../src/features/tabletop-operations/firearm-readiness-service.ts");
+const { lockOwnedEncounterRuntimeInTransaction, loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } = await import("../src/features/tabletop-operations/runtime-integration-service.ts");
+const { advanceInitiativeTimeline } = await import("../src/features/tabletop-operations/initiative-runtime.ts");
 const { getCharacter, saveCharacter } = await import("../src/app/characters/actions.ts");
 const { characterAggregateToDraft } = await import("../src/features/characters/character-rules.ts");
 after(() => pool.end());
@@ -211,7 +216,7 @@ test("mundane container mutations, physical authoring and permissions", async t 
   });
 });
 
-test("specialized firearm and magazine physical weights preserve every runtime field", async t => {
+async function specializedFixture() {
   const f = await fixture(), ammoId = await f.createItem("Cartridges", 0.1, 0.01, 3), magId = await f.createItem("Magazine", 1, 0.3, 12), gunId = await f.createItem("Rifle", 7, 4, 50);
   await pool.query("insert into magazine_profiles(item_id,capacity_rounds) values($1,10)", [magId]);
   await pool.query("insert into magazine_ammunition(magazine_item_id,ammunition_item_id) values($1,$2)", [magId, ammoId]);
@@ -222,6 +227,11 @@ test("specialized firearm and magazine physical weights preserve every runtime f
   const mag = await f.copy(magId), spare = await f.copy(magId), gun = await f.copy(gunId);
   await pool.query("insert into campaign_character_item(character_id,item_id,quantity,unit_cost_credits) values($1,$2,30,2)", [f.heroId, ammoId]);
   await pool.query("insert into campaign_character_firearm_state(item_instance_id,campaign_id,character_id,item_id,weapon_profile_id,selected_firing_mode_id,initialization_key,initialized_by_user_id,updated_by_user_id,readiness_mode,readiness_mode_source,readied) values($1,$2,$3,$4,$5,$6,'physical-fixture',$7,$7,'draw-is-ready','canonical',true)", [gun, f.campaignId, f.heroId, gunId, gunProfile, mode, f.godId]);
+  return { ...f, ammoId, magId, gunId, ammoProfile, gunProfile, mode, mag, spare, gun };
+}
+
+test("specialized firearm and magazine physical weights preserve every runtime field", async t => {
+  const f = await specializedFixture(), { ammoId, magId, ammoProfile, gunProfile, gunId, mag, spare, gun } = f;
   const fill = (instanceId, rounds) => db.transaction(tx => handleMagazineInTransaction(tx, f.godId, { characterId: f.heroId, instanceId, operation: "add", expectedRounds: 0, expectedAmmunitionItemId: null, ammunitionItemId: ammoId, rounds, requestKey: crypto.randomUUID() }));
   const weight = () => view(f).then(result => result.carriedWeight.known);
   const initialWeight = await weight();
@@ -275,8 +285,139 @@ test("specialized firearm and magazine physical weights preserve every runtime f
   });
 });
 
+async function accessFixture() {
+  const f = await specializedFixture();
+  await pool.query("update campaign_character set is_npc=true,npc_kind='race',npc_build_mode='detailed' where id=$1", [f.heroId]);
+  await pool.query("update weapon_profiles set capacity_rounds=10,reload_initiative_cost=0,unload_initiative_cost=0,draw_initiative_cost=0 where id=$1", [f.gunProfile]);
+  await pool.query("update campaign_character_firearm_state set capacity_rounds=10,capacity_source='canonical' where item_instance_id=$1", [f.gun]);
+  await pool.query("update magazine_profiles set fill_initiative_cost_per_round=0 where item_id=$1", [f.magId]);
+  const state = () => one("select * from campaign_character_firearm_state where item_instance_id=$1", [f.gun]);
+  const setup = async (operation, extra = {}) => db.transaction(async tx => prepareCharacterFirearm(tx, f.godId, {
+    characterId: f.heroId, instanceId: f.gun, operation, expectedVersion: (await state()).version, requestKey: crypto.randomUUID(), ...extra }));
+  const handle = async (instanceId, operation, rounds = 1) => {
+    const current = await one("select loaded_rounds,loaded_ammunition_item_id from campaign_character_item_instance where id=$1", [instanceId]);
+    return db.transaction(tx => handleMagazineInTransaction(tx, f.godId, { characterId: f.heroId, instanceId, operation, rounds,
+      ammunitionItemId: operation === "empty" ? null : f.ammoId, expectedRounds: current.loaded_rounds,
+      expectedAmmunitionItemId: current.loaded_ammunition_item_id, requestKey: crypto.randomUUID() }));
+  };
+  const combat = enabled => pool.query("update campaign_session_encounter set status=$2::campaign_session_encounter_status,completed_at=case when $2::campaign_session_encounter_status='active' then null else now() end where id=$1", [f.encounterId, enabled ? "active" : "completed"]);
+  const prepare = (operation, extra = {}) => db.transaction(async tx => startFirearmPreparationInTransaction(tx,
+    await lockOwnedEncounterRuntimeInTransaction(tx, f.encounterId, f.godId), f.godId,
+    { characterId: f.heroId, itemInstanceId: f.gun, operation, idempotencyKey: crypto.randomUUID(), ...extra }));
+  const fillInCombat = (rounds = 1) => db.transaction(async tx => startCombatMagazineFill(tx,
+    await lockOwnedEncounterRuntimeInTransaction(tx, f.encounterId, f.godId), { authority: "god-owner", userId: f.godId },
+    { characterId: f.heroId, instanceId: f.mag, ammunitionItemId: f.ammoId, rounds, requestKey: crypto.randomUUID() }));
+  return { ...f, setup, state, handle, combat, prepare, fillInCombat };
+}
+const accessSnapshot = async f => {
+  const result = await snapshot(f);
+  for (const table of ["magazine_inventory_operation", "campaign_character_firearm_preparation", "campaign_character_firearm_event"]) {
+    result[table] = await rows(`select to_jsonb(t) row from ${table} t where character_id=$1 order by to_jsonb(t)::text`, [f.heroId]);
+  }
+  for (const table of ["campaign_session_encounter_action_declaration", "campaign_session_encounter_pending_action", "campaign_session_encounter_initiative", "campaign_session_encounter_initiative_participant"]) {
+    result[table] = await rows(`select to_jsonb(t) row from ${table} t where encounter_id=$1 order by to_jsonb(t)::text`, [f.encounterId]);
+  }
+  return result;
+};
+const expectUnchanged = async (f, action, message) => {
+  const before = await accessSnapshot(f); await assert.rejects(action(), message); assert.deepEqual(await accessSnapshot(f), before);
+};
+const staleLocation = (f, instanceId, itemId) => pool.query("insert into inventory_instance_location(instance_id,character_id,item_id,container_instance_id,container_item_id) values($1,$2,$3,$4,$5)", [instanceId, f.heroId, itemId, f.a, f.backpackId]);
+
+test("specialized manipulation requires Loose copies and safely normalizes contradictory Pass 2 attachment history", async t => {
+  await t.test("contained attachment fails unchanged; loose attach/detach preserves rounds and creates no locations", async () => {
+    const f = await accessFixture(); await f.handle(f.mag, "add", 4); await exactMove(f, f.mag, null, f.a);
+    await expectUnchanged(f, () => f.setup("magazine", { magazineInstanceId: f.mag }), /Move this magazine to Loose before attaching/);
+    const setupView = await db.transaction(tx => readCharacterFirearmSetup(tx, f.heroId, f.godId));
+    assert.equal(setupView.firearms[0].magazines.find(row => row.instanceId === f.mag).containerInstanceId, f.a);
+    await exactMove(f, f.mag, f.a, null);
+    const before = await snapshot(f); await f.setup("magazine", { magazineInstanceId: f.mag });
+    assert.deepEqual((await snapshot(f)).inventory_instance_location, before.inventory_instance_location);
+    await f.setup("magazine", { magazineInstanceId: null });
+    assert.deepEqual((await snapshot(f)).inventory_instance_location, before.inventory_instance_location);
+    assert.equal((await one("select loaded_rounds from campaign_character_item_instance where id=$1", [f.mag])).loaded_rounds, 4);
+  });
+  for (const operation of ["fill", "add", "empty"]) await t.test(`contained magazine cannot ${operation}; moving it Loose enables the existing operation`, async () => {
+    const f = await accessFixture(); await f.handle(f.mag, "add", 3); await exactMove(f, f.mag, null, f.a);
+    await expectUnchanged(f, () => f.handle(f.mag, operation), /Move this magazine to Loose before filling or emptying/);
+    await exactMove(f, f.mag, f.a, null); await f.handle(f.mag, operation);
+    assert.equal((await one("select loaded_rounds from campaign_character_item_instance where id=$1", [f.mag])).loaded_rounds, operation === "fill" ? 10 : operation === "add" ? 4 : 0);
+  });
+  for (const operation of ["load", "unload", "attach", "detach", "swap"]) await t.test(`contained firearm cannot ${operation} through setup`, async () => {
+    const f = await accessFixture();
+    if (["load", "unload"].includes(operation)) {
+      await pool.query("update weapon_profiles set reload_type='Single' where id=$1", [f.gunProfile]);
+      if (operation === "unload") await f.setup("load", { rounds: 3 });
+    } else if (["detach", "swap"].includes(operation)) await f.setup("magazine", { magazineInstanceId: f.mag });
+    const run = () => ["load", "unload"].includes(operation) ? f.setup(operation, { rounds: 1 }) : f.setup("magazine", { magazineInstanceId: operation === "detach" ? null : operation === "swap" ? f.spare : f.mag });
+    await exactMove(f, f.gun, null, f.a);
+    await expectUnchanged(f, run, /Move this firearm to Loose/);
+    await exactMove(f, f.gun, f.a, null); await run();
+  });
+  await t.test("stale attached locations normalize only on valid loose detach; stored assembly preserves all physical/runtime data", async () => {
+    const f = await accessFixture(); await f.handle(f.mag, "add", 8); await f.setup("magazine", { magazineInstanceId: f.mag });
+    await staleLocation(f, f.mag, f.magId);
+    const before = await snapshot(f), weight = (await view(f)).carriedWeight;
+    await exactMove(f, f.gun, null, f.a);
+    const stored = await snapshot(f), physical = await view(f);
+    for (const table of ["campaign_character_item", "campaign_character_item_instance", "campaign_character_firearm_state", "firearm_magazine_attachment"]) assert.deepEqual(stored[table], before[table]);
+    assert.equal(physical.containers.find(row => row.instanceId === f.a).contentsWeight.known, 8.8);
+    assert.deepEqual(physical.carriedWeight, weight);
+    await expectUnchanged(f, () => f.setup("magazine", { magazineInstanceId: null }), /Move this firearm to Loose/);
+    await exactMove(f, f.gun, f.a, null);
+    await exactMove(f, f.spare, null, f.b);
+    await expectUnchanged(f, () => f.setup("magazine", { magazineInstanceId: f.spare }), /Move this magazine to Loose/);
+    await f.setup("magazine", { magazineInstanceId: null });
+    assert.equal((await view(f)).instances.find(row => row.instanceId === f.mag).containerInstanceId, null);
+    assert.equal((await view(f)).instances.find(row => row.instanceId === f.spare).containerInstanceId, f.b);
+    assert.equal((await view(f)).containers.find(row => row.instanceId === f.a).contentsWeight.known, 0);
+    assert.deepEqual((await view(f)).carriedWeight, weight);
+  });
+  await t.test("combat filling rejects contained magazines without spending Initiative; Loose filling works", async () => {
+    const f = await accessFixture(); await exactMove(f, f.mag, null, f.a); await f.combat(true);
+    await expectUnchanged(f, () => f.fillInCombat(), /Move this magazine to Loose/);
+    await f.combat(false); await exactMove(f, f.mag, f.a, null); await f.combat(true);
+    assert.equal((await f.fillInCombat()).status, "completed");
+    assert.equal((await one("select loaded_rounds from campaign_character_item_instance where id=$1", [f.mag])).loaded_rounds, 1);
+  });
+  await t.test("combat preparation rejects contained firearms and replacement magazines; Loose swap works", async () => {
+    const f = await accessFixture(); await exactMove(f, f.gun, null, f.a); await f.combat(true);
+    for (const operation of ["draw", "load", "reload", "unload"]) await expectUnchanged(f, () => f.prepare(operation, { magazineInstanceId: f.mag, partialLoadDisposition: "retain" }), /Move this firearm to Loose/);
+    await f.combat(false); await exactMove(f, f.gun, f.a, null); await exactMove(f, f.mag, null, f.a); await f.combat(true);
+    await expectUnchanged(f, () => f.prepare("load", { magazineInstanceId: f.mag }), /Move this magazine to Loose/);
+    await f.combat(false); await exactMove(f, f.mag, f.a, null); await f.combat(true);
+    assert.equal((await f.prepare("load", { magazineInstanceId: f.mag })).status, "completed");
+    assert.equal((await one("select magazine_instance_id from firearm_magazine_attachment where weapon_instance_id=$1", [f.gun])).magazine_instance_id, f.mag);
+  });
+  await t.test("combat detach normalizes a stale attached location without returning the magazine to its old bag", async () => {
+    const f = await accessFixture(); await f.handle(f.mag, "add", 3); await f.setup("magazine", { magazineInstanceId: f.mag });
+    await staleLocation(f, f.mag, f.magId); await f.combat(true);
+    assert.equal((await f.prepare("unload", { partialLoadDisposition: "retain" })).status, "completed");
+    assert.equal((await view(f)).instances.find(row => row.instanceId === f.mag).containerInstanceId, null);
+    assert.equal((await one("select loaded_rounds from campaign_character_item_instance where id=$1", [f.mag])).loaded_rounds, 3);
+  });
+  for (const kind of ["magazine-fill", "single-load", "swap-replacement", "swap-firearm"]) await t.test(`delayed ${kind} rechecks containment before applying specialized changes`, async () => {
+    const f = await accessFixture();
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='passed' where encounter_id=$1 and character_id<>$2", [f.encounterId, f.heroId]);
+    await pool.query("update weapon_profiles set reload_initiative_cost=2,reload_type=$2 where id=$1", [f.gunProfile, kind === "single-load" ? "Single" : "Magazine"]);
+    await pool.query("update magazine_profiles set fill_initiative_cost_per_round=2 where item_id=$1", [f.magId]);
+    await f.combat(true);
+    const started = kind === "magazine-fill" ? await f.fillInCombat() : await f.prepare("load", { requestedRounds: 1, magazineInstanceId: f.mag });
+    assert.equal(started.status, "pending");
+    const magazine = kind === "magazine-fill" || kind === "swap-replacement";
+    // Simulate retained contradictory state; normal in-combat Inventory moves are blocked.
+    await staleLocation(f, magazine ? f.mag : f.gun, magazine ? f.magId : f.gunId);
+    await expectUnchanged(f, () => db.transaction(async tx => {
+      const context = await lockOwnedEncounterRuntimeInTransaction(tx, f.encounterId, f.godId);
+      const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+      const action = before.pendingActions.find(row => row.id === started.pendingActionId);
+      await persistInitiativeEngineInTransaction(tx, context, before, advanceInitiativeTimeline(before, action.expectedCompletionInitiative));
+    }), magazine ? /Move this magazine to Loose/ : /Move this firearm to Loose/);
+  });
+});
+
 if (process.env.CONTAINMENT_BROWSER === "1") test("real Character and Item authoring browser workflows", { timeout: 300_000 }, async () => {
-  const f = await fixture();
+  const f = await specializedFixture();
   const { runContainerPhysicalBrowser } = await import("./container-physical-browser.ts");
   await runContainerPhysicalBrowser(f);
 });

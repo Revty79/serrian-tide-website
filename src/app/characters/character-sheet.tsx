@@ -375,8 +375,8 @@ export function CharacterSheet({ onInventoryVersionChange, aggregate, draft, sel
       {section === "equipment" ? <>
         <OwnedEquipmentList locations={locations} ownerDisabled={equipmentStateDisabled || aggregate.character.archivedAt !== null} aggregate={aggregate} draft={draft} equipment={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} useDisabled={itemUseDisabled || !canOperateRuntime} useDisabledReason={itemUseDisabledReason} includeEffectHistory={godMode} onEquipmentChange={onEquipmentStateChange} onEffectsChange={onActiveEffectsChange} onUseComplete={onItemUseComplete} />
         {draft.itemInstances.some(owned => aggregate.authorizedItems.some(item => item.id === owned.itemId && (item.isFirearm || item.isMagazine))) ? <details className="character-equipment-disclosure"><summary>Magazine & Firearm Setup</summary>
-          <MagazinePanel characterId={aggregate.character.id} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
-          <FirearmSetupPanel characterId={aggregate.character.id} equipmentRevision={JSON.stringify(equipmentState.instances)} disabled={equipmentStateDisabled || !canOperateRuntime} compact onChange={onItemUseComplete} />
+          <MagazinePanel characterId={aggregate.character.id} revision={String(aggregate.profile.commerceVersion)} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
+          <FirearmSetupPanel characterId={aggregate.character.id} equipmentRevision={`${aggregate.profile.commerceVersion}:${JSON.stringify(equipmentState.instances)}`} disabled={equipmentStateDisabled || !canOperateRuntime} compact onChange={onItemUseComplete} />
         </details> : null}
         {chargeState.instances.length ? <details className="character-equipment-disclosure"><summary>Charge Controls</summary>
           <ItemChargePanel state={chargeState} disabled={chargeStateDisabled || !canOperateRuntime} onChange={onChargeStateChange} />

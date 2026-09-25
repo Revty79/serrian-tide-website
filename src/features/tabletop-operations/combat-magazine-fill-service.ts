@@ -8,6 +8,7 @@ import { campaignSessionEncounterActionDeclaration as declaration, campaignSessi
   campaignSessionEncounterPendingAction as pending, campaignSessionEncounterResponderOpportunity as opportunity } from "@/db/tabletop-operations-schema";
 import { readMagazineInventoryInTransaction } from "@/features/items/magazine-inventory-service";
 import { lockEquipmentStateCharacterInTransaction } from "@/features/items/equipment-state-service";
+import { assertInstanceLooseInTransaction } from "@/features/items/containment-ownership-service";
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction, assertActionChoiceAuthority, assertInstantPreparationOpportunity, type ActionDeclarationActor } from "./action-declaration-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import { loadInitiativeEngineInTransaction, type RuntimeIntegrationTransaction as Tx, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
@@ -37,6 +38,7 @@ export async function startCombatMagazineFill(tx: Tx, context: OwnedEncounterRun
   const selected = inventory.magazines.find((entry) => entry.instanceId === command.instanceId);
   if (!selected || selected.archived) throw new Error("Choose an active, owned magazine copy.");
   if (selected.attachedWeaponInstanceId) throw new Error("Remove the magazine from its firearm before filling it.");
+  await assertInstanceLooseInTransaction(tx, command.characterId, selected.instanceId, "Move this magazine to Loose before filling it.");
   const ammo = selected.ammunition.find((entry) => entry.id === command.ammunitionItemId && !entry.archived);
   if (!ammo || ammo.quantity < command.rounds) throw new Error("Choose compatible loose ammunition and an available number of rounds.");
   if (selected.loadedRounds > 0 && selected.ammunitionItemId !== command.ammunitionItemId) throw new Error("Choose the ammunition already in this magazine; mixed loads are not supported.");
@@ -72,6 +74,8 @@ async function progressFill(tx: Tx, receiptId: number, spent: number, actionStat
   const reached = Math.min(request.rounds, request.costPerRound === 0 ? request.rounds : completedDecimalUnits(spent, request.costPerRound));
   const inserted = reached - result.roundsCompleted;
   if (inserted > 0) {
+    await lockEquipmentStateCharacterInTransaction(tx, request.characterId);
+    await assertInstanceLooseInTransaction(tx, request.characterId, request.instanceId, "Move this magazine to Loose before filling it.");
     const view = await readMagazineInventoryInTransaction(tx, request.characterId, actorUserId), selected = view.magazines.find((entry) => entry.instanceId === request.instanceId);
     if (!selected || selected.attachedWeaponInstanceId || selected.loadedRounds !== request.initialRounds + result.roundsCompleted
       || selected.loadedRounds + inserted > selected.capacity || selected.loadedRounds > 0 && selected.ammunitionItemId !== request.ammunitionItemId) throw new Error("This magazine changed during filling. Interrupt the action and review its exact contents.");

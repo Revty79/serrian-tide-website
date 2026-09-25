@@ -5,6 +5,8 @@ import { firearmMagazineAttachment as attachment, magazineProfile, weaponMagazin
 import { campaignCharacterItemInstance as copy } from "@/db/realm-schema";
 import { item, weaponProfile } from "@/db/item-schema";
 import { campaignCharacterFirearmState as firearm } from "@/db/tabletop-operations-schema";
+import { inventoryInstanceLocation as location } from "@/db/container-schema";
+import { assertInstanceLooseInTransaction } from "./containment-ownership-service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type State = typeof firearm.$inferSelect;
@@ -42,14 +44,16 @@ export async function writeFirearmAmmunitionState(tx: Tx, before: State, after: 
 
 export async function readCompatibleMagazineCopies(tx: Tx, characterId: number, weaponProfileId: number) {
   return tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, capacity: magazineProfile.capacityRounds,
-    loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, attachedWeaponInstanceId: attachment.weaponInstanceId })
+    loadedRounds: copy.loadedRounds, ammunitionItemId: copy.loadedAmmunitionItemId, attachedWeaponInstanceId: attachment.weaponInstanceId, containerInstanceId: location.containerInstanceId })
     .from(copy).innerJoin(item, eq(item.id, copy.itemId)).innerJoin(magazineProfile, eq(magazineProfile.itemId, copy.itemId))
     .innerJoin(weaponMagazine, and(eq(weaponMagazine.magazineItemId, copy.itemId), eq(weaponMagazine.weaponProfileId, weaponProfileId)))
     .leftJoin(attachment, eq(attachment.magazineInstanceId, copy.id))
+    .leftJoin(location, eq(location.instanceId, copy.id))
     .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt), isNull(item.archivedAt)));
 }
 
 export async function validateMagazineSwap(tx: Tx, state: State, replacementId: number | null) {
+  await assertInstanceLooseInTransaction(tx, state.characterId, state.itemInstanceId, "Move this firearm to Loose before attaching, removing, or swapping its magazine.");
   const [current] = await tx.select().from(attachment).where(eq(attachment.weaponInstanceId, state.itemInstanceId));
   if (!current && state.loadedRounds > 0) throw new Error("Unload the existing internal rounds before attaching a magazine. They cannot be moved into a magazine automatically.");
   if (replacementId === null) {
@@ -59,6 +63,7 @@ export async function validateMagazineSwap(tx: Tx, state: State, replacementId: 
   const replacement = (await readCompatibleMagazineCopies(tx, state.characterId, state.weaponProfileId)).find((entry) => entry.instanceId === replacementId);
   if (!replacement) throw new Error("Choose an exact owned magazine that is physically compatible with this weapon.");
   if (replacement.attachedWeaponInstanceId) throw new Error(replacement.attachedWeaponInstanceId === state.itemInstanceId ? "That magazine is already attached to this firearm." : "That magazine is attached to another firearm. Remove it there first.");
+  await assertInstanceLooseInTransaction(tx, state.characterId, replacement.instanceId, "Move this magazine to Loose before attaching it to a firearm.");
   const [filling] = await tx.select({ id: magazineInventoryOperation.id }).from(magazineInventoryOperation).where(and(eq(magazineInventoryOperation.instanceId, replacement.instanceId),
     sql`${magazineInventoryOperation.request}->>'operation' = 'combat-fill' and ${magazineInventoryOperation.result}->>'status' in ('pending','interrupted')`)).limit(1);
   if (filling) throw new Error("Finish or cancel the unfinished magazine filling action before attaching that copy.");
@@ -71,6 +76,10 @@ export async function validateMagazineSwap(tx: Tx, state: State, replacementId: 
 export async function swapFirearmMagazine(tx: Tx, state: State, replacementId: number | null) {
   const replacement = await validateMagazineSwap(tx, state, replacementId);
   if (replacement) await tx.select({ id: copy.id }).from(copy).where(eq(copy.id, replacement.instanceId)).for("update");
+  const [current] = await tx.select().from(attachment).where(eq(attachment.weaponInstanceId, state.itemInstanceId));
+  // Normalize contradictory Pass 2 history only for the already attached copy.
+  // Its physical location followed this loose firearm, not the stale container.
+  if (current) await tx.delete(location).where(and(eq(location.instanceId, current.magazineInstanceId), eq(location.characterId, state.characterId)));
   await tx.delete(attachment).where(eq(attachment.weaponInstanceId, state.itemInstanceId));
   if (replacement) await tx.insert(attachment).values({ weaponInstanceId: state.itemInstanceId, magazineInstanceId: replacement.instanceId,
     characterId: state.characterId, campaignId: state.campaignId, weaponItemId: state.itemId, weaponProfileId: state.weaponProfileId, magazineItemId: replacement.itemId });

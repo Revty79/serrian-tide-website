@@ -54,7 +54,7 @@ The Character Equipment tab shows location per row, including partial stack allo
 
 The same controls are reused in the Creature NPC's existing Inventory tab. Player organization uses existing own-Character permission, without granting owner Add/Remove privileges. G.O.D. permissions remain tied to the Campaign. Read-only and combat/Freeze states are explained visibly. Mutation responses merge only the inventory version into the current Character draft. Colors use shared semantic theme variables and new authoring controls include field guidance.
 
-## Validation
+## Original Pass 2 validation (`8ba84c4`)
 
 All database mutation tests used disposable loopback PostgreSQL clusters with automatic cleanup. No production data was modified.
 
@@ -109,8 +109,31 @@ Changed TypeScript/TSX/MJS files were linted with the repository ESLint configur
 
 Catalog dimensions, capacities, and physical forms still need deliberate authoring; this pass does not backfill or guess canon. Scalar dimensions do not model flexible bags, orientation, bulk compression, sealed packaging, or automatic fluid transfer. Category/type allowlists are authored names rather than a new taxonomy or supernatural classification system.
 
-Catalog edits and existing specialized loading operations can change the physical load of an already stored Item. Reads expose the resulting problems, future containment moves revalidate them, and unloading/moving loose can relieve them. This pass does not add capacity rules to firearm or magazine actions. General inventory rearrangement remains blocked during active combat/Freeze; retrieval Initiative and combat handling are unresolved.
+Catalog edits can change the physical load or allowed contents of an already stored Item. Reads expose the resulting problems and future containment moves revalidate them; moving loose can relieve them. The correction below requires retrieval before specialized loading or assembly changes. It does not add capacity calculations to firearm or magazine actions. General inventory rearrangement remains blocked during active combat/Freeze; retrieval Initiative and combat handling are unresolved.
 
 Before magical behavior, inspect and approve this physical baseline; decide actual magical capacity, weight, nesting, destruction and interior-space semantics from canon. Extend the profile and common physical model deliberately while preserving specialized firearm state and lifecycle cleanup. Infinite storage, magical weight reduction, preservation, living-creature suspension, refilling liquids and special destruction effects are absent.
 
-**STOP: Pass 3 requires separate user approval.**
+## Pass 2 correction: specialized handling requires Loose exact copies
+
+The review of `8ba84c4` identified that attachment and general containment could coexist in storage. The accepted physical calculator correctly gave attachment precedence, but a stale general location could reappear after detachment. Specialized filling could also change a contained copy's physical load. This separate correction closes those write paths without changing the physical model or implementing retrieval mechanics.
+
+- Outside combat, filling/adding/emptying a detached magazine requires no general containment location. A firearm must be Loose before loading, unloading, attaching, detaching, or swapping its magazine.
+- Attachment still requires an exact owned, compatible magazine detached from every other firearm. The replacement must also be Loose. Invalid replacement operations leave location, attachments, ammunition, costs, receipts, and firearm state unchanged.
+- Combat magazine filling and firearm preparation enforce the same location boundary. Delayed fill insertions, Single loading progress, and preparation/swap completion recheck location before applying changes. Rejected transactions do not spend Initiative or leave partial declarations/receipts. Existing Worn/Wielded containment restrictions remain intact.
+- On a valid detach or replacement from a Loose firearm, the shared swap function removes any stale general containment row belonging to the **previously attached magazine**, in the same transaction. The detached copy becomes Loose. This is normalization of contradictory Pass 2 history, not automatic retrieval of a contained replacement. A failed operation does not normalize anything.
+- Setup and combat magazine selectors mark contained copies unavailable. Filling controls explain the Loose requirement. The Character Equipment tab refreshes both specialized panels when an inventory move updates the commerce version, so retrieval enables the appropriate controls without reloading the page.
+
+The server remains authoritative. Inventory location checks share the Character lock with ownership/location mutations. Firearm firing, readiness calculations, ammunition transfer rules, authored Initiative costs and timing, restrictive ownership foreign keys, and root lifecycle cleanup are unchanged. The physical calculator and schema/migrations are unchanged. Loaded firearm assemblies can still be stored and moved without altering rounds, attachment, readiness, charges, costs, or total carried weight.
+
+Correction coverage adds 17 focused database subtests to `container-physical-db.test.mjs` (18 TAP results including the enclosing test). They exercise each setup manipulation, successful handling after retrieval, combat rejection and success, delayed operation rechecks, stale-state detach in both paths, failed-swap atomicity, and loaded-assembly conservation. The existing Pass 1 magazine test now explicitly expects contained emptying to fail, then retrieves the copy before checking its original conservation assertions.
+
+Correction validation:
+
+- 493 Item, Character, lifecycle, combat-screen, firearm, and Freeze unit/source tests passed.
+- Focused Pass 2 database suite: 41 passed. Chrome adds a 42nd result covering unavailable contained-copy controls, refresh after retrieval, and the original desktop/Player/mobile/authoring flows; zero page errors.
+- Existing disposable regressions passed: Pass 1 containment 32; containment lifecycle 11; lifecycle service 1; Tabletop lifecycle 1; magazine inventory 8; combat firearms 69; legacy readiness 1; legacy attack 1; combat Items/Abilities 3; Freeze 5; magazine catalog/setup repair 5.
+- Typecheck, changed-file ESLint with zero warnings, production build, and `git diff --check` passed. No schema migration was needed and no shared database was modified.
+
+Additional touched files: `containment-ownership-service.ts`, `firearm-magazine-service.ts`, `firearm-setup-service.ts`, `magazine-inventory-service.ts`, `tabletop-operations/firearm-readiness-service.ts`, `tabletop-operations/combat-magazine-fill-service.ts`, `combat-screen/firearm-controls.tsx`, `combat-screen/magazine-fill-controls.tsx`, `app/characters/firearm-setup-panel.tsx`, `app/characters/magazine-panel.tsx`, `app/characters/character-sheet.tsx`, and the two containment database tests plus `container-physical-browser.ts`. Browser evidence remains under `artifacts/container-pass-two/`, including `specialized-setup.png`.
+
+**STOP: Pass 3 is not started and requires separate user approval.**

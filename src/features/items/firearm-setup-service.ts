@@ -5,6 +5,8 @@ import { item, weaponProfile, weaponFiringMode } from "@/db/item-schema";
 import { campaignCharacter, campaignCharacterItemInstance as copy, campaignCharacterItem as loose } from "@/db/realm-schema";
 import { campaignCharacterFirearmState as stateTable, campaignCharacterFirearmEvent } from "@/db/tabletop-operations-schema";
 import { firearmMagazineAttachment } from "@/db/magazine-schema";
+import { inventoryInstanceLocation } from "@/db/container-schema";
+import { assertInstanceLooseInTransaction } from "./containment-ownership-service";
 import { readMagazineInventoryInTransaction, assertOutsideCombatEquipmentHandling } from "./magazine-inventory-service";
 import { readCompatibleMagazineCopies, readEffectiveFirearmState, swapFirearmMagazine } from "./firearm-magazine-service";
 import { lockEquipmentStateCharacterInTransaction } from "./equipment-state-service";
@@ -15,8 +17,9 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export async function readCharacterFirearmSetup(tx: Tx, characterId: number, userId: string) {
   const access = await readMagazineInventoryInTransaction(tx, characterId, userId);
-  const owned = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, equipmentState: copy.equipmentState, profile: weaponProfile })
+  const owned = await tx.select({ instanceId: copy.id, itemId: copy.itemId, name: item.name, equipmentState: copy.equipmentState, profile: weaponProfile, containerInstanceId: inventoryInstanceLocation.containerInstanceId })
     .from(copy).innerJoin(item, eq(item.id, copy.itemId)).innerJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
+    .leftJoin(inventoryInstanceLocation, eq(inventoryInstanceLocation.instanceId, copy.id))
     .where(and(eq(copy.characterId, characterId), isNull(copy.retiredAt), inArray(sql`lower(trim(${weaponProfile.weaponType}))`, AMMUNITION_WEAPON_TYPES)));
   const firearms = [];
   for (const row of owned) {
@@ -24,7 +27,7 @@ export async function readCharacterFirearmSetup(tx: Tx, characterId: number, use
     const state = stored ? await readEffectiveFirearmState(tx, stored) : null;
     const modes = await tx.select({ id: weaponFiringMode.id, name: weaponFiringMode.name }).from(weaponFiringMode).where(eq(weaponFiringMode.weaponProfileId, row.profile.id));
     const magazines = row.profile.reloadType === "Magazine" ? await readCompatibleMagazineCopies(tx, characterId, row.profile.id) : [];
-    firearms.push({ instanceId: row.instanceId, itemId: row.itemId, name: row.name, weaponType: row.profile.weaponType, equipmentState: row.equipmentState, modes, magazines,
+    firearms.push({ instanceId: row.instanceId, itemId: row.itemId, name: row.name, weaponType: row.profile.weaponType, equipmentState: row.equipmentState, containerInstanceId: row.containerInstanceId, modes, magazines,
       readinessMode: row.profile.readinessMode, reloadType: row.profile.reloadType, state: state ? { version: state.version, loadedRounds: state.loadedRounds, readied: state.loadedRounds > 0, needsRecovery: state.requiresCycling || state.requiresRecoilRecovery, selectedFiringModeId: state.selectedFiringModeId } : null,
       attachedMagazineInstanceId: magazines.find((entry) => entry.attachedWeaponInstanceId === row.instanceId)?.instanceId ?? null });
   }
@@ -41,6 +44,8 @@ export async function prepareCharacterFirearm(tx: Tx, userId: string, command: {
   if (view.combatActive) throw new Error("This Character is in active combat. Use the combat preparation controls and their Initiative costs.");
   const selected = view.firearms.find((entry) => entry.instanceId === command.instanceId);
   if (!selected) throw new Error("Choose an exact owned firearm copy.");
+  if (["load", "unload", "magazine"].includes(command.operation)) await assertInstanceLooseInTransaction(tx, command.characterId, selected.instanceId,
+    "Move this firearm to Loose before loading, unloading, or changing its magazine.");
   if (command.operation === "initialize") {
     const [character] = await tx.select({ campaignId: campaignCharacter.campaignId }).from(campaignCharacter).where(eq(campaignCharacter.id, command.characterId));
     await initializeFirearmStateInTransaction(tx, { campaignId: character.campaignId, encounterId: null }, userId, { characterId: command.characterId,
