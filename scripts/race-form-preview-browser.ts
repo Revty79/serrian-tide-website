@@ -1,3 +1,4 @@
+import { accessFixture, accessRequirement } from "./form-access-fixture";
 import assert from "node:assert/strict";
 import type { Page } from "playwright-core";
 import { db, pool } from "@/db";
@@ -8,8 +9,24 @@ export async function checkRaceFormPreviewBrowser(page: Page, base: string, acto
   assert.equal(process.env.SERRIAN_DISPOSABLE_RACE_AUTHORING, "true");
   const name = "Form Mechanics Browser Race";
   const open = async () => { await page.goto(`${base}/heavens/races`); await page.locator("#race-search").fill(name); await page.locator(".skill-library__row").filter({ hasText: name }).click(); await page.getByRole("button", { name: "Forms", exact: true }).click(); };
+  const [accessSkill] = (await pool.query("insert into skill(name,classification,tier) values('Browser Shift Forms Access','Special Ability',null) returning id")).rows;
   await open();
   const form = page.getByRole("article", { name: "Form 1", exact: true });
+  const accessEditor = form.locator("[data-form-access-editor]");
+  await accessEditor.locator(":scope > summary").click();
+  await accessEditor.getByLabel("Access mode", { exact: true }).selectOption("requirements");
+  const accessRows = accessEditor.locator("[data-access-requirement]");
+  await accessRows.first().getByLabel("Requirement type", { exact: true }).selectOption("skill");
+  await accessRows.first().getByLabel("Search access references", { exact: true }).fill("Browser Shift Forms Access");
+  await accessRows.first().getByLabel("Required Skill / Special Ability", { exact: true }).selectOption(String(accessSkill.id));
+  assert.match(await accessRows.first().getByLabel("Required Skill / Special Ability", { exact: true }).locator("option:checked").innerText(), /Browser Shift Forms Access · Special Ability/);
+  await accessEditor.getByRole("button", { name: "Add AND requirement", exact: true }).click();
+  await accessRows.nth(1).getByLabel("Requirement type", { exact: true }).selectOption("attribute");
+  await accessRows.nth(1).getByLabel("Required value", { exact: true }).fill("40");
+  await accessEditor.getByRole("button", { name: "Add OR group", exact: true }).click();
+  await accessRows.nth(2).getByLabel("Requirement type", { exact: true }).selectOption("attribute");
+  await accessRows.nth(2).getByLabel("Required Attribute", { exact: true }).selectOption("WIS");
+  await accessRows.nth(2).getByLabel("Required value", { exact: true }).fill("80");
   const transformation = form.locator("details").filter({ has: page.locator("summary").filter({ hasText: /^Transformation/ }) }).first();
   await transformation.locator(":scope > summary").click();
   const field = (name: string) => transformation.getByLabel(name, { exact: true });
@@ -28,19 +45,24 @@ export async function checkRaceFormPreviewBrowser(page: Page, base: string, acto
   await page.getByRole("button", { name: "Save Race", exact: true }).click(); await page.getByText(`${name} was saved.`, { exact: true }).waitFor();
   const [race] = (await pool.query("select * from races where name=$1", [name])).rows;
   const [definition] = (await db.transaction(tx => readRaceFormsInTransaction(tx, race.id)));
+  assert.equal(definition.access!.requirements.length, 3); assert.equal(definition.access!.requirements[2].groupNumber, 1);
+  assert.equal(definition.access!.requirements[0].skillId, accessSkill.id);
   assert.equal(definition.transformation!.entryMethod, "either"); assert.equal(definition.transformation!.entryTiming.initiativeCost, 4); assert.equal(definition.transformation!.entryCosts.costs[0].amount, 3);
   assert.equal(definition.transformation!.requirements[0].notes, "Nighttime with concentration"); assert.equal(definition.transformation!.involuntaryTriggers[0].notes, "Full moon and extreme stress");
   assert.equal(definition.transformation!.duration.description, "Ten minutes"); assert.deepEqual(definition.transformation!.exitMethods, ["voluntary"]); assert.equal(definition.transformation!.exitTiming.mode, "instant"); assert.equal(definition.transformation!.useLimits[0].maximumUses, 2);
   await open(); await transformation.locator(":scope > summary").click();
   assert.equal(await field("Entry Initiative").inputValue(), "4"); assert.equal(await field("Maximum uses").inputValue(), "2"); assert.equal(await field("Equipment exit notes").inputValue(), "Return with the same equipment");
+  await accessEditor.locator(":scope > summary").click();
+  assert.equal(await accessRows.nth(1).getByLabel("Required value", { exact: true }).inputValue(), "40");
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await accessEditor.screenshot({ path: `artifacts/race-authoring/form-access-authoring-${width}.png` });
     await transformation.screenshot({ path: `artifacts/race-authoring/transformation-${width}.png` });
   }
   console.log("PASS: transformation fields author/save/reload through real UI, desktop and 390px");
 
-  const more = Array.from({ length: 34 }, (_, index) => ({ key: `preview-${index}`, name: `Preview Form ${index + 2}`, description: "Independent preview", notes: "", sortOrder: index + 1, mechanics: { ...emptyRaceFormMechanics(), attributeAdjustments: { STR: -10, DEX: 0, CON: 0, INT: 0, WIS: 0, CHR: 0 } } }));
+  const more = Array.from({ length: 34 }, (_, index) => ({ access: index === 0 ? accessFixture(accessRequirement("manual", { notes: "First Awakening browser ruling" })) : undefined, key: `preview-${index}`, name: `Preview Form ${index + 2}`, description: "Independent preview", notes: "", sortOrder: index + 1, mechanics: { ...emptyRaceFormMechanics(), attributeAdjustments: { STR: -10, DEX: 0, CON: 0, INT: 0, WIS: 0, CHR: 0 } } }));
   await db.transaction(tx => saveRaceFormsInTransaction(tx, race.id, [definition, ...more], { anatomy: race.anatomy_json, naturalAttacks: [], naturalProtections: [] }));
   const [existing] = (await pool.query("select campaign_id from campaign_character where id=$1", [existingCharacterId])).rows;
   await pool.query("insert into campaign_allowed_race(campaign_id,race_id,sort_order) values($1,$2,50) on conflict do nothing", [existing.campaign_id, race.id]);
@@ -57,6 +79,8 @@ export async function checkRaceFormPreviewBrowser(page: Page, base: string, acto
   const select = viewer.getByLabel("View Form", { exact: true }); await select.waitFor();
   assert.equal(await select.inputValue(), ""); assert.equal(await select.locator("option").count(), 36);
   assert.equal(await viewer.locator("[data-form-preview]").count(), 0);
+  const optionText = await select.locator("option").allTextContents();
+  assert.ok(optionText.includes("Wolf Form — Locked")); assert.ok(optionText.includes("Preview Form 2 — Manual Review")); assert.ok(optionText.includes("Preview Form 35 — Available"));
   await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,7) on conflict (character_id) do update set total_damage=7", [character.id]);
   await page.reload(); await select.waitFor();
   const tableNames: string[] = (await pool.query("select tablename from pg_tables where schemaname='public' and (tablename like 'campaign_character%' or tablename like 'character_%' or tablename like 'inventory_%') order by tablename")).rows.map(row => row.tablename);
@@ -67,6 +91,8 @@ export async function checkRaceFormPreviewBrowser(page: Page, base: string, acto
   page.on("request", recordRequest);
   await select.selectOption(String(definition.id));
   await viewer.getByRole("heading", { name: "Wolf Form", exact: true }).waitFor();
+  assert.equal(await viewer.locator("[data-form-access]").getAttribute("data-form-access"), "locked");
+  assert.match(await viewer.innerText(), /Locked Form Preview/); assert.match(await viewer.innerText(), /Browser Shift Forms Access/);
   assert.match(await viewer.innerText(), /Form Preview.*viewing this Form does not change/);
   assert.equal(await viewer.locator('[data-preview-attribute="STR"] strong').innerText(), "40");
   assert.equal(await viewer.locator('[data-preview-attribute="CHR"] strong').innerText(), "30");
@@ -79,7 +105,10 @@ export async function checkRaceFormPreviewBrowser(page: Page, base: string, acto
     await viewer.screenshot({ path: `artifacts/race-authoring/character-form-preview-${width}.png` });
     await viewer.getByRole("region", { name: "Preview Attributes", exact: true }).screenshot({ path: `artifacts/race-authoring/character-form-attributes-${width}.png` });
   }
-  await select.selectOption({ label: "Preview Form 35" }); assert.equal(await viewer.locator('[data-preview-attribute="STR"] strong').innerText(), "25");
+  await select.selectOption({ label: "Preview Form 2 — Manual Review" });
+  assert.equal(await viewer.locator("[data-form-access]").getAttribute("data-form-access"), "manual-review");
+  assert.match(await viewer.innerText(), /First Awakening browser ruling/);
+  await select.selectOption({ label: "Preview Form 35 — Available" }); assert.equal(await viewer.locator('[data-preview-attribute="STR"] strong').innerText(), "25");
   await select.selectOption(""); assert.equal(await viewer.locator("[data-form-preview]").count(), 0);
   await select.selectOption(String(definition.id));
   assert.deepEqual(await snapshot(), before); assert.deepEqual(mutationRequests, []);
@@ -95,5 +124,6 @@ export async function checkRaceFormPreviewBrowser(page: Page, base: string, acto
   assert.equal((await pool.query("select total_damage from campaign_character_active_health where character_id=$1", [character.id])).rows[0].total_damage, 7);
   await page.reload(); await select.waitFor(); assert.equal(await select.inputValue(), "");
   await select.selectOption(String(definition.id)); await page.goto(`${base}/realms`); await page.goto(`${base}/realms/characters/${character.id}`); await select.waitFor(); assert.equal(await select.inputValue(), "");
+  console.log("PASS: Access Skill/classification, AND/OR authoring, save/reload, Available/Locked/Manual status, locked self-unlock prevention and zero mutations at desktop/390px");
   console.log("PASS: all 35 exact-Race Forms, Normal/reset, independent previews, derived displays, zero mutation requests, unchanged DB/readiness/health/inventory/equipment, unrelated save safety, desktop/390px");
 }

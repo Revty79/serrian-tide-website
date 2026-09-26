@@ -1,4 +1,5 @@
 import "server-only";
+import { readFormAccessInTransaction, validateFormAccessReferences, saveFormAccessInTransaction, cloneFormAccessInTransaction } from "@/features/forms/form-access-service";
 import { normalizeRaceFormTransformation } from "./race-form-transformation";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
@@ -14,7 +15,8 @@ export async function readRaceFormsInTransaction(tx: Transaction, raceId: number
   const forms = await tx.select().from(raceForm).where(eq(raceForm.raceId, raceId))
     .orderBy(asc(raceForm.sortOrder), asc(raceForm.id));
   const mechanics = await readFormMechanicsInTransaction(tx, forms);
-  return forms.map(row => ({ ...row, mechanics: mechanics.get(row.id)! }));
+  const access = await readFormAccessInTransaction(tx, "race", forms);
+  return forms.map(({ accessMode, ...row }) => ({ ...row, mechanics: mechanics.get(row.id)!, access: { ...access.get(row.id)!, mode: accessMode } }));
 }
 
 /** Caller authorizes and locks the Race. Editing/reordering retains each surviving row ID. */
@@ -34,9 +36,12 @@ export async function saveRaceFormsInTransaction(tx: Transaction, raceId: number
   const removed = existing.filter(row => !keys.has(row.key));
   if (removed.length) await tx.delete(raceForm).where(inArray(raceForm.id, removed.map(row => row.id)));
   for (const [index, definition] of definitions.entries()) {
-    const values = { ...definition, raceId, mechanics: raceFormMechanicsProfile(mechanics[index]), transformation: transformations[index] };
+    const previous = savedForms.find(form => form.key === definition.key)?.access;
+    const access = await validateFormAccessReferences(tx, "race", input[index].access === undefined ? previous : input[index].access, previous);
+    const values = { ...definition, accessMode: access.mode, raceId, mechanics: raceFormMechanicsProfile(mechanics[index]), transformation: transformations[index] };
     const [saved] = await tx.insert(raceForm).values(values).onConflictDoUpdate({ target: [raceForm.raceId, raceForm.key], set: values }).returning({ id: raceForm.id });
     await saveFormMechanicsInTransaction(tx, saved.id, mechanics[index]);
+    await saveFormAccessInTransaction(tx, "race", saved.id, access);
   }
 }
 
@@ -45,5 +50,6 @@ export async function cloneRaceFormsInTransaction(tx: Transaction, parentRaceId:
   for (const form of forms) {
     const [saved] = await tx.insert(raceForm).values({ ...form, id: undefined, raceId }).returning({ id: raceForm.id });
     await cloneFormMechanicsInTransaction(tx, form.id, saved.id);
+    await cloneFormAccessInTransaction(tx, "race", form.id, saved.id);
   }
 }

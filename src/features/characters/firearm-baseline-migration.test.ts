@@ -121,12 +121,13 @@ test("Drizzle preserves the consolidated baseline and ordered forward migrations
     "0073_race_form_mechanics.sql",
     "0074_race_form_transformation.sql",
     "0075_creature_forms.sql",
+    "0076_form_access.sql",
   ]);
 
   const journal = JSON.parse(
     readFileSync(path.resolve(root, "drizzle", "meta", "_journal.json"), "utf8"),
   ) as { entries: Array<{ idx: number; tag: string }> };
-  assert.equal(journal.entries.length, 76);
+  assert.equal(journal.entries.length, 77);
   assert.deepEqual(journal.entries.map(entry => `${entry.tag}.sql`), sqlFiles);
   assert.deepEqual(journal.entries.map(entry => entry.idx), sqlFiles.map((_, index) => index));
   assert.equal(journal.entries[0]?.idx, 0);

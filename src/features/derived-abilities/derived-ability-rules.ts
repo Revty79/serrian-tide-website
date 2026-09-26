@@ -1,3 +1,4 @@
+import { evaluateNumericComparison, allRequirements, anyRequirementGroup } from "@/features/requirements/requirement-primitives";
 import type { CampaignSystem } from "@/db/campaign-schema";
 
 import {
@@ -11,7 +12,6 @@ import {
   type DerivedAbilityAttributeKey,
   type DerivedAbilityDefinition,
   type DerivedAbilityRequirementDefinition,
-  type DerivedAbilityRequirementOperator,
   type DerivedAbilityRequirementResult,
   type DerivedAbilityRequirementScope,
   type DerivedAbilityTriggerDefinition,
@@ -233,23 +233,6 @@ export function evaluateDerivedAbilityTrigger(
   );
 }
 
-function evaluateNumericComparison(
-  currentValue: number | undefined,
-  operator: DerivedAbilityRequirementOperator,
-  requiredValue: number,
-): DerivedAbilityRequirementResult {
-  if (currentValue === undefined || !Number.isFinite(currentValue)) {
-    return "unsatisfied";
-  }
-  if (operator === "gte") return currentValue >= requiredValue ? "satisfied" : "unsatisfied";
-  if (operator === "gt") return currentValue > requiredValue ? "satisfied" : "unsatisfied";
-  if (operator === "lte") return currentValue <= requiredValue ? "satisfied" : "unsatisfied";
-  if (operator === "lt") return currentValue < requiredValue ? "satisfied" : "unsatisfied";
-  if (operator === "eq") return currentValue === requiredValue ? "satisfied" : "unsatisfied";
-  if (operator === "neq") return currentValue !== requiredValue ? "satisfied" : "unsatisfied";
-  return "unsatisfied";
-}
-
 export function evaluateDerivedAbilityRequirement(
   requirement: DerivedAbilityRequirementDefinition,
   context: DerivedAbilityEvaluationContext,
@@ -292,9 +275,7 @@ export function evaluateDerivedAbilityRequirementGroup(
   const results = requirements.map((requirement) =>
     evaluateDerivedAbilityRequirement(requirement, context),
   );
-  if (results.includes("unsatisfied")) return "unsatisfied";
-  if (results.includes("manual")) return "manual";
-  return "satisfied";
+  return allRequirements(results);
 }
 
 export function evaluateDerivedAbilityRequirementScope(
@@ -312,9 +293,7 @@ export function evaluateDerivedAbilityRequirementScope(
   const results = groups.map((group) =>
     evaluateDerivedAbilityRequirementGroup(group.requirements, context),
   );
-  if (results.includes("satisfied")) return "satisfied";
-  if (results.includes("manual")) return "manual";
-  return "unsatisfied";
+  return anyRequirementGroup(results);
 }
 
 export function evaluateDerivedAbilityAcquisitionRequirements(

@@ -1,4 +1,5 @@
 import "server-only";
+import { readFormAccessInTransaction, validateFormAccessReferences, saveFormAccessInTransaction, cloneFormAccessInTransaction } from "@/features/forms/form-access-service";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
 import { creatureForm, creatureFormSkillLink } from "@/db/creature-schema";
@@ -17,7 +18,8 @@ export async function readCreatureFormsInTransaction(tx: Transaction, creatureId
     skillClassification: skill.classification, rank: creatureFormSkillLink.rank, notes: creatureFormSkillLink.notes, sortOrder: creatureFormSkillLink.sortOrder,
   }).from(creatureFormSkillLink).innerJoin(skill, eq(skill.id, creatureFormSkillLink.skillId))
     .where(inArray(creatureFormSkillLink.formId, forms.map(row => row.id))).orderBy(asc(creatureFormSkillLink.sortOrder));
-  return forms.map(form => ({ ...form, mechanics: { ...form.mechanics, skills: { ...form.mechanics.skills,
+  const access = await readFormAccessInTransaction(tx, "creature", forms);
+  return forms.map(({ accessMode, ...form }) => ({ ...form, access: { ...access.get(form.id)!, mode: accessMode }, mechanics: { ...form.mechanics, skills: { ...form.mechanics.skills,
     rows: links.filter(row => row.formId === form.id).map(({ skillId, skillName, skillClassification, rank, notes, sortOrder }) => ({ skillId, skillName, skillClassification, rank, notes, sortOrder })),
   } } }));
 }
@@ -31,6 +33,9 @@ export async function saveCreatureFormsInTransaction(tx: Transaction, creatureId
   const removed = existing.filter(row => !forms.some(form => row.key === form.key));
   if (removed.length) await tx.delete(creatureForm).where(inArray(creatureForm.id, removed.map(row => row.id)));
   for (const form of forms) {
+    const previous = existing.find(row => row.key === form.key)?.access;
+    const authored = (input ?? existing).find(row => row.key.trim() === form.key)?.access;
+    const access = await validateFormAccessReferences(tx, "creature", authored === undefined ? previous : authored, previous, new Set(definition.abilities.map(row => row.canonicalId)));
     await assertInteractionRuleReferences(tx, form.mechanics.interactionRules);
     const links = form.mechanics.skills.rows;
     if (links.length) {
@@ -39,17 +44,19 @@ export async function saveCreatureFormsInTransaction(tx: Transaction, creatureId
       if (found.length !== links.length) throw new Error("One or more Form Skills no longer exist.");
       if (found.some(row => row.archivedAt && !oldIds.has(row.id))) throw new Error("Archived Skills cannot be added to a Creature Form.");
     }
-    const values = { ...form, creatureId, mechanics: { ...form.mechanics, skills: { ...form.mechanics.skills, rows: [] } } };
+    const values = { ...form, accessMode: access.mode, creatureId, mechanics: { ...form.mechanics, skills: { ...form.mechanics.skills, rows: [] } } };
     const [saved] = await tx.insert(creatureForm).values(values).onConflictDoUpdate({ target: [creatureForm.creatureId, creatureForm.key], set: values }).returning({ id: creatureForm.id });
+    await saveFormAccessInTransaction(tx, "creature", saved.id, access);
     await tx.delete(creatureFormSkillLink).where(eq(creatureFormSkillLink.formId, saved.id));
     if (links.length) await tx.insert(creatureFormSkillLink).values(links.map(({ skillId, rank, notes, sortOrder }) => ({ formId: saved.id, skillId, rank, notes, sortOrder })));
   }
 }
 
-export async function cloneCreatureFormsInTransaction(tx: Transaction, parentCreatureId: number, creatureId: number) {
+export async function cloneCreatureFormsInTransaction(tx: Transaction, parentCreatureId: number, creatureId: number, abilityIds: ReadonlyMap<string, string>) {
   const forms = await tx.select().from(creatureForm).where(eq(creatureForm.creatureId, parentCreatureId));
   for (const form of forms) {
     const [saved] = await tx.insert(creatureForm).values({ ...structuredClone(form), id: undefined, creatureId }).returning({ id: creatureForm.id });
+    await cloneFormAccessInTransaction(tx, "creature", form.id, saved.id, abilityIds);
     const links = await tx.select().from(creatureFormSkillLink).where(eq(creatureFormSkillLink.formId, form.id));
     if (links.length) await tx.insert(creatureFormSkillLink).values(links.map(row => ({ ...row, id: undefined, formId: saved.id })));
   }

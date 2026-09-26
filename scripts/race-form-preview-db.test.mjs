@@ -147,3 +147,132 @@ test("saving an unrelated Character edit after preview never saves adjusted data
   assert.deepEqual(await getActiveHealth(characterId), health);
   assert.deepEqual(await getCharacterEquipmentState(characterId), equipment);
 });
+
+
+const { accessFixture: access, accessRequirement: requirement } = await import("./form-access-fixture.ts");
+const { evaluateCharacterFormAccess, characterFormAccessContext } = await import("../src/features/forms/form-access-context.ts");
+const { evaluateFormAccess } = await import("../src/features/forms/form-access.ts");
+const lifecycle = await import("../src/features/lifecycle/lifecycle-service.ts");
+async function accessRaceFixture() {
+  const { saved, skillId } = await fixture();
+  const [special] = await rows("insert into skill(name,classification,tier) values('Access Shift Forms','Special Ability',null) returning id");
+  const definition = access(requirement("skill", { skillId: special.id }));
+  const race = await saveRace({ ...saved, forms: [{ ...saved.forms[0], access: definition }] });
+  return { race, skillId, specialId: special.id };
+}
+
+test("Access: explicit mode, classified Skill references, groups, comparisons, manual and Derived prerequisites persist/reload", async () => {
+  const { race, specialId } = await accessRaceFixture();
+  assert.equal(race.forms[0].access.requirements[0].referenceName, "Access Shift Forms");
+  assert.equal(race.forms[0].access.requirements[0].skillClassification, "Special Ability");
+  const [ability] = await rows("insert into derived_ability(name,created_by_user_id) values('Access Awakening',$1) returning id", [actor.userId]);
+  const definitions = access(requirement("skill", { skillId: specialId }), requirement("attribute", { attributeKey: "WIS", operator: "gte", requiredValue: 30, sortOrder: 1 }), requirement("derived-ability", { requiredDerivedAbilityId: ability.id, groupNumber: 1 }), requirement("manual", { notes: "First Awakening", groupNumber: 2 }));
+  const saved = await saveRace({ ...race, forms: [{ ...race.forms[0], access: definitions }] });
+  assert.equal(saved.forms[0].access.requirements.length, 4);
+  assert.deepEqual((await getRace(race.id)).forms, saved.forms);
+  const legacy = structuredClone(saved); delete legacy.forms[0].access;
+  assert.deepEqual((await saveRace(legacy)).forms[0].access, saved.forms[0].access);
+  const free = await saveRace({ ...saved, forms: [{ ...saved.forms[0], access: { mode: "unrestricted", requirements: [] } }] });
+  assert.deepEqual(free.forms[0].access, { mode: "unrestricted", requirements: [] });
+  assert.deepEqual(await rows("select * from race_form_access_requirements where form_id=$1", [free.forms[0].id]), []);
+});
+
+test("Access: purchased Skills, Race grants and Granted Special Ability at zero minimum use existing Normal helpers", async () => {
+  const { race, skillId, specialId } = await accessRaceFixture();
+  const id = await characterFixture(race.id);
+  let aggregate = await getCharacter(id, true);
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, race.forms[0].access).status, "locked");
+  await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value,sort_order) values($1,$2,'Granted',0,0)", [race.id, specialId]);
+  aggregate = await getCharacter(id, true);
+  assert.equal(characterFormAccessContext(aggregate).possessedSkillIds.has(specialId), true);
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, race.forms[0].access).status, "available");
+  assert.equal(aggregate.skillAllocations.some(row => row.skillId === specialId), false, "No purchased point required");
+  await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value,sort_order) values($1,$2,'Skill',12,1)", [race.id, skillId]);
+  aggregate = await getCharacter(id, true);
+  assert.equal(evaluateFormAccess(access(requirement("skill", { skillId })), characterFormAccessContext(aggregate)).status, "available");
+  assert.equal(evaluateFormAccess(access(requirement("skill", { skillId, operator: "gte", requiredValue: 10 })), characterFormAccessContext(aggregate)).status, "locked", "Numeric requirement is purchased investment, not racial minimum or Rank");
+  await pool.query("delete from race_skill_links where race_id=$1", [race.id]);
+  await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,10)", [id, skillId]);
+  aggregate = await getCharacter(id, true);
+  assert.equal(evaluateFormAccess(access(requirement("skill", { skillId })), characterFormAccessContext(aggregate)).status, "available");
+  assert.equal(evaluateFormAccess(access(requirement("skill", { skillId, operator: "gte", requiredValue: 10 })), characterFormAccessContext(aggregate)).status, "available");
+  assert.equal(evaluateFormAccess(access(requirement("skill", { skillId, operator: "gt", requiredValue: 10 })), characterFormAccessContext(aggregate)).status, "locked");
+});
+
+test("Access: saved Normal Attributes and Skills cannot self-unlock through Form preview or unsaved draft edits", async () => {
+  const { race, skillId } = await accessRaceFixture(), id = await characterFixture(race.id);
+  const aggregate = await getCharacter(id, true), draft = characterAggregateToDraft(aggregate);
+  const gated = access(requirement("attribute", { attributeKey: "STR", requiredValue: 40 }));
+  const skillGate = access(requirement("skill", { skillId }));
+  const before = await snapshot(), aggregateBefore = structuredClone(aggregate), readiness = evaluateCharacterReadiness(draft, aggregate, aggregate.selectedRace);
+  const preview = resolveCharacterFormPreview(draft, aggregate.selectedRace, race.forms[0].id, aggregate.skillCatalog);
+  assert.equal(preview.attributes.find(row => row.key === "STR").value, 40);
+  assert.ok(preview.skillAdditions.some(row => row.skillId === skillId));
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, gated).status, "locked");
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, skillGate).status, "locked");
+  draft.attributes.STR = 100;
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, gated).status, "locked");
+  assert.deepEqual(aggregate, aggregateBefore); assert.deepEqual(await snapshot(), before);
+  assert.deepEqual(evaluateCharacterReadiness(characterAggregateToDraft(aggregate), aggregate, aggregate.selectedRace), readiness);
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id + 100, gated).status, "manual-review", "Unsaved Race selection is not authoritative");
+});
+
+test("Access: Derived Ability uses real resolved possession, without treating live conditions as transformation conditions", async () => {
+  const { race } = await accessRaceFixture(), id = await characterFixture(race.id);
+  const [ability] = await rows("insert into derived_ability(name,created_by_user_id,acquisition_type) values('Access Automatic',$1,'automatic') returning id", [actor.userId]);
+  const [character] = await rows("select campaign_id from campaign_character where id=$1", [id]);
+  await pool.query("insert into campaign_allowed_system(campaign_id,system) values($1,'Derived Abilities') on conflict do nothing", [character.campaign_id]);
+  const aggregate = await getCharacter(id, true);
+  const status = aggregate.derivedAbilityStatuses.find(row => row.abilityId === ability.id);
+  assert.equal(status.possessed, true);
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, access(requirement("derived-ability", { requiredDerivedAbilityId: ability.id }))).status, "available");
+  assert.equal(evaluateCharacterFormAccess(aggregate, race.id, access(requirement("derived-ability", { requiredDerivedAbilityId: ability.id, operator: "not-possessed" }))).status, "locked");
+  const [owned] = await rows("insert into derived_ability(name,created_by_user_id,acquisition_type) values('Owned but unavailable Access Ability',$1,'awarded') returning id", [actor.userId]);
+  await pool.query("insert into derived_ability_requirement(derived_ability_id,requirement_scope,requirement_type,group_number,notes,sort_order) values($1,'live','manual',0,'Live ruling is separate from possession',0)", [owned.id]);
+  await pool.query("insert into character_derived_ability(character_id,derived_ability_id,acquisition_method,acquired_by_user_id) values($1,$2,'awarded',$3)", [id, owned.id, actor.userId]);
+  const refreshed = await getCharacter(id, true), ownedStatus = refreshed.derivedAbilityStatuses.find(row => row.abilityId === owned.id);
+  assert.equal(ownedStatus.possessed, true); assert.equal(ownedStatus.available, false);
+  assert.equal(evaluateCharacterFormAccess(refreshed, race.id, access(requirement("derived-ability", { requiredDerivedAbilityId: owned.id }))).status, "available", "Resolved possession remains distinct from live usability");
+});
+
+test("Access: Variant cloning creates independent requirement rows and exact Variant access never merges parent rules", async () => {
+  const { race } = await accessRaceFixture();
+  const variant = await createRaceVariant(race.id, "Access Independent Variant");
+  assert.deepEqual(variant.forms[0].access, race.forms[0].access);
+  const sourceRows = await rows("select id from race_form_access_requirements where form_id=$1", [race.forms[0].id]);
+  const cloneRows = await rows("select id from race_form_access_requirements where form_id=$1", [variant.forms[0].id]);
+  assert.notEqual(sourceRows[0].id, cloneRows[0].id);
+  const changed = await saveRace({ ...variant, forms: [{ ...variant.forms[0], access: access(requirement("manual", { notes: "Variant awakening only" })) }] });
+  const aggregate = await getCharacter(await characterFixture(variant.id), true);
+  assert.equal(aggregate.selectedRace.formPreview.forms.length, 1);
+  assert.equal(aggregate.selectedRace.formPreview.forms[0].id, changed.forms[0].id);
+  assert.equal(evaluateCharacterFormAccess(aggregate, variant.id, changed.forms[0].access).status, "manual-review");
+  assert.deepEqual((await getRace(race.id)).forms[0].access, race.forms[0].access);
+});
+
+test("Access: archived references retained and cloned; new assignments rejected; lifecycle reports and restricts both library FK types", async () => {
+  const { race, specialId } = await accessRaceFixture();
+  const [ability] = await rows("insert into derived_ability(name,created_by_user_id) values('Protected Form Access Ability',$1) returning id", [actor.userId]);
+  const saved = await saveRace({ ...race, forms: [{ ...race.forms[0], access: access(requirement("skill", { skillId: specialId }), requirement("derived-ability", { requiredDerivedAbilityId: ability.id, sortOrder: 1 })) }] });
+  await pool.query("update skill set archived_at=now() where id=$1", [specialId]);
+  await pool.query("update derived_ability set archived_at=now() where id=$1", [ability.id]);
+  assert.deepEqual((await saveRace(saved)).forms[0].access, saved.forms[0].access);
+  const clone = await createRaceVariant(saved.id, "Archived Access Variant");
+  assert.deepEqual((await saveRace(clone)).forms[0].access, saved.forms[0].access);
+  for (const row of saved.forms[0].access.requirements) await assert.rejects(saveRace({ ...saved, forms: [...saved.forms, { ...saved.forms[0], key: `new-${row.requirementType}`, access: access({ ...row, sortOrder: 0 }) }] }), /Archived .*cannot be newly assigned/);
+  for (const [entityKind, entityId, table, label] of [["skill", specialId, "skill", "Race Form Access Skill prerequisites"], ["derived-ability", ability.id, "derived_ability", "Race Form Access Derived Ability prerequisites"]]) {
+    const preview = await lifecycle.previewLifecycleEntityForActor({ entityKind, entityId }, actor);
+    assert.equal(preview.canDelete, false); assert.ok(preview.dependencies.some(row => row.label === label && row.count === 2));
+    await assert.rejects(pool.query(`delete from ${table} where id=$1`, [entityId]), /foreign key/);
+  }
+  await assert.rejects(pool.query("update race_form_access_requirements set operator='gte',required_value=null where form_id=$1 and requirement_type='skill'", [saved.forms[0].id]), /shape/);
+});
+
+test("Access: deleting a Form or eligible Race cleans owned access metadata", async () => {
+  const { race } = await accessRaceFixture();
+  await saveRace({ ...race, forms: [] });
+  assert.deepEqual(await rows("select * from race_form_access_requirements where form_id=$1", [race.forms[0].id]), []);
+  const recreated = await saveRace(race);
+  await lifecycle.permanentlyDeleteLifecycleEntityForActor({ entityKind: "race", entityId: race.id }, actor);
+  assert.deepEqual(await rows("select * from race_form_access_requirements where form_id=$1", [recreated.forms[0].id]), []);
+});

@@ -1,4 +1,7 @@
 "use client";
+import { FormAccessSummary } from "@/components/forms/form-access-summary";
+import { FORM_ACCESS_LABELS } from "@/features/forms/form-access";
+import { evaluateCharacterFormAccess } from "@/features/forms/form-access-context";
 
 import { useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -15,11 +18,13 @@ export function CharacterFormPreviewViewer({ aggregate, draft, race }: { aggrega
   const [formId, setFormId] = useState<number | null>(null);
   const forms = availableCharacterForms(draft, race);
   if (!forms.length) return null;
+  const access = new Map(forms.map(form => [form.id, evaluateCharacterFormAccess(aggregate, form.raceId, form.access)]));
   const preview = resolveCharacterFormPreview(draft, race, formId, aggregate.skillCatalog, aggregate.attributeReferenceCatalog);
   return <section className={styles.viewer} aria-label="Character Form viewer">
-    <GuidedField className="st-field" label="View Form" help="Preview a Form owned by this exact selected Race. Selection changes only this display and resets to Normal when the sheet reopens. Character saving, creation budgets, live state, and printing keep the normal Character values."><select className="st-control" value={preview?.form.id ?? ""} onChange={event => setFormId(event.target.value ? Number(event.target.value) : null)}><option value="">Normal</option>{forms.map(form => <option key={form.id} value={form.id}>{form.name}</option>)}</select></GuidedField>
+    <GuidedField className="st-field" label="View Form" help="Preview a Form owned by this exact selected Race. Selection changes only this display and resets to Normal when the sheet reopens. Character saving, creation budgets, live state, and printing keep the normal Character values."><select className="st-control" value={preview?.form.id ?? ""} onChange={event => setFormId(event.target.value ? Number(event.target.value) : null)}><option value="">Normal</option>{forms.map(form => <option key={form.id} value={form.id}>{form.name} — {FORM_ACCESS_LABELS[access.get(form.id)!.status]}</option>)}</select></GuidedField>
     {preview && <div className={styles.body} data-form-preview>
       <header><h2>{preview.form.name}</h2><p className={styles.notice}><strong>Form Preview — viewing this Form does not change the Character&apos;s current runtime state.</strong></p><p>Normal Character editing and live controls remain below. Saving and printing use Normal values.</p><p>{preview.form.description}</p>{preview.form.notes && <p>{preview.form.notes}</p>}<p><strong>Size:</strong> {preview.size} · <strong>Base Initiative:</strong> {preview.baseInitiative} · <strong>Maximum HP:</strong> {preview.hp}</p></header>
+      <FormAccessSummary evaluation={access.get(preview.form.id)!} entity="Character" />
       <Section title="Preview Attributes"><div className={styles.grid}>{preview.attributes.map(attribute => <dl className={styles.card} key={attribute.key} data-preview-attribute={attribute.key}><dt>{CHARACTER_ATTRIBUTE_LABELS[attribute.key]} ({attribute.key})</dt><dd><strong>{attribute.value}</strong> · Normal {attribute.stored} {signed(attribute.adjustment)}</dd><dd>Modifier {signed(attribute.modifier)} · Roll target {attribute.rollTarget}</dd>{preview.attributeReferences.find(row => row.key === attribute.key)?.fields.map(field => <dd key={field.label}>{field.label}: {field.value ?? "Not recorded for this score"}</dd>)}</dl>)}</div></Section>
       <Section title="Preview Anatomy and HP"><p>{preview.anatomyChanged ? "This Form has different Anatomy. " : ""}Maximums only: saved damage and Active Health remain unchanged. No damage is redistributed.</p><div className={styles.grid}>{preview.anatomy.pools.map(pool => <div className={styles.card} key={pool.key}><strong>{pool.name}</strong><p>Maximum HP {pool.maximumHp ?? "Unknown"} · {pool.percentage === null ? "Percentage unspecified" : `${pool.percentage}%`}</p></div>)}</div><ul>{preview.anatomy.hitLocations.map(location => <li key={location.result}>{location.result}: {location.name} · {location.bodyParts} · HP pool {location.poolName ?? "Unassigned"}{location.locationEffect ? ` · ${location.locationEffect}` : ""}</li>)}</ul></Section>
       <Section title="Preview Movement">{preview.movement.length ? <ul>{preview.movement.map((mode, index) => <li key={index}>{mode.movementMode}: Base {mode.baseValue} · Movement Initiative {mode.initiative} {mode.notes}</li>)}</ul> : <p>No movement modes.</p>}<p>Includes the Character&apos;s existing movement advancement steps.</p></Section>

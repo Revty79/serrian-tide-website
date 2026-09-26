@@ -1,4 +1,5 @@
 "use client";
+import { FormAccessEditor } from "@/components/forms/form-access-editor";
 
 import { RaceFormTransformationEditor } from "./race-form-transformation-editor";
 import { GuidedField } from "@/components/field-guidance";
@@ -44,6 +45,7 @@ export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; 
       <GuidedField className="st-field" label="Form Notes" help="Record additional authoring notes for this Form. Notes do not create transformation rules or runtime effects. Leave blank if no notes are needed.">
         <textarea className="st-control" rows={3} value={form.notes} onChange={event => patch(form.key, { notes: event.target.value })} />
       </GuidedField>
+      <FormAccessEditor owner="race" value={form.access} onChange={access => patch(form.key, { access })} />
       <RaceFormMechanicsEditor value={form.mechanics} race={race} onChange={mechanics => patch(form.key, { mechanics })} />
       <RaceFormTransformationEditor value={form.transformation} onChange={transformation => patch(form.key, { transformation })} />
     </article>)}

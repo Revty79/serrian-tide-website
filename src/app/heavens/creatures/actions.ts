@@ -332,6 +332,21 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
   const { session, roles } = await requireGodOrAdminAccessContext();
   const normalized = normalize(input);
   const assignedIds = resolveSystemAssignedCreatureIds(normalized, input.id === undefined);
+  const accessAbilityIds = new Map(normalized.abilities.map((row, index) => [row.canonicalId, assignedIds.abilityCanonicalIds[index]!]));
+  const formsWithAssignedAccessIds = input.forms?.map(form => ({
+    ...form,
+    ...(form.access === undefined ? {} : {
+      access: {
+        ...form.access,
+        requirements: form.access.requirements.map(row => ({
+          ...row,
+          requiredCreatureAbilityCanonicalId: row.requiredCreatureAbilityCanonicalId
+            ? accessAbilityIds.get(row.requiredCreatureAbilityCanonicalId) ?? row.requiredCreatureAbilityCanonicalId
+            : null,
+        })),
+      },
+    }),
+  }));
   normalized.core.canonicalId = assignedIds.coreCanonicalId;
   normalized.hpPools = normalized.hpPools.map((pool, index) => ({
     ...pool,
@@ -534,7 +549,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
     if (normalized.defenses.length) await tx.insert(creatureDefense).values(normalized.defenses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
     if (normalized.uses.length) await tx.insert(creatureUse).values(normalized.uses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
 
-    await saveCreatureFormsInTransaction(tx, id!, input.forms, { ...normalized, core: { ...normalized.core, parentCreatureName: input.core.parentCreatureName }, derivedCreatures: [] });
+    await saveCreatureFormsInTransaction(tx, id!, formsWithAssignedAccessIds, { ...normalized, core: { ...normalized.core, parentCreatureName: input.core.parentCreatureName }, derivedCreatures: [] });
     return id;
   });
 
@@ -785,7 +800,15 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       from creature_uses where creature_id = ${parentCreatureId} and variant_id is null
     `);
 
-    await cloneCreatureFormsInTransaction(tx, parentCreatureId, created.id);
+    const accessAbilityCopies = await tx.execute<{ source_id: string; copied_id: string }>(sql`
+      select source.canonical_id as source_id, copied.canonical_id as copied_id
+      from creature_abilities source
+      inner join creature_abilities copied on copied.creature_id = ${created.id}
+        and copied.variant_id is null
+        and copied.canonical_id = 'ABL-' || ${childToken} || '-' || lpad(source.id::text, 4, '0')
+      where source.creature_id = ${parentCreatureId} and source.variant_id is null
+    `);
+    await cloneCreatureFormsInTransaction(tx, parentCreatureId, created.id, new Map(accessAbilityCopies.rows.map(row => [row.source_id, row.copied_id])));
     return created.id;
   });
 

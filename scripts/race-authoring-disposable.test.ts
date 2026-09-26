@@ -108,7 +108,7 @@ test("Race Soak migration, independent variants, protection integration and auth
     const beforeTransformationMigration = await Promise.all(transformationTables.map(table => pool!.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)));
     await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
     for (const [index, table] of transformationTables.entries()) {
-      const expected = table === "race_forms" ? beforeTransformationMigration[index].rows.map(row => ({ body: { ...row.body, transformation_json: null } })) : beforeTransformationMigration[index].rows;
+      const expected = table === "race_forms" ? beforeTransformationMigration[index].rows.map(row => ({ body: { ...row.body, transformation_json: null, access_mode: "unrestricted" } })) : beforeTransformationMigration[index].rows;
       assert.deepEqual((await pool.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)).rows, expected, `${table} preserved by transformation migration`);
     }
     await assert.rejects(pool.query("update race_forms set transformation_json='{}'"), /transformation_shape/);

@@ -1,3 +1,4 @@
+import type { FormAccessMode } from "@/features/forms/form-access";
 import type { CreatureAttackAuthoring, CreatureAbilityAuthoring } from "@/features/creatures/creature-authoring";
 import type { CreatureFormMechanics } from "@/features/creatures/creature-forms";
 import type { FormTransformation } from "@/features/forms/form-transformation";
@@ -33,10 +34,12 @@ export const creatureForm = pgTable("creature_forms", {
   notes: text("notes").notNull().default(""),
   sortOrder: integer("sort_order").notNull().default(0),
   mechanics: jsonb("mechanics_json").$type<CreatureFormMechanics>().notNull(),
+  accessMode: text("access_mode").$type<FormAccessMode>().notNull().default("unrestricted"),
   transformation: jsonb("transformation_json").$type<FormTransformation>(),
 }, table => [
   unique("creature_form_owner_key").on(table.creatureId, table.key),
   index("creature_form_owner_order").on(table.creatureId, table.sortOrder),
+  check("creature_form_access_mode", sql`${table.accessMode} IN ('unrestricted','requirements')`),
   check("creature_form_identity", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0 AND ${table.sortOrder} >= 0`),
   check("creature_form_mechanics_shape", sql`coalesce(jsonb_typeof(${table.mechanics}) = 'object' AND ${table.mechanics}->>'schemaVersion' = '1', false)`),
   check("creature_form_transformation_shape", sql`${table.transformation} IS NULL OR coalesce(jsonb_typeof(${table.transformation}) = 'object' AND ${table.transformation}->>'schemaVersion' = '1', false)`),

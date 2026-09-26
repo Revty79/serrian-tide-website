@@ -17,6 +17,7 @@ export default defineConfig({
     "./src/db/campaign-schema.ts",
     "./src/db/skill-schema.ts",
     "./src/db/race-schema.ts",
+    "./src/db/form-access-schema.ts",
     "./src/db/creature-schema.ts",
     "./src/db/derived-ability-schema.ts",
     "./src/db/item-schema.ts",

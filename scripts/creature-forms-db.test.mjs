@@ -221,3 +221,124 @@ test("Form attack and ability effects plus Magic Construction survive persistenc
   await saveCreature(child);
   assert.equal((await getCreature(saved.id)).forms[0].mechanics.attacks.rows[0].authoring.onHitEffects[0].effect.description, "G.O.D. resolves the wound");
 });
+
+
+const { accessFixture: access, accessRequirement: requirement } = await import("./form-access-fixture.ts");
+const { evaluateFormAccess } = await import("../src/features/forms/form-access.ts");
+const { creatureFormAccessContext } = await import("../src/features/forms/form-access-context.ts");
+const lifecycle = await import("../src/features/lifecycle/lifecycle-service.ts");
+const lifecycleActor = { userId: actor.userId, roles: ["god"] };
+async function accessCreatureFixture() {
+  const [skill] = await rows("insert into skill(name,classification,tier,primary_attribute) values('Native Access Skill','standard',1,'WIS') returning id");
+  const draft = creatureDraftFixture();
+  draft.skillLinks = [{ skillId: skill.id, skillName: "Native Access Skill", skillClassification: "standard", rank: "Veteran 20+", notes: "Native rank", sortOrder: 0 }];
+  draft.abilities = [{ ...creatureFormFixture().mechanics.abilities.rows[0], canonicalId: "DRAFT-ABL-ACCESS", abilityName: "Vaporous Body", authoring: undefined }];
+  draft.forms = [{ ...creatureFormFixture(), access: access(requirement("skill", { skillId: skill.id }), requirement("creature-ability", { requiredCreatureAbilityCanonicalId: "DRAFT-ABL-ACCESS", sortOrder: 1 })) }];
+  return saveCreature(draft);
+}
+
+test("Access: native Skill and stable Normal Ability prerequisites save/reload with system-assigned identities", async () => {
+  const saved = await accessCreatureFixture();
+  const requirements = saved.forms[0].access.requirements;
+  assert.equal(requirements[1].requiredCreatureAbilityCanonicalId, saved.abilities[0].canonicalId);
+  assert.equal(requirements[1].referenceName, "Vaporous Body");
+  assert.equal(requirements[0].skillClassification, "standard");
+  assert.equal(evaluateFormAccess(saved.forms[0].access, creatureFormAccessContext(saved)).status, "available");
+  assert.deepEqual((await getCreature(saved.id)).forms, saved.forms);
+  const legacy = structuredClone(saved); delete legacy.forms[0].access;
+  assert.deepEqual((await saveCreature(legacy)).forms[0].access, saved.forms[0].access);
+  await assert.rejects(saveCreature({ ...saved, abilities: [] }), /Normal definition/);
+  assert.deepEqual((await getCreature(saved.id)).abilities, saved.abilities, "Rejected removal rolls back the whole Normal edit");
+  const removed = await saveCreature({ ...saved, abilities: [], forms: [{ ...saved.forms[0], access: { mode: "unrestricted", requirements: [] } }] });
+  assert.equal(removed.abilities.length, 0, "Can remove prerequisite and Ability atomically");
+});
+
+test("Access: a Creature cannot assign another Creature or Form-only Ability as its Normal prerequisite", async () => {
+  const saved = await accessCreatureFixture(), other = await accessCreatureFixture();
+  for (const canonicalId of [other.abilities[0].canonicalId, saved.forms[0].mechanics.abilities.rows[0].canonicalId, "MISSING"]) {
+    const changed = structuredClone(saved); changed.forms[0].access.requirements[1].requiredCreatureAbilityCanonicalId = canonicalId;
+    await assert.rejects(saveCreature(changed), /Normal definition/);
+  }
+  const numeric = structuredClone(saved); Object.assign(numeric.forms[0].access.requirements[0], { operator: "gte", requiredValue: 10 });
+  await assert.rejects(saveCreature(numeric), /Creature Skill ranks/);
+  await assert.rejects(pool.query("update creature_form_access_requirements set operator='gte',required_value=10 where form_id=$1 and requirement_type='skill'", [saved.forms[0].id]), /shape/);
+});
+
+test("Access: derived Creature clone deep-copies groups and remaps prerequisites to its own independent Normal Ability", async () => {
+  const parent = await accessCreatureFixture(), child = await createDerivedCreature(parent.id, "Access Derived Creature");
+  assert.notEqual(child.abilities[0].canonicalId, parent.abilities[0].canonicalId);
+  assert.equal(child.forms[0].access.requirements[1].requiredCreatureAbilityCanonicalId, child.abilities[0].canonicalId);
+  assert.equal(evaluateFormAccess(child.forms[0].access, creatureFormAccessContext(child)).status, "available");
+  assert.equal(child.forms[0].access.requirements[0].skillId, parent.forms[0].access.requirements[0].skillId);
+  await saveCreature({ ...child, forms: [{ ...child.forms[0], access: access(requirement("manual", { notes: "Child awakening" })) }] });
+  assert.deepEqual((await getCreature(parent.id)).forms[0].access, parent.forms[0].access);
+});
+
+test("Access: archived Creature Skill reference retains/clones, rejects new assignments, protects lifecycle and raw deletion", async () => {
+  const saved = await accessCreatureFixture(), skillId = saved.forms[0].access.requirements[0].skillId;
+  await pool.query("update skill set archived_at=now() where id=$1", [skillId]);
+  assert.deepEqual((await saveCreature(saved)).forms[0].access, saved.forms[0].access);
+  const clone = await createDerivedCreature(saved.id, "Archived Creature Access");
+  assert.equal(clone.forms[0].access.requirements[0].skillId, skillId);
+  await assert.rejects(saveCreature({ ...saved, forms: [...saved.forms, { ...saved.forms[0], key: "new-archived" }] }), /Archived Skills/);
+  const preview = await lifecycle.previewLifecycleEntityForActor({ entityKind: "skill", entityId: skillId }, lifecycleActor);
+  assert.equal(preview.canDelete, false);
+  assert.ok(preview.dependencies.some(row => row.label === "Creature Form Access Skill prerequisites" && row.count === 2));
+  await assert.rejects(pool.query("delete from skill where id=$1", [skillId]), /foreign key/);
+});
+
+test("Access: Form and eligible Creature lifecycle deletion cascade requirement rows", async () => {
+  const saved = await accessCreatureFixture(), id = saved.forms[0].id;
+  await saveCreature({ ...saved, forms: [] });
+  assert.deepEqual(await rows("select * from creature_form_access_requirements where form_id=$1", [id]), []);
+  const recreated = await saveCreature(saved);
+  await lifecycle.permanentlyDeleteLifecycleEntityForActor({ entityKind: "creature", entityId: saved.id }, lifecycleActor);
+  assert.deepEqual(await rows("select * from creature_form_access_requirements where form_id=$1", [recreated.forms[0].id]), []);
+});
+
+test("Access: new NPC freezes Normal facts and requirements; later library Skill/Ability/rule changes cannot alter its eligibility", async () => {
+  const saved = await accessCreatureFixture(), id = await npcFixture(saved);
+  const initial = await getCreatureNpc(id);
+  for (const snapshot of [initial.baselineSnapshot, initial.currentSnapshot]) {
+    assert.deepEqual(snapshot.forms[0].access, saved.forms[0].access);
+    assert.equal(evaluateFormAccess(snapshot.forms[0].access, creatureFormAccessContext(snapshot)).status, "available");
+  }
+  await saveCreature({ ...saved, skillLinks: [], abilities: [], forms: [{ ...saved.forms[0], access: access(requirement("manual", { notes: "Changed library gate" })) }] });
+  const reopened = await getCreatureNpc(id);
+  assert.deepEqual(reopened.currentSnapshot, initial.currentSnapshot);
+  assert.deepEqual(reopened.baselineSnapshot, initial.baselineSnapshot);
+  assert.equal(evaluateFormAccess(reopened.currentSnapshot.forms[0].access, creatureFormAccessContext(reopened.currentSnapshot)).status, "available");
+});
+
+test("Access: frozen locked/manual previews are mutation-free; unrelated and forged NPC saves preserve access definitions and active health", async () => {
+  const template = await accessCreatureFixture();
+  template.forms = [{ ...template.forms[0], access: access(requirement("attribute", { attributeKey: "STR", requiredValue: 100 })) }, { ...template.forms[0], key: "manual-access", name: "Manual Form", access: access(requirement("manual", { notes: "First Awakening" })) }];
+  const saved = await saveCreature(template), id = await npcFixture(saved), npc = await getCreatureNpc(id);
+  const before = await runtimeRows(), source = structuredClone(npc);
+  for (const form of npc.currentSnapshot.forms) {
+    const status = evaluateFormAccess(form.access, creatureFormAccessContext(npc.currentSnapshot)).status;
+    assert.equal(status, form.key === "manual-access" ? "manual-review" : "locked");
+    assert.ok(resolveCreatureFormPreview(npc.currentSnapshot, form.id));
+  }
+  assert.deepEqual(npc, source); assert.deepEqual(await runtimeRows(), before);
+  const forged = structuredClone(npc); forged.personality = "Unrelated safe edit";
+  forged.currentSnapshot.forms[0].access = { mode: "unrestricted", requirements: [] };
+  forged.baselineSnapshot.forms[0].access = { mode: "unrestricted", requirements: [] };
+  const result = await saveCreatureNpc(forged);
+  assert.deepEqual(result.currentSnapshot.forms, source.currentSnapshot.forms);
+  assert.deepEqual(result.baselineSnapshot, source.baselineSnapshot);
+  assert.equal(evaluateFormAccess(result.currentSnapshot.forms[0].access, creatureFormAccessContext(result.currentSnapshot)).status, "locked");
+  assert.equal((await rows("select total_damage from campaign_character_active_health where character_id=$1", [id]))[0].total_damage, 7);
+});
+
+test("Access: old snapshots with Forms but no Access remain valid, Unrestricted and unmodified on ordinary save", async () => {
+  const saved = await accessCreatureFixture(), id = await npcFixture(saved);
+  const legacy = buildCreatureNpcSnapshot(saved); delete legacy.forms[0].access;
+  const text = JSON.stringify(legacy);
+  await pool.query("update campaign_creature_npc_profile set baseline_snapshot_json=$1,current_snapshot_json=$1 where character_id=$2", [text, id]);
+  const parsed = parseCreatureNpcSnapshot(text);
+  assert.equal(evaluateFormAccess(parsed.forms[0].access, creatureFormAccessContext(parsed)).status, "available");
+  const npc = await getCreatureNpc(id), result = await saveCreatureNpc({ ...npc, personality: "Legacy ordinary edit" });
+  assert.equal(Object.hasOwn(result.currentSnapshot.forms[0], "access"), false);
+  assert.equal(Object.hasOwn(result.baselineSnapshot.forms[0], "access"), false);
+});

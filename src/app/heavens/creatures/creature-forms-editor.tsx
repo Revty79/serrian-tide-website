@@ -1,4 +1,5 @@
 "use client";
+import { FormAccessEditor } from "@/components/forms/form-access-editor";
 
 import type { ReactNode } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -65,6 +66,7 @@ export function CreatureFormsEditor({ draft, onChange }: { draft: CreatureDraft;
       return <article className={styles.card} key={form.key} data-creature-form><header><h3>{form.name || `Form ${index + 1}`}</h3><div className={styles.actions}><button className="st-button" type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move up</button><button className="st-button" type="button" disabled={index === forms.length - 1} onClick={() => move(index, 1)}>Move down</button><button className="st-button" type="button" onClick={() => set(forms.filter((_, i) => i !== index))}>Remove Form</button></div></header>
         <Text label="Form Name" value={form.name} help="A name for an alternate state of this Creature, not a Variant or Evolution." onChange={name => patch({ name })} /><Text label="Form Description" value={form.description} help="Describe the Form's appearance and purpose." onChange={description => patch({ description })} /><Text label="Form Notes" value={form.notes} help="Additional authoring notes for the G.O.D." onChange={notes => patch({ notes })} />
         {error && <p role="alert" className={styles.error}>{error}</p>}
+        <FormAccessEditor owner="creature" value={form.access} creatureAbilities={draft.abilities} onChange={access => patch({ access })} />
         <Mechanics draft={draft} form={form} onChange={mechanics => patch({ mechanics })} />
         <FormTransformationEditor value={form.transformation} onChange={transformation => patch({ transformation })} />
       </article>;

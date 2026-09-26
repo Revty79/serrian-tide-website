@@ -63,10 +63,28 @@ test("Creature authoring preserves pre-migration records and round-trips through
     await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,7)", [characterId]);
     const allTables = (await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows as Array<{ tablename: string }>;
     const allBefore = await Promise.all(allTables.map(({ tablename }) => pool!.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)));
-    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    const throughFormsFolder = path.join(root, "through-forms"); await mkdir(path.join(throughFormsFolder, "meta"), { recursive: true });
+    const throughFormsEntries = journal.entries.filter((entry: { idx: number }) => entry.idx < 76);
+    await writeFile(path.join(throughFormsFolder, "meta/_journal.json"), JSON.stringify({ ...journal, entries: throughFormsEntries }));
+    for (const entry of throughFormsEntries) await copyFile(path.resolve("drizzle", `${entry.tag}.sql`), path.join(throughFormsFolder, `${entry.tag}.sql`));
+    await migrate(drizzle(pool), { migrationsFolder: throughFormsFolder });
     for (const [index, { tablename }] of allTables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)).rows, allBefore[index].rows, `${tablename} unchanged by Creature Forms migration`);
     assert.equal((await pool.query("select count(*)::int count from creature_forms")).rows[0].count, 0);
     console.log(`PASS: 0075 preserves all ${allTables.length} existing public tables and infers no Forms`);
+    const { creatureFormFixture } = await import("./creature-form-fixture");
+    const oldForm = creatureFormFixture();
+    const [savedForm] = (await pool.query("insert into creature_forms(creature_id,form_key,name,mechanics_json,transformation_json) values($1,$2,$3,$4,$5) returning id", [creatureId, oldForm.key, oldForm.name, JSON.stringify(oldForm.mechanics), JSON.stringify(oldForm.transformation)])).rows;
+    const legacyFormsSnapshot = JSON.stringify({ ...JSON.parse(oldSnapshot), forms: [{ ...oldForm, id: savedForm.id, creatureId }] });
+    await pool.query("update campaign_creature_npc_profile set current_snapshot_json=$1 where character_id=$2", [legacyFormsSnapshot, characterId]);
+    const accessTables = (await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows as Array<{ tablename: string }>;
+    const accessBefore = await Promise.all(accessTables.map(({ tablename }) => pool!.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)));
+    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    for (const [index, { tablename }] of accessTables.entries()) {
+      const expected = ["race_forms", "creature_forms"].includes(tablename) ? accessBefore[index].rows.map(row => ({ body: { ...row.body, access_mode: "unrestricted" } })) : accessBefore[index].rows;
+      assert.deepEqual((await pool.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)).rows, expected, `${tablename} preserved by Form Access migration`);
+    }
+    for (const table of ["race_form_access_requirements", "creature_form_access_requirements"]) assert.equal((await pool.query(`select count(*)::int count from ${table}`)).rows[0].count, 0);
+    console.log(`PASS: 0076 preserves all ${accessTables.length} tables, defaults both existing Form owners to Unrestricted, and leaves old NPC snapshots byte-for-byte unchanged`);
     for (const table of ["race_natural_protections", "race_natural_protection_locations"]) assert.equal((await pool.query(`select count(*)::int count from ${table}`)).rows[0].count, 0, "Natural Protection migration never backfills Race data");
     for (const [index, table] of tables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' - 'parent_race_id' - 'anatomy_json' body from ${table} t order by id`)).rows, before[index].rows, `${table} legacy data must survive unchanged`);
     assert.equal((await pool.query("select count(*)::int count from races where anatomy_json is not null")).rows[0].count, 0, "Existing Race anatomy keeps its humanoid default");

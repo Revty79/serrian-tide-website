@@ -1,3 +1,4 @@
+import { accessFixture, accessRequirement } from "./form-access-fixture";
 import assert from "node:assert/strict";
 import path from "node:path";
 import type { Page, Request } from "playwright-core";
@@ -31,6 +32,11 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   await editor.getByRole("button", { name: "Add Form", exact: true }).click();
   await editor.getByLabel("Form Name", { exact: true }).fill("Authored Form");
   await editor.getByLabel("Form Description", { exact: true }).fill("Browser-authored alternate state");
+  await setDetailsOpen(editor, "Access", true);
+  const accessEditor = editor.locator("[data-form-access-editor]");
+  await accessEditor.getByLabel("Access mode", { exact: true }).selectOption("requirements");
+  await accessEditor.getByLabel("Requirement type", { exact: true }).selectOption("attribute");
+  await accessEditor.getByLabel("Required value", { exact: true }).fill("31");
   await setDetailsOpen(editor, "Size and exceptional steps", true);
   await editor.getByLabel("Form Size", { exact: true }).selectOption("Small");
   await editor.getByLabel("Form HP Multiplier Steps", { exact: true }).fill("2");
@@ -60,6 +66,7 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   let template = (await db.transaction(tx => readCreatureNpcTemplateInTransaction(tx, creatureId)))!;
   assert.equal(template.forms!.length, 1);
   const authored = template.forms![0];
+  assert.equal(authored.access!.requirements[0].requiredValue, 31);
   assert.equal(authored.mechanics.attributes.rows[0].value, 45);
   assert.equal(authored.mechanics.body.hitLocations[0].naturalArmor, 2);
   assert.equal(authored.mechanics.movement.rows[0].requirements, "Water");
@@ -74,12 +81,15 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   await page.locator(".skill-library__row").filter({ hasText: "Form Browser Creature" }).click();
   await page.getByRole("button", { name: "Forms", exact: true }).click();
   assert.equal(await editor.getByLabel("Form Name", { exact: true }).inputValue(), "Authored Form");
+  await setDetailsOpen(editor, "Access", true);
+  assert.equal(await accessEditor.getByLabel("Required value", { exact: true }).inputValue(), "31");
+  await accessEditor.screenshot({ path: path.join(artifacts, "form-access-authoring-phone.png") });
   await setDetailsOpen(editor, "Attributes", true);
   assert.equal(await editor.locator(".creature-attribute-row input[type=number]").first().inputValue(), "45");
 
   const [skill] = (await pool.query("insert into skill(name,classification,tier,primary_attribute) values('Form Awareness','standard',1,'WIS') returning id")).rows;
-  const complex = creatureFormFixture(skill.id as number);
-  const extras = Array.from({ length: 16 }, (_, index) => ({ ...creatureFormFixture(), key: `extra-${index}`, name: `Additional Form ${index}`, mechanics: emptyCreatureFormMechanics(), transformation: null }));
+  const complex = { ...creatureFormFixture(skill.id as number), access: accessFixture(accessRequirement("skill", { skillId: skill.id as number })) };
+  const extras = Array.from({ length: 16 }, (_, index) => ({ ...creatureFormFixture(), access: index === 0 ? accessFixture(accessRequirement("manual", { notes: "Native Awakening browser ruling" })) : undefined, key: `extra-${index}`, name: `Additional Form ${index}`, mechanics: emptyCreatureFormMechanics(), transformation: null }));
   await db.transaction(tx => saveCreatureFormsInTransaction(tx, creatureId, [authored, complex, ...extras], template));
   template = (await db.transaction(tx => readCreatureNpcTemplateInTransaction(tx, creatureId)))!;
   const npcId = await db.transaction(tx => createCreatureNpcInTransaction(tx, { campaignId, controllerUserId: userId, creatureId, name: "Form Browser NPC", roleLabel: "Form fixture", snapshot: buildCreatureNpcSnapshot(template) }));
@@ -89,6 +99,8 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   const select = viewer.getByLabel("View Form", { exact: true });
   assert.equal(await select.inputValue(), "");
   assert.equal(await select.locator("option").count(), 19);
+  const options = await select.locator("option").allTextContents();
+  assert.ok(options.includes("Winged Form — Locked")); assert.ok(options.includes("Additional Form 0 — Manual Review")); assert.ok(options.includes("Additional Form 15 — Available"));
   assert.equal(await viewer.locator("[data-creature-form-preview]").count(), 0);
   await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,7) on conflict (character_id) do update set total_damage=7", [npcId]);
   await page.reload(); await select.waitFor();
@@ -99,6 +111,8 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   page.on("request", observe);
   await select.selectOption(String(template.forms![1].id));
   await viewer.getByRole("heading", { name: "Winged Form", exact: true }).waitFor();
+  assert.equal(await viewer.locator("[data-form-access]").getAttribute("data-form-access"), "locked");
+  assert.match(await viewer.innerText(), /Locked Form Preview/); assert.match(await viewer.innerText(), /Requires: Form Awareness/);
   const text = await viewer.innerText();
   for (const expected of ["does not change the Creature NPC's current runtime state", "Effective 15", "Winged torso", "Natural Armor 4", "Grounded if disabled", "Flight: Base 18", "Form Talons", "Attack 67%", "Form Moon Sight", "Resistance", "Rank 3", "Form cold rule", "Claws only", "Cannot write", "Quintessence"]) assert.ok(text.includes(expected), `Preview displays ${expected}`);
   await setDetailsOpen(viewer, "Ability costs, conditions, limits, effects and Magic Construction", true);
@@ -113,6 +127,10 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   await page.screenshot({ path: path.join(artifacts, "forms-preview-phone.png"), fullPage: true });
   await select.selectOption(String(template.forms![0].id));
   assert.ok((await viewer.innerText()).includes("Fins"));
+  assert.equal(await viewer.locator("[data-form-access]").getAttribute("data-form-access"), "locked", "Normal STR 30 cannot self-unlock through Form Attribute 45");
+  await select.selectOption(String(template.forms![2].id));
+  assert.equal(await viewer.locator("[data-form-access]").getAttribute("data-form-access"), "manual-review");
+  assert.match(await viewer.innerText(), /Native Awakening browser ruling/);
   await select.selectOption(String(template.forms![17].id));
   assert.ok((await viewer.innerText()).includes("Additional Form 15"));
   await select.selectOption("");
@@ -132,5 +150,6 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   await select.selectOption(String(template.forms![1].id));
   await page.goto(`${base}/heavens/npcs?campaign=${campaignId}`);
   await page.goto(`${base}/heavens/npcs/${npcId}`); await select.waitFor(); assert.equal(await select.inputValue(), "");
+  console.log("PASS: Creature Access author/save/reload, all eligibility statuses, locked inspection, Normal self-unlock prevention and frozen mutation-free snapshots at desktop/390px");
   console.log("PASS: Creature Form browser authoring, all 18 snapshot Forms, full native preview, local reset, zero mutation requests, unchanged DB/runtime, safe unrelated save, desktop and 390px");
 }

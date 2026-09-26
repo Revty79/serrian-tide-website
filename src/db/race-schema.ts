@@ -1,3 +1,4 @@
+import type { FormAccessMode } from "@/features/forms/form-access";
 import type { RaceFormTransformation } from "@/features/races/race-form-transformation";
 import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import type { RaceAnatomy } from "@/features/races/race-anatomy";
@@ -112,8 +113,10 @@ export const raceForm = pgTable("race_forms", {
   notes: text("notes").default("").notNull(),
   sortOrder: integer("sort_order").notNull(),
   mechanics: jsonb("mechanics_json").$type<RaceFormMechanicsProfile>(),
+  accessMode: text("access_mode").$type<FormAccessMode>().notNull().default("unrestricted"),
   transformation: jsonb("transformation_json").$type<RaceFormTransformation>(),
 }, (table) => [
+  check("race_form_access_mode", sql`${table.accessMode} IN ('unrestricted','requirements')`),
   check("race_form_transformation_shape", sql`${table.transformation} IS NULL OR coalesce((jsonb_typeof(${table.transformation}) = 'object' AND ${table.transformation}->>'schemaVersion' = '1'), false)`),
   uniqueIndex("race_form_key_uq").on(table.raceId, table.key),
   check("race_form_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0`),

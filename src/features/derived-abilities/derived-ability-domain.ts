@@ -1,3 +1,4 @@
+import { NUMERIC_REQUIREMENT_OPERATORS, POSSESSION_REQUIREMENT_OPERATORS, nonnegativeInteger, positiveInteger, finiteNumber, absent } from "@/features/requirements/requirement-primitives";
 import {
   DERIVED_ABILITY_ACQUISITION_TYPES,
   DERIVED_ABILITY_ACTIVATION_TYPES,
@@ -23,9 +24,6 @@ import {
   type DerivedAbilityUseLimitDefinition,
 } from "./models";
 
-const NUMERIC_REQUIREMENT_OPERATORS = ["gte", "gt", "lte", "lt", "eq", "neq"] as const;
-const POSSESSION_REQUIREMENT_OPERATORS = ["possessed", "not-possessed"] as const;
-
 function includes<const Values extends readonly string[]>(
   values: Values,
   value: string,
@@ -42,33 +40,6 @@ function requiredText(value: string | null | undefined, label: string): string {
   const normalized = optionalText(value);
   if (!normalized) throw new Error(`${label} is required.`);
   return normalized;
-}
-
-function nonnegativeInteger(value: number, label: string): number {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative whole number.`);
-  }
-  return value;
-}
-
-function positiveInteger(value: number | null | undefined, label: string): number {
-  if (!Number.isInteger(value) || (value ?? 0) <= 0) {
-    throw new Error(`${label} must be a positive whole number.`);
-  }
-  return value as number;
-}
-
-function finiteNumber(value: number | null | undefined, label: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${label} must be a finite number.`);
-  }
-  return value;
-}
-
-function absent(value: unknown, label: string): void {
-  if (value !== null && value !== undefined) {
-    throw new Error(`${label} does not apply to this requirement type.`);
-  }
 }
 
 function normalizeOrderedDefinitions<T extends { id?: number; sortOrder: number }>(

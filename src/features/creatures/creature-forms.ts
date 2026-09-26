@@ -1,3 +1,4 @@
+import type { FormAccess } from "@/features/forms/form-access";
 import type { CreatureDraft } from "./models";
 import { normalizeCreatureDefinition } from "./creature-definition";
 import { CREATURE_SIZE_OPTIONS } from "@/db/creature-schema";
@@ -28,6 +29,7 @@ export type CreatureFormMechanics = Collections & {
   restrictions: Array<{ key: string; name: string; notes: string }>;
 };
 export type CreatureForm = {
+  access?: FormAccess;
   id?: number;
   creatureId?: number;
   key: string;

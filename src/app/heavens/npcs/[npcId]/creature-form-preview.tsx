@@ -1,4 +1,7 @@
 "use client";
+import { FormAccessSummary } from "@/components/forms/form-access-summary";
+import { evaluateFormAccess, FORM_ACCESS_LABELS } from "@/features/forms/form-access";
+import { creatureFormAccessContext } from "@/features/forms/form-access-context";
 
 import { useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -21,17 +24,20 @@ function AuthoredDetails({ value }: { value: unknown }) {
 }
 
 /** No mutation callback: selected Form never enters the editable Creature NPC draft. */
-export function CreatureFormPreviewViewer({ snapshot, hpAdjustment }: { snapshot: CreatureDraft; hpAdjustment: number }) {
+export function CreatureFormPreviewViewer({ snapshot, normalSnapshot = snapshot, hpAdjustment }: { snapshot: CreatureDraft; normalSnapshot?: CreatureDraft; hpAdjustment: number }) {
   const [formId, setFormId] = useState<number | null>(null);
   const forms = availableCreatureForms(snapshot);
   if (!forms.length) return null;
+  const context = creatureFormAccessContext(normalSnapshot);
+  const access = new Map(forms.map(form => [form.id, evaluateFormAccess(form.access, context)]));
   const preview = resolveCreatureFormPreview(snapshot, formId, hpAdjustment);
   const definition = preview?.definition;
   const m = preview?.form.mechanics;
   return <section className={styles.viewer} aria-label="Creature Form viewer">
-    <GuidedField className="st-field" label="View Form" help="Preview Forms captured from this exact Creature when the NPC was created. Selection changes only this display; refresh or reopening returns to Normal. Library edits do not change these frozen definitions."><select className="st-control" value={preview?.form.id ?? ""} onChange={event => setFormId(event.target.value ? Number(event.target.value) : null)}><option value="">Normal</option>{forms.map(form => <option key={form.id} value={form.id}>{form.name}</option>)}</select></GuidedField>
+    <GuidedField className="st-field" label="View Form" help="Preview Forms captured from this exact Creature when the NPC was created. Selection changes only this display; refresh or reopening returns to Normal. Library edits do not change these frozen definitions."><select className="st-control" value={preview?.form.id ?? ""} onChange={event => setFormId(event.target.value ? Number(event.target.value) : null)}><option value="">Normal</option>{forms.map(form => <option key={form.id} value={form.id}>{form.name} — {FORM_ACCESS_LABELS[access.get(form.id)!.status]}</option>)}</select></GuidedField>
     {preview && definition && m && <div className={styles.body} data-creature-form-preview>
       <header><h2>{preview.form.name}</h2><p className={styles.notice}><strong>Form Preview — viewing this Form does not change the Creature NPC&apos;s current runtime state.</strong></p><p>Normal editing and live controls remain below. Saving uses the Normal draft. These are maximums, not current health; stored damage is never redistributed.</p><p>{preview.form.description}</p><p>{preview.form.notes}</p><p>Size: {definition.core.size} · Maximum HP: {number(preview.hp.finalTotalHp)} · Individual HP adjustment: {number(hpAdjustment)} · Normal CR: {definition.core.challengeRating ?? "Unspecified"} · Normal XP: {definition.core.killXp ?? "Unspecified"}</p></header>
+      <FormAccessSummary evaluation={access.get(preview.form.id)!} entity="Creature NPC" />
       <Section title="Preview Attributes"><div className={styles.grid}>{preview.hp.statistics.attributes.map(row => <dl className={styles.card} key={row.attributeKey} data-preview-attribute={row.attributeKey}><dt>{row.attributeKey}</dt><dd>Base {number(row.baseValue)} · Effective {number(row.effectiveValue)}</dd><dd>{definition.attributes.find(attribute => attribute.attributeKey === row.attributeKey)?.notes}</dd></dl>)}</div><p>Creature Size multiplier ×{number(preview.hp.statistics.sizeMultiplier)} · HP multiplier ×{number(preview.hp.statistics.hpMultiplier)} · Base Magic bonus {number(preview.hp.statistics.baseMagicBonus)}</p></Section>
       <Section title="Preview HP pools and hit locations"><p>Maximums only; Active Health remains unchanged.</p><div className={styles.grid}>{preview.hp.pools.map(row => <div className={styles.card} key={row.canonicalId}><strong>{row.poolName}</strong><p>HP {number(row.maximumHp)} · {number(row.hpPercentage)}% · {row.notes}</p></div>)}</div><ul>{definition.hitLocations.map(row => <li key={row.hitLocationNumber}><strong>{row.hitLocationNumber}: {row.locationName}</strong> · {row.bodyPartsIncluded} · Pool {preview.hp.pools.find(pool => pool.canonicalId === row.hpPoolCanonicalId)?.poolName ?? "Unassigned"} · Natural Armor {number(row.naturalArmor)} · Soak {number(row.soak)} · {row.locationEffect} · {row.notes}</li>)}</ul></Section>
       <Section title="Preview Movement">{definition.movement.length ? <ul>{definition.movement.map((row, index) => <li key={index}>{row.movementMode}: Base {number(row.movementValue)} · Effective {number(preview.hp.statistics.movement[index]?.effectiveValue)} · Initiative {number(row.initiative)} · Requirements: {row.requirements || "None authored"} · {row.notes}</li>)}</ul> : <p>No movement modes.</p>}</Section>

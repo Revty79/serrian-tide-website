@@ -1,8 +1,10 @@
+import type { FormAccess } from "@/features/forms/form-access";
 import type { RaceFormTransformation } from "./race-form-transformation";
 import type { RaceFormMechanics } from "./race-form-mechanics";
 
 /** A Race-local authoring identity. The Race itself remains the normal state. */
 export type RaceForm = {
+  access?: FormAccess;
   key: string;
   name: string;
   description: string;
