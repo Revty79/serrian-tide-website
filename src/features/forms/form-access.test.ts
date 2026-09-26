@@ -15,10 +15,10 @@ const manual = req("manual", { notes: "Complete First Awakening" });
 test("legacy and explicit Unrestricted Forms are Available; malformed metadata fails closed", () => {
   for (const value of [undefined, { mode: "unrestricted" as const, requirements: [] }]) assert.equal(evaluate(value, context()).status, "available");
   assert.equal(evaluate({ mode: "requirements", requirements: [] }, context()).status, "locked");
-  assert.throws(() => normalizeFormAccess({ mode: "unrestricted", requirements: [skill] }, "race"), /cannot have/);
+  assert.throws(() => normalizeFormAccess({ mode: "unrestricted", requirements: [skill] }, "race"), /Only those who meet specific requirements/);
 });
 test("Skill/Special Ability possession, absence and useful classifications", () => {
-  const result = evaluate(access(skill), context()); assert.equal(result.status, "available"); assert.match(result.groups[0].requirements[0].explanation, /Shift Forms · Special Ability possessed/);
+  const result = evaluate(access(skill), context()); assert.equal(result.status, "available"); assert.match(result.groups[0].requirements[0].explanation, /Shift Forms · Special Ability must be present/);
   assert.equal(evaluate(access({ ...skill, skillId: 9 }), context()).status, "locked");
   assert.equal(evaluate(access({ ...skill, operator: "not-possessed" }), context()).status, "locked");
   assert.equal(evaluate(access({ ...skill, skillId: 9, operator: "not-possessed" }), context()).status, "available");
@@ -49,10 +49,10 @@ test("AND automatic failure dominates manual; OR passing group dominates manual;
 });
 test("strict owner/type/reference/operator/group validation uses shared requirement primitives", () => {
   for (const row of [{ ...attribute, attributeKey: "Strength" }, { ...skill, skillId: -1 }, { ...attribute, requiredValue: Infinity }, { ...manual, notes: " " }, { ...skill, requiredValue: 1 }, { ...attribute, skillId: 1 }, { ...skill, groupNumber: -1 }]) assert.throws(() => normalizeFormAccess(access(row as typeof skill), "race"));
-  assert.throws(() => normalizeFormAccess(access(skill, skill), "race"), /identities/);
-  assert.throws(() => normalizeFormAccess(access(skill, { ...manual, key: "another" }), "race"), /positions/);
-  assert.throws(() => normalizeFormAccess(access(req("creature-ability", { requiredCreatureAbilityCanonicalId: "ABL-1" })), "race"), /Unsupported/);
-  assert.throws(() => normalizeFormAccess(access(req("derived-ability", { requiredDerivedAbilityId: 1 })), "creature"), /Unsupported/);
+  assert.throws(() => normalizeFormAccess(access(skill, skill), "race"), /could not be identified/);
+  assert.throws(() => normalizeFormAccess(access(skill, { ...manual, key: "another" }), "race"), /order of these requirements/);
+  assert.throws(() => normalizeFormAccess(access(req("creature-ability", { requiredCreatureAbilityCanonicalId: "ABL-1" })), "race"), /Choose a requirement/);
+  assert.throws(() => normalizeFormAccess(access(req("derived-ability", { requiredDerivedAbilityId: 1 })), "creature"), /Choose a requirement/);
 });
 test("Creature Skill presence uses native links and never parses textual ranks", () => {
   const normal = creatureDraftFixture(); normal.skillLinks = [{ skillId: 1, skillName: "Lore", skillClassification: "standard", rank: "Master, 40+", notes: "", sortOrder: 0 }];
@@ -66,7 +66,7 @@ test("Creature Attribute checks reuse native Normal effective statistics and unk
   assert.equal(evaluate(access({ ...attribute, requiredValue: effective }), creatureFormAccessContext(normal)).status, "available");
   assert.equal(evaluate(access({ ...attribute, requiredValue: effective + 1 }), creatureFormAccessContext(normal)).status, "locked");
   normal.attributes[0].value = null;
-  const unknown = evaluate(access(attribute), creatureFormAccessContext(normal)); assert.equal(unknown.status, "manual-review"); assert.match(unknown.groups[0].requirements[0].explanation, /not authored/);
+  const unknown = evaluate(access(attribute), creatureFormAccessContext(normal)); assert.equal(unknown.status, "manual-review"); assert.match(unknown.groups[0].requirements[0].explanation, /has not been recorded/);
 });
 test("Creature Ability uses stable canonical identity, never a matching name", () => {
   const normal = creatureDraftFixture(); normal.abilities = creatureFormFixture().mechanics.abilities.rows;

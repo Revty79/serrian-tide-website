@@ -64,6 +64,11 @@ export function resolveCharacterFormPreview(draft: CharacterDraft, race: Charact
     protections: mechanics.protectionMode === "override" ? mechanics.protections : race.formPreview.naturalProtections,
     attacks: mechanics.attacksMode === "override" ? mechanics.attacks : race.formPreview.naturalAttacks,
     skills,
+    grantedAbilities: [...new Map(displayRace.skillLinks.filter(link => link.linkType === "Granted").map(link => [link.skillId, {
+      skillId: link.skillId, name: skillCatalog.find(skill => skill.id === link.skillId)?.name || link.skillName,
+      definition: skillCatalog.find(skill => skill.id === link.skillId)?.definition ?? "",
+      fromRace: race.skillLinks.some(normal => normal.skillId === link.skillId && normal.linkType === "Granted"),
+    }])).values()],
     skillAdditions: additions.map(addition => ({ ...addition, definition: skillCatalog.find(skill => skill.id === addition.skillId)?.definition ?? "" })),
     interactionRules: mechanics.interactionMode === "race" ? raceRules : mechanics.interactionMode === "replace" ? formRules : [...raceRules, ...formRules],
     interactionMode: mechanics.interactionMode,

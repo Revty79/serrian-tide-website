@@ -20,12 +20,12 @@ export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; 
   try { normalizeRaceForms(value); } catch (error) { validation = error instanceof Error ? error.message : "Check the Forms below."; }
   return <section className={styles.editor} aria-label="Race Forms">
     <p>The Race itself is the normal state. Forms are alternate states available to this Race.</p>
-    <p>Forms are authoring data only. Runtime transformation support is not implemented yet.</p>
+    <p>You can describe Forms and preview them. Changing into a Form during play is not automated yet.</p>
     <button type="button" className="st-button" onClick={() => {
       const key = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
       update([...value, emptyRaceForm(key)]);
     }}>Add Form</button>
-    {!value.length ? <p>No Forms authored. This Race uses its normal definition.</p> : null}
+    {!value.length ? <p>No alternate Forms. This Race uses its normal body and abilities.</p> : null}
     {validation ? <p role="alert" className={styles.error}>{validation}</p> : null}
     {value.map((form, index) => <article key={form.key} className={styles.card} aria-label={`Form ${index + 1}`}>
       <header>
@@ -42,7 +42,7 @@ export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; 
       <GuidedField className="st-field" label="Form Description" help="Describe this alternate state and its appearance. This text does not change Attributes, Anatomy or other mechanics. Leave blank if no description is needed.">
         <textarea className="st-control" rows={3} value={form.description} onChange={event => patch(form.key, { description: event.target.value })} />
       </GuidedField>
-      <GuidedField className="st-field" label="Form Notes" help="Record additional authoring notes for this Form. Notes do not create transformation rules or runtime effects. Leave blank if no notes are needed.">
+      <GuidedField className="st-field" label="Form Notes" help="Record additional authoring notes for this Form. Notes do not automatically change what happens during play. Leave blank if no notes are needed.">
         <textarea className="st-control" rows={3} value={form.notes} onChange={event => patch(form.key, { notes: event.target.value })} />
       </GuidedField>
       <FormAccessEditor owner="race" value={form.access} onChange={access => patch(form.key, { access })} />

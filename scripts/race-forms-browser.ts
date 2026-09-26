@@ -17,9 +17,9 @@ export async function checkRaceFormsBrowser(page: Page, base: string) {
   await page.goto(`${base}/heavens/races`);
   await button("New Race").click(); await page.getByLabel("Name", { exact: true }).fill(name);
   await button("Forms").click();
-  await page.getByText("No Forms authored. This Race uses its normal definition.", { exact: true }).waitFor();
+  await page.getByText("No alternate Forms. This Race uses its normal body and abilities.", { exact: true }).waitFor();
   await page.getByText("The Race itself is the normal state. Forms are alternate states available to this Race.", { exact: true }).waitFor();
-  await page.getByText("Forms are authoring data only. Runtime transformation support is not implemented yet.", { exact: true }).waitFor();
+  await page.getByText("You can describe Forms and preview them. Changing into a Form during play is not automated yet.", { exact: true }).waitFor();
   await page.evaluate(() => Object.defineProperty(crypto, "randomUUID", { configurable: true, value: undefined }));
   await button("Add Form").click();
   await page.getByRole("alert").getByText("Form Name is required.", { exact: true }).waitFor();

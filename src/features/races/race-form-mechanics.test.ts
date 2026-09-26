@@ -40,7 +40,7 @@ test("protection and attacks validate against Form Anatomy or the underlying Rac
   const incomplete = structuredClone(mechanics);
   incomplete.anatomy!.hitLocations = incomplete.anatomy!.hitLocations.filter(row => row.hitLocationNumber !== 0);
   incomplete.attacks = [];
-  assert.throws(() => normalizeRaceFormMechanics(incomplete, race), /Coverage/);
+  assert.throws(() => normalizeRaceFormMechanics(incomplete, race), /Choose a hit location/);
 });
 test("overridden body cannot silently retain incompatible inherited Race attacks or protection", () => {
   const mechanics = emptyRaceFormMechanics(); mechanics.anatomyMode = "override";
@@ -49,7 +49,7 @@ test("overridden body cannot silently retain incompatible inherited Race attacks
   assert.throws(() => normalizeRaceFormMechanics(mechanics, { ...race, naturalAttacks: [attack] }), /Hit Locations/);
   mechanics.attacksMode = "override";
   assert.doesNotThrow(() => normalizeRaceFormMechanics(mechanics, { ...race, naturalAttacks: [attack] }));
-  assert.throws(() => normalizeRaceFormMechanics(mechanics, { ...race, naturalProtections: [{ key: "hide", name: "Hide", naturalSoak: 1, sortOrder: 0, coverage: { kind: "locations", locationKeys: ["0"] } }] }), /Coverage/);
+  assert.throws(() => normalizeRaceFormMechanics(mechanics, { ...race, naturalProtections: [{ key: "hide", name: "Hide", naturalSoak: 1, sortOrder: 0, coverage: { kind: "locations", locationKeys: ["0"] } }] }), /Choose a hit location/);
 });
 test("capabilities, restrictions, shared Interaction Rules and collection identities validate", () => {
   for (const patch of [

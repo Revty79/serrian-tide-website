@@ -33,11 +33,11 @@ export function emptyFormTransformation(): FormTransformation {
   return { schemaVersion: 1, entryMethod: null, entryNotes: "", entryTiming: timing(), entryCosts: { mode: "unspecified", costs: [] }, requirements: [], involuntaryTriggers: [], duration: { mode: null, description: "" }, exitMethods: [], exitNotes: "", exitTiming: timing(), exitCosts: { mode: "unspecified", costs: [] }, limitMode: "unspecified", useLimits: [], cooldown: "", equipmentEntryNotes: "", equipmentExitNotes: "", notes: "" };
 }
 function record(input: unknown): Record<string, unknown> {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Transformation definitions must be objects.");
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("These transformation details could not be read. Reload the editor and try again.");
   return input as Record<string, unknown>;
 }
 function list(input: unknown): unknown[] {
-  if (!Array.isArray(input)) throw new Error("Transformation definitions require ordered lists.");
+  if (!Array.isArray(input)) throw new Error("This list of transformation rules could not be read. Reload the editor and try again.");
   return input;
 }
 function text(input: unknown): string {
@@ -67,7 +67,7 @@ function costs(input: unknown): FormCosts {
     return { costType: row.costType as DerivedAbilityCostDefinition["costType"], amount: row.amount as number, resourceKey: row.resourceKey == null ? null : text(row.resourceKey), notes: text(row.notes), sortOrder };
   }));
   if (costs.some(cost => cost.costType === "initiative")) throw new Error("Author Initiative in the separate entry or exit timing field.");
-  if (mode !== "costs" && costs.length) throw new Error("Choose Authored costs to retain resource costs.");
+  if (mode !== "costs" && costs.length) throw new Error("Choose List resource costs to keep the costs below.");
   if (mode === "costs" && !costs.length) throw new Error("Add a resource cost or choose No cost.");
   if (costs.some(cost => cost.costType === "resource" && !cost.resourceKey)) throw new Error("A named resource cost needs its resource name, for example Quintessence.");
   return { mode, costs };
@@ -81,7 +81,7 @@ function conditions(input: unknown) {
 export function normalizeFormTransformation(input: unknown): FormTransformation | null {
   if (input == null) return null;
   const row = record(input);
-  if (row.schemaVersion !== 1) throw new Error("Unsupported Form transformation version.");
+  if (row.schemaVersion !== 1) throw new Error("This transformation uses an unsupported format. Reload the editor or ask the G.O.D. to check it.");
   const duration = record(row.duration);
   const durationMode = nullableChoice(duration.mode, FORM_DURATION_MODES), description = text(duration.description);
   if (["fixed", "condition-end", "custom"].includes(durationMode ?? "") && !description) throw new Error("Describe the Form duration or its ending condition.");
@@ -90,8 +90,8 @@ export function normalizeFormTransformation(input: unknown): FormTransformation 
     const row = record(input);
     return { maximumUses: row.maximumUses as number, refreshScope: row.refreshScope as DerivedAbilityUseLimitDefinition["refreshScope"], refreshKey: row.refreshKey == null ? null : text(row.refreshKey), notes: text(row.notes), sortOrder };
   }));
-  if (limitMode !== "limited" && useLimits.length) throw new Error("Choose Authored limits to retain use limits.");
-  if (limitMode === "limited" && !useLimits.length) throw new Error("Add a use limit or choose Unlimited.");
+  if (limitMode !== "limited" && useLimits.length) throw new Error("Choose Limit the number of uses to keep the limits below.");
+  if (limitMode === "limited" && !useLimits.length) throw new Error("Add a use limit or choose No limit on uses.");
   return {
     schemaVersion: 1, entryMethod: nullableChoice(row.entryMethod, FORM_ENTRY_METHODS), entryNotes: text(row.entryNotes), entryTiming: timing(row.entryTiming), entryCosts: costs(row.entryCosts), requirements: conditions(row.requirements), involuntaryTriggers: conditions(row.involuntaryTriggers), duration: { mode: durationMode, description },
     exitMethods: [...new Set(list(row.exitMethods).map(method => choice(method, FORM_EXIT_METHODS)))], exitNotes: text(row.exitNotes), exitTiming: timing(row.exitTiming), exitCosts: costs(row.exitCosts), limitMode, useLimits, cooldown: text(row.cooldown), equipmentEntryNotes: text(row.equipmentEntryNotes), equipmentExitNotes: text(row.equipmentExitNotes), notes: text(row.notes),

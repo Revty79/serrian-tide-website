@@ -18,6 +18,8 @@
 .sectionBody :global(.race-skill-picker), .sectionBody :global(.race-repeat-row--movement), .sectionBody :global(.race-skill-link) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
 .sectionBody :global(.race-skill-picker) > *, .sectionBody :global(.race-repeat-row--movement) > * { min-width: 0; }
 .sectionBody select { max-width: 100%; }
+.editor button, .sectionBody button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.sectionBody legend { max-width: 100%; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .card { padding: .75rem; } }
 
 .sectionBody input[type="checkbox"] { width: auto; }

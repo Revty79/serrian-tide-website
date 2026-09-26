@@ -106,7 +106,7 @@ test("Form attacks and protection validate against overridden or inherited Anato
   const raceWithTail = await saveRace({ ...saved, core: { ...saved.core, anatomy: mechanics.anatomy }, forms: [form(invalid)] });
   assert.equal(raceWithTail.forms[0].mechanics.anatomyMode, "race");
   const missingLocation = structuredClone(mechanics); missingLocation.anatomy.hitLocations = missingLocation.anatomy.hitLocations.filter(row => row.hitLocationNumber !== 0);
-  await assert.rejects(saveRace({ ...saved, forms: [form(missingLocation)] }), /Coverage/);
+  await assert.rejects(saveRace({ ...saved, forms: [form(missingLocation)] }), /Choose a hit location/);
   const before = await stored(base.id);
   const oldCaller = { ...raceWithTail, core: { ...base.core } }; delete oldCaller.forms;
   await assert.rejects(saveRace(oldCaller), /HP Pools/);

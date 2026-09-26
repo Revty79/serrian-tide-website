@@ -5,7 +5,17 @@ import type { DerivedAbilityUseConditionDefinition } from "@/features/derived-ab
 import type { FormCosts, FormTiming, FormTransformation } from "@/features/forms/form-transformation";
 import type { InteractionCondition } from "@/features/interaction-rules/interaction-rules";
 import styles from "./form-preview.module.css";
-export const formLabel = (value: string | null | undefined) => value ? value.split("-").map(word => word[0].toUpperCase() + word.slice(1)).join(" ") : "Unspecified";
+import { formChoiceLabel, formRefreshLabel } from "@/features/forms/form-language";
+export const formLabel = formChoiceLabel;
+/** Complete read-only details shared by both Form viewers. */
+export function FormAuthoredDetails({ value }: { value: unknown }) {
+  if (value == null || value === "") return <>Not recorded</>;
+  if (typeof value === "boolean") return <>{value ? "Yes" : "No"}</>;
+  if (Array.isArray(value)) return value.length ? <ul>{value.map((row, index) => <li key={index}><FormAuthoredDetails value={row} /></li>)}</ul> : <>None recorded</>;
+  const labels: Record<string, string> = { activationType: "How it is used", resourceKey: "Resource name", refreshScope: "When uses return", refreshKey: "Event that restores uses", conditionKey: "Required circumstance", operator: "What must be true", numericValue: "Required number", textValue: "Required text", onHitEffects: "Effects on a hit", magic: "Magic Construction", document: "Spell details", kind: "Type" };
+  if (typeof value === "object") return <dl className={styles.definitions}>{Object.entries(value).filter(([key]) => !["id", "key", "effectKey", "canonicalId", "schemaVersion", "sortOrder"].includes(key)).map(([key, entry]) => <div key={key}><dt>{labels[key] ?? formLabel(key.replace(/([a-z])([A-Z])/g, "$1-$2"))}</dt><dd><FormAuthoredDetails value={entry} /></dd></div>)}</dl>;
+  return <>{String(value)}</>;
+}
 export function FormPreviewSection({ title, children }: { title: string; children: ReactNode }) {
   return <section className={styles.section} aria-label={title}><h3>{title}</h3>{children}</section>;
 }
@@ -37,15 +47,15 @@ export function interactionCondition(condition: InteractionCondition): string {
   }
 }
 export function TransformationSummary({ value }: { value: FormTransformation | null }) {
-  if (!value) return <p>No transformation definition authored.</p>;
+  if (!value) return <p>No transformation rules recorded. How to change, return, pay costs and limit uses is still undecided.</p>;
   return <dl className={styles.definitions}>
-    <FormPreviewDefinition title="Entry method">{formLabel(value.entryMethod)} {value.entryNotes}</FormPreviewDefinition>
-    <FormPreviewDefinition title="Entry timing">{timing(value.entryTiming)}</FormPreviewDefinition><FormPreviewDefinition title="Entry costs">{costs(value.entryCosts)}</FormPreviewDefinition>
-    <FormPreviewDefinition title="Entry requirements">{conditions(value.requirements)}</FormPreviewDefinition><FormPreviewDefinition title="Involuntary triggers">{conditions(value.involuntaryTriggers)}</FormPreviewDefinition>
+    <FormPreviewDefinition title="Who controls the change?">{formLabel(value.entryMethod)} {value.entryNotes}</FormPreviewDefinition>
+    <FormPreviewDefinition title="Time to change">{timing(value.entryTiming)}</FormPreviewDefinition><FormPreviewDefinition title="Costs to change">{costs(value.entryCosts)}</FormPreviewDefinition>
+    <FormPreviewDefinition title="Conditions needed before changing">{conditions(value.requirements)}</FormPreviewDefinition><FormPreviewDefinition title="What can force the change?">{conditions(value.involuntaryTriggers)}</FormPreviewDefinition>
     <FormPreviewDefinition title="Duration">{formLabel(value.duration.mode)} {value.duration.description}</FormPreviewDefinition>
-    <FormPreviewDefinition title="Exit rules">{value.exitMethods.map(formLabel).join(", ") || "Unspecified"} {value.exitNotes}</FormPreviewDefinition>
-    <FormPreviewDefinition title="Exit timing">{timing(value.exitTiming)}</FormPreviewDefinition><FormPreviewDefinition title="Exit costs">{costs(value.exitCosts)}</FormPreviewDefinition>
-    <FormPreviewDefinition title="Use limits">{formLabel(value.limitMode)}{value.useLimits.length ? <ul>{value.useLimits.map((limit, index) => <li key={index}>{limit.maximumUses} uses · refresh {formLabel(limit.refreshScope)} {limit.refreshKey} {limit.notes}</li>)}</ul> : null}</FormPreviewDefinition>
-    <FormPreviewDefinition title="Cooldown / custom limit">{value.cooldown}</FormPreviewDefinition><FormPreviewDefinition title="Equipment entry notes">{value.equipmentEntryNotes}</FormPreviewDefinition><FormPreviewDefinition title="Equipment exit notes">{value.equipmentExitNotes}</FormPreviewDefinition><FormPreviewDefinition title="Transformation notes">{value.notes}</FormPreviewDefinition>
+    <FormPreviewDefinition title="Ways to return">{value.exitMethods.map(formLabel).join(", ") || "Unspecified"} {value.exitNotes}</FormPreviewDefinition>
+    <FormPreviewDefinition title="Time to return">{timing(value.exitTiming)}</FormPreviewDefinition><FormPreviewDefinition title="Costs to return">{costs(value.exitCosts)}</FormPreviewDefinition>
+    <FormPreviewDefinition title="How often changes are allowed">{formLabel(value.limitMode)}{value.useLimits.length ? <ul>{value.useLimits.map((limit, index) => <li key={index}>{limit.maximumUses} uses · {formRefreshLabel(limit.refreshScope)} {limit.refreshKey} {limit.notes}</li>)}</ul> : null}</FormPreviewDefinition>
+    <FormPreviewDefinition title="Waiting time or other limits">{value.cooldown}</FormPreviewDefinition><FormPreviewDefinition title="Equipment when changing">{value.equipmentEntryNotes}</FormPreviewDefinition><FormPreviewDefinition title="Equipment when returning">{value.equipmentExitNotes}</FormPreviewDefinition><FormPreviewDefinition title="Transformation notes">{value.notes}</FormPreviewDefinition>
   </dl>;
 }

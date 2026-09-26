@@ -8,6 +8,7 @@ import { saveCreatureFormsInTransaction } from "@/features/creatures/creature-fo
 import { emptyCreatureFormMechanics } from "@/features/creatures/creature-forms";
 import { creatureFormFixture } from "./creature-form-fixture";
 import { setDetailsOpen } from "./interaction-rule-browser-checks";
+import { captureFormViewport } from "./forms-audit-browser";
 
 async function until(check: () => Promise<boolean>) {
   const end = Date.now() + 30_000;
@@ -34,24 +35,33 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   await editor.getByLabel("Form Description", { exact: true }).fill("Browser-authored alternate state");
   await setDetailsOpen(editor, "Access", true);
   const accessEditor = editor.locator("[data-form-access-editor]");
-  await accessEditor.getByLabel("Access mode", { exact: true }).selectOption("requirements");
+  await accessEditor.getByLabel("Who can use this Form?", { exact: true }).selectOption("requirements");
   await accessEditor.getByLabel("Requirement type", { exact: true }).selectOption("attribute");
   await accessEditor.getByLabel("Required value", { exact: true }).fill("31");
+  await accessEditor.getByRole("button", { name: "Add another way to qualify", exact: true }).click();
+  const secondWay = accessEditor.locator("[data-access-requirement]").nth(1);
+  await secondWay.getByLabel("Requirement type", { exact: true }).selectOption("attribute");
+  await secondWay.getByLabel("Required Attribute", { exact: true }).selectOption("WIS");
+  await secondWay.getByLabel("Required value", { exact: true }).fill("80");
+  const transformation = editor.locator("details").filter({ has: page.locator("summary").filter({ hasText: /^Transformation/ }) }).first();
+  await transformation.locator(":scope > summary").click();
+  await transformation.getByLabel("Who controls changing into this Form?", { exact: true }).selectOption("either");
+  await transformation.getByLabel("How long does entry take?", { exact: true }).selectOption("instant");
   await setDetailsOpen(editor, "Size and exceptional steps", true);
   await editor.getByLabel("Form Size", { exact: true }).selectOption("Small");
   await editor.getByLabel("Form HP Multiplier Steps", { exact: true }).fill("2");
   await setDetailsOpen(editor, "Attributes", true);
-  await editor.getByLabel("attributes source", { exact: true }).selectOption("override");
+  await editor.getByLabel("Attributes in this Form", { exact: true }).selectOption("override");
   await editor.locator(".creature-attribute-row input[type=number]").first().fill("45");
   await setDetailsOpen(editor, "Movement", true);
-  await editor.getByLabel("movement source", { exact: true }).selectOption("override");
+  await editor.getByLabel("Movement in this Form", { exact: true }).selectOption("override");
   await editor.getByRole("button", { name: "Add Movement", exact: true }).click();
   await editor.getByPlaceholder("Mode", { exact: true }).fill("Swim");
   await editor.getByPlaceholder("Base Movement", { exact: true }).fill("12");
   await editor.getByPlaceholder("Initiative", { exact: true }).fill("3");
   await editor.getByPlaceholder("Requirements", { exact: true }).fill("Water");
   await setDetailsOpen(editor, "HP pools and hit locations", true);
-  await editor.getByLabel("Body source", { exact: true }).selectOption("override");
+  await editor.getByLabel("Body in this Form", { exact: true }).selectOption("override");
   await editor.getByRole("button", { name: "Add HP Pool", exact: true }).click();
   await editor.getByPlaceholder("Pool Name", { exact: true }).fill("Form body");
   await editor.getByPlaceholder("HP %", { exact: true }).fill("100");
@@ -67,10 +77,19 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   assert.equal(template.forms!.length, 1);
   const authored = template.forms![0];
   assert.equal(authored.access!.requirements[0].requiredValue, 31);
+  assert.equal(authored.access!.requirements[1].requiredValue, 80);
+  assert.equal(authored.transformation!.entryMethod, "either");
+  assert.equal(authored.transformation!.entryTiming.mode, "instant");
   assert.equal(authored.mechanics.attributes.rows[0].value, 45);
   assert.equal(authored.mechanics.body.hitLocations[0].naturalArmor, 2);
   assert.equal(authored.mechanics.movement.rows[0].requirements, "Water");
   assert.equal(authored.mechanics.size, "Small");
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const option of [1, 2]) await captureFormViewport(page, accessEditor.getByRole("group", { name: new RegExp(`Way to qualify #${option}`) }).locator("legend"), path.join(artifacts, `forms-final-creature-access-${option}-${width}.png`));
+    await captureFormViewport(page, editor.getByLabel("Attributes in this Form", { exact: true }), path.join(artifacts, `forms-final-creature-attributes-${width}.png`));
+    await captureFormViewport(page, transformation.locator(":scope > summary"), path.join(artifacts, `forms-final-creature-transformation-${width}.png`));
+  }
   await page.screenshot({ path: path.join(artifacts, "forms-authoring-desktop.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await editor.evaluate(element => element.scrollWidth > element.clientWidth + 2), false, "390px Form authoring fits");
@@ -82,7 +101,7 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   await page.getByRole("button", { name: "Forms", exact: true }).click();
   assert.equal(await editor.getByLabel("Form Name", { exact: true }).inputValue(), "Authored Form");
   await setDetailsOpen(editor, "Access", true);
-  assert.equal(await accessEditor.getByLabel("Required value", { exact: true }).inputValue(), "31");
+  assert.equal(await accessEditor.getByLabel("Required value", { exact: true }).first().inputValue(), "31");
   await accessEditor.screenshot({ path: path.join(artifacts, "form-access-authoring-phone.png") });
   await setDetailsOpen(editor, "Attributes", true);
   assert.equal(await editor.locator(".creature-attribute-row input[type=number]").first().inputValue(), "45");
@@ -100,7 +119,7 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   assert.equal(await select.inputValue(), "");
   assert.equal(await select.locator("option").count(), 19);
   const options = await select.locator("option").allTextContents();
-  assert.ok(options.includes("Winged Form — Locked")); assert.ok(options.includes("Additional Form 0 — Manual Review")); assert.ok(options.includes("Additional Form 15 — Available"));
+  assert.ok(options.includes("Winged Form — Locked")); assert.ok(options.includes("Additional Form 0 — Needs G.O.D. Review")); assert.ok(options.includes("Additional Form 15 — Available"));
   assert.equal(await viewer.locator("[data-creature-form-preview]").count(), 0);
   await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,7) on conflict (character_id) do update set total_damage=7", [npcId]);
   await page.reload(); await select.waitFor();
@@ -114,12 +133,17 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   assert.equal(await viewer.locator("[data-form-access]").getAttribute("data-form-access"), "locked");
   assert.match(await viewer.innerText(), /Locked Form Preview/); assert.match(await viewer.innerText(), /Requires: Form Awareness/);
   const text = await viewer.innerText();
-  for (const expected of ["does not change the Creature NPC's current runtime state", "Effective 15", "Winged torso", "Natural Armor 4", "Grounded if disabled", "Flight: Base 18", "Form Talons", "Attack 67%", "Form Moon Sight", "Resistance", "Rank 3", "Form cold rule", "Claws only", "Cannot write", "Quintessence"]) assert.ok(text.includes(expected), `Preview displays ${expected}`);
+  for (const expected of ["does not change the Creature NPC's actual state", "Effective 15", "Winged torso", "Natural Armor 4", "Grounded if disabled", "Flight: Base 18", "Form Talons", "Attack 67%", "Form Moon Sight", "Resistance", "Rank 3", "Form cold rule", "Claws only", "Cannot write", "Quintessence"]) assert.ok(text.includes(expected), `Preview displays ${expected}`);
   await setDetailsOpen(viewer, "Ability costs, conditions, limits, effects and Magic Construction", true);
   assert.ok((await viewer.innerText()).includes("Sight cost"));
   assert.ok((await viewer.innerText()).includes("At night"));
   assert.equal(await viewer.locator("button").count(), 0, "Preview has no runtime actions");
   assert.equal(await page.getByRole("button", { name: "Save Individual", exact: true }).isDisabled(), true);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await captureFormViewport(page, viewer.locator("[data-creature-form-preview] header"), path.join(artifacts, `forms-final-creature-viewer-${width}.png`));
+    await captureFormViewport(page, viewer.getByRole("region", { name: "Preview Attributes" }), path.join(artifacts, `forms-final-creature-viewer-attributes-${width}.png`));
+  }
   await page.screenshot({ path: path.join(artifacts, "forms-preview-desktop.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await viewer.evaluate(element => element.scrollWidth > element.clientWidth + 2), false);

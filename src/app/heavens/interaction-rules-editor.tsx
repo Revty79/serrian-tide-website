@@ -70,7 +70,7 @@ export function InteractionRulesEditor({ value, owner, onChange, authoringOnly =
     <header className={styles.header}><h3>{owner === "race" ? "Racial Interaction Rules" : "Interaction Rules"}</h3>
       <button className="st-button" type="button" onClick={() => update([...rules, { key: createInteractionKey(), name: "", ruleType: "requirement", scope: "damage", match: "ANY", conditions: [newCondition("damage-type")], percentage: null, notes: "", sortOrder: rules.length, ...(owner === "creature" ? { crImpact: "None" as const } : {}) }])}>Add Interaction Rule</button>
     </header>
-    <p className={styles.help}>{authoringOnly ? "Author Form-specific rules using the shared incoming-effect definitions. These Form rules are stored only; they do not execute in combat yet." : "These rules govern incoming damage and harmful effects in combat. Match the incoming source using the fields below; unknown facts or unresolved rule combinations need a G.O.D. ruling."}</p>
+    <p className={styles.help}>{authoringOnly ? "Describe how this Form responds to incoming damage or harmful effects. These rules appear in preview but are not applied during play." : "These rules govern incoming damage and harmful effects in combat. Match the incoming source using the fields below; unknown facts or unresolved rule combinations need a G.O.D. ruling."}</p>
     {catalogError && <p role="alert">{catalogError} Reopen this tab to retry catalog loading.</p>}
     {!rules.length && <p className={styles.help}>No Interaction Rules authored.</p>}
     <datalist id={`${listId}-properties`}>{[...new Set(catalog?.properties.map((row) => row.name) ?? [])].map((name) => <option key={name} value={name} />)}</datalist>
@@ -99,7 +99,7 @@ function InteractionRuleCard({ rule, owner, catalog, listId, index, count, onMov
       <Field label="Rule Name"><input value={rule.name} onChange={(e) => onChange({ name: e.target.value })} /></Field>
       <Field label="Rule Type"><select value={rule.ruleType} onChange={(e) => { const ruleType = e.target.value as InteractionRuleType; onChange({ ruleType, percentage: null, ...(usesInteractionPercentage(ruleType) ? { scope: "damage" } : {}) }); }}>{INTERACTION_RULE_TYPES.map((type) => <option key={type} value={type}>{labels[type]}</option>)}</select></Field>
       {percentage && <Field label={rule.ruleType === "absorption" ? "Healing (%)" : "Amount (%)"}><input type="number" step="any" value={rule.percentage ?? ""} onChange={(e) => onChange({ percentage: e.target.value === "" ? null : Number(e.target.value) })} /></Field>}
-      {rule.conditions.length > 1 && <Field label="Match"><select value={rule.match} onChange={(e) => onChange({ match: e.target.value as InteractionRule["match"] })}><option value="ANY">ANY: at least one condition</option><option value="ALL">ALL: every condition</option></select></Field>}
+      {rule.conditions.length > 1 && <Field label="Match"><select value={rule.match} onChange={(e) => onChange({ match: e.target.value as InteractionRule["match"] })}><option value="ANY">At least one condition must apply</option><option value="ALL">Every condition must apply</option></select></Field>}
     </div>
     <p className={styles.help}>{TYPE_HELP[rule.ruleType]}</p>
     {rule.scope !== "damage" && <p className={styles.help}>Applies to: {rule.scope === "condition" ? "Conditions" : "Other effects"}</p>}

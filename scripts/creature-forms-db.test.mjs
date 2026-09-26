@@ -273,6 +273,34 @@ test("Access: derived Creature clone deep-copies groups and remaps prerequisites
   await saveCreature({ ...child, forms: [{ ...child.forms[0], access: access(requirement("manual", { notes: "Child awakening" })) }] });
   assert.deepEqual((await getCreature(parent.id)).forms[0].access, parent.forms[0].access);
 });
+test("Derived Creature retains structured Normal attacks and abilities used by fallback Forms", async () => {
+  // PostgreSQL lpad(text, 4, ...) truncates longer identities; clones must not.
+  for (const table of ["creature_attacks", "creature_abilities"]) await pool.query(`select setval(pg_get_serial_sequence('${table}', 'id'), greatest((select coalesce(max(id), 0) + 1 from ${table}), 10000), false)`);
+  const draft = creatureDraftFixture(), form = creatureFormFixture();
+  draft.attacks = [{ ...form.mechanics.attacks.rows[0], canonicalId: "DRAFT-NORMAL-ATTACK" }];
+  draft.abilities = [{ ...form.mechanics.abilities.rows[0], canonicalId: "DRAFT-NORMAL-ABILITY" }];
+  draft.abilities[0].effects = [{ effectKey: "normal-rider", schemaVersion: 2, sortOrder: 0, effect: { kind: "manual", title: "Sight rider", description: "Independent copied effect" } }];
+  draft.attacks.push({ ...draft.attacks[0], canonicalId: "DRAFT-SECOND-ATTACK", attackName: "Second attack" });
+  draft.abilities.push({ ...draft.abilities[0], canonicalId: "DRAFT-SECOND-ABILITY", abilityName: "Second ability" });
+  form.mechanics.attacks = { mode: "creature", rows: [] };
+  form.mechanics.abilities = { mode: "creature", rows: [] };
+  form.access = access(requirement("creature-ability", { requiredCreatureAbilityCanonicalId: "DRAFT-NORMAL-ABILITY" }));
+  draft.forms = [form];
+  const parent = await saveCreature(draft), child = await createDerivedCreature(parent.id, "Structured fallback clone");
+  assert.deepEqual(child.attacks[0].authoring, parent.attacks[0].authoring);
+  assert.deepEqual(child.abilities[0].authoring, parent.abilities[0].authoring);
+  assert.deepEqual(child.abilities[0].effects, parent.abilities[0].effects);
+  assert.notEqual(child.attacks[0].canonicalId, parent.attacks[0].canonicalId);
+  assert.equal(new Set(child.attacks.map(row => row.canonicalId)).size, 2);
+  assert.equal(new Set(child.abilities.map(row => row.canonicalId)).size, 2);
+  assert.equal(child.forms[0].access.requirements[0].requiredCreatureAbilityCanonicalId, child.abilities[0].canonicalId);
+  const preview = resolveCreatureFormPreview(buildCreatureNpcSnapshot(child), child.forms[0].id);
+  assert.deepEqual(preview.definition.attacks[0].authoring, parent.attacks[0].authoring);
+  assert.deepEqual(preview.definition.abilities[0].authoring, parent.abilities[0].authoring);
+  child.attacks[0].authoring.initiativeCost = 9;
+  await saveCreature(child);
+  assert.deepEqual((await getCreature(parent.id)).attacks[0].authoring, parent.attacks[0].authoring);
+});
 
 test("Access: archived Creature Skill reference retains/clones, rejects new assignments, protects lifecycle and raw deletion", async () => {
   const saved = await accessCreatureFixture(), skillId = saved.forms[0].access.requirements[0].skillId;

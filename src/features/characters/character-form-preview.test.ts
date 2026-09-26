@@ -57,6 +57,18 @@ test("unlearned Tier 1 predisposition is display-only and learned Skills remain"
   const result = resolve(draft, race, 1, catalog)!;
   assert.equal(result.skills.length, 3); assert.equal(result.skills[2].rank, 10); assert.equal(draft.skillAllocations.length, 2);
 });
+test("zero-minimum Race abilities remain visible across Forms without allocations or duplicate grants", () => {
+  const { draft, race, catalog } = fixture();
+  race.skillLinks.push({ skillId: 2, skillName: "Skill 2", skillClassification: "Special Ability", linkType: "Granted", value: 0 });
+  const before = structuredClone({ draft, race, catalog });
+  for (const id of [1, 2, 1]) {
+    const preview = resolve(draft, race, id, catalog)!;
+    assert.deepEqual(preview.grantedAbilities, [{ skillId: 2, name: "Skill 2", definition: "Definition 2", fromRace: true }]);
+    preview.grantedAbilities[0].definition = "Edited display";
+  }
+  assert.equal(resolve(draft, race, null, catalog), null);
+  assert.deepEqual({ draft, race, catalog }, before);
+});
 test("Attribute reference display uses existing catalog rows and never extrapolates missing physical/canon data", () => {
   const { draft, race, catalog } = fixture();
   const references = [{ attributeKey: "STR" as const, score: 40, maxCarry: 100, maxLift: 200, maxSpheres: null, spellWeaving: null, teachingBase: null, loyaltyBase: null }];

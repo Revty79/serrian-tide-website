@@ -33,10 +33,10 @@ test("timing distinguishes instant from positive Initiative and independent nonc
 });
 test("invalid shared definitions and hidden cost/limit rows cannot silently save", () => {
   const value = transformationFixture();
-  assert.throws(() => normalize({ ...value, entryCosts: { ...value.entryCosts, mode: "none" } }), /Authored costs/);
+  assert.throws(() => normalize({ ...value, entryCosts: { ...value.entryCosts, mode: "none" } }), /List resource costs/);
   assert.throws(() => normalize({ ...value, entryCosts: { mode: "costs", costs: [{ ...value.entryCosts.costs[0], amount: 0 }] } }), /greater than zero/);
   assert.throws(() => normalize({ ...value, entryCosts: { mode: "costs", costs: [{ ...value.entryCosts.costs[0], costType: "initiative" }] } }), /separate/);
   assert.throws(() => normalize({ ...value, requirements: [{ ...value.requirements[1], notes: "" }] }), /Manual use condition/);
-  assert.throws(() => normalize({ ...value, limitMode: "unlimited" }), /Authored limits/);
+  assert.throws(() => normalize({ ...value, limitMode: "unlimited" }), /Limit the number of uses/);
   assert.throws(() => normalize({ ...value, useLimits: [{ ...value.useLimits[0], maximumUses: 0.5 }] }), /whole number/);
 });

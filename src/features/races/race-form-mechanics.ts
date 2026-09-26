@@ -9,9 +9,9 @@ import { normalizeRaceNaturalProtection, type RaceNaturalProtection } from "./ra
 export type FormOverrideMode = "race" | "override";
 export type FormMovement = { key: string; movementMode: string; baseValue: number; notes: string; sortOrder: number };
 export type FormSkillLink = { skillId: number; skillName: string; skillClassification: string; linkType: string; value: number | null; sortOrder: number };
-export const FORM_MANIPULATION = { race: "Use Race capability / unchanged", ...FORM_MANIPULATION_OPTIONS } as const;
-export const FORM_SPEECH = { race: "Use Race capability / unchanged", ...FORM_SPEECH_OPTIONS } as const;
-export const FORM_EQUIPMENT = { race: "Unchanged / follows Race", ...FORM_EQUIPMENT_OPTIONS } as const;
+export const FORM_MANIPULATION = { race: "Same as the normal Race", ...FORM_MANIPULATION_OPTIONS } as const;
+export const FORM_SPEECH = { race: "Same as the normal Race", ...FORM_SPEECH_OPTIONS } as const;
+export const FORM_EQUIPMENT = { race: "Same as the normal Race", ...FORM_EQUIPMENT_OPTIONS } as const;
 export type { FormCapability } from "@/features/forms/form-capabilities";
 export type RaceFormMechanics = {
   schemaVersion: 1;
@@ -67,7 +67,7 @@ function capability<T extends string>(value: FormCapability<T>, choices: Record<
 
 /** Authoring validation only. It never resolves a Character's active state or executes effects. */
 export function normalizeRaceFormMechanics(input: RaceFormMechanics, race: FormRaceDefinition): RaceFormMechanics {
-  if (!input || input.schemaVersion !== 1) throw new Error("Form mechanics must use schemaVersion 1.");
+  if (!input || input.schemaVersion !== 1) throw new Error("These Form details could not be read. Reload the editor and try again.");
   const size = input.size === null ? null : choice(input.size, RACE_SIZE_OPTIONS, "Form Size");
   const attributeAdjustments = { ...emptyRaceFormMechanics().attributeAdjustments };
   if (!input.attributeAdjustments || Object.keys(input.attributeAdjustments).some(key => !CHARACTER_ATTRIBUTE_KEYS.includes(key as CharacterAttributeKey))) throw new Error("Form Attribute adjustments must use the six existing Attributes.");
@@ -78,7 +78,7 @@ export function normalizeRaceFormMechanics(input: RaceFormMechanics, race: FormR
   }
   const anatomyMode = choice(input.anatomyMode, ["race", "override"], "Form Anatomy source");
   const anatomy = normalizeRaceAnatomy(input.anatomy);
-  if (anatomyMode === "race" && anatomy !== null) throw new Error("Choose Override Anatomy to save Form Anatomy.");
+  if (anatomyMode === "race" && anatomy !== null) throw new Error("Choose a different body for this Form before saving its body details.");
   const effectiveAnatomy = anatomyMode === "override" ? anatomy : race.anatomy;
   const movementMode = choice(input.movementMode, ["race", "override"], "Form Movement source");
   const movement = list(input.movement, "Form Movement").map((row, sortOrder) => {
@@ -96,24 +96,24 @@ export function normalizeRaceFormMechanics(input: RaceFormMechanics, race: FormR
     const locations = new Set(raceHitLocations(effectiveAnatomy).map(row => row.key));
     for (const protection of protectionMode === "override" ? protections : race.naturalProtections) {
       if (protection.coverage.kind === "locations" && protection.coverage.locationKeys.some(key => !locations.has(key))) {
-        throw new Error(`${protection.name}: Coverage must reference a location in the Form's effective Anatomy. Override or revise protection when changing Anatomy.`);
+        throw new Error(`${protection.name}: Choose a hit location that exists in this Form. Update the protection list when changing the body.`);
       }
     }
   }
   const skillsMode = choice(input.skillsMode, ["race", "add"], "Form Skill source");
   const skillLinks = list(input.skillLinks, "Form Skills").map((row, sortOrder) => {
-    if (!row || !Number.isSafeInteger(row.skillId) || row.skillId <= 0) throw new Error("Form Skill links must reference a saved Skill.");
+    if (!row || !Number.isSafeInteger(row.skillId) || row.skillId <= 0) throw new Error("Choose a saved Skill or Special Ability from the library.");
     if (row.value !== null && (typeof row.value !== "number" || !Number.isFinite(row.value))) throw new Error("Form Skill value must be blank or a finite number.");
     return { skillId: row.skillId, skillName: row.skillName ?? "", skillClassification: row.skillClassification ?? "",
       linkType: choice(row.linkType, ["Skill", "Granted"], "Form Skill link type"), value: row.value, sortOrder };
   });
   unique(skillLinks.map(row => `${row.skillId}:${row.linkType}`), "Form Skill links");
   for (const [mode, rows, label] of [[movementMode, movement, "Movement"], [protectionMode, protections, "Protection"], [attacksMode, attacks, "Natural Attacks"], [skillsMode, skillLinks, "Skills"]] as const) {
-    if (mode === "race" && rows.length) throw new Error(`Choose a Form-specific ${label} source before saving its definitions.`);
+    if (mode === "race" && rows.length) throw new Error(`Choose different ${label} for this Form before saving the entries below.`);
   }
   const interactionMode = choice(input.interactionMode, ["race", "add", "replace"], "Form Interaction Rule source");
   const interactionRules = normalizeInteractionRuleProfile(input.interactionRules, "race");
-  if (interactionMode === "race" && interactionRules !== null) throw new Error("Choose Add or Override to save Form Interaction Rules.");
+  if (interactionMode === "race" && interactionRules !== null) throw new Error("Choose to add more rules or use only these rules before saving them.");
   const restrictions = list(input.restrictions, "Form restrictions").map(row => {
     if (!row) throw new Error("Form restriction is required.");
     return { key: text(row.key, "Restriction identity", true), name: text(row.name, "Restriction Name", true), notes: text(row.notes, "Restriction Notes") };

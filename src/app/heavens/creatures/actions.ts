@@ -750,11 +750,11 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       insert into creature_attacks (
         canonical_id, creature_id, variant_id, attack_name, attack_percentage, damage,
         damage_type, range_reach, required_anatomy, requirements, uses_recharge,
-        special_effect, notes, sort_order
+        special_effect, notes, sort_order, authoring_json
       )
-      select 'ATK-' || ${childToken} || '-' || lpad(id::text, 4, '0'), ${created.id}, null,
+      select 'ATK-' || ${childToken} || '-' || lpad(id::text, greatest(4, length(id::text)), '0'), ${created.id}, null,
              attack_name, attack_percentage, damage, damage_type, range_reach, required_anatomy,
-             requirements, uses_recharge, special_effect, notes, sort_order
+             requirements, uses_recharge, special_effect, notes, sort_order, authoring_json
       from creature_attacks where creature_id = ${parentCreatureId} and variant_id is null
     `);
     await tx.execute(sql`
@@ -765,11 +765,11 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
     await tx.execute(sql`
       insert into creature_abilities (
         canonical_id, creature_id, variant_id, ability_name, ability_type, activation,
-        requirements, uses_recharge, description, mechanical_effect, notes, sort_order, cr_impact
+        requirements, uses_recharge, description, mechanical_effect, notes, sort_order, cr_impact, authoring_json
       )
-      select 'ABL-' || ${childToken} || '-' || lpad(id::text, 4, '0'), ${created.id}, null,
+      select 'ABL-' || ${childToken} || '-' || lpad(id::text, greatest(4, length(id::text)), '0'), ${created.id}, null,
              ability_name, ability_type, activation, requirements, uses_recharge, description,
-             mechanical_effect, notes, sort_order, cr_impact
+             mechanical_effect, notes, sort_order, cr_impact, authoring_json
       from creature_abilities where creature_id = ${parentCreatureId} and variant_id is null
     `);
     await tx.execute(sql`
@@ -783,7 +783,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       inner join creature_abilities copied_ability
         on copied_ability.creature_id = ${created.id}
        and copied_ability.variant_id is null
-       and copied_ability.canonical_id = 'ABL-' || ${childToken} || '-' || lpad(source_ability.id::text, 4, '0')
+       and copied_ability.canonical_id = 'ABL-' || ${childToken} || '-' || lpad(source_ability.id::text, greatest(4, length(source_ability.id::text)), '0')
       where source_ability.creature_id = ${parentCreatureId}
         and source_ability.variant_id is null
     `);
@@ -805,7 +805,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       from creature_abilities source
       inner join creature_abilities copied on copied.creature_id = ${created.id}
         and copied.variant_id is null
-        and copied.canonical_id = 'ABL-' || ${childToken} || '-' || lpad(source.id::text, 4, '0')
+        and copied.canonical_id = 'ABL-' || ${childToken} || '-' || lpad(source.id::text, greatest(4, length(source.id::text)), '0')
       where source.creature_id = ${parentCreatureId} and source.variant_id is null
     `);
     await cloneCreatureFormsInTransaction(tx, parentCreatureId, created.id, new Map(accessAbilityCopies.rows.map(row => [row.source_id, row.copied_id])));
