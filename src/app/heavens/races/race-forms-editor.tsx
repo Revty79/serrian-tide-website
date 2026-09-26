@@ -5,7 +5,7 @@ import { GuidedField } from "@/components/field-guidance";
 import { emptyRaceForm, normalizeRaceForms, type RaceForm } from "@/features/races/race-forms";
 import { RaceFormMechanicsEditor } from "./race-form-mechanics-editor";
 import type { RaceDraft } from "./actions";
-import styles from "./race-forms-editor.module.css";
+import styles from "@/components/forms/forms.module.css";
 
 export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; race: RaceDraft; onChange: (forms: RaceForm[]) => void }) {
   const update = (rows: RaceForm[]) => onChange(rows.map((row, sortOrder) => ({ ...row, sortOrder })));

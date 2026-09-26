@@ -1,62 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { CHARACTER_ATTRIBUTE_LABELS, type CharacterAggregate, type CharacterDraft, type CharacterRaceAggregate } from "@/features/characters/models";
 import { availableCharacterForms, resolveCharacterFormPreview } from "@/features/characters/character-form-preview";
 import { FORM_EQUIPMENT, FORM_MANIPULATION, FORM_SPEECH } from "@/features/races/race-form-mechanics";
-import { ABILITY_FACT_DEFINITIONS } from "@/features/ability-use-conditions/facts";
-import { ABILITY_CONDITION_OPERATOR_LABELS } from "@/features/ability-use-conditions/authoring";
-import type { DerivedAbilityUseConditionDefinition } from "@/features/derived-abilities/models";
-import type { FormCosts, FormTiming, RaceFormTransformation } from "@/features/races/race-form-transformation";
-import type { InteractionCondition } from "@/features/interaction-rules/interaction-rules";
-import styles from "./character-form-preview.module.css";
+import { formLabel as label, FormPreviewSection as Section, FormPreviewDefinition as Definition, interactionCondition, TransformationSummary as Transformation } from "@/components/forms/form-preview";
+import styles from "@/components/forms/form-preview.module.css";
 
-const label = (value: string | null | undefined) => value ? value.split("-").map(word => word[0].toUpperCase() + word.slice(1)).join(" ") : "Unspecified";
 const signed = (value: number) => value > 0 ? `+${value}` : String(value);
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return <section className={styles.section} aria-label={title}><h3>{title}</h3>{children}</section>;
-}
-function Definition({ title, children }: { title: string; children: ReactNode }) { return <div><dt>{title}</dt><dd>{children || "Unspecified"}</dd></div>; }
-function timing(value: FormTiming) {
-  return [label(value.mode), value.initiativeCost === null ? "" : `${value.initiativeCost} Initiative`, value.time, value.notes].filter(Boolean).join(" · ");
-}
-function costs(value: FormCosts) {
-  if (value.mode !== "costs") return value.mode === "none" ? "No resource cost" : "Unspecified";
-  return value.costs.map(cost => `${cost.amount} ${cost.costType === "health" ? "HP" : label(cost.costType)}${cost.resourceKey ? ` (${cost.resourceKey})` : ""}${cost.notes ? ` — ${cost.notes}` : ""}`).join("; ");
-}
-function conditions(value: DerivedAbilityUseConditionDefinition[]) {
-  return value.length ? <ul>{value.map((condition, index) => <li key={index}>{[
-    label(condition.conditionType),
-    ABILITY_FACT_DEFINITIONS.find(fact => fact.category === condition.conditionType && fact.key === condition.conditionKey)?.label ?? condition.conditionKey,
-    condition.operator ? ABILITY_CONDITION_OPERATOR_LABELS[condition.operator] : "",
-    condition.numericValue, condition.textValue, condition.notes,
-  ].filter(part => part !== null && part !== "").join(" · ")}</li>)}</ul> : "None authored";
-}
-function interactionCondition(condition: InteractionCondition): string {
-  switch (condition.kind) {
-    case "damage-type": return `Damage: ${condition.damageType}`;
-    case "magical": return condition.magical ? "Magical" : "Nonmagical";
-    case "source-kind": return `Source: ${label(condition.sourceKind)}${condition.weaponFamily ? ` (${condition.weaponFamily})` : ""}`;
-    case "item-property": return `Item property: ${condition.propertyName}${condition.value ? ` = ${condition.value}` : ""}${condition.relatedCreatureCanonicalId ? ` (${condition.relatedCreatureCanonicalId})` : ""}`;
-    case "item-tag": return `Item tag: ${condition.tagCanonicalId}`;
-    case "mechanical-effect-kind": return `Effect: ${condition.effectKind}`;
-    case "condition-name": return `Condition: ${condition.conditionName}`;
-  }
-}
-function Transformation({ value }: { value: RaceFormTransformation | null }) {
-  if (!value) return <p>No transformation definition authored.</p>;
-  return <dl className={styles.definitions}>
-    <Definition title="Entry method">{label(value.entryMethod)} {value.entryNotes}</Definition>
-    <Definition title="Entry timing">{timing(value.entryTiming)}</Definition><Definition title="Entry costs">{costs(value.entryCosts)}</Definition>
-    <Definition title="Entry requirements">{conditions(value.requirements)}</Definition><Definition title="Involuntary triggers">{conditions(value.involuntaryTriggers)}</Definition>
-    <Definition title="Duration">{label(value.duration.mode)} {value.duration.description}</Definition>
-    <Definition title="Exit rules">{value.exitMethods.map(label).join(", ") || "Unspecified"} {value.exitNotes}</Definition>
-    <Definition title="Exit timing">{timing(value.exitTiming)}</Definition><Definition title="Exit costs">{costs(value.exitCosts)}</Definition>
-    <Definition title="Use limits">{label(value.limitMode)}{value.useLimits.length ? <ul>{value.useLimits.map((limit, index) => <li key={index}>{limit.maximumUses} uses · refresh {label(limit.refreshScope)} {limit.refreshKey} {limit.notes}</li>)}</ul> : null}</Definition>
-    <Definition title="Cooldown / custom limit">{value.cooldown}</Definition><Definition title="Equipment entry notes">{value.equipmentEntryNotes}</Definition><Definition title="Equipment exit notes">{value.equipmentExitNotes}</Definition><Definition title="Transformation notes">{value.notes}</Definition>
-  </dl>;
-}
 
 /** Deliberately accepts no mutation callback. Its selection is local to this mount. */
 export function CharacterFormPreviewViewer({ aggregate, draft, race }: { aggregate: CharacterAggregate; draft: CharacterDraft; race: CharacterRaceAggregate | null }) {

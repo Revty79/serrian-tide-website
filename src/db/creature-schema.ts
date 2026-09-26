@@ -1,4 +1,6 @@
 import type { CreatureAttackAuthoring, CreatureAbilityAuthoring } from "@/features/creatures/creature-authoring";
+import type { CreatureFormMechanics } from "@/features/creatures/creature-forms";
+import type { FormTransformation } from "@/features/forms/form-transformation";
 import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 
 import { sql } from "drizzle-orm";
@@ -20,6 +22,35 @@ import {
 
 import { user } from "./auth-schema";
 import { skill } from "./skill-schema";
+
+// Exact creatures.id includes independent authored variants. No parent-chain Form inheritance.
+export const creatureForm = pgTable("creature_forms", {
+  id: serial("id").primaryKey(),
+  creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
+  key: text("form_key").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  mechanics: jsonb("mechanics_json").$type<CreatureFormMechanics>().notNull(),
+  transformation: jsonb("transformation_json").$type<FormTransformation>(),
+}, table => [
+  unique("creature_form_owner_key").on(table.creatureId, table.key),
+  index("creature_form_owner_order").on(table.creatureId, table.sortOrder),
+  check("creature_form_identity", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0 AND ${table.sortOrder} >= 0`),
+  check("creature_form_mechanics_shape", sql`coalesce(jsonb_typeof(${table.mechanics}) = 'object' AND ${table.mechanics}->>'schemaVersion' = '1', false)`),
+  check("creature_form_transformation_shape", sql`${table.transformation} IS NULL OR coalesce(jsonb_typeof(${table.transformation}) = 'object' AND ${table.transformation}->>'schemaVersion' = '1', false)`),
+]);
+
+// Relational Skill links retain library FK protection; all other native rows are Form-owned JSON.
+export const creatureFormSkillLink = pgTable("creature_form_skill_links", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => creatureForm.id, { onDelete: "cascade" }),
+  skillId: integer("skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+  rank: text("rank"),
+  notes: text("notes").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+}, table => [unique("creature_form_skill_unique").on(table.formId, table.skillId)]);
 
 export const CREATURE_SIZE_OPTIONS = [
   "Minuscule",

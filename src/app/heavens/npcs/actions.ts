@@ -1060,6 +1060,9 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       "Current snapshot",
       lockedProfile.hpAdjustment,
     );
+    // Form definitions are frozen library metadata, never an NPC-edit or preview payload.
+    if (lockedSnapshot.forms === undefined) delete normalizedSnapshot.forms;
+    else normalizedSnapshot.forms = structuredClone(lockedSnapshot.forms);
     const nextPoolKeys = new Set(
       normalizedSnapshot.hpPools.map(({ canonicalId }) => canonicalId.toLocaleLowerCase("en-US")),
     );

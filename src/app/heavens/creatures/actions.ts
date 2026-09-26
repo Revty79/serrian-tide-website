@@ -1,11 +1,11 @@
 "use server";
-import { normalizeAttackDescription } from "@/features/attacks/attack-authoring";
+import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction, cloneCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
+import { normalizeCreatureDefinition as normalize } from "@/features/creatures/creature-definition";
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
 
-import { normalizeInteractionRuleProfile, type InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+import { normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 
-import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring, type CreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 
 import {
   and,
@@ -23,7 +23,6 @@ import { revalidatePath } from "next/cache";
 
 import {
   CREATURE_CR_IMPACTS,
-  CREATURE_SIZE_OPTIONS,
   challengeRatingReference,
   creature,
   creatureAbility,
@@ -48,7 +47,6 @@ import {
 } from "@/features/creatures/challenge-rating";
 import {
   normalizeCreatureAbilityEffects,
-  type CreatureAbilityDefinition,
 } from "@/features/creatures/creature-ability";
 import {
   assertCreatureCanonicalIdsSystemOwned,
@@ -114,53 +112,8 @@ export type CreatureSkillCandidate = {
   tier: number | null;
 };
 
-export type CreatureLineageSummary = {
-  id: number;
-  canonicalId: string;
-  canonicalName: string;
-  size: string;
-  challengeRating: number | null;
-  killXp: number | null;
-  archivedAt: string | null;
-};
-
-export type CreatureDraft = {
-  id?: number;
-  core: {
-    interactionRules?: InteractionRuleProfile | null;
-    canonicalId: string;
-    canonicalName: string;
-    family: string;
-    creatureType: string;
-    size: string;
-    hpMultiplierSteps: number;
-    totalHp: number | null;
-    baseMovementSteps: number;
-    baseMagicSteps: number;
-    challengeRating: number | null;
-    killXp: number | null;
-    parentCreatureId: number | null;
-    parentCreatureName: string | null;
-    calculatedChallengeRating: number | null;
-    challengeRatingAdjustment: number;
-    challengeRatingAdjustmentReason: string;
-    description: string;
-    typicalBehavior: string;
-    habitatEcology: string;
-    notes: string;
-    sourceSystem: string | null;
-  };
-  attributes: Array<{ attributeKey: string; value: number | null; notes: string; sortOrder: number }>;
-  movement: Array<{ movementMode: string; movementValue: number | null; initiative: number | null; requirements: string; notes: string; sortOrder: number }>;
-  hpPools: Array<{ canonicalId: string; poolName: string; hpPercentage: number | null; maximumHp: number | null; notes: string; sortOrder: number }>;
-  hitLocations: Array<{ hitLocationNumber: number; locationName: string; bodyPartsIncluded: string; hpPoolCanonicalId: string | null; naturalArmor: number | null; soak: number | null; locationEffect: string; notes: string; sortOrder: number }>;
-  attacks: Array<{ authoring?: CreatureAttackAuthoring | null; canonicalId: string; attackName: string; attackPercentage: number | null; damage: string | null; damageType: string; rangeReach: string; requiredAnatomy: string; requirements: string; usesRecharge: string; specialEffect: string; notes: string; sortOrder: number }>;
-  skillLinks: Array<{ skillId: number; skillName: string; skillClassification: string; rank: string | null; notes: string; sortOrder: number }>;
-  abilities: Array<Omit<CreatureAbilityDefinition, "crImpact"> & { crImpact: CreatureCrImpact }>;
-  defenses: Array<{ seedIdentity: string | null; defenseType: string; against: string; value: string | null; notes: string; sortOrder: number; crImpact: CreatureCrImpact }>;
-  uses: Array<{ seedIdentity: string | null; useName: string; notes: string; sortOrder: number }>;
-  derivedCreatures: CreatureLineageSummary[];
-};
+export type { CreatureDraft, CreatureLineageSummary } from "@/features/creatures/models";
+import type { CreatureDraft } from "@/features/creatures/models";
 
 export type CreatureAggregate = CreatureDraft & {
   id: number;
@@ -172,197 +125,8 @@ export type CreatureAggregate = CreatureDraft & {
   challengeRatingBreakdown?: ChallengeRatingBreakdown;
 };
 
-const ATTRIBUTE_NAMES = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"] as const;
-
 const clean = (value: string | null | undefined) => value?.trim() ?? "";
-const optionalText = (value: string | null | undefined) => clean(value) || null;
-
-function required(value: string | null | undefined, label: string) {
-  const result = clean(value);
-  if (!result) throw new Error(`${label} is required.`);
-  return result;
-}
-
-function optionalNumber(value: number | null, label: string) {
-  if (value === null) return null;
-  if (!Number.isFinite(value)) throw new Error(`${label} must be a number or left blank.`);
-  return value;
-}
-
-function wholeNumber(value: number, label: string, minimum: number, maximum?: number) {
-  if (!Number.isInteger(value) || value < minimum || (maximum !== undefined && value > maximum)) {
-    throw new Error(`${label} must be a whole number from ${minimum}${maximum === undefined ? " upward" : ` through ${maximum}`}.`);
-  }
-  return value;
-}
-
-function ensureUnique(values: string[], label: string) {
-  const seen = new Set<string>();
-  for (const value of values) {
-    const key = value.toLowerCase();
-    if (seen.has(key)) throw new Error(`${label} ${JSON.stringify(value)} is duplicated.`);
-    seen.add(key);
-  }
-}
-
-function normalize(input: CreatureDraft) {
-  const canonicalId = required(input.core.canonicalId, "Creature ID").toLocaleUpperCase("en-US");
-  const canonicalName = required(input.core.canonicalName, "Canonical Name");
-  const size = clean(input.core.size);
-  if (!CREATURE_SIZE_OPTIONS.includes(size as CreatureSize)) {
-    throw new Error(`Creature Size must be one of: ${CREATURE_SIZE_OPTIONS.join(", ")}.`);
-  }
-
-  const attributes = input.attributes.map((row, sortOrder) => {
-    const attributeKey = required(row.attributeKey, "Attribute");
-    if (!ATTRIBUTE_NAMES.includes(attributeKey as (typeof ATTRIBUTE_NAMES)[number])) {
-      throw new Error(`${attributeKey} is not a canonical Creature Attribute.`);
-    }
-    return { attributeKey, value: optionalNumber(row.value, `${attributeKey} Value`), notes: clean(row.notes), sortOrder };
-  });
-  ensureUnique(attributes.map(({ attributeKey }) => attributeKey), "Attribute assignment");
-
-  const movement = input.movement.map((row, sortOrder) => ({
-    movementMode: required(row.movementMode, "Movement Mode"),
-    movementValue: optionalNumber(row.movementValue, `${row.movementMode || "Movement"} Value`),
-    initiative: optionalNumber(row.initiative, `${row.movementMode || "Movement"} Initiative`),
-    requirements: clean(row.requirements),
-    notes: clean(row.notes),
-    sortOrder,
-  }));
-  ensureUnique(movement.map(({ movementMode }) => movementMode), "Movement assignment");
-
-  const hpPools = input.hpPools.map((row, sortOrder) => ({
-    canonicalId: required(row.canonicalId, "HP Pool ID").toLocaleUpperCase("en-US"),
-    poolName: required(row.poolName, "HP Pool Name"),
-    hpPercentage: optionalNumber(row.hpPercentage, `${row.poolName || "HP Pool"} HP %`),
-    maximumHp: null as number | null,
-    notes: clean(row.notes),
-    sortOrder,
-  }));
-  ensureUnique(hpPools.map(({ canonicalId }) => canonicalId), "HP Pool ID");
-  const hpPoolIds = new Set(hpPools.map(({ canonicalId }) => canonicalId.toLowerCase()));
-
-  const hitLocations = input.hitLocations.map((row, sortOrder) => {
-    const hpPoolCanonicalId = optionalText(row.hpPoolCanonicalId)?.toLocaleUpperCase("en-US") ?? null;
-    if (hpPoolCanonicalId && !hpPoolIds.has(hpPoolCanonicalId.toLowerCase())) {
-      throw new Error(`Hit Location ${row.hitLocationNumber} references missing HP Pool ${JSON.stringify(hpPoolCanonicalId)}.`);
-    }
-    return {
-      hitLocationNumber: wholeNumber(row.hitLocationNumber, "Hit Location #", 0, 9),
-      locationName: clean(row.locationName),
-      bodyPartsIncluded: clean(row.bodyPartsIncluded),
-      hpPoolCanonicalId,
-      naturalArmor: optionalNumber(row.naturalArmor, `Hit Location ${row.hitLocationNumber} Natural Armor`),
-      soak: optionalNumber(row.soak, `Hit Location ${row.hitLocationNumber} Soak`),
-      locationEffect: clean(row.locationEffect),
-      notes: clean(row.notes),
-      sortOrder,
-    };
-  });
-  ensureUnique(hitLocations.map(({ hitLocationNumber }) => String(hitLocationNumber)), "Hit Location");
-
-  const attacks = input.attacks.map((row, sortOrder) => ({
-    ...normalizeAttackDescription(row),
-    canonicalId: required(row.canonicalId, "Attack ID").toLocaleUpperCase("en-US"),
-    attackPercentage: optionalNumber(row.attackPercentage, `${row.attackName || "Attack"} Attack %`),
-    rangeReach: clean(row.rangeReach),
-    requiredAnatomy: clean(row.requiredAnatomy),
-    requirements: clean(row.requirements),
-    usesRecharge: clean(row.usesRecharge),
-    specialEffect: clean(row.specialEffect),
-    authoring: normalizeCreatureAttackAuthoring(row.authoring),
-    sortOrder,
-  }));
-  ensureUnique(attacks.map(({ canonicalId }) => canonicalId), "Attack ID");
-
-  const skillLinks = input.skillLinks.map((row, sortOrder) => {
-    if (!Number.isInteger(row.skillId) || row.skillId <= 0) throw new Error("Every Creature Skill must reference a saved Skill.");
-    return {
-      skillId: row.skillId,
-      skillName: clean(row.skillName),
-      skillClassification: clean(row.skillClassification),
-      rank: optionalText(row.rank),
-      notes: clean(row.notes),
-      sortOrder,
-    };
-  });
-  ensureUnique(skillLinks.map(({ skillId }) => String(skillId)), "Creature Skill assignment");
-
-  const abilities = input.abilities.map((row, sortOrder) => ({
-    canonicalId: required(row.canonicalId, "Ability ID").toLocaleUpperCase("en-US"),
-    abilityName: required(row.abilityName, "Ability Name"),
-    abilityType: clean(row.abilityType),
-    activation: clean(row.activation),
-    requirements: clean(row.requirements),
-    usesRecharge: clean(row.usesRecharge),
-    description: clean(row.description),
-    mechanicalEffect: clean(row.mechanicalEffect),
-    notes: clean(row.notes),
-    sortOrder,
-    crImpact: CREATURE_CR_IMPACTS.includes(row.crImpact) ? row.crImpact : "None" as CreatureCrImpact,
-    effects: normalizeCreatureAbilityEffects(row.effects),
-    authoring: normalizeCreatureAbilityAuthoring(row.authoring),
-  }));
-  ensureUnique(abilities.map(({ canonicalId }) => canonicalId), "Ability ID");
-
-  const defenses = input.defenses.map((row, sortOrder) => ({
-    seedIdentity: optionalText(row.seedIdentity),
-    defenseType: required(row.defenseType, "Defense Type"),
-    against: clean(row.against),
-    value: optionalText(row.value),
-    notes: clean(row.notes),
-    sortOrder,
-    crImpact: CREATURE_CR_IMPACTS.includes(row.crImpact) ? row.crImpact : "None" as CreatureCrImpact,
-  }));
-
-  const uses = input.uses.map((row, sortOrder) => ({
-    seedIdentity: optionalText(row.seedIdentity),
-    useName: required(row.useName, "Creature Use"),
-    notes: clean(row.notes),
-    sortOrder,
-  }));
-
-  const adjustment = Math.trunc(input.core.challengeRatingAdjustment || 0);
-  if (adjustment < -49 || adjustment > 49) throw new Error("Challenge Rating Adjustment must be between -49 and 49.");
-  const adjustmentReason = clean(input.core.challengeRatingAdjustmentReason);
-  if (adjustment !== 0 && !adjustmentReason) throw new Error("A Challenge Rating adjustment requires a reason.");
-
-  return {
-    core: {
-      interactionRules: normalizeInteractionRuleProfile(input.core.interactionRules, "creature"),
-      canonicalId,
-      canonicalName,
-      family: clean(input.core.family),
-      creatureType: clean(input.core.creatureType),
-      size,
-      hpMultiplierSteps: wholeNumber(input.core.hpMultiplierSteps ?? 0, "HP Multiplier Steps", 0),
-      totalHp: null as number | null,
-      baseMovementSteps: wholeNumber(input.core.baseMovementSteps ?? 0, "Base Movement Steps", 0),
-      baseMagicSteps: wholeNumber(input.core.baseMagicSteps ?? 0, "Base Magic Steps", 0),
-      challengeRating: input.core.challengeRating === null ? 1 : wholeNumber(input.core.challengeRating, "Challenge Rating", 1, 50),
-      killXp: null as number | null,
-      parentCreatureId: input.core.parentCreatureId,
-      calculatedChallengeRating: input.core.calculatedChallengeRating,
-      challengeRatingAdjustment: adjustment,
-      challengeRatingAdjustmentReason: adjustmentReason,
-      description: clean(input.core.description),
-      typicalBehavior: clean(input.core.typicalBehavior),
-      habitatEcology: clean(input.core.habitatEcology),
-      notes: clean(input.core.notes),
-      sourceSystem: optionalText(input.core.sourceSystem),
-    },
-    attributes,
-    movement,
-    hpPools,
-    hitLocations,
-    attacks,
-    skillLinks,
-    abilities,
-    defenses,
-    uses,
-  };
-}
+function required(value: string | null | undefined, label: string) { const result = clean(value); if (!result) throw new Error(`${label} is required.`); return result; }
 
 export async function listCreatures(
   filters: CreatureLibraryFilters = {},
@@ -505,6 +269,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
   const poolIdToCanonical = new Map(pools.map((pool) => [pool.id, pool.canonicalId]));
   const draft: CreatureAggregate = {
     id: row.id,
+    forms: await db.transaction(tx => readCreatureFormsInTransaction(tx, id)),
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,
@@ -769,6 +534,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
     if (normalized.defenses.length) await tx.insert(creatureDefense).values(normalized.defenses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
     if (normalized.uses.length) await tx.insert(creatureUse).values(normalized.uses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
 
+    await saveCreatureFormsInTransaction(tx, id!, input.forms, { ...normalized, core: { ...normalized.core, parentCreatureName: input.core.parentCreatureName }, derivedCreatures: [] });
     return id;
   });
 
@@ -1019,6 +785,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       from creature_uses where creature_id = ${parentCreatureId} and variant_id is null
     `);
 
+    await cloneCreatureFormsInTransaction(tx, parentCreatureId, created.id);
     return created.id;
   });
 

@@ -1,4 +1,5 @@
 "use client";
+import { CreatureFormPreviewViewer } from "./creature-form-preview";
 
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
@@ -195,6 +196,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
     {draft.status === "archived" ? <p className="creature-npc-feedback is-error">This NPC is archived and read-only. Restore it from the NPC Master Sheet before saving changes.</p> : null}
     <section className="creature-npc-warning"><strong>Independent Creature NPC</strong><span>This record began as a snapshot of <b>{draft.creatureName}</b>. Changes here never alter the master Creature library.</span></section>
     {!canOperateRuntime ? <section className="creature-npc-warning is-runtime-read-only" role="note"><strong>Administrator record access</strong><span>Live Campaign state is read-only. You may edit and save this permanent NPC record, but only a G.O.D. who owns this Campaign can operate Health, effects, Equipment State, Item Charges, Items, or Creature Abilities.</span></section> : null}
+    <CreatureFormPreviewViewer key={draft.characterId} snapshot={draft.currentSnapshot} hpAdjustment={draft.hpAdjustment} />
     <div className="creature-npc-layout"><nav className="creature-npc-tabs">{TABS.map((entry) => <button type="button" key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><section className="creature-npc-editor">
       {tab === "identity" ? <Identity draft={draft} onChange={change} /> : null}
       {tab === "current" ? <><ActiveHealthPanel health={activeHealth} disabled={!canOperateRuntime} onHealthChange={setActiveHealth} context="creature" /><ActiveEffectsPanel state={activeEffects} godMode disabled={!canOperateRuntime} skillOptions={draft.currentSnapshot.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} movementModes={draft.currentSnapshot.movement.map(({ movementMode }) => movementMode)} onChange={setActiveEffects} /><EquipmentStatePanel state={equipmentState} disabled={dirty || saving || !canOperateRuntime} includeEffectHistory onChange={setEquipmentState} onActiveEffectsChange={setActiveEffects} /><MagazinePanel characterId={draft.characterId} disabled={dirty || saving || !canOperateRuntime} onChange={refreshRuntimeState} /><ItemChargePanel state={chargeState} disabled={dirty || saving || !canOperateRuntime} onChange={acceptChargeState} /></> : null}

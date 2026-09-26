@@ -13,7 +13,7 @@ import { RaceNaturalAttacksEditor } from "./race-natural-attacks-editor";
 import { RaceMovementEditor } from "./race-movement-editor";
 import { RaceSkillLinksEditor } from "./race-skill-links-editor";
 import type { RaceDraft } from "./actions";
-import styles from "./race-forms-editor.module.css";
+import styles from "@/components/forms/forms.module.css";
 
 function Field({ label, help, children }: { label: string; help: string; children: ReactNode }) {
   return <GuidedField className="st-field" label={label} help={help}>{children}</GuidedField>;

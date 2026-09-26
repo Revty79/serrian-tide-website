@@ -1,3 +1,4 @@
+import { FORM_MANIPULATION_OPTIONS, FORM_SPEECH_OPTIONS, FORM_EQUIPMENT_OPTIONS, type FormCapability } from "@/features/forms/form-capabilities";
 import { RACE_SIZE_OPTIONS, type RaceSize } from "@/db/race-schema";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAttributeKey } from "@/features/characters/models";
 import { normalizeInteractionRuleProfile, type InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
@@ -8,10 +9,10 @@ import { normalizeRaceNaturalProtection, type RaceNaturalProtection } from "./ra
 export type FormOverrideMode = "race" | "override";
 export type FormMovement = { key: string; movementMode: string; baseValue: number; notes: string; sortOrder: number };
 export type FormSkillLink = { skillId: number; skillName: string; skillClassification: string; linkType: string; value: number | null; sortOrder: number };
-export const FORM_MANIPULATION = { race: "Use Race capability / unchanged", full: "Full manipulation", limited: "Limited manipulation", none: "No functional manipulation" } as const;
-export const FORM_SPEECH = { race: "Use Race capability / unchanged", normal: "Normal speech", limited: "Limited speech", none: "No normal speech" } as const;
-export const FORM_EQUIPMENT = { race: "Unchanged / follows Race", retained: "Retained normally", unusable: "Retained but unusable", dropped: "Dropped", merged: "Merges / becomes inaccessible", custom: "Custom / G.O.D. ruling" } as const;
-export type FormCapability<T extends string> = { state: T; notes: string };
+export const FORM_MANIPULATION = { race: "Use Race capability / unchanged", ...FORM_MANIPULATION_OPTIONS } as const;
+export const FORM_SPEECH = { race: "Use Race capability / unchanged", ...FORM_SPEECH_OPTIONS } as const;
+export const FORM_EQUIPMENT = { race: "Unchanged / follows Race", ...FORM_EQUIPMENT_OPTIONS } as const;
+export type { FormCapability } from "@/features/forms/form-capabilities";
 export type RaceFormMechanics = {
   schemaVersion: 1;
   size: RaceSize | null;

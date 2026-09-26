@@ -1,3 +1,4 @@
+import { checkCreatureForms } from "./creature-forms-browser-checks";
 import assert from "node:assert/strict";
 import { checkProtectionLayers } from "./protection-layer-checks";
 import { authorCreatureUseConditions, checkSavedCreatureUseConditions } from "./creature-use-conditions-browser-checks";
@@ -292,6 +293,7 @@ async function main() {
     await checkRaceInteractions(page, pool, base, artifacts);
     await checkOrdinaryCreatureUi(page, base, artifacts);
     await checkProtectionLayers(page, { base, artifacts, campaignId, userId, creatureId, npcId, encounterId });
+    await checkCreatureForms(page, { base, artifacts, campaignId, userId });
     assert.deepEqual(errors, []);
     const result = { passed: true, checks: ["simple Attack and Ability cards", "collapsed legacy data preservation", "unchanged Harvest & Utility", "progressive rule matching", "unopened structured profile preservation", "shared Creature/Race Interaction Rules", "all matcher types", "ANY/ALL", "percentage validation", "stable keys and ordering", "NPC interaction editing", "variant interaction copy", "Race archive/restore", "old records load/save", "legacy snapshots", "conditional range UI", "ordered On-Hit Effects", "shared magic editor", "four activation types", "costs/recharge", "Origin preservation", "Harvest & Utility", "NPC construction and individual editing", "direct encounter snapshots", "archive/restore", "phone authoring layout"], errors };
     await writeFile(path.join(artifacts, "results.json"), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result, null, 2));

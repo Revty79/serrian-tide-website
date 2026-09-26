@@ -48,7 +48,8 @@ export function CreatureHarvestUtilityEditor({ uses, onChange }: { uses: Creatur
 }
 
 
-export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange }: {
+export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange, authorNativeText = false }: {
+  authorNativeText?: boolean;
   attack: CreatureDraft["attacks"][number];
   skillOptions: Array<{ id: number; name: string }>;
   onChange: (attack: CreatureDraft["attacks"][number]) => void;
@@ -71,11 +72,14 @@ export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange }
       title="On-Hit Effects" note="Optional effects after a successful hit."
       onChange={({ effects }) => patch({ onHitEffects: effects })} />
     <MagicConstruction value={data.magic} name={attack.attackName} onChange={(magic) => patch({ magic, magical: magic ? true : data.magical })} />
-    <LegacyAuthoringData entries={[
+    {authorNativeText && <details className="creature-authoring__advanced"><summary>Creature requirements and descriptive effects</summary><p>Creature-native descriptions for this Form. Anatomy is descriptive text, not an automatic body constraint.</p>{([
+      ["rangeReach", "Range / Reach"], ["requiredAnatomy", "Required Anatomy"], ["requirements", "Requirements"], ["usesRecharge", "Uses / Recharge"], ["specialEffect", "Special Effect"],
+    ] as const).map(([key, name]) => <CreatureAuthoringHelpField key={key} name={name} help="Describe the Creature-specific rule. Form authoring and preview never execute this text."><textarea className="st-control" rows={2} value={attack[key]} onChange={event => onChange({ ...attack, [key]: event.target.value })} /></CreatureAuthoringHelpField>)}</details>}
+    {!authorNativeText && <LegacyAuthoringData entries={[
       { label: "Range / Reach", value: attack.rangeReach }, { label: "Required Anatomy", value: attack.requiredAnatomy },
       { label: "Requirements", value: attack.requirements }, { label: "Uses / Recharge", value: attack.usesRecharge },
       { label: "Special Effect", value: attack.specialEffect },
-    ]} />
+    ]} />}
   </section>;
 }
 
@@ -86,7 +90,8 @@ export function LegacyCreatureDefenses({ defenses }: { defenses: CreatureDraft["
   }))} />;
 }
 
-export function CreatureAbilityAuthoringEditor({ ability, skillOptions, onChange }: {
+export function CreatureAbilityAuthoringEditor({ ability, skillOptions, onChange, authorNativeText = false }: {
+  authorNativeText?: boolean;
   ability: CreatureDraft["abilities"][number];
   skillOptions: Array<{ id: number; name: string }>;
   onChange: (ability: CreatureDraft["abilities"][number]) => void;
@@ -144,9 +149,12 @@ export function CreatureAbilityAuthoringEditor({ ability, skillOptions, onChange
     <Field name="Notes"><textarea className="st-control" rows={2} value={ability.notes} onChange={(e) => onChange({ ...ability, notes: e.target.value })} /></Field>
     <MagicConstruction value={data.magic} name={ability.abilityName} onChange={(magic) => patch({ magic, magical: magic ? true : data.magical })} />
     </details>
-    <LegacyAuthoringData entries={[
+    {authorNativeText && <details className="creature-authoring__advanced"><summary>Creature activation and descriptive mechanics</summary>{([
+      ["activation", "Activation description"], ["requirements", "Requirements"], ["usesRecharge", "Uses / Recharge"], ["mechanicalEffect", "Mechanical Notes"],
+    ] as const).map(([key, name]) => <CreatureAuthoringHelpField key={key} name={name} help="Describe the Creature-specific rule alongside structured ability authoring. Preview never executes these mechanics."><textarea className="st-control" rows={2} value={ability[key]} onChange={event => onChange({ ...ability, [key]: event.target.value })} /></CreatureAuthoringHelpField>)}</details>}
+    {!authorNativeText && <LegacyAuthoringData entries={[
       { label: "Activation", value: ability.activation }, { label: "Requirements", value: ability.requirements },
       { label: "Uses / Recharge", value: ability.usesRecharge }, { label: "Mechanical Notes", value: ability.mechanicalEffect },
-    ]} />
+    ]} />}
   </section>;
 }

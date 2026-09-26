@@ -265,11 +265,12 @@ test("the controlled HP backfill imports the canonical model and is dry-run by d
 
 test("master save/load, lineage, and NPC snapshots carry all modifier steps", () => {
   const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
+  const definition = readFileSync("src/features/creatures/creature-definition.ts", "utf8");
   const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
   const constructor = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
 
   for (const field of ["hpMultiplierSteps", "baseMovementSteps", "baseMagicSteps"]) {
-    assert.match(masterActions, new RegExp(`${field}: wholeNumber\\(input\\.core\\.${field} \\?\\? 0`));
+    assert.match(definition, new RegExp(`${field}: wholeNumber\\(input\\.core\\.${field} \\?\\? 0`));
     assert.match(masterActions, new RegExp(`${field}: creature\\.${field}`));
     assert.match(masterActions, new RegExp(`${field}: parent\\.${field}`));
     assert.match(constructor, new RegExp(`${field}: nonnegativeSteps\\(core\\.${field}`));
@@ -312,7 +313,7 @@ test("canon import leaves authored Attributes unscaled and relies on schema defa
 });
 
 test("master and NPC authoring expose base/effective statistics and HP clarity", () => {
-  const masterWorkspace = readFileSync("src/app/heavens/creatures/creature-workspace.tsx", "utf8");
+  const masterWorkspace = readFileSync("src/app/heavens/creatures/creature-workspace.tsx", "utf8") + readFileSync("src/app/heavens/creatures/creature-mechanics-editors.tsx", "utf8");
   const npcWorkspace = readFileSync("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx", "utf8");
 
   for (const label of ["HP Multiplier Steps", "Base Movement Steps", "Base Magic Steps"]) {

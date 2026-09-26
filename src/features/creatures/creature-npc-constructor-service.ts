@@ -1,3 +1,4 @@
+import { readCreatureFormsInTransaction } from "./creature-form-service";
 import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring } from "./creature-authoring";
 import "server-only";
 
@@ -86,6 +87,7 @@ export function normalizeCreatureNpcSnapshot(
 export function buildCreatureNpcSnapshot(template: CreatureDraft): CreatureDraft {
   return normalizeCreatureNpcSnapshot({
     id: template.id,
+    ...(template.forms === undefined ? {} : { forms: structuredClone(template.forms) }),
     core: { ...template.core },
     attributes: template.attributes.map((row) => ({ ...row })),
     movement: template.movement.map((row) => ({ ...row })),
@@ -292,6 +294,7 @@ export async function readCreatureNpcTemplateInTransaction(
 
   return {
     id: creatureId,
+    forms: await readCreatureFormsInTransaction(tx, creatureId),
     core: {
       ...row,
       interactionRules: normalizeInteractionRuleProfile(row.interactionRules, "creature"),

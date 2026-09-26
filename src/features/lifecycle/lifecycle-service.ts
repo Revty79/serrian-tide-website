@@ -364,6 +364,7 @@ function raceDependencySpecs(id: number): DependencySpec[] {
 function creatureDependencySpecs(id: number): DependencySpec[] {
   return [
     { label: "Variants and authored definition rows", blocking: false, query: sql<CountRow>`select ((select count(*) from creature_variants where creature_id = ${id}) + (select count(*) from creature_attributes where creature_id = ${id}) + (select count(*) from creature_movement where creature_id = ${id}) + (select count(*) from creature_hp_pools where creature_id = ${id}) + (select count(*) from creature_hit_locations where creature_id = ${id}) + (select count(*) from creature_attacks where creature_id = ${id}) + (select count(*) from creature_skill_links where creature_id = ${id}) + (select count(*) from creature_abilities where creature_id = ${id}) + (select count(*) from creature_defenses where creature_id = ${id}) + (select count(*) from creature_uses where creature_id = ${id}))::int as value` },
+    { label: "Creature Forms", blocking: false, query: sql<CountRow>`select count(*)::int as value from creature_forms where creature_id = ${id}` },
     { label: "Derived child Creatures", blocking: true, query: sql<CountRow>`select count(*)::int as value from creatures where parent_creature_id = ${id}` },
     { label: "Creature NPC snapshot profiles", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_creature_npc_profile where creature_id = ${id}` },
     { label: "Temporary encounter Creature participants", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_session_encounter_participant where creature_id = ${id}` },
@@ -381,6 +382,7 @@ function skillDependencySpecs(id: number): DependencySpec[] {
     { label: "Race Natural Attack Skill bases", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_natural_attacks where skill_id = ${id}` },
     { label: "Form Natural Attack Skill bases", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_natural_attacks where skill_id = ${id}` },
     { label: "Form Skill additions", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_skill_links where skill_id = ${id}` },
+    { label: "Creature Form Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_form_skill_links where skill_id = ${id}` },
     { label: "Creature Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_skill_links where skill_id = ${id}` },
     { label: "Character Skill allocations", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_skill_allocation where skill_id = ${id}` },
     { label: "Derived Ability requirements", blocking: true, query: sql<CountRow>`select count(*)::int as value from derived_ability_requirement where skill_id = ${id}` },
