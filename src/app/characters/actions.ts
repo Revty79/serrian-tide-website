@@ -1,5 +1,7 @@
 "use server";
 
+import { readRaceFormPreviewInTransaction } from "@/features/races/race-form-preview-service";
+
 import { canManageCharacterSheet, characterTrackingPatch } from "@/features/characters/character-sheet-access";
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 
@@ -321,7 +323,8 @@ async function readRaceAggregate(raceId: number): Promise<CharacterRaceAggregate
       .orderBy(asc(raceSkillLink.sortOrder), asc(raceSkillLink.id)),
   ]);
 
-  return { race: raceRow, attributeCaps: caps, movementModes: movement, skillLinks: links };
+  const formPreview = await db.transaction(tx => readRaceFormPreviewInTransaction(tx, raceId));
+  return { race: raceRow, attributeCaps: caps, movementModes: movement, skillLinks: links, ...(formPreview ? { formPreview } : {}) };
 }
 
 function readSpellImportReference(dataJson: string) {

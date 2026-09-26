@@ -1,0 +1,2 @@
+ALTER TABLE "race_forms" ADD COLUMN "transformation_json" jsonb;--> statement-breakpoint
+ALTER TABLE "race_forms" ADD CONSTRAINT "race_form_transformation_shape" CHECK ("race_forms"."transformation_json" IS NULL OR coalesce((jsonb_typeof("race_forms"."transformation_json") = 'object' AND "race_forms"."transformation_json"->>'schemaVersion' = '1'), false));

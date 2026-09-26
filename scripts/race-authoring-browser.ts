@@ -10,6 +10,7 @@ import { checkGuidanceWorkspaces, checkRaceFieldGuidance } from "./guidance-brow
 import { checkRaceAnatomyBrowser } from "./race-anatomy-browser";
 import { checkRaceNaturalAttacksBrowser } from "./race-natural-attacks-browser";
 import { checkRaceFormsBrowser } from "./race-forms-browser";
+import { checkRaceFormPreviewBrowser } from "./race-form-preview-browser";
 import { checkRaceFormMechanicsBrowser } from "./race-form-mechanics-browser";
 
 async function until(check: () => Promise<boolean>, label: string) {
@@ -150,6 +151,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId, character
     await checkRaceNaturalAttacksBrowser(page, base);
     await checkRaceFormsBrowser(page, base);
     await checkRaceFormMechanicsBrowser(page, base);
+    await checkRaceFormPreviewBrowser(page, base, actorUserId, characterId);
     assert.deepEqual(errors, []);
     console.log("PASS: Player and revoked-role replay cannot clone; no browser JavaScript errors");
   } catch (error) {

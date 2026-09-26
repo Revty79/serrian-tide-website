@@ -1,0 +1,99 @@
+import assert from "node:assert/strict";
+import type { Page } from "playwright-core";
+import { db, pool } from "@/db";
+import { readRaceFormsInTransaction, saveRaceFormsInTransaction } from "@/features/races/race-form-service";
+import { emptyRaceFormMechanics } from "@/features/races/race-form-mechanics";
+
+export async function checkRaceFormPreviewBrowser(page: Page, base: string, actorUserId: string, existingCharacterId: number) {
+  assert.equal(process.env.SERRIAN_DISPOSABLE_RACE_AUTHORING, "true");
+  const name = "Form Mechanics Browser Race";
+  const open = async () => { await page.goto(`${base}/heavens/races`); await page.locator("#race-search").fill(name); await page.locator(".skill-library__row").filter({ hasText: name }).click(); await page.getByRole("button", { name: "Forms", exact: true }).click(); };
+  await open();
+  const form = page.getByRole("article", { name: "Form 1", exact: true });
+  const transformation = form.locator("details").filter({ has: page.locator("summary").filter({ hasText: /^Transformation/ }) }).first();
+  await transformation.locator(":scope > summary").click();
+  const field = (name: string) => transformation.getByLabel(name, { exact: true });
+  await field("Entry method").selectOption("either"); await field("Entry notes").fill("Moonrise or deliberate concentration");
+  await field("Entry timing method").selectOption("initiative"); await field("Entry Initiative").fill("4"); await field("Entry non-combat time").fill("One minute");
+  await field("Entry costs").selectOption("costs"); await transformation.getByRole("button", { name: "Add entry cost", exact: true }).click(); await field("Cost amount").fill("3");
+  await transformation.getByRole("button", { name: "Add entry requirements", exact: true }).click();
+  await transformation.getByRole("group", { name: "Entry requirements", exact: true }).getByLabel("Condition notes", { exact: true }).fill("Nighttime with concentration");
+  await transformation.getByRole("button", { name: "Add involuntary triggers", exact: true }).click();
+  await transformation.getByRole("group", { name: "Involuntary triggers", exact: true }).getByLabel("Condition notes", { exact: true }).fill("Full moon and extreme stress");
+  await field("Form duration").selectOption("fixed"); await field("Duration description").fill("Ten minutes");
+  await transformation.getByRole("group", { name: "Exit rules", exact: true }).getByRole("checkbox", { name: "Voluntary", exact: true }).check();
+  await field("Exit timing method").selectOption("instant"); await field("Exit costs").selectOption("none");
+  await field("Use limits").selectOption("limited"); await transformation.getByRole("button", { name: "Add use limit", exact: true }).click(); await field("Maximum uses").fill("2");
+  await field("Cooldown / custom limit").fill("One hour between changes"); await field("Equipment entry notes").fill("Follow the authored equipment intent"); await field("Equipment exit notes").fill("Return with the same equipment"); await field("Transformation notes").fill("Preview only; G.O.D. resolves entry");
+  await page.getByRole("button", { name: "Save Race", exact: true }).click(); await page.getByText(`${name} was saved.`, { exact: true }).waitFor();
+  const [race] = (await pool.query("select * from races where name=$1", [name])).rows;
+  const [definition] = (await db.transaction(tx => readRaceFormsInTransaction(tx, race.id)));
+  assert.equal(definition.transformation!.entryMethod, "either"); assert.equal(definition.transformation!.entryTiming.initiativeCost, 4); assert.equal(definition.transformation!.entryCosts.costs[0].amount, 3);
+  assert.equal(definition.transformation!.requirements[0].notes, "Nighttime with concentration"); assert.equal(definition.transformation!.involuntaryTriggers[0].notes, "Full moon and extreme stress");
+  assert.equal(definition.transformation!.duration.description, "Ten minutes"); assert.deepEqual(definition.transformation!.exitMethods, ["voluntary"]); assert.equal(definition.transformation!.exitTiming.mode, "instant"); assert.equal(definition.transformation!.useLimits[0].maximumUses, 2);
+  await open(); await transformation.locator(":scope > summary").click();
+  assert.equal(await field("Entry Initiative").inputValue(), "4"); assert.equal(await field("Maximum uses").inputValue(), "2"); assert.equal(await field("Equipment exit notes").inputValue(), "Return with the same equipment");
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await transformation.screenshot({ path: `artifacts/race-authoring/transformation-${width}.png` });
+  }
+  console.log("PASS: transformation fields author/save/reload through real UI, desktop and 390px");
+
+  const more = Array.from({ length: 34 }, (_, index) => ({ key: `preview-${index}`, name: `Preview Form ${index + 2}`, description: "Independent preview", notes: "", sortOrder: index + 1, mechanics: { ...emptyRaceFormMechanics(), attributeAdjustments: { STR: -10, DEX: 0, CON: 0, INT: 0, WIS: 0, CHR: 0 } } }));
+  await db.transaction(tx => saveRaceFormsInTransaction(tx, race.id, [definition, ...more], { anatomy: race.anatomy_json, naturalAttacks: [], naturalProtections: [] }));
+  const [existing] = (await pool.query("select campaign_id from campaign_character where id=$1", [existingCharacterId])).rows;
+  await pool.query("insert into campaign_allowed_race(campaign_id,race_id,sort_order) values($1,$2,50) on conflict do nothing", [existing.campaign_id, race.id]);
+  await pool.query("insert into campaign_race(campaign_id,race_id,sort_order) values($1,$2,50) on conflict do nothing", [existing.campaign_id, race.id]);
+  const [character] = (await pool.query("insert into campaign_character(campaign_id,player_user_id,name) values($1,$2,'Form Preview Browser Character') returning id", [existing.campaign_id, actorUserId])).rows;
+  await pool.query("insert into campaign_character_profile(character_id,race_id) values($1,$2)", [character.id, race.id]);
+  for (const key of ["STR", "DEX", "CON", "INT", "WIS", "CHR"]) await pool.query("insert into campaign_character_attribute(character_id,attribute_key,value) values($1,$2,35)", [character.id, key]);
+  const [item] = (await pool.query("insert into items(canonical_id,name,catalog_scope,equipment_group,record_type,family,category,price_basis) values('FORM-PREVIEW-BROWSER-TOKEN','Preview Token','equipment','general','Item','General','General','each') returning id")).rows;
+  await pool.query("insert into campaign_character_item(character_id,item_id,quantity,unit_cost_credits) values($1,$2,3,0)", [character.id, item.id]);
+  await pool.query("insert into campaign_character_item_equipment_state(character_id,item_id,state,quantity) values($1,$2,'equipped',1)", [character.id, item.id]);
+  await pool.query("insert into user_role(user_id,role) values($1,'player') on conflict do nothing", [actorUserId]);
+  await page.goto(`${base}/realms/characters/${character.id}`);
+  const viewer = page.getByRole("region", { name: "Character Form viewer", exact: true });
+  const select = viewer.getByLabel("View Form", { exact: true }); await select.waitFor();
+  assert.equal(await select.inputValue(), ""); assert.equal(await select.locator("option").count(), 36);
+  assert.equal(await viewer.locator("[data-form-preview]").count(), 0);
+  await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,7) on conflict (character_id) do update set total_damage=7", [character.id]);
+  await page.reload(); await select.waitFor();
+  const tableNames: string[] = (await pool.query("select tablename from pg_tables where schemaname='public' and (tablename like 'campaign_character%' or tablename like 'character_%' or tablename like 'inventory_%') order by tablename")).rows.map(row => row.tablename);
+  const snapshot = async () => Object.fromEntries(await Promise.all(tableNames.map(async table => [table, (await pool.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)).rows])));
+  const before = await snapshot(), status = await page.locator(".character-status-strip").innerText();
+  const mutationRequests: string[] = [];
+  const recordRequest = (request: import("playwright-core").Request) => { if (request.method() !== "GET") mutationRequests.push(request.url()); };
+  page.on("request", recordRequest);
+  await select.selectOption(String(definition.id));
+  await viewer.getByRole("heading", { name: "Wolf Form", exact: true }).waitFor();
+  assert.match(await viewer.innerText(), /Form Preview.*viewing this Form does not change/);
+  assert.equal(await viewer.locator('[data-preview-attribute="STR"] strong').innerText(), "40");
+  assert.equal(await viewer.locator('[data-preview-attribute="CHR"] strong').innerText(), "30");
+  for (const phrase of ["Muzzle", "Fur", "Bite", "Form Browser Skill", "Cold resistance", "No functional manipulation", "One minute", "3 Mana", "Full moon and extreme stress", "Ten minutes", "One hour between changes"]) assert.ok((await viewer.innerText()).includes(phrase), phrase);
+  assert.equal(await viewer.locator("[data-form-preview]").getByRole("button").count(), 0);
+  assert.equal(await page.locator(".character-status-strip").innerText(), status);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await viewer.screenshot({ path: `artifacts/race-authoring/character-form-preview-${width}.png` });
+    await viewer.getByRole("region", { name: "Preview Attributes", exact: true }).screenshot({ path: `artifacts/race-authoring/character-form-attributes-${width}.png` });
+  }
+  await select.selectOption({ label: "Preview Form 35" }); assert.equal(await viewer.locator('[data-preview-attribute="STR"] strong').innerText(), "25");
+  await select.selectOption(""); assert.equal(await viewer.locator("[data-form-preview]").count(), 0);
+  await select.selectOption(String(definition.id));
+  assert.deepEqual(await snapshot(), before); assert.deepEqual(mutationRequests, []);
+  page.off("request", recordRequest);
+  // Ordinary editing stays on the authoritative draft while the preview remains open.
+  await page.locator("#character-tab-story").click(); await page.getByLabel(/^Personality Summary/).fill("Saved while previewing Wolf");
+  await page.getByRole("button", { name: "Save Character", exact: true }).click();
+  await page.getByText("Saved record", { exact: true }).waitFor();
+  assert.equal((await pool.query("select personality from campaign_character_profile where character_id=$1", [character.id])).rows[0].personality, "Saved while previewing Wolf");
+  assert.deepEqual((await pool.query("select value from campaign_character_attribute where character_id=$1 order by attribute_key", [character.id])).rows.map(row => row.value), [35, 35, 35, 35, 35, 35]);
+  const after = await snapshot();
+  for (const table of tableNames.filter(table => !["campaign_character", "campaign_character_profile"].includes(table))) assert.deepEqual(after[table], before[table], `${table} unchanged by unrelated save`);
+  assert.equal((await pool.query("select total_damage from campaign_character_active_health where character_id=$1", [character.id])).rows[0].total_damage, 7);
+  await page.reload(); await select.waitFor(); assert.equal(await select.inputValue(), "");
+  await select.selectOption(String(definition.id)); await page.goto(`${base}/realms`); await page.goto(`${base}/realms/characters/${character.id}`); await select.waitFor(); assert.equal(await select.inputValue(), "");
+  console.log("PASS: all 35 exact-Race Forms, Normal/reset, independent previews, derived displays, zero mutation requests, unchanged DB/readiness/health/inventory/equipment, unrelated save safety, desktop/390px");
+}

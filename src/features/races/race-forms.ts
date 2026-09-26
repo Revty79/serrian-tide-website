@@ -1,3 +1,4 @@
+import type { RaceFormTransformation } from "./race-form-transformation";
 import type { RaceFormMechanics } from "./race-form-mechanics";
 
 /** A Race-local authoring identity. The Race itself remains the normal state. */
@@ -8,6 +9,7 @@ export type RaceForm = {
   notes: string;
   sortOrder: number;
   mechanics?: RaceFormMechanics;
+  transformation?: RaceFormTransformation | null;
 };
 
 /** Persisted identities are exposed for future readers, never accepted as ownership authority. */

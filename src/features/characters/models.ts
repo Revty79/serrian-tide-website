@@ -1,3 +1,7 @@
+import type { SavedRaceForm } from "@/features/races/race-forms";
+import type { RaceNaturalAttack } from "@/features/races/race-natural-attacks";
+import type { RaceNaturalProtection } from "@/features/races/race-natural-protection";
+import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import type { CampaignSystem } from "@/db/campaign-schema";
 import type { RaceAnatomy } from "@/features/races/race-anatomy";
 import type {
@@ -176,6 +180,8 @@ export type CharacterCampaignRules = {
 export type CharacterRaceSummary = { id: number; name: string; archived?: boolean };
 
 export type CharacterRaceAggregate = {
+  /** Read-only authoring catalog; never an effective/runtime Race override. */
+  formPreview?: { forms: SavedRaceForm[]; naturalAttacks: RaceNaturalAttack[]; naturalProtections: RaceNaturalProtection[]; interactionRules: InteractionRuleProfile | null };
   race: {
     anatomy?: RaceAnatomy | null;
     id: number;

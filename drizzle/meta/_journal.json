@@ -519,6 +519,13 @@
       "when": 1790383504409,
       "tag": "0073_race_form_mechanics",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790385627690,
+      "tag": "0074_race_form_transformation",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { RaceFormTransformationEditor } from "./race-form-transformation-editor";
 import { GuidedField } from "@/components/field-guidance";
 import { emptyRaceForm, normalizeRaceForms, type RaceForm } from "@/features/races/race-forms";
 import { RaceFormMechanicsEditor } from "./race-form-mechanics-editor";
@@ -44,6 +45,7 @@ export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; 
         <textarea className="st-control" rows={3} value={form.notes} onChange={event => patch(form.key, { notes: event.target.value })} />
       </GuidedField>
       <RaceFormMechanicsEditor value={form.mechanics} race={race} onChange={mechanics => patch(form.key, { mechanics })} />
+      <RaceFormTransformationEditor value={form.transformation} onChange={transformation => patch(form.key, { transformation })} />
     </article>)}
   </section>;
 }

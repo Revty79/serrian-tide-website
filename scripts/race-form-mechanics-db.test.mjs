@@ -217,5 +217,9 @@ test("authoring Form Attributes and mechanics leaves existing Character storage 
   const storedBefore = await snapshot();
   await saveRace({ ...base, forms: [form(mechanics)] });
   assert.deepEqual(await snapshot(), storedBefore);
-  assert.deepEqual(await getCharacter(character.id, true), before);
+  const after = await getCharacter(character.id, true);
+  assert.equal(after.selectedRace.formPreview.forms.length, 1);
+  const { formPreview, ...normalRace } = after.selectedRace;
+  assert.ok(formPreview);
+  assert.deepEqual({ ...after, selectedRace: normalRace }, before);
 });

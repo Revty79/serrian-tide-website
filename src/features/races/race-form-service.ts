@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeRaceFormTransformation } from "./race-form-transformation";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
 import { raceForm } from "@/db/race-schema";
@@ -24,12 +25,16 @@ export async function saveRaceFormsInTransaction(tx: Transaction, raceId: number
     try { return normalizeRaceFormMechanics(input[index].mechanics === undefined ? savedForms.find(form => form.key === row.key)?.mechanics ?? emptyRaceFormMechanics() : input[index].mechanics!, race); }
     catch (error) { throw new Error(`${row.name}: ${error instanceof Error ? error.message : "Invalid Form mechanics."}`); }
   });
+  const transformations = definitions.map((row, index) => {
+    try { return normalizeRaceFormTransformation(input[index].transformation === undefined ? savedForms.find(form => form.key === row.key)?.transformation ?? null : input[index].transformation); }
+    catch (error) { throw new Error(`${row.name}: ${error instanceof Error ? error.message : "Invalid transformation definition."}`); }
+  });
   const keys = new Set(definitions.map(row => row.key));
   const existing = await tx.select({ id: raceForm.id, key: raceForm.key }).from(raceForm).where(eq(raceForm.raceId, raceId));
   const removed = existing.filter(row => !keys.has(row.key));
   if (removed.length) await tx.delete(raceForm).where(inArray(raceForm.id, removed.map(row => row.id)));
   for (const [index, definition] of definitions.entries()) {
-    const values = { ...definition, raceId, mechanics: raceFormMechanicsProfile(mechanics[index]) };
+    const values = { ...definition, raceId, mechanics: raceFormMechanicsProfile(mechanics[index]), transformation: transformations[index] };
     const [saved] = await tx.insert(raceForm).values(values).onConflictDoUpdate({ target: [raceForm.raceId, raceForm.key], set: values }).returning({ id: raceForm.id });
     await saveFormMechanicsInTransaction(tx, saved.id, mechanics[index]);
   }

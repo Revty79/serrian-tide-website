@@ -23,6 +23,7 @@ import { getActiveMana } from "./active-mana-actions";
 import { getActiveEffects } from "./active-effects-actions";
 import { getCharacterEquipmentState } from "./equipment-state-actions";
 import { getCharacterItemChargeState } from "./item-charge-actions";
+import { CharacterFormPreviewViewer } from "./character-form-preview";
 import { CharacterSheet } from "./character-sheet";
 import { CharacterPrintCenter } from "./character-print-center";
 import { ActiveHealthPanel } from "./active-health-panel";
@@ -874,6 +875,8 @@ export function CharacterEditor({
 
       {feedback ? <p className={`character-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
       {archivedNpc ? <p className="character-feedback is-error">This NPC is archived and read-only. Restore it from the NPC Master Sheet before saving changes.</p> : null}
+
+      {!isNpc && <CharacterFormPreviewViewer key={`${aggregate.character.id}:${draft.profile.raceId}`} aggregate={aggregate} draft={draft} race={selectedRace} />}
 
       <div className="character-workspace">
         <nav className="character-tabs" role="tablist" aria-label="Character sheet sections" onKeyDown={(event) => {

@@ -19,3 +19,5 @@
 .sectionBody :global(.race-skill-picker) > *, .sectionBody :global(.race-repeat-row--movement) > * { min-width: 0; }
 .sectionBody select { max-width: 100%; }
 @media (max-width: 600px) { .card { padding: .75rem; } }
+
+.sectionBody input[type="checkbox"] { width: auto; }

@@ -92,11 +92,27 @@ test("Race Soak migration, independent variants, protection integration and auth
     await pool.query("insert into campaign_character_attribute(character_id,attribute_key,value) values($1,'STR',35)", [character]);
     const mechanicsPreservedTables = [...formPreservedTables, "campaign", "campaign_character", "campaign_character_profile", "campaign_character_attribute"];
     const beforeMechanicsMigration = await Promise.all(mechanicsPreservedTables.map(table => pool!.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)));
-    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    const beforeTransformation = path.join(root, "before-form-transformation"); await mkdir(path.join(beforeTransformation, "meta"), { recursive: true });
+    const beforeTransformationEntries = journal.entries.filter((entry: { idx: number }) => entry.idx < 74);
+    await writeFile(path.join(beforeTransformation, "meta/_journal.json"), JSON.stringify({ ...journal, entries: beforeTransformationEntries }));
+    for (const entry of beforeTransformationEntries) await copyFile(path.resolve("drizzle", `${entry.tag}.sql`), path.join(beforeTransformation, `${entry.tag}.sql`));
+    await migrate(drizzle(pool), { migrationsFolder: beforeTransformation });
     for (const [index, table] of mechanicsPreservedTables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)).rows, beforeMechanicsMigration[index].rows, `${table} unchanged by Form mechanics migration`);
     assert.deepEqual((await pool.query("select * from race_forms order by id")).rows, oldForms.map(row => ({ ...row, mechanics_json: null })));
     for (const table of ["race_form_movement_modes", "race_form_natural_attacks", "race_form_natural_protections", "race_form_natural_protection_locations", "race_form_skill_links"]) assert.equal((await pool.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
     console.log("PASS: Form mechanics migration preserves Pass 2 Forms and all Race/Creature/Character data; defaults remain Use Race, with zero inferred mechanics");
+    const { emptyRaceFormMechanics, raceFormMechanicsProfile } = await import("../src/features/races/race-form-mechanics");
+    const preservedMechanics = emptyRaceFormMechanics(); preservedMechanics.attributeAdjustments.STR = 5; preservedMechanics.attributeAdjustments.CHR = -5;
+    await pool.query("update race_forms set mechanics_json=$1 where key='wolf'", [JSON.stringify(raceFormMechanicsProfile(preservedMechanics))]);
+    const transformationTables: string[] = (await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(row => row.tablename);
+    const beforeTransformationMigration = await Promise.all(transformationTables.map(table => pool!.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)));
+    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    for (const [index, table] of transformationTables.entries()) {
+      const expected = table === "race_forms" ? beforeTransformationMigration[index].rows.map(row => ({ body: { ...row.body, transformation_json: null } })) : beforeTransformationMigration[index].rows;
+      assert.deepEqual((await pool.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)).rows, expected, `${table} preserved by transformation migration`);
+    }
+    await assert.rejects(pool.query("update race_forms set transformation_json='{}'"), /transformation_shape/);
+    console.log("PASS: transformation migration preserves every public table and signed Pass 3 mechanics; existing Forms have null transformation definitions");
     assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n, journal.entries.length);
     console.log("PASS: Natural Attack migration preserves existing Races, variants, Anatomy, Skill links, protection, movement, caps and Creatures; no attacks inferred");
     console.log("PASS: migration preserves exact Soak, coverage, lore and independent Races; discards Armor without conversion");
@@ -106,6 +122,8 @@ test("Race Soak migration, independent variants, protection integration and auth
     execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "scripts/race-natural-attacks-db.test.mjs"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
     execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "scripts/race-forms-db.test.mjs"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
     execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "scripts/race-form-mechanics-db.test.mjs"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
+    execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "scripts/race-form-preview-db.test.mjs"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
+    if (process.env.RACE_FORM_PREVIEW_ONLY === "1") return;
     if (process.env.RACE_NATURAL_ATTACKS_ONLY === "1" || process.env.RACE_FORMS_ONLY === "1" || process.env.RACE_FORM_MECHANICS_ONLY === "1") return;
     execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "scripts/race-authoring-checks.ts"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 600_000 });
     execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-concurrency=1", "scripts/incoming-effect-target-db.test.ts", "scripts/pass5-runtime-db.test.ts", "scripts/pass6-gameplay-db.test.ts"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
