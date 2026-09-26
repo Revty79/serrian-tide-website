@@ -101,6 +101,20 @@ export const race = pgTable(
   ],
 );
 
+export const raceForm = pgTable("race_forms", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").notNull().references(() => race.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  name: text("name").notNull(),
+  description: text("description").default("").notNull(),
+  notes: text("notes").default("").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+}, (table) => [
+  uniqueIndex("race_form_key_uq").on(table.raceId, table.key),
+  check("race_form_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0`),
+  check("race_form_order_valid", sql`${table.sortOrder} >= 0`),
+]);
+
 export const raceNaturalAttack = pgTable("race_natural_attacks", {
   id: serial("id").primaryKey(),
   raceId: integer("race_id").notNull().references(() => race.id, { onDelete: "cascade" }),

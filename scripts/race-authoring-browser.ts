@@ -9,6 +9,7 @@ import { RACE_SIZE_OPTIONS } from "@/db/race-schema";
 import { checkGuidanceWorkspaces, checkRaceFieldGuidance } from "./guidance-browser-checks";
 import { checkRaceAnatomyBrowser } from "./race-anatomy-browser";
 import { checkRaceNaturalAttacksBrowser } from "./race-natural-attacks-browser";
+import { checkRaceFormsBrowser } from "./race-forms-browser";
 
 async function until(check: () => Promise<boolean>, label: string) {
   const deadline = Date.now() + 90_000;
@@ -145,6 +146,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId, character
     await replay(context.request); assert.equal((await pool.query("select count(*)::int n from races")).rows[0].n, count);
     await pool.query("insert into user_role(user_id,role) values($1,'god')", [actorUserId]);
     await checkRaceNaturalAttacksBrowser(page, base);
+    await checkRaceFormsBrowser(page, base);
     assert.deepEqual(errors, []);
     console.log("PASS: Player and revoked-role replay cannot clone; no browser JavaScript errors");
   } catch (error) {

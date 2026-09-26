@@ -7,6 +7,7 @@ import { InteractionRulesEditor } from "@/app/heavens/interaction-rules-editor";
 import { RaceNaturalProtectionEditor } from "./race-natural-protection-editor";
 import { RaceAnatomyEditor } from "./race-anatomy-editor";
 import { RaceNaturalAttacksEditor } from "./race-natural-attacks-editor";
+import { RaceFormsEditor } from "./race-forms-editor";
 import { raceHitLocations } from "@/features/races/race-anatomy";
 
 import Link from "next/link";
@@ -31,13 +32,14 @@ import {
   type RaceSummary,
 } from "./actions";
 
-type Tab = "overview" | "mechanics" | "anatomy" | "attacks" | "quirk" | "skills" | "culture" | "variants" | "preview";
+type Tab = "overview" | "mechanics" | "anatomy" | "attacks" | "forms" | "quirk" | "skills" | "culture" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "mechanics", label: "Mechanics" },
   { id: "anatomy", label: "HP & Hit Locations" },
   { id: "attacks", label: "Natural Attacks" },
+  { id: "forms", label: "Forms" },
   { id: "quirk", label: "Quirk" },
   { id: "skills", label: "Skills & Abilities" },
   { id: "culture", label: "Culture & Play" },
@@ -78,6 +80,7 @@ function newRaceDraft(): RaceDraft {
     movementModes: [],
     naturalProtections: [],
     naturalAttacks: [],
+    forms: [],
     skillLinks: [],
   };
 }
@@ -343,6 +346,7 @@ export function RaceWorkspace({
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}
               {activeTab === "anatomy" ? <RaceAnatomyEditor value={draft.core.anatomy ?? null} onChange={(anatomy) => change({ ...draft, core: { ...draft.core, anatomy } })} /> : null}
               {activeTab === "attacks" ? <RaceNaturalAttacksEditor value={draft.naturalAttacks ?? []} anatomy={draft.core.anatomy ?? null} skillOptions={draft.skillLinks.map(row => ({ id: row.skillId, name: row.skillName }))} onChange={naturalAttacks => change({ ...draft, naturalAttacks })} /> : null}
+              {activeTab === "forms" ? <RaceFormsEditor value={draft.forms ?? []} onChange={forms => change({ ...draft, forms })} /> : null}
               {activeTab === "quirk" ? <Quirk draft={draft} onChange={change} /> : null}
               {activeTab === "skills" ? <Skills draft={draft} onChange={change} /> : null}
               {activeTab === "culture" ? <Culture draft={draft} onChange={change} /> : null}

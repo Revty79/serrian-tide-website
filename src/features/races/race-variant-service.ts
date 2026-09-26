@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
-import { race, raceAttributeCap, raceMovementMode, raceSkillLink, raceNaturalAttack } from "@/db/race-schema";
+import { race, raceAttributeCap, raceMovementMode, raceSkillLink, raceNaturalAttack, raceForm } from "@/db/race-schema";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "./race-natural-protection-service";
 
@@ -48,6 +48,8 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     const attacks = await tx.select().from(raceNaturalAttack).where(eq(raceNaturalAttack.raceId, parentRaceId)).orderBy(asc(raceNaturalAttack.sortOrder), asc(raceNaturalAttack.id));
     // Copy saved definitions exactly, including retained archived Skill references.
     if (attacks.length) await tx.insert(raceNaturalAttack).values(attacks.map(row => ({ ...row, id: undefined, raceId: created.id })));
+    const forms = await tx.select().from(raceForm).where(eq(raceForm.raceId, parentRaceId)).orderBy(asc(raceForm.sortOrder), asc(raceForm.id));
+    if (forms.length) await tx.insert(raceForm).values(forms.map(row => ({ ...row, id: undefined, raceId: created.id })));
     return created.id;
   });
 }

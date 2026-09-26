@@ -354,6 +354,7 @@ function raceDependencySpecs(id: number): DependencySpec[] {
     { label: "Movement modes", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_movement_modes where race_id = ${id}` },
     { label: "Race Skill grants", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_skill_links where race_id = ${id}` },
     { label: "Race Natural Attacks", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_natural_attacks where race_id = ${id}` },
+    { label: "Race Forms", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_forms where race_id = ${id}` },
     { label: "Campaign race catalog", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_race where race_id = ${id}` },
     { label: "Campaign allowlists", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_allowed_race where race_id = ${id}` },
     { label: "Player Character and Race NPC profiles", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_profile where race_id = ${id}` },

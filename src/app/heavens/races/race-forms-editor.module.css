@@ -1,0 +1,10 @@
+.editor { display: grid; gap: 1rem; min-width: 0; color: var(--st-text); }
+.editor > p { margin: 0; }
+.editor > button { justify-self: start; }
+.card { display: grid; gap: .8rem; min-width: 0; padding: 1rem; border: 1px solid var(--st-border); border-radius: .5rem; background: var(--st-surface); }
+.card > header { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: .75rem; min-width: 0; }
+.card h3 { margin: 0; overflow-wrap: anywhere; }
+.card input, .card textarea { min-width: 0; width: 100%; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.error { color: var(--st-danger); }
+@media (max-width: 600px) { .card { padding: .75rem; } }

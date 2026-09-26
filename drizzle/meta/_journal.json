@@ -505,6 +505,13 @@
       "when": 1790380288356,
       "tag": "0071_race_natural_attacks",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1790382172452,
+      "tag": "0072_race_forms",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import test from "node:test";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
+import { emptyRaceNaturalAttack } from "../src/features/races/race-natural-attacks";
 
 test("Race Soak migration, independent variants, protection integration and authoring browser", { timeout: 900_000 }, async () => {
   const parent = path.resolve(tmpdir());
@@ -61,9 +62,22 @@ test("Race Soak migration, independent variants, protection integration and auth
     await pool.query("insert into creature_attacks(creature_id,canonical_id,attack_name,attack_percentage,damage) values($1,'ATK-RACE-MIGRATION','Preserved Bite',63,'4')", [creatureId]);
     const preservedTables = ["races", "race_attribute_caps", "race_movement_modes", "race_skill_links", "race_natural_protections", "race_natural_protection_locations", "skill", "creatures", "creature_attacks"];
     const beforeMigration = await Promise.all(preservedTables.map(table => pool!.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)));
-    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    const beforeForms = path.join(root, "before-forms"); await mkdir(path.join(beforeForms, "meta"), { recursive: true });
+    const beforeFormEntries = journal.entries.filter((entry: { idx: number }) => entry.idx < 72);
+    await writeFile(path.join(beforeForms, "meta/_journal.json"), JSON.stringify({ ...journal, entries: beforeFormEntries }));
+    for (const entry of beforeFormEntries) await copyFile(path.resolve("drizzle", `${entry.tag}.sql`), path.join(beforeForms, `${entry.tag}.sql`));
+    await migrate(drizzle(pool), { migrationsFolder: beforeForms });
     for (const [index, table] of preservedTables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)).rows, beforeMigration[index].rows, `${table} unchanged by Natural Attack migration`);
     assert.equal((await pool.query("select count(*)::int n from race_natural_attacks")).rows[0].n, 0);
+    const attack = emptyRaceNaturalAttack("migration-bite");
+    await pool.query("insert into race_natural_attacks(race_id,key,attack_name,damage,authoring_json,skill_id,anatomy_requirement_json,sort_order) values($1,$2,'Existing Bite','4',$3,$4,$5,0)", [variant, attack.key, JSON.stringify(attack.authoring), skillId, JSON.stringify(attack.anatomy)]);
+    await pool.query("update races set interaction_rules_json=$1 where id=$2", [JSON.stringify({ schemaVersion: 1, rules: [] }), variant]);
+    const formPreservedTables = [...preservedTables, "race_natural_attacks"];
+    const beforeFormMigration = await Promise.all(formPreservedTables.map(table => pool!.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)));
+    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    for (const [index, table] of formPreservedTables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)).rows, beforeFormMigration[index].rows, `${table} unchanged by Forms migration`);
+    assert.equal((await pool.query("select count(*)::int n from race_forms")).rows[0].n, 0);
+    console.log("PASS: Forms migration preserves exact Race/variant, Anatomy, Natural Attack, protection, caps, movement, Skill, Interaction Rule and Creature data; zero Forms inferred");
     assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n, journal.entries.length);
     console.log("PASS: Natural Attack migration preserves existing Races, variants, Anatomy, Skill links, protection, movement, caps and Creatures; no attacks inferred");
     console.log("PASS: migration preserves exact Soak, coverage, lore and independent Races; discards Armor without conversion");
@@ -71,7 +85,8 @@ test("Race Soak migration, independent variants, protection integration and auth
     const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: databaseUrl, SERRIAN_DISPOSABLE_RACE_AUTHORING: "true", SERRIAN_DISPOSABLE_COMBAT_COMPLETION: "true", NODE_ENV: "test" };
     delete environment.NODE_TEST_CONTEXT;
     execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "scripts/race-natural-attacks-db.test.mjs"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
-    if (process.env.RACE_NATURAL_ATTACKS_ONLY === "1") return;
+    execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "scripts/race-forms-db.test.mjs"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
+    if (process.env.RACE_NATURAL_ATTACKS_ONLY === "1" || process.env.RACE_FORMS_ONLY === "1") return;
     execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "scripts/race-authoring-checks.ts"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 600_000 });
     execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-concurrency=1", "scripts/incoming-effect-target-db.test.ts", "scripts/pass5-runtime-db.test.ts", "scripts/pass6-gameplay-db.test.ts"], { env: environment, windowsHide: true, stdio: "inherit", timeout: 180_000 });
   } finally {

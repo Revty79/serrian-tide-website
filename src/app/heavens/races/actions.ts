@@ -38,6 +38,8 @@ import { createRaceVariantForActor } from "@/features/races/race-variant-service
 import { normalizeRaceAnatomy, type RaceAnatomy } from "@/features/races/race-anatomy";
 import type { RaceNaturalAttack } from "@/features/races/race-natural-attacks";
 import { readRaceNaturalAttacksInTransaction, saveRaceNaturalAttacksInTransaction } from "@/features/races/race-natural-attack-service";
+import type { RaceForm, SavedRaceForm } from "@/features/races/race-forms";
+import { readRaceFormsInTransaction, saveRaceFormsInTransaction } from "@/features/races/race-form-service";
 
 export type RaceLibraryFilters = {
   search?: string;
@@ -76,6 +78,7 @@ export type RaceSkillCandidate = {
 
 export type RaceDraft = {
   id?: number;
+  forms?: RaceForm[];
   naturalAttacks?: RaceNaturalAttack[];
   naturalProtections?: RaceNaturalProtection[];
   core: {
@@ -126,6 +129,7 @@ export type RaceDraft = {
 
 export type RaceAggregate = RaceDraft & {
   id: number;
+  forms: SavedRaceForm[];
   variants: Array<{ id: number; name: string; archivedAt: string | null }>;
   createdByUserId: string | null;
   archivedAt: string | null;
@@ -381,6 +385,7 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
     attributeCaps: caps.map(({ attributeKey, maxValue, sortOrder }) => ({ attributeKey, maxValue, sortOrder })),
     movementModes: movements.map(({ movementMode, baseValue, notes, sortOrder }) => ({ movementMode, baseValue, notes, sortOrder })),
     skillLinks: links,
+    forms: await db.transaction(tx => readRaceFormsInTransaction(tx, id)),
     naturalAttacks: await db.transaction(tx => readRaceNaturalAttacksInTransaction(tx, id)),
     naturalProtections: await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, id)),
     createdAt: row.createdAt.toISOString(),
@@ -526,6 +531,8 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     await saveRaceNaturalAttacksInTransaction(tx, id,
       input.naturalAttacks === undefined ? await readRaceNaturalAttacksInTransaction(tx, id) : input.naturalAttacks,
       savedCore.anatomy);
+    // Omission preserves Forms for older callers; an explicit empty list removes them.
+    if (input.forms !== undefined) await saveRaceFormsInTransaction(tx, id, input.forms);
     return id;
   });
 
