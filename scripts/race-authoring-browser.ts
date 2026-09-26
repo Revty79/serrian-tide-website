@@ -10,6 +10,7 @@ import { checkGuidanceWorkspaces, checkRaceFieldGuidance } from "./guidance-brow
 import { checkRaceAnatomyBrowser } from "./race-anatomy-browser";
 import { checkRaceNaturalAttacksBrowser } from "./race-natural-attacks-browser";
 import { checkRaceFormsBrowser } from "./race-forms-browser";
+import { checkRaceFormMechanicsBrowser } from "./race-form-mechanics-browser";
 
 async function until(check: () => Promise<boolean>, label: string) {
   const deadline = Date.now() + 90_000;
@@ -42,6 +43,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId, character
     page.on("request", (request) => { const action = request.headers()["next-action"], body = request.postData(); if (action && body?.includes("Browser Variant")) cloneRequest = { action, body }; });
     const tab = async (name: string) => page!.getByRole("button", { name, exact: true }).click();
     const open = async (id: number, name: string) => {
+      await page!.locator("#race-search").fill(name);
       await page!.locator(".skill-library__row").filter({ hasText: name }).click();
       await page!.locator(".skill-editor__header").getByText(`RACE ${id}`, { exact: true }).waitFor();
     };
@@ -147,6 +149,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId, character
     await pool.query("insert into user_role(user_id,role) values($1,'god')", [actorUserId]);
     await checkRaceNaturalAttacksBrowser(page, base);
     await checkRaceFormsBrowser(page, base);
+    await checkRaceFormMechanicsBrowser(page, base);
     assert.deepEqual(errors, []);
     console.log("PASS: Player and revoked-role replay cannot clone; no browser JavaScript errors");
   } catch (error) {

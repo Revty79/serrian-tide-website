@@ -78,14 +78,15 @@ function AttackRow({ attack, anatomy, skillOptions, onChange }: {
   </div>;
 }
 
-export function RaceNaturalAttacksEditor({ value, anatomy, skillOptions, onChange }: {
+export function RaceNaturalAttacksEditor({ value, anatomy, skillOptions, onChange, owner = "race" }: {
   value: RaceNaturalAttack[]; anatomy: RaceAnatomy | null; skillOptions: Array<{ id: number; name: string }>;
   onChange: (attacks: RaceNaturalAttack[]) => void;
+  owner?: "race" | "form";
 }) {
   const update = (rows: RaceNaturalAttack[]) => onChange(rows.map((row, sortOrder) => ({ ...row, sortOrder })));
   const move = (index: number, delta: number) => { const rows = [...value]; [rows[index], rows[index + delta]] = [rows[index + delta], rows[index]]; update(rows); };
   return <section className={styles.editor} aria-label="Race Natural Attacks">
-    <p className="race-help">Inherent attacks belong to the Race&apos;s body or nature. Save them here for later Character integration.</p>
+    <p className="race-help">Inherent attacks belong to this {owner === "form" ? "Form" : "Race"}&apos;s body or nature. Save them here for later Character integration.</p>
     <button type="button" className="st-button" onClick={() => {
       const key = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
       update([...value, emptyRaceNaturalAttack(key)]);

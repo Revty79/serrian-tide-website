@@ -2,9 +2,11 @@
 
 import { GuidedField } from "@/components/field-guidance";
 import { emptyRaceForm, normalizeRaceForms, type RaceForm } from "@/features/races/race-forms";
+import { RaceFormMechanicsEditor } from "./race-form-mechanics-editor";
+import type { RaceDraft } from "./actions";
 import styles from "./race-forms-editor.module.css";
 
-export function RaceFormsEditor({ value, onChange }: { value: RaceForm[]; onChange: (forms: RaceForm[]) => void }) {
+export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; race: RaceDraft; onChange: (forms: RaceForm[]) => void }) {
   const update = (rows: RaceForm[]) => onChange(rows.map((row, sortOrder) => ({ ...row, sortOrder })));
   const patch = (key: string, change: Partial<RaceForm>) => update(value.map(row => row.key === key ? { ...row, ...change } : row));
   const move = (index: number, delta: number) => {
@@ -41,6 +43,7 @@ export function RaceFormsEditor({ value, onChange }: { value: RaceForm[]; onChan
       <GuidedField className="st-field" label="Form Notes" help="Record additional authoring notes for this Form. Notes do not create transformation rules or runtime effects. Leave blank if no notes are needed.">
         <textarea className="st-control" rows={3} value={form.notes} onChange={event => patch(form.key, { notes: event.target.value })} />
       </GuidedField>
+      <RaceFormMechanicsEditor value={form.mechanics} race={race} onChange={mechanics => patch(form.key, { mechanics })} />
     </article>)}
   </section>;
 }

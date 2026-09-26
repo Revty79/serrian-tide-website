@@ -512,6 +512,13 @@
       "when": 1790382172452,
       "tag": "0072_race_forms",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1790383504409,
+      "tag": "0073_race_form_mechanics",
+      "breakpoints": true
     }
   ]
 }

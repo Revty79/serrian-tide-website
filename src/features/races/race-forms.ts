@@ -1,3 +1,5 @@
+import type { RaceFormMechanics } from "./race-form-mechanics";
+
 /** A Race-local authoring identity. The Race itself remains the normal state. */
 export type RaceForm = {
   key: string;
@@ -5,6 +7,7 @@ export type RaceForm = {
   description: string;
   notes: string;
   sortOrder: number;
+  mechanics?: RaceFormMechanics;
 };
 
 /** Persisted identities are exposed for future readers, never accepted as ownership authority. */

@@ -531,8 +531,11 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     await saveRaceNaturalAttacksInTransaction(tx, id,
       input.naturalAttacks === undefined ? await readRaceNaturalAttacksInTransaction(tx, id) : input.naturalAttacks,
       savedCore.anatomy);
-    // Omission preserves Forms for older callers; an explicit empty list removes them.
-    if (input.forms !== undefined) await saveRaceFormsInTransaction(tx, id, input.forms);
+    // Omission preserves Forms for older callers; retained references still follow saved Race Anatomy.
+    await saveRaceFormsInTransaction(tx, id, input.forms === undefined ? await readRaceFormsInTransaction(tx, id) : input.forms, {
+      anatomy: savedCore.anatomy, naturalAttacks: await readRaceNaturalAttacksInTransaction(tx, id),
+      naturalProtections: await readRaceNaturalProtectionInTransaction(tx, id),
+    });
     return id;
   });
 

@@ -379,6 +379,8 @@ function skillDependencySpecs(id: number): DependencySpec[] {
     { label: "Child relationships", blocking: true, query: sql<CountRow>`select count(*)::int as value from skill_relationship where related_skill_id = ${id}` },
     { label: "Race grants", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_skill_links where skill_id = ${id}` },
     { label: "Race Natural Attack Skill bases", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_natural_attacks where skill_id = ${id}` },
+    { label: "Form Natural Attack Skill bases", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_natural_attacks where skill_id = ${id}` },
+    { label: "Form Skill additions", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_skill_links where skill_id = ${id}` },
     { label: "Creature Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_skill_links where skill_id = ${id}` },
     { label: "Character Skill allocations", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_skill_allocation where skill_id = ${id}` },
     { label: "Derived Ability requirements", blocking: true, query: sql<CountRow>`select count(*)::int as value from derived_ability_requirement where skill_id = ${id}` },

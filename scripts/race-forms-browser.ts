@@ -10,6 +10,7 @@ export async function checkRaceFormsBrowser(page: Page, base: string) {
   const save = async (raceName = name) => { await button("Save Race").click(); await page.getByText(`${raceName} was saved.`, { exact: true }).waitFor(); };
   const open = async (raceName = name) => {
     await page.goto(`${base}/heavens/races`);
+    await page.locator("#race-search").fill(raceName);
     await page.locator(".skill-library__row").filter({ hasText: raceName }).click();
     await button("Forms").click();
   };

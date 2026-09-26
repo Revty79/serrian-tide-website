@@ -90,6 +90,7 @@ export async function checkGuidanceWorkspaces(page: Page, base: string) {
   const touch = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const phone = await touch.newPage();
   await phone.goto(`${base}/heavens/races`);
+  await phone.locator("#race-search").fill("Variant Authoring Parent");
   await phone.locator(".skill-library__row").filter({ hasText: "Variant Authoring Parent" }).click();
   await phone.getByRole("button", { name: "Mechanics", exact: true }).click();
   const soak = phone.locator('[data-field-guidance="Soak"]').first();

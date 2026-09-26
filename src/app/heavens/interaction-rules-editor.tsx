@@ -46,9 +46,10 @@ function newCondition(kind: InteractionCondition["kind"], key = createInteractio
   }
 }
 
-export function InteractionRulesEditor({ value, owner, onChange }: {
+export function InteractionRulesEditor({ value, owner, onChange, authoringOnly = false }: {
   value?: InteractionRuleProfile | null;
   owner: InteractionRuleOwner;
+  authoringOnly?: boolean;
   onChange: (value: InteractionRuleProfile) => void;
 }) {
   const [catalog, setCatalog] = useState<Awaited<ReturnType<typeof getInteractionRuleCatalog>> | null>(null);
@@ -69,7 +70,7 @@ export function InteractionRulesEditor({ value, owner, onChange }: {
     <header className={styles.header}><h3>{owner === "race" ? "Racial Interaction Rules" : "Interaction Rules"}</h3>
       <button className="st-button" type="button" onClick={() => update([...rules, { key: createInteractionKey(), name: "", ruleType: "requirement", scope: "damage", match: "ANY", conditions: [newCondition("damage-type")], percentage: null, notes: "", sortOrder: rules.length, ...(owner === "creature" ? { crImpact: "None" as const } : {}) }])}>Add Interaction Rule</button>
     </header>
-    <p className={styles.help}>These rules govern incoming damage and harmful effects in combat. Match the incoming source using the fields below; unknown facts or unresolved rule combinations need a G.O.D. ruling.</p>
+    <p className={styles.help}>{authoringOnly ? "Author Form-specific rules using the shared incoming-effect definitions. These Form rules are stored only; they do not execute in combat yet." : "These rules govern incoming damage and harmful effects in combat. Match the incoming source using the fields below; unknown facts or unresolved rule combinations need a G.O.D. ruling."}</p>
     {catalogError && <p role="alert">{catalogError} Reopen this tab to retry catalog loading.</p>}
     {!rules.length && <p className={styles.help}>No Interaction Rules authored.</p>}
     <datalist id={`${listId}-properties`}>{[...new Set(catalog?.properties.map((row) => row.name) ?? [])].map((name) => <option key={name} value={name} />)}</datalist>

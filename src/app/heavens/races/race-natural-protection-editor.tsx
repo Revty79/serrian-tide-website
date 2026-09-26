@@ -31,10 +31,10 @@ function ProtectionRow({ value, locations, onChange, onRemove }: { value: RaceNa
   </article>;
 }
 
-export function RaceNaturalProtectionEditor({ value, locations = NATURAL_PROTECTION_LOCATIONS, onChange }: { value: RaceNaturalProtection[]; locations?: Array<{ key: string; name: string }>; onChange: (value: RaceNaturalProtection[]) => void }) {
+export function RaceNaturalProtectionEditor({ value, locations = NATURAL_PROTECTION_LOCATIONS, onChange, authoringOnly = false }: { value: RaceNaturalProtection[]; locations?: Array<{ key: string; name: string }>; onChange: (value: RaceNaturalProtection[]) => void; authoringOnly?: boolean }) {
   return <section className={styles.editor} aria-label="Natural Protection">
     <h3>Natural Protection</h3>
-    <p>Protection from the body, such as scales or a shell. Worn armor stays separate. Characters use their assigned Race&apos;s current protection.</p>
+    <p>{authoringOnly ? "Protection authored for this Form body. Coverage follows its effective authored Anatomy. This does not change worn armor or current Character protection." : "Protection from the body, such as scales or a shell. Worn armor stays separate. Characters use their assigned Race's current protection."}</p>
     {value.map((entry, index) => <ProtectionRow key={entry.key} value={entry} locations={locations} onChange={(changed) => onChange(value.map((row, i) => i === index ? changed : row))} onRemove={() => onChange(value.filter((_, i) => i !== index))} />)}
     <button className="st-button" type="button" onClick={() => onChange([...value, { key: createProtectionKey(), name: "", naturalSoak: 0, coverage: { kind: "all" }, sortOrder: value.length }])}>Add Natural Protection</button>
   </section>;

@@ -2,6 +2,7 @@ import type { InteractionRuleProfile } from "@/features/interaction-rules/intera
 import type { RaceAnatomy } from "@/features/races/race-anatomy";
 import type { AttackAuthoring } from "@/features/attacks/attack-authoring";
 import type { AttackAnatomyRequirement } from "@/features/races/race-natural-attacks";
+import type { RaceFormMechanicsProfile } from "@/features/races/race-form-mechanics";
 
 import { sql } from "drizzle-orm";
 import {
@@ -109,10 +110,80 @@ export const raceForm = pgTable("race_forms", {
   description: text("description").default("").notNull(),
   notes: text("notes").default("").notNull(),
   sortOrder: integer("sort_order").notNull(),
+  mechanics: jsonb("mechanics_json").$type<RaceFormMechanicsProfile>(),
 }, (table) => [
   uniqueIndex("race_form_key_uq").on(table.raceId, table.key),
   check("race_form_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0`),
   check("race_form_order_valid", sql`${table.sortOrder} >= 0`),
+  check("race_form_mechanics_shape", sql`${table.mechanics} IS NULL OR coalesce((jsonb_typeof(${table.mechanics}) = 'object' AND ${table.mechanics}->>'schemaVersion' = '1' AND ${table.mechanics}->>'anatomyMode' IN ('race','override') AND ${table.mechanics}->>'movementMode' IN ('race','override') AND ${table.mechanics}->>'protectionMode' IN ('race','override') AND ${table.mechanics}->>'attacksMode' IN ('race','override') AND ${table.mechanics}->>'skillsMode' IN ('race','add') AND ${table.mechanics}->>'interactionMode' IN ('race','add','replace')), false)`),
+]);
+
+export const raceFormMovement = pgTable("race_form_movement_modes", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => raceForm.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  movementMode: text("movement_mode").notNull(),
+  baseValue: doublePrecision("base_value").notNull(),
+  notes: text("notes").default("").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+}, table => [
+  uniqueIndex("race_form_movement_key_uq").on(table.formId, table.key),
+  check("race_form_movement_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.movementMode})) > 0 AND ${table.baseValue} > '-Infinity'::float8 AND ${table.baseValue} < 'Infinity'::float8 AND ${table.sortOrder} >= 0`),
+]);
+
+export const raceFormNaturalProtection = pgTable("race_form_natural_protections", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => raceForm.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  name: text("name").notNull(),
+  naturalSoak: doublePrecision("natural_soak").notNull(),
+  coverageKind: text("coverage_kind").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+}, table => [
+  uniqueIndex("race_form_protection_key_uq").on(table.formId, table.key),
+  check("race_form_protection_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.name})) > 0 AND ${table.naturalSoak} >= 0 AND ${table.naturalSoak} < 'Infinity'::float8 AND ${table.coverageKind} IN ('all','locations') AND ${table.sortOrder} >= 0`),
+]);
+
+export const raceFormNaturalProtectionLocation = pgTable("race_form_natural_protection_locations", {
+  protectionId: integer("protection_id").notNull().references(() => raceFormNaturalProtection.id, { onDelete: "cascade" }),
+  locationKey: text("location_key").notNull(),
+}, table => [
+  primaryKey({ columns: [table.protectionId, table.locationKey] }),
+  check("race_form_protection_location_valid", sql`${table.locationKey} IN ('0','1','2','3','4','5','6','7','8','9')`),
+]);
+
+export const raceFormNaturalAttack = pgTable("race_form_natural_attacks", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => raceForm.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  attackName: text("attack_name").notNull(),
+  damage: text("damage"),
+  damageType: text("damage_type").default("").notNull(),
+  notes: text("notes").default("").notNull(),
+  authoring: jsonb("authoring_json").$type<AttackAuthoring>().notNull(),
+  skillId: integer("skill_id").references(() => skill.id, { onDelete: "restrict" }),
+  basisNotes: text("basis_notes").default("").notNull(),
+  anatomy: jsonb("anatomy_requirement_json").$type<AttackAnatomyRequirement>().notNull(),
+  sortOrder: integer("sort_order").notNull(),
+}, table => [
+  uniqueIndex("race_form_attack_key_uq").on(table.formId, table.key),
+  index("race_form_attack_skill_idx").on(table.skillId),
+  check("race_form_attack_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.attackName})) > 0 AND ${table.sortOrder} >= 0`),
+  check("race_form_attack_authoring_shape", sql`jsonb_typeof(${table.authoring}) = 'object' AND ${table.authoring}->>'schemaVersion' IS NOT DISTINCT FROM '1'`),
+  check("race_form_attack_anatomy_shape", sql`jsonb_typeof(${table.anatomy}) = 'object' AND jsonb_typeof(${table.anatomy}->'hpPoolIds') IS NOT DISTINCT FROM 'array' AND jsonb_typeof(${table.anatomy}->'hitLocationNumbers') IS NOT DISTINCT FROM 'array' AND jsonb_typeof(${table.anatomy}->'notes') IS NOT DISTINCT FROM 'string'`),
+]);
+
+export const raceFormSkillLink = pgTable("race_form_skill_links", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => raceForm.id, { onDelete: "cascade" }),
+  skillId: integer("skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+  linkType: text("link_type").notNull(),
+  value: doublePrecision("value"),
+  sortOrder: integer("sort_order").notNull(),
+}, table => [
+  uniqueIndex("race_form_skill_link_uq").on(table.formId, table.skillId, table.linkType),
+  index("race_form_skill_idx").on(table.skillId),
+  check("race_form_skill_valid", sql`${table.linkType} IN ('Skill','Granted') AND ${table.sortOrder} >= 0 AND (${table.value} IS NULL OR (${table.value} > '-Infinity'::float8 AND ${table.value} < 'Infinity'::float8))`),
 ]);
 
 export const raceNaturalAttack = pgTable("race_natural_attacks", {
