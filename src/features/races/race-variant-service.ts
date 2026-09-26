@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
-import { race, raceAttributeCap, raceMovementMode, raceSkillLink } from "@/db/race-schema";
+import { race, raceAttributeCap, raceMovementMode, raceSkillLink, raceNaturalAttack } from "@/db/race-schema";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "./race-natural-protection-service";
 
@@ -45,6 +45,9 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     // This does not create or change a Skill or alter normal Race link eligibility.
     if (links.length) await tx.insert(raceSkillLink).values(links.map((row) => ({ ...row, id: undefined, raceId: created.id, createdAt: undefined, updatedAt: undefined })));
     await saveRaceNaturalProtectionInTransaction(tx, created.id, await readRaceNaturalProtectionInTransaction(tx, parentRaceId));
+    const attacks = await tx.select().from(raceNaturalAttack).where(eq(raceNaturalAttack.raceId, parentRaceId)).orderBy(asc(raceNaturalAttack.sortOrder), asc(raceNaturalAttack.id));
+    // Copy saved definitions exactly, including retained archived Skill references.
+    if (attacks.length) await tx.insert(raceNaturalAttack).values(attacks.map(row => ({ ...row, id: undefined, raceId: created.id })));
     return created.id;
   });
 }

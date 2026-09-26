@@ -3,21 +3,17 @@
 import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
 import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
 import { type ReactNode } from "react";
+import { AttackRangeFields, AttackMagicConstructionEditor as MagicConstruction } from "../attack-authoring-fields";
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
 import {
   CREATURE_ABILITY_ORIGINS, CREATURE_ATTACK_MODES, CREATURE_RESOLUTION_MODES,
   emptyCreatureAbilityAuthoring, emptyCreatureAttackAuthoring,
-  type CreatureAbilityAuthoring, type CreatureAttackAuthoring, type CreatureMagicConstruction,
+  type CreatureAbilityAuthoring, type CreatureAttackAuthoring,
 } from "@/features/creatures/creature-authoring";
 import {
   DERIVED_ABILITY_ACTIVATION_TYPES, DERIVED_ABILITY_COST_TYPES, DERIVED_ABILITY_REFRESH_SCOPES,
 } from "@/features/derived-abilities/models";
-import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
-import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
-import { createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
-import { SpellConstructionEditor } from "@/app/heavens/skills/spell-construction-editor";
-import { listSpellFrameworkSkills } from "@/app/heavens/skills/actions";
 import { CreatureAbilityEffectsEditor } from "./creature-ability-effects-editor";
 import { CreatureAuthoringHelpField, CreatureUseConditionsEditor, creatureActivationHelp } from "./creature-use-conditions-editor";
 import "./creature-authoring-editor.css";
@@ -51,17 +47,6 @@ export function CreatureHarvestUtilityEditor({ uses, onChange }: { uses: Creatur
   </section>;
 }
 
-function MagicConstruction({ value, name, onChange }: { value: CreatureMagicConstruction | null; name: string; onChange: (value: CreatureMagicConstruction | null) => void }) {
-  const calculation = value ? calculateSpell(value.document) : null;
-  const adapter = value ? adaptSpellToMechanicalEffects(value.document) : null;
-  return <details className="creature-authoring__magic"><summary>Magic Construction{value ? ` — ${value.document.name || "Untitled"}` : " (optional)"}</summary>
-    <p>Use the shared Spell Construction tools for complex magic. Supported constructed effects are used during Creature action resolution; unsupported effects need a G.O.D. ruling.</p>
-    {value ? <><button type="button" className="st-button" onClick={() => onChange(null)}>Remove Magic Construction</button>
-      <SpellConstructionEditor document={value.document} onChange={(document) => onChange({ document })} findFrameworkSkills={listSpellFrameworkSkills} />
-      <p>Calculator: {calculation?.baseSpellManaCost} Mana; {calculation?.baseCombatCastingTime} Initiative. {adapter?.valid ? `${adapter.effects.length} supported effects.` : "Some effects require manual review."} The authored action cost above remains separate.</p>
-    </> : <button type="button" className="st-button" onClick={() => onChange({ document: { ...createEmptySpell(), name: name || "Creature Magic" } })}>Build Magic Construction</button>}
-  </details>;
-}
 
 export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange }: {
   attack: CreatureDraft["attacks"][number];
@@ -70,7 +55,6 @@ export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange }
 }) {
   const data = attack.authoring ?? emptyCreatureAttackAuthoring();
   const patch = (update: Partial<CreatureAttackAuthoring>) => onChange({ ...attack, authoring: { ...data, ...update } });
-  const ranged = data.mode === "ranged" || data.mode === "hybrid" || data.mode === "aoe";
   return <section className="creature-authoring creature-authoring--card" aria-label="Attack authoring">
     <div className="creature-authoring__grid" data-attack-primary>
       <Field name="Attack Name"><input className="st-control" value={attack.attackName} onChange={(e) => onChange({ ...attack, attackName: e.target.value })} /></Field>
@@ -81,14 +65,7 @@ export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange }
       <Field name="Attack Mode"><select className="st-control" value={data.mode ?? ""} onChange={(event) => patch({ mode: event.target.value as CreatureAttackAuthoring["mode"] || null })}><option value="">Unspecified</option>{CREATURE_ATTACK_MODES.map((mode) => <option value={mode} key={mode}>{label(mode)}</option>)}</select></Field>
       <Magical value={data.magical} construction={Boolean(data.magic)} onChange={(magical) => patch({ magical })} />
     </div>
-    {data.mode && <div className="creature-authoring__grid">
-      {data.mode === "melee" || data.mode === "hybrid" ? <NumberField name="Reach" value={data.range.reach} onChange={(reach) => patch({ range: { ...data.range, reach } })} /> : null}
-      {data.mode === "melee" && data.range.reach !== null ? <Field name="Reach Unit"><input className="st-control" placeholder="e.g. feet" value={data.range.unit ?? ""} onChange={(event) => patch({ range: { ...data.range, unit: event.target.value || null } })} /></Field> : null}
-      {ranged ? <Field name="Distance Unit"><input className="st-control" placeholder="e.g. feet" value={data.range.unit ?? ""} onChange={(event) => patch({ range: { ...data.range, unit: event.target.value || null } })} /></Field> : null}
-      {ranged ? (["short", "medium", "long"] as const).map((band) => <NumberField key={band} name={`${label(band)} Range`} value={data.range[band]} onChange={(distance) => patch({ range: { ...data.range, [band]: distance } })} />) : null}
-    </div>}
-    {data.mode === "aoe" ? <p>Optional range to the effect. Describe the area in Notes or Magic Construction.</p> : null}
-    {data.mode === "melee" ? <p>Reach{data.range.unit ? ` (${data.range.unit})` : ""} is optional. Melee does not require a target distance.</p> : null}
+    <AttackRangeFields value={data} onChange={authoring => onChange({ ...attack, authoring })} />
     <Field name="Notes"><textarea className="st-control" rows={2} value={attack.notes} onChange={(e) => onChange({ ...attack, notes: e.target.value })} /></Field>
     <CreatureAbilityEffectsEditor ability={{ effects: data.onHitEffects }} skillOptions={skillOptions} compact addLabel="Add On-Hit Effect"
       title="On-Hit Effects" note="Optional effects after a successful hit."

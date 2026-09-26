@@ -36,6 +36,8 @@ import { normalizeRaceNaturalProtection, type RaceNaturalProtection } from "@/fe
 import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
 import { createRaceVariantForActor } from "@/features/races/race-variant-service";
 import { normalizeRaceAnatomy, type RaceAnatomy } from "@/features/races/race-anatomy";
+import type { RaceNaturalAttack } from "@/features/races/race-natural-attacks";
+import { readRaceNaturalAttacksInTransaction, saveRaceNaturalAttacksInTransaction } from "@/features/races/race-natural-attack-service";
 
 export type RaceLibraryFilters = {
   search?: string;
@@ -74,6 +76,7 @@ export type RaceSkillCandidate = {
 
 export type RaceDraft = {
   id?: number;
+  naturalAttacks?: RaceNaturalAttack[];
   naturalProtections?: RaceNaturalProtection[];
   core: {
     parentRaceId?: number | null;
@@ -378,6 +381,7 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
     attributeCaps: caps.map(({ attributeKey, maxValue, sortOrder }) => ({ attributeKey, maxValue, sortOrder })),
     movementModes: movements.map(({ movementMode, baseValue, notes, sortOrder }) => ({ movementMode, baseValue, notes, sortOrder })),
     skillLinks: links,
+    naturalAttacks: await db.transaction(tx => readRaceNaturalAttacksInTransaction(tx, id)),
     naturalProtections: await db.transaction((tx) => readRaceNaturalProtectionInTransaction(tx, id)),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -395,6 +399,14 @@ export async function listRaceSkillCandidates(
     .where(raceSkillCandidateFilter(search, classification))
     .orderBy(asc(skill.name), asc(skill.id))
     .limit(30);
+}
+
+/** Attack basis is a reference, not a Race Skill grant; higher-tier Skills remain selectable. */
+export async function listNaturalAttackSkillCandidates(search = ""): Promise<RaceSkillCandidate[]> {
+  await requireGodOrAdminAccessContext();
+  return db.select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
+    .from(skill).where(and(isNull(skill.archivedAt), search.trim() ? ilike(skill.name, `%${search.trim()}%`) : undefined))
+    .orderBy(asc(skill.name), asc(skill.id)).limit(30);
 }
 
 export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
@@ -508,6 +520,12 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     }
 
     if (normalized.naturalProtections !== undefined) await saveRaceNaturalProtectionInTransaction(tx, id, normalized.naturalProtections);
+    // Old callers may omit attacks. Preserve them, but still validate references
+    // against the newly saved Anatomy before committing any part of the Race.
+    const [savedCore] = await tx.select({ anatomy: race.anatomy }).from(race).where(eq(race.id, id));
+    await saveRaceNaturalAttacksInTransaction(tx, id,
+      input.naturalAttacks === undefined ? await readRaceNaturalAttacksInTransaction(tx, id) : input.naturalAttacks,
+      savedCore.anatomy);
     return id;
   });
 

@@ -1,5 +1,7 @@
 import type { InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import type { RaceAnatomy } from "@/features/races/race-anatomy";
+import type { AttackAuthoring } from "@/features/attacks/attack-authoring";
+import type { AttackAnatomyRequirement } from "@/features/races/race-natural-attacks";
 
 import { sql } from "drizzle-orm";
 import {
@@ -98,6 +100,28 @@ export const race = pgTable(
     ),
   ],
 );
+
+export const raceNaturalAttack = pgTable("race_natural_attacks", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").notNull().references(() => race.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  attackName: text("attack_name").notNull(),
+  damage: text("damage"),
+  damageType: text("damage_type").default("").notNull(),
+  notes: text("notes").default("").notNull(),
+  authoring: jsonb("authoring_json").$type<AttackAuthoring>().notNull(),
+  skillId: integer("skill_id").references(() => skill.id, { onDelete: "restrict" }),
+  basisNotes: text("basis_notes").default("").notNull(),
+  anatomy: jsonb("anatomy_requirement_json").$type<AttackAnatomyRequirement>().notNull(),
+  sortOrder: integer("sort_order").notNull(),
+}, (table) => [
+  uniqueIndex("race_natural_attack_key_uq").on(table.raceId, table.key),
+  index("race_natural_attack_skill_idx").on(table.skillId),
+  check("race_natural_attack_text_valid", sql`length(trim(${table.key})) > 0 AND length(trim(${table.attackName})) > 0`),
+  check("race_natural_attack_order_valid", sql`${table.sortOrder} >= 0`),
+  check("race_natural_attack_authoring_shape", sql`jsonb_typeof(${table.authoring}) = 'object' AND ${table.authoring}->>'schemaVersion' IS NOT DISTINCT FROM '1'`),
+  check("race_natural_attack_anatomy_shape", sql`jsonb_typeof(${table.anatomy}) = 'object' AND jsonb_typeof(${table.anatomy}->'hpPoolIds') IS NOT DISTINCT FROM 'array' AND jsonb_typeof(${table.anatomy}->'hitLocationNumbers') IS NOT DISTINCT FROM 'array' AND jsonb_typeof(${table.anatomy}->'notes') IS NOT DISTINCT FROM 'string'`),
+]);
 
 export const raceNaturalProtection = pgTable("race_natural_protections", {
   id: serial("id").primaryKey(),

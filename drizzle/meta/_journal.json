@@ -498,6 +498,13 @@
       "when": 1790358150338,
       "tag": "0070_container_tabletop_access",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790380288356,
+      "tag": "0071_race_natural_attacks",
+      "breakpoints": true
     }
   ]
 }

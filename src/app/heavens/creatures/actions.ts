@@ -1,4 +1,5 @@
 "use server";
+import { normalizeAttackDescription } from "@/features/attacks/attack-authoring";
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
 
@@ -262,18 +263,15 @@ function normalize(input: CreatureDraft) {
   ensureUnique(hitLocations.map(({ hitLocationNumber }) => String(hitLocationNumber)), "Hit Location");
 
   const attacks = input.attacks.map((row, sortOrder) => ({
+    ...normalizeAttackDescription(row),
     canonicalId: required(row.canonicalId, "Attack ID").toLocaleUpperCase("en-US"),
-    attackName: required(row.attackName, "Attack Name"),
     attackPercentage: optionalNumber(row.attackPercentage, `${row.attackName || "Attack"} Attack %`),
-    damage: optionalText(row.damage),
-    damageType: clean(row.damageType),
     rangeReach: clean(row.rangeReach),
     requiredAnatomy: clean(row.requiredAnatomy),
     requirements: clean(row.requirements),
     usesRecharge: clean(row.usesRecharge),
     specialEffect: clean(row.specialEffect),
     authoring: normalizeCreatureAttackAuthoring(row.authoring),
-    notes: clean(row.notes),
     sortOrder,
   }));
   ensureUnique(attacks.map(({ canonicalId }) => canonicalId), "Attack ID");

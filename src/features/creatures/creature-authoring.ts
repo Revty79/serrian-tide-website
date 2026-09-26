@@ -10,25 +10,16 @@ import {
   normalizeDerivedAbilityUseConditions,
   normalizeDerivedAbilityUseLimits,
 } from "@/features/derived-abilities/derived-ability-domain";
-import { validateStructuredWeaponRange, type StructuredWeaponRange } from "@/features/items/weapon-range";
+import { ATTACK_MODES, emptyAttackAuthoring, normalizeAttackAuthoring, type AttackAuthoring } from "@/features/attacks/attack-authoring";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import type { SpellDocument } from "@/features/spell-construction/models/spell";
-import { normalizeCreatureEffects, type CreatureEffectDefinition } from "./creature-effects";
 
 // Authoring metadata only. Combat execution deliberately continues to use its existing contract.
-export const CREATURE_ATTACK_MODES = ["melee", "ranged", "hybrid", "aoe"] as const;
+export const CREATURE_ATTACK_MODES = ATTACK_MODES;
 export const CREATURE_ABILITY_ORIGINS = ["Natural", "Supernatural", "Elemental", "Construct"] as const;
 export const CREATURE_RESOLUTION_MODES = ["automatic", "fixed-roll", "manual"] as const;
 export type CreatureMagicConstruction = { document: SpellDocument };
-export type CreatureAttackAuthoring = {
-  schemaVersion: 1;
-  initiativeCost: number | null;
-  mode: typeof CREATURE_ATTACK_MODES[number] | null;
-  range: Omit<StructuredWeaponRange, "mode">;
-  magical: boolean | null;
-  onHitEffects: CreatureEffectDefinition[];
-  magic: CreatureMagicConstruction | null;
-};
+export type CreatureAttackAuthoring = AttackAuthoring;
 export type CreatureAbilityAuthoring = {
   schemaVersion: 1;
   activationType: DerivedAbilityActivationType | null;
@@ -43,9 +34,7 @@ export type CreatureAbilityAuthoring = {
   magic: CreatureMagicConstruction | null;
 };
 
-export function emptyCreatureAttackAuthoring(): CreatureAttackAuthoring {
-  return { schemaVersion: 1, initiativeCost: null, mode: null, range: { unit: null, reach: null, short: null, medium: null, long: null }, magical: null, onHitEffects: [], magic: null };
-}
+export const emptyCreatureAttackAuthoring = emptyAttackAuthoring;
 export function emptyCreatureAbilityAuthoring(): CreatureAbilityAuthoring {
   return { schemaVersion: 1, activationType: null, initiativeCost: null, resolutionMode: "automatic", fixedRollTarget: null, targeting: "", costs: [], useConditions: [], useLimits: [], magical: null, magic: null };
 }
@@ -86,28 +75,7 @@ function list(input: unknown, label: string): Record<string, unknown>[] {
 function text(input: unknown): string { return typeof input === "string" ? input : ""; }
 function optionalText(input: unknown): string | null { return text(input).trim() || null; }
 
-export function normalizeCreatureAttackAuthoring(input: unknown): CreatureAttackAuthoring | null {
-  if (input == null) return null;
-  const row = record(input, "Attack authoring");
-  version(row);
-  if (row.mode != null && !CREATURE_ATTACK_MODES.includes(row.mode as CreatureAttackAuthoring["mode"] & string)) throw new Error("Choose a supported Creature Attack Mode.");
-  const mode = row.mode as CreatureAttackAuthoring["mode"] ?? null;
-  const range = record(row.range, "Attack range");
-  const normalizedRange = validateStructuredWeaponRange({
-    mode: mode === "aoe" ? "ranged" : mode,
-    unit: optionalText(range.unit), reach: number(range.reach, "Reach"),
-    short: number(range.short, "Short range"), medium: number(range.medium, "Medium range"), long: number(range.long, "Long range"),
-  });
-  if (normalizedRange.short !== null && normalizedRange.long !== null && normalizedRange.short > normalizedRange.long) throw new Error("Short range cannot exceed Long range.");
-  const construction = magic(row.magic);
-  const qualifier = magical(row.magical);
-  if (construction && qualifier === false) throw new Error("A Spell Construction cannot be explicitly nonmagical.");
-  return {
-    schemaVersion: 1, initiativeCost: initiative(row.initiativeCost, "Attack Initiative"), mode,
-    range: { unit: normalizedRange.unit, reach: normalizedRange.reach, short: normalizedRange.short, medium: normalizedRange.medium, long: normalizedRange.long },
-    magical: qualifier, onHitEffects: normalizeCreatureEffects(row.onHitEffects), magic: construction,
-  };
-}
+export const normalizeCreatureAttackAuthoring = normalizeAttackAuthoring;
 
 export function normalizeCreatureAbilityAuthoring(input: unknown): CreatureAbilityAuthoring | null {
   if (input == null) return null;

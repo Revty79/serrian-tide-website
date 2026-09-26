@@ -1,0 +1,12 @@
+.editor { display: grid; gap: 1rem; min-width: 0; color: var(--st-text); }
+.editor > button { justify-self: start; }
+.card { display: grid; gap: 1rem; min-width: 0; padding: 1rem; border: 1px solid var(--st-border); border-radius: .5rem; background: var(--st-surface); }
+.card > header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: .75rem; min-width: 0; }
+.card h3 { margin: 0; overflow-wrap: anywhere; }
+.card p { margin: .5rem 0 0; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .8rem; min-width: 0; }
+.choice { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; overflow-wrap: anywhere; }
+.choice input { width: auto; flex: 0 0 auto; }
+.error { color: var(--st-danger); }
+@media (max-width: 600px) { .card { padding: .75rem; } .fields { grid-template-columns: minmax(0, 1fr); } }
