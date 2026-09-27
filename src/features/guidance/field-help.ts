@@ -221,6 +221,7 @@ const item: Record<string, string> = {
 };
 
 const campaign: Record<string, string> = {
+  "Search Races": "Search parent Races and variants by name or size. Matching variants appear beneath their parent. Open a parent to browse, then check each exact Race to include; opening a group does not select it or its variants.",
   "Campaign Name": "Enter the name players will see when choosing this campaign.",
   "Campaign Overview": "Describe the setting, premise and expectations. This is visible context, not an rule the game applies automatically.",
   "Attribute Points": "Set the starting Attribute purchase budget used by this campaign's Character Creation rules.",

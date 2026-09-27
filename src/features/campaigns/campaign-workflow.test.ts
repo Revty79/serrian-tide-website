@@ -160,8 +160,8 @@ test("Campaign race workspace keeps the Playable column aligned to the Campaign 
   const workspaceSource = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
 
   assert.match(workspaceSource, /title="Playable Races"/);
-  assert.match(workspaceSource, /entries=\{filtered\.filter\(\(race\) => isCampaignRace\(race\.id\)\)\}/);
-  assert.doesNotMatch(workspaceSource, /entries=\{filtered\.filter\(\(race\) => isPlayableRace\(race\.id\)\)\}/);
+  assert.match(workspaceSource, /title="Playable Races"[^\n]+availableIds=\{draft\.campaignRaceIds\}/);
+  assert.doesNotMatch(workspaceSource, /availableIds=\{draft\.allowedRaceIds\}/);
 });
 
 test("Campaign race validation preserves existing memberships before enforcing new archived checks", () => {

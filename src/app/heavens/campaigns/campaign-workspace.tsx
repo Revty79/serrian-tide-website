@@ -6,7 +6,7 @@ import { fieldHelp } from "@/features/guidance/field-help";
 import "./campaign-lifecycle.css";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   CAMPAIGN_SETTINGS_TABS,
@@ -26,6 +26,7 @@ import {
   type CampaignReferenceData,
 } from "./actions";
 import { CampaignInventorySelector } from "./campaign-inventory-selector";
+import { CampaignRaceSelector } from "./campaign-race-selector";
 
 const SYSTEMS = ["Tier 1", "Tier 2", "Tier 3", "Spellcraft", "Talismanism", "Faith", "Psyonics", "Special Abilities", "Bardic Resonance", "Derived Abilities"] as const;
 
@@ -195,7 +196,6 @@ export function CampaignWorkspace({
     });
   }
 
-  const filteredRaces = useMemo(() => references?.races.filter((race) => !raceSearch || race.name.toLowerCase().includes(raceSearch.toLowerCase())) ?? [], [references, raceSearch]);
   const selectedSummary = campaigns.find(({ id }) => id === selectedId) ?? null;
 
   return <main className="campaign-page">
@@ -205,7 +205,7 @@ export function CampaignWorkspace({
       <aside className="campaign-library"><header><div><p>CAMPAIGN WORLDS</p><h2>Campaign Library</h2></div><div className="campaign-library-filters" aria-label="Campaign lifecycle view"><button type="button" className={libraryView === "active" ? "is-active" : ""} disabled={dirty || loading} onClick={() => void changeLibraryView("active")}>Active</button><button type="button" className={libraryView === "archived" ? "is-active" : ""} disabled={dirty || loading} onClick={() => void changeLibraryView("archived")}>Archived</button></div></header><div>{campaigns.map((entry) => <button key={entry.id} type="button" className={selectedId === entry.id ? "is-selected" : ""} onClick={() => void openCampaign(entry.id)}><div className="campaign-library-card-heading"><strong>{entry.name}</strong><em className={`campaign-access-badge is-${entry.accessKind}`}>{entry.accessKind === "owner" ? "Yours" : "Admin access"}</em></div><span>{entry.playerCount} Players · {entry.characterCount} Characters · {entry.npcCount} NPCs</span><small>{entry.archivedAt ? "Archived · " : ""}{entry.currencySystem} · {campaignAccessLabel(entry)}</small></button>)}{!campaigns.length ? <p>No {libraryView} Campaigns.</p> : null}</div></aside>
       {loading ? <section className="campaign-editor campaign-empty"><p>LOADING CAMPAIGN SETTINGS</p></section> : draft && references ? <section className="campaign-editor"><header className="campaign-editor-header"><div><p>CAMPAIGN {draft.id}</p><h2>{draft.name}</h2><span>{selectedSummary?.archivedAt ? "Archived" : dirty ? "Unsaved changes" : "Saved"}{selectedSummary ? ` · ${campaignAccessLabel(selectedSummary)}` : ""}</span></div><div className="campaign-editor-actions"><button type="button" disabled={saving || !dirty} onClick={() => void persist()}>{saving ? "Saving…" : "Save Campaign"}</button>{selectedSummary ? <LifecycleControls target={{ entityKind: "campaign", entityId: draft.id }} archived={Boolean(selectedSummary.archivedAt)} disabled={saving || dirty} onCompleted={({ action }) => handleLifecycleCompleted(action)} /> : null}</div></header><nav className="campaign-tabs">{CAMPAIGN_SETTINGS_TABS.map((entry) => <button key={entry.id} type="button" className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><div className="campaign-editor-content">
         {tab === "rules" ? <Rules draft={draft} onChange={change} /> : null}
-        {tab === "races" ? <Races draft={draft} races={filteredRaces} search={raceSearch} onSearch={setRaceSearch} onChange={change} /> : null}
+        {tab === "races" ? <Races draft={draft} races={references.races} search={raceSearch} onSearch={setRaceSearch} onChange={change} /> : null}
         {tab === "inventory" ? <CampaignInventorySelector key={draft.id} campaignId={draft.id} tags={references.tags} selectedTagIds={draft.inventoryTagIds} selectedItemIds={draft.inventoryItemIds} onSelectedTagIdsChange={(inventoryTagIds) => void preserveScroll(() => change({ ...draft, inventoryTagIds }))} onSelectedItemIdsChange={(inventoryItemIds) => void preserveScroll(() => change({ ...draft, inventoryItemIds }))} /> : null}
       </div></section> : <section className="campaign-editor campaign-empty"><p>CAMPAIGN SETTINGS</p><h2>Select a Campaign to edit, or create a new one.</h2></section>}
     </div>
@@ -223,9 +223,6 @@ function Rules({ draft, onChange }: { draft: CampaignAdminDraft; onChange: (draf
 }
 
 function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAdminDraft; races: CampaignReferenceData["races"]; search: string; onSearch: (value: string) => void; onChange: (draft: CampaignAdminDraft) => void }) {
-  const filtered = races
-    .filter((race) => !search || race.name.toLowerCase().includes(search.toLowerCase()) || race.size.toLowerCase().includes(search.toLowerCase()))
-    .sort((left, right) => left.name.localeCompare(right.name) || left.size.localeCompare(right.size) || left.id - right.id);
   const isCampaignRace = (raceId: number) => draft.campaignRaceIds.includes(raceId);
   const isPlayableRace = (raceId: number) => draft.allowedRaceIds.includes(raceId);
 
@@ -257,15 +254,13 @@ function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAd
     });
   };
 
-  return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" /><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /><div className="campaign-selection-grid">
-    <RaceColumn title="All Races" subtitle="Global active catalog" entries={filtered} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} isSelectable={true} />
-    <RaceColumn title="Campaign Races" subtitle="World availability" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} isSelectable={true} />
-    <RaceColumn title="Playable Races" subtitle="Character creation subset" entries={filtered.filter((race) => isCampaignRace(race.id))} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} isSelectable={true} />
+  return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" />
+    <p className="campaign-help">Open a parent Race to see its variants. Check each Race you want to include, then choose which Campaign Races are playable.</p>
+    <Field label="Search Races"><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /></Field><div className="campaign-selection-grid">
+    <CampaignRaceSelector title="All Races" subtitle="Global active catalog" races={races} search={search} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} />
+    <CampaignRaceSelector title="Campaign Races" subtitle="World availability" races={races} search={search} availableIds={draft.campaignRaceIds} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => removeCampaignRace(raceId)} />
+    <CampaignRaceSelector title="Playable Races" subtitle="Character creation subset" races={races} search={search} availableIds={draft.campaignRaceIds} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} />
   </div></div>;
-}
-
-function RaceColumn({ title, subtitle, entries, selectedIds, onToggle, isSelectable }: { title: string; subtitle: string; entries: CampaignReferenceData["races"]; selectedIds: number[]; onToggle: (raceId: number) => void; isSelectable: boolean }) {
-  return <div className="campaign-selection-column"><header><p>{title} <span className="campaign-race-count">{entries.length}</span></p><h4>{subtitle}</h4></header><div className="campaign-selection-list">{entries.length ? entries.map((race) => <button key={race.id} type="button" className={selectedIds.includes(race.id) ? "is-selected" : ""} aria-pressed={selectedIds.includes(race.id)} disabled={!isSelectable} onClick={() => onToggle(race.id)}><div><strong>{race.name}</strong><span>{race.size}</span></div><small>{selectedIds.includes(race.id) ? "Selected" : "Available"}</small></button>) : <p className="campaign-empty-state">No races match this filter.</p>}</div></div>;
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {

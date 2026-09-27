@@ -1,0 +1,26 @@
+.column { min-width: 0; align-self: start; }
+.column header { margin-bottom: .75rem; }
+.column h4 { display: flex; align-items: center; gap: .5rem; margin: 0; color: var(--st-primary-soft-text); font-size: .8rem; }
+.column header p { margin: .3rem 0 0; color: var(--st-muted); font-size: .8rem; }
+.count { border: 1px solid var(--st-border); border-radius: 999px; padding: .1rem .4rem; font-size: .75rem; }
+.list, .children { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.list { max-height: min(52vh, 540px); overflow-y: auto; padding: .2rem; scrollbar-color: var(--st-border-strong) transparent; }
+.children { margin: .5rem 0 0 .65rem; padding-left: .45rem; border-left: 1px solid var(--st-border-strong); }
+.children[hidden] { display: none; }
+.branch { min-width: 0; }
+.row { display: flex; align-items: center; border: 1px solid var(--st-border); border-radius: .65rem; background: var(--st-surface); color: var(--st-text); }
+.selected { border-color: var(--st-primary); background: var(--st-selection); }
+.row:focus-within { outline: 2px solid var(--st-focus); outline-offset: 1px; }
+.check { display: grid; flex: 0 0 44px; min-height: 44px; place-items: center; cursor: pointer; }
+.check input { width: 1rem; height: 1rem; margin: 0; accent-color: var(--st-primary); }
+.expand, .leaf { display: flex; flex: 1; align-items: center; gap: .4rem; min-width: 0; min-height: 52px; padding: .5rem; cursor: pointer; }
+.expand { border: 0; border-radius: .6rem; background: transparent; color: inherit; text-align: left; font: inherit; }
+.expand:hover { background: var(--st-surface-raised); }
+.expand:focus-visible { outline: 2px solid var(--st-focus); outline-offset: -2px; }
+.identity { display: grid; gap: .15rem; min-width: 0; }
+.identity strong { overflow-wrap: anywhere; color: var(--st-text-strong); font-size: .85rem; }
+.identity small, .variants { color: var(--st-muted); font-size: .7rem; }
+.variants { margin-left: auto; text-align: right; }
+.variants small { display: block; color: var(--st-primary-soft-text); }
+.chevron { flex: 0 0 auto; color: var(--st-text-secondary); }
+.empty { margin: 0; padding: .75rem; border: 1px dashed var(--st-border); border-radius: .65rem; color: var(--st-muted); font-size: .8rem; }

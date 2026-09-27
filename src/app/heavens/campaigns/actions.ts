@@ -101,7 +101,7 @@ export type CampaignAdminDraft = {
 };
 
 export type CampaignReferenceData = {
-  races: Array<{ id: number; name: string; size: string }>;
+  races: Array<{ id: number; name: string; size: string; parentRaceId: number | null }>;
   tags: Array<{ id: number; name: string; tagGroup: string; description: string }>;
 };
 
@@ -264,7 +264,7 @@ export async function getCampaignCreationReferenceData(): Promise<CampaignRefere
 
 async function readCampaignReferenceData(): Promise<CampaignReferenceData> {
   const [races, tags] = await Promise.all([
-    db.select({ id: race.id, name: race.name, size: race.size })
+    db.select({ id: race.id, name: race.name, size: race.size, parentRaceId: race.parentRaceId })
       .from(race)
       .where(isNull(race.archivedAt))
       .orderBy(asc(race.name), asc(race.id)),

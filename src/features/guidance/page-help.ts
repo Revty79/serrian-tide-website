@@ -43,6 +43,7 @@ const guides: Record<string, PageHelp> = {
     "Passive, Activated, Triggered and Reaction": "Passive contributions follow supported live eligibility. Activated actions are chosen deliberately. Triggered and Reaction abilities need an appropriate event or response window and a choice by the person using it.",
   } },
   campaign: { title: "Campaign setup", introduction: "Set the campaign's creation budgets, allowed Races, Skills and Items, people and play settings.", steps: ["Choose the campaign or create one.", "Review creation rules and allowed content before players build Characters.", "Save settings, then use campaign control to manage people and play."], fields: ["campaign"], topics: { ...lifecycle,
+    "Race families": "Open a parent Race, such as Human, to reveal its variants. Check each Race to add it to Campaign Races, then check it in Playable Races if players may choose it. Parent and variant selections are independent. Search reveals matching variants under their parent.",
     "Permitted content": "Allow the Races, Skills and Items this campaign should offer. Library records remain shared definitions; allowing one does not grant it to every Character.",
     "Players and Characters": "Add the intended players and use the campaign's Character controls. Joining a campaign and having a ready Character are separate steps.",
     "Creation versus advancement": "Starting budgets govern creation. During play, use the existing awards and advancement workflows instead of editing catalog definitions to award points.",

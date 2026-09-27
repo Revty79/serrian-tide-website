@@ -3,12 +3,13 @@
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
 
 import type { CampaignReferenceData } from "../actions";
 import { CampaignInventorySelector } from "../campaign-inventory-selector";
+import { CampaignRaceSelector } from "../campaign-race-selector";
 import { createCampaign } from "./actions";
 
 const CAMPAIGN_SYSTEM_OPTIONS = [
@@ -59,22 +60,6 @@ export function CampaignCreateForm({
   const [allowedRaceIds, setAllowedRaceIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
-
-  const filteredRaces = useMemo(() => {
-    const search = raceSearch.trim().toLocaleLowerCase();
-    const entries = search
-      ? references.races.filter((entry) =>
-          [entry.name, entry.size].some((value) =>
-            value.toLocaleLowerCase().includes(search),
-          ),
-        )
-      : references.races;
-    return [...entries].sort((left, right) =>
-      left.name.localeCompare(right.name) ||
-      left.size.localeCompare(right.size) ||
-      left.id - right.id,
-    );
-  }, [raceSearch, references.races]);
 
   function addCampaignRace(raceId: number) {
     setCampaignRaceIds((current) => (current.includes(raceId) ? current : [...current, raceId]));
@@ -248,21 +233,23 @@ export function CampaignCreateForm({
         <h2 className="font-sans mt-2 text-3xl text-slate-100">
           Campaign Race Workspace
         </h2>
-        <div className="mt-5 flex flex-col gap-3">
+        <p className="mt-3 text-sm text-slate-400">Open a parent Race to see its variants. Check each Race you want to include, then choose which Campaign Races are playable.</p>
+        <GuidedField label="Search Races" help={fieldHelp("campaign", "Search Races")} className="mt-5 block">
           <input
             type="search"
             value={raceSearch}
             onChange={(event) => setRaceSearch(event.target.value)}
-            placeholder="Search global races"
+            placeholder="Search Races"
             className="w-full rounded-xl border border-white/15 bg-black/50 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-300/50"
           />
-        </div>
+        </GuidedField>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          <RaceAvailabilityColumn
+          <CampaignRaceSelector
             title="All Races"
             subtitle="Global active catalog"
-            entries={filteredRaces}
+            races={references.races}
+            search={raceSearch}
             selectedIds={campaignRaceIds}
             onToggle={(id) => {
               if (campaignRaceIds.includes(id)) {
@@ -271,13 +258,14 @@ export function CampaignCreateForm({
                 addCampaignRace(id);
               }
             }}
-            isSelectable={true}
           />
 
-          <RaceAvailabilityColumn
+          <CampaignRaceSelector
             title="Campaign Races"
             subtitle="Campaign-world races"
-            entries={filteredRaces.filter((entry) => campaignRaceIds.includes(entry.id))}
+            races={references.races}
+            search={raceSearch}
+            availableIds={campaignRaceIds}
             selectedIds={campaignRaceIds}
             onToggle={(id) => {
               if (campaignRaceIds.includes(id)) {
@@ -286,18 +274,18 @@ export function CampaignCreateForm({
                 addCampaignRace(id);
               }
             }}
-            isSelectable={true}
           />
 
-          <RaceAvailabilityColumn
+          <CampaignRaceSelector
             title="Playable Races"
             subtitle="Player-selectable subset"
-            entries={filteredRaces.filter((entry) => campaignRaceIds.includes(entry.id))}
+            races={references.races}
+            search={raceSearch}
+            availableIds={campaignRaceIds}
             selectedIds={allowedRaceIds}
             onToggle={(id) => {
               togglePlayableRace(id);
             }}
-            isSelectable={true}
           />
         </div>
       </section>
@@ -715,62 +703,6 @@ const inputClass = `
   transition
   focus:border-amber-300/50
 `;
-
-function RaceAvailabilityColumn({
-  title,
-  subtitle,
-  entries,
-  selectedIds,
-  onToggle,
-  isSelectable,
-}: {
-  title: string;
-  subtitle: string;
-  entries: CampaignReferenceData["races"];
-  selectedIds: number[];
-  onToggle: (id: number) => void;
-  isSelectable: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-      <div className="mb-3 border-b border-white/10 pb-3">
-        <p className="text-[0.64rem] uppercase tracking-[0.14em] text-purple-200">{title} <span className="ml-1 inline-grid min-w-5 place-items-center rounded-full border border-amber-300/25 px-1 text-[0.58rem] tracking-normal text-amber-100">{entries.length}</span></p>
-        <h3 className="mt-2 text-lg text-slate-100">{subtitle}</h3>
-      </div>
-      <div className="campaign-race-list max-h-[52vh] overflow-y-auto pr-1 space-y-2">
-        {entries.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-white/10 bg-black/20 p-3 text-sm text-slate-400">
-            No races match this filter.
-          </p>
-        ) : (
-          entries.map((race) => {
-            const checked = selectedIds.includes(race.id);
-            return (
-              <button
-                key={race.id}
-                type="button"
-                aria-pressed={checked}
-                disabled={!isSelectable}
-                onClick={() => onToggle(race.id)}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
-                  checked
-                    ? "border-amber-300/35 bg-amber-300/10"
-                    : "border-white/10 bg-black/30 hover:border-amber-300/25"
-                }`}
-              >
-                <span className="min-w-0 text-left">
-                  <strong className="block text-sm text-slate-100">{race.name}</strong>
-                  <small className="mt-1 block text-xs text-slate-300">{race.size || "Size not recorded"}</small>
-                </span>
-                <small className="ml-auto shrink-0 text-xs text-slate-400">{checked ? "Selected" : "Available"}</small>
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
 
 function Field({
   label,
