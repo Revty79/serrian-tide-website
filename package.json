@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "validate:catalog-visibility": "tsx --test src/features/catalog-visibility/*.test.ts",
+    "validate:catalog-visibility-db": "node --import tsx scripts/catalog-visibility-disposable-db.test.ts",
     "validate:unit": "node scripts/run-feature-tests.mjs",
     "validate:canon": "node scripts/import-ststandalone-canon.mjs --validate-only",
     "validate:campaign": "tsx --test src/features/campaigns/*.test.ts",

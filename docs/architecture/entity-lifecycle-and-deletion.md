@@ -85,13 +85,13 @@ operator must provide a nonblank reason and type the exact confirmation
 The complete `user.id` inbound-FK closure is maintained in
 `src/features/lifecycle/user-account-delete-plan.ts`. Campaigns, Characters,
 NPCs, authored shared-library roots, archive/acquisition attribution, lifecycle
-audit, Chat messages, governance, and Tabletop/runtime history all block
+audit, Chat messages, governance (including current System Canon attribution), and Tabletop/runtime history all block
 account deletion. This remains true for database FKs configured with `CASCADE`
 or `SET NULL`; account deletion never silently removes a Character or turns
 user-created content into ambiguous protected content.
 
 Only authentication provider/credential accounts, sessions, role assignments,
-Campaign memberships, Chat memberships, and Better Auth verification rows
+Campaign memberships, Chat memberships, personal catalog preferences, and Better Auth verification rows
 whose `value` is the target User ID are cleanup children. Membership cleanup is
 allowed only after the Character/NPC blocker is zero. The deletion transaction
 performs a cheap database Admin check before feature-gate or input validation,

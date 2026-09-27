@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import { systemCanonColumns, systemCanonStateCheck } from "./system-canon-columns";
 import { campaign } from "./campaign-schema";
 import { campaignCharacter } from "./realm-schema";
 import { skill } from "./skill-schema";
@@ -52,6 +53,7 @@ export const derivedAbility = pgTable(
     activationType: derivedAbilityActivationType("activation_type")
       .default("passive")
       .notNull(),
+    ...systemCanonColumns(),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -66,6 +68,7 @@ export const derivedAbility = pgTable(
     archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
+    systemCanonStateCheck("derived_ability", table),
     check("derived_ability_name_nonblank", sql`length(trim(${table.name})) > 0`),
     index("derived_ability_name_idx").on(table.name, table.id),
     index("derived_ability_created_by_user_idx").on(table.createdByUserId),

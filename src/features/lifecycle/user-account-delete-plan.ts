@@ -12,12 +12,18 @@ export type UserAccountForeignKeyPlanEntry = {
 /**
  * Complete inbound-FK inventory for `user.id` in the current migration snapshot.
  *
- * Account deletion is deliberately fail-closed: only authentication and
+ * Account deletion is deliberately fail-closed: only authentication, personal preferences, and
  * membership associations are cleanup rows. Every content, ownership,
  * attribution, and historical reference blocks deletion, even when its
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "user_catalog_preferences", columnName: "user_id", constraintName: "user_catalog_preferences_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Personal catalog visibility preferences" },
+  { tableName: "races", columnName: "canon_marked_by_user_id", constraintName: "races_canon_marked_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Race System Canon attribution" },
+  { tableName: "creatures", columnName: "canon_marked_by_user_id", constraintName: "creatures_canon_marked_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Creature System Canon attribution" },
+  { tableName: "items", columnName: "canon_marked_by_user_id", constraintName: "items_canon_marked_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Item System Canon attribution" },
+  { tableName: "skill", columnName: "canon_marked_by_user_id", constraintName: "skill_canon_marked_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Skill System Canon attribution" },
+  { tableName: "derived_ability", columnName: "canon_marked_by_user_id", constraintName: "derived_ability_canon_marked_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Derived Ability System Canon attribution" },
   { tableName: "magazine_inventory_operation", columnName: "actor_user_id", constraintName: "magazine_inventory_operation_actor_user_id_user_id_fk", onDelete: "set null", disposition: "block", label: "Magazine inventory operation attribution" },
   { tableName: "account", columnName: "user_id", constraintName: "account_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Authentication provider and credential accounts" },
   { tableName: "session", columnName: "user_id", constraintName: "session_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Authenticated sessions" },
@@ -106,4 +112,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 86;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 92;

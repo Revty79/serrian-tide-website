@@ -540,6 +540,13 @@
       "when": 1790390925327,
       "tag": "0076_form_access",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1790550868855,
+      "tag": "0077_catalog_visibility_foundation",
+      "breakpoints": true
     }
   ]
 }

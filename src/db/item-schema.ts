@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import { systemCanonColumns, systemCanonStateCheck } from "./system-canon-columns";
 import { creature } from "./creature-schema";
 import { skill } from "./skill-schema";
 
@@ -59,6 +60,7 @@ export const item = pgTable(
       (): AnyPgColumn => item.id,
       { onDelete: "restrict" },
     ),
+    ...systemCanonColumns(),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -73,6 +75,7 @@ export const item = pgTable(
     archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
+    systemCanonStateCheck("items", table),
     uniqueIndex("items_source_identity_uq")
       .on(table.sourceSystem, table.sourceExternalId)
       .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),

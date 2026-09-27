@@ -25,6 +25,9 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     if (parent.archivedAt) throw new Error("Restore the parent Race before creating a Variant.");
     const [created] = await tx.insert(race).values({
       ...parent,
+      isSystemCanon: false,
+      canonMarkedByUserId: null,
+      canonMarkedAt: null,
       id: undefined,
       name,
       parentRaceId,

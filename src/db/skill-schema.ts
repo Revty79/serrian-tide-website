@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import { systemCanonColumns, systemCanonStateCheck } from "./system-canon-columns";
 
 export const skill = pgTable(
   "skill",
@@ -32,6 +33,8 @@ export const skill = pgTable(
     definition: text("definition")
       .default("")
       .notNull(),
+
+    ...systemCanonColumns(),
 
     /*
      * Audit/history only.
@@ -72,6 +75,7 @@ export const skill = pgTable(
       .notNull(),
   },
   (table) => [
+    systemCanonStateCheck("skill", table),
     check(
       "skill_name_not_blank",
       sql`length(trim(${table.name})) > 0`,

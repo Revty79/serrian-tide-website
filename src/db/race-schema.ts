@@ -23,6 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import { systemCanonColumns, systemCanonStateCheck } from "./system-canon-columns";
 import { skill } from "./skill-schema";
 
 export const RACE_SIZE_OPTIONS = [
@@ -62,6 +63,7 @@ export const race = pgTable(
     genreExamples: text("genre_examples").default("").notNull(),
     culturalMindset: text("cultural_mindset").default("").notNull(),
     outlookOnMagic: text("outlook_on_magic").default("").notNull(),
+    ...systemCanonColumns(),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -76,6 +78,7 @@ export const race = pgTable(
     archiveReason: text("archive_reason").default("").notNull(),
   },
   (table) => [
+    systemCanonStateCheck("races", table),
     uniqueIndex("races_source_identity_uq")
       .on(table.sourceSystem, table.sourceExternalId)
       .where(sql`${table.sourceSystem} IS NOT NULL AND ${table.sourceExternalId} IS NOT NULL`),

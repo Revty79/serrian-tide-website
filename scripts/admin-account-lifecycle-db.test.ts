@@ -5,6 +5,7 @@ import test, { after } from "node:test";
 import { eq } from "drizzle-orm";
 
 import { db, pool } from "@/db";
+import { userCatalogPreferences } from "@/db/catalog-preferences-schema";
 import { siteAppearanceSetting } from "@/db/appearance-schema";
 import { account, session, user, verification } from "@/db/auth-schema";
 import { userRole, type SerrianRole } from "@/db/authorization-schema";
@@ -140,6 +141,7 @@ async function createCleanableAccountGraph(
   roomId: number,
 ): Promise<void> {
   const now = new Date();
+  await db.insert(userCatalogPreferences).values({ userId: fixture.id, raceVisibility: "mine" });
   await db.insert(account).values({
     id: `${fixture.id}-account`,
     issuer: "credential",
@@ -514,6 +516,7 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
   const cleanupCounts = new Map(
     cleanPreview.cleanup.map(({ key, count }) => [key, count]),
   );
+  assert.equal(cleanupCounts.get("user_catalog_preferences_user_id_user_id_fk"), 1);
   assert.equal(cleanupCounts.get("account_user_id_user_id_fk"), 1);
   assert.equal(cleanupCounts.get("session_user_id_user_id_fk"), 1);
   assert.equal(cleanupCounts.get("user_role_user_id_user_id_fk"), 1);
@@ -543,6 +546,7 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
     deletedUserId: cleanTarget.id,
     deletedEmail: cleanTarget.email,
   });
+  assert.equal((await db.select().from(userCatalogPreferences).where(eq(userCatalogPreferences.userId, cleanTarget.id))).length, 0);
   assert.deepEqual(await snapshotUserGraph(cleanTarget.id), {
     users: 0,
     accounts: 0,

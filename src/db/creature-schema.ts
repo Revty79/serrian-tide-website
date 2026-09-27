@@ -22,6 +22,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import { systemCanonColumns, systemCanonStateCheck } from "./system-canon-columns";
 import { skill } from "./skill-schema";
 
 // Exact creatures.id includes independent authored variants. No parent-chain Form inheritance.
@@ -122,6 +123,7 @@ export const creature = pgTable(
     typicalBehavior: text("typical_behavior").default("").notNull(),
     habitatEcology: text("habitat_ecology").default("").notNull(),
     notes: text("notes").default("").notNull(),
+    ...systemCanonColumns(),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -142,6 +144,7 @@ export const creature = pgTable(
     challengeRatingAdjustmentReason: text("challenge_rating_adjustment_reason").default("").notNull(),
   },
   (table) => [
+    systemCanonStateCheck("creatures", table),
     index("creatures_name_idx").on(table.canonicalName),
     index("creatures_family_idx").on(table.family),
     index("creatures_type_idx").on(table.creatureType),
