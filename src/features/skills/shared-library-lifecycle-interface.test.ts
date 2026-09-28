@@ -51,7 +51,10 @@ const libraries = [
 test("shared master-content libraries default to active records and expose an explicit archive view", () => {
   for (const library of libraries) {
     assert.match(library.actions, /archived\?: boolean/);
-    assert.match(library.actions, new RegExp(`filters\\.archived \\? isNotNull\\(${library.table}\\.archivedAt\\) : isNull\\(${library.table}\\.archivedAt\\)`));
+    if (library.kind === "item") {
+      assert.match(library.actions, /return loadItemCatalog\(session\.user\.id, filters\)/);
+      assert.match(source("src/features/catalog-visibility/item-catalog-service.ts"), /archived \? isNotNull\(item\.archivedAt\) : isNull\(item\.archivedAt\)/);
+    } else assert.match(library.actions, new RegExp(`filters\\.archived \\? isNotNull\\(${library.table}\\.archivedAt\\) : isNull\\(${library.table}\\.archivedAt\\)`));
     assert.match(library.workspace, />\s*Active\s*<\/button>/);
     assert.match(library.workspace, />\s*Archived\s*<\/button>/);
     assert.match(library.workspace, /preserveScroll\(\(\) => load(?:Library|List)\(filters\)\)/);
@@ -85,11 +88,11 @@ test("normal shared-library candidates omit archived roots while stored referenc
   const abilities = libraries[3]!.actions;
   const skills = libraries[4]!.actions;
 
-  assert.match(races, /\.where\(raceSkillCandidateFilter\(search, classification\)\)/);
+  assert.match(races, /catalogCandidateWhere\("skill", skill, session\.user\.id, \[\], raceSkillCandidateFilter\(search, classification\)\)/);
   assert.match(readFileSync("src/features/races/race-skill-query.ts", "utf8"), /isNull\(skill\.archivedAt\)/);
   assert.match(creatures, /const conditions: SQL\[\] = \[isNull\(skill\.archivedAt\)\]/);
   assert.match(items, /preservedSkillIds/);
-  assert.match(items, /candidate\.archivedAt === null \|\| preservedSkillIds\.has/);
+  assert.match(items, /catalogCandidateWhere\("skill", skill, session\.user\.id, \[\.\.\.preservedSkillIds\], isNull\(skill\.archivedAt\)\)/);
   assert.match(items, /const conditions: SQL\[\] = \[isNull\(item\.archivedAt\)\]/);
   assert.match(items, /const conditions: SQL\[\] = \[isNull\(creature\.archivedAt\)\]/);
   assert.match(abilities, /storedSkillIds/);

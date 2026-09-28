@@ -169,8 +169,8 @@
 
 .skill-library {
   display: flex;
-  min-height: 720px;
-  max-height: calc(100vh - 190px);
+  min-height: 0;
+  max-height: max(24rem, calc(100dvh - 14rem));
   padding: 20px;
   flex-direction: column;
 }
@@ -1113,7 +1113,19 @@
 
 /* Recursive Skill Library foundation. */
 .skills-page { overflow-x: clip; }
-.skill-library { overflow: hidden; }
+.skill-library { max-height: max(24rem, calc(100dvh - 14rem)); overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; }
+.skill-library > * { flex-shrink: 0; }
+/* Scroll the whole Master Content panel so controls never squeeze the list. */
+.skill-library .skill-library__results,
+.skill-library .skill-library__search-results,
+.skill-library .skill-library__navigator,
+.skill-library .skill-library__attribute-selector,
+.skill-library .skill-library__attribute-roots {
+  flex: none;
+  min-height: 16rem;
+  max-height: none;
+  overflow: visible;
+}
 .skill-library.is-loading { opacity: .7; }
 .skill-library code,
 .skills-page__structure-confirm code { color: var(--st-primary-soft-text); font: 600 .72rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }

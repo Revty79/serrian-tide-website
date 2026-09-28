@@ -47,6 +47,7 @@ async function verifyUpgrade(pool: pg.Pool, temporaryRoot: string) {
     await pool.query(`delete from ${table} where created_by_user_id = 'upgrade-owner'`);
   }
   assert.equal((await pool.query("select count(*)::int as count from user_catalog_preferences")).rows[0].count, 0);
+  assert.equal((await pool.query("select count(*)::int as count from catalog_visibility_scope_activation")).rows[0].count, 0);
   await pool.query(`delete from "user" where id = 'upgrade-owner'`);
   console.log("Migration upgrade passed: existing rows, provenance, archive state, and timestamps preserved; no preferences backfilled.");
 }
@@ -69,14 +70,25 @@ async function main() {
     await pool.end();
     pool = new pg.Pool({ connectionString: `postgresql://postgres@127.0.0.1:${port}/serrian_catalog_fresh_dev` });
     await migrate(drizzle(pool), { migrationsFolder: migrationRoot });
+    assert.equal((await pool.query("select count(*)::int n from catalog_visibility_scope_activation")).rows[0].n, 0);
     console.log("Fresh database migration chain passed.");
+    // Replay only 0079 against an existing approved receipt to exercise upgrades.
+    const hash = "26e5281a043b824a13295acf76b6f819bd3abf28e00602a6eac097279b47472c";
+    await pool.query("insert into catalog_visibility_activation(manifest_hash) values($1)", [hash]);
+    const receipt = (await pool.query("select * from catalog_visibility_activation")).rows;
+    await pool.query("drop table catalog_visibility_scope_activation");
+    await pool.query(await readFile(path.join(migrationRoot, "0079_catalog_scope_activation.sql"), "utf8"));
+    const activations = (await pool.query("select catalog_key,activation_method,activated_by_user_id,manifest_hash from catalog_visibility_scope_activation order by catalog_key")).rows;
+    assert.deepEqual(activations, ["creature", "derivedAbility", "race", "skill"].map((catalog_key) => ({ catalog_key, activation_method: "classified-manifest", activated_by_user_id: null, manifest_hash: hash })));
+    assert.deepEqual((await pool.query("select * from catalog_visibility_activation")).rows, receipt);
+    console.log("Pass 3 receipt upgrade passed: four scopes activated; Items inactive; original evidence preserved.");
     await pool.end();
     pool = new pg.Pool({ connectionString });
     await verifyUpgrade(pool, temporaryRoot);
     await pool.end();
     pool = undefined;
-    for (const script of ["scripts/catalog-visibility-db.test.ts", "scripts/admin-account-lifecycle-db.test.ts", "scripts/catalog-pass-three-db.test.ts", "scripts/derived-ability-runtime-db.test.ts"]) {
-      execFileSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", script], {
+    for (const script of ["scripts/catalog-visibility-db.test.ts", "scripts/admin-account-lifecycle-db.test.ts", "scripts/catalog-pass-three-db.test.ts", "scripts/catalog-pass-four-db.test.mjs", "scripts/derived-ability-runtime-db.test.ts"]) {
+      execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", script], {
         cwd: process.cwd(), windowsHide: true, stdio: "inherit",
         env: { ...process.env, DATABASE_URL: connectionString, NODE_ENV: "test", SERRIAN_CATALOG_DISPOSABLE: "true", SERRIAN_TIDE_ENABLE_PERMANENT_DELETION: "true" },
       });

@@ -27,6 +27,7 @@ import {
 } from "./actions";
 import { CampaignInventorySelector } from "./campaign-inventory-selector";
 import { CampaignRaceSelector } from "./campaign-race-selector";
+import { campaignPlayableRaceIds } from "@/features/campaigns/campaign-race-tree";
 
 const SYSTEMS = ["Tier 1", "Tier 2", "Tier 3", "Spellcraft", "Talismanism", "Faith", "Psyonics", "Special Abilities", "Bardic Resonance", "Derived Abilities"] as const;
 
@@ -257,9 +258,9 @@ function Races({ draft, races, search, onSearch, onChange }: { draft: CampaignAd
   return <div className="campaign-section"><SectionHeading eyebrow="CHARACTER CREATION" title="Race Access" />
     <p className="campaign-help">Open a parent Race to see its variants. Check each Race you want to include, then choose which Campaign Races are playable.</p>
     <Field label="Search Races"><input className="campaign-search" type="search" value={search} placeholder="Search Races" onChange={(e) => onSearch(e.target.value)} /></Field><div className="campaign-selection-grid">
-    <CampaignRaceSelector title="All Races" subtitle="Global active catalog" races={races} search={search} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} />
+    <CampaignRaceSelector title="All Races" subtitle="Creator's visible catalog" races={races} search={search} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => (isCampaignRace(raceId) ? removeCampaignRace(raceId) : addCampaignRace(raceId))} />
     <CampaignRaceSelector title="Campaign Races" subtitle="World availability" races={races} search={search} availableIds={draft.campaignRaceIds} selectedIds={draft.campaignRaceIds} onToggle={(raceId) => removeCampaignRace(raceId)} />
-    <CampaignRaceSelector title="Playable Races" subtitle="Character creation subset" races={races} search={search} availableIds={draft.campaignRaceIds} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} />
+    <CampaignRaceSelector title="Playable Races" subtitle="Character creation subset" races={races} search={search} availableIds={campaignPlayableRaceIds(races, draft.campaignRaceIds)} selectedIds={draft.allowedRaceIds} onToggle={togglePlayableRace} />
   </div></div>;
 }
 

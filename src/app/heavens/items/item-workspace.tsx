@@ -1,4 +1,7 @@
 "use client";
+import { CatalogBrowseControl } from "@/features/catalog-visibility/catalog-browse-control";
+import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
+import { CanonDesignationControl } from "@/features/catalog-visibility/canon-designation-control";
 
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
@@ -229,6 +232,7 @@ function moveFiringMode(modes: readonly FirearmFiringModeDraft[], index: number,
 }
 
 export function ItemWorkspace({
+  canManageCanon = false,
   scope,
   initialLibrary,
   initialFacets,
@@ -237,6 +241,7 @@ export function ItemWorkspace({
   initialTab = "overview",
   username,
 }: {
+  canManageCanon?: boolean;
   scope: ItemCatalogScope;
   initialLibrary: ItemLibraryResult;
   initialFacets: ItemFacets;
@@ -248,6 +253,7 @@ export function ItemWorkspace({
   const label = titleFor(scope);
   const [filters, setFilters] = useState<ItemLibraryFilters>({ catalogScope: scope, page: 1, pageSize: 40 });
   const [library, setLibrary] = useState(initialLibrary);
+  const libraryRequest = useRef(0);
   const [facets, setFacets] = useState(initialFacets);
   const [references, setReferences] = useState(initialReferences);
   const [draft, setDraft] = useState<ItemDraft | ItemAggregate | null>(initialItem);
@@ -292,15 +298,17 @@ export function ItemWorkspace({
   }
 
   const loadLibrary = useCallback(async (next: ItemLibraryFilters) => {
+    const request = ++libraryRequest.current;
     setLoadingLibrary(true);
     try {
-      setLibrary(await listItems(next));
+      const [result, nextFacets] = await Promise.all([listItems(next), listItemFacets(scope, Boolean(next.archived), Boolean(next.needsCanonReview))]);
+      if (request === libraryRequest.current) { setLibrary(result); setFacets(nextFacets); }
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : `The ${label} Library could not be loaded.` });
+      if (request === libraryRequest.current) setFeedback({ kind: "error", message: error instanceof Error ? error.message : `The ${label} Library could not be loaded.` });
     } finally {
-      setLoadingLibrary(false);
+      if (request === libraryRequest.current) setLoadingLibrary(false);
     }
-  }, [label]);
+  }, [label, scope]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void preserveScroll(() => loadLibrary(filters)), 180);
@@ -308,11 +316,7 @@ export function ItemWorkspace({
   }, [filters, loadLibrary, preserveScroll]);
 
   async function refreshReferences(forItemId?: number) {
-    const [nextFacets, nextReferences] = await Promise.all([
-      listItemFacets(scope, Boolean(filters.archived)),
-      listItemAuthoringReferences(forItemId),
-    ]);
-    setFacets(nextFacets);
+    const nextReferences = await listItemAuthoringReferences(forItemId, scope);
     setReferences(nextReferences);
   }
 
@@ -338,7 +342,7 @@ export function ItemWorkspace({
         setDraft((current) => current ? { ...current, tags: [...new Set([...current.tags, created.name])] } : current);
         setDirty(true);
       }
-      setFeedback({ kind: "success", message: `Tag "${created.name}" is available throughout Item, Campaign, and rule authoring.` });
+      setFeedback({ kind: "success", message: `Tag "${created.name}" was created and attached to this Item.` });
       return created;
     } catch (error) {
       if (isCurrentOperation(operation)) {
@@ -357,7 +361,7 @@ export function ItemWorkspace({
       try {
         const [aggregate, nextReferences] = await Promise.all([
           getItem(summary.id),
-          listItemAuthoringReferences(summary.id),
+          listItemAuthoringReferences(summary.id, scope),
         ]);
         if (!aggregate) throw new Error("Item not found.");
         setDraft(aggregate);
@@ -381,7 +385,7 @@ export function ItemWorkspace({
 
   async function createNew() {
     try {
-      const nextReferences = await listItemAuthoringReferences();
+      const nextReferences = await listItemAuthoringReferences(undefined, scope);
       setDraft(newItemDraft(scope));
       setFilters((current) => ({ ...current, archived: false, page: 1 }));
       setReferences(nextReferences);
@@ -503,14 +507,10 @@ export function ItemWorkspace({
       setGovernanceDraft(null);
       setFeedback(null);
       try {
-        const [nextFacets, nextReferences] = await Promise.all([
-          listItemFacets(scope, archived),
-          listItemAuthoringReferences(),
-        ]);
-        setFacets(nextFacets);
+        const nextReferences = await listItemAuthoringReferences(undefined, scope);
         setReferences(nextReferences);
       } catch (error) {
-        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Item filters could not be loaded." });
+        setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Item authoring references could not be loaded." });
       }
     });
   }
@@ -544,8 +544,12 @@ export function ItemWorkspace({
     </header>
 
     <div className="skills-workspace items-workspace">
-      <aside className="skill-library">
+      <aside className="skill-library" data-preserve-scroll="master-content">
         <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>{label} Library</h2></div><button className="skills-primary-button" type="button" disabled={workspaceBusy} onClick={beginNew}>New {scope === "equipment" ? "Equipment" : "Item"}</button></div>
+        <CatalogBrowseControl catalog={scope} visibility={library.visibility} canManageActivation={canManageCanon} onSaved={async () => {
+          await preserveScroll(async () => { setFilters((current) => ({ ...current, page: 1 })); await loadLibrary({ ...filters, page: 1 }); await refreshReferences(draft?.id); });
+        }} />
+        {canManageCanon ? <div className="item-canon-review"><label className="st-field"><span>Administrative review</span><select className="st-control" value={filters.needsCanonReview ? "review" : "browse"} onChange={(event) => setFilters((current) => ({ ...current, needsCanonReview: event.target.value === "review", page: 1, tag: undefined, category: undefined, recordType: undefined }))}><option value="browse">Browse with my preference</option><option value="review">Needs Canon Review</option></select></label><p>Review non-canon Items in this scope. Homebrew may stay non-canon; this view does not change your saved preference.</p></div> : null}
         <div className="skill-library__search"><label htmlFor="item-search">Search</label><input id="item-search" type="search" value={filters.search ?? ""} placeholder="Name or canonical ID" onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })} /></div>
         <div className="skill-library__filters item-library-filters">
           {scope === "equipment" ? <label><span>Group</span><select value={filters.equipmentGroup ?? ""} onChange={(e) => setFilters({ ...filters, equipmentGroup: e.target.value as EquipmentCatalogGroup | "", page: 1 })}><option value="">All</option>{EQUIPMENT_GROUPS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
@@ -561,8 +565,10 @@ export function ItemWorkspace({
           <span>{library.total.toLocaleString()} records</span>
         </div>
         <div data-preserve-scroll={`${scope}-library-results`} className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
-          {library.items.map((entry) => <button key={entry.id} type="button" disabled={workspaceBusy} className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
+          {library.items.map((entry) => <button key={entry.id} type="button" disabled={workspaceBusy} style={{ paddingInlineStart: `${1 + Math.min(entry.depth, 4) * 0.6}rem` }} className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
             <span className="skill-library__row-name">{entry.name}</span>
+            <CatalogSourceBadge source={entry.catalogSource} />
+            {entry.parentName ? <span className="skill-library__row-parents">Variant of {entry.parentName}</span> : null}
             {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
             <span className="skill-library__row-meta">{entry.recordType} · {entry.category}{entry.equipmentGroup ? ` · ${entry.equipmentGroup}` : ""}</span>
             <span className="skill-library__row-parents">{entry.canonicalId}{entry.tags.length ? ` · ${entry.tags.join(", ")}` : ""}{itemRuntimeIndicators(entry).length ? ` · ${itemRuntimeIndicators(entry).join(" · ")}` : ""}</span>
@@ -573,7 +579,10 @@ export function ItemWorkspace({
       </aside>
 
       {loadingEditor ? <section className="skill-editor skill-editor--empty"><p>LOADING ITEM</p></section> : draft ? <section className="skill-editor item-editor">
-        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : hasUnsavedWork ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{draft.id ? <LifecycleControls target={{ entityKind: "item", entityId: draft.id }} archived={isArchived} disabled={workspaceBusy || hasUnsavedWork} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={workspaceBusy || isArchived} onClick={() => void persist()}>{itemSaving ? "Saving…" : "Save Item"}</button></div></header>
+        <header className="skill-editor__header"><div><p>{draft.id ? `${label.toUpperCase()} ${draft.id}` : `NEW ${label.toUpperCase()} DRAFT`}</p><h2>{draft.core.name || `Untitled ${label}`}</h2><span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : hasUnsavedWork ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span></div><div className="skill-editor__actions">{canManageCanon && draft.id && "isSystemCanon" in draft ? <CanonDesignationControl key={draft.id} root="item" id={draft.id} isSystemCanon={draft.isSystemCanon} disabled={workspaceBusy || hasUnsavedWork} onChanged={async (isSystemCanon, id) => {
+          setDraft((current) => current?.id === id ? { ...current, isSystemCanon } : current);
+          await preserveScroll(() => loadLibrary(filters));
+        }} /> : null}{draft.id ? <LifecycleControls target={{ entityKind: "item", entityId: draft.id }} archived={isArchived} disabled={workspaceBusy || hasUnsavedWork} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={workspaceBusy || isArchived} onClick={() => void persist()}>{itemSaving ? "Saving…" : "Save Item"}</button></div></header>
         {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
         {activeOperation?.kind === "tag-create" ? <p className="skill-editor__feedback" role="status">Creating tag… Item editing and saving will be available when it finishes.</p> : null}
         <nav className="skill-editor__tabs">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
@@ -618,9 +627,9 @@ function TagAssignmentEditor({
 
   const normalizedSearch = search.trim().toLocaleLowerCase("en-US");
   const visibleTags = useMemo(
-    () => references.tags.filter((tag) => !normalizedSearch || [tag.name, tag.tagGroup, tag.description]
+    () => [...references.tags, ...draft.tags.filter((name) => !references.tags.some((tag) => tag.name === name)).map((name) => ({ name, tagGroup: "Selected tags", description: "Retained on this Item." }))].filter((tag) => !normalizedSearch || [tag.name, tag.tagGroup, tag.description]
       .some((value) => value.toLocaleLowerCase("en-US").includes(normalizedSearch))),
-    [normalizedSearch, references.tags],
+    [normalizedSearch, references.tags, draft.tags],
   );
   const groups = useMemo(() => {
     const map = new Map<string, ItemTagReference[]>();
@@ -1353,7 +1362,7 @@ function Tags({
   onChange: (draft: ItemDraft) => void;
 }) {
   return <div className="item-section">
-    <div className="skill-editor__intro"><p>Tags are shared libraries created inside Serrian Tide. Assign an existing tag or create a new one; the same tag is available to Equipment, Inventory, Campaign authorization, and rule authoring.</p></div>
+    <div className="skill-editor__intro"><p>Tags are shared Item metadata. Choose a tag used by visible Items or create one. Tags already attached to this Item stay available.</p></div>
     <TagAssignmentEditor draft={draft} references={references} onCreateTag={onCreateTag} onChange={onChange} />
   </div>;
 }

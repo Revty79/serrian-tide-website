@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getPageHelp } from "@/features/guidance/page-help";
 
-test("Profile guidance explains personal modes, persistence, and the deferred browsing boundary", () => {
+test("Profile guidance explains personal modes, persistence, and independent environment activation", () => {
   const guide = getPageHelp("/profile");
   assert.equal(guide.title, "Your Profile");
   const copy = JSON.stringify(guide);
-  for (const meaning of [/official Serrian Tide content/, /content you created/, /does not mean all content created by other users/, /Equipment and Inventory can have different settings/, /logging out and signing back in/, /does not delete it or remove it from existing Campaigns/, /after canon classification/]) assert.match(copy, meaning);
+  for (const meaning of [/official Serrian Tide content/, /content you created/, /does not mean all content created by other users/, /Equipment and Inventory can have different settings/, /logging out and signing back in/, /does not delete it or remove it from existing Campaigns/, /Administrator enables filtering/]) assert.match(copy, meaning);
 });
 
 test("Profile uses the authenticated account and Pass 1 operations without a role gate", () => {
@@ -24,9 +24,7 @@ test("Profile uses the authenticated account and Pass 1 operations without a rol
   assert.match(editor, /setMode\(previousMode\)/);
 });
 
-test("Pass 4 Item and Campaign reference queries remain outside preference filtering", () => {
-  for (const file of ["items", "campaigns"]) {
-    const source = readFileSync(`src/app/heavens/${file}/actions.ts`, "utf8");
-    assert.doesNotMatch(source, /catalog-visibility|catalog-preferences|userCatalogPreferences|isCatalogContentVisible|getCurrentCatalogPreferences/, `${file} must not apply preferences before deliberate canon classification`);
-  }
+test("Item and Campaign discovery delegate to the shared visibility services", () => {
+  assert.match(readFileSync("src/app/heavens/items/actions.ts", "utf8"), /loadItemCatalog\(session.user.id, filters\)/);
+  assert.match(readFileSync("src/app/heavens/campaigns/actions.ts", "utf8"), /loadCampaignCatalogReferences/);
 });

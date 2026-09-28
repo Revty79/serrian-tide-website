@@ -1,4 +1,6 @@
 "use server";
+import { loadCampaignCatalogReferences, loadCampaignItemChoices } from "@/features/catalog-visibility/campaign-catalog-service";
+import type { CampaignRaceEntry } from "@/features/campaigns/campaign-race-tree";
 
 import {
   and,
@@ -24,14 +26,11 @@ import {
   type CampaignSystem,
 } from "@/db/campaign-schema";
 import { campaignAllowedDerivedAbility } from "@/db/derived-ability-schema";
-import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
+import { item, itemTagCatalog } from "@/db/item-schema";
 import { race } from "@/db/race-schema";
 import {
-  buildCampaignInventoryPool,
   createCampaignInventoryPersistence,
   restoreCampaignInventoryPersistence,
-  sortCampaignInventoryTags,
-  type CampaignInventoryItemRecord,
   type CampaignInventoryPoolItem,
 } from "@/features/campaigns/campaign-inventory";
 import {
@@ -101,7 +100,7 @@ export type CampaignAdminDraft = {
 };
 
 export type CampaignReferenceData = {
-  races: Array<{ id: number; name: string; size: string; parentRaceId: number | null }>;
+  races: CampaignRaceEntry[];
   tags: Array<{ id: number; name: string; tagGroup: string; description: string }>;
 };
 
@@ -252,120 +251,25 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
   };
 }
 
-export async function getCampaignReferenceData(campaignId: number): Promise<CampaignReferenceData> {
+async function campaignDiscoveryCreator(campaignId: number) {
   await requireOwner(campaignId);
-  return readCampaignReferenceData();
+  const [owner] = await db.select({ id: campaign.createdByUserId }).from(campaign).where(eq(campaign.id, campaignId));
+  return owner.id;
+}
+
+export async function getCampaignReferenceData(campaignId: number): Promise<CampaignReferenceData> {
+  return loadCampaignCatalogReferences(await campaignDiscoveryCreator(campaignId), campaignId);
 }
 
 export async function getCampaignCreationReferenceData(): Promise<CampaignReferenceData> {
-  await requireGodOrAdminAccessContext();
-  return readCampaignReferenceData();
+  const { session } = await requireGodOrAdminAccessContext();
+  return loadCampaignCatalogReferences(session.user.id);
 }
 
-async function readCampaignReferenceData(): Promise<CampaignReferenceData> {
-  const [races, tags] = await Promise.all([
-    db.select({ id: race.id, name: race.name, size: race.size, parentRaceId: race.parentRaceId })
-      .from(race)
-      .where(isNull(race.archivedAt))
-      .orderBy(asc(race.name), asc(race.id)),
-    db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog),
-  ]);
-  return { races, tags: sortCampaignInventoryTags(tags) };
-}
-
-const campaignInventoryItemFields = {
-  id: item.id,
-  canonicalId: item.canonicalId,
-  name: item.name,
-  catalogScope: item.catalogScope,
-  equipmentGroup: item.equipmentGroup,
-  recordType: item.recordType,
-  family: item.family,
-  category: item.category,
-  credits: item.credits,
-};
-
-type CampaignInventoryItemQueryRow = {
-  id: number;
-  canonicalId: string;
-  name: string;
-  catalogScope: string;
-  equipmentGroup: string | null;
-  recordType: string;
-  family: string;
-  category: string;
-  credits: number | null;
-};
-
-function toCampaignInventoryItem(
-  row: CampaignInventoryItemQueryRow,
-): CampaignInventoryItemRecord {
-  return {
-    id: row.id,
-    canonicalId: row.canonicalId,
-    name: row.name,
-    catalogScope: row.catalogScope === "inventory" ? "inventory" : "equipment",
-    equipmentGroup:
-      row.equipmentGroup === "weapon" ||
-      row.equipmentGroup === "armor" ||
-      row.equipmentGroup === "general"
-        ? row.equipmentGroup
-        : null,
-    recordType: row.recordType,
-    family: row.family,
-    category: row.category,
-    credits: row.credits,
-  };
-}
-
-export async function getCampaignInventoryItems(input: {
-  campaignId: number | null;
-  selectedTagIds: number[];
-  selectedItemIds: number[];
-}): Promise<CampaignInventoryPoolItem[]> {
-  if (input.campaignId === null) {
-    await requireGodOrAdminAccessContext();
-  } else {
-    if (!Number.isInteger(input.campaignId) || input.campaignId <= 0) {
-      throw new Error("Campaign is invalid.");
-    }
-    await requireOwner(input.campaignId);
-  }
-
-  const selection = createCampaignInventoryPersistence(
-    input.selectedTagIds,
-    input.selectedItemIds,
-  );
-  const [taggedRows, selectedRows] = await Promise.all([
-    selection.tagIds.length
-      ? db
-          .select({ tagId: itemTagLink.tagId, ...campaignInventoryItemFields })
-          .from(itemTagLink)
-          .innerJoin(item, eq(item.id, itemTagLink.itemId))
-          .where(and(
-            inArray(itemTagLink.tagId, selection.tagIds),
-            isNull(item.archivedAt),
-          ))
-      : [],
-    selection.itemIds.length
-      ? db
-          .select(campaignInventoryItemFields)
-          .from(item)
-          .where(inArray(item.id, selection.itemIds))
-      : [],
-  ]);
-
-  const taggedItemsByTag = new Map<number, CampaignInventoryItemRecord[]>();
-  for (const row of taggedRows) {
-    const group = taggedItemsByTag.get(row.tagId) ?? [];
-    group.push(toCampaignInventoryItem(row));
-    taggedItemsByTag.set(row.tagId, group);
-  }
-
-  return buildCampaignInventoryPool(
-    selection.tagIds.map((tagId) => taggedItemsByTag.get(tagId) ?? []),
-    selectedRows.map(toCampaignInventoryItem),
-  );
+export async function getCampaignInventoryItems(input: { campaignId: number | null; selectedTagIds: number[]; selectedItemIds: number[] }): Promise<CampaignInventoryPoolItem[]> {
+  if (input.campaignId !== null && (!Number.isSafeInteger(input.campaignId) || input.campaignId <= 0)) throw new Error("Campaign is invalid.");
+  const creatorId = input.campaignId === null ? (await requireGodOrAdminAccessContext()).session.user.id : await campaignDiscoveryCreator(input.campaignId);
+  return loadCampaignItemChoices(creatorId, input);
 }
 
 export async function getCampaignMembers(

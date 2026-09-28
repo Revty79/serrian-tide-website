@@ -7,7 +7,7 @@ import { race } from "@/db/race-schema";
 import { creature } from "@/db/creature-schema";
 import { skill } from "@/db/skill-schema";
 import { derivedAbility } from "@/db/derived-ability-schema";
-import { catalogVisibilityActivation } from "@/db/catalog-preferences-schema";
+import { catalogVisibilityActivation, catalogVisibilityScopeActivation } from "@/db/catalog-preferences-schema";
 import { ACTIVATED_CATALOGS, CANON_MANIFEST_HASH, canonManifest, type ActivatedCatalog } from "./canon-manifest";
 import { setSystemCanonInTransaction } from "./system-canon-service";
 
@@ -66,6 +66,9 @@ export async function classifySystemCanon(options: { apply?: boolean; administra
         }
       }
       await tx.insert(catalogVisibilityActivation).values({ manifestHash: CANON_MANIFEST_HASH }).onConflictDoNothing();
+      await tx.insert(catalogVisibilityScopeActivation).values(ACTIVATED_CATALOGS.map((catalogKey) => ({
+        catalogKey, activationMethod: "classified-manifest" as const, manifestHash: CANON_MANIFEST_HASH, activatedByUserId: administratorId!,
+      }))).onConflictDoNothing();
     }
     return { database: target.rows[0].database, mode: options.apply ? "apply" : "plan", manifestHash: CANON_MANIFEST_HASH,
       ready, catalogs, classified: Object.fromEntries(ACTIVATED_CATALOGS.map((key) => [key, options.apply ? catalogs[key].wouldPromote.length : 0])) };

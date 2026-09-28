@@ -554,6 +554,13 @@
       "when": 1790555434782,
       "tag": "0078_catalog_visibility_activation",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1790558860737,
+      "tag": "0079_catalog_scope_activation",
+      "breakpoints": true
     }
   ]
 }

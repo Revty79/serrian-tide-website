@@ -7,6 +7,7 @@ import {
   type CampaignRaceNode,
 } from "@/features/campaigns/campaign-race-tree";
 import styles from "./campaign-race-selector.module.css";
+import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
 
 function countRaces(nodes: CampaignRaceNode[], selected?: ReadonlySet<number>): number {
   return nodes.reduce((total, node) => total
@@ -54,6 +55,7 @@ function RaceBranch({ node, selected, initiallyOpen, onToggle }: {
   const label = <span className={styles.identity}>
     <strong>{race.name}</strong>
     <small>{race.size || "Size not recorded"}</small>
+    {race.existingSelection ? <small>Existing Campaign selection</small> : <CatalogSourceBadge source={race.catalogSource} />}
   </span>;
   return <li className={styles.branch}>
     <div className={`${styles.row} ${selectable && checked ? styles.selected : ""}`}>

@@ -1,4 +1,5 @@
 import { runCatalogPassThreeBrowserChecks } from "./catalog-pass-three-browser-checks";
+import { runCatalogPassFourBrowserChecks } from "./catalog-pass-four-browser-checks";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -285,6 +286,7 @@ async function main() {
     assert.deepEqual(errors, []);
     console.log("PASS: the activation guard preserves the unclassified Race catalog and Campaign references; preferences alone cannot promote content.");
     await runCatalogPassThreeBrowserChecks({ page, pool, databaseUrl, baseUrl, screenshots, login });
+    await runCatalogPassFourBrowserChecks({ page, pool, baseUrl, screenshots, login });
     assert.deepEqual(errors, []);
   } finally {
     await browser?.close();
@@ -309,4 +311,5 @@ async function main() {
   }
 }
 
-main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });
+main().then(() => console.log("PASS: all Profile/catalog browser assertions and disposable cleanup completed."))
+  .catch((error: unknown) => { console.error(error); process.exitCode = 1; });

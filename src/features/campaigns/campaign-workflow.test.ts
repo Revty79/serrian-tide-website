@@ -160,7 +160,7 @@ test("Campaign race workspace keeps the Playable column aligned to the Campaign 
   const workspaceSource = readSource("src/app/heavens/campaigns/campaign-workspace.tsx");
 
   assert.match(workspaceSource, /title="Playable Races"/);
-  assert.match(workspaceSource, /title="Playable Races"[^\n]+availableIds=\{draft\.campaignRaceIds\}/);
+  assert.match(workspaceSource, /title="Playable Races"[^\n]+availableIds=\{campaignPlayableRaceIds\(races, draft\.campaignRaceIds\)\}/);
   assert.doesNotMatch(workspaceSource, /availableIds=\{draft\.allowedRaceIds\}/);
 });
 

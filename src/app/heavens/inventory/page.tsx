@@ -13,15 +13,16 @@ import "../items/item-runtime.css";
 import { ItemWorkspace } from "../items/item-workspace";
 
 export default async function InventoryPage() {
-  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const { session, roles } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const [initialLibrary, initialFacets, initialReferences] = await Promise.all([
     listItems({ catalogScope: "inventory", page: 1, pageSize: 40 }),
     listItemFacets("inventory"),
-    listItemAuthoringReferences(),
+    listItemAuthoringReferences(undefined, "inventory"),
   ]);
 
   return (
     <ItemWorkspace
+      canManageCanon={roles.includes("admin")}
       scope="inventory"
       initialLibrary={initialLibrary}
       initialFacets={initialFacets}

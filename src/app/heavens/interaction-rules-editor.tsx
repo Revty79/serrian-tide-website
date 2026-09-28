@@ -55,11 +55,15 @@ export function InteractionRulesEditor({ value, owner, onChange, authoringOnly =
   const [catalog, setCatalog] = useState<Awaited<ReturnType<typeof getInteractionRuleCatalog>> | null>(null);
   const [catalogError, setCatalogError] = useState("");
   const listId = useId();
+  const retained = JSON.stringify({
+    tags: [...new Set((value?.rules ?? []).flatMap((rule) => rule.conditions.flatMap((condition) => condition.kind === "item-tag" && condition.tagCanonicalId ? [condition.tagCanonicalId] : [])))],
+    creatures: [...new Set((value?.rules ?? []).flatMap((rule) => rule.conditions.flatMap((condition) => condition.kind === "item-property" && condition.relatedCreatureCanonicalId ? [condition.relatedCreatureCanonicalId] : [])))],
+  });
   useEffect(() => {
     let active = true;
-    getInteractionRuleCatalog().then((result) => { if (active) setCatalog(result); }, (error: unknown) => { if (active) setCatalogError(error instanceof Error ? error.message : "Catalog could not be loaded."); });
+    getInteractionRuleCatalog(JSON.parse(retained)).then((result) => { if (active) setCatalog(result); }, (error: unknown) => { if (active) setCatalogError(error instanceof Error ? error.message : "Catalog could not be loaded."); });
     return () => { active = false; };
-  }, []);
+  }, [retained]);
   const rules = value?.rules ?? [];
   const update = (next: InteractionRule[]) => onChange({ schemaVersion: 1, rules: next.map((rule, sortOrder) => ({ ...rule, sortOrder })) });
   const patch = (key: string, change: Partial<InteractionRule>) => update(rules.map((rule) => rule.key === key ? { ...rule, ...change } : rule));

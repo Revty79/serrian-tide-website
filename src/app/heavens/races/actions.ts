@@ -1,5 +1,5 @@
 "use server";
-import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 
@@ -9,7 +9,6 @@ import { normalizeInteractionRuleProfile, type InteractionRuleProfile } from "@/
 
 
 import {
-  and,
   asc,
   count,
   eq,
@@ -429,20 +428,20 @@ export async function listRaceSkillCandidates(
   search = "",
   classification?: string,
 ): Promise<RaceSkillCandidate[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   return db
     .select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
     .from(skill)
-    .where(raceSkillCandidateFilter(search, classification))
+    .where(await catalogCandidateWhere("skill", skill, session.user.id, [], raceSkillCandidateFilter(search, classification)))
     .orderBy(asc(skill.name), asc(skill.id))
     .limit(30);
 }
 
 /** Attack basis is a reference, not a Race Skill grant; higher-tier Skills remain selectable. */
 export async function listNaturalAttackSkillCandidates(search = ""): Promise<RaceSkillCandidate[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   return db.select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
-    .from(skill).where(and(isNull(skill.archivedAt), search.trim() ? ilike(skill.name, `%${search.trim()}%`) : undefined))
+    .from(skill).where(await catalogCandidateWhere("skill", skill, session.user.id, [], isNull(skill.archivedAt), search.trim() ? ilike(skill.name, `%${search.trim()}%`) : undefined))
     .orderBy(asc(skill.name), asc(skill.id)).limit(30);
 }
 

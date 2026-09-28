@@ -247,7 +247,7 @@ export function CampaignCreateForm({
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
           <CampaignRaceSelector
             title="All Races"
-            subtitle="Global active catalog"
+            subtitle="Creator's visible catalog"
             races={references.races}
             search={raceSearch}
             selectedIds={campaignRaceIds}

@@ -1,6 +1,6 @@
 "use server";
 import { loadVisibleRecursiveSkillLibrary } from "@/features/catalog-visibility/skill-catalog-service";
-import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 
 
 import {
@@ -32,6 +32,7 @@ import { withCalculationSnapshot } from "@/features/spell-construction/utilities
 import { lockSpellFrameworkSkillReferenceInTransaction } from "@/features/skills/skill-framework-reference-service";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import {
+  buildRecursiveSkillLibrary,
   previewSkillStructureChange,
   type RecursiveSkillLibrary,
   type SkillStructureChangePreview,
@@ -155,8 +156,11 @@ export async function getRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary>
 
 // Editing references and structural previews retain the established complete graph.
 export async function getSkillEditorHierarchy(): Promise<RecursiveSkillLibrary> {
-  await requireGodOrAdminAccessContext();
-  return loadRecursiveSkillLibrary();
+  const { session } = await requireGodOrAdminAccessContext();
+  const [library, candidates] = await Promise.all([loadRecursiveSkillLibrary(), db.select({ id: skill.id }).from(skill)
+    .where(await catalogCandidateWhere("skill", skill, session.user.id, [], isNull(skill.archivedAt)))]);
+  const ids = new Set(candidates.map(({ id }) => id));
+  return buildRecursiveSkillLibrary(library.skills.map((row) => ({ ...row, canDiscover: ids.has(row.id) })), library.relationships);
 }
 
 async function buildSkillMutationPreview(
@@ -380,6 +384,7 @@ async function wouldCreateCircularPath(
 
 async function querySpellFrameworkSkills(
   tradition: Tradition,
+  actorId: string,
 ): Promise<SpellFrameworkSkill[]> {
   const identity =
     SPELL_IDENTITY_BY_TRADITION[
@@ -468,7 +473,7 @@ async function querySpellFrameworkSkills(
     })
     .from(skill)
     .where(
-      and(...conditions),
+      await catalogCandidateWhere("skill", skill, actorId, [], ...conditions),
     )
     .orderBy(
       asc(skill.name),
@@ -1162,7 +1167,7 @@ export async function listRelationshipCandidates(
   },
   excludeId?: number,
 ): Promise<SkillLibraryItem[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
 
   const attributes = [
     context.primaryAttribute,
@@ -1208,7 +1213,7 @@ export async function listRelationshipCandidates(
     })
     .from(skill)
     .where(
-      and(
+      await catalogCandidateWhere("skill", skill, session.user.id, [],
         isNull(skill.archivedAt),
         eq(
           skill.tier,
@@ -1276,10 +1281,11 @@ export async function listRelationshipCandidates(
 export async function listSpellFrameworkSkills(
   tradition: Tradition,
 ): Promise<SpellFrameworkSkill[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
 
   return querySpellFrameworkSkills(
     tradition,
+    session.user.id,
   );
 }
 

@@ -401,7 +401,7 @@ export function SkillsWorkspace({
 
       <div className="skills-workspace">
         <SkillLibrary
-          visibilityControl={<CatalogBrowseControl catalog="skill" visibility={library.visibility} onSaved={async () => {
+          visibilityControl={<CatalogBrowseControl canManageActivation={canManageCanon} catalog="skill" visibility={library.visibility} onSaved={async () => {
             await preserveScroll(async () => {
               setSelectedPathKey(null);
               setSelectedAttributeKey(null);

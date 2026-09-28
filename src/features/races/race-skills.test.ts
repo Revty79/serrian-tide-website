@@ -29,7 +29,7 @@ test("race actions filter before limiting and validate stored metadata before in
   const actions = readFileSync("src/app/heavens/races/actions.ts", "utf8");
   const picker = actions.slice(actions.indexOf("export async function listRaceSkillCandidates"), actions.indexOf("export async function saveRace"));
   assert.match(picker, /requireGodOrAdminAccessContext/);
-  assert.match(picker, /\.where\(raceSkillCandidateFilter\(search, classification\)\)[\s\S]*\.limit\(30\)/);
+  assert.match(picker, /\.where\(await catalogCandidateWhere\("skill", skill, session\.user\.id, \[\], raceSkillCandidateFilter\(search, classification\)\)\)[\s\S]*\.limit\(30\)/);
   const save = actions.slice(actions.indexOf("export async function saveRace"));
   assert.match(save, /db\.transaction/);
   assert.match(save, /const existingSkills = await tx[\s\S]*name: skill\.name[\s\S]*tier: skill\.tier[\s\S]*\.from\(skill\)[\s\S]*assertRaceSkillsEligible\(existingSkills\)[\s\S]*tx\.insert\(raceSkillLink\)/);

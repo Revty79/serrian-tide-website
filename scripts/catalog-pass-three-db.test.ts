@@ -30,7 +30,7 @@ let creatureNpcId: number;
 
 async function snapshot() {
   const result: Record<string, unknown> = {};
-  for (const table of [...Object.values(tables), "items", "skill_relationship", "catalog_visibility_activation"]) {
+  for (const table of [...Object.values(tables), "items", "skill_relationship", "catalog_visibility_activation", "catalog_visibility_scope_activation"]) {
     result[table] = (await pool.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)).rows;
   }
   return result;

@@ -1,5 +1,5 @@
 "use server";
-import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 
 
 import {
@@ -216,7 +216,7 @@ function mapLimitRows(rows: Awaited<ReturnType<typeof loadLimitRows>>) {
 export async function getDerivedAbilityEditorReferences(
   forDerivedAbilityId?: number,
 ): Promise<DerivedAbilityEditorReferences> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   const storedReferences = forDerivedAbilityId
     ? await db
         .select({
@@ -233,6 +233,8 @@ export async function getDerivedAbilityEditorReferences(
     storedReferences.flatMap(({ requiredDerivedAbilityId }) =>
       requiredDerivedAbilityId === null ? [] : [requiredDerivedAbilityId]),
   );
+  const skillWhere = await catalogCandidateWhere("skill", skill, session.user.id, [...storedSkillIds], isNull(skill.archivedAt));
+  const abilityWhere = await catalogCandidateWhere("derivedAbility", derivedAbility, session.user.id, [...storedAbilityIds], isNull(derivedAbility.archivedAt));
   const [skills, abilities] = await Promise.all([
     db.select({
       id: skill.id,
@@ -240,9 +242,9 @@ export async function getDerivedAbilityEditorReferences(
       tier: skill.tier,
       classification: skill.classification,
       archivedAt: skill.archivedAt,
-    }).from(skill).orderBy(asc(skill.name), asc(skill.id)),
+    }).from(skill).where(skillWhere).orderBy(asc(skill.name), asc(skill.id)),
     db.select({ id: derivedAbility.id, name: derivedAbility.name, archivedAt: derivedAbility.archivedAt })
-      .from(derivedAbility)
+      .from(derivedAbility).where(abilityWhere)
       .orderBy(asc(derivedAbility.name), asc(derivedAbility.id)),
   ]);
   return {

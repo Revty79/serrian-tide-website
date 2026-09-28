@@ -129,7 +129,7 @@ export function SkillLibrary({
   });
 
   return (
-    <aside className={`skill-library${loading ? " is-loading" : ""}`} aria-label="Skill Library">
+    <aside className={`skill-library${loading ? " is-loading" : ""}`} aria-label="Skill Library" data-preserve-scroll="master-content">
       <div className="skill-library__heading">
         <div>
           <p>MASTER CONTENT</p>

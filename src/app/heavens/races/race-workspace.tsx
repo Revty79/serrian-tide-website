@@ -297,12 +297,12 @@ export function RaceWorkspace({
       </header>
 
       <div className="skills-workspace races-workspace">
-        <aside className="skill-library">
+        <aside className="skill-library" data-preserve-scroll="master-content">
           <div className="skill-library__heading">
             <div><p>MASTER CONTENT</p><h2>Race Library</h2></div>
             <button className="skills-primary-button" type="button" disabled={busy} onClick={beginNew}>New Race</button>
           </div>
-          <CatalogBrowseControl catalog="race" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
+          <CatalogBrowseControl canManageActivation={canManageCanon} catalog="race" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
           <div className="skill-library__search">
             <label htmlFor="race-search">Search</label>
             <input id="race-search" type="search" value={filters.search ?? ""} placeholder="Search by name" onChange={(event) => setFilters({ ...filters, search: event.target.value, page: 1 })} />

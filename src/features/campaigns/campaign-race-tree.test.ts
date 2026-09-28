@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCampaignRaceTree, type CampaignRaceEntry, type CampaignRaceNode } from "./campaign-race-tree";
+import { buildCampaignRaceTree, campaignPlayableRaceIds, type CampaignRaceEntry, type CampaignRaceNode } from "./campaign-race-tree";
 
 const races: CampaignRaceEntry[] = [
   { id: 1, name: "Human", size: "Medium", parentRaceId: null },
@@ -11,6 +11,11 @@ const races: CampaignRaceEntry[] = [
   { id: 6, name: "Forest Wild Elf", size: "Small", parentRaceId: 5 },
 ];
 const ids = (nodes: CampaignRaceNode[]): number[] => nodes.flatMap(node => [node.race.id, ...ids(node.children)]);
+
+test("hidden Campaign world Races retain saved playability without becoming new playable choices", () => {
+  const pool: CampaignRaceEntry[] = races.map((race) => ({ ...race, existingSelection: race.id < 4, existingPlayableSelection: race.id === 2, catalogSource: race.id === 4 ? "context" : "mine" }));
+  assert.deepEqual(campaignPlayableRaceIds(pool, [1, 2, 3, 4, 5]), [2, 5]);
+});
 
 test("campaign browsing lists parent races first and preserves nested variants", () => {
   const tree = buildCampaignRaceTree(races, undefined, "");

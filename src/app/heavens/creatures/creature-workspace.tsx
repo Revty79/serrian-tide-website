@@ -278,9 +278,9 @@ export function CreatureWorkspace({
 
     <div className="skills-workspace creatures-workspace">
       {feedback ? <p className={`skill-editor__feedback creature-workspace__feedback is-${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
-      <aside className="skill-library">
+      <aside className="skill-library" data-preserve-scroll="master-content">
         <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>Bestiary</h2></div><button className="skills-primary-button" type="button" onClick={beginNew}>New Creature</button></div>
-        <CatalogBrowseControl catalog="creature" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
+        <CatalogBrowseControl canManageActivation={canManageCanon} catalog="creature" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
           <div className="skill-library__search"><label htmlFor="creature-search">Search</label><input id="creature-search" type="search" value={filters.search ?? ""} placeholder="Search by name" onChange={(event) => setFilters({ ...filters, search: event.target.value, page: 1 })} /></div>
         <div className="skill-library__filters creature-library-filters">
           <label><span>Family</span><select value={filters.family ?? ""} onChange={(e) => setFilters({ ...filters, family: e.target.value || undefined, page: 1 })}><option value="">All</option>{facets.families.map((value) => <option key={value}>{value}</option>)}</select></label>

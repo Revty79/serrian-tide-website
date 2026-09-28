@@ -12,6 +12,7 @@ import {
 } from "@/features/campaigns/campaign-inventory";
 
 import { getCampaignInventoryItems } from "./actions";
+import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
 
 const catalogTabs: ReadonlyArray<{
   value: CampaignInventoryCatalogFilter;
@@ -294,8 +295,8 @@ export function CampaignInventorySelector({
             Add Selected →
           </TransferButton>
           <TransferButton
-            disabled={allUnselectedTaggedItems.length === 0 || loading}
-            onClick={() => addItems(allUnselectedTaggedItems.map(({ id }) => id))}
+            disabled={availableItems.length === 0 || loading}
+            onClick={() => addItems(availableItems.map(({ id }) => id))}
           >
             Move All →
           </TransferButton>
@@ -379,6 +380,7 @@ function InventoryList({
               }`}
             >
               <strong className="block text-sm text-slate-100">{item.name}</strong>
+              {item.existingSelection ? <span className="block text-xs text-slate-300">Existing Campaign selection</span> : <CatalogSourceBadge source={item.catalogSource} />}
               <span className="mt-1 block text-xs leading-5 text-slate-300">
                 {item.canonicalId} · {item.equipmentGroup ?? "Inventory"} · {item.category}
               </span>

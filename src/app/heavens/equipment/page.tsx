@@ -14,7 +14,7 @@ import "../items/item-runtime.css";
 import { ItemWorkspace } from "../items/item-workspace";
 
 export default async function EquipmentPage({ searchParams }: { searchParams: Promise<{ item?: string; tab?: string }> }) {
-  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const { session, roles } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const query = await searchParams;
   const itemId = Number(query.item);
   const selected = Number.isSafeInteger(itemId) && itemId > 0 ? await getItem(itemId) : null;
@@ -22,11 +22,12 @@ export default async function EquipmentPage({ searchParams }: { searchParams: Pr
   const [initialLibrary, initialFacets, initialReferences] = await Promise.all([
     listItems({ catalogScope: "equipment", page: 1, pageSize: 40 }),
     listItemFacets("equipment"),
-    listItemAuthoringReferences(initialItem?.id),
+    listItemAuthoringReferences(initialItem?.id, "equipment"),
   ]);
 
   return (
     <ItemWorkspace
+      canManageCanon={roles.includes("admin")}
       scope="equipment"
       initialItem={initialItem}
       initialTab={initialItem && query.tab === "weapon" ? "weapon" : "overview"}

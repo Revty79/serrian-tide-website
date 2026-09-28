@@ -1,5 +1,5 @@
 "use server";
-import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction, cloneCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
@@ -221,12 +221,12 @@ export async function listChallengeRatingReferences(): Promise<ChallengeRatingRe
 }
 
 export async function listCreatureSkillCandidates(search = ""): Promise<CreatureSkillCandidate[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   const conditions: SQL[] = [isNull(skill.archivedAt)];
   if (clean(search)) conditions.push(ilike(skill.name, `%${clean(search)}%`));
   return db.select({ id: skill.id, name: skill.name, classification: skill.classification, tier: skill.tier })
     .from(skill)
-    .where(and(...conditions))
+    .where(await catalogCandidateWhere("skill", skill, session.user.id, [], ...conditions))
     .orderBy(asc(skill.name), asc(skill.id))
     .limit(30);
 }

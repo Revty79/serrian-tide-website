@@ -1,4 +1,7 @@
 "use server";
+import { loadItemCatalog, loadItemFacets, itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
+import { catalogCandidateWhere, itemDiscoveryWhere, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { storedSkillReferenceIds } from "@/features/catalog-visibility/catalog-reference-ids";
 
 import {
   and,
@@ -7,7 +10,6 @@ import {
   eq,
   ilike,
   inArray,
-  isNotNull,
   isNull,
   ne,
   or,
@@ -102,6 +104,7 @@ import { validateStructuredWeaponRange, type WeaponRangeMode } from "@/features/
 import { defaultWeaponProfileRecordType, isSupportedWeaponDamageSource, isSupportedWeaponHandedness, isSupportedWeaponProfileRecordType, isSupportedWeaponType } from "@/features/items/weapon-profile-authoring";
 
 export type ItemLibraryFilters = {
+  needsCanonReview?: boolean;
   catalogScope: ItemCatalogScope;
   search?: string;
   equipmentGroup?: EquipmentCatalogGroup | "";
@@ -114,6 +117,10 @@ export type ItemLibraryFilters = {
 };
 
 export type ItemSummary = {
+  catalogSource: CatalogSourceLabel;
+  parentId: number | null;
+  parentName: string | null;
+  depth: number;
   id: number;
   canonicalId: string;
   name: string;
@@ -131,6 +138,7 @@ export type ItemSummary = {
 };
 
 export type ItemLibraryResult = {
+  visibility: CatalogBrowseState;
   items: ItemSummary[];
   total: number;
   page: number;
@@ -287,6 +295,7 @@ export type ItemDraft = {
 };
 
 export type ItemAggregate = ItemDraft & {
+  isSystemCanon: boolean;
   id: number;
   createdByUserId: string | null;
   archivedAt: string | null;
@@ -479,81 +488,21 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegac
 }
 
 export async function listItems(filters: ItemLibraryFilters): Promise<ItemLibraryResult> {
-  await requireGodOrAdminAccessContext();
-  const page = Math.max(1, Math.trunc(filters.page ?? 1));
-  const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
-  const conditions: SQL[] = [
-    eq(item.catalogScope, filters.catalogScope),
-    filters.archived ? isNotNull(item.archivedAt) : isNull(item.archivedAt),
-  ];
-  const search = clean(filters.search);
-  if (search) conditions.push(or(ilike(item.name, `%${search}%`), ilike(item.canonicalId, `%${search}%`))!);
-  if (clean(filters.equipmentGroup)) conditions.push(eq(item.equipmentGroup, clean(filters.equipmentGroup)));
-  if (clean(filters.recordType)) conditions.push(eq(item.recordType, clean(filters.recordType)));
-  if (clean(filters.category)) conditions.push(eq(item.category, clean(filters.category)));
-  if (clean(filters.tag)) {
-    const matchingTags = await db.select({ itemId: itemTagLink.itemId }).from(itemTagLink).innerJoin(itemTagCatalog, eq(itemTagCatalog.id, itemTagLink.tagId)).where(eq(itemTagCatalog.name, clean(filters.tag)));
-    const ids = matchingTags.map(({ itemId }) => itemId);
-    if (!ids.length) return { items: [], total: 0, page, pageSize, pageCount: 1 };
-    conditions.push(inArray(item.id, ids));
-  }
-  const where = and(...conditions);
-  const [countRow] = await db.select({ value: count() }).from(item).where(where);
-  const total = Number(countRow?.value ?? 0);
-  const baseRows = await db.select({
-    id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope,
-    equipmentGroup: item.equipmentGroup, recordType: item.recordType, family: item.family, category: item.category,
-    isMagical: item.isMagical, useMode: itemRuntimeProfile.useMode, archivedAt: item.archivedAt,
-  }).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(where).orderBy(asc(item.name), asc(item.id)).limit(pageSize).offset((page - 1) * pageSize);
-  const ids = baseRows.map(({ id }) => id);
-  if (!ids.length) return { items: [], total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
-  const [tagRows, weaponRows, armorRows] = await Promise.all([
-    db.select({ itemId: itemTagLink.itemId, name: itemTagCatalog.name }).from(itemTagLink).innerJoin(itemTagCatalog, eq(itemTagCatalog.id, itemTagLink.tagId)).where(inArray(itemTagLink.itemId, ids)).orderBy(asc(itemTagCatalog.name)),
-    db.select({ itemId: weaponProfile.itemId }).from(weaponProfile).where(inArray(weaponProfile.itemId, ids)),
-    db.select({ itemId: armorProfile.itemId }).from(armorProfile).where(inArray(armorProfile.itemId, ids)),
-  ]);
-  const tags = new Map<number, string[]>();
-  for (const row of tagRows) tags.set(row.itemId, [...(tags.get(row.itemId) ?? []), row.name]);
-  const hasWeapon = new Set(weaponRows.map(({ itemId }) => itemId));
-  const hasArmor = new Set(armorRows.map(({ itemId }) => itemId));
-  return {
-    items: baseRows.map((row) => ({
-      ...row,
-      archivedAt: row.archivedAt?.toISOString() ?? null,
-      useMode: (row.useMode ?? "none") as ItemUseMode,
-      tags: tags.get(row.id) ?? [],
-      hasWeaponProfile: hasWeapon.has(row.id),
-      hasArmorProfile: hasArmor.has(row.id),
-    })),
-    total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  const { session } = await requireGodOrAdminAccessContext();
+  return loadItemCatalog(session.user.id, filters);
 }
 
-export async function listItemFacets(
-  catalogScope: ItemCatalogScope,
-  archived = false,
-): Promise<ItemFacets> {
-  await requireGodOrAdminAccessContext();
-  const where = and(
-    eq(item.catalogScope, catalogScope),
-    archived ? isNotNull(item.archivedAt) : isNull(item.archivedAt),
-  );
-  const [recordTypes, categories, tagRows] = await Promise.all([
-    db.selectDistinct({ value: item.recordType }).from(item).where(where).orderBy(asc(item.recordType)),
-    db.selectDistinct({ value: item.category }).from(item).where(where).orderBy(asc(item.category)),
-    db.selectDistinct({ value: itemTagCatalog.name }).from(itemTagCatalog).innerJoin(itemTagLink, eq(itemTagLink.tagId, itemTagCatalog.id)).innerJoin(item, eq(item.id, itemTagLink.itemId)).where(where).orderBy(asc(itemTagCatalog.name)),
-  ]);
-  return {
-    recordTypes: recordTypes.map(({ value }) => value.trim()).filter(Boolean),
-    categories: categories.map(({ value }) => value.trim()).filter(Boolean),
-    tags: tagRows.map(({ value }) => value.trim()).filter(Boolean),
-  };
+export async function listItemFacets(catalogScope: ItemCatalogScope, archived = false, needsCanonReview = false): Promise<ItemFacets> {
+  const { session } = await requireGodOrAdminAccessContext();
+  return loadItemFacets(session.user.id, catalogScope, archived, needsCanonReview);
 }
 
 export async function listItemAuthoringReferences(
   forItemId?: number,
+  catalogScope?: ItemCatalogScope,
 ): Promise<ItemAuthoringReferences> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
+  const stored = forItemId ? await getItem(forItemId) : null;
   const preservedSkillRows = forItemId
     ? await db
         .select({ id: weaponSkillPathMapping.endpointSkillId })
@@ -561,9 +510,14 @@ export async function listItemAuthoringReferences(
         .innerJoin(weaponProfile, eq(weaponProfile.id, weaponSkillPathMapping.weaponProfileId))
         .where(eq(weaponProfile.itemId, forItemId))
     : [];
-  const preservedSkillIds = new Set(preservedSkillRows.map(({ id }) => id));
+  const preservedSkillIds = new Set([...preservedSkillRows.map(({ id }) => id), ...storedSkillReferenceIds(stored)]);
+  const retainedTags = forItemId ? await db.select({ id: itemTagLink.tagId }).from(itemTagLink).where(eq(itemTagLink.itemId, forItemId)) : [];
+  const tagWhere = await itemTagDiscoveryWhere(session.user.id, retainedTags.map(({ id }) => id), catalogScope ?? stored?.core.catalogScope);
+  const skillWhere = await catalogCandidateWhere("skill", skill, session.user.id, [...preservedSkillIds], isNull(skill.archivedAt));
+  const eligibleSkills = await db.select({ id: skill.id }).from(skill).where(skillWhere);
+  const eligibleIds = new Set(eligibleSkills.map(({ id }) => id));
   const [tags, locations, allSkills, relationships, sourceRows] = await Promise.all([
-    db.select({ name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),
+    db.select({ name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).where(tagWhere).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name)),
     db.select({ key: armorLocationReference.locationCode, label: armorLocationReference.locationName }).from(armorLocationReference).orderBy(asc(armorLocationReference.sortOrder)),
     db.select({
       id: skill.id,
@@ -590,14 +544,14 @@ export async function listItemAuthoringReferences(
       archivedAt: skill.archivedAt,
     }).from(skillExtension)
       .innerJoin(skill, eq(skill.id, skillExtension.skillId))
-      .where(eq(skillExtension.extensionType, "spell-construction"))
+      .where(and(eq(skillExtension.extensionType, "spell-construction"), skillWhere))
       .orderBy(asc(skill.name), asc(skill.id)),
   ]);
   return {
     tags,
     armorBodyLocations: locations,
     skills: allSkills
-      .filter((candidate) => candidate.archivedAt === null || preservedSkillIds.has(candidate.id))
+      .filter((candidate) => eligibleIds.has(candidate.id))
       .map((candidate) => ({
         id: candidate.id,
         name: candidate.name,
@@ -877,6 +831,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
   }));
   return {
     id: row.id,
+    isSystemCanon: row.isSystemCanon,
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,
@@ -951,7 +906,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
 }
 
 export async function findRelatedItems(search: string, excludeItemId?: number): Promise<RelatedItemCandidate[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   const conditions: SQL[] = [isNull(item.archivedAt)];
   if (excludeItemId) conditions.push(ne(item.id, excludeItemId));
   const needle = clean(search);
@@ -965,7 +920,7 @@ export async function findRelatedItems(search: string, excludeItemId?: number): 
     ammunitionRecoilResetInitiativeModifier: weaponProfile.ammunitionRecoilResetInitiativeModifier,
   }).from(item)
     .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(await itemDiscoveryWhere(session.user.id, ...conditions))
     .orderBy(asc(item.name), asc(item.id))
     .limit(20);
   return rows.map((candidate) => ({
@@ -976,7 +931,7 @@ export async function findRelatedItems(search: string, excludeItemId?: number): 
 }
 
 export async function findRelatedCreatures(search: string): Promise<RelatedCreatureCandidate[]> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   const needle = clean(search);
   const conditions: SQL[] = [isNull(creature.archivedAt)];
   if (needle) {
@@ -985,7 +940,7 @@ export async function findRelatedCreatures(search: string): Promise<RelatedCreat
       ilike(creature.canonicalId, `%${needle}%`),
     )!);
   }
-  return db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName, family: creature.family, creatureType: creature.creatureType }).from(creature).where(and(...conditions)).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(20);
+  return db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName, family: creature.family, creatureType: creature.creatureType }).from(creature).where(await catalogCandidateWhere("creature", creature, session.user.id, [], ...conditions)).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(20);
 }
 
 async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boolean, allowLegacyNonActivatedMagic = false): Promise<ItemAggregate> {
@@ -1435,11 +1390,11 @@ export async function createItemVariant(parentItemId: number, variantName: strin
 }
 
 export async function findMagazineItems(kind: "ammunition" | "magazine", search: string, excludeItemId?: number) {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
   const conditions: SQL[] = [isNull(item.archivedAt)];
   if (excludeItemId) conditions.push(ne(item.id, excludeItemId));
   if (search.trim()) conditions.push(or(ilike(item.name, `%${search.trim()}%`), ilike(item.canonicalId, `%${search.trim()}%`))!);
   conditions.push(kind === "magazine" ? sql`exists(select 1 from ${magazineProfile} where ${magazineProfile.itemId} = ${item.id})`
     : sql`(lower(trim(${item.recordType})) = 'ammunition' or exists(select 1 from ${weaponProfile} where ${weaponProfile.itemId} = ${item.id} and lower(trim(${weaponProfile.profileRecordType})) = 'ammunition'))`);
-  return db.select({ id: item.id, name: item.name }).from(item).where(and(...conditions)).orderBy(asc(item.name), asc(item.id)).limit(40);
+  return db.select({ id: item.id, name: item.name }).from(item).where(await itemDiscoveryWhere(session.user.id, ...conditions)).orderBy(asc(item.name), asc(item.id)).limit(40);
 }

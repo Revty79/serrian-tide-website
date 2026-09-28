@@ -118,7 +118,8 @@
     "validate:in-place-scroll-browser": "node --import tsx scripts/in-place-scroll-browser.test.ts",
     "db:import:canon": "node scripts/import-ststandalone-skills.mjs && node scripts/import-ststandalone-canon.mjs",
     "validate:race-authoring": "node --import tsx --test scripts/race-authoring-disposable.test.ts",
-    "validate:catalog-pass-three": "node --import ./scripts/register-test-css.mjs --import tsx --test src/features/catalog-visibility/*.test.ts src/features/races/*.test.ts src/features/creatures/*.test.ts src/features/skills/*.test.ts src/features/derived-abilities/*.test.ts src/features/authorization/shared-library-access.test.ts src/features/navigation/*.test.ts"
+    "validate:catalog-pass-three": "node --import ./scripts/register-test-css.mjs --import tsx --test src/features/catalog-visibility/*.test.ts src/features/races/*.test.ts src/features/creatures/*.test.ts src/features/skills/*.test.ts src/features/derived-abilities/*.test.ts src/features/authorization/shared-library-access.test.ts src/features/navigation/*.test.ts",
+    "validate:catalog-pass-four": "node --import ./scripts/register-test-css.mjs --import tsx --test src/features/catalog-visibility/*.test.ts src/features/races/*.test.ts src/features/creatures/*.test.ts src/features/skills/*.test.ts src/features/derived-abilities/*.test.ts src/features/authorization/shared-library-access.test.ts src/features/navigation/*.test.ts src/features/campaigns/*.test.ts src/features/items/*.test.ts src/features/shops/*.test.ts src/features/lifecycle/*.test.ts src/features/characters/item-ammunition-parity.test.ts src/features/characters/character-sheet-rules.test.ts src/features/characters/firearm-baseline-migration.test.ts src/features/tabletop-operations/firearm*.test.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.1",

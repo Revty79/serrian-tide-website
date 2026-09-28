@@ -53,6 +53,7 @@ export function SkillPathEditor({
     return uniqueIds
       .filter((id) => id !== skillId)
       .map((id) => hierarchy.skills.find((skill) => skill.id === id)!)
+      .filter((candidate) => candidate.canDiscover !== false)
       .sort((left, right) => left.name.localeCompare(right.name) || left.id - right.id)
       .slice(0, 80);
   }, [hierarchy, search, skillId]);

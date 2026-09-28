@@ -1,3 +1,5 @@
+import type { CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+
 export type CampaignInventoryCatalogFilter =
   | "all"
   | "weapon"
@@ -13,6 +15,8 @@ export type CampaignInventoryTag = {
 };
 
 export type CampaignInventoryItemRecord = {
+  catalogSource?: CatalogSourceLabel;
+  existingSelection?: boolean;
   id: number;
   canonicalId: string;
   name: string;

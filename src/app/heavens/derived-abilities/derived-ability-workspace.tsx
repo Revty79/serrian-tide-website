@@ -223,7 +223,7 @@ export function DerivedAbilityWorkspace({
         </div>
       </header>
       <div className="skills-workspace derived-abilities-workspace">
-        <aside className="skill-library">
+        <aside className="skill-library" data-preserve-scroll="master-content">
           <div className="skill-library__heading">
             <div><p>MASTER CONTENT</p><h2>Derived Ability Library</h2></div>
             <button
@@ -236,7 +236,7 @@ export function DerivedAbilityWorkspace({
               New Ability
             </button>
           </div>
-          <CatalogBrowseControl catalog="derivedAbility" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
+          <CatalogBrowseControl canManageActivation={canManageCanon} catalog="derivedAbility" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
           <div className="skill-library__search">
             <label htmlFor="derived-ability-search">Search</label>
             <input

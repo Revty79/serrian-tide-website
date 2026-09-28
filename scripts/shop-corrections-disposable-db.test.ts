@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -50,7 +50,8 @@ test("Shop commerce corrections rehearse against disposable migrated PostgreSQL"
     pool = new pg.Pool({ connectionString: databaseUrl });
     await migrate(drizzle(pool), { migrationsFolder: path.resolve(process.cwd(), "drizzle") });
     const ledger = await pool.query<{ count: number }>("select count(*)::int count from drizzle.__drizzle_migrations");
-    assert.equal(ledger.rows[0]?.count, 41);
+    const journal = JSON.parse(await readFile("drizzle/meta/_journal.json", "utf8")) as { entries: unknown[] };
+    assert.equal(ledger.rows[0]?.count, journal.entries.length);
     await pool.end();
     pool = null;
 

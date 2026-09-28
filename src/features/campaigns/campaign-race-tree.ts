@@ -1,4 +1,9 @@
+import type { CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+
 export type CampaignRaceEntry = {
+  catalogSource?: CatalogSourceLabel;
+  existingSelection?: boolean;
+  existingPlayableSelection?: boolean;
   id: number;
   name: string;
   size: string;
@@ -10,6 +15,12 @@ export type CampaignRaceNode = {
   selectable: boolean;
   children: CampaignRaceNode[];
 };
+
+/** Hidden world selections may retain playability only when it was already saved. */
+export function campaignPlayableRaceIds(races: readonly CampaignRaceEntry[], worldIds: readonly number[]): number[] {
+  const eligible = new Set(races.filter((race) => race.catalogSource !== "context" && (!race.existingSelection || race.existingPlayableSelection)).map(({ id }) => id));
+  return worldIds.filter((id) => eligible.has(id));
+}
 
 /** Keep parent context when a search or campaign subset contains only variants. */
 export function buildCampaignRaceTree(
@@ -49,7 +60,7 @@ export function buildCampaignRaceTree(
       .some((value) => value.toLowerCase().includes(query));
     const children = node.children.map((child) => filter(child, matches))
       .filter((child): child is CampaignRaceNode => child !== null);
-    const selectable = available === null || available.has(node.race.id);
+    const selectable = node.race.catalogSource !== "context" && (available === null || available.has(node.race.id));
     return (selectable && matches) || children.length
       ? { ...node, selectable, children }
       : null;
