@@ -111,6 +111,7 @@ test("Race Soak migration, independent variants, protection integration and auth
       const expected = beforeTransformationMigration[index].rows.map(({ body }) => ({ body: {
         ...body,
         ...(table === "race_forms" ? { transformation_json: null, access_mode: "unrestricted" } : {}),
+        ...(table === "campaign_character" ? { owner_character_id: null } : {}),
         ...(["races", "creatures", "skill", "derived_ability", "items"].includes(table)
           ? { is_system_canon: false, canon_marked_by_user_id: null, canon_marked_at: null } : {}),
       } }));

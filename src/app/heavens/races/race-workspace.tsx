@@ -1,4 +1,5 @@
 "use client";
+import type { CreatedEvolutionDestination } from "@/features/evolutions/evolution-destination";
 import { CanonDesignationControl } from "@/features/catalog-visibility/canon-designation-control";
 import { CatalogBrowseControl } from "@/features/catalog-visibility/catalog-browse-control";
 import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
@@ -118,13 +119,14 @@ export function RaceWorkspace({
   const [library, setLibrary] = useState(initialLibrary);
   const libraryRequest = useRef(0);
   const [draft, setDraft] = useState<RaceDraft | RaceAggregate | null>(null);
+  const [evolutionContext, setEvolutionContext] = useState<CreatedEvolutionDestination | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingEditor, setLoadingEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const [pending, setPending] = useState<{ kind: "open"; race: Pick<RaceSummary, "id"> } | { kind: "new" } | { kind: "variant"; parentId: number; name: string } | null>(null);
+  const [pending, setPending] = useState<{ kind: "open"; race: Pick<RaceSummary, "id">; tab?: Tab } | { kind: "new" } | { kind: "variant"; parentId: number; name: string } | null>(null);
   const [creatingVariant, setCreatingVariant] = useState(false);
   const operationBusy = useRef(false);
   const busy = saving || loadingEditor || creatingVariant;
@@ -151,7 +153,7 @@ export function RaceWorkspace({
     return () => window.clearTimeout(timer);
   }, [filters, loadLibrary, preserveScroll]);
 
-  async function openRace(summary: Pick<RaceSummary, "id">) {
+  async function openRace(summary: Pick<RaceSummary, "id">, tab: Tab = "overview") {
     if (operationBusy.current) return;
     operationBusy.current = true;
     await preserveScroll(async () => {
@@ -162,7 +164,8 @@ export function RaceWorkspace({
         if (!aggregate) throw new Error("Race not found.");
         setDraft(aggregate);
         setDirty(false);
-        setActiveTab("overview");
+        setActiveTab(tab);
+        setEvolutionContext(null);
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Race could not be loaded." });
       } finally {
@@ -172,6 +175,19 @@ export function RaceWorkspace({
     });
   }
 
+  async function openEvolutionDestination(result: CreatedEvolutionDestination) {
+    const saved = await getRace(result.destinationId);
+    if (!saved) throw new Error("The destination was created but its editor could not be loaded. Retry opening it.");
+    setDraft(saved); setDirty(false); setActiveTab("overview"); setEvolutionContext(result);
+    setFeedback({ kind: "success", message: `${result.destinationName} was created from ${result.sourceName} and linked as Evolution path #${result.pathId}. Edit ${result.destinationName} below to define how the evolved stage differs.` });
+    await loadLibrary(filters);
+  }
+  function returnToEvolutionSource() {
+    if (!evolutionContext) return;
+    if (dirty) setPending({kind:"open",race:{id:evolutionContext.sourceId},tab:"evolutions"});
+    else void openRace({id:evolutionContext.sourceId},"evolutions");
+  }
+
   function chooseRace(summary: Pick<RaceSummary, "id">) {
     if (operationBusy.current) return;
     if (dirty) void preserveScroll(() => setPending({ kind: "open", race: summary }));
@@ -179,6 +195,7 @@ export function RaceWorkspace({
   }
 
   function createNew() {
+    setEvolutionContext(null);
     setDraft(newRaceDraft());
     setFilters((current) => ({ ...current, archived: false, page: 1 }));
     setDirty(false);
@@ -198,7 +215,7 @@ export function RaceWorkspace({
     if (!next) return;
     if (next.kind === "new") createNew();
     else if (next.kind === "variant") void createVariantNow(next.parentId, next.name);
-    else void openRace(next.race);
+    else void openRace(next.race, next.tab);
   }
 
   async function createVariantNow(parentId: number, name: string): Promise<boolean> {
@@ -355,9 +372,10 @@ export function RaceWorkspace({
               </div>
             </header>
             {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
+            {evolutionContext && draft.id === evolutionContext.destinationId ? <aside className="skill-editor__feedback" aria-label="Evolution destination context"><p>Created as an Evolution destination from {evolutionContext.sourceName}. This is an independent definition.</p><button className="st-button" type="button" disabled={saving || loadingEditor} onClick={returnToEvolutionSource}>Return to source Evolutions</button></aside> : null}
             <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
             {activeTab === "variants" ? <div className="skill-editor__content race-editor__content"><Variants key={draft.id ?? "new"} draft={draft} busy={busy} archived={isArchived} onOpen={chooseRace} onCreate={requestVariant} /></div> : null}
-            {activeTab === "evolutions" ? <div className="skill-editor__content race-editor__content"><RaceEvolutionsEditor key={draft.id ?? "new"} sourceRaceId={draft.id} dirty={dirty || busy} archived={isArchived} /></div> : null}
+            {activeTab === "evolutions" ? <div className="skill-editor__content race-editor__content"><RaceEvolutionsEditor key={draft.id ?? "new"} sourceRaceId={draft.id} onDestinationCreated={openEvolutionDestination} dirty={dirty || busy} archived={isArchived} /></div> : null}
             <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived || busy} hidden={activeTab === "variants" || activeTab === "evolutions"}>
               {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}

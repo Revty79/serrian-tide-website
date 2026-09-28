@@ -24,6 +24,14 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     if (!parent) throw new Error("Parent Race not found. Save a Race before creating a Variant.");
     assertCanEditSharedLibraryRoot({ userId: actorUserId, roles: assignments.map(({ role }) => role) }, parent, "Race");
     if (parent.archivedAt) throw new Error("Restore the parent Race before creating a Variant.");
+    return copyRaceDefinitionInTransaction(tx, parent, { name, actorUserId, parentRaceId, copyEvolutions: true });
+  });
+}
+
+/** Caller locks and authorizes the source. Copies normal mechanics independently. */
+export async function copyRaceDefinitionInTransaction(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], parent: typeof race.$inferSelect,
+  options: { name: string; actorUserId: string; parentRaceId: number | null; copyEvolutions: boolean }): Promise<number> {
+  const parentRaceId = parent.id, { name, actorUserId } = options;
     const [created] = await tx.insert(race).values({
       ...parent,
       isSystemCanon: false,
@@ -31,7 +39,7 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
       canonMarkedAt: null,
       id: undefined,
       name,
-      parentRaceId,
+      parentRaceId: options.parentRaceId,
       createdByUserId: actorUserId,
       sourceSystem: null,
       sourceExternalId: null,
@@ -54,7 +62,6 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     // Copy saved definitions exactly, including retained archived Skill references.
     if (attacks.length) await tx.insert(raceNaturalAttack).values(attacks.map(row => ({ ...row, id: undefined, raceId: created.id })));
     await cloneRaceFormsInTransaction(tx, parentRaceId, created.id);
-    await cloneRaceEvolutionsInTransaction(tx, parentRaceId, created.id);
+    if (options.copyEvolutions) await cloneRaceEvolutionsInTransaction(tx, parentRaceId, created.id);
     return created.id;
-  });
 }

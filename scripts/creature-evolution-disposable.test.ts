@@ -90,6 +90,7 @@ async function main() {
     run("scripts/creature-evolution-db.test.mjs");
     run("scripts/evolution-pass-two-db.test.mjs");
     run("scripts/evolution-pass-three-db.test.mjs");
+    run("scripts/evolution-pass-four-db.test.mjs");
     if (!process.argv.includes("--focused")) {
       pool=new pg.Pool({connectionString:url("serrian_race_authoring_dev")}); await migrate(drizzle(pool),{migrationsFolder:"drizzle"}); await pool.end(); pool=null;
       for (const script of ["scripts/race-forms-db.test.mjs","scripts/race-form-mechanics-db.test.mjs","scripts/race-form-preview-db.test.mjs"]) run(script,{DATABASE_URL:url("serrian_race_authoring_dev"),SERRIAN_DISPOSABLE_RACE_AUTHORING:"true"});

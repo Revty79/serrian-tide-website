@@ -1,4 +1,5 @@
 "use client";
+import type { CreatedEvolutionDestination } from "@/features/evolutions/evolution-destination";
 import { CanonDesignationControl } from "@/features/catalog-visibility/canon-designation-control";
 import { CatalogBrowseControl } from "@/features/catalog-visibility/catalog-browse-control";
 import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
@@ -114,13 +115,14 @@ export function CreatureWorkspace({
   const [facets, setFacets] = useState(initialFacets);
   const [references, setReferences] = useState(initialReferences);
   const [draft, setDraft] = useState<CreatureDraft | CreatureAggregate | null>(null);
+  const [evolutionContext, setEvolutionContext] = useState<CreatedEvolutionDestination | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [dirty, setDirty] = useState(false);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingEditor, setLoadingEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const [pending, setPending] = useState<{ kind: "open"; creature: Pick<CreatureSummary, "id"> } | { kind: "new" } | null>(null);
+  const [pending, setPending] = useState<{ kind: "open"; creature: Pick<CreatureSummary, "id">; tab?: Tab } | { kind: "new" } | null>(null);
   const preserveScroll = useInPlaceScrollPreservation();
   const archivedAt = draft && "archivedAt" in draft ? draft.archivedAt : null;
   const archiveReason = draft && "archiveReason" in draft ? draft.archiveReason : "";
@@ -174,7 +176,7 @@ export function CreatureWorkspace({
     setReferences(await listChallengeRatingReferences());
   }
 
-  async function openCreature(summary: Pick<CreatureSummary, "id">) {
+  async function openCreature(summary: Pick<CreatureSummary, "id">, tab: Tab = "overview") {
     await preserveScroll(async () => {
       setLoadingEditor(true);
       setFeedback(null);
@@ -183,7 +185,8 @@ export function CreatureWorkspace({
         if (!aggregate) throw new Error("Creature not found.");
         setDraft(aggregate);
         setDirty(false);
-        setActiveTab("overview");
+        setActiveTab(tab);
+        setEvolutionContext(null);
       } catch (error) {
         setFeedback({ kind: "error", message: error instanceof Error ? error.message : "That Creature could not be loaded." });
       } finally {
@@ -192,12 +195,26 @@ export function CreatureWorkspace({
     });
   }
 
+  async function openEvolutionDestination(result: CreatedEvolutionDestination) {
+    const saved = await getCreature(result.destinationId);
+    if (!saved) throw new Error("The destination was created but its editor could not be loaded. Retry opening it.");
+    setDraft(saved); setDirty(false); setActiveTab("overview"); setEvolutionContext(result);
+    setFeedback({ kind: "success", message: `${result.destinationName} was created from ${result.sourceName} and linked as Evolution path #${result.pathId}. Edit ${result.destinationName} below to define how the evolved stage differs.` });
+    await loadLibrary(filters);
+  }
+  function returnToEvolutionSource() {
+    if (!evolutionContext) return;
+    if (dirty) setPending({kind:"open",creature:{id:evolutionContext.sourceId},tab:"evolutions"});
+    else void openCreature({id:evolutionContext.sourceId},"evolutions");
+  }
+
   function chooseCreature(summary: Pick<CreatureSummary, "id">) {
     if (dirty) void preserveScroll(() => setPending({ kind: "open", creature: summary }));
     else void openCreature(summary);
   }
 
   function createNew() {
+    setEvolutionContext(null);
     try {
       setDraft(newCreatureDraft(references));
       setFilters((current) => ({ ...current, archived: false, page: 1 }));
@@ -219,7 +236,7 @@ export function CreatureWorkspace({
     setPending(null);
     if (!next) return;
     if (next.kind === "new") createNew();
-    else void openCreature(next.creature);
+    else void openCreature(next.creature, next.tab);
   }
 
   function change(next: CreatureDraft) {
@@ -318,7 +335,8 @@ export function CreatureWorkspace({
                     await preserveScroll(async () => { await loadLibrary(filters); });
                   }} /> : null}{draft.id ? <LifecycleControls target={{ entityKind: "creature", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}<button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>{saving ? "Saving…" : "Save Creature"}</button></div></header>
         {liveChallengeRating.error ? <p className="skill-editor__feedback is-error">{liveChallengeRating.error}</p> : null}
-        <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
+        {evolutionContext && draft.id === evolutionContext.destinationId ? <aside className="skill-editor__feedback" aria-label="Evolution destination context"><p>Created as an Evolution destination from {evolutionContext.sourceName}. This is an independent definition.</p><button className="st-button" type="button" disabled={saving || loadingEditor} onClick={returnToEvolutionSource}>Return to source Evolutions</button></aside> : null}
+            <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
         <fieldset className="skill-editor__content creature-editor__content lifecycle-editor-fields" disabled={isArchived}>
           {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
           {activeTab === "stats" ? <Stats draft={draft} onChange={change} /> : null}
@@ -326,7 +344,7 @@ export function CreatureWorkspace({
           {activeTab === "combat" ? <Combat draft={draft} onChange={change} /> : null}
           {activeTab === "special" ? <Special draft={draft} onChange={change} /> : null}
           {activeTab === "forms" ? <CreatureFormsEditor draft={draft} onChange={change} /> : null}
-          {activeTab === "evolutions" ? <CreatureEvolutionsEditor key={draft.id ?? "new"} sourceCreatureId={draft.id} dirty={dirty || saving} archived={isArchived} /> : null}
+          {activeTab === "evolutions" ? <CreatureEvolutionsEditor key={draft.id ?? "new"} sourceCreatureId={draft.id} onDestinationCreated={openEvolutionDestination} dirty={dirty || saving} archived={isArchived} /> : null}
           {activeTab === "cr" ? <VariantsAndCr draft={liveChallengeRating.draft ?? draft} references={references} onChange={change} onOpen={(summary) => void openCreature(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
           {activeTab === "preview" ? <Preview draft={liveChallengeRating.draft ?? draft} /> : null}
         </fieldset>

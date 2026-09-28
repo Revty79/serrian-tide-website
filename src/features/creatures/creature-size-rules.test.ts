@@ -265,6 +265,7 @@ test("the controlled HP backfill imports the canonical model and is dry-run by d
 
 test("master save/load, lineage, and NPC snapshots carry all modifier steps", () => {
   const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
+  const cloneService = readFileSync("src/features/creatures/creature-clone-service.ts", "utf8");
   const definition = readFileSync("src/features/creatures/creature-definition.ts", "utf8");
   const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
   const constructor = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
@@ -272,7 +273,7 @@ test("master save/load, lineage, and NPC snapshots carry all modifier steps", ()
   for (const field of ["hpMultiplierSteps", "baseMovementSteps", "baseMagicSteps"]) {
     assert.match(definition, new RegExp(`${field}: wholeNumber\\(input\\.core\\.${field} \\?\\? 0`));
     assert.match(masterActions, new RegExp(`${field}: creature\\.${field}`));
-    assert.match(masterActions, new RegExp(`${field}: parent\\.${field}`));
+    assert.match(cloneService, new RegExp(`${field}: parent\\.${field}`));
     assert.match(constructor, new RegExp(`${field}: nonnegativeSteps\\(core\\.${field}`));
   }
   assert.match(constructor, /core: \{ \.\.\.template\.core \}/);
@@ -284,6 +285,7 @@ test("master save/load, lineage, and NPC snapshots carry all modifier steps", ()
 test("master, derived, and NPC persistence remain server-authoritative for HP", () => {
   const schema = readFileSync("src/db/creature-schema.ts", "utf8");
   const masterActions = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
+  const cloneService = readFileSync("src/features/creatures/creature-clone-service.ts", "utf8");
   const npcActions = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
   const constructor = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
   const anatomy = readFileSync("src/features/active-state/anatomy.ts", "utf8");
@@ -293,8 +295,8 @@ test("master, derived, and NPC persistence remain server-authoritative for HP", 
   assert.match(masterActions, /const hpModel = resolveCreatureHpModel\(normalized, normalized\.hpPools\)/);
   assert.match(masterActions, /normalized\.core\.totalHp = hpModel\.calculatedTotalHp/);
   assert.match(masterActions, /normalized\.hpPools = hpModel\.pools/);
-  assert.match(masterActions, /const parentHpModel = resolveCreatureHpModel/);
-  assert.match(masterActions, /totalHp: parentHpModel\.calculatedTotalHp/);
+  assert.match(cloneService, /const parentHpModel = resolveCreatureHpModel/);
+  assert.match(cloneService, /totalHp: parentHpModel\.calculatedTotalHp/);
   assert.match(constructor, /normalizeCreatureNpcSnapshot/);
   assert.match(constructor, /normalizeCreatureHpSnapshot/);
   assert.match(npcActions, /currentSnapshot: parseSnapshot[\s\S]*profile\.hpAdjustment/);

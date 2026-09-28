@@ -78,15 +78,27 @@ test("Creature authoring preserves pre-migration records and round-trips through
     await pool.query("update campaign_creature_npc_profile set current_snapshot_json=$1 where character_id=$2", [legacyFormsSnapshot, characterId]);
     const accessTables = (await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows as Array<{ tablename: string }>;
     const accessBefore = await Promise.all(accessTables.map(({ tablename }) => pool!.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)));
-    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
+    // Prove Form Access in isolation before later ownership/Evolution migrations add columns.
+    const throughAccessFolder = path.join(root, "through-access"); await mkdir(path.join(throughAccessFolder, "meta"), { recursive: true });
+    const throughAccessEntries = journal.entries.filter((entry: { idx: number }) => entry.idx < 77);
+    await writeFile(path.join(throughAccessFolder, "meta/_journal.json"), JSON.stringify({ ...journal, entries: throughAccessEntries }));
+    for (const entry of throughAccessEntries) await copyFile(path.resolve("drizzle", `${entry.tag}.sql`), path.join(throughAccessFolder, `${entry.tag}.sql`));
+    await migrate(drizzle(pool), { migrationsFolder: throughAccessFolder });
     for (const [index, { tablename }] of accessTables.entries()) {
       const expected = ["race_forms", "creature_forms"].includes(tablename) ? accessBefore[index].rows.map(row => ({ body: { ...row.body, access_mode: "unrestricted" } })) : accessBefore[index].rows;
       assert.deepEqual((await pool.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)).rows, expected, `${tablename} preserved by Form Access migration`);
     }
     for (const table of ["race_form_access_requirements", "creature_form_access_requirements"]) assert.equal((await pool.query(`select count(*)::int count from ${table}`)).rows[0].count, 0);
     console.log(`PASS: 0076 preserves all ${accessTables.length} tables, defaults both existing Form owners to Unrestricted, and leaves old NPC snapshots byte-for-byte unchanged`);
+    await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
     for (const table of ["race_natural_protections", "race_natural_protection_locations"]) assert.equal((await pool.query(`select count(*)::int count from ${table}`)).rows[0].count, 0, "Natural Protection migration never backfills Race data");
-    for (const [index, table] of tables.entries()) assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' - 'parent_race_id' - 'anatomy_json' body from ${table} t order by id`)).rows, before[index].rows, `${table} legacy data must survive unchanged`);
+    for (const [index, table] of tables.entries()) {
+      const expected = before[index].rows.map(({ body }) => ({ body: {
+        ...body,
+        ...(["races", "creatures"].includes(table) ? { is_system_canon: false, canon_marked_by_user_id: null, canon_marked_at: null } : {}),
+      } }));
+      assert.deepEqual((await pool.query(`select to_jsonb(t) - 'authoring_json' - 'interaction_rules_json' - 'parent_race_id' - 'anatomy_json' body from ${table} t order by id`)).rows, expected, `${table} legacy data must survive unchanged`);
+    }
     assert.equal((await pool.query("select count(*)::int count from races where anatomy_json is not null")).rows[0].count, 0, "Existing Race anatomy keeps its humanoid default");
     assert.equal((await pool.query("select count(*)::int count from race_natural_attacks")).rows[0].count, 0, "Natural Attacks are never inferred during migration");
     assert.equal((await pool.query("select authoring_json from creature_attacks where creature_id=$1", [creatureId])).rows[0].authoring_json, null);

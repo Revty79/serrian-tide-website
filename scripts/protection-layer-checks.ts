@@ -109,7 +109,7 @@ export async function checkProtectionLayers(page: Page, input: { base: string; a
   assert.deepEqual((await pool.query("select baseline_snapshot_json,current_snapshot_json from campaign_creature_npc_profile where character_id=$1", [npcId])).rows[0], npcBefore);
   assert.deepEqual((await pool.query("select creature_snapshot_json from campaign_session_encounter_participant where encounter_id=$1 and character_id=$2", [encounterId, occurrence.character_id])).rows[0].creature_snapshot_json, occurrence.creature_snapshot_json);
   await page.goto(`${base}/heavens/creatures`);
-  await page.locator(".skill-library__row").filter({ hasText: "Authoring Test Creature" }).click();
+  await page.locator(".skill-library__row").filter({ has: page.locator(".skill-library__row-name", { hasText: /^Authoring Test Creature$/ }) }).click();
   await page.getByRole("button", { name: "Health & Protection", exact: true }).click();
   assert.equal(await page.getByLabel("Natural Armor", { exact: true }).inputValue(), "3");
   assert.equal(await page.getByLabel("Natural Soak", { exact: true }).inputValue(), "2");

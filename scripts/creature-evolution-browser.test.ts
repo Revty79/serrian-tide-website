@@ -47,12 +47,12 @@ async function main() {
       await page.locator("#creature-search").fill("Evolution Young Drake");
       await page.locator(".skill-library__row").filter({hasText:"Evolution Young Drake"}).click();
       await page.getByRole("button",{name:"Evolutions",exact:true}).click();
-      await page.getByRole("button",{name:"Add Evolution",exact:true}).waitFor();
+      await page.getByRole("button",{name:"Link Existing Destination",exact:true}).waitFor();
     };
     await openSource();
     const area=page.getByRole("region",{name:"Evolution paths",exact:true});
     const dialog=page.getByRole("dialog");
-    await area.getByRole("button",{name:"Add Evolution",exact:true}).click();
+    await area.getByRole("button",{name:"Link Existing Destination",exact:true}).click();
     await dialog.getByLabel("Evolution name",{exact:true}).fill("Browser Frost branch");
     await dialog.getByLabel("Find destination Creature",{exact:true}).fill("Evolution Frost Drake");
     await dialog.getByLabel("Destination Creature",{exact:true}).selectOption(String(destination));
@@ -79,7 +79,7 @@ async function main() {
     await dialog.getByRole("button",{name:"Save Evolution",exact:true}).click();
     await area.getByText("Notes: Retained archived destination.",{exact:true}).waitFor();
     await page.setViewportSize({width:390,height:844});
-    await area.getByRole("button",{name:"Add Evolution",exact:true}).click();
+    await area.getByRole("button",{name:"Link Existing Destination",exact:true}).click();
     await dialog.getByLabel("Evolution name",{exact:true}).fill("Browser exact variant");
     await dialog.getByLabel("Find destination Creature",{exact:true}).fill("Evolution Frost Drake");
     await dialog.getByText(/Showing up to 30/).waitFor();
@@ -133,7 +133,7 @@ async function main() {
       await page.getByRole("button",{name:"Evolutions",exact:true}).click();
       await area.getByRole("heading",{name:pathName,exact:true}).waitFor();
       if(kind==="race") {
-        await area.getByRole("button",{name:"Add Evolution",exact:true}).click();
+        await area.getByRole("button",{name:"Link Existing Destination",exact:true}).click();
         await dialog.getByLabel("Evolution name",{exact:true}).fill("Browser Race branch");
         await dialog.getByLabel("Find destination Race",{exact:true}).fill("Evolution Elf");
         await dialog.getByLabel("Destination Race",{exact:true}).selectOption(String(raceDestination));
@@ -257,6 +257,86 @@ async function main() {
       await page.screenshot({path:path.join(artifacts,`${kind}-execution-history-phone.png`)});
       await dialog.getByRole("button",{name:"Close preview",exact:true}).click();
     }
+    // Pass 4: create complete destinations, including a lost response followed by a page reload.
+    const destinationUser="destination-god";
+    await pool.query('update "user" set email_verified=true,username=$1,display_username=$1 where id=$1',[destinationUser]);
+    await pool.query("insert into account(id,issuer,account_id,provider_id,user_id,password,updated_at) values($1,'local:credential',$2,'credential',$2,$3,now())",[`${destinationUser}-credential`,destinationUser,await hashPassword(password)]);
+    await context.request.post(`${base}/api/auth/sign-out`,{headers:{Origin:base},data:{}});
+    assert.equal((await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${destinationUser}@example.invalid`,password}})).status(),200);
+    for(const kind of ["race","creature"] as const) {
+      const label=kind === "race" ? "Race" : "Creature", sourceName=`Destination Source ${label}`;
+      const rootTable=kind === "race" ? "races" : "creatures",nameColumn=kind === "race" ? "name" : "canonical_name";
+      const source=(await query(`select id from ${rootTable} where ${nameColumn}=$1`,[sourceName]))[0].id;
+      await pool.query("insert into catalog_visibility_scope_activation(catalog_key,activated_by_user_id,activation_method) values($1,'destination-admin','manual') on conflict do nothing",[kind]);
+      await pool.query(`update user_catalog_preferences set ${kind}_visibility='canon' where user_id=$1`,[destinationUser]);
+      async function openSource() {
+        await page.goto(`${base}/heavens/${kind}s`);
+        await page.locator(`#${kind}-search`).fill(sourceName);
+        await page.locator(".skill-library__row").filter({has:page.locator(".skill-library__row-name").filter({hasText:sourceName})}).click();
+        await page.getByRole("button",{name:"Evolutions",exact:true}).click();
+      }
+      for(const width of [1365,390]) {
+        await page.setViewportSize({width,height:width===390?844:1000});await openSource();
+        await area.getByRole("button",{name:"Create Evolution Destination",exact:true}).waitFor();
+        await area.getByRole("button",{name:"Link Existing Destination",exact:true}).click();
+        await dialog.getByText(`The current ${label} is excluded because an Evolution must lead to a different saved ${label} definition.`,{exact:true}).waitFor();
+        await dialog.getByRole("button",{name:"Cancel",exact:true}).click();
+        await area.getByRole("button",{name:"Create Evolution Destination",exact:true}).click();
+        const name=`Browser ${label} destination ${width}`;
+        await dialog.getByLabel(`Destination ${label} name`,{exact:true}).fill(name);
+        assert.equal(await dialog.getByLabel("Evolution path name",{exact:true}).inputValue(),`Evolve into ${name}`);
+        if(kind==="creature") {
+          const canonical=dialog.getByLabel("Destination canonical ID",{exact:true});
+          assert.match(await canonical.inputValue(),/^CREATURE-[A-F0-9-]+$/);assert.equal(await canonical.getAttribute("readonly"),"");
+          // The UI displays an actionable canonical conflict without leaving a partial copy.
+          if(width===1365) {
+            const id=await canonical.inputValue();
+            const conflict=(await query("insert into creatures(canonical_id,canonical_name,size) values($1,'Browser canonical conflict','Medium') returning id",[id]))[0].id;
+            await dialog.getByRole("button",{name:"Create and open destination",exact:true}).click();
+            await dialog.getByRole("alert").filter({hasText:/canonical ID already exists/}).waitFor();
+            assert.equal((await query("select count(*)::int n from creatures where canonical_name=$1",[name]))[0].n,0);
+            await pool.query("delete from creatures where id=$1",[conflict]);
+          }
+        }
+        const submit=dialog.getByRole("button",{name:"Create and open destination",exact:true});
+        await submit.scrollIntoViewIfNeeded();
+        const bounds=await dialog.boundingBox();assert.ok(bounds&&bounds.x>=0&&bounds.x+bounds.width<=width+1&&bounds.y>=0&&bounds.y+bounds.height<=(width===390?845:1001));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+        await page.screenshot({path:path.join(artifacts,`${kind}-create-destination-${width}.png`)});
+        if(width===390) {
+          let dropped=false;
+          await page.route(`**/heavens/${kind}s`,async route=>{
+            if(!dropped && route.request().method()==="POST" && route.request().headers()["next-action"]) {
+              dropped=true;await route.fetch();await route.abort("connectionfailed");
+            } else await route.continue();
+          });
+          await submit.click();await dialog.getByRole("button",{name:"Retry creation",exact:true}).waitFor();
+          await page.unroute(`**/heavens/${kind}s`);
+          assert.equal(dropped,true);
+          await openSource();
+          await area.getByRole("button",{name:"Create Evolution Destination",exact:true}).click();
+          await dialog.getByRole("button",{name:"Retry creation",exact:true}).click();
+        } else await submit.click();
+        await page.locator(".skill-editor__header").getByRole("heading",{name,exact:true}).waitFor();
+        const records=await query(`select id from ${rootTable} where ${nameColumn}=$1`,[name]);assert.equal(records.length,1,"lost responses and duplicate retry cannot duplicate a destination");
+        assert.equal((await query(`select count(*)::int n from ${kind}_evolution_paths where source_${kind}_id=$1 and destination_${kind}_id=$2`,[source,records[0].id]))[0].n,1);
+        await page.getByRole("complementary",{name:"Evolution destination context"}).waitFor();
+        await page.screenshot({path:path.join(artifacts,`${kind}-created-editor-${width}.png`)});
+        const nameField=page.locator(".skill-editor").getByLabel(kind==="race"?"Name":"Canonical Name",{exact:true});
+        await nameField.fill(`${name} unsaved`);
+        await page.getByRole("button",{name:"Return to source Evolutions",exact:true}).click();
+        await page.getByRole("button",{name:"Keep Editing",exact:true}).click();
+        assert.equal(await nameField.inputValue(),`${name} unsaved`);
+        await page.getByRole("button",{name:"Return to source Evolutions",exact:true}).click();
+        await page.getByRole("button",{name:"Discard Changes",exact:true}).click();
+        await area.getByRole("heading",{name:`Evolve into ${name}`,exact:true}).waitFor();
+        await area.getByRole("button",{name:`Edit Evolve into ${name}`,exact:true}).click();
+        await dialog.getByLabel("Evolution name",{exact:true}).fill(`Edited ${name}`);
+        await dialog.getByRole("button",{name:"Save Evolution",exact:true}).click();
+        await area.getByRole("heading",{name:`Edited ${name}`,exact:true}).waitFor();
+      }
+    }
+    console.log("PASS: Pass 4 Race/Creature destination creation, desktop/390px scrolling, canonical validation, full editor navigation, canon-only views, unsaved-edit-safe return, ordinary path editing, lost response and page-reload idempotency.");
     assert.deepEqual(errors,[]);
     console.log("PASS: real Race and Creature persistent execution, Race permanent adjustment authoring, health acknowledgement, event history, desktop/390px controls; real Race and Creature requirements AND/OR authoring, saved reload, Campaign G.O.D. eligibility and 390px scrolling; Creature authoring UI add/edit/reorder/reload/remove; exact variant selection; retained archived destination; phone dialog scrolling and shared theme; Forms and NPC snapshots unchanged; no browser errors.");
   } catch(error) {

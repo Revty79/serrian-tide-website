@@ -67,6 +67,14 @@ function assertVersion(stored: { version: number } | undefined, expectedVersion:
   if (!stored || stored.version !== expectedVersion) throw new Error("This Evolution path changed or was removed. Reload Evolutions before continuing.");
 }
 
+/** Caller authorizes/locks source and validates destination in the same transaction. */
+export async function insertRaceEvolutionInTransaction(tx: Transaction, input: EvolutionPathInput) {
+  const values = normalizeEvolutionPath(input);
+  const [order] = await tx.select({ next: sql<number>`coalesce(max(${path.sortOrder}), -1) + 1` }).from(path).where(eq(path.sourceRaceId, values.sourceRaceId));
+  const [created] = await tx.insert(path).values({ ...values, sortOrder: order.next }).returning({ id: path.id, version: path.version });
+  return created;
+}
+
 export async function saveRaceEvolution(input: EvolutionPathInput, actor: SharedLibraryActor) {
   const values = normalizeEvolutionPath(input);
   const visibility = await getCatalogBrowseState(actor.userId, "race");
@@ -83,8 +91,7 @@ export async function saveRaceEvolution(input: EvolutionPathInput, actor: Shared
     if (stored) {
       await tx.update(path).set({ ...values, version: stored.version + 1, updatedAt: new Date() }).where(eq(path.id, stored.id));
     } else {
-      const [order] = await tx.select({ next: sql<number>`coalesce(max(${path.sortOrder}), -1) + 1` }).from(path).where(eq(path.sourceRaceId, values.sourceRaceId));
-      await tx.insert(path).values({ ...values, sortOrder: order.next });
+      await insertRaceEvolutionInTransaction(tx, input);
     }
     return readRaceEvolutionsInTransaction(tx, values.sourceRaceId);
   });

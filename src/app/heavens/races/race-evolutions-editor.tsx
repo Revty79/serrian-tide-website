@@ -1,4 +1,6 @@
 "use client";
+import { EvolutionDestinationDialog } from "../evolution-destination-dialog";
+import type { CreatedEvolutionDestination } from "@/features/evolutions/evolution-destination";
 import { RaceEvolutionTransitionEditor } from "./race-evolution-transition-editor";
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -7,7 +9,8 @@ import { getRaceEvolutions, reorderEvolutionPaths, removeEvolutionPath, saveEvol
 import styles from "../creatures/creature-evolutions.module.css";
 import { EvolutionEligibilityDialog, EvolutionRequirementsDialog } from "../evolution-requirements-editor";
 
-export function RaceEvolutionsEditor({ sourceRaceId, dirty, archived }: { sourceRaceId?: number; dirty: boolean; archived: boolean }) {
+export function RaceEvolutionsEditor({ sourceRaceId, dirty, archived, onDestinationCreated }: { sourceRaceId?: number; dirty: boolean; archived: boolean; onDestinationCreated: (result: CreatedEvolutionDestination) => Promise<void> }) {
+  const [creating, setCreating] = useState(false);
   const [paths, setPaths] = useState<RaceEvolutionPath[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,12 +52,14 @@ export function RaceEvolutionsEditor({ sourceRaceId, dirty, archived }: { source
   return <section className={styles.area} aria-label="Evolution paths">
     <h3>Evolutions</h3>
     <p>Define possible progressions from this Race to another saved Race. Forms are alternate states within a definition; Evolutions connect different definitions.</p>
+    <p>Create Evolution Destination makes a new full Race from this source and opens its editor. Link Existing Destination is the advanced option for a Race that already exists.</p>
     <p>Paths and requirements save separately. Eligibility previews check saved individual facts without changing them. Checking eligibility does not perform an Evolution.</p>
     {!sourceRaceId ? <p>Save this Race before adding Evolution paths.</p> : <>
       {dirty ? <p>Save your Race changes before editing Evolutions.</p> : null}
       {archived ? <p>Restore this Race to edit its Evolution paths.</p> : !loading && !canEdit ? <p>You can view these paths. Editing follows the source Race&apos;s authoring permissions.</p> : null}
       <div className={styles.actions}>
-        <button className="st-button is-primary" type="button" disabled={disabled} onClick={() => setEditing({ path: null })}>Add Evolution</button>
+        <button className="st-button is-primary" type="button" disabled={disabled} onClick={() => setCreating(true)}>Create Evolution Destination</button>
+        <button className="st-button" type="button" disabled={disabled} onClick={() => setEditing({ path: null })}>Link Existing Destination</button>
         <button className="st-button" type="button" disabled={busy || loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}>Reload Evolutions</button>
       </div>
       {error ? <p role="alert">{error}</p> : null}
@@ -78,6 +83,7 @@ export function RaceEvolutionsEditor({ sourceRaceId, dirty, archived }: { source
           </div>
         </li>)}
       </ol>}
+      {creating ? <EvolutionDestinationDialog kind="race" sourceId={sourceRaceId} onClose={() => setCreating(false)} onCreated={onDestinationCreated} /> : null}
       {editing ? <EvolutionDialog sourceRaceId={sourceRaceId} path={editing.path} onClose={() => setEditing(null)} onSaved={next => saved(next, "Evolution path saved.")} /> : null}
       {removing ? <RemoveDialog path={removing} onClose={() => setRemoving(null)} onSaved={next => saved(next, "Evolution path removed.")} /> : null}
       {requirements ? <EvolutionRequirementsDialog kind="race" path={requirements} onClose={() => setRequirements(null)} onSaved={next => saved(next,"Evolution requirements saved.")} /> : null}
@@ -122,7 +128,9 @@ function EvolutionDialog({ sourceRaceId, path, onClose, onSaved }: {
   }
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="evolution-dialog-title" onCancel={event => { if (busy) event.preventDefault(); else onClose(); }}>
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
-      <h3 id="evolution-dialog-title">{path ? "Edit Evolution" : "Add Evolution"}</h3>
+      <h3 id="evolution-dialog-title">{path ? "Edit Evolution" : "Link Existing Destination"}</h3>
+      <p>Use this when the evolved Race already exists. Most new Evolutions should use Create Evolution Destination instead.</p>
+      <p>The current Race is excluded because an Evolution must lead to a different saved Race definition.</p>
       <fieldset disabled={busy} className={styles.fields}>
         <GuidedField className="st-field" label="Evolution name" help="Name this path, for example Awaken as an Ascended Human. The destination remains a separate saved Race.">
           <input className="st-control" required value={input.name} onChange={event => setInput({ ...input, name: event.target.value })} />

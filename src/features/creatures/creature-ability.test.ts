@@ -25,7 +25,6 @@ import {
 
 const serviceSource = readFileSync("src/features/creatures/creature-ability-runtime-service.ts", "utf8");
 const runtimeSource = readFileSync("src/features/creatures/creature-ability-runtime.ts", "utf8");
-const creatureActionsSource = readFileSync("src/app/heavens/creatures/actions.ts", "utf8");
 const npcActionsSource = readFileSync("src/app/heavens/npcs/actions.ts", "utf8");
 const npcConstructorSource = readFileSync("src/features/creatures/creature-npc-constructor-service.ts", "utf8");
 const npcWorkspaceSource = readFileSync("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx", "utf8");
@@ -198,7 +197,7 @@ test("11.13 Variant Ability effects are deep-copied independently", () => {
   const variant = copyCreatureAbility(parent);
   assert.notEqual(variant.effects, parent.effects);
   assert.notEqual(variant.effects[0]!.effect, parent.effects[0]!.effect);
-  assert.match(creatureActionsSource, /insert into creature_ability_effects/);
+  assert.match(readFileSync("src/features/creatures/creature-clone-service.ts", "utf8"), /insert into creature_ability_effects/);
 });
 
 test("11.14 Parent changes do not mutate copied variant effects", () => {

@@ -1,4 +1,6 @@
 "use client";
+import { EvolutionDestinationDialog } from "../evolution-destination-dialog";
+import type { CreatedEvolutionDestination } from "@/features/evolutions/evolution-destination";
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { evolutionDestinationLabel, type CreatureEvolutionPath, type EvolutionDestination, type EvolutionPathInput } from "@/features/creatures/creature-evolutions";
@@ -6,7 +8,8 @@ import { getCreatureEvolutions, reorderEvolutionPaths, removeEvolutionPath, save
 import styles from "./creature-evolutions.module.css";
 import { EvolutionEligibilityDialog, EvolutionRequirementsDialog } from "../evolution-requirements-editor";
 
-export function CreatureEvolutionsEditor({ sourceCreatureId, dirty, archived }: { sourceCreatureId?: number; dirty: boolean; archived: boolean }) {
+export function CreatureEvolutionsEditor({ sourceCreatureId, dirty, archived, onDestinationCreated }: { sourceCreatureId?: number; dirty: boolean; archived: boolean; onDestinationCreated: (result: CreatedEvolutionDestination) => Promise<void> }) {
+  const [creating, setCreating] = useState(false);
   const [paths, setPaths] = useState<CreatureEvolutionPath[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,12 +51,14 @@ export function CreatureEvolutionsEditor({ sourceCreatureId, dirty, archived }: 
   return <section className={styles.area} aria-label="Evolution paths">
     <h3>Evolutions</h3>
     <p>Define possible progressions from this Creature to another saved Creature. Forms are alternate states within a definition; Evolutions connect different definitions.</p>
+    <p>Create Evolution Destination makes a new full Creature from this source and opens its editor. Link Existing Destination is the advanced option for a Creature that already exists.</p>
     <p>Paths and requirements save separately. Eligibility previews check saved individual facts without changing them. Checking eligibility does not perform an Evolution.</p>
     {!sourceCreatureId ? <p>Save this Creature before adding Evolution paths.</p> : <>
       {dirty ? <p>Save your Creature changes before editing Evolutions.</p> : null}
       {archived ? <p>Restore this Creature to edit its Evolution paths.</p> : !loading && !canEdit ? <p>You can view these paths. Editing follows the source Creature&apos;s authoring permissions.</p> : null}
       <div className={styles.actions}>
-        <button className="st-button is-primary" type="button" disabled={disabled} onClick={() => setEditing({ path: null })}>Add Evolution</button>
+        <button className="st-button is-primary" type="button" disabled={disabled} onClick={() => setCreating(true)}>Create Evolution Destination</button>
+        <button className="st-button" type="button" disabled={disabled} onClick={() => setEditing({ path: null })}>Link Existing Destination</button>
         <button className="st-button" type="button" disabled={busy || loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}>Reload Evolutions</button>
       </div>
       {error ? <p role="alert">{error}</p> : null}
@@ -77,6 +82,7 @@ export function CreatureEvolutionsEditor({ sourceCreatureId, dirty, archived }: 
           </div>
         </li>)}
       </ol>}
+      {creating ? <EvolutionDestinationDialog kind="creature" sourceId={sourceCreatureId} onClose={() => setCreating(false)} onCreated={onDestinationCreated} /> : null}
       {editing ? <EvolutionDialog sourceCreatureId={sourceCreatureId} path={editing.path} onClose={() => setEditing(null)} onSaved={next => saved(next, "Evolution path saved.")} /> : null}
       {removing ? <RemoveDialog path={removing} onClose={() => setRemoving(null)} onSaved={next => saved(next, "Evolution path removed.")} /> : null}
       {requirements ? <EvolutionRequirementsDialog kind="creature" path={requirements} onClose={() => setRequirements(null)} onSaved={next => saved(next,"Evolution requirements saved.")} /> : null}
@@ -120,7 +126,9 @@ function EvolutionDialog({ sourceCreatureId, path, onClose, onSaved }: {
   }
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="evolution-dialog-title" onCancel={event => { if (busy) event.preventDefault(); else onClose(); }}>
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
-      <h3 id="evolution-dialog-title">{path ? "Edit Evolution" : "Add Evolution"}</h3>
+      <h3 id="evolution-dialog-title">{path ? "Edit Evolution" : "Link Existing Destination"}</h3>
+      <p>Use this when the evolved Creature already exists. Most new Evolutions should use Create Evolution Destination instead.</p>
+      <p>The current Creature is excluded because an Evolution must lead to a different saved Creature definition.</p>
       <fieldset disabled={busy} className={styles.fields}>
         <GuidedField className="st-field" label="Evolution name" help="Name this path, for example Mature into an Adult Fire Drake. The destination remains a separate saved Creature.">
           <input className="st-control" required value={input.name} onChange={event => setInput({ ...input, name: event.target.value })} />
