@@ -5,6 +5,7 @@ import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source
 
 import { Field, formatCreatureNumber, SectionHeading, Stats, HpAndLocations, Combat, Special } from "./creature-mechanics-editors";
 import { CreatureFormsEditor } from "./creature-forms-editor";
+import { CreatureEvolutionsEditor } from "./creature-evolutions-editor";
 
 
 import { CreatureHarvestUtilityEditor } from "@/app/heavens/creatures/creature-authoring-editor";
@@ -40,7 +41,7 @@ import {
   type CreatureSummary,
 } from "./actions";
 
-type Tab = "overview" | "stats" | "hp" | "combat" | "special" | "cr" | "preview" | "forms";
+type Tab = "overview" | "stats" | "hp" | "combat" | "special" | "cr" | "preview" | "forms" | "evolutions";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -49,6 +50,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "combat", label: "Combat" },
   { id: "special", label: "Abilities & Defenses" },
   { id: "forms", label: "Forms" },
+  { id: "evolutions", label: "Evolutions" },
   { id: "cr", label: "Variants & CR" },
   { id: "preview", label: "Preview" },
 ];
@@ -324,6 +326,7 @@ export function CreatureWorkspace({
           {activeTab === "combat" ? <Combat draft={draft} onChange={change} /> : null}
           {activeTab === "special" ? <Special draft={draft} onChange={change} /> : null}
           {activeTab === "forms" ? <CreatureFormsEditor draft={draft} onChange={change} /> : null}
+          {activeTab === "evolutions" ? <CreatureEvolutionsEditor key={draft.id ?? "new"} sourceCreatureId={draft.id} dirty={dirty || saving} archived={isArchived} /> : null}
           {activeTab === "cr" ? <VariantsAndCr draft={liveChallengeRating.draft ?? draft} references={references} onChange={change} onOpen={(summary) => void openCreature(summary)} onSaved={(saved) => { setDraft(saved); setDirty(false); void loadLibrary(filters); }} /> : null}
           {activeTab === "preview" ? <Preview draft={liveChallengeRating.draft ?? draft} /> : null}
         </fieldset>

@@ -1,0 +1,16 @@
+.area { display: grid; gap: 1rem; min-width: 0; color: var(--st-text); }
+.area h3, .area h4, .dialog h3 { color: var(--st-text-strong); }
+.area p, .dialog p { overflow-wrap: anywhere; }
+.paths { display: grid; gap: 1rem; list-style: none; padding: 0; margin: 0; }
+.card { display: grid; gap: .75rem; padding: 1rem; border: 1px solid var(--st-border); border-radius: .75rem; background: var(--st-surface); min-width: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.prose { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dialog { width: min(42rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); overflow-y: auto; margin: auto; padding: 1.25rem; border: 1px solid var(--st-border-strong); border-radius: 1rem; background: var(--st-surface-raised); color: var(--st-text); box-shadow: 0 1.25rem 3rem var(--st-shadow); }
+.dialog::backdrop { background: color-mix(in srgb, var(--st-page) 80%, transparent); }
+.dialog form, .fields { display: grid; gap: 1rem; min-width: 0; }
+.fields { margin: 0; padding: 0; border: 0; }
+.fields input, .fields select, .fields textarea { width: 100%; min-width: 0; max-width: 100%; }
+@media (max-width: 600px) {
+  .actions button { min-height: 44px; }
+  .dialog { padding: 1rem; }
+}

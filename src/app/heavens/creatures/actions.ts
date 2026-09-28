@@ -3,6 +3,7 @@ import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catal
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction, cloneCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
+import { cloneCreatureEvolutionsInTransaction } from "@/features/creatures/creature-evolution-service";
 import { normalizeCreatureDefinition as normalize } from "@/features/creatures/creature-definition";
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
@@ -604,7 +605,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       .select()
       .from(creature)
       .where(eq(creature.id, parentCreatureId))
-      .limit(1);
+      .limit(1).for("no key update");
     if (!parent) throw new Error("Parent Creature not found.");
     assertCanEditSharedLibraryRoot(
       { userId: session.user.id, roles },
@@ -846,6 +847,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       where source.creature_id = ${parentCreatureId} and source.variant_id is null
     `);
     await cloneCreatureFormsInTransaction(tx, parentCreatureId, created.id, new Map(accessAbilityCopies.rows.map(row => [row.source_id, row.copied_id])));
+    await cloneCreatureEvolutionsInTransaction(tx, parentCreatureId, created.id);
     return created.id;
   });
 

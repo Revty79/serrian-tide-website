@@ -57,6 +57,8 @@ next-env.d.ts
 /.next-creature-authoring-browser/
 /.next-creature-ownership-browser/
 /.next-creature-ownership-build/
+/.next-evolution-browser/
+/.next-evolution-build/
 /.next-creature-authoring-build/
 /artifacts/creature-authoring/
 /artifacts/creature-authoring-*.log

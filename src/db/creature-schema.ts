@@ -25,6 +25,27 @@ import { user } from "./auth-schema";
 import { systemCanonColumns, systemCanonStateCheck } from "./system-canon-columns";
 import { skill } from "./skill-schema";
 
+// Authoring only: exact saved definitions, independent of Forms and NPC snapshots.
+export const creatureEvolutionPath = pgTable("creature_evolution_paths", {
+  id: serial("id").primaryKey(),
+  sourceCreatureId: integer("source_creature_id").notNull().references(() => creature.id, { onDelete: "cascade" }),
+  destinationCreatureId: integer("destination_creature_id").notNull().references(() => creature.id, { onDelete: "restrict" }),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, table => [
+  index("creature_evolution_source_order").on(table.sourceCreatureId, table.sortOrder, table.id),
+  index("creature_evolution_destination").on(table.destinationCreatureId),
+  check("creature_evolution_not_self", sql`${table.sourceCreatureId} <> ${table.destinationCreatureId}`),
+  check("creature_evolution_name", sql`length(trim(${table.name})) > 0`),
+  check("creature_evolution_order", sql`${table.sortOrder} >= 0`),
+  check("creature_evolution_version", sql`${table.version} > 0`),
+]);
+
 // Exact creatures.id includes independent authored variants. No parent-chain Form inheritance.
 export const creatureForm = pgTable("creature_forms", {
   id: serial("id").primaryKey(),
