@@ -144,6 +144,8 @@ export const campaignCharacter = pgTable(
     npcKind: text("npc_kind").default("race").notNull(),
     npcBuildMode: text("npc_build_mode"),
     npcRoleLabel: text("npc_role_label").default("").notNull(),
+    // Individual Creature ownership is separate from the account controlling this NPC.
+    ownerCharacterId: integer("owner_character_id"),
     archivedAt: timestamp("archived_at"),
     archivedByUserId: text("archived_by_user_id").references(() => user.id, {
       onDelete: "set null",
@@ -158,6 +160,16 @@ export const campaignCharacter = pgTable(
     }).onDelete("cascade"),
     index("campaign_character_campaign_id_idx").on(table.campaignId),
     uniqueIndex("campaign_character_id_campaign_uq").on(table.id, table.campaignId),
+    foreignKey({
+      columns: [table.ownerCharacterId, table.campaignId],
+      foreignColumns: [table.id, table.campaignId],
+      name: "campaign_character_creature_owner_fk",
+    }).onDelete("restrict"),
+    index("campaign_character_creature_owner_idx").on(table.ownerCharacterId, table.campaignId),
+    check(
+      "campaign_character_creature_owner_valid",
+      sql`${table.ownerCharacterId} IS NULL OR (${table.isNpc} = true AND ${table.npcKind} = 'creature' AND ${table.ownerCharacterId} <> ${table.id})`,
+    ),
     index("campaign_character_player_user_id_idx").on(table.playerUserId),
     index("campaign_character_player_campaign_idx").on(
       table.playerUserId,

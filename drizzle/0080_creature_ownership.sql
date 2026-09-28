@@ -1,0 +1,4 @@
+ALTER TABLE "campaign_character" ADD COLUMN "owner_character_id" integer;--> statement-breakpoint
+ALTER TABLE "campaign_character" ADD CONSTRAINT "campaign_character_creature_owner_fk" FOREIGN KEY ("owner_character_id","campaign_id") REFERENCES "public"."campaign_character"("id","campaign_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "campaign_character_creature_owner_idx" ON "campaign_character" USING btree ("owner_character_id","campaign_id");--> statement-breakpoint
+ALTER TABLE "campaign_character" ADD CONSTRAINT "campaign_character_creature_owner_valid" CHECK ("campaign_character"."owner_character_id" IS NULL OR ("campaign_character"."is_npc" = true AND "campaign_character"."npc_kind" = 'creature' AND "campaign_character"."owner_character_id" <> "campaign_character"."id"));

@@ -127,6 +127,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
 
 /** Nullable self-references must be detached before their table is removed. */
 export const CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS = [
+  { tableName: "campaign_character", columnName: "owner_character_id", scope: "campaign" },
   { tableName: "campaign_character_skill_allocation", columnName: "parent_allocation_id", scope: "character" },
   { tableName: "campaign_session_encounter_action_declaration", columnName: "supersedes_declaration_id", scope: "campaign" },
   { tableName: "campaign_session_encounter_reaction", columnName: "opposes_reaction_id", scope: "campaign" },

@@ -21,6 +21,7 @@ export type CreateNpcValues = {
   roleLabel: string;
   personalityDescription?: string;
   notes?: string;
+  ownerCharacterId?: number | null;
 };
 
 export type NormalizedCreateNpcValues = Omit<
@@ -61,6 +62,9 @@ export function normalizeCreateNpcValues(
   if (!NPC_BUILD_MODES.includes(input.buildMode)) {
     throw new Error("NPC Build Mode must be Simple or Detailed.");
   }
+  if (input.ownerCharacterId != null && input.origin !== "creature") {
+    throw new Error("Only individual Creature NPCs can have an owning Character.");
+  }
   return {
     campaignId: positiveId(input.campaignId, "Campaign"),
     origin: input.origin,
@@ -70,6 +74,9 @@ export function normalizeCreateNpcValues(
     roleLabel: requiredText(input.roleLabel, "NPC Role / Label"),
     personalityDescription: input.personalityDescription?.trim() ?? "",
     notes: input.notes?.trim() ?? "",
+    ...(input.ownerCharacterId == null ? {} : {
+      ownerCharacterId: positiveId(input.ownerCharacterId, "Owning Character"),
+    }),
   };
 }
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
+import { GuidedField } from "@/components/field-guidance";
 import {
   getDetailedNpcHref,
   matchesNpcSearch,
@@ -18,12 +19,15 @@ import {
   getSimpleNpc,
   listNpcArchive,
   listNpcOrigins,
+  listCreatureOwners,
+  setCreatureNpcOwner,
   saveSimpleNpc,
   upgradeNpcToDetailed,
   type NpcArchiveRecord,
   type NpcCampaignSummary,
   type NpcOriginOption,
   type SimpleNpcDraft,
+  type CreatureOwnerOption,
 } from "./actions";
 
 type Feedback = { kind: "success" | "error"; message: string } | null;
@@ -36,7 +40,19 @@ const EMPTY_CREATE_FORM = {
   roleLabel: "",
   personalityDescription: "",
   notes: "",
+  ownerCharacterId: "",
 };
+
+function OwnerField({ value, onChange, owners, disabled }: {
+  value: string; onChange: (value: string) => void; owners: CreatureOwnerOption[]; disabled: boolean;
+}) {
+  return <GuidedField label="Owning Character" help="Choose a Player Character or Race NPC in this Campaign. Unassigned keeps an ordinary Creature NPC. Changing the owner keeps this same individual, including its health and notes. Ownership grants no Creature statistics or carried weight to the Character, and does not grant NPC editing permissions.">
+    <select className="st-control" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+      <option value="">Unassigned</option>
+      {owners.map((owner) => <option key={owner.id} value={owner.id} disabled={owner.archived}>{owner.name} (#{owner.id}{owner.isNpc ? ", Race NPC" : ""}){owner.archived ? " [Archived]" : ""}</option>)}
+    </select>
+  </GuidedField>;
+}
 
 function lifecycleKind(npc: NpcArchiveRecord): "race-npc" | "creature-npc" {
   return npc.npcKind === "creature" ? "creature-npc" : "race-npc";
@@ -69,6 +85,9 @@ export function NpcWorkspace({
   const [status, setStatus] = useState<NpcArchiveStatus>(initialStatus);
   const [records, setRecords] = useState<NpcArchiveRecord[]>([]);
   const [origins, setOrigins] = useState<NpcOriginOption[]>([]);
+  const [owners, setOwners] = useState<CreatureOwnerOption[]>([]);
+  const ownerDialogRef = useRef<HTMLDialogElement>(null);
+  const [ownershipDraft, setOwnershipDraft] = useState<{ npc: NpcArchiveRecord; ownerId: string } | null>(null);
   const [search, setSearch] = useState("");
   const [sourceSearch, setSourceSearch] = useState("");
   const [creation, setCreation] = useState(EMPTY_CREATE_FORM);
@@ -78,12 +97,14 @@ export function NpcWorkspace({
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   async function loadCampaign(nextCampaignId: number, nextStatus: NpcArchiveStatus) {
-    const [nextRecords, nextOrigins] = await Promise.all([
+    const [nextRecords, nextOrigins, nextOwners] = await Promise.all([
       listNpcArchive(nextCampaignId, nextStatus),
       listNpcOrigins(nextCampaignId),
+      listCreatureOwners(nextCampaignId),
     ]);
     setRecords(nextRecords);
     setOrigins(nextOrigins);
+    setOwners(nextOwners);
   }
 
   useEffect(() => {
@@ -93,11 +114,13 @@ export function NpcWorkspace({
       listNpcArchive(Number(initialCampaign), initialStatus),
       listNpcOrigins(Number(initialCampaign)),
       initialSimpleNpcId === null ? Promise.resolve(null) : getSimpleNpc(initialSimpleNpcId),
+      listCreatureOwners(Number(initialCampaign)),
     ])
-      .then(([nextRecords, nextOrigins, requestedSimpleNpc]) => {
+      .then(([nextRecords, nextOrigins, requestedSimpleNpc, nextOwners]) => {
         if (!active) return;
         setRecords(nextRecords);
         setOrigins(nextOrigins);
+        setOwners(nextOwners);
         if (requestedSimpleNpc) {
           if (
             requestedSimpleNpc.campaignId !== Number(initialCampaign)
@@ -134,7 +157,12 @@ export function NpcWorkspace({
     if (!campaignId) return;
     setLoading(true);
     try {
-      setRecords(await listNpcArchive(Number(campaignId), nextStatus));
+      const [nextRecords, nextOwners] = await Promise.all([
+        listNpcArchive(Number(campaignId), nextStatus),
+        listCreatureOwners(Number(campaignId)),
+      ]);
+      setRecords(nextRecords);
+      setOwners(nextOwners);
     } finally {
       setLoading(false);
     }
@@ -147,6 +175,7 @@ export function NpcWorkspace({
       setSearch("");
       setRecords([]);
       setOrigins([]);
+      setOwners([]);
       setSimpleDraft(null);
       setFeedback(null);
       if (!nextCampaignId) {
@@ -210,6 +239,7 @@ export function NpcWorkspace({
           roleLabel: creation.roleLabel,
           personalityDescription: creation.personalityDescription,
           notes: creation.notes,
+          ownerCharacterId: creation.origin === "creature" && creation.ownerCharacterId ? Number(creation.ownerCharacterId) : null,
         });
         createDialogRef.current?.close();
         if (created.href) {
@@ -241,6 +271,27 @@ export function NpcWorkspace({
         setBusy(false);
       }
     });
+  }
+
+  async function saveOwnership(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!ownershipDraft) return;
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await setCreatureNpcOwner({
+        campaignId: ownershipDraft.npc.campaignId,
+        characterId: ownershipDraft.npc.id,
+        ownerCharacterId: ownershipDraft.ownerId ? Number(ownershipDraft.ownerId) : null,
+      });
+      ownerDialogRef.current?.close();
+      await refresh();
+      setFeedback({ kind: "success", message: `${ownershipDraft.npc.name}'s ownership was saved.` });
+    } catch (error) {
+      setFeedback({ kind: "error", message: messageFrom(error, "Ownership could not be saved.") });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveSimple(): Promise<void> {
@@ -346,7 +397,13 @@ export function NpcWorkspace({
               <p>{npc.roleLabel || "No role label"}</p>
               <dl><div><dt>Kind</dt><dd>{npc.npcKind === "creature" ? "Creature NPC" : "Race NPC"}</dd></div><div><dt>Build</dt><dd>{npc.buildMode === "simple" ? "Simple" : "Detailed"}</dd></div><div><dt>Source</dt><dd>{npc.sourceName}</dd></div></dl>
               {npc.archiveReason ? <small>Archive note: {npc.archiveReason}</small> : null}
+              {npc.npcKind === "creature" ? <p>Owner: {npc.ownerCharacterId === null ? "Unassigned" : `${owners.find(({ id }) => id === npc.ownerCharacterId)?.name ?? "Character"} (#${npc.ownerCharacterId})`}</p> : null}
               <footer>
+                {npc.npcKind === "creature" ? <button type="button" disabled={busy || npc.status === "archived" || selectedCampaign?.archived} onClick={() => {
+                  setOwnershipDraft({ npc, ownerId: npc.ownerCharacterId === null ? "" : String(npc.ownerCharacterId) });
+                  setFeedback(null);
+                  ownerDialogRef.current?.showModal();
+                }}>Change Owner</button> : null}
                 {npc.buildMode === "simple"
                   ? <button type="button" disabled={busy} onClick={() => void openSimple(npc.id)}>Open Simple Editor</button>
                   : <Link href={detailedHref}>Open Detailed Editor</Link>}
@@ -388,9 +445,24 @@ export function NpcWorkspace({
           <label><span>Source Master</span><select required value={creation.sourceId} onChange={(event) => setCreation({ ...creation, sourceId: event.target.value })}><option value="">Choose {creation.origin === "race" ? "Race" : "Creature"}</option>{matchingOrigins.map((entry) => <option key={`${entry.origin}-${entry.id}`} value={entry.id}>{entry.name} · {entry.detail}</option>)}</select></label>
           <label><span>NPC Name</span><input required value={creation.name} onChange={(event) => setCreation({ ...creation, name: event.target.value })} /></label>
           <label><span>Role / Label</span><input required placeholder="Innkeeper, guide, rival…" value={creation.roleLabel} onChange={(event) => setCreation({ ...creation, roleLabel: event.target.value })} /></label>
-          {creation.buildMode === "simple" ? <><label><span>Short Personality / Description</span><textarea rows={3} value={creation.personalityDescription} onChange={(event) => setCreation({ ...creation, personalityDescription: event.target.value })} /></label><label><span>Notes</span><textarea rows={3} value={creation.notes} onChange={(event) => setCreation({ ...creation, notes: event.target.value })} /></label></> : null}
+          {creation.origin === "creature" ? <OwnerField value={creation.ownerCharacterId} owners={owners} disabled={busy} onChange={(ownerCharacterId) => setCreation({ ...creation, ownerCharacterId })} /> : null}
+          {creation.buildMode === "simple" ? <label><span>Short Personality / Description</span><textarea rows={3} value={creation.personalityDescription} onChange={(event) => setCreation({ ...creation, personalityDescription: event.target.value })} /></label> : null}
+          {creation.buildMode === "simple" || creation.origin === "creature" ? <GuidedField label="Notes" help="Notes about this individual, such as how it joined the Campaign. These stay with this NPC when its owner changes."><textarea className="st-control" rows={3} value={creation.notes} onChange={(event) => setCreation({ ...creation, notes: event.target.value })} /></GuidedField> : null}
+          {feedback?.kind === "error" ? <p role="alert">{feedback.message}</p> : null}
         </div>
         <footer><span>{creation.buildMode === "detailed" ? "The full existing editor opens after creation." : "The compact editor opens in this archive."}</span><button type="submit" disabled={busy || !creation.sourceId}>{busy ? "Creating…" : `Create ${creation.buildMode === "simple" ? "Simple" : "Detailed"} NPC`}</button></footer>
+      </form>
+    </dialog>
+
+    <dialog ref={ownerDialogRef} className="npcs-dialog npcs-dialog--small" aria-labelledby="creature-owner-heading" onCancel={(event) => { if (busy) event.preventDefault(); }}>
+      <form onSubmit={(event) => void saveOwnership(event)}>
+        <header><h2 id="creature-owner-heading">Owner of {ownershipDraft?.npc.name}</h2><button type="button" disabled={busy} onClick={() => ownerDialogRef.current?.close()}>Close</button></header>
+        <div className="npcs-dialog-body">
+          {ownershipDraft ? <OwnerField value={ownershipDraft.ownerId} owners={owners} disabled={busy} onChange={(ownerId) => setOwnershipDraft({ ...ownershipDraft, ownerId })} /> : null}
+          <p>Unassigned removes ownership and keeps this Creature in the Campaign.</p>
+          {feedback?.kind === "error" ? <p role="alert">{feedback.message}</p> : null}
+        </div>
+        <footer><button type="submit" disabled={busy}>{busy ? "Saving…" : "Save Ownership"}</button></footer>
       </form>
     </dialog>
 

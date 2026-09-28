@@ -308,6 +308,7 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
 
 function characterDependencySpecs(characterId: number, campaignId: number): DependencySpec[] {
   return [
+    { label: "Owned Creatures (reassign or remove ownership before deleting this Character)", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character where owner_character_id = ${characterId} and campaign_id = ${campaignId}` },
     { label: "Scene and Session award history", blocking: true, query: sql<CountRow>`select count(*)::int as value from tabletop_closeout_award where campaign_id = ${campaignId} and character_id = ${characterId}` },
     { label: "Tabletop Spell and Item ruling requests", blocking: true, query: sql<CountRow>`select count(*)::int as value from tabletop_source_use_request where campaign_id = ${campaignId} and character_id = ${characterId}` },
     { label: "Character profile", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_character_profile where character_id = ${characterId}` },

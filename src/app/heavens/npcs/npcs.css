@@ -317,6 +317,7 @@
 .npcs-simple-editor > footer > div { display: flex; gap: 7px; }
 
 .npcs-dialog {
+  margin: auto;
   width: min(720px, calc(100vw - 28px));
   max-height: min(820px, calc(100vh - 28px));
   overflow: hidden;

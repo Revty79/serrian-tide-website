@@ -55,6 +55,8 @@ yarn-error.log*
 next-env.d.ts
 
 /.next-creature-authoring-browser/
+/.next-creature-ownership-browser/
+/.next-creature-ownership-build/
 /.next-creature-authoring-build/
 /artifacts/creature-authoring/
 /artifacts/creature-authoring-*.log
